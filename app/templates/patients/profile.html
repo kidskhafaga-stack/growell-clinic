@@ -1,0 +1,238 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% set active_module = 'patients' %}
+{% block title %}{{ patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('patients.profile') }}{% endblock %}
+
+{% block content %}
+<div x-data="{
+        tab: (window.location.hash || '#overview').substring(1),
+        showParent: false
+     }"
+     x-init="window.addEventListener('hashchange', () => tab = (window.location.hash||'#overview').substring(1))">
+
+  <!-- Header -->
+  <div class="card profile-header gc-scale-in">
+    {{ patient_avatar(patient, 'lg') }}
+    <div style="flex:1;min-width:240px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h1 style="margin:0;font-size:1.5rem;">{{ patient.display_name(current_lang) }}</h1>
+        <span class="badge badge--role" title="{{ t('patients.system_number') }}">{{ patient.patient_number }}</span>
+        {% if patient.reference_number %}<span class="badge badge--muted" title="{{ t('patients.reference_number') }}"><i class="bi bi-archive"></i> {{ patient.reference_number }}</span>{% endif %}
+        {% if not patient.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
+      </div>
+      <div class="meta-row">
+        <span><i class="bi bi-gender-ambiguous"></i> <b>{{ t('genders.' ~ patient.gender) }}</b></span>
+        <span><i class="bi bi-cake2"></i> <b>{{ age_label(patient) }}</b></span>
+        {% if patient.blood_type %}<span><i class="bi bi-droplet"></i> <b>{{ patient.blood_type }}</b></span>{% endif %}
+        {% if patient.family %}<span><i class="bi bi-house-heart"></i> <b>{{ patient.family.display_name(current_lang) }}</b></span>{% endif %}
+      </div>
+      {% if patient.has_alerts %}
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        {% if patient.allergies %}<span class="alert-pill danger"><i class="bi bi-exclamation-octagon"></i> {{ t('patients.allergies') }}</span>{% endif %}
+        {% if patient.chronic_diseases %}<span class="alert-pill warn"><i class="bi bi-heart-pulse"></i> {{ t('patients.chronic_diseases') }}</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('patients.edit', patient_id=patient.id) }}">
+        <i class="bi bi-pencil"></i> {{ t('common.edit') }}
+      </a>
+      <form method="post" action="{{ url_for('patients.delete', patient_id=patient.id) }}"
+            onsubmit="return confirm('{{ t('common.confirm') }}?');">
+        <button class="btn btn-danger btn-sm gc-press" type="submit" style="width:100%;">
+          <i class="bi bi-trash"></i> {{ t('common.delete') }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="card gc-animate" style="animation-delay:0.08s;">
+    <div class="gc-tabs">
+      {% set tabs = [
+        ('overview','tab_overview','clipboard2-data'),
+        ('family','tab_family','people'),
+        ('visits','tab_visits','clipboard2-pulse'),
+        ('growth','tab_growth','graph-up'),
+        ('vaccinations','tab_vaccinations','shield-plus'),
+        ('prescriptions','tab_prescriptions','capsule'),
+        ('documents','tab_documents','folder'),
+        ('finance','tab_finance','cash-coin')
+      ] %}
+      {% for key, label, icon in tabs %}
+      <button class="gc-tab" :class="tab==='{{ key }}' && 'active'"
+              x-on:click="tab='{{ key }}'; history.replaceState(null,'','#{{ key }}')">
+        <i class="bi bi-{{ icon }}"></i> {{ t('patients.' ~ label) }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Overview -->
+    <div class="gc-tab-panel" x-show="tab==='overview'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-person-lines-fill"></i> {{ t('patients.basic_info') }}</h3>
+      <div class="info-grid">
+        <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.reference_number') }}</div><div class="v">{{ patient.reference_number or '—' }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.full_name_en') }}</div><div class="v">{{ patient.full_name_en or '—' }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.dob') }}</div><div class="v">{{ patient.date_of_birth.strftime('%Y-%m-%d') }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(patient) }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ patient.gender) }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.national_id') }}</div><div class="v">{{ patient.national_id or '—' }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.blood_type') }}</div><div class="v">{{ patient.blood_type or '—' }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.registered_on') }}</div><div class="v">{{ patient.created_at.strftime('%Y-%m-%d') }}</div></div>
+      </div>
+
+      <h3 class="section-title" style="margin-top:24px;"><i class="bi bi-exclamation-triangle"></i> {{ t('patients.medical_alerts') }}</h3>
+      {% if patient.has_alerts or patient.notes %}
+        {% if patient.allergies %}
+        <div style="margin-bottom:10px;"><span class="alert-pill danger">{{ t('patients.allergies') }}</span>
+          <div style="margin-top:6px;">{{ patient.allergies }}</div></div>
+        {% endif %}
+        {% if patient.chronic_diseases %}
+        <div style="margin-bottom:10px;"><span class="alert-pill warn">{{ t('patients.chronic_diseases') }}</span>
+          <div style="margin-top:6px;">{{ patient.chronic_diseases }}</div></div>
+        {% endif %}
+        {% if patient.notes %}
+        <div class="info-item"><div class="k">{{ t('patients.notes') }}</div><div class="v">{{ patient.notes }}</div></div>
+        {% endif %}
+      {% else %}
+        <p style="color:var(--muted);">{{ t('patients.no_alerts') }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Family -->
+    <div class="gc-tab-panel" x-show="tab==='family'" x-cloak>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-people"></i> {{ t('patients.parents') }}</h3>
+        <button class="btn btn-primary btn-sm gc-press gc-ripple" x-on:click="showParent=true">
+          <i class="bi bi-person-plus"></i> {{ t('patients.add_parent') }}
+        </button>
+      </div>
+
+      {% set parents = patient.family.parents if patient.family else [] %}
+      {% if parents %}
+      <div class="info-grid gc-stagger" style="margin-top:16px;">
+        {% for parent in parents %}
+        <div class="card gc-lift" style="box-shadow:none;border:1px solid var(--line);">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;">
+            <div>
+              <div style="font-weight:600;">{{ parent.display_name(current_lang) }}
+                {% if parent.is_primary_contact %}<i class="bi bi-star-fill" style="color:#f0ad4e;font-size:0.8rem;" title="{{ t('patients.primary_contact') }}"></i>{% endif %}
+              </div>
+              <div style="font-size:0.82rem;color:var(--muted);">{{ t('relations.' ~ parent.relation) }}</div>
+            </div>
+            <span class="badge badge--green">{{ t('categories.' ~ parent.client_category) }}</span>
+          </div>
+          <div class="meta-row" style="margin-top:8px;">
+            {% if parent.phone %}<span><i class="bi bi-telephone"></i> {{ parent.phone }}</span>{% endif %}
+            {% if parent.occupation %}<span><i class="bi bi-briefcase"></i> {{ parent.occupation }}</span>{% endif %}
+          </div>
+          <form method="post" action="{{ url_for('patients.delete_parent', parent_id=parent.id) }}"
+                style="margin-top:8px;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <input type="hidden" name="patient_id" value="{{ patient.id }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);margin-top:14px;">{{ t('patients.no_parents') }}</p>
+      {% endif %}
+
+      <!-- Siblings -->
+      <h3 class="section-title" style="margin-top:26px;"><i class="bi bi-diagram-3"></i> {{ t('patients.siblings') }}</h3>
+      {% set sibs = patient.siblings %}
+      {% if sibs %}
+      <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
+        {% for s in sibs %}
+        <a class="patient-row card gc-lift" href="{{ url_for('patients.view', patient_id=s.id) }}"
+           style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;">
+          {{ patient_avatar(s, 'sm') }}
+          <div style="flex:1;">
+            <div class="name">{{ s.display_name(current_lang) }}</div>
+            <div class="num">{{ s.patient_number }} · {{ age_label(s) }}</div>
+          </div>
+          <i class="bi bi-chevron-{{ 'left' if direction == 'rtl' else 'right' }}" style="color:var(--muted);"></i>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('patients.no_siblings') }}</p>
+      {% endif %}
+      {% if patient.family %}
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:12px;"
+         href="{{ url_for('patients.create', family_id=patient.family_id) }}">
+        <i class="bi bi-person-plus"></i> {{ t('patients.add_sibling') }}
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Placeholder tabs for later phases -->
+    {% for key in ['visits','growth','vaccinations','prescriptions','documents','finance'] %}
+    <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
+      <div class="empty-state">
+        <i class="bi bi-hourglass-split"></i>
+        <div style="font-weight:600;">{{ t('common.coming_soon') }}</div>
+        <p>{{ t('patients.tab_phase_notice') }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Add parent modal -->
+  <div class="gc-overlay" x-show="showParent" x-cloak x-transition.opacity
+       x-on:click.self="showParent=false">
+    <div class="gc-modal gc-scale-in" x-on:keydown.escape.window="showParent=false">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;">{{ t('patients.add_parent') }}</h3>
+        <button class="btn btn-outline btn-sm gc-press" x-on:click="showParent=false"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <form method="post" action="{{ url_for('patients.add_parent', patient_id=patient.id) }}">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>{{ t('patients.parent_name') }} *</label>
+            <input class="input" name="full_name" required>
+          </div>
+          <div class="form-row">
+            <label>{{ t('patients.relation') }}</label>
+            <select class="select" name="relation">
+              {% for r in relations %}<option value="{{ r }}">{{ t('relations.' ~ r) }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <label>{{ t('patients.phone') }}</label>
+            <input class="input" name="phone" dir="ltr">
+          </div>
+          <div class="form-row">
+            <label>{{ t('patients.client_category') }}</label>
+            <select class="select" name="client_category">
+              {% for c in categories %}<option value="{{ c }}">{{ t('categories.' ~ c) }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <label>{{ t('patients.occupation') }}</label>
+            <input class="input" name="occupation">
+          </div>
+          <div class="form-row">
+            <label>{{ t('patients.email') }}</label>
+            <input class="input" type="email" name="email" dir="ltr">
+          </div>
+        </div>
+        <div class="form-row checkbox">
+          <input type="checkbox" id="is_primary_contact" name="is_primary_contact" value="1">
+          <label for="is_primary_contact" style="margin:0;font-weight:400;">{{ t('patients.primary_contact') }}</label>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+          <button class="btn btn-outline gc-press" type="button" x-on:click="showParent=false">{{ t('common.cancel') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>[x-cloak]{ display:none !important; }</style>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{# Authenticated application shell: gradient sidebar + topbar. #}
+
+{% block body %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <div class="logo"><i class="bi bi-heart-pulse"></i></div>
+      <div>
+        <div class="name">{{ t('app.name') }}</div>
+        <div class="tag">{{ t('app.tagline') }}</div>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav gc-stagger">
+      {% for module in ALL_MODULES %}
+        {% if current_user.can_access(module) %}
+          {% set endpoint = MODULE_ENDPOINTS.get(module) %}
+          <a class="nav-item gc-press {{ 'active' if active_module == module else '' }}"
+             href="{{ url_for(endpoint) if endpoint else '#' }}"
+             {% if not endpoint %}title="{{ t('dashboard.phase_notice') }}"{% endif %}>
+            <i class="bi bi-{{ MODULE_ICONS.get(module, 'dot') }}"></i>
+            <span>{{ t('nav.' ~ module) }}</span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div class="sidebar__footer">
+      {{ clinic_name }} · v0.1 — {{ t('roles.' ~ current_user.role) }}
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar__title">{% block page_heading %}{{ t('dashboard.title') }}{% endblock %}</div>
+      <div class="topbar__actions">
+        <div class="lang-switch">
+          {% for lang in available_languages %}
+            <a class="{{ 'active' if current_lang == lang else '' }}"
+               href="{{ url_for('auth.set_language', lang=lang) }}">
+              {{ t('common.arabic') if lang == 'ar' else t('common.english') }}
+            </a>
+          {% endfor %}
+        </div>
+        <div class="user-chip">
+          <div class="avatar">{{ current_user.display_name(current_lang)[:1] | upper }}</div>
+          <div class="meta">
+            <div>{{ current_user.display_name(current_lang) }}</div>
+            <div class="role">{{ t('roles.' ~ current_user.role) }}</div>
+          </div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('auth.logout') }}">
+          <i class="bi bi-box-arrow-right"></i> {{ t('auth.logout') }}
+        </a>
+      </div>
+    </header>
+
+    <main class="content">
+      {% include "_flashes.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

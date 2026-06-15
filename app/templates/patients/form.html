@@ -1,0 +1,167 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% set editing = patient is not none %}
+{% block title %}{{ t('patients.edit_patient') if editing else t('patients.add_patient') }}{% endblock %}
+{% block page_heading %}{{ t('patients.edit_patient') if editing else t('patients.add_patient') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('patients.edit_patient') if editing else t('patients.add_patient') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('patients.title') }}</p>
+
+<form method="post" enctype="multipart/form-data"
+      x-data="{
+        auto: {{ 'false' if editing else 'true' }},
+        photo: null,
+        previewPhoto(e){ const f=e.target.files[0]; if(f){ this.photo = URL.createObjectURL(f); } }
+      }">
+
+  <!-- Basic info -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <h2 class="section-title"><i class="bi bi-person-badge"></i> {{ t('patients.basic_info') }}</h2>
+
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;">
+      <!-- Photo -->
+      <div style="text-align:center;">
+        <template x-if="photo">
+          <img :src="photo" class="patient-avatar lg" alt="">
+        </template>
+        <template x-if="!photo">
+          {% if editing and patient.photo %}
+          <img src="{{ url_for('static', filename='uploads/patients/' ~ patient.photo) }}"
+               class="patient-avatar lg" alt="">
+          {% else %}
+          <div class="patient-avatar lg"><i class="bi bi-camera"></i></div>
+          {% endif %}
+        </template>
+        <div style="margin-top:10px;">
+          <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
+            <i class="bi bi-upload"></i> {{ t('patients.photo') }}
+            <input type="file" name="photo" accept="image/*" hidden x-on:change="previewPhoto($event)">
+          </label>
+        </div>
+      </div>
+
+      <!-- Fields -->
+      <div style="flex:1;min-width:280px;">
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="full_name">{{ t('patients.full_name') }} *</label>
+            <input class="input" id="full_name" name="full_name" value="{{ form.full_name or '' }}" required>
+          </div>
+          <div class="form-row">
+            <label for="full_name_en">{{ t('patients.full_name_en') }}</label>
+            <input class="input" id="full_name_en" name="full_name_en" value="{{ form.full_name_en or '' }}" dir="ltr">
+          </div>
+          <div class="form-row">
+            <label for="date_of_birth">{{ t('patients.dob') }} *</label>
+            <input class="input" type="date" id="date_of_birth" name="date_of_birth"
+                   value="{{ form.date_of_birth or '' }}" required>
+          </div>
+          <div class="form-row">
+            <label for="gender">{{ t('patients.gender') }} *</label>
+            <select class="select" id="gender" name="gender" required>
+              <option value="" disabled {{ 'selected' if not form.gender else '' }}>—</option>
+              {% for g in genders %}
+                <option value="{{ g }}" {{ 'selected' if form.gender == g else '' }}>{{ t('genders.' ~ g) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="national_id">{{ t('patients.national_id') }}</label>
+            <input class="input" id="national_id" name="national_id" value="{{ form.national_id or '' }}" dir="ltr">
+          </div>
+          <div class="form-row">
+            <label for="blood_type">{{ t('patients.blood_type') }}</label>
+            <select class="select" id="blood_type" name="blood_type">
+              <option value="">—</option>
+              {% for b in blood_types %}
+                <option value="{{ b }}" {{ 'selected' if form.blood_type == b else '' }}>{{ b }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- File numbers: system (auto) + reference (legacy) -->
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="reference_number">{{ t('patients.reference_number') }}</label>
+            <input class="input" id="reference_number" name="reference_number" dir="ltr"
+                   value="{{ form.reference_number or '' }}">
+            <div class="hint">{{ t('patients.reference_number_hint') }}</div>
+          </div>
+          <div class="form-row">
+            <label for="patient_number">{{ t('patients.system_number') }}</label>
+            <input class="input" id="patient_number" name="patient_number" dir="ltr"
+                   value="{{ form.patient_number or suggested_number }}"
+                   x-bind:readonly="auto"
+                   x-bind:style="auto ? 'background:#f4f7f6;color:var(--muted);' : ''">
+            <div class="form-row checkbox" style="margin-top:6px;margin-bottom:0;">
+              <input type="checkbox" id="auto_number" name="auto_number" value="1"
+                     x-model="auto" {{ 'checked' if not editing else '' }}>
+              <label for="auto_number" style="margin:0;font-weight:400;font-size:0.82rem;">{{ t('patients.auto_number') }}</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Medical alerts -->
+  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+    <h2 class="section-title"><i class="bi bi-exclamation-triangle"></i> {{ t('patients.medical_alerts') }}</h2>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="allergies">{{ t('patients.allergies') }}</label>
+        <textarea class="input" id="allergies" name="allergies" rows="2">{{ form.allergies or '' }}</textarea>
+      </div>
+      <div class="form-row">
+        <label for="chronic_diseases">{{ t('patients.chronic_diseases') }}</label>
+        <textarea class="input" id="chronic_diseases" name="chronic_diseases" rows="2">{{ form.chronic_diseases or '' }}</textarea>
+      </div>
+    </div>
+    <div class="form-row">
+      <label for="notes">{{ t('patients.notes') }}</label>
+      <textarea class="input" id="notes" name="notes" rows="2">{{ form.notes or '' }}</textarea>
+    </div>
+  </div>
+
+  <!-- Family -->
+  <div class="card gc-scale-in" style="animation-delay:0.22s;">
+    <h2 class="section-title"><i class="bi bi-house-heart"></i> {{ t('patients.family_section') }}</h2>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="family_id">{{ t('patients.select_family') }}</label>
+        <select class="select" id="family_id" name="family_id">
+          <option value="">{{ t('patients.no_family') }}</option>
+          {% for fam in families %}
+            <option value="{{ fam.id }}"
+              {{ 'selected' if (form.family_id and form.family_id == fam.id) or (prefill_family and prefill_family == fam.id) else '' }}>
+              {{ fam.display_name(current_lang) }}{% if fam.sibling_count %} ({{ fam.sibling_count }}){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="new_family_name">{{ t('patients.or_new_family') }}</label>
+        <input class="input" id="new_family_name" name="new_family_name"
+               placeholder="{{ t('patients.new_family_placeholder') }}">
+      </div>
+    </div>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="is_active" name="is_active" value="1"
+             {{ 'checked' if form.is_active or not editing else '' }}>
+      <label for="is_active" style="margin:0;font-weight:400;">{{ t('common.active') }}</label>
+    </div>
+  </div>
+
+  <div class="gc-animate" style="display:flex;gap:10px;margin-top:18px;animation-delay:0.26s;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}
+    </button>
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('patients.view', patient_id=patient.id) if editing else url_for('patients.index') }}">
+      {{ t('common.cancel') }}
+    </a>
+  </div>
+</form>
+{% endblock %}
