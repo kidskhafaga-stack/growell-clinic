@@ -1,0 +1,98 @@
+{% extends "shell.html" %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('appointments.new_appointment') }}{% endblock %}
+{% block page_heading %}{{ t('appointments.new_appointment') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('appointments.new_appointment') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('appointments.book') }}</p>
+
+<div class="card gc-scale-in" style="max-width:760px;animation-delay:0.1s;"
+     x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}')">
+  <form method="post">
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="patient_id">{{ t('appointments.patient') }} *</label>
+        <select class="select" id="patient_id" name="patient_id" required>
+          <option value="" disabled selected>{{ t('appointments.select_patient') }}</option>
+          {% for p in patients %}
+            <option value="{{ p.id }}" {{ 'selected' if form.patient_id|string == p.id|string else '' }}>
+              {{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="doctor_id">{{ t('appointments.doctor') }} *</label>
+        <select class="select" id="doctor_id" name="doctor_id" required
+                x-model="doctorId" x-on:change="loadSlots()">
+          <option value="" disabled {{ 'selected' if not form.doctor_id else '' }}>{{ t('appointments.select_doctor') }}</option>
+          {% for d in doctors %}
+            <option value="{{ d.id }}" {{ 'selected' if form.doctor_id|string == d.id|string else '' }}>{{ d.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="appt_date">{{ t('appointments.date') }} *</label>
+        <input class="input" type="date" id="appt_date" name="appt_date" required
+               value="{{ form.appt_date or '' }}" x-model="date" x-on:change="loadSlots()">
+      </div>
+      <div class="form-row">
+        <label for="reason">{{ t('appointments.reason') }}</label>
+        <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
+      </div>
+    </div>
+
+    <!-- Smart available slots -->
+    <div class="form-row">
+      <label>{{ t('appointments.available_slots') }} *</label>
+      <input type="hidden" name="appt_time" x-model="selected" required>
+      <div x-show="!doctorId || !date" class="placeholder-soft"><i class="bi bi-info-circle"></i> {{ t('appointments.pick_doctor_date') }}</div>
+      <div x-show="loading" class="placeholder-soft"><span class="gc-spinner" style="border-color:var(--green-100);border-top-color:var(--green-600);"></span> {{ t('common.loading') }}</div>
+      <div x-show="doctorId && date && !loading && slots.length === 0" class="placeholder-soft" style="color:#b45309;"><i class="bi bi-exclamation-triangle"></i> {{ t('appointments.no_slots') }}</div>
+      <div class="slot-grid" x-show="slots.length > 0">
+        <template x-for="s in slots" :key="s">
+          <button type="button" class="slot-chip gc-press" :class="selected===s && 'active'" x-text="s" x-on:click="selected=s"></button>
+        </template>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('appointments.book') }}</button>
+      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index') }}">{{ t('common.cancel') }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .slot-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .slot-chip { padding:8px 14px; border:1px solid var(--line); border-radius:10px; background:#fff;
+    font-family:inherit; font-size:0.88rem; cursor:pointer; transition:all .15s ease; font-variant-numeric:tabular-nums; }
+  .slot-chip:hover { border-color:var(--green-500); color:var(--green-700); }
+  .slot-chip.active { background:var(--green-700); color:#fff; border-color:var(--green-700); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function slotPicker(url, preselected) {
+    return {
+      url, doctorId: '{{ form.doctor_id or '' }}', date: '{{ form.appt_date or '' }}',
+      slots: [], selected: preselected, loading: false,
+      async loadSlots() {
+        this.selected = '';
+        if (!this.doctorId || !this.date) { this.slots = []; return; }
+        this.loading = true;
+        try {
+          const res = await fetch(`${this.url}?doctor_id=${this.doctorId}&date=${this.date}`);
+          const data = await res.json();
+          this.slots = data.slots || [];
+        } catch (e) { this.slots = []; }
+        this.loading = false;
+      },
+      init() { if (this.doctorId && this.date) this.loadSlots(); }
+    };
+  }
+</script>
+{% endblock %}

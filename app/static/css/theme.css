@@ -330,7 +330,53 @@ a:hover { color: var(--green-900); }
 .section-title { font-size: 1.05rem; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
 .section-title .bi { color: var(--green-600); }
 
+/* ---------- Appointment status badges ---------- */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px;
+  border-radius: 999px; font-size: 0.76rem; font-weight: 600; white-space: nowrap;
+}
+.status-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-scheduled   { background: #dbeafe; color: #1d4ed8; }
+.st-waiting     { background: #fef3c7; color: #b45309; }
+.st-in_progress { background: #d1fae5; color: #047857; }
+.st-completed   { background: #cffafe; color: #0e7490; }
+.st-no_show     { background: #fee2e2; color: #b91c1c; }
+.st-cancelled   { background: #eef1f4; color: #6c7a89; }
+
+/* ---------- Date navigation ---------- */
+.date-nav { display: flex; align-items: center; gap: 10px; }
+.date-nav .current-date { font-weight: 600; min-width: 180px; text-align: center; }
+.date-nav .nav-btn {
+  width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line);
+  background: #fff; display: grid; place-items: center; cursor: pointer; color: var(--ink);
+}
+.date-nav .nav-btn:hover { border-color: var(--green-500); color: var(--green-700); }
+
+/* ---------- Current patient card (3 columns) ---------- */
+.current-card {
+  background: linear-gradient(120deg, var(--green-050), #fff);
+  border: 1px solid var(--green-100); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow);
+}
+.current-card .cc-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.current-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.current-cols .col {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+}
+.current-cols .col h4 { margin: 0 0 10px; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.current-card .cc-foot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.placeholder-soft { color: var(--muted); font-size: 0.86rem; display: flex; align-items: center; gap: 6px; }
+
+/* ---------- Schedule grid ---------- */
+.sched-day { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.sched-day .day-name { font-weight: 600; min-width: 90px; }
+.sched-windows { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+.window-pill { display: inline-flex; align-items: center; gap: 8px; background: var(--green-050);
+  border: 1px solid var(--green-100); color: var(--green-800); padding: 5px 10px; border-radius: 999px; font-size: 0.82rem; }
+
 /* ---------- Responsive ---------- */
+@media (max-width: 980px) { .current-cols { grid-template-columns: 1fr; } }
 @media (max-width: 880px) {
   .sidebar { transform: translateX(-100%); }
   body[dir="rtl"] .sidebar { transform: translateX(100%); }

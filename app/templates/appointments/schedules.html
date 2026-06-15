@@ -1,0 +1,86 @@
+{% extends "shell.html" %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('appointments.schedules') }}{% endblock %}
+{% block page_heading %}{{ t('appointments.schedules') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('appointments.schedules') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('appointments.board_subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', doctor_id=selected) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('appointments.back_to_board') }}</a>
+</div>
+
+<!-- Doctor selector -->
+<div class="card gc-animate" style="margin-bottom:18px;animation-delay:0.05s;">
+  <form method="get">
+    <label class="section-title" style="font-size:0.95rem;"><i class="bi bi-person-badge"></i> {{ t('appointments.schedule_for') }}</label>
+    <select class="select" name="doctor_id" style="max-width:340px;" onchange="this.form.submit()">
+      {% for d in doctors %}
+        <option value="{{ d.id }}" {{ 'selected' if selected == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start;">
+  <!-- Existing windows by weekday -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <h2 class="section-title"><i class="bi bi-calendar2-week"></i> {{ t('appointments.schedules') }}</h2>
+    {% for wd, windows in schedule_rows %}
+    <div class="sched-day">
+      <div class="day-name">{{ t('weekdays.' ~ wd) }}</div>
+      <div class="sched-windows">
+        {% if windows %}
+          {% for w in windows %}
+          <span class="window-pill">
+            <i class="bi bi-clock"></i> {{ w.start_time.strftime('%H:%M') }}–{{ w.end_time.strftime('%H:%M') }}
+            · {{ w.slot_minutes }}{{ t('patients.m_short') }}
+            <form method="post" action="{{ url_for('appointments.delete_schedule', schedule_id=w.id) }}" style="display:inline;">
+              <button class="btn-x" type="submit" title="{{ t('common.delete') }}"><i class="bi bi-x"></i></button>
+            </form>
+          </span>
+          {% endfor %}
+        {% else %}
+          <span class="placeholder-soft">{{ t('appointments.no_windows') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Add window -->
+  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+    <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('appointments.add_window') }}</h2>
+    <form method="post" action="{{ url_for('appointments.schedules', doctor_id=selected) }}">
+      <input type="hidden" name="doctor_id" value="{{ selected }}">
+      <div class="form-row">
+        <label for="weekday">{{ t('appointments.weekday') }} *</label>
+        <select class="select" id="weekday" name="weekday" required>
+          {% for wd in weekday_order %}<option value="{{ wd }}">{{ t('weekdays.' ~ wd) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label for="start_time">{{ t('appointments.start_time') }} *</label>
+          <input class="input" type="time" id="start_time" name="start_time" value="09:00" required></div>
+        <div class="form-row"><label for="end_time">{{ t('appointments.end_time') }} *</label>
+          <input class="input" type="time" id="end_time" name="end_time" value="14:00" required></div>
+        <div class="form-row"><label for="slot_minutes">{{ t('appointments.slot_minutes') }}</label>
+          <input class="input" type="number" id="slot_minutes" name="slot_minutes" value="15" min="5" max="120"></div>
+        <div class="form-row"><label for="max_patients">{{ t('appointments.max_patients') }}</label>
+          <input class="input" type="number" id="max_patients" name="max_patients" min="1"></div>
+      </div>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-plus-lg"></i> {{ t('appointments.add_window') }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .btn-x { border:none; background:none; cursor:pointer; color:var(--green-800); padding:0 2px; opacity:.7; }
+  .btn-x:hover { opacity:1; color:var(--danger); }
+</style>
+{% endblock %}

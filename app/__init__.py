@@ -29,6 +29,7 @@ def create_app(config_name="default"):
         from app import models  # noqa: F401
 
     # Blueprints.
+    from app.blueprints.appointments import appointments_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.main import main_bp
     from app.blueprints.patients import patients_bp
@@ -37,6 +38,7 @@ def create_app(config_name="default"):
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(patients_bp)
+    app.register_blueprint(appointments_bp)
     app.register_blueprint(users_bp)
 
     # Template globals for navigation rendering.
@@ -47,6 +49,7 @@ def create_app(config_name="default"):
     module_endpoints = {
         "dashboard": "main.dashboard",
         "patients": "patients.index",
+        "appointments": "appointments.index",
         "users": "users.index",
     }
 
