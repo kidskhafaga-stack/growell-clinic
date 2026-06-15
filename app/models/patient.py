@@ -15,9 +15,13 @@ class Patient(db.Model):
     __tablename__ = "patients"
 
     id = db.Column(db.Integer, primary_key=True)
+    # System-generated professional code (always unique).
     patient_number = db.Column(
         db.String(40), unique=True, nullable=False, index=True
     )
+    # The clinic's legacy/paper file number, kept as a searchable reference.
+    # Not enforced unique so messy legacy data can be imported without loss.
+    reference_number = db.Column(db.String(60), index=True)
 
     family_id = db.Column(
         db.Integer, db.ForeignKey("families.id"), nullable=True, index=True

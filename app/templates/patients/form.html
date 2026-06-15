@@ -81,19 +81,26 @@
           </div>
         </div>
 
-        <!-- File number -->
-        <div class="form-row checkbox" style="margin-top:4px;">
-          <input type="checkbox" id="auto_number" name="auto_number" value="1"
-                 x-model="auto" {{ 'checked' if not editing else '' }}>
-          <label for="auto_number" style="margin:0;font-weight:400;">{{ t('patients.auto_number') }}</label>
-        </div>
-        <div class="form-row">
-          <label for="patient_number">{{ t('patients.file_number') }}</label>
-          <input class="input" id="patient_number" name="patient_number" dir="ltr"
-                 value="{{ form.patient_number or suggested_number }}"
-                 x-bind:readonly="auto"
-                 x-bind:style="auto ? 'background:#f4f7f6;color:var(--muted);' : ''">
-          <div class="hint">{{ t('patients.auto_number_hint') }}</div>
+        <!-- File numbers: system (auto) + reference (legacy) -->
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="reference_number">{{ t('patients.reference_number') }}</label>
+            <input class="input" id="reference_number" name="reference_number" dir="ltr"
+                   value="{{ form.reference_number or '' }}">
+            <div class="hint">{{ t('patients.reference_number_hint') }}</div>
+          </div>
+          <div class="form-row">
+            <label for="patient_number">{{ t('patients.system_number') }}</label>
+            <input class="input" id="patient_number" name="patient_number" dir="ltr"
+                   value="{{ form.patient_number or suggested_number }}"
+                   x-bind:readonly="auto"
+                   x-bind:style="auto ? 'background:#f4f7f6;color:var(--muted);' : ''">
+            <div class="form-row checkbox" style="margin-top:6px;margin-bottom:0;">
+              <input type="checkbox" id="auto_number" name="auto_number" value="1"
+                     x-model="auto" {{ 'checked' if not editing else '' }}>
+              <label for="auto_number" style="margin:0;font-weight:400;font-size:0.82rem;">{{ t('patients.auto_number') }}</label>
+            </div>
+          </div>
         </div>
       </div>
     </div>

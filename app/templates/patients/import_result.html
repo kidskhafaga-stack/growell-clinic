@@ -1,0 +1,54 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('import.result_title') }}{% endblock %}
+{% block page_heading %}{{ t('import.result_title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('import.result_title') }}</h1>
+
+<div class="stat-grid gc-stagger" style="margin:18px 0;">
+  <div class="stat-card edge-green gc-lift">
+    <i class="bi bi-check-circle ico"></i>
+    <div class="value gc-counter" data-count="{{ result.created }}">0</div>
+    <div class="label">{{ t('import.created_count') }}</div>
+  </div>
+  <div class="stat-card edge-yellow gc-lift">
+    <i class="bi bi-exclamation-circle ico"></i>
+    <div class="value gc-counter" data-count="{{ result.errors|length }}">0</div>
+    <div class="label">{{ t('import.skipped_count') }}</div>
+  </div>
+  <div class="stat-card edge-blue gc-lift">
+    <i class="bi bi-list-ol ico"></i>
+    <div class="value gc-counter" data-count="{{ result.total }}">0</div>
+    <div class="label">{{ t('import.total_rows') }}</div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="animation-delay:0.12s;">
+  {% if result.errors %}
+  <h2 class="section-title"><i class="bi bi-exclamation-triangle"></i> {{ t('import.skipped_count') }}</h2>
+  <table class="table">
+    <thead><tr><th style="width:90px;">{{ t('import.line') }}</th><th>{{ t('import.reason') }}</th></tr></thead>
+    <tbody>
+      {% for err in result.errors %}
+      <tr><td><span class="badge badge--muted">{{ err.line }}</span></td><td>{{ err.reason }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-check2-circle" style="color:var(--green-500);"></i>
+    <div style="font-weight:600;">{{ t('import.no_errors') }}</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="gc-animate" style="display:flex;gap:10px;margin-top:18px;animation-delay:0.18s;">
+  <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-people"></i> {{ t('import.back_to_list') }}
+  </a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.bulk_import') }}">
+    <i class="bi bi-upload"></i> {{ t('import.import_more') }}
+  </a>
+</div>
+{% endblock %}

@@ -7,11 +7,13 @@ import os
 from datetime import datetime
 
 from flask import (
+    Response,
     current_app,
     flash,
     redirect,
     render_template,
     request,
+    send_file,
     url_for,
 )
 from flask_login import current_user
@@ -31,6 +33,14 @@ from app.models import (
     Patient,
 )
 from app.utils.decorators import client_ip, module_required
+from app.utils.imports import (
+    allowed_import_file,
+    build_template_csv,
+    build_template_workbook,
+    parse_date,
+    parse_gender,
+    read_rows,
+)
 from app.utils.patients import (
     delete_patient_photo,
     generate_patient_number,
@@ -57,6 +67,7 @@ def index():
                 Patient.full_name.ilike(like),
                 Patient.full_name_en.ilike(like),
                 Patient.patient_number.ilike(like),
+                Patient.reference_number.ilike(like),
                 Patient.national_id.ilike(like),
             )
         )
@@ -96,6 +107,7 @@ def create():
 
         patient = Patient(
             patient_number=form["patient_number"],
+            reference_number=form["reference_number"] or None,
             family_id=family_id,
             full_name=form["full_name"],
             full_name_en=form["full_name_en"],
@@ -166,6 +178,7 @@ def edit(patient_id):
             )
 
         patient.patient_number = form["patient_number"]
+        patient.reference_number = form["reference_number"] or None
         patient.family_id = _resolve_family(form)
         patient.full_name = form["full_name"]
         patient.full_name_en = form["full_name_en"]
@@ -194,6 +207,7 @@ def edit(patient_id):
 
     form = {
         "patient_number": patient.patient_number,
+        "reference_number": patient.reference_number or "",
         "family_id": patient.family_id,
         "full_name": patient.full_name,
         "full_name_en": patient.full_name_en or "",
@@ -292,6 +306,7 @@ def _read_patient_form():
     return {
         "patient_number": (request.form.get("patient_number") or "").strip(),
         "auto_number": bool(request.form.get("auto_number")),
+        "reference_number": (request.form.get("reference_number") or "").strip(),
         "full_name": (request.form.get("full_name") or "").strip(),
         "full_name_en": (request.form.get("full_name_en") or "").strip(),
         "date_of_birth_raw": (request.form.get("date_of_birth") or "").strip(),
@@ -349,3 +364,138 @@ def _resolve_family(form):
         db.session.flush()
         return family.id
     return form.get("family_id") or None
+
+
+# ------------------------------------------------------- bulk import -------
+@patients_bp.route("/import", methods=["GET", "POST"])
+@module_required(MODULE)
+def bulk_import():
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or not file.filename:
+            flash(t("import.no_file"), "danger")
+            return redirect(url_for("patients.bulk_import"))
+        if not allowed_import_file(file.filename):
+            flash(t("import.bad_format"), "danger")
+            return redirect(url_for("patients.bulk_import"))
+
+        rows, error = read_rows(file)
+        if error == "no_name_column":
+            flash(t("import.no_name_column"), "danger")
+            return redirect(url_for("patients.bulk_import"))
+        if error or not rows:
+            flash(t("import.empty"), "warning")
+            return redirect(url_for("patients.bulk_import"))
+
+        result = _process_import(rows)
+        db.session.commit()
+        ActivityLog.record(
+            "patient.import", user_id=current_user.id, entity="patient",
+            detail=f"created={result['created']} skipped={len(result['errors'])}",
+            ip_address=client_ip(),
+        )
+        db.session.commit()
+        return render_template("patients/import_result.html", result=result)
+
+    return render_template("patients/import.html")
+
+
+@patients_bp.route("/import/template")
+@module_required(MODULE)
+def import_template():
+    fmt = (request.args.get("fmt") or "xlsx").lower()
+    if fmt == "csv":
+        return Response(
+            build_template_csv(),
+            mimetype="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": "attachment; filename=patients_template.csv"
+            },
+        )
+    return send_file(
+        build_template_workbook(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="patients_template.xlsx",
+    )
+
+
+def _process_import(rows):
+    """Create patients/families/parents from parsed rows.
+
+    Families are de-duplicated by name within the import (and matched against
+    existing families) so siblings land in the same family record.
+    """
+    created = 0
+    errors = []
+    family_cache = {}
+
+    def resolve_family(name):
+        if not name:
+            return None
+        key = name.strip()
+        if key in family_cache:
+            return family_cache[key]
+        family = Family.query.filter_by(family_name=key).first()
+        if family is None:
+            family = Family(family_name=key)
+            db.session.add(family)
+            db.session.flush()
+        family_cache[key] = family.id
+        return family.id
+
+    for offset, row in enumerate(rows):
+        line = offset + 2  # account for the header row (1-based, human-friendly)
+        name = (row.get("full_name") or "").strip()
+        if not name:
+            errors.append({"line": line, "reason": t("import.err_name")})
+            continue
+
+        gender = parse_gender(row.get("gender"))
+        if gender is None:
+            errors.append({"line": line, "reason": t("import.err_gender")})
+            continue
+
+        dob = parse_date(row.get("date_of_birth"))
+        if dob is None:
+            errors.append({"line": line, "reason": t("import.err_dob")})
+            continue
+
+        family_id = resolve_family(row.get("family_name"))
+
+        patient = Patient(
+            patient_number=generate_patient_number(),
+            reference_number=(str(row.get("reference_number")).strip()
+                              if row.get("reference_number") not in (None, "") else None),
+            family_id=family_id,
+            full_name=name,
+            full_name_en=(row.get("full_name_en") or "").strip() or None,
+            date_of_birth=dob,
+            gender=gender,
+            national_id=(str(row.get("national_id")).strip()
+                         if row.get("national_id") not in (None, "") else None),
+            blood_type=(row.get("blood_type") or "").strip() or None,
+            allergies=(row.get("allergies") or "").strip() or None,
+            chronic_diseases=(row.get("chronic_diseases") or "").strip() or None,
+            notes=(row.get("notes") or "").strip() or None,
+            is_active=True,
+        )
+        db.session.add(patient)
+
+        # Optional guardian on the family.
+        parent_name = (row.get("parent_name") or "").strip()
+        if parent_name and family_id:
+            relation = (row.get("parent_relation") or "father").strip().lower()
+            category = (row.get("client_category") or "normal").strip().lower()
+            db.session.add(Parent(
+                family_id=family_id,
+                relation=relation if Parent.valid_relation(relation) else "father",
+                full_name=parent_name,
+                phone=(str(row.get("parent_phone")).strip()
+                       if row.get("parent_phone") not in (None, "") else None),
+                client_category=category if Parent.valid_category(category) else "normal",
+            ))
+
+        created += 1
+
+    return {"created": created, "errors": errors, "total": len(rows)}

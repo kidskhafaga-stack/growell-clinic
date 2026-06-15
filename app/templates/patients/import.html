@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('import.title') }}{% endblock %}
+{% block page_heading %}{{ t('import.title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('import.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('import.subtitle') }}</p>
+
+<div class="grid" style="grid-template-columns:1.3fr 1fr;align-items:start;">
+  <!-- Upload -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <h2 class="section-title"><i class="bi bi-cloud-upload"></i> {{ t('import.choose_file') }}</h2>
+    <form method="post" enctype="multipart/form-data"
+          x-data="{ name:'' }">
+      <label class="dropzone gc-press"
+             x-on:dragover.prevent x-on:drop.prevent="$refs.file.files=$event.dataTransfer.files; name=$refs.file.files[0]?.name||''">
+        <input type="file" name="file" x-ref="file" accept=".xlsx,.csv" hidden
+               x-on:change="name=$refs.file.files[0]?.name||''">
+        <i class="bi bi-file-earmark-arrow-up"></i>
+        <div x-text="name || '{{ t('import.choose_file') }}'"></div>
+      </label>
+      <p class="hint" style="margin-top:10px;">{{ t('import.columns_note') }}</p>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:8px;">
+        <i class="bi bi-upload"></i> {{ t('import.import_now') }}
+      </button>
+    </form>
+  </div>
+
+  <!-- How it works + templates -->
+  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+    <h2 class="section-title"><i class="bi bi-info-circle"></i> {{ t('import.how_it_works') }}</h2>
+    <ol class="steps gc-stagger">
+      <li>{{ t('import.step1') }}</li>
+      <li>{{ t('import.step2') }}</li>
+      <li>{{ t('import.step3') }}</li>
+    </ol>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.import_template', fmt='xlsx') }}">
+        <i class="bi bi-file-earmark-excel"></i> {{ t('import.template_xlsx') }}
+      </a>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.import_template', fmt='csv') }}">
+        <i class="bi bi-filetype-csv"></i> {{ t('import.template_csv') }}
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .dropzone {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    padding:34px; border:2px dashed var(--green-100); border-radius:14px;
+    background:var(--green-050); color:var(--green-800); cursor:pointer; text-align:center;
+    transition:border-color .18s ease, background .18s ease;
+  }
+  .dropzone:hover { border-color:var(--green-500); background:#e3f7ee; }
+  .dropzone .bi { font-size:2.4rem; }
+  .steps { padding-inline-start:18px; margin:0; }
+  .steps li { margin-bottom:10px; }
+</style>
+{% endblock %}

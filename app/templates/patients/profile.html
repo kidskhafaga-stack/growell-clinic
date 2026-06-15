@@ -17,7 +17,8 @@
     <div style="flex:1;min-width:240px;">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <h1 style="margin:0;font-size:1.5rem;">{{ patient.display_name(current_lang) }}</h1>
-        <span class="badge badge--role">{{ patient.patient_number }}</span>
+        <span class="badge badge--role" title="{{ t('patients.system_number') }}">{{ patient.patient_number }}</span>
+        {% if patient.reference_number %}<span class="badge badge--muted" title="{{ t('patients.reference_number') }}"><i class="bi bi-archive"></i> {{ patient.reference_number }}</span>{% endif %}
         {% if not patient.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
       </div>
       <div class="meta-row">
@@ -72,6 +73,7 @@
       <h3 class="section-title"><i class="bi bi-person-lines-fill"></i> {{ t('patients.basic_info') }}</h3>
       <div class="info-grid">
         <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.reference_number') }}</div><div class="v">{{ patient.reference_number or '—' }}</div></div>
         <div class="info-item"><div class="k">{{ t('patients.full_name_en') }}</div><div class="v">{{ patient.full_name_en or '—' }}</div></div>
         <div class="info-item"><div class="k">{{ t('patients.dob') }}</div><div class="v">{{ patient.date_of_birth.strftime('%Y-%m-%d') }}</div></div>
         <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(patient) }}</div></div>

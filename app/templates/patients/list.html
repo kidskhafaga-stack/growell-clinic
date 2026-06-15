@@ -10,9 +10,14 @@
     <h1 class="page-title">{{ t('patients.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('patients.list') }}</p>
   </div>
-  <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.create') }}">
-    <i class="bi bi-person-plus"></i> {{ t('patients.add_patient') }}
-  </a>
+  <div style="display:flex;gap:10px;">
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
+      <i class="bi bi-upload"></i> {{ t('patients.import_patients') }}
+    </a>
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.create') }}">
+      <i class="bi bi-person-plus"></i> {{ t('patients.add_patient') }}
+    </a>
+  </div>
 </div>
 
 <!-- Stat cards with animated counters -->
@@ -74,7 +79,10 @@
             </div>
           </div>
         </td>
-        <td><span class="badge badge--role">{{ p.patient_number }}</span></td>
+        <td>
+          <span class="badge badge--role">{{ p.patient_number }}</span>
+          {% if p.reference_number %}<div class="num" style="margin-top:3px;">{{ t('patients.reference_number') }}: {{ p.reference_number }}</div>{% endif %}
+        </td>
         <td>{{ age_label(p) }}</td>
         <td>
           <span class="badge {{ 'gender-male' if p.gender == 'male' else 'gender-female' }}"

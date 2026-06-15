@@ -25,6 +25,10 @@ DEFAULT_SETTINGS = {
     "default_language": "ar",
     "currency": "EGP",
     "default_growth_reference": "WHO",
+    # Patient file numbering (see app/utils/patients.py).
+    "patient_number_scheme": "yearly",      # "yearly" | "fixed"
+    "patient_number_prefix": "PM",          # used by the yearly scheme
+    "patient_number_prefix_fixed": "GC",    # used by the fixed scheme
 }
 
 
