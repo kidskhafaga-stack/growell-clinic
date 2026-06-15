@@ -32,3 +32,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Uploaded files (keep the folder, ignore contents)
+app/static/uploads/**
+!app/static/uploads/
+!app/static/uploads/**/
+!app/static/uploads/**/.gitkeep

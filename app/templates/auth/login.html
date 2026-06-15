@@ -3,9 +3,9 @@
 
 {% block body %}
 <div class="auth-wrap">
-  <div class="auth-card">
+  <div class="auth-card gc-scale-in">
     <div class="brand">
-      <div class="logo"><i class="bi bi-heart-pulse"></i></div>
+      <div class="logo gc-glow"><i class="bi bi-heart-pulse"></i></div>
       <h1>{{ t('app.name') }}</h1>
       <div class="sub">{{ t('auth.login_subtitle') }}</div>
     </div>
@@ -27,8 +27,10 @@
         <input type="checkbox" id="remember_me" name="remember_me" value="1">
         <label for="remember_me" style="margin:0;font-weight:400;">{{ t('auth.remember_me') }}</label>
       </div>
-      <button class="btn btn-primary" type="submit">
-        <i class="bi bi-box-arrow-in-right"></i> {{ t('auth.sign_in') }}
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"
+              x-data x-on:click="$el.querySelector('.lbl').style.display='none'; $el.querySelector('.gc-spinner').style.display='inline-block'">
+        <span class="gc-spinner" style="display:none;"></span>
+        <span class="lbl"><i class="bi bi-box-arrow-in-right"></i> {{ t('auth.sign_in') }}</span>
       </button>
     </form>
 

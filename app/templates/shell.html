@@ -12,12 +12,11 @@
       </div>
     </div>
 
-    <nav class="sidebar__nav">
+    <nav class="sidebar__nav gc-stagger">
       {% for module in ALL_MODULES %}
         {% if current_user.can_access(module) %}
-          {% set endpoint = 'main.dashboard' if module == 'dashboard'
-                            else ('users.index' if module == 'users' else none) %}
-          <a class="nav-item {{ 'active' if active_module == module else '' }}"
+          {% set endpoint = MODULE_ENDPOINTS.get(module) %}
+          <a class="nav-item gc-press {{ 'active' if active_module == module else '' }}"
              href="{{ url_for(endpoint) if endpoint else '#' }}"
              {% if not endpoint %}title="{{ t('dashboard.phase_notice') }}"{% endif %}>
             <i class="bi bi-{{ MODULE_ICONS.get(module, 'dot') }}"></i>

@@ -1,0 +1,23 @@
+{# Reusable patient UI fragments. Imported "with context" so t/current_lang work. #}
+
+{% macro patient_avatar(patient, size='sm') %}
+  {% if patient.photo %}
+    <img class="patient-avatar {{ size }}"
+         src="{{ url_for('static', filename='uploads/patients/' ~ patient.photo) }}"
+         alt="{{ patient.display_name(current_lang) }}">
+  {% else %}
+    <div class="patient-avatar {{ size }} {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}">
+      {{ patient.display_name(current_lang)[:1] | upper }}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro age_label(patient) %}
+  {%- set parts = patient.age_parts -%}
+  {%- if parts[0] == 0 and parts[1] == 0 -%}
+    {{ t('patients.newborn') }}
+  {%- else -%}
+    {%- if parts[0] -%}{{ parts[0] }} {{ t('patients.years') }} {% endif -%}
+    {%- if parts[1] -%}{{ parts[1] }} {{ t('patients.months') }}{% endif -%}
+  {%- endif -%}
+{% endmacro %}

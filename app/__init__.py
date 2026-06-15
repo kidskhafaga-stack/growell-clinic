@@ -31,20 +31,31 @@ def create_app(config_name="default"):
     # Blueprints.
     from app.blueprints.auth import auth_bp
     from app.blueprints.main import main_bp
+    from app.blueprints.patients import patients_bp
     from app.blueprints.users import users_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+    app.register_blueprint(patients_bp)
     app.register_blueprint(users_bp)
 
     # Template globals for navigation rendering.
     from app.models.permissions import MODULE_ICONS, MODULES
+
+    # Endpoints implemented so far; modules without one render as inert links
+    # ("coming soon") until their phase lands.
+    module_endpoints = {
+        "dashboard": "main.dashboard",
+        "patients": "patients.index",
+        "users": "users.index",
+    }
 
     @app.context_processor
     def inject_navigation():
         return {
             "ALL_MODULES": MODULES,
             "MODULE_ICONS": MODULE_ICONS,
+            "MODULE_ENDPOINTS": module_endpoints,
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
         }
 

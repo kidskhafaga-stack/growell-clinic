@@ -259,6 +259,77 @@ a:hover { color: var(--green-900); }
 .error-wrap { min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 24px; }
 .error-code { font-size: 5rem; font-weight: 800; color: var(--green-700); line-height: 1; }
 
+/* ---------- Stat cards (colored edge) ---------- */
+.stat-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.stat-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; box-shadow: var(--shadow);
+  border-inline-start: 5px solid var(--green-600);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.stat-card .value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.stat-card .label { color: var(--muted); font-size: 0.85rem; }
+.stat-card .ico { float: inline-end; font-size: 1.3rem; opacity: 0.5; }
+.stat-card.edge-blue   { border-inline-start-color: #3b82f6; }
+.stat-card.edge-green  { border-inline-start-color: var(--green-600); }
+.stat-card.edge-yellow { border-inline-start-color: #f0ad4e; }
+.stat-card.edge-red    { border-inline-start-color: #ef4476; }
+.stat-card.edge-blue .value   { color: #2563eb; }
+.stat-card.edge-green .value  { color: var(--green-700); }
+.stat-card.edge-yellow .value { color: #d98a00; }
+.stat-card.edge-red .value    { color: #db2777; }
+
+/* ---------- Search box ---------- */
+.search-box { position: relative; max-width: 420px; flex: 1; }
+.search-box .bi { position: absolute; inset-inline-start: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.search-box input { width: 100%; padding: 11px 14px; padding-inline-start: 38px; border: 1px solid var(--line); border-radius: 12px; font-family: inherit; }
+.search-box input:focus { outline: none; border-color: var(--green-500); box-shadow: 0 0 0 3px var(--green-050); }
+
+/* ---------- Avatars ---------- */
+.patient-avatar {
+  border-radius: 50%; object-fit: cover; background: var(--green-100);
+  color: var(--green-800); display: grid; place-items: center; font-weight: 700; flex: none;
+}
+.patient-avatar.sm { width: 42px; height: 42px; font-size: 1rem; }
+.patient-avatar.lg { width: 92px; height: 92px; font-size: 2rem; border: 3px solid #fff; box-shadow: var(--shadow); }
+.gender-male { background: #dbeafe; color: #1d4ed8; }
+.gender-female { background: #fce7f3; color: #be185d; }
+
+/* ---------- Profile header ---------- */
+.profile-header {
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  background: linear-gradient(120deg, var(--green-050), #fff);
+  border: 1px solid var(--green-100);
+}
+.profile-header .meta-row { display: flex; gap: 8px 16px; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
+.profile-header .meta-row b { color: var(--ink); }
+
+/* ---------- Alert pills ---------- */
+.alert-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+  border-radius: 999px; font-size: 0.82rem; font-weight: 600;
+}
+.alert-pill.danger { background: #fdecea; color: #b42318; border: 1px solid #f5c2c7; }
+.alert-pill.warn { background: #fff7e6; color: #92600a; border: 1px solid #ffe2a8; }
+
+/* ---------- Info grid (label / value) ---------- */
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 24px; }
+.info-item .k { font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.info-item .v { font-size: 0.98rem; font-weight: 500; margin-top: 2px; }
+
+/* ---------- Empty state ---------- */
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-state .bi { font-size: 3rem; color: var(--green-100); display: block; margin-bottom: 10px; }
+
+/* ---------- Patient list cards ---------- */
+.patient-row { display: flex; align-items: center; gap: 14px; }
+.patient-row .name { font-weight: 600; }
+.patient-row .num { font-size: 0.78rem; color: var(--muted); }
+
+/* ---------- Section title ---------- */
+.section-title { font-size: 1.05rem; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+.section-title .bi { color: var(--green-600); }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 880px) {
   .sidebar { transform: translateX(-100%); }

@@ -5,10 +5,10 @@
 {% block page_heading %}{{ t('users.edit_user') if editing else t('users.add_user') }}{% endblock %}
 
 {% block content %}
-<h1 class="page-title">{{ t('users.edit_user') if editing else t('users.add_user') }}</h1>
-<p class="page-sub">{{ t('users.title') }}</p>
+<h1 class="page-title gc-animate">{{ t('users.edit_user') if editing else t('users.add_user') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('users.title') }}</p>
 
-<div class="card" style="max-width:720px;">
+<div class="card gc-scale-in" style="max-width:720px;animation-delay:0.1s;">
   <form method="post">
     <div class="form-grid">
       <div class="form-row">
