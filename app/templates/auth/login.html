@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ t('auth.login') }}{% endblock %}
+
+{% block body %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="logo"><i class="bi bi-heart-pulse"></i></div>
+      <h1>{{ t('app.name') }}</h1>
+      <div class="sub">{{ t('auth.login_subtitle') }}</div>
+    </div>
+
+    {% include "_flashes.html" %}
+
+    <form method="post" action="{{ url_for('auth.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') | urlencode }}{% endif %}">
+      <div class="form-row">
+        <label for="username">{{ t('auth.username') }}</label>
+        <input class="input" type="text" id="username" name="username"
+               autocomplete="username" autofocus required>
+      </div>
+      <div class="form-row">
+        <label for="password">{{ t('auth.password') }}</label>
+        <input class="input" type="password" id="password" name="password"
+               autocomplete="current-password" required>
+      </div>
+      <div class="form-row checkbox">
+        <input type="checkbox" id="remember_me" name="remember_me" value="1">
+        <label for="remember_me" style="margin:0;font-weight:400;">{{ t('auth.remember_me') }}</label>
+      </div>
+      <button class="btn btn-primary" type="submit">
+        <i class="bi bi-box-arrow-in-right"></i> {{ t('auth.sign_in') }}
+      </button>
+    </form>
+
+    <div class="auth-lang lang-switch" style="justify-content:center;">
+      {% for lang in available_languages %}
+        <a class="{{ 'active' if current_lang == lang else '' }}"
+           href="{{ url_for('auth.set_language', lang=lang) }}">
+          {{ t('common.arabic') if lang == 'ar' else t('common.english') }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

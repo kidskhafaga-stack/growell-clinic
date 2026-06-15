@@ -1,0 +1,68 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('users.title') }}{% endblock %}
+{% block page_heading %}{{ t('users.title') }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('users.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('users.list') }}</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('users.create') }}">
+    <i class="bi bi-person-plus"></i> {{ t('users.add_user') }}
+  </a>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>{{ t('users.full_name') }}</th>
+        <th>{{ t('auth.username') }}</th>
+        <th>{{ t('users.role') }}</th>
+        <th>{{ t('common.status') }}</th>
+        <th>{{ t('users.last_login') }}</th>
+        <th style="text-align:end;">{{ t('common.actions') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>
+          <strong>{{ user.display_name(current_lang) }}</strong>
+          {% if user.email %}<div style="font-size:0.78rem;color:var(--muted);">{{ user.email }}</div>{% endif %}
+        </td>
+        <td>{{ user.username }}</td>
+        <td><span class="badge badge--role">{{ t('roles.' ~ user.role) }}</span></td>
+        <td>
+          {% if user.is_active %}
+            <span class="badge badge--green">{{ t('common.active') }}</span>
+          {% else %}
+            <span class="badge badge--muted">{{ t('common.inactive') }}</span>
+          {% endif %}
+        </td>
+        <td style="font-size:0.84rem;color:var(--muted);">
+          {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else t('users.never') }}
+        </td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm" href="{{ url_for('users.edit', user_id=user.id) }}">
+            <i class="bi bi-pencil"></i> {{ t('common.edit') }}
+          </a>
+          {% if user.id != current_user.id %}
+          <form method="post" action="{{ url_for('users.delete', user_id=user.id) }}"
+                style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-danger btn-sm" type="submit">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;color:var(--muted);">{{ t('common.no_data') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

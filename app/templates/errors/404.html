@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ t('errors.404_title') }}{% endblock %}
+{% block body %}
+<div class="error-wrap">
+  <div>
+    <div class="error-code">404</div>
+    <h1>{{ t('errors.404_title') }}</h1>
+    <p style="color:var(--muted);">{{ t('errors.404_message') }}</p>
+    <a class="btn btn-primary" href="{{ url_for('main.index') }}">{{ t('errors.go_home') }}</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "shell.html" %}
+{% set active_module = 'dashboard' %}
+{% block title %}{{ t('dashboard.title') }}{% endblock %}
+{% block page_heading %}{{ t('dashboard.title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ t('dashboard.welcome_message') }}</h1>
+<p class="page-sub">
+  {{ t('common.welcome') }}، {{ current_user.display_name(current_lang) }}
+  · {{ t('dashboard.your_role') }}: <span class="badge badge--role">{{ t('roles.' ~ current_user.role) }}</span>
+</p>
+
+<div class="notice" style="margin-bottom:22px;">
+  <i class="bi bi-info-circle"></i> {{ t('dashboard.phase_notice') }}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;font-size:1.1rem;">{{ t('dashboard.your_modules') }}</h2>
+  <div class="grid grid--cards" style="margin-top:8px;">
+    {% for module in ALL_MODULES if module != 'dashboard' and current_user.can_access(module) %}
+      {% set endpoint = 'users.index' if module == 'users' else none %}
+      <a class="module-card" href="{{ url_for(endpoint) if endpoint else '#' }}">
+        <div class="icon"><i class="bi bi-{{ MODULE_ICONS.get(module, 'dot') }}"></i></div>
+        <div class="label">{{ t('nav.' ~ module) }}</div>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

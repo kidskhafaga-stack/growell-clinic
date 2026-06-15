@@ -1,0 +1,65 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% set editing = user is not none %}
+{% block title %}{{ t('users.edit_user') if editing else t('users.add_user') }}{% endblock %}
+{% block page_heading %}{{ t('users.edit_user') if editing else t('users.add_user') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ t('users.edit_user') if editing else t('users.add_user') }}</h1>
+<p class="page-sub">{{ t('users.title') }}</p>
+
+<div class="card" style="max-width:720px;">
+  <form method="post">
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="full_name">{{ t('users.full_name') }} *</label>
+        <input class="input" id="full_name" name="full_name" value="{{ form.full_name or '' }}" required>
+      </div>
+      <div class="form-row">
+        <label for="full_name_en">{{ t('users.full_name_en') }}</label>
+        <input class="input" id="full_name_en" name="full_name_en" value="{{ form.full_name_en or '' }}">
+      </div>
+      <div class="form-row">
+        <label for="username">{{ t('auth.username') }} *</label>
+        <input class="input" id="username" name="username" value="{{ form.username or '' }}"
+               autocomplete="off" required>
+      </div>
+      <div class="form-row">
+        <label for="role">{{ t('users.role') }} *</label>
+        <select class="select" id="role" name="role" required>
+          {% for role in roles %}
+            <option value="{{ role }}" {{ 'selected' if form.role == role else '' }}>
+              {{ t('roles.' ~ role) }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="email">{{ t('users.email') }}</label>
+        <input class="input" type="email" id="email" name="email" value="{{ form.email or '' }}">
+      </div>
+      <div class="form-row">
+        <label for="phone">{{ t('users.phone') }}</label>
+        <input class="input" id="phone" name="phone" value="{{ form.phone or '' }}">
+      </div>
+      <div class="form-row">
+        <label for="password">{{ t('auth.password') if not editing else t('users.new_password') }}
+          {{ '*' if not editing else '' }}</label>
+        <input class="input" type="password" id="password" name="password"
+               autocomplete="new-password" {{ 'required' if not editing else '' }}>
+        {% if editing %}<div class="hint">{{ t('users.password_hint') }}</div>{% endif %}
+      </div>
+      <div class="form-row checkbox" style="align-self:end;">
+        <input type="checkbox" id="is_active" name="is_active" value="1"
+               {{ 'checked' if form.is_active or not editing else '' }}>
+        <label for="is_active" style="margin:0;font-weight:400;">{{ t('common.active') }}</label>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+      <a class="btn btn-outline" href="{{ url_for('users.index') }}">{{ t('common.cancel') }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
