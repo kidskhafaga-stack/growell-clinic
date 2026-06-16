@@ -19,7 +19,10 @@
     {{ status_form(appt, 'in_progress', t('appointments.start_exam'), 'play-circle', 'btn-primary') }}
     {{ status_form(appt, 'no_show', t('appointments.no_show_btn'), 'person-x', 'btn-outline') }}
   {% elif appt.status == 'in_progress' %}
-    {{ status_form(appt, 'completed', t('appointments.complete'), 'check2-circle', 'btn-primary') }}
+    {% if current_user.can_access('visits') %}
+    <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('visits.start', patient_id=appt.patient_id, appointment_id=appt.id) }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.record_visit') }}</a>
+    {% endif %}
+    {{ status_form(appt, 'completed', t('appointments.complete'), 'check2-circle', 'btn-outline') }}
   {% elif appt.status == 'completed' %}
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=appt.patient_id) }}">
       <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
@@ -112,7 +115,10 @@
     </div>
   </div>
   <div class="cc-foot">
-    {{ status_form(current, 'completed', t('appointments.complete'), 'check2-circle', 'btn-primary') }}
+    {% if current_user.can_access('visits') %}
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=current.patient_id, appointment_id=current.id) }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.record_visit') }}</a>
+    {% endif %}
+    {{ status_form(current, 'completed', t('appointments.complete'), 'check2-circle', 'btn-outline') }}
     <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=current.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
   </div>
 </div>

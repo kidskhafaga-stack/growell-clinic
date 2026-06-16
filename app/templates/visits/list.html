@@ -1,0 +1,41 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('visits.title') }}{% endblock %}
+{% block page_heading %}{{ t('visits.title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('visits.recent_visits') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('visits.list') }}</p>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+  {% if visits %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th><th>{{ t('visits.visit_on') }}</th>
+      <th>{{ t('visits.by_doctor') }}</th><th>{{ t('visits.diagnoses') }}</th>
+      <th>{{ t('common.status') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for v in visits %}
+      <tr>
+        <td><div class="patient-row">{{ patient_avatar(v.patient, 'sm') }}
+          <div><div class="name">{{ v.patient.display_name(current_lang) }}</div>
+            <div class="num">{{ v.patient.patient_number }}</div></div></div></td>
+        <td>{{ v.visit_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ v.doctor.display_name(current_lang) }}</td>
+        <td>{% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">—</span>{% endfor %}</td>
+        <td><span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span></td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.view', visit_id=v.id) }}"><i class="bi bi-eye"></i> {{ t('common.view') }}</a>
+          {% if not v.is_completed %}<a class="btn btn-primary btn-sm gc-press" href="{{ url_for('visits.record', visit_id=v.id) }}"><i class="bi bi-pencil"></i></a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-clipboard2-pulse"></i>{{ t('visits.no_visits') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

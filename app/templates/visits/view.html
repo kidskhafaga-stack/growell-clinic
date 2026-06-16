@@ -1,0 +1,87 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('visits.view_title') }}{% endblock %}
+{% block page_heading %}{{ t('visits.view_title') }}{% endblock %}
+
+{% block content %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=visit.patient_id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('appointments.open_file') }}</a>
+  <div style="display:flex;gap:10px;">
+    {% if not visit.is_completed %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.record', visit_id=visit.id) }}"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</a>
+    {% endif %}
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('visits.print') }}</button>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area">
+  <!-- Print header -->
+  <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--green-600);padding-bottom:14px;margin-bottom:16px;">
+    <div>
+      <h2 style="margin:0;color:var(--green-800);">{{ clinic_name }}</h2>
+      <div style="color:var(--muted);font-size:0.85rem;">{{ t('visits.view_title') }}</div>
+    </div>
+    <div style="text-align:end;">
+      <div><strong>{{ visit.visit_date.strftime('%Y-%m-%d') }}</strong></div>
+      <span class="status-badge {{ 'st-completed' if visit.is_completed else 'st-in_progress' }}">
+        {{ t('visits.completed_status') if visit.is_completed else t('visits.open') }}</span>
+    </div>
+  </div>
+
+  <!-- Patient + doctor -->
+  <div class="info-grid" style="margin-bottom:18px;">
+    <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ visit.patient.display_name(current_lang) }} — {{ visit.patient.patient_number }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(visit.patient) }} · {{ t('genders.' ~ visit.patient.gender) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('visits.by_doctor') }}</div><div class="v">{{ visit.doctor.display_name(current_lang) }}</div></div>
+  </div>
+
+  <!-- Vitals -->
+  {% if visit.vitals %}
+  <h3 class="section-title"><i class="bi bi-activity"></i> {{ t('visits.vitals') }}</h3>
+  <div class="info-grid" style="margin-bottom:18px;">
+    {% if visit.vitals.weight_kg %}<div class="info-item"><div class="k">{{ t('visits.weight') }}</div><div class="v">{{ visit.vitals.weight_kg }}</div></div>{% endif %}
+    {% if visit.vitals.height_cm %}<div class="info-item"><div class="k">{{ t('visits.height') }}</div><div class="v">{{ visit.vitals.height_cm }}</div></div>{% endif %}
+    {% if visit.vitals.head_circ_cm %}<div class="info-item"><div class="k">{{ t('visits.head_circ') }}</div><div class="v">{{ visit.vitals.head_circ_cm }}</div></div>{% endif %}
+    {% if visit.vitals.bmi %}<div class="info-item"><div class="k">{{ t('visits.bmi') }}</div><div class="v">{{ visit.vitals.bmi }}</div></div>{% endif %}
+    {% if visit.vitals.temperature_c %}<div class="info-item"><div class="k">{{ t('visits.temperature') }}</div><div class="v">{{ visit.vitals.temperature_c }}</div></div>{% endif %}
+    {% if visit.vitals.pulse_bpm %}<div class="info-item"><div class="k">{{ t('visits.pulse') }}</div><div class="v">{{ visit.vitals.pulse_bpm }}</div></div>{% endif %}
+    {% if visit.vitals.resp_rate %}<div class="info-item"><div class="k">{{ t('visits.resp_rate') }}</div><div class="v">{{ visit.vitals.resp_rate }}</div></div>{% endif %}
+    {% if visit.vitals.spo2 %}<div class="info-item"><div class="k">{{ t('visits.spo2') }}</div><div class="v">{{ visit.vitals.spo2 }}</div></div>{% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Clinical -->
+  {% if visit.chief_complaint %}<h3 class="section-title"><i class="bi bi-chat-left-text"></i> {{ t('visits.chief_complaint') }}</h3><p>{{ visit.chief_complaint }}</p>{% endif %}
+  {% if visit.clinical_exam %}<h3 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.clinical_exam') }}</h3><p>{{ visit.clinical_exam }}</p>{% endif %}
+
+  <!-- Diagnoses -->
+  <h3 class="section-title"><i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}</h3>
+  {% if visit.diagnoses %}
+  <ul style="padding-inline-start:18px;">
+    {% for dx in visit.diagnoses %}
+    <li style="margin-bottom:6px;">
+      <strong>{{ dx.title }}</strong>
+      {% if dx.code %}<span class="badge badge--role">ICD-{{ dx.icd_version }} · {{ dx.code }}</span>{% endif %}
+      <span class="badge badge--{{ 'green' if dx.dx_type == 'final' else 'muted' }}">{{ t('diagnosis_types.' ~ dx.dx_type) }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p style="color:var(--muted);">{{ t('visits.no_dx') }}</p>{% endif %}
+
+  {% if visit.plan %}<h3 class="section-title"><i class="bi bi-clipboard-check"></i> {{ t('visits.plan') }}</h3><p>{{ visit.plan }}</p>{% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; }
+    .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}

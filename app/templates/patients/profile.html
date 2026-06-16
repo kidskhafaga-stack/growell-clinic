@@ -168,8 +168,36 @@
       {% endif %}
     </div>
 
+    <!-- Visits -->
+    <div class="gc-tab-panel" x-show="tab==='visits'" x-cloak>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.title') }}</h3>
+        {% if current_user.can_access('visits') %}
+        <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=patient.id) }}">
+          <i class="bi bi-plus-circle"></i> {{ t('visits.start_visit') }}</a>
+        {% endif %}
+      </div>
+      {% set pvisits = patient.visits|sort(attribute='created_at', reverse=true) %}
+      {% if pvisits %}
+      <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+        {% for v in pvisits %}
+        <a class="card gc-lift" href="{{ url_for('visits.view', visit_id=v.id) }}"
+           style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span class="badge badge--role"><i class="bi bi-calendar3"></i> {{ v.visit_date.strftime('%Y-%m-%d') }}</span>
+          <span style="flex:1;">
+            {% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">{{ v.chief_complaint or '—' }}</span>{% endfor %}
+          </span>
+          <span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);margin-top:14px;">{{ t('visits.no_visits') }}</p>
+      {% endif %}
+    </div>
+
     <!-- Placeholder tabs for later phases -->
-    {% for key in ['visits','growth','vaccinations','prescriptions','documents','finance'] %}
+    {% for key in ['growth','vaccinations','prescriptions','documents','finance'] %}
     <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
       <div class="empty-state">
         <i class="bi bi-hourglass-split"></i>
