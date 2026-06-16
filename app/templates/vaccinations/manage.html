@@ -1,0 +1,130 @@
+{% extends "shell.html" %}
+{% set active_module = 'vaccinations' %}
+{% block title %}{{ t('vaccinations.manage_title') }}{% endblock %}
+{% block page_heading %}{{ t('vaccinations.manage_title') }}{% endblock %}
+
+{% macro brand_fields(prefix_ages='') %}
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('vaccinations.brand_name') }} *</label><input class="input" name="name" required></div>
+    <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer"></div>
+    <div class="form-row"><label>{{ t('vaccinations.price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
+    <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" placeholder="0, 2, 4, 6"><div class="hint">{{ t('vaccinations.dose_ages_hint') }}</div></div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('vaccinations.manage_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('vaccinations.manage_subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('vaccinations.back_to_patients') }}</a>
+</div>
+
+<!-- Add vaccine -->
+<details class="card gc-scale-in" style="animation-delay:0.05s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('vaccinations.add_vaccine') }}</summary>
+  <form method="post" action="{{ url_for('vaccinations.vaccine_new') }}" style="margin-top:14px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('vaccinations.vaccine_name_ar') }} *</label><input class="input" name="name_ar" required></div>
+      <div class="form-row"><label>{{ t('vaccinations.vaccine_name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('vaccinations.code') }} *</label><input class="input" name="code" dir="ltr" required></div>
+      <div class="form-row"><label>{{ t('vaccinations.category') }}</label>
+        <select class="select" name="category">
+          <option value="mandatory">{{ t('vaccinations.mandatory') }}</option>
+          <option value="optional">{{ t('vaccinations.optional') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('vaccinations.default_brand_name') }}</label><input class="input" name="brand_name" placeholder="حكومي"></div>
+      <div class="form-row"><label>{{ t('vaccinations.price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
+      <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" placeholder="0, 2, 4, 6"><div class="hint">{{ t('vaccinations.dose_ages_hint') }}</div></div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+{% if not vaccines %}
+<div class="card"><div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('vaccinations.no_vaccines') }}</div></div>
+{% endif %}
+
+{% for vaccine in vaccines %}
+<div class="card gc-scale-in" style="animation-delay:0.08s;">
+  <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
+    <div>
+      <h3 style="margin:0;">{{ vaccine.display_name(current_lang) }}
+        <span class="badge badge--role">{{ vaccine.code }}</span>
+        <span class="badge {{ 'badge--green' if vaccine.is_mandatory else 'badge--muted' }}">
+          {{ t('vaccinations.mandatory') if vaccine.is_mandatory else t('vaccinations.optional') }}</span>
+      </h3>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <details style="position:relative;">
+        <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+        <form method="post" action="{{ url_for('vaccinations.vaccine_edit', vaccine_id=vaccine.id) }}" class="popform">
+          <div class="form-row"><label>{{ t('vaccinations.vaccine_name_ar') }}</label><input class="input" name="name_ar" value="{{ vaccine.name_ar }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.vaccine_name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ vaccine.name_en or '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.category') }}</label>
+            <select class="select" name="category">
+              <option value="mandatory" {{ 'selected' if vaccine.is_mandatory else '' }}>{{ t('vaccinations.mandatory') }}</option>
+              <option value="optional" {{ 'selected' if not vaccine.is_mandatory else '' }}>{{ t('vaccinations.optional') }}</option>
+            </select></div>
+          <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="{{ vaccine.sort_order }}"></div>
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </form>
+      </details>
+      <form method="post" action="{{ url_for('vaccinations.vaccine_delete', vaccine_id=vaccine.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+        <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Brands -->
+  <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+    {% for brand in vaccine.brands %}
+    <div class="window-pill" style="justify-content:space-between;width:100%;border-radius:10px;padding:10px 12px;">
+      <span>
+        <strong>{{ brand.display_name(current_lang) }}</strong>
+        {% if brand.is_default %}<i class="bi bi-star-fill" style="color:#f0ad4e;font-size:0.75rem;"></i>{% endif %}
+        · {{ t('vaccinations.doses_label') }}: {{ brand.doses|map(attribute='age_months')|join(', ') }}
+        {% if brand.price %}· {{ brand.price }}{% endif %}
+        {% if brand.manufacturer %}<span style="color:var(--muted);">({{ brand.manufacturer }})</span>{% endif %}
+      </span>
+      <span style="display:flex;gap:6px;">
+        <details style="position:relative;">
+          <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+          <form method="post" action="{{ url_for('vaccinations.brand_edit', brand_id=brand.id) }}" class="popform">
+            <div class="form-row"><label>{{ t('vaccinations.brand_name') }}</label><input class="input" name="name" value="{{ brand.name }}"></div>
+            <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer" value="{{ brand.manufacturer or '' }}"></div>
+            <div class="form-row"><label>{{ t('vaccinations.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
+            <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" value="{{ brand.doses|map(attribute='age_months')|join(', ') }}"></div>
+            <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+          </form>
+        </details>
+        <form method="post" action="{{ url_for('vaccinations.brand_delete', brand_id=brand.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+          <button class="btn-x" type="submit"><i class="bi bi-x"></i></button>
+        </form>
+      </span>
+    </div>
+    {% endfor %}
+
+    <details>
+      <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-plus-lg"></i> {{ t('vaccinations.add_brand') }}</summary>
+      <form method="post" action="{{ url_for('vaccinations.brand_new', vaccine_id=vaccine.id) }}" style="margin-top:10px;">
+        {{ brand_fields() }}
+        <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+      </form>
+    </details>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block head %}
+<style>
+  details > summary { margin-bottom: 4px; }
+  .popform { position:absolute; z-index:30; inset-inline-end:0; margin-top:6px; width:300px;
+    background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; }
+  .btn-x { border:none; background:none; cursor:pointer; color:var(--muted); padding:2px 4px; }
+  .btn-x:hover { color:var(--danger); }
+</style>
+{% endblock %}

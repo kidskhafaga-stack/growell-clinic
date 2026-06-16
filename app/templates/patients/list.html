@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'patients' %}
 {% block title %}{{ t('patients.title') }}{% endblock %}
 {% block page_heading %}{{ t('patients.title') }}{% endblock %}
@@ -113,5 +114,6 @@
     {{ t('patients.no_results') if q else t('patients.no_patients') }}
   </div>
   {% endif %}
+  {{ render_pagination(pagination) }}
 </div>
 {% endblock %}

@@ -1,0 +1,33 @@
+{# Reusable numbered pagination control. Works with Flask-SQLAlchemy's
+   Pagination object and preserves the current query string (search, filters). #}
+{% macro render_pagination(pagination) %}
+{% if pagination and pagination.pages and pagination.pages > 1 %}
+  {% set base = request.args.to_dict() %}
+  {% set _ = base.pop('page', None) %}
+  <nav class="pager" aria-label="pagination">
+    {% if pagination.has_prev %}
+      <a class="pager-btn gc-press" href="{{ url_for(request.endpoint, page=pagination.prev_num, **base) }}"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></a>
+    {% else %}
+      <span class="pager-btn disabled"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></span>
+    {% endif %}
+
+    {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+      {% if p %}
+        <a class="pager-btn gc-press {{ 'active' if p == pagination.page else '' }}"
+           href="{{ url_for(request.endpoint, page=p, **base) }}">{{ p }}</a>
+      {% else %}
+        <span class="pager-gap">…</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.has_next %}
+      <a class="pager-btn gc-press" href="{{ url_for(request.endpoint, page=pagination.next_num, **base) }}"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></a>
+    {% else %}
+      <span class="pager-btn disabled"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></span>
+    {% endif %}
+  </nav>
+  <div class="pager-info">
+    {{ t('common.page') }} {{ pagination.page }} / {{ pagination.pages }} · {{ t('common.total') }}: {{ pagination.total }}
+  </div>
+{% endif %}
+{% endmacro %}

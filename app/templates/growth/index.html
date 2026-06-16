@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'growth' %}
 {% block title %}{{ t('growth.title') }}{% endblock %}
 {% block page_heading %}{{ t('growth.title') }}{% endblock %}
@@ -34,5 +35,6 @@
   {% else %}
   <div class="empty-state"><i class="bi bi-graph-up"></i>{{ t('growth.no_records') }}</div>
   {% endif %}
+  {{ render_pagination(pagination) }}
 </div>
 {% endblock %}

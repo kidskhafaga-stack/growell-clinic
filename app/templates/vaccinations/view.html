@@ -110,8 +110,8 @@
           <div class="hint">🔒 {{ t('vaccinations.brand_locked') }}</div>
         </div>
         <div class="form-grid">
-          <div class="form-row"><label>{{ t('vaccinations.given_date') }}</label>
-            <input class="input" type="date" name="given_date" value="{{ today if today else '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.actual_date') }} *</label>
+            <input class="input" type="date" name="given_date" value="{{ today if today else '' }}" required></div>
           <div class="form-row"><label>{{ t('vaccinations.lot_number') }}</label>
             <input class="input" name="lot_number" dir="ltr"></div>
         </div>

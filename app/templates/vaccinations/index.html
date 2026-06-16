@@ -1,12 +1,19 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'vaccinations' %}
 {% block title %}{{ t('vaccinations.title') }}{% endblock %}
 {% block page_heading %}{{ t('vaccinations.title') }}{% endblock %}
 
 {% block content %}
-<h1 class="page-title gc-animate">{{ t('vaccinations.title') }}</h1>
-<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('vaccinations.select_patient') }}</p>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('vaccinations.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('vaccinations.select_patient') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.manage') }}">
+    <i class="bi bi-gear"></i> {{ t('vaccinations.manage_catalog') }}</a>
+</div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if patients %}
@@ -34,5 +41,6 @@
   {% else %}
   <div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('patients.no_patients') }}</div>
   {% endif %}
+  {{ render_pagination(pagination) }}
 </div>
 {% endblock %}
