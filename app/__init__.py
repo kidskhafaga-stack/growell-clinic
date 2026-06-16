@@ -34,6 +34,7 @@ def create_app(config_name="default"):
     from app.blueprints.growth import growth_bp
     from app.blueprints.main import main_bp
     from app.blueprints.patients import patients_bp
+    from app.blueprints.settings import settings_bp
     from app.blueprints.users import users_bp
     from app.blueprints.vaccinations import vaccinations_bp
     from app.blueprints.visits import visits_bp
@@ -45,6 +46,7 @@ def create_app(config_name="default"):
     app.register_blueprint(visits_bp)
     app.register_blueprint(growth_bp)
     app.register_blueprint(vaccinations_bp)
+    app.register_blueprint(settings_bp)
     app.register_blueprint(users_bp)
 
     # Template globals for navigation rendering.
@@ -59,6 +61,7 @@ def create_app(config_name="default"):
         "visits": "visits.index",
         "growth": "growth.index",
         "vaccinations": "vaccinations.index",
+        "settings": "settings.index",
         "users": "users.index",
     }
 
@@ -70,6 +73,37 @@ def create_app(config_name="default"):
             "MODULE_ENDPOINTS": module_endpoints,
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
         }
+
+    @app.context_processor
+    def inject_clinic_settings():
+        """Expose clinic identity/logo settings to all templates."""
+        from flask import url_for
+
+        defaults = {
+            "name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
+            "name_ar": None, "logo": None, "logo_url": None,
+            "show_logo_login": True, "show_logo_print": True,
+            "phone": None, "address": None, "address_en": None,
+        }
+        try:
+            from app.models import Setting
+
+            rows = {r.key: r.value for r in Setting.query.all()}
+            logo = rows.get("clinic_logo") or None
+            return {"clinic": {
+                "name": rows.get("clinic_name") or defaults["name"],
+                "name_ar": rows.get("clinic_name_ar"),
+                "logo": logo,
+                "logo_url": (url_for("static", filename="uploads/clinic/" + logo)
+                             if logo else None),
+                "show_logo_login": (rows.get("show_logo_login", "1") != "0"),
+                "show_logo_print": (rows.get("show_logo_print", "1") != "0"),
+                "phone": rows.get("clinic_phone"),
+                "address": rows.get("clinic_address"),
+                "address_en": rows.get("clinic_address_en"),
+            }}
+        except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
+            return {"clinic": defaults}
 
     register_error_handlers(app)
     register_cli(app)

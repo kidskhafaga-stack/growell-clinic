@@ -1,0 +1,67 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('nav.settings') }}{% endblock %}
+{% block page_heading %}{{ t('nav.settings') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('settings.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('settings.subtitle') }}</p>
+
+<form method="post" enctype="multipart/form-data">
+  <!-- Clinic identity -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <h2 class="section-title"><i class="bi bi-hospital"></i> {{ t('settings.clinic_identity') }}</h2>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
+        <input class="input" name="clinic_name_ar" value="{{ values.get('clinic_name_ar','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.clinic_name_en') }}</label>
+        <input class="input" name="clinic_name" dir="ltr" value="{{ values.get('clinic_name','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.phone') }}</label>
+        <input class="input" name="clinic_phone" dir="ltr" value="{{ values.get('clinic_phone','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.address') }}</label>
+        <input class="input" name="clinic_address" value="{{ values.get('clinic_address','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.address_en') }}</label>
+        <input class="input" name="clinic_address_en" dir="ltr" value="{{ values.get('clinic_address_en','') }}"></div>
+    </div>
+  </div>
+
+  <!-- Logo -->
+  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+    <h2 class="section-title"><i class="bi bi-image"></i> {{ t('settings.logo') }}</h2>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;">
+      <div style="text-align:center;">
+        {% if clinic.logo_url %}
+          <img src="{{ clinic.logo_url }}" alt="logo" style="max-width:140px;max-height:90px;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff;">
+        {% else %}
+          <div class="patient-avatar lg"><i class="bi bi-image"></i></div>
+        {% endif %}
+      </div>
+      <div style="flex:1;min-width:240px;">
+        <label class="btn btn-outline gc-press" style="cursor:pointer;">
+          <i class="bi bi-upload"></i> {{ t('settings.upload_logo') }}
+          <input type="file" name="logo" accept="image/*" hidden>
+        </label>
+        {% if clinic.logo_url %}
+        <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('settings.delete_logo') }}" formnovalidate>
+          <i class="bi bi-trash"></i> {{ t('settings.remove_logo') }}</button>
+        {% endif %}
+        <p class="hint">{{ t('settings.logo_hint') }}</p>
+        <div class="form-row checkbox" style="margin-top:8px;">
+          <input type="checkbox" id="show_logo_login" name="show_logo_login" value="1"
+                 {{ 'checked' if values.get('show_logo_login','1') != '0' else '' }}>
+          <label for="show_logo_login" style="margin:0;font-weight:400;">{{ t('settings.show_on_login') }}</label>
+        </div>
+        <div class="form-row checkbox">
+          <input type="checkbox" id="show_logo_print" name="show_logo_print" value="1"
+                 {{ 'checked' if values.get('show_logo_print','1') != '0' else '' }}>
+          <label for="show_logo_print" style="margin:0;font-weight:400;">{{ t('settings.show_on_print') }}</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gc-animate" style="margin-top:16px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
+</form>
+{% endblock %}

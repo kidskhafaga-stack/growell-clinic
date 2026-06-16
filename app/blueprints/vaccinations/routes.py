@@ -291,4 +291,7 @@ def certificate(patient_id):
         .order_by(PatientVaccine.given_date)
         .all()
     )
-    return render_template("vaccinations/certificate.html", patient=patient, given=given)
+    return render_template(
+        "vaccinations/certificate.html", patient=patient, given=given,
+        now_date=datetime.utcnow().date().isoformat(),
+    )

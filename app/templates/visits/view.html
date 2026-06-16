@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% from "_print_header.html" import print_header with context %}
 {% set active_module = 'visits' %}
 {% block title %}{{ t('visits.view_title') }}{% endblock %}
 {% block page_heading %}{{ t('visits.view_title') }}{% endblock %}
@@ -18,17 +19,7 @@
 
 <div class="card gc-scale-in print-area">
   <!-- Print header -->
-  <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--green-600);padding-bottom:14px;margin-bottom:16px;">
-    <div>
-      <h2 style="margin:0;color:var(--green-800);">{{ clinic_name }}</h2>
-      <div style="color:var(--muted);font-size:0.85rem;">{{ t('visits.view_title') }}</div>
-    </div>
-    <div style="text-align:end;">
-      <div><strong>{{ visit.visit_date.strftime('%Y-%m-%d') }}</strong></div>
-      <span class="status-badge {{ 'st-completed' if visit.is_completed else 'st-in_progress' }}">
-        {{ t('visits.completed_status') if visit.is_completed else t('visits.open') }}</span>
-    </div>
-  </div>
+  {{ print_header(t('visits.view_title'), '<strong>' ~ visit.visit_date.strftime('%Y-%m-%d') ~ '</strong>') }}
 
   <!-- Patient + doctor -->
   <div class="info-grid" style="margin-bottom:18px;">
