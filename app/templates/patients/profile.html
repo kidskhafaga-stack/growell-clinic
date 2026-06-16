@@ -196,8 +196,31 @@
       {% endif %}
     </div>
 
+    <!-- Growth -->
+    <div class="gc-tab-panel" x-show="tab==='growth'" x-cloak>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-graph-up"></i> {{ t('growth.title') }}</h3>
+        {% if current_user.can_access('growth') %}
+        <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('growth.view', patient_id=patient.id) }}">
+          <i class="bi bi-graph-up-arrow"></i> {{ t('growth.open_chart') }}</a>
+        {% endif %}
+      </div>
+      {% set latest_growth = patient.growth_records|sort(attribute='record_date', reverse=true)|first %}
+      {% if latest_growth %}
+      <div class="info-grid" style="margin-top:14px;">
+        <div class="info-item"><div class="k">{{ t('growth.record_date') }}</div><div class="v">{{ latest_growth.record_date.strftime('%Y-%m-%d') }}</div></div>
+        {% if latest_growth.weight_kg %}<div class="info-item"><div class="k">{{ t('visits.weight') }}</div><div class="v">{{ latest_growth.weight_kg }} kg</div></div>{% endif %}
+        {% if latest_growth.height_cm %}<div class="info-item"><div class="k">{{ t('visits.height') }}</div><div class="v">{{ latest_growth.height_cm }} cm</div></div>{% endif %}
+        {% if latest_growth.head_circ_cm %}<div class="info-item"><div class="k">{{ t('visits.head_circ') }}</div><div class="v">{{ latest_growth.head_circ_cm }} cm</div></div>{% endif %}
+        {% if latest_growth.bmi %}<div class="info-item"><div class="k">{{ t('visits.bmi') }}</div><div class="v">{{ latest_growth.bmi }}</div></div>{% endif %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);margin-top:14px;">{{ t('growth.no_records') }}</p>
+      {% endif %}
+    </div>
+
     <!-- Placeholder tabs for later phases -->
-    {% for key in ['growth','vaccinations','prescriptions','documents','finance'] %}
+    {% for key in ['vaccinations','prescriptions','documents','finance'] %}
     <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
       <div class="empty-state">
         <i class="bi bi-hourglass-split"></i>

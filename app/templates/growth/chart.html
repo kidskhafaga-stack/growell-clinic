@@ -1,0 +1,179 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% set active_module = 'growth' %}
+{% block title %}{{ t('growth.chart_title') }}{% endblock %}
+{% block page_heading %}{{ t('growth.title') }}{% endblock %}
+
+{% block content %}
+<div x-data="growthChart({{ patient.id }}, '{{ url_for('growth.data', patient_id=patient.id) }}', '{{ default_ref }}')"
+     x-init="init()">
+
+  <!-- Header -->
+  <div class="card profile-header gc-scale-in">
+    {{ patient_avatar(patient, 'lg') }}
+    <div style="flex:1;min-width:220px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h1 style="margin:0;font-size:1.4rem;">{{ patient.display_name(current_lang) }}</h1>
+        <span class="badge badge--role">{{ patient.patient_number }}</span>
+      </div>
+      <div class="meta-row">
+        <span><i class="bi bi-cake2"></i> {{ age_label(patient) }}</span>
+        <span><i class="bi bi-gender-ambiguous"></i> {{ t('genders.' ~ patient.gender) }}</span>
+      </div>
+    </div>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
+      <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+  </div>
+
+  <!-- Controls -->
+  <div class="card gc-animate" style="display:flex;gap:18px;flex-wrap:wrap;align-items:end;animation-delay:0.05s;">
+    <div class="form-row" style="margin:0;min-width:240px;">
+      <label>{{ t('growth.reference') }}</label>
+      <select class="select" x-model="ref" x-on:change="load()">
+        {% for r in references %}<option value="{{ r.key }}">{{ r.label[current_lang] if r.label[current_lang] is defined else r.label['en'] }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="gc-tabs" style="border:none;gap:6px;flex:1;">
+      {% for ind in indicators %}
+      <button class="gc-tab" :class="indicator==='{{ ind }}' && 'active'" x-on:click="indicator='{{ ind }}'; load()">
+        {{ t('growth.' ~ ind) }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Latest summary -->
+  <div class="stat-grid gc-stagger" style="margin:18px 0;" x-show="latest">
+    <div class="stat-card edge-green gc-lift">
+      <div class="label">{{ t('growth.latest_measurement') }}</div>
+      <div class="value" style="font-size:1.4rem;" x-text="(latest? latest.value : '—') + ' ' + unit"></div>
+      <div class="label" x-text="latest ? latest.date : ''"></div>
+    </div>
+    <div class="stat-card edge-blue gc-lift">
+      <div class="label">{{ t('growth.percentile') }}</div>
+      <div class="value" x-text="latest && latest.percentile!=null ? ('P'+latest.percentile) : '—'"></div>
+    </div>
+    <div class="stat-card edge-yellow gc-lift">
+      <div class="label">{{ t('growth.zscore') }}</div>
+      <div class="value" x-text="latest && latest.z!=null ? latest.z : '—'"></div>
+    </div>
+    <div class="stat-card gc-lift" :class="statusEdge">
+      <div class="label">{{ t('common.status') }}</div>
+      <div class="value" style="font-size:1.05rem;" x-text="statusLabel"></div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <div x-show="!hasData" class="empty-state">
+      <i class="bi bi-graph-up"></i>{{ t('growth.no_records') }}
+      <p>{{ t('growth.no_records_hint') }}</p>
+    </div>
+    <div x-show="hasData" style="position:relative;height:460px;"><canvas x-ref="canvas"></canvas></div>
+  </div>
+
+  <!-- Add measurement -->
+  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+    <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('growth.add_measurement') }}</h2>
+    <form method="post" action="{{ url_for('growth.add', patient_id=patient.id) }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('growth.record_date') }} *</label>
+          <input class="input" type="date" name="record_date" value="{{ today }}" required></div>
+        <div class="form-row"><label>{{ t('visits.weight') }}</label>
+          <input class="input" type="number" step="0.01" name="weight_kg"></div>
+        <div class="form-row"><label>{{ t('visits.height') }}</label>
+          <input class="input" type="number" step="0.1" name="height_cm"></div>
+        <div class="form-row"><label>{{ t('visits.head_circ') }}</label>
+          <input class="input" type="number" step="0.1" name="head_circ_cm"></div>
+      </div>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-plus-lg"></i> {{ t('growth.add_measurement') }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>[x-cloak]{display:none!important;}</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  const GROWTH_LABELS = {
+    status_normal: "{{ t('growth.status_normal') }}",
+    status_caution: "{{ t('growth.status_caution') }}",
+    status_alert: "{{ t('growth.status_alert') }}",
+    status_unknown: "{{ t('growth.status_unknown') }}",
+    percentile: "{{ t('growth.percentile') }}",
+    zscore: "{{ t('growth.zscore') }}",
+    age: "{{ t('growth.age_months') }}"
+  };
+  function growthChart(pid, dataUrl, defaultRef) {
+    return {
+      ref: defaultRef, indicator: 'wfa', unit: '', chart: null,
+      latest: null, hasData: false,
+      statusLabel: '', statusEdge: 'edge-green',
+      init() { this.load(); },
+      async load() {
+        const res = await fetch(`${dataUrl}?ref=${this.ref}&indicator=${this.indicator}`);
+        const d = await res.json();
+        this.unit = d.unit || '';
+        const pts = d.points || [];
+        this.hasData = pts.length > 0;
+        this.latest = pts.length ? pts[pts.length - 1] : null;
+        this.updateStatus();
+        this.$nextTick(() => this.render(d));
+      },
+      updateStatus() {
+        const s = this.latest ? this.latest.status : 'unknown';
+        this.statusLabel = GROWTH_LABELS['status_' + s] || GROWTH_LABELS.status_unknown;
+        this.statusEdge = s === 'normal' ? 'edge-green' : (s === 'caution' ? 'edge-yellow' : (s === 'alert' ? 'edge-red' : 'edge-blue'));
+      },
+      render(d) {
+        if (!this.hasData || !d.curves) { if (this.chart) { this.chart.destroy(); this.chart = null; } return; }
+        const c = d.curves;
+        const line = (label, key, color, dash) => ({
+          label, data: c.months.map((m, i) => ({ x: m, y: c[key][i] })),
+          borderColor: color, borderWidth: 1.2, borderDash: dash || [],
+          pointRadius: 0, fill: false, tension: 0.3, order: 2
+        });
+        const grey = '#c4ccd4', mid = '#9aa7b2';
+        const datasets = [
+          line('P3', 'P3', grey, [4, 3]), line('P15', 'P15', mid),
+          line('P50', 'P50', '#198754', []), line('P85', 'P85', mid),
+          line('P97', 'P97', grey, [4, 3]),
+          {
+            label: '{{ patient.display_name(current_lang) }}',
+            data: d.points.map(p => ({ x: p.age_months, y: p.value, p: p.percentile, z: p.z })),
+            borderColor: '#0d6efd', backgroundColor: '#0d6efd',
+            borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+            showLine: true, tension: 0.2, order: 1
+          }
+        ];
+        const cfg = {
+          type: 'line',
+          data: { datasets },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'nearest', intersect: false },
+            scales: {
+              x: { type: 'linear', title: { display: true, text: GROWTH_LABELS.age } },
+              y: { title: { display: true, text: this.unit } }
+            },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 18, font: { size: 11 } } },
+              tooltip: { callbacks: { label: (ctx) => {
+                const r = ctx.raw;
+                if (r.p !== undefined && r.p !== null)
+                  return `${r.y} ${this.unit} · ${GROWTH_LABELS.percentile} P${r.p} · ${GROWTH_LABELS.zscore} ${r.z}`;
+                return `${ctx.dataset.label}: ${r.y}`;
+              } } }
+            }
+          }
+        };
+        if (this.chart) this.chart.destroy();
+        this.chart = new Chart(this.$refs.canvas, cfg);
+      }
+    };
+  }
+</script>
+{% endblock %}
