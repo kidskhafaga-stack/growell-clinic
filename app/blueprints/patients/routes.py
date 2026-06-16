@@ -71,7 +71,9 @@ def index():
                 Patient.national_id.ilike(like),
             )
         )
-    patients = query.order_by(Patient.created_at.desc()).all()
+    pagination = query.order_by(Patient.created_at.desc()).paginate(
+        page=request.args.get("page", 1, type=int), per_page=25, error_out=False
+    )
 
     stats = {
         "total": Patient.query.count(),
@@ -80,7 +82,8 @@ def index():
         "female": Patient.query.filter_by(gender="female").count(),
     }
     return render_template(
-        "patients/list.html", patients=patients, q=q, stats=stats
+        "patients/list.html", patients=pagination.items, pagination=pagination,
+        q=q, stats=stats,
     )
 
 

@@ -58,8 +58,12 @@ def _int(name):
 @visits_bp.route("/")
 @module_required(MODULE)
 def index():
-    visits = Visit.query.order_by(Visit.created_at.desc()).limit(50).all()
-    return render_template("visits/list.html", visits=visits)
+    pagination = Visit.query.order_by(Visit.created_at.desc()).paginate(
+        page=request.args.get("page", 1, type=int), per_page=25, error_out=False
+    )
+    return render_template(
+        "visits/list.html", visits=pagination.items, pagination=pagination
+    )
 
 
 # --------------------------------------------------------------- start -----

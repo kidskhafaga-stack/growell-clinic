@@ -18,7 +18,14 @@ from flask_login import current_user
 from app.blueprints.vaccinations import vaccinations_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import ActivityLog, Patient, PatientVaccine, Vaccine
+from app.models import (
+    ActivityLog,
+    Patient,
+    PatientVaccine,
+    Vaccine,
+    VaccineBrand,
+    VaccineBrandDose,
+)
 from app.utils.decorators import client_ip, module_required
 from app.utils.vaccines import (
     chosen_brand,
@@ -34,8 +41,13 @@ MODULE = "vaccinations"
 @vaccinations_bp.route("/")
 @module_required(MODULE)
 def index():
-    patients = Patient.query.filter_by(is_active=True).order_by(Patient.full_name).all()
-    return render_template("vaccinations/index.html", patients=patients)
+    pagination = (
+        Patient.query.filter_by(is_active=True).order_by(Patient.full_name)
+        .paginate(page=request.args.get("page", 1, type=int), per_page=25, error_out=False)
+    )
+    return render_template(
+        "vaccinations/index.html", patients=pagination.items, pagination=pagination
+    )
 
 
 @vaccinations_bp.route("/<int:patient_id>")
@@ -117,6 +129,157 @@ def delete_dose(pv_id):
     db.session.commit()
     flash(t("vaccinations.dose_removed"), "info")
     return redirect(url_for("vaccinations.view", patient_id=patient_id))
+
+
+# =================================================================
+#  Vaccine catalogue management (add/edit vaccines, brands, schedules)
+# =================================================================
+def _parse_ages(raw):
+    """Parse a comma/Arabic-comma separated list of month ages into ints."""
+    ages = []
+    for part in (raw or "").replace("،", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ages.append(int(float(part)))
+        except ValueError:
+            continue
+    return sorted(set(ages))
+
+
+def _set_brand_doses(brand, ages):
+    VaccineBrandDose.query.filter_by(brand_id=brand.id).delete()
+    for i, age in enumerate(ages, start=1):
+        db.session.add(VaccineBrandDose(brand_id=brand.id, dose_number=i, age_months=age))
+
+
+@vaccinations_bp.route("/manage")
+@module_required(MODULE)
+def manage():
+    vaccines = Vaccine.query.order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all()
+    return render_template("vaccinations/manage.html", vaccines=vaccines)
+
+
+@vaccinations_bp.route("/manage/vaccine/new", methods=["POST"])
+@module_required(MODULE)
+def vaccine_new():
+    code = (request.form.get("code") or "").strip().upper()
+    name_ar = (request.form.get("name_ar") or "").strip()
+    if not code or not name_ar:
+        flash(t("common.required") + ": " + t("vaccinations.vaccine_name_ar"), "danger")
+        return redirect(url_for("vaccinations.manage"))
+    if Vaccine.query.filter_by(code=code).first():
+        flash(t("vaccinations.code_taken"), "warning")
+        return redirect(url_for("vaccinations.manage"))
+
+    is_mandatory = (request.form.get("category") or "mandatory") == "mandatory"
+    vaccine = Vaccine(
+        code=code, name_ar=name_ar,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        is_mandatory=is_mandatory,
+        sort_order=request.form.get("sort_order", type=int) or 100,
+    )
+    db.session.add(vaccine)
+    db.session.flush()
+
+    # Create the first brand (government for mandatory) + its dose schedule.
+    brand = VaccineBrand(
+        vaccine_id=vaccine.id,
+        name=(request.form.get("brand_name") or ("حكومي" if is_mandatory else name_ar)).strip(),
+        manufacturer=(request.form.get("manufacturer") or "").strip() or None,
+        price=request.form.get("price", type=float),
+        is_default=True,
+    )
+    db.session.add(brand)
+    db.session.flush()
+    _set_brand_doses(brand, _parse_ages(request.form.get("dose_ages")))
+
+    ActivityLog.record("vaccine.create", user_id=current_user.id, entity="vaccine",
+                       entity_id=vaccine.id, detail=code, ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.vaccine_added"), "success")
+    return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def vaccine_edit(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    vaccine.name_ar = (request.form.get("name_ar") or vaccine.name_ar).strip()
+    vaccine.name_en = (request.form.get("name_en") or "").strip() or None
+    vaccine.is_mandatory = (request.form.get("category") or "mandatory") == "mandatory"
+    if request.form.get("sort_order", type=int) is not None:
+        vaccine.sort_order = request.form.get("sort_order", type=int)
+    db.session.commit()
+    flash(t("vaccinations.vaccine_updated"), "success")
+    return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def vaccine_delete(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    if PatientVaccine.query.filter_by(vaccine_id=vaccine.id).first():
+        flash(t("vaccinations.cannot_delete_used"), "warning")
+        return redirect(url_for("vaccinations.manage"))
+    db.session.delete(vaccine)
+    db.session.commit()
+    flash(t("vaccinations.vaccine_deleted"), "info")
+    return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/brand/new", methods=["POST"])
+@module_required(MODULE)
+def brand_new(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("vaccinations.brand_name"), "danger")
+        return redirect(url_for("vaccinations.manage"))
+    brand = VaccineBrand(
+        vaccine_id=vaccine.id, name=name,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        manufacturer=(request.form.get("manufacturer") or "").strip() or None,
+        price=request.form.get("price", type=float),
+        is_default=not vaccine.brands,
+    )
+    db.session.add(brand)
+    db.session.flush()
+    _set_brand_doses(brand, _parse_ages(request.form.get("dose_ages")))
+    db.session.commit()
+    flash(t("vaccinations.brand_added"), "success")
+    return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/brand/<int:brand_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def brand_edit(brand_id):
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    brand.name = (request.form.get("name") or brand.name).strip()
+    brand.name_en = (request.form.get("name_en") or "").strip() or None
+    brand.manufacturer = (request.form.get("manufacturer") or "").strip() or None
+    brand.price = request.form.get("price", type=float)
+    ages = _parse_ages(request.form.get("dose_ages"))
+    if ages:
+        _set_brand_doses(brand, ages)
+    db.session.commit()
+    flash(t("vaccinations.brand_updated"), "success")
+    return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/brand/<int:brand_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def brand_delete(brand_id):
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    if PatientVaccine.query.filter_by(brand_id=brand.id).first():
+        flash(t("vaccinations.cannot_delete_used"), "warning")
+        return redirect(url_for("vaccinations.manage"))
+    vid = brand.vaccine_id
+    db.session.delete(brand)
+    db.session.commit()
+    flash(t("vaccinations.brand_deleted"), "info")
+    return redirect(url_for("vaccinations.manage"))
 
 
 @vaccinations_bp.route("/<int:patient_id>/certificate")

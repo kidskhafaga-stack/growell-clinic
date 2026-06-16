@@ -51,14 +51,16 @@ def _records(patient):
 @growth_bp.route("/")
 @module_required(MODULE)
 def index():
-    # Patients that have at least one growth record, most recent first.
-    patient_ids = [r.patient_id for r in db.session.query(GrowthRecord.patient_id).distinct()]
-    patients = (
-        Patient.query.filter(Patient.id.in_(patient_ids)).all()
-        if patient_ids else []
+    # Patients that have at least one growth record.
+    sub = db.session.query(GrowthRecord.patient_id).distinct().subquery()
+    pagination = (
+        Patient.query.filter(Patient.id.in_(db.session.query(sub.c.patient_id)))
+        .order_by(Patient.full_name)
+        .paginate(page=request.args.get("page", 1, type=int), per_page=25, error_out=False)
     )
-    patients.sort(key=lambda p: p.full_name)
-    return render_template("growth/index.html", patients=patients)
+    return render_template(
+        "growth/index.html", patients=pagination.items, pagination=pagination
+    )
 
 
 @growth_bp.route("/<int:patient_id>")

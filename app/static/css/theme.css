@@ -388,6 +388,19 @@ a:hover { color: var(--green-900); }
 .dose-pill .dn { font-weight:700; }
 .dose-pill .dd { color:var(--muted); font-size:0.72rem; }
 
+/* ---------- Pagination ---------- */
+.pager { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 16px; }
+.pager-btn {
+  min-width: 38px; height: 38px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 0.9rem;
+}
+.pager-btn:hover { border-color: var(--green-500); color: var(--green-700); }
+.pager-btn.active { background: var(--green-700); color: #fff; border-color: var(--green-700); font-weight: 600; }
+.pager-btn.disabled { opacity: 0.4; pointer-events: none; }
+.pager-gap { min-width: 24px; text-align: center; color: var(--muted); align-self: center; }
+.pager-info { text-align: center; color: var(--muted); font-size: 0.82rem; padding-bottom: 10px; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 980px) { .current-cols { grid-template-columns: 1fr; } }
 @media (max-width: 880px) {

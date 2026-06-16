@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar with context %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'visits' %}
 {% block title %}{{ t('visits.title') }}{% endblock %}
 {% block page_heading %}{{ t('visits.title') }}{% endblock %}
@@ -37,5 +38,6 @@
   {% else %}
   <div class="empty-state"><i class="bi bi-clipboard2-pulse"></i>{{ t('visits.no_visits') }}</div>
   {% endif %}
+  {{ render_pagination(pagination) }}
 </div>
 {% endblock %}
