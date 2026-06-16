@@ -5,8 +5,12 @@
 <div class="auth-wrap">
   <div class="auth-card gc-scale-in">
     <div class="brand">
-      <div class="logo gc-glow"><i class="bi bi-heart-pulse"></i></div>
-      <h1>{{ t('app.name') }}</h1>
+      {% if clinic.logo_url and clinic.show_logo_login %}
+        <img src="{{ clinic.logo_url }}" alt="logo" class="auth-logo gc-scale-in">
+      {% else %}
+        <div class="logo gc-glow"><i class="bi bi-heart-pulse"></i></div>
+      {% endif %}
+      <h1>{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else (clinic.name or t('app.name')) }}</h1>
       <div class="sub">{{ t('auth.login_subtitle') }}</div>
     </div>
 

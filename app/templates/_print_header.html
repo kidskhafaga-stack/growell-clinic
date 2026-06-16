@@ -1,0 +1,21 @@
+{# Print/document header with optional clinic logo + identity. #}
+{% macro print_header(subtitle, right_html='') %}
+<div class="print-header" style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--green-600);padding-bottom:14px;margin-bottom:18px;gap:14px;">
+  <div style="display:flex;align-items:center;gap:14px;">
+    {% if clinic.logo_url and clinic.show_logo_print %}
+      <img src="{{ clinic.logo_url }}" alt="logo" style="max-height:64px;max-width:120px;object-fit:contain;">
+    {% endif %}
+    <div>
+      <h2 style="margin:0;color:var(--green-800);">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else (clinic.name or clinic_name) }}</h2>
+      {% if subtitle %}<div style="color:var(--muted);">{{ subtitle }}</div>{% endif %}
+      {% set addr = clinic.address if current_lang == 'ar' else (clinic.address_en or clinic.address) %}
+      {% if addr or clinic.phone %}
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:2px;">
+        {% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% if right_html %}<div style="text-align:end;font-size:0.85rem;">{{ right_html|safe }}</div>{% endif %}
+</div>
+{% endmacro %}

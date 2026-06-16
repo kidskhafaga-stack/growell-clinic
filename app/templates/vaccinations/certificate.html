@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import age_label with context %}
+{% from "_print_header.html" import print_header with context %}
 {% set active_module = 'vaccinations' %}
 {% block title %}{{ t('vaccinations.certificate') }}{% endblock %}
 {% block page_heading %}{{ t('vaccinations.certificate') }}{% endblock %}
@@ -12,15 +13,7 @@
 </div>
 
 <div class="card gc-scale-in print-area">
-  <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--green-600);padding-bottom:14px;margin-bottom:18px;">
-    <div>
-      <h2 style="margin:0;color:var(--green-800);">{{ clinic_name }}</h2>
-      <div style="color:var(--muted);">{{ t('vaccinations.certificate') }}</div>
-    </div>
-    <div style="text-align:end;font-size:0.85rem;">
-      <div>{{ t('vaccinations.cert_issued') }}: <strong>{{ now_date }}</strong></div>
-    </div>
-  </div>
+  {{ print_header(t('vaccinations.certificate'), t('vaccinations.cert_issued') ~ ': <strong>' ~ now_date ~ '</strong>') }}
 
   <div class="info-grid" style="margin-bottom:20px;">
     <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ patient.display_name(current_lang) }}</div></div>

@@ -470,6 +470,25 @@
     "relative": "Relative",
     "employee": "Employee"
   },
+  "settings": {
+    "title": "System settings",
+    "subtitle": "Clinic identity, logo and printout options",
+    "clinic_identity": "Clinic identity",
+    "clinic_name_ar": "Clinic name (Arabic)",
+    "clinic_name_en": "Clinic name (English)",
+    "phone": "Phone",
+    "address": "Address",
+    "address_en": "Address (English)",
+    "logo": "Clinic logo",
+    "upload_logo": "Upload logo",
+    "remove_logo": "Remove logo",
+    "logo_hint": "PNG, JPG or SVG. Shown on the login screen and printouts.",
+    "show_on_login": "Show logo on the login screen",
+    "show_on_print": "Show logo on printouts",
+    "saved": "Settings saved",
+    "logo_removed": "Logo removed",
+    "bad_logo": "Unsupported image format"
+  },
   "errors": {
     "403_title": "Forbidden",
     "403_message": "You do not have permission to view this page",
