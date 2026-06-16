@@ -1,0 +1,38 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% set active_module = 'growth' %}
+{% block title %}{{ t('growth.title') }}{% endblock %}
+{% block page_heading %}{{ t('growth.title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('growth.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('growth.select_patient') }}</p>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+  {% if patients %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th><th>{{ t('patients.age') }}</th>
+      <th>{{ t('patients.gender') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for p in patients %}
+      <tr>
+        <td><div class="patient-row">{{ patient_avatar(p, 'sm') }}
+          <div><div class="name">{{ p.display_name(current_lang) }}</div>
+            <div class="num">{{ p.patient_number }}</div></div></div></td>
+        <td>{{ age_label(p) }}</td>
+        <td><span class="badge {{ 'gender-male' if p.gender=='male' else 'gender-female' }}" style="border-radius:999px;">{{ t('genders.' ~ p.gender) }}</span></td>
+        <td style="text-align:end;">
+          <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('growth.view', patient_id=p.id) }}">
+            <i class="bi bi-graph-up"></i> {{ t('growth.open_chart') }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-graph-up"></i>{{ t('growth.no_records') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
