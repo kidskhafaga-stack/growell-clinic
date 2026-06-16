@@ -1,0 +1,159 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('appointments.today') }}{% endblock %}
+{% block page_heading %}{{ t('appointments.today') }}{% endblock %}
+
+{% macro status_form(appt, status, label, icon, cls) %}
+  <form method="post" action="{{ url_for('appointments.change_status', appt_id=appt.id) }}" style="display:inline;">
+    <input type="hidden" name="status" value="{{ status }}">
+    <button class="btn {{ cls }} btn-sm gc-press" type="submit"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
+  </form>
+{% endmacro %}
+
+{% macro action_buttons(appt) %}
+  {% if appt.status == 'scheduled' %}
+    {{ status_form(appt, 'waiting', t('appointments.call_in'), 'megaphone', 'btn-primary') }}
+    {{ status_form(appt, 'no_show', t('appointments.no_show_btn'), 'person-x', 'btn-outline') }}
+  {% elif appt.status == 'waiting' %}
+    {{ status_form(appt, 'in_progress', t('appointments.start_exam'), 'play-circle', 'btn-primary') }}
+    {{ status_form(appt, 'no_show', t('appointments.no_show_btn'), 'person-x', 'btn-outline') }}
+  {% elif appt.status == 'in_progress' %}
+    {{ status_form(appt, 'completed', t('appointments.complete'), 'check2-circle', 'btn-primary') }}
+  {% elif appt.status == 'completed' %}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=appt.patient_id) }}">
+      <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+  {% else %}
+    {{ status_form(appt, 'scheduled', t('common.confirm'), 'arrow-counterclockwise', 'btn-outline') }}
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<!-- Header row -->
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('appointments.today') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('appointments.board_subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.schedules', doctor_id=doctor_id) }}">
+      <i class="bi bi-calendar2-week"></i> {{ t('appointments.manage_schedules') }}</a>
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('appointments.create') }}">
+      <i class="bi bi-plus-lg"></i> {{ t('appointments.new_appointment') }}</a>
+  </div>
+</div>
+
+<!-- Controls: date nav + doctor filter -->
+<div class="card gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;animation-delay:0.05s;">
+  <div class="date-nav">
+    <a class="nav-btn" href="{{ url_for('appointments.index', date=prev_date, doctor_id=doctor_id) }}"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></a>
+    <div class="current-date"><i class="bi bi-calendar3"></i> {{ on_date.strftime('%Y-%m-%d') }} · {{ t('weekdays.' ~ on_date.weekday()) }}</div>
+    <a class="nav-btn" href="{{ url_for('appointments.index', date=next_date, doctor_id=doctor_id) }}"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></a>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.index', date=today, doctor_id=doctor_id) }}">{{ t('appointments.today_btn') }}</a>
+  </div>
+  <form method="get" id="docFilter">
+    <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+    <select class="select" name="doctor_id" onchange="document.getElementById('docFilter').submit()">
+      <option value="">{{ t('appointments.all_doctors') }}</option>
+      {% for d in doctors %}
+        <option value="{{ d.id }}" {{ 'selected' if doctor_id == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-calendar-check ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.total }}">0</div><div class="label">{{ t('appointments.stat_total') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-check2-all ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.completed }}">0</div><div class="label">{{ t('appointments.stat_done') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-hourglass-split ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.waiting }}">0</div><div class="label">{{ t('appointments.stat_waiting') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-person-x ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.no_show }}">0</div><div class="label">{{ t('appointments.stat_no_show') }}</div></div>
+</div>
+
+<!-- Current patient card -->
+{% if current %}
+<div class="current-card gc-scale-in" style="margin-bottom:18px;">
+  <div class="cc-head">
+    {{ patient_avatar(current.patient, 'lg') }}
+    <div style="flex:1;min-width:200px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h2 style="margin:0;font-size:1.3rem;">{{ current.patient.display_name(current_lang) }}</h2>
+        <span class="status-badge st-in_progress">{{ t('statuses.in_progress') }}</span>
+      </div>
+      <div class="meta-row"><span><i class="bi bi-hash"></i> {{ current.patient.patient_number }}</span>
+        <span><i class="bi bi-cake2"></i> {{ age_label(current.patient) }}</span>
+        <span><i class="bi bi-clock"></i> {{ current.time_label }}</span></div>
+    </div>
+    <span class="badge badge--role" style="align-self:flex-start;">{{ t('appointments.current_patient') }}</span>
+  </div>
+  <div class="current-cols">
+    <div class="col">
+      <h4>{{ t('appointments.appointment_info') }}</h4>
+      <div class="info-item"><div class="k">{{ t('appointments.time') }}</div><div class="v">{{ current.time_label }}</div></div>
+      <div class="info-item" style="margin-top:8px;"><div class="k">{{ t('appointments.reason') }}</div><div class="v">{{ current.reason or '—' }}</div></div>
+      <div class="info-item" style="margin-top:8px;"><div class="k">{{ t('appointments.doctor') }}</div><div class="v">{{ current.doctor.display_name(current_lang) }}</div></div>
+    </div>
+    <div class="col">
+      <h4>{{ t('appointments.patient_info') }}</h4>
+      {% if current.patient.has_alerts %}
+        {% if current.patient.allergies %}<div class="alert-pill danger" style="margin-bottom:6px;"><i class="bi bi-exclamation-octagon"></i> {{ current.patient.allergies }}</div>{% endif %}
+        {% if current.patient.chronic_diseases %}<div class="alert-pill warn"><i class="bi bi-heart-pulse"></i> {{ current.patient.chronic_diseases }}</div>{% endif %}
+      {% else %}<div class="placeholder-soft">{{ t('patients.no_alerts') }}</div>{% endif %}
+      {% if current.patient.blood_type %}<div class="info-item" style="margin-top:10px;"><div class="k">{{ t('patients.blood_type') }}</div><div class="v">{{ current.patient.blood_type }}</div></div>{% endif %}
+    </div>
+    <div class="col">
+      <h4>{{ t('patients.tab_growth') }} · {{ t('patients.tab_vaccinations') }}</h4>
+      <div class="placeholder-soft"><i class="bi bi-hourglass-split"></i> {{ t('common.coming_soon') }}</div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-top:8px;">{{ t('patients.tab_phase_notice') }}</p>
+    </div>
+  </div>
+  <div class="cc-foot">
+    {{ status_form(current, 'completed', t('appointments.complete'), 'check2-circle', 'btn-primary') }}
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=current.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+  </div>
+</div>
+{% endif %}
+
+<!-- Appointments table -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.12s;">
+  {% if appointments %}
+  <table class="table">
+    <thead><tr>
+      <th>#</th><th>{{ t('appointments.time') }}</th><th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('patients.age') }}</th><th>{{ t('appointments.reason') }}</th>
+      <th>{{ t('appointments.status') }}</th><th style="text-align:end;">{{ t('appointments.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for a in appointments %}
+      <tr>
+        <td style="color:var(--muted);">{{ loop.index }}</td>
+        <td><strong>{{ a.time_label }}</strong></td>
+        <td>
+          <div class="patient-row">{{ patient_avatar(a.patient, 'sm') }}
+            <div><a class="name" href="{{ url_for('patients.view', patient_id=a.patient_id) }}" style="color:inherit;">{{ a.patient.display_name(current_lang) }}</a>
+              <div class="num">{{ a.patient.patient_number }}</div></div></div>
+        </td>
+        <td>{{ age_label(a.patient) }}</td>
+        <td>{{ a.reason or '—' }}</td>
+        <td><span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span></td>
+        <td style="text-align:end;white-space:nowrap;">
+          {{ action_buttons(a) }}
+          {% if a.status in ['scheduled','waiting'] %}
+          {{ status_form(a, 'cancelled', '', 'x-circle', 'btn-outline') }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-calendar-x"></i>{{ t('appointments.no_appointments') }}
+    <div style="margin-top:14px;"><a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('appointments.create') }}"><i class="bi bi-plus-lg"></i> {{ t('appointments.new_appointment') }}</a></div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

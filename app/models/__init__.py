@@ -5,6 +5,13 @@ Later phases add the clinical and financial domain models. Importing them
 here ensures SQLAlchemy registers every table when ``db.create_all()`` runs.
 """
 from app.models.activity_log import ActivityLog
+from app.models.appointment import (
+    ACTIVE_STATUSES,
+    APPOINTMENT_STATUSES,
+    STATUS_TRANSITIONS,
+    Appointment,
+)
+from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
 from app.models.family import Family
 from app.models.parent import (
     CLIENT_CATEGORIES,
@@ -23,6 +30,8 @@ __all__ = [
     "Family",
     "Parent",
     "Patient",
+    "Appointment",
+    "DoctorSchedule",
     "ROLES",
     "MODULES",
     "ROLE_PERMISSIONS",
@@ -30,4 +39,8 @@ __all__ = [
     "CLIENT_CATEGORIES",
     "GENDERS",
     "BLOOD_TYPES",
+    "APPOINTMENT_STATUSES",
+    "ACTIVE_STATUSES",
+    "STATUS_TRANSITIONS",
+    "WEEKDAY_ORDER",
 ]
