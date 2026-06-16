@@ -1,0 +1,47 @@
+{
+  "_note_ar": "جدول التطعيمات المصري — مُؤلَّف للمراجعة من قِبل الطبيب. الأعمار بالأشهر من تاريخ الميلاد. التطعيمات الإلزامية تتبع برنامج التطعيم القومي المصري؛ التطعيمات الاختيارية لها ماركات متعددة بأسعار وجرعات مختلفة. راجِع القيم وعدّلها حسب اعتماد وزارة الصحة الحالي.",
+  "_note_en": "Egyptian vaccination schedule — authored for clinical review. Ages are in months from birth. Verify against the current Ministry of Health program before clinical use.",
+  "vaccines": [
+    {"code": "BCG", "name_ar": "الدرن (BCG)", "name_en": "BCG (Tuberculosis)", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [0]}]},
+    {"code": "HBV0", "name_ar": "الالتهاب الكبدي ب — جرعة الميلاد", "name_en": "Hepatitis B (birth dose)", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [0]}]},
+    {"code": "OPV", "name_ar": "شلل الأطفال الفموي (OPV)", "name_en": "Oral Polio (OPV)", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [0, 2, 4, 6, 18]}]},
+    {"code": "IPV", "name_ar": "شلل الأطفال الحقن (IPV)", "name_en": "Inactivated Polio (IPV)", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [4]}]},
+    {"code": "PENTA", "name_ar": "الخماسي (الثلاثي + كبدي ب + هيموفيلس)", "name_en": "Pentavalent (DTP-HepB-Hib)", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [2, 4, 6]}]},
+    {"code": "DTP_B", "name_ar": "الثلاثي البكتيري المنشّط (DTP booster)", "name_en": "DTP booster", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [18]}]},
+    {"code": "MEASLES", "name_ar": "الحصبة", "name_en": "Measles", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [9]}]},
+    {"code": "MMR", "name_ar": "الثلاثي الفيروسي (MMR)", "name_en": "MMR (Measles-Mumps-Rubella)", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [12, 18]}]},
+    {"code": "VIT_A", "name_ar": "فيتامين أ", "name_en": "Vitamin A", "mandatory": true,
+     "brands": [{"name": "حكومي", "name_en": "Government", "default": true, "doses_age_months": [9, 18]}]},
+
+    {"code": "ROTA", "name_ar": "فيروس الروتا", "name_en": "Rotavirus", "mandatory": false,
+     "brands": [
+       {"name": "RotaRix", "name_en": "RotaRix", "manufacturer": "GSK", "price": 0, "default": true, "doses_age_months": [2, 4]},
+       {"name": "RotaTeq", "name_en": "RotaTeq", "manufacturer": "MSD", "price": 0, "doses_age_months": [2, 4, 6]}
+     ]},
+    {"code": "PCV", "name_ar": "المكورات الرئوية", "name_en": "Pneumococcal (PCV)", "mandatory": false,
+     "brands": [
+       {"name": "Prevenar 13", "name_en": "Prevenar 13", "manufacturer": "Pfizer", "price": 0, "default": true, "doses_age_months": [2, 4, 6, 12]},
+       {"name": "Synflorix", "name_en": "Synflorix", "manufacturer": "GSK", "price": 0, "doses_age_months": [2, 4, 6, 12]}
+     ]},
+    {"code": "VARICELLA", "name_ar": "الجدري المائي", "name_en": "Varicella (Chickenpox)", "mandatory": false,
+     "brands": [
+       {"name": "Varilrix", "name_en": "Varilrix", "manufacturer": "GSK", "price": 0, "default": true, "doses_age_months": [12, 18]}
+     ]},
+    {"code": "HAV", "name_ar": "الالتهاب الكبدي أ", "name_en": "Hepatitis A", "mandatory": false,
+     "brands": [
+       {"name": "Havrix", "name_en": "Havrix", "manufacturer": "GSK", "price": 0, "default": true, "doses_age_months": [12, 18]}
+     ]},
+    {"code": "FLU", "name_ar": "الإنفلونزا الموسمية", "name_en": "Seasonal Influenza", "mandatory": false,
+     "brands": [
+       {"name": "Vaxigrip", "name_en": "Vaxigrip", "manufacturer": "Sanofi", "price": 0, "default": true, "doses_age_months": [6]}
+     ]}
+  ]
+}

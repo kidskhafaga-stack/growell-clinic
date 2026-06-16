@@ -1,0 +1,130 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% set active_module = 'vaccinations' %}
+{% block title %}{{ t('vaccinations.title') }}{% endblock %}
+{% block page_heading %}{{ t('vaccinations.title') }}{% endblock %}
+
+{% block content %}
+<div x-data="{ modal:false, vId:null, vName:'', brands:[], locked:false, lockedName:'' }">
+
+  <!-- Header -->
+  <div class="card profile-header gc-scale-in">
+    {{ patient_avatar(patient, 'lg') }}
+    <div style="flex:1;min-width:220px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h1 style="margin:0;font-size:1.4rem;">{{ patient.display_name(current_lang) }}</h1>
+        <span class="badge badge--role">{{ patient.patient_number }}</span>
+      </div>
+      <div class="meta-row"><span><i class="bi bi-cake2"></i> {{ age_label(patient) }}</span>
+        <span><i class="bi bi-gender-ambiguous"></i> {{ t('genders.' ~ patient.gender) }}</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('vaccinations.certificate', patient_id=patient.id) }}">
+        <i class="bi bi-award"></i> {{ t('vaccinations.print_certificate') }}</a>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
+        <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="stat-grid gc-stagger" style="margin:18px 0;">
+    <div class="stat-card edge-green gc-lift"><i class="bi bi-check-circle ico"></i>
+      <div class="value gc-counter" data-count="{{ summary.done }}">0</div><div class="label">{{ t('vaccinations.stat_done') }}</div></div>
+    <div class="stat-card edge-yellow gc-lift"><i class="bi bi-exclamation-circle ico"></i>
+      <div class="value gc-counter" data-count="{{ summary.due }}">0</div><div class="label">{{ t('vaccinations.stat_due') }}</div></div>
+    <div class="stat-card edge-red gc-lift"><i class="bi bi-clock-history ico"></i>
+      <div class="value gc-counter" data-count="{{ summary.overdue }}">0</div><div class="label">{{ t('vaccinations.stat_overdue') }}</div></div>
+    <div class="stat-card edge-blue gc-lift"><i class="bi bi-calendar3 ico"></i>
+      <div class="value gc-counter" data-count="{{ summary.upcoming }}">0</div><div class="label">{{ t('vaccinations.stat_upcoming') }}</div></div>
+  </div>
+
+  <!-- Next due -->
+  <div class="notice gc-animate" style="margin-bottom:18px;">
+    {% if next_due %}
+      <i class="bi bi-bell"></i> <strong>{{ t('vaccinations.next_due') }}:</strong>
+      {{ next_due[1].display_name(current_lang) }} — {{ t('vaccinations.dose') }} {{ next_due[3].dose_number }}
+      ({{ next_due[3].age_label }}) · {{ next_due[3].due_date }}
+    {% else %}
+      <i class="bi bi-check2-circle"></i> {{ t('vaccinations.no_next_due') }}
+    {% endif %}
+  </div>
+
+  <!-- Per-vaccine schedule -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <h2 class="section-title"><i class="bi bi-shield-plus"></i> {{ t('vaccinations.schedule') }}</h2>
+    {% for item in plan %}
+    {% set v = item.vaccine %}
+    <div class="vac-card gc-lift">
+      <div class="vac-head">
+        <div>
+          <strong>{{ v.display_name(current_lang) }}</strong>
+          <span class="badge badge--{{ 'green' if v.is_mandatory else 'muted' }}">{{ t('vaccinations.mandatory') if v.is_mandatory else t('vaccinations.optional') }}</span>
+          <span class="badge badge--role"><i class="bi bi-box"></i> {{ item.brand.display_name(current_lang) }}{% if item.locked %} 🔒{% endif %}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:0.8rem;color:var(--muted);">{{ item.done }}/{{ item.total }}</span>
+          <button class="btn btn-outline btn-sm gc-press"
+                  x-on:click="vId={{ v.id }}; vName='{{ v.display_name(current_lang)|e }}'; locked={{ 'true' if item.locked else 'false' }};
+                              lockedName='{{ item.brand.display_name(current_lang)|e }}';
+                              brands={{ v.brands|map(attribute='id')|list|tojson }}; modal=true;
+                              brandOptions={{ v.brands|map(attribute='id')|list|tojson }}">
+            <i class="bi bi-plus-lg"></i> {{ t('vaccinations.record_dose') }}</button>
+        </div>
+      </div>
+      <div class="dose-pills">
+        {% for d in item.doses %}
+        <div class="dose-pill">
+          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span></span>
+          <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date %} · {{ d.due_date }}{% endif %}</span>
+          {% if d.lot_number %}<span class="dd">Lot: {{ d.lot_number }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('common.no_data') }}</div>
+    {% endfor %}
+  </div>
+
+  <!-- Record dose modal -->
+  <div class="gc-overlay" x-show="modal" x-cloak x-transition.opacity x-on:click.self="modal=false">
+    <div class="gc-modal gc-scale-in" x-on:keydown.escape.window="modal=false">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;" x-text="vName"></h3>
+        <button class="btn btn-outline btn-sm gc-press" x-on:click="modal=false"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <form method="post" action="{{ url_for('vaccinations.record', patient_id=patient.id) }}">
+        <input type="hidden" name="vaccine_id" x-bind:value="vId">
+        <!-- Brand: a selectable list unless locked -->
+        <div class="form-row" x-show="!locked">
+          <label>{{ t('vaccinations.brand') }}</label>
+          <select class="select" name="brand_id">
+            {% for item in plan %}{% for b in item.vaccine.brands %}
+              <option value="{{ b.id }}" x-show="vId==={{ item.vaccine.id }}">{{ b.display_name(current_lang) }}{% if b.doses %} ({{ b.doses_count }} {{ t('vaccinations.doses') }}){% endif %}</option>
+            {% endfor %}{% endfor %}
+          </select>
+        </div>
+        <div class="form-row" x-show="locked">
+          <label>{{ t('vaccinations.brand') }}</label>
+          <input class="input" readonly x-bind:value="lockedName" style="background:#f4f7f6;">
+          <div class="hint">🔒 {{ t('vaccinations.brand_locked') }}</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('vaccinations.given_date') }}</label>
+            <input class="input" type="date" name="given_date" value="{{ today if today else '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.lot_number') }}</label>
+            <input class="input" name="lot_number" dir="ltr"></div>
+        </div>
+        <div class="form-row"><label>{{ t('vaccinations.notes') }}</label>
+          <input class="input" name="notes"></div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('vaccinations.record_dose') }}</button>
+          <button class="btn btn-outline gc-press" type="button" x-on:click="modal=false">{{ t('common.cancel') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}<style>[x-cloak]{display:none!important;}</style>{% endblock %}

@@ -41,11 +41,21 @@ def register_commands(app):
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
+    @app.cli.command("seed-vaccines")
+    def seed_vaccines_cmd():
+        """Load the bundled Egyptian vaccine catalogue into the database."""
+        from app.utils.vaccines import seed_vaccines
+        db.create_all()
+        n = seed_vaccines()
+        click.secho(f"Vaccine catalogue seeded ({n} new vaccines).", fg="green")
+
     @app.cli.command("seed")
     def seed():
-        """Create demo users (one per role) and default settings."""
+        """Create demo users, default settings and the vaccine catalogue."""
+        from app.utils.vaccines import seed_vaccines
         db.create_all()
         _ensure_default_settings()
+        seed_vaccines()
 
         created = 0
         for username, password, name_ar, name_en, role in DEMO_USERS:

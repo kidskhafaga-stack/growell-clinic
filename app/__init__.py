@@ -35,6 +35,7 @@ def create_app(config_name="default"):
     from app.blueprints.main import main_bp
     from app.blueprints.patients import patients_bp
     from app.blueprints.users import users_bp
+    from app.blueprints.vaccinations import vaccinations_bp
     from app.blueprints.visits import visits_bp
 
     app.register_blueprint(auth_bp)
@@ -43,6 +44,7 @@ def create_app(config_name="default"):
     app.register_blueprint(appointments_bp)
     app.register_blueprint(visits_bp)
     app.register_blueprint(growth_bp)
+    app.register_blueprint(vaccinations_bp)
     app.register_blueprint(users_bp)
 
     # Template globals for navigation rendering.
@@ -56,6 +58,7 @@ def create_app(config_name="default"):
         "appointments": "appointments.index",
         "visits": "visits.index",
         "growth": "growth.index",
+        "vaccinations": "vaccinations.index",
         "users": "users.index",
     }
 

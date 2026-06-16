@@ -1,0 +1,74 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% set active_module = 'vaccinations' %}
+{% block title %}{{ t('vaccinations.certificate') }}{% endblock %}
+{% block page_heading %}{{ t('vaccinations.certificate') }}{% endblock %}
+
+{% block content %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.view', patient_id=patient.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area">
+  <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--green-600);padding-bottom:14px;margin-bottom:18px;">
+    <div>
+      <h2 style="margin:0;color:var(--green-800);">{{ clinic_name }}</h2>
+      <div style="color:var(--muted);">{{ t('vaccinations.certificate') }}</div>
+    </div>
+    <div style="text-align:end;font-size:0.85rem;">
+      <div>{{ t('vaccinations.cert_issued') }}: <strong>{{ now_date }}</strong></div>
+    </div>
+  </div>
+
+  <div class="info-grid" style="margin-bottom:20px;">
+    <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ patient.display_name(current_lang) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.dob') }}</div><div class="v">{{ patient.date_of_birth.strftime('%Y-%m-%d') }}</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ patient.gender) }}</div></div>
+  </div>
+
+  {% if given %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('vaccinations.cert_vaccine') }}</th><th>{{ t('vaccinations.brand') }}</th>
+      <th>{{ t('vaccinations.dose') }}</th><th>{{ t('vaccinations.given_date') }}</th><th>{{ t('vaccinations.lot_number') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for g in given %}
+      <tr>
+        <td>{{ g.vaccine.display_name(current_lang) }}</td>
+        <td>{{ g.brand.display_name(current_lang) }}</td>
+        <td>{{ g.dose_number }}</td>
+        <td>{{ g.given_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ g.lot_number or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--muted);">{{ t('vaccinations.no_given') }}</p>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;margin-top:48px;">
+    <div style="text-align:center;">
+      <div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_doctor') }}</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_stamp') }}</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; } .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}

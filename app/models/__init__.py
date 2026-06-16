@@ -26,6 +26,12 @@ from app.models.setting import Setting
 from app.models.user import User
 from app.models.visit import VISIT_STATUSES, Visit
 from app.models.vital_signs import VitalSigns
+from app.models.vaccine import (
+    PatientVaccine,
+    Vaccine,
+    VaccineBrand,
+    VaccineBrandDose,
+)
 
 __all__ = [
     "User",
@@ -54,4 +60,8 @@ __all__ = [
     "VISIT_STATUSES",
     "DIAGNOSIS_TYPES",
     "ICD_VERSIONS",
+    "Vaccine",
+    "VaccineBrand",
+    "VaccineBrandDose",
+    "PatientVaccine",
 ]

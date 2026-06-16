@@ -219,8 +219,30 @@
       {% endif %}
     </div>
 
+    <!-- Vaccinations -->
+    <div class="gc-tab-panel" x-show="tab==='vaccinations'" x-cloak>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-shield-plus"></i> {{ t('nav.vaccinations') }}</h3>
+        {% if current_user.can_access('vaccinations') %}
+        <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('vaccinations.view', patient_id=patient.id) }}">
+          <i class="bi bi-shield-check"></i> {{ t('vaccinations.open_schedule') }}</a>
+        {% endif %}
+      </div>
+      {% set vdone = patient.patient_vaccines|length %}
+      {% if vdone %}
+      <p style="margin-top:14px;">{{ t('vaccinations.doses_recorded') }}: <strong>{{ vdone }}</strong></p>
+      <div class="gc-stagger" style="display:flex;flex-wrap:wrap;gap:8px;">
+        {% for pv in patient.patient_vaccines|sort(attribute='given_date', reverse=true) %}
+        <span class="badge badge--green"><i class="bi bi-check-circle"></i> {{ pv.vaccine.display_name(current_lang) }} ({{ pv.dose_number }}) · {{ pv.given_date.strftime('%Y-%m-%d') }}</span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);margin-top:14px;">{{ t('vaccinations.none_recorded') }}</p>
+      {% endif %}
+    </div>
+
     <!-- Placeholder tabs for later phases -->
-    {% for key in ['vaccinations','prescriptions','documents','finance'] %}
+    {% for key in ['prescriptions','documents','finance'] %}
     <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
       <div class="empty-state">
         <i class="bi bi-hourglass-split"></i>
