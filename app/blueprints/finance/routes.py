@@ -241,10 +241,15 @@ def _apply_coverage(invoice, patient):
     invoice.coverage_card = coverage.membership_number
     invoice.coverage_expiry = coverage.expiry_date
 
+    # If the entity works by contracts, one must be in force on the invoice date.
+    if payer.contracts and payer.active_contract(invoice.invoice_date) is None:
+        flash(t("contracts.none_active_warn"), "warning")
+        return
+
     for item in invoice.items:
         if not item.service_id or (item.discount_value or 0) > 0:
             continue  # keep manual discounts; skip free-text lines
-        covered = payer.covers(item.service, item.gross)
+        covered = payer.covers(item.service, item.gross, invoice.invoice_date)
         if covered > 0:
             item.discount_value = covered
             item.discount_is_percent = False
@@ -559,6 +564,61 @@ def payer_delete(payer_id):
     db.session.commit()
     flash(t("claims.entity_deleted"), "info")
     return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payers/<int:payer_id>/contract/new", methods=["POST"])
+@module_required(MODULE)
+def contract_new(payer_id):
+    from app.models import PayerContract
+
+    payer = db.get_or_404(PayerEntity, payer_id)
+    db.session.add(PayerContract(
+        payer_id=payer.id,
+        number=(request.form.get("number") or "").strip() or None,
+        start_date=_parse_date_arg2(request.form.get("start_date")),
+        end_date=_parse_date_arg2(request.form.get("end_date")),
+        is_active=True,
+    ))
+    db.session.commit()
+    flash(t("contracts.added"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/contract/<int:contract_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def contract_edit(contract_id):
+    from app.models import PayerContract
+
+    c = db.get_or_404(PayerContract, contract_id)
+    c.number = (request.form.get("number") or "").strip() or None
+    c.start_date = _parse_date_arg2(request.form.get("start_date"))
+    c.end_date = _parse_date_arg2(request.form.get("end_date"))
+    c.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("contracts.updated"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/contract/<int:contract_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def contract_delete(contract_id):
+    from app.models import PayerContract
+
+    c = db.get_or_404(PayerContract, contract_id)
+    db.session.delete(c)
+    db.session.commit()
+    flash(t("contracts.deleted"), "info")
+    return redirect(url_for("finance.payers"))
+
+
+def _parse_date_arg2(raw):
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/payer", methods=["POST"])

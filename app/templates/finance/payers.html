@@ -85,6 +85,39 @@
               <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
             </form>
           </details>
+
+          <!-- Contracts -->
+          <details style="margin-top:8px;">
+            <summary style="cursor:pointer;color:var(--green-800);font-weight:600;"><i class="bi bi-file-earmark-text"></i> {{ t('contracts.section') }}
+              {% if p.active_contract() %}<span class="badge badge--green">{{ t('contracts.current') }}</span>{% elif p.contracts %}<span class="badge badge--danger">{{ t('contracts.expired') }}</span>{% endif %}
+            </summary>
+            <p class="hint" style="margin-top:8px;">{{ t('contracts.hint') }}</p>
+            <table class="table" style="background:#fff;">
+              <thead><tr><th>{{ t('contracts.number') }}</th><th>{{ t('contracts.start') }}</th><th>{{ t('contracts.end') }}</th><th>{{ t('contracts.status') }}</th><th></th></tr></thead>
+              <tbody>
+                {% for c in p.contracts %}
+                <tr>
+                  <td dir="ltr">{{ c.number or '—' }}</td>
+                  <td dir="ltr">{{ c.start_date or '—' }}</td>
+                  <td dir="ltr">{{ c.end_date or '—' }}</td>
+                  <td>{% if c.is_current %}<span class="badge badge--green">{{ t('contracts.current') }}</span>
+                      {% elif not c.is_active %}<span class="badge badge--muted">{{ t('contracts.inactive') }}</span>
+                      {% else %}<span class="badge badge--danger">{{ t('contracts.expired') }}</span>{% endif %}</td>
+                  <td style="text-align:end;">
+                    <form method="post" action="{{ url_for('finance.contract_delete', contract_id=c.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');" style="display:inline;">
+                      <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <form method="post" action="{{ url_for('finance.contract_new', payer_id=p.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+              <div class="form-row" style="margin:0;"><label>{{ t('contracts.number') }}</label><input class="input" name="number" dir="ltr" style="width:130px;"></div>
+              <div class="form-row" style="margin:0;"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
+              <div class="form-row" style="margin:0;"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date"></div>
+              <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('contracts.add') }}</button>
+            </form>
+          </details>
         </td>
       </tr>
       {% endfor %}
