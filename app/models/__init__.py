@@ -41,6 +41,7 @@ from app.models.inventory import (
 )
 from app.models.service import (
     COMMISSION_TYPES,
+    ETA_ITEM_TYPES,
     SERVICE_CATEGORIES,
     DoctorServiceCommission,
     Service,
@@ -104,6 +105,7 @@ __all__ = [
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
     "COMMISSION_TYPES",
+    "ETA_ITEM_TYPES",
     "Invoice",
     "InvoiceItem",
     "Payment",

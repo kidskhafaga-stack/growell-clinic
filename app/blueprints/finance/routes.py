@@ -63,10 +63,11 @@ def index():
 @module_required(MODULE)
 def services():
     services = Service.query.order_by(Service.sort_order, Service.name).all()
+    from app.models import ETA_ITEM_TYPES
     return render_template(
         "finance/services.html", services=services,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
-        doctors=_doctors(),
+        item_types=ETA_ITEM_TYPES, doctors=_doctors(),
     )
 
 
@@ -83,6 +84,7 @@ def service_new():
         name=name,
         name_en=(request.form.get("name_en") or "").strip() or None,
         code=(request.form.get("code") or "").strip() or None,
+        eta_item_type=("GS1" if request.form.get("eta_item_type") == "GS1" else "EGS"),
         category=category if category in SERVICE_CATEGORIES else "other",
         price=request.form.get("price", type=float) or 0,
         max_discount=request.form.get("max_discount", type=float),
@@ -105,6 +107,7 @@ def service_edit(service_id):
     svc.name = (request.form.get("name") or svc.name).strip()
     svc.name_en = (request.form.get("name_en") or "").strip() or None
     svc.code = (request.form.get("code") or "").strip() or None
+    svc.eta_item_type = "GS1" if request.form.get("eta_item_type") == "GS1" else "EGS"
     category = (request.form.get("category") or svc.category).strip()
     svc.category = category if category in SERVICE_CATEGORIES else svc.category
     svc.price = request.form.get("price", type=float) or 0

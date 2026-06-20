@@ -49,6 +49,7 @@ DEFAULT_SETTINGS = {
     "eta_default_tax": "exempt",
     "eta_vat_rate": "14",
     "eta_send_gap": "0",
+    "eta_default_item_type": "EGS",
 }
 
 
@@ -83,6 +84,7 @@ def register_commands(app):
             ("invoices", "coverage_card", "VARCHAR(60)"),
             ("invoices", "coverage_expiry", "DATE"),
             ("invoices", "is_tax", "BOOLEAN DEFAULT 0"),
+            ("services", "eta_item_type", "VARCHAR(8) DEFAULT 'EGS'"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

@@ -134,6 +134,11 @@
         </select></div>
       <div class="form-row"><label>{{ t('settings.eta_vat_rate') }}</label><input class="input" name="eta_vat_rate" dir="ltr" value="{{ values.get('eta_vat_rate','14') }}"></div>
       <div class="form-row"><label>{{ t('settings.eta_send_gap') }}</label><input class="input" name="eta_send_gap" dir="ltr" value="{{ values.get('eta_send_gap','0') }}"></div>
+      <div class="form-row"><label>{{ t('settings.eta_item_type') }}</label>
+        <select class="select" name="eta_default_item_type">
+          <option value="EGS" {{ 'selected' if values.get('eta_default_item_type','EGS')=='EGS' else '' }}>EGS</option>
+          <option value="GS1" {{ 'selected' if values.get('eta_default_item_type')=='GS1' else '' }}>GS1</option>
+        </select></div>
     </div>
     <p class="info-note" style="margin:10px 0;"><i class="bi bi-info-circle"></i> {{ t('settings.eta_help') }}</p>
 
@@ -141,7 +146,8 @@
       <summary style="cursor:pointer;color:var(--green-800);"><i class="bi bi-key"></i> {{ t('settings.eta_client_id') }} / {{ t('settings.eta_tax_number') }}</summary>
       <div class="form-grid" style="margin-top:10px;">
         <div class="form-row"><label>{{ t('settings.eta_client_id') }}</label><input class="input" name="eta_client_id" dir="ltr" value="{{ values.get('eta_client_id','') }}"></div>
-        <div class="form-row"><label>{{ t('settings.eta_client_secret') }}</label><input class="input" name="eta_client_secret" dir="ltr" value="{{ values.get('eta_client_secret','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_client_secret') }} 1</label><input class="input" name="eta_client_secret" dir="ltr" value="{{ values.get('eta_client_secret','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_client_secret') }} 2</label><input class="input" name="eta_client_secret2" dir="ltr" value="{{ values.get('eta_client_secret2','') }}"></div>
         <div class="form-row"><label>{{ t('settings.eta_tax_number') }}</label><input class="input" name="eta_tax_number" dir="ltr" value="{{ values.get('eta_tax_number','') }}"></div>
         <div class="form-row"><label>{{ t('settings.eta_activity_code') }}</label><input class="input" name="eta_activity_code" dir="ltr" value="{{ values.get('eta_activity_code','') }}"></div>
         <div class="form-row"><label>{{ t('settings.eta_company_name') }}</label><input class="input" name="eta_company_name" value="{{ values.get('eta_company_name','') }}"></div>
