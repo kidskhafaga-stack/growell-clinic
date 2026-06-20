@@ -1,0 +1,98 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('invoices.new') }}{% endblock %}
+{% block page_heading %}{{ t('invoices.new') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('invoices.new') }}</h1>
+
+<form method="post" action="{{ url_for('finance.invoice_new') }}"
+      x-data="invoiceForm()" x-init="init()">
+  <input type="hidden" name="visit_id" value="{{ visit_id or '' }}">
+
+  <div class="card gc-scale-in">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('invoices.patient') }} *</label>
+        <select class="select" name="patient_id" required>
+          <option value="">{{ t('invoices.select_patient') }}</option>
+          {% for p in patients %}
+          <option value="{{ p.id }}" {{ 'selected' if patient and patient.id == p.id else '' }}>
+            {{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('invoices.doctor') }}</label>
+        <select class="select" name="doctor_id">
+          <option value="">—</option>
+          {% for d in doctors %}
+          <option value="{{ d.id }}" {{ 'selected' if doctor_id == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select></div>
+    </div>
+  </div>
+
+  <!-- Line items -->
+  <div class="card gc-scale-in" style="animation-delay:0.06s;">
+    <h2 class="section-title"><i class="bi bi-card-list"></i> {{ t('invoices.items') }}</h2>
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:760px;">
+        <thead><tr>
+          <th style="width:30%;">{{ t('invoices.service') }}</th><th>{{ t('invoices.unit_price') }}</th>
+          <th>{{ t('invoices.quantity') }}</th><th>{{ t('invoices.discount') }}</th><th>{{ t('invoices.amount') }}/%</th>
+          <th>{{ t('invoices.line_total') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+          <template x-for="(line, i) in lines" :key="i">
+            <tr>
+              <td>
+                <select class="select" name="line_service_id" x-model="line.service_id" x-on:change="onService(i)">
+                  <option value="">{{ t('invoices.select_service') }}</option>
+                  {% for s in services %}<option value="{{ s.id }}" data-price="{{ s.price }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
+                </select>
+                <input type="text" class="input" name="line_description" x-model="line.description" placeholder="{{ t('invoices.description') }}" style="margin-top:4px;">
+              </td>
+              <td><input class="input" type="number" step="0.01" name="line_unit_price" x-model.number="line.unit_price" style="width:90px;"></td>
+              <td><input class="input" type="number" min="1" name="line_quantity" x-model.number="line.quantity" style="width:64px;"></td>
+              <td><input class="input" type="number" step="0.01" name="line_discount_value" x-model.number="line.discount_value" style="width:80px;"></td>
+              <td><select class="select" name="line_discount_is_percent" x-model="line.discount_is_percent" style="width:96px;">
+                <option value="0">{{ t('invoices.amount') }}</option><option value="1">%</option></select></td>
+              <td><strong x-text="lineTotal(line).toFixed(2)"></strong></td>
+              <td><button type="button" class="btn-x" x-on:click="lines.splice(i,1)"><i class="bi bi-x-lg"></i></button></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_line') }}</button>
+
+    <div style="margin-top:14px;text-align:end;font-size:1.05rem;">
+      {{ t('invoices.total') }}: <strong x-text="grandTotal().toFixed(2)"></strong>
+    </div>
+  </div>
+
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <div class="form-row"><label>{{ t('invoices.notes') }}</label><textarea class="input" name="notes" rows="2"></textarea></div>
+  </div>
+
+  <div class="gc-animate" style="margin-top:14px;display:flex;gap:10px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+
+<script>
+function invoiceForm(){
+  const prices = { {% for s in services %}'{{ s.id }}': {{ s.price or 0 }},{% endfor %} };
+  const names  = { {% for s in services %}'{{ s.id }}': {{ s.display_name(current_lang)|tojson }},{% endfor %} };
+  return {
+    lines: [],
+    prices, names,
+    init(){ this.addLine(); },
+    addLine(){ this.lines.push({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0'}); },
+    onService(i){ const l=this.lines[i]; if(l.service_id){ l.unit_price=this.prices[l.service_id]||0; if(!l.description) l.description=this.names[l.service_id]||''; } },
+    isPct(l){ return l.discount_is_percent === '1' || l.discount_is_percent === true; },
+    lineTotal(l){ const g=(l.unit_price||0)*(l.quantity||1); const d=this.isPct(l) ? g*(l.discount_value||0)/100 : Math.min(l.discount_value||0,g); return Math.max(g-d,0); },
+    grandTotal(){ return this.lines.reduce((s,l)=>s+this.lineTotal(l),0); }
+  };
+}
+</script>
+{% endblock %}

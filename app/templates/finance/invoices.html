@@ -1,0 +1,51 @@
+{% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('invoices.title') }}{% endblock %}
+{% block page_heading %}{{ t('invoices.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <h1 class="page-title">{{ t('invoices.title') }}</h1>
+  <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('finance.invoice_new') }}">
+    <i class="bi bi-plus-lg"></i> {{ t('invoices.new') }}</a>
+</div>
+
+<div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+  {% for s in ['', 'unpaid', 'partial', 'paid'] %}
+  <a class="btn btn-sm {{ 'btn-primary' if status == s else 'btn-outline' }} gc-press"
+     href="{{ url_for('finance.invoices', status=s) }}">
+    {{ t('invoices.all') if s == '' else t('invoices.st_' ~ s) }}</a>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if invoices %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('invoices.number') }}</th><th>{{ t('invoices.patient') }}</th><th>{{ t('invoices.doctor') }}</th>
+      <th>{{ t('invoices.date') }}</th><th>{{ t('invoices.total') }}</th><th>{{ t('invoices.paid') }}</th>
+      <th>{{ t('invoices.balance') }}</th><th>{{ t('invoices.status') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr class="row-link" onclick="window.location='{{ url_for('finance.invoice_view', invoice_id=inv.id) }}'" style="cursor:pointer;">
+        <td><strong dir="ltr">{{ inv.invoice_number }}</strong></td>
+        <td>{{ inv.patient.display_name(current_lang) }}</td>
+        <td>{{ inv.doctor.display_name(current_lang) if inv.doctor else '—' }}</td>
+        <td dir="ltr">{{ inv.invoice_date }}</td>
+        <td>{{ inv.total }}</td>
+        <td style="color:var(--green-700);">{{ inv.paid }}</td>
+        <td style="color:{{ 'var(--danger)' if inv.balance > 0 else 'var(--muted)' }};">{{ inv.balance }}</td>
+        <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-receipt"></i>{{ t('invoices.no_invoices') }}</div>
+  {% endif %}
+</div>
+
+{{ render_pagination(pagination) }}
+{% endblock %}

@@ -4,6 +4,8 @@ Manages the clinic's chargeable services: pricing, max discount, doctor
 commission (default + per-doctor overrides) and service bundles. Later
 phases build invoices, doctor statements and discount claims on top.
 """
+from datetime import datetime
+
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user
 
@@ -12,14 +14,20 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     COMMISSION_TYPES,
+    PAYMENT_METHODS,
     SERVICE_CATEGORIES,
     ActivityLog,
     DoctorServiceCommission,
+    Invoice,
+    InvoiceItem,
+    Patient,
+    Payment,
     Service,
     ServiceBundleItem,
     User,
 )
 from app.utils.decorators import client_ip, module_required
+from app.utils.finance import generate_invoice_number
 
 MODULE = "finance"
 
@@ -151,3 +159,211 @@ def service_bundle(service_id):
     db.session.commit()
     flash(t("services.bundle_saved"), "success")
     return redirect(url_for("finance.services"))
+
+
+# =======================================================================
+# Invoices & payments
+# =======================================================================
+def _doctors_active():
+    return User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all()
+
+
+def _add_item_from_form(invoice, prefix=""):
+    """Build an InvoiceItem from form fields; returns it or None if empty."""
+    service_id = request.form.get(f"{prefix}service_id", type=int)
+    desc = (request.form.get(f"{prefix}description") or "").strip()
+    price = request.form.get(f"{prefix}unit_price", type=float)
+    service = db.session.get(Service, service_id) if service_id else None
+
+    if service and not desc:
+        desc = service.name
+    if service and price is None:
+        price = service.price
+    if not desc or price is None:
+        return None
+
+    qty = request.form.get(f"{prefix}quantity", type=int) or 1
+    disc_val = request.form.get(f"{prefix}discount_value", type=float) or 0
+    disc_pct = bool(request.form.get(f"{prefix}discount_is_percent"))
+
+    item = InvoiceItem(
+        service_id=service.id if service else None,
+        description=desc, unit_price=price, quantity=qty,
+        discount_value=disc_val, discount_is_percent=disc_pct,
+    )
+    # Snapshot the doctor commission for this line's net amount.
+    if service is not None:
+        item.commission_amount = service.doctor_share(item.net, invoice.doctor)
+    return item
+
+
+@finance_bp.route("/invoices")
+@module_required(MODULE)
+def invoices():
+    status = (request.args.get("status") or "").strip()
+    q = Invoice.query
+    if status in ("unpaid", "partial", "paid"):
+        q = q.filter_by(status=status)
+    page = request.args.get("page", 1, type=int)
+    pagination = q.order_by(Invoice.id.desc()).paginate(page=page, per_page=25, error_out=False)
+    return render_template("finance/invoices.html", pagination=pagination,
+                           invoices=pagination.items, status=status)
+
+
+@finance_bp.route("/invoices/new", methods=["GET", "POST"])
+@module_required(MODULE)
+def invoice_new():
+    if request.method == "POST":
+        patient = db.session.get(Patient, request.form.get("patient_id", type=int))
+        if patient is None:
+            flash(t("invoices.need_patient"), "danger")
+            return redirect(url_for("finance.invoice_new"))
+
+        invoice = Invoice(
+            invoice_number=generate_invoice_number(),
+            patient_id=patient.id,
+            doctor_id=request.form.get("doctor_id", type=int) or None,
+            visit_id=request.form.get("visit_id", type=int) or None,
+            created_by=current_user.id,
+            notes=(request.form.get("notes") or "").strip() or None,
+        )
+        db.session.add(invoice)
+        db.session.flush()
+
+        # Multiple line rows submitted as service_id[], etc.
+        count = 0
+        for idx in range(len(request.form.getlist("line_service_id"))):
+            item = _build_line(invoice, idx)
+            if item:
+                invoice.items.append(item)
+                count += 1
+        if count == 0:
+            db.session.rollback()
+            flash(t("invoices.need_item"), "warning")
+            return redirect(url_for("finance.invoice_new", patient_id=patient.id))
+
+        invoice.recalc_status()
+        ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
+                           detail=invoice.invoice_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("invoices.created"), "success")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+    patient = db.session.get(Patient, request.args.get("patient_id", type=int))
+    return render_template(
+        "finance/invoice_form.html", patient=patient,
+        doctors=_doctors_active(),
+        services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+        patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
+        visit_id=request.args.get("visit_id", type=int),
+        doctor_id=request.args.get("doctor_id", type=int),
+    )
+
+
+def _build_line(invoice, idx):
+    services = request.form.getlist("line_service_id")
+    descs = request.form.getlist("line_description")
+    prices = request.form.getlist("line_unit_price")
+    qtys = request.form.getlist("line_quantity")
+    discs = request.form.getlist("line_discount_value")
+    dpcts = request.form.getlist("line_discount_is_percent")
+
+    def _num(lst, i, cast, default=None):
+        try:
+            return cast(lst[i]) if i < len(lst) and lst[i] != "" else default
+        except (ValueError, TypeError):
+            return default
+
+    sid = _num(services, idx, int)
+    service = db.session.get(Service, sid) if sid else None
+    desc = (descs[idx].strip() if idx < len(descs) else "")
+    if service and not desc:
+        desc = service.name
+    price = _num(prices, idx, float)
+    if service and price is None:
+        price = service.price
+    if not desc or price is None:
+        return None
+
+    item = InvoiceItem(
+        service_id=service.id if service else None,
+        description=desc, unit_price=price,
+        quantity=_num(qtys, idx, int, 1) or 1,
+        discount_value=_num(discs, idx, float, 0) or 0,
+        discount_is_percent=(idx < len(dpcts) and dpcts[idx] in ("1", "on", "true")),
+    )
+    if service is not None:
+        item.commission_amount = service.doctor_share(item.net, invoice.doctor)
+    return item
+
+
+@finance_bp.route("/invoices/<int:invoice_id>")
+@module_required(MODULE)
+def invoice_view(invoice_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    return render_template(
+        "finance/invoice_view.html", invoice=invoice, methods=PAYMENT_METHODS,
+        services_active=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+    )
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/payment", methods=["POST"])
+@module_required(MODULE)
+def invoice_payment(invoice_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    amount = request.form.get("amount", type=float)
+    if not amount or amount <= 0:
+        flash(t("invoices.bad_amount"), "danger")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    method = (request.form.get("method") or "cash").strip()
+    invoice.payments.append(Payment(
+        amount=round(amount, 2),
+        method=method if method in PAYMENT_METHODS else "cash",
+        received_by=current_user.id,
+        notes=(request.form.get("notes") or "").strip() or None,
+    ))
+    invoice.recalc_status()
+    ActivityLog.record("invoice.payment", user_id=current_user.id, entity="invoice",
+                       detail=f"{invoice.invoice_number}:{amount}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("invoices.payment_added"), "success")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/item/add", methods=["POST"])
+@module_required(MODULE)
+def invoice_item_add(invoice_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    item = _add_item_from_form(invoice)
+    if item is None:
+        flash(t("invoices.need_item"), "warning")
+    else:
+        invoice.items.append(item)
+        invoice.recalc_status()
+        db.session.commit()
+        flash(t("invoices.item_added"), "success")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/item/<int:item_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def invoice_item_delete(invoice_id, item_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    item = db.session.get(InvoiceItem, item_id)
+    if item and item.invoice_id == invoice.id:
+        db.session.delete(item)
+        db.session.flush()
+        invoice.recalc_status()
+        db.session.commit()
+        flash(t("invoices.item_removed"), "info")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def invoice_delete(invoice_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    db.session.delete(invoice)
+    db.session.commit()
+    flash(t("invoices.deleted"), "info")
+    return redirect(url_for("finance.invoices"))
