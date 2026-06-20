@@ -4,8 +4,14 @@
 {% block page_heading %}{{ t('nav.settings') }}{% endblock %}
 
 {% block content %}
-<h1 class="page-title gc-animate">{{ t('settings.title') }}</h1>
-<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('settings.subtitle') }}</p>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div>
+    <h1 class="page-title">{{ t('settings.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('settings.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
+    <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
+</div>
 
 <form method="post" enctype="multipart/form-data">
   <!-- Clinic identity -->

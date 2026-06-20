@@ -915,5 +915,27 @@
     "invoice": "Invoice",
     "mode": "Mode",
     "back": "Back"
+  },
+  "data_tools": {
+    "title": "Data tools",
+    "subtitle": "Demo data for presentations, and a full reset before going live",
+    "open": "Data tools",
+    "demo_section": "Demo data",
+    "demo_desc": "Fill the system with realistic data (patients, appointments, services, invoices, insurance, tax invoices) to show a prospect.",
+    "seed_btn": "Load demo data",
+    "seeded": "Demo data loaded ✓",
+    "already_seeded": "Demo data is already loaded",
+    "reset_section": "⚠️ Danger zone — wipe data",
+    "reset_desc": "Deletes all patients, appointments, visits, vaccinations, invoices, payments, services, payers, inventory and messages. Keeps users, roles, settings and the vaccine catalogue.",
+    "reset_warn": "This cannot be undone! Type DELETE to confirm.",
+    "confirm_label": "Type DELETE",
+    "reset_btn": "Wipe all data",
+    "bad_confirm": "You must type DELETE exactly to confirm",
+    "reset_done": "All data wiped ✓",
+    "current": "Current state",
+    "patients_count": "Patients",
+    "invoices_count": "Invoices",
+    "status_seeded": "Demo data loaded",
+    "status_clean": "Clean"
   }
 }

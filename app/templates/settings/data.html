@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('data_tools.title') }}{% endblock %}
+{% block page_heading %}{{ t('data_tools.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('data_tools.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('data_tools.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.settings') }}</a>
+</div>
+
+<!-- Current state -->
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-people ico"></i><div class="value">{{ stats.patients }}</div><div class="label">{{ t('data_tools.patients_count') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-receipt ico"></i><div class="value">{{ stats.invoices }}</div><div class="label">{{ t('data_tools.invoices_count') }}</div></div>
+  <div class="stat-card {{ 'edge-yellow' if stats.seeded else 'edge-green' }} gc-lift"><i class="bi bi-database ico"></i>
+    <div class="value" style="font-size:1rem;">{{ t('data_tools.status_seeded') if stats.seeded else t('data_tools.status_clean') }}</div><div class="label">{{ t('data_tools.current') }}</div></div>
+</div>
+
+<!-- Demo data -->
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-stars"></i> {{ t('data_tools.demo_section') }}</h2>
+  <p style="color:var(--muted);">{{ t('data_tools.demo_desc') }}</p>
+  <form method="post" action="{{ url_for('settings.seed_demo_data') }}">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if stats.seeded else '' }}>
+      <i class="bi bi-download"></i> {{ t('data_tools.seed_btn') }}</button>
+  </form>
+</div>
+
+<!-- Danger zone -->
+<div class="card gc-scale-in" style="animation-delay:0.06s;border:1px solid #f3c0c0;background:#fdf6f6;">
+  <h2 class="section-title" style="color:var(--danger);"><i class="bi bi-exclamation-octagon"></i> {{ t('data_tools.reset_section') }}</h2>
+  <p style="color:var(--muted);">{{ t('data_tools.reset_desc') }}</p>
+  <form method="post" action="{{ url_for('settings.reset_data') }}"
+        onsubmit="return confirm('{{ t('data_tools.reset_warn') }}');">
+    <div class="form-row" style="max-width:280px;">
+      <label style="color:var(--danger);font-weight:600;">{{ t('data_tools.confirm_label') }}</label>
+      <input class="input" name="confirm" dir="ltr" placeholder="DELETE" autocomplete="off">
+    </div>
+    <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash3"></i> {{ t('data_tools.reset_btn') }}</button>
+  </form>
+</div>
+{% endblock %}
