@@ -144,6 +144,23 @@ def seed_demo():
             expiry_date=today + timedelta(days=rnd.randint(120, 600)), is_active=True,
         ))
 
+    # --- Growth measurements (so the charts have data) ------------------
+    for p in patients:
+        age_m = max(1, p.age_days // 30)
+        # A handful of monthly-ish points up to the child's age.
+        months = sorted(set(rnd.sample(range(0, age_m + 1), min(5, age_m + 1))))
+        for m in months:
+            # Rough WHO-ish trajectory; demo values only.
+            w = round(3.3 + m * (0.6 if m < 12 else 0.2) + rnd.uniform(-0.4, 0.4), 1)
+            h = round(50 + m * (2.0 if m < 12 else 1.0) + rnd.uniform(-1, 1), 1)
+            hc = round(34 + m * (0.5 if m < 12 else 0.15) + rnd.uniform(-0.5, 0.5), 1)
+            db.session.add(GrowthRecord(
+                patient_id=p.id,
+                record_date=p.date_of_birth + timedelta(days=m * 30),
+                weight_kg=max(2.5, w), height_cm=max(48, h),
+                head_circ_cm=max(32, hc), source="demo",
+            ))
+
     # --- Today's appointments (mixed statuses) --------------------------
     statuses = ["completed", "completed", "in_progress", "waiting",
                 "scheduled", "scheduled", "no_show", "scheduled"]
