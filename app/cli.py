@@ -58,6 +58,7 @@ def register_commands(app):
             ("vaccine_brands", "purchase_price", "FLOAT"),
             ("vaccine_brands", "max_discount", "FLOAT"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
+            ("invoices", "payer_id", "INTEGER"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

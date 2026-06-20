@@ -65,7 +65,30 @@
     <span class="badge badge--role">{{ t('invoices.clinic_share') }}: {{ invoice.clinic_share_total }}</span>
   </div>
   {% endif %}
+
+  {% if invoice.payer %}
+  <div style="margin-top:10px;font-size:0.9rem;">
+    <span class="badge badge--role"><i class="bi bi-building"></i> {{ t('claims.payer') }}: {{ invoice.payer.display_name(current_lang) }}</span>
+    <span class="badge badge--green">{{ t('claims.claimable') }}: {{ invoice.discount_total }}</span>
+  </div>
+  {% endif %}
 </div>
+
+<!-- Payer / claim -->
+{% if payers %}
+<details class="card gc-scale-in no-print" style="animation-delay:0.04s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-building"></i> {{ t('claims.payer') }}</summary>
+  <form method="post" action="{{ url_for('finance.invoice_set_payer', invoice_id=invoice.id) }}" style="margin-top:12px;">
+    <div class="form-row"><label>{{ t('claims.payer') }}</label>
+      <select class="select" name="payer_id">
+        <option value="">{{ t('claims.no_payer') }}</option>
+        {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if invoice.payer_id == p.id else '' }}>{{ p.display_name(current_lang) }} ({{ p.discount_percent }}%)</option>{% endfor %}
+      </select></div>
+    <p class="hint">{{ t('claims.claimable') }}: <strong>{{ invoice.discount_total }}</strong></p>
+    <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</details>
+{% endif %}
 
 <!-- Add item -->
 <details class="card gc-scale-in no-print" style="animation-delay:0.05s;">
