@@ -42,6 +42,13 @@ DEFAULT_SETTINGS = {
     "wa_tpl_doctor_schedule": (
         "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}"
     ),
+    # ETA e-invoicing (demo mode by default so it works without credentials).
+    "eta_enabled": "0",
+    "eta_mode": "demo",
+    "eta_environment": "preprod",
+    "eta_default_tax": "exempt",
+    "eta_vat_rate": "14",
+    "eta_send_gap": "0",
 }
 
 
@@ -75,6 +82,7 @@ def register_commands(app):
             ("invoices", "payer_id", "INTEGER"),
             ("invoices", "coverage_card", "VARCHAR(60)"),
             ("invoices", "coverage_expiry", "DATE"),
+            ("invoices", "is_tax", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

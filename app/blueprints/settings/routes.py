@@ -22,8 +22,13 @@ TEXT_KEYS = [
     "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_endpoint",
     "wa_tpl_appt_confirm", "wa_tpl_doctor_schedule", "queue_mode",
+    # ETA e-invoicing.
+    "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
+    "eta_tax_number", "eta_activity_code", "eta_company_name",
+    "eta_branch_address", "eta_signing_url", "eta_default_tax",
+    "eta_vat_rate", "eta_send_gap",
 ]
-TOGGLE_KEYS = ["show_logo_login", "show_logo_print"]
+TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled"]
 
 
 def _logo_dir():

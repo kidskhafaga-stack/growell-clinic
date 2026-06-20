@@ -103,6 +103,48 @@
       <div class="hint">{{ t('settings.wa_vars_doctor') }}</div></div>
   </div>
 
+  <!-- ETA e-invoicing -->
+  <div class="card gc-scale-in" style="animation-delay:0.24s;">
+    <h2 class="section-title"><i class="bi bi-receipt-cutoff"></i> {{ t('settings.eta_title') }}</h2>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="eta_enabled" name="eta_enabled" value="1" {{ 'checked' if values.get('eta_enabled')=='1' else '' }}>
+      <label for="eta_enabled" style="margin:0;font-weight:400;">{{ t('settings.eta_enabled') }}</label>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.eta_mode') }}</label>
+        <select class="select" name="eta_mode">
+          <option value="demo" {{ 'selected' if values.get('eta_mode','demo')=='demo' else '' }}>{{ t('settings.eta_demo') }}</option>
+          <option value="live" {{ 'selected' if values.get('eta_mode')=='live' else '' }}>{{ t('settings.eta_live') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('settings.eta_environment') }}</label>
+        <select class="select" name="eta_environment">
+          <option value="preprod" {{ 'selected' if values.get('eta_environment','preprod')=='preprod' else '' }}>{{ t('settings.eta_preprod') }}</option>
+          <option value="production" {{ 'selected' if values.get('eta_environment')=='production' else '' }}>{{ t('settings.eta_production') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('settings.eta_default_tax') }}</label>
+        <select class="select" name="eta_default_tax">
+          <option value="exempt" {{ 'selected' if values.get('eta_default_tax','exempt')=='exempt' else '' }}>{{ t('settings.eta_exempt') }}</option>
+          <option value="taxable" {{ 'selected' if values.get('eta_default_tax')=='taxable' else '' }}>{{ t('settings.eta_taxable') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('settings.eta_vat_rate') }}</label><input class="input" name="eta_vat_rate" dir="ltr" value="{{ values.get('eta_vat_rate','14') }}"></div>
+      <div class="form-row"><label>{{ t('settings.eta_send_gap') }}</label><input class="input" name="eta_send_gap" dir="ltr" value="{{ values.get('eta_send_gap','0') }}"></div>
+    </div>
+    <p class="info-note" style="margin:10px 0;"><i class="bi bi-info-circle"></i> {{ t('settings.eta_help') }}</p>
+
+    <details>
+      <summary style="cursor:pointer;color:var(--green-800);"><i class="bi bi-key"></i> {{ t('settings.eta_client_id') }} / {{ t('settings.eta_tax_number') }}</summary>
+      <div class="form-grid" style="margin-top:10px;">
+        <div class="form-row"><label>{{ t('settings.eta_client_id') }}</label><input class="input" name="eta_client_id" dir="ltr" value="{{ values.get('eta_client_id','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_client_secret') }}</label><input class="input" name="eta_client_secret" dir="ltr" value="{{ values.get('eta_client_secret','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_tax_number') }}</label><input class="input" name="eta_tax_number" dir="ltr" value="{{ values.get('eta_tax_number','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_activity_code') }}</label><input class="input" name="eta_activity_code" dir="ltr" value="{{ values.get('eta_activity_code','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_company_name') }}</label><input class="input" name="eta_company_name" value="{{ values.get('eta_company_name','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_branch_address') }}</label><input class="input" name="eta_branch_address" value="{{ values.get('eta_branch_address','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_signing_url') }}</label><input class="input" name="eta_signing_url" dir="ltr" value="{{ values.get('eta_signing_url','') }}"></div>
+      </div>
+    </details>
+  </div>
+
   <div class="gc-animate" style="margin-top:16px;">
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </div>

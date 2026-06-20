@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('einvoice.title') }}{% endblock %}
+{% block page_heading %}{{ t('einvoice.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('einvoice.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('einvoice.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+</div>
+
+{% if cfg.mode == 'demo' %}
+<div class="info-note gc-animate" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('einvoice.demo_note') }}</div>
+{% endif %}
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-hourglass-split ico"></i><div class="value">{{ counts.queued }}</div><div class="label">{{ t('einvoice.st_queued') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-check2-circle ico"></i><div class="value">{{ counts.valid }}</div><div class="label">{{ t('einvoice.st_valid') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-x-octagon ico"></i><div class="value">{{ counts.rejected }}</div><div class="label">{{ t('einvoice.st_rejected') }}</div></div>
+</div>
+
+<div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+  {% for s in ['', 'queued', 'valid', 'rejected'] %}
+  <a class="btn btn-sm {{ 'btn-primary' if status==s else 'btn-outline' }} gc-press"
+     href="{{ url_for('finance.einvoice', status=s) }}">{{ t('einvoice.all') if s=='' else t('einvoice.st_' ~ s) }}</a>
+  {% endfor %}
+  <span style="flex:1;"></span>
+  <form method="post" action="{{ url_for('finance.einvoice_send') }}" id="sendForm">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-send"></i> {{ t('einvoice.send_all') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if docs %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('einvoice.invoice') }}</th><th>{{ t('invoices.patient') }}</th><th>{{ t('invoices.total') }}</th>
+      <th>{{ t('einvoice.status') }}</th><th>{{ t('einvoice.uuid') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for d in docs %}
+      <tr>
+        <td><strong dir="ltr">{{ d.invoice.invoice_number }}</strong></td>
+        <td>{{ d.invoice.patient.display_name(current_lang) }}</td>
+        <td>{{ d.invoice.total }}</td>
+        <td>
+          <span class="status-badge {{ 'st-completed' if d.status=='valid' else ('st-no_show' if d.status in ['rejected','cancelled'] else 'st-waiting') }}">{{ t('einvoice.st_' ~ d.status) }}</span>
+          {% if d.is_demo %}<span class="badge badge--muted">{{ t('einvoice.demo_badge') }}</span>{% endif %}
+        </td>
+        <td dir="ltr" style="font-size:0.78rem;color:var(--muted);">{{ (d.uuid[:18] ~ '…') if d.uuid else '—' }}</td>
+        <td><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.einvoice_doc', doc_id=d.id) }}">{{ t('einvoice.view_doc') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-receipt-cutoff"></i>{{ t('einvoice.no_docs') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -29,6 +29,7 @@ class Invoice(db.Model):
 
     invoice_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     status = db.Column(db.String(10), default="unpaid", nullable=False)
+    is_tax = db.Column(db.Boolean, default=False, nullable=False)  # ETA tax invoice
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

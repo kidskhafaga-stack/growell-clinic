@@ -60,6 +60,7 @@ from app.models.payer import (
     PayerEntity,
     PayerServiceRate,
 )
+from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
 from app.models.message import MESSAGE_STATUSES, MessageLog
 
 __all__ = [
@@ -113,6 +114,8 @@ __all__ = [
     "PatientCoverage",
     "PAYER_TYPES",
     "COVERAGE_TYPES",
+    "EInvoiceDocument",
+    "EINVOICE_STATUSES",
     "MessageLog",
     "MESSAGE_STATUSES",
 ]

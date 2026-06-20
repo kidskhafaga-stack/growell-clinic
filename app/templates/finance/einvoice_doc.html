@@ -1,0 +1,37 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('einvoice.document') }}{% endblock %}
+{% block page_heading %}{{ t('einvoice.document') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.einvoice') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('einvoice.back') }}</a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoice_view', invoice_id=doc.invoice_id) }}">
+    <i class="bi bi-receipt"></i> {{ t('einvoice.invoice') }} {{ doc.invoice.invoice_number }}</a>
+</div>
+
+<div class="card gc-scale-in">
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('einvoice.status') }}</div><div class="v">
+      <span class="status-badge {{ 'st-completed' if doc.status=='valid' else ('st-no_show' if doc.status in ['rejected','cancelled'] else 'st-waiting') }}">{{ t('einvoice.st_' ~ doc.status) }}</span>
+      {% if doc.is_demo %}<span class="badge badge--muted">{{ t('einvoice.demo_badge') }}</span>{% endif %}</div></div>
+    <div class="info-item"><div class="k">{{ t('einvoice.uuid') }}</div><div class="v" dir="ltr" style="word-break:break-all;font-size:0.82rem;">{{ doc.uuid or '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('einvoice.long_id') }}</div><div class="v" dir="ltr">{{ doc.long_id or '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('einvoice.submitted_at') }}</div><div class="v" dir="ltr">{{ doc.submitted_at.strftime('%Y-%m-%d %H:%M') if doc.submitted_at else '—' }}</div></div>
+  </div>
+  {% if doc.public_url %}
+  <p style="margin-top:10px;"><a href="{{ doc.public_url }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> {{ t('einvoice.portal_link') }}</a></p>
+  {% endif %}
+  {% if doc.error %}
+  <div class="alert-pill danger" style="margin-top:10px;"><i class="bi bi-exclamation-octagon"></i> {{ doc.error }}</div>
+  {% endif %}
+</div>
+
+{% if doc.doc_json %}
+<div class="card gc-scale-in" style="animation-delay:0.06s;">
+  <h2 class="section-title"><i class="bi bi-filetype-json"></i> {{ t('einvoice.payload') }}</h2>
+  <pre dir="ltr" style="background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;overflow:auto;max-height:480px;font-size:0.8rem;">{{ doc.doc_json }}</pre>
+</div>
+{% endif %}
+{% endblock %}

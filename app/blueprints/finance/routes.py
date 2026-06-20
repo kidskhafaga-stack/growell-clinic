@@ -20,6 +20,7 @@ from app.models import (
     SERVICE_CATEGORIES,
     ActivityLog,
     DoctorServiceCommission,
+    EInvoiceDocument,
     Invoice,
     InvoiceItem,
     Patient,
@@ -28,10 +29,12 @@ from app.models import (
     Payment,
     Service,
     ServiceBundleItem,
+    Setting,
     User,
 )
 from app.utils.decorators import client_ip, module_required
 from app.utils.finance import generate_invoice_number
+from app.utils import einvoice as eta
 
 MODULE = "finance"
 
@@ -652,3 +655,82 @@ def statements():
         invoices=invoices, totals=totals, paid_only=paid_only,
         date_from=date_from, date_to=date_to,
     )
+
+
+# =======================================================================
+# ETA e-invoicing
+# =======================================================================
+import time as _time
+
+
+@finance_bp.route("/einvoice")
+@module_required(MODULE)
+def einvoice():
+    status = (request.args.get("status") or "").strip()
+    q = EInvoiceDocument.query
+    if status in ("queued", "submitted", "valid", "rejected", "cancelled"):
+        q = q.filter_by(status=status)
+    docs = q.order_by(EInvoiceDocument.id.desc()).limit(300).all()
+    counts = {s: EInvoiceDocument.query.filter_by(status=s).count()
+              for s in ("queued", "valid", "rejected")}
+    return render_template("finance/einvoice.html", docs=docs, status=status,
+                           cfg=eta.get_config(), counts=counts)
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/tax", methods=["POST"])
+@module_required(MODULE)
+def invoice_mark_tax(invoice_id):
+    """Flag an invoice as a tax invoice and queue it for ETA submission."""
+    invoice = db.get_or_404(Invoice, invoice_id)
+    if request.form.get("unmark"):
+        invoice.is_tax = False
+        doc = EInvoiceDocument.query.filter_by(invoice_id=invoice.id).first()
+        if doc and doc.status in ("queued", "rejected"):
+            db.session.delete(doc)
+        db.session.commit()
+        flash(t("einvoice.unmarked"), "info")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+    eta.queue_for_invoice(invoice, user_id=current_user.id)
+    ActivityLog.record("einvoice.queue", user_id=current_user.id, entity="invoice",
+                       detail=invoice.invoice_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t("einvoice.queued"), "success")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/einvoice/send", methods=["POST"])
+@module_required(MODULE)
+def einvoice_send():
+    """Send queued documents in a batch, with a configurable time gap."""
+    ids = request.form.getlist("doc_id", type=int)
+    if ids:
+        docs = EInvoiceDocument.query.filter(EInvoiceDocument.id.in_(ids)).all()
+    else:
+        docs = EInvoiceDocument.query.filter_by(status="queued").all()
+
+    cfg = eta.get_config()
+    try:
+        gap = float(Setting.get("eta_send_gap", "0") or 0)
+    except ValueError:
+        gap = 0
+    gap = max(0, min(gap, 5))  # keep request responsive
+
+    sent = 0
+    for i, doc in enumerate(docs):
+        if doc.status not in ("queued", "rejected"):
+            continue
+        eta.submit(doc, user_id=current_user.id, cfg=cfg)
+        sent += 1
+        if gap and i < len(docs) - 1:
+            _time.sleep(gap)
+    db.session.commit()
+    flash(t("einvoice.sent_n").replace("{n}", str(sent)), "success")
+    return redirect(url_for("finance.einvoice"))
+
+
+@finance_bp.route("/einvoice/<int:doc_id>")
+@module_required(MODULE)
+def einvoice_doc(doc_id):
+    doc = db.get_or_404(EInvoiceDocument, doc_id)
+    return render_template("finance/einvoice_doc.html", doc=doc)
