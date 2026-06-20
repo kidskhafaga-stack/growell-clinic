@@ -952,5 +952,23 @@
     "ID": "Intradermal",
     "oral": "Oral",
     "intranasal": "Intranasal"
+  },
+  "contracts": {
+    "section": "Contracts",
+    "number": "Contract no.",
+    "start": "From",
+    "end": "To",
+    "active": "Active",
+    "add": "Add contract",
+    "added": "Contract added",
+    "updated": "Contract updated",
+    "deleted": "Contract deleted",
+    "none": "No contracts",
+    "current": "In force",
+    "expired": "Expired",
+    "inactive": "Inactive",
+    "status": "Status",
+    "none_active_warn": "No contract in force for this entity on the invoice date — discount not applied",
+    "hint": "Coverage applies only during an active contract. With no contracts, the entity always applies coverage."
   }
 }

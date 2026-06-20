@@ -37,17 +37,33 @@ class PayerEntity(db.Model):
     invoices = db.relationship("Invoice", back_populates="payer")
     service_rates = db.relationship("PayerServiceRate", back_populates="payer",
                                     cascade="all, delete-orphan")
+    contracts = db.relationship("PayerContract", back_populates="payer",
+                                cascade="all, delete-orphan",
+                                order_by="PayerContract.start_date.desc()")
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
 
-    def covers(self, service, amount):
+    def active_contract(self, on_date=None):
+        """The contract in force on ``on_date`` (defaults to today), or None."""
+        d = on_date or date.today()
+        live = [c for c in self.contracts if c.is_active
+                and (not c.start_date or c.start_date <= d)
+                and (not c.end_date or d <= c.end_date)]
+        if not live:
+            return None
+        return sorted(live, key=lambda c: c.start_date or date.min, reverse=True)[0]
+
+    def covers(self, service, amount, on_date=None):
         """Amount this entity covers for ``service`` on a line of ``amount``.
 
-        Option (ب): a service with no rule is NOT covered (returns 0, so the
-        patient pays in full).
+        Option (ب): a service with no rule is NOT covered (patient pays full).
+        If the entity has any contracts, coverage applies only when a contract
+        is in force on ``on_date``.
         """
         if service is None:
+            return 0.0
+        if self.contracts and self.active_contract(on_date) is None:
             return 0.0
         rate = next((r for r in self.service_rates if r.service_id == service.id), None)
         if rate is None:
@@ -78,6 +94,32 @@ class PayerServiceRate(db.Model):
 
     def __repr__(self):
         return f"<PayerServiceRate payer={self.payer_id} svc={self.service_id}>"
+
+
+class PayerContract(db.Model):
+    """A date-bounded agreement with a payer entity (company/insurer)."""
+    __tablename__ = "payer_contracts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=False, index=True)
+    number = db.Column(db.String(60))
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    notes = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    payer = db.relationship("PayerEntity", back_populates="contracts")
+
+    @property
+    def is_current(self):
+        d = date.today()
+        return (self.is_active
+                and (not self.start_date or self.start_date <= d)
+                and (not self.end_date or d <= self.end_date))
+
+    def __repr__(self):
+        return f"<PayerContract payer={self.payer_id} {self.start_date}..{self.end_date}>"
 
 
 class PatientCoverage(db.Model):

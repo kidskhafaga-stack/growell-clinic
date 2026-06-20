@@ -59,6 +59,7 @@ from app.models.payer import (
     COVERAGE_TYPES,
     PAYER_TYPES,
     PatientCoverage,
+    PayerContract,
     PayerEntity,
     PayerServiceRate,
 )
@@ -115,6 +116,7 @@ __all__ = [
     "PAYMENT_METHODS",
     "PayerEntity",
     "PayerServiceRate",
+    "PayerContract",
     "PatientCoverage",
     "PAYER_TYPES",
     "COVERAGE_TYPES",
