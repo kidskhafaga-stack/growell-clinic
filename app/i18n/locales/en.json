@@ -939,5 +939,10 @@
     "invoices_count": "Invoices",
     "status_seeded": "Demo data loaded",
     "status_clean": "Clean"
+  },
+  "guide": {
+    "nav": "User guide",
+    "title": "System user guide",
+    "intro": "A step-by-step guide to each section. Click a section to jump to it."
   }
 }
