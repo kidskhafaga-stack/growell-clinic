@@ -1,0 +1,243 @@
+{% extends "shell.html" %}
+{% set active_module = 'guide' %}
+{% set ar = current_lang != 'en' %}
+{% block title %}{{ t('guide.title') }}{% endblock %}
+{% block page_heading %}{{ t('guide.title') }}{% endblock %}
+
+{% macro sec(id, icon, title) %}
+  <h2 class="section-title" id="{{ id }}" style="scroll-margin-top:80px;margin-top:6px;">
+    <i class="bi bi-{{ icon }}"></i> {{ title }}</h2>
+{% endmacro %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('guide.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('guide.intro') }}</p>
+
+{% set sections = [
+  ('g-start','box-arrow-in-right', ar and 'الدخول والأدوار' or 'Login & roles'),
+  ('g-patients','people', ar and 'المرضى والاستيراد' or 'Patients & import'),
+  ('g-coverage','shield-check', ar and 'التأمين والعضوية' or 'Insurance & membership'),
+  ('g-appts','calendar-week', ar and 'المواعيد والدور' or 'Appointments & queue'),
+  ('g-clinical','clipboard2-pulse', ar and 'الزيارات والنمو والتطعيمات' or 'Visits, growth, vaccines'),
+  ('g-inventory','box-seam', ar and 'المخزون والموردين' or 'Inventory & suppliers'),
+  ('g-services','cash-stack', ar and 'الخدمات والعمولات' or 'Services & commissions'),
+  ('g-invoices','receipt', ar and 'الفواتير والدفعات' or 'Invoices & payments'),
+  ('g-statements','person-badge', ar and 'كشف حساب الطبيب' or 'Doctor statement'),
+  ('g-claims','file-earmark-medical', ar and 'مطالبات الخصم' or 'Discount claims'),
+  ('g-whatsapp','whatsapp', ar and 'واتساب' or 'WhatsApp'),
+  ('g-eta','receipt-cutoff', ar and 'الفاتورة الإلكترونية (الضرائب)' or 'E-invoicing (ETA)'),
+  ('g-settings','gear', ar and 'الإعدادات وأدوات البيانات' or 'Settings & data tools'),
+] %}
+
+<!-- Index -->
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    {% for sid, icon, label in sections %}
+    <a class="btn btn-outline btn-sm gc-press" href="#{{ sid }}"><i class="bi bi-{{ icon }}"></i> {{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="line-height:1.9;">
+
+{{ sec('g-start','box-arrow-in-right', ar and 'الدخول والأدوار' or 'Login & roles') }}
+{% if ar %}
+<ul>
+  <li>سجّل الدخول باسم المستخدم وكلمة المرور. كل مستخدم له <b>دور</b> يحدد الأقسام المتاحة له.</li>
+  <li>المدير يقدر يضيف/يعدّل الأدوار من <b>المستخدمين ← إدارة الأدوار</b>، ويضيف مستخدمين جدد.</li>
+  <li>تقدر تبدّل اللغة (عربي/إنجليزي) من الشريط العلوي.</li>
+</ul>
+{% else %}
+<ul>
+  <li>Sign in with your username and password. Each user has a <b>role</b> that controls which sections they see.</li>
+  <li>Admins manage roles under <b>Users → Manage roles</b> and add new users.</li>
+  <li>Switch language (Arabic/English) from the top bar.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-patients','people', ar and 'المرضى والاستيراد' or 'Patients & import') }}
+{% if ar %}
+<ul>
+  <li><b>إضافة مريض:</b> المرضى ← «مريض جديد». الأخوة بيترابطوا تلقائياً تحت نفس «اسم العائلة».</li>
+  <li><b>استيراد جماعي:</b> المرضى ← «استيراد» ← نزّل القالب (Excel/CSV) واملأه وارفعه. بعد الرفع تظهر <b>معاينة</b> (الصفوف الصالحة والأخطاء) — مفيش حاجة تتحفظ إلا بعد ما تضغط «تأكيد الاستيراد».</li>
+  <li><b>ملف المريض:</b> بياناته، التنبيهات الطبية، أولياء الأمور، الإخوة، الزيارات، النمو، التطعيمات، والتأمين.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Add patient:</b> Patients → "New patient". Siblings are linked automatically under the same family name.</li>
+  <li><b>Bulk import:</b> Patients → "Import" → download the template, fill it and upload. A <b>preview</b> shows valid rows and errors; nothing is saved until you confirm.</li>
+  <li><b>Patient profile:</b> details, medical alerts, guardians, siblings, visits, growth, vaccinations and insurance.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-coverage','shield-check', ar and 'التأمين والعضوية' or 'Insurance & membership') }}
+{% if ar %}
+<ul>
+  <li>من <b>ملف المريض ← تبويب العائلة ← التأمين</b>: اختر الجهة + اكتب رقم الكارت وتاريخ الصلاحية.</li>
+  <li>زر «طبّق نفس الجهة على الإخوة» يضيفها للإخوة (كل واحد بكارته الخاص).</li>
+  <li>أي فاتورة للعضو <b>تطبّق التغطية تلقائياً</b> لكل خدمة (حسب جدول التغطية للجهة)، والكارت المنتهي بينبّهك.</li>
+</ul>
+{% else %}
+<ul>
+  <li>From <b>Patient profile → Family tab → Insurance</b>: pick the entity, enter the card number and expiry.</li>
+  <li>"Apply to siblings" adds it to siblings (each keeps its own card).</li>
+  <li>A member's invoice <b>auto-applies coverage</b> per service; an expired card is flagged.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-appts','calendar-week', ar and 'المواعيد والدور' or 'Appointments & queue') }}
+{% if ar %}
+<ul>
+  <li><b>لوحة اليوم:</b> المواعيد ← تتنقّل بين الأيام والأطباء، وتغيّر حالة كل موعد (منتظر/جاري/مكتمل/لم يحضر).</li>
+  <li><b>الدور:</b> الأدمن يحدد من الإعدادات الترتيب «بالدور (رقم)» أو «بالتوقيت المحجوز».</li>
+  <li>زر <b>واتساب</b> على الموعد يبعت للمريض تأكيد بالموعد ورقم الدور.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Daily board:</b> Appointments → navigate days/doctors and change each appointment's status.</li>
+  <li><b>Queue:</b> admins choose "by queue number" or "by booked time" in Settings.</li>
+  <li>The <b>WhatsApp</b> button sends the patient a confirmation with their queue number.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-clinical','clipboard2-pulse', ar and 'الزيارات والنمو والتطعيمات' or 'Visits, growth & vaccines') }}
+{% if ar %}
+<ul>
+  <li><b>الزيارة:</b> تبدأ من الموعد أو ملف المريض — العلامات الحيوية، التشخيص، الملاحظات، وطباعة الملخص.</li>
+  <li><b>النمو:</b> منحنيات الطول/الوزن/محيط الرأس حسب مرجع منظمة الصحة العالمية.</li>
+  <li><b>التطعيمات:</b> الجدول حسب العمر، تسجيل الجرعات، وشهادة تطعيم قابلة للطباعة. الإدارة من «إدارة التطعيمات».</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Visit:</b> start from an appointment or the patient file — vitals, diagnosis, notes and a printable summary.</li>
+  <li><b>Growth:</b> height/weight/head-circumference curves against the WHO reference.</li>
+  <li><b>Vaccinations:</b> age-based schedule, dose recording and a printable certificate.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-inventory','box-seam', ar and 'المخزون والموردين' or 'Inventory & suppliers') }}
+{% if ar %}
+<ul>
+  <li><b>المخزون:</b> دفعات (لوط) بتاريخ صلاحية وكميات + تنبيهات (قرب الانتهاء/مخزون منخفض/نفاد).</li>
+  <li>عند تسجيل تطعيم اختياري بالعيادة يتخصم من المخزن تلقائياً (الأقرب انتهاءً أولاً).</li>
+  <li><b>الموردون:</b> تضيفهم وتربط الدفعات بيهم.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Inventory:</b> lot batches with expiry and quantities + alerts (near-expiry/low/out of stock).</li>
+  <li>Clinic-administered doses deduct stock automatically (first-expiry-first-out).</li>
+  <li><b>Suppliers:</b> add them and link batches.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-services','cash-stack', ar and 'الخدمات والعمولات' or 'Services & commissions') }}
+{% if ar %}
+<ul>
+  <li><b>المالية ← الخدمات والعمولات:</b> أضِف خدمات العيادة (سعر، أقصى خصم، كود).</li>
+  <li>لكل خدمة <b>عمولة طبيب</b> (نسبة أو مبلغ)، وتقدر تخصّص نسبة مختلفة لكل طبيب.</li>
+  <li>تقدر تعمل <b>خدمة مجمّعة</b> (مثلاً حجز + رسم تطعيم).</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Finance → Services & commissions:</b> add clinic services (price, max discount, code).</li>
+  <li>Each service has a <b>doctor commission</b> (percent or fixed), overridable per doctor.</li>
+  <li>You can build a <b>bundle</b> (e.g. booking + vaccination fee).</li>
+</ul>
+{% endif %}
+
+{{ sec('g-invoices','receipt', ar and 'الفواتير والدفعات' or 'Invoices & payments') }}
+{% if ar %}
+<ul>
+  <li><b>المالية ← الفواتير ← فاتورة جديدة:</b> اختر المريض والطبيب وأضِف البنود.</li>
+  <li>الحالة تلقائية: <b>مدفوعة/جزئية/غير مدفوعة</b>، وتقدر تسجّل <b>دفعات جزئية</b>.</li>
+  <li>تقدر <b>تعدّل</b> الفاتورة وبنودها بعد الإنشاء، وتطبعها.</li>
+  <li>زر «إنشاء فاتورة» موجود كمان في شاشة الزيارة.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Finance → Invoices → New invoice:</b> pick patient and doctor, add line items.</li>
+  <li>Status is automatic: <b>paid/partial/unpaid</b>, with <b>partial payments</b>.</li>
+  <li>You can <b>edit</b> the invoice and its lines after creation, and print it.</li>
+  <li>A "Create invoice" button is also on the visit screen.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-statements','person-badge', ar and 'كشف حساب الطبيب' or 'Doctor statement') }}
+{% if ar %}
+<ul>
+  <li><b>المالية ← كشف حساب الطبيب:</b> اختر الطبيب والفترة → يظهر نصيبه من كل الفواتير.</li>
+  <li>خيار «المدفوعة فقط» للتسوية على المُحصّل. الكشف قابل للطباعة.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Finance → Doctor statement:</b> pick a doctor and period → see their share across invoices.</li>
+  <li>"Paid only" settles on collected amounts. The statement is printable.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-claims','file-earmark-medical', ar and 'مطالبات الخصم' or 'Discount claims') }}
+{% if ar %}
+<ul>
+  <li><b>المالية ← مطالبات الخصم ← إدارة الجهات:</b> أضِف نادي/نقابة/تأمين، وحدّد <b>جدول التغطية لكل خدمة</b>.</li>
+  <li>الخصم الممنوح للعضو يبقى <b>مستحقاً على الجهة</b>، وتطبع مطالبة بالفترة لكل جهة.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Finance → Discount claims → Manage entities:</b> add a club/syndicate/insurer and set the <b>per-service benefits table</b>.</li>
+  <li>The member's discount becomes <b>claimable from the entity</b>; print a per-entity claim for a period.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-whatsapp','whatsapp', 'WhatsApp') }}
+{% if ar %}
+<ul>
+  <li><b>الإعدادات ← واتساب:</b> اختر طريقة الإرسال (واتساب ويب بضغطة / Cloud API / WaPilot)، وعدّل قوالب الرسائل.</li>
+  <li><b>الرسائل ← جدول اليوم:</b> اختر الطبيب واليوم → «إرسال الجدول للطبيب» أو «إخطار كل المرضى».</li>
+  <li>كل رسالة تتسجّل في سجل الرسائل.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Settings → WhatsApp:</b> choose the delivery method (Web link / Cloud API / WaPilot) and edit message templates.</li>
+  <li><b>Messages → Today's roster:</b> pick a doctor and day → "Send schedule to doctor" or "Notify all patients".</li>
+  <li>Every message is recorded in the log.</li>
+</ul>
+{% endif %}
+
+{{ sec('g-eta','receipt-cutoff', ar and 'الفاتورة الإلكترونية (مصلحة الضرائب)' or 'E-invoicing (Tax Authority)') }}
+{% if ar %}
+<ol>
+  <li>على بوابة الضرائب: <b>ملف الممول ← المفوضين ← تسجيل ERP</b> → انسخ <b>Client ID</b> و<b>المفتاح السري</b>.</li>
+  <li>في النظام: <b>الإعدادات ← الفاتورة الإلكترونية</b> → فعّل الربط، اختر الوضع، والصق البيانات وبيانات المنشأة (الرقم الضريبي/كود النشاط).</li>
+  <li>لكل خدمة حدّد <b>نوع التكويد (EGS/GS1) والكود</b> (من شاشة الخدمات).</li>
+  <li>على الفاتورة اضغط <b>«تحويل لفاتورة ضريبية»</b> → تدخل <b>طابور الإرسال</b>.</li>
+  <li><b>المالية ← الفاتورة الإلكترونية</b> → «إرسال» → تظهر الحالة (مقبولة/مرفوضة) مع UUID ورابط البوابة.</li>
+  <li><b>الوضع التجريبي</b> يحاكي المنظومة بدون اعتمادات — للعرض. <b>الوضع الحقيقي</b> يحتاج بياناتك وخدمة التوقيع (eSeal).</li>
+</ol>
+{% else %}
+<ol>
+  <li>On the ETA portal: <b>Taxpayer profile → Delegates → Register ERP</b> → copy the <b>Client ID</b> and <b>secret</b>.</li>
+  <li>In the app: <b>Settings → E-invoicing</b> → enable, choose the mode, paste credentials and company data.</li>
+  <li>Set each service's <b>item type (EGS/GS1) and code</b> (Services screen).</li>
+  <li>On an invoice click <b>"Make tax invoice"</b> → it enters the <b>submission queue</b>.</li>
+  <li><b>Finance → E-invoicing</b> → "Send" → status shows (Accepted/Rejected) with UUID and portal link.</li>
+  <li><b>Demo mode</b> simulates the portal with no credentials. <b>Live mode</b> needs your data and a signing (eSeal) service.</li>
+</ol>
+{% endif %}
+
+{{ sec('g-settings','gear', ar and 'الإعدادات وأدوات البيانات' or 'Settings & data tools') }}
+{% if ar %}
+<ul>
+  <li><b>الإعدادات:</b> بيانات العيادة، رفع <b>الشعار</b> وإظهاره في الدخول/المطبوعات.</li>
+  <li><b>أدوات البيانات (للمدير):</b> «تحميل بيانات تجريبية» للعرض، و<b>منطقة الخطر</b> لمسح كل البيانات (تتطلب كتابة DELETE).</li>
+  <li><b>المستخدمون والأدوار:</b> إضافة مستخدمين وتعديل صلاحيات الأدوار.</li>
+</ul>
+{% else %}
+<ul>
+  <li><b>Settings:</b> clinic details, upload the <b>logo</b> and show it on login/printouts.</li>
+  <li><b>Data tools (admin):</b> "Load demo data" for presentations, and a <b>danger zone</b> to wipe all data (type DELETE).</li>
+  <li><b>Users & roles:</b> add users and edit role permissions.</li>
+</ul>
+{% endif %}
+
+</div>
+{% endblock %}

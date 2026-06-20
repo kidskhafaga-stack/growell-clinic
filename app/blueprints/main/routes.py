@@ -16,3 +16,10 @@ def index():
 @login_required
 def dashboard():
     return render_template("main/dashboard.html")
+
+
+@main_bp.route("/guide")
+@login_required
+def guide():
+    """In-app user guide (available to every signed-in user)."""
+    return render_template("main/guide.html")

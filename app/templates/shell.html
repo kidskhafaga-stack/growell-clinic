@@ -24,6 +24,11 @@
           </a>
         {% endif %}
       {% endfor %}
+      <a class="nav-item gc-press {{ 'active' if active_module == 'guide' else '' }}"
+         href="{{ url_for('main.guide') }}">
+        <i class="bi bi-life-preserver"></i>
+        <span>{{ t('guide.nav') }}</span>
+      </a>
     </nav>
 
     <div class="sidebar__footer">
