@@ -217,7 +217,20 @@
     "err_dob": "Missing or invalid date of birth",
     "no_errors": "All rows imported successfully with no errors 🎉",
     "back_to_list": "View patients list",
-    "import_more": "Import another file"
+    "import_more": "Import another file",
+    "preview_btn": "Preview before import",
+    "preview_title": "Import preview",
+    "review_note": "Review the data before confirming — nothing is saved until you click \"Confirm import\".",
+    "will_create": "Will be created",
+    "will_skip": "Will be skipped",
+    "confirm_import": "Confirm import",
+    "skip_note": "Rows with errors will be skipped and not imported. Fix the file and re-upload to include them.",
+    "status": "Status",
+    "family": "Family",
+    "parent": "Guardian",
+    "showing_first": "Showing first",
+    "of_total": "of",
+    "session_expired": "Preview expired, please upload the file again"
   },
   "appointments": {
     "title": "Appointments",

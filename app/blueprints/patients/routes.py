@@ -3,8 +3,10 @@
 Covers patient CRUD with manual/auto file numbers, photo upload, medical
 alerts, family grouping, parents/guardians and sibling linking.
 """
+import json
 import os
-from datetime import datetime
+import uuid
+from datetime import date, datetime
 
 from flask import (
     Response,
@@ -370,6 +372,53 @@ def _resolve_family(form):
 
 
 # ------------------------------------------------------- bulk import -------
+MAX_PREVIEW_ROWS = 200
+
+
+def _import_tmp_dir():
+    path = os.path.join(current_app.instance_path, "import_tmp")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _analyze_rows(rows):
+    """Validate parsed rows without writing anything (for the preview step).
+
+    Returns (preview, valid_count) where preview is a per-row list with the
+    resolved values and an ``ok``/``error`` status + reason.
+    """
+    preview = []
+    valid = 0
+    for offset, row in enumerate(rows):
+        line = offset + 2  # +1 header, 1-based
+        name = (str(row.get("full_name")).strip() if row.get("full_name") else "")
+        gender = parse_gender(row.get("gender"))
+        dob = parse_date(row.get("date_of_birth"))
+
+        reason = None
+        if not name:
+            reason = t("import.err_name")
+        elif gender is None:
+            reason = t("import.err_gender")
+        elif dob is None:
+            reason = t("import.err_dob")
+
+        if reason is None:
+            valid += 1
+        preview.append({
+            "line": line,
+            "name": name or "—",
+            "name_en": (row.get("full_name_en") or "").strip() or None,
+            "gender": gender,
+            "dob": dob.isoformat() if dob else (row.get("date_of_birth") or "—"),
+            "family": (row.get("family_name") or "").strip() or None,
+            "parent": (row.get("parent_name") or "").strip() or None,
+            "ok": reason is None,
+            "reason": reason,
+        })
+    return preview, valid
+
+
 @patients_bp.route("/import", methods=["GET", "POST"])
 @module_required(MODULE)
 def bulk_import():
@@ -390,17 +439,59 @@ def bulk_import():
             flash(t("import.empty"), "warning")
             return redirect(url_for("patients.bulk_import"))
 
-        result = _process_import(rows)
-        db.session.commit()
-        ActivityLog.record(
-            "patient.import", user_id=current_user.id, entity="patient",
-            detail=f"created={result['created']} skipped={len(result['errors'])}",
-            ip_address=client_ip(),
+        # Stash the parsed rows for the confirm step (dates -> ISO so they
+        # round-trip cleanly through JSON), then show a preview.
+        token = uuid.uuid4().hex
+        with open(os.path.join(_import_tmp_dir(), f"{token}.json"), "w",
+                  encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False, default=_json_cell)
+
+        preview, valid = _analyze_rows(rows)
+        return render_template(
+            "patients/import_preview.html",
+            token=token, preview=preview[:MAX_PREVIEW_ROWS],
+            total=len(rows), valid=valid, invalid=len(rows) - valid,
+            shown=min(len(rows), MAX_PREVIEW_ROWS), filename=file.filename,
         )
-        db.session.commit()
-        return render_template("patients/import_result.html", result=result)
 
     return render_template("patients/import.html")
+
+
+def _json_cell(value):
+    if isinstance(value, (date, datetime)):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
+@patients_bp.route("/import/confirm", methods=["POST"])
+@module_required(MODULE)
+def import_confirm():
+    token = (request.form.get("token") or "").strip()
+    # Guard against path traversal: tokens are plain hex.
+    if not token.isalnum():
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.bulk_import"))
+    tmp_path = os.path.join(_import_tmp_dir(), f"{token}.json")
+    if not os.path.isfile(tmp_path):
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.bulk_import"))
+
+    with open(tmp_path, encoding="utf-8") as fh:
+        rows = json.load(fh)
+
+    result = _process_import(rows)
+    db.session.commit()
+    ActivityLog.record(
+        "patient.import", user_id=current_user.id, entity="patient",
+        detail=f"created={result['created']} skipped={len(result['errors'])}",
+        ip_address=client_ip(),
+    )
+    db.session.commit()
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
+    return render_template("patients/import_result.html", result=result)
 
 
 @patients_bp.route("/import/template")

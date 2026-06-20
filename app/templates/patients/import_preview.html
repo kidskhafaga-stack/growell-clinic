@@ -1,0 +1,65 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('import.preview_title') }}{% endblock %}
+{% block page_heading %}{{ t('import.preview_title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('import.preview_title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">
+  <i class="bi bi-file-earmark-text"></i> {{ filename }} — {{ t('import.review_note') }}</p>
+
+<!-- Summary -->
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-list-ol ico"></i>
+    <div class="value gc-counter" data-count="{{ total }}">0</div><div class="label">{{ t('import.total_rows') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-check-circle ico"></i>
+    <div class="value gc-counter" data-count="{{ valid }}">0</div><div class="label">{{ t('import.will_create') }}</div></div>
+  <div class="stat-card {{ 'edge-red' if invalid else 'edge-green' }} gc-lift"><i class="bi bi-exclamation-circle ico"></i>
+    <div class="value gc-counter" data-count="{{ invalid }}">0</div><div class="label">{{ t('import.will_skip') }}</div></div>
+</div>
+
+<!-- Actions -->
+<div class="gc-animate" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+  <form method="post" action="{{ url_for('patients.import_confirm') }}">
+    <input type="hidden" name="token" value="{{ token }}">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if valid == 0 else '' }}>
+      <i class="bi bi-database-add"></i> {{ t('import.confirm_import') }} ({{ valid }})</button>
+  </form>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.bulk_import') }}">
+    <i class="bi bi-x-lg"></i> {{ t('common.cancel') }}</a>
+</div>
+
+{% if invalid %}
+<div class="info-note" style="margin-bottom:14px;border-color:#f3c0c0;background:#fdf2f2;color:#9a2828;">
+  <i class="bi bi-info-circle"></i> {{ t('import.skip_note') }}</div>
+{% endif %}
+
+<!-- Preview table -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <table class="table">
+    <thead><tr>
+      <th>#</th><th>{{ t('import.status') }}</th><th>{{ t('patients.name_ar') }}</th>
+      <th>{{ t('patients.gender') }}</th><th>{{ t('patients.dob') }}</th>
+      <th>{{ t('import.family') }}</th><th>{{ t('import.parent') }}</th><th>{{ t('import.reason') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in preview %}
+      <tr {{ 'style=background:#fdf4f4;' if not r.ok else '' }}>
+        <td style="color:var(--muted);">{{ r.line }}</td>
+        <td>{% if r.ok %}<span class="badge badge--green"><i class="bi bi-check"></i></span>
+            {% else %}<span class="badge badge--danger"><i class="bi bi-x"></i></span>{% endif %}</td>
+        <td><strong>{{ r.name }}</strong>{% if r.name_en %}<div style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ r.name_en }}</div>{% endif %}</td>
+        <td>{{ t('genders.' ~ r.gender) if r.gender else '—' }}</td>
+        <td dir="ltr">{{ r.dob }}</td>
+        <td>{{ r.family or '—' }}</td>
+        <td>{{ r.parent or '—' }}</td>
+        <td style="color:var(--danger);font-size:0.85rem;">{{ r.reason or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if total > shown %}
+  <div class="empty-state" style="padding:12px;">{{ t('import.showing_first') }} {{ shown }} {{ t('import.of_total') }} {{ total }}</div>
+  {% endif %}
+</div>
+{% endblock %}
