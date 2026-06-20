@@ -29,6 +29,10 @@
   {% else %}
     {{ status_form(appt, 'scheduled', t('common.confirm'), 'arrow-counterclockwise', 'btn-outline') }}
   {% endif %}
+  {% if current_user.can_access('messages') and appt.status in ['scheduled','waiting'] %}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.confirm_appointment', appt_id=appt.id) }}"
+       title="{{ t('messages_mod.send_confirm') }}" style="color:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i></a>
+  {% endif %}
 {% endmacro %}
 
 {% block content %}

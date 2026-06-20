@@ -18,6 +18,10 @@ ALLOWED_LOGO = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
 TEXT_KEYS = [
     "clinic_name", "clinic_name_ar", "clinic_phone",
     "clinic_address", "clinic_address_en",
+    # WhatsApp / messaging.
+    "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
+    "wa_wapilot_key", "wa_wapilot_endpoint",
+    "wa_tpl_appt_confirm", "wa_tpl_doctor_schedule", "queue_mode",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print"]
 

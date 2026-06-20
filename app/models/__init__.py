@@ -53,6 +53,7 @@ from app.models.invoice import (
     Payment,
 )
 from app.models.payer import PAYER_TYPES, PayerEntity
+from app.models.message import MESSAGE_STATUSES, MessageLog
 
 __all__ = [
     "User",
@@ -101,4 +102,6 @@ __all__ = [
     "PAYMENT_METHODS",
     "PayerEntity",
     "PAYER_TYPES",
+    "MessageLog",
+    "MESSAGE_STATUSES",
 ]

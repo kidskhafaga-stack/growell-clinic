@@ -29,6 +29,19 @@ DEFAULT_SETTINGS = {
     "patient_number_scheme": "yearly",      # "yearly" | "fixed"
     "patient_number_prefix": "PM",          # used by the yearly scheme
     "patient_number_prefix_fixed": "GC",    # used by the fixed scheme
+    # WhatsApp / messaging.
+    "wa_provider": "web",                   # "web" | "cloud_api" | "wapilot"
+    "wa_country_code": "20",
+    "queue_mode": "number",                 # "number" | "time"
+    "wa_tpl_appt_confirm": (
+        "مرحباً {patient}،\n"
+        "تم تأكيد موعدك في {clinic} يوم {date} الساعة {time} مع {doctor}.\n"
+        "دورك رقم: {queue}\n"
+        "نتمنى لكم الصحة والعافية."
+    ),
+    "wa_tpl_doctor_schedule": (
+        "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}"
+    ),
 }
 
 

@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('messages_mod.title') }}{% endblock %}
+{% block page_heading %}{{ t('messages_mod.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('messages_mod.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('messages_mod.log') }}</p>
+  </div>
+  {% if current_user.can_access('settings') %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}#wa"><i class="bi bi-gear"></i> {{ t('settings.wa_title') }}</a>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if logs %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('messages_mod.date') }}</th><th>{{ t('messages_mod.patient') }}</th><th>{{ t('messages_mod.to') }}</th>
+      <th>{{ t('messages_mod.message') }}</th><th>{{ t('messages_mod.status') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for m in logs %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ m.patient.display_name(current_lang) if m.patient else '—' }}</td>
+        <td dir="ltr">{{ m.to_phone or '—' }}</td>
+        <td style="max-width:320px;color:var(--muted);font-size:0.85rem;">{{ (m.body[:80] ~ '…') if m.body and m.body|length > 80 else m.body }}</td>
+        <td><span class="status-badge {{ 'st-completed' if m.status=='sent' else ('st-no_show' if m.status=='failed' else 'st-waiting') }}">{{ t('messages_mod.st_' ~ m.status) }}</span>
+            <span style="color:var(--muted);font-size:0.75rem;">{{ m.provider }}</span></td>
+        <td>{% if m.link %}<a class="btn btn-outline btn-sm gc-press" href="{{ m.link }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i></a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-whatsapp"></i>{{ t('messages_mod.no_messages') }}</div>
+  {% endif %}
+</div>
+
+{{ render_pagination(pagination) }}
+{% endblock %}
