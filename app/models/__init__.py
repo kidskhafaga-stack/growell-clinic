@@ -29,6 +29,7 @@ from app.models.visit import VISIT_STATUSES, Visit
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
     PatientVaccine,
+    VACCINE_ROUTES,
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
@@ -96,6 +97,7 @@ __all__ = [
     "VaccineBrand",
     "VaccineBrandDose",
     "PatientVaccine",
+    "VACCINE_ROUTES",
     "Supplier",
     "VaccineInventory",
     "NEAR_EXPIRY_DAYS",

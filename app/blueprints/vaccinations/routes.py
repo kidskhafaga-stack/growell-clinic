@@ -19,6 +19,7 @@ from app.blueprints.vaccinations import vaccinations_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    VACCINE_ROUTES,
     ActivityLog,
     Patient,
     PatientVaccine,
@@ -172,7 +173,8 @@ def _set_brand_doses(brand, ages):
 @module_required(MODULE)
 def manage():
     vaccines = Vaccine.query.order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all()
-    return render_template("vaccinations/manage.html", vaccines=vaccines)
+    return render_template("vaccinations/manage.html", vaccines=vaccines,
+                           routes=VACCINE_ROUTES)
 
 
 @vaccinations_bp.route("/manage/vaccine/new", methods=["POST"])
@@ -188,10 +190,12 @@ def vaccine_new():
         return redirect(url_for("vaccinations.manage"))
 
     is_mandatory = (request.form.get("category") or "mandatory") == "mandatory"
+    route = (request.form.get("route") or "").strip()
     vaccine = Vaccine(
         code=code, name_ar=name_ar,
         name_en=(request.form.get("name_en") or "").strip() or None,
         is_mandatory=is_mandatory,
+        route=route in VACCINE_ROUTES and route or None,
         sort_order=request.form.get("sort_order", type=int) or 100,
     )
     db.session.add(vaccine)
@@ -225,6 +229,8 @@ def vaccine_edit(vaccine_id):
     vaccine.name_ar = (request.form.get("name_ar") or vaccine.name_ar).strip()
     vaccine.name_en = (request.form.get("name_en") or "").strip() or None
     vaccine.is_mandatory = (request.form.get("category") or "mandatory") == "mandatory"
+    route = (request.form.get("route") or "").strip()
+    vaccine.route = route if route in VACCINE_ROUTES else None
     if request.form.get("sort_order", type=int) is not None:
         vaccine.sort_order = request.form.get("sort_order", type=int)
     db.session.commit()

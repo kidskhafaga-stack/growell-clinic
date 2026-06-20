@@ -85,6 +85,7 @@ def register_commands(app):
             ("invoices", "coverage_expiry", "DATE"),
             ("invoices", "is_tax", "BOOLEAN DEFAULT 0"),
             ("services", "eta_item_type", "VARCHAR(8) DEFAULT 'EGS'"),
+            ("vaccines", "route", "VARCHAR(20)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

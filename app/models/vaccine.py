@@ -8,6 +8,9 @@ from datetime import datetime
 
 from app.extensions import db
 
+# Administration routes (طريقة الإعطاء).
+VACCINE_ROUTES = ["IM", "SC", "ID", "oral", "intranasal"]
+
 
 class Vaccine(db.Model):
     __tablename__ = "vaccines"
@@ -17,6 +20,7 @@ class Vaccine(db.Model):
     name_ar = db.Column(db.String(120), nullable=False)
     name_en = db.Column(db.String(120))
     is_mandatory = db.Column(db.Boolean, default=True, nullable=False)
+    route = db.Column(db.String(20))  # طريقة الإعطاء: IM/SC/ID/oral/intranasal
     sort_order = db.Column(db.Integer, default=0)
 
     brands = db.relationship(

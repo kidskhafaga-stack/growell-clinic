@@ -467,7 +467,8 @@
     "cert_issued": "Issued on",
     "cert_vaccine": "Vaccine",
     "cert_doctor": "Doctor signature",
-    "cert_stamp": "Clinic stamp"
+    "cert_stamp": "Clinic stamp",
+    "route": "Route"
   },
   "vstatus": {
     "done": "Done",
@@ -944,5 +945,12 @@
     "nav": "User guide",
     "title": "System user guide",
     "intro": "A step-by-step guide to each section. Click a section to jump to it."
+  },
+  "vaccine_routes": {
+    "IM": "Intramuscular",
+    "SC": "Subcutaneous",
+    "ID": "Intradermal",
+    "oral": "Oral",
+    "intranasal": "Intranasal"
   }
 }
