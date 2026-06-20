@@ -69,6 +69,8 @@
   {% if invoice.payer %}
   <div style="margin-top:10px;font-size:0.9rem;">
     <span class="badge badge--role"><i class="bi bi-building"></i> {{ t('claims.payer') }}: {{ invoice.payer.display_name(current_lang) }}</span>
+    {% if invoice.coverage_card %}<span class="badge badge--muted">{{ t('coverage.card') }}: <span dir="ltr">{{ invoice.coverage_card }}</span></span>{% endif %}
+    {% if invoice.coverage_expiry %}<span class="badge badge--muted">{{ t('coverage.expiry') }}: <span dir="ltr">{{ invoice.coverage_expiry }}</span></span>{% endif %}
     <span class="badge badge--green">{{ t('claims.claimable') }}: {{ invoice.discount_total }}</span>
   </div>
   {% endif %}

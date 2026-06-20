@@ -14,6 +14,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     COMMISSION_TYPES,
+    COVERAGE_TYPES,
     PAYER_TYPES,
     PAYMENT_METHODS,
     SERVICE_CATEGORIES,
@@ -23,6 +24,7 @@ from app.models import (
     InvoiceItem,
     Patient,
     PayerEntity,
+    PayerServiceRate,
     Payment,
     Service,
     ServiceBundleItem,
@@ -212,6 +214,38 @@ def invoices():
                            invoices=pagination.items, status=status)
 
 
+def _apply_coverage(invoice, patient):
+    """Auto-apply a member's per-service coverage to the invoice lines.
+
+    For each covered line the entity's share becomes the line discount (so the
+    patient pays the rest and the entity share is claimable). Uncovered
+    services are left untouched (patient pays full — option ب). An expired card
+    is not applied automatically; the user is warned instead.
+    """
+    coverage = patient.active_coverage if patient else None
+    # If the card exists but is expired/inactive, warn and skip auto-apply.
+    if coverage is None:
+        expired = [c for c in getattr(patient, "coverages", []) if not c.is_valid]
+        if expired:
+            flash(t("coverage.expired_warn"), "warning")
+        return
+
+    payer = coverage.payer
+    invoice.payer_id = payer.id
+    invoice.coverage_card = coverage.membership_number
+    invoice.coverage_expiry = coverage.expiry_date
+
+    for item in invoice.items:
+        if not item.service_id or (item.discount_value or 0) > 0:
+            continue  # keep manual discounts; skip free-text lines
+        covered = payer.covers(item.service, item.gross)
+        if covered > 0:
+            item.discount_value = covered
+            item.discount_is_percent = False
+            if item.service is not None:
+                item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+
+
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def invoice_new():
@@ -244,6 +278,9 @@ def invoice_new():
             db.session.rollback()
             flash(t("invoices.need_item"), "warning")
             return redirect(url_for("finance.invoice_new", patient_id=patient.id))
+
+        # Apply the patient's membership/insurance coverage automatically.
+        _apply_coverage(invoice, patient)
 
         invoice.recalc_status()
         ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
@@ -400,9 +437,35 @@ def payers():
         flash(t("claims.entity_added"), "success")
         return redirect(url_for("finance.payers"))
 
-    return render_template("finance/payers.html",
-                           payers=PayerEntity.query.order_by(PayerEntity.name).all(),
-                           types=PAYER_TYPES)
+    return render_template(
+        "finance/payers.html",
+        payers=PayerEntity.query.order_by(PayerEntity.name).all(),
+        types=PAYER_TYPES, coverage_types=COVERAGE_TYPES,
+        services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+    )
+
+
+@finance_bp.route("/payers/<int:payer_id>/rates", methods=["POST"])
+@module_required(MODULE)
+def payer_rates(payer_id):
+    """Set an entity's per-service coverage (benefits table)."""
+    payer = db.get_or_404(PayerEntity, payer_id)
+    existing = {r.service_id: r for r in payer.service_rates}
+    for svc in Service.query.filter_by(is_active=True).all():
+        ctype = (request.form.get(f"type_{svc.id}") or "none").strip()
+        cval = request.form.get(f"value_{svc.id}", type=float) or 0
+        rate = existing.get(svc.id)
+        if ctype not in COVERAGE_TYPES or cval <= 0:
+            if rate:  # clearing a rule means "not covered"
+                db.session.delete(rate)
+            continue
+        if rate is None:
+            rate = PayerServiceRate(payer_id=payer.id, service_id=svc.id)
+            db.session.add(rate)
+        rate.coverage_type, rate.coverage_value = ctype, cval
+    db.session.commit()
+    flash(t("coverage.rates_saved"), "success")
+    return redirect(url_for("finance.payers"))
 
 
 @finance_bp.route("/payers/<int:payer_id>/edit", methods=["POST"])
