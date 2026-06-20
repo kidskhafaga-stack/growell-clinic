@@ -1,0 +1,36 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.operational') }}{% endblock %}
+{% block page_heading %}{{ t('reports.operational') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('reports.back') }}</a>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('reports.show') }}</button>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('reports.operational'), t('reports.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}
+
+  <div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card edge-blue"><i class="bi bi-calendar-week ico"></i><div class="value">{{ appts_total }}</div><div class="label">{{ t('reports.appts_total') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-person-plus ico"></i><div class="value">{{ new_patients }}</div><div class="label">{{ t('reports.new_patients') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-clipboard2-pulse ico"></i><div class="value">{{ visits }}</div><div class="label">{{ t('reports.visits') }}</div></div>
+    <div class="stat-card edge-yellow"><i class="bi bi-shield-plus ico"></i><div class="value">{{ doses }}</div><div class="label">{{ t('reports.doses') }}</div></div>
+  </div>
+
+  <h3 class="section-title"><i class="bi bi-bar-chart"></i> {{ t('reports.by_status') }}</h3>
+  <table class="table"><thead><tr><th>{{ t('reports.status') }}</th><th>{{ t('reports.count') }}</th></tr></thead><tbody>
+    {% for s, n in by_status %}<tr><td>{{ t('statuses.' ~ s) }}</td><td>{{ n }}</td></tr>
+    {% else %}<tr><td colspan="2" class="empty-state">{{ t('reports.no_data') }}</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}
+
+{% block head %}<style>@media print {.sidebar,.topbar,.no-print,.flashes{display:none!important;}.main{margin:0!important;}.content{padding:0!important;}.card{box-shadow:none!important;border:none!important;}body{background:#fff!important;}}</style>{% endblock %}

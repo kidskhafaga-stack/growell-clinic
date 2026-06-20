@@ -1,0 +1,37 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.inventory') }}{% endblock %}
+{% block page_heading %}{{ t('reports.inventory') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('reports.back') }}</a>
+  <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('reports.inventory'), '') }}
+
+  <div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card edge-green"><i class="bi bi-boxes ico"></i><div class="value">{{ total_units }}</div><div class="label">{{ t('reports.total_units') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-cash ico"></i><div class="value">{{ total_value }}</div><div class="label">{{ t('reports.total_value') }}</div></div>
+    <div class="stat-card edge-red"><i class="bi bi-x-octagon ico"></i><div class="value">{{ alerts.expired }}</div><div class="label">{{ t('reports.expired') }}</div></div>
+    <div class="stat-card edge-yellow"><i class="bi bi-clock-history ico"></i><div class="value">{{ alerts.near_expiry }}</div><div class="label">{{ t('reports.near_expiry') }}</div></div>
+  </div>
+
+  <table class="table"><thead><tr>
+    <th>{{ t('reports.brand') }}</th><th>{{ t('reports.stock') }}</th><th>{{ t('reports.value') }}</th>
+  </tr></thead><tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.brand.vaccine.display_name(current_lang) }} — <strong>{{ r.brand.display_name(current_lang) }}</strong></td>
+      <td><span class="status-badge {{ 'st-completed' if r.stock > 5 else ('st-no_show' if r.stock == 0 else 'st-waiting') }}">{{ r.stock }}</span></td>
+      <td>{{ r.value }}</td>
+    </tr>
+    {% else %}<tr><td colspan="3" class="empty-state">{{ t('reports.no_data') }}</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}
+
+{% block head %}<style>@media print {.sidebar,.topbar,.no-print,.flashes{display:none!important;}.main{margin:0!important;}.content{padding:0!important;}.card{box-shadow:none!important;border:none!important;}body{background:#fff!important;}}</style>{% endblock %}
