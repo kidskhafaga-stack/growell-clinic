@@ -37,6 +37,11 @@
           <option value="mandatory">{{ t('vaccinations.mandatory') }}</option>
           <option value="optional">{{ t('vaccinations.optional') }}</option>
         </select></div>
+      <div class="form-row"><label>{{ t('vaccinations.route') }}</label>
+        <select class="select" name="route">
+          <option value="">—</option>
+          {% for r in routes %}<option value="{{ r }}">{{ t('vaccine_routes.' ~ r) }}</option>{% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('vaccinations.default_brand_name') }}</label><input class="input" name="brand_name" placeholder="حكومي"></div>
       <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
       <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price"></div>
@@ -61,6 +66,7 @@
         <span class="badge badge--role">{{ vaccine.code }}</span>
         <span class="badge {{ 'badge--green' if vaccine.is_mandatory else 'badge--muted' }}">
           {{ t('vaccinations.mandatory') if vaccine.is_mandatory else t('vaccinations.optional') }}</span>
+        {% if vaccine.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ vaccine.route) }}</span>{% endif %}
       </h3>
     </div>
     <div style="display:flex;gap:6px;">
@@ -73,6 +79,11 @@
             <select class="select" name="category">
               <option value="mandatory" {{ 'selected' if vaccine.is_mandatory else '' }}>{{ t('vaccinations.mandatory') }}</option>
               <option value="optional" {{ 'selected' if not vaccine.is_mandatory else '' }}>{{ t('vaccinations.optional') }}</option>
+            </select></div>
+          <div class="form-row"><label>{{ t('vaccinations.route') }}</label>
+            <select class="select" name="route">
+              <option value="">—</option>
+              {% for r in routes %}<option value="{{ r }}" {{ 'selected' if vaccine.route==r else '' }}>{{ t('vaccine_routes.' ~ r) }}</option>{% endfor %}
             </select></div>
           <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="{{ vaccine.sort_order }}"></div>
           <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>

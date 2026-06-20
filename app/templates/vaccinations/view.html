@@ -59,6 +59,7 @@
         <div>
           <strong>{{ v.display_name(current_lang) }}</strong>
           <span class="badge badge--{{ 'green' if v.is_mandatory else 'muted' }}">{{ t('vaccinations.mandatory') if v.is_mandatory else t('vaccinations.optional') }}</span>
+          {% if v.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ v.route) }}</span>{% endif %}
           <span class="badge badge--role"><i class="bi bi-box"></i> {{ item.brand.display_name(current_lang) }}{% if item.locked %} 🔒{% endif %}</span>
           {% if not v.is_mandatory %}
           <span class="badge {{ 'badge--green' if item.brand.stock > 5 else ('badge--danger' if item.brand.stock == 0 else 'badge--muted') }}">
