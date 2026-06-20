@@ -3,6 +3,8 @@
 {% block title %}{{ t('nav.settings') }}{% endblock %}
 {% block page_heading %}{{ t('nav.settings') }}{% endblock %}
 
+{% block head %}<style>[x-cloak]{display:none!important;}</style>{% endblock %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
   <div>
@@ -13,9 +15,22 @@
     <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
 </div>
 
-<form method="post" enctype="multipart/form-data">
+<form method="post" enctype="multipart/form-data" x-data="{ tab: 'clinic' }">
+  <!-- Tabs -->
+  <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
+    {% for tid, icon, label in [
+        ('clinic','hospital', t('settings.clinic_identity')),
+        ('logo','image', t('settings.logo')),
+        ('whatsapp','whatsapp', t('settings.wa_title')),
+        ('eta','receipt-cutoff', t('settings.eta_title'))] %}
+    <button type="button" class="btn btn-sm gc-press"
+            :class="tab==='{{ tid }}' ? 'btn-primary' : 'btn-outline'"
+            x-on:click="tab='{{ tid }}'"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
+    {% endfor %}
+  </div>
+
   <!-- Clinic identity -->
-  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+  <div class="card gc-scale-in" x-show="tab==='clinic'" x-cloak>
     <h2 class="section-title"><i class="bi bi-hospital"></i> {{ t('settings.clinic_identity') }}</h2>
     <div class="form-grid">
       <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
@@ -32,7 +47,7 @@
   </div>
 
   <!-- Logo -->
-  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+  <div class="card gc-scale-in" x-show="tab==='logo'" x-cloak>
     <h2 class="section-title"><i class="bi bi-image"></i> {{ t('settings.logo') }}</h2>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;">
       <div style="text-align:center;">
@@ -67,7 +82,7 @@
   </div>
 
   <!-- WhatsApp / messaging -->
-  <div class="card gc-scale-in" style="animation-delay:0.2s;">
+  <div class="card gc-scale-in" x-show="tab==='whatsapp'" x-cloak>
     <h2 class="section-title"><i class="bi bi-whatsapp"></i> {{ t('settings.wa_title') }}</h2>
     <div class="form-grid">
       <div class="form-row"><label>{{ t('settings.wa_provider') }}</label>
@@ -110,7 +125,7 @@
   </div>
 
   <!-- ETA e-invoicing -->
-  <div class="card gc-scale-in" style="animation-delay:0.24s;">
+  <div class="card gc-scale-in" x-show="tab==='eta'" x-cloak>
     <h2 class="section-title"><i class="bi bi-receipt-cutoff"></i> {{ t('settings.eta_title') }}</h2>
     <div class="form-row checkbox">
       <input type="checkbox" id="eta_enabled" name="eta_enabled" value="1" {{ 'checked' if values.get('eta_enabled')=='1' else '' }}>
