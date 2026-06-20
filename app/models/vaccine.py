@@ -46,13 +46,18 @@ class VaccineBrand(db.Model):
     name = db.Column(db.String(120), nullable=False)
     name_en = db.Column(db.String(120))
     manufacturer = db.Column(db.String(120))
-    price = db.Column(db.Float)
+    price = db.Column(db.Float)              # selling price
+    purchase_price = db.Column(db.Float)     # cost price
+    max_discount = db.Column(db.Float)       # max allowed discount (%)
     is_default = db.Column(db.Boolean, default=False, nullable=False)
 
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(
         "VaccineBrandDose", back_populates="brand", cascade="all, delete-orphan",
         order_by="VaccineBrandDose.dose_number",
+    )
+    batches = db.relationship(
+        "VaccineInventory", back_populates="brand", cascade="all, delete-orphan",
     )
 
     def display_name(self, lang="ar"):
@@ -61,6 +66,19 @@ class VaccineBrand(db.Model):
     @property
     def doses_count(self):
         return len(self.doses)
+
+    @property
+    def stock(self):
+        """Total remaining usable units across all batches."""
+        return sum(b.qty_remaining for b in self.batches)
+
+    @property
+    def available_batches(self):
+        """In-stock, non-expired batches, soonest expiry first."""
+        from datetime import date as _date
+        usable = [b for b in self.batches
+                  if b.qty_remaining > 0 and (not b.expiry_date or b.expiry_date >= _date.today())]
+        return sorted(usable, key=lambda b: (b.expiry_date or _date.max))
 
     def __repr__(self):
         return f"<VaccineBrand {self.name}>"
@@ -91,12 +109,15 @@ class PatientVaccine(db.Model):
 
     given_date = db.Column(db.Date, nullable=False)
     lot_number = db.Column(db.String(60))
+    # Inventory batch this dose was drawn from (clinic-administered only).
+    inventory_id = db.Column(db.Integer, db.ForeignKey("vaccine_inventory.id"), nullable=True)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     patient = db.relationship("Patient", backref="patient_vaccines")
     vaccine = db.relationship("Vaccine")
     brand = db.relationship("VaccineBrand")
+    batch = db.relationship("VaccineInventory")
 
     def __repr__(self):
         return f"<PatientVaccine p={self.patient_id} v={self.vaccine_id} #{self.dose_number}>"

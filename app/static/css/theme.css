@@ -211,6 +211,12 @@ a:hover { color: var(--green-900); }
 .badge--green { background: var(--green-100); color: var(--green-900); }
 .badge--muted { background: #eef1f4; color: var(--muted); }
 .badge--role { background: var(--green-050); color: var(--green-800); border: 1px solid var(--green-100); }
+.badge--danger { background: #fde8e8; color: var(--danger); }
+.info-note { background: var(--green-050); border: 1px solid var(--green-100); color: var(--green-900);
+  border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; line-height: 1.7; }
+.alert-pill { border-radius: 10px; padding: 9px 13px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+.alert-pill.danger { background: #fde8e8; color: var(--danger); }
+.alert-pill.warn { background: #fff4e0; color: #9a6700; }
 
 /* ---------- Forms ---------- */
 .form-row { margin-bottom: 16px; }

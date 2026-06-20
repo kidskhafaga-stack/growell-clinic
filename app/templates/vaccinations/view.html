@@ -60,6 +60,11 @@
           <strong>{{ v.display_name(current_lang) }}</strong>
           <span class="badge badge--{{ 'green' if v.is_mandatory else 'muted' }}">{{ t('vaccinations.mandatory') if v.is_mandatory else t('vaccinations.optional') }}</span>
           <span class="badge badge--role"><i class="bi bi-box"></i> {{ item.brand.display_name(current_lang) }}{% if item.locked %} 🔒{% endif %}</span>
+          {% if not v.is_mandatory %}
+          <span class="badge {{ 'badge--green' if item.brand.stock > 5 else ('badge--danger' if item.brand.stock == 0 else 'badge--muted') }}">
+            <i class="bi bi-boxes"></i>
+            {% if item.brand.stock == 0 %}{{ t('vaccinations.out_of_stock') }}{% else %}{{ t('vaccinations.stock_available') }}: {{ item.brand.stock }}{% endif %}</span>
+          {% endif %}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:0.8rem;color:var(--muted);">{{ item.done }}/{{ item.total }}</span>

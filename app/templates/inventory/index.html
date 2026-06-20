@@ -1,0 +1,126 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('inventory.title') }}{% endblock %}
+{% block page_heading %}{{ t('inventory.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('inventory.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('inventory.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.suppliers') }}">
+    <i class="bi bi-truck"></i> {{ t('inventory.manage_suppliers') }}</a>
+</div>
+
+<!-- Stats -->
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-box-seam ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.brands }}">0</div><div class="label">{{ t('inventory.stat_brands') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-boxes ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.total_stock }}">0</div><div class="label">{{ t('inventory.stat_total_stock') }}</div></div>
+  <div class="stat-card {{ 'edge-red' if stats.alerts else 'edge-green' }} gc-lift"><i class="bi bi-exclamation-triangle ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.alerts }}">0</div><div class="label">{{ t('inventory.stat_alerts') }}</div></div>
+</div>
+
+<!-- Alerts -->
+<div class="card gc-scale-in" style="animation-delay:0.06s;">
+  <h2 class="section-title"><i class="bi bi-bell"></i> {{ t('inventory.alerts') }}</h2>
+  {% set any_alert = alerts.expired or alerts.near_expiry or alerts.low or alerts.out %}
+  {% if any_alert %}
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for b in alerts.expired %}
+      <div class="alert-pill danger"><i class="bi bi-x-octagon"></i> {{ t('inventory.expired') }}: {{ b.brand.display_name(current_lang) }} — {{ t('inventory.lot_number') }} {{ b.lot_number or '—' }} ({{ b.expiry_date }})</div>
+    {% endfor %}
+    {% for b in alerts.near_expiry %}
+      <div class="alert-pill warn"><i class="bi bi-clock-history"></i> {{ t('inventory.near_expiry') }}: {{ b.brand.display_name(current_lang) }} — {{ b.expiry_date }} ({{ b.qty_remaining }})</div>
+    {% endfor %}
+    {% for b in alerts.low %}
+      <div class="alert-pill warn"><i class="bi bi-graph-down"></i> {{ t('inventory.low_stock') }}: {{ b.brand.display_name(current_lang) }} — {{ b.qty_remaining }}</div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);">{{ t('inventory.no_alerts') }}</p>
+  {% endif %}
+</div>
+
+<!-- Stock by brand -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('inventory.vaccine') }}</th><th>{{ t('inventory.brand') }}</th>
+      <th>{{ t('vaccinations.sell_price') }}</th><th>{{ t('inventory.stock') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for b in brands %}
+      <tr>
+        <td>{{ b.vaccine.display_name(current_lang) }}</td>
+        <td><strong>{{ b.display_name(current_lang) }}</strong></td>
+        <td>{{ b.price if b.price is not none else '—' }}</td>
+        <td><span class="status-badge {{ 'st-completed' if b.stock > 5 else ('st-no_show' if b.stock == 0 else 'st-waiting') }}">{{ b.stock }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">{{ t('vaccinations.no_vaccines') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add batch -->
+<details class="card gc-scale-in" style="animation-delay:0.14s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('inventory.add_batch') }}</summary>
+  <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:14px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('inventory.brand') }} *</label>
+        <select class="select" name="brand_id" required>
+          <option value="" disabled selected>{{ t('inventory.select_brand') }}</option>
+          {% for b in brands %}<option value="{{ b.id }}">{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('inventory.supplier') }}</label>
+        <select class="select" name="supplier_id">
+          <option value="">—</option>
+          {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="lot_number" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="expiry_date"></div>
+      <div class="form-row"><label>{{ t('inventory.received_date') }}</label><input class="input" type="date" name="received_date"></div>
+      <div class="form-row"><label>{{ t('inventory.qty_received') }} *</label><input class="input" type="number" min="0" name="qty_received" required></div>
+      <div class="form-row"><label>{{ t('inventory.unit_cost') }}</label><input class="input" type="number" step="0.01" name="unit_cost"></div>
+      <div class="form-row"><label>{{ t('inventory.storage_temp') }}</label><input class="input" name="storage_temp" placeholder="2–8°C"></div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<!-- Batches list -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.18s;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-list-ul"></i> {{ t('inventory.batches') }}</h2>
+  {% if batches %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('inventory.brand') }}</th><th>{{ t('inventory.lot_number') }}</th><th>{{ t('inventory.expiry_date') }}</th>
+      <th>{{ t('inventory.qty_remaining') }}</th><th>{{ t('inventory.supplier') }}</th>
+      <th>{{ t('inventory.status') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td>{{ b.brand.display_name(current_lang) }}</td>
+        <td>{{ b.lot_number or '—' }}</td>
+        <td>{{ b.expiry_date or '—' }}</td>
+        <td>{{ b.qty_remaining }} / {{ b.qty_received }}</td>
+        <td style="color:var(--muted);">{{ b.supplier.name if b.supplier else '—' }}</td>
+        <td><span class="status-badge {{ 'st-no_show' if b.status in ['expired','out'] else ('st-waiting' if b.status in ['near_expiry','low'] else 'st-completed') }}">{{ t('instatus.' ~ (b.status if b.status != 'near_expiry' else 'near_expiry')) }}</span></td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('inventory.batch_delete', batch_id=b.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-box"></i>{{ t('inventory.no_batches') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
