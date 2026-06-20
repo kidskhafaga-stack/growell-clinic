@@ -798,5 +798,38 @@
     "show": "Show",
     "pick_doctor_day": "Select a doctor and day to view the roster",
     "sent_count": "Prepared/sent"
+  },
+  "coverage": {
+    "title": "Insurance / Membership",
+    "section": "Insurance & memberships",
+    "add": "Add coverage",
+    "entity": "Entity",
+    "membership_number": "Membership/Card no.",
+    "expiry": "Expiry date",
+    "apply_siblings": "Apply same entity to siblings",
+    "added": "Coverage added",
+    "removed": "Coverage removed",
+    "need_payer": "Select an entity",
+    "none": "No coverage",
+    "valid": "Valid",
+    "expired": "Expired",
+    "status": "Status",
+    "benefits": "Benefits table (per service)",
+    "rates_saved": "Benefits table saved",
+    "coverage_type": "Coverage type",
+    "coverage_value": "Value",
+    "not_covered": "Not covered",
+    "expired_warn": "Patient's insurance card has expired — discount not auto-applied",
+    "covered_by": "Covered by",
+    "service": "Service",
+    "entity_covers": "Entity covers",
+    "patient_pays": "Patient pays",
+    "card": "Card no.",
+    "benefits_hint": "Leave \"None\" for uncovered services (patient pays in full)"
+  },
+  "coverage_types": {
+    "none": "None",
+    "percent": "Percent %",
+    "fixed": "Fixed amount"
   }
 }

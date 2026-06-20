@@ -154,12 +154,15 @@ def create():
 @patients_bp.route("/<int:patient_id>")
 @module_required(MODULE)
 def view(patient_id):
+    from app.models import PayerEntity
+
     patient = db.get_or_404(Patient, patient_id)
     return render_template(
         "patients/profile.html",
         patient=patient,
         relations=PARENT_RELATIONS,
         categories=CLIENT_CATEGORIES,
+        payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
     )
 
 
@@ -248,6 +251,60 @@ def delete(patient_id):
     db.session.commit()
     flash(t("patients.deleted"), "info")
     return redirect(url_for("patients.index"))
+
+
+# ----------------------------------------------- membership / coverage -----
+@patients_bp.route("/<int:patient_id>/coverage/new", methods=["POST"])
+@module_required(MODULE)
+def add_coverage(patient_id):
+    from datetime import datetime as _dt
+
+    from app.models import PatientCoverage, PayerEntity
+
+    patient = db.get_or_404(Patient, patient_id)
+    payer = db.session.get(PayerEntity, request.form.get("payer_id", type=int))
+    if payer is None:
+        flash(t("coverage.need_payer"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#coverage")
+
+    def _exp():
+        raw = (request.form.get("expiry_date") or "").strip()
+        try:
+            return _dt.strptime(raw, "%Y-%m-%d").date() if raw else None
+        except ValueError:
+            return None
+
+    card = (request.form.get("membership_number") or "").strip() or None
+    expiry = _exp()
+    targets = [patient]
+    # Optionally apply the same entity to siblings (each keeps its own card).
+    if request.form.get("apply_siblings"):
+        targets += patient.siblings
+
+    for tgt in targets:
+        # Per-patient card number only for the main patient; siblings share the
+        # entity but get their own (blank) card to fill later.
+        db.session.add(PatientCoverage(
+            patient_id=tgt.id, payer_id=payer.id,
+            membership_number=card if tgt.id == patient.id else None,
+            expiry_date=expiry, is_active=True,
+        ))
+    db.session.commit()
+    flash(t("coverage.added"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#coverage")
+
+
+@patients_bp.route("/coverage/<int:coverage_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_coverage(coverage_id):
+    from app.models import PatientCoverage
+
+    cov = db.get_or_404(PatientCoverage, coverage_id)
+    pid = cov.patient_id
+    db.session.delete(cov)
+    db.session.commit()
+    flash(t("coverage.removed"), "info")
+    return redirect(url_for("patients.view", patient_id=pid) + "#coverage")
 
 
 # ------------------------------------------------------ parents (family) ---

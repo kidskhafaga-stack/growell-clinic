@@ -166,6 +166,52 @@
         <i class="bi bi-person-plus"></i> {{ t('patients.add_sibling') }}
       </a>
       {% endif %}
+
+      <!-- Insurance / membership coverage -->
+      <h3 class="section-title" style="margin-top:26px;" id="coverage"><i class="bi bi-shield-check"></i> {{ t('coverage.section') }}</h3>
+      {% set covs = patient.coverages %}
+      {% if covs %}
+      <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
+        {% for cov in covs %}
+        <div class="card" style="box-shadow:none;border:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div>
+            <strong>{{ cov.payer.display_name(current_lang) }}</strong>
+            <span class="badge {{ 'badge--green' if cov.is_valid else 'badge--danger' }}">{{ t('coverage.valid') if cov.is_valid else t('coverage.expired') }}</span>
+            <div style="color:var(--muted);font-size:0.85rem;margin-top:2px;">
+              {% if cov.membership_number %}{{ t('coverage.card') }}: <span dir="ltr">{{ cov.membership_number }}</span>{% endif %}
+              {% if cov.expiry_date %} · {{ t('coverage.expiry') }}: <span dir="ltr">{{ cov.expiry_date }}</span>{% endif %}
+            </div>
+          </div>
+          <form method="post" action="{{ url_for('patients.delete_coverage', coverage_id=cov.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('coverage.none') }}</p>
+      {% endif %}
+
+      {% if payers %}
+      <details style="margin-top:12px;">
+        <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-plus-lg"></i> {{ t('coverage.add') }}</summary>
+        <form method="post" action="{{ url_for('patients.add_coverage', patient_id=patient.id) }}" style="margin-top:10px;">
+          <div class="form-grid">
+            <div class="form-row"><label>{{ t('coverage.entity') }} *</label>
+              <select class="select" name="payer_id" required>
+                <option value="">{{ t('coverage.need_payer') }}</option>
+                {% for pe in payers %}<option value="{{ pe.id }}">{{ pe.display_name(current_lang) }}</option>{% endfor %}
+              </select></div>
+            <div class="form-row"><label>{{ t('coverage.membership_number') }}</label><input class="input" name="membership_number" dir="ltr"></div>
+            <div class="form-row"><label>{{ t('coverage.expiry') }}</label><input class="input" type="date" name="expiry_date"></div>
+          </div>
+          {% if patient.siblings %}
+          <div class="form-row checkbox"><input type="checkbox" id="apply_siblings" name="apply_siblings" value="1">
+            <label for="apply_siblings" style="margin:0;font-weight:400;">{{ t('coverage.apply_siblings') }}</label></div>
+          {% endif %}
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        </form>
+      </details>
+      {% endif %}
     </div>
 
     <!-- Visits -->

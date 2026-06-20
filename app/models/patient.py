@@ -82,6 +82,15 @@ class Patient(db.Model):
         return bool((self.allergies or "").strip() or (self.chronic_diseases or "").strip())
 
     @property
+    def active_coverage(self):
+        """The patient's current valid membership/insurance, if any."""
+        valid = [c for c in getattr(self, "coverages", []) if c.is_valid]
+        if not valid:
+            return None
+        return sorted(valid, key=lambda c: c.created_at or datetime.min,
+                      reverse=True)[0]
+
+    @property
     def contact_phone(self):
         """Best contact number: primary guardian first, else any with a phone."""
         if not self.family or not self.family.parents:

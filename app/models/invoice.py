@@ -23,6 +23,8 @@ class Invoice(db.Model):
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=True, index=True)
+    coverage_card = db.Column(db.String(60))   # snapshot: membership/card no.
+    coverage_expiry = db.Column(db.Date)        # snapshot: card expiry
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     invoice_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
