@@ -45,6 +45,13 @@ from app.models.service import (
     Service,
     ServiceBundleItem,
 )
+from app.models.invoice import (
+    INVOICE_STATUSES,
+    PAYMENT_METHODS,
+    Invoice,
+    InvoiceItem,
+    Payment,
+)
 
 __all__ = [
     "User",
@@ -86,4 +93,9 @@ __all__ = [
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
     "COMMISSION_TYPES",
+    "Invoice",
+    "InvoiceItem",
+    "Payment",
+    "INVOICE_STATUSES",
+    "PAYMENT_METHODS",
 ]
