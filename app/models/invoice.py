@@ -22,6 +22,7 @@ class Invoice(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
+    payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     invoice_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
@@ -33,6 +34,7 @@ class Invoice(db.Model):
     doctor = db.relationship("User", foreign_keys=[doctor_id])
     creator = db.relationship("User", foreign_keys=[created_by])
     visit = db.relationship("Visit")
+    payer = db.relationship("PayerEntity", back_populates="invoices")
     items = db.relationship("InvoiceItem", back_populates="invoice",
                             cascade="all, delete-orphan")
     payments = db.relationship("Payment", back_populates="invoice",

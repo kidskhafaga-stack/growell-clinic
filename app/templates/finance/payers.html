@@ -1,0 +1,75 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('claims.entities') }}{% endblock %}
+{% block page_heading %}{{ t('claims.entities') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <h1 class="page-title">{{ t('claims.entities') }}</h1>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}">
+    <i class="bi bi-file-earmark-medical"></i> {{ t('claims.title') }}</a>
+</div>
+
+<details class="card gc-scale-in" style="animation-delay:0.05s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('claims.add_entity') }}</summary>
+  <form method="post" style="margin-top:14px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('claims.entity_name') }} *</label><input class="input" name="name" required></div>
+      <div class="form-row"><label>{{ t('claims.entity_type') }}</label>
+        <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty }}">{{ t('payer_types.' ~ ty) }}</option>{% endfor %}</select></div>
+      <div class="form-row"><label>{{ t('claims.discount_percent') }}</label><input class="input" type="number" step="0.01" name="discount_percent"></div>
+      <div class="form-row"><label>{{ t('claims.contact_person') }}</label><input class="input" name="contact_person"></div>
+      <div class="form-row"><label>{{ t('claims.phone') }}</label><input class="input" name="phone" dir="ltr"></div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+  {% if payers %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('claims.entity_name') }}</th><th>{{ t('claims.entity_type') }}</th><th>{{ t('claims.discount_percent') }}</th>
+      <th>{{ t('claims.phone') }}</th><th>{{ t('common.status') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for p in payers %}
+      <tr>
+        <td><strong>{{ p.display_name(current_lang) }}</strong></td>
+        <td>{{ t('payer_types.' ~ p.entity_type) }}</td>
+        <td>{{ p.discount_percent }}%</td>
+        <td dir="ltr">{{ p.phone or '—' }}</td>
+        <td>{% if p.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>{% else %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</td>
+        <td style="text-align:end;display:flex;gap:6px;justify-content:flex-end;">
+          <details style="position:relative;">
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+            <form method="post" action="{{ url_for('finance.payer_edit', payer_id=p.id) }}" class="popform" style="width:290px;">
+              <div class="form-row"><label>{{ t('claims.entity_name') }}</label><input class="input" name="name" value="{{ p.name }}"></div>
+              <div class="form-row"><label>{{ t('claims.entity_type') }}</label>
+                <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty }}" {{ 'selected' if p.entity_type==ty else '' }}>{{ t('payer_types.' ~ ty) }}</option>{% endfor %}</select></div>
+              <div class="form-row"><label>{{ t('claims.discount_percent') }}</label><input class="input" type="number" step="0.01" name="discount_percent" value="{{ p.discount_percent }}"></div>
+              <div class="form-row"><label>{{ t('claims.phone') }}</label><input class="input" name="phone" dir="ltr" value="{{ p.phone or '' }}"></div>
+              <div class="form-row checkbox"><input type="checkbox" id="pa_{{ p.id }}" name="is_active" value="1" {{ 'checked' if p.is_active else '' }}>
+                <label for="pa_{{ p.id }}" style="margin:0;font-weight:400;">{{ t('common.active') }}</label></div>
+              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('finance.payer_delete', payer_id=p.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-building"></i>{{ t('claims.no_entities') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .popform { position:absolute; z-index:30; inset-inline-end:0; margin-top:6px;
+    background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; }
+</style>
+{% endblock %}

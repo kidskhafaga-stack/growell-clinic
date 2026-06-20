@@ -27,6 +27,15 @@
           <option value="{{ d.id }}" {{ 'selected' if doctor_id == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
           {% endfor %}
         </select></div>
+      {% if payers %}
+      <div class="form-row"><label>{{ t('claims.payer') }}</label>
+        <select class="select" name="payer_id">
+          <option value="">{{ t('claims.no_payer') }}</option>
+          {% for p in payers %}
+          <option value="{{ p.id }}">{{ p.display_name(current_lang) }} ({{ p.discount_percent }}%)</option>
+          {% endfor %}
+        </select></div>
+      {% endif %}
     </div>
   </div>
 

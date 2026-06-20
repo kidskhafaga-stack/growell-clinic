@@ -1,0 +1,49 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('claims.title') }}{% endblock %}
+{% block page_heading %}{{ t('claims.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <h1 class="page-title">{{ t('claims.title') }}</h1>
+  <div style="display:flex;gap:8px;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.payers') }}"><i class="bi bi-building"></i> {{ t('claims.manage_entities') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  </div>
+</div>
+
+<form method="get" class="card gc-scale-in">
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('claims.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row"><label>{{ t('claims.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+  </div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('statements.generate') }}</button>
+</form>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.08s;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('claims.entity') }}</th><th>{{ t('claims.entity_type') }}</th><th>{{ t('claims.invoices_count') }}</th>
+      <th>{{ t('claims.claim_amount') }}</th><th style="text-align:end;"></th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><strong>{{ r.entity.display_name(current_lang) }}</strong></td>
+        <td>{{ t('payer_types.' ~ r.entity.entity_type) }}</td>
+        <td>{{ r.count }}</td>
+        <td><strong style="color:var(--green-700);">{{ r.claim }}</strong></td>
+        <td style="text-align:end;">
+          {% if r.count %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.claim_detail', payer_id=r.entity.id, date_from=date_from, date_to=date_to) }}">
+            <i class="bi bi-eye"></i> {{ t('claims.view_claim') }}</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-state">{{ t('claims.no_entities') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

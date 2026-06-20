@@ -27,11 +27,11 @@
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('statements.settlement') }}</p>
   </a>
 
-  <div class="card" style="opacity:0.7;">
-    <div class="hub-ico edge-blue"><i class="bi bi-file-earmark-medical"></i></div>
+  <a class="card gc-lift" href="{{ url_for('finance.claims') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-green"><i class="bi bi-file-earmark-medical"></i></div>
     <h3 style="margin:10px 0 4px;">{{ t('services.hub_claims') }}</h3>
-    <span class="badge badge--muted">{{ t('services.coming_soon') }}</span>
-  </div>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('claims.title') }}</p>
+  </a>
 </div>
 {% endblock %}
 

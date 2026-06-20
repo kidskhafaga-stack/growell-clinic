@@ -14,6 +14,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     COMMISSION_TYPES,
+    PAYER_TYPES,
     PAYMENT_METHODS,
     SERVICE_CATEGORIES,
     ActivityLog,
@@ -21,6 +22,7 @@ from app.models import (
     Invoice,
     InvoiceItem,
     Patient,
+    PayerEntity,
     Payment,
     Service,
     ServiceBundleItem,
@@ -224,6 +226,7 @@ def invoice_new():
             patient_id=patient.id,
             doctor_id=request.form.get("doctor_id", type=int) or None,
             visit_id=request.form.get("visit_id", type=int) or None,
+            payer_id=request.form.get("payer_id", type=int) or None,
             created_by=current_user.id,
             notes=(request.form.get("notes") or "").strip() or None,
         )
@@ -255,6 +258,7 @@ def invoice_new():
         doctors=_doctors_active(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
+        payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         visit_id=request.args.get("visit_id", type=int),
         doctor_id=request.args.get("doctor_id", type=int),
     )
@@ -304,6 +308,7 @@ def invoice_view(invoice_id):
     return render_template(
         "finance/invoice_view.html", invoice=invoice, methods=PAYMENT_METHODS,
         services_active=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+        payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
     )
 
 
@@ -367,6 +372,118 @@ def invoice_delete(invoice_id):
     db.session.commit()
     flash(t("invoices.deleted"), "info")
     return redirect(url_for("finance.invoices"))
+
+
+# =======================================================================
+# Payer entities & discount claims
+# =======================================================================
+@finance_bp.route("/payers", methods=["GET", "POST"])
+@module_required(MODULE)
+def payers():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash(t("common.required") + ": " + t("claims.entity_name"), "danger")
+            return redirect(url_for("finance.payers"))
+        etype = (request.form.get("entity_type") or "club").strip()
+        db.session.add(PayerEntity(
+            name=name,
+            name_en=(request.form.get("name_en") or "").strip() or None,
+            entity_type=etype if etype in PAYER_TYPES else "club",
+            discount_percent=request.form.get("discount_percent", type=float) or 0,
+            contact_person=(request.form.get("contact_person") or "").strip() or None,
+            phone=(request.form.get("phone") or "").strip() or None,
+            email=(request.form.get("email") or "").strip() or None,
+            address=(request.form.get("address") or "").strip() or None,
+        ))
+        db.session.commit()
+        flash(t("claims.entity_added"), "success")
+        return redirect(url_for("finance.payers"))
+
+    return render_template("finance/payers.html",
+                           payers=PayerEntity.query.order_by(PayerEntity.name).all(),
+                           types=PAYER_TYPES)
+
+
+@finance_bp.route("/payers/<int:payer_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def payer_edit(payer_id):
+    p = db.get_or_404(PayerEntity, payer_id)
+    p.name = (request.form.get("name") or p.name).strip()
+    p.name_en = (request.form.get("name_en") or "").strip() or None
+    etype = (request.form.get("entity_type") or p.entity_type).strip()
+    p.entity_type = etype if etype in PAYER_TYPES else p.entity_type
+    p.discount_percent = request.form.get("discount_percent", type=float) or 0
+    p.contact_person = (request.form.get("contact_person") or "").strip() or None
+    p.phone = (request.form.get("phone") or "").strip() or None
+    p.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("claims.entity_updated"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payers/<int:payer_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def payer_delete(payer_id):
+    p = db.get_or_404(PayerEntity, payer_id)
+    if p.invoices:
+        p.is_active = False  # keep history
+    else:
+        db.session.delete(p)
+    db.session.commit()
+    flash(t("claims.entity_deleted"), "info")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/payer", methods=["POST"])
+@module_required(MODULE)
+def invoice_set_payer(invoice_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    invoice.payer_id = request.form.get("payer_id", type=int) or None
+    db.session.commit()
+    flash(t("claims.payer_set"), "success")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/claims")
+@module_required(MODULE)
+def claims():
+    today = datetime.utcnow().date()
+    date_from = _parse_date_arg("date_from", today.replace(day=1))
+    date_to = _parse_date_arg("date_to", today)
+
+    rows = []
+    for entity in PayerEntity.query.order_by(PayerEntity.name).all():
+        q = Invoice.query.filter(Invoice.payer_id == entity.id)
+        if date_from:
+            q = q.filter(Invoice.invoice_date >= date_from)
+        if date_to:
+            q = q.filter(Invoice.invoice_date <= date_to)
+        invs = q.all()
+        claim = round(sum(i.discount_total for i in invs), 2)
+        rows.append({"entity": entity, "count": len(invs), "claim": claim})
+    return render_template("finance/claims.html", rows=rows,
+                           date_from=date_from, date_to=date_to)
+
+
+@finance_bp.route("/claims/<int:payer_id>")
+@module_required(MODULE)
+def claim_detail(payer_id):
+    entity = db.get_or_404(PayerEntity, payer_id)
+    today = datetime.utcnow().date()
+    date_from = _parse_date_arg("date_from", today.replace(day=1))
+    date_to = _parse_date_arg("date_to", today)
+
+    q = Invoice.query.filter(Invoice.payer_id == entity.id)
+    if date_from:
+        q = q.filter(Invoice.invoice_date >= date_from)
+    if date_to:
+        q = q.filter(Invoice.invoice_date <= date_to)
+    invoices = q.order_by(Invoice.invoice_date, Invoice.id).all()
+    total_claim = round(sum(i.discount_total for i in invoices), 2)
+    return render_template("finance/claim_detail.html", entity=entity,
+                           invoices=invoices, total_claim=total_claim,
+                           date_from=date_from, date_to=date_to)
 
 
 # =======================================================================

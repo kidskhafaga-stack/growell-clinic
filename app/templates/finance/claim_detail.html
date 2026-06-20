@@ -1,0 +1,69 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('claims.claim') }} — {{ entity.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('claims.claim') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims', date_from=date_from, date_to=date_to) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('claims.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('claims.claim_for') ~ ': ' ~ entity.display_name(current_lang),
+       t('claims.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}
+
+  <div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="k">{{ t('claims.entity') }}</div><div class="v">{{ entity.display_name(current_lang) }} <span class="badge badge--muted">{{ t('payer_types.' ~ entity.entity_type) }}</span></div></div>
+    <div class="info-item"><div class="k">{{ t('claims.agreed_discount') }}</div><div class="v">{{ entity.discount_percent }}%</div></div>
+    <div class="info-item"><div class="k">{{ t('claims.invoices_count') }}</div><div class="v">{{ invoices|length }}</div></div>
+  </div>
+
+  {% if invoices %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('invoices.number') }}</th><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.patient') }}</th>
+      <th>{{ t('invoices.subtotal') }}</th><th>{{ t('claims.discount') }}</th><th>{{ t('claims.patient_pays') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td dir="ltr">{{ inv.invoice_number }}</td>
+        <td dir="ltr">{{ inv.invoice_date }}</td>
+        <td>{{ inv.patient.display_name(current_lang) }}</td>
+        <td>{{ inv.subtotal }}</td>
+        <td><strong style="color:var(--green-700);">{{ inv.discount_total }}</strong></td>
+        <td>{{ inv.total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="font-weight:700;border-top:2px solid var(--green-600);">
+        <td colspan="4" style="text-align:end;">{{ t('claims.claim_amount') }}</td>
+        <td colspan="2"><span style="font-size:1.15rem;color:var(--green-800);">{{ total_claim }}</span></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div style="display:flex;justify-content:space-between;margin-top:48px;">
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ entity.display_name(current_lang) }}</div></div>
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_stamp') }}</div></div>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('claims.no_claims') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; } .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}

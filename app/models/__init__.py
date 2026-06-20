@@ -52,6 +52,7 @@ from app.models.invoice import (
     InvoiceItem,
     Payment,
 )
+from app.models.payer import PAYER_TYPES, PayerEntity
 
 __all__ = [
     "User",
@@ -98,4 +99,6 @@ __all__ = [
     "Payment",
     "INVOICE_STATUSES",
     "PAYMENT_METHODS",
+    "PayerEntity",
+    "PAYER_TYPES",
 ]
