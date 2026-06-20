@@ -1,0 +1,38 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('messages_mod.notify_results') }}{% endblock %}
+{% block page_heading %}{{ t('messages_mod.notify_results') }}{% endblock %}
+
+{% block content %}
+{% set ok = results|selectattr('log')|list %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('messages_mod.notify_results') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ doctor.display_name(current_lang) }} · {{ on_date }} · {{ t('messages_mod.sent_count') }}: {{ ok|length }}/{{ results|length }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.roster', doctor_id=doctor.id, date=on_date) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('messages_mod.back') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('messages_mod.patient') }}</th><th>{{ t('messages_mod.to') }}</th>
+      <th>{{ t('messages_mod.status') }}</th><th>{{ t('messages_mod.links_ready') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td><strong>{{ r.appt.patient.display_name(current_lang) }}</strong></td>
+        <td dir="ltr">{{ r.log.to_phone if r.log else (r.appt.patient.contact_phone or '—') }}</td>
+        <td>{% if not r.log %}<span class="status-badge st-no_show">{{ t('messages_mod.no_phone') }}</span>
+            {% else %}<span class="status-badge {{ 'st-completed' if r.log.status=='sent' else ('st-no_show' if r.log.status=='failed' else 'st-waiting') }}">{{ t('messages_mod.st_' ~ r.log.status) }}</span>{% endif %}</td>
+        <td>{% if r.log and r.log.link %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ r.log.link }}" target="_blank" rel="noopener"
+             style="color:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> {{ t('messages_mod.open_whatsapp') }}</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

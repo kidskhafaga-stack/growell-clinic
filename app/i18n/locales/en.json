@@ -784,6 +784,19 @@
     "date": "Date",
     "no_phone": "No guardian phone number",
     "back": "Back",
-    "sent_via": "via"
+    "sent_via": "via",
+    "roster": "Today's roster",
+    "select_doctor": "Select doctor",
+    "queue": "Queue",
+    "time": "Time",
+    "send_to_doctor": "Send schedule to doctor",
+    "notify_all": "Notify all patients",
+    "no_doctor_phone": "Doctor has no phone number",
+    "no_bookings": "No bookings on this day",
+    "notify_results": "Notification results",
+    "links_ready": "Links ready to send",
+    "show": "Show",
+    "pick_doctor_day": "Select a doctor and day to view the roster",
+    "sent_count": "Prepared/sent"
   }
 }

@@ -43,6 +43,10 @@
     <p class="page-sub" style="margin:0;">{{ t('appointments.board_subtitle') }}</p>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    {% if current_user.can_access('messages') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.roster', doctor_id=doctor_id, date=on_date) }}">
+      <i class="bi bi-whatsapp"></i> {{ t('messages_mod.roster') }}</a>
+    {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('appointments.schedules', doctor_id=doctor_id) }}">
       <i class="bi bi-calendar2-week"></i> {{ t('appointments.manage_schedules') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('appointments.create') }}">
