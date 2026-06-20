@@ -9,9 +9,12 @@
     <h1 class="page-title">{{ t('users.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('users.list') }}</p>
   </div>
-  <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('users.create') }}">
-    <i class="bi bi-person-plus"></i> {{ t('users.add_user') }}
-  </a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.roles') }}">
+      <i class="bi bi-shield-lock"></i> {{ t('roles_mgmt.manage') }}</a>
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('users.create') }}">
+      <i class="bi bi-person-plus"></i> {{ t('users.add_user') }}</a>
+  </div>
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.08s;">
@@ -34,7 +37,7 @@
           {% if user.email %}<div style="font-size:0.78rem;color:var(--muted);">{{ user.email }}</div>{% endif %}
         </td>
         <td>{{ user.username }}</td>
-        <td><span class="badge badge--role">{{ t('roles.' ~ user.role) }}</span></td>
+        <td><span class="badge badge--role">{{ user.role_label(current_lang) }}</span></td>
         <td>
           {% if user.is_active %}
             <span class="badge badge--green">{{ t('common.active') }}</span>

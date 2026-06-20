@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('roles_mgmt.title') }}{% endblock %}
+{% block page_heading %}{{ t('roles_mgmt.title') }}{% endblock %}
+
+{% macro module_grid(role) %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin:10px 0;">
+    {% for m in modules %}
+    <label class="form-row checkbox" style="margin:0;{{ 'opacity:.55;' if role and role.is_admin else '' }}">
+      <input type="checkbox" name="modules" value="{{ m }}"
+             {{ 'checked' if (role and (role.is_admin or m in role.module_list)) else ('checked' if not role and m == 'dashboard' else '') }}
+             {{ 'disabled' if role and role.is_admin else '' }}>
+      <span style="font-weight:400;"><i class="bi bi-{{ MODULE_ICONS.get(m,'dot') }}"></i> {{ t('nav.' ~ m) }}</span>
+    </label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('roles_mgmt.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('roles_mgmt.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.users') }}</a>
+</div>
+
+<!-- Add custom role -->
+<details class="card gc-scale-in" style="animation-delay:0.05s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('roles_mgmt.add_role') }}</summary>
+  <form method="post" action="{{ url_for('users.role_new') }}" style="margin-top:12px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('roles_mgmt.name') }} *</label><input class="input" name="name" dir="ltr" placeholder="nurse" required><div class="hint">{{ t('roles_mgmt.name_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('roles_mgmt.label_ar') }} *</label><input class="input" name="label_ar" required></div>
+      <div class="form-row"><label>{{ t('roles_mgmt.label_en') }}</label><input class="input" name="label_en" dir="ltr"></div>
+    </div>
+    <label style="font-weight:600;">{{ t('roles_mgmt.permissions') }}</label>
+    {{ module_grid(none) }}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+{% for role in roles %}
+<div class="card gc-scale-in" style="animation-delay:0.08s;">
+  <form method="post" action="{{ url_for('users.role_edit', role_id=role.id) }}">
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
+      <div>
+        <h3 style="margin:0;">{{ role.label(current_lang) }}
+          <span class="badge badge--role" dir="ltr">{{ role.name }}</span>
+          {% if role.is_system %}<span class="badge badge--muted">{{ t('roles_mgmt.system') }}</span>{% else %}<span class="badge badge--green">{{ t('roles_mgmt.custom') }}</span>{% endif %}
+          {% if role.is_admin %}<span class="badge badge--green">{{ t('roles_mgmt.full_access') }}</span>{% endif %}
+        </h3>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+        {% if not role.is_system %}
+        <button class="btn btn-danger btn-sm gc-press" type="submit" formaction="{{ url_for('users.role_delete', role_id=role.id) }}" formnovalidate
+                onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-top:8px;">
+      <div class="form-row"><label>{{ t('roles_mgmt.label_ar') }}</label><input class="input" name="label_ar" value="{{ role.label_ar or '' }}"></div>
+      <div class="form-row"><label>{{ t('roles_mgmt.label_en') }}</label><input class="input" name="label_en" dir="ltr" value="{{ role.label_en or '' }}"></div>
+    </div>
+
+    {% if role.is_admin %}
+    <p class="hint"><i class="bi bi-info-circle"></i> {{ t('roles_mgmt.admin_note') }}</p>
+    {% endif %}
+    {{ module_grid(role) }}
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

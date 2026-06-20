@@ -51,6 +51,7 @@ def register_commands(app):
         """Create all database tables."""
         db.create_all()
         _ensure_default_settings()
+        _ensure_default_roles()
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
@@ -88,6 +89,7 @@ def register_commands(app):
                 applied += 1
                 click.echo(f"  + {table}.{column}")
         _ensure_default_settings()
+        _ensure_default_roles()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -105,6 +107,7 @@ def register_commands(app):
         from app.utils.vaccines import seed_vaccines
         db.create_all()
         _ensure_default_settings()
+        _ensure_default_roles()
         seed_vaccines()
 
         created = 0
@@ -150,3 +153,28 @@ def _ensure_default_settings():
     for key, value in DEFAULT_SETTINGS.items():
         if Setting.query.filter_by(key=key).first() is None:
             db.session.add(Setting(key=key, value=value))
+
+
+# Labels for the five built-in roles seeded into the editable Role table.
+_ROLE_LABELS = {
+    "admin": ("مدير النظام", "Administrator"),
+    "doctor": ("طبيب", "Doctor"),
+    "reception": ("استقبال", "Reception"),
+    "accountant": ("محاسب", "Accountant"),
+    "pharmacy": ("صيدلية", "Pharmacy"),
+}
+
+
+def _ensure_default_roles():
+    """Seed the built-in roles into the editable Role table (idempotent)."""
+    from app.models import ROLE_PERMISSIONS, Role
+
+    for name, modules in ROLE_PERMISSIONS.items():
+        if Role.query.filter_by(name=name).first() is not None:
+            continue
+        label_ar, label_en = _ROLE_LABELS.get(name, (name, name))
+        db.session.add(Role(
+            name=name, label_ar=label_ar, label_en=label_en,
+            modules="" if name == "admin" else ",".join(modules),
+            is_system=True, is_admin=(name == "admin"),
+        ))

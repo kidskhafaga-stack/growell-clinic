@@ -2,19 +2,88 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user
 
+import re
+
 from app.blueprints.users import users_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import ActivityLog, User
-from app.models.permissions import ROLES
+from app.models import ActivityLog, Role, User
+from app.models.permissions import MODULES
 from app.utils.decorators import admin_required, client_ip
+
+
+def _roles():
+    """Editable roles for dropdowns (ordered: system first, then custom)."""
+    return Role.query.order_by(Role.is_system.desc(), Role.name).all()
 
 
 @users_bp.route("/")
 @admin_required
 def index():
     users = User.query.order_by(User.created_at.desc()).all()
-    return render_template("users/list.html", users=users, roles=ROLES)
+    return render_template("users/list.html", users=users, roles=_roles())
+
+
+# ----------------------------------------------------------- roles ---------
+@users_bp.route("/roles")
+@admin_required
+def roles():
+    return render_template("users/roles.html", roles=_roles(), modules=MODULES)
+
+
+@users_bp.route("/roles/new", methods=["POST"])
+@admin_required
+def role_new():
+    name = re.sub(r"[^a-z0-9_]", "", (request.form.get("name") or "").strip().lower())
+    if not name:
+        flash(t("roles_mgmt.bad_name"), "danger")
+        return redirect(url_for("users.roles"))
+    if Role.query.filter_by(name=name).first():
+        flash(t("roles_mgmt.exists"), "warning")
+        return redirect(url_for("users.roles"))
+    role = Role(
+        name=name,
+        label_ar=(request.form.get("label_ar") or name).strip(),
+        label_en=(request.form.get("label_en") or "").strip() or None,
+        is_system=False, is_admin=False,
+    )
+    role.set_modules(request.form.getlist("modules"))
+    db.session.add(role)
+    ActivityLog.record("role.create", user_id=current_user.id, entity="role",
+                       detail=name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("roles_mgmt.created"), "success")
+    return redirect(url_for("users.roles"))
+
+
+@users_bp.route("/roles/<int:role_id>/edit", methods=["POST"])
+@admin_required
+def role_edit(role_id):
+    role = db.get_or_404(Role, role_id)
+    role.label_ar = (request.form.get("label_ar") or role.label_ar).strip()
+    role.label_en = (request.form.get("label_en") or "").strip() or None
+    # The admin role keeps full access; everyone else is editable.
+    if not role.is_admin:
+        role.set_modules(request.form.getlist("modules"))
+    db.session.commit()
+    flash(t("roles_mgmt.updated"), "success")
+    return redirect(url_for("users.roles"))
+
+
+@users_bp.route("/roles/<int:role_id>/delete", methods=["POST"])
+@admin_required
+def role_delete(role_id):
+    role = db.get_or_404(Role, role_id)
+    if role.is_system:
+        flash(t("roles_mgmt.system_locked"), "warning")
+        return redirect(url_for("users.roles"))
+    if User.query.filter_by(role=role.name).count():
+        flash(t("roles_mgmt.in_use"), "warning")
+        return redirect(url_for("users.roles"))
+    db.session.delete(role)
+    db.session.commit()
+    flash(t("roles_mgmt.deleted"), "info")
+    return redirect(url_for("users.roles"))
 
 
 @users_bp.route("/new", methods=["GET", "POST"])
@@ -26,7 +95,7 @@ def create():
         if error:
             flash(error, "danger")
             return render_template(
-                "users/form.html", roles=ROLES, user=None, form=form
+                "users/form.html", roles=_roles(), user=None, form=form
             )
 
         user = User(
@@ -49,7 +118,7 @@ def create():
         flash(t("users.created"), "success")
         return redirect(url_for("users.index"))
 
-    return render_template("users/form.html", roles=ROLES, user=None, form={})
+    return render_template("users/form.html", roles=_roles(), user=None, form={})
 
 
 @users_bp.route("/<int:user_id>/edit", methods=["GET", "POST"])
@@ -63,7 +132,7 @@ def edit(user_id):
         if error:
             flash(error, "danger")
             return render_template(
-                "users/form.html", roles=ROLES, user=user, form=form
+                "users/form.html", roles=_roles(), user=user, form=form
             )
 
         user.username = form["username"]
@@ -94,7 +163,7 @@ def edit(user_id):
         "is_active": user.is_active,
         "password": "",
     }
-    return render_template("users/form.html", roles=ROLES, user=user, form=form)
+    return render_template("users/form.html", roles=_roles(), user=user, form=form)
 
 
 @users_bp.route("/<int:user_id>/delete", methods=["POST"])
