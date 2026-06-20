@@ -694,7 +694,11 @@
     "st_unpaid": "غير مدفوعة",
     "st_partial": "مدفوعة جزئياً",
     "st_paid": "مدفوعة بالكامل",
-    "summary": "ملخص مالي"
+    "summary": "ملخص مالي",
+    "item_updated": "تم تحديث البند",
+    "edit_invoice": "تعديل بيانات الفاتورة",
+    "edit_item": "تعديل البند",
+    "updated": "تم تحديث الفاتورة"
   },
   "payment_methods": {
     "cash": "نقدي",

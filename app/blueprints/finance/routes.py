@@ -346,6 +346,8 @@ def invoice_view(invoice_id):
         "finance/invoice_view.html", invoice=invoice, methods=PAYMENT_METHODS,
         services_active=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
+        doctors=_doctors_active(),
+        patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
     )
 
 
@@ -398,6 +400,61 @@ def invoice_item_delete(invoice_id, item_id):
         invoice.recalc_status()
         db.session.commit()
         flash(t("invoices.item_removed"), "info")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/item/<int:item_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def invoice_item_edit(invoice_id, item_id):
+    invoice = db.get_or_404(Invoice, invoice_id)
+    item = db.session.get(InvoiceItem, item_id)
+    if not item or item.invoice_id != invoice.id:
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+    desc = (request.form.get("description") or "").strip()
+    price = request.form.get("unit_price", type=float)
+    if desc:
+        item.description = desc
+    if price is not None:
+        item.unit_price = price
+    item.quantity = request.form.get("quantity", type=int) or 1
+    item.discount_value = request.form.get("discount_value", type=float) or 0
+    item.discount_is_percent = bool(request.form.get("discount_is_percent"))
+    # Refresh the doctor-commission snapshot for the new net.
+    if item.service is not None:
+        item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+    invoice.recalc_status()
+    db.session.commit()
+    flash(t("invoices.item_updated"), "success")
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def invoice_edit(invoice_id):
+    """Edit invoice header fields (patient, doctor, payer, date, notes)."""
+    invoice = db.get_or_404(Invoice, invoice_id)
+    patient = db.session.get(Patient, request.form.get("patient_id", type=int))
+    if patient is not None:
+        invoice.patient_id = patient.id
+    invoice.doctor_id = request.form.get("doctor_id", type=int) or None
+    invoice.payer_id = request.form.get("payer_id", type=int) or None
+    invoice.notes = (request.form.get("notes") or "").strip() or None
+    raw_date = (request.form.get("invoice_date") or "").strip()
+    if raw_date:
+        try:
+            invoice.invoice_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    # Re-snapshot commissions against the (possibly new) doctor.
+    for item in invoice.items:
+        if item.service is not None:
+            item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+    invoice.recalc_status()
+    ActivityLog.record("invoice.edit", user_id=current_user.id, entity="invoice",
+                       detail=invoice.invoice_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t("invoices.updated"), "success")
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
 

@@ -694,7 +694,11 @@
     "st_unpaid": "Unpaid",
     "st_partial": "Partially paid",
     "st_paid": "Paid",
-    "summary": "Financial summary"
+    "summary": "Financial summary",
+    "item_updated": "Item updated",
+    "edit_invoice": "Edit invoice details",
+    "edit_item": "Edit item",
+    "updated": "Invoice updated"
   },
   "payment_methods": {
     "cash": "Cash",

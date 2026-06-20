@@ -9,11 +9,36 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
   <div style="display:flex;gap:8px;">
+    <button class="btn btn-outline gc-press" type="button" onclick="document.getElementById('editInvoiceBox').open=true;document.getElementById('editInvoiceBox').scrollIntoView();"><i class="bi bi-pencil"></i> {{ t('invoices.edit_invoice') }}</button>
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('invoices.print') }}</button>
     <form method="post" action="{{ url_for('finance.invoice_delete', invoice_id=invoice.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
       <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
   </div>
 </div>
+
+<!-- Edit invoice header -->
+<details class="card gc-scale-in no-print" id="editInvoiceBox">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-pencil-square"></i> {{ t('invoices.edit_invoice') }}</summary>
+  <form method="post" action="{{ url_for('finance.invoice_edit', invoice_id=invoice.id) }}" style="margin-top:12px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('invoices.patient') }}</label>
+        <select class="select" name="patient_id">
+          {% for p in patients %}<option value="{{ p.id }}" {{ 'selected' if invoice.patient_id==p.id else '' }}>{{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('invoices.doctor') }}</label>
+        <select class="select" name="doctor_id"><option value="">—</option>
+          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if invoice.doctor_id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('claims.payer') }}</label>
+        <select class="select" name="payer_id"><option value="">{{ t('claims.no_payer') }}</option>
+          {% for pe in payers %}<option value="{{ pe.id }}" {{ 'selected' if invoice.payer_id==pe.id else '' }}>{{ pe.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('invoices.date') }}</label><input class="input" type="date" name="invoice_date" value="{{ invoice.invoice_date }}"></div>
+    </div>
+    <div class="form-row"><label>{{ t('invoices.notes') }}</label><textarea class="input" name="notes" rows="2">{{ invoice.notes or '' }}</textarea></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
 
 <div class="card gc-scale-in print-area">
   {{ print_header(t('invoices.invoice') ~ ' ' ~ invoice.invoice_number,
@@ -39,8 +64,20 @@
         <td>{{ it.quantity }}</td>
         <td>{{ it.discount_amount }}{% if it.discount_is_percent %} <span style="color:var(--muted);">({{ it.discount_value }}%)</span>{% endif %}</td>
         <td><strong>{{ it.net }}</strong></td>
-        <td class="no-print">
-          <form method="post" action="{{ url_for('finance.invoice_item_delete', invoice_id=invoice.id, item_id=it.id) }}">
+        <td class="no-print" style="white-space:nowrap;">
+          <details style="position:relative;display:inline-block;">
+            <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+            <form method="post" action="{{ url_for('finance.invoice_item_edit', invoice_id=invoice.id, item_id=it.id) }}" class="popform" style="width:260px;">
+              <div class="form-row"><label>{{ t('invoices.description') }}</label><input class="input" name="description" value="{{ it.description }}"></div>
+              <div class="form-row"><label>{{ t('invoices.unit_price') }}</label><input class="input" type="number" step="0.01" name="unit_price" value="{{ it.unit_price }}"></div>
+              <div class="form-row"><label>{{ t('invoices.quantity') }}</label><input class="input" type="number" min="1" name="quantity" value="{{ it.quantity }}"></div>
+              <div class="form-row"><label>{{ t('invoices.discount') }}</label><input class="input" type="number" step="0.01" name="discount_value" value="{{ it.discount_value or 0 }}"></div>
+              <div class="form-row checkbox"><input type="checkbox" id="dp_{{ it.id }}" name="discount_is_percent" value="1" {{ 'checked' if it.discount_is_percent else '' }}>
+                <label for="dp_{{ it.id }}" style="margin:0;font-weight:400;">{{ t('invoices.discount_percent') }}</label></div>
+              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('finance.invoice_item_delete', invoice_id=invoice.id, item_id=it.id) }}" style="display:inline;">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
         </td>
       </tr>
@@ -151,5 +188,8 @@
   }
   .btn-x { border:none;background:none;cursor:pointer;color:var(--muted);padding:2px 4px; }
   .btn-x:hover { color:var(--danger); }
+  .popform { position:absolute; z-index:30; inset-inline-end:0; margin-top:6px; text-align:start;
+    background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; }
+  @media print { details.popform, .popform { display:none !important; } }
 </style>
 {% endblock %}
