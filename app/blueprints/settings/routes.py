@@ -67,6 +67,53 @@ def index():
     return render_template("settings/index.html", values=values)
 
 
+@settings_bp.route("/data")
+@admin_required
+def data_tools():
+    from app.models import Invoice, Patient
+
+    stats = {
+        "patients": Patient.query.count(),
+        "invoices": Invoice.query.count(),
+        "seeded": Setting.get("demo_seeded") == "1",
+    }
+    return render_template("settings/data.html", stats=stats)
+
+
+@settings_bp.route("/data/seed-demo", methods=["POST"])
+@admin_required
+def seed_demo_data():
+    from app.utils.demo import seed_demo
+
+    result = seed_demo()
+    if result.get("skipped"):
+        flash(t("data_tools.already_seeded"), "warning")
+    else:
+        ActivityLog.record("data.seed_demo", user_id=current_user.id,
+                           entity="system", ip_address=client_ip())
+        db.session.commit()
+        flash(t("data_tools.seeded"), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
+@settings_bp.route("/data/reset", methods=["POST"])
+@admin_required
+def reset_data():
+    from app.utils.demo import reset_all
+
+    # Require an explicit typed confirmation to avoid accidents.
+    if (request.form.get("confirm") or "").strip() != "DELETE":
+        flash(t("data_tools.bad_confirm"), "danger")
+        return redirect(url_for("settings.data_tools"))
+
+    reset_all()
+    ActivityLog.record("data.reset", user_id=current_user.id, entity="system",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("data_tools.reset_done"), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
 @settings_bp.route("/logo/delete", methods=["POST"])
 @admin_required
 def delete_logo():

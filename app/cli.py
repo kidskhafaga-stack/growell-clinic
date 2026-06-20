@@ -101,6 +101,24 @@ def register_commands(app):
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
+    @app.cli.command("seed-demo")
+    def seed_demo_cmd():
+        """Populate a realistic demo dataset for presentations."""
+        from app.utils.demo import seed_demo
+        db.create_all()
+        result = seed_demo()
+        if result.get("skipped"):
+            click.secho("Demo data already present (skipped).", fg="yellow")
+        else:
+            click.secho(f"Demo data seeded: {result}", fg="green")
+
+    @app.cli.command("reset-data")
+    def reset_data_cmd():
+        """Delete all operational data (keeps users, roles, settings, catalogue)."""
+        from app.utils.demo import reset_all
+        counts = reset_all()
+        click.secho(f"Reset complete: {counts}", fg="green")
+
     @app.cli.command("seed-vaccines")
     def seed_vaccines_cmd():
         """Load the bundled Egyptian vaccine catalogue into the database."""
