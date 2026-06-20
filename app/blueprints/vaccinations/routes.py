@@ -104,12 +104,26 @@ def record(patient_id):
     except ValueError:
         given_date = datetime.utcnow().date()
 
-    db.session.add(PatientVaccine(
+    lot_number = (request.form.get("lot_number") or "").strip() or None
+    pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
         dose_number=dose_number, given_date=given_date,
-        lot_number=(request.form.get("lot_number") or "").strip() or None,
+        lot_number=lot_number,
         notes=(request.form.get("notes") or "").strip() or None,
-    ))
+    )
+    db.session.add(pv)
+
+    # Deduct from inventory for clinic-provided (optional) vaccines using
+    # first-expiry-first-out; record the batch and its lot number.
+    if not vaccine.is_mandatory:
+        batches = brand.available_batches
+        if batches:
+            batch = batches[0]
+            batch.qty_used = (batch.qty_used or 0) + 1
+            pv.inventory_id = batch.id
+            if not pv.lot_number:
+                pv.lot_number = batch.lot_number
+
     ActivityLog.record(
         "vaccine.record", user_id=current_user.id, entity="patient",
         entity_id=patient.id, detail=f"{vaccine.code}#{dose_number}",
@@ -189,6 +203,8 @@ def vaccine_new():
         name=(request.form.get("brand_name") or ("حكومي" if is_mandatory else name_ar)).strip(),
         manufacturer=(request.form.get("manufacturer") or "").strip() or None,
         price=request.form.get("price", type=float),
+        purchase_price=request.form.get("purchase_price", type=float),
+        max_discount=request.form.get("max_discount", type=float),
         is_default=True,
     )
     db.session.add(brand)
@@ -242,6 +258,8 @@ def brand_new(vaccine_id):
         name_en=(request.form.get("name_en") or "").strip() or None,
         manufacturer=(request.form.get("manufacturer") or "").strip() or None,
         price=request.form.get("price", type=float),
+        purchase_price=request.form.get("purchase_price", type=float),
+        max_discount=request.form.get("max_discount", type=float),
         is_default=not vaccine.brands,
     )
     db.session.add(brand)
@@ -260,6 +278,8 @@ def brand_edit(brand_id):
     brand.name_en = (request.form.get("name_en") or "").strip() or None
     brand.manufacturer = (request.form.get("manufacturer") or "").strip() or None
     brand.price = request.form.get("price", type=float)
+    brand.purchase_price = request.form.get("purchase_price", type=float)
+    brand.max_discount = request.form.get("max_discount", type=float)
     ages = _parse_ages(request.form.get("dose_ages"))
     if ages:
         _set_brand_doses(brand, ages)

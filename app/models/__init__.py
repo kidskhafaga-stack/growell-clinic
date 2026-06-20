@@ -32,6 +32,12 @@ from app.models.vaccine import (
     VaccineBrand,
     VaccineBrandDose,
 )
+from app.models.inventory import (
+    LOW_STOCK_QTY,
+    NEAR_EXPIRY_DAYS,
+    Supplier,
+    VaccineInventory,
+)
 
 __all__ = [
     "User",
@@ -64,4 +70,8 @@ __all__ = [
     "VaccineBrand",
     "VaccineBrandDose",
     "PatientVaccine",
+    "Supplier",
+    "VaccineInventory",
+    "NEAR_EXPIRY_DAYS",
+    "LOW_STOCK_QTY",
 ]

@@ -3,11 +3,13 @@
 {% block title %}{{ t('vaccinations.manage_title') }}{% endblock %}
 {% block page_heading %}{{ t('vaccinations.manage_title') }}{% endblock %}
 
-{% macro brand_fields(prefix_ages='') %}
+{% macro brand_fields() %}
   <div class="form-grid">
     <div class="form-row"><label>{{ t('vaccinations.brand_name') }} *</label><input class="input" name="name" required></div>
     <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer"></div>
-    <div class="form-row"><label>{{ t('vaccinations.price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
+    <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
+    <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price"></div>
+    <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount"></div>
     <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" placeholder="0, 2, 4, 6"><div class="hint">{{ t('vaccinations.dose_ages_hint') }}</div></div>
   </div>
 {% endmacro %}
@@ -36,9 +38,13 @@
           <option value="optional">{{ t('vaccinations.optional') }}</option>
         </select></div>
       <div class="form-row"><label>{{ t('vaccinations.default_brand_name') }}</label><input class="input" name="brand_name" placeholder="حكومي"></div>
-      <div class="form-row"><label>{{ t('vaccinations.price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
+      <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
+      <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price"></div>
+      <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount"></div>
       <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" placeholder="0, 2, 4, 6"><div class="hint">{{ t('vaccinations.dose_ages_hint') }}</div></div>
     </div>
+    <div class="info-note" style="margin:12px 0;"><i class="bi bi-info-circle"></i>
+      <strong>{{ t('vaccinations.schedule_help_title') }}</strong> {{ t('vaccinations.schedule_help') }}</div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
@@ -86,7 +92,9 @@
         <strong>{{ brand.display_name(current_lang) }}</strong>
         {% if brand.is_default %}<i class="bi bi-star-fill" style="color:#f0ad4e;font-size:0.75rem;"></i>{% endif %}
         · {{ t('vaccinations.doses_label') }}: {{ brand.doses|map(attribute='age_months')|join(', ') }}
-        {% if brand.price %}· {{ brand.price }}{% endif %}
+        {% if brand.price %}· {{ t('vaccinations.sell_price') }} {{ brand.price }}{% endif %}
+        {% if brand.max_discount %}· {{ t('vaccinations.max_discount') }} {{ brand.max_discount }}{% endif %}
+        {% if not vaccine.is_mandatory %}· <span class="badge {{ 'badge--green' if brand.stock > 5 else ('badge--muted' if brand.stock == 0 else 'badge--role') }}">{{ t('vaccinations.stock_available') }}: {{ brand.stock }}</span>{% endif %}
         {% if brand.manufacturer %}<span style="color:var(--muted);">({{ brand.manufacturer }})</span>{% endif %}
       </span>
       <span style="display:flex;gap:6px;">
@@ -95,7 +103,9 @@
           <form method="post" action="{{ url_for('vaccinations.brand_edit', brand_id=brand.id) }}" class="popform">
             <div class="form-row"><label>{{ t('vaccinations.brand_name') }}</label><input class="input" name="name" value="{{ brand.name }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer" value="{{ brand.manufacturer or '' }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
+            <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
+            <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ brand.purchase_price or '' }}"></div>
+            <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ brand.max_discount or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" value="{{ brand.doses|map(attribute='age_months')|join(', ') }}"></div>
             <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
           </form>

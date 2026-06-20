@@ -41,6 +41,40 @@ def register_commands(app):
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
+    @app.cli.command("upgrade-db")
+    def upgrade_db():
+        """Safely apply additive schema changes to an existing database.
+
+        Creates any new tables and adds new nullable columns that later
+        phases introduced, without touching existing data. Idempotent.
+        """
+        from sqlalchemy import inspect, text
+
+        db.create_all()  # creates any brand-new tables (suppliers, inventory…)
+        inspector = inspect(db.engine)
+
+        # (table, column, column DDL type) added by later phases.
+        additions = [
+            ("vaccine_brands", "purchase_price", "FLOAT"),
+            ("vaccine_brands", "max_discount", "FLOAT"),
+            ("patient_vaccines", "inventory_id", "INTEGER"),
+        ]
+        existing_tables = set(inspector.get_table_names())
+        applied = 0
+        for table, column, ddl in additions:
+            if table not in existing_tables:
+                continue
+            cols = {c["name"] for c in inspector.get_columns(table)}
+            if column not in cols:
+                db.session.execute(
+                    text(f'ALTER TABLE {table} ADD COLUMN {column} {ddl}')
+                )
+                applied += 1
+                click.echo(f"  + {table}.{column}")
+        _ensure_default_settings()
+        db.session.commit()
+        click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
+
     @app.cli.command("seed-vaccines")
     def seed_vaccines_cmd():
         """Load the bundled Egyptian vaccine catalogue into the database."""

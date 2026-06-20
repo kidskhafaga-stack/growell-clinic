@@ -38,7 +38,8 @@ if not exist "instance\growell.db" (
   echo [3/4] Initialising database and seeding demo data...
   flask --app run seed
 ) else (
-  echo [3/4] Database found - skipping initial seed.
+  echo [3/4] Database found - applying any safe upgrades...
+  flask --app run upgrade-db
 )
 
 REM --- 5) Launch the app and open the browser ---

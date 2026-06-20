@@ -1,0 +1,82 @@
+"""Vaccine inventory & suppliers (Phase 6.2).
+
+Tracks stock as lot/batch records (lot number, expiry, quantities, storage
+temperature) per vaccine brand, plus the suppliers they come from. Stock
+alerts (near-expiry, low/out of stock) are derived from these.
+"""
+from datetime import date, datetime, timedelta
+
+from app.extensions import db
+
+# Alerting thresholds (overridable later via settings if needed).
+NEAR_EXPIRY_DAYS = 60
+LOW_STOCK_QTY = 5
+
+
+class Supplier(db.Model):
+    __tablename__ = "suppliers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    contact_person = db.Column(db.String(120))
+    phone = db.Column(db.String(40))
+    email = db.Column(db.String(120))
+    address = db.Column(db.String(255))
+    notes = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    batches = db.relationship("VaccineInventory", back_populates="supplier")
+
+    def __repr__(self):
+        return f"<Supplier {self.name}>"
+
+
+class VaccineInventory(db.Model):
+    __tablename__ = "vaccine_inventory"
+
+    id = db.Column(db.Integer, primary_key=True)
+    brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"), nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+
+    lot_number = db.Column(db.String(60))
+    expiry_date = db.Column(db.Date)
+    received_date = db.Column(db.Date, default=lambda: datetime.utcnow().date())
+    qty_received = db.Column(db.Integer, default=0, nullable=False)
+    qty_used = db.Column(db.Integer, default=0, nullable=False)
+    unit_cost = db.Column(db.Float)
+    storage_temp = db.Column(db.String(40))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    brand = db.relationship("VaccineBrand", back_populates="batches")
+    supplier = db.relationship("Supplier", back_populates="batches")
+
+    @property
+    def qty_remaining(self):
+        return max((self.qty_received or 0) - (self.qty_used or 0), 0)
+
+    @property
+    def is_expired(self):
+        return bool(self.expiry_date and self.expiry_date < date.today())
+
+    @property
+    def is_near_expiry(self):
+        if not self.expiry_date or self.is_expired:
+            return False
+        return self.expiry_date <= date.today() + timedelta(days=NEAR_EXPIRY_DAYS)
+
+    @property
+    def status(self):
+        if self.is_expired:
+            return "expired"
+        if self.qty_remaining <= 0:
+            return "out"
+        if self.is_near_expiry:
+            return "near_expiry"
+        if self.qty_remaining <= LOW_STOCK_QTY:
+            return "low"
+        return "ok"
+
+    def __repr__(self):
+        return f"<VaccineInventory brand={self.brand_id} lot={self.lot_number}>"
