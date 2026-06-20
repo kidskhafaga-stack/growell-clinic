@@ -82,6 +82,18 @@ class Patient(db.Model):
         return bool((self.allergies or "").strip() or (self.chronic_diseases or "").strip())
 
     @property
+    def contact_phone(self):
+        """Best contact number: primary guardian first, else any with a phone."""
+        if not self.family or not self.family.parents:
+            return None
+        parents = sorted(self.family.parents,
+                         key=lambda p: (0 if p.is_primary_contact else 1))
+        for p in parents:
+            if p.phone:
+                return p.phone
+        return None
+
+    @property
     def siblings(self):
         """Other active patients in the same family."""
         if not self.family_id or not self.family:

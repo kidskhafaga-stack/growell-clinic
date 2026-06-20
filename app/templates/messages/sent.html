@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('messages_mod.confirm_sent') }}{% endblock %}
+{% block page_heading %}{{ t('messages_mod.send_confirm') }}{% endblock %}
+
+{% block content %}
+<div class="card gc-scale-in" style="max-width:560px;margin:0 auto;text-align:center;">
+  <div class="hub-ico edge-green" style="margin:0 auto 12px;width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#fff;background:#25D366;">
+    <i class="bi bi-whatsapp"></i></div>
+
+  {% if log.status == 'sent' %}
+  <h2 style="margin:0 0 6px;color:var(--green-800);">{{ t('messages_mod.st_sent') }} ✓</h2>
+  {% elif log.status == 'failed' and not log.link %}
+  <h2 style="margin:0 0 6px;color:var(--danger);">{{ t('messages_mod.st_failed') }}</h2>
+  <p style="color:var(--muted);">{{ log.error }}</p>
+  {% else %}
+  <h2 style="margin:0 0 6px;">{{ t('messages_mod.confirm_sent') }}</h2>
+  {% endif %}
+
+  <div style="text-align:start;background:var(--green-050);border:1px solid var(--green-100);border-radius:12px;padding:14px;margin:14px 0;white-space:pre-wrap;font-size:0.92rem;" dir="auto">{{ log.body }}</div>
+  <div style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">{{ t('messages_mod.to') }}: <span dir="ltr">{{ log.to_phone }}</span></div>
+
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    {% if log.link %}
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ log.link }}" target="_blank" rel="noopener"
+       style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> {{ t('messages_mod.open_whatsapp') }}</a>
+    {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index') }}">{{ t('messages_mod.back') }}</a>
+  </div>
+</div>
+{% endblock %}
