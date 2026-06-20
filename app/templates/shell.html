@@ -27,7 +27,7 @@
     </nav>
 
     <div class="sidebar__footer">
-      {{ clinic_name }} · v0.1 — {{ t('roles.' ~ current_user.role) }}
+      {{ clinic_name }} · v0.1 — {{ current_user.role_label(current_lang) }}
     </div>
   </aside>
 
@@ -47,7 +47,7 @@
           <div class="avatar">{{ current_user.display_name(current_lang)[:1] | upper }}</div>
           <div class="meta">
             <div>{{ current_user.display_name(current_lang) }}</div>
-            <div class="role">{{ t('roles.' ~ current_user.role) }}</div>
+            <div class="role">{{ current_user.role_label(current_lang) }}</div>
           </div>
         </div>
         <a class="btn btn-outline btn-sm" href="{{ url_for('auth.logout') }}">

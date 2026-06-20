@@ -38,17 +38,34 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     # --- Permissions -------------------------------------------------------
+    def _role_record(self):
+        """Look up the editable Role row, or None (pre-seed / DB not ready)."""
+        try:
+            from app.models.role import Role
+            return Role.query.filter_by(name=self.role).first()
+        except Exception:  # noqa: BLE001 - DB not ready / outside app context
+            return None
+
     @property
     def is_admin(self):
+        rec = self._role_record()
+        if rec is not None:
+            return rec.is_admin
         return self.role == "admin"
 
     def can_access(self, module):
         """Whether this user's role may reach ``module``."""
-        return role_can_access(self.role, module)
+        rec = self._role_record()
+        if rec is not None:
+            return rec.is_admin or module in rec.module_list
+        return role_can_access(self.role, module)  # static fallback
 
     @property
     def modules(self):
         """Modules visible to this user (drives the sidebar)."""
+        rec = self._role_record()
+        if rec is not None:
+            return rec.module_list
         return role_modules(self.role)
 
     def display_name(self, lang="ar"):
@@ -57,8 +74,20 @@ class User(UserMixin, db.Model):
             return self.full_name_en
         return self.full_name
 
+    def role_label(self, lang="ar"):
+        rec = self._role_record()
+        if rec is not None:
+            return rec.label(lang)
+        return self.role
+
     @staticmethod
     def valid_role(role):
+        try:
+            from app.models.role import Role
+            if Role.query.filter_by(name=role).first():
+                return True
+        except Exception:  # noqa: BLE001
+            pass
         return role in ROLES
 
     def __repr__(self):

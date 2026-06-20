@@ -831,5 +831,29 @@
     "none": "None",
     "percent": "Percent %",
     "fixed": "Fixed amount"
+  },
+  "roles_mgmt": {
+    "title": "Roles & permissions",
+    "subtitle": "Control each role's access and add custom roles",
+    "manage": "Manage roles",
+    "role": "Role",
+    "label_ar": "Arabic name",
+    "label_en": "English name",
+    "name": "Identifier (English)",
+    "permissions": "Permissions (modules)",
+    "add_role": "Add role",
+    "system": "System",
+    "custom": "Custom",
+    "full_access": "Full access",
+    "users_count": "Users",
+    "created": "Role created",
+    "updated": "Role updated",
+    "deleted": "Role deleted",
+    "bad_name": "Enter a valid English identifier",
+    "exists": "Role already exists",
+    "system_locked": "System roles cannot be deleted",
+    "in_use": "Role in use — reassign its users first",
+    "name_hint": "lowercase letters, numbers and _ only (e.g. nurse)",
+    "admin_note": "The admin role always has full access"
   }
 }
