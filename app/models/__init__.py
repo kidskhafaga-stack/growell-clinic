@@ -38,6 +38,13 @@ from app.models.inventory import (
     Supplier,
     VaccineInventory,
 )
+from app.models.service import (
+    COMMISSION_TYPES,
+    SERVICE_CATEGORIES,
+    DoctorServiceCommission,
+    Service,
+    ServiceBundleItem,
+)
 
 __all__ = [
     "User",
@@ -74,4 +81,9 @@ __all__ = [
     "VaccineInventory",
     "NEAR_EXPIRY_DAYS",
     "LOW_STOCK_QTY",
+    "Service",
+    "ServiceBundleItem",
+    "DoctorServiceCommission",
+    "SERVICE_CATEGORIES",
+    "COMMISSION_TYPES",
 ]
