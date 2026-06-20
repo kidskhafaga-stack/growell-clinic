@@ -15,6 +15,7 @@ SERVICE_CATEGORIES = [
     "lab", "radiology", "other",
 ]
 COMMISSION_TYPES = ["none", "percent", "fixed"]
+ETA_ITEM_TYPES = ["EGS", "GS1"]  # ETA item coding schemes
 
 
 class Service(db.Model):
@@ -24,6 +25,7 @@ class Service(db.Model):
     name = db.Column(db.String(160), nullable=False)
     name_en = db.Column(db.String(160))
     code = db.Column(db.String(40))
+    eta_item_type = db.Column(db.String(8), default="EGS")  # EGS | GS1 (ETA coding)
     category = db.Column(db.String(40), default="other", nullable=False)
     price = db.Column(db.Float, default=0, nullable=False)
     max_discount = db.Column(db.Float)  # max allowed discount (%)

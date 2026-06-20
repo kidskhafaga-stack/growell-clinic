@@ -28,7 +28,11 @@
     <div class="form-grid">
       <div class="form-row"><label>{{ t('services.name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
-      <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" placeholder="EGS / GS1"></div>
+      <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
+        <select class="select" name="eta_item_type">
+          {% for it in item_types %}<option value="{{ it }}">{{ it }}</option>{% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('services.category') }}</label>
         <select class="select" name="category">
           {% for c in categories %}<option value="{{ c }}">{{ t('service_categories.' ~ c) }}</option>{% endfor %}
@@ -80,6 +84,11 @@
         <form method="post" action="{{ url_for('finance.service_edit', service_id=s.id) }}" class="popform" style="width:330px;">
           <div class="form-row"><label>{{ t('services.name') }}</label><input class="input" name="name" value="{{ s.name }}"></div>
           <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ s.name_en or '' }}"></div>
+          <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" value="{{ s.code or '' }}" placeholder="EGS / GS1"></div>
+          <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
+            <select class="select" name="eta_item_type">
+              {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
+            </select></div>
           <div class="form-row"><label>{{ t('services.category') }}</label>
             <select class="select" name="category">
               {% for c in categories %}<option value="{{ c }}" {{ 'selected' if s.category==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}

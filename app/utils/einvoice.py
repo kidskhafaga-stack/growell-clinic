@@ -40,6 +40,8 @@ def get_config():
         "signing_url": g("eta_signing_url", ""),
         "tax_mode": g("eta_default_tax", "exempt"),  # exempt | taxable
         "vat_rate": float(g("eta_vat_rate", "14") or 14),
+        "item_type": g("eta_default_item_type", "EGS"),  # EGS | GS1
+        "client_secret2": g("eta_client_secret2", ""),
     }
 
 
@@ -49,14 +51,18 @@ def build_document(invoice, cfg=None):
     taxable = cfg["tax_mode"] == "taxable"
     rate = cfg["vat_rate"] if taxable else 0
 
+    default_item_type = cfg.get("item_type", "EGS")
     lines = []
     for it in invoice.items:
         net = it.net
         tax = round(net * rate / 100.0, 2) if taxable else 0
+        svc = it.service
+        item_type = (svc.eta_item_type if svc and svc.eta_item_type else default_item_type)
+        fallback_code = "EG-0000" if item_type == "EGS" else "0000000000000"
         lines.append({
             "description": it.description,
-            "itemType": "EGS",
-            "itemCode": (it.service.code if it.service and it.service.code else "EG-0000"),
+            "itemType": item_type,
+            "itemCode": (svc.code if svc and svc.code else fallback_code),
             "unitType": "EA",
             "quantity": it.quantity,
             "unitValue": {"currencySold": "EGP", "amountEGP": it.unit_price},

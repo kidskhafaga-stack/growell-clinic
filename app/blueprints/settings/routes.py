@@ -26,7 +26,7 @@ TEXT_KEYS = [
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",
     "eta_branch_address", "eta_signing_url", "eta_default_tax",
-    "eta_vat_rate", "eta_send_gap",
+    "eta_vat_rate", "eta_send_gap", "eta_default_item_type", "eta_client_secret2",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled"]
 
