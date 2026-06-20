@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('messages_mod.roster') }}{% endblock %}
+{% block page_heading %}{{ t('messages_mod.roster') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <h1 class="page-title">{{ t('messages_mod.roster') }}</h1>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}"><i class="bi bi-clock-history"></i> {{ t('messages_mod.log') }}</a>
+</div>
+
+<form method="get" class="card gc-scale-in">
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('messages_mod.select_doctor') }}</label>
+      <select class="select" name="doctor_id" required>
+        <option value="">{{ t('messages_mod.select_doctor') }}</option>
+        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if doctor and doctor.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('messages_mod.date') }}</label><input class="input" type="date" name="date" value="{{ on_date }}"></div>
+  </div>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('messages_mod.show') }}</button>
+</form>
+
+{% if not doctor %}
+<div class="card"><div class="empty-state"><i class="bi bi-calendar3"></i>{{ t('messages_mod.pick_doctor_day') }}</div></div>
+{% elif not rows %}
+<div class="card"><div class="empty-state"><i class="bi bi-calendar-x"></i>{{ t('messages_mod.no_bookings') }}</div></div>
+{% else %}
+
+<div class="gc-animate" style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;">
+  <form method="post" action="{{ url_for('messages.roster_doctor') }}">
+    <input type="hidden" name="doctor_id" value="{{ doctor.id }}"><input type="hidden" name="date" value="{{ on_date }}">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="background:#25D366;border-color:#25D366;">
+      <i class="bi bi-whatsapp"></i> {{ t('messages_mod.send_to_doctor') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('messages.roster_notify') }}">
+    <input type="hidden" name="doctor_id" value="{{ doctor.id }}"><input type="hidden" name="date" value="{{ on_date }}">
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-send"></i> {{ t('messages_mod.notify_all') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('messages_mod.queue') if queue_mode == 'number' else t('messages_mod.time') }}</th>
+      <th>{{ t('messages_mod.time') }}</th><th>{{ t('messages_mod.patient') }}</th>
+      <th>{{ t('appointments.status') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><span class="badge badge--green" style="font-size:1rem;">{{ r.queue if queue_mode == 'number' else r.appt.time_label }}</span></td>
+        <td dir="ltr">{{ r.appt.time_label }}</td>
+        <td><strong>{{ r.appt.patient.display_name(current_lang) }}</strong>
+          {% if not r.phone %}<span class="badge badge--danger" style="font-size:0.7rem;">{{ t('messages_mod.no_phone') }}</span>{% endif %}</td>
+        <td><span class="status-badge st-{{ r.appt.status }}">{{ t('statuses.' ~ r.appt.status) }}</span></td>
+        <td>{% if r.phone %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.confirm_appointment', appt_id=r.appt.id) }}"
+             style="color:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i></a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

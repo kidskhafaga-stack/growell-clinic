@@ -10,9 +10,12 @@
     <h1 class="page-title">{{ t('messages_mod.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('messages_mod.log') }}</p>
   </div>
-  {% if current_user.can_access('settings') %}
-  <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}#wa"><i class="bi bi-gear"></i> {{ t('settings.wa_title') }}</a>
-  {% endif %}
+  <div style="display:flex;gap:8px;">
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('messages.roster') }}"><i class="bi bi-calendar-check"></i> {{ t('messages_mod.roster') }}</a>
+    {% if current_user.can_access('settings') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}#wa"><i class="bi bi-gear"></i> {{ t('settings.wa_title') }}</a>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
