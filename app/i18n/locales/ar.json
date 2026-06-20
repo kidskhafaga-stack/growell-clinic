@@ -682,5 +682,23 @@
     "card": "بطاقة",
     "transfer": "تحويل",
     "wallet": "محفظة"
+  },
+  "statements": {
+    "title": "كشف حساب الطبيب",
+    "select_doctor": "اختر الطبيب",
+    "from": "من",
+    "to": "إلى",
+    "paid_only": "المدفوعة بالكامل فقط",
+    "generate": "عرض الكشف",
+    "period": "الفترة",
+    "invoices_count": "عدد الفواتير",
+    "total_billed": "إجمالي المفوتر",
+    "total_collected": "المُحصّل",
+    "doctor_share": "نصيب الطبيب",
+    "clinic_share": "نصيب العيادة",
+    "no_data": "لا توجد فواتير في هذه الفترة",
+    "pick_doctor": "اختر طبيباً والفترة لعرض كشف الحساب",
+    "print": "طباعة",
+    "settlement": "تسوية مستحقات الطبيب"
   }
 }

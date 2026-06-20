@@ -682,5 +682,23 @@
     "card": "Card",
     "transfer": "Transfer",
     "wallet": "Wallet"
+  },
+  "statements": {
+    "title": "Doctor account statement",
+    "select_doctor": "Select doctor",
+    "from": "From",
+    "to": "To",
+    "paid_only": "Fully paid only",
+    "generate": "Show statement",
+    "period": "Period",
+    "invoices_count": "Invoices",
+    "total_billed": "Total billed",
+    "total_collected": "Collected",
+    "doctor_share": "Doctor share",
+    "clinic_share": "Clinic share",
+    "no_data": "No invoices in this period",
+    "pick_doctor": "Select a doctor and period to view the statement",
+    "print": "Print",
+    "settlement": "Doctor settlement"
   }
 }
