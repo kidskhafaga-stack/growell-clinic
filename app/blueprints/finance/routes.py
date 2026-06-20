@@ -367,3 +367,51 @@ def invoice_delete(invoice_id):
     db.session.commit()
     flash(t("invoices.deleted"), "info")
     return redirect(url_for("finance.invoices"))
+
+
+# =======================================================================
+# Doctor account statement
+# =======================================================================
+def _parse_date_arg(name, default=None):
+    raw = (request.args.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return default
+
+
+@finance_bp.route("/statements")
+@module_required(MODULE)
+def statements():
+    today = datetime.utcnow().date()
+    date_from = _parse_date_arg("date_from", today.replace(day=1))
+    date_to = _parse_date_arg("date_to", today)
+    paid_only = request.args.get("paid_only") == "1"
+    doctor_id = request.args.get("doctor_id", type=int)
+
+    doctor = db.session.get(User, doctor_id) if doctor_id else None
+    invoices, totals = [], None
+    if doctor is not None:
+        q = Invoice.query.filter(Invoice.doctor_id == doctor.id)
+        if date_from:
+            q = q.filter(Invoice.invoice_date >= date_from)
+        if date_to:
+            q = q.filter(Invoice.invoice_date <= date_to)
+        if paid_only:
+            q = q.filter(Invoice.status == "paid")
+        invoices = q.order_by(Invoice.invoice_date, Invoice.id).all()
+        totals = {
+            "count": len(invoices),
+            "billed": round(sum(i.total for i in invoices), 2),
+            "collected": round(sum(i.paid for i in invoices), 2),
+            "doctor_share": round(sum(i.doctor_share_total for i in invoices), 2),
+            "clinic_share": round(sum(i.clinic_share_total for i in invoices), 2),
+        }
+
+    return render_template(
+        "finance/statements.html", doctors=_doctors_active(), doctor=doctor,
+        invoices=invoices, totals=totals, paid_only=paid_only,
+        date_from=date_from, date_to=date_to,
+    )

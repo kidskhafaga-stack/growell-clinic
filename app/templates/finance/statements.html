@@ -1,0 +1,96 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('statements.title') }}{% endblock %}
+{% block page_heading %}{{ t('statements.title') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+  <h1 class="page-title">{{ t('statements.title') }}</h1>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+</div>
+
+<!-- Filters -->
+<form method="get" class="card gc-scale-in no-print">
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('statements.select_doctor') }}</label>
+      <select class="select" name="doctor_id" required>
+        <option value="">{{ t('statements.select_doctor') }}</option>
+        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if doctor and doctor.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('statements.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row"><label>{{ t('statements.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <div class="form-row checkbox" style="align-self:end;"><input type="checkbox" id="paid_only" name="paid_only" value="1" {{ 'checked' if paid_only else '' }}>
+      <label for="paid_only" style="margin:0;font-weight:400;">{{ t('statements.paid_only') }}</label></div>
+  </div>
+  <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-search"></i> {{ t('statements.generate') }}</button>
+</form>
+
+{% if not doctor %}
+<div class="card"><div class="empty-state"><i class="bi bi-person-badge"></i>{{ t('statements.pick_doctor') }}</div></div>
+{% else %}
+
+<div class="no-print" style="text-align:end;margin:10px 0;">
+  <button class="btn btn-primary gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('statements.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('statements.settlement'),
+       t('statements.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}
+
+  <div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="k">{{ t('invoices.doctor') }}</div><div class="v">{{ doctor.display_name(current_lang) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('statements.invoices_count') }}</div><div class="v">{{ totals.count }}</div></div>
+    {% if paid_only %}<div class="info-item"><div class="k"></div><div class="v"><span class="badge badge--green">{{ t('statements.paid_only') }}</span></div></div>{% endif %}
+  </div>
+
+  {% if invoices %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('invoices.number') }}</th><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.patient') }}</th>
+      <th>{{ t('invoices.total') }}</th><th>{{ t('invoices.status') }}</th><th>{{ t('statements.doctor_share') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td dir="ltr">{{ inv.invoice_number }}</td>
+        <td dir="ltr">{{ inv.invoice_date }}</td>
+        <td>{{ inv.patient.display_name(current_lang) }}</td>
+        <td>{{ inv.total }}</td>
+        <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
+        <td><strong style="color:var(--green-700);">{{ inv.doctor_share_total }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Totals -->
+  <div class="stat-grid" style="margin-top:18px;">
+    <div class="stat-card edge-blue"><i class="bi bi-receipt ico"></i><div class="value">{{ totals.billed }}</div><div class="label">{{ t('statements.total_billed') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-cash ico"></i><div class="value">{{ totals.collected }}</div><div class="label">{{ t('statements.total_collected') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-person-check ico"></i><div class="value">{{ totals.doctor_share }}</div><div class="label">{{ t('statements.doctor_share') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-hospital ico"></i><div class="value">{{ totals.clinic_share }}</div><div class="label">{{ t('statements.clinic_share') }}</div></div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;margin-top:48px;">
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ doctor.display_name(current_lang) }}</div></div>
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_stamp') }}</div></div>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('statements.no_data') }}</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; } .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}
