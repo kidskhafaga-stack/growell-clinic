@@ -32,6 +32,12 @@
     <h3 style="margin:10px 0 4px;">{{ t('services.hub_claims') }}</h3>
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('claims.title') }}</p>
   </a>
+
+  <a class="card gc-lift" href="{{ url_for('finance.einvoice') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-blue"><i class="bi bi-receipt-cutoff"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('einvoice.hub') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('einvoice.subtitle') }}</p>
+  </a>
 </div>
 {% endblock %}
 

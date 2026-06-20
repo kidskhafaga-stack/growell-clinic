@@ -8,7 +8,14 @@
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if not invoice.is_tax %}
+    <form method="post" action="{{ url_for('finance.invoice_mark_tax', invoice_id=invoice.id) }}">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-receipt-cutoff"></i> {{ t('einvoice.mark_tax') }}</button></form>
+    {% else %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.einvoice') }}" style="border-color:var(--green-600);color:var(--green-700);">
+      <i class="bi bi-receipt-cutoff"></i> {{ t('einvoice.tax_invoice') }}</a>
+    {% endif %}
     <button class="btn btn-outline gc-press" type="button" onclick="document.getElementById('editInvoiceBox').open=true;document.getElementById('editInvoiceBox').scrollIntoView();"><i class="bi bi-pencil"></i> {{ t('invoices.edit_invoice') }}</button>
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('invoices.print') }}</button>
     <form method="post" action="{{ url_for('finance.invoice_delete', invoice_id=invoice.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
