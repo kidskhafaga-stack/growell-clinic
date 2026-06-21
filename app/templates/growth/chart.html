@@ -82,11 +82,18 @@
 
   <!-- Chart -->
   <div class="card gc-scale-in print-area" style="animation-delay:0.1s;">
-    <div x-show="!hasData" class="empty-state">
+    <div x-show="!hasData && !loadError" class="empty-state">
       <i class="bi bi-graph-up"></i>{{ t('growth.no_records') }}
       <p>{{ t('growth.no_records_hint') }}</p>
     </div>
-    <div x-show="hasData" style="position:relative;height:460px;"><canvas x-ref="canvas"></canvas></div>
+    <div x-show="loadError" class="empty-state" style="color:var(--danger);">
+      <i class="bi bi-wifi-off"></i>{{ t('growth.chart_unavailable') }}
+    </div>
+    <!-- Canvas stays in the layout (display kept) so Chart.js measures it
+         correctly; we just collapse its height when there is no data. -->
+    <div x-bind:style="hasData ? 'position:relative;height:460px;' : 'height:0;overflow:hidden;'">
+      <canvas x-ref="canvas"></canvas>
+    </div>
   </div>
 
   <!-- Measurements table -->
@@ -164,9 +171,13 @@
   function growthChart(pid, dataUrl, defaultRef) {
     return {
       ref: defaultRef, indicator: 'wfa', unit: '', chart: null,
-      latest: null, hasData: false,
+      latest: null, hasData: false, loadError: false,
       statusLabel: '', statusEdge: 'edge-green',
-      init() { this.load(); },
+      init() {
+        this.load();
+        // Redraw if the library or layout becomes ready a touch late.
+        window.addEventListener('resize', () => { if (this.chart) this.chart.resize(); });
+      },
       async load() {
         const res = await fetch(`${dataUrl}?ref=${this.ref}&indicator=${this.indicator}`);
         const d = await res.json();
@@ -183,6 +194,7 @@
         this.statusEdge = s === 'normal' ? 'edge-green' : (s === 'caution' ? 'edge-yellow' : (s === 'alert' ? 'edge-red' : 'edge-blue'));
       },
       render(d) {
+        if (typeof Chart === 'undefined') { this.loadError = true; return; }
         if (!this.hasData || !d.curves) { if (this.chart) { this.chart.destroy(); this.chart = null; } return; }
         const c = d.curves;
         const line = (label, key, color, dash) => ({
@@ -207,7 +219,7 @@
           type: 'line',
           data: { datasets },
           options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false, animation: false,
             interaction: { mode: 'nearest', intersect: false },
             scales: {
               x: { type: 'linear', title: { display: true, text: GROWTH_LABELS.age } },
@@ -226,6 +238,8 @@
         };
         if (this.chart) this.chart.destroy();
         this.chart = new Chart(this.$refs.canvas, cfg);
+        // Ensure correct sizing once the container is laid out/visible.
+        setTimeout(() => { if (this.chart) this.chart.resize(); }, 60);
       }
     };
   }

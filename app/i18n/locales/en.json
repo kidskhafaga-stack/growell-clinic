@@ -374,7 +374,8 @@
     "select_patient": "Select a patient to view their growth chart",
     "patients_with_records": "Patients with measurements",
     "print": "Print A4",
-    "measurements": "Recorded measurements"
+    "measurements": "Recorded measurements",
+    "chart_unavailable": "Could not load the charting library — check your internet connection"
   },
   "statuses": {
     "scheduled": "Scheduled",
