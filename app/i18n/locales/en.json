@@ -372,7 +372,9 @@
     "status_alert": "Alert — outside ±3 SD",
     "status_unknown": "Not computed",
     "select_patient": "Select a patient to view their growth chart",
-    "patients_with_records": "Patients with measurements"
+    "patients_with_records": "Patients with measurements",
+    "print": "Print A4",
+    "measurements": "Recorded measurements"
   },
   "statuses": {
     "scheduled": "Scheduled",

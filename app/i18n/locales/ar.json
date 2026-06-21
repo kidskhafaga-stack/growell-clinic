@@ -372,7 +372,9 @@
     "status_alert": "تنبيه — خارج ±3 انحراف",
     "status_unknown": "غير محسوب",
     "select_patient": "اختر مريضاً لعرض مخطط نموه",
-    "patients_with_records": "المرضى الذين لديهم قياسات"
+    "patients_with_records": "المرضى الذين لديهم قياسات",
+    "print": "طباعة A4",
+    "measurements": "القياسات المسجّلة"
   },
   "statuses": {
     "scheduled": "مجدول",
