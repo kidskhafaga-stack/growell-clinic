@@ -125,6 +125,11 @@ def register_commands(app):
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_drugs_safe()
+        try:  # keep the vaccine catalogue current (idempotent)
+            from app.utils.vaccines import seed_vaccines
+            seed_vaccines()
+        except Exception:  # noqa: BLE001
+            pass
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 

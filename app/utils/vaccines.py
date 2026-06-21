@@ -57,10 +57,13 @@ def seed_vaccines():
             vaccine = Vaccine(
                 code=v["code"], name_ar=v["name_ar"], name_en=v.get("name_en"),
                 is_mandatory=v.get("mandatory", True), sort_order=order,
+                route=v.get("route"),
             )
             db.session.add(vaccine)
             db.session.flush()
             created += 1
+        elif v.get("route") and not vaccine.route:
+            vaccine.route = v["route"]  # backfill route on existing entries
         for b in v["brands"]:
             if any(br.name == b["name"] for br in vaccine.brands):
                 continue
