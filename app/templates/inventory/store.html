@@ -16,9 +16,9 @@
 </div>
 
 <div class="stat-grid gc-stagger" style="margin-bottom:16px;">
-  <div class="stat-card edge-green gc-lift"><i class="bi bi-box-seam ico"></i><div class="value">{{ stats.items }}</div><div class="label">{{ t('store.stat_items') }}</div></div>
-  <div class="stat-card {{ 'edge-red' if stats.low else 'edge-green' }} gc-lift"><i class="bi bi-graph-down ico"></i><div class="value">{{ stats.low }}</div><div class="label">{{ t('store.stat_low') }}</div></div>
-  <div class="stat-card edge-blue gc-lift"><i class="bi bi-cash ico"></i><div class="value">{{ stats.value }}</div><div class="label">{{ t('store.stat_value') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-box-seam ico"></i><div class="value">{{ stats['items'] }}</div><div class="label">{{ t('store.stat_items') }}</div></div>
+  <div class="stat-card {{ 'edge-red' if stats['low'] else 'edge-green' }} gc-lift"><i class="bi bi-graph-down ico"></i><div class="value">{{ stats['low'] }}</div><div class="label">{{ t('store.stat_low') }}</div></div>
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-cash ico"></i><div class="value">{{ stats['value'] }}</div><div class="label">{{ t('store.stat_value') }}</div></div>
 </div>
 
 {% if low %}

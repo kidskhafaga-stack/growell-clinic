@@ -351,6 +351,7 @@ img.patient-avatar.gender-male { border: 2px solid #3b82f6; }
 img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .patient-row.gm { border-inline-start: 3px solid #3b82f6; padding-inline-start: 9px; }
 .patient-row.gf { border-inline-start: 3px solid #ec4899; padding-inline-start: 9px; }
+.copyright { font-size: 0.68rem; opacity: 0.75; line-height: 1.5; margin-top: 6px; }
 
 /* ---------- Profile header ---------- */
 .profile-header {
