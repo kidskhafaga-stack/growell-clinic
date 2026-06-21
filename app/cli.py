@@ -60,6 +60,7 @@ def register_commands(app):
         db.create_all()
         _ensure_default_settings()
         _ensure_default_roles()
+        _seed_drugs_safe()
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
@@ -101,6 +102,7 @@ def register_commands(app):
                 click.echo(f"  + {table}.{column}")
         _ensure_default_settings()
         _ensure_default_roles()
+        _seed_drugs_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -137,6 +139,7 @@ def register_commands(app):
         db.create_all()
         _ensure_default_settings()
         _ensure_default_roles()
+        _seed_drugs_safe()
         seed_vaccines()
 
         created = 0
@@ -192,6 +195,15 @@ _ROLE_LABELS = {
     "accountant": ("محاسب", "Accountant"),
     "pharmacy": ("صيدلية", "Pharmacy"),
 }
+
+
+def _seed_drugs_safe():
+    """Seed the common-drugs catalogue (idempotent, best-effort)."""
+    try:
+        from app.utils.drugs import seed_drugs
+        seed_drugs()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _ensure_default_roles():

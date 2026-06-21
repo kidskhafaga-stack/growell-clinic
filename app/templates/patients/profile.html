@@ -38,6 +38,10 @@
       <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('patients.edit', patient_id=patient.id) }}">
         <i class="bi bi-pencil"></i> {{ t('common.edit') }}
       </a>
+      {% if current_user.can_access('prescriptions') %}
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
+        <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
+      {% endif %}
       <form method="post" action="{{ url_for('patients.delete', patient_id=patient.id) }}"
             onsubmit="return confirm('{{ t('common.confirm') }}?');">
         <button class="btn btn-danger btn-sm gc-press" type="submit" style="width:100%;">
