@@ -41,11 +41,16 @@ from app.utils.patients import generate_patient_number
 
 def reset_all():
     """Delete all operational data; keep users, roles, settings, catalogue."""
-    from app.models import Visit
+    from app.models import (
+        PayerContract, Prescription, PrescriptionItem, StockMovement,
+        StoreItem, Visit,
+    )
 
     order = [
         EInvoiceDocument, Payment, InvoiceItem, Invoice,
-        PatientCoverage, PayerServiceRate, PayerEntity,
+        PrescriptionItem, Prescription,
+        StockMovement, StoreItem,
+        PatientCoverage, PayerContract, PayerServiceRate, PayerEntity,
         DoctorServiceCommission, ServiceBundleItem, Service,
         MessageLog, PatientVaccine, GrowthRecord, VitalSigns, Diagnosis,
         Visit, Appointment, DoctorSchedule, VaccineInventory, Supplier,
@@ -228,6 +233,85 @@ def seed_demo():
             expiry_date=today + timedelta(days=45), qty_received=8, qty_used=2,
             unit_cost=80,
         ))
+
+    # --- Newer modules so the demo shows them populated -----------------
+    from app.models import (
+        Diagnosis, Drug, PatientVaccine, PayerContract, Prescription,
+        PrescriptionItem, RxPrintTemplate, StockMovement, StoreItem, Visit,
+        VitalSigns,
+    )
+
+    # Doctor profile / branding.
+    doc.specialty = doc.specialty or "طب الأطفال"
+    doc.professional_title = doc.professional_title or "Consultant"
+    doc.license_no = doc.license_no or "EG-12345"
+    doc.rx_display_name = doc.rx_display_name or ("د. " + doc.full_name)
+    doc.accent_color = doc.accent_color or "#16a34a"
+
+    # A default white prescription print template.
+    if not RxPrintTemplate.query.first():
+        db.session.add(RxPrintTemplate(name="افتراضي", mode="white",
+                                       logo_source="clinic", is_default=True))
+
+    # An active contract for the insurer (so coverage applies).
+    db.session.add(PayerContract(
+        payer_id=insurer.id, number="CT-2026",
+        start_date=today - timedelta(days=30), end_date=today + timedelta(days=335),
+        is_active=True,
+    ))
+
+    # Visits with vitals + a diagnosis.
+    for p in patients[:3]:
+        v = Visit(patient_id=p.id, doctor_id=doc.id,
+                  visit_date=today - timedelta(days=rnd.randint(1, 20)),
+                  chief_complaint="حرارة وكحة", status="completed")
+        db.session.add(v)
+        db.session.flush()
+        db.session.add(VitalSigns(visit_id=v.id, temperature_c=37.8,
+                                  pulse_bpm=rnd.randint(90, 120), spo2=98))
+        db.session.add(Diagnosis(visit_id=v.id, code="J06.9",
+                                 title="التهاب الجهاز التنفسي العلوي الحاد",
+                                 dx_type="working"))
+
+    # Some administered vaccine doses.
+    if brand is not None:
+        for p in patients[:4]:
+            db.session.add(PatientVaccine(
+                patient_id=p.id, vaccine_id=brand.vaccine_id, brand_id=brand.id,
+                dose_number=1, given_date=today - timedelta(days=rnd.randint(5, 60)),
+            ))
+
+    # Sample prescriptions (drugs catalogue is seeded separately).
+    drugs = Drug.query.filter_by(is_active=True).limit(6).all()
+    if drugs:
+        for p in patients[:3]:
+            rx = Prescription(patient_id=p.id, doctor_id=doc.id,
+                              diagnosis="نزلة شعبية", created_by=doc.id)
+            db.session.add(rx)
+            db.session.flush()
+            for dr in rnd.sample(drugs, min(2, len(drugs))):
+                rx.items.append(PrescriptionItem(
+                    drug_id=dr.id, drug_name=dr.trade_name, dose=dr.default_dose,
+                    frequency=dr.default_frequency, duration="5 أيام"))
+
+    # General store items + movements (one kept below reorder level).
+    store_defs = [
+        ("قفازات طبية", "علبة", 30, 5, 40, 20, 6),
+        ("كمامات", "علبة", 20, 10, 50, 0, 5),
+        ("خافض حرارة (شراب)", "عبوة", 18, 15, 4, 2, 1),  # low
+    ]
+    for nm, unit, pp, reorder, opening, qin, qout in store_defs:
+        si = StoreItem(name=nm, unit=unit, category="مستلزمات", purchase_price=pp,
+                       sell_price=round(pp * 1.4, 2), reorder_level=reorder,
+                       opening_stock=opening, is_active=True)
+        db.session.add(si)
+        db.session.flush()
+        if qin:
+            db.session.add(StockMovement(item_id=si.id, kind="in", qty=qin,
+                                         unit_cost=pp, created_by=doc.id))
+        if qout:
+            db.session.add(StockMovement(item_id=si.id, kind="out", qty=-qout,
+                                         reason="صرف للعيادة", created_by=doc.id))
 
     Setting.set("demo_seeded", "1")
     db.session.commit()
