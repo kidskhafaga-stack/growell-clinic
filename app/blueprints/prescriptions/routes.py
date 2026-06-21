@@ -18,6 +18,7 @@ from app.models import (
     Patient,
     Prescription,
     PrescriptionItem,
+    RxPrintTemplate,
     User,
 )
 from app.utils.decorators import admin_required, client_ip, module_required
@@ -200,12 +201,92 @@ def new():
     )
 
 
+def resolve_template(doctor, override_id=None):
+    """Pick the print template: explicit override → doctor's → default → built-in."""
+    if override_id:
+        tpl = db.session.get(RxPrintTemplate, override_id)
+        if tpl:
+            return tpl
+    if doctor is not None and doctor.rx_template_id:
+        tpl = db.session.get(RxPrintTemplate, doctor.rx_template_id)
+        if tpl:
+            return tpl
+    tpl = RxPrintTemplate.query.filter_by(is_default=True).first()
+    return tpl or RxPrintTemplate.default_instance()
+
+
 @prescriptions_bp.route("/<int:rx_id>")
 @module_required(MODULE)
 def view(rx_id):
     rx = db.get_or_404(Prescription, rx_id)
     warnings = interaction_warnings([it.drug_id for it in rx.items])
-    return render_template("prescriptions/view.html", rx=rx, warnings=warnings)
+    tpl = resolve_template(rx.doctor, request.args.get("template", type=int))
+    return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
+                           tpl=tpl, templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
+
+
+# ----------------------------------------------------- print templates -----
+@prescriptions_bp.route("/templates")
+@admin_required
+def templates():
+    return render_template("prescriptions/templates.html",
+                           templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
+
+
+def _save_template(tpl):
+    tpl.name = (request.form.get("name") or tpl.name or "قالب").strip()
+    tpl.mode = "preprinted" if request.form.get("mode") == "preprinted" else "white"
+    ls = request.form.get("logo_source")
+    tpl.logo_source = ls if ls in ("clinic", "personal", "none") else "clinic"
+    tpl.font_size = request.form.get("font_size", type=int) or 14
+    tpl.margin_mm = request.form.get("margin_mm", type=int) or 12
+    tpl.top_offset_mm = request.form.get("top_offset_mm", type=int) or 0
+    for b in RxPrintTemplate.BOOLS:
+        setattr(tpl, b, bool(request.form.get(b)))
+
+
+@prescriptions_bp.route("/templates/new", methods=["POST"])
+@admin_required
+def template_new():
+    tpl = RxPrintTemplate()
+    _save_template(tpl)
+    if not RxPrintTemplate.query.first():
+        tpl.is_default = True
+    db.session.add(tpl)
+    db.session.commit()
+    flash(t("rxtpl.added"), "success")
+    return redirect(url_for("prescriptions.templates"))
+
+
+@prescriptions_bp.route("/templates/<int:tpl_id>/edit", methods=["POST"])
+@admin_required
+def template_edit(tpl_id):
+    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    _save_template(tpl)
+    db.session.commit()
+    flash(t("rxtpl.updated"), "success")
+    return redirect(url_for("prescriptions.templates"))
+
+
+@prescriptions_bp.route("/templates/<int:tpl_id>/default", methods=["POST"])
+@admin_required
+def template_default(tpl_id):
+    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    RxPrintTemplate.query.update({RxPrintTemplate.is_default: False})
+    tpl.is_default = True
+    db.session.commit()
+    flash(t("rxtpl.default_set"), "success")
+    return redirect(url_for("prescriptions.templates"))
+
+
+@prescriptions_bp.route("/templates/<int:tpl_id>/delete", methods=["POST"])
+@admin_required
+def template_delete(tpl_id):
+    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    db.session.delete(tpl)
+    db.session.commit()
+    flash(t("rxtpl.deleted"), "info")
+    return redirect(url_for("prescriptions.templates"))
 
 
 @prescriptions_bp.route("/<int:rx_id>/delete", methods=["POST"])

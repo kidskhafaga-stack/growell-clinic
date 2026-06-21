@@ -1,15 +1,29 @@
 {% extends "shell.html" %}
-{% from "_print_header.html" import print_header with context %}
 {% from "patients/_macros.html" import age_label with context %}
 {% set active_module = 'prescriptions' %}
 {% block title %}{{ t('rx.prescription') }}{% endblock %}
 {% block page_heading %}{{ t('rx.prescription') }}{% endblock %}
 
+{% set doc = rx.doctor %}
+{% set personal_logo_url = url_for('static', filename='uploads/users/' ~ doc.personal_logo) if doc and doc.personal_logo else None %}
+{% if tpl.logo_source == 'personal' %}{% set logo_url = personal_logo_url %}
+{% elif tpl.logo_source == 'none' %}{% set logo_url = None %}
+{% else %}{% set logo_url = clinic.logo_url %}{% endif %}
+
 {% block content %}
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
   <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=rx.patient_id) }}">
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('messages_mod.patient') }}</a>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {% if templates %}
+    <select class="select" style="width:auto;" onchange="window.location='{{ url_for('prescriptions.view', rx_id=rx.id) }}?template='+this.value">
+      <option value="">{{ t('rxtpl.preview_with') }}…</option>
+      {% for tp in templates %}<option value="{{ tp.id }}" {{ 'selected' if tpl.id==tp.id else '' }}>{{ tp.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    {% if current_user.can_access('settings') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}"><i class="bi bi-sliders"></i> {{ t('rxtpl.manage') }}</a>
+    {% endif %}
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('rx.print') }}</button>
     <form method="post" action="{{ url_for('prescriptions.delete', rx_id=rx.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
       <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
@@ -22,40 +36,46 @@
   {% for w in warnings %}
   <div class="alert-pill {{ 'danger' if w.severity=='severe' else 'warn' }}" style="margin-bottom:6px;">
     <i class="bi bi-capsule"></i> <strong>{{ w.drug_a.trade_name }} + {{ w.drug_b.trade_name }}</strong>
-    <span class="badge badge--{{ 'danger' if w.severity=='severe' else 'muted' }}">{{ t('rx.' ~ w.severity) }}</span>
-    — {{ w.note }}
+    <span class="badge badge--{{ 'danger' if w.severity=='severe' else 'muted' }}">{{ t('rx.' ~ w.severity) }}</span> — {{ w.note }}
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
-<div class="card gc-scale-in print-area">
-  {{ print_header(t('rx.prescription'),
-       t('rx.date') ~ ': <strong>' ~ (rx.rx_date|string) ~ '</strong>') }}
+<div class="card gc-scale-in print-area" style="font-size:{{ tpl.font_size }}px;">
+  {% if tpl.mode == 'preprinted' %}
+    {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
+  {% else %}
+  <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:2px solid var(--green-600);padding-bottom:12px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      {% if logo_url %}<img src="{{ logo_url }}" alt="" style="max-height:64px;max-width:120px;object-fit:contain;">{% endif %}
+      <div>
+        {% if tpl.show_doctor and doc %}<h2 style="margin:0;color:var(--green-800);">{{ doc.doctor_print_name(current_lang) }}</h2>{% endif %}
+        <div style="font-weight:700;color:var(--green-800);">{{ clinic.name_ar if current_lang=='ar' and clinic.name_ar else (clinic.name or clinic_name) }}</div>
+        {% if tpl.show_specialty and doc and doc.specialty %}<div style="color:var(--muted);font-size:0.85rem;">{{ doc.specialty }}{% if doc.sub_specialties %} — {{ doc.sub_specialties }}{% endif %}</div>{% endif %}
+        {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
+        {% if tpl.show_contact and (addr or clinic.phone) %}<div style="color:var(--muted);font-size:0.8rem;">{% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</div>{% endif %}
+        {% if tpl.show_license and doc and doc.license_no %}<div style="color:var(--muted);font-size:0.78rem;" dir="ltr">License: {{ doc.license_no }}</div>{% endif %}
+      </div>
+    </div>
+    <div style="text-align:end;font-size:0.85rem;">{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
+  </div>
+  {% endif %}
 
-  <div class="info-grid" style="margin-bottom:16px;">
+  {% if tpl.show_patient %}
+  <div class="info-grid" style="margin-bottom:14px;">
     <div class="info-item"><div class="k">{{ t('rx.patient') }}</div><div class="v">{{ rx.patient.display_name(current_lang) }} ({{ rx.patient.patient_number }})</div></div>
     <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(rx.patient) }}</div></div>
-    <div class="info-item"><div class="k">{{ t('rx.doctor') }}</div><div class="v">
-      {{ rx.doctor.doctor_print_name(current_lang) if rx.doctor else '—' }}
-      {% if rx.doctor and rx.doctor.specialty %}<div style="color:var(--muted);font-size:0.82rem;">{{ rx.doctor.specialty }}</div>{% endif %}
-      {% if rx.doctor and rx.doctor.license_no %}<div style="color:var(--muted);font-size:0.78rem;" dir="ltr">License: {{ rx.doctor.license_no }}</div>{% endif %}
-    </div></div>
-    {% if rx.diagnosis %}<div class="info-item"><div class="k">{{ t('rx.diagnosis') }}</div><div class="v">{{ rx.diagnosis }}</div></div>{% endif %}
+    {% if tpl.show_diagnosis and rx.diagnosis %}<div class="info-item"><div class="k">{{ t('rx.diagnosis') }}</div><div class="v">{{ rx.diagnosis }}</div></div>{% endif %}
   </div>
+  {% endif %}
 
   <div style="font-size:1.6rem;color:var(--green-700);font-weight:700;margin-bottom:6px;">℞</div>
   <table class="table">
     <thead><tr><th>{{ t('rx.drug') }}</th><th>{{ t('rx.default_dose') }}</th><th>{{ t('rx.default_frequency') }}</th><th>{{ t('rx.duration') }}</th><th>{{ t('rx.instructions') }}</th></tr></thead>
     <tbody>
       {% for it in rx.items %}
-      <tr>
-        <td><strong>{{ it.drug_name }}</strong></td>
-        <td>{{ it.dose or '—' }}</td>
-        <td>{{ it.frequency or '—' }}</td>
-        <td>{{ it.duration or '—' }}</td>
-        <td>{{ it.instructions or '—' }}</td>
-      </tr>
+      <tr><td><strong>{{ it.drug_name }}</strong></td><td>{{ it.dose or '—' }}</td><td>{{ it.frequency or '—' }}</td><td>{{ it.duration or '—' }}</td><td>{{ it.instructions or '—' }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -63,17 +83,27 @@
   {% if rx.notes %}<p style="margin-top:12px;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
 
   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;">
-    {% if rx.doctor and rx.doctor.stamp_file %}
-    <div style="text-align:center;"><img src="{{ url_for('static', filename='uploads/users/' ~ rx.doctor.stamp_file) }}" alt="" style="max-height:90px;max-width:140px;opacity:0.9;"></div>
+    {% if tpl.show_stamp and doc and doc.stamp_file %}
+    <div style="text-align:center;"><img src="{{ url_for('static', filename='uploads/users/' ~ doc.stamp_file) }}" alt="" style="max-height:90px;max-width:140px;opacity:0.9;"></div>
     {% else %}<div></div>{% endif %}
+    {% if tpl.show_signature %}
     <div style="text-align:center;">
-      {% if rx.doctor and rx.doctor.signature_file %}
-      <img src="{{ url_for('static', filename='uploads/users/' ~ rx.doctor.signature_file) }}" alt="" style="max-height:60px;max-width:200px;display:block;margin:0 auto 4px;">
-      {% endif %}
-      <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ rx.doctor.doctor_print_name(current_lang) if rx.doctor else t('rx.signature') }}</div>
+      {% if doc and doc.signature_file %}<img src="{{ url_for('static', filename='uploads/users/' ~ doc.signature_file) }}" alt="" style="max-height:60px;max-width:200px;display:block;margin:0 auto 4px;">{% endif %}
+      <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ doc.doctor_print_name(current_lang) if doc else t('rx.signature') }}</div>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
 
-{% block head %}<style>@media print {.sidebar,.topbar,.no-print,.flashes{display:none!important;}.main{margin:0!important;}.content{padding:0!important;}.card{box-shadow:none!important;border:none!important;}body{background:#fff!important;}}</style>{% endblock %}
+{% block head %}
+<style>
+  @page { margin: {{ tpl.margin_mm }}mm; }
+  @media print {
+    .sidebar,.topbar,.no-print,.flashes{display:none!important;}
+    .main{margin:0!important;}.content{padding:0!important;}
+    .card{box-shadow:none!important;border:none!important;}
+    body{background:#fff!important;}
+  }
+</style>
+{% endblock %}

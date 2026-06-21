@@ -65,6 +65,12 @@
       <div class="form-row"><label>{{ t('profile.specialty') }}</label><input class="input" name="specialty" value="{{ current_user.specialty or '' }}"></div>
       <div class="form-row"><label>{{ t('profile.sub_specialties') }}</label><input class="input" name="sub_specialties" value="{{ current_user.sub_specialties or '' }}"></div>
       <div class="form-row"><label>{{ t('profile.license') }}</label><input class="input" name="license_no" dir="ltr" value="{{ current_user.license_no or '' }}"></div>
+      {% if rx_templates %}
+      <div class="form-row"><label>{{ t('rxtpl.my_template') }}</label>
+        <select class="select" name="rx_template_id"><option value="">—</option>
+          {% for tp in rx_templates %}<option value="{{ tp.id }}" {{ 'selected' if current_user.rx_template_id==tp.id else '' }}>{{ tp.name }}</option>{% endfor %}
+        </select></div>
+      {% endif %}
     </div>
     <h3 style="margin:14px 0 6px;font-size:0.95rem;"><i class="bi bi-palette"></i> {{ t('profile.branding') }}</h3>
     {{ img_box('signature_file', t('profile.signature'), current_user.signature_file) }}

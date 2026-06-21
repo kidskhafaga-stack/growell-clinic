@@ -70,6 +70,7 @@ from app.models.prescription import (
     DrugInteraction,
     Prescription,
     PrescriptionItem,
+    RxPrintTemplate,
 )
 from app.models.message import MESSAGE_STATUSES, MessageLog
 
@@ -133,6 +134,7 @@ __all__ = [
     "DrugInteraction",
     "Prescription",
     "PrescriptionItem",
+    "RxPrintTemplate",
     "DRUG_FORMS",
     "MessageLog",
     "MESSAGE_STATUSES",

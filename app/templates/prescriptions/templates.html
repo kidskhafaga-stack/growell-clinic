@@ -1,0 +1,67 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('rxtpl.title') }}{% endblock %}
+{% block page_heading %}{{ t('rxtpl.title') }}{% endblock %}
+
+{% macro fields(tp) %}
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('rxtpl.name') }} *</label><input class="input" name="name" value="{{ tp.name if tp else '' }}" required></div>
+    <div class="form-row"><label>{{ t('rxtpl.mode') }}</label>
+      <select class="select" name="mode">
+        <option value="white" {{ 'selected' if tp and tp.mode=='white' else '' }}>{{ t('rxtpl.white') }}</option>
+        <option value="preprinted" {{ 'selected' if tp and tp.mode=='preprinted' else '' }}>{{ t('rxtpl.preprinted') }}</option>
+      </select></div>
+    <div class="form-row"><label>{{ t('rxtpl.logo_source') }}</label>
+      <select class="select" name="logo_source">
+        {% for v,k in [('clinic','logo_clinic'),('personal','logo_personal'),('none','logo_none')] %}
+        <option value="{{ v }}" {{ 'selected' if tp and tp.logo_source==v else '' }}>{{ t('rxtpl.' ~ k) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" value="{{ tp.font_size if tp else 14 }}"></div>
+    <div class="form-row"><label>{{ t('rxtpl.margin') }}</label><input class="input" type="number" name="margin_mm" value="{{ tp.margin_mm if tp else 12 }}"></div>
+    <div class="form-row"><label>{{ t('rxtpl.top_offset') }}</label><input class="input" type="number" name="top_offset_mm" value="{{ tp.top_offset_mm if tp else 0 }}"></div>
+  </div>
+  <label style="font-weight:600;">{{ t('rxtpl.elements') }}</label>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0;">
+    {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_diagnosis','show_signature','show_stamp'] %}
+    <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" {{ 'checked' if (tp and tp[b]) or not tp else '' }}>
+      <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <h1 class="page-title">{{ t('rxtpl.title') }}</h1>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+</div>
+
+<details class="card gc-scale-in">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rxtpl.add') }}</summary>
+  <form method="post" action="{{ url_for('prescriptions.template_new') }}" style="margin-top:12px;">
+    {{ fields(none) }}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+{% for tp in templates %}
+<div class="card gc-scale-in">
+  <form method="post" action="{{ url_for('prescriptions.template_edit', tpl_id=tp.id) }}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h3 style="margin:0;">{{ tp.name }}
+        <span class="badge badge--muted">{{ t('rxtpl.' ~ tp.mode) }}</span>
+        {% if tp.is_default %}<span class="badge badge--green">{{ t('rxtpl.default') }}</span>{% endif %}</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        {% if not tp.is_default %}
+        <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('prescriptions.template_default', tpl_id=tp.id) }}" formnovalidate>{{ t('rxtpl.set_default') }}</button>
+        <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('prescriptions.template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+        {% endif %}
+      </div>
+    </div>
+    <div style="margin-top:10px;">{{ fields(tp) }}</div>
+  </form>
+</div>
+{% else %}
+<div class="card"><div class="empty-state"><i class="bi bi-file-earmark-text"></i>{{ t('rxtpl.no_templates') }}</div></div>
+{% endfor %}
+{% endblock %}
