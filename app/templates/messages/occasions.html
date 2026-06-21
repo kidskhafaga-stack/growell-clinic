@@ -1,0 +1,86 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('occasions.title') }}{% endblock %}
+{% block page_heading %}{{ t('occasions.title') }}{% endblock %}
+
+{% macro occ_options(sel='') %}
+  {% for o in occasion_types %}<option value="{{ o }}" {{ 'selected' if sel==o else '' }}>{{ t('occasions.occ_' ~ o) }}</option>{% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('occasions.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('occasions.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}"><i class="bi bi-clock-history"></i> {{ t('messages_mod.log') }}</a>
+</div>
+
+<!-- Birthdays -->
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-balloon"></i> {{ t('occasions.birthdays') }}</h2>
+  {% if birthdays %}
+  <table class="table">
+    <thead><tr><th>{{ t('occasions.patient') }}</th><th>{{ t('occasions.turning') }}</th><th></th><th style="text-align:end;"></th></tr></thead>
+    <tbody>
+      {% for b in birthdays %}
+      <tr>
+        <td><strong>{{ b.patient.display_name(current_lang) }}</strong> <span style="color:var(--muted);" dir="ltr">{{ b.patient.patient_number }}</span></td>
+        <td>🎂 {{ b.turning }} {{ t('occasions.years') }}</td>
+        <td>{% if b.in_days == 0 %}<span class="badge badge--green">{{ t('occasions.today') }}</span>{% else %}<span class="badge badge--muted">{{ t('occasions.in_days').replace('{n}', b.in_days|string) }}</span>{% endif %}
+            <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ b.date }}</span></td>
+        <td style="text-align:end;">
+          {% if b.phone %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.send_birthday', patient_id=b.patient.id) }}" style="color:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> {{ t('occasions.send_wish') }}</a>
+          {% else %}<span class="badge badge--danger">{{ t('occasions.no_phone') }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty-state"><i class="bi bi-balloon"></i>{{ t('occasions.no_birthdays') }}</div>{% endif %}
+</div>
+
+<!-- Templates -->
+<details class="card gc-scale-in" style="animation-delay:0.06s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('occasions.add_template') }}</summary>
+  <form method="post" action="{{ url_for('messages.occasion_template_new') }}" style="margin-top:12px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('occasions.name') }} *</label><input class="input" name="name" required></div>
+      <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion">{{ occ_options('birthday') }}</select></div>
+    </div>
+    <div class="form-row"><label>{{ t('occasions.body') }} *</label><textarea class="input" name="body" rows="3" dir="auto" required></textarea>
+      <div class="hint">{{ t('occasions.vars') }}</div></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="animation-delay:0.1s;">
+  <h2 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('occasions.templates') }}</h2>
+  {% if templates %}
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for tp in templates %}
+    <details class="window-pill" style="display:block;border-radius:10px;padding:10px 12px;">
+      <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span><strong>{{ tp.name }}</strong> <span class="badge badge--role">{{ t('occasions.occ_' ~ tp.occasion) }}</span>
+          {% if not tp.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</span>
+        <span style="color:var(--muted);font-size:0.82rem;">{{ (tp.body[:50] ~ '…') if tp.body|length > 50 else tp.body }}</span>
+      </summary>
+      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" style="margin-top:10px;">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('occasions.name') }}</label><input class="input" name="name" value="{{ tp.name }}"></div>
+          <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion">{{ occ_options(tp.occasion) }}</select></div>
+        </div>
+        <div class="form-row"><label>{{ t('occasions.body') }}</label><textarea class="input" name="body" rows="3" dir="auto">{{ tp.body }}</textarea></div>
+        <div class="form-row checkbox"><input type="checkbox" id="ta_{{ tp.id }}" name="is_active" value="1" {{ 'checked' if tp.is_active else '' }}><label for="ta_{{ tp.id }}" style="margin:0;font-weight:400;">{{ t('occasions.active') }}</label></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+          <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('messages.occasion_template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+        </div>
+      </form>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-state">{{ t('occasions.no_templates') }}</div>{% endif %}
+</div>
+{% endblock %}

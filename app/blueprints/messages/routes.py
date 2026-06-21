@@ -4,7 +4,7 @@ Prepares patient appointment confirmations (and logs them). Depending on the
 configured provider the message is either sent through an API or surfaced as a
 click-to-send wa.me link for the front desk.
 """
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -12,7 +12,17 @@ from flask_login import current_user
 from app.blueprints.messages import messages_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import ACTIVE_STATUSES, Appointment, MessageLog, Setting, User
+from app.models import (
+    ACTIVE_STATUSES,
+    DEFAULT_BIRTHDAY_BODY,
+    OCCASION_TYPES,
+    Appointment,
+    MessageLog,
+    MessageTemplate,
+    Patient,
+    Setting,
+    User,
+)
 from app.utils import whatsapp as wa
 from app.utils.decorators import module_required
 
@@ -163,3 +173,105 @@ def roster_notify():
     db.session.commit()
     return render_template("messages/notify_result.html", results=results,
                            doctor=doctor, on_date=on_date)
+
+
+# =======================================================================
+# CRM — occasions & birthdays
+# =======================================================================
+def _upcoming_birthdays(days=7):
+    """Active patients whose birthday falls within the next ``days`` days."""
+    today = date.today()
+    rows = []
+    for p in Patient.query.filter_by(is_active=True).all():
+        if not p.date_of_birth:
+            continue
+        dob = p.date_of_birth
+        # This year's birthday (handle Feb 29 -> Feb 28).
+        try:
+            nb = dob.replace(year=today.year)
+        except ValueError:
+            nb = dob.replace(year=today.year, day=28)
+        if nb < today:
+            try:
+                nb = dob.replace(year=today.year + 1)
+            except ValueError:
+                nb = dob.replace(year=today.year + 1, day=28)
+        delta = (nb - today).days
+        if 0 <= delta <= days:
+            rows.append({"patient": p, "in_days": delta, "date": nb,
+                         "turning": nb.year - dob.year,
+                         "phone": p.contact_phone})
+    return sorted(rows, key=lambda r: r["in_days"])
+
+
+@messages_bp.route("/occasions")
+@module_required(MODULE)
+def occasions():
+    templates = MessageTemplate.query.order_by(MessageTemplate.occasion,
+                                               MessageTemplate.name).all()
+    return render_template("messages/occasions.html",
+                           birthdays=_upcoming_birthdays(),
+                           templates=templates, occasion_types=OCCASION_TYPES)
+
+
+@messages_bp.route("/occasions/birthday/<int:patient_id>")
+@module_required(MODULE)
+def send_birthday(patient_id):
+    patient = db.get_or_404(Patient, patient_id)
+    phone = patient.contact_phone
+    if not phone:
+        flash(t("messages_mod.no_phone"), "warning")
+        return redirect(url_for("messages.occasions"))
+
+    lang = getattr(g, "lang", "ar")
+    tpl = (MessageTemplate.query.filter_by(occasion="birthday", is_active=True)
+           .order_by(MessageTemplate.id).first())
+    body = wa.render(tpl.body if tpl else DEFAULT_BIRTHDAY_BODY, {
+        "patient": patient.display_name(lang),
+        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+    })
+    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+    db.session.commit()
+    return render_template("messages/sent.html", log=log, appt=None)
+
+
+@messages_bp.route("/occasions/template/new", methods=["POST"])
+@module_required(MODULE)
+def occasion_template_new():
+    name = (request.form.get("name") or "").strip()
+    body = (request.form.get("body") or "").strip()
+    if not name or not body:
+        flash(t("common.required") + ": " + t("occasions.name"), "danger")
+        return redirect(url_for("messages.occasions"))
+    occ = (request.form.get("occasion") or "custom").strip()
+    db.session.add(MessageTemplate(
+        name=name, body=body,
+        occasion=occ if occ in OCCASION_TYPES else "custom",
+    ))
+    db.session.commit()
+    flash(t("occasions.tpl_added"), "success")
+    return redirect(url_for("messages.occasions"))
+
+
+@messages_bp.route("/occasions/template/<int:tpl_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def occasion_template_edit(tpl_id):
+    tpl = db.get_or_404(MessageTemplate, tpl_id)
+    tpl.name = (request.form.get("name") or tpl.name).strip()
+    tpl.body = (request.form.get("body") or tpl.body).strip()
+    occ = (request.form.get("occasion") or tpl.occasion).strip()
+    tpl.occasion = occ if occ in OCCASION_TYPES else tpl.occasion
+    tpl.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("occasions.tpl_updated"), "success")
+    return redirect(url_for("messages.occasions"))
+
+
+@messages_bp.route("/occasions/template/<int:tpl_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def occasion_template_delete(tpl_id):
+    tpl = db.get_or_404(MessageTemplate, tpl_id)
+    db.session.delete(tpl)
+    db.session.commit()
+    flash(t("occasions.tpl_deleted"), "info")
+    return redirect(url_for("messages.occasions"))
