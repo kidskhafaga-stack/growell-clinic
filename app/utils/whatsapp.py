@@ -24,14 +24,47 @@ GRAPH_VERSION = "v21.0"
 
 
 def get_config():
+    # One CRM send mode controls everything: "manual" always produces a
+    # click-to-send wa.me link; "automatic" uses the configured provider API.
+    mode = Setting.get("crm_mode", "manual")
+    provider = Setting.get("wa_provider", "web")
+    if mode == "manual":
+        provider = "web"
     return {
-        "provider": Setting.get("wa_provider", "web"),
+        "mode": mode,
+        "provider": provider,
         "country_code": Setting.get("wa_country_code", DEFAULT_COUNTRY_CODE),
         "cloud_token": Setting.get("wa_cloud_token", ""),
         "cloud_phone_id": Setting.get("wa_cloud_phone_id", ""),
         "wapilot_key": Setting.get("wa_wapilot_key", ""),
         "wapilot_endpoint": Setting.get("wa_wapilot_endpoint", ""),
     }
+
+
+# --- Unified CRM template registry -------------------------------------
+_SETTING_FALLBACK = {
+    "appointment_confirm": "wa_tpl_appt_confirm",
+    "doctor_schedule": "wa_tpl_doctor_schedule",
+    "vaccine_given": "wa_tpl_vaccine_given",
+}
+
+
+def template_body(template_type):
+    """Resolve a message body for a type from the single template registry,
+    falling back to the legacy setting and then a built-in default."""
+    from app.models import TEMPLATE_DEFAULTS, MessageTemplate
+
+    tpl = (MessageTemplate.query
+           .filter_by(occasion=template_type, is_active=True)
+           .order_by(MessageTemplate.id).first())
+    if tpl:
+        return tpl.body
+    key = _SETTING_FALLBACK.get(template_type)
+    if key:
+        val = Setting.get(key, "")
+        if val:
+            return val
+    return TEMPLATE_DEFAULTS.get(template_type, "")
 
 
 def normalize_phone(raw, country_code=DEFAULT_COUNTRY_CODE):

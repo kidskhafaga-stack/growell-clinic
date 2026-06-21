@@ -12,7 +12,27 @@ from app.extensions import db
 # sent  = handed to a provider API successfully
 # failed/queued = self-explanatory
 MESSAGE_STATUSES = ["queued", "link", "sent", "failed"]
-OCCASION_TYPES = ["birthday", "seasonal", "greeting", "custom"]
+
+# System (automatic-trigger) template types + manual occasion types.
+SYSTEM_TEMPLATE_TYPES = ["appointment_confirm", "doctor_schedule", "vaccine_given"]
+OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "seasonal", "greeting", "custom"]
+
+# Built-in defaults used to seed the registry / fall back when none exists.
+TEMPLATE_DEFAULTS = {
+    "appointment_confirm": (
+        "مرحباً {patient}،\nتم تأكيد موعدك في {clinic} يوم {date} الساعة {time} "
+        "مع {doctor}.\nدورك رقم: {queue}\nنتمنى لكم الصحة والعافية."
+    ),
+    "doctor_schedule": "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}",
+    "vaccine_given": (
+        "تم بحمد الله تطعيم {patient} — {vaccine} ({dose}).\n"
+        "الجرعة القادمة بتاريخ: {next_date}\nمع تحيات {clinic}."
+    ),
+    "birthday": (
+        "كل سنة و{patient} طيب! 🎉\n"
+        "عيلة {clinic} بتتمنالكم يوم سعيد وصحة دايمة. 🎂"
+    ),
+}
 
 # Used when no active birthday template is configured.
 DEFAULT_BIRTHDAY_BODY = (

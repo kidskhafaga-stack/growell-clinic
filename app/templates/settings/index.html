@@ -85,7 +85,12 @@
   <div class="card gc-scale-in" x-show="tab==='whatsapp'" x-cloak>
     <h2 class="section-title"><i class="bi bi-whatsapp"></i> {{ t('settings.wa_title') }}</h2>
     <div class="form-grid">
-      <div class="form-row"><label>{{ t('settings.wa_provider') }}</label>
+      <div class="form-row"><label>{{ t('settings.crm_mode') }}</label>
+        <select class="select" name="crm_mode">
+          <option value="manual" {{ 'selected' if values.get('crm_mode','manual')=='manual' else '' }}>{{ t('settings.crm_manual') }}</option>
+          <option value="automatic" {{ 'selected' if values.get('crm_mode')=='automatic' else '' }}>{{ t('settings.crm_automatic') }}</option>
+        </select><div class="hint">{{ t('settings.crm_mode_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('settings.wa_provider') }} <span style="color:var(--muted);">({{ t('settings.crm_automatic') }})</span></label>
         <select class="select" name="wa_provider">
           {% for pv in ['web','cloud_api','wapilot'] %}
           <option value="{{ pv }}" {{ 'selected' if values.get('wa_provider','web')==pv else '' }}>{{ t('settings.wa_' ~ pv) }}</option>
@@ -122,6 +127,11 @@
     <div class="form-row"><label>{{ t('settings.wa_tpl_doctor') }}</label>
       <textarea class="input" name="wa_tpl_doctor_schedule" rows="3" dir="auto">{{ values.get('wa_tpl_doctor_schedule','') }}</textarea>
       <div class="hint">{{ t('settings.wa_vars_doctor') }}</div></div>
+    <div class="form-row"><label>{{ t('settings.wa_tpl_vaccine') }}</label>
+      <textarea class="input" name="wa_tpl_vaccine_given" rows="3" dir="auto">{{ values.get('wa_tpl_vaccine_given','') }}</textarea>
+      <div class="hint">{{ t('settings.wa_vars_vaccine') }}</div></div>
+    <p class="hint"><i class="bi bi-info-circle"></i> {{ t('settings.crm_central_hint') }}
+      <a href="{{ url_for('messages.occasions') }}">{{ t('occasions.title') }}</a></p>
   </div>
 
   <!-- ETA e-invoicing -->

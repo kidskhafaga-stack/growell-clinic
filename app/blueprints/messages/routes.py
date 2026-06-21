@@ -55,7 +55,7 @@ def _appt_confirm_body(appt, lang, queue=None):
     if queue is None:
         mode = Setting.get("queue_mode", "number")
         queue = queue_position(appt) if mode == "number" else appt.time_label
-    return wa.render(Setting.get("wa_tpl_appt_confirm", ""), {
+    return wa.render(wa.template_body("appointment_confirm"), {
         "patient": appt.patient.display_name(lang) if appt.patient else "",
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
         "date": appt.appt_date.strftime("%Y-%m-%d"),
@@ -140,7 +140,7 @@ def roster_doctor():
         f"{i}) {a.time_label} - {a.patient.display_name(lang) if a.patient else ''}"
         for i, a in enumerate(appts, start=1)
     )
-    body = wa.render(Setting.get("wa_tpl_doctor_schedule", ""), {
+    body = wa.render(wa.template_body("doctor_schedule"), {
         "doctor": doctor.display_name(lang),
         "date": on_date.strftime("%Y-%m-%d"),
         "count": len(appts),
@@ -224,9 +224,7 @@ def send_birthday(patient_id):
         return redirect(url_for("messages.occasions"))
 
     lang = getattr(g, "lang", "ar")
-    tpl = (MessageTemplate.query.filter_by(occasion="birthday", is_active=True)
-           .order_by(MessageTemplate.id).first())
-    body = wa.render(tpl.body if tpl else DEFAULT_BIRTHDAY_BODY, {
+    body = wa.render(wa.template_body("birthday"), {
         "patient": patient.display_name(lang),
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })

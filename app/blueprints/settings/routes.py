@@ -21,7 +21,8 @@ TEXT_KEYS = [
     # WhatsApp / messaging.
     "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_endpoint",
-    "wa_tpl_appt_confirm", "wa_tpl_doctor_schedule", "queue_mode",
+    "wa_tpl_appt_confirm", "wa_tpl_doctor_schedule", "wa_tpl_vaccine_given",
+    "queue_mode", "crm_mode",
     # ETA e-invoicing.
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",

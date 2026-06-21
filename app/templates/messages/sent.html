@@ -25,7 +25,7 @@
     <a class="btn btn-primary gc-press gc-ripple" href="{{ log.link }}" target="_blank" rel="noopener"
        style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> {{ t('messages_mod.open_whatsapp') }}</a>
     {% endif %}
-    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index') }}">{{ t('messages_mod.back') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ back_url or url_for('appointments.index') }}">{{ t('messages_mod.back') }}</a>
   </div>
 </div>
 {% endblock %}

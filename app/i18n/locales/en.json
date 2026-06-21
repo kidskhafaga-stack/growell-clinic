@@ -606,7 +606,14 @@
     "eta_vat_rate": "VAT rate (%)",
     "eta_send_gap": "Send gap (seconds)",
     "eta_help": "Demo mode works instantly with no credentials. For live, enter your data and a signing service URL.",
-    "eta_item_type": "Default item type (EGS/GS1)"
+    "eta_item_type": "Default item type (EGS/GS1)",
+    "crm_mode": "Send mode (CRM)",
+    "crm_manual": "Manual (click-to-send link)",
+    "crm_automatic": "Automatic (API)",
+    "crm_mode_hint": "One setting controls all system messages.",
+    "wa_tpl_vaccine": "Vaccination notification template",
+    "wa_vars_vaccine": "Variables: {patient} {vaccine} {dose} {next_date} {clinic}",
+    "crm_central_hint": "All templates are managed in one place:"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1255,6 +1262,9 @@
     "occ_seasonal": "Seasonal/Feast",
     "occ_greeting": "Greeting",
     "occ_custom": "Custom",
-    "add_template_btn": "Add template"
+    "add_template_btn": "Add template",
+    "occ_appointment_confirm": "Appointment confirm",
+    "occ_doctor_schedule": "Doctor schedule",
+    "occ_vaccine_given": "Vaccine given"
   }
 }
