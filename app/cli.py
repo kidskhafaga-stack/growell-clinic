@@ -100,6 +100,9 @@ def register_commands(app):
             ("users", "personal_logo", "VARCHAR(255)"),
             ("users", "accent_color", "VARCHAR(20)"),
             ("users", "rx_template_id", "INTEGER"),
+            ("users", "theme", "VARCHAR(10)"),
+            ("users", "font_scale", "VARCHAR(4)"),
+            ("users", "default_landing", "VARCHAR(30)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

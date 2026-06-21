@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ current_lang }}" dir="{{ direction }}">
+{% set _u = current_user if current_user.is_authenticated else None %}
+<html lang="{{ current_lang }}" dir="{{ direction }}"
+      data-theme="{{ _u.theme if _u and _u.theme else 'light' }}"
+      class="fs-{{ _u.font_scale if _u and _u.font_scale else 'md' }}"
+      {% if _u and _u.accent_color %}style="--accent:{{ _u.accent_color }};"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

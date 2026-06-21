@@ -9,6 +9,7 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.routing import BuildError
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.blueprints.auth import auth_bp
@@ -56,6 +57,14 @@ def login():
         next_page = request.args.get("next")
         if _is_safe_next(next_page):
             return redirect(next_page)
+        # Honour the user's preferred landing page, if set and accessible.
+        landing = user.default_landing
+        if landing and user.can_access(landing):
+            try:
+                ep = "main.dashboard" if landing == "dashboard" else f"{landing}.index"
+                return redirect(url_for(ep))
+            except BuildError:
+                pass
         return redirect(url_for("main.dashboard"))
 
     return render_template("auth/login.html")

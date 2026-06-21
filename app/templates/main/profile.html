@@ -79,6 +79,27 @@
   </div>
   {% endif %}
 
+  <!-- Personalization -->
+  <div class="card gc-scale-in" style="animation-delay:0.12s;">
+    <h2 class="section-title"><i class="bi bi-sliders"></i> {{ t('profile.personalization') }}</h2>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('profile.theme') }}</label>
+        <select class="select" name="theme">
+          <option value="light" {{ 'selected' if current_user.theme != 'dark' else '' }}>{{ t('profile.light') }}</option>
+          <option value="dark" {{ 'selected' if current_user.theme == 'dark' else '' }}>{{ t('profile.dark') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('profile.font_size') }}</label>
+        <select class="select" name="font_scale">
+          {% for fs in ['sm','md','lg'] %}<option value="{{ fs }}" {{ 'selected' if (current_user.font_scale or 'md')==fs else '' }}>{{ t('profile.fs_' ~ fs) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('profile.landing') }}</label>
+        <select class="select" name="default_landing">
+          <option value="">{{ t('profile.landing_default') }}</option>
+          {% for m in current_user.modules %}{% if m != 'dashboard' %}<option value="{{ m }}" {{ 'selected' if current_user.default_landing==m else '' }}>{{ t('nav.' ~ m) }}</option>{% endif %}{% endfor %}
+        </select></div>
+    </div>
+  </div>
+
   <!-- Password -->
   <div class="card gc-scale-in" style="animation-delay:0.14s;">
     <h2 class="section-title"><i class="bi bi-key"></i> {{ t('profile.change_password') }}</h2>

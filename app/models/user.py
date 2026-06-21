@@ -40,6 +40,11 @@ class User(UserMixin, db.Model):
     accent_color = db.Column(db.String(20))         # لون مميز
     rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
 
+    # UI personalization (per user).
+    theme = db.Column(db.String(10))                # light | dark
+    font_scale = db.Column(db.String(4))            # sm | md | lg
+    default_landing = db.Column(db.String(30))      # module key after login
+
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     last_login_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
