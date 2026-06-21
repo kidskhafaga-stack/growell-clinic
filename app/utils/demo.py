@@ -42,11 +42,12 @@ from app.utils.patients import generate_patient_number
 def reset_all():
     """Delete all operational data; keep users, roles, settings, catalogue."""
     from app.models import (
-        PayerContract, Prescription, PrescriptionItem, StockMovement,
-        StoreItem, Visit,
+        MessageTemplate, PayerContract, Prescription, PrescriptionItem,
+        StockMovement, StoreItem, Visit,
     )
 
     order = [
+        MessageTemplate,
         EInvoiceDocument, Payment, InvoiceItem, Invoice,
         PrescriptionItem, Prescription,
         StockMovement, StoreItem,
@@ -322,6 +323,16 @@ def seed_demo():
         if qout:
             db.session.add(StockMovement(item_id=si.id, kind="out", qty=-qout,
                                          reason="صرف للعيادة", created_by=doc.id))
+
+    # CRM occasion templates.
+    from app.models import MessageTemplate
+    if not MessageTemplate.query.first():
+        db.session.add(MessageTemplate(
+            name="تهنئة عيد ميلاد", occasion="birthday",
+            body="كل سنة و{patient} طيب! 🎉\nعيلة {clinic} بتتمنالكم يوم سعيد وصحة دايمة. 🎂"))
+        db.session.add(MessageTemplate(
+            name="تهنئة بالعيد", occasion="seasonal",
+            body="كل عام و{patient} وعائلتكم بخير 🌙\nمن {clinic}."))
 
     Setting.set("demo_seeded", "1")
     db.session.commit()

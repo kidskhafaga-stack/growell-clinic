@@ -72,7 +72,13 @@ from app.models.prescription import (
     PrescriptionItem,
     RxPrintTemplate,
 )
-from app.models.message import MESSAGE_STATUSES, MessageLog
+from app.models.message import (
+    DEFAULT_BIRTHDAY_BODY,
+    MESSAGE_STATUSES,
+    OCCASION_TYPES,
+    MessageLog,
+    MessageTemplate,
+)
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
 
 __all__ = [
@@ -138,7 +144,10 @@ __all__ = [
     "RxPrintTemplate",
     "DRUG_FORMS",
     "MessageLog",
+    "MessageTemplate",
     "MESSAGE_STATUSES",
+    "OCCASION_TYPES",
+    "DEFAULT_BIRTHDAY_BODY",
     "StoreItem",
     "StockMovement",
     "MOVEMENT_KINDS",

@@ -12,6 +12,28 @@ from app.extensions import db
 # sent  = handed to a provider API successfully
 # failed/queued = self-explanatory
 MESSAGE_STATUSES = ["queued", "link", "sent", "failed"]
+OCCASION_TYPES = ["birthday", "seasonal", "greeting", "custom"]
+
+# Used when no active birthday template is configured.
+DEFAULT_BIRTHDAY_BODY = (
+    "كل سنة و{patient} طيب! 🎉\n"
+    "عيلة {clinic} بتتمنالكم يوم سعيد وصحة دايمة. 🎂"
+)
+
+
+class MessageTemplate(db.Model):
+    """Reusable CRM message template for occasions (birthdays, greetings…)."""
+    __tablename__ = "message_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    occasion = db.Column(db.String(20), default="custom", nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<MessageTemplate {self.name}>"
 
 
 class MessageLog(db.Model):
