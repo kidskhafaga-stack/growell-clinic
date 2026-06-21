@@ -13,6 +13,42 @@ DRUG_FORMS = ["tablet", "capsule", "syrup", "suspension", "drops",
               "injection", "cream", "ointment", "suppository", "inhaler", "other"]
 
 
+class RxPrintTemplate(db.Model):
+    """A configurable prescription print layout (white paper or pre-printed)."""
+    __tablename__ = "rx_print_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    mode = db.Column(db.String(12), default="white")        # white | preprinted
+    logo_source = db.Column(db.String(12), default="clinic")  # clinic | personal | none
+    font_size = db.Column(db.Integer, default=14)
+    margin_mm = db.Column(db.Integer, default=12)
+    top_offset_mm = db.Column(db.Integer, default=0)        # clear letterhead
+
+    show_doctor = db.Column(db.Boolean, default=True, nullable=False)
+    show_specialty = db.Column(db.Boolean, default=True, nullable=False)
+    show_contact = db.Column(db.Boolean, default=True, nullable=False)
+    show_license = db.Column(db.Boolean, default=True, nullable=False)
+    show_patient = db.Column(db.Boolean, default=True, nullable=False)
+    show_diagnosis = db.Column(db.Boolean, default=True, nullable=False)
+    show_signature = db.Column(db.Boolean, default=True, nullable=False)
+    show_stamp = db.Column(db.Boolean, default=True, nullable=False)
+
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
+             "show_patient", "show_diagnosis", "show_signature", "show_stamp"]
+
+    @classmethod
+    def default_instance(cls):
+        """A transient, fully-on white template used when none is configured."""
+        return cls(name="default", mode="white", logo_source="clinic")
+
+    def __repr__(self):
+        return f"<RxPrintTemplate {self.name}>"
+
+
 class Drug(db.Model):
     __tablename__ = "drugs"
 

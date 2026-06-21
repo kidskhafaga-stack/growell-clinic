@@ -99,6 +99,7 @@ def register_commands(app):
             ("users", "stamp_file", "VARCHAR(255)"),
             ("users", "personal_logo", "VARCHAR(255)"),
             ("users", "accent_color", "VARCHAR(20)"),
+            ("users", "rx_template_id", "INTEGER"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

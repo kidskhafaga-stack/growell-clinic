@@ -38,6 +38,7 @@ class User(UserMixin, db.Model):
     stamp_file = db.Column(db.String(255))          # الختم الطبي
     personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
     accent_color = db.Column(db.String(20))         # لون مميز
+    rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     last_login_at = db.Column(db.DateTime)

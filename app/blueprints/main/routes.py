@@ -88,6 +88,7 @@ def profile():
             u.specialty = (request.form.get("specialty") or "").strip() or None
             u.sub_specialties = (request.form.get("sub_specialties") or "").strip() or None
             u.license_no = (request.form.get("license_no") or "").strip() or None
+            u.rx_template_id = request.form.get("rx_template_id", type=int) or None
 
         for field in IMAGE_FIELDS:
             saved = _save_image(field)
@@ -105,7 +106,11 @@ def profile():
         flash(t("profile.saved"), "success")
         return redirect(url_for("main.profile"))
 
-    return render_template("main/profile.html", titles=PROFESSIONAL_TITLES)
+    from app.models import RxPrintTemplate
+    templates = (RxPrintTemplate.query.order_by(RxPrintTemplate.name).all()
+                 if u.role == "doctor" else [])
+    return render_template("main/profile.html", titles=PROFESSIONAL_TITLES,
+                           rx_templates=templates)
 
 
 @main_bp.route("/profile/image/<field>/delete", methods=["POST"])
