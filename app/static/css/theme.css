@@ -57,6 +57,38 @@
 :root[data-theme="dark"] .table thead th { background: var(--card); }
 :root[data-theme="dark"] .badge--muted { background: #243040; color: var(--muted); }
 :root[data-theme="dark"] .popform { background: var(--card); }
+/* Broader dark coverage so every page looks right. */
+:root[data-theme="dark"] textarea.input,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .module-card,
+:root[data-theme="dark"] .auth-card,
+:root[data-theme="dark"] .info-item,
+:root[data-theme="dark"] .window-pill,
+:root[data-theme="dark"] .theme-toggle { background: var(--card); color: var(--ink); }
+:root[data-theme="dark"] .info-item,
+:root[data-theme="dark"] .window-pill,
+:root[data-theme="dark"] .module-card { border-color: var(--line); }
+:root[data-theme="dark"] .notice,
+:root[data-theme="dark"] .info-note { background: #15241d; border-color: var(--line); color: var(--ink); }
+:root[data-theme="dark"] .table tbody tr:hover { background: #1c2530; }
+:root[data-theme="dark"] .input::placeholder,
+:root[data-theme="dark"] .select { color: var(--ink); }
+:root[data-theme="dark"] .dropzone { background: #15241d; border-color: var(--line); color: var(--ink); }
+:root[data-theme="dark"] .page-title,
+:root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3 { color: var(--ink); }
+:root[data-theme="dark"] .btn-outline { color: var(--ink); border-color: var(--line); }
+:root[data-theme="dark"] a { color: #4ade80; }
+
+/* Top bar: today's date + theme toggle. */
+.topbar-date { font-size: 0.82rem; color: var(--muted); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.theme-toggle { border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 1.05rem; }
+.theme-toggle:hover { border-color: var(--green-500); }
+.theme-toggle .light-on { display: none; }
+:root[data-theme="dark"] .theme-toggle .dark-on { display: none; }
+:root[data-theme="dark"] .theme-toggle .light-on { display: inline; }
+@media (max-width: 640px) { .topbar-date { display: none; } }
 
 /* Font scale (per-user). */
 html.fs-sm { font-size: 14px; }

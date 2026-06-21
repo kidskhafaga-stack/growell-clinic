@@ -75,6 +75,16 @@ def guide():
     return render_template("main/guide.html")
 
 
+@main_bp.route("/set-theme", methods=["POST"])
+@login_required
+def set_theme():
+    """Persist the user's light/dark preference (quick top-bar toggle)."""
+    theme = "dark" if request.form.get("theme") == "dark" else "light"
+    current_user.theme = theme
+    db.session.commit()
+    return {"theme": theme}
+
+
 def _users_dir():
     path = os.path.join(current_app.static_folder, "uploads", "users")
     os.makedirs(path, exist_ok=True)
