@@ -106,7 +106,9 @@
     "cannot_delete_self": "You cannot delete your own account",
     "username_taken": "This username is already taken",
     "last_login": "Last login",
-    "never": "Never logged in"
+    "never": "Never logged in",
+    "is_practitioner": "Practitioner (sees patients)",
+    "is_practitioner_hint": "Tick this for a non-doctor (e.g. an admin) who also examines patients, so they appear in the appointments doctor list. Doctors are always included."
   },
   "patients": {
     "title": "Patients & Families",

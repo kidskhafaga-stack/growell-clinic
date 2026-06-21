@@ -1,15 +1,21 @@
 """Smart scheduling helpers: available slot generation and doctor lookup."""
 from datetime import date, datetime
 
+from app.extensions import db
 from app.models import Appointment, DoctorSchedule, User
 from app.models.appointment import ACTIVE_STATUSES
 
 
 def list_doctors():
-    """Active users who can hold appointments (doctors, plus admins)."""
+    """Active users who actually hold appointments.
+
+    This is the role == "doctor" set, plus any user explicitly flagged as a
+    practitioner (e.g. an admin who also sees patients). Admins are *not*
+    included by default, so the super-admin no longer shows up as a doctor.
+    """
     return (
         User.query.filter(User.is_active.is_(True))
-        .filter(User.role.in_(["doctor", "admin"]))
+        .filter(db.or_(User.role == "doctor", User.is_practitioner.is_(True)))
         .order_by(User.full_name)
         .all()
     )

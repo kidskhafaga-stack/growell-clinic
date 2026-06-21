@@ -113,6 +113,7 @@ def register_commands(app):
             ("users", "theme", "VARCHAR(10)"),
             ("users", "font_scale", "VARCHAR(4)"),
             ("users", "default_landing", "VARCHAR(30)"),
+            ("users", "is_practitioner", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

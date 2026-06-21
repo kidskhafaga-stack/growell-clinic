@@ -106,6 +106,7 @@ def create():
             email=form["email"],
             phone=form["phone"],
             is_active=form["is_active"],
+            is_practitioner=form["is_practitioner"],
         )
         user.set_password(form["password"])
         db.session.add(user)
@@ -142,6 +143,7 @@ def edit(user_id):
         user.email = form["email"]
         user.phone = form["phone"]
         user.is_active = form["is_active"]
+        user.is_practitioner = form["is_practitioner"]
         if form["password"]:
             user.set_password(form["password"])
 
@@ -161,6 +163,7 @@ def edit(user_id):
         "email": user.email or "",
         "phone": user.phone or "",
         "is_active": user.is_active,
+        "is_practitioner": user.is_practitioner,
         "password": "",
     }
     return render_template("users/form.html", roles=_roles(), user=user, form=form)
@@ -196,6 +199,7 @@ def _read_form():
         "phone": (request.form.get("phone") or "").strip(),
         "password": request.form.get("password") or "",
         "is_active": bool(request.form.get("is_active")),
+        "is_practitioner": bool(request.form.get("is_practitioner")),
     }
 
 
