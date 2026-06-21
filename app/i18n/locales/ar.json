@@ -38,7 +38,8 @@
     "print": "طباعة",
     "page": "صفحة",
     "total": "الإجمالي",
-    "manage": "إدارة"
+    "manage": "إدارة",
+    "error": "حدث خطأ ما"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -290,7 +291,16 @@
     "schedule_removed": "تم حذف فترة العمل",
     "no_windows": "لا توجد فترات عمل",
     "bad_window": "وقت البداية يجب أن يكون قبل وقت النهاية",
-    "back_to_board": "رجوع للمواعيد"
+    "back_to_board": "رجوع للمواعيد",
+    "change_patient": "تغيير",
+    "search_patient_ph": "ابحث عن المريض بالاسم أو رقم الملف…",
+    "no_patient_found": "لا يوجد مريض مطابق",
+    "quick_add_patient": "إضافة مريض جديد سريعاً",
+    "quick_add_save": "إضافة واختيار",
+    "qc_fill_all": "من فضلك أدخل الاسم وتاريخ الميلاد والنوع",
+    "qc_need_name": "اسم المريض مطلوب",
+    "qc_need_gender": "النوع مطلوب",
+    "qc_need_dob": "تاريخ ميلاد صحيح مطلوب"
   },
   "visits": {
     "title": "الزيارات",

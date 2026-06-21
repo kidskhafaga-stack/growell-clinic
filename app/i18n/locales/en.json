@@ -38,7 +38,8 @@
     "print": "Print",
     "page": "Page",
     "total": "Total",
-    "manage": "Manage"
+    "manage": "Manage",
+    "error": "Something went wrong"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -290,7 +291,16 @@
     "schedule_removed": "Working window removed",
     "no_windows": "No working windows",
     "bad_window": "Start time must be before end time",
-    "back_to_board": "Back to appointments"
+    "back_to_board": "Back to appointments",
+    "change_patient": "Change",
+    "search_patient_ph": "Search patient by name or file number…",
+    "no_patient_found": "No patient found",
+    "quick_add_patient": "Quick add new patient",
+    "quick_add_save": "Add & select",
+    "qc_fill_all": "Please fill name, date of birth and gender",
+    "qc_need_name": "Patient name is required",
+    "qc_need_gender": "Gender is required",
+    "qc_need_dob": "A valid date of birth is required"
   },
   "visits": {
     "title": "Visits",

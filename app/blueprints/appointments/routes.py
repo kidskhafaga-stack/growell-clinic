@@ -82,7 +82,6 @@ def index():
 @module_required(MODULE)
 def create():
     doctors = list_doctors()
-    patients = Patient.query.filter_by(is_active=True).order_by(Patient.full_name).all()
 
     if request.method == "POST":
         patient_id = request.form.get("patient_id", type=int)
@@ -94,9 +93,10 @@ def create():
         error = _validate_booking(patient_id, doctor_id, on_date, slot)
         if error:
             flash(error, "danger")
+            chosen = db.session.get(Patient, patient_id) if patient_id else None
             return render_template(
-                "appointments/form.html", doctors=doctors, patients=patients,
-                form=request.form,
+                "appointments/form.html", doctors=doctors, form=request.form,
+                selected_patient=_patient_brief(chosen) if chosen else None,
             )
 
         appt = Appointment(
@@ -119,8 +119,12 @@ def create():
         return redirect(url_for("appointments.index", date=on_date.isoformat(),
                                 doctor_id=doctor_id))
 
+    # Optional ?patient_id= prefill (e.g. booking from a patient's profile).
+    prefill = request.args.get("patient_id", type=int)
+    chosen = db.session.get(Patient, prefill) if prefill else None
     return render_template(
-        "appointments/form.html", doctors=doctors, patients=patients, form={}
+        "appointments/form.html", doctors=doctors, form={},
+        selected_patient=_patient_brief(chosen) if chosen else None,
     )
 
 
@@ -134,6 +138,79 @@ def slots():
     if not doctor_id or not on_date:
         return jsonify({"slots": []})
     return jsonify({"slots": available_slots(doctor_id, on_date, exclude_id=exclude_id)})
+
+
+@appointments_bp.route("/patient-search")
+@module_required(MODULE)
+def patient_search():
+    """JSON: matching active patients for the booking search box (name/number)."""
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"patients": []})
+    like = f"%{q}%"
+    rows = (
+        Patient.query.filter(Patient.is_active.is_(True))
+        .filter(
+            db.or_(
+                Patient.full_name.ilike(like),
+                Patient.full_name_en.ilike(like),
+                Patient.patient_number.ilike(like),
+            )
+        )
+        .order_by(Patient.full_name)
+        .limit(15)
+        .all()
+    )
+    return jsonify({"patients": [_patient_brief(p) for p in rows]})
+
+
+@appointments_bp.route("/patient-quick", methods=["POST"])
+@module_required(MODULE)
+def patient_quick():
+    """Create a minimal patient inline during booking and return it as JSON."""
+    from app.models import GENDERS
+    from app.utils.patients import generate_patient_number
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get("full_name") or "").strip()
+    gender = (data.get("gender") or "").strip()
+    dob_raw = (data.get("date_of_birth") or "").strip()
+
+    if not name:
+        return jsonify({"ok": False, "error": t("appointments.qc_need_name")}), 400
+    if gender not in GENDERS:
+        return jsonify({"ok": False, "error": t("appointments.qc_need_gender")}), 400
+    try:
+        dob = datetime.strptime(dob_raw, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": t("appointments.qc_need_dob")}), 400
+
+    patient = Patient(
+        patient_number=generate_patient_number(),
+        full_name=name,
+        gender=gender,
+        date_of_birth=dob,
+        is_active=True,
+    )
+    db.session.add(patient)
+    db.session.flush()
+    ActivityLog.record(
+        "patient.create", user_id=current_user.id, entity="patient",
+        entity_id=patient.id, detail=patient.patient_number, ip_address=client_ip(),
+    )
+    db.session.commit()
+    return jsonify({"ok": True, "patient": _patient_brief(patient)})
+
+
+def _patient_brief(p):
+    """Compact patient dict for the booking search/quick-create widgets."""
+    years, months = p.age_parts
+    return {
+        "id": p.id,
+        "name": p.display_name(),
+        "number": p.patient_number,
+        "age": f"{years}y {months}m" if years else f"{months}m",
+    }
 
 
 # -------------------------------------------------- status lifecycle -------

@@ -11,15 +11,67 @@
      x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}')">
   <form method="post">
     <div class="form-grid">
-      <div class="form-row">
-        <label for="patient_id">{{ t('appointments.patient') }} *</label>
-        <select class="select" id="patient_id" name="patient_id" required>
-          <option value="" disabled selected>{{ t('appointments.select_patient') }}</option>
-          {% for p in patients %}
-            <option value="{{ p.id }}" {{ 'selected' if form.patient_id|string == p.id|string else '' }}>
-              {{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>
-          {% endfor %}
-        </select>
+      <div class="form-row" style="position:relative;"
+           x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson) if selected_patient else 'null' }})">
+        <label>{{ t('appointments.patient') }} *</label>
+        <input type="hidden" name="patient_id" :value="chosen ? chosen.id : ''" required>
+
+        <!-- Chosen patient chip -->
+        <template x-if="chosen">
+          <div class="chosen-patient">
+            <div>
+              <strong x-text="chosen.name"></strong>
+              <span class="muted" x-text="'— ' + chosen.number + ' · ' + chosen.age"></span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="clear()">
+              <i class="bi bi-x-lg"></i> {{ t('appointments.change_patient') }}</button>
+          </div>
+        </template>
+
+        <!-- Search box -->
+        <template x-if="!chosen">
+          <div>
+            <input class="input" type="search" autocomplete="off"
+                   x-model="q" x-on:input.debounce.250ms="search()"
+                   placeholder="{{ t('appointments.search_patient_ph') }}">
+            <div class="patient-results" x-show="q.length >= 2 && (results.length || !searching)" x-cloak>
+              <template x-for="p in results" :key="p.id">
+                <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
+                  <span x-text="p.name"></span>
+                  <span class="muted" x-text="p.number + ' · ' + p.age"></span>
+                </button>
+              </template>
+              <div x-show="!searching && results.length === 0" class="patient-result muted" style="cursor:default;">
+                {{ t('appointments.no_patient_found') }}
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
+                    x-on:click="quick.open = !quick.open">
+              <i class="bi bi-person-plus"></i> {{ t('appointments.quick_add_patient') }}</button>
+
+            <!-- Quick create -->
+            <div class="quick-add" x-show="quick.open" x-cloak>
+              <div class="form-grid">
+                <div class="form-row"><label>{{ t('patients.full_name') }} *</label>
+                  <input class="input" x-model="quick.full_name"></div>
+                <div class="form-row"><label>{{ t('patients.dob') }} *</label>
+                  <input class="input" type="date" x-model="quick.date_of_birth"></div>
+                <div class="form-row"><label>{{ t('patients.gender') }} *</label>
+                  <select class="select" x-model="quick.gender">
+                    <option value="">—</option>
+                    <option value="male">{{ t('genders.male') }}</option>
+                    <option value="female">{{ t('genders.female') }}</option>
+                  </select></div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button type="button" class="btn btn-primary btn-sm gc-press"
+                        x-on:click="createQuick()" :disabled="quick.busy">
+                  <i class="bi bi-check-lg"></i> {{ t('appointments.quick_add_save') }}</button>
+                <span class="muted" x-text="quick.error" style="color:var(--danger,#c0392b);font-size:0.85rem;"></span>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
       <div class="form-row">
         <label for="doctor_id">{{ t('appointments.doctor') }} *</label>
@@ -71,6 +123,19 @@
     font-family:inherit; font-size:0.88rem; cursor:pointer; transition:all .15s ease; font-variant-numeric:tabular-nums; }
   .slot-chip:hover { border-color:var(--green-500); color:var(--green-700); }
   .slot-chip.active { background:var(--green-700); color:#fff; border-color:var(--green-700); }
+  .chosen-patient { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    flex-wrap:wrap; padding:10px 12px; border:1px solid var(--green-200,var(--line)); border-radius:10px;
+    background:var(--green-050,#f3faf5); }
+  .chosen-patient .muted, .patient-result .muted { color:var(--muted); font-size:0.85rem; }
+  .patient-results { position:absolute; z-index:20; left:0; right:0; margin-top:4px; background:#fff;
+    border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.10);
+    max-height:240px; overflow-y:auto; }
+  .patient-result { display:flex; justify-content:space-between; gap:10px; width:100%; text-align:start;
+    padding:9px 12px; background:none; border:0; border-bottom:1px solid var(--line); font-family:inherit;
+    font-size:0.9rem; cursor:pointer; }
+  .patient-result:last-child { border-bottom:0; }
+  .patient-result:hover { background:var(--green-050,#f3faf5); }
+  .quick-add { margin-top:10px; padding:12px; border:1px dashed var(--line); border-radius:10px; }
 </style>
 {% endblock %}
 
@@ -92,6 +157,48 @@
         this.loading = false;
       },
       init() { if (this.doctorId && this.date) this.loadSlots(); }
+    };
+  }
+
+  function patientPicker(searchUrl, quickUrl, preselected) {
+    return {
+      searchUrl, quickUrl,
+      chosen: preselected || null,
+      q: '', results: [], searching: false,
+      quick: { open: false, full_name: '', date_of_birth: '', gender: '', busy: false, error: '' },
+      async search() {
+        if (this.q.trim().length < 2) { this.results = []; return; }
+        this.searching = true;
+        try {
+          const res = await fetch(`${this.searchUrl}?q=${encodeURIComponent(this.q.trim())}`);
+          const data = await res.json();
+          this.results = data.patients || [];
+        } catch (e) { this.results = []; }
+        this.searching = false;
+      },
+      pick(p) { this.chosen = p; this.results = []; this.q = ''; },
+      clear() { this.chosen = null; this.q = ''; this.results = []; },
+      async createQuick() {
+        this.quick.error = '';
+        if (!this.quick.full_name.trim() || !this.quick.gender || !this.quick.date_of_birth) {
+          this.quick.error = {{ t('appointments.qc_fill_all') | tojson }}; return;
+        }
+        this.quick.busy = true;
+        try {
+          const res = await fetch(this.quickUrl, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              full_name: this.quick.full_name, gender: this.quick.gender,
+              date_of_birth: this.quick.date_of_birth })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.pick(data.patient);
+            this.quick = { open: false, full_name: '', date_of_birth: '', gender: '', busy: false, error: '' };
+          } else { this.quick.error = data.error || {{ t('common.error') | tojson }}; }
+        } catch (e) { this.quick.error = {{ t('common.error') | tojson }}; }
+        this.quick.busy = false;
+      }
     };
   }
 </script>
