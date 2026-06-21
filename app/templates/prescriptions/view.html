@@ -36,7 +36,11 @@
   <div class="info-grid" style="margin-bottom:16px;">
     <div class="info-item"><div class="k">{{ t('rx.patient') }}</div><div class="v">{{ rx.patient.display_name(current_lang) }} ({{ rx.patient.patient_number }})</div></div>
     <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(rx.patient) }}</div></div>
-    <div class="info-item"><div class="k">{{ t('rx.doctor') }}</div><div class="v">{{ rx.doctor.display_name(current_lang) if rx.doctor else '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('rx.doctor') }}</div><div class="v">
+      {{ rx.doctor.doctor_print_name(current_lang) if rx.doctor else '—' }}
+      {% if rx.doctor and rx.doctor.specialty %}<div style="color:var(--muted);font-size:0.82rem;">{{ rx.doctor.specialty }}</div>{% endif %}
+      {% if rx.doctor and rx.doctor.license_no %}<div style="color:var(--muted);font-size:0.78rem;" dir="ltr">License: {{ rx.doctor.license_no }}</div>{% endif %}
+    </div></div>
     {% if rx.diagnosis %}<div class="info-item"><div class="k">{{ t('rx.diagnosis') }}</div><div class="v">{{ rx.diagnosis }}</div></div>{% endif %}
   </div>
 
@@ -58,8 +62,16 @@
 
   {% if rx.notes %}<p style="margin-top:12px;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
 
-  <div style="display:flex;justify-content:flex-end;margin-top:48px;">
-    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ rx.doctor.display_name(current_lang) if rx.doctor else t('rx.signature') }}</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;">
+    {% if rx.doctor and rx.doctor.stamp_file %}
+    <div style="text-align:center;"><img src="{{ url_for('static', filename='uploads/users/' ~ rx.doctor.stamp_file) }}" alt="" style="max-height:90px;max-width:140px;opacity:0.9;"></div>
+    {% else %}<div></div>{% endif %}
+    <div style="text-align:center;">
+      {% if rx.doctor and rx.doctor.signature_file %}
+      <img src="{{ url_for('static', filename='uploads/users/' ~ rx.doctor.signature_file) }}" alt="" style="max-height:60px;max-width:200px;display:block;margin:0 auto 4px;">
+      {% endif %}
+      <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ rx.doctor.doctor_print_name(current_lang) if rx.doctor else t('rx.signature') }}</div>
+    </div>
   </div>
 </div>
 {% endblock %}

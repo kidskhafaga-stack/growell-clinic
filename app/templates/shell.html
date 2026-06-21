@@ -48,13 +48,17 @@
             </a>
           {% endfor %}
         </div>
-        <div class="user-chip">
+        <a class="user-chip" href="{{ url_for('main.profile') }}" style="text-decoration:none;color:inherit;" title="{{ t('profile.my_profile') }}">
+          {% if current_user.photo %}
+          <img class="avatar" src="{{ url_for('static', filename='uploads/users/' ~ current_user.photo) }}" alt="" style="object-fit:cover;">
+          {% else %}
           <div class="avatar">{{ current_user.display_name(current_lang)[:1] | upper }}</div>
+          {% endif %}
           <div class="meta">
             <div>{{ current_user.display_name(current_lang) }}</div>
             <div class="role">{{ current_user.role_label(current_lang) }}</div>
           </div>
-        </div>
+        </a>
         <a class="btn btn-outline btn-sm" href="{{ url_for('auth.logout') }}">
           <i class="bi bi-box-arrow-right"></i> {{ t('auth.logout') }}
         </a>
