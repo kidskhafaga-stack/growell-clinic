@@ -81,6 +81,13 @@ def profile():
         u.branch = (request.form.get("branch") or "").strip() or None
         u.accent_color = (request.form.get("accent_color") or "").strip() or None
 
+        # UI personalization.
+        u.theme = "dark" if request.form.get("theme") == "dark" else "light"
+        scale = (request.form.get("font_scale") or "md").strip()
+        u.font_scale = scale if scale in ("sm", "md", "lg") else "md"
+        landing = (request.form.get("default_landing") or "").strip()
+        u.default_landing = landing if landing and u.can_access(landing) else None
+
         if u.role == "doctor":
             u.rx_display_name = (request.form.get("rx_display_name") or "").strip() or None
             title = (request.form.get("professional_title") or "").strip()

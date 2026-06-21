@@ -24,6 +24,45 @@
   --shadow: 0 6px 24px rgba(16, 81, 50, 0.08);
 }
 
+/* Optional per-user accent: recolour the brand greens from --accent. */
+:root[style*="--accent"] {
+  --green-700: var(--accent);
+  --green-600: var(--accent);
+  --green-800: color-mix(in srgb, var(--accent) 82%, black);
+  --green-900: color-mix(in srgb, var(--accent) 68%, black);
+  --green-500: color-mix(in srgb, var(--accent) 80%, white);
+  --green-100: color-mix(in srgb, var(--accent) 22%, white);
+  --green-050: color-mix(in srgb, var(--accent) 12%, white);
+}
+
+/* Dark mode (per-user). */
+:root[data-theme="dark"] {
+  --ink: #e6edf3;
+  --muted: #9aa7b4;
+  --line: #2b3440;
+  --bg: #0f141a;
+  --card: #161c24;
+  --green-050: #16241d;
+  --green-100: #1d3a2c;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+:root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] .select,
+:root[data-theme="dark"] .table { background: var(--card); color: var(--ink); }
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] .select { border-color: var(--line); }
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .table thead th { background: var(--card); }
+:root[data-theme="dark"] .badge--muted { background: #243040; color: var(--muted); }
+:root[data-theme="dark"] .popform { background: var(--card); }
+
+/* Font scale (per-user). */
+html.fs-sm { font-size: 14px; }
+html.fs-md { font-size: 16px; }
+html.fs-lg { font-size: 18px; }
+
 * { box-sizing: border-box; }
 
 body {

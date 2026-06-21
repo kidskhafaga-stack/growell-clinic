@@ -1106,7 +1106,17 @@
     "account": "Account",
     "last_login": "Last login",
     "role": "Role",
-    "never": "Never logged in"
+    "never": "Never logged in",
+    "personalization": "Interface",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "font_size": "Font size",
+    "fs_sm": "Small",
+    "fs_md": "Medium",
+    "fs_lg": "Large",
+    "landing": "Default landing page",
+    "landing_default": "Dashboard"
   },
   "rxtpl": {
     "title": "Prescription print templates",
