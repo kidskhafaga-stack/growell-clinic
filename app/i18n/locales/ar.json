@@ -606,7 +606,14 @@
     "eta_vat_rate": "نسبة ض.ق.م (%)",
     "eta_send_gap": "فارق الإرسال (ثانية)",
     "eta_help": "الوضع التجريبي يعمل فوراً بدون اعتمادات. للوضع الحقيقي أدخل بياناتك ورابط خدمة التوقيع.",
-    "eta_item_type": "نوع التكويد الافتراضي (EGS/GS1)"
+    "eta_item_type": "نوع التكويد الافتراضي (EGS/GS1)",
+    "crm_mode": "وضع الإرسال (CRM)",
+    "crm_manual": "يدوي (رابط واتساب بضغطة)",
+    "crm_automatic": "تلقائي (API)",
+    "crm_mode_hint": "إعداد واحد يحكم كل رسائل النظام.",
+    "wa_tpl_vaccine": "قالب إشعار التطعيم",
+    "wa_vars_vaccine": "متغيرات: {patient} {vaccine} {dose} {next_date} {clinic}",
+    "crm_central_hint": "كل القوالب تُدار من مكان واحد:"
   },
   "errors": {
     "403_title": "ممنوع الوصول",
@@ -1255,6 +1262,9 @@
     "occ_seasonal": "موسمية/عيد",
     "occ_greeting": "تهنئة",
     "occ_custom": "مخصّص",
-    "add_template_btn": "إضافة قالب"
+    "add_template_btn": "إضافة قالب",
+    "occ_appointment_confirm": "تأكيد موعد",
+    "occ_doctor_schedule": "جدول الطبيب",
+    "occ_vaccine_given": "إشعار تطعيم"
   }
 }

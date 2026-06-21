@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
     "patient_number_prefix": "PM",          # used by the yearly scheme
     "patient_number_prefix_fixed": "GC",    # used by the fixed scheme
     # WhatsApp / messaging.
+    "crm_mode": "manual",                   # "manual" (wa.me links) | "automatic" (API)
     "wa_provider": "web",                   # "web" | "cloud_api" | "wapilot"
     "wa_country_code": "20",
     "queue_mode": "number",                 # "number" | "time"
@@ -41,6 +42,11 @@ DEFAULT_SETTINGS = {
     ),
     "wa_tpl_doctor_schedule": (
         "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}"
+    ),
+    "wa_tpl_vaccine_given": (
+        "تم بحمد الله تطعيم {patient} — {vaccine} ({dose}).\n"
+        "الجرعة القادمة بتاريخ: {next_date}\n"
+        "مع تحيات {clinic}."
     ),
     # ETA e-invoicing (demo mode by default so it works without credentials).
     "eta_enabled": "0",
@@ -218,6 +224,29 @@ def _seed_drugs_safe():
     try:
         from app.utils.drugs import seed_drugs
         seed_drugs()
+    except Exception:  # noqa: BLE001
+        pass
+    _seed_crm_templates_safe()
+
+
+# Friendly default names for the seeded CRM templates.
+_CRM_TPL_NAMES = {
+    "appointment_confirm": "تأكيد موعد",
+    "doctor_schedule": "جدول الطبيب اليومي",
+    "vaccine_given": "إشعار تطعيم",
+    "birthday": "تهنئة عيد ميلاد",
+}
+
+
+def _seed_crm_templates_safe():
+    """Seed the unified message-template registry (idempotent, best-effort)."""
+    try:
+        from app.models import TEMPLATE_DEFAULTS, MessageTemplate
+        for occ, body in TEMPLATE_DEFAULTS.items():
+            if MessageTemplate.query.filter_by(occasion=occ).first() is None:
+                db.session.add(MessageTemplate(
+                    name=_CRM_TPL_NAMES.get(occ, occ), occasion=occ,
+                    body=body, is_active=True))
     except Exception:  # noqa: BLE001
         pass
 

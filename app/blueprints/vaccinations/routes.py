@@ -4,10 +4,12 @@ Per-patient vaccination plan with brand selection (no mixing brands), the
 Egyptian schedule, visual due/done/upcoming states, next-due suggestion, dose
 recording (with lot number), and a printable vaccination certificate.
 """
-from datetime import datetime
+import calendar
+from datetime import date, datetime
 
 from flask import (
     flash,
+    g,
     redirect,
     render_template,
     request,
@@ -23,10 +25,12 @@ from app.models import (
     ActivityLog,
     Patient,
     PatientVaccine,
+    Setting,
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
 )
+from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.vaccines import (
     chosen_brand,
@@ -132,7 +136,51 @@ def record(patient_id):
     )
     db.session.commit()
     flash(t("vaccinations.recorded"), "success")
+
+    # Auto-notify the guardian via the unified CRM engine (dose + next due).
+    phone = patient.contact_phone
+    if phone:
+        lang = getattr(g, "lang", "ar")
+        body = wa.render(wa.template_body("vaccine_given"), {
+            "patient": patient.display_name(lang),
+            "vaccine": vaccine.display_name(lang),
+            "dose": _dose_label(dose_number, lang),
+            "next_date": _next_dose_date(patient, brand, dose_number) or "—",
+            "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+        })
+        log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+        db.session.commit()
+        return render_template(
+            "messages/sent.html", log=log, appt=None,
+            back_url=url_for("vaccinations.view", patient_id=patient.id))
     return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+
+_DOSE_ORD = {1: "الأولى", 2: "الثانية", 3: "الثالثة", 4: "الرابعة", 5: "الخامسة"}
+
+
+def _dose_label(n, lang="ar"):
+    if lang == "en":
+        return f"dose {n}"
+    return "الجرعة " + _DOSE_ORD.get(n, f"رقم {n}")
+
+
+def _add_months(d, months):
+    m = d.month - 1 + int(months)
+    y = d.year + m // 12
+    m = m % 12 + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+
+def _next_dose_date(patient, brand, current_dose):
+    """Date of the next scheduled dose for this brand, or None if last."""
+    if not patient.date_of_birth or brand is None:
+        return None
+    nxt = next((d for d in sorted(brand.doses, key=lambda x: x.dose_number)
+                if d.dose_number > current_dose), None)
+    if nxt is None:
+        return None
+    return _add_months(patient.date_of_birth, nxt.age_months).isoformat()
 
 
 @vaccinations_bp.route("/dose/<int:pv_id>/delete", methods=["POST"])

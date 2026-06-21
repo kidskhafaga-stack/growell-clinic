@@ -284,13 +284,24 @@ def seed_demo():
             db.session.add(Diagnosis(visit_id=v.id, code=code, title=dx,
                                      dx_type="working"))
 
-    # Some administered vaccine doses.
-    if brand is not None:
-        for p in patients[:4]:
-            db.session.add(PatientVaccine(
-                patient_id=p.id, vaccine_id=brand.vaccine_id, brand_id=brand.id,
-                dose_number=1, given_date=today - timedelta(days=rnd.randint(5, 60)),
-            ))
+    # Administered vaccine doses — a realistic history per patient so the
+    # certificate shows real data (all due mandatory doses up to their age).
+    from app.models import Vaccine as _Vaccine
+    mandatory = (_Vaccine.query.filter_by(is_mandatory=True)
+                 .order_by(_Vaccine.sort_order).limit(8).all())
+    for p in patients:
+        age_m = max(0, p.age_days // 30)
+        for v in mandatory:
+            b = v.default_brand
+            if not b:
+                continue
+            for d in sorted(b.doses, key=lambda x: x.dose_number):
+                if d.age_months <= age_m:
+                    db.session.add(PatientVaccine(
+                        patient_id=p.id, vaccine_id=v.id, brand_id=b.id,
+                        dose_number=d.dose_number,
+                        given_date=p.date_of_birth + timedelta(days=int(d.age_months * 30)),
+                    ))
 
     # Sample prescriptions (drugs catalogue is seeded separately).
     drugs = Drug.query.filter_by(is_active=True).limit(6).all()

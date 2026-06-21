@@ -76,6 +76,8 @@ from app.models.message import (
     DEFAULT_BIRTHDAY_BODY,
     MESSAGE_STATUSES,
     OCCASION_TYPES,
+    SYSTEM_TEMPLATE_TYPES,
+    TEMPLATE_DEFAULTS,
     MessageLog,
     MessageTemplate,
 )
@@ -147,6 +149,8 @@ __all__ = [
     "MessageTemplate",
     "MESSAGE_STATUSES",
     "OCCASION_TYPES",
+    "SYSTEM_TEMPLATE_TYPES",
+    "TEMPLATE_DEFAULTS",
     "DEFAULT_BIRTHDAY_BODY",
     "StoreItem",
     "StockMovement",
