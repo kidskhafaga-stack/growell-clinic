@@ -22,7 +22,8 @@
         {% if not patient.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
       </div>
       <div class="meta-row">
-        <span><i class="bi bi-gender-ambiguous"></i> <b>{{ t('genders.' ~ patient.gender) }}</b></span>
+        <span class="badge {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}" style="border-radius:999px;">
+          <i class="bi bi-gender-{{ 'male' if patient.gender == 'male' else 'female' }}"></i> {{ t('genders.' ~ patient.gender) }}</span>
         <span><i class="bi bi-cake2"></i> <b>{{ age_label(patient) }}</b></span>
         {% if patient.blood_type %}<span><i class="bi bi-droplet"></i> <b>{{ patient.blood_type }}</b></span>{% endif %}
         {% if patient.family %}<span><i class="bi bi-house-heart"></i> <b>{{ patient.family.display_name(current_lang) }}</b></span>{% endif %}
@@ -150,7 +151,7 @@
       {% if sibs %}
       <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
         {% for s in sibs %}
-        <a class="patient-row card gc-lift" href="{{ url_for('patients.view', patient_id=s.id) }}"
+        <a class="patient-row card gc-lift {{ 'gm' if s.gender == 'male' else 'gf' }}" href="{{ url_for('patients.view', patient_id=s.id) }}"
            style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;">
           {{ patient_avatar(s, 'sm') }}
           <div style="flex:1;">
