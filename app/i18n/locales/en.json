@@ -617,7 +617,23 @@
     "product_name": "Product name (marketing)",
     "product_name_hint": "The software brand — shown in the title and footer",
     "clinic_tagline": "Tagline under clinic name",
-    "clinic_tagline_hint": "Shown under the clinic name in the sidebar"
+    "clinic_tagline_hint": "Shown under the clinic name in the sidebar",
+    "ai_title": "AI Assistant",
+    "ai_subtitle": "Choose your AI provider — not just Claude. Pick any of the popular engines and add your own API key.",
+    "ai_enabled": "Enable the AI assistant",
+    "ai_provider": "AI provider",
+    "ai_provider_hint": "Claude, OpenAI/ChatGPT, Gemini, DeepSeek, Grok, Mistral, or a custom OpenAI-compatible endpoint.",
+    "ai_model": "Model",
+    "ai_model_hint": "Leave blank to use the provider's default model, or type any model id.",
+    "ai_api_key": "API key",
+    "ai_get_key": "Get an API key",
+    "ai_base_url": "API endpoint",
+    "ai_base_url_hint": "Leave blank to use the provider's official endpoint.",
+    "ai_base_url_custom": "Required for a custom provider (e.g. a self-hosted / OpenAI-compatible server).",
+    "ai_system_prompt": "System instructions (optional)",
+    "ai_system_prompt_ph": "You are a helpful medical assistant for a pediatric clinic…",
+    "ai_system_prompt_hint": "Sets the assistant's persona and rules for every conversation.",
+    "ai_privacy": "The API key is stored in your clinic database and sent only to the provider you choose."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1028,6 +1044,22 @@
     "near_expiry": "Near expiry",
     "low": "Low",
     "out": "Out"
+  },
+  "ai": {
+    "title": "AI Assistant",
+    "subtitle": "A vendor-agnostic assistant for the clinic — configure your provider in Settings.",
+    "model": "Model",
+    "not_enabled": "AI is not enabled yet.",
+    "not_configured": "Missing API key or model — finish setup in Settings.",
+    "status_ready": "Ready",
+    "status_off": "Not configured",
+    "configure": "Configure",
+    "setup_hint": "Go to Settings → AI to choose a provider (Claude, OpenAI, Gemini, DeepSeek, Grok, Mistral…) and add your API key.",
+    "assistant": "Assistant",
+    "thinking": "Thinking…",
+    "placeholder": "Ask the assistant…",
+    "disclaimer": "AI answers may be inaccurate — always use clinical judgement.",
+    "error": "The assistant could not respond"
   },
   "rx": {
     "title": "Drugs & Prescriptions",

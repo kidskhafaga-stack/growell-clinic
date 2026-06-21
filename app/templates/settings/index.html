@@ -15,14 +15,16 @@
     <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
 </div>
 
-<form method="post" enctype="multipart/form-data" x-data="{ tab: 'clinic' }">
+<form method="post" enctype="multipart/form-data"
+      x-data="{ tab: (window.location.hash === '#ai' ? 'ai' : 'clinic') }">
   <!-- Tabs -->
   <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
     {% for tid, icon, label in [
         ('clinic','hospital', t('settings.clinic_identity')),
         ('logo','image', t('settings.logo')),
         ('whatsapp','whatsapp', t('settings.wa_title')),
-        ('eta','receipt-cutoff', t('settings.eta_title'))] %}
+        ('eta','receipt-cutoff', t('settings.eta_title')),
+        ('ai','robot', t('settings.ai_title'))] %}
     <button type="button" class="btn btn-sm gc-press"
             :class="tab==='{{ tid }}' ? 'btn-primary' : 'btn-outline'"
             x-on:click="tab='{{ tid }}'"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
@@ -186,6 +188,61 @@
         <div class="form-row"><label>{{ t('settings.eta_signing_url') }}</label><input class="input" name="eta_signing_url" dir="ltr" value="{{ values.get('eta_signing_url','') }}"></div>
       </div>
     </details>
+  </div>
+
+  <!-- AI assistant -->
+  <div class="card gc-scale-in" x-show="tab==='ai'" x-cloak id="ai"
+       x-data="{ provider: '{{ values.get('ai_provider','claude') }}' }">
+    <h2 class="section-title"><i class="bi bi-robot"></i> {{ t('settings.ai_title') }}</h2>
+    <p class="page-sub" style="margin:-4px 0 12px;">{{ t('settings.ai_subtitle') }}</p>
+
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_enabled" name="ai_enabled" value="1" {{ 'checked' if values.get('ai_enabled')=='1' else '' }}>
+      <label for="ai_enabled" style="margin:0;font-weight:400;">{{ t('settings.ai_enabled') }}</label>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.ai_provider') }}</label>
+        <select class="select" name="ai_provider" x-model="provider">
+          {% for pid, meta in ai_providers.items() %}
+          <option value="{{ pid }}" {{ 'selected' if values.get('ai_provider','claude')==pid else '' }}>{{ meta.label }}</option>
+          {% endfor %}
+        </select><div class="hint">{{ t('settings.ai_provider_hint') }}</div></div>
+
+      <div class="form-row"><label>{{ t('settings.ai_model') }}</label>
+        <input class="input" name="ai_model" dir="ltr" list="ai-model-list"
+               value="{{ values.get('ai_model','') }}"
+               placeholder="{{ ai_providers.get(values.get('ai_provider','claude')).default_model }}">
+        <datalist id="ai-model-list">
+          {% for pid, meta in ai_providers.items() %}
+            {% for m in meta.models %}<option value="{{ m }}">{{ meta.label }}</option>{% endfor %}
+          {% endfor %}
+        </datalist>
+        <div class="hint">{{ t('settings.ai_model_hint') }}</div></div>
+
+      <div class="form-row"><label>{{ t('settings.ai_api_key') }}</label>
+        <input class="input" name="ai_api_key" type="password" dir="ltr" autocomplete="off"
+               value="{{ values.get('ai_api_key','') }}" placeholder="sk-…">
+        {% for pid, meta in ai_providers.items() %}{% if meta.keys_url %}
+        <div class="hint" x-show="provider==='{{ pid }}'" x-cloak>
+          <a href="{{ meta.keys_url }}" target="_blank" rel="noopener">{{ t('settings.ai_get_key') }} — {{ meta.label }}</a></div>
+        {% endif %}{% endfor %}
+      </div>
+
+      <div class="form-row"><label>{{ t('settings.ai_base_url') }}</label>
+        <input class="input" name="ai_base_url" dir="ltr"
+               value="{{ values.get('ai_base_url','') }}"
+               placeholder="{{ ai_providers.get(values.get('ai_provider','claude')).base_url }}">
+        <div class="hint" x-show="provider==='custom'" x-cloak>{{ t('settings.ai_base_url_custom') }}</div>
+        <div class="hint" x-show="provider!=='custom'">{{ t('settings.ai_base_url_hint') }}</div></div>
+    </div>
+
+    <div class="form-row"><label>{{ t('settings.ai_system_prompt') }}</label>
+      <textarea class="input" name="ai_system_prompt" rows="3" dir="auto"
+                placeholder="{{ t('settings.ai_system_prompt_ph') }}">{{ values.get('ai_system_prompt','') }}</textarea>
+      <div class="hint">{{ t('settings.ai_system_prompt_hint') }}</div></div>
+
+    <p class="info-note" style="margin:10px 0 0;"><i class="bi bi-shield-lock"></i> {{ t('settings.ai_privacy') }}</p>
   </div>
 
   <div class="gc-animate" style="margin-top:16px;">
