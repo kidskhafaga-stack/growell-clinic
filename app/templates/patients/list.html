@@ -72,7 +72,7 @@
       {% for p in patients %}
       <tr>
         <td>
-          <div class="patient-row">
+          <div class="patient-row {{ 'gm' if p.gender == 'male' else 'gf' }}">
             {{ patient_avatar(p, 'sm') }}
             <div>
               <div class="name">{{ p.display_name(current_lang) }}</div>

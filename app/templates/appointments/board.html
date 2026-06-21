@@ -147,7 +147,7 @@
         <td style="color:var(--muted);">{{ loop.index }}</td>
         <td><strong>{{ a.time_label }}</strong></td>
         <td>
-          <div class="patient-row">{{ patient_avatar(a.patient, 'sm') }}
+          <div class="patient-row {{ 'gm' if a.patient.gender == 'male' else 'gf' }}">{{ patient_avatar(a.patient, 'sm') }}
             <div><a class="name" href="{{ url_for('patients.view', patient_id=a.patient_id) }}" style="color:inherit;">{{ a.patient.display_name(current_lang) }}</a>
               <div class="num">{{ a.patient.patient_number }}</div></div></div>
         </td>

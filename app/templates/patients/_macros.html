@@ -2,7 +2,7 @@
 
 {% macro patient_avatar(patient, size='sm') %}
   {% if patient.photo %}
-    <img class="patient-avatar {{ size }}"
+    <img class="patient-avatar {{ size }} {{ 'gender-male' if patient.gender == 'male' else 'gender-female' }}"
          src="{{ url_for('static', filename='uploads/patients/' ~ patient.photo) }}"
          alt="{{ patient.display_name(current_lang) }}">
   {% else %}
