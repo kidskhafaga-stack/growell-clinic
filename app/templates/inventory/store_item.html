@@ -1,0 +1,74 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ item.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ item.display_name(current_lang) }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ item.display_name(current_lang) }}
+      <span class="status-badge {{ 'st-no_show' if item.is_low else 'st-completed' }}" style="font-size:1rem;">{{ t('store.stock') }}: {{ item.current_stock }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ item.category or '' }} {% if item.unit %}· {{ item.unit }}{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('store.items') }}</a>
+</div>
+
+<div class="grid" style="grid-template-columns:1.1fr 1fr;gap:16px;align-items:start;">
+  <!-- Record movement -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-arrow-left-right"></i> {{ t('store.record_move') }}</h2>
+    <form method="post" action="{{ url_for('inventory.store_move', item_id=item.id) }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('store.kind') }}</label>
+          <select class="select" name="kind">
+            {% for k in ['in','out','adjust','waste'] %}<option value="{{ k }}">{{ t('store.' ~ k) }}</option>{% endfor %}
+          </select></div>
+        <div class="form-row"><label>{{ t('store.qty') }} *</label><input class="input" type="number" min="1" name="qty" required></div>
+        <div class="form-row"><label>{{ t('store.unit_cost') }}</label><input class="input" type="number" step="0.01" name="unit_cost" value="{{ item.purchase_price or '' }}"></div>
+        <div class="form-row"><label>{{ t('store.supplier') }}</label>
+          <select class="select" name="supplier_id"><option value="">—</option>
+            {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select></div>
+        <div class="form-row"><label>{{ t('store.reason') }}</label><input class="input" name="reason"></div>
+      </div>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('store.record_move') }}</button>
+    </form>
+
+    <details style="margin-top:14px;">
+      <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</summary>
+      <form method="post" action="{{ url_for('inventory.store_item_edit', item_id=item.id) }}" style="margin-top:10px;">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('store.name') }}</label><input class="input" name="name" value="{{ item.name }}"></div>
+          <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category" value="{{ item.category or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.unit') }}</label><input class="input" name="unit" value="{{ item.unit or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ item.purchase_price or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.sell_price') }}</label><input class="input" type="number" step="0.01" name="sell_price" value="{{ item.sell_price or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.reorder') }}</label><input class="input" type="number" name="reorder_level" value="{{ item.reorder_level }}"></div>
+        </div>
+        <div class="form-row checkbox"><input type="checkbox" id="ia" name="is_active" value="1" {{ 'checked' if item.is_active else '' }}><label for="ia" style="margin:0;font-weight:400;">{{ t('store.is_active') }}</label></div>
+        <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+      </form>
+    </details>
+  </div>
+
+  <!-- Ledger -->
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-list-ul"></i> {{ t('store.movements') }}</h2>
+    {% if movements %}
+    <table class="table">
+      <thead><tr><th>{{ t('store.date') }}</th><th>{{ t('store.kind') }}</th><th>{{ t('store.qty') }}</th><th>{{ t('store.reason') }}</th></tr></thead>
+      <tbody>
+        {% for m in movements %}
+        <tr>
+          <td dir="ltr" style="white-space:nowrap;">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><span class="badge {{ 'badge--green' if m.qty>0 else 'badge--danger' }}">{{ t('store.' ~ m.kind) }}</span></td>
+          <td style="font-weight:700;color:{{ 'var(--green-700)' if m.qty>0 else 'var(--danger)' }};">{{ '+' if m.qty>0 else '' }}{{ m.qty }}</td>
+          <td style="color:var(--muted);">{{ m.reason or '—' }}{% if m.supplier %} · {{ m.supplier.name }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty-state">{{ t('store.no_movements') }}</div>{% endif %}
+  </div>
+</div>
+{% endblock %}
