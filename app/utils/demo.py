@@ -260,18 +260,28 @@ def seed_demo():
         is_active=True,
     ))
 
-    # Visits with vitals + a diagnosis.
-    for p in patients[:3]:
-        v = Visit(patient_id=p.id, doctor_id=doc.id,
-                  visit_date=today - timedelta(days=rnd.randint(1, 20)),
-                  chief_complaint="حرارة وكحة", status="completed")
-        db.session.add(v)
-        db.session.flush()
-        db.session.add(VitalSigns(visit_id=v.id, temperature_c=37.8,
-                                  pulse_bpm=rnd.randint(90, 120), spo2=98))
-        db.session.add(Diagnosis(visit_id=v.id, code="J06.9",
-                                 title="التهاب الجهاز التنفسي العلوي الحاد",
-                                 dx_type="working"))
+    # Visits with vitals + a diagnosis (most patients, some with 2 visits).
+    _complaints = [
+        ("حرارة وكحة", "J06.9", "التهاب الجهاز التنفسي العلوي الحاد"),
+        ("إسهال", "A09", "نزلة معوية"),
+        ("طفح جلدي", "L20.9", "إكزيما"),
+        ("متابعة نمو", "Z00.1", "فحص متابعة لطفل سليم"),
+        ("التهاب أذن", "H66.9", "التهاب الأذن الوسطى"),
+    ]
+    for idx, p in enumerate(patients):
+        for _ in range(1 if idx >= 6 else rnd.randint(1, 2)):
+            cc, code, dx = rnd.choice(_complaints)
+            v = Visit(patient_id=p.id, doctor_id=doc.id,
+                      visit_date=today - timedelta(days=rnd.randint(1, 120)),
+                      chief_complaint=cc, status="completed")
+            db.session.add(v)
+            db.session.flush()
+            db.session.add(VitalSigns(
+                visit_id=v.id, temperature_c=round(rnd.uniform(36.5, 39.0), 1),
+                pulse_bpm=rnd.randint(90, 130), resp_rate=rnd.randint(20, 35),
+                spo2=rnd.randint(96, 99)))
+            db.session.add(Diagnosis(visit_id=v.id, code=code, title=dx,
+                                     dx_type="working"))
 
     # Some administered vaccine doses.
     if brand is not None:
