@@ -7,6 +7,7 @@
     <h1>{{ t('errors.403_title') }}</h1>
     <p style="color:var(--muted);">{{ t('errors.403_message') }}</p>
     <a class="btn btn-primary" href="{{ url_for('main.index') }}">{{ t('errors.go_home') }}</a>
+    <div class="copyright" style="margin-top:20px;">{{ copyright_notice }}</div>
   </div>
 </div>
 {% endblock %}
