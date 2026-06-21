@@ -374,7 +374,8 @@
     "select_patient": "اختر مريضاً لعرض مخطط نموه",
     "patients_with_records": "المرضى الذين لديهم قياسات",
     "print": "طباعة A4",
-    "measurements": "القياسات المسجّلة"
+    "measurements": "القياسات المسجّلة",
+    "chart_unavailable": "تعذّر تحميل مكتبة الرسم — تأكد من الاتصال بالإنترنت"
   },
   "statuses": {
     "scheduled": "مجدول",
