@@ -1205,5 +1205,26 @@
     "stocktake_done": "Stocktake done — {n} adjustments",
     "stocktake_hint": "Enter the counted quantity per item; differences post as adjustments automatically.",
     "save_stocktake": "Save stocktake"
+  },
+  "agegrp": {
+    "title": "Clinic patient classification",
+    "by_gender": "By gender",
+    "by_age": "By age group",
+    "total": "Total patients",
+    "group": "Group",
+    "range": "Definition",
+    "count": "Count",
+    "newborn": "1st month of life",
+    "newborn_def": "Birth to 30 days",
+    "infant": "Infant",
+    "infant_def": "1 month to 2 years",
+    "toddler": "Toddler",
+    "toddler_def": "2 to 5 years",
+    "school": "School age",
+    "school_def": "5 to 12 years",
+    "adolescent": "Adolescent",
+    "adolescent_def": "12 to 18 years",
+    "over": "Over age",
+    "over_def": "Over 18 years"
   }
 }

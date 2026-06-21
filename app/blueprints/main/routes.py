@@ -26,10 +26,46 @@ def index():
     return redirect(url_for("auth.login"))
 
 
+# Age groups (upper bound in days, 365-day years) — see clinical reference.
+AGE_GROUPS = [
+    ("newborn", 30),       # 1st month of life: 0–30 days
+    ("infant", 730),       # infant: 1 month – 2 years
+    ("toddler", 1825),     # toddler: 2–5 years
+    ("school", 4380),      # school age: 5–12 years
+    ("adolescent", 6570),  # adolescent: 12–18 years
+    ("over", None),        # over age: > 18 years
+]
+
+
+def _age_group(days):
+    if days is None:
+        return "over"
+    for key, upper in AGE_GROUPS:
+        if upper is None or days <= upper:
+            return key
+    return "over"
+
+
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("main/dashboard.html")
+    from app.models import Patient
+
+    stats = None
+    if current_user.can_access("patients"):
+        patients = Patient.query.filter_by(is_active=True).all()
+        groups = {key: 0 for key, _ in AGE_GROUPS}
+        male = female = 0
+        for p in patients:
+            if p.gender == "male":
+                male += 1
+            elif p.gender == "female":
+                female += 1
+            groups[_age_group(p.age_days)] += 1
+        stats = {"total": len(patients), "male": male, "female": female,
+                 "groups": groups}
+    return render_template("main/dashboard.html", stats=stats,
+                           age_groups=[k for k, _ in AGE_GROUPS])
 
 
 @main_bp.route("/guide")

@@ -312,7 +312,7 @@ a:hover { color: var(--green-900); }
 .error-code { font-size: 5rem; font-weight: 800; color: var(--green-700); line-height: 1; }
 
 /* ---------- Stat cards (colored edge) ---------- */
-.stat-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.stat-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 .stat-card {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 16px 18px; box-shadow: var(--shadow);

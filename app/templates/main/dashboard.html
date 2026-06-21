@@ -14,6 +14,34 @@
   <i class="bi bi-info-circle"></i> {{ t('dashboard.phase_notice') }}
 </div>
 
+{% if stats %}
+<!-- Patient classification -->
+<div class="card gc-scale-in" style="animation-delay:0.14s;">
+  <h2 style="margin-top:0;font-size:1.1rem;"><i class="bi bi-people"></i> {{ t('agegrp.title') }}</h2>
+
+  <h3 class="section-title" style="font-size:0.95rem;">{{ t('agegrp.by_gender') }}</h3>
+  <div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card edge-green"><i class="bi bi-people ico"></i><div class="value">{{ stats.total }}</div><div class="label">{{ t('agegrp.total') }}</div></div>
+    <div class="stat-card" style="border-inline-start-color:#3b82f6;"><i class="bi bi-gender-male ico" style="color:#3b82f6;"></i><div class="value" style="color:#2563eb;">{{ stats.male }}</div><div class="label">{{ t('genders.male') }}</div></div>
+    <div class="stat-card" style="border-inline-start-color:#ec4899;"><i class="bi bi-gender-female ico" style="color:#ec4899;"></i><div class="value" style="color:#be185d;">{{ stats.female }}</div><div class="label">{{ t('genders.female') }}</div></div>
+  </div>
+
+  <h3 class="section-title" style="font-size:0.95rem;">{{ t('agegrp.by_age') }}</h3>
+  <table class="table" style="margin:0;">
+    <thead><tr><th>{{ t('agegrp.group') }}</th><th>{{ t('agegrp.range') }}</th><th>{{ t('agegrp.count') }}</th></tr></thead>
+    <tbody>
+      {% for g in age_groups %}
+      <tr>
+        <td><strong>{{ t('agegrp.' ~ g) }}</strong></td>
+        <td style="color:var(--muted);">{{ t('agegrp.' ~ g ~ '_def') }}</td>
+        <td><span class="badge badge--role">{{ stats.groups[g] }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="card gc-scale-in" style="animation-delay:0.16s;">
   <h2 style="margin-top:0;font-size:1.1rem;">{{ t('dashboard.your_modules') }}</h2>
   <div class="grid grid--cards gc-stagger" style="margin-top:8px;">
