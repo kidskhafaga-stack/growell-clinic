@@ -9,8 +9,12 @@
     <h1 class="page-title">{{ t('inventory.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('inventory.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.suppliers') }}">
-    <i class="bi bi-truck"></i> {{ t('inventory.manage_suppliers') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}">
+      <i class="bi bi-box-seam"></i> {{ t('store.open') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.suppliers') }}">
+      <i class="bi bi-truck"></i> {{ t('inventory.manage_suppliers') }}</a>
+  </div>
 </div>
 
 <!-- Stats -->

@@ -1,0 +1,38 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('store.stocktake') }}{% endblock %}
+{% block page_heading %}{{ t('store.stocktake') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('store.stocktake') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('store.stocktake_hint') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('store.title') }}</a>
+</div>
+
+<form method="post">
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    <table class="table">
+      <thead><tr><th>{{ t('store.name') }}</th><th>{{ t('store.system') }}</th><th>{{ t('store.counted') }}</th></tr></thead>
+      <tbody>
+        {% for i in items %}
+        <tr>
+          <td><strong>{{ i.display_name(current_lang) }}</strong>{% if i.unit %} <span style="color:var(--muted);">({{ i.unit }})</span>{% endif %}</td>
+          <td>{{ i.current_stock }}</td>
+          <td><input class="input" type="number" name="count_{{ i.id }}" placeholder="{{ i.current_stock }}" style="width:120px;"></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="empty-state">{{ t('store.no_items') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if items %}
+  <div class="gc-animate" style="margin-top:14px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('store.save_stocktake') }}</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}
