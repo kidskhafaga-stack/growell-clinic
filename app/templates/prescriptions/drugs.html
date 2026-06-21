@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('rx.catalogue') }}{% endblock %}
+{% block page_heading %}{{ t('rx.catalogue') }}{% endblock %}
+
+{% macro form_select(name, current='') %}
+  <select class="select" name="{{ name }}">
+    <option value="">—</option>
+    {% for f in forms %}<option value="{{ f }}" {{ 'selected' if current==f else '' }}>{{ t('drug_forms.' ~ f) }}</option>{% endfor %}
+  </select>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <h1 class="page-title">{{ t('rx.catalogue') }}</h1>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+</div>
+
+<form method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;">
+  <input class="input" name="q" value="{{ q }}" placeholder="{{ t('rx.search_drugs') }}" style="max-width:340px;">
+  <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
+</form>
+
+<details class="card gc-scale-in" style="animation-delay:0.05s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rx.add_drug') }}</summary>
+  <form method="post" action="{{ url_for('prescriptions.drug_new') }}" style="margin-top:12px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('rx.trade_name') }} *</label><input class="input" name="trade_name" required></div>
+      <div class="form-row"><label>{{ t('rx.generic_name') }}</label><input class="input" name="generic_name"></div>
+      <div class="form-row"><label>{{ t('rx.form') }}</label>{{ form_select('form') }}</div>
+      <div class="form-row"><label>{{ t('rx.strength') }}</label><input class="input" name="strength" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="default_dose"></div>
+      <div class="form-row"><label>{{ t('rx.default_frequency') }}</label><input class="input" name="default_frequency"></div>
+      <div class="form-row"><label>{{ t('rx.max_daily') }}</label><input class="input" name="max_daily_dose"></div>
+      <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="default_instructions"></div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+  {% if drugs %}
+  <table class="table">
+    <thead><tr><th>{{ t('rx.trade_name') }}</th><th>{{ t('rx.generic_name') }}</th><th>{{ t('rx.form') }}</th><th>{{ t('rx.strength') }}</th><th>{{ t('common.status') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th></tr></thead>
+    <tbody>
+      {% for d in drugs %}
+      <tr>
+        <td><strong>{{ d.trade_name }}</strong></td>
+        <td style="color:var(--muted);">{{ d.generic_name or '—' }}</td>
+        <td>{{ t('drug_forms.' ~ d.form) if d.form else '—' }}</td>
+        <td dir="ltr">{{ d.strength or '—' }}</td>
+        <td>{% if d.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>{% else %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</td>
+        <td style="text-align:end;display:flex;gap:6px;justify-content:flex-end;">
+          <details style="position:relative;">
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+            <form method="post" action="{{ url_for('prescriptions.drug_edit', drug_id=d.id) }}" class="popform" style="width:300px;">
+              <div class="form-row"><label>{{ t('rx.trade_name') }}</label><input class="input" name="trade_name" value="{{ d.trade_name }}"></div>
+              <div class="form-row"><label>{{ t('rx.generic_name') }}</label><input class="input" name="generic_name" value="{{ d.generic_name or '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.form') }}</label>{{ form_select('form', d.form or '') }}</div>
+              <div class="form-row"><label>{{ t('rx.strength') }}</label><input class="input" name="strength" dir="ltr" value="{{ d.strength or '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="default_dose" value="{{ d.default_dose or '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.default_frequency') }}</label><input class="input" name="default_frequency" value="{{ d.default_frequency or '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.max_daily') }}</label><input class="input" name="max_daily_dose" value="{{ d.max_daily_dose or '' }}"></div>
+              <div class="form-row checkbox"><input type="checkbox" id="da_{{ d.id }}" name="is_active" value="1" {{ 'checked' if d.is_active else '' }}><label for="da_{{ d.id }}" style="margin:0;font-weight:400;">{{ t('common.active') }}</label></div>
+              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('prescriptions.drug_delete', drug_id=d.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-capsule"></i>{{ t('rx.no_drugs') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block head %}<style>.popform{position:absolute;z-index:60;inset-inline-end:0;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px;text-align:start;}</style>{% endblock %}

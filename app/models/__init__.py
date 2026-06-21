@@ -64,6 +64,13 @@ from app.models.payer import (
     PayerServiceRate,
 )
 from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
+from app.models.prescription import (
+    DRUG_FORMS,
+    Drug,
+    DrugInteraction,
+    Prescription,
+    PrescriptionItem,
+)
 from app.models.message import MESSAGE_STATUSES, MessageLog
 
 __all__ = [
@@ -122,6 +129,11 @@ __all__ = [
     "COVERAGE_TYPES",
     "EInvoiceDocument",
     "EINVOICE_STATUSES",
+    "Drug",
+    "DrugInteraction",
+    "Prescription",
+    "PrescriptionItem",
+    "DRUG_FORMS",
     "MessageLog",
     "MESSAGE_STATUSES",
 ]

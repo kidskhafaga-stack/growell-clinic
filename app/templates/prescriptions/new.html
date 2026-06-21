@@ -1,0 +1,94 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('rx.new') }}{% endblock %}
+{% block page_heading %}{{ t('rx.new') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('rx.new') }}</h1>
+
+<form method="post" action="{{ url_for('prescriptions.new') }}" x-data="rxForm()" x-init="addLine()">
+  <div class="card gc-scale-in">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('rx.patient') }} *</label>
+        <select class="select" name="patient_id" required>
+          <option value="">{{ t('rx.select_patient') }}</option>
+          {% for p in patients %}<option value="{{ p.id }}" {{ 'selected' if patient and patient.id==p.id else '' }}>{{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('rx.doctor') }}</label>
+        <select class="select" name="doctor_id">
+          <option value="">—</option>
+          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if current_user.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('rx.diagnosis') }}</label><input class="input" name="diagnosis"></div>
+    </div>
+  </div>
+
+  <div class="card gc-scale-in" style="animation-delay:0.06s;">
+    <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('rx.items') }}</h2>
+    <template x-for="(line, i) in lines" :key="i">
+      <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
+        <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="lines.splice(i,1)"><i class="bi bi-x-lg"></i></button>
+        <input type="hidden" name="item_drug_id" :value="line.drug_id">
+        <div class="form-row" style="position:relative;">
+          <label>{{ t('rx.drug') }}</label>
+          <input class="input" name="item_name" x-model="line.name" autocomplete="off"
+                 placeholder="{{ t('rx.search_placeholder') }}"
+                 x-on:input.debounce.250ms="search(i)" x-on:focus="search(i)">
+          <div x-show="line.open && line.suggestions.length" x-cloak
+               style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
+            <template x-for="s in line.suggestions" :key="s.id">
+              <div x-on:click="pick(i,s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
+                   x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+                <strong x-text="s.trade"></strong> <span style="color:var(--muted);font-size:0.82rem;" x-text="s.strength||s.form? '('+(s.strength||'')+') '+(s.generic||'') : s.generic"></span>
+              </div>
+            </template>
+          </div>
+          <div class="hint" x-show="line.max" x-cloak>{{ t('rx.max_hint') }}: <span x-text="line.max"></span></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="item_dose" x-model="line.dose"></div>
+          <div class="form-row"><label>{{ t('rx.default_frequency') }}</label><input class="input" name="item_frequency" x-model="line.frequency"></div>
+          <div class="form-row"><label>{{ t('rx.duration') }}</label><input class="input" name="item_duration" x-model="line.duration"></div>
+          <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
+        </div>
+      </div>
+    </template>
+    <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('rx.add_drug_line') }}</button>
+  </div>
+
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <div class="form-row"><label>{{ t('rx.notes') }}</label><textarea class="input" name="notes" rows="2"></textarea></div>
+  </div>
+
+  <div class="gc-animate" style="margin-top:14px;display:flex;gap:10px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-printer"></i> {{ t('rx.save_print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+
+<script>
+function rxForm(){
+  return {
+    lines: [],
+    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false}); },
+    async search(i){
+      const l=this.lines[i]; const q=(l.name||'').trim();
+      if(q.length<1){ l.suggestions=[]; l.open=false; return; }
+      try{
+        const r=await fetch("{{ url_for('prescriptions.drug_search') }}?q="+encodeURIComponent(q));
+        l.suggestions=await r.json(); l.open=true;
+      }catch(e){ l.suggestions=[]; l.open=false; }
+    },
+    pick(i,s){
+      const l=this.lines[i];
+      l.drug_id=s.id; l.name=s.trade + (s.strength? ' '+s.strength:'');
+      if(!l.dose) l.dose=s.dose; if(!l.frequency) l.frequency=s.frequency;
+      if(!l.instructions) l.instructions=s.instructions; l.max=s.max;
+      l.open=false; l.suggestions=[];
+    }
+  };
+}
+</script>
+{% endblock %}
+
+{% block head %}<style>[x-cloak]{display:none!important;}</style>{% endblock %}
