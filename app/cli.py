@@ -87,6 +87,18 @@ def register_commands(app):
             ("invoices", "is_tax", "BOOLEAN DEFAULT 0"),
             ("services", "eta_item_type", "VARCHAR(8) DEFAULT 'EGS'"),
             ("vaccines", "route", "VARCHAR(20)"),
+            ("users", "photo", "VARCHAR(255)"),
+            ("users", "job_title", "VARCHAR(120)"),
+            ("users", "branch", "VARCHAR(120)"),
+            ("users", "rx_display_name", "VARCHAR(160)"),
+            ("users", "professional_title", "VARCHAR(40)"),
+            ("users", "specialty", "VARCHAR(160)"),
+            ("users", "sub_specialties", "VARCHAR(255)"),
+            ("users", "license_no", "VARCHAR(60)"),
+            ("users", "signature_file", "VARCHAR(255)"),
+            ("users", "stamp_file", "VARCHAR(255)"),
+            ("users", "personal_logo", "VARCHAR(255)"),
+            ("users", "accent_color", "VARCHAR(20)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

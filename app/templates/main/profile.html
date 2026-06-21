@@ -1,0 +1,88 @@
+{% extends "shell.html" %}
+{% block title %}{{ t('profile.title') }}{% endblock %}
+{% block page_heading %}{{ t('profile.my_profile') }}{% endblock %}
+
+{% macro img_box(field, label, current) %}
+  <div class="form-row">
+    <label>{{ label }}</label>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      {% if current %}
+        <img src="{{ url_for('static', filename='uploads/users/' ~ current) }}" alt="" style="max-width:120px;max-height:70px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff;">
+      {% endif %}
+      <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
+        <i class="bi bi-upload"></i> {{ t('profile.upload') }}
+        <input type="file" name="{{ field }}" accept="image/*" hidden></label>
+      {% if current %}
+      <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('main.profile_image_delete', field=field) }}" formnovalidate><i class="bi bi-trash"></i></button>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('profile.my_profile') }}</h1>
+
+<form method="post" enctype="multipart/form-data">
+  <!-- Account summary -->
+  <div class="card gc-scale-in" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
+    {% if current_user.photo %}
+      <img src="{{ url_for('static', filename='uploads/users/' ~ current_user.photo) }}" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--green-100);">
+    {% else %}
+      <div class="patient-avatar lg">{{ current_user.full_name[:1] }}</div>
+    {% endif %}
+    <div style="flex:1;min-width:220px;">
+      <h2 style="margin:0;">{{ current_user.display_name(current_lang) }}</h2>
+      <div style="color:var(--muted);">{{ t('profile.role') }}: {{ current_user.role_label(current_lang) }}
+        · {{ t('profile.last_login') }}: <span dir="ltr">{{ current_user.last_login_at.strftime('%Y-%m-%d %H:%M') if current_user.last_login_at else t('profile.never') }}</span></div>
+    </div>
+  </div>
+
+  <!-- Basic -->
+  <div class="card gc-scale-in" style="animation-delay:0.05s;">
+    <h2 class="section-title"><i class="bi bi-person"></i> {{ t('profile.basic') }}</h2>
+    {{ img_box('photo', t('profile.photo'), current_user.photo) }}
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('users.full_name') }}</label><input class="input" name="full_name" value="{{ current_user.full_name }}"></div>
+      <div class="form-row"><label>{{ t('users.full_name_en') }}</label><input class="input" name="full_name_en" dir="ltr" value="{{ current_user.full_name_en or '' }}"></div>
+      <div class="form-row"><label>{{ t('users.phone') }}</label><input class="input" name="phone" dir="ltr" value="{{ current_user.phone or '' }}"></div>
+      <div class="form-row"><label>{{ t('users.email') }}</label><input class="input" name="email" dir="ltr" value="{{ current_user.email or '' }}"></div>
+      <div class="form-row"><label>{{ t('profile.job_title') }}</label><input class="input" name="job_title" value="{{ current_user.job_title or '' }}"></div>
+      <div class="form-row"><label>{{ t('profile.branch') }}</label><input class="input" name="branch" value="{{ current_user.branch or '' }}"></div>
+      <div class="form-row"><label>{{ t('profile.accent') }}</label><input class="input" type="color" name="accent_color" value="{{ current_user.accent_color or '#16a34a' }}" style="height:42px;padding:4px;"></div>
+    </div>
+  </div>
+
+  {% if current_user.role == 'doctor' %}
+  <!-- Doctor profile -->
+  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('profile.doctor_profile') }}</h2>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('profile.rx_name') }}</label><input class="input" name="rx_display_name" value="{{ current_user.rx_display_name or '' }}" placeholder="{{ current_user.display_name(current_lang) }}"></div>
+      <div class="form-row"><label>{{ t('profile.prof_title') }}</label>
+        <select class="select" name="professional_title"><option value="">—</option>
+          {% for ti in titles %}<option value="{{ ti }}" {{ 'selected' if current_user.professional_title==ti else '' }}>{{ ti }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('profile.specialty') }}</label><input class="input" name="specialty" value="{{ current_user.specialty or '' }}"></div>
+      <div class="form-row"><label>{{ t('profile.sub_specialties') }}</label><input class="input" name="sub_specialties" value="{{ current_user.sub_specialties or '' }}"></div>
+      <div class="form-row"><label>{{ t('profile.license') }}</label><input class="input" name="license_no" dir="ltr" value="{{ current_user.license_no or '' }}"></div>
+    </div>
+    <h3 style="margin:14px 0 6px;font-size:0.95rem;"><i class="bi bi-palette"></i> {{ t('profile.branding') }}</h3>
+    {{ img_box('signature_file', t('profile.signature'), current_user.signature_file) }}
+    {{ img_box('stamp_file', t('profile.stamp'), current_user.stamp_file) }}
+    {{ img_box('personal_logo', t('profile.personal_logo'), current_user.personal_logo) }}
+  </div>
+  {% endif %}
+
+  <!-- Password -->
+  <div class="card gc-scale-in" style="animation-delay:0.14s;">
+    <h2 class="section-title"><i class="bi bi-key"></i> {{ t('profile.change_password') }}</h2>
+    <div class="form-row" style="max-width:320px;"><label>{{ t('profile.new_password') }}</label>
+      <input class="input" type="password" name="password" autocomplete="new-password">
+      <div class="hint">{{ t('profile.pw_hint') }}</div></div>
+  </div>
+
+  <div class="gc-animate" style="margin-top:14px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
+</form>
+{% endblock %}

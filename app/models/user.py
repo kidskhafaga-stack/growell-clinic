@@ -23,6 +23,22 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120))
     phone = db.Column(db.String(30))
 
+    # Profile.
+    photo = db.Column(db.String(255))          # profile picture filename
+    job_title = db.Column(db.String(120))      # المسمى الوظيفي
+    branch = db.Column(db.String(120))         # الفرع
+
+    # Doctor profile / branding.
+    rx_display_name = db.Column(db.String(160))     # الاسم الظاهر في الروشتة
+    professional_title = db.Column(db.String(40))   # Professor/Consultant/...
+    specialty = db.Column(db.String(160))           # التخصص الرئيسي
+    sub_specialties = db.Column(db.String(255))     # التخصصات الفرعية
+    license_no = db.Column(db.String(60))           # رقم الترخيص/النقابة
+    signature_file = db.Column(db.String(255))      # التوقيع الرقمي
+    stamp_file = db.Column(db.String(255))          # الختم الطبي
+    personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
+    accent_color = db.Column(db.String(20))         # لون مميز
+
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     last_login_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -73,6 +89,13 @@ class User(UserMixin, db.Model):
         if lang == "en" and self.full_name_en:
             return self.full_name_en
         return self.full_name
+
+    def doctor_print_name(self, lang="ar"):
+        """Name shown on the doctor's prescriptions/printouts."""
+        if self.rx_display_name:
+            return self.rx_display_name
+        base = self.display_name(lang)
+        return f"{self.professional_title} {base}" if self.professional_title else base
 
     def role_label(self, lang="ar"):
         rec = self._role_record()
