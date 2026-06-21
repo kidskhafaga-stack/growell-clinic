@@ -67,13 +67,15 @@ def index():
 @module_required(MODULE)
 def view(patient_id):
     patient = db.get_or_404(Patient, patient_id)
+    records = _records(patient)
     return render_template(
         "growth/chart.html",
         patient=patient,
         references=references(),
         indicators=list(INDICATORS.keys()),
         default_ref=_default_reference(patient),
-        has_records=bool(_records(patient)),
+        has_records=bool(records),
+        records=records,
         today=datetime.utcnow().date().isoformat(),
     )
 

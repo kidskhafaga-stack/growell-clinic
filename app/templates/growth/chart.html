@@ -21,12 +21,15 @@
         <span><i class="bi bi-gender-ambiguous"></i> {{ t('genders.' ~ patient.gender) }}</span>
       </div>
     </div>
-    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
-      <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    <div class="no-print" style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-outline btn-sm gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('growth.print') }}</button>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
+        <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    </div>
   </div>
 
   <!-- Controls -->
-  <div class="card gc-animate" style="display:flex;gap:18px;flex-wrap:wrap;align-items:end;animation-delay:0.05s;">
+  <div class="card gc-animate no-print" style="display:flex;gap:18px;flex-wrap:wrap;align-items:end;animation-delay:0.05s;">
     <div class="form-row" style="margin:0;min-width:240px;">
       <label>{{ t('growth.reference') }}</label>
       <select class="select" x-model="ref" x-on:change="load()">
@@ -62,8 +65,23 @@
     </div>
   </div>
 
+  <!-- Print-only clinic header -->
+  <div class="print-only" style="display:none;border-bottom:2px solid var(--green-600);padding-bottom:10px;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        {% if clinic.logo_url %}<img src="{{ clinic.logo_url }}" alt="" style="max-height:56px;max-width:110px;object-fit:contain;">{% endif %}
+        <div><h2 style="margin:0;color:var(--green-800);">{{ clinic.name_ar if current_lang=='ar' and clinic.name_ar else (clinic.name or clinic_name) }}</h2>
+          <div style="color:var(--muted);">{{ t('growth.chart_title') }}</div></div>
+      </div>
+      <div style="text-align:end;font-size:0.85rem;">
+        <div>{{ patient.display_name(current_lang) }} · {{ patient.patient_number }}</div>
+        <div>{{ age_label(patient) }} · {{ t('genders.' ~ patient.gender) }}</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Chart -->
-  <div class="card gc-scale-in" style="animation-delay:0.1s;">
+  <div class="card gc-scale-in print-area" style="animation-delay:0.1s;">
     <div x-show="!hasData" class="empty-state">
       <i class="bi bi-graph-up"></i>{{ t('growth.no_records') }}
       <p>{{ t('growth.no_records_hint') }}</p>
@@ -71,8 +89,32 @@
     <div x-show="hasData" style="position:relative;height:460px;"><canvas x-ref="canvas"></canvas></div>
   </div>
 
+  <!-- Measurements table -->
+  {% if records %}
+  <div class="card gc-scale-in print-area" style="padding:0;overflow:hidden;animation-delay:0.13s;">
+    <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-table"></i> {{ t('growth.measurements') }}</h2>
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('growth.record_date') }}</th><th>{{ t('visits.weight') }}</th>
+        <th>{{ t('visits.height') }}</th><th>{{ t('visits.head_circ') }}</th><th>BMI</th>
+      </tr></thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td dir="ltr">{{ r.record_date }}</td>
+          <td>{{ r.weight_kg if r.weight_kg is not none else '—' }}</td>
+          <td>{{ r.height_cm if r.height_cm is not none else '—' }}</td>
+          <td>{{ r.head_circ_cm if r.head_circ_cm is not none else '—' }}</td>
+          <td>{{ '%.1f'|format(r.bmi) if r.bmi else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
   <!-- Add measurement -->
-  <div class="card gc-scale-in" style="animation-delay:0.16s;">
+  <div class="card gc-scale-in no-print" style="animation-delay:0.16s;">
     <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('growth.add_measurement') }}</h2>
     <form method="post" action="{{ url_for('growth.add', patient_id=patient.id) }}">
       <div class="form-grid">
@@ -92,7 +134,19 @@
 {% endblock %}
 
 {% block head %}
-<style>[x-cloak]{display:none!important;}</style>
+<style>
+  [x-cloak]{display:none!important;}
+  @page { size: A4; margin: 12mm; }
+  @media print {
+    .sidebar,.topbar,.no-print,.flashes{display:none!important;}
+    .main{margin:0!important;}.content{padding:0!important;}
+    .card{box-shadow:none!important;border:none!important;margin:0 0 8px;}
+    body{background:#fff!important;}
+    .print-only{display:block!important;}
+    .profile-header{display:none!important;}
+    canvas{max-width:100%!important;}
+  }
+</style>
 {% endblock %}
 
 {% block scripts %}
