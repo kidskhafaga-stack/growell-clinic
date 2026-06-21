@@ -33,6 +33,10 @@
   <div class="card gc-scale-in" x-show="tab==='clinic'" x-cloak>
     <h2 class="section-title"><i class="bi bi-hospital"></i> {{ t('settings.clinic_identity') }}</h2>
     <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.product_name') }}</label>
+        <input class="input" name="product_name" value="{{ values.get('product_name','') }}" placeholder="PediaPro"><div class="hint">{{ t('settings.product_name_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('settings.product_name') }} (EN)</label>
+        <input class="input" name="product_name_en" dir="ltr" value="{{ values.get('product_name_en','') }}"></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
         <input class="input" name="clinic_name_ar" value="{{ values.get('clinic_name_ar','') }}"></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_en') }}</label>
@@ -43,6 +47,8 @@
         <input class="input" name="clinic_address" value="{{ values.get('clinic_address','') }}"></div>
       <div class="form-row"><label>{{ t('settings.address_en') }}</label>
         <input class="input" name="clinic_address_en" dir="ltr" value="{{ values.get('clinic_address_en','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.clinic_tagline') }}</label>
+        <input class="input" name="clinic_tagline" value="{{ values.get('clinic_tagline','') }}"><div class="hint">{{ t('settings.clinic_tagline_hint') }}</div></div>
     </div>
   </div>
 

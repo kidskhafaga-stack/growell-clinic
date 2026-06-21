@@ -5,10 +5,12 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <div class="logo"><i class="bi bi-heart-pulse"></i></div>
+      {% if clinic.logo_url %}
+      <img class="logo" src="{{ clinic.logo_url }}" alt="" style="object-fit:contain;background:#fff;">
+      {% else %}<div class="logo"><i class="bi bi-heart-pulse"></i></div>{% endif %}
       <div>
-        <div class="name">{{ t('app.name') }}</div>
-        <div class="tag">{{ t('app.tagline') }}</div>
+        <div class="name">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div>
+        <div class="tag">{{ clinic.tagline or t('app.tagline') }}</div>
       </div>
     </div>
 
@@ -32,7 +34,7 @@
     </nav>
 
     <div class="sidebar__footer">
-      {{ clinic_name }} · v0.1 — {{ current_user.role_label(current_lang) }}
+      {{ product_name }} · v0.1 — {{ current_user.role_label(current_lang) }}
       <div class="copyright">{{ copyright_notice }}</div>
     </div>
   </aside>

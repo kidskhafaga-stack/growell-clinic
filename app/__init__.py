@@ -95,34 +95,42 @@ def create_app(config_name="default"):
 
     @app.context_processor
     def inject_clinic_settings():
-        """Expose clinic identity/logo settings to all templates."""
-        from flask import url_for
+        """Expose clinic identity/logo + product brand to all templates."""
+        from flask import g, url_for
 
+        product_default = "PediaPro"
         defaults = {
             "name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
             "name_ar": None, "logo": None, "logo_url": None,
             "show_logo_login": True, "show_logo_print": True,
-            "phone": None, "address": None, "address_en": None,
+            "phone": None, "address": None, "address_en": None, "tagline": None,
         }
         try:
             from app.models import Setting
 
             rows = {r.key: r.value for r in Setting.query.all()}
             logo = rows.get("clinic_logo") or None
-            return {"clinic": {
-                "name": rows.get("clinic_name") or defaults["name"],
-                "name_ar": rows.get("clinic_name_ar"),
-                "logo": logo,
-                "logo_url": (url_for("static", filename="uploads/clinic/" + logo)
-                             if logo else None),
-                "show_logo_login": (rows.get("show_logo_login", "1") != "0"),
-                "show_logo_print": (rows.get("show_logo_print", "1") != "0"),
-                "phone": rows.get("clinic_phone"),
-                "address": rows.get("clinic_address"),
-                "address_en": rows.get("clinic_address_en"),
-            }}
+            lang = getattr(g, "lang", "ar")
+            product = ((rows.get("product_name_en") if lang == "en" else None)
+                       or rows.get("product_name") or product_default)
+            return {
+                "clinic": {
+                    "name": rows.get("clinic_name") or defaults["name"],
+                    "name_ar": rows.get("clinic_name_ar"),
+                    "tagline": rows.get("clinic_tagline"),
+                    "logo": logo,
+                    "logo_url": (url_for("static", filename="uploads/clinic/" + logo)
+                                 if logo else None),
+                    "show_logo_login": (rows.get("show_logo_login", "1") != "0"),
+                    "show_logo_print": (rows.get("show_logo_print", "1") != "0"),
+                    "phone": rows.get("clinic_phone"),
+                    "address": rows.get("clinic_address"),
+                    "address_en": rows.get("clinic_address_en"),
+                },
+                "product_name": product,
+            }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
-            return {"clinic": defaults}
+            return {"clinic": defaults, "product_name": product_default}
 
     register_error_handlers(app)
     register_cli(app)

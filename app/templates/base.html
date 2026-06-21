@@ -7,7 +7,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ t('app.name') }}{% endblock %} — {{ clinic_name }}</title>
+  <title>{% block title %}{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}{% endblock %} — {{ product_name }}</title>
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
