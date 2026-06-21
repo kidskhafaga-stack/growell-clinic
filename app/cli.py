@@ -22,6 +22,10 @@ DEMO_USERS = [
 DEFAULT_SETTINGS = {
     "clinic_name": "GROWELL CLINIC",
     "clinic_name_ar": "جروويل كلينك",
+    # Product/marketing brand (the software name) — editable in settings.
+    "product_name": "PediaPro",
+    "product_name_en": "PediaPro",
+    "clinic_tagline": "",
     "default_language": "ar",
     "currency": "EGP",
     "default_growth_reference": "WHO",

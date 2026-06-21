@@ -11,6 +11,8 @@
         <div class="logo gc-glow"><i class="bi bi-heart-pulse"></i></div>
       {% endif %}
       <h1>{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else (clinic.name or t('app.name')) }}</h1>
+      {% if clinic.tagline %}<div class="sub">{{ clinic.tagline }}</div>{% endif %}
+      <div class="sub" style="opacity:.7;font-size:0.8rem;">{{ product_name }}</div>
       <div class="sub">{{ t('auth.login_subtitle') }}</div>
     </div>
 

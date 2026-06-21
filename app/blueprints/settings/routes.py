@@ -17,7 +17,8 @@ ALLOWED_LOGO = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
 # Settings exposed on the form (text fields).
 TEXT_KEYS = [
     "clinic_name", "clinic_name_ar", "clinic_phone",
-    "clinic_address", "clinic_address_en",
+    "clinic_address", "clinic_address_en", "clinic_tagline",
+    "product_name", "product_name_en",
     # WhatsApp / messaging.
     "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_endpoint",

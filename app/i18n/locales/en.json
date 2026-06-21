@@ -613,7 +613,11 @@
     "crm_mode_hint": "One setting controls all system messages.",
     "wa_tpl_vaccine": "Vaccination notification template",
     "wa_vars_vaccine": "Variables: {patient} {vaccine} {dose} {next_date} {clinic}",
-    "crm_central_hint": "All templates are managed in one place:"
+    "crm_central_hint": "All templates are managed in one place:",
+    "product_name": "Product name (marketing)",
+    "product_name_hint": "The software brand — shown in the title and footer",
+    "clinic_tagline": "Tagline under clinic name",
+    "clinic_tagline_hint": "Shown under the clinic name in the sidebar"
   },
   "errors": {
     "403_title": "Forbidden",

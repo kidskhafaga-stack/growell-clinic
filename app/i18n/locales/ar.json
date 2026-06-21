@@ -613,7 +613,11 @@
     "crm_mode_hint": "إعداد واحد يحكم كل رسائل النظام.",
     "wa_tpl_vaccine": "قالب إشعار التطعيم",
     "wa_vars_vaccine": "متغيرات: {patient} {vaccine} {dose} {next_date} {clinic}",
-    "crm_central_hint": "كل القوالب تُدار من مكان واحد:"
+    "crm_central_hint": "كل القوالب تُدار من مكان واحد:",
+    "product_name": "اسم البرنامج (للدعاية)",
+    "product_name_hint": "اسم المنتج التجاري — يظهر في العنوان والفوتر",
+    "clinic_tagline": "شعار/سطر تحت اسم العيادة",
+    "clinic_tagline_hint": "يظهر تحت اسم العيادة في القائمة الجانبية"
   },
   "errors": {
     "403_title": "ممنوع الوصول",
