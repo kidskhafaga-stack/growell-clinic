@@ -43,6 +43,12 @@
     <header class="topbar">
       <div class="topbar__title">{% block page_heading %}{{ t('dashboard.title') }}{% endblock %}</div>
       <div class="topbar__actions">
+        <div class="topbar-date"><i class="bi bi-calendar3"></i>
+          <span>{{ now_date }}</span> · {{ t('weekdays.' ~ now_weekday) }}</div>
+        <button type="button" class="theme-toggle" onclick="toggleTheme()"
+                title="{{ t('profile.theme') }}" aria-label="theme">
+          <i class="bi bi-moon-stars dark-on"></i><i class="bi bi-sun light-on"></i>
+        </button>
         <div class="lang-switch">
           {% for lang in available_languages %}
             <a class="{{ 'active' if current_lang == lang else '' }}"
@@ -74,4 +80,16 @@
     </main>
   </div>
 </div>
+<script>
+  function toggleTheme() {
+    var el = document.documentElement;
+    var next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    el.setAttribute('data-theme', next);
+    fetch("{{ url_for('main.set_theme') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'theme=' + next
+    }).catch(function () {});
+  }
+</script>
 {% endblock %}

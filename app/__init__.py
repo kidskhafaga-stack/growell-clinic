@@ -1,5 +1,6 @@
 """Application factory for GROWELL CLINIC."""
 import os
+from datetime import datetime
 
 from flask import render_template
 
@@ -87,6 +88,8 @@ def create_app(config_name="default"):
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
+            "now_date": datetime.utcnow().date().isoformat(),
+            "now_weekday": datetime.utcnow().weekday(),
             "copyright_notice": (
                 "© Eng. Mohamed Khafaga — All rights reserved · "
                 "يُحظر نسخه أو تعديله أو إعادة استخدامه بدون إذن صريح"
