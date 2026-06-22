@@ -74,9 +74,13 @@ from app.models.payer import (
 from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
 from app.models.prescription import (
     DRUG_FORMS,
+    INVESTIGATION_KINDS,
+    RX_PAGE_SIZES,
     Drug,
     DrugInteraction,
+    Investigation,
     Prescription,
+    PrescriptionInvestigation,
     PrescriptionItem,
     RxPrintTemplate,
 )
@@ -159,10 +163,14 @@ __all__ = [
     "EINVOICE_STATUSES",
     "Drug",
     "DrugInteraction",
+    "Investigation",
     "Prescription",
     "PrescriptionItem",
+    "PrescriptionInvestigation",
     "RxPrintTemplate",
     "DRUG_FORMS",
+    "INVESTIGATION_KINDS",
+    "RX_PAGE_SIZES",
     "MessageLog",
     "MessageTemplate",
     "MESSAGE_STATUSES",

@@ -15,8 +15,10 @@ from app.models import (
     ActivityLog,
     Drug,
     DrugInteraction,
+    Investigation,
     Patient,
     Prescription,
+    PrescriptionInvestigation,
     PrescriptionItem,
     RxPrintTemplate,
     User,
@@ -135,6 +137,27 @@ def drug_search():
     } for d in drugs])
 
 
+@prescriptions_bp.route("/investigations/search")
+@module_required(MODULE)
+def investigation_search():
+    """Autocomplete for lab tests / imaging when writing a prescription."""
+    q = (request.args.get("q") or "").strip()
+    kind = (request.args.get("kind") or "").strip()
+    if len(q) < 1:
+        return jsonify([])
+    like = f"%{q}%"
+    query = Investigation.query.filter(Investigation.is_active.is_(True)).filter(
+        or_(Investigation.name_ar.ilike(like), Investigation.name_en.ilike(like))
+    )
+    if kind in ("lab", "imaging"):
+        query = query.filter(Investigation.kind == kind)
+    rows = query.order_by(Investigation.name_ar).limit(15).all()
+    return jsonify([{
+        "id": x.id, "name": x.display_name(), "kind": x.kind,
+        "category": x.category or "",
+    } for x in rows])
+
+
 # ----------------------------------------------------- writing -------------
 @prescriptions_bp.route("/new", methods=["GET", "POST"])
 @module_required(MODULE)
@@ -181,7 +204,32 @@ def new():
             ))
             used_ids.append(did)
             count += 1
-        if count == 0:
+
+        # Investigations: lab tests + imaging (parallel arrays).
+        inv_ids = request.form.getlist("inv_id")
+        inv_kinds = request.form.getlist("inv_kind")
+        inv_names = request.form.getlist("inv_name")
+        inv_notes = request.form.getlist("inv_notes")
+        inv_count = 0
+        for i in range(len(inv_names)):
+            name = (inv_names[i] or "").strip()
+            if not name:
+                continue
+            kind = inv_kinds[i] if i < len(inv_kinds) else "lab"
+            if kind not in ("lab", "imaging"):
+                kind = "lab"
+            iid = None
+            try:
+                iid = int(inv_ids[i]) if i < len(inv_ids) and inv_ids[i] else None
+            except (ValueError, TypeError):
+                iid = None
+            rx.investigations.append(PrescriptionInvestigation(
+                investigation_id=iid, kind=kind, name=name,
+                notes=(inv_notes[i].strip() if i < len(inv_notes) else "") or None,
+            ))
+            inv_count += 1
+
+        if count == 0 and inv_count == 0:
             db.session.rollback()
             flash(t("rx.need_item"), "warning")
             return redirect(url_for("prescriptions.new", patient_id=patient.id))
@@ -238,6 +286,7 @@ def _save_template(tpl):
     tpl.mode = "preprinted" if request.form.get("mode") == "preprinted" else "white"
     ls = request.form.get("logo_source")
     tpl.logo_source = ls if ls in ("clinic", "personal", "none") else "clinic"
+    tpl.page_size = "A5" if request.form.get("page_size") == "A5" else "A4"
     tpl.font_size = request.form.get("font_size", type=int) or 14
     tpl.margin_mm = request.form.get("margin_mm", type=int) or 12
     tpl.top_offset_mm = request.form.get("top_offset_mm", type=int) or 0

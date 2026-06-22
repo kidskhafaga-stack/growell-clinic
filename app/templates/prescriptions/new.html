@@ -56,6 +56,44 @@
     <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('rx.add_drug_line') }}</button>
   </div>
 
+  <!-- Investigations: lab tests + imaging -->
+  <div class="card gc-scale-in" style="animation-delay:0.08s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('rx.investigations') }}</h2>
+    <template x-for="(inv, i) in invs" :key="'inv'+i">
+      <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
+        <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="invs.splice(i,1)"><i class="bi bi-x-lg"></i></button>
+        <input type="hidden" name="inv_id" :value="inv.id">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('rx.inv_kind') }}</label>
+            <select class="select" name="inv_kind" x-model="inv.kind">
+              <option value="lab">{{ t('rx.inv_lab') }}</option>
+              <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+            </select></div>
+          <div class="form-row" style="position:relative;">
+            <label>{{ t('rx.inv_name') }}</label>
+            <input class="input" name="inv_name" x-model="inv.name" autocomplete="off"
+                   placeholder="{{ t('rx.inv_search_ph') }}"
+                   x-on:input.debounce.250ms="searchInv(i)" x-on:focus="searchInv(i)">
+            <div x-show="inv.open && inv.suggestions.length" x-cloak
+                 style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
+              <template x-for="s in inv.suggestions" :key="s.id">
+                <div x-on:click="pickInv(i,s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
+                     x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+                  <strong x-text="s.name"></strong> <span style="color:var(--muted);font-size:0.8rem;" x-text="s.category"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="form-row"><label>{{ t('rx.inv_notes') }}</label><input class="input" name="inv_notes" x-model="inv.notes"></div>
+        </div>
+      </div>
+    </template>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addInv('lab')"><i class="bi bi-plus-lg"></i> {{ t('rx.add_lab') }}</button>
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addInv('imaging')"><i class="bi bi-plus-lg"></i> {{ t('rx.add_imaging') }}</button>
+    </div>
+  </div>
+
   <div class="card gc-scale-in" style="animation-delay:0.1s;">
     <div class="form-row"><label>{{ t('rx.notes') }}</label><textarea class="input" name="notes" rows="2"></textarea></div>
   </div>
@@ -69,8 +107,18 @@
 <script>
 function rxForm(){
   return {
-    lines: [],
+    lines: [], invs: [],
     addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false}); },
+    addInv(kind){ this.invs.push({id:'',kind:kind,name:'',notes:'',suggestions:[],open:false}); },
+    async searchInv(i){
+      const v=this.invs[i]; const q=(v.name||'').trim();
+      if(q.length<1){ v.suggestions=[]; v.open=false; return; }
+      try{
+        const r=await fetch("{{ url_for('prescriptions.investigation_search') }}?kind="+v.kind+"&q="+encodeURIComponent(q));
+        v.suggestions=await r.json(); v.open=true;
+      }catch(e){ v.suggestions=[]; v.open=false; }
+    },
+    pickInv(i,s){ const v=this.invs[i]; v.id=s.id; v.name=s.name; v.kind=s.kind; v.open=false; v.suggestions=[]; },
     async search(i){
       const l=this.lines[i]; const q=(l.name||'').trim();
       if(q.length<1){ l.suggestions=[]; l.open=false; return; }

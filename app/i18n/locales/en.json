@@ -1217,7 +1217,18 @@
     "moderate": "Moderate",
     "severe": "Severe",
     "max_hint": "Max dose",
-    "signature": "Doctor signature"
+    "signature": "Doctor signature",
+    "investigations": "Investigations (labs / imaging)",
+    "inv_kind": "Type",
+    "inv_lab": "Lab test",
+    "inv_imaging": "Imaging",
+    "inv_name": "Test / study",
+    "inv_notes": "Notes",
+    "inv_search_ph": "Search lab tests / imaging…",
+    "add_lab": "Add lab test",
+    "add_imaging": "Add imaging",
+    "labs_requested": "Requested lab tests",
+    "imaging_requested": "Requested imaging"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -1304,7 +1315,9 @@
     "default_set": "Default template set",
     "no_templates": "No templates — add one",
     "preview_with": "Preview with",
-    "my_template": "My prescription template"
+    "my_template": "My prescription template",
+    "page_size": "Page size",
+    "show_investigations": "Investigations"
   },
   "store": {
     "title": "General store",

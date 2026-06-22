@@ -1217,7 +1217,18 @@
     "moderate": "متوسط",
     "severe": "شديد",
     "max_hint": "أقصى جرعة",
-    "signature": "توقيع الطبيب"
+    "signature": "توقيع الطبيب",
+    "investigations": "الفحوصات (تحاليل / أشعة)",
+    "inv_kind": "النوع",
+    "inv_lab": "تحليل",
+    "inv_imaging": "أشعة",
+    "inv_name": "التحليل / الفحص",
+    "inv_notes": "ملاحظات",
+    "inv_search_ph": "ابحث في التحاليل / الأشعة…",
+    "add_lab": "إضافة تحليل",
+    "add_imaging": "إضافة أشعة",
+    "labs_requested": "التحاليل المطلوبة",
+    "imaging_requested": "الأشعة المطلوبة"
   },
   "drug_forms": {
     "tablet": "أقراص",
@@ -1304,7 +1315,9 @@
     "default_set": "تم تعيين القالب الافتراضي",
     "no_templates": "لا توجد قوالب — أضِف واحداً",
     "preview_with": "معاينة بقالب",
-    "my_template": "قالب الروشتة الخاص بي"
+    "my_template": "قالب الروشتة الخاص بي",
+    "page_size": "مقاس الورق",
+    "show_investigations": "الفحوصات"
   },
   "store": {
     "title": "المخزن العام",

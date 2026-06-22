@@ -134,6 +134,8 @@ def register_commands(app):
             ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
             ("vaccines", "replaced_by_id", "INTEGER"),
             ("vaccine_brands", "is_discontinued", "BOOLEAN DEFAULT 0"),
+            ("rx_print_templates", "page_size", "VARCHAR(4) DEFAULT 'A4'"),
+            ("rx_print_templates", "show_investigations", "BOOLEAN DEFAULT 1"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -254,6 +256,11 @@ def _seed_drugs_safe():
     try:
         from app.utils.drugs import seed_drugs
         seed_drugs()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from app.utils.investigations import seed_investigations
+        seed_investigations()
     except Exception:  # noqa: BLE001
         pass
     _seed_crm_templates_safe()
