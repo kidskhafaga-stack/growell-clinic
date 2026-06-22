@@ -20,6 +20,9 @@
           {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if current_user.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('rx.diagnosis') }}</label><input class="input" name="diagnosis"></div>
+      <div class="form-row"><label>{{ t('rx.child_weight') }}</label>
+        <input class="input" type="number" step="0.1" min="0" x-model="weight" x-on:input="recalc()" placeholder="kg">
+        <div class="hint">{{ t('rx.child_weight_hint') }}</div></div>
     </div>
   </div>
 
@@ -44,6 +47,8 @@
             </template>
           </div>
           <div class="hint" x-show="line.max" x-cloak>{{ t('rx.max_hint') }}: <span x-text="line.max"></span></div>
+          <div class="hint" x-show="line.calc" x-cloak style="color:var(--green-700);">
+            <i class="bi bi-calculator"></i> <span x-text="line.calc"></span></div>
         </div>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="item_dose" x-model="line.dose"></div>
@@ -107,8 +112,20 @@
 <script>
 function rxForm(){
   return {
-    lines: [], invs: [],
-    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false}); },
+    lines: [], invs: [], weight: '',
+    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:''}); },
+    // Compute the weight-based suggestion text for a line and (re)fill its dose.
+    computeLine(l, fillDose){
+      const w = parseFloat(this.weight);
+      if(!(w>0) || !l.dosePerKg){ l.calc=''; return; }
+      const mg = Math.round(w * l.dosePerKg);
+      let txt = "{{ t('rx.suggested') }}: " + mg + " mg";
+      if(l.conc){ const ml = (mg / l.conc); txt += " ≈ " + (Math.round(ml*10)/10) + " ml"; }
+      if(l.maxPerKg){ txt += " · {{ t('rx.max_per_day') }} " + Math.round(w*l.maxPerKg) + " mg"; }
+      l.calc = txt;
+      if(fillDose){ l.dose = mg + " mg" + (l.conc ? " ("+(Math.round((mg/l.conc)*10)/10)+" ml)" : ""); }
+    },
+    recalc(){ this.lines.forEach(l => this.computeLine(l, true)); },
     addInv(kind){ this.invs.push({id:'',kind:kind,name:'',notes:'',suggestions:[],open:false}); },
     async searchInv(i){
       const v=this.invs[i]; const q=(v.name||'').trim();
@@ -130,8 +147,13 @@ function rxForm(){
     pick(i,s){
       const l=this.lines[i];
       l.drug_id=s.id; l.name=s.trade + (s.strength? ' '+s.strength:'');
-      if(!l.dose) l.dose=s.dose; if(!l.frequency) l.frequency=s.frequency;
+      if(!l.frequency) l.frequency=s.frequency;
       if(!l.instructions) l.instructions=s.instructions; l.max=s.max;
+      l.dosePerKg=s.dose_per_kg; l.maxPerKg=s.max_per_kg; l.conc=s.conc;
+      // Weight-based dose when a weight is set; else the drug's text default.
+      const w=parseFloat(this.weight);
+      if(w>0 && l.dosePerKg){ this.computeLine(l, true); }
+      else if(!l.dose){ l.dose=s.dose; }
       l.open=false; l.suggestions=[];
     }
   };

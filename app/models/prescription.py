@@ -70,6 +70,11 @@ class Drug(db.Model):
     default_frequency = db.Column(db.String(80))   # e.g. "كل 8 ساعات"
     default_instructions = db.Column(db.String(200))
     max_daily_dose = db.Column(db.String(120))     # guidance text
+    # Weight-based dosing (paediatric): mg per kg per dose, max mg/kg/day, and
+    # the liquid concentration (mg per ml) to convert a computed mg dose to ml.
+    dose_per_kg = db.Column(db.Float)
+    max_per_kg = db.Column(db.Float)
+    conc_mg_per_ml = db.Column(db.Float)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

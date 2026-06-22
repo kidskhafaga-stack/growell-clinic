@@ -82,6 +82,9 @@ def drug_new():
         default_frequency=(request.form.get("default_frequency") or "").strip() or None,
         default_instructions=(request.form.get("default_instructions") or "").strip() or None,
         max_daily_dose=(request.form.get("max_daily_dose") or "").strip() or None,
+        dose_per_kg=request.form.get("dose_per_kg", type=float),
+        max_per_kg=request.form.get("max_per_kg", type=float),
+        conc_mg_per_ml=request.form.get("conc_mg_per_ml", type=float),
     ))
     db.session.commit()
     flash(t("rx.drug_added"), "success")
@@ -100,6 +103,9 @@ def drug_edit(drug_id):
     d.default_frequency = (request.form.get("default_frequency") or "").strip() or None
     d.default_instructions = (request.form.get("default_instructions") or "").strip() or None
     d.max_daily_dose = (request.form.get("max_daily_dose") or "").strip() or None
+    d.dose_per_kg = request.form.get("dose_per_kg", type=float)
+    d.max_per_kg = request.form.get("max_per_kg", type=float)
+    d.conc_mg_per_ml = request.form.get("conc_mg_per_ml", type=float)
     d.is_active = bool(request.form.get("is_active"))
     db.session.commit()
     flash(t("rx.drug_updated"), "success")
@@ -134,6 +140,8 @@ def drug_search():
         "label": d.label(), "form": d.form or "",
         "dose": d.default_dose or "", "frequency": d.default_frequency or "",
         "instructions": d.default_instructions or "", "max": d.max_daily_dose or "",
+        "dose_per_kg": d.dose_per_kg, "max_per_kg": d.max_per_kg,
+        "conc": d.conc_mg_per_ml,
     } for d in drugs])
 
 

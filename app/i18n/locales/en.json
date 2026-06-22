@@ -1268,7 +1268,16 @@
     "add_lab": "Add lab test",
     "add_imaging": "Add imaging",
     "labs_requested": "Requested lab tests",
-    "imaging_requested": "Requested imaging"
+    "imaging_requested": "Requested imaging",
+    "child_weight": "Child weight (kg)",
+    "child_weight_hint": "Enter to auto-calculate weight-based doses.",
+    "dose_per_kg": "mg/kg per dose",
+    "dose_per_kg_hint": "For weight-based auto-dosing.",
+    "max_per_kg": "Max mg/kg/day",
+    "conc": "Concentration (mg/ml)",
+    "conc_hint": "To convert mg → ml (syrups).",
+    "suggested": "Suggested",
+    "max_per_day": "max/day"
   },
   "drug_forms": {
     "tablet": "Tablet",

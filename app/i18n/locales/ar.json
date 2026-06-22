@@ -1268,7 +1268,16 @@
     "add_lab": "إضافة تحليل",
     "add_imaging": "إضافة أشعة",
     "labs_requested": "التحاليل المطلوبة",
-    "imaging_requested": "الأشعة المطلوبة"
+    "imaging_requested": "الأشعة المطلوبة",
+    "child_weight": "وزن الطفل (كجم)",
+    "child_weight_hint": "أدخله لحساب الجرعات بالوزن تلقائياً.",
+    "dose_per_kg": "مجم/كجم للجرعة",
+    "dose_per_kg_hint": "لحساب الجرعة بالوزن تلقائياً.",
+    "max_per_kg": "أقصى مجم/كجم/يوم",
+    "conc": "التركيز (مجم/مل)",
+    "conc_hint": "لتحويل مجم ← مل (الشراب).",
+    "suggested": "المقترح",
+    "max_per_day": "الأقصى/يوم"
   },
   "drug_forms": {
     "tablet": "أقراص",
