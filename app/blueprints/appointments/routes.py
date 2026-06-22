@@ -23,18 +23,32 @@ from app.models import (
     Appointment,
     DoctorSchedule,
     Patient,
+    ScheduleException,
+    WaitlistEntry,
 )
-from app.models.appointment import ACTIVE_STATUSES
+from app.models.appointment import (
+    ACTIVE_STATUSES,
+    APPOINTMENT_TYPES,
+    DEFAULT_APPT_TYPE,
+    type_minutes,
+)
 from app.models.doctor_schedule import WEEKDAY_ORDER
 from app.utils.appointments import (
     available_slots,
+    first_available_doctor,
     list_doctors,
+    next_available,
     parse_date_arg,
     slot_duration,
 )
 from app.utils.decorators import client_ip, module_required
 
 MODULE = "appointments"
+
+
+def _appt_type(value):
+    """Validate a posted appointment-type key, falling back to the default."""
+    return value if value in APPOINTMENT_TYPES else DEFAULT_APPT_TYPE
 
 
 # ----------------------------------------------- board (Today's screen) ----
@@ -63,6 +77,15 @@ def index():
     }
     current = next((a for a in appointments if a.status == "in_progress"), None)
 
+    # Active waiting-list entries (optionally filtered to the selected doctor).
+    wl_query = WaitlistEntry.query.filter_by(status="active")
+    if doctor_id:
+        wl_query = wl_query.filter(
+            db.or_(WaitlistEntry.doctor_id == doctor_id,
+                   WaitlistEntry.doctor_id.is_(None))
+        )
+    waitlist = wl_query.order_by(WaitlistEntry.created_at).all()
+
     return render_template(
         "appointments/board.html",
         appointments=appointments,
@@ -74,6 +97,8 @@ def index():
         today=datetime.today().date().isoformat(),
         stats=stats,
         current=current,
+        waitlist=waitlist,
+        appt_types=APPOINTMENT_TYPES,
     )
 
 
@@ -89,6 +114,7 @@ def create():
         on_date = parse_date_arg(request.form.get("appt_date"), default=None)
         slot = (request.form.get("appt_time") or "").strip()
         reason = (request.form.get("reason") or "").strip()
+        appt_type = _appt_type((request.form.get("appt_type") or "").strip())
 
         error = _validate_booking(patient_id, doctor_id, on_date, slot)
         if error:
@@ -97,6 +123,7 @@ def create():
             return render_template(
                 "appointments/form.html", doctors=doctors, form=request.form,
                 selected_patient=_patient_brief(chosen) if chosen else None,
+                appt_types=APPOINTMENT_TYPES,
             )
 
         appt = Appointment(
@@ -104,8 +131,9 @@ def create():
             doctor_id=doctor_id,
             appt_date=on_date,
             appt_time=datetime.strptime(slot, "%H:%M").time(),
-            duration_minutes=slot_duration(doctor_id, on_date),
+            duration_minutes=type_minutes(appt_type, slot_duration(doctor_id, on_date)),
             reason=reason,
+            appt_type=appt_type,
             status="scheduled",
         )
         db.session.add(appt)
@@ -114,17 +142,30 @@ def create():
             "appointment.create", user_id=current_user.id, entity="appointment",
             entity_id=appt.id, ip_address=client_ip(),
         )
+        # If this booking came from a waiting-list entry, close it out.
+        wl_id = request.form.get("from_waitlist", type=int)
+        if wl_id:
+            entry = db.session.get(WaitlistEntry, wl_id)
+            if entry and entry.status == "active":
+                entry.status = "booked"
+                entry.appointment_id = appt.id
         db.session.commit()
         flash(t("appointments.created"), "success")
         return redirect(url_for("appointments.index", date=on_date.isoformat(),
                                 doctor_id=doctor_id))
 
-    # Optional ?patient_id= prefill (e.g. booking from a patient's profile).
+    # Prefill from query params (patient profile or a waiting-list promotion).
     prefill = request.args.get("patient_id", type=int)
     chosen = db.session.get(Patient, prefill) if prefill else None
+    form = {
+        "doctor_id": request.args.get("doctor_id", ""),
+        "appt_type": _appt_type(request.args.get("appt_type", "")),
+        "from_waitlist": request.args.get("from_waitlist", ""),
+    }
     return render_template(
-        "appointments/form.html", doctors=doctors, form={},
+        "appointments/form.html", doctors=doctors, form=form,
         selected_patient=_patient_brief(chosen) if chosen else None,
+        appt_types=APPOINTMENT_TYPES,
     )
 
 
@@ -138,6 +179,148 @@ def slots():
     if not doctor_id or not on_date:
         return jsonify({"slots": []})
     return jsonify({"slots": available_slots(doctor_id, on_date, exclude_id=exclude_id)})
+
+
+@appointments_bp.route("/next-available")
+@module_required(MODULE)
+def next_available_slot():
+    """JSON: the soonest free slot for a doctor (from a date forward)."""
+    doctor_id = request.args.get("doctor_id", type=int)
+    from_date = parse_date_arg(request.args.get("date"))
+    if not doctor_id:
+        return jsonify({"found": False})
+    result = next_available(doctor_id, from_date)
+    return jsonify({"found": bool(result), **(result or {})})
+
+
+@appointments_bp.route("/first-available")
+@module_required(MODULE)
+def first_available():
+    """JSON: the soonest free slot across all doctors (from a date forward)."""
+    from_date = parse_date_arg(request.args.get("date"))
+    result = first_available_doctor(from_date)
+    return jsonify({"found": bool(result), **(result or {})})
+
+
+# -------------------------------------------------- reschedule / walk-in ---
+@appointments_bp.route("/<int:appt_id>/reschedule", methods=["POST"])
+@module_required(MODULE)
+def reschedule(appt_id):
+    """Move an appointment to a new date/time (and optionally doctor)."""
+    appt = db.get_or_404(Appointment, appt_id)
+    new_doctor = request.form.get("doctor_id", type=int) or appt.doctor_id
+    new_date = parse_date_arg(request.form.get("appt_date"), default=None)
+    new_slot = (request.form.get("appt_time") or "").strip()
+
+    if new_date is None or not new_slot:
+        flash(t("appointments.reschedule_need_slot"), "danger")
+        return _back_to_board(appt)
+    # The slot must be free (ignoring this appointment itself).
+    if new_slot not in available_slots(new_doctor, new_date, exclude_id=appt.id):
+        flash(t("appointments.slot_taken"), "danger")
+        return _back_to_board(appt)
+
+    appt.rescheduled_from = f"{appt.appt_date.isoformat()} {appt.time_label}"
+    appt.doctor_id = new_doctor
+    appt.appt_date = new_date
+    appt.appt_time = datetime.strptime(new_slot, "%H:%M").time()
+    if appt.status in ("no_show", "cancelled"):
+        appt.status = "scheduled"
+    ActivityLog.record(
+        "appointment.reschedule", user_id=current_user.id, entity="appointment",
+        entity_id=appt.id, detail=appt.rescheduled_from, ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("appointments.rescheduled"), "success")
+    return redirect(url_for("appointments.index", date=new_date.isoformat(),
+                            doctor_id=new_doctor))
+
+
+@appointments_bp.route("/walk-in", methods=["POST"])
+@module_required(MODULE)
+def walk_in():
+    """Register a walk-in: book the next free slot today (overbook if full)."""
+    patient_id = request.form.get("patient_id", type=int)
+    doctor_id = request.form.get("doctor_id", type=int)
+    reason = (request.form.get("reason") or "").strip()
+    appt_type = _appt_type((request.form.get("appt_type") or "").strip())
+
+    if not patient_id or not db.session.get(Patient, patient_id) or not doctor_id:
+        flash(t("appointments.walk_in_need"), "danger")
+        return redirect(url_for("appointments.index"))
+
+    today = datetime.today().date()
+    spot = next_available(doctor_id, today, days=1)
+    if spot:
+        appt_time = datetime.strptime(spot["time"], "%H:%M").time()
+    else:
+        # Clinic full / outside hours: overbook at the current time.
+        appt_time = datetime.now().time().replace(second=0, microsecond=0)
+
+    appt = Appointment(
+        patient_id=patient_id, doctor_id=doctor_id, appt_date=today,
+        appt_time=appt_time, duration_minutes=type_minutes(appt_type),
+        reason=reason or t("appointments.walk_in"), appt_type=appt_type,
+        is_walk_in=True, status="waiting",
+    )
+    appt.apply_status("waiting")  # stamp check-in time
+    db.session.add(appt)
+    db.session.flush()
+    ActivityLog.record(
+        "appointment.walk_in", user_id=current_user.id, entity="appointment",
+        entity_id=appt.id, ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("appointments.walk_in_added"), "success")
+    return redirect(url_for("appointments.index", date=today.isoformat(),
+                            doctor_id=doctor_id))
+
+
+# ------------------------------------------------------------- waitlist ----
+@appointments_bp.route("/waitlist", methods=["POST"])
+@module_required(MODULE)
+def waitlist_add():
+    """Add a patient to the waiting list (used when no slot suits them)."""
+    patient_id = request.form.get("patient_id", type=int)
+    if not patient_id or not db.session.get(Patient, patient_id):
+        flash(t("appointments.qc_need_name"), "danger")
+        return redirect(url_for("appointments.index"))
+
+    entry = WaitlistEntry(
+        patient_id=patient_id,
+        doctor_id=request.form.get("doctor_id", type=int) or None,
+        preferred_from=parse_date_arg(request.form.get("preferred_from"), default=None),
+        preferred_to=parse_date_arg(request.form.get("preferred_to"), default=None),
+        appt_type=_appt_type((request.form.get("appt_type") or "").strip()),
+        reason=(request.form.get("reason") or "").strip() or None,
+        note=(request.form.get("note") or "").strip() or None,
+    )
+    db.session.add(entry)
+    db.session.commit()
+    flash(t("appointments.waitlist_added"), "success")
+    return redirect(request.referrer or url_for("appointments.index"))
+
+
+@appointments_bp.route("/waitlist/<int:entry_id>/cancel", methods=["POST"])
+@module_required(MODULE)
+def waitlist_cancel(entry_id):
+    entry = db.get_or_404(WaitlistEntry, entry_id)
+    entry.status = "cancelled"
+    db.session.commit()
+    flash(t("appointments.waitlist_removed"), "info")
+    return redirect(request.referrer or url_for("appointments.index"))
+
+
+@appointments_bp.route("/waitlist/<int:entry_id>/book")
+@module_required(MODULE)
+def waitlist_book(entry_id):
+    """Promote a waiting-list entry: open the booking form pre-filled."""
+    entry = db.get_or_404(WaitlistEntry, entry_id)
+    return redirect(url_for(
+        "appointments.create", patient_id=entry.patient_id,
+        doctor_id=entry.doctor_id or "", appt_type=entry.appt_type or "",
+        from_waitlist=entry.id,
+    ))
 
 
 @appointments_bp.route("/patient-search")
@@ -224,6 +407,12 @@ def change_status(appt_id):
         flash(t("appointments.invalid_transition"), "warning")
         return _back_to_board(appt)
 
+    # Capture an optional reason when cancelling or marking a no-show.
+    if new_status in ("cancelled", "no_show"):
+        reason = (request.form.get("cancel_reason") or "").strip()
+        if reason:
+            appt.cancel_reason = reason
+
     appt.apply_status(new_status)
     ActivityLog.record(
         "appointment.status", user_id=current_user.id, entity="appointment",
@@ -286,6 +475,7 @@ def schedules():
         return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
 
     schedule_rows = []
+    exceptions = []
     if selected:
         rows = DoctorSchedule.query.filter_by(doctor_id=selected).all()
         by_day = {wd: [] for wd in WEEKDAY_ORDER}
@@ -293,11 +483,18 @@ def schedules():
             by_day.setdefault(r.weekday, []).append(r)
         for wd in WEEKDAY_ORDER:
             schedule_rows.append((wd, sorted(by_day.get(wd, []), key=lambda s: s.start_time)))
+        # Upcoming time off / breaks only (past ones are irrelevant).
+        exceptions = (
+            ScheduleException.query.filter_by(doctor_id=selected)
+            .filter(ScheduleException.exc_date >= datetime.today().date())
+            .order_by(ScheduleException.exc_date)
+            .all()
+        )
 
     return render_template(
         "appointments/schedules.html",
         doctors=doctors, selected=selected, schedule_rows=schedule_rows,
-        weekday_order=WEEKDAY_ORDER,
+        weekday_order=WEEKDAY_ORDER, exceptions=exceptions,
     )
 
 
@@ -309,6 +506,50 @@ def delete_schedule(schedule_id):
     db.session.delete(sched)
     db.session.commit()
     flash(t("appointments.schedule_removed"), "info")
+    return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
+
+
+@appointments_bp.route("/schedules/exception", methods=["POST"])
+@module_required(MODULE)
+def add_exception():
+    """Register a doctor's time off: a full day, or a timed break."""
+    doctor_id = request.form.get("doctor_id", type=int)
+    exc_date = parse_date_arg(request.form.get("exc_date"), default=None)
+    full_day = bool(request.form.get("is_full_day"))
+    if not doctor_id or exc_date is None:
+        flash(t("appointments.exc_need"), "danger")
+        return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
+
+    start_t = end_t = None
+    if not full_day:
+        try:
+            start_t = datetime.strptime(request.form.get("start_time") or "", "%H:%M").time()
+            end_t = datetime.strptime(request.form.get("end_time") or "", "%H:%M").time()
+        except ValueError:
+            flash(t("appointments.invalid_time"), "danger")
+            return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
+        if start_t >= end_t:
+            flash(t("appointments.bad_window"), "danger")
+            return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
+
+    db.session.add(ScheduleException(
+        doctor_id=doctor_id, exc_date=exc_date, is_full_day=full_day,
+        start_time=start_t, end_time=end_t,
+        reason=(request.form.get("reason") or "").strip() or None,
+    ))
+    db.session.commit()
+    flash(t("appointments.exc_added"), "success")
+    return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
+
+
+@appointments_bp.route("/schedules/exception/<int:exc_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_exception(exc_id):
+    exc = db.get_or_404(ScheduleException, exc_id)
+    doctor_id = exc.doctor_id
+    db.session.delete(exc)
+    db.session.commit()
+    flash(t("appointments.exc_removed"), "info")
     return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
 
 

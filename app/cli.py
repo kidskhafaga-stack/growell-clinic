@@ -114,6 +114,10 @@ def register_commands(app):
             ("users", "font_scale", "VARCHAR(4)"),
             ("users", "default_landing", "VARCHAR(30)"),
             ("users", "is_practitioner", "BOOLEAN DEFAULT 0"),
+            ("appointments", "appt_type", "VARCHAR(20) DEFAULT 'new'"),
+            ("appointments", "is_walk_in", "BOOLEAN DEFAULT 0"),
+            ("appointments", "cancel_reason", "VARCHAR(200)"),
+            ("appointments", "rescheduled_from", "VARCHAR(120)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

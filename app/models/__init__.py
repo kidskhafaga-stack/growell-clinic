@@ -8,10 +8,15 @@ from app.models.activity_log import ActivityLog
 from app.models.appointment import (
     ACTIVE_STATUSES,
     APPOINTMENT_STATUSES,
+    APPOINTMENT_TYPES,
+    DEFAULT_APPT_TYPE,
     STATUS_TRANSITIONS,
     Appointment,
+    type_minutes,
 )
 from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
+from app.models.schedule_exception import ScheduleException
+from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
 from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
@@ -105,8 +110,14 @@ __all__ = [
     "GENDERS",
     "BLOOD_TYPES",
     "APPOINTMENT_STATUSES",
+    "APPOINTMENT_TYPES",
+    "DEFAULT_APPT_TYPE",
+    "type_minutes",
     "ACTIVE_STATUSES",
     "STATUS_TRANSITIONS",
+    "ScheduleException",
+    "WaitlistEntry",
+    "WAITLIST_STATUSES",
     "WEEKDAY_ORDER",
     "VISIT_STATUSES",
     "DIAGNOSIS_TYPES",

@@ -8,8 +8,9 @@
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('appointments.book') }}</p>
 
 <div class="card gc-scale-in" style="max-width:760px;animation-delay:0.1s;"
-     x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}')">
+     x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}', '{{ url_for('appointments.next_available_slot') }}', '{{ url_for('appointments.first_available') }}')">
   <form method="post">
+    {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
     <div class="form-grid">
       <div class="form-row" style="position:relative;"
            x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson) if selected_patient else 'null' }})">
@@ -89,6 +90,14 @@
                value="{{ form.appt_date or '' }}" x-model="date" x-on:change="loadSlots()">
       </div>
       <div class="form-row">
+        <label for="appt_type">{{ t('appointments.visit_type') }}</label>
+        <select class="select" id="appt_type" name="appt_type">
+          {% for key, meta in appt_types.items() %}
+            <option value="{{ key }}" {{ 'selected' if (form.appt_type or 'new') == key else '' }}>{{ t('appt_types.' ~ key) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
         <label for="reason">{{ t('appointments.reason') }}</label>
         <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
       </div>
@@ -96,8 +105,17 @@
 
     <!-- Smart available slots -->
     <div class="form-row">
-      <label>{{ t('appointments.available_slots') }} *</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="margin:0;">{{ t('appointments.available_slots') }} *</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="nextAvailable()" :disabled="!doctorId">
+            <i class="bi bi-lightning-charge"></i> {{ t('appointments.find_next_available') }}</button>
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="firstAvailable()">
+            <i class="bi bi-stars"></i> {{ t('appointments.find_first_available') }}</button>
+        </div>
+      </div>
       <input type="hidden" name="appt_time" x-model="selected" required>
+      <div x-show="finderMsg" x-text="finderMsg" x-cloak class="placeholder-soft" style="color:#b45309;"></div>
       <div x-show="!doctorId || !date" class="placeholder-soft"><i class="bi bi-info-circle"></i> {{ t('appointments.pick_doctor_date') }}</div>
       <div x-show="loading" class="placeholder-soft"><span class="gc-spinner" style="border-color:var(--green-100);border-top-color:var(--green-600);"></span> {{ t('common.loading') }}</div>
       <div x-show="doctorId && date && !loading && slots.length === 0" class="placeholder-soft" style="color:#b45309;"><i class="bi bi-exclamation-triangle"></i> {{ t('appointments.no_slots') }}</div>
@@ -141,12 +159,13 @@
 
 {% block scripts %}
 <script>
-  function slotPicker(url, preselected) {
+  function slotPicker(url, preselected, nextUrl, firstUrl) {
     return {
-      url, doctorId: '{{ form.doctor_id or '' }}', date: '{{ form.appt_date or '' }}',
-      slots: [], selected: preselected, loading: false,
+      url, nextUrl, firstUrl,
+      doctorId: '{{ form.doctor_id or '' }}', date: '{{ form.appt_date or '' }}',
+      slots: [], selected: preselected, loading: false, finderMsg: '',
       async loadSlots() {
-        this.selected = '';
+        this.selected = ''; this.finderMsg = '';
         if (!this.doctorId || !this.date) { this.slots = []; return; }
         this.loading = true;
         try {
@@ -155,6 +174,30 @@
           this.slots = data.slots || [];
         } catch (e) { this.slots = []; }
         this.loading = false;
+      },
+      async _applyFound(data) {
+        if (!data.found) { this.finderMsg = {{ t('appointments.no_availability') | tojson }}; return; }
+        if (data.doctor_id) this.doctorId = String(data.doctor_id);
+        this.date = data.date;
+        await this.loadSlots();
+        this.selected = data.time;
+      },
+      async nextAvailable() {
+        if (!this.doctorId) return;
+        this.finderMsg = '';
+        try {
+          const from = this.date ? `&date=${this.date}` : '';
+          const res = await fetch(`${this.nextUrl}?doctor_id=${this.doctorId}${from}`);
+          await this._applyFound(await res.json());
+        } catch (e) {}
+      },
+      async firstAvailable() {
+        this.finderMsg = '';
+        try {
+          const from = this.date ? `?date=${this.date}` : '';
+          const res = await fetch(`${this.firstUrl}${from}`);
+          await this._applyFound(await res.json());
+        } catch (e) {}
       },
       init() { if (this.doctorId && this.date) this.loadSlots(); }
     };
