@@ -242,7 +242,17 @@
                 placeholder="{{ t('settings.ai_system_prompt_ph') }}">{{ values.get('ai_system_prompt','') }}</textarea>
       <div class="hint">{{ t('settings.ai_system_prompt_hint') }}</div></div>
 
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-person-vcard"></i> {{ t('settings.ai_patient_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_patient_context" name="ai_patient_context" value="1" {{ 'checked' if values.get('ai_patient_context')=='1' else '' }}>
+      <label for="ai_patient_context" style="margin:0;font-weight:400;">{{ t('settings.ai_patient_context') }}</label>
+    </div>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_anonymize" name="ai_anonymize" value="1" {{ 'checked' if values.get('ai_anonymize','1')!='0' else '' }}>
+      <label for="ai_anonymize" style="margin:0;font-weight:400;">{{ t('settings.ai_anonymize') }}</label>
+    </div>
     <p class="info-note" style="margin:10px 0 0;"><i class="bi bi-shield-lock"></i> {{ t('settings.ai_privacy') }}</p>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_patient_hint') }}</p>
   </div>
 
   <div class="gc-animate" style="margin-top:16px;">

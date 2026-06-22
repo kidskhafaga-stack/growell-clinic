@@ -113,6 +113,78 @@ def is_ready():
     return bool(cfg["enabled"] and cfg["api_key"] and cfg["base_url"] and cfg["model"])
 
 
+def patient_context_enabled():
+    """Whether the clinic opted in to sharing patient context with the AI."""
+    from app.models import Setting
+
+    return Setting.get("ai_patient_context") == "1"
+
+
+def anonymize_enabled():
+    from app.models import Setting
+
+    return Setting.get("ai_anonymize", "1") != "0"
+
+
+def build_patient_summary(patient, anonymize=True):
+    """Build a concise clinical summary of a patient for the AI assistant.
+
+    When ``anonymize`` is True, direct identifiers (name, file number, national
+    id) are omitted so only clinical context leaves the clinic.
+    """
+    lines = []
+    years, months = patient.age_parts
+    age = f"{years}y {months}m" if years else f"{months}m"
+    if anonymize:
+        lines.append(f"Patient: (anonymized) — {age}, {patient.gender}")
+    else:
+        lines.append(
+            f"Patient: {patient.display_name()} (#{patient.patient_number}) — "
+            f"{age}, {patient.gender}"
+        )
+    if patient.allergies:
+        lines.append(f"Allergies: {patient.allergies}")
+    if patient.chronic_diseases:
+        lines.append(f"Chronic conditions: {patient.chronic_diseases}")
+
+    # Latest vitals + recent visits / diagnoses.
+    try:
+        from app.models import Prescription, Visit
+
+        visits = (
+            Visit.query.filter_by(patient_id=patient.id)
+            .order_by(Visit.visit_date.desc()).limit(3).all()
+        )
+        latest_vitals = next((v.vitals for v in visits if v.vitals), None)
+        if latest_vitals and latest_vitals.weight_kg:
+            lines.append(f"Latest weight: {latest_vitals.weight_kg} kg")
+        for v in visits:
+            dxs = ", ".join(d.title for d in v.final_diagnoses()) or "—"
+            lines.append(f"Visit {v.visit_date}: dx={dxs}"
+                         + (f"; plan={v.plan}" if v.plan else ""))
+
+        rxs = (Prescription.query.filter_by(patient_id=patient.id)
+               .order_by(Prescription.id.desc()).limit(2).all())
+        for rx in rxs:
+            drugs = ", ".join(it.drug_name for it in rx.items) or "—"
+            lines.append(f"Rx {rx.rx_date}: {drugs}")
+    except Exception:  # noqa: BLE001 - context is best-effort
+        pass
+
+    # Vaccination status snapshot.
+    try:
+        from app.utils.vaccines import patient_plan, plan_summary
+
+        s = plan_summary(patient_plan(patient))
+        lines.append(
+            f"Vaccinations: {s['done']} done, {s['due']} due, {s['overdue']} overdue"
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+    return "\n".join(lines)
+
+
 def chat(messages, system=None, config=None):
     """Send a chat conversation to the configured provider.
 

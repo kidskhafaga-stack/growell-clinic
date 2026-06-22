@@ -32,7 +32,8 @@ TEXT_KEYS = [
     # AI assistant (provider-agnostic).
     "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_system_prompt",
 ]
-TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"]
+TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
+               "ai_patient_context", "ai_anonymize"]
 
 
 def _logo_dir():

@@ -192,7 +192,10 @@
     "tab_finance": "Finance",
     "tab_phase_notice": "This section will be available in a later development phase",
     "documents_title": "Documents & attachments",
-    "doc_date": "Date"
+    "doc_date": "Date",
+    "ai_title": "AI assistant (this patient)",
+    "ai_placeholder": "Ask about this patient…",
+    "ai_privacy": "A summary of this patient's record is sent to your configured AI provider. Verify clinically."
   },
   "import": {
     "title": "Import patient data",
@@ -781,7 +784,11 @@
     "ai_system_prompt": "System instructions (optional)",
     "ai_system_prompt_ph": "You are a helpful medical assistant for a pediatric clinic…",
     "ai_system_prompt_hint": "Sets the assistant's persona and rules for every conversation.",
-    "ai_privacy": "The API key is stored in your clinic database and sent only to the provider you choose."
+    "ai_privacy": "The API key is stored in your clinic database and sent only to the provider you choose.",
+    "ai_patient_section": "Patient-file access",
+    "ai_patient_context": "Allow the assistant to read patient files",
+    "ai_anonymize": "Anonymize (omit name / file number / national id before sending)",
+    "ai_patient_hint": "When enabled, a concise clinical summary of the open patient is sent to your chosen AI provider to answer questions."
   },
   "errors": {
     "403_title": "Forbidden",

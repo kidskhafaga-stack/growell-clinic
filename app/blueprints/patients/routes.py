@@ -191,14 +191,18 @@ def create():
 @module_required(MODULE)
 def view(patient_id):
     from app.models import PayerEntity
+    from app.utils import ai as ai_utils
 
     patient = db.get_or_404(Patient, patient_id)
+    ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
+                  and ai_utils.patient_context_enabled())
     return render_template(
         "patients/profile.html",
         patient=patient,
         relations=PARENT_RELATIONS,
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
+        ai_patient=ai_patient,
     )
 
 

@@ -7,6 +7,8 @@ through :mod:`app.utils.ai` so this view stays vendor-agnostic.
 from flask import jsonify, render_template, request, url_for
 
 from app.blueprints.ai import ai_bp
+from app.extensions import db
+from app.models import Patient
 from app.utils import ai as ai_utils
 from app.utils.decorators import module_required
 
@@ -46,5 +48,38 @@ def chat():
         return jsonify({"ok": False, "error": "empty"}), 400
 
     result = ai_utils.chat(messages)
+    status = 200 if result.get("ok") else 502
+    return jsonify(result), status
+
+
+@ai_bp.route("/patient/<int:patient_id>/chat", methods=["POST"])
+@module_required(MODULE)
+def patient_chat(patient_id):
+    """Ask the assistant about a specific patient (opt-in, privacy-aware)."""
+    if not ai_utils.patient_context_enabled():
+        return jsonify({"ok": False, "error": "patient_context_disabled"}), 403
+    patient = db.get_or_404(Patient, patient_id)
+
+    data = request.get_json(silent=True) or {}
+    raw = data.get("messages") or []
+    messages = []
+    for item in raw[-MAX_MESSAGES:]:
+        role = item.get("role")
+        content = (item.get("content") or "").strip()
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content[:MAX_CHARS]})
+    if not messages:
+        return jsonify({"ok": False, "error": "empty"}), 400
+
+    summary = ai_utils.build_patient_summary(
+        patient, anonymize=ai_utils.anonymize_enabled()
+    )
+    system = (
+        "You are a clinical assistant for a paediatric clinic. Use the patient "
+        "context below to help the treating doctor. Be concise, evidence-based, "
+        "and always defer to the doctor's judgement. Do not invent data.\n\n"
+        "PATIENT CONTEXT:\n" + summary
+    )
+    result = ai_utils.chat(messages, system=system)
     status = 200 if result.get("ok") else 502
     return jsonify(result), status
