@@ -1,0 +1,74 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ po.po_number }}{% endblock %}
+{% block page_heading %}{{ t('purchases.title') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.purchases') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('purchases.title') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if po.status == 'draft' %}
+    <form method="post" action="{{ url_for('inventory.purchase_approve', po_id=po.id) }}"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('purchases.approve') }}</button></form>
+    <form method="post" action="{{ url_for('inventory.purchase_delete', po_id=po.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');"><button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+    {% elif po.status != 'cancelled' and po.status != 'received' %}
+    <form method="post" action="{{ url_for('inventory.purchase_cancel', po_id=po.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');"><button class="btn btn-outline gc-press" type="submit"><i class="bi bi-x-circle"></i> {{ t('purchases.cancel') }}</button></form>
+    {% endif %}
+    <button class="btn btn-outline gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
+</div>
+
+<div class="card gc-scale-in print-area">
+  <div style="display:flex;justify-content:space-between;align-items:start;gap:14px;flex-wrap:wrap;border-bottom:2px solid var(--green-600);padding-bottom:12px;margin-bottom:14px;">
+    <div>
+      <h2 style="margin:0;color:var(--green-800);">{{ t('purchases.title') }} <span dir="ltr">{{ po.po_number }}</span></h2>
+      <div style="color:var(--muted);">{{ po.supplier.name if po.supplier else '—' }}</div>
+    </div>
+    <span class="status-badge {{ {'draft':'st-scheduled','approved':'st-waiting','partial':'st-waiting','received':'st-completed','cancelled':'st-no_show'}[po.status] }}">{{ t('purchases.st_' ~ po.status) }}</span>
+  </div>
+
+  <div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="k">{{ t('purchases.order_date') }}</div><div class="v" dir="ltr">{{ po.order_date }}</div></div>
+    {% if po.expected_date %}<div class="info-item"><div class="k">{{ t('purchases.expected_date') }}</div><div class="v" dir="ltr">{{ po.expected_date }}</div></div>{% endif %}
+    <div class="info-item"><div class="k">{{ t('purchases.total') }}</div><div class="v">{{ po.total }}</div></div>
+  </div>
+
+  <!-- Receiving (GRN) -->
+  <form method="post" action="{{ url_for('inventory.purchase_receive', po_id=po.id) }}">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('purchases.description') }}</th><th>{{ t('purchases.qty') }}</th>
+      <th>{{ t('purchases.received') }}</th><th>{{ t('purchases.unit_cost') }}</th><th>{{ t('purchases.line_total') }}</th>
+      {% if po.status in ['approved','partial'] %}<th>{{ t('purchases.receive_now') }}</th>{% endif %}
+    </tr></thead>
+    <tbody>
+      {% for it in po.items %}
+      <tr>
+        <td>{{ it.description }}{% if not it.store_item_id %} <span class="badge badge--muted">{{ t('purchases.no_stock_link') }}</span>{% endif %}</td>
+        <td>{{ it.qty_ordered }}</td>
+        <td>{{ it.qty_received }}{% if it.outstanding %} <span style="color:var(--muted);">(-{{ it.outstanding }})</span>{% endif %}</td>
+        <td>{{ it.unit_cost }}</td>
+        <td>{{ it.line_total }}</td>
+        {% if po.status in ['approved','partial'] %}
+        <td><input class="input" type="number" min="0" max="{{ it.outstanding }}" name="recv_{{ it.id }}" value="{{ it.outstanding }}" style="width:90px;"></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if po.status in ['approved','partial'] %}
+  <div class="no-print" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-box-arrow-in-down"></i> {{ t('purchases.receive_grn') }}</button>
+    <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="as_expense" value="1"> {{ t('purchases.as_expense') }}</label>
+    <span class="hint">{{ t('purchases.grn_hint') }}</span>
+  </div>
+  {% endif %}
+  </form>
+
+  {% if po.notes %}<p style="margin-top:12px;color:var(--muted);"><strong>{{ t('purchases.notes') }}:</strong> {{ po.notes }}</p>{% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>@media print { .sidebar,.topbar,.no-print,.flashes{display:none!important;} .main{margin:0!important;} .card{box-shadow:none!important;border:none!important;} body{background:#fff!important;} }</style>
+{% endblock %}

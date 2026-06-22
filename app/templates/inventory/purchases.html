@@ -1,0 +1,52 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('purchases.title') }}{% endblock %}
+{% block page_heading %}{{ t('purchases.title') }}{% endblock %}
+
+{% macro st_badge(s) %}
+  <span class="status-badge {{ {'draft':'st-scheduled','approved':'st-waiting','partial':'st-waiting','received':'st-completed','cancelled':'st-no_show'}[s] }}">{{ t('purchases.st_' ~ s) }}</span>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('purchases.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('purchases.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-box-seam"></i> {{ t('store.title') }}</a>
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('inventory.purchase_new') }}"><i class="bi bi-plus-lg"></i> {{ t('purchases.new') }}</a>
+  </div>
+</div>
+
+<div class="gc-animate" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+  {% for s in ['', 'draft', 'approved', 'partial', 'received', 'cancelled'] %}
+  <a class="btn btn-sm {{ 'btn-primary' if status == s else 'btn-outline' }} gc-press" href="{{ url_for('inventory.purchases', status=s) }}">
+    {{ t('purchases.all') if s == '' else t('purchases.st_' ~ s) }}</a>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if orders %}
+  <table class="table">
+    <thead><tr><th>{{ t('purchases.number') }}</th><th>{{ t('purchases.supplier') }}</th><th>{{ t('purchases.order_date') }}</th><th>{{ t('purchases.total') }}</th><th>{{ t('purchases.status') }}</th><th style="text-align:end;"></th></tr></thead>
+    <tbody>
+      {% for po in orders %}
+      <tr>
+        <td><strong dir="ltr">{{ po.po_number }}</strong></td>
+        <td>{{ po.supplier.name if po.supplier else '—' }}</td>
+        <td dir="ltr">{{ po.order_date }}</td>
+        <td>{{ po.total }}</td>
+        <td>{{ st_badge(po.status) }}</td>
+        <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchase_view', po_id=po.id) }}"><i class="bi bi-eye"></i></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-cart"></i>{{ t('purchases.none') }}
+    <div style="margin-top:14px;"><a class="btn btn-primary gc-press" href="{{ url_for('inventory.purchase_new') }}"><i class="bi bi-plus-lg"></i> {{ t('purchases.new') }}</a></div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

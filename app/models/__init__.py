@@ -102,6 +102,7 @@ from app.models.message import (
     MessageTemplate,
 )
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
+from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
 
 __all__ = [
     "User",
@@ -194,4 +195,7 @@ __all__ = [
     "StoreItem",
     "StockMovement",
     "MOVEMENT_KINDS",
+    "PurchaseOrder",
+    "PurchaseOrderItem",
+    "PO_STATUSES",
 ]

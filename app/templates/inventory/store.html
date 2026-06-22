@@ -10,6 +10,7 @@
     <p class="page-sub" style="margin:0;">{{ t('store.subtitle') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.purchases') }}"><i class="bi bi-cart"></i> {{ t('purchases.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.stocktake') }}"><i class="bi bi-clipboard-check"></i> {{ t('store.stocktake_btn') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-shield-plus"></i> {{ t('inventory.title') }}</a>
   </div>
