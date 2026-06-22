@@ -4,9 +4,12 @@ Vital signs, chief complaint, clinical exam, ICD-10/11 diagnoses (working /
 secondary / final), and visit completion — which also closes a linked
 appointment and mirrors growth measurements into growth_records.
 """
+import os
+import uuid
 from datetime import datetime
 
 from flask import (
+    current_app,
     flash,
     jsonify,
     redirect,
@@ -15,6 +18,8 @@ from flask import (
     url_for,
 )
 from flask_login import current_user
+from sqlalchemy import or_
+from werkzeug.utils import secure_filename
 
 from app.blueprints.visits import visits_bp
 from app.extensions import db
@@ -24,12 +29,22 @@ from app.models import (
     Appointment,
     Diagnosis,
     GrowthRecord,
+    Investigation,
     Patient,
+    PatientAttachment,
     Visit,
+    VisitInvestigation,
     VitalSigns,
 )
 from app.utils.decorators import client_ip, module_required
 from app.utils.icd import search_icd
+
+# Uploaded patient documents (lab/imaging reports) live here, served via static.
+ALLOWED_DOC_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "webp", "gif"}
+
+
+def _docs_dir():
+    return os.path.join(current_app.static_folder, "uploads", "patient_docs")
 
 MODULE = "visits"
 
@@ -184,6 +199,134 @@ def delete_diagnosis(dx_id):
     db.session.commit()
     flash(t("visits.diagnosis_removed"), "info")
     return redirect(url_for("visits.record", visit_id=visit_id) + "#dx")
+
+
+# -------------------------------------------- investigations (labs/imaging) -
+@visits_bp.route("/investigations/search")
+@module_required(MODULE)
+def investigation_search():
+    """Autocomplete for ordering lab tests / imaging in the visit."""
+    q = (request.args.get("q") or "").strip()
+    kind = (request.args.get("kind") or "").strip()
+    if len(q) < 1:
+        return jsonify([])
+    like = f"%{q}%"
+    query = Investigation.query.filter(Investigation.is_active.is_(True)).filter(
+        or_(Investigation.name_ar.ilike(like), Investigation.name_en.ilike(like))
+    )
+    if kind in ("lab", "imaging"):
+        query = query.filter(Investigation.kind == kind)
+    rows = query.order_by(Investigation.name_ar).limit(15).all()
+    return jsonify([{"id": x.id, "name": x.display_name(), "kind": x.kind,
+                     "category": x.category or ""} for x in rows])
+
+
+@visits_bp.route("/<int:visit_id>/investigations", methods=["POST"])
+@module_required(MODULE)
+def add_investigation(visit_id):
+    """Order a lab test / imaging study during the visit."""
+    visit = db.get_or_404(Visit, visit_id)
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("visits.inv_need_name"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
+    kind = request.form.get("kind") if request.form.get("kind") in ("lab", "imaging") else "lab"
+    inv_id = request.form.get("investigation_id", type=int) or None
+
+    # Let the doctor grow the catalogue: a typed-but-unknown test can be saved
+    # to the investigations list so it shows up next time (idempotent by name).
+    if inv_id is None and request.form.get("add_to_catalog"):
+        existing = Investigation.query.filter_by(name_ar=name, kind=kind).first()
+        if existing is None:
+            existing = Investigation(name_ar=name, kind=kind, is_active=True)
+            db.session.add(existing)
+            db.session.flush()
+        inv_id = existing.id
+
+    db.session.add(VisitInvestigation(
+        visit_id=visit.id, patient_id=visit.patient_id,
+        investigation_id=inv_id, kind=kind, name=name,
+        request_notes=(request.form.get("request_notes") or "").strip() or None,
+    ))
+    db.session.commit()
+    flash(t("visits.inv_added"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
+
+
+@visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])
+@module_required(MODULE)
+def result_investigation(inv_id):
+    """Record the result text + the doctor's interpretation/comment."""
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    inv.result_text = (request.form.get("result_text") or "").strip() or None
+    inv.result_comment = (request.form.get("result_comment") or "").strip() or None
+    if inv.has_result:
+        inv.status = "resulted"
+        inv.resulted_at = datetime.utcnow()
+    else:
+        inv.status = "requested"
+        inv.resulted_at = None
+    db.session.commit()
+    flash(t("visits.inv_result_saved"), "success")
+    return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+
+
+@visits_bp.route("/investigations/<int:inv_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_investigation(inv_id):
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    visit_id = inv.visit_id
+    db.session.delete(inv)
+    db.session.commit()
+    flash(t("visits.inv_removed"), "info")
+    return redirect(url_for("visits.record", visit_id=visit_id) + "#inv")
+
+
+# ---------------------------------------------- patient file attachments ----
+@visits_bp.route("/<int:visit_id>/attachments", methods=["POST"])
+@module_required(MODULE)
+def upload_attachment(visit_id):
+    """Upload a result/report file to the patient's file from the visit."""
+    visit = db.get_or_404(Visit, visit_id)
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash(t("visits.att_need_file"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#files")
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_DOC_EXTENSIONS:
+        flash(t("visits.att_bad_type"), "warning")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#files")
+
+    stored = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(_docs_dir(), exist_ok=True)
+    file.save(os.path.join(_docs_dir(), secure_filename(stored)))
+    db.session.add(PatientAttachment(
+        patient_id=visit.patient_id, visit_id=visit.id,
+        filename=stored, original_name=file.filename,
+        kind=request.form.get("kind") or "report",
+        label=(request.form.get("label") or "").strip() or None,
+        uploaded_by=current_user.id,
+    ))
+    db.session.commit()
+    flash(t("visits.att_uploaded"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#files")
+
+
+@visits_bp.route("/attachments/<int:att_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_attachment(att_id):
+    att = db.get_or_404(PatientAttachment, att_id)
+    visit_id = att.visit_id
+    path = os.path.join(_docs_dir(), att.filename)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    db.session.delete(att)
+    db.session.commit()
+    flash(t("visits.att_removed"), "info")
+    return redirect(url_for("visits.record", visit_id=visit_id) + "#files")
 
 
 # ------------------------------------------------------------ complete -----

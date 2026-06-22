@@ -30,7 +30,13 @@ from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
 from app.models.setting import Setting
 from app.models.user import User
-from app.models.visit import VISIT_STATUSES, Visit
+from app.models.visit import (
+    INVESTIGATION_STATUSES,
+    VISIT_STATUSES,
+    PatientAttachment,
+    Visit,
+    VisitInvestigation,
+)
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
     PatientVaccine,
@@ -106,6 +112,9 @@ __all__ = [
     "Appointment",
     "DoctorSchedule",
     "Visit",
+    "VisitInvestigation",
+    "PatientAttachment",
+    "INVESTIGATION_STATUSES",
     "VitalSigns",
     "Diagnosis",
     "GrowthRecord",

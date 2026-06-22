@@ -65,7 +65,37 @@
   </ul>
   {% else %}<p style="color:var(--muted);">{{ t('visits.no_dx') }}</p>{% endif %}
 
+  <!-- Investigations + results -->
+  {% if visit.investigations %}
+  <h3 class="section-title"><i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}</h3>
+  <table class="table" style="margin-bottom:16px;">
+    <thead><tr><th>{{ t('rx.inv_kind') }}</th><th>{{ t('rx.inv_name') }}</th>
+      <th>{{ t('visits.inv_result_text') }}</th><th>{{ t('visits.inv_comment') }}</th></tr></thead>
+    <tbody>
+      {% for x in visit.investigations %}
+      <tr>
+        <td>{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</td>
+        <td>{{ x.name }}{% if x.request_notes %} <span style="color:var(--muted);">({{ x.request_notes }})</span>{% endif %}</td>
+        <td>{{ x.result_text or '—' }}</td>
+        <td>{{ x.result_comment or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
   {% if visit.plan %}<h3 class="section-title"><i class="bi bi-clipboard-check"></i> {{ t('visits.plan') }}</h3><p>{{ visit.plan }}</p>{% endif %}
+
+  <!-- Attached files (screen only) -->
+  {% if visit.attachments %}
+  <h3 class="section-title no-print"><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h3>
+  <ul class="no-print" style="padding-inline-start:18px;">
+    {% for a in visit.attachments %}
+    <li><a target="_blank" href="{{ url_for('static', filename='uploads/patient_docs/' ~ a.filename) }}">{{ a.label or a.original_name }}</a>
+      <span style="color:var(--muted);font-size:0.82rem;" dir="ltr">· {{ a.created_at.strftime('%Y-%m-%d') }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </div>
 {% endblock %}
 
