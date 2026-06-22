@@ -1339,7 +1339,8 @@
     "conc": "Concentration (mg/ml)",
     "conc_hint": "To convert mg → ml (syrups).",
     "suggested": "Suggested",
-    "max_per_day": "max/day"
+    "max_per_day": "max/day",
+    "diagnosis_search_ph": "Search ICD-10 by name or code…"
   },
   "drug_forms": {
     "tablet": "Tablet",

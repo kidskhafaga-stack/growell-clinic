@@ -145,6 +145,15 @@ def drug_search():
     } for d in drugs])
 
 
+@prescriptions_bp.route("/icd/search")
+@module_required(MODULE)
+def icd_search():
+    """ICD-10 autocomplete for the prescription diagnosis field."""
+    from app.utils.icd import search_icd
+
+    return jsonify(search_icd(request.args.get("q"), limit=12))
+
+
 @prescriptions_bp.route("/investigations/search")
 @module_required(MODULE)
 def investigation_search():
@@ -181,6 +190,7 @@ def new():
             doctor_id=request.form.get("doctor_id", type=int) or (
                 current_user.id if current_user.role == "doctor" else None),
             diagnosis=(request.form.get("diagnosis") or "").strip() or None,
+            diagnosis_code=(request.form.get("diagnosis_code") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None,
             created_by=current_user.id,
         )

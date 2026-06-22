@@ -19,7 +19,23 @@
           <option value="">—</option>
           {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if current_user.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
-      <div class="form-row"><label>{{ t('rx.diagnosis') }}</label><input class="input" name="diagnosis"></div>
+      <div class="form-row" style="position:relative;"><label>{{ t('rx.diagnosis') }}</label>
+        <input type="hidden" name="diagnosis_code" x-model="dxCode">
+        <input class="input" name="diagnosis" x-model="dx" autocomplete="off"
+               placeholder="{{ t('rx.diagnosis_search_ph') }}"
+               x-on:input.debounce.250ms="searchDx()" x-on:focus="searchDx()">
+        <div x-show="dxOpen && dxSug.length" x-cloak
+             style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
+          <template x-for="s in dxSug" :key="s.code">
+            <div x-on:click="pickDx(s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
+                 x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+              <span class="badge badge--role" x-text="s.code"></span>
+              <span x-text="current_lang==='ar' ? s.ar : s.en"></span>
+            </div>
+          </template>
+        </div>
+        <div class="hint" x-show="dxCode" x-cloak>ICD-10: <span x-text="dxCode"></span></div>
+      </div>
       <div class="form-row"><label>{{ t('rx.child_weight') }}</label>
         <input class="input" type="number" step="0.1" min="0" x-model="weight" x-on:input="recalc()" placeholder="kg">
         <div class="hint">{{ t('rx.child_weight_hint') }}</div></div>
@@ -110,9 +126,18 @@
 </form>
 
 <script>
+window.current_lang = "{{ current_lang }}";
 function rxForm(){
   return {
     lines: [], invs: [], weight: '',
+    dx: '', dxCode: '', dxSug: [], dxOpen: false,
+    async searchDx(){
+      var q=(this.dx||'').trim(); if(q.length<1){ this.dxSug=[]; this.dxOpen=false; this.dxCode=''; return; }
+      try{ var r=await fetch("{{ url_for('prescriptions.icd_search') }}?q="+encodeURIComponent(q));
+        this.dxSug=await r.json(); this.dxOpen=true;
+      }catch(e){ this.dxSug=[]; this.dxOpen=false; }
+    },
+    pickDx(s){ this.dx=(current_lang==='ar'?s.ar:s.en); this.dxCode=s.code; this.dxOpen=false; this.dxSug=[]; },
     addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:''}); },
     // Compute the weight-based suggestion text for a line and (re)fill its dose.
     computeLine(l, fillDose){

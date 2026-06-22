@@ -1339,7 +1339,8 @@
     "conc": "التركيز (مجم/مل)",
     "conc_hint": "لتحويل مجم ← مل (الشراب).",
     "suggested": "المقترح",
-    "max_per_day": "الأقصى/يوم"
+    "max_per_day": "الأقصى/يوم",
+    "diagnosis_search_ph": "ابحث ICD-10 بالاسم أو الكود…"
   },
   "drug_forms": {
     "tablet": "أقراص",

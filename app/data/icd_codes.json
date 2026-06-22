@@ -1,50 +1,420 @@
 {
   "version_note": "Curated common pediatric ICD-10-CM codes with Arabic titles. Diagnoses store a snapshot of the chosen code/title; ICD-11 is supported via manual entry with the version selector.",
   "codes": [
-    {"code": "R50.9", "en": "Fever, unspecified", "ar": "الحمى (ارتفاع الحرارة)"},
-    {"code": "J00", "en": "Acute nasopharyngitis (common cold)", "ar": "نزلة برد (التهاب البلعوم الأنفي الحاد)"},
-    {"code": "J06.9", "en": "Acute upper respiratory infection, unspecified", "ar": "التهاب الجهاز التنفسي العلوي الحاد"},
-    {"code": "J02.9", "en": "Acute pharyngitis, unspecified", "ar": "التهاب البلعوم الحاد"},
-    {"code": "J02.0", "en": "Streptococcal pharyngitis", "ar": "التهاب البلعوم بالمكورات العقدية"},
-    {"code": "J03.90", "en": "Acute tonsillitis, unspecified", "ar": "التهاب اللوزتين الحاد"},
-    {"code": "J35.1", "en": "Hypertrophy of tonsils", "ar": "تضخم اللوزتين"},
-    {"code": "J20.9", "en": "Acute bronchitis, unspecified", "ar": "التهاب الشعب الهوائية الحاد"},
-    {"code": "J21.9", "en": "Acute bronchiolitis, unspecified", "ar": "التهاب القصيبات الحاد"},
-    {"code": "J18.9", "en": "Pneumonia, unspecified organism", "ar": "الالتهاب الرئوي"},
-    {"code": "J45.909", "en": "Unspecified asthma, uncomplicated", "ar": "الربو (غير معقّد)"},
-    {"code": "J45.901", "en": "Unspecified asthma with (acute) exacerbation", "ar": "الربو مع نوبة حادة"},
-    {"code": "J30.9", "en": "Allergic rhinitis, unspecified", "ar": "التهاب الأنف التحسسي"},
-    {"code": "J11.1", "en": "Influenza with other respiratory manifestations", "ar": "الإنفلونزا (نزلة شعبية)"},
-    {"code": "H66.90", "en": "Otitis media, unspecified", "ar": "التهاب الأذن الوسطى"},
-    {"code": "H66.009", "en": "Acute suppurative otitis media", "ar": "التهاب الأذن الوسطى القيحي الحاد"},
-    {"code": "H10.9", "en": "Conjunctivitis, unspecified", "ar": "التهاب الملتحمة (الرمد)"},
-    {"code": "A09", "en": "Infectious gastroenteritis and colitis, unspecified", "ar": "التهاب المعدة والأمعاء المعدي (النزلة المعوية)"},
-    {"code": "A08.4", "en": "Viral intestinal infection, unspecified", "ar": "عدوى معوية فيروسية"},
-    {"code": "K59.00", "en": "Constipation, unspecified", "ar": "الإمساك"},
-    {"code": "R11.2", "en": "Nausea with vomiting, unspecified", "ar": "الغثيان والقيء"},
-    {"code": "K21.9", "en": "Gastro-esophageal reflux disease without esophagitis", "ar": "الارتجاع المعدي المريئي"},
-    {"code": "R10.9", "en": "Unspecified abdominal pain", "ar": "ألم البطن"},
-    {"code": "K00.7", "en": "Teething syndrome", "ar": "متلازمة التسنين"},
-    {"code": "L20.9", "en": "Atopic dermatitis, unspecified", "ar": "الأكزيما (التهاب الجلد التأتبي)"},
-    {"code": "L22", "en": "Diaper dermatitis", "ar": "التهاب جلد الحفاض"},
-    {"code": "L21.0", "en": "Seborrhea capitis (cradle cap)", "ar": "التهاب الجلد الدهني بفروة الرأس"},
-    {"code": "L01.00", "en": "Impetigo, unspecified", "ar": "القوباء (الحصف)"},
-    {"code": "L50.9", "en": "Urticaria, unspecified", "ar": "الشرى (الأرتيكاريا)"},
-    {"code": "R21", "en": "Rash and other nonspecific skin eruption", "ar": "الطفح الجلدي"},
-    {"code": "B34.9", "en": "Viral infection, unspecified", "ar": "عدوى فيروسية"},
-    {"code": "B01.9", "en": "Varicella without complication (chickenpox)", "ar": "الجدري المائي (العنقز)"},
-    {"code": "B05.9", "en": "Measles without complication", "ar": "الحصبة"},
-    {"code": "B26.9", "en": "Mumps without complication", "ar": "النكاف (أبو كعب)"},
-    {"code": "B08.5", "en": "Enteroviral vesicular stomatitis (hand, foot and mouth)", "ar": "مرض اليد والقدم والفم"},
-    {"code": "D50.9", "en": "Iron deficiency anemia, unspecified", "ar": "فقر الدم بعوز الحديد (الأنيميا)"},
-    {"code": "E55.9", "en": "Vitamin D deficiency, unspecified", "ar": "نقص فيتامين د"},
-    {"code": "E66.9", "en": "Obesity, unspecified", "ar": "السمنة"},
-    {"code": "R62.51", "en": "Failure to thrive (child)", "ar": "فشل النمو (تأخر النمو)"},
-    {"code": "N39.0", "en": "Urinary tract infection, site not specified", "ar": "عدوى المسالك البولية"},
-    {"code": "R05.9", "en": "Cough, unspecified", "ar": "السعال (الكحة)"},
-    {"code": "R51.9", "en": "Headache, unspecified", "ar": "الصداع"},
-    {"code": "P59.9", "en": "Neonatal jaundice, unspecified", "ar": "يرقان حديثي الولادة (الصفراء)"},
-    {"code": "Z00.129", "en": "Routine child health examination without abnormal findings", "ar": "الفحص الدوري للطفل (كشف روتيني)"},
-    {"code": "Z23", "en": "Encounter for immunization", "ar": "زيارة للتطعيم"}
+    {
+      "code": "R50.9",
+      "en": "Fever, unspecified",
+      "ar": "الحمى (ارتفاع الحرارة)"
+    },
+    {
+      "code": "J00",
+      "en": "Acute nasopharyngitis (common cold)",
+      "ar": "نزلة برد (التهاب البلعوم الأنفي الحاد)"
+    },
+    {
+      "code": "J06.9",
+      "en": "Acute upper respiratory infection, unspecified",
+      "ar": "التهاب الجهاز التنفسي العلوي الحاد"
+    },
+    {
+      "code": "J02.9",
+      "en": "Acute pharyngitis, unspecified",
+      "ar": "التهاب البلعوم الحاد"
+    },
+    {
+      "code": "J02.0",
+      "en": "Streptococcal pharyngitis",
+      "ar": "التهاب البلعوم بالمكورات العقدية"
+    },
+    {
+      "code": "J03.90",
+      "en": "Acute tonsillitis, unspecified",
+      "ar": "التهاب اللوزتين الحاد"
+    },
+    {
+      "code": "J35.1",
+      "en": "Hypertrophy of tonsils",
+      "ar": "تضخم اللوزتين"
+    },
+    {
+      "code": "J20.9",
+      "en": "Acute bronchitis, unspecified",
+      "ar": "التهاب الشعب الهوائية الحاد"
+    },
+    {
+      "code": "J21.9",
+      "en": "Acute bronchiolitis, unspecified",
+      "ar": "التهاب القصيبات الحاد"
+    },
+    {
+      "code": "J18.9",
+      "en": "Pneumonia, unspecified organism",
+      "ar": "الالتهاب الرئوي"
+    },
+    {
+      "code": "J45.909",
+      "en": "Unspecified asthma, uncomplicated",
+      "ar": "الربو (غير معقّد)"
+    },
+    {
+      "code": "J45.901",
+      "en": "Unspecified asthma with (acute) exacerbation",
+      "ar": "الربو مع نوبة حادة"
+    },
+    {
+      "code": "J30.9",
+      "en": "Allergic rhinitis, unspecified",
+      "ar": "التهاب الأنف التحسسي"
+    },
+    {
+      "code": "J11.1",
+      "en": "Influenza with other respiratory manifestations",
+      "ar": "الإنفلونزا (نزلة شعبية)"
+    },
+    {
+      "code": "H66.90",
+      "en": "Otitis media, unspecified",
+      "ar": "التهاب الأذن الوسطى"
+    },
+    {
+      "code": "H66.009",
+      "en": "Acute suppurative otitis media",
+      "ar": "التهاب الأذن الوسطى القيحي الحاد"
+    },
+    {
+      "code": "H10.9",
+      "en": "Conjunctivitis, unspecified",
+      "ar": "التهاب الملتحمة (الرمد)"
+    },
+    {
+      "code": "A09",
+      "en": "Infectious gastroenteritis and colitis, unspecified",
+      "ar": "التهاب المعدة والأمعاء المعدي (النزلة المعوية)"
+    },
+    {
+      "code": "A08.4",
+      "en": "Viral intestinal infection, unspecified",
+      "ar": "عدوى معوية فيروسية"
+    },
+    {
+      "code": "K59.00",
+      "en": "Constipation, unspecified",
+      "ar": "الإمساك"
+    },
+    {
+      "code": "R11.2",
+      "en": "Nausea with vomiting, unspecified",
+      "ar": "الغثيان والقيء"
+    },
+    {
+      "code": "K21.9",
+      "en": "Gastro-esophageal reflux disease without esophagitis",
+      "ar": "الارتجاع المعدي المريئي"
+    },
+    {
+      "code": "R10.9",
+      "en": "Unspecified abdominal pain",
+      "ar": "ألم البطن"
+    },
+    {
+      "code": "K00.7",
+      "en": "Teething syndrome",
+      "ar": "متلازمة التسنين"
+    },
+    {
+      "code": "L20.9",
+      "en": "Atopic dermatitis, unspecified",
+      "ar": "الأكزيما (التهاب الجلد التأتبي)"
+    },
+    {
+      "code": "L22",
+      "en": "Diaper dermatitis",
+      "ar": "التهاب جلد الحفاض"
+    },
+    {
+      "code": "L21.0",
+      "en": "Seborrhea capitis (cradle cap)",
+      "ar": "التهاب الجلد الدهني بفروة الرأس"
+    },
+    {
+      "code": "L01.00",
+      "en": "Impetigo, unspecified",
+      "ar": "القوباء (الحصف)"
+    },
+    {
+      "code": "L50.9",
+      "en": "Urticaria, unspecified",
+      "ar": "الشرى (الأرتيكاريا)"
+    },
+    {
+      "code": "R21",
+      "en": "Rash and other nonspecific skin eruption",
+      "ar": "الطفح الجلدي"
+    },
+    {
+      "code": "B34.9",
+      "en": "Viral infection, unspecified",
+      "ar": "عدوى فيروسية"
+    },
+    {
+      "code": "B01.9",
+      "en": "Varicella without complication (chickenpox)",
+      "ar": "الجدري المائي (العنقز)"
+    },
+    {
+      "code": "B05.9",
+      "en": "Measles without complication",
+      "ar": "الحصبة"
+    },
+    {
+      "code": "B26.9",
+      "en": "Mumps without complication",
+      "ar": "النكاف (أبو كعب)"
+    },
+    {
+      "code": "B08.5",
+      "en": "Enteroviral vesicular stomatitis (hand, foot and mouth)",
+      "ar": "مرض اليد والقدم والفم"
+    },
+    {
+      "code": "D50.9",
+      "en": "Iron deficiency anemia, unspecified",
+      "ar": "فقر الدم بعوز الحديد (الأنيميا)"
+    },
+    {
+      "code": "E55.9",
+      "en": "Vitamin D deficiency, unspecified",
+      "ar": "نقص فيتامين د"
+    },
+    {
+      "code": "E66.9",
+      "en": "Obesity, unspecified",
+      "ar": "السمنة"
+    },
+    {
+      "code": "R62.51",
+      "en": "Failure to thrive (child)",
+      "ar": "فشل النمو (تأخر النمو)"
+    },
+    {
+      "code": "N39.0",
+      "en": "Urinary tract infection, site not specified",
+      "ar": "عدوى المسالك البولية"
+    },
+    {
+      "code": "R05.9",
+      "en": "Cough, unspecified",
+      "ar": "السعال (الكحة)"
+    },
+    {
+      "code": "R51.9",
+      "en": "Headache, unspecified",
+      "ar": "الصداع"
+    },
+    {
+      "code": "P59.9",
+      "en": "Neonatal jaundice, unspecified",
+      "ar": "يرقان حديثي الولادة (الصفراء)"
+    },
+    {
+      "code": "Z00.129",
+      "en": "Routine child health examination without abnormal findings",
+      "ar": "الفحص الدوري للطفل (كشف روتيني)"
+    },
+    {
+      "code": "Z23",
+      "en": "Encounter for immunization",
+      "ar": "زيارة للتطعيم"
+    },
+    {
+      "code": "J05.0",
+      "en": "Acute obstructive laryngitis [croup]",
+      "ar": "الخانوق (التهاب الحنجرة الانسدادي)"
+    },
+    {
+      "code": "J04.0",
+      "en": "Acute laryngitis",
+      "ar": "التهاب الحنجرة الحاد"
+    },
+    {
+      "code": "J01.90",
+      "en": "Acute sinusitis, unspecified",
+      "ar": "التهاب الجيوب الأنفية الحاد"
+    },
+    {
+      "code": "J32.9",
+      "en": "Chronic sinusitis, unspecified",
+      "ar": "التهاب الجيوب الأنفية المزمن"
+    },
+    {
+      "code": "J12.1",
+      "en": "Respiratory syncytial virus pneumonia",
+      "ar": "الالتهاب الرئوي بفيروس RSV"
+    },
+    {
+      "code": "J21.0",
+      "en": "Acute bronchiolitis due to RSV",
+      "ar": "التهاب القصيبات بفيروس RSV"
+    },
+    {
+      "code": "J35.3",
+      "en": "Hypertrophy of tonsils with adenoids",
+      "ar": "تضخم اللوزتين واللحمية"
+    },
+    {
+      "code": "H60.9",
+      "en": "Otitis externa, unspecified",
+      "ar": "التهاب الأذن الخارجية"
+    },
+    {
+      "code": "H65.90",
+      "en": "Nonsuppurative otitis media, unspecified",
+      "ar": "التهاب الأذن الوسطى المصلي"
+    },
+    {
+      "code": "R04.0",
+      "en": "Epistaxis",
+      "ar": "الرعاف (نزيف الأنف)"
+    },
+    {
+      "code": "R56.00",
+      "en": "Simple febrile convulsions",
+      "ar": "تشنجات حرارية بسيطة"
+    },
+    {
+      "code": "R56.01",
+      "en": "Complex febrile convulsions",
+      "ar": "تشنجات حرارية معقّدة"
+    },
+    {
+      "code": "G43.909",
+      "en": "Migraine, unspecified, not intractable",
+      "ar": "الصداع النصفي (الشقيقة)"
+    },
+    {
+      "code": "E86.0",
+      "en": "Dehydration",
+      "ar": "الجفاف"
+    },
+    {
+      "code": "E55.0",
+      "en": "Rickets, active",
+      "ar": "الكساح (لين العظام)"
+    },
+    {
+      "code": "D64.9",
+      "en": "Anemia, unspecified",
+      "ar": "فقر الدم (الأنيميا)"
+    },
+    {
+      "code": "R63.3",
+      "en": "Feeding difficulties",
+      "ar": "صعوبات التغذية"
+    },
+    {
+      "code": "R62.0",
+      "en": "Delayed milestone in childhood",
+      "ar": "تأخر بلوغ مراحل النمو"
+    },
+    {
+      "code": "K52.9",
+      "en": "Noninfective gastroenteritis and colitis, unspecified",
+      "ar": "التهاب المعدة والأمعاء غير المعدي"
+    },
+    {
+      "code": "R10.83",
+      "en": "Colic",
+      "ar": "المغص"
+    },
+    {
+      "code": "B37.0",
+      "en": "Candidal stomatitis",
+      "ar": "سُلاق الفم (فطريات الفم)"
+    },
+    {
+      "code": "B86",
+      "en": "Scabies",
+      "ar": "الجرب"
+    },
+    {
+      "code": "B35.9",
+      "en": "Dermatophytosis, unspecified",
+      "ar": "السعفة (عدوى فطرية جلدية)"
+    },
+    {
+      "code": "B07.9",
+      "en": "Viral wart, unspecified",
+      "ar": "الثآليل الفيروسية"
+    },
+    {
+      "code": "B08.1",
+      "en": "Molluscum contagiosum",
+      "ar": "المليساء المعدية"
+    },
+    {
+      "code": "L70.4",
+      "en": "Infantile acne",
+      "ar": "حب الشباب الرضّعي"
+    },
+    {
+      "code": "A38.9",
+      "en": "Scarlet fever, uncomplicated",
+      "ar": "الحمى القرمزية"
+    },
+    {
+      "code": "N39.44",
+      "en": "Nocturnal enuresis",
+      "ar": "التبول الليلي اللاإرادي"
+    },
+    {
+      "code": "F98.0",
+      "en": "Enuresis (non-organic)",
+      "ar": "التبول اللاإرادي (وظيفي)"
+    },
+    {
+      "code": "R59.0",
+      "en": "Localized enlarged lymph nodes",
+      "ar": "تضخم العقد اللمفاوية الموضعي"
+    },
+    {
+      "code": "K40.90",
+      "en": "Unilateral inguinal hernia",
+      "ar": "الفتق الإربي"
+    },
+    {
+      "code": "K42.9",
+      "en": "Umbilical hernia",
+      "ar": "الفتق السري"
+    },
+    {
+      "code": "Q53.9",
+      "en": "Undescended testicle, unspecified",
+      "ar": "الخصية المعلّقة (غير النازلة)"
+    },
+    {
+      "code": "N47.1",
+      "en": "Phimosis",
+      "ar": "ضيق القلفة (الفيموزس)"
+    },
+    {
+      "code": "F90.9",
+      "en": "Attention-deficit hyperactivity disorder, unspecified",
+      "ar": "فرط الحركة وتشتت الانتباه (ADHD)"
+    },
+    {
+      "code": "F80.9",
+      "en": "Developmental speech and language disorder",
+      "ar": "اضطراب تطوّر الكلام واللغة"
+    },
+    {
+      "code": "F84.0",
+      "en": "Autistic disorder",
+      "ar": "اضطراب التوحّد"
+    },
+    {
+      "code": "P37.5",
+      "en": "Neonatal candidiasis",
+      "ar": "فطريات حديثي الولادة"
+    }
   ]
 }

@@ -130,6 +130,7 @@ class Prescription(db.Model):
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
     rx_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     diagnosis = db.Column(db.String(255))
+    diagnosis_code = db.Column(db.String(20))   # ICD-10 code snapshot
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

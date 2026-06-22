@@ -27,18 +27,23 @@ def search_icd(query, limit=15):
     if not query:
         return codes[:limit]
 
-    results = []
+    scored = []
     for entry in codes:
-        haystack = (
-            entry["code"].lower()
-            + " " + entry["en"].lower()
-            + " " + entry["ar"]
-        )
-        if query in haystack:
-            results.append(entry)
-        if len(results) >= limit:
-            break
-    return results
+        code = entry["code"].lower()
+        en = entry["en"].lower()
+        ar = entry["ar"]
+        if code.startswith(query):
+            rank = 0
+        elif en.startswith(query) or ar.startswith(query):
+            rank = 1
+        elif query in code or query in en or query in ar:
+            rank = 2
+        else:
+            continue
+        scored.append((rank, entry))
+
+    scored.sort(key=lambda r: r[0])
+    return [e for _, e in scored[:limit]]
 
 
 def lookup_icd(code):
