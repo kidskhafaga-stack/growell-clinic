@@ -338,16 +338,62 @@
       </form>
     </div>
 
-    <!-- Placeholder tabs for later phases -->
-    {% for key in ['prescriptions','finance'] %}
-    <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
-      <div class="empty-state">
-        <i class="bi bi-hourglass-split"></i>
-        <div style="font-weight:600;">{{ t('common.coming_soon') }}</div>
-        <p>{{ t('patients.tab_phase_notice') }}</p>
+    <!-- Prescriptions -->
+    <div class="gc-tab-panel" x-show="tab==='prescriptions'" x-cloak>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-capsule"></i> {{ t('patients.tab_prescriptions') }}</h3>
+        {% if current_user.can_access('prescriptions') %}
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}"><i class="bi bi-plus-lg"></i> {{ t('rx.new') }}</a>
+        {% endif %}
       </div>
+      {% if prescriptions %}
+      <table class="table">
+        <thead><tr><th>{{ t('rx.date') }}</th><th>{{ t('rx.diagnosis') }}</th><th>{{ t('rx.items') }}</th><th>{{ t('rx.investigations') }}</th><th style="text-align:end;"></th></tr></thead>
+        <tbody>
+          {% for rx in prescriptions %}
+          <tr>
+            <td dir="ltr">{{ rx.rx_date }}</td>
+            <td>{{ rx.diagnosis or '—' }}</td>
+            <td>{{ rx.items | map(attribute='drug_name') | join('، ') if rx.items else '—' }}</td>
+            <td>{% set ic = rx.investigations | length %}{% if ic %}<span class="badge badge--role">{{ ic }}</span>{% else %}—{% endif %}</td>
+            <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.view', rx_id=rx.id) }}"><i class="bi bi-eye"></i></a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('patients.no_prescriptions') }}</p>
+      {% endif %}
     </div>
-    {% endfor %}
+
+    <!-- Finance -->
+    <div class="gc-tab-panel" x-show="tab==='finance'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('patients.tab_finance') }}</h3>
+      <div class="stat-grid" style="margin-bottom:14px;">
+        <div class="stat-card edge-blue"><div class="value">{{ fin.total }}</div><div class="label">{{ t('invoices.total') }}</div></div>
+        <div class="stat-card edge-green"><div class="value">{{ fin.paid }}</div><div class="label">{{ t('invoices.paid') }}</div></div>
+        <div class="stat-card {{ 'edge-red' if fin.balance > 0 else 'edge-green' }}"><div class="value">{{ fin.balance }}</div><div class="label">{{ t('invoices.balance') }}</div></div>
+      </div>
+      {% if invoices %}
+      <table class="table">
+        <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.total') }}</th><th>{{ t('invoices.paid') }}</th><th>{{ t('invoices.balance') }}</th><th>{{ t('invoices.status') }}</th><th style="text-align:end;"></th></tr></thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr>
+            <td dir="ltr">{{ inv.invoice_date }}</td>
+            <td>{{ inv.total }}</td>
+            <td style="color:var(--green-700);">{{ inv.paid }}</td>
+            <td style="{{ 'color:var(--danger);' if inv.balance > 0 else '' }}">{{ inv.balance }}</td>
+            <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
+            <td style="text-align:end;">{% if current_user.can_access('finance') %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}"><i class="bi bi-eye"></i></a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('patients.no_invoices') }}</p>
+      {% endif %}
+    </div>
   </div>
 
   {% if ai_patient %}

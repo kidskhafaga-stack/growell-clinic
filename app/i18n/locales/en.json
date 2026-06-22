@@ -195,7 +195,9 @@
     "doc_date": "Date",
     "ai_title": "AI assistant (this patient)",
     "ai_placeholder": "Ask about this patient…",
-    "ai_privacy": "A summary of this patient's record is sent to your configured AI provider. Verify clinically."
+    "ai_privacy": "A summary of this patient's record is sent to your configured AI provider. Verify clinically.",
+    "no_prescriptions": "No prescriptions yet.",
+    "no_invoices": "No invoices yet."
   },
   "import": {
     "title": "Import patient data",

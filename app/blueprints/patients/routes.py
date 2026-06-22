@@ -190,12 +190,22 @@ def create():
 @patients_bp.route("/<int:patient_id>")
 @module_required(MODULE)
 def view(patient_id):
-    from app.models import PayerEntity
+    from app.models import Invoice, PayerEntity, Prescription
     from app.utils import ai as ai_utils
 
     patient = db.get_or_404(Patient, patient_id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
+
+    prescriptions = (Prescription.query.filter_by(patient_id=patient.id)
+                     .order_by(Prescription.rx_date.desc(), Prescription.id.desc()).all())
+    invoices = (Invoice.query.filter_by(patient_id=patient.id)
+                .order_by(Invoice.invoice_date.desc(), Invoice.id.desc()).all())
+    fin = {
+        "total": round(sum(i.total for i in invoices), 2),
+        "paid": round(sum(i.paid for i in invoices), 2),
+        "balance": round(sum(i.balance for i in invoices), 2),
+    }
     return render_template(
         "patients/profile.html",
         patient=patient,
@@ -203,6 +213,7 @@ def view(patient_id):
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient,
+        prescriptions=prescriptions, invoices=invoices, fin=fin,
     )
 
 
