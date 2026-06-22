@@ -14,9 +14,12 @@ from app.blueprints.finance import finance_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    CLIENT_CATEGORIES,
     COMMISSION_TYPES,
     COVERAGE_TYPES,
+    DISCOUNT_TYPES,
     EXPENSE_CATEGORIES,
+    NamedDiscount,
     PAYER_TYPES,
     PAYMENT_METHODS,
     SERVICE_CATEGORIES,
@@ -293,7 +296,12 @@ def invoice_new():
             flash(t("invoices.need_item"), "warning")
             return redirect(url_for("finance.invoice_new", patient_id=patient.id))
 
-        # Apply the patient's membership/insurance coverage automatically.
+        # Apply a chosen named discount first (campaign/doctor/category/special),
+        # then insurance coverage fills any remaining undiscounted lines.
+        disc = db.session.get(NamedDiscount, request.form.get("discount_id", type=int)) \
+            if request.form.get("discount_id", type=int) else None
+        if disc and disc.is_active:
+            _apply_named_discount(invoice, disc)
         _apply_coverage(invoice, patient)
 
         invoice.recalc_status()
@@ -310,9 +318,90 @@ def invoice_new():
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
+        discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
         visit_id=request.args.get("visit_id", type=int),
         doctor_id=request.args.get("doctor_id", type=int),
     )
+
+
+def _apply_named_discount(invoice, disc):
+    """Apply a named discount to lines that have no manual discount yet."""
+    invoice.discount_id = disc.id
+    invoice.discount_name = disc.display_name()
+    for item in invoice.items:
+        if (item.discount_value or 0) > 0:
+            continue  # keep manual discounts
+        amount = disc.amount_for(item.gross)
+        # Respect a service's max discount cap (percentage of gross).
+        if item.service and item.service.max_discount:
+            cap = round(item.gross * item.service.max_discount / 100.0, 2)
+            amount = min(amount, cap)
+        if amount > 0:
+            item.discount_value = amount
+            item.discount_is_percent = False
+            if item.service is not None:
+                item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+
+
+# ------------------------------------------------------ named discounts ----
+@finance_bp.route("/discounts", methods=["GET", "POST"])
+@module_required(MODULE)
+def discounts():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash(t("common.required") + ": " + t("discounts.name"), "danger")
+            return redirect(url_for("finance.discounts"))
+        dtype = (request.form.get("dtype") or "special").strip()
+        db.session.add(NamedDiscount(
+            name=name,
+            name_en=(request.form.get("name_en") or "").strip() or None,
+            dtype=dtype if dtype in DISCOUNT_TYPES else "special",
+            value=request.form.get("value", type=float) or 0,
+            is_percent=(request.form.get("unit") or "percent") == "percent",
+            doctor_id=request.form.get("doctor_id", type=int) or None,
+            client_category=(request.form.get("client_category") or "").strip() or None,
+            start_date=_parse_date_arg("start_date"),
+            end_date=_parse_date_arg("end_date"),
+        ))
+        db.session.commit()
+        flash(t("discounts.added"), "success")
+        return redirect(url_for("finance.discounts"))
+
+    return render_template(
+        "finance/discounts.html",
+        discounts=NamedDiscount.query.order_by(NamedDiscount.is_active.desc(),
+                                               NamedDiscount.name).all(),
+        types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES, doctors=_doctors_active())
+
+
+@finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])
+@module_required(MODULE)
+def discount_toggle(discount_id):
+    d = db.get_or_404(NamedDiscount, discount_id)
+    d.is_active = not d.is_active
+    db.session.commit()
+    return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/discounts/<int:discount_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def discount_delete(discount_id):
+    d = db.get_or_404(NamedDiscount, discount_id)
+    db.session.delete(d)
+    db.session.commit()
+    flash(t("discounts.deleted"), "info")
+    return redirect(url_for("finance.discounts"))
+
+
+def _parse_date_arg(name):
+    raw = (request.form.get(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 def _build_line(invoice, idx):

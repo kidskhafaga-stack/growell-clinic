@@ -112,6 +112,15 @@ class Patient(db.Model):
         return None
 
     @property
+    def client_category(self):
+        """Client category from the primary guardian (normal/friend/relative/employee)."""
+        if not self.family or not self.family.parents:
+            return "normal"
+        parents = sorted(self.family.parents,
+                         key=lambda p: (0 if p.is_primary_contact else 1))
+        return parents[0].client_category if parents else "normal"
+
+    @property
     def siblings(self):
         """Other active patients in the same family."""
         if not self.family_id or not self.family:

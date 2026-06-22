@@ -140,6 +140,8 @@ def register_commands(app):
             ("drugs", "max_per_kg", "FLOAT"),
             ("drugs", "conc_mg_per_ml", "FLOAT"),
             ("prescriptions", "diagnosis_code", "VARCHAR(20)"),
+            ("invoices", "discount_id", "INTEGER"),
+            ("invoices", "discount_name", "VARCHAR(120)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

@@ -103,6 +103,7 @@ from app.models.message import (
 )
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
+from app.models.discount import DISCOUNT_TYPES, NamedDiscount
 
 __all__ = [
     "User",
@@ -198,4 +199,6 @@ __all__ = [
     "PurchaseOrder",
     "PurchaseOrderItem",
     "PO_STATUSES",
+    "NamedDiscount",
+    "DISCOUNT_TYPES",
 ]
