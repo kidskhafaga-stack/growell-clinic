@@ -78,6 +78,7 @@ from app.models.payer import (
     PayerServiceRate,
 )
 from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
+from app.models.expense import EXPENSE_CATEGORIES, Expense
 from app.models.prescription import (
     DRUG_FORMS,
     INVESTIGATION_KINDS,
@@ -170,6 +171,8 @@ __all__ = [
     "COVERAGE_TYPES",
     "EInvoiceDocument",
     "EINVOICE_STATUSES",
+    "Expense",
+    "EXPENSE_CATEGORIES",
     "Drug",
     "DrugInteraction",
     "Investigation",

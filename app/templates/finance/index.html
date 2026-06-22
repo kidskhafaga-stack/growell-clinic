@@ -38,6 +38,18 @@
     <h3 style="margin:10px 0 4px;">{{ t('einvoice.hub') }}</h3>
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('einvoice.subtitle') }}</p>
   </a>
+
+  <a class="card gc-lift" href="{{ url_for('finance.expenses') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-red"><i class="bi bi-cash-stack"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('expenses.title') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('expenses.subtitle') }}</p>
+  </a>
+
+  <a class="card gc-lift" href="{{ url_for('finance.pnl') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-green"><i class="bi bi-graph-up-arrow"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('pnl.title') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('pnl.subtitle') }}</p>
+  </a>
 </div>
 {% endblock %}
 
@@ -46,5 +58,7 @@
   .hub-ico { width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;
     font-size:1.4rem;color:#fff;background:var(--green-600); }
   .hub-ico.edge-blue { background:#3b82f6; }
+  .hub-ico.edge-red { background:#ef4444; }
+  .hub-ico.edge-green { background:var(--green-600); }
 </style>
 {% endblock %}
