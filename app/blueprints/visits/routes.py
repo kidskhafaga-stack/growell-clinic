@@ -4,12 +4,9 @@ Vital signs, chief complaint, clinical exam, ICD-10/11 diagnoses (working /
 secondary / final), and visit completion — which also closes a linked
 appointment and mirrors growth measurements into growth_records.
 """
-import os
-import uuid
 from datetime import datetime
 
 from flask import (
-    current_app,
     flash,
     jsonify,
     redirect,
@@ -19,7 +16,6 @@ from flask import (
 )
 from flask_login import current_user
 from sqlalchemy import or_
-from werkzeug.utils import secure_filename
 
 from app.blueprints.visits import visits_bp
 from app.extensions import db
@@ -38,13 +34,7 @@ from app.models import (
 )
 from app.utils.decorators import client_ip, module_required
 from app.utils.icd import search_icd
-
-# Uploaded patient documents (lab/imaging reports) live here, served via static.
-ALLOWED_DOC_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "webp", "gif"}
-
-
-def _docs_dir():
-    return os.path.join(current_app.static_folder, "uploads", "patient_docs")
+from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 
 MODULE = "visits"
 
@@ -135,7 +125,36 @@ def record(visit_id):
         flash(t("visits.saved"), "success")
         return redirect(url_for("visits.record", visit_id=visit.id))
 
-    return render_template("visits/record.html", visit=visit)
+    # Continuity context: what the doctor should see when the patient returns
+    # for the follow-up consultation — the recent visits (to follow treatment
+    # progress / changes across consultations).
+    recent_visits = (
+        Visit.query.filter(Visit.patient_id == visit.patient_id,
+                           Visit.id != visit.id,
+                           Visit.visit_date <= visit.visit_date)
+        .order_by(Visit.visit_date.desc(), Visit.id.desc())
+        .limit(3).all()
+    )
+    # Investigations requested in earlier visits that still have no result —
+    # the doctor reviews/fills them now, in the consultation.
+    pending_investigations = (
+        VisitInvestigation.query.filter(
+            VisitInvestigation.patient_id == visit.patient_id,
+            VisitInvestigation.visit_id != visit.id,
+            VisitInvestigation.status == "requested",
+        ).order_by(VisitInvestigation.created_at.desc()).all()
+    )
+    recent_attachments = (
+        PatientAttachment.query.filter(
+            PatientAttachment.patient_id == visit.patient_id,
+            PatientAttachment.visit_id != visit.id,
+        ).order_by(PatientAttachment.created_at.desc()).limit(5).all()
+    )
+    return render_template(
+        "visits/record.html", visit=visit, recent_visits=recent_visits,
+        pending_investigations=pending_investigations,
+        recent_attachments=recent_attachments,
+    )
 
 
 def _save_vitals(visit):
@@ -268,7 +287,9 @@ def result_investigation(inv_id):
         inv.resulted_at = None
     db.session.commit()
     flash(t("visits.inv_result_saved"), "success")
-    return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+    # Return to the page the result was entered from (e.g. the follow-up
+    # consultation reviewing a previous visit's pending test).
+    return redirect(request.referrer or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
 
 
 @visits_bp.route("/investigations/<int:inv_id>/delete", methods=["POST"])
@@ -292,18 +313,16 @@ def upload_attachment(visit_id):
     if not file or not file.filename:
         flash(t("visits.att_need_file"), "danger")
         return redirect(url_for("visits.record", visit_id=visit.id) + "#files")
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-    if ext not in ALLOWED_DOC_EXTENSIONS:
+    stored = save_document(file)
+    if not stored:
         flash(t("visits.att_bad_type"), "warning")
         return redirect(url_for("visits.record", visit_id=visit.id) + "#files")
 
-    stored = f"{uuid.uuid4().hex}.{ext}"
-    os.makedirs(_docs_dir(), exist_ok=True)
-    file.save(os.path.join(_docs_dir(), secure_filename(stored)))
+    kind = request.form.get("kind")
     db.session.add(PatientAttachment(
         patient_id=visit.patient_id, visit_id=visit.id,
         filename=stored, original_name=file.filename,
-        kind=request.form.get("kind") or "report",
+        kind=kind if kind in ATTACHMENT_KINDS else "report",
         label=(request.form.get("label") or "").strip() or None,
         uploaded_by=current_user.id,
     ))
@@ -317,16 +336,12 @@ def upload_attachment(visit_id):
 def delete_attachment(att_id):
     att = db.get_or_404(PatientAttachment, att_id)
     visit_id = att.visit_id
-    path = os.path.join(_docs_dir(), att.filename)
-    if os.path.isfile(path):
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+    remove_document(att.filename)
     db.session.delete(att)
     db.session.commit()
     flash(t("visits.att_removed"), "info")
-    return redirect(url_for("visits.record", visit_id=visit_id) + "#files")
+    fallback = url_for("visits.record", visit_id=visit_id) + "#files" if visit_id else url_for("visits.index")
+    return redirect(request.referrer or fallback)
 
 
 # ------------------------------------------------------------ complete -----

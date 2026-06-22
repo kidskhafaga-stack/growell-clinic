@@ -190,7 +190,9 @@
     "tab_prescriptions": "Prescriptions",
     "tab_documents": "Documents",
     "tab_finance": "Finance",
-    "tab_phase_notice": "This section will be available in a later development phase"
+    "tab_phase_notice": "This section will be available in a later development phase",
+    "documents_title": "Documents & attachments",
+    "doc_date": "Date"
   },
   "import": {
     "title": "Import patient data",
@@ -425,7 +427,13 @@
     "att_uploaded": "File uploaded to the patient's file",
     "att_removed": "File removed",
     "inv_add_to_catalog": "Add this test to the investigations list (for next time)",
-    "book_followup": "Book follow-up"
+    "book_followup": "Book follow-up",
+    "previous_context": "From the previous visit",
+    "last_visit": "Previous visit",
+    "pending_results": "Pending results (enter now)",
+    "recent_files": "Recent files",
+    "att_lab": "Lab",
+    "att_imaging": "Imaging"
   },
   "diagnosis_types": {
     "working": "Working",

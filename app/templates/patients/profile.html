@@ -292,8 +292,54 @@
       {% endif %}
     </div>
 
+    <!-- Documents / attachments -->
+    <div class="gc-tab-panel" x-show="tab==='documents'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-folder2-open"></i> {{ t('patients.documents_title') }}</h3>
+      {% set docs = patient.attachments | sort(attribute='created_at', reverse=true) %}
+      {% if docs %}
+      <table class="table">
+        <thead><tr>
+          <th>{{ t('visits.att_label') }}</th><th>{{ t('visits.att_kind') }}</th>
+          <th>{{ t('patients.doc_date') }}</th><th style="text-align:end;"></th>
+        </tr></thead>
+        <tbody>
+          {% for a in docs %}
+          <tr>
+            <td><i class="bi bi-file-earmark-{{ 'pdf' if a.filename.endswith('.pdf') else 'image' }}" style="color:var(--green-700);"></i>
+              <a target="_blank" style="color:inherit;" href="{{ url_for('static', filename='uploads/patient_docs/' ~ a.filename) }}">{{ a.label or a.original_name }}</a></td>
+            <td><span class="badge {{ 'badge--role' if a.kind in ['lab','imaging'] else 'badge--muted' }}">{{ t('visits.att_' ~ a.kind) if a.kind in ['lab','imaging','report','other'] else a.kind }}</span></td>
+            <td dir="ltr">{{ a.created_at.strftime('%Y-%m-%d') }}</td>
+            <td style="text-align:end;">
+              <form method="post" action="{{ url_for('patients.delete_document', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+                <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('visits.no_attachments') }}</p>
+      {% endif %}
+
+      <h4 class="section-title" style="margin-top:18px;"><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</h4>
+      <form method="post" action="{{ url_for('patients.upload_document', patient_id=patient.id) }}" enctype="multipart/form-data">
+        <div class="info-grid">
+          <div class="form-row"><label>{{ t('visits.att_label') }}</label><input class="input" name="label" placeholder="{{ t('visits.att_label_ph') }}"></div>
+          <div class="form-row"><label>{{ t('visits.att_kind') }}</label>
+            <select class="select" name="kind">
+              <option value="lab">{{ t('visits.att_lab') }}</option>
+              <option value="imaging">{{ t('visits.att_imaging') }}</option>
+              <option value="report">{{ t('visits.att_report') }}</option>
+              <option value="other">{{ t('visits.att_other') }}</option>
+            </select></div>
+          <div class="form-row"><label>{{ t('visits.att_file') }} *</label><input class="input" type="file" name="file" accept=".pdf,image/*" required></div>
+        </div>
+        <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</button>
+      </form>
+    </div>
+
     <!-- Placeholder tabs for later phases -->
-    {% for key in ['prescriptions','documents','finance'] %}
+    {% for key in ['prescriptions','finance'] %}
     <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
       <div class="empty-state">
         <i class="bi bi-hourglass-split"></i>

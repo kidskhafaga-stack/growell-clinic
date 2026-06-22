@@ -190,7 +190,9 @@
     "tab_prescriptions": "الروشتات",
     "tab_documents": "المستندات",
     "tab_finance": "المالي",
-    "tab_phase_notice": "هذا القسم سيتوفر في مرحلة لاحقة من تطوير النظام"
+    "tab_phase_notice": "هذا القسم سيتوفر في مرحلة لاحقة من تطوير النظام",
+    "documents_title": "المستندات والمرفقات",
+    "doc_date": "التاريخ"
   },
   "import": {
     "title": "استيراد بيانات المرضى",
@@ -350,7 +352,7 @@
   },
   "visits": {
     "title": "الزيارات",
-    "recent_visits": "أحدث الزيارات",
+    "recent_visits": "زيارات سابقة",
     "list": "سجل الزيارات",
     "record_title": "تسجيل الزيارة",
     "view_title": "ملخص الزيارة",
@@ -425,7 +427,13 @@
     "att_uploaded": "تم رفع الملف لملف المريض",
     "att_removed": "تم حذف الملف",
     "inv_add_to_catalog": "أضِف هذا الفحص لقائمة التحاليل (للمرّات القادمة)",
-    "book_followup": "حجز موعد متابعة"
+    "book_followup": "حجز موعد متابعة",
+    "previous_context": "من الزيارة السابقة",
+    "last_visit": "الزيارة السابقة",
+    "pending_results": "نتائج منتظرة (سجّلها الآن)",
+    "recent_files": "ملفات حديثة",
+    "att_lab": "تحاليل",
+    "att_imaging": "أشعة"
   },
   "diagnosis_types": {
     "working": "أولي",

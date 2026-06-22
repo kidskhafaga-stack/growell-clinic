@@ -39,6 +39,70 @@
     </div>
   </div>
 
+  <!-- Continuity: what to review when the patient returns for the consultation -->
+  {% if recent_visits or pending_investigations or recent_attachments %}
+  <div class="card gc-scale-in" style="animation-delay:0.05s;border-inline-start:4px solid var(--green-600);">
+    <h2 class="section-title"><i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.previous_context') }}</h2>
+
+    {% if recent_visits %}
+    <div style="margin-bottom:12px;">
+      <div style="font-weight:700;color:var(--green-800);margin-bottom:6px;"><i class="bi bi-clock-history"></i> {{ t('visits.recent_visits') }}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for pv in recent_visits %}
+        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span class="badge badge--role"><i class="bi bi-calendar3"></i> {{ pv.visit_date.strftime('%Y-%m-%d') }}</span>
+            {% for dx in pv.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span>{% endfor %}
+            {% if pv.vitals and pv.vitals.weight_kg %}<span class="badge badge--muted"><i class="bi bi-speedometer2"></i> {{ pv.vitals.weight_kg }}kg</span>{% endif %}
+            {% if pv.vitals and pv.vitals.temperature_c %}<span class="badge badge--muted">{{ pv.vitals.temperature_c }}°</span>{% endif %}
+            <a style="margin-inline-start:auto;color:var(--green-700);" href="{{ url_for('visits.view', visit_id=pv.id) }}"><i class="bi bi-eye"></i></a>
+          </div>
+          {% if pv.chief_complaint %}<div style="margin-top:5px;font-size:0.88rem;"><strong>{{ t('visits.chief_complaint') }}:</strong> {{ pv.chief_complaint }}</div>{% endif %}
+          {% if pv.plan %}<div style="margin-top:3px;font-size:0.88rem;color:var(--muted);"><strong>{{ t('visits.plan') }}:</strong> {{ pv.plan }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if pending_investigations %}
+    <div style="margin-bottom:10px;">
+      <div style="font-weight:700;color:var(--green-800);margin-bottom:6px;"><i class="bi bi-hourglass-split"></i> {{ t('visits.pending_results') }}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for x in pending_investigations %}
+        <div style="border:1px dashed var(--line);border-radius:10px;padding:10px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
+            <strong style="flex:1;">{{ x.name }}</strong>
+            <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ x.created_at.strftime('%Y-%m-%d') }}</span>
+          </div>
+          <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label><input class="input" name="result_text" dir="auto"></div>
+              <div class="form-row"><label>{{ t('visits.inv_comment') }}</label><input class="input" name="result_comment" dir="auto"></div>
+            </div>
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-save"></i> {{ t('visits.inv_save_result') }}</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if recent_attachments %}
+    <div>
+      <div style="font-weight:700;color:var(--green-800);margin-bottom:6px;"><i class="bi bi-paperclip"></i> {{ t('visits.recent_files') }}</div>
+      <ul style="padding-inline-start:18px;margin:0;">
+        {% for a in recent_attachments %}
+        <li><a target="_blank" href="{{ url_for('static', filename='uploads/patient_docs/' ~ a.filename) }}">{{ a.label or a.original_name }}</a>
+          <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">· {{ a.created_at.strftime('%Y-%m-%d') }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Vitals + clinical (single form) -->
   <form method="post">
     <div class="card gc-scale-in" style="animation-delay:0.08s;">
@@ -214,7 +278,7 @@
         <i class="bi bi-file-earmark-{{ 'pdf' if a.filename.endswith('.pdf') else 'image' }}" style="font-size:1.1rem;color:var(--green-700);"></i>
         <a style="flex:1;color:inherit;" target="_blank" href="{{ url_for('static', filename='uploads/patient_docs/' ~ a.filename) }}">
           {{ a.label or a.original_name }}</a>
-        <span class="badge badge--muted">{{ t('visits.att_' ~ a.kind) if a.kind in ['report','result','other'] else a.kind }}</span>
+        <span class="badge badge--muted">{{ t('visits.att_' ~ a.kind) if a.kind in ['lab','imaging','report','other'] else a.kind }}</span>
         <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ a.created_at.strftime('%Y-%m-%d') }}</span>
         <form method="post" action="{{ url_for('visits.delete_attachment', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
@@ -231,7 +295,8 @@
           <input class="input" name="label" placeholder="{{ t('visits.att_label_ph') }}"></div>
         <div class="form-row"><label>{{ t('visits.att_kind') }}</label>
           <select class="select" name="kind">
-            <option value="result">{{ t('visits.att_result') }}</option>
+            <option value="lab">{{ t('visits.att_lab') }}</option>
+            <option value="imaging">{{ t('visits.att_imaging') }}</option>
             <option value="report">{{ t('visits.att_report') }}</option>
             <option value="other">{{ t('visits.att_other') }}</option>
           </select></div>

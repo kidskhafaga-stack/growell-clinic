@@ -33,7 +33,9 @@ from app.models import (
     ActivityLog,
     Parent,
     Patient,
+    PatientAttachment,
 )
+from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import client_ip, module_required
 from app.utils.imports import (
     allowed_import_file,
@@ -54,6 +56,40 @@ MODULE = "patients"
 
 def _upload_dir():
     return os.path.join(current_app.static_folder, "uploads", "patients")
+
+
+@patients_bp.route("/<int:patient_id>/documents", methods=["POST"])
+@module_required(MODULE)
+def upload_document(patient_id):
+    """Upload a document (lab/imaging/report) straight to the patient file."""
+    patient = db.get_or_404(Patient, patient_id)
+    stored = save_document(request.files.get("file"))
+    if not stored:
+        flash(t("visits.att_bad_type"), "warning")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#documents")
+    kind = request.form.get("kind")
+    db.session.add(PatientAttachment(
+        patient_id=patient.id, filename=stored,
+        original_name=request.files["file"].filename,
+        kind=kind if kind in ATTACHMENT_KINDS else "report",
+        label=(request.form.get("label") or "").strip() or None,
+        uploaded_by=current_user.id,
+    ))
+    db.session.commit()
+    flash(t("visits.att_uploaded"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#documents")
+
+
+@patients_bp.route("/documents/<int:att_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_document(att_id):
+    att = db.get_or_404(PatientAttachment, att_id)
+    patient_id = att.patient_id
+    remove_document(att.filename)
+    db.session.delete(att)
+    db.session.commit()
+    flash(t("visits.att_removed"), "info")
+    return redirect(url_for("patients.view", patient_id=patient_id) + "#documents")
 
 
 # ---------------------------------------------------------------- list -----
