@@ -285,6 +285,9 @@ def vaccine_edit(vaccine_id):
     vaccine.route = route if route in VACCINE_ROUTES else None
     if request.form.get("sort_order", type=int) is not None:
         vaccine.sort_order = request.form.get("sort_order", type=int)
+    vaccine.is_discontinued = bool(request.form.get("is_discontinued"))
+    rb = request.form.get("replaced_by_id", type=int)
+    vaccine.replaced_by_id = rb if (rb and rb != vaccine.id) else None
     db.session.commit()
     flash(t("vaccinations.vaccine_updated"), "success")
     return redirect(url_for("vaccinations.manage"))
@@ -409,6 +412,7 @@ def brand_new(vaccine_id):
         price=request.form.get("price", type=float),
         purchase_price=request.form.get("purchase_price", type=float),
         max_discount=request.form.get("max_discount", type=float),
+        is_discontinued=bool(request.form.get("is_discontinued")),
         is_default=not vaccine.brands,
     )
     db.session.add(brand)
@@ -429,6 +433,7 @@ def brand_edit(brand_id):
     brand.price = request.form.get("price", type=float)
     brand.purchase_price = request.form.get("purchase_price", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
+    brand.is_discontinued = bool(request.form.get("is_discontinued"))
     ages = _parse_ages(request.form.get("dose_ages"))
     if ages:
         _set_brand_doses(brand, ages)
@@ -481,6 +486,55 @@ def certificate(patient_id):
         now_date=datetime.utcnow().date().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,
     )
+
+
+# ------------------------------------------------------ due reminders ------
+@vaccinations_bp.route("/reminders")
+@module_required(MODULE)
+def reminders():
+    """Patients with an overdue / due-soon next dose, ready to be reminded."""
+    rows = []
+    for patient in Patient.query.filter_by(is_active=True).all():
+        nd = next_due_dose(patient_plan(patient))
+        if not nd:
+            continue
+        _due, vaccine, brand, dose = nd
+        rows.append({
+            "patient": patient, "vaccine": vaccine, "brand": brand,
+            "dose_number": dose["dose_number"], "due_date": dose["due_date"],
+            "status": dose["status"], "phone": patient.contact_phone,
+        })
+    rows.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
+    return render_template("vaccinations/reminders.html", rows=rows,
+                           now_date=datetime.utcnow().date().isoformat())
+
+
+@vaccinations_bp.route("/<int:patient_id>/remind-due")
+@module_required(MODULE)
+def remind_due(patient_id):
+    """Send the patient's guardian a "dose due" reminder via the CRM template."""
+    patient = db.get_or_404(Patient, patient_id)
+    nd = next_due_dose(patient_plan(patient))
+    if not nd:
+        flash(t("vaccinations.no_due"), "info")
+        return redirect(url_for("vaccinations.reminders"))
+    _due, vaccine, brand, dose = nd
+    phone = patient.contact_phone
+    if not phone:
+        flash(t("occasions.no_phone"), "warning")
+        return redirect(url_for("vaccinations.reminders"))
+    lang = getattr(g, "lang", "ar")
+    body = wa.render(wa.template_body("vaccine_due"), {
+        "patient": patient.display_name(lang),
+        "vaccine": vaccine.display_name(lang),
+        "dose": _dose_label(dose["dose_number"], lang),
+        "due_date": dose["due_date"] or "—",
+        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+    })
+    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+    db.session.commit()
+    return render_template("messages/sent.html", log=log, appt=None,
+                           back_url=url_for("vaccinations.reminders"))
 
 
 @vaccinations_bp.route("/verify/<token>")

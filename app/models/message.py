@@ -14,8 +14,26 @@ from app.extensions import db
 MESSAGE_STATUSES = ["queued", "link", "sent", "failed"]
 
 # System (automatic-trigger) template types + manual occasion types.
-SYSTEM_TEMPLATE_TYPES = ["appointment_confirm", "doctor_schedule", "vaccine_given"]
+SYSTEM_TEMPLATE_TYPES = [
+    "appointment_confirm", "doctor_schedule", "vaccine_given",
+    "vaccine_due", "vaccine_seasonal", "vaccine_changed",
+]
 OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "seasonal", "greeting", "custom"]
+
+# Variables each template type understands. Surfaced in the templates UI so
+# staff can compose messages without guessing the tokens.
+TEMPLATE_VARIABLES = {
+    "appointment_confirm": ["patient", "clinic", "date", "time", "doctor", "queue"],
+    "doctor_schedule": ["doctor", "date", "count", "list"],
+    "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
+    "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
+    "vaccine_seasonal": ["patient", "vaccine", "year", "clinic"],
+    "vaccine_changed": ["patient", "old_vaccine", "new_vaccine", "clinic"],
+    "birthday": ["patient", "clinic"],
+    "seasonal": ["patient", "clinic"],
+    "greeting": ["patient", "clinic"],
+    "custom": ["patient", "clinic"],
+}
 
 # Built-in defaults used to seed the registry / fall back when none exists.
 TEMPLATE_DEFAULTS = {
@@ -27,6 +45,18 @@ TEMPLATE_DEFAULTS = {
     "vaccine_given": (
         "تم بحمد الله تطعيم {patient} — {vaccine} ({dose}).\n"
         "الجرعة القادمة بتاريخ: {next_date}\nمع تحيات {clinic}."
+    ),
+    "vaccine_due": (
+        "تذكير من {clinic}: تطعيم {patient} — {vaccine} ({dose}) "
+        "مستحق بتاريخ {due_date}.\nبرجاء الحجز في الموعد المناسب."
+    ),
+    "vaccine_seasonal": (
+        "تذكير موسمي من {clinic}: حان وقت تطعيم {vaccine} لـ{patient} "
+        "لموسم {year}.\nيُكرَّر سنوياً للوقاية."
+    ),
+    "vaccine_changed": (
+        "إشعار من {clinic}: تطعيم {old_vaccine} لم يعد متاحاً، "
+        "وتم استبداله بـ{new_vaccine} لـ{patient}.\nبرجاء التواصل لمتابعة الجدول."
     ),
     "birthday": (
         "كل سنة و{patient} طيب! 🎉\n"

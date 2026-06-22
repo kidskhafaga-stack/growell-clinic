@@ -8,6 +8,7 @@
 {% endmacro %}
 
 {% block content %}
+<script>const TPL_VARS = {{ template_variables | tojson }};</script>
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title">{{ t('occasions.title') }}</h1>
@@ -44,13 +45,14 @@
 <!-- Templates -->
 <details class="card gc-scale-in" style="animation-delay:0.06s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('occasions.add_template') }}</summary>
-  <form method="post" action="{{ url_for('messages.occasion_template_new') }}" style="margin-top:12px;">
+  <form method="post" action="{{ url_for('messages.occasion_template_new') }}" style="margin-top:12px;" x-data="{ occ: 'birthday' }">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('occasions.name') }} *</label><input class="input" name="name" required></div>
-      <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion">{{ occ_options('birthday') }}</select></div>
+      <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion" x-model="occ">{{ occ_options('birthday') }}</select></div>
     </div>
     <div class="form-row"><label>{{ t('occasions.body') }} *</label><textarea class="input" name="body" rows="3" dir="auto" required></textarea>
-      <div class="hint">{{ t('occasions.vars') }}</div></div>
+      <div class="hint">{{ t('occasions.vars_for') }}:
+        <span dir="ltr" x-text="(TPL_VARS[occ]||[]).map(v => '{'+v+'}').join('  ')" style="font-family:monospace;"></span></div></div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
@@ -66,12 +68,14 @@
           {% if not tp.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</span>
         <span style="color:var(--muted);font-size:0.82rem;">{{ (tp.body[:50] ~ '…') if tp.body|length > 50 else tp.body }}</span>
       </summary>
-      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" style="margin-top:10px;">
+      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" style="margin-top:10px;" x-data="{ occ: '{{ tp.occasion }}' }">
         <div class="form-grid">
           <div class="form-row"><label>{{ t('occasions.name') }}</label><input class="input" name="name" value="{{ tp.name }}"></div>
-          <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion">{{ occ_options(tp.occasion) }}</select></div>
+          <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion" x-model="occ">{{ occ_options(tp.occasion) }}</select></div>
         </div>
-        <div class="form-row"><label>{{ t('occasions.body') }}</label><textarea class="input" name="body" rows="3" dir="auto">{{ tp.body }}</textarea></div>
+        <div class="form-row"><label>{{ t('occasions.body') }}</label><textarea class="input" name="body" rows="3" dir="auto">{{ tp.body }}</textarea>
+          <div class="hint">{{ t('occasions.vars_for') }}:
+            <span dir="ltr" x-text="(TPL_VARS[occ]||[]).map(v => '{'+v+'}').join('  ')" style="font-family:monospace;"></span></div></div>
         <div class="form-row checkbox"><input type="checkbox" id="ta_{{ tp.id }}" name="is_active" value="1" {{ 'checked' if tp.is_active else '' }}><label for="ta_{{ tp.id }}" style="margin:0;font-weight:400;">{{ t('occasions.active') }}</label></div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>

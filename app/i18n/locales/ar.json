@@ -571,7 +571,15 @@
     "verify_title": "التحقّق من شهادة التطعيم",
     "verify_invalid": "شهادة غير صالحة",
     "verify_invalid_sub": "رابط التحقّق هذا غير صحيح.",
-    "verify_note": "هذا السجل موثّق مباشرة من نظام العيادة عبر رمز QR الموجود في الشهادة."
+    "verify_note": "هذا السجل موثّق مباشرة من نظام العيادة عبر رمز QR الموجود في الشهادة.",
+    "discontinued": "موقوف",
+    "replaced_by": "استُبدل بـ",
+    "replaced_by_hint": "لو إنتاجه وقف، حدّد التطعيم البديل.",
+    "reminders_title": "تذكيرات الجرعات",
+    "reminders_subtitle": "المرضى أصحاب جرعة متأخرة أو مستحقة قريباً.",
+    "reminders_empty": "لا توجد جرعات مستحقة أو متأخرة حالياً.",
+    "send_reminder": "تذكير",
+    "no_due": "لا توجد جرعة مستحقة لهذا المريض."
   },
   "vstatus": {
     "done": "تم",
@@ -1401,6 +1409,10 @@
     "add_template_btn": "إضافة قالب",
     "occ_appointment_confirm": "تأكيد موعد",
     "occ_doctor_schedule": "جدول الطبيب",
-    "occ_vaccine_given": "إشعار تطعيم"
+    "occ_vaccine_given": "إشعار تطعيم",
+    "vars_for": "المتغيرات المتاحة",
+    "occ_vaccine_due": "جرعة مستحقة",
+    "occ_vaccine_seasonal": "تطعيم موسمي",
+    "occ_vaccine_changed": "تغيير تطعيم"
   }
 }

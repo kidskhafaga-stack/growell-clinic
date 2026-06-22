@@ -67,6 +67,8 @@
         <span class="badge {{ 'badge--green' if vaccine.is_mandatory else 'badge--muted' }}">
           {{ t('vaccinations.mandatory') if vaccine.is_mandatory else t('vaccinations.optional') }}</span>
         {% if vaccine.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ vaccine.route) }}</span>{% endif %}
+        {% if vaccine.is_discontinued %}<span class="badge badge--danger"><i class="bi bi-slash-circle"></i> {{ t('vaccinations.discontinued') }}</span>{% endif %}
+        {% if vaccine.replaced_by %}<span class="badge badge--muted">{{ t('vaccinations.replaced_by') }}: {{ vaccine.replaced_by.display_name(current_lang) }}</span>{% endif %}
       </h3>
     </div>
     <div style="display:flex;gap:6px;">
@@ -88,6 +90,15 @@
               {% for r in routes %}<option value="{{ r }}" {{ 'selected' if vaccine.route==r else '' }}>{{ t('vaccine_routes.' ~ r) }}</option>{% endfor %}
             </select></div>
           <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="{{ vaccine.sort_order }}"></div>
+          <div class="form-row checkbox"><input type="checkbox" id="vd_{{ vaccine.id }}" name="is_discontinued" value="1" {{ 'checked' if vaccine.is_discontinued else '' }}>
+            <label for="vd_{{ vaccine.id }}" style="margin:0;font-weight:400;">{{ t('vaccinations.discontinued') }}</label></div>
+          <div class="form-row"><label>{{ t('vaccinations.replaced_by') }}</label>
+            <select class="select" name="replaced_by_id">
+              <option value="">—</option>
+              {% for ov in vaccines if ov.id != vaccine.id %}
+                <option value="{{ ov.id }}" {{ 'selected' if vaccine.replaced_by_id == ov.id else '' }}>{{ ov.display_name(current_lang) }}</option>
+              {% endfor %}
+            </select><div class="hint">{{ t('vaccinations.replaced_by_hint') }}</div></div>
           <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
         </form>
       </details>
@@ -104,6 +115,7 @@
       <span>
         <strong>{{ brand.display_name(current_lang) }}</strong>
         {% if brand.is_default %}<i class="bi bi-star-fill" style="color:#f0ad4e;font-size:0.75rem;"></i>{% endif %}
+        {% if brand.is_discontinued %}<span class="badge badge--danger">{{ t('vaccinations.discontinued') }}</span>{% endif %}
         · {{ t('vaccinations.doses_label') }}: {{ brand.doses|map(attribute='age_months')|join(', ') }}
         {% if brand.price %}· {{ t('vaccinations.sell_price') }} {{ brand.price }}{% endif %}
         {% if brand.max_discount %}· {{ t('vaccinations.max_discount') }} {{ brand.max_discount }}{% endif %}
@@ -120,6 +132,8 @@
             <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ brand.purchase_price or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ brand.max_discount or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" value="{{ brand.doses|map(attribute='age_months')|join(', ') }}"></div>
+            <div class="form-row checkbox"><input type="checkbox" id="bd_{{ brand.id }}" name="is_discontinued" value="1" {{ 'checked' if brand.is_discontinued else '' }}>
+              <label for="bd_{{ brand.id }}" style="margin:0;font-weight:400;">{{ t('vaccinations.discontinued') }}</label></div>
             <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
           </form>
         </details>

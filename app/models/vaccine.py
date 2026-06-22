@@ -26,6 +26,13 @@ class Vaccine(db.Model):
     route = db.Column(db.String(20))  # طريقة الإعطاء: IM/SC/ID/oral/intranasal
     sort_order = db.Column(db.Integer, default=0)
 
+    # Lifecycle: a vaccine may stop production and be replaced by a newer one.
+    is_discontinued = db.Column(db.Boolean, default=False, nullable=False)
+    replaced_by_id = db.Column(
+        db.Integer, db.ForeignKey("vaccines.id"), nullable=True
+    )
+    replaced_by = db.relationship("Vaccine", remote_side=[id])
+
     # Medical metadata (PDF "Medical Information"). All optional / additive.
     diseases_covered = db.Column(db.String(255))      # الأمراض المغطّاة
     min_age_months = db.Column(db.Integer)            # أدنى عمر
@@ -51,10 +58,19 @@ class Vaccine(db.Model):
 
     @property
     def default_brand(self):
-        for b in self.brands:
+        """Preferred brand for a new course: the marked default if still
+        available, else the first non-discontinued brand, else any brand."""
+        active = [b for b in self.brands if not b.is_discontinued]
+        for b in active:
             if b.is_default:
                 return b
+        if active:
+            return active[0]
         return self.brands[0] if self.brands else None
+
+    @property
+    def active_brands(self):
+        return [b for b in self.brands if not b.is_discontinued]
 
     def __repr__(self):
         return f"<Vaccine {self.code}>"
@@ -72,6 +88,7 @@ class VaccineBrand(db.Model):
     purchase_price = db.Column(db.Float)     # cost price
     max_discount = db.Column(db.Float)       # max allowed discount (%)
     is_default = db.Column(db.Boolean, default=False, nullable=False)
+    is_discontinued = db.Column(db.Boolean, default=False, nullable=False)  # production stopped
 
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(

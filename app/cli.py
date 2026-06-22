@@ -131,6 +131,9 @@ def register_commands(app):
             ("patient_vaccines", "adverse_events", "TEXT"),
             ("patient_vaccines", "refusal_reason", "VARCHAR(200)"),
             ("patients", "qr_token", "VARCHAR(32)"),
+            ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "replaced_by_id", "INTEGER"),
+            ("vaccine_brands", "is_discontinued", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
