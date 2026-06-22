@@ -34,10 +34,13 @@ from app.models.visit import VISIT_STATUSES, Visit
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
     PatientVaccine,
+    VACCINE_EVENT_TYPES,
     VACCINE_ROUTES,
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineScheduleDose,
+    VaccineScheduleTemplate,
 )
 from app.models.inventory import (
     LOW_STOCK_QTY,
@@ -125,8 +128,11 @@ __all__ = [
     "Vaccine",
     "VaccineBrand",
     "VaccineBrandDose",
+    "VaccineScheduleTemplate",
+    "VaccineScheduleDose",
     "PatientVaccine",
     "VACCINE_ROUTES",
+    "VACCINE_EVENT_TYPES",
     "Supplier",
     "VaccineInventory",
     "NEAR_EXPIRY_DAYS",

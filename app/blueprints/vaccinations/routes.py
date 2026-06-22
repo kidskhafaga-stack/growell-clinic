@@ -29,6 +29,8 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineScheduleDose,
+    VaccineScheduleTemplate,
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
@@ -284,6 +286,97 @@ def vaccine_edit(vaccine_id):
     db.session.commit()
     flash(t("vaccinations.vaccine_updated"), "success")
     return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/medical", methods=["POST"])
+@module_required(MODULE)
+def vaccine_medical(vaccine_id):
+    """Save the vaccine's medical metadata (PDF "Medical Information")."""
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    f = request.form
+    vaccine.diseases_covered = (f.get("diseases_covered") or "").strip() or None
+    vaccine.min_age_months = f.get("min_age_months", type=int)
+    vaccine.max_age_months = f.get("max_age_months", type=int)
+    vaccine.booster_required = bool(f.get("booster_required"))
+    vaccine.is_seasonal = bool(f.get("is_seasonal"))
+    vaccine.pregnancy_recommendation = (f.get("pregnancy_recommendation") or "").strip() or None
+    vaccine.risk_groups = (f.get("risk_groups") or "").strip() or None
+    vaccine.contraindications = (f.get("contraindications") or "").strip() or None
+    vaccine.adverse_events_info = (f.get("adverse_events_info") or "").strip() or None
+    db.session.commit()
+    flash(t("vaccinations.medical_saved"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+
+
+# --------------------------------------------- schedule templates (A/B/C/D) -
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules")
+@module_required(MODULE)
+def schedule_templates(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    return render_template("vaccinations/schedules.html", vaccine=vaccine)
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules/new", methods=["POST"])
+@module_required(MODULE)
+def template_new(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    code = (request.form.get("code") or "").strip().upper()
+    if not code:
+        flash(t("common.required") + ": " + t("vaccinations.tpl_code"), "danger")
+        return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+    tpl = VaccineScheduleTemplate(
+        vaccine_id=vaccine.id, code=code,
+        label=(request.form.get("label") or "").strip() or None,
+        age_group=(request.form.get("age_group") or "").strip() or None,
+        is_catch_up=bool(request.form.get("is_catch_up")),
+        sort_order=request.form.get("sort_order", type=int) or 0,
+    )
+    db.session.add(tpl)
+    db.session.commit()
+    flash(t("vaccinations.tpl_added"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+
+
+@vaccinations_bp.route("/manage/schedules/<int:template_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def template_delete(template_id):
+    tpl = db.get_or_404(VaccineScheduleTemplate, template_id)
+    vid = tpl.vaccine_id
+    db.session.delete(tpl)
+    db.session.commit()
+    flash(t("vaccinations.tpl_deleted"), "info")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vid))
+
+
+@vaccinations_bp.route("/manage/schedules/<int:template_id>/dose", methods=["POST"])
+@module_required(MODULE)
+def template_dose_add(template_id):
+    tpl = db.get_or_404(VaccineScheduleTemplate, template_id)
+    dose_number = request.form.get("dose_number", type=int)
+    if not dose_number:
+        dose_number = (max((d.dose_number for d in tpl.doses), default=0) + 1)
+    db.session.add(VaccineScheduleDose(
+        template_id=tpl.id,
+        dose_number=dose_number,
+        recommended_age_months=request.form.get("recommended_age_months", type=int),
+        min_interval_days=request.form.get("min_interval_days", type=int),
+        max_interval_days=request.form.get("max_interval_days", type=int),
+        booster_required=bool(request.form.get("booster_required")),
+    ))
+    db.session.commit()
+    flash(t("vaccinations.tpl_dose_added"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=tpl.vaccine_id))
+
+
+@vaccinations_bp.route("/manage/schedules/dose/<int:dose_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def template_dose_delete(dose_id):
+    dose = db.get_or_404(VaccineScheduleDose, dose_id)
+    vid = dose.template.vaccine_id
+    db.session.delete(dose)
+    db.session.commit()
+    flash(t("vaccinations.tpl_dose_removed"), "info")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vid))
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/delete", methods=["POST"])

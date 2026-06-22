@@ -70,6 +70,8 @@
       </h3>
     </div>
     <div style="display:flex;gap:6px;">
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.schedule_templates', vaccine_id=vaccine.id) }}"
+         title="{{ t('vaccinations.schedules_title') }}"><i class="bi bi-calendar3"></i> {{ t('vaccinations.schedules_short') }}</a>
       <details style="position:relative;">
         <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
         <form method="post" action="{{ url_for('vaccinations.vaccine_edit', vaccine_id=vaccine.id) }}" class="popform">

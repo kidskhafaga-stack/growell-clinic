@@ -118,6 +118,18 @@ def register_commands(app):
             ("appointments", "is_walk_in", "BOOLEAN DEFAULT 0"),
             ("appointments", "cancel_reason", "VARCHAR(200)"),
             ("appointments", "rescheduled_from", "VARCHAR(120)"),
+            ("vaccines", "diseases_covered", "VARCHAR(255)"),
+            ("vaccines", "min_age_months", "INTEGER"),
+            ("vaccines", "max_age_months", "INTEGER"),
+            ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),
+            ("vaccines", "risk_groups", "VARCHAR(255)"),
+            ("vaccines", "contraindications", "TEXT"),
+            ("vaccines", "adverse_events_info", "TEXT"),
+            ("patient_vaccines", "event_type", "VARCHAR(20) DEFAULT 'given'"),
+            ("patient_vaccines", "adverse_events", "TEXT"),
+            ("patient_vaccines", "refusal_reason", "VARCHAR(200)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
