@@ -130,6 +130,7 @@ def register_commands(app):
             ("patient_vaccines", "event_type", "VARCHAR(20) DEFAULT 'given'"),
             ("patient_vaccines", "adverse_events", "TEXT"),
             ("patient_vaccines", "refusal_reason", "VARCHAR(200)"),
+            ("patients", "qr_token", "VARCHAR(32)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

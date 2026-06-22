@@ -566,7 +566,12 @@
     "days_short": "يوم",
     "ev_given": "أُعطيت",
     "ev_refused": "رُفِضت",
-    "ev_delayed": "مؤجّلة"
+    "ev_delayed": "مؤجّلة",
+    "scan_to_verify": "امسح للتحقّق",
+    "verify_title": "التحقّق من شهادة التطعيم",
+    "verify_invalid": "شهادة غير صالحة",
+    "verify_invalid_sub": "رابط التحقّق هذا غير صحيح.",
+    "verify_note": "هذا السجل موثّق مباشرة من نظام العيادة عبر رمز QR الموجود في الشهادة."
   },
   "vstatus": {
     "done": "تم",

@@ -5,6 +5,7 @@ Egyptian schedule, visual due/done/upcoming states, next-due suggestion, dose
 recording (with lot number), and a printable vaccination certificate.
 """
 import calendar
+import io
 from datetime import date, datetime
 
 from flask import (
@@ -115,7 +116,8 @@ def record(patient_id):
     pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
         dose_number=dose_number, given_date=given_date,
-        lot_number=lot_number,
+        lot_number=lot_number, event_type="given",
+        adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
     db.session.add(pv)
@@ -449,16 +451,53 @@ def brand_delete(brand_id):
     return redirect(url_for("vaccinations.manage"))
 
 
+def _qr_svg(url, scale=3):
+    """Return an inline SVG QR for ``url`` (or None if QR libs unavailable)."""
+    try:
+        import segno
+    except ImportError:  # pragma: no cover - segno is in requirements
+        return None
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(buf, kind="svg", scale=scale, border=0)
+    return buf.getvalue().decode("utf-8")
+
+
 @vaccinations_bp.route("/<int:patient_id>/certificate")
 @module_required(MODULE)
 def certificate(patient_id):
     patient = db.get_or_404(Patient, patient_id)
     given = (
         PatientVaccine.query.filter_by(patient_id=patient.id)
+        .filter(PatientVaccine.event_type == "given")
         .order_by(PatientVaccine.given_date)
         .all()
     )
+    # Ensure a stable verification token and build the public QR.
+    patient.ensure_qr_token()
+    db.session.commit()
+    verify_url = url_for("vaccinations.verify", token=patient.qr_token, _external=True)
     return render_template(
         "vaccinations/certificate.html", patient=patient, given=given,
         now_date=datetime.utcnow().date().isoformat(),
+        qr_svg=_qr_svg(verify_url), verify_url=verify_url,
+    )
+
+
+@vaccinations_bp.route("/verify/<token>")
+def verify(token):
+    """Public certificate verification reached via the QR code (no login)."""
+    patient = Patient.query.filter_by(qr_token=token).first()
+    if patient is None:
+        return render_template("vaccinations/verify.html", patient=None, given=[]), 404
+    given = (
+        PatientVaccine.query.filter_by(patient_id=patient.id)
+        .filter(PatientVaccine.event_type == "given")
+        .order_by(PatientVaccine.given_date)
+        .all()
+    )
+    clinic = (Setting.get("clinic_name_ar") or Setting.get("clinic_name")
+              or "GROWELL CLINIC")
+    return render_template(
+        "vaccinations/verify.html", patient=patient, given=given,
+        clinic=clinic, now_date=datetime.utcnow().date().isoformat(),
     )

@@ -566,7 +566,12 @@
     "days_short": "d",
     "ev_given": "Given",
     "ev_refused": "Refused",
-    "ev_delayed": "Delayed"
+    "ev_delayed": "Delayed",
+    "scan_to_verify": "Scan to verify",
+    "verify_title": "Vaccination certificate verification",
+    "verify_invalid": "Invalid certificate",
+    "verify_invalid_sub": "This verification link is not valid.",
+    "verify_note": "This record is verified directly from the clinic's system via the certificate QR code."
   },
   "vstatus": {
     "done": "Done",

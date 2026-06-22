@@ -43,12 +43,21 @@ class Patient(db.Model):
     notes = db.Column(db.Text)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Opaque token for public vaccination-certificate QR verification.
+    qr_token = db.Column(db.String(32), unique=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     family = db.relationship("Family", back_populates="patients")
+
+    def ensure_qr_token(self):
+        """Lazily assign a random verification token; returns it."""
+        if not self.qr_token:
+            import uuid
+            self.qr_token = uuid.uuid4().hex
+        return self.qr_token
 
     # --- Display helpers ---------------------------------------------------
     def display_name(self, lang="ar"):

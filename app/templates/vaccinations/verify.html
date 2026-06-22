@@ -1,0 +1,75 @@
+{# Public, standalone vaccination-certificate verification page (no login). #}
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('vaccinations.verify_title') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <style>
+    body { background:#f3f5f7; margin:0; padding:24px 14px; font-family:system-ui, "Segoe UI", Tahoma, sans-serif; }
+    .vbox { max-width:640px; margin:0 auto; background:#fff; border-radius:16px;
+      box-shadow:0 12px 40px rgba(0,0,0,.10); padding:26px; }
+    .vhead { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .vbadge { width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+      font-size:1.4rem; color:#fff; }
+    .ok { background:#15803d; } .bad { background:#b91c1c; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; }
+    th, td { text-align:start; padding:8px 10px; border-bottom:1px solid #eee; font-size:0.9rem; }
+    th { color:#555; font-weight:600; }
+    .muted { color:#777; }
+  </style>
+</head>
+<body>
+  <div class="vbox">
+    {% if not patient %}
+      <div class="vhead">
+        <div class="vbadge bad"><i class="bi">!</i></div>
+        <div><h2 style="margin:0;">{{ t('vaccinations.verify_invalid') }}</h2>
+          <div class="muted">{{ t('vaccinations.verify_invalid_sub') }}</div></div>
+      </div>
+    {% else %}
+      <div class="vhead">
+        <div class="vbadge ok">✓</div>
+        <div>
+          <h2 style="margin:0;">{{ clinic }}</h2>
+          <div class="muted">{{ t('vaccinations.verify_title') }} · {{ now_date }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px;">
+        <div><div class="muted">{{ t('appointments.patient') }}</div>
+          <strong>{{ patient.display_name(current_lang) }}</strong></div>
+        <div><div class="muted">{{ t('patients.file_number') }}</div>
+          <strong>{{ patient.patient_number }}</strong></div>
+        <div><div class="muted">{{ t('patients.dob') }}</div>
+          <strong>{{ patient.date_of_birth.strftime('%Y-%m-%d') }}</strong></div>
+      </div>
+
+      {% if given %}
+      <table>
+        <thead><tr>
+          <th>{{ t('vaccinations.cert_vaccine') }}</th><th>{{ t('vaccinations.dose') }}</th>
+          <th>{{ t('vaccinations.given_date') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for g in given %}
+          <tr>
+            <td>{{ g.vaccine.display_name(current_lang) }}
+              <span class="muted">· {{ g.brand.display_name(current_lang) }}</span></td>
+            <td>{{ g.dose_number }}</td>
+            <td>{{ g.given_date.strftime('%Y-%m-%d') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">{{ t('vaccinations.no_given') }}</p>
+      {% endif %}
+
+      <p class="muted" style="margin-top:18px;font-size:0.82rem;">
+        <i class="bi bi-shield-check"></i> {{ t('vaccinations.verify_note') }}</p>
+    {% endif %}
+  </div>
+</body>
+</html>
