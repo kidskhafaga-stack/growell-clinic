@@ -121,8 +121,30 @@
     </div>
     <div class="col">
       <h4>{{ t('patients.tab_growth') }} · {{ t('patients.tab_vaccinations') }}</h4>
-      <div class="placeholder-soft"><i class="bi bi-hourglass-split"></i> {{ t('common.coming_soon') }}</div>
-      <p style="font-size:0.8rem;color:var(--muted);margin-top:8px;">{{ t('patients.tab_phase_notice') }}</p>
+      {% if current_summary and current_summary.growth %}
+        {% set g = current_summary.growth %}
+        <div class="meta-row" style="gap:14px;flex-wrap:wrap;">
+          {% if g.weight_kg %}<span><i class="bi bi-speedometer2"></i> {{ g.weight_kg }} kg</span>{% endif %}
+          {% if g.height_cm %}<span><i class="bi bi-rulers"></i> {{ g.height_cm }} cm</span>{% endif %}
+          {% if g.head_circ_cm %}<span><i class="bi bi-circle"></i> {{ g.head_circ_cm }} cm</span>{% endif %}
+        </div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;" dir="ltr">{{ g.record_date }}</div>
+      {% else %}
+        <div class="placeholder-soft" style="padding:8px 0;">{{ t('appointments.no_growth') }}</div>
+      {% endif %}
+
+      {% if current_summary and current_summary.vac %}
+        {% set v = current_summary.vac %}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+          <span class="badge badge--green">{{ t('vstatus.done') }}: {{ v.done }}</span>
+          {% if v.due %}<span class="badge badge--role">{{ t('vstatus.due') }}: {{ v.due }}</span>{% endif %}
+          {% if v.overdue %}<span class="badge badge--danger">{{ t('vstatus.overdue') }}: {{ v.overdue }}</span>{% endif %}
+        </div>
+      {% endif %}
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:10px;" href="{{ url_for('vaccinations.view', patient_id=current.patient_id) }}">
+        <i class="bi bi-shield-plus"></i> {{ t('patients.tab_vaccinations') }}</a>
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:10px;" href="{{ url_for('growth.view', patient_id=current.patient_id) }}">
+        <i class="bi bi-graph-up"></i> {{ t('patients.tab_growth') }}</a>
     </div>
   </div>
   <div class="cc-foot">

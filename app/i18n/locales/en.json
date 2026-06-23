@@ -345,7 +345,8 @@
     "exc_added": "Time off saved",
     "exc_removed": "Time off removed",
     "exc_need": "Select a doctor and a date",
-    "walk_in_flag": "Walk-in"
+    "walk_in_flag": "Walk-in",
+    "no_growth": "No growth measurements yet."
   },
   "appt_types": {
     "new": "New visit",

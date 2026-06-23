@@ -76,6 +76,7 @@ def index():
         "no_show": sum(1 for a in appointments if a.status == "no_show"),
     }
     current = next((a for a in appointments if a.status == "in_progress"), None)
+    current_summary = _current_summary(current.patient) if current else None
 
     # Active waiting-list entries (optionally filtered to the selected doctor).
     wl_query = WaitlistEntry.query.filter_by(status="active")
@@ -97,9 +98,24 @@ def index():
         today=datetime.today().date().isoformat(),
         stats=stats,
         current=current,
+        current_summary=current_summary,
         waitlist=waitlist,
         appt_types=APPOINTMENT_TYPES,
     )
+
+
+def _current_summary(patient):
+    """Growth (latest measurement) + vaccination status for the live patient."""
+    from app.models import GrowthRecord
+    from app.utils.vaccines import patient_plan, plan_summary
+
+    growth = (GrowthRecord.query.filter_by(patient_id=patient.id)
+              .order_by(GrowthRecord.record_date.desc(), GrowthRecord.id.desc()).first())
+    try:
+        vac = plan_summary(patient_plan(patient))
+    except Exception:  # noqa: BLE001
+        vac = None
+    return {"growth": growth, "vac": vac}
 
 
 # -------------------------------------------------------- booking ----------
