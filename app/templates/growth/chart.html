@@ -197,36 +197,71 @@
         if (typeof Chart === 'undefined') { this.loadError = true; return; }
         if (!this.hasData || !d.curves) { if (this.chart) { this.chart.destroy(); this.chart = null; } return; }
         const c = d.curves;
-        const line = (label, key, color, dash) => ({
-          label, data: c.months.map((m, i) => ({ x: m, y: c[key][i] })),
-          borderColor: color, borderWidth: 1.2, borderDash: dash || [],
-          pointRadius: 0, fill: false, tension: 0.3, order: 2
+        const xy = (key) => c.months.map((m, i) => ({ x: m, y: c[key][i] }));
+        const refLine = (label, key, color, width, dash, fillTarget, fillColor) => ({
+          label, data: xy(key), borderColor: color, borderWidth: width,
+          borderDash: dash || [], pointRadius: 0,
+          fill: (fillTarget != null) ? { target: fillTarget, above: fillColor, below: fillColor } : false,
+          tension: 0.4, order: 5, cubicInterpolationMode: 'monotone',
         });
-        const grey = '#c4ccd4', mid = '#9aa7b2';
+        const green = '#16a34a', outer = '#cbd5e1', innerC = '#94a3b8';
+        // Order matters: P3(0), P97(1) fills down to P3 → outer band;
+        // P15(2), P85(3) fills down to P15 → inner band; P50(4) median line.
         const datasets = [
-          line('P3', 'P3', grey, [4, 3]), line('P15', 'P15', mid),
-          line('P50', 'P50', '#198754', []), line('P85', 'P85', mid),
-          line('P97', 'P97', grey, [4, 3]),
+          refLine('P3',  'P3',  outer, 1, [5, 4], null, null),
+          refLine('P97', 'P97', outer, 1, [5, 4], 0, 'rgba(22,163,74,0.06)'),
+          refLine('P15', 'P15', innerC, 1, null, null, null),
+          refLine('P85', 'P85', innerC, 1, null, 2, 'rgba(22,163,74,0.12)'),
+          refLine('P50', 'P50', green, 2.2, null, null, null),
           {
-            label: '{{ patient.display_name(current_lang) }}',
+            label: '{{ patient.display_name(current_lang)|e }}',
             data: d.points.map(p => ({ x: p.age_months, y: p.value, p: p.percentile, z: p.z })),
-            borderColor: '#0d6efd', backgroundColor: '#0d6efd',
-            borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
-            showLine: true, tension: 0.2, order: 1
+            borderColor: '#1d4ed8', backgroundColor: '#1d4ed8',
+            borderWidth: 3, pointRadius: 5, pointHoverRadius: 8,
+            pointBackgroundColor: '#fff', pointBorderColor: '#1d4ed8', pointBorderWidth: 2.5,
+            showLine: true, tension: 0.25, order: 1,
           }
         ];
+        // Inline plugin: label the latest patient point with its percentile.
+        const lastLabel = {
+          id: 'lastLabel',
+          afterDatasetsDraw: (chart) => {
+            const di = chart.data.datasets.length - 1;
+            const meta = chart.getDatasetMeta(di);
+            const pts = chart.data.datasets[di].data;
+            if (!meta || !meta.data.length || !pts.length) return;
+            const el = meta.data[meta.data.length - 1], last = pts[pts.length - 1];
+            if (!el || last.p == null) return;
+            const ctx = chart.ctx; ctx.save();
+            const txt = 'P' + last.p;
+            ctx.font = '700 12px system-ui, sans-serif';
+            const w = ctx.measureText(txt).width + 12;
+            const x = el.x + 10, y = el.y - 12;
+            ctx.fillStyle = '#1d4ed8';
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y - 11, w, 20, 6); ctx.fill(); }
+            else { ctx.fillRect(x, y - 11, w, 20); }
+            ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+            ctx.fillText(txt, x + 6, y); ctx.restore();
+          }
+        };
         const cfg = {
           type: 'line',
           data: { datasets },
           options: {
-            responsive: true, maintainAspectRatio: false, animation: false,
+            responsive: true, maintainAspectRatio: false,
+            animation: { duration: 900, easing: 'easeOutQuart' },
             interaction: { mode: 'nearest', intersect: false },
+            layout: { padding: { top: 10, right: 18 } },
             scales: {
-              x: { type: 'linear', title: { display: true, text: GROWTH_LABELS.age } },
-              y: { title: { display: true, text: this.unit } }
+              x: { type: 'linear', title: { display: true, text: GROWTH_LABELS.age },
+                   grid: { color: 'rgba(148,163,184,0.16)' },
+                   ticks: { callback: (v) => (v % 12 === 0 && v > 0) ? (v / 12) + 'y' : v } },
+              y: { title: { display: true, text: this.unit },
+                   grid: { color: 'rgba(148,163,184,0.16)' } }
             },
             plugins: {
-              legend: { position: 'bottom', labels: { boxWidth: 18, font: { size: 11 } } },
+              legend: { position: 'bottom', labels: { boxWidth: 16, font: { size: 11 },
+                filter: (it) => !['P15', 'P85'].includes(it.text) } },
               tooltip: { callbacks: { label: (ctx) => {
                 const r = ctx.raw;
                 if (r.p !== undefined && r.p !== null)
@@ -234,7 +269,8 @@
                 return `${ctx.dataset.label}: ${r.y}`;
               } } }
             }
-          }
+          },
+          plugins: [lastLabel]
         };
         if (this.chart) this.chart.destroy();
         this.chart = new Chart(this.$refs.canvas, cfg);
