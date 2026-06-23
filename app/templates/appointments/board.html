@@ -11,6 +11,29 @@
   </form>
 {% endmacro %}
 
+{% macro payment_cell(appt) %}
+  {% set p = pay.get(appt.id, {'state': 'none'}) %}
+  {% if p.state == 'paid' %}
+    <span class="pay-tag pay-paid"><i class="bi bi-check-circle-fill"></i> {{ t('appointments.pay_paid') }}</span>
+  {% elif p.state == 'partial' %}
+    <span class="pay-tag pay-partial"><i class="bi bi-dash-circle"></i> {{ t('appointments.pay_partial') }}</span>
+    <div class="pay-bal" dir="ltr">{{ t('appointments.pay_balance') }}: {{ p.balance }}</div>
+  {% elif p.state == 'unpaid' %}
+    <span class="pay-tag pay-unpaid"><i class="bi bi-exclamation-circle"></i> {{ t('appointments.pay_unpaid') }}</span>
+  {% else %}
+    <span class="pay-tag pay-none"><i class="bi bi-dash"></i> {{ t('appointments.pay_none') }}</span>
+  {% endif %}
+  {% if current_user.can_access('finance') %}
+    {% if p.state in ['unpaid', 'partial'] and p.invoice_id %}
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:4px;display:inline-flex;color:#0e7490;border-color:#0e7490;"
+         href="{{ url_for('finance.invoice_view', invoice_id=p.invoice_id) }}"><i class="bi bi-cash"></i> {{ t('appointments.collect') }}</a>
+    {% elif p.state == 'none' %}
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:4px;display:inline-flex;color:#0e7490;border-color:#0e7490;"
+         href="{{ url_for('finance.invoice_new', patient_id=appt.patient_id, doctor_id=appt.doctor_id) }}"><i class="bi bi-receipt"></i> {{ t('appointments.bill') }}</a>
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
 {% macro action_buttons(appt) %}
   {% if appt.status == 'scheduled' %}
     {{ status_form(appt, 'waiting', t('appointments.call_in'), 'megaphone', 'btn-primary') }}
@@ -86,6 +109,10 @@
     <div class="value gc-counter" data-count="{{ stats.waiting }}">0</div><div class="label">{{ t('appointments.stat_waiting') }}</div></div>
   <div class="stat-card edge-red gc-lift"><i class="bi bi-person-x ico"></i>
     <div class="value gc-counter" data-count="{{ stats.no_show }}">0</div><div class="label">{{ t('appointments.stat_no_show') }}</div></div>
+  <div class="stat-card edge-teal gc-lift"><i class="bi bi-cash-coin ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.paid }}">0</div><div class="label">{{ t('appointments.stat_paid') }}</div></div>
+  <div class="stat-card edge-orange gc-lift"><i class="bi bi-wallet2 ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.unpaid }}">0</div><div class="label">{{ t('appointments.stat_unpaid') }}</div></div>
 </div>
 
 <!-- Current patient card -->
@@ -164,7 +191,8 @@
     <thead><tr>
       <th>#</th><th>{{ t('appointments.time') }}</th><th>{{ t('appointments.patient') }}</th>
       <th>{{ t('patients.age') }}</th><th>{{ t('appointments.reason') }}</th>
-      <th>{{ t('appointments.status') }}</th><th style="text-align:end;">{{ t('appointments.actions') }}</th>
+      <th>{{ t('appointments.status') }}</th><th>{{ t('appointments.payment') }}</th>
+      <th style="text-align:end;">{{ t('appointments.actions') }}</th>
     </tr></thead>
     <tbody>
       {% for a in appointments %}
@@ -185,6 +213,7 @@
         <td><span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span>
           {% if a.cancel_reason %}<div style="font-size:0.78rem;color:var(--muted);">{{ a.cancel_reason }}</div>{% endif %}
         </td>
+        <td>{{ payment_cell(a) }}</td>
         <td style="text-align:end;white-space:nowrap;">
           {{ action_buttons(a) }}
           {% if a.status in ['scheduled','waiting','no_show'] %}
@@ -250,6 +279,10 @@
   .tt-blue{background:#e0edff;color:#1d4ed8;} .tt-green{background:#dcfce7;color:#15803d;}
   .tt-teal{background:#cffafe;color:#0e7490;} .tt-purple{background:#ede9fe;color:#6d28d9;}
   .tt-orange{background:#ffedd5;color:#c2410c;} .tt-red{background:#fee2e2;color:#b91c1c;}
+  .pay-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; font-size:0.74rem; font-weight:600; }
+  .pay-paid{background:#dcfce7;color:#15803d;} .pay-partial{background:#fef9c3;color:#a16207;}
+  .pay-unpaid{background:#fee2e2;color:#b91c1c;} .pay-none{background:#eef2f6;color:#64748b;}
+  .pay-bal{font-size:0.72rem;color:var(--muted);margin-top:2px;}
   .gc-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex;
     align-items:center; justify-content:center; z-index:60; padding:16px; }
   .gc-modal { background:var(--surface,#fff); border-radius:14px; padding:20px; width:100%;

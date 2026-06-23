@@ -75,6 +75,13 @@ def index():
         "waiting": sum(1 for a in appointments if a.status in ("waiting", "scheduled")),
         "no_show": sum(1 for a in appointments if a.status == "no_show"),
     }
+    # Payment snapshot per appointment, so the doctor sees who paid / who's
+    # still owing while the clinic is running.
+    pay = _payment_status(appointments, on_date)
+    stats["paid"] = sum(1 for a in appointments if pay.get(a.id, {}).get("state") == "paid")
+    stats["unpaid"] = sum(
+        1 for a in appointments if pay.get(a.id, {}).get("state") in ("unpaid", "partial")
+    )
     current = next((a for a in appointments if a.status == "in_progress"), None)
     current_summary = _current_summary(current.patient) if current else None
 
@@ -101,7 +108,47 @@ def index():
         current_summary=current_summary,
         waitlist=waitlist,
         appt_types=APPOINTMENT_TYPES,
+        pay=pay,
     )
+
+
+def _payment_status(appointments, on_date):
+    """Map appointment.id -> payment snapshot from that patient's invoices on
+    the date. State is one of: ``paid`` / ``partial`` / ``unpaid`` / ``none``
+    (no invoice raised yet)."""
+    from app.models import Invoice
+
+    if not appointments:
+        return {}
+    patient_ids = {a.patient_id for a in appointments}
+    invoices = (
+        Invoice.query.filter(
+            Invoice.patient_id.in_(patient_ids), Invoice.invoice_date == on_date
+        ).all()
+    )
+    by_patient = {}
+    for inv in invoices:
+        by_patient.setdefault(inv.patient_id, []).append(inv)
+
+    out = {}
+    for a in appointments:
+        ivs = by_patient.get(a.patient_id)
+        if not ivs:
+            out[a.id] = {"state": "none"}
+            continue
+        total = round(sum(i.total for i in ivs), 2)
+        balance = round(sum(i.balance for i in ivs), 2)
+        if total > 0 and balance <= 0:
+            state = "paid"
+        elif balance < total:
+            state = "partial"
+        else:
+            state = "unpaid"
+        out[a.id] = {
+            "state": state, "total": total, "balance": balance,
+            "invoice_id": ivs[0].id if len(ivs) == 1 else None,
+        }
+    return out
 
 
 def _current_summary(patient):

@@ -358,10 +358,14 @@ a:hover { color: var(--green-900); }
 .stat-card.edge-green  { border-inline-start-color: var(--green-600); }
 .stat-card.edge-yellow { border-inline-start-color: #f0ad4e; }
 .stat-card.edge-red    { border-inline-start-color: #ef4476; }
+.stat-card.edge-teal   { border-inline-start-color: #0e7490; }
+.stat-card.edge-orange { border-inline-start-color: #c2410c; }
 .stat-card.edge-blue .value   { color: #2563eb; }
 .stat-card.edge-green .value  { color: var(--green-700); }
 .stat-card.edge-yellow .value { color: #d98a00; }
 .stat-card.edge-red .value    { color: #db2777; }
+.stat-card.edge-teal .value   { color: #0e7490; }
+.stat-card.edge-orange .value { color: #c2410c; }
 
 /* ---------- Search box ---------- */
 .search-box { position: relative; max-width: 420px; flex: 1; }
