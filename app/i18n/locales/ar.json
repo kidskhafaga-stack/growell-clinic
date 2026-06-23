@@ -1611,5 +1611,16 @@
     "occ_vaccine_due": "جرعة مستحقة",
     "occ_vaccine_seasonal": "تطعيم موسمي",
     "occ_vaccine_changed": "تغيير تطعيم"
+  },
+  "notif": {
+    "title": "الإشعارات",
+    "empty": "لا توجد تنبيهات — كل شيء تمام.",
+    "appointments_today": "{count} مواعيد اليوم",
+    "unpaid_invoices": "{count} فواتير غير مدفوعة/جزئية",
+    "stock_expiry": "{count} أصناف منتهية/قاربت الصلاحية",
+    "low_stock": "{count} أصناف مخزونها منخفض",
+    "contracts_expiring": "{count} عقود قاربت على الانتهاء",
+    "vaccines_due": "{count} مرضى لديهم تطعيمات مستحقة",
+    "birthdays": "{count} أعياد ميلاد هذا الأسبوع"
   }
 }

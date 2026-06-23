@@ -100,6 +100,22 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_notifications():
+        """Topbar bell: live alerts filtered to the current user's modules."""
+        from flask_login import current_user
+
+        from app.utils.notifications import get_notifications
+
+        try:
+            items = get_notifications(current_user)
+        except Exception:  # noqa: BLE001 - never break a page over the bell
+            items = []
+        return {
+            "notifications": items,
+            "notif_count": sum(i.get("count", 0) for i in items),
+        }
+
+    @app.context_processor
     def inject_clinic_settings():
         """Expose clinic identity/logo + product brand to all templates."""
         from flask import g, url_for

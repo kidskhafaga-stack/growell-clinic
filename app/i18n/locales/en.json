@@ -1611,5 +1611,16 @@
     "occ_vaccine_due": "Vaccine due",
     "occ_vaccine_seasonal": "Seasonal vaccine",
     "occ_vaccine_changed": "Vaccine changed"
+  },
+  "notif": {
+    "title": "Notifications",
+    "empty": "All caught up — no alerts.",
+    "appointments_today": "{count} appointment(s) today",
+    "unpaid_invoices": "{count} unpaid / partial invoice(s)",
+    "stock_expiry": "{count} expired / near-expiry stock item(s)",
+    "low_stock": "{count} low-stock item(s)",
+    "contracts_expiring": "{count} contract(s) expiring soon",
+    "vaccines_due": "{count} patient(s) with vaccines due",
+    "birthdays": "{count} birthday(s) this week"
   }
 }
