@@ -145,6 +145,57 @@ def drug_search():
     } for d in drugs])
 
 
+@prescriptions_bp.route("/ai-dose", methods=["POST"])
+@module_required(MODULE)
+def ai_dose():
+    """Ask the configured AI for a paediatric dose suggestion for one drug.
+
+    Sends only the drug name, the child's weight/age and the diagnosis — no
+    patient identifiers. The doctor always verifies before prescribing.
+    """
+    import json as _json
+
+    from app.utils import ai as ai_utils
+
+    if not ai_utils.is_ready():
+        return jsonify({"ok": False, "error": "ai_not_ready"}), 400
+    data = request.get_json(silent=True) or {}
+    drug = (data.get("drug") or "").strip()
+    if not drug:
+        return jsonify({"ok": False, "error": "no_drug"}), 400
+    weight = (str(data.get("weight") or "")).strip()
+    age = (data.get("age") or "").strip()
+    diagnosis = (data.get("diagnosis") or "").strip()
+
+    system = (
+        "You are a paediatric clinical pharmacology assistant. Given a drug, a "
+        "child's weight/age and the diagnosis, suggest a typical paediatric dose. "
+        "Be conservative and respect maximum doses. Respond ONLY with compact "
+        'JSON: {"dose": "...", "frequency": "...", "duration": "...", "note": "..."}. '
+        "Keep values short; put cautions in note. The treating doctor verifies."
+    )
+    prompt = (f"Drug: {drug}\nWeight: {weight or '—'} kg\nAge: {age or '—'}\n"
+              f"Diagnosis: {diagnosis or '—'}")
+    result = ai_utils.chat([{"role": "user", "content": prompt}], system=system)
+    if not result.get("ok"):
+        return jsonify({"ok": False, "error": result.get("error", "ai_error")}), 502
+
+    text = (result.get("text") or "").strip()
+    parsed = None
+    try:  # tolerate code fences / surrounding prose
+        start, end = text.find("{"), text.rfind("}")
+        if start >= 0 and end > start:
+            parsed = _json.loads(text[start:end + 1])
+    except (ValueError, TypeError):
+        parsed = None
+    if isinstance(parsed, dict):
+        return jsonify({"ok": True, "dose": parsed.get("dose", ""),
+                        "frequency": parsed.get("frequency", ""),
+                        "duration": parsed.get("duration", ""),
+                        "note": parsed.get("note", "")})
+    return jsonify({"ok": True, "note": text})
+
+
 @prescriptions_bp.route("/icd/search")
 @module_required(MODULE)
 def icd_search():
@@ -259,11 +310,14 @@ def new():
             flash(t("rx.interaction_flash"), "warning")
         return redirect(url_for("prescriptions.view", rx_id=rx.id))
 
+    from app.utils import ai as ai_utils
+
     patient = db.session.get(Patient, request.args.get("patient_id", type=int))
     return render_template(
         "prescriptions/new.html", patient=patient,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
+        ai_ready=ai_utils.is_ready(),
     )
 
 

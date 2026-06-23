@@ -72,6 +72,13 @@
           <div class="form-row"><label>{{ t('rx.duration') }}</label><input class="input" name="item_duration" x-model="line.duration"></div>
           <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
         </div>
+        {% if ai_ready %}
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="aiDose(i)" :disabled="line.aiBusy || !line.name">
+            <i class="bi bi-robot"></i> <span x-text="line.aiBusy ? {{ t('ai.thinking') | tojson }} : {{ t('rx.ai_suggest') | tojson }}"></span></button>
+          <span class="hint" x-show="line.aiNote" x-cloak x-text="line.aiNote" style="color:var(--green-700);"></span>
+        </div>
+        {% endif %}
       </div>
     </template>
     <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('rx.add_drug_line') }}</button>
@@ -138,7 +145,21 @@ function rxForm(){
       }catch(e){ this.dxSug=[]; this.dxOpen=false; }
     },
     pickDx(s){ this.dx=(current_lang==='ar'?s.ar:s.en); this.dxCode=s.code; this.dxOpen=false; this.dxSug=[]; },
-    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:''}); },
+    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    async aiDose(i){
+      var l=this.lines[i]; if(!l.name || l.aiBusy) return;
+      l.aiBusy=true; l.aiNote='';
+      try{
+        var res=await fetch("{{ url_for('prescriptions.ai_dose') }}",{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({drug:l.name, weight:this.weight, diagnosis:this.dx})});
+        var d=await res.json();
+        if(d.ok){
+          if(d.dose) l.dose=d.dose; if(d.frequency) l.frequency=d.frequency; if(d.duration) l.duration=d.duration;
+          l.aiNote=d.note || '';
+        } else { l.aiNote={{ t('ai.error') | tojson }}+' ('+(d.error||res.status)+')'; }
+      }catch(e){ l.aiNote={{ t('ai.error') | tojson }}; }
+      finally{ l.aiBusy=false; }
+    },
     // Compute the weight-based suggestion text for a line and (re)fill its dose.
     computeLine(l, fillDose){
       const w = parseFloat(this.weight);
