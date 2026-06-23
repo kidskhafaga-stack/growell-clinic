@@ -610,8 +610,8 @@
     "months_short": "شهر",
     "days_short": "يوم",
     "ev_given": "أُعطيت",
-    "ev_refused": "رُفِضت",
-    "ev_delayed": "مؤجّلة",
+    "ev_refused": "مرفوض",
+    "ev_delayed": "مؤجّل",
     "scan_to_verify": "امسح للتحقّق",
     "verify_title": "التحقّق من شهادة التطعيم",
     "verify_invalid": "شهادة غير صالحة",
@@ -624,7 +624,13 @@
     "reminders_subtitle": "المرضى أصحاب جرعة متأخرة أو مستحقة قريباً.",
     "reminders_empty": "لا توجد جرعات مستحقة أو متأخرة حالياً.",
     "send_reminder": "تذكير",
-    "no_due": "لا توجد جرعة مستحقة لهذا المريض."
+    "no_due": "لا توجد جرعة مستحقة لهذا المريض.",
+    "refuse_delay": "رفض / تأجيل",
+    "ev_type": "الحدث",
+    "ev_reason": "السبب",
+    "ev_reason_ph": "مثل: رفض الأهل / الطفل غير لائق",
+    "event_saved": "تم التوثيق",
+    "bad_event": "نوع حدث غير صحيح"
   },
   "vstatus": {
     "done": "تم",

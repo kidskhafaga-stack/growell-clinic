@@ -97,13 +97,23 @@ def record(patient_id):
         flash(t("vaccinations.all_done"), "info")
         return redirect(url_for("vaccinations.view", patient_id=patient.id))
 
-    # Guard against double-recording the same dose.
+    # Guard against double-recording the same dose (a prior refusal/delay does
+    # not block actually giving it later).
     existing = PatientVaccine.query.filter_by(
-        patient_id=patient.id, vaccine_id=vaccine.id, dose_number=dose_number
+        patient_id=patient.id, vaccine_id=vaccine.id, dose_number=dose_number,
+        event_type="given",
     ).first()
     if existing:
         flash(t("vaccinations.dose_exists"), "warning")
         return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    # Clear any earlier refusal/delay event for this dose now that it's given.
+    PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient.id,
+        PatientVaccine.vaccine_id == vaccine.id,
+        PatientVaccine.dose_number == dose_number,
+        PatientVaccine.event_type != "given",
+    ).delete(synchronize_session=False)
 
     raw_date = (request.form.get("given_date") or "").strip()
     try:
@@ -157,6 +167,47 @@ def record(patient_id):
         return render_template(
             "messages/sent.html", log=log, appt=None,
             back_url=url_for("vaccinations.view", patient_id=patient.id))
+    return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+
+@vaccinations_bp.route("/<int:patient_id>/record-event", methods=["POST"])
+@module_required(MODULE)
+def record_event(patient_id):
+    """Document a dose as refused or delayed (not given) with a reason."""
+    patient = db.get_or_404(Patient, patient_id)
+    vaccine = db.get_or_404(Vaccine, request.form.get("vaccine_id", type=int))
+    dose_number = request.form.get("dose_number", type=int) or 1
+    event_type = request.form.get("event_type")
+    if event_type not in ("refused", "delayed"):
+        flash(t("vaccinations.bad_event"), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    # Don't override an already-given dose.
+    if PatientVaccine.query.filter_by(patient_id=patient.id, vaccine_id=vaccine.id,
+                                      dose_number=dose_number, event_type="given").first():
+        flash(t("vaccinations.dose_exists"), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    # Replace any previous event for the same dose.
+    PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient.id,
+        PatientVaccine.vaccine_id == vaccine.id,
+        PatientVaccine.dose_number == dose_number,
+        PatientVaccine.event_type != "given",
+    ).delete(synchronize_session=False)
+
+    brand = chosen_brand(patient.id, vaccine)[0] or vaccine.default_brand
+    db.session.add(PatientVaccine(
+        patient_id=patient.id, vaccine_id=vaccine.id,
+        brand_id=brand.id if brand else None, dose_number=dose_number,
+        given_date=datetime.utcnow().date(), event_type=event_type,
+        refusal_reason=(request.form.get("reason") or "").strip() or None,
+    ))
+    ActivityLog.record(f"vaccine.{event_type}", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"{vaccine.code}#{dose_number}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.event_saved"), "success")
     return redirect(url_for("vaccinations.view", patient_id=patient.id))
 
 

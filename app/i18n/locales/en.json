@@ -624,7 +624,13 @@
     "reminders_subtitle": "Patients with an overdue or due-soon dose.",
     "reminders_empty": "No due or overdue doses right now.",
     "send_reminder": "Remind",
-    "no_due": "No due dose for this patient."
+    "no_due": "No due dose for this patient.",
+    "refuse_delay": "Refuse / delay",
+    "ev_type": "Event",
+    "ev_reason": "Reason",
+    "ev_reason_ph": "e.g. parent declined / child unwell",
+    "event_saved": "Documented",
+    "bad_event": "Invalid event type"
   },
   "vstatus": {
     "done": "Done",
