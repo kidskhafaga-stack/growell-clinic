@@ -207,7 +207,16 @@
           {% for pid, meta in ai_providers.items() %}
           <option value="{{ pid }}" {{ 'selected' if values.get('ai_provider','claude')==pid else '' }}>{{ meta.label }}</option>
           {% endfor %}
-        </select><div class="hint">{{ t('settings.ai_provider_hint') }}</div></div>
+        </select><div class="hint">{{ t('settings.ai_provider_hint') }}</div>
+        {% set local_keys = [] %}{% for pid, meta in ai_providers.items() if meta.get('local') %}{{ local_keys.append(pid) or '' }}{% endfor %}
+        <script>const AI_LOCAL = {{ local_keys | tojson }};</script>
+        <div style="margin-top:6px;">
+          <span class="badge badge--green" x-show="AI_LOCAL.includes(provider)" x-cloak>
+            <i class="bi bi-hdd-network"></i> {{ t('settings.ai_local_badge') }}</span>
+          <span class="badge badge--muted" x-show="!AI_LOCAL.includes(provider)">
+            <i class="bi bi-cloud"></i> {{ t('settings.ai_cloud_badge') }}</span>
+        </div>
+      </div>
 
       <div class="form-row"><label>{{ t('settings.ai_model') }}</label>
         <input class="input" name="ai_model" dir="ltr" list="ai-model-list"

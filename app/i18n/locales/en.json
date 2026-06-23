@@ -797,7 +797,9 @@
     "ai_patient_section": "Patient-file access",
     "ai_patient_context": "Allow the assistant to read patient files",
     "ai_anonymize": "Anonymize (omit name / file number / national id before sending)",
-    "ai_patient_hint": "When enabled, a concise clinical summary of the open patient is sent to your chosen AI provider to answer questions."
+    "ai_patient_hint": "When enabled, a concise clinical summary of the open patient is sent to your chosen AI provider to answer questions.",
+    "ai_local_badge": "Local — data stays in the clinic, works offline",
+    "ai_cloud_badge": "Cloud — sends data over the internet"
   },
   "errors": {
     "403_title": "Forbidden",

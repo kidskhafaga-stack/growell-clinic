@@ -73,6 +73,24 @@ AI_PROVIDERS = {
         "models": ["mistral-large-latest", "mistral-small-latest"],
         "keys_url": "https://console.mistral.ai/api-keys",
     },
+    "ollama": {
+        "label": "Local — Ollama (offline, private)",
+        "api": "openai",
+        "base_url": "http://localhost:11434/v1/chat/completions",
+        "default_model": "llama3.1",
+        "models": ["llama3.1", "qwen2.5", "mistral", "gemma2", "phi3"],
+        "keys_url": "",
+        "local": True,   # runs on the clinic machine — data never leaves
+    },
+    "lmstudio": {
+        "label": "Local — LM Studio (offline, private)",
+        "api": "openai",
+        "base_url": "http://localhost:1234/v1/chat/completions",
+        "default_model": "",
+        "models": [],
+        "keys_url": "",
+        "local": True,
+    },
     "custom": {
         "label": "Custom (OpenAI-compatible)",
         "api": "openai",
@@ -100,6 +118,7 @@ def get_config():
         "enabled": rows.get("ai_enabled") == "1",
         "provider": provider,
         "provider_label": meta["label"],
+        "local": bool(meta.get("local")),
         "api_key": (rows.get("ai_api_key") or "").strip(),
         "model": (rows.get("ai_model") or "").strip() or meta["default_model"],
         "base_url": (rows.get("ai_base_url") or "").strip() or meta["base_url"],
@@ -108,9 +127,15 @@ def get_config():
 
 
 def is_ready():
-    """True when AI is enabled and the minimum credentials are present."""
+    """True when AI is enabled and the minimum config is present.
+
+    Local providers (Ollama / LM Studio) don't need an API key — the model
+    runs on the clinic machine, so credentials aren't required.
+    """
     cfg = get_config()
-    return bool(cfg["enabled"] and cfg["api_key"] and cfg["base_url"] and cfg["model"])
+    if not (cfg["enabled"] and cfg["base_url"] and cfg["model"]):
+        return False
+    return cfg["local"] or bool(cfg["api_key"])
 
 
 def patient_context_enabled():
@@ -195,7 +220,8 @@ def chat(messages, system=None, config=None):
     cfg = config or get_config()
     if not cfg["enabled"]:
         return {"ok": False, "error": "disabled"}
-    if not cfg["api_key"] or not cfg["base_url"] or not cfg["model"]:
+    # Local providers (Ollama / LM Studio) don't need an API key.
+    if not cfg["base_url"] or not cfg["model"] or (not cfg["api_key"] and not cfg["local"]):
         return {"ok": False, "error": "not_configured"}
 
     try:
@@ -221,12 +247,11 @@ def _chat_openai(requests, cfg, messages, system_prompt):
     payload_msgs = list(messages)
     if system_prompt:
         payload_msgs = [{"role": "system", "content": system_prompt}] + payload_msgs
+    headers = {"Content-Type": "application/json"}
+    if cfg["api_key"]:  # local servers (Ollama) accept no auth header
+        headers["Authorization"] = f"Bearer {cfg['api_key']}"
     resp = requests.post(
-        cfg["base_url"],
-        headers={
-            "Authorization": f"Bearer {cfg['api_key']}",
-            "Content-Type": "application/json",
-        },
+        cfg["base_url"], headers=headers,
         json={"model": cfg["model"], "messages": payload_msgs},
         timeout=REQUEST_TIMEOUT,
     )
