@@ -3,35 +3,101 @@
 {% block title %}{{ t('rxtpl.title') }}{% endblock %}
 {% block page_heading %}{{ t('rxtpl.title') }}{% endblock %}
 
+{%- macro rxinit(tp) -%}
+rxPreview({
+  mode: '{{ tp.mode if tp else 'white' }}',
+  page_size: '{{ tp.page_size if tp else 'A4' }}',
+  logo: '{{ tp.logo_source if tp else 'clinic' }}',
+  font_size: {{ tp.font_size if tp else 14 }},
+  mt: {{ tp.m_top if tp else 12 }}, mr: {{ tp.m_right if tp else 12 }},
+  mb: {{ tp.m_bottom if tp else 12 }}, ml: {{ tp.m_left if tp else 12 }},
+  top_offset: {{ tp.top_offset_mm if tp and tp.top_offset_mm else 0 }},
+  show_doctor: {{ 'true' if (tp and tp.show_doctor) or not tp else 'false' }},
+  show_specialty: {{ 'true' if (tp and tp.show_specialty) or not tp else 'false' }},
+  show_contact: {{ 'true' if (tp and tp.show_contact) or not tp else 'false' }},
+  show_license: {{ 'true' if (tp and tp.show_license) or not tp else 'false' }},
+  show_patient: {{ 'true' if (tp and tp.show_patient) or not tp else 'false' }},
+  show_diagnosis: {{ 'true' if (tp and tp.show_diagnosis) or not tp else 'false' }},
+  show_investigations: {{ 'true' if (tp and tp.show_investigations) or not tp else 'false' }},
+  show_signature: {{ 'true' if (tp and tp.show_signature) or not tp else 'false' }},
+  show_stamp: {{ 'true' if (tp and tp.show_stamp) or not tp else 'false' }}
+})
+{%- endmacro -%}
+
 {% macro fields(tp) %}
-  <div class="form-grid">
-    <div class="form-row"><label>{{ t('rxtpl.name') }} *</label><input class="input" name="name" value="{{ tp.name if tp else '' }}" required></div>
-    <div class="form-row"><label>{{ t('rxtpl.mode') }}</label>
-      <select class="select" name="mode">
-        <option value="white" {{ 'selected' if tp and tp.mode=='white' else '' }}>{{ t('rxtpl.white') }}</option>
-        <option value="preprinted" {{ 'selected' if tp and tp.mode=='preprinted' else '' }}>{{ t('rxtpl.preprinted') }}</option>
-      </select></div>
-    <div class="form-row"><label>{{ t('rxtpl.logo_source') }}</label>
-      <select class="select" name="logo_source">
-        {% for v,k in [('clinic','logo_clinic'),('personal','logo_personal'),('none','logo_none')] %}
-        <option value="{{ v }}" {{ 'selected' if tp and tp.logo_source==v else '' }}>{{ t('rxtpl.' ~ k) }}</option>{% endfor %}
-      </select></div>
-    <div class="form-row"><label>{{ t('rxtpl.page_size') }}</label>
-      <select class="select" name="page_size">
-        <option value="A4" {{ 'selected' if (tp and tp.page_size=='A4') or not tp else '' }}>A4</option>
-        <option value="A5" {{ 'selected' if tp and tp.page_size=='A5' else '' }}>A5</option>
-      </select></div>
-    <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" value="{{ tp.font_size if tp else 14 }}"></div>
-    <div class="form-row"><label>{{ t('rxtpl.margin') }}</label><input class="input" type="number" name="margin_mm" value="{{ tp.margin_mm if tp else 12 }}"></div>
-    <div class="form-row"><label>{{ t('rxtpl.top_offset') }}</label><input class="input" type="number" name="top_offset_mm" value="{{ tp.top_offset_mm if tp else 0 }}"></div>
+<div class="rx-editor">
+  <div class="rx-editor__form">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('rxtpl.name') }} *</label><input class="input" name="name" value="{{ tp.name if tp else '' }}" required></div>
+      <div class="form-row"><label>{{ t('rxtpl.mode') }}</label>
+        <select class="select" name="mode" x-model="f.mode">
+          <option value="white">{{ t('rxtpl.white') }}</option>
+          <option value="preprinted">{{ t('rxtpl.preprinted') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('rxtpl.logo_source') }}</label>
+        <select class="select" name="logo_source" x-model="f.logo">
+          {% for v,k in [('clinic','logo_clinic'),('personal','logo_personal'),('none','logo_none')] %}
+          <option value="{{ v }}">{{ t('rxtpl.' ~ k) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('rxtpl.page_size') }}</label>
+        <select class="select" name="page_size" x-model="f.page_size">
+          <option value="A4">A4</option>
+          <option value="A5">A5</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" x-model.number="f.font_size"></div>
+      <div class="form-row"><label>{{ t('rxtpl.top_offset') }}</label><input class="input" type="number" name="top_offset_mm" x-model.number="f.top_offset"></div>
+    </div>
+
+    <label style="font-weight:600;">{{ t('rxtpl.margins') }}</label>
+    <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="form-row"><label>{{ t('rxtpl.m_top') }}</label><input class="input" type="number" name="margin_top_mm" x-model.number="f.mt"></div>
+      <div class="form-row"><label>{{ t('rxtpl.m_right') }}</label><input class="input" type="number" name="margin_right_mm" x-model.number="f.mr"></div>
+      <div class="form-row"><label>{{ t('rxtpl.m_bottom') }}</label><input class="input" type="number" name="margin_bottom_mm" x-model.number="f.mb"></div>
+      <div class="form-row"><label>{{ t('rxtpl.m_left') }}</label><input class="input" type="number" name="margin_left_mm" x-model.number="f.ml"></div>
+    </div>
+
+    <label style="font-weight:600;">{{ t('rxtpl.elements') }}</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0;">
+      {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
+      <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
+        <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
+      {% endfor %}
+    </div>
   </div>
-  <label style="font-weight:600;">{{ t('rxtpl.elements') }}</label>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0;">
-    {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
-    <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" {{ 'checked' if (tp and tp[b]) or not tp else '' }}>
-      <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
-    {% endfor %}
+
+  <div class="rx-editor__preview">
+    <div class="rx-prev-label"><i class="bi bi-eye"></i> {{ t('rxtpl.live_preview') }}
+      <span x-text="f.page_size"></span></div>
+    <div class="rx-sheet" :style="pageStyle">
+      <template x-if="f.mode==='preprinted'">
+        <div class="rx-letterhead" :style="letterheadStyle"><span>{{ t('rxtpl.preprinted_area') }}</span></div>
+      </template>
+      <div class="rx-inner" :style="innerStyle">
+        <template x-if="f.mode!=='preprinted' && f.show_doctor">
+          <div class="rx-hd">
+            <template x-if="f.logo!=='none'"><div class="rx-logo"><i class="bi bi-image"></i></div></template>
+            <div><div class="rx-doc">{{ t('rxtpl.pv_doctor') }}</div>
+              <div class="rx-clinic">{{ clinic.name_ar or clinic.name }}</div></div>
+          </div>
+        </template>
+        <template x-if="f.show_patient">
+          <div class="rx-prow">{{ t('rx.patient') }}: …
+            <span x-show="f.show_diagnosis"> · {{ t('rx.diagnosis') }}</span></div>
+        </template>
+        <div class="rx-symbol">℞</div>
+        <div class="rx-bar"></div><div class="rx-bar"></div><div class="rx-bar" style="width:70%;"></div>
+        <template x-if="f.show_investigations">
+          <div class="rx-prow" style="margin-top:6px;">{{ t('rxtpl.pv_invest') }}</div>
+        </template>
+        <div class="rx-foot">
+          <span x-show="f.show_stamp" class="rx-stamp">◯</span>
+          <span x-show="f.show_signature" class="rx-sig">— {{ t('rx.signature') }} —</span>
+        </div>
+      </div>
+    </div>
+    <div class="hint">{{ t('rxtpl.preview_hint') }}</div>
   </div>
+</div>
 {% endmacro %}
 
 {% block content %}
@@ -42,7 +108,7 @@
 
 <details class="card gc-scale-in">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rxtpl.add') }}</summary>
-  <form method="post" action="{{ url_for('prescriptions.template_new') }}" style="margin-top:12px;">
+  <form method="post" action="{{ url_for('prescriptions.template_new') }}" style="margin-top:12px;" x-data="{{ rxinit(none) }}">
     {{ fields(none) }}
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
@@ -50,7 +116,7 @@
 
 {% for tp in templates %}
 <div class="card gc-scale-in">
-  <form method="post" action="{{ url_for('prescriptions.template_edit', tpl_id=tp.id) }}">
+  <form method="post" action="{{ url_for('prescriptions.template_edit', tpl_id=tp.id) }}" x-data="{{ rxinit(tp) }}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <h3 style="margin:0;">{{ tp.name }}
         <span class="badge badge--muted">{{ t('rxtpl.' ~ tp.mode) }}</span>
@@ -69,4 +135,46 @@
 {% else %}
 <div class="card"><div class="empty-state"><i class="bi bi-file-earmark-text"></i>{{ t('rxtpl.no_templates') }}</div></div>
 {% endfor %}
+{% endblock %}
+
+{% block head %}
+<style>
+  .rx-editor{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;}
+  .rx-editor__form{flex:1 1 380px;min-width:300px;}
+  .rx-editor__preview{flex:0 0 auto;position:sticky;top:14px;}
+  .rx-prev-label{font-weight:600;font-size:0.82rem;color:var(--muted);margin-bottom:6px;}
+  .rx-sheet{position:relative;background:#fff;border:1px solid var(--line);
+    box-shadow:0 6px 22px rgba(0,0,0,.12);border-radius:3px;overflow:hidden;color:#222;direction:rtl;}
+  .rx-letterhead{display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 6px,#e8eef3 6px,#e8eef3 12px);
+    border-bottom:1px dashed #cbd5e1;color:#94a3b8;font-size:9px;}
+  .rx-inner{box-sizing:border-box;height:100%;}
+  .rx-hd{display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--green-600);padding-bottom:5px;margin-bottom:6px;}
+  .rx-logo{width:22px;height:22px;border:1px solid #cbd5e1;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;}
+  .rx-doc{font-weight:700;color:var(--green-800);line-height:1.1;}
+  .rx-clinic{color:#475569;font-size:0.8em;}
+  .rx-prow{color:#475569;margin:4px 0;}
+  .rx-symbol{color:var(--green-700);font-weight:700;font-size:1.4em;margin:4px 0 2px;}
+  .rx-bar{height:0.7em;background:#eef2f6;border-radius:3px;margin:4px 0;width:100%;}
+  .rx-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;color:#64748b;}
+  .rx-stamp{font-size:1.6em;color:#cbd5e1;}
+  .rx-sig{border-top:1px solid #334155;padding-top:2px;}
+  @media (max-width:760px){ .rx-editor__preview{position:static;width:100%;} }
+</style>
+<script>
+  function rxPreview(init){
+    return {
+      f: init,
+      get pxPerMm(){ return 250 / (this.f.page_size === 'A5' ? 148 : 210); },
+      get pageStyle(){ const w = 250; return `width:${w}px;height:${w*1.4142}px;`; },
+      get letterheadStyle(){ return `height:${Number(this.f.top_offset||0)*this.pxPerMm}px;`; },
+      get innerStyle(){
+        const p = this.pxPerMm;
+        const extra = this.f.mode === 'preprinted' ? Number(this.f.top_offset||0) : 0;
+        const fs = Math.max(6, Number(this.f.font_size||14) * 0.62);
+        return `padding:${(Number(this.f.mt||0)+extra)*p}px ${Number(this.f.mr||0)*p}px `
+             + `${Number(this.f.mb||0)*p}px ${Number(this.f.ml||0)*p}px;font-size:${fs}px;`;
+      }
+    };
+  }
+</script>
 {% endblock %}

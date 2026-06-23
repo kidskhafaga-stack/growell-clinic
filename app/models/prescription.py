@@ -29,7 +29,14 @@ class RxPrintTemplate(db.Model):
     logo_source = db.Column(db.String(12), default="clinic")  # clinic | personal | none
     page_size = db.Column(db.String(4), default="A4")       # A4 | A5
     font_size = db.Column(db.Integer, default=14)
-    margin_mm = db.Column(db.Integer, default=12)
+    margin_mm = db.Column(db.Integer, default=12)           # uniform fallback
+    # Per-side margins (mm). When NULL they fall back to ``margin_mm`` so old
+    # templates keep working; setting them gives fine control to line content up
+    # with pre-printed letterhead paper.
+    margin_top_mm = db.Column(db.Integer)
+    margin_right_mm = db.Column(db.Integer)
+    margin_bottom_mm = db.Column(db.Integer)
+    margin_left_mm = db.Column(db.Integer)
     top_offset_mm = db.Column(db.Integer, default=0)        # clear letterhead
 
     show_doctor = db.Column(db.Boolean, default=True, nullable=False)
@@ -48,6 +55,25 @@ class RxPrintTemplate(db.Model):
     BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",
              "show_investigations"]
+
+    def _side(self, value):
+        return value if value is not None else (self.margin_mm or 0)
+
+    @property
+    def m_top(self):
+        return self._side(self.margin_top_mm)
+
+    @property
+    def m_right(self):
+        return self._side(self.margin_right_mm)
+
+    @property
+    def m_bottom(self):
+        return self._side(self.margin_bottom_mm)
+
+    @property
+    def m_left(self):
+        return self._side(self.margin_left_mm)
 
     @classmethod
     def default_instance(cls):

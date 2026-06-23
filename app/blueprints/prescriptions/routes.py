@@ -362,6 +362,8 @@ def _save_template(tpl):
     tpl.page_size = "A5" if request.form.get("page_size") == "A5" else "A4"
     tpl.font_size = request.form.get("font_size", type=int) or 14
     tpl.margin_mm = request.form.get("margin_mm", type=int) or 12
+    for side in ("top", "right", "bottom", "left"):
+        setattr(tpl, f"margin_{side}_mm", request.form.get(f"margin_{side}_mm", type=int))
     tpl.top_offset_mm = request.form.get("top_offset_mm", type=int) or 0
     for b in RxPrintTemplate.BOOLS:
         setattr(tpl, b, bool(request.form.get(b)))
