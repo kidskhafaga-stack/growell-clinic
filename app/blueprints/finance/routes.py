@@ -311,7 +311,8 @@ def invoice_new():
         flash(t("invoices.created"), "success")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
-    patient = db.session.get(Patient, request.args.get("patient_id", type=int))
+    pid = request.args.get("patient_id", type=int)
+    patient = db.session.get(Patient, pid) if pid else None
     return render_template(
         "finance/invoice_form.html", patient=patient,
         doctors=_doctors_active(),

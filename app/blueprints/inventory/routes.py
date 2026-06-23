@@ -384,6 +384,7 @@ def purchase_receive(po_id):
         return redirect(url_for("inventory.purchase_view", po_id=po.id))
 
     posted = 0
+    receipt_value = 0.0   # value of THIS GRN only (not cumulative)
     for item in po.items:
         recv = _to_int(request.form.get(f"recv_{item.id}", ""))
         if recv <= 0:
@@ -393,6 +394,7 @@ def purchase_receive(po_id):
         if recv <= 0:
             continue
         item.qty_received = (item.qty_received or 0) + recv
+        receipt_value += recv * (item.unit_cost or 0)
         if item.store_item_id:
             db.session.add(StockMovement(
                 item_id=item.store_item_id, kind="in", qty=recv,
@@ -410,13 +412,14 @@ def purchase_receive(po_id):
     if po.status == "received":
         po.received_at = datetime.utcnow()
 
-    # Optionally record the received value as a clinic expense.
-    if request.form.get("as_expense"):
+    # Optionally record this receipt's value as a clinic expense.
+    if request.form.get("as_expense") and receipt_value > 0:
         from app.models import Expense
         db.session.add(Expense(
             expense_date=datetime.utcnow().date(), category="supplies",
             description=t("purchases.grn_reason", po=po.po_number),
-            amount=po.received_value, vendor=(po.supplier.name if po.supplier else None),
+            amount=round(receipt_value, 2),
+            vendor=(po.supplier.name if po.supplier else None),
             created_by=current_user.id,
         ))
 

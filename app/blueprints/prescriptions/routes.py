@@ -312,7 +312,8 @@ def new():
 
     from app.utils import ai as ai_utils
 
-    patient = db.session.get(Patient, request.args.get("patient_id", type=int))
+    pid = request.args.get("patient_id", type=int)
+    patient = db.session.get(Patient, pid) if pid else None
     return render_template(
         "prescriptions/new.html", patient=patient,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
