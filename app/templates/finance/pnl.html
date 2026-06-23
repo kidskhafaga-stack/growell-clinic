@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('pnl.title') }}{% endblock %}
+{% block page_heading %}{{ t('pnl.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('pnl.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('pnl.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <form method="get"><input class="input" type="month" name="month" value="{{ month }}" onchange="this.form.submit()"></form>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.expenses', month=month) }}"><i class="bi bi-cash-stack"></i> {{ t('expenses.title') }}</a>
+  </div>
+</div>
+
+<!-- Headline numbers -->
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-arrow-down-circle ico"></i>
+    <div class="value">{{ collected }}</div><div class="label">{{ t('pnl.revenue') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-arrow-up-circle ico"></i>
+    <div class="value">{{ expenses_total }}</div><div class="label">{{ t('pnl.expenses') }}</div></div>
+  <div class="stat-card {{ 'edge-green' if net >= 0 else 'edge-red' }} gc-lift"><i class="bi bi-wallet2 ico"></i>
+    <div class="value">{{ net }}</div><div class="label">{{ t('pnl.net') }}</div></div>
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-percent ico"></i>
+    <div class="value">{{ margin }}%</div><div class="label">{{ t('pnl.margin') }}</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+  <!-- Revenue detail -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('pnl.revenue') }}</h2>
+    <div class="info-item" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">
+      <span>{{ t('pnl.collected') }}</span><strong style="color:var(--green-700);">{{ collected }}</strong></div>
+    <div class="info-item" style="display:flex;justify-content:space-between;padding:8px 0;">
+      <span style="color:var(--muted);">{{ t('pnl.invoiced') }}</span><span style="color:var(--muted);">{{ invoiced }}</span></div>
+    <p class="hint" style="margin-top:6px;">{{ t('pnl.revenue_note') }}</p>
+  </div>
+
+  <!-- Expenses by category -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-pie-chart"></i> {{ t('pnl.by_category') }}</h2>
+    {% if cats %}
+    {% for c, amt in cats %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);">
+      <span><span class="badge badge--muted">{{ t('expenses.cat_' ~ c) }}</span></span>
+      <strong>{{ amt }}</strong>
+    </div>
+    {% endfor %}
+    <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-weight:700;">
+      <span>{{ t('pnl.expenses') }}</span><span style="color:var(--danger);">{{ expenses_total }}</span></div>
+    {% else %}
+    <p style="color:var(--muted);">{{ t('expenses.none') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card gc-animate" style="margin-top:16px;text-align:center;background:{{ 'var(--green-050,#f3faf5)' if net >= 0 else '#fdf6f6' }};">
+  <div style="font-size:0.9rem;color:var(--muted);">{{ t('pnl.net') }} ({{ month }})</div>
+  <div style="font-size:2rem;font-weight:800;color:{{ 'var(--green-700)' if net >= 0 else 'var(--danger)' }};">{{ net }}</div>
+  <div style="color:var(--muted);">{{ t('pnl.formula') }}</div>
+</div>
+{% endblock %}

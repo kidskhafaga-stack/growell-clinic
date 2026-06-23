@@ -292,17 +292,149 @@
       {% endif %}
     </div>
 
-    <!-- Placeholder tabs for later phases -->
-    {% for key in ['prescriptions','documents','finance'] %}
-    <div class="gc-tab-panel" x-show="tab==='{{ key }}'" x-cloak>
-      <div class="empty-state">
-        <i class="bi bi-hourglass-split"></i>
-        <div style="font-weight:600;">{{ t('common.coming_soon') }}</div>
-        <p>{{ t('patients.tab_phase_notice') }}</p>
-      </div>
+    <!-- Documents / attachments -->
+    <div class="gc-tab-panel" x-show="tab==='documents'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-folder2-open"></i> {{ t('patients.documents_title') }}</h3>
+      {% set docs = patient.attachments | sort(attribute='created_at', reverse=true) %}
+      {% if docs %}
+      <table class="table">
+        <thead><tr>
+          <th>{{ t('visits.att_label') }}</th><th>{{ t('visits.att_kind') }}</th>
+          <th>{{ t('patients.doc_date') }}</th><th style="text-align:end;"></th>
+        </tr></thead>
+        <tbody>
+          {% for a in docs %}
+          <tr>
+            <td><i class="bi bi-file-earmark-{{ 'pdf' if a.filename.endswith('.pdf') else 'image' }}" style="color:var(--green-700);"></i>
+              <a target="_blank" style="color:inherit;" href="{{ url_for('static', filename='uploads/patient_docs/' ~ a.filename) }}">{{ a.label or a.original_name }}</a></td>
+            <td><span class="badge {{ 'badge--role' if a.kind in ['lab','imaging'] else 'badge--muted' }}">{{ t('visits.att_' ~ a.kind) if a.kind in ['lab','imaging','report','other'] else a.kind }}</span></td>
+            <td dir="ltr">{{ a.created_at.strftime('%Y-%m-%d') }}</td>
+            <td style="text-align:end;">
+              <form method="post" action="{{ url_for('patients.delete_document', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+                <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('visits.no_attachments') }}</p>
+      {% endif %}
+
+      <h4 class="section-title" style="margin-top:18px;"><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</h4>
+      <form method="post" action="{{ url_for('patients.upload_document', patient_id=patient.id) }}" enctype="multipart/form-data">
+        <div class="info-grid">
+          <div class="form-row"><label>{{ t('visits.att_label') }}</label><input class="input" name="label" placeholder="{{ t('visits.att_label_ph') }}"></div>
+          <div class="form-row"><label>{{ t('visits.att_kind') }}</label>
+            <select class="select" name="kind">
+              <option value="lab">{{ t('visits.att_lab') }}</option>
+              <option value="imaging">{{ t('visits.att_imaging') }}</option>
+              <option value="report">{{ t('visits.att_report') }}</option>
+              <option value="other">{{ t('visits.att_other') }}</option>
+            </select></div>
+          <div class="form-row"><label>{{ t('visits.att_file') }} *</label><input class="input" type="file" name="file" accept=".pdf,image/*" required></div>
+        </div>
+        <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</button>
+      </form>
     </div>
-    {% endfor %}
+
+    <!-- Prescriptions -->
+    <div class="gc-tab-panel" x-show="tab==='prescriptions'" x-cloak>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-capsule"></i> {{ t('patients.tab_prescriptions') }}</h3>
+        {% if current_user.can_access('prescriptions') %}
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}"><i class="bi bi-plus-lg"></i> {{ t('rx.new') }}</a>
+        {% endif %}
+      </div>
+      {% if prescriptions %}
+      <table class="table">
+        <thead><tr><th>{{ t('rx.date') }}</th><th>{{ t('rx.diagnosis') }}</th><th>{{ t('rx.items') }}</th><th>{{ t('rx.investigations') }}</th><th style="text-align:end;"></th></tr></thead>
+        <tbody>
+          {% for rx in prescriptions %}
+          <tr>
+            <td dir="ltr">{{ rx.rx_date }}</td>
+            <td>{{ rx.diagnosis or '—' }}</td>
+            <td>{{ rx.items | map(attribute='drug_name') | join('، ') if rx.items else '—' }}</td>
+            <td>{% set ic = rx.investigations | length %}{% if ic %}<span class="badge badge--role">{{ ic }}</span>{% else %}—{% endif %}</td>
+            <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.view', rx_id=rx.id) }}"><i class="bi bi-eye"></i></a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('patients.no_prescriptions') }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Finance -->
+    <div class="gc-tab-panel" x-show="tab==='finance'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('patients.tab_finance') }}</h3>
+      <div class="stat-grid" style="margin-bottom:14px;">
+        <div class="stat-card edge-blue"><div class="value">{{ fin.total }}</div><div class="label">{{ t('invoices.total') }}</div></div>
+        <div class="stat-card edge-green"><div class="value">{{ fin.paid }}</div><div class="label">{{ t('invoices.paid') }}</div></div>
+        <div class="stat-card {{ 'edge-red' if fin.balance > 0 else 'edge-green' }}"><div class="value">{{ fin.balance }}</div><div class="label">{{ t('invoices.balance') }}</div></div>
+      </div>
+      {% if invoices %}
+      <table class="table">
+        <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.total') }}</th><th>{{ t('invoices.paid') }}</th><th>{{ t('invoices.balance') }}</th><th>{{ t('invoices.status') }}</th><th style="text-align:end;"></th></tr></thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr>
+            <td dir="ltr">{{ inv.invoice_date }}</td>
+            <td>{{ inv.total }}</td>
+            <td style="color:var(--green-700);">{{ inv.paid }}</td>
+            <td style="{{ 'color:var(--danger);' if inv.balance > 0 else '' }}">{{ inv.balance }}</td>
+            <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
+            <td style="text-align:end;">{% if current_user.can_access('finance') %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}"><i class="bi bi-eye"></i></a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('patients.no_invoices') }}</p>
+      {% endif %}
+    </div>
   </div>
+
+  {% if ai_patient %}
+  <!-- AI assistant (reads this patient's file — opt-in, privacy-aware) -->
+  <div class="card gc-scale-in" x-data="patientAI('{{ url_for('ai.patient_chat', patient_id=patient.id) }}')">
+    <h3 class="section-title"><i class="bi bi-robot"></i> {{ t('patients.ai_title') }}</h3>
+    <div x-ref="log" style="max-height:40vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;">
+      <template x-for="(m,i) in messages" :key="i">
+        <div :style="m.role==='user' ? 'align-self:flex-end;background:var(--green-100,#e6f4ea);' : 'align-self:flex-start;background:var(--surface-2,#f3f4f6);'"
+             style="max-width:82%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.5;" x-text="m.content"></div>
+      </template>
+      <div x-show="busy" style="align-self:flex-start;color:var(--muted);font-size:0.85rem;">{{ t('ai.thinking') }}</div>
+      <div x-show="error" x-text="error" x-cloak style="align-self:flex-start;color:var(--danger,#c0392b);font-size:0.85rem;"></div>
+    </div>
+    <form x-on:submit.prevent="send()" style="display:flex;gap:8px;margin-top:10px;">
+      <input class="input" x-model="draft" :disabled="busy" dir="auto" style="flex:1;" autocomplete="off"
+             placeholder="{{ t('patients.ai_placeholder') }}">
+      <button class="btn btn-primary gc-press" type="submit" :disabled="busy || !draft.trim()"><i class="bi bi-send"></i></button>
+    </form>
+    <p class="hint" style="margin-top:8px;"><i class="bi bi-shield-lock"></i> {{ t('patients.ai_privacy') }}</p>
+  </div>
+  <script>
+  function patientAI(url){
+    return {
+      url, messages: [], draft: '', busy: false, error: '',
+      scroll(){ this.$nextTick(()=>{ var l=this.$refs.log; l.scrollTop=l.scrollHeight; }); },
+      async send(){
+        var text=this.draft.trim(); if(!text||this.busy) return;
+        this.error=''; this.messages.push({role:'user',content:text}); this.draft=''; this.busy=true; this.scroll();
+        try{
+          var res=await fetch(this.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:this.messages})});
+          var data=await res.json();
+          if(data.ok){ this.messages.push({role:'assistant',content:data.text}); }
+          else { this.error={{ t('ai.error') | tojson }}+' ('+(data.error||res.status)+')'; }
+        }catch(e){ this.error={{ t('ai.error') | tojson }}; }
+        finally{ this.busy=false; this.scroll(); }
+      }
+    };
+  }
+  </script>
+  {% endif %}
 
   <!-- Add parent modal -->
   <div class="gc-overlay" x-show="showParent" x-cloak x-transition.opacity

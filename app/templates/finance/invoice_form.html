@@ -36,6 +36,15 @@
           {% endfor %}
         </select></div>
       {% endif %}
+      {% if discounts %}
+      <div class="form-row"><label>{{ t('discounts.apply_named') }}</label>
+        <select class="select" name="discount_id">
+          <option value="">{{ t('discounts.none_select') }}</option>
+          {% for d in discounts %}
+          <option value="{{ d.id }}">{{ d.display_name(current_lang) }} — {{ d.value }}{{ '%' if d.is_percent else '' }} ({{ t('discounts.t_' ~ d.dtype) }})</option>
+          {% endfor %}
+        </select><div class="hint">{{ t('discounts.form_hint') }}</div></div>
+      {% endif %}
     </div>
   </div>
 

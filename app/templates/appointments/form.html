@@ -8,18 +8,71 @@
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('appointments.book') }}</p>
 
 <div class="card gc-scale-in" style="max-width:760px;animation-delay:0.1s;"
-     x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}')">
+     x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}', '{{ url_for('appointments.next_available_slot') }}', '{{ url_for('appointments.first_available') }}')">
   <form method="post">
+    {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
     <div class="form-grid">
-      <div class="form-row">
-        <label for="patient_id">{{ t('appointments.patient') }} *</label>
-        <select class="select" id="patient_id" name="patient_id" required>
-          <option value="" disabled selected>{{ t('appointments.select_patient') }}</option>
-          {% for p in patients %}
-            <option value="{{ p.id }}" {{ 'selected' if form.patient_id|string == p.id|string else '' }}>
-              {{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>
-          {% endfor %}
-        </select>
+      <div class="form-row" style="position:relative;"
+           x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson) if selected_patient else 'null' }})">
+        <label>{{ t('appointments.patient') }} *</label>
+        <input type="hidden" name="patient_id" :value="chosen ? chosen.id : ''" required>
+
+        <!-- Chosen patient chip -->
+        <template x-if="chosen">
+          <div class="chosen-patient">
+            <div>
+              <strong x-text="chosen.name"></strong>
+              <span class="muted" x-text="'— ' + chosen.number + ' · ' + chosen.age"></span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="clear()">
+              <i class="bi bi-x-lg"></i> {{ t('appointments.change_patient') }}</button>
+          </div>
+        </template>
+
+        <!-- Search box -->
+        <template x-if="!chosen">
+          <div>
+            <input class="input" type="search" autocomplete="off"
+                   x-model="q" x-on:input.debounce.250ms="search()"
+                   placeholder="{{ t('appointments.search_patient_ph') }}">
+            <div class="patient-results" x-show="q.length >= 2 && (results.length || !searching)" x-cloak>
+              <template x-for="p in results" :key="p.id">
+                <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
+                  <span x-text="p.name"></span>
+                  <span class="muted" x-text="p.number + ' · ' + p.age"></span>
+                </button>
+              </template>
+              <div x-show="!searching && results.length === 0" class="patient-result muted" style="cursor:default;">
+                {{ t('appointments.no_patient_found') }}
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
+                    x-on:click="quick.open = !quick.open">
+              <i class="bi bi-person-plus"></i> {{ t('appointments.quick_add_patient') }}</button>
+
+            <!-- Quick create -->
+            <div class="quick-add" x-show="quick.open" x-cloak>
+              <div class="form-grid">
+                <div class="form-row"><label>{{ t('patients.full_name') }} *</label>
+                  <input class="input" x-model="quick.full_name"></div>
+                <div class="form-row"><label>{{ t('patients.dob') }} *</label>
+                  <input class="input" type="date" x-model="quick.date_of_birth"></div>
+                <div class="form-row"><label>{{ t('patients.gender') }} *</label>
+                  <select class="select" x-model="quick.gender">
+                    <option value="">—</option>
+                    <option value="male">{{ t('genders.male') }}</option>
+                    <option value="female">{{ t('genders.female') }}</option>
+                  </select></div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button type="button" class="btn btn-primary btn-sm gc-press"
+                        x-on:click="createQuick()" :disabled="quick.busy">
+                  <i class="bi bi-check-lg"></i> {{ t('appointments.quick_add_save') }}</button>
+                <span class="muted" x-text="quick.error" style="color:var(--danger,#c0392b);font-size:0.85rem;"></span>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
       <div class="form-row">
         <label for="doctor_id">{{ t('appointments.doctor') }} *</label>
@@ -37,6 +90,14 @@
                value="{{ form.appt_date or '' }}" x-model="date" x-on:change="loadSlots()">
       </div>
       <div class="form-row">
+        <label for="appt_type">{{ t('appointments.visit_type') }}</label>
+        <select class="select" id="appt_type" name="appt_type">
+          {% for key, meta in appt_types.items() %}
+            <option value="{{ key }}" {{ 'selected' if (form.appt_type or 'new') == key else '' }}>{{ t('appt_types.' ~ key) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
         <label for="reason">{{ t('appointments.reason') }}</label>
         <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
       </div>
@@ -44,8 +105,17 @@
 
     <!-- Smart available slots -->
     <div class="form-row">
-      <label>{{ t('appointments.available_slots') }} *</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="margin:0;">{{ t('appointments.available_slots') }} *</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="nextAvailable()" :disabled="!doctorId">
+            <i class="bi bi-lightning-charge"></i> {{ t('appointments.find_next_available') }}</button>
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="firstAvailable()">
+            <i class="bi bi-stars"></i> {{ t('appointments.find_first_available') }}</button>
+        </div>
+      </div>
       <input type="hidden" name="appt_time" x-model="selected" required>
+      <div x-show="finderMsg" x-text="finderMsg" x-cloak class="placeholder-soft" style="color:#b45309;"></div>
       <div x-show="!doctorId || !date" class="placeholder-soft"><i class="bi bi-info-circle"></i> {{ t('appointments.pick_doctor_date') }}</div>
       <div x-show="loading" class="placeholder-soft"><span class="gc-spinner" style="border-color:var(--green-100);border-top-color:var(--green-600);"></span> {{ t('common.loading') }}</div>
       <div x-show="doctorId && date && !loading && slots.length === 0" class="placeholder-soft" style="color:#b45309;"><i class="bi bi-exclamation-triangle"></i> {{ t('appointments.no_slots') }}</div>
@@ -71,17 +141,31 @@
     font-family:inherit; font-size:0.88rem; cursor:pointer; transition:all .15s ease; font-variant-numeric:tabular-nums; }
   .slot-chip:hover { border-color:var(--green-500); color:var(--green-700); }
   .slot-chip.active { background:var(--green-700); color:#fff; border-color:var(--green-700); }
+  .chosen-patient { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    flex-wrap:wrap; padding:10px 12px; border:1px solid var(--green-200,var(--line)); border-radius:10px;
+    background:var(--green-050,#f3faf5); }
+  .chosen-patient .muted, .patient-result .muted { color:var(--muted); font-size:0.85rem; }
+  .patient-results { position:absolute; z-index:20; left:0; right:0; margin-top:4px; background:#fff;
+    border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.10);
+    max-height:240px; overflow-y:auto; }
+  .patient-result { display:flex; justify-content:space-between; gap:10px; width:100%; text-align:start;
+    padding:9px 12px; background:none; border:0; border-bottom:1px solid var(--line); font-family:inherit;
+    font-size:0.9rem; cursor:pointer; }
+  .patient-result:last-child { border-bottom:0; }
+  .patient-result:hover { background:var(--green-050,#f3faf5); }
+  .quick-add { margin-top:10px; padding:12px; border:1px dashed var(--line); border-radius:10px; }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  function slotPicker(url, preselected) {
+  function slotPicker(url, preselected, nextUrl, firstUrl) {
     return {
-      url, doctorId: '{{ form.doctor_id or '' }}', date: '{{ form.appt_date or '' }}',
-      slots: [], selected: preselected, loading: false,
+      url, nextUrl, firstUrl,
+      doctorId: '{{ form.doctor_id or '' }}', date: '{{ form.appt_date or '' }}',
+      slots: [], selected: preselected, loading: false, finderMsg: '',
       async loadSlots() {
-        this.selected = '';
+        this.selected = ''; this.finderMsg = '';
         if (!this.doctorId || !this.date) { this.slots = []; return; }
         this.loading = true;
         try {
@@ -91,7 +175,73 @@
         } catch (e) { this.slots = []; }
         this.loading = false;
       },
+      async _applyFound(data) {
+        if (!data.found) { this.finderMsg = {{ t('appointments.no_availability') | tojson }}; return; }
+        if (data.doctor_id) this.doctorId = String(data.doctor_id);
+        this.date = data.date;
+        await this.loadSlots();
+        this.selected = data.time;
+      },
+      async nextAvailable() {
+        if (!this.doctorId) return;
+        this.finderMsg = '';
+        try {
+          const from = this.date ? `&date=${this.date}` : '';
+          const res = await fetch(`${this.nextUrl}?doctor_id=${this.doctorId}${from}`);
+          await this._applyFound(await res.json());
+        } catch (e) {}
+      },
+      async firstAvailable() {
+        this.finderMsg = '';
+        try {
+          const from = this.date ? `?date=${this.date}` : '';
+          const res = await fetch(`${this.firstUrl}${from}`);
+          await this._applyFound(await res.json());
+        } catch (e) {}
+      },
       init() { if (this.doctorId && this.date) this.loadSlots(); }
+    };
+  }
+
+  function patientPicker(searchUrl, quickUrl, preselected) {
+    return {
+      searchUrl, quickUrl,
+      chosen: preselected || null,
+      q: '', results: [], searching: false,
+      quick: { open: false, full_name: '', date_of_birth: '', gender: '', busy: false, error: '' },
+      async search() {
+        if (this.q.trim().length < 2) { this.results = []; return; }
+        this.searching = true;
+        try {
+          const res = await fetch(`${this.searchUrl}?q=${encodeURIComponent(this.q.trim())}`);
+          const data = await res.json();
+          this.results = data.patients || [];
+        } catch (e) { this.results = []; }
+        this.searching = false;
+      },
+      pick(p) { this.chosen = p; this.results = []; this.q = ''; },
+      clear() { this.chosen = null; this.q = ''; this.results = []; },
+      async createQuick() {
+        this.quick.error = '';
+        if (!this.quick.full_name.trim() || !this.quick.gender || !this.quick.date_of_birth) {
+          this.quick.error = {{ t('appointments.qc_fill_all') | tojson }}; return;
+        }
+        this.quick.busy = true;
+        try {
+          const res = await fetch(this.quickUrl, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              full_name: this.quick.full_name, gender: this.quick.gender,
+              date_of_birth: this.quick.date_of_birth })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.pick(data.patient);
+            this.quick = { open: false, full_name: '', date_of_birth: '', gender: '', busy: false, error: '' };
+          } else { this.quick.error = data.error || {{ t('common.error') | tojson }}; }
+        } catch (e) { this.quick.error = {{ t('common.error') | tojson }}; }
+        this.quick.busy = false;
+      }
     };
   }
 </script>

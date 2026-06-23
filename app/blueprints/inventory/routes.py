@@ -15,6 +15,8 @@ from app.i18n import t
 from app.models import (
     MOVEMENT_KINDS,
     ActivityLog,
+    PurchaseOrder,
+    PurchaseOrderItem,
     StockMovement,
     StoreItem,
     Supplier,
@@ -275,3 +277,192 @@ def stocktake():
         flash(t("store.stocktake_done").replace("{n}", str(adjusted)), "success")
         return redirect(url_for("inventory.store"))
     return render_template("inventory/stocktake.html", items=items)
+
+
+# ================================================= purchase orders =========
+def _po_number():
+    """Sequential PO number like PO-2026-0007."""
+    year = datetime.utcnow().year
+    prefix = f"PO-{year}-"
+    last = (PurchaseOrder.query.filter(PurchaseOrder.po_number.like(prefix + "%"))
+            .order_by(PurchaseOrder.id.desc()).first())
+    seq = 1
+    if last and last.po_number:
+        try:
+            seq = int(last.po_number.rsplit("-", 1)[1]) + 1
+        except (ValueError, IndexError):
+            seq = PurchaseOrder.query.count() + 1
+    return f"{prefix}{seq:04d}"
+
+
+@inventory_bp.route("/purchase")
+@module_required(MODULE)
+def purchases():
+    status = (request.args.get("status") or "").strip()
+    q = PurchaseOrder.query
+    if status in ("draft", "approved", "partial", "received", "cancelled"):
+        q = q.filter(PurchaseOrder.status == status)
+    orders = q.order_by(PurchaseOrder.id.desc()).limit(200).all()
+    return render_template("inventory/purchases.html", orders=orders, status=status)
+
+
+@inventory_bp.route("/purchase/new", methods=["GET", "POST"])
+@module_required(MODULE)
+def purchase_new():
+    if request.method == "POST":
+        po = PurchaseOrder(
+            po_number=_po_number(),
+            supplier_id=request.form.get("supplier_id", type=int) or None,
+            order_date=_parse_date("order_date") or datetime.utcnow().date(),
+            expected_date=_parse_date("expected_date"),
+            notes=(request.form.get("notes") or "").strip() or None,
+            created_by=current_user.id, status="draft",
+        )
+        db.session.add(po)
+        db.session.flush()
+
+        names = request.form.getlist("item_desc")
+        item_ids = request.form.getlist("item_store_id")
+        qtys = request.form.getlist("item_qty")
+        costs = request.form.getlist("item_cost")
+        count = 0
+        for i in range(len(names)):
+            desc = (names[i] or "").strip()
+            qty = _to_int(qtys[i] if i < len(qtys) else "")
+            if not desc or qty <= 0:
+                continue
+            po.items.append(PurchaseOrderItem(
+                store_item_id=_to_int(item_ids[i]) or None if i < len(item_ids) else None,
+                description=desc, qty_ordered=qty,
+                unit_cost=_to_float(costs[i] if i < len(costs) else ""),
+            ))
+            count += 1
+        if count == 0:
+            db.session.rollback()
+            flash(t("purchases.need_item"), "warning")
+            return redirect(url_for("inventory.purchase_new"))
+        ActivityLog.record("po.create", user_id=current_user.id, entity="purchase",
+                           entity_id=po.id, detail=po.po_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("purchases.created"), "success")
+        return redirect(url_for("inventory.purchase_view", po_id=po.id))
+
+    return render_template("inventory/purchase_form.html",
+                           suppliers=_suppliers(),
+                           items=StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all())
+
+
+@inventory_bp.route("/purchase/<int:po_id>")
+@module_required(MODULE)
+def purchase_view(po_id):
+    po = db.get_or_404(PurchaseOrder, po_id)
+    return render_template("inventory/purchase_view.html", po=po)
+
+
+@inventory_bp.route("/purchase/<int:po_id>/approve", methods=["POST"])
+@module_required(MODULE)
+def purchase_approve(po_id):
+    po = db.get_or_404(PurchaseOrder, po_id)
+    if po.status == "draft":
+        po.status = "approved"
+        po.approved_by = current_user.id
+        po.approved_at = datetime.utcnow()
+        ActivityLog.record("po.approve", user_id=current_user.id, entity="purchase",
+                           entity_id=po.id, detail=po.po_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("purchases.approved"), "success")
+    return redirect(url_for("inventory.purchase_view", po_id=po.id))
+
+
+@inventory_bp.route("/purchase/<int:po_id>/receive", methods=["POST"])
+@module_required(MODULE)
+def purchase_receive(po_id):
+    """GRN: post received quantities into stock as 'in' movements."""
+    po = db.get_or_404(PurchaseOrder, po_id)
+    if po.status not in ("approved", "partial"):
+        flash(t("purchases.cannot_receive"), "warning")
+        return redirect(url_for("inventory.purchase_view", po_id=po.id))
+
+    posted = 0
+    receipt_value = 0.0   # value of THIS GRN only (not cumulative)
+    for item in po.items:
+        recv = _to_int(request.form.get(f"recv_{item.id}", ""))
+        if recv <= 0:
+            continue
+        # Don't receive more than outstanding.
+        recv = min(recv, item.outstanding)
+        if recv <= 0:
+            continue
+        item.qty_received = (item.qty_received or 0) + recv
+        receipt_value += recv * (item.unit_cost or 0)
+        if item.store_item_id:
+            db.session.add(StockMovement(
+                item_id=item.store_item_id, kind="in", qty=recv,
+                reason=t("purchases.grn_reason", po=po.po_number),
+                unit_cost=item.unit_cost, supplier_id=po.supplier_id,
+                created_by=current_user.id,
+            ))
+        posted += 1
+
+    if posted == 0:
+        flash(t("purchases.nothing_received"), "warning")
+        return redirect(url_for("inventory.purchase_view", po_id=po.id))
+
+    po.recalc_status()
+    if po.status == "received":
+        po.received_at = datetime.utcnow()
+
+    # Optionally record this receipt's value as a clinic expense.
+    if request.form.get("as_expense") and receipt_value > 0:
+        from app.models import Expense
+        db.session.add(Expense(
+            expense_date=datetime.utcnow().date(), category="supplies",
+            description=t("purchases.grn_reason", po=po.po_number),
+            amount=round(receipt_value, 2),
+            vendor=(po.supplier.name if po.supplier else None),
+            created_by=current_user.id,
+        ))
+
+    ActivityLog.record("po.receive", user_id=current_user.id, entity="purchase",
+                       entity_id=po.id, detail=po.po_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t("purchases.received_ok"), "success")
+    return redirect(url_for("inventory.purchase_view", po_id=po.id))
+
+
+@inventory_bp.route("/purchase/<int:po_id>/cancel", methods=["POST"])
+@module_required(MODULE)
+def purchase_cancel(po_id):
+    po = db.get_or_404(PurchaseOrder, po_id)
+    if po.status != "received":
+        po.status = "cancelled"
+        db.session.commit()
+        flash(t("purchases.cancelled"), "info")
+    return redirect(url_for("inventory.purchase_view", po_id=po.id))
+
+
+@inventory_bp.route("/purchase/<int:po_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def purchase_delete(po_id):
+    po = db.get_or_404(PurchaseOrder, po_id)
+    if po.status != "draft":
+        flash(t("purchases.only_draft_delete"), "warning")
+        return redirect(url_for("inventory.purchase_view", po_id=po.id))
+    db.session.delete(po)
+    db.session.commit()
+    flash(t("purchases.deleted"), "info")
+    return redirect(url_for("inventory.purchases"))
+
+
+def _to_int(raw):
+    try:
+        return int(float((raw or "").strip()))
+    except (ValueError, AttributeError):
+        return 0
+
+
+def _to_float(raw):
+    try:
+        return float((raw or "").strip())
+    except (ValueError, AttributeError):
+        return 0.0

@@ -76,11 +76,63 @@
     </form>
   </div>
 </div>
+
+<!-- Time off & breaks -->
+<div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start;margin-top:18px;">
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-calendar-x"></i> {{ t('appointments.time_off_title') }}</h2>
+    {% if exceptions %}
+    <table class="table">
+      <tbody>
+        {% for e in exceptions %}
+        <tr>
+          <td><strong>{{ e.exc_date.strftime('%Y-%m-%d') }}</strong> · {{ t('weekdays.' ~ e.exc_date.weekday()) }}</td>
+          <td>{% if e.is_full_day %}<span class="type-tag tt-red">{{ t('appointments.full_day') }}</span>
+              {% else %}<span class="type-tag tt-orange">{{ e.start_time.strftime('%H:%M') }}–{{ e.end_time.strftime('%H:%M') }}</span>{% endif %}</td>
+          <td style="color:var(--muted);">{{ e.reason or '—' }}</td>
+          <td style="text-align:end;">
+            <form method="post" action="{{ url_for('appointments.delete_exception', exc_id=e.id) }}" style="display:inline;">
+              <button class="btn-x" type="submit" title="{{ t('common.delete') }}"><i class="bi bi-x"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="placeholder-soft">{{ t('appointments.no_time_off') }}</div>
+    {% endif %}
+  </div>
+
+  <div class="card gc-scale-in" x-data="{ fullDay: true }">
+    <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('appointments.add_time_off') }}</h2>
+    <form method="post" action="{{ url_for('appointments.add_exception') }}">
+      <input type="hidden" name="doctor_id" value="{{ selected }}">
+      <div class="form-row"><label>{{ t('appointments.date') }} *</label>
+        <input class="input" type="date" name="exc_date" required></div>
+      <div class="form-row checkbox">
+        <input type="checkbox" id="is_full_day" name="is_full_day" value="1" x-model="fullDay" checked>
+        <label for="is_full_day" style="margin:0;font-weight:400;">{{ t('appointments.full_day') }}</label>
+      </div>
+      <div class="form-grid" x-show="!fullDay" x-cloak>
+        <div class="form-row"><label>{{ t('appointments.start_time') }}</label>
+          <input class="input" type="time" name="start_time" value="13:00"></div>
+        <div class="form-row"><label>{{ t('appointments.end_time') }}</label>
+          <input class="input" type="time" name="end_time" value="14:00"></div>
+      </div>
+      <div class="form-row"><label>{{ t('appointments.exc_reason') }}</label>
+        <input class="input" name="reason"></div>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-plus-lg"></i> {{ t('appointments.add_time_off') }}</button>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block head %}
 <style>
   .btn-x { border:none; background:none; cursor:pointer; color:var(--green-800); padding:0 2px; opacity:.7; }
   .btn-x:hover { opacity:1; color:var(--danger); }
+  .type-tag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:0.74rem; font-weight:600; }
+  .tt-red{background:#fee2e2;color:#b91c1c;} .tt-orange{background:#ffedd5;color:#c2410c;}
 </style>
 {% endblock %}

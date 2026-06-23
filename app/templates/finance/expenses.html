@@ -1,0 +1,100 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('expenses.title') }}{% endblock %}
+{% block page_heading %}{{ t('expenses.title') }}{% endblock %}
+
+{% macro cat_options(sel='') %}
+  {% for c in categories %}<option value="{{ c }}" {{ 'selected' if sel==c else '' }}>{{ t('expenses.cat_' ~ c) }}</option>{% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('expenses.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('expenses.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <form method="get" style="display:flex;gap:6px;align-items:center;">
+      <input class="input" type="month" name="month" value="{{ month }}" onchange="this.form.submit()">
+    </form>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.pnl', month=month) }}"><i class="bi bi-graph-up-arrow"></i> {{ t('pnl.title') }}</a>
+  </div>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-red"><i class="bi bi-cash-stack ico"></i>
+    <div class="value">{{ month_total }}</div><div class="label">{{ t('expenses.month_total') }}</div></div>
+</div>
+
+<!-- Add expense -->
+<details class="card gc-scale-in">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('expenses.add') }}</summary>
+  <form method="post" action="{{ url_for('finance.expense_new') }}" style="margin-top:12px;">
+    <input type="hidden" name="month" value="{{ month }}">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('expenses.category') }}</label><select class="select" name="category">{{ cat_options('other') }}</select></div>
+      <div class="form-row"><label>{{ t('expenses.amount') }} *</label><input class="input" type="number" step="0.01" name="amount" required></div>
+      <div class="form-row"><label>{{ t('expenses.date') }}</label><input class="input" type="date" name="expense_date"></div>
+      <div class="form-row"><label>{{ t('expenses.description') }}</label><input class="input" name="description"></div>
+      <div class="form-row"><label>{{ t('expenses.vendor') }}</label><input class="input" name="vendor"></div>
+      <div class="form-row"><label>{{ t('expenses.payment_method') }}</label>
+        <select class="select" name="payment_method"><option value="">—</option>
+          {% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
+    </div>
+    <label class="form-row checkbox" style="margin:0 0 10px;"><input type="checkbox" name="is_recurring" value="1">
+      <span style="font-weight:400;">{{ t('expenses.is_recurring') }}</span></label>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<!-- Recurring (fixed monthly) -->
+{% if recurring %}
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-arrow-repeat"></i> {{ t('expenses.recurring_title') }}</h2>
+  <table class="table">
+    <thead><tr><th>{{ t('expenses.category') }}</th><th>{{ t('expenses.description') }}</th><th>{{ t('expenses.amount') }}</th><th style="text-align:end;"></th></tr></thead>
+    <tbody>
+      {% for e in recurring %}
+      <tr>
+        <td><span class="badge badge--role">{{ t('expenses.cat_' ~ e.category) }}</span></td>
+        <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}</td>
+        <td><strong>{{ e.amount }}</strong></td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <input type="hidden" name="month" value="{{ month }}">
+            <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- One-off this month -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <div style="padding:14px 16px 0;"><h2 class="section-title"><i class="bi bi-receipt"></i> {{ t('expenses.month_expenses') }}</h2></div>
+  {% if one_off %}
+  <table class="table">
+    <thead><tr><th>{{ t('expenses.date') }}</th><th>{{ t('expenses.category') }}</th><th>{{ t('expenses.description') }}</th><th>{{ t('expenses.amount') }}</th><th style="text-align:end;"></th></tr></thead>
+    <tbody>
+      {% for e in one_off %}
+      <tr>
+        <td dir="ltr">{{ e.expense_date }}</td>
+        <td><span class="badge badge--muted">{{ t('expenses.cat_' ~ e.category) }}</span></td>
+        <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}</td>
+        <td><strong>{{ e.amount }}</strong></td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <input type="hidden" name="month" value="{{ month }}">
+            <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-receipt"></i>{{ t('expenses.none') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

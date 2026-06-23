@@ -19,7 +19,26 @@
           <option value="">—</option>
           {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if current_user.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
-      <div class="form-row"><label>{{ t('rx.diagnosis') }}</label><input class="input" name="diagnosis"></div>
+      <div class="form-row" style="position:relative;"><label>{{ t('rx.diagnosis') }}</label>
+        <input type="hidden" name="diagnosis_code" x-model="dxCode">
+        <input class="input" name="diagnosis" x-model="dx" autocomplete="off"
+               placeholder="{{ t('rx.diagnosis_search_ph') }}"
+               x-on:input.debounce.250ms="searchDx()" x-on:focus="searchDx()">
+        <div x-show="dxOpen && dxSug.length" x-cloak
+             style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
+          <template x-for="s in dxSug" :key="s.code">
+            <div x-on:click="pickDx(s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
+                 x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+              <span class="badge badge--role" x-text="s.code"></span>
+              <span x-text="current_lang==='ar' ? s.ar : s.en"></span>
+            </div>
+          </template>
+        </div>
+        <div class="hint" x-show="dxCode" x-cloak>ICD-10: <span x-text="dxCode"></span></div>
+      </div>
+      <div class="form-row"><label>{{ t('rx.child_weight') }}</label>
+        <input class="input" type="number" step="0.1" min="0" x-model="weight" x-on:input="recalc()" placeholder="kg">
+        <div class="hint">{{ t('rx.child_weight_hint') }}</div></div>
     </div>
   </div>
 
@@ -44,6 +63,8 @@
             </template>
           </div>
           <div class="hint" x-show="line.max" x-cloak>{{ t('rx.max_hint') }}: <span x-text="line.max"></span></div>
+          <div class="hint" x-show="line.calc" x-cloak style="color:var(--green-700);">
+            <i class="bi bi-calculator"></i> <span x-text="line.calc"></span></div>
         </div>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="item_dose" x-model="line.dose"></div>
@@ -51,9 +72,54 @@
           <div class="form-row"><label>{{ t('rx.duration') }}</label><input class="input" name="item_duration" x-model="line.duration"></div>
           <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
         </div>
+        {% if ai_ready %}
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="aiDose(i)" :disabled="line.aiBusy || !line.name">
+            <i class="bi bi-robot"></i> <span x-text="line.aiBusy ? {{ t('ai.thinking') | tojson }} : {{ t('rx.ai_suggest') | tojson }}"></span></button>
+          <span class="hint" x-show="line.aiNote" x-cloak x-text="line.aiNote" style="color:var(--green-700);"></span>
+        </div>
+        {% endif %}
       </div>
     </template>
     <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('rx.add_drug_line') }}</button>
+  </div>
+
+  <!-- Investigations: lab tests + imaging -->
+  <div class="card gc-scale-in" style="animation-delay:0.08s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('rx.investigations') }}</h2>
+    <template x-for="(inv, i) in invs" :key="'inv'+i">
+      <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
+        <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="invs.splice(i,1)"><i class="bi bi-x-lg"></i></button>
+        <input type="hidden" name="inv_id" :value="inv.id">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('rx.inv_kind') }}</label>
+            <select class="select" name="inv_kind" x-model="inv.kind">
+              <option value="lab">{{ t('rx.inv_lab') }}</option>
+              <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+            </select></div>
+          <div class="form-row" style="position:relative;">
+            <label>{{ t('rx.inv_name') }}</label>
+            <input class="input" name="inv_name" x-model="inv.name" autocomplete="off"
+                   placeholder="{{ t('rx.inv_search_ph') }}"
+                   x-on:input.debounce.250ms="searchInv(i)" x-on:focus="searchInv(i)">
+            <div x-show="inv.open && inv.suggestions.length" x-cloak
+                 style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
+              <template x-for="s in inv.suggestions" :key="s.id">
+                <div x-on:click="pickInv(i,s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
+                     x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+                  <strong x-text="s.name"></strong> <span style="color:var(--muted);font-size:0.8rem;" x-text="s.category"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="form-row"><label>{{ t('rx.inv_notes') }}</label><input class="input" name="inv_notes" x-model="inv.notes"></div>
+        </div>
+      </div>
+    </template>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addInv('lab')"><i class="bi bi-plus-lg"></i> {{ t('rx.add_lab') }}</button>
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addInv('imaging')"><i class="bi bi-plus-lg"></i> {{ t('rx.add_imaging') }}</button>
+    </div>
   </div>
 
   <div class="card gc-scale-in" style="animation-delay:0.1s;">
@@ -67,10 +133,55 @@
 </form>
 
 <script>
+window.current_lang = "{{ current_lang }}";
 function rxForm(){
   return {
-    lines: [],
-    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false}); },
+    lines: [], invs: [], weight: '',
+    dx: '', dxCode: '', dxSug: [], dxOpen: false,
+    async searchDx(){
+      var q=(this.dx||'').trim(); if(q.length<1){ this.dxSug=[]; this.dxOpen=false; this.dxCode=''; return; }
+      try{ var r=await fetch("{{ url_for('prescriptions.icd_search') }}?q="+encodeURIComponent(q));
+        this.dxSug=await r.json(); this.dxOpen=true;
+      }catch(e){ this.dxSug=[]; this.dxOpen=false; }
+    },
+    pickDx(s){ this.dx=(current_lang==='ar'?s.ar:s.en); this.dxCode=s.code; this.dxOpen=false; this.dxSug=[]; },
+    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    async aiDose(i){
+      var l=this.lines[i]; if(!l.name || l.aiBusy) return;
+      l.aiBusy=true; l.aiNote='';
+      try{
+        var res=await fetch("{{ url_for('prescriptions.ai_dose') }}",{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({drug:l.name, weight:this.weight, diagnosis:this.dx})});
+        var d=await res.json();
+        if(d.ok){
+          if(d.dose) l.dose=d.dose; if(d.frequency) l.frequency=d.frequency; if(d.duration) l.duration=d.duration;
+          l.aiNote=d.note || '';
+        } else { l.aiNote={{ t('ai.error') | tojson }}+' ('+(d.error||res.status)+')'; }
+      }catch(e){ l.aiNote={{ t('ai.error') | tojson }}; }
+      finally{ l.aiBusy=false; }
+    },
+    // Compute the weight-based suggestion text for a line and (re)fill its dose.
+    computeLine(l, fillDose){
+      const w = parseFloat(this.weight);
+      if(!(w>0) || !l.dosePerKg){ l.calc=''; return; }
+      const mg = Math.round(w * l.dosePerKg);
+      let txt = "{{ t('rx.suggested') }}: " + mg + " mg";
+      if(l.conc){ const ml = (mg / l.conc); txt += " ≈ " + (Math.round(ml*10)/10) + " ml"; }
+      if(l.maxPerKg){ txt += " · {{ t('rx.max_per_day') }} " + Math.round(w*l.maxPerKg) + " mg"; }
+      l.calc = txt;
+      if(fillDose){ l.dose = mg + " mg" + (l.conc ? " ("+(Math.round((mg/l.conc)*10)/10)+" ml)" : ""); }
+    },
+    recalc(){ this.lines.forEach(l => this.computeLine(l, true)); },
+    addInv(kind){ this.invs.push({id:'',kind:kind,name:'',notes:'',suggestions:[],open:false}); },
+    async searchInv(i){
+      const v=this.invs[i]; const q=(v.name||'').trim();
+      if(q.length<1){ v.suggestions=[]; v.open=false; return; }
+      try{
+        const r=await fetch("{{ url_for('prescriptions.investigation_search') }}?kind="+v.kind+"&q="+encodeURIComponent(q));
+        v.suggestions=await r.json(); v.open=true;
+      }catch(e){ v.suggestions=[]; v.open=false; }
+    },
+    pickInv(i,s){ const v=this.invs[i]; v.id=s.id; v.name=s.name; v.kind=s.kind; v.open=false; v.suggestions=[]; },
     async search(i){
       const l=this.lines[i]; const q=(l.name||'').trim();
       if(q.length<1){ l.suggestions=[]; l.open=false; return; }
@@ -82,8 +193,13 @@ function rxForm(){
     pick(i,s){
       const l=this.lines[i];
       l.drug_id=s.id; l.name=s.trade + (s.strength? ' '+s.strength:'');
-      if(!l.dose) l.dose=s.dose; if(!l.frequency) l.frequency=s.frequency;
+      if(!l.frequency) l.frequency=s.frequency;
       if(!l.instructions) l.instructions=s.instructions; l.max=s.max;
+      l.dosePerKg=s.dose_per_kg; l.maxPerKg=s.max_per_kg; l.conc=s.conc;
+      // Weight-based dose when a weight is set; else the drug's text default.
+      const w=parseFloat(this.weight);
+      if(w>0 && l.dosePerKg){ this.computeLine(l, true); }
+      else if(!l.dose){ l.dose=s.dose; }
       l.open=false; l.suggestions=[];
     }
   };

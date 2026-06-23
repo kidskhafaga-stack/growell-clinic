@@ -1,0 +1,67 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.analytics') }}{% endblock %}
+{% block page_heading %}{{ t('reports.analytics') }}{% endblock %}
+
+{% macro daterange() %}
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('reports.apply') }}</button>
+  </form>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('reports.analytics') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('reports.analytics_desc') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('reports.analytics_export', fmt='xlsx', date_from=date_from, date_to=date_to) }}"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('reports.analytics_export', fmt='csv', date_from=date_from, date_to=date_to) }}"><i class="bi bi-filetype-csv"></i> CSV</a>
+  </div>
+</div>
+
+<div class="card gc-animate" style="margin-bottom:16px;">{{ daterange() }}</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card edge-blue"><i class="bi bi-clipboard2-data ico"></i>
+    <div class="value">{{ total }}</div><div class="label">{{ t('reports.cases') }}</div></div>
+  {% for g, n in by_gender %}
+  <div class="stat-card {{ 'edge-blue' if g=='male' else 'edge-red' }}"><i class="bi bi-gender-{{ 'male' if g=='male' else 'female' }} ico"></i>
+    <div class="value">{{ n }}</div><div class="label">{{ t('genders.' ~ g) }}</div></div>
+  {% endfor %}
+</div>
+
+<div class="grid" style="grid-template-columns:1.3fr 1fr;gap:16px;align-items:start;">
+  <!-- Top diagnoses -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-bar-chart-line"></i> {{ t('reports.top_diagnoses') }}</h2>
+    {% if top_dx %}
+    <table class="table">
+      <thead><tr><th>{{ t('rx.diagnosis') }}</th><th style="text-align:end;">{{ t('reports.count') }}</th></tr></thead>
+      <tbody>
+        {% for title, n in top_dx %}
+        <tr><td>{{ title }}</td><td style="text-align:end;"><strong>{{ n }}</strong></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p style="color:var(--muted);">{{ t('reports.no_data') }}</p>{% endif %}
+  </div>
+
+  <!-- Age distribution -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-people"></i> {{ t('reports.by_age') }}</h2>
+    {% set maxn = (age_rows | map(attribute=1) | max) or 1 %}
+    {% for b, n in age_rows %}
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:0.88rem;"><span>{{ b }}</span><strong>{{ n }}</strong></div>
+      <div style="height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:3px;">
+        <div style="height:100%;width:{{ (n / maxn * 100) | round }}%;background:var(--green-600);"></div></div>
+    </div>
+    {% endfor %}
+    <p class="hint" style="margin-top:10px;"><i class="bi bi-info-circle"></i> {{ t('reports.export_hint') }}</p>
+  </div>
+</div>
+{% endblock %}

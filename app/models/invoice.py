@@ -25,6 +25,9 @@ class Invoice(db.Model):
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=True, index=True)
     coverage_card = db.Column(db.String(60))   # snapshot: membership/card no.
     coverage_expiry = db.Column(db.Date)        # snapshot: card expiry
+    # Named discount applied to this invoice (snapshot of the rule's name).
+    discount_id = db.Column(db.Integer, db.ForeignKey("named_discounts.id"), nullable=True)
+    discount_name = db.Column(db.String(120))
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     invoice_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)

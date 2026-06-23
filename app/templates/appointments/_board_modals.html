@@ -1,0 +1,122 @@
+{# Booking board modals. Rendered inside the board() Alpine scope. #}
+
+{% macro patient_search_box() %}
+  <template x-if="!chosen">
+    <div>
+      <input class="input" type="search" autocomplete="off" x-model="q"
+             x-on:input.debounce.250ms="searchPatients()"
+             placeholder="{{ t('appointments.search_patient_ph') }}">
+      <div class="mini-results" x-show="results.length" x-cloak>
+        <template x-for="p in results" :key="p.id">
+          <button type="button" class="mini-result gc-press" x-on:click="pickPatient(p)">
+            <span x-text="p.name"></span>
+            <span style="color:var(--muted);font-size:0.85rem;" x-text="p.number + ' · ' + p.age"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+  </template>
+  <template x-if="chosen">
+    <div class="chosen-patient" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;">
+      <span><strong x-text="chosen.name"></strong>
+        <span style="color:var(--muted);" x-text="' — ' + chosen.number"></span></span>
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="chosen=null">
+        <i class="bi bi-x-lg"></i></button>
+    </div>
+  </template>
+{% endmacro %}
+
+{% macro doctor_select(model) %}
+  <select class="select" x-model="{{ model }}">
+    {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}
+  </select>
+{% endmacro %}
+
+{% macro type_select(model) %}
+  <select class="select" x-model="{{ model }}">
+    {% for key in appt_types %}<option value="{{ key }}">{{ t('appt_types.' ~ key) }}</option>{% endfor %}
+  </select>
+{% endmacro %}
+
+<!-- Reschedule -->
+<div class="gc-modal-overlay" x-show="modal==='reschedule'" x-cloak x-on:click.self="close()">
+  <div class="gc-modal">
+    <h3 style="margin:0 0 14px;"><i class="bi bi-arrow-left-right"></i> {{ t('appointments.reschedule_title') }}</h3>
+    <div class="form-row"><label>{{ t('appointments.change_doctor') }}</label>
+      <select class="select" x-model="rs.doctorId" x-on:change="loadRsSlots()">
+        {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('appointments.date') }}</label>
+      <input class="input" type="date" x-model="rs.date" x-on:change="loadRsSlots()"></div>
+    <div class="form-row"><label>{{ t('appointments.available_slots') }}</label>
+      <div x-show="rs.loading" class="placeholder-soft">{{ t('common.loading') }}</div>
+      <div x-show="!rs.loading && rs.slots.length===0" class="placeholder-soft" style="color:#b45309;">{{ t('appointments.no_slots') }}</div>
+      <div class="slot-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
+        <template x-for="s in rs.slots" :key="s">
+          <button type="button" class="slot-chip gc-press" :class="rs.selected===s && 'active'" x-text="s" x-on:click="rs.selected=s"></button>
+        </template>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="btn btn-outline gc-press" x-on:click="close()">{{ t('common.cancel') }}</button>
+      <button type="button" class="btn btn-primary gc-press" x-on:click="submitReschedule()" :disabled="!rs.selected">
+        <i class="bi bi-check-lg"></i> {{ t('appointments.reschedule') }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel with reason -->
+<div class="gc-modal-overlay" x-show="modal==='cancel'" x-cloak x-on:click.self="close()">
+  <div class="gc-modal" style="max-width:440px;">
+    <h3 style="margin:0 0 14px;"><i class="bi bi-x-circle"></i> {{ t('appointments.cancel_reason_prompt') }}</h3>
+    <div class="form-row"><label>{{ t('appointments.cancel_reason') }}</label>
+      <textarea class="input" rows="3" x-model="cancel.reason" dir="auto"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="btn btn-outline gc-press" x-on:click="close()">{{ t('common.back') }}</button>
+      <button type="button" class="btn btn-primary gc-press" x-on:click="submitCancel()">
+        <i class="bi bi-check-lg"></i> {{ t('common.confirm') }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Walk-in -->
+<div class="gc-modal-overlay" x-show="modal==='walkin'" x-cloak x-on:click.self="close()">
+  <div class="gc-modal">
+    <h3 style="margin:0 0 14px;"><i class="bi bi-person-walking"></i> {{ t('appointments.walk_in_title') }}</h3>
+    <div class="form-row"><label>{{ t('appointments.patient') }} *</label>{{ patient_search_box() }}</div>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('appointments.doctor') }} *</label>{{ doctor_select('f.doctorId') }}</div>
+      <div class="form-row"><label>{{ t('appointments.visit_type') }}</label>{{ type_select('f.appt_type') }}</div>
+    </div>
+    <div class="form-row"><label>{{ t('appointments.reason') }}</label><input class="input" x-model="f.reason"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="btn btn-outline gc-press" x-on:click="close()">{{ t('common.cancel') }}</button>
+      <button type="button" class="btn btn-primary gc-press" x-on:click="submitWalkIn()" :disabled="!chosen || !f.doctorId">
+        <i class="bi bi-check-lg"></i> {{ t('appointments.walk_in_btn') }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to waiting list -->
+<div class="gc-modal-overlay" x-show="modal==='waitlist'" x-cloak x-on:click.self="close()">
+  <div class="gc-modal">
+    <h3 style="margin:0 0 14px;"><i class="bi bi-hourglass-split"></i> {{ t('appointments.add_to_waitlist') }}</h3>
+    <div class="form-row"><label>{{ t('appointments.patient') }} *</label>{{ patient_search_box() }}</div>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('appointments.doctor') }}</label>
+        <select class="select" x-model="f.doctorId">
+          <option value="">{{ t('appointments.any_doctor') }}</option>
+          {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('appointments.visit_type') }}</label>{{ type_select('f.appt_type') }}</div>
+      <div class="form-row"><label>{{ t('appointments.preferred_from') }}</label><input class="input" type="date" x-model="f.preferred_from"></div>
+      <div class="form-row"><label>{{ t('appointments.preferred_to') }}</label><input class="input" type="date" x-model="f.preferred_to"></div>
+    </div>
+    <div class="form-row"><label>{{ t('appointments.reason') }}</label><input class="input" x-model="f.reason"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="btn btn-outline gc-press" x-on:click="close()">{{ t('common.cancel') }}</button>
+      <button type="button" class="btn btn-primary gc-press" x-on:click="submitWaitlist()" :disabled="!chosen">
+        <i class="bi bi-check-lg"></i> {{ t('appointments.add_to_waitlist') }}</button>
+    </div>
+  </div>
+</div>

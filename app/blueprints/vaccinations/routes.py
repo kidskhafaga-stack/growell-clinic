@@ -5,6 +5,7 @@ Egyptian schedule, visual due/done/upcoming states, next-due suggestion, dose
 recording (with lot number), and a printable vaccination certificate.
 """
 import calendar
+import io
 from datetime import date, datetime
 
 from flask import (
@@ -29,6 +30,8 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineScheduleDose,
+    VaccineScheduleTemplate,
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
@@ -94,13 +97,23 @@ def record(patient_id):
         flash(t("vaccinations.all_done"), "info")
         return redirect(url_for("vaccinations.view", patient_id=patient.id))
 
-    # Guard against double-recording the same dose.
+    # Guard against double-recording the same dose (a prior refusal/delay does
+    # not block actually giving it later).
     existing = PatientVaccine.query.filter_by(
-        patient_id=patient.id, vaccine_id=vaccine.id, dose_number=dose_number
+        patient_id=patient.id, vaccine_id=vaccine.id, dose_number=dose_number,
+        event_type="given",
     ).first()
     if existing:
         flash(t("vaccinations.dose_exists"), "warning")
         return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    # Clear any earlier refusal/delay event for this dose now that it's given.
+    PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient.id,
+        PatientVaccine.vaccine_id == vaccine.id,
+        PatientVaccine.dose_number == dose_number,
+        PatientVaccine.event_type != "given",
+    ).delete(synchronize_session=False)
 
     raw_date = (request.form.get("given_date") or "").strip()
     try:
@@ -113,7 +126,8 @@ def record(patient_id):
     pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
         dose_number=dose_number, given_date=given_date,
-        lot_number=lot_number,
+        lot_number=lot_number, event_type="given",
+        adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
     db.session.add(pv)
@@ -153,6 +167,47 @@ def record(patient_id):
         return render_template(
             "messages/sent.html", log=log, appt=None,
             back_url=url_for("vaccinations.view", patient_id=patient.id))
+    return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+
+@vaccinations_bp.route("/<int:patient_id>/record-event", methods=["POST"])
+@module_required(MODULE)
+def record_event(patient_id):
+    """Document a dose as refused or delayed (not given) with a reason."""
+    patient = db.get_or_404(Patient, patient_id)
+    vaccine = db.get_or_404(Vaccine, request.form.get("vaccine_id", type=int))
+    dose_number = request.form.get("dose_number", type=int) or 1
+    event_type = request.form.get("event_type")
+    if event_type not in ("refused", "delayed"):
+        flash(t("vaccinations.bad_event"), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    # Don't override an already-given dose.
+    if PatientVaccine.query.filter_by(patient_id=patient.id, vaccine_id=vaccine.id,
+                                      dose_number=dose_number, event_type="given").first():
+        flash(t("vaccinations.dose_exists"), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    # Replace any previous event for the same dose.
+    PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient.id,
+        PatientVaccine.vaccine_id == vaccine.id,
+        PatientVaccine.dose_number == dose_number,
+        PatientVaccine.event_type != "given",
+    ).delete(synchronize_session=False)
+
+    brand = chosen_brand(patient.id, vaccine)[0] or vaccine.default_brand
+    db.session.add(PatientVaccine(
+        patient_id=patient.id, vaccine_id=vaccine.id,
+        brand_id=brand.id if brand else None, dose_number=dose_number,
+        given_date=datetime.utcnow().date(), event_type=event_type,
+        refusal_reason=(request.form.get("reason") or "").strip() or None,
+    ))
+    ActivityLog.record(f"vaccine.{event_type}", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"{vaccine.code}#{dose_number}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.event_saved"), "success")
     return redirect(url_for("vaccinations.view", patient_id=patient.id))
 
 
@@ -281,9 +336,103 @@ def vaccine_edit(vaccine_id):
     vaccine.route = route if route in VACCINE_ROUTES else None
     if request.form.get("sort_order", type=int) is not None:
         vaccine.sort_order = request.form.get("sort_order", type=int)
+    vaccine.is_discontinued = bool(request.form.get("is_discontinued"))
+    rb = request.form.get("replaced_by_id", type=int)
+    vaccine.replaced_by_id = rb if (rb and rb != vaccine.id) else None
     db.session.commit()
     flash(t("vaccinations.vaccine_updated"), "success")
     return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/medical", methods=["POST"])
+@module_required(MODULE)
+def vaccine_medical(vaccine_id):
+    """Save the vaccine's medical metadata (PDF "Medical Information")."""
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    f = request.form
+    vaccine.diseases_covered = (f.get("diseases_covered") or "").strip() or None
+    vaccine.min_age_months = f.get("min_age_months", type=int)
+    vaccine.max_age_months = f.get("max_age_months", type=int)
+    vaccine.booster_required = bool(f.get("booster_required"))
+    vaccine.is_seasonal = bool(f.get("is_seasonal"))
+    vaccine.pregnancy_recommendation = (f.get("pregnancy_recommendation") or "").strip() or None
+    vaccine.risk_groups = (f.get("risk_groups") or "").strip() or None
+    vaccine.contraindications = (f.get("contraindications") or "").strip() or None
+    vaccine.adverse_events_info = (f.get("adverse_events_info") or "").strip() or None
+    db.session.commit()
+    flash(t("vaccinations.medical_saved"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+
+
+# --------------------------------------------- schedule templates (A/B/C/D) -
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules")
+@module_required(MODULE)
+def schedule_templates(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    return render_template("vaccinations/schedules.html", vaccine=vaccine)
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules/new", methods=["POST"])
+@module_required(MODULE)
+def template_new(vaccine_id):
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    code = (request.form.get("code") or "").strip().upper()
+    if not code:
+        flash(t("common.required") + ": " + t("vaccinations.tpl_code"), "danger")
+        return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+    tpl = VaccineScheduleTemplate(
+        vaccine_id=vaccine.id, code=code,
+        label=(request.form.get("label") or "").strip() or None,
+        age_group=(request.form.get("age_group") or "").strip() or None,
+        is_catch_up=bool(request.form.get("is_catch_up")),
+        sort_order=request.form.get("sort_order", type=int) or 0,
+    )
+    db.session.add(tpl)
+    db.session.commit()
+    flash(t("vaccinations.tpl_added"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+
+
+@vaccinations_bp.route("/manage/schedules/<int:template_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def template_delete(template_id):
+    tpl = db.get_or_404(VaccineScheduleTemplate, template_id)
+    vid = tpl.vaccine_id
+    db.session.delete(tpl)
+    db.session.commit()
+    flash(t("vaccinations.tpl_deleted"), "info")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vid))
+
+
+@vaccinations_bp.route("/manage/schedules/<int:template_id>/dose", methods=["POST"])
+@module_required(MODULE)
+def template_dose_add(template_id):
+    tpl = db.get_or_404(VaccineScheduleTemplate, template_id)
+    dose_number = request.form.get("dose_number", type=int)
+    if not dose_number:
+        dose_number = (max((d.dose_number for d in tpl.doses), default=0) + 1)
+    db.session.add(VaccineScheduleDose(
+        template_id=tpl.id,
+        dose_number=dose_number,
+        recommended_age_months=request.form.get("recommended_age_months", type=int),
+        min_interval_days=request.form.get("min_interval_days", type=int),
+        max_interval_days=request.form.get("max_interval_days", type=int),
+        booster_required=bool(request.form.get("booster_required")),
+    ))
+    db.session.commit()
+    flash(t("vaccinations.tpl_dose_added"), "success")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=tpl.vaccine_id))
+
+
+@vaccinations_bp.route("/manage/schedules/dose/<int:dose_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def template_dose_delete(dose_id):
+    dose = db.get_or_404(VaccineScheduleDose, dose_id)
+    vid = dose.template.vaccine_id
+    db.session.delete(dose)
+    db.session.commit()
+    flash(t("vaccinations.tpl_dose_removed"), "info")
+    return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vid))
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/delete", methods=["POST"])
@@ -314,6 +463,7 @@ def brand_new(vaccine_id):
         price=request.form.get("price", type=float),
         purchase_price=request.form.get("purchase_price", type=float),
         max_discount=request.form.get("max_discount", type=float),
+        is_discontinued=bool(request.form.get("is_discontinued")),
         is_default=not vaccine.brands,
     )
     db.session.add(brand)
@@ -334,6 +484,7 @@ def brand_edit(brand_id):
     brand.price = request.form.get("price", type=float)
     brand.purchase_price = request.form.get("purchase_price", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
+    brand.is_discontinued = bool(request.form.get("is_discontinued"))
     ages = _parse_ages(request.form.get("dose_ages"))
     if ages:
         _set_brand_doses(brand, ages)
@@ -356,16 +507,102 @@ def brand_delete(brand_id):
     return redirect(url_for("vaccinations.manage"))
 
 
+def _qr_svg(url, scale=3):
+    """Return an inline SVG QR for ``url`` (or None if QR libs unavailable)."""
+    try:
+        import segno
+    except ImportError:  # pragma: no cover - segno is in requirements
+        return None
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(buf, kind="svg", scale=scale, border=0)
+    return buf.getvalue().decode("utf-8")
+
+
 @vaccinations_bp.route("/<int:patient_id>/certificate")
 @module_required(MODULE)
 def certificate(patient_id):
     patient = db.get_or_404(Patient, patient_id)
     given = (
         PatientVaccine.query.filter_by(patient_id=patient.id)
+        .filter(PatientVaccine.event_type == "given")
         .order_by(PatientVaccine.given_date)
         .all()
     )
+    # Ensure a stable verification token and build the public QR.
+    patient.ensure_qr_token()
+    db.session.commit()
+    verify_url = url_for("vaccinations.verify", token=patient.qr_token, _external=True)
     return render_template(
         "vaccinations/certificate.html", patient=patient, given=given,
         now_date=datetime.utcnow().date().isoformat(),
+        qr_svg=_qr_svg(verify_url), verify_url=verify_url,
+    )
+
+
+# ------------------------------------------------------ due reminders ------
+@vaccinations_bp.route("/reminders")
+@module_required(MODULE)
+def reminders():
+    """Patients with an overdue / due-soon next dose, ready to be reminded."""
+    rows = []
+    for patient in Patient.query.filter_by(is_active=True).all():
+        nd = next_due_dose(patient_plan(patient))
+        if not nd:
+            continue
+        _due, vaccine, brand, dose = nd
+        rows.append({
+            "patient": patient, "vaccine": vaccine, "brand": brand,
+            "dose_number": dose["dose_number"], "due_date": dose["due_date"],
+            "status": dose["status"], "phone": patient.contact_phone,
+        })
+    rows.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
+    return render_template("vaccinations/reminders.html", rows=rows,
+                           now_date=datetime.utcnow().date().isoformat())
+
+
+@vaccinations_bp.route("/<int:patient_id>/remind-due")
+@module_required(MODULE)
+def remind_due(patient_id):
+    """Send the patient's guardian a "dose due" reminder via the CRM template."""
+    patient = db.get_or_404(Patient, patient_id)
+    nd = next_due_dose(patient_plan(patient))
+    if not nd:
+        flash(t("vaccinations.no_due"), "info")
+        return redirect(url_for("vaccinations.reminders"))
+    _due, vaccine, brand, dose = nd
+    phone = patient.contact_phone
+    if not phone:
+        flash(t("occasions.no_phone"), "warning")
+        return redirect(url_for("vaccinations.reminders"))
+    lang = getattr(g, "lang", "ar")
+    body = wa.render(wa.template_body("vaccine_due"), {
+        "patient": patient.display_name(lang),
+        "vaccine": vaccine.display_name(lang),
+        "dose": _dose_label(dose["dose_number"], lang),
+        "due_date": dose["due_date"] or "—",
+        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+    })
+    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+    db.session.commit()
+    return render_template("messages/sent.html", log=log, appt=None,
+                           back_url=url_for("vaccinations.reminders"))
+
+
+@vaccinations_bp.route("/verify/<token>")
+def verify(token):
+    """Public certificate verification reached via the QR code (no login)."""
+    patient = Patient.query.filter_by(qr_token=token).first()
+    if patient is None:
+        return render_template("vaccinations/verify.html", patient=None, given=[]), 404
+    given = (
+        PatientVaccine.query.filter_by(patient_id=patient.id)
+        .filter(PatientVaccine.event_type == "given")
+        .order_by(PatientVaccine.given_date)
+        .all()
+    )
+    clinic = (Setting.get("clinic_name_ar") or Setting.get("clinic_name")
+              or "GROWELL CLINIC")
+    return render_template(
+        "vaccinations/verify.html", patient=patient, given=given,
+        clinic=clinic, now_date=datetime.utcnow().date().isoformat(),
     )

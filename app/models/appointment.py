@@ -19,6 +19,24 @@ APPOINTMENT_STATUSES = [
     "cancelled",
 ]
 
+# Visit types with a sensible default duration (minutes) and a board colour.
+# Keys are stored in ``Appointment.appt_type``; labels live in i18n
+# (``appt_types.<key>``). New types can be added here without a schema change.
+APPOINTMENT_TYPES = {
+    "new":          {"minutes": 20, "color": "blue"},
+    "followup":     {"minutes": 15, "color": "green"},
+    "consultation": {"minutes": 20, "color": "teal"},
+    "vaccination":  {"minutes": 10, "color": "purple"},
+    "procedure":    {"minutes": 30, "color": "orange"},
+    "urgent":       {"minutes": 15, "color": "red"},
+}
+DEFAULT_APPT_TYPE = "new"
+
+
+def type_minutes(appt_type, fallback=15):
+    meta = APPOINTMENT_TYPES.get(appt_type)
+    return meta["minutes"] if meta else fallback
+
 # Statuses that occupy a time slot (block double-booking).
 ACTIVE_STATUSES = {"scheduled", "waiting", "in_progress", "completed"}
 
@@ -52,6 +70,12 @@ class Appointment(db.Model):
     status = db.Column(db.String(20), default="scheduled", nullable=False, index=True)
     notes = db.Column(db.Text)
 
+    # Visit type (drives default duration / board colour) and booking metadata.
+    appt_type = db.Column(db.String(20), default=DEFAULT_APPT_TYPE, nullable=False)
+    is_walk_in = db.Column(db.Boolean, default=False, nullable=False)
+    cancel_reason = db.Column(db.String(200))      # why cancelled / no-show
+    rescheduled_from = db.Column(db.String(120))   # audit: original date/time
+
     # Lifecycle timestamps.
     checked_in_at = db.Column(db.DateTime)
     started_at = db.Column(db.DateTime)
@@ -82,6 +106,11 @@ class Appointment(db.Model):
     @property
     def time_label(self):
         return self.appt_time.strftime("%H:%M") if self.appt_time else ""
+
+    @property
+    def type_color(self):
+        meta = APPOINTMENT_TYPES.get(self.appt_type)
+        return meta["color"] if meta else "blue"
 
     @staticmethod
     def valid_status(value):

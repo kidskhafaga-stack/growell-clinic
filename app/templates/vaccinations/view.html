@@ -5,7 +5,7 @@
 {% block page_heading %}{{ t('vaccinations.title') }}{% endblock %}
 
 {% block content %}
-<div x-data="{ modal:false, vId:null, vName:'', brands:[], locked:false, lockedName:'' }">
+<div x-data="{ modal:false, vId:null, vName:'', brands:[], locked:false, lockedName:'', eventModal:false, evVid:null, evVname:'' }">
 
   <!-- Header -->
   <div class="card profile-header gc-scale-in">
@@ -75,13 +75,18 @@
                               brands={{ v.brands|map(attribute='id')|list|tojson }}; modal=true;
                               brandOptions={{ v.brands|map(attribute='id')|list|tojson }}">
             <i class="bi bi-plus-lg"></i> {{ t('vaccinations.record_dose') }}</button>
+          <button class="btn btn-outline btn-sm gc-press" title="{{ t('vaccinations.refuse_delay') }}"
+                  x-on:click="evVid={{ v.id }}; evVname='{{ v.display_name(current_lang)|e }}'; eventModal=true">
+            <i class="bi bi-slash-circle"></i></button>
         </div>
       </div>
       <div class="dose-pills">
         {% for d in item.doses %}
         <div class="dose-pill">
-          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span></span>
+          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span>
+            {% if d.event_type %}<span class="badge badge--{{ 'danger' if d.event_type=='refused' else 'muted' }}">{{ t('vaccinations.ev_' ~ d.event_type) }}</span>{% endif %}</span>
           <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date %} · {{ d.due_date }}{% endif %}</span>
+          {% if d.event_reason %}<span class="dd" style="color:var(--muted);">{{ d.event_reason }}</span>{% endif %}
           {% if d.lot_number %}<span class="dd">Lot: {{ d.lot_number }}</span>{% endif %}
         </div>
         {% endfor %}
@@ -126,6 +131,34 @@
         <div style="display:flex;gap:10px;">
           <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('vaccinations.record_dose') }}</button>
           <button class="btn btn-outline gc-press" type="button" x-on:click="modal=false">{{ t('common.cancel') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Refuse / delay modal -->
+  <div class="gc-overlay" x-show="eventModal" x-cloak x-transition.opacity x-on:click.self="eventModal=false">
+    <div class="gc-modal gc-scale-in" x-on:keydown.escape.window="eventModal=false">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;"><i class="bi bi-slash-circle"></i> <span x-text="evVname"></span></h3>
+        <button class="btn btn-outline btn-sm gc-press" x-on:click="eventModal=false"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <form method="post" action="{{ url_for('vaccinations.record_event', patient_id=patient.id) }}">
+        <input type="hidden" name="vaccine_id" :value="evVid">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('vaccinations.dose') }} *</label>
+            <input class="input" type="number" name="dose_number" min="1" value="1" required></div>
+          <div class="form-row"><label>{{ t('vaccinations.ev_type') }} *</label>
+            <select class="select" name="event_type">
+              <option value="refused">{{ t('vaccinations.ev_refused') }}</option>
+              <option value="delayed">{{ t('vaccinations.ev_delayed') }}</option>
+            </select></div>
+        </div>
+        <div class="form-row"><label>{{ t('vaccinations.ev_reason') }}</label>
+          <input class="input" name="reason" placeholder="{{ t('vaccinations.ev_reason_ph') }}"></div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+          <button class="btn btn-outline gc-press" type="button" x-on:click="eventModal=false">{{ t('common.cancel') }}</button>
         </div>
       </form>
     </div>

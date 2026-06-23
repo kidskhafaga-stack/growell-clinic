@@ -44,10 +44,16 @@
   <p style="color:var(--muted);">{{ t('vaccinations.no_given') }}</p>
   {% endif %}
 
-  <div style="display:flex;justify-content:space-between;margin-top:48px;">
+  <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;flex-wrap:wrap;">
     <div style="text-align:center;">
       <div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_doctor') }}</div>
     </div>
+    {% if qr_svg %}
+    <div style="text-align:center;">
+      <div style="width:104px;height:104px;margin:0 auto;">{{ qr_svg | safe }}</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">{{ t('vaccinations.scan_to_verify') }}</div>
+    </div>
+    {% endif %}
     <div style="text-align:center;">
       <div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_stamp') }}</div>
     </div>

@@ -4,7 +4,8 @@ Manages the clinic's chargeable services: pricing, max discount, doctor
 commission (default + per-doctor overrides) and service bundles. Later
 phases build invoices, doctor statements and discount claims on top.
 """
-from datetime import datetime
+import calendar
+from datetime import date, datetime
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -13,14 +14,19 @@ from app.blueprints.finance import finance_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    CLIENT_CATEGORIES,
     COMMISSION_TYPES,
     COVERAGE_TYPES,
+    DISCOUNT_TYPES,
+    EXPENSE_CATEGORIES,
+    NamedDiscount,
     PAYER_TYPES,
     PAYMENT_METHODS,
     SERVICE_CATEGORIES,
     ActivityLog,
     DoctorServiceCommission,
     EInvoiceDocument,
+    Expense,
     Invoice,
     InvoiceItem,
     Patient,
@@ -290,7 +296,12 @@ def invoice_new():
             flash(t("invoices.need_item"), "warning")
             return redirect(url_for("finance.invoice_new", patient_id=patient.id))
 
-        # Apply the patient's membership/insurance coverage automatically.
+        # Apply a chosen named discount first (campaign/doctor/category/special),
+        # then insurance coverage fills any remaining undiscounted lines.
+        disc = db.session.get(NamedDiscount, request.form.get("discount_id", type=int)) \
+            if request.form.get("discount_id", type=int) else None
+        if disc and disc.is_active:
+            _apply_named_discount(invoice, disc)
         _apply_coverage(invoice, patient)
 
         invoice.recalc_status()
@@ -300,16 +311,98 @@ def invoice_new():
         flash(t("invoices.created"), "success")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
-    patient = db.session.get(Patient, request.args.get("patient_id", type=int))
+    pid = request.args.get("patient_id", type=int)
+    patient = db.session.get(Patient, pid) if pid else None
     return render_template(
         "finance/invoice_form.html", patient=patient,
         doctors=_doctors_active(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
+        discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
         visit_id=request.args.get("visit_id", type=int),
         doctor_id=request.args.get("doctor_id", type=int),
     )
+
+
+def _apply_named_discount(invoice, disc):
+    """Apply a named discount to lines that have no manual discount yet."""
+    invoice.discount_id = disc.id
+    invoice.discount_name = disc.display_name()
+    for item in invoice.items:
+        if (item.discount_value or 0) > 0:
+            continue  # keep manual discounts
+        amount = disc.amount_for(item.gross)
+        # Respect a service's max discount cap (percentage of gross).
+        if item.service and item.service.max_discount:
+            cap = round(item.gross * item.service.max_discount / 100.0, 2)
+            amount = min(amount, cap)
+        if amount > 0:
+            item.discount_value = amount
+            item.discount_is_percent = False
+            if item.service is not None:
+                item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+
+
+# ------------------------------------------------------ named discounts ----
+@finance_bp.route("/discounts", methods=["GET", "POST"])
+@module_required(MODULE)
+def discounts():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash(t("common.required") + ": " + t("discounts.name"), "danger")
+            return redirect(url_for("finance.discounts"))
+        dtype = (request.form.get("dtype") or "special").strip()
+        db.session.add(NamedDiscount(
+            name=name,
+            name_en=(request.form.get("name_en") or "").strip() or None,
+            dtype=dtype if dtype in DISCOUNT_TYPES else "special",
+            value=request.form.get("value", type=float) or 0,
+            is_percent=(request.form.get("unit") or "percent") == "percent",
+            doctor_id=request.form.get("doctor_id", type=int) or None,
+            client_category=(request.form.get("client_category") or "").strip() or None,
+            start_date=_parse_date_arg("start_date"),
+            end_date=_parse_date_arg("end_date"),
+        ))
+        db.session.commit()
+        flash(t("discounts.added"), "success")
+        return redirect(url_for("finance.discounts"))
+
+    return render_template(
+        "finance/discounts.html",
+        discounts=NamedDiscount.query.order_by(NamedDiscount.is_active.desc(),
+                                               NamedDiscount.name).all(),
+        types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES, doctors=_doctors_active())
+
+
+@finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])
+@module_required(MODULE)
+def discount_toggle(discount_id):
+    d = db.get_or_404(NamedDiscount, discount_id)
+    d.is_active = not d.is_active
+    db.session.commit()
+    return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/discounts/<int:discount_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def discount_delete(discount_id):
+    d = db.get_or_404(NamedDiscount, discount_id)
+    db.session.delete(d)
+    db.session.commit()
+    flash(t("discounts.deleted"), "info")
+    return redirect(url_for("finance.discounts"))
+
+
+def _parse_date_arg(name):
+    raw = (request.form.get(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 def _build_line(invoice, idx):
@@ -797,3 +890,138 @@ def einvoice_send():
 def einvoice_doc(doc_id):
     doc = db.get_or_404(EInvoiceDocument, doc_id)
     return render_template("finance/einvoice_doc.html", doc=doc)
+
+
+# ============================================================ expenses =====
+def _month_bounds(year, month):
+    """First and last date of a given month."""
+    last = calendar.monthrange(year, month)[1]
+    return date(year, month, 1), date(year, month, last)
+
+
+def _parse_month(arg):
+    """Parse a 'YYYY-MM' arg, defaulting to the current month."""
+    today = datetime.utcnow().date()
+    raw = (arg or "").strip()
+    try:
+        y, m = raw.split("-")
+        return int(y), int(m)
+    except (ValueError, AttributeError):
+        return today.year, today.month
+
+
+@finance_bp.route("/expenses")
+@module_required(MODULE)
+def expenses():
+    year, month = _parse_month(request.args.get("month"))
+    start, end = _month_bounds(year, month)
+
+    one_off = (Expense.query
+               .filter(Expense.is_recurring.is_(False))
+               .filter(Expense.expense_date >= start, Expense.expense_date <= end)
+               .order_by(Expense.expense_date.desc()).all())
+    recurring = (Expense.query.filter(Expense.is_recurring.is_(True))
+                 .order_by(Expense.category).all())
+    month_total = round(sum(e.amount for e in one_off)
+                        + sum(e.amount for e in recurring), 2)
+    return render_template(
+        "finance/expenses.html", one_off=one_off, recurring=recurring,
+        categories=EXPENSE_CATEGORIES, methods=PAYMENT_METHODS,
+        month=f"{year:04d}-{month:02d}", month_total=month_total,
+    )
+
+
+def _read_expense(form):
+    cat = (form.get("category") or "other").strip()
+    return {
+        "category": cat if cat in EXPENSE_CATEGORIES else "other",
+        "description": (form.get("description") or "").strip() or None,
+        "amount": form.get("amount", type=float) or 0,
+        "is_recurring": bool(form.get("is_recurring")),
+        "vendor": (form.get("vendor") or "").strip() or None,
+        "payment_method": (form.get("payment_method") or "").strip() or None,
+        "notes": (form.get("notes") or "").strip() or None,
+    }
+
+
+@finance_bp.route("/expenses/new", methods=["POST"])
+@module_required(MODULE)
+def expense_new():
+    data = _read_expense(request.form)
+    if data["amount"] <= 0:
+        flash(t("expenses.need_amount"), "danger")
+        return redirect(url_for("finance.expenses", month=request.form.get("month")))
+    exp = Expense(created_by=current_user.id, **data)
+    exp.expense_date = parse_date_or_today(request.form.get("expense_date"))
+    db.session.add(exp)
+    ActivityLog.record("expense.create", user_id=current_user.id, entity="expense",
+                       detail=data["category"], ip_address=client_ip())
+    db.session.commit()
+    flash(t("expenses.added"), "success")
+    return redirect(url_for("finance.expenses", month=request.form.get("month")))
+
+
+@finance_bp.route("/expenses/<int:expense_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def expense_edit(expense_id):
+    exp = db.get_or_404(Expense, expense_id)
+    for k, v in _read_expense(request.form).items():
+        setattr(exp, k, v)
+    exp.expense_date = parse_date_or_today(request.form.get("expense_date"), exp.expense_date)
+    db.session.commit()
+    flash(t("expenses.updated"), "success")
+    return redirect(url_for("finance.expenses", month=request.form.get("month")))
+
+
+@finance_bp.route("/expenses/<int:expense_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def expense_delete(expense_id):
+    exp = db.get_or_404(Expense, expense_id)
+    db.session.delete(exp)
+    db.session.commit()
+    flash(t("expenses.deleted"), "info")
+    return redirect(url_for("finance.expenses", month=request.form.get("month")))
+
+
+def parse_date_or_today(raw, default=None):
+    try:
+        return datetime.strptime((raw or "").strip(), "%Y-%m-%d").date()
+    except ValueError:
+        return default or datetime.utcnow().date()
+
+
+# ================================================================= P&L =====
+@finance_bp.route("/pnl")
+@module_required(MODULE)
+def pnl():
+    year, month = _parse_month(request.args.get("month"))
+    start, end = _month_bounds(year, month)
+    start_dt = datetime(year, month, 1)
+    end_dt = datetime(end.year, end.month, end.day, 23, 59, 59)
+
+    # Revenue = cash collected in the month (payments). Invoiced shown too.
+    payments = (Payment.query
+                .filter(Payment.paid_at >= start_dt, Payment.paid_at <= end_dt).all())
+    collected = round(sum(p.amount or 0 for p in payments), 2)
+    month_invoices = (Invoice.query
+                      .filter(Invoice.invoice_date >= start, Invoice.invoice_date <= end).all())
+    invoiced = round(sum(i.total for i in month_invoices), 2)
+
+    # Expenses = one-off this month + fixed recurring; grouped by category.
+    one_off = (Expense.query.filter(Expense.is_recurring.is_(False))
+               .filter(Expense.expense_date >= start, Expense.expense_date <= end).all())
+    recurring = Expense.query.filter(Expense.is_recurring.is_(True)).all()
+    by_category = {c: 0.0 for c in EXPENSE_CATEGORIES}
+    for e in one_off + recurring:
+        by_category[e.category] = round(by_category.get(e.category, 0) + e.amount, 2)
+    expenses_total = round(sum(by_category.values()), 2)
+
+    net = round(collected - expenses_total, 2)
+    margin = round((net / collected * 100), 1) if collected > 0 else 0
+    cats = [(c, by_category[c]) for c in EXPENSE_CATEGORIES if by_category[c]]
+
+    return render_template(
+        "finance/pnl.html", month=f"{year:04d}-{month:02d}",
+        collected=collected, invoiced=invoiced, expenses_total=expenses_total,
+        net=net, margin=margin, cats=cats,
+    )

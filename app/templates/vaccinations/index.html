@@ -11,8 +11,12 @@
     <h1 class="page-title">{{ t('vaccinations.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('vaccinations.select_patient') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.manage') }}">
-    <i class="bi bi-gear"></i> {{ t('vaccinations.manage_catalog') }}</a>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.reminders') }}">
+      <i class="bi bi-bell"></i> {{ t('vaccinations.reminders_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.manage') }}">
+      <i class="bi bi-gear"></i> {{ t('vaccinations.manage_catalog') }}</a>
+  </div>
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">

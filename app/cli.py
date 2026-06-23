@@ -113,6 +113,35 @@ def register_commands(app):
             ("users", "theme", "VARCHAR(10)"),
             ("users", "font_scale", "VARCHAR(4)"),
             ("users", "default_landing", "VARCHAR(30)"),
+            ("users", "is_practitioner", "BOOLEAN DEFAULT 0"),
+            ("appointments", "appt_type", "VARCHAR(20) DEFAULT 'new'"),
+            ("appointments", "is_walk_in", "BOOLEAN DEFAULT 0"),
+            ("appointments", "cancel_reason", "VARCHAR(200)"),
+            ("appointments", "rescheduled_from", "VARCHAR(120)"),
+            ("vaccines", "diseases_covered", "VARCHAR(255)"),
+            ("vaccines", "min_age_months", "INTEGER"),
+            ("vaccines", "max_age_months", "INTEGER"),
+            ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),
+            ("vaccines", "risk_groups", "VARCHAR(255)"),
+            ("vaccines", "contraindications", "TEXT"),
+            ("vaccines", "adverse_events_info", "TEXT"),
+            ("patient_vaccines", "event_type", "VARCHAR(20) DEFAULT 'given'"),
+            ("patient_vaccines", "adverse_events", "TEXT"),
+            ("patient_vaccines", "refusal_reason", "VARCHAR(200)"),
+            ("patients", "qr_token", "VARCHAR(32)"),
+            ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "replaced_by_id", "INTEGER"),
+            ("vaccine_brands", "is_discontinued", "BOOLEAN DEFAULT 0"),
+            ("rx_print_templates", "page_size", "VARCHAR(4) DEFAULT 'A4'"),
+            ("rx_print_templates", "show_investigations", "BOOLEAN DEFAULT 1"),
+            ("drugs", "dose_per_kg", "FLOAT"),
+            ("drugs", "max_per_kg", "FLOAT"),
+            ("drugs", "conc_mg_per_ml", "FLOAT"),
+            ("prescriptions", "diagnosis_code", "VARCHAR(20)"),
+            ("invoices", "discount_id", "INTEGER"),
+            ("invoices", "discount_name", "VARCHAR(120)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -233,6 +262,11 @@ def _seed_drugs_safe():
     try:
         from app.utils.drugs import seed_drugs
         seed_drugs()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from app.utils.investigations import seed_investigations
+        seed_investigations()
     except Exception:  # noqa: BLE001
         pass
     _seed_crm_templates_safe()

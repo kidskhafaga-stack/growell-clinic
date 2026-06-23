@@ -82,9 +82,14 @@ def seed_vaccines():
 
 # -------------------------------------------------------- computation ------
 def chosen_brand(patient_id, vaccine):
-    """The brand locked for this patient/vaccine, or the default brand."""
+    """The brand locked for this patient/vaccine, or the default brand.
+
+    Only an actually-given dose locks the brand; a refused/delayed event does
+    not commit the patient to a brand.
+    """
     pv = (
-        PatientVaccine.query.filter_by(patient_id=patient_id, vaccine_id=vaccine.id)
+        PatientVaccine.query.filter_by(patient_id=patient_id, vaccine_id=vaccine.id,
+                                       event_type="given")
         .order_by(PatientVaccine.dose_number)
         .first()
     )
@@ -115,8 +120,12 @@ def patient_plan(patient, lang="ar"):
     today = date.today()
     dob = patient.date_of_birth
     given_index = {}
+    events_index = {}   # (vaccine_id, dose_number) -> refused/delayed event
     for pv in PatientVaccine.query.filter_by(patient_id=patient.id).all():
-        given_index[(pv.vaccine_id, pv.dose_number)] = pv
+        if (pv.event_type or "given") == "given":
+            given_index[(pv.vaccine_id, pv.dose_number)] = pv
+        else:
+            events_index[(pv.vaccine_id, pv.dose_number)] = pv
 
     plan = []
     for vaccine in Vaccine.query.order_by(Vaccine.sort_order).all():
@@ -126,6 +135,7 @@ def patient_plan(patient, lang="ar"):
         doses = []
         for d in brand.doses:
             pv = given_index.get((vaccine.id, d.dose_number))
+            ev = events_index.get((vaccine.id, d.dose_number))
             due = add_months(dob, d.age_months) if dob else None
             doses.append({
                 "dose_number": d.dose_number,
@@ -135,6 +145,8 @@ def patient_plan(patient, lang="ar"):
                 "given_date": pv.given_date.isoformat() if pv else None,
                 "lot_number": pv.lot_number if pv else None,
                 "status": _status(due, pv is not None, today),
+                "event_type": ev.event_type if (ev and not pv) else None,
+                "event_reason": ev.refusal_reason if (ev and not pv) else None,
             })
         plan.append({
             "vaccine": vaccine, "brand": brand, "locked": locked,
@@ -173,7 +185,7 @@ def next_undone_dose_number(patient_id, vaccine, brand):
     given = {
         pv.dose_number
         for pv in PatientVaccine.query.filter_by(
-            patient_id=patient_id, vaccine_id=vaccine.id
+            patient_id=patient_id, vaccine_id=vaccine.id, event_type="given"
         ).all()
     }
     for d in brand.doses:

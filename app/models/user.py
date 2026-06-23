@@ -20,6 +20,10 @@ class User(UserMixin, db.Model):
     full_name_en = db.Column(db.String(120))
 
     role = db.Column(db.String(20), nullable=False, default="reception")
+    # Non-doctor roles (e.g. an admin who also sees patients) can be flagged as
+    # practitioners so they appear in the appointments / doctor pickers without
+    # every admin showing up as a doctor.
+    is_practitioner = db.Column(db.Boolean, default=False, nullable=False)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(30))
 

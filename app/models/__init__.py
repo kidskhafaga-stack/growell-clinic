@@ -8,10 +8,15 @@ from app.models.activity_log import ActivityLog
 from app.models.appointment import (
     ACTIVE_STATUSES,
     APPOINTMENT_STATUSES,
+    APPOINTMENT_TYPES,
+    DEFAULT_APPT_TYPE,
     STATUS_TRANSITIONS,
     Appointment,
+    type_minutes,
 )
 from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
+from app.models.schedule_exception import ScheduleException
+from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
 from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
@@ -25,14 +30,23 @@ from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
 from app.models.setting import Setting
 from app.models.user import User
-from app.models.visit import VISIT_STATUSES, Visit
+from app.models.visit import (
+    INVESTIGATION_STATUSES,
+    VISIT_STATUSES,
+    PatientAttachment,
+    Visit,
+    VisitInvestigation,
+)
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
     PatientVaccine,
+    VACCINE_EVENT_TYPES,
     VACCINE_ROUTES,
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineScheduleDose,
+    VaccineScheduleTemplate,
 )
 from app.models.inventory import (
     LOW_STOCK_QTY,
@@ -64,11 +78,16 @@ from app.models.payer import (
     PayerServiceRate,
 )
 from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
+from app.models.expense import EXPENSE_CATEGORIES, Expense
 from app.models.prescription import (
     DRUG_FORMS,
+    INVESTIGATION_KINDS,
+    RX_PAGE_SIZES,
     Drug,
     DrugInteraction,
+    Investigation,
     Prescription,
+    PrescriptionInvestigation,
     PrescriptionItem,
     RxPrintTemplate,
 )
@@ -78,10 +97,13 @@ from app.models.message import (
     OCCASION_TYPES,
     SYSTEM_TEMPLATE_TYPES,
     TEMPLATE_DEFAULTS,
+    TEMPLATE_VARIABLES,
     MessageLog,
     MessageTemplate,
 )
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
+from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
+from app.models.discount import DISCOUNT_TYPES, NamedDiscount
 
 __all__ = [
     "User",
@@ -93,6 +115,9 @@ __all__ = [
     "Appointment",
     "DoctorSchedule",
     "Visit",
+    "VisitInvestigation",
+    "PatientAttachment",
+    "INVESTIGATION_STATUSES",
     "VitalSigns",
     "Diagnosis",
     "GrowthRecord",
@@ -105,8 +130,14 @@ __all__ = [
     "GENDERS",
     "BLOOD_TYPES",
     "APPOINTMENT_STATUSES",
+    "APPOINTMENT_TYPES",
+    "DEFAULT_APPT_TYPE",
+    "type_minutes",
     "ACTIVE_STATUSES",
     "STATUS_TRANSITIONS",
+    "ScheduleException",
+    "WaitlistEntry",
+    "WAITLIST_STATUSES",
     "WEEKDAY_ORDER",
     "VISIT_STATUSES",
     "DIAGNOSIS_TYPES",
@@ -114,8 +145,11 @@ __all__ = [
     "Vaccine",
     "VaccineBrand",
     "VaccineBrandDose",
+    "VaccineScheduleTemplate",
+    "VaccineScheduleDose",
     "PatientVaccine",
     "VACCINE_ROUTES",
+    "VACCINE_EVENT_TYPES",
     "Supplier",
     "VaccineInventory",
     "NEAR_EXPIRY_DAYS",
@@ -139,20 +173,32 @@ __all__ = [
     "COVERAGE_TYPES",
     "EInvoiceDocument",
     "EINVOICE_STATUSES",
+    "Expense",
+    "EXPENSE_CATEGORIES",
     "Drug",
     "DrugInteraction",
+    "Investigation",
     "Prescription",
     "PrescriptionItem",
+    "PrescriptionInvestigation",
     "RxPrintTemplate",
     "DRUG_FORMS",
+    "INVESTIGATION_KINDS",
+    "RX_PAGE_SIZES",
     "MessageLog",
     "MessageTemplate",
     "MESSAGE_STATUSES",
     "OCCASION_TYPES",
     "SYSTEM_TEMPLATE_TYPES",
     "TEMPLATE_DEFAULTS",
+    "TEMPLATE_VARIABLES",
     "DEFAULT_BIRTHDAY_BODY",
     "StoreItem",
     "StockMovement",
     "MOVEMENT_KINDS",
+    "PurchaseOrder",
+    "PurchaseOrderItem",
+    "PO_STATUSES",
+    "NamedDiscount",
+    "DISCOUNT_TYPES",
 ]

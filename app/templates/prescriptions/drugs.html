@@ -32,6 +32,9 @@
       <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="default_dose"></div>
       <div class="form-row"><label>{{ t('rx.default_frequency') }}</label><input class="input" name="default_frequency"></div>
       <div class="form-row"><label>{{ t('rx.max_daily') }}</label><input class="input" name="max_daily_dose"></div>
+      <div class="form-row"><label>{{ t('rx.dose_per_kg') }}</label><input class="input" type="number" step="0.01" name="dose_per_kg" dir="ltr"><div class="hint">{{ t('rx.dose_per_kg_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('rx.max_per_kg') }}</label><input class="input" type="number" step="0.01" name="max_per_kg" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('rx.conc') }}</label><input class="input" type="number" step="0.01" name="conc_mg_per_ml" dir="ltr"><div class="hint">{{ t('rx.conc_hint') }}</div></div>
       <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="default_instructions"></div>
     </div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
@@ -61,6 +64,9 @@
               <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="default_dose" value="{{ d.default_dose or '' }}"></div>
               <div class="form-row"><label>{{ t('rx.default_frequency') }}</label><input class="input" name="default_frequency" value="{{ d.default_frequency or '' }}"></div>
               <div class="form-row"><label>{{ t('rx.max_daily') }}</label><input class="input" name="max_daily_dose" value="{{ d.max_daily_dose or '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.dose_per_kg') }}</label><input class="input" type="number" step="0.01" name="dose_per_kg" dir="ltr" value="{{ d.dose_per_kg if d.dose_per_kg is not none else '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.max_per_kg') }}</label><input class="input" type="number" step="0.01" name="max_per_kg" dir="ltr" value="{{ d.max_per_kg if d.max_per_kg is not none else '' }}"></div>
+              <div class="form-row"><label>{{ t('rx.conc') }}</label><input class="input" type="number" step="0.01" name="conc_mg_per_ml" dir="ltr" value="{{ d.conc_mg_per_ml if d.conc_mg_per_ml is not none else '' }}"></div>
               <div class="form-row checkbox"><input type="checkbox" id="da_{{ d.id }}" name="is_active" value="1" {{ 'checked' if d.is_active else '' }}><label for="da_{{ d.id }}" style="margin:0;font-weight:400;">{{ t('common.active') }}</label></div>
               <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
             </form>

@@ -16,13 +16,18 @@
         {% for v,k in [('clinic','logo_clinic'),('personal','logo_personal'),('none','logo_none')] %}
         <option value="{{ v }}" {{ 'selected' if tp and tp.logo_source==v else '' }}>{{ t('rxtpl.' ~ k) }}</option>{% endfor %}
       </select></div>
+    <div class="form-row"><label>{{ t('rxtpl.page_size') }}</label>
+      <select class="select" name="page_size">
+        <option value="A4" {{ 'selected' if (tp and tp.page_size=='A4') or not tp else '' }}>A4</option>
+        <option value="A5" {{ 'selected' if tp and tp.page_size=='A5' else '' }}>A5</option>
+      </select></div>
     <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" value="{{ tp.font_size if tp else 14 }}"></div>
     <div class="form-row"><label>{{ t('rxtpl.margin') }}</label><input class="input" type="number" name="margin_mm" value="{{ tp.margin_mm if tp else 12 }}"></div>
     <div class="form-row"><label>{{ t('rxtpl.top_offset') }}</label><input class="input" type="number" name="top_offset_mm" value="{{ tp.top_offset_mm if tp else 0 }}"></div>
   </div>
   <label style="font-weight:600;">{{ t('rxtpl.elements') }}</label>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0;">
-    {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_diagnosis','show_signature','show_stamp'] %}
+    {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
     <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" {{ 'checked' if (tp and tp[b]) or not tp else '' }}>
       <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
     {% endfor %}

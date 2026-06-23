@@ -207,11 +207,14 @@ def _upcoming_birthdays(days=7):
 @messages_bp.route("/occasions")
 @module_required(MODULE)
 def occasions():
+    from app.models import TEMPLATE_VARIABLES
+
     templates = MessageTemplate.query.order_by(MessageTemplate.occasion,
                                                MessageTemplate.name).all()
     return render_template("messages/occasions.html",
                            birthdays=_upcoming_birthdays(),
-                           templates=templates, occasion_types=OCCASION_TYPES)
+                           templates=templates, occasion_types=OCCASION_TYPES,
+                           template_variables=TEMPLATE_VARIABLES)
 
 
 @messages_bp.route("/occasions/birthday/<int:patient_id>")

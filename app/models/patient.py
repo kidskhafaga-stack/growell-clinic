@@ -43,12 +43,21 @@ class Patient(db.Model):
     notes = db.Column(db.Text)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Opaque token for public vaccination-certificate QR verification.
+    qr_token = db.Column(db.String(32), unique=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     family = db.relationship("Family", back_populates="patients")
+
+    def ensure_qr_token(self):
+        """Lazily assign a random verification token; returns it."""
+        if not self.qr_token:
+            import uuid
+            self.qr_token = uuid.uuid4().hex
+        return self.qr_token
 
     # --- Display helpers ---------------------------------------------------
     def display_name(self, lang="ar"):
@@ -101,6 +110,15 @@ class Patient(db.Model):
             if p.phone:
                 return p.phone
         return None
+
+    @property
+    def client_category(self):
+        """Client category from the primary guardian (normal/friend/relative/employee)."""
+        if not self.family or not self.family.parents:
+            return "normal"
+        parents = sorted(self.family.parents,
+                         key=lambda p: (0 if p.is_primary_contact else 1))
+        return parents[0].client_category if parents else "normal"
 
     @property
     def siblings(self):

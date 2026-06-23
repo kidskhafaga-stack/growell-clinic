@@ -1,0 +1,119 @@
+{% extends "shell.html" %}
+{% set active_module = 'vaccinations' %}
+{% block title %}{{ vaccine.display_name(current_lang) }} · {{ t('vaccinations.schedules_title') }}{% endblock %}
+{% block page_heading %}{{ t('vaccinations.schedules_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ vaccine.display_name(current_lang) }}
+      <span class="badge badge--role">{{ vaccine.code }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ t('vaccinations.schedules_subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.manage') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('vaccinations.manage_title') }}</a>
+</div>
+
+<!-- Medical information -->
+<details class="card gc-scale-in" style="margin-bottom:18px;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-clipboard2-pulse"></i> {{ t('vaccinations.medical_info') }}</summary>
+  <form method="post" action="{{ url_for('vaccinations.vaccine_medical', vaccine_id=vaccine.id) }}" style="margin-top:14px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('vaccinations.diseases_covered') }}</label>
+        <input class="input" name="diseases_covered" value="{{ vaccine.diseases_covered or '' }}"></div>
+      <div class="form-row"><label>{{ t('vaccinations.min_age') }}</label>
+        <input class="input" type="number" name="min_age_months" value="{{ vaccine.min_age_months if vaccine.min_age_months is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('vaccinations.max_age') }}</label>
+        <input class="input" type="number" name="max_age_months" value="{{ vaccine.max_age_months if vaccine.max_age_months is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('vaccinations.pregnancy_reco') }}</label>
+        <input class="input" name="pregnancy_recommendation" value="{{ vaccine.pregnancy_recommendation or '' }}"></div>
+      <div class="form-row"><label>{{ t('vaccinations.risk_groups') }}</label>
+        <input class="input" name="risk_groups" value="{{ vaccine.risk_groups or '' }}"></div>
+    </div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin:6px 0;">
+      <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="booster_required" value="1" {{ 'checked' if vaccine.booster_required else '' }}> {{ t('vaccinations.booster_required') }}</label>
+      <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="is_seasonal" value="1" {{ 'checked' if vaccine.is_seasonal else '' }}> {{ t('vaccinations.seasonal') }}</label>
+    </div>
+    <div class="form-row"><label>{{ t('vaccinations.contraindications') }}</label>
+      <textarea class="input" name="contraindications" rows="2" dir="auto">{{ vaccine.contraindications or '' }}</textarea></div>
+    <div class="form-row"><label>{{ t('vaccinations.adverse_info') }}</label>
+      <textarea class="input" name="adverse_events_info" rows="2" dir="auto">{{ vaccine.adverse_events_info or '' }}</textarea></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('vaccinations.tpl_help') }}</div>
+
+<!-- Existing templates -->
+{% for tpl in vaccine.schedule_templates %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
+    <h3 style="margin:0;">{{ t('vaccinations.schedule') }} {{ tpl.code }}
+      {% if tpl.label %}<span style="color:var(--muted);font-weight:400;font-size:0.9rem;">— {{ tpl.label }}</span>{% endif %}
+      {% if tpl.age_group %}<span class="badge badge--role">{{ tpl.age_group }}</span>{% endif %}
+      {% if tpl.is_catch_up %}<span class="badge badge--muted">{{ t('vaccinations.catch_up') }}</span>{% endif %}
+    </h3>
+    <form method="post" action="{{ url_for('vaccinations.template_delete', template_id=tpl.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+      <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+    </form>
+  </div>
+
+  <table class="table" style="margin-top:10px;">
+    <thead><tr>
+      <th>{{ t('vaccinations.dose_no') }}</th><th>{{ t('vaccinations.reco_age') }}</th>
+      <th>{{ t('vaccinations.min_interval') }}</th><th>{{ t('vaccinations.max_interval') }}</th>
+      <th>{{ t('vaccinations.booster') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for d in tpl.doses %}
+      <tr>
+        <td><strong>{{ d.dose_number }}</strong></td>
+        <td>{{ (d.recommended_age_months ~ ' ' ~ t('vaccinations.months_short')) if d.recommended_age_months is not none else '—' }}</td>
+        <td>{{ (d.min_interval_days ~ ' ' ~ t('vaccinations.days_short')) if d.min_interval_days is not none else '—' }}</td>
+        <td>{{ (d.max_interval_days ~ ' ' ~ t('vaccinations.days_short')) if d.max_interval_days is not none else '—' }}</td>
+        <td>{% if d.booster_required %}<i class="bi bi-check-lg" style="color:var(--green-600);"></i>{% else %}—{% endif %}</td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('vaccinations.template_dose_delete', dose_id=d.id) }}" style="display:inline;">
+            <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="placeholder-soft">{{ t('vaccinations.tpl_no_doses') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="{{ url_for('vaccinations.template_dose_add', template_id=tpl.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.dose_no') }}</label><input class="input" type="number" name="dose_number" style="width:90px;" placeholder="auto"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.reco_age') }}</label><input class="input" type="number" name="recommended_age_months" style="width:110px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.min_interval') }}</label><input class="input" type="number" name="min_interval_days" style="width:110px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.max_interval') }}</label><input class="input" type="number" name="max_interval_days" style="width:110px;"></div>
+    <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="booster_required" value="1"> {{ t('vaccinations.booster') }}</label>
+    <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('vaccinations.tpl_add_dose') }}</button>
+  </form>
+</div>
+{% endfor %}
+
+<!-- Add template -->
+<details class="card gc-scale-in">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('vaccinations.tpl_add') }}</summary>
+  <form method="post" action="{{ url_for('vaccinations.template_new', vaccine_id=vaccine.id) }}" style="margin-top:14px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('vaccinations.tpl_code') }} *</label><input class="input" name="code" dir="ltr" placeholder="A / B / C / D" required></div>
+      <div class="form-row"><label>{{ t('vaccinations.tpl_label') }}</label><input class="input" name="label" placeholder="{{ t('vaccinations.tpl_label_ph') }}"></div>
+      <div class="form-row"><label>{{ t('vaccinations.age_group') }}</label><input class="input" name="age_group" placeholder="2-6m"></div>
+      <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="0"></div>
+    </div>
+    <label class="checkbox" style="font-weight:400;margin-bottom:10px;display:block;"><input type="checkbox" name="is_catch_up" value="1"> {{ t('vaccinations.catch_up') }}</label>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+{% endblock %}
+
+{% block head %}
+<style>
+  .btn-x { border:none; background:none; cursor:pointer; color:var(--muted); padding:2px 4px; }
+  .btn-x:hover { color:var(--danger); }
+</style>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "shell.html" %}
+{% set active_module = 'ai' %}
+{% block title %}{{ t('nav.ai') }}{% endblock %}
+{% block page_heading %}{{ t('nav.ai') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('ai.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('ai.subtitle') }}</p>
+
+<!-- Provider status -->
+<div class="card gc-scale-in" style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div class="hub-ico {{ 'edge-green' if ready else 'edge-yellow' }}"><i class="bi bi-robot"></i></div>
+  <div style="flex:1;min-width:200px;">
+    <div style="font-weight:700;">{{ config.provider_label }}</div>
+    <div style="color:var(--muted);font-size:0.88rem;">
+      {% if ready %}
+        {{ t('ai.model') }}: <code dir="ltr">{{ config.model }}</code>
+      {% elif not config.enabled %}
+        {{ t('ai.not_enabled') }}
+      {% else %}
+        {{ t('ai.not_configured') }}
+      {% endif %}
+    </div>
+  </div>
+  <span class="badge {{ 'badge--green' if ready else 'badge--muted' }}">
+    {{ t('ai.status_ready') if ready else t('ai.status_off') }}
+  </span>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ settings_url }}#ai">
+    <i class="bi bi-gear"></i> {{ t('ai.configure') }}</a>
+</div>
+
+{% if not ready %}
+<div class="card gc-animate" style="margin-top:14px;">
+  <p class="info-note" style="margin:0;"><i class="bi bi-info-circle"></i> {{ t('ai.setup_hint') }}</p>
+</div>
+{% else %}
+<!-- Assistant chat -->
+<div class="card gc-scale-in" style="margin-top:14px;" x-data="aiChat()">
+  <h2 class="section-title"><i class="bi bi-chat-dots"></i> {{ t('ai.assistant') }}</h2>
+  <div id="ai-log" x-ref="log"
+       style="max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:6px 2px;">
+    <template x-for="(m, i) in messages" :key="i">
+      <div :style="m.role === 'user'
+                ? 'align-self:flex-end;background:var(--green-100,#e6f4ea);'
+                : 'align-self:flex-start;background:var(--surface-2,#f3f4f6);'"
+           style="max-width:80%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.5;"
+           x-text="m.content"></div>
+    </template>
+    <div x-show="busy" style="align-self:flex-start;color:var(--muted);font-size:0.85rem;">
+      <i class="bi bi-three-dots"></i> {{ t('ai.thinking') }}</div>
+    <div x-show="error" x-text="error" x-cloak
+         style="align-self:flex-start;color:var(--danger,#c0392b);font-size:0.85rem;"></div>
+  </div>
+  <form x-on:submit.prevent="send()" style="display:flex;gap:8px;margin-top:12px;">
+    <input class="input" x-model="draft" :disabled="busy" dir="auto"
+           placeholder="{{ t('ai.placeholder') }}" style="flex:1;" autocomplete="off">
+    <button class="btn btn-primary gc-press" type="submit" :disabled="busy || !draft.trim()">
+      <i class="bi bi-send"></i></button>
+  </form>
+  <p class="hint" style="margin-top:8px;"><i class="bi bi-shield-lock"></i> {{ t('ai.disclaimer') }}</p>
+</div>
+
+<script>
+function aiChat() {
+  return {
+    messages: [], draft: '', busy: false, error: '',
+    scroll() { this.$nextTick(() => { var l = this.$refs.log; l.scrollTop = l.scrollHeight; }); },
+    async send() {
+      var text = this.draft.trim();
+      if (!text || this.busy) return;
+      this.error = '';
+      this.messages.push({ role: 'user', content: text });
+      this.draft = ''; this.busy = true; this.scroll();
+      try {
+        var res = await fetch("{{ url_for('ai.chat') }}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: this.messages })
+        });
+        var data = await res.json();
+        if (data.ok) {
+          this.messages.push({ role: 'assistant', content: data.text });
+        } else {
+          this.error = {{ t('ai.error') | tojson }} + ' (' + (data.error || res.status) + ')';
+        }
+      } catch (e) {
+        this.error = {{ t('ai.error') | tojson }};
+      } finally {
+        this.busy = false; this.scroll();
+      }
+    }
+  };
+}
+</script>
+{% endif %}
+{% endblock %}

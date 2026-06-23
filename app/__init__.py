@@ -30,6 +30,7 @@ def create_app(config_name="default"):
         from app import models  # noqa: F401
 
     # Blueprints.
+    from app.blueprints.ai import ai_bp
     from app.blueprints.appointments import appointments_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.finance import finance_bp
@@ -59,6 +60,7 @@ def create_app(config_name="default"):
     app.register_blueprint(messages_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(ai_bp)
 
     # Template globals for navigation rendering.
     from app.models.permissions import MODULE_ICONS, MODULES
@@ -76,6 +78,7 @@ def create_app(config_name="default"):
         "inventory": "inventory.index",
         "finance": "finance.index",
         "reports": "reports.index",
+        "ai": "ai.index",
         "messages": "messages.index",
         "settings": "settings.index",
         "users": "users.index",
@@ -94,6 +97,22 @@ def create_app(config_name="default"):
                 "© Eng. Mohamed Khafaga — All rights reserved · "
                 "يُحظر نسخه أو تعديله أو إعادة استخدامه بدون إذن صريح"
             ),
+        }
+
+    @app.context_processor
+    def inject_notifications():
+        """Topbar bell: live alerts filtered to the current user's modules."""
+        from flask_login import current_user
+
+        from app.utils.notifications import get_notifications
+
+        try:
+            items = get_notifications(current_user)
+        except Exception:  # noqa: BLE001 - never break a page over the bell
+            items = []
+        return {
+            "notifications": items,
+            "notif_count": sum(i.get("count", 0) for i in items),
         }
 
     @app.context_processor

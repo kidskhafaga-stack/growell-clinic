@@ -2,6 +2,27 @@
 {# Authenticated application shell: gradient sidebar + topbar. #}
 
 {% block body %}
+<style>
+  .notif-wrap { position:relative; }
+  .notif-badge { position:absolute; top:-4px; inset-inline-end:-4px; background:#ef4444; color:#fff;
+    font-size:0.62rem; font-weight:700; min-width:16px; height:16px; line-height:16px; text-align:center;
+    border-radius:999px; padding:0 3px; }
+  .notif-panel { position:absolute; inset-inline-end:0; top:calc(100% + 8px); width:320px; max-width:90vw;
+    background:var(--surface,#fff); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 16px 44px rgba(0,0,0,.18); z-index:60; overflow:hidden; }
+  .notif-head { padding:11px 14px; font-weight:700; border-bottom:1px solid var(--line); }
+  .notif-item { display:flex; align-items:center; gap:10px; padding:10px 14px; text-decoration:none;
+    color:inherit; border-bottom:1px solid var(--line); }
+  .notif-item:last-child { border-bottom:0; }
+  .notif-item:hover { background:var(--green-050,#f3faf5); }
+  .notif-ico { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    color:#fff; flex-shrink:0; font-size:0.9rem; }
+  .notif-ico.sev-info { background:#3b82f6; } .notif-ico.sev-warning { background:#f0ad4e; }
+  .notif-ico.sev-danger { background:#ef4444; }
+  .notif-text { flex:1; font-size:0.88rem; }
+  .notif-count { font-weight:700; color:var(--muted); }
+  .notif-empty { padding:22px 14px; text-align:center; color:var(--muted); }
+</style>
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar__brand">
@@ -49,6 +70,28 @@
                 title="{{ t('profile.theme') }}" aria-label="theme">
           <i class="bi bi-moon-stars dark-on"></i><i class="bi bi-sun light-on"></i>
         </button>
+
+        <div class="notif-wrap" x-data="{ open: false }" x-on:keydown.escape.window="open=false">
+          <button type="button" class="theme-toggle" x-on:click="open=!open"
+                  title="{{ t('notif.title') }}" aria-label="notifications" style="position:relative;">
+            <i class="bi bi-bell"></i>
+            {% if notif_count %}<span class="notif-badge">{{ notif_count if notif_count < 100 else '99+' }}</span>{% endif %}
+          </button>
+          <div class="notif-panel" x-show="open" x-cloak x-transition x-on:click.outside="open=false">
+            <div class="notif-head">{{ t('notif.title') }}</div>
+            {% if notifications %}
+              {% for n in notifications %}
+              <a class="notif-item" href="{{ url_for(n.endpoint, **n.kwargs) }}">
+                <span class="notif-ico sev-{{ n.severity }}"><i class="bi bi-{{ n.icon }}"></i></span>
+                <span class="notif-text">{{ t('notif.' ~ n.key, count=n.count) }}</span>
+                <span class="notif-count">{{ n.count }}</span>
+              </a>
+              {% endfor %}
+            {% else %}
+              <div class="notif-empty"><i class="bi bi-check2-circle"></i> {{ t('notif.empty') }}</div>
+            {% endif %}
+          </div>
+        </div>
         <div class="lang-switch">
           {% for lang in available_languages %}
             <a class="{{ 'active' if current_lang == lang else '' }}"

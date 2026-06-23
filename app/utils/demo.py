@@ -74,9 +74,21 @@ _FAMILIES = ["الشريف", "منصور", "عبد الله", "خليل", "ال�
 def _doctor():
     doc = User.query.filter_by(role="doctor", is_active=True).first()
     if doc is None:
-        doc = User(username="demo_doctor", full_name="د. هاني فؤاد",
-                   full_name_en="Dr. Hany Fouad", role="doctor", is_active=True,
-                   phone="01000000010")
+        doc = User(
+            username="demo_doctor",
+            full_name="أحمد جمال قنديل",
+            full_name_en="Dr. Ahmed Gamal Kandil",
+            role="doctor", is_active=True, phone="01000000010",
+            # Prescription letterhead identity.
+            rx_display_name="د/ أحمد جمال قنديل",
+            professional_title="استشاري",
+            specialty="استشاري طب الأطفال وحديثي الولادة",
+            sub_specialties=(
+                "زميل الكلية الملكية البريطانية لأطباء الأطفال — "
+                "مستشفى سموحة الجامعي، جامعة الإسكندرية"
+            ),
+            license_no="EG-12345",
+        )
         doc.set_password("demo12345")
         db.session.add(doc)
         db.session.flush()

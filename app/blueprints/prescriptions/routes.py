@@ -15,8 +15,10 @@ from app.models import (
     ActivityLog,
     Drug,
     DrugInteraction,
+    Investigation,
     Patient,
     Prescription,
+    PrescriptionInvestigation,
     PrescriptionItem,
     RxPrintTemplate,
     User,
@@ -80,6 +82,9 @@ def drug_new():
         default_frequency=(request.form.get("default_frequency") or "").strip() or None,
         default_instructions=(request.form.get("default_instructions") or "").strip() or None,
         max_daily_dose=(request.form.get("max_daily_dose") or "").strip() or None,
+        dose_per_kg=request.form.get("dose_per_kg", type=float),
+        max_per_kg=request.form.get("max_per_kg", type=float),
+        conc_mg_per_ml=request.form.get("conc_mg_per_ml", type=float),
     ))
     db.session.commit()
     flash(t("rx.drug_added"), "success")
@@ -98,6 +103,9 @@ def drug_edit(drug_id):
     d.default_frequency = (request.form.get("default_frequency") or "").strip() or None
     d.default_instructions = (request.form.get("default_instructions") or "").strip() or None
     d.max_daily_dose = (request.form.get("max_daily_dose") or "").strip() or None
+    d.dose_per_kg = request.form.get("dose_per_kg", type=float)
+    d.max_per_kg = request.form.get("max_per_kg", type=float)
+    d.conc_mg_per_ml = request.form.get("conc_mg_per_ml", type=float)
     d.is_active = bool(request.form.get("is_active"))
     db.session.commit()
     flash(t("rx.drug_updated"), "success")
@@ -132,7 +140,90 @@ def drug_search():
         "label": d.label(), "form": d.form or "",
         "dose": d.default_dose or "", "frequency": d.default_frequency or "",
         "instructions": d.default_instructions or "", "max": d.max_daily_dose or "",
+        "dose_per_kg": d.dose_per_kg, "max_per_kg": d.max_per_kg,
+        "conc": d.conc_mg_per_ml,
     } for d in drugs])
+
+
+@prescriptions_bp.route("/ai-dose", methods=["POST"])
+@module_required(MODULE)
+def ai_dose():
+    """Ask the configured AI for a paediatric dose suggestion for one drug.
+
+    Sends only the drug name, the child's weight/age and the diagnosis — no
+    patient identifiers. The doctor always verifies before prescribing.
+    """
+    import json as _json
+
+    from app.utils import ai as ai_utils
+
+    if not ai_utils.is_ready():
+        return jsonify({"ok": False, "error": "ai_not_ready"}), 400
+    data = request.get_json(silent=True) or {}
+    drug = (data.get("drug") or "").strip()
+    if not drug:
+        return jsonify({"ok": False, "error": "no_drug"}), 400
+    weight = (str(data.get("weight") or "")).strip()
+    age = (data.get("age") or "").strip()
+    diagnosis = (data.get("diagnosis") or "").strip()
+
+    system = (
+        "You are a paediatric clinical pharmacology assistant. Given a drug, a "
+        "child's weight/age and the diagnosis, suggest a typical paediatric dose. "
+        "Be conservative and respect maximum doses. Respond ONLY with compact "
+        'JSON: {"dose": "...", "frequency": "...", "duration": "...", "note": "..."}. '
+        "Keep values short; put cautions in note. The treating doctor verifies."
+    )
+    prompt = (f"Drug: {drug}\nWeight: {weight or '—'} kg\nAge: {age or '—'}\n"
+              f"Diagnosis: {diagnosis or '—'}")
+    result = ai_utils.chat([{"role": "user", "content": prompt}], system=system)
+    if not result.get("ok"):
+        return jsonify({"ok": False, "error": result.get("error", "ai_error")}), 502
+
+    text = (result.get("text") or "").strip()
+    parsed = None
+    try:  # tolerate code fences / surrounding prose
+        start, end = text.find("{"), text.rfind("}")
+        if start >= 0 and end > start:
+            parsed = _json.loads(text[start:end + 1])
+    except (ValueError, TypeError):
+        parsed = None
+    if isinstance(parsed, dict):
+        return jsonify({"ok": True, "dose": parsed.get("dose", ""),
+                        "frequency": parsed.get("frequency", ""),
+                        "duration": parsed.get("duration", ""),
+                        "note": parsed.get("note", "")})
+    return jsonify({"ok": True, "note": text})
+
+
+@prescriptions_bp.route("/icd/search")
+@module_required(MODULE)
+def icd_search():
+    """ICD-10 autocomplete for the prescription diagnosis field."""
+    from app.utils.icd import search_icd
+
+    return jsonify(search_icd(request.args.get("q"), limit=12))
+
+
+@prescriptions_bp.route("/investigations/search")
+@module_required(MODULE)
+def investigation_search():
+    """Autocomplete for lab tests / imaging when writing a prescription."""
+    q = (request.args.get("q") or "").strip()
+    kind = (request.args.get("kind") or "").strip()
+    if len(q) < 1:
+        return jsonify([])
+    like = f"%{q}%"
+    query = Investigation.query.filter(Investigation.is_active.is_(True)).filter(
+        or_(Investigation.name_ar.ilike(like), Investigation.name_en.ilike(like))
+    )
+    if kind in ("lab", "imaging"):
+        query = query.filter(Investigation.kind == kind)
+    rows = query.order_by(Investigation.name_ar).limit(15).all()
+    return jsonify([{
+        "id": x.id, "name": x.display_name(), "kind": x.kind,
+        "category": x.category or "",
+    } for x in rows])
 
 
 # ----------------------------------------------------- writing -------------
@@ -150,6 +241,7 @@ def new():
             doctor_id=request.form.get("doctor_id", type=int) or (
                 current_user.id if current_user.role == "doctor" else None),
             diagnosis=(request.form.get("diagnosis") or "").strip() or None,
+            diagnosis_code=(request.form.get("diagnosis_code") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None,
             created_by=current_user.id,
         )
@@ -181,7 +273,32 @@ def new():
             ))
             used_ids.append(did)
             count += 1
-        if count == 0:
+
+        # Investigations: lab tests + imaging (parallel arrays).
+        inv_ids = request.form.getlist("inv_id")
+        inv_kinds = request.form.getlist("inv_kind")
+        inv_names = request.form.getlist("inv_name")
+        inv_notes = request.form.getlist("inv_notes")
+        inv_count = 0
+        for i in range(len(inv_names)):
+            name = (inv_names[i] or "").strip()
+            if not name:
+                continue
+            kind = inv_kinds[i] if i < len(inv_kinds) else "lab"
+            if kind not in ("lab", "imaging"):
+                kind = "lab"
+            iid = None
+            try:
+                iid = int(inv_ids[i]) if i < len(inv_ids) and inv_ids[i] else None
+            except (ValueError, TypeError):
+                iid = None
+            rx.investigations.append(PrescriptionInvestigation(
+                investigation_id=iid, kind=kind, name=name,
+                notes=(inv_notes[i].strip() if i < len(inv_notes) else "") or None,
+            ))
+            inv_count += 1
+
+        if count == 0 and inv_count == 0:
             db.session.rollback()
             flash(t("rx.need_item"), "warning")
             return redirect(url_for("prescriptions.new", patient_id=patient.id))
@@ -193,11 +310,15 @@ def new():
             flash(t("rx.interaction_flash"), "warning")
         return redirect(url_for("prescriptions.view", rx_id=rx.id))
 
-    patient = db.session.get(Patient, request.args.get("patient_id", type=int))
+    from app.utils import ai as ai_utils
+
+    pid = request.args.get("patient_id", type=int)
+    patient = db.session.get(Patient, pid) if pid else None
     return render_template(
         "prescriptions/new.html", patient=patient,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
+        ai_ready=ai_utils.is_ready(),
     )
 
 
@@ -238,6 +359,7 @@ def _save_template(tpl):
     tpl.mode = "preprinted" if request.form.get("mode") == "preprinted" else "white"
     ls = request.form.get("logo_source")
     tpl.logo_source = ls if ls in ("clinic", "personal", "none") else "clinic"
+    tpl.page_size = "A5" if request.form.get("page_size") == "A5" else "A4"
     tpl.font_size = request.form.get("font_size", type=int) or 14
     tpl.margin_mm = request.form.get("margin_mm", type=int) or 12
     tpl.top_offset_mm = request.form.get("top_offset_mm", type=int) or 0

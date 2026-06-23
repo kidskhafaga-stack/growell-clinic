@@ -1,0 +1,52 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.staff') }}{% endblock %}
+{% block page_heading %}{{ t('reports.staff') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('reports.staff') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('reports.staff_desc') }}</p>
+  </div>
+</div>
+
+<div class="card gc-animate" style="margin-bottom:16px;">
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('reports.apply') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if rows %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.doctor') }}</th><th>{{ t('reports.visits') }}</th>
+      <th>{{ t('reports.invoices') }}</th><th>{{ t('reports.billed') }}</th>
+      <th>{{ t('reports.collected') }}</th><th>{{ t('reports.commission') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><strong>{{ r.doctor.display_name(current_lang) }}</strong></td>
+        <td>{{ r.visits }}</td>
+        <td>{{ r.invoices }}</td>
+        <td>{{ r.billed }}</td>
+        <td style="color:var(--green-700);">{{ r.collected }}</td>
+        <td>{{ r.commission }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr style="font-weight:700;border-top:2px solid var(--line);">
+      <td>{{ t('reports.total') }}</td><td>{{ totals.visits }}</td><td></td>
+      <td>{{ totals.billed }}</td><td style="color:var(--green-700);">{{ totals.collected }}</td>
+      <td>{{ totals.commission }}</td>
+    </tr></tfoot>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-people"></i>{{ t('reports.no_data') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

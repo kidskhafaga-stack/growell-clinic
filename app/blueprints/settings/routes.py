@@ -29,8 +29,11 @@ TEXT_KEYS = [
     "eta_tax_number", "eta_activity_code", "eta_company_name",
     "eta_branch_address", "eta_signing_url", "eta_default_tax",
     "eta_vat_rate", "eta_send_gap", "eta_default_item_type", "eta_client_secret2",
+    # AI assistant (provider-agnostic).
+    "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_system_prompt",
 ]
-TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled"]
+TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
+               "ai_patient_context", "ai_anonymize"]
 
 
 def _logo_dir():
@@ -65,8 +68,12 @@ def index():
         flash(t("settings.saved"), "success")
         return redirect(url_for("settings.index"))
 
+    from app.utils.ai import AI_PROVIDERS
+
     values = {row.key: row.value for row in Setting.query.all()}
-    return render_template("settings/index.html", values=values)
+    return render_template(
+        "settings/index.html", values=values, ai_providers=AI_PROVIDERS
+    )
 
 
 @settings_bp.route("/data")

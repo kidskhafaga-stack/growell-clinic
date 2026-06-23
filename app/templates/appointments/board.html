@@ -36,6 +36,7 @@
 {% endmacro %}
 
 {% block content %}
+<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }})">
 <!-- Header row -->
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
@@ -47,6 +48,8 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.roster', doctor_id=doctor_id, date=on_date) }}">
       <i class="bi bi-whatsapp"></i> {{ t('messages_mod.roster') }}</a>
     {% endif %}
+    <button type="button" class="btn btn-outline gc-press" x-on:click="openWalkIn()">
+      <i class="bi bi-person-walking"></i> {{ t('appointments.walk_in_btn') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('appointments.schedules', doctor_id=doctor_id) }}">
       <i class="bi bi-calendar2-week"></i> {{ t('appointments.manage_schedules') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('appointments.create') }}">
@@ -118,8 +121,30 @@
     </div>
     <div class="col">
       <h4>{{ t('patients.tab_growth') }} · {{ t('patients.tab_vaccinations') }}</h4>
-      <div class="placeholder-soft"><i class="bi bi-hourglass-split"></i> {{ t('common.coming_soon') }}</div>
-      <p style="font-size:0.8rem;color:var(--muted);margin-top:8px;">{{ t('patients.tab_phase_notice') }}</p>
+      {% if current_summary and current_summary.growth %}
+        {% set g = current_summary.growth %}
+        <div class="meta-row" style="gap:14px;flex-wrap:wrap;">
+          {% if g.weight_kg %}<span><i class="bi bi-speedometer2"></i> {{ g.weight_kg }} kg</span>{% endif %}
+          {% if g.height_cm %}<span><i class="bi bi-rulers"></i> {{ g.height_cm }} cm</span>{% endif %}
+          {% if g.head_circ_cm %}<span><i class="bi bi-circle"></i> {{ g.head_circ_cm }} cm</span>{% endif %}
+        </div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;" dir="ltr">{{ g.record_date }}</div>
+      {% else %}
+        <div class="placeholder-soft" style="padding:8px 0;">{{ t('appointments.no_growth') }}</div>
+      {% endif %}
+
+      {% if current_summary and current_summary.vac %}
+        {% set v = current_summary.vac %}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+          <span class="badge badge--green">{{ t('vstatus.done') }}: {{ v.done }}</span>
+          {% if v.due %}<span class="badge badge--role">{{ t('vstatus.due') }}: {{ v.due }}</span>{% endif %}
+          {% if v.overdue %}<span class="badge badge--danger">{{ t('vstatus.overdue') }}: {{ v.overdue }}</span>{% endif %}
+        </div>
+      {% endif %}
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:10px;" href="{{ url_for('vaccinations.view', patient_id=current.patient_id) }}">
+        <i class="bi bi-shield-plus"></i> {{ t('patients.tab_vaccinations') }}</a>
+      <a class="btn btn-outline btn-sm gc-press" style="margin-top:10px;" href="{{ url_for('growth.view', patient_id=current.patient_id) }}">
+        <i class="bi bi-graph-up"></i> {{ t('patients.tab_growth') }}</a>
     </div>
   </div>
   <div class="cc-foot">
@@ -145,19 +170,31 @@
       {% for a in appointments %}
       <tr>
         <td style="color:var(--muted);">{{ loop.index }}</td>
-        <td><strong>{{ a.time_label }}</strong></td>
+        <td><strong>{{ a.time_label }}</strong>
+          {% if a.is_walk_in %}<div><span class="type-tag tt-red">{{ t('appointments.walk_in_flag') }}</span></div>{% endif %}
+        </td>
         <td>
           <div class="patient-row {{ 'gm' if a.patient.gender == 'male' else 'gf' }}">{{ patient_avatar(a.patient, 'sm') }}
             <div><a class="name" href="{{ url_for('patients.view', patient_id=a.patient_id) }}" style="color:inherit;">{{ a.patient.display_name(current_lang) }}</a>
               <div class="num">{{ a.patient.patient_number }}</div></div></div>
         </td>
         <td>{{ age_label(a.patient) }}</td>
-        <td>{{ a.reason or '—' }}</td>
-        <td><span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span></td>
+        <td><span class="type-tag tt-{{ a.type_color }}">{{ t('appt_types.' ~ a.appt_type) }}</span>
+          {% if a.reason %}<div style="font-size:0.85rem;color:var(--muted);margin-top:3px;">{{ a.reason }}</div>{% endif %}
+        </td>
+        <td><span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span>
+          {% if a.cancel_reason %}<div style="font-size:0.78rem;color:var(--muted);">{{ a.cancel_reason }}</div>{% endif %}
+        </td>
         <td style="text-align:end;white-space:nowrap;">
           {{ action_buttons(a) }}
+          {% if a.status in ['scheduled','waiting','no_show'] %}
+          <button type="button" class="btn btn-outline btn-sm gc-press"
+                  x-on:click="openReschedule({{ a.id }}, {{ a.doctor_id }}, '{{ a.appt_date.isoformat() }}')"
+                  title="{{ t('appointments.reschedule') }}"><i class="bi bi-arrow-left-right"></i></button>
+          {% endif %}
           {% if a.status in ['scheduled','waiting'] %}
-          {{ status_form(a, 'cancelled', '', 'x-circle', 'btn-outline') }}
+          <button type="button" class="btn btn-outline btn-sm gc-press"
+                  x-on:click="openCancel({{ a.id }})" title="{{ t('common.cancel') }}"><i class="bi bi-x-circle"></i></button>
           {% endif %}
         </td>
       </tr>
@@ -170,4 +207,145 @@
   </div>
   {% endif %}
 </div>
+
+<!-- Waiting list -->
+<div class="card gc-scale-in" style="margin-top:18px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-hourglass-split"></i> {{ t('appointments.waitlist_title') }}</h2>
+    <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="openWaitlist()">
+      <i class="bi bi-plus-lg"></i> {{ t('appointments.add_to_waitlist') }}</button>
+  </div>
+  {% if waitlist %}
+  <table class="table">
+    <tbody>
+      {% for w in waitlist %}
+      <tr>
+        <td><a href="{{ url_for('patients.view', patient_id=w.patient_id) }}" style="color:inherit;">{{ w.patient.display_name(current_lang) }}</a>
+          <span class="num" style="color:var(--muted);">{{ w.patient.patient_number }}</span></td>
+        <td>{{ w.doctor.display_name(current_lang) if w.doctor else t('appointments.any_doctor') }}</td>
+        <td>{% if w.appt_type %}<span class="type-tag tt-blue">{{ t('appt_types.' ~ w.appt_type) }}</span>{% endif %}</td>
+        <td>{% if w.preferred_from or w.preferred_to %}<span style="color:var(--muted);font-size:0.85rem;">{{ w.preferred_from or '…' }} → {{ w.preferred_to or '…' }}</span>{% endif %}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.waitlist_book', entry_id=w.id) }}"><i class="bi bi-calendar-plus"></i> {{ t('appointments.waitlist_book') }}</a>
+          <form method="post" action="{{ url_for('appointments.waitlist_cancel', entry_id=w.id) }}" style="display:inline;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-circle"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="placeholder-soft">{{ t('appointments.waitlist_empty') }}</div>
+  {% endif %}
+</div>
+
+{% include "appointments/_board_modals.html" %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .type-tag { display:inline-block; padding:2px 9px; border-radius:999px; font-size:0.74rem; font-weight:600; }
+  .tt-blue{background:#e0edff;color:#1d4ed8;} .tt-green{background:#dcfce7;color:#15803d;}
+  .tt-teal{background:#cffafe;color:#0e7490;} .tt-purple{background:#ede9fe;color:#6d28d9;}
+  .tt-orange{background:#ffedd5;color:#c2410c;} .tt-red{background:#fee2e2;color:#b91c1c;}
+  .gc-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex;
+    align-items:center; justify-content:center; z-index:60; padding:16px; }
+  .gc-modal { background:var(--surface,#fff); border-radius:14px; padding:20px; width:100%;
+    max-width:520px; max-height:88vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  .mini-results { border:1px solid var(--line); border-radius:10px; margin-top:4px; max-height:200px; overflow-y:auto; }
+  .mini-result { display:flex; justify-content:space-between; gap:10px; width:100%; text-align:start;
+    padding:8px 11px; background:none; border:0; border-bottom:1px solid var(--line); font-family:inherit; cursor:pointer; }
+  .mini-result:last-child{border-bottom:0;} .mini-result:hover{background:var(--green-050,#f3faf5);}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function board(slotsUrl, searchUrl, boardDoctorId) {
+  return {
+    slotsUrl, searchUrl, boardDoctorId,
+    modal: null,                 // 'reschedule' | 'cancel' | 'walkin' | 'waitlist'
+    // patient search (shared by walk-in & waitlist)
+    q: '', results: [], chosen: null,
+    // reschedule
+    rs: { id: null, doctorId: null, date: '', slots: [], selected: '', loading: false },
+    // cancel
+    cancel: { id: null, reason: '' },
+    // walk-in / waitlist fields
+    f: { doctorId: '', appt_type: 'new', reason: '', preferred_from: '', preferred_to: '' },
+
+    close() { this.modal = null; this.q=''; this.results=[]; this.chosen=null; },
+    async searchPatients() {
+      if (this.q.trim().length < 2) { this.results = []; return; }
+      try {
+        const r = await fetch(`${this.searchUrl}?q=${encodeURIComponent(this.q.trim())}`);
+        this.results = (await r.json()).patients || [];
+      } catch(e) { this.results = []; }
+    },
+    pickPatient(p) { this.chosen = p; this.results = []; this.q = ''; },
+
+    // Reschedule -----------------------------------------------------------
+    openReschedule(id, doctorId, date) {
+      this.rs = { id, doctorId: String(doctorId), date, slots: [], selected: '', loading: false };
+      this.modal = 'reschedule'; this.loadRsSlots();
+    },
+    async loadRsSlots() {
+      this.rs.selected=''; this.rs.slots=[];
+      if (!this.rs.doctorId || !this.rs.date) return;
+      this.rs.loading = true;
+      try {
+        const r = await fetch(`${this.slotsUrl}?doctor_id=${this.rs.doctorId}&date=${this.rs.date}&exclude_id=${this.rs.id}`);
+        this.rs.slots = (await r.json()).slots || [];
+      } catch(e) { this.rs.slots = []; }
+      this.rs.loading = false;
+    },
+    submitReschedule() {
+      if (!this.rs.selected) return;
+      this.postForm(`/appointments/${this.rs.id}/reschedule`, {
+        doctor_id: this.rs.doctorId, appt_date: this.rs.date, appt_time: this.rs.selected });
+    },
+    // Cancel ---------------------------------------------------------------
+    openCancel(id) { this.cancel = { id, reason: '' }; this.modal = 'cancel'; },
+    submitCancel() {
+      this.postForm(`/appointments/${this.cancel.id}/status`, {
+        status: 'cancelled', cancel_reason: this.cancel.reason });
+    },
+    // Walk-in --------------------------------------------------------------
+    openWalkIn() {
+      this.f = { doctorId: this.boardDoctorId ? String(this.boardDoctorId) : '', appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'' };
+      this.modal = 'walkin';
+    },
+    submitWalkIn() {
+      if (!this.chosen || !this.f.doctorId) return;
+      this.postForm(`/appointments/walk-in`, {
+        patient_id: this.chosen.id, doctor_id: this.f.doctorId,
+        appt_type: this.f.appt_type, reason: this.f.reason });
+    },
+    // Waitlist -------------------------------------------------------------
+    openWaitlist() {
+      this.f = { doctorId: this.boardDoctorId ? String(this.boardDoctorId) : '', appt_type: 'new', reason: '', preferred_from:'', preferred_to:'' };
+      this.modal = 'waitlist';
+    },
+    submitWaitlist() {
+      if (!this.chosen) return;
+      this.postForm(`/appointments/waitlist`, {
+        patient_id: this.chosen.id, doctor_id: this.f.doctorId, appt_type: this.f.appt_type,
+        reason: this.f.reason, preferred_from: this.f.preferred_from, preferred_to: this.f.preferred_to });
+    },
+    // Helper: submit a hidden form (full page nav keeps existing flash UX) --
+    postForm(action, fields) {
+      const form = document.createElement('form');
+      form.method = 'post'; form.action = action;
+      for (const k in fields) {
+        const i = document.createElement('input');
+        i.type = 'hidden'; i.name = k; i.value = fields[k] == null ? '' : fields[k];
+        form.appendChild(i);
+      }
+      document.body.appendChild(form); form.submit();
+    }
+  };
+}
+</script>
 {% endblock %}

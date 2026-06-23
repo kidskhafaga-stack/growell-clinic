@@ -25,6 +25,30 @@ COMMON_DRUGS = [
     ("Nasal Saline", "Sodium Chloride 0.9%", "drops", "0.9%", "نقطتان لكل فتحة", "حسب الحاجة", "—"),
 ]
 
+# Weight-based dosing by generic: (mg/kg per dose, max mg/kg per day).
+_DOSING_BY_GENERIC = {
+    "Paracetamol": (12.5, 60),
+    "Ibuprofen": (7.5, 40),
+    "Amoxicillin": (15, 45),
+    "Amoxicillin/Clavulanate": (15, 45),
+    "Azithromycin": (10, 10),
+    "Cefixime": (4, 8),
+    "Salbutamol": (0.1, 0.3),
+    "Domperidone": (0.25, 0.75),
+    "Prednisolone": (1, 2),
+}
+
+
+def _parse_conc(strength):
+    """Parse '250 mg/5 ml' → 50.0 (mg per ml), or None."""
+    import re
+    m = re.search(r"(\d+(?:\.\d+)?)\s*mg\s*/\s*(\d+(?:\.\d+)?)\s*ml", strength or "", re.I)
+    if not m:
+        return None
+    mg, ml = float(m.group(1)), float(m.group(2))
+    return round(mg / ml, 3) if ml else None
+
+
 # Pairs by generic name → warned when both appear together.
 _INTERACTIONS = [
     ("Ibuprofen", "Prednisolone", "moderate", "زيادة خطر تهيّج/نزيف المعدة"),
@@ -47,8 +71,19 @@ def seed_drugs():
         created += 1
     db.session.flush()
 
+    # Backfill weight-based dosing + liquid concentration (idempotent).
     for d in Drug.query.all():
         by_generic.setdefault(d.generic_name, d)
+        dosing = _DOSING_BY_GENERIC.get(d.generic_name)
+        if dosing:
+            if d.dose_per_kg is None:
+                d.dose_per_kg = dosing[0]
+            if d.max_per_kg is None:
+                d.max_per_kg = dosing[1]
+        if d.conc_mg_per_ml is None:
+            conc = _parse_conc(d.strength)
+            if conc:
+                d.conc_mg_per_ml = conc
 
     for ga, gb, sev, note in _INTERACTIONS:
         a, b = by_generic.get(ga), by_generic.get(gb)
