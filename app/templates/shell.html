@@ -22,6 +22,12 @@
   .notif-text { flex:1; font-size:0.88rem; }
   .notif-count { font-weight:700; color:var(--muted); }
   .notif-empty { padding:22px 14px; text-align:center; color:var(--muted); }
+  /* Copyright line stamped on every printed report (one line, screen-hidden). */
+  .print-footer { display:none; }
+  @media print {
+    .print-footer { display:block !important; position:fixed; bottom:4mm; inset-inline:0;
+      text-align:center; font-size:8.5px; color:#666; letter-spacing:.2px; }
+  }
 </style>
 <div class="layout">
   <aside class="sidebar">
@@ -123,6 +129,7 @@
     </main>
   </div>
 </div>
+<div class="print-footer">{{ product_name }} · © Eng. Mohamed Khafaga — All rights reserved</div>
 <script>
   function toggleTheme() {
     var el = document.documentElement;

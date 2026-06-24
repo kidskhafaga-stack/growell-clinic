@@ -121,7 +121,7 @@
 
 {% block head %}
 <style>
-  @page { size: {{ tpl.page_size or 'A4' }}; margin: {{ tpl.margin_mm }}mm; }
+  @page { size: {{ tpl.page_size or 'A4' }}; margin: {{ tpl.m_top }}mm {{ tpl.m_right }}mm {{ tpl.m_bottom }}mm {{ tpl.m_left }}mm; }
   @media print {
     .sidebar,.topbar,.no-print,.flashes{display:none!important;}
     .main{margin:0!important;}.content{padding:0!important;}
