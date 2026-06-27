@@ -74,10 +74,11 @@
       <div class="topbar__actions">
         <div class="topbar-date"><i class="bi bi-calendar3"></i>
           <span>{{ now_date }}</span> · {{ t('weekdays.' ~ now_weekday) }}</div>
-        <button type="button" class="theme-toggle" onclick="toggleTheme()"
-                title="{{ t('profile.theme') }}" aria-label="theme">
-          <i class="bi bi-moon-stars dark-on"></i><i class="bi bi-sun light-on"></i>
-        </button>
+        <div class="theme-switch" role="group" aria-label="{{ t('profile.theme') }}">
+          <button type="button" data-mode="light" onclick="setThemeMode('light')" title="{{ t('profile.theme_light') }}"><i class="bi bi-sun"></i></button>
+          <button type="button" data-mode="dark" onclick="setThemeMode('dark')" title="{{ t('profile.theme_dark') }}"><i class="bi bi-moon-stars"></i></button>
+          <button type="button" data-mode="system" onclick="setThemeMode('system')" title="{{ t('profile.theme_system') }}"><i class="bi bi-display"></i></button>
+        </div>
 
         <div class="notif-wrap" x-data="{ open: false }" x-on:keydown.escape.window="open=false">
           <button type="button" class="theme-toggle" x-on:click="open=!open"
@@ -148,15 +149,23 @@
       });
     } catch (e) { /* navigation continues regardless */ }
   }
-  function toggleTheme() {
+  function _markThemeActive(mode) {
+    document.querySelectorAll('.theme-switch button').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-mode') === mode);
+    });
+  }
+  function setThemeMode(mode) {
     var el = document.documentElement;
-    var next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    el.setAttribute('data-theme', next);
+    el.setAttribute('data-theme-mode', mode);
+    var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    el.setAttribute('data-theme', mode === 'system' ? (sysDark ? 'dark' : 'light') : mode);
+    _markThemeActive(mode);
     fetch("{{ url_for('main.set_theme') }}", {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'theme=' + next
+      body: 'theme=' + mode
     }).catch(function () {});
   }
+  _markThemeActive(document.documentElement.getAttribute('data-theme-mode') || 'light');
 </script>
 {% endblock %}

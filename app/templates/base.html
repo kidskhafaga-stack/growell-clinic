@@ -1,11 +1,25 @@
 <!DOCTYPE html>
 {% set _u = current_user if current_user.is_authenticated else None %}
+{% set _mode = (_u.theme if _u and _u.theme else 'light') %}
+{% set _accent = (_u.accent_color if _u and _u.accent_color else program.accent) %}
 <html lang="{{ current_lang }}" dir="{{ direction }}"
-      data-theme="{{ _u.theme if _u and _u.theme else 'light' }}"
+      data-theme-mode="{{ _mode }}"
       class="fs-{{ _u.font_scale if _u and _u.font_scale else 'md' }}"
-      {% if _u and _u.accent_color %}style="--accent:{{ _u.accent_color }};"{% endif %}>
+      {% if _accent %}style="--accent:{{ _accent }};"{% endif %}>
 <head>
   <meta charset="utf-8">
+  <!-- Resolve theme before paint (light / dark / follow-system) — no flash. -->
+  <script>
+    (function () {
+      var el = document.documentElement, m = el.getAttribute('data-theme-mode') || 'light';
+      function sysDark() { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
+      function apply() { el.setAttribute('data-theme', m === 'system' ? (sysDark() ? 'dark' : 'light') : m); }
+      apply();
+      if (m === 'system' && window.matchMedia) {
+        try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply); } catch (e) {}
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}{% endblock %} — {{ product_name }}</title>
   <!-- Vendored locally so the clinic works fully offline (no CDN dependency). -->

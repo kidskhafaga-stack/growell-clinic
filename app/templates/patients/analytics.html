@@ -1,0 +1,93 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('analytics.title') }}{% endblock %}
+{% block page_heading %}{{ t('analytics.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <h1 class="page-title" style="margin:0;"><i class="bi bi-graph-up-arrow"></i> {{ t('analytics.title') }}</h1>
+  <div class="date-nav" style="gap:6px;">
+    {% for d in [30, 90, 180, 365] %}
+    <a class="btn btn-{{ 'primary' if period.days == d else 'outline' }} btn-sm gc-press"
+       href="{{ url_for('patients.analytics', days=d) }}">{{ t('analytics.last_' ~ d) }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Headline stats -->
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-people ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.total }}">0</div><div class="label">{{ t('agegrp.total') }}</div></div>
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-person-plus ico"></i>
+    <div class="value gc-counter" data-count="{{ period.new_patients }}">0</div><div class="label">{{ t('analytics.new_patients') }}</div></div>
+  <div class="stat-card edge-teal gc-lift"><i class="bi bi-clipboard2-pulse ico"></i>
+    <div class="value gc-counter" data-count="{{ period.visits }}">0</div><div class="label">{{ t('analytics.visits') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-gender-ambiguous ico"></i>
+    <div class="value">{{ stats.male }}/{{ stats.female }}</div><div class="label">{{ t('genders.male') }} / {{ t('genders.female') }}</div></div>
+</div>
+
+<div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <!-- Gender doughnut -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-pie-chart"></i> {{ t('agegrp.by_gender') }}</h2>
+    <div style="position:relative;height:240px;"><canvas id="genderChart"></canvas></div>
+  </div>
+  <!-- Age bar -->
+  <div class="card gc-scale-in" style="animation-delay:0.05s;">
+    <h2 class="section-title"><i class="bi bi-bar-chart"></i> {{ t('agegrp.by_age') }}</h2>
+    <div style="position:relative;height:240px;"><canvas id="ageChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Top diagnoses -->
+<div class="card gc-scale-in" style="margin-top:16px;animation-delay:0.1s;">
+  <h2 class="section-title"><i class="bi bi-card-list"></i> {{ t('analytics.top_diagnoses') }}</h2>
+  {% if top_dx %}
+  {% set _max = top_dx[0][1] %}
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for title, n in top_dx %}
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ title }}</div>
+        <div style="height:8px;border-radius:6px;background:var(--green-050);overflow:hidden;margin-top:3px;">
+          <div style="height:100%;width:{{ (n / _max * 100)|round(0, 'floor') }}%;background:var(--green-600);"></div></div>
+      </div>
+      <span class="badge badge--role">{{ n }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-clipboard-x"></i>{{ t('analytics.no_diagnoses') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script>
+  (function () {
+    if (typeof Chart === 'undefined') return;
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var grid = isDark ? 'rgba(148,163,184,.18)' : 'rgba(148,163,184,.18)';
+    new Chart(document.getElementById('genderChart'), {
+      type: 'doughnut',
+      data: { labels: [{{ t('genders.male')|tojson }}, {{ t('genders.female')|tojson }}],
+        datasets: [{ data: [{{ stats.male }}, {{ stats.female }}],
+          backgroundColor: ['#3b82f6', '#ec4899'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }, cutout: '62%' }
+    });
+    new Chart(document.getElementById('ageChart'), {
+      type: 'bar',
+      data: { labels: [{% for g in age_groups %}{{ t('agegrp.' ~ g)|tojson }}{{ ',' if not loop.last }}{% endfor %}],
+        datasets: [{ label: {{ t('agegrp.count')|tojson }},
+          data: [{% for g in age_groups %}{{ stats.groups[g] }}{{ ',' if not loop.last }}{% endfor %}],
+          backgroundColor: '#1aa179', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 } },
+          x: { grid: { display: false } } } }
+    });
+  })();
+</script>
+{% endblock %}

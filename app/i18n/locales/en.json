@@ -464,7 +464,8 @@
     "cc_vaccine_visit": "Vaccination",
     "previous_context": "From the previous visit",
     "last_visit": "Previous visit",
-    "pending_results": "Pending results (enter now)",
+    "pending_results": "Labs/imaging requested in a previous visit",
+    "pending_results_hint": "Requested by the doctor in an earlier visit and still awaiting their result — enter it now.",
     "recent_files": "Recent files",
     "att_lab": "Lab",
     "att_imaging": "Investigation"
@@ -835,7 +836,11 @@
     "thermal_title": "Thermal receipt",
     "thermal_footer": "Receipt footer text",
     "thermal_footer_hint": "Shown at the bottom of the thermal receipt (thanks / instructions / booking). One line each.",
-    "thermal_footer_ph": "Thank you for visiting!\nBooking: 01000000000"
+    "thermal_footer_ph": "Thank you for visiting!\nBooking: 01000000000",
+    "clinic_accent": "Primary app colour",
+    "clinic_accent_hint": "Recolour the app to match your clinic (can match the clinic logo).",
+    "use_logo_colors": "Use logo colours",
+    "accent_reset": "Default (green)"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1473,7 +1478,10 @@
     "fs_md": "Medium",
     "fs_lg": "Large",
     "landing": "Default landing page",
-    "landing_default": "Dashboard"
+    "landing_default": "Dashboard",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "System"
   },
   "rxtpl": {
     "title": "Prescription print templates",
@@ -1686,5 +1694,16 @@
     "contracts_expiring": "{count} contract(s) expiring soon",
     "vaccines_due": "{count} patient(s) with vaccines due",
     "birthdays": "{count} birthday(s) this week"
+  },
+  "analytics": {
+    "title": "Patient analytics",
+    "last_30": "30 days",
+    "last_90": "90 days",
+    "last_180": "6 months",
+    "last_365": "1 year",
+    "new_patients": "New patients",
+    "visits": "Visits",
+    "top_diagnoses": "Top diagnoses in period",
+    "no_diagnoses": "No diagnoses in this period"
   }
 }

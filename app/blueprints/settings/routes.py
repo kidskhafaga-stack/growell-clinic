@@ -20,6 +20,7 @@ TEXT_KEYS = [
     "clinic_address", "clinic_address_en", "clinic_tagline",
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
+    "clinic_accent",
     # WhatsApp / messaging.
     "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_endpoint",

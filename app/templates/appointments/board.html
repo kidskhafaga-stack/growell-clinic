@@ -178,7 +178,10 @@
     {% if current_user.can_access('visits') %}
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=current.patient_id, appointment_id=current.id) }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.record_visit') }}</a>
     {% endif %}
-    {{ status_form(current, 'completed', t('appointments.complete'), 'check2-circle', 'btn-outline') }}
+    <form method="post" action="{{ url_for('appointments.change_status', appt_id=current.id) }}" style="display:inline;">
+      <input type="hidden" name="status" value="completed">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('appointments.complete') }}</button>
+    </form>
     <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=current.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
   </div>
 </div>

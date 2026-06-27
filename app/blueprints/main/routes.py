@@ -49,23 +49,9 @@ def _age_group(days):
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
-    from app.models import Patient
-
-    stats = None
-    if current_user.can_access("patients"):
-        patients = Patient.query.filter_by(is_active=True).all()
-        groups = {key: 0 for key, _ in AGE_GROUPS}
-        male = female = 0
-        for p in patients:
-            if p.gender == "male":
-                male += 1
-            elif p.gender == "female":
-                female += 1
-            groups[_age_group(p.age_days)] += 1
-        stats = {"total": len(patients), "male": male, "female": female,
-                 "groups": groups}
-    return render_template("main/dashboard.html", stats=stats,
-                           age_groups=[k for k, _ in AGE_GROUPS])
+    # Patient classification now lives on the dedicated analytics page
+    # (patients.analytics), linked from here.
+    return render_template("main/dashboard.html")
 
 
 @main_bp.route("/guide")
@@ -78,8 +64,10 @@ def guide():
 @main_bp.route("/set-theme", methods=["POST"])
 @login_required
 def set_theme():
-    """Persist the user's light/dark preference (quick top-bar toggle)."""
-    theme = "dark" if request.form.get("theme") == "dark" else "light"
+    """Persist the user's appearance preference: light / dark / system."""
+    theme = (request.form.get("theme") or "").strip()
+    if theme not in ("light", "dark", "system"):
+        theme = "light"
     current_user.theme = theme
     db.session.commit()
     return {"theme": theme}

@@ -12,6 +12,9 @@
     <p class="page-sub" style="margin:0;">{{ t('patients.list') }}</p>
   </div>
   <div style="display:flex;gap:10px;">
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.analytics') }}">
+      <i class="bi bi-graph-up-arrow"></i> {{ t('analytics.title') }}
+    </a>
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
       <i class="bi bi-upload"></i> {{ t('patients.import_patients') }}
     </a>
