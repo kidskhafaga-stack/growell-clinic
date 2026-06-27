@@ -11,6 +11,34 @@
      }"
      x-init="window.addEventListener('hashchange', () => tab = (window.location.hash||'#overview').substring(1))">
 
+  <!-- Prominent, animated safety banner: allergies / chronic / growth concern -->
+  {% if patient.allergies or patient.chronic_diseases or growth_alert %}
+  <div class="alert-banner gc-scale-in">
+    {% if patient.allergies %}
+    <div class="alert-banner__item ab-danger">
+      <span class="ab-ico pulse"><i class="bi bi-exclamation-octagon-fill"></i></span>
+      <div><div class="ab-title">{{ t('patients.allergies') }}</div>
+        <div class="ab-body">{{ patient.allergies }}</div></div>
+    </div>
+    {% endif %}
+    {% if patient.chronic_diseases %}
+    <div class="alert-banner__item ab-warn">
+      <span class="ab-ico"><i class="bi bi-heart-pulse-fill"></i></span>
+      <div><div class="ab-title">{{ t('patients.chronic_diseases') }}</div>
+        <div class="ab-body">{{ patient.chronic_diseases }}</div></div>
+    </div>
+    {% endif %}
+    {% if growth_alert %}
+    <a class="alert-banner__item ab-growth" href="{{ url_for('growth.view', patient_id=patient.id) }}">
+      <span class="ab-ico {{ 'pulse' if growth_alert.status=='alert' else '' }}"><i class="bi bi-graph-down-arrow"></i></span>
+      <div><div class="ab-title">{{ t('patients.growth_concern') }}</div>
+        <div class="ab-body">{{ t('growth.' ~ growth_alert.indicator) }} · P{{ growth_alert.percentile }} · Z {{ growth_alert.z }}
+          <span class="badge badge--{{ 'danger' if growth_alert.status=='alert' else 'muted' }}">{{ t('growth.status_' ~ growth_alert.status) }}</span></div></div>
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Header -->
   <div class="card profile-header gc-scale-in">
     {{ patient_avatar(patient, 'lg') }}

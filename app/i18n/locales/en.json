@@ -139,6 +139,7 @@
     "medical_alerts": "Medical alerts",
     "allergies": "Allergies",
     "chronic_diseases": "Chronic diseases",
+    "growth_concern": "Alert: growth chart needs attention",
     "no_alerts": "No medical alerts recorded",
     "notes": "Notes",
     "basic_info": "Basic information",
