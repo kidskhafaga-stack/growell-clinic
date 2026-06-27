@@ -7,9 +7,19 @@ setlocal
 cd /d "%~dp0"
 
 echo ============================================================
-echo    GROWELL CLINIC
+echo    GROWELL CLINIC  ^|  PediaPro
 echo ============================================================
 echo.
+
+REM --- 0) Pull the latest version if online (safe to skip offline) ---
+where git >nul 2>nul
+if not errorlevel 1 (
+  if exist ".git" (
+    echo [0/4] Checking for updates...
+    git pull --ff-only
+    if errorlevel 1 echo      ^(skipped update - offline or local changes; continuing^)
+  )
+)
 
 REM --- 1) Ensure Python is available ---
 where python >nul 2>nul

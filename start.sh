@@ -7,8 +7,14 @@ set -e
 cd "$(dirname "$0")"
 
 echo "============================================================"
-echo "   GROWELL CLINIC"
+echo "   GROWELL CLINIC  |  PediaPro"
 echo "============================================================"
+
+# 0) Pull the latest version if online (safe to skip offline / local changes)
+if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
+  echo "[0/4] Checking for updates..."
+  git pull --ff-only || echo "      (skipped update - offline or local changes; continuing)"
+fi
 
 # 1) Ensure Python is available
 if ! command -v python3 >/dev/null 2>&1; then
