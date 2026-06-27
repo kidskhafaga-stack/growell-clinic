@@ -240,6 +240,7 @@ def new():
             patient_id=patient.id,
             doctor_id=request.form.get("doctor_id", type=int) or (
                 current_user.id if current_user.role == "doctor" else None),
+            visit_id=request.form.get("visit_id", type=int) or None,
             diagnosis=(request.form.get("diagnosis") or "").strip() or None,
             diagnosis_code=(request.form.get("diagnosis_code") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None,
@@ -314,8 +315,18 @@ def new():
 
     pid = request.args.get("patient_id", type=int)
     patient = db.session.get(Patient, pid) if pid else None
+    # Pre-fill support when opened from inside a visit ("write prescription"):
+    # patient + doctor + weight + the visit's final diagnosis carry over so the
+    # doctor doesn't re-enter what they already recorded.
+    prefill = {
+        "visit_id": request.args.get("visit_id", type=int),
+        "doctor_id": request.args.get("doctor_id", type=int),
+        "weight": request.args.get("weight", type=float),
+        "diagnosis": (request.args.get("diagnosis") or "").strip(),
+        "diagnosis_code": (request.args.get("diagnosis_code") or "").strip(),
+    }
     return render_template(
-        "prescriptions/new.html", patient=patient,
+        "prescriptions/new.html", patient=patient, prefill=prefill,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
         ai_ready=ai_utils.is_ready(),

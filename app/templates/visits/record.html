@@ -5,8 +5,16 @@
 {% block page_heading %}{{ t('visits.record_title') }}{% endblock %}
 
 {% block content %}
+{% set _finals = visit.final_diagnoses() %}
+{% set _dx = _finals[0] if _finals else (visit.diagnoses[0] if visit.diagnoses else None) %}
+{% set _rx_base = url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id,
+      visit_id=visit.id, diagnosis=(_dx.title if _dx else ''), diagnosis_code=(_dx.code if _dx and _dx.code else '')) %}
 <div x-data="visitPage('{{ url_for('visits.icd') }}',
-        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }})">
+        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }},
+        {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
+            'normal': t('visits.normal_exam_text'),
+            'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }})"
+     x-init="restore()" style="padding-bottom:78px;">
 
   <!-- Patient header -->
   <div class="card profile-header gc-scale-in">
@@ -26,22 +34,29 @@
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      {% if not visit.is_completed %}
-      <form method="post" action="{{ url_for('visits.complete', visit_id=visit.id) }}">
-        <button class="btn btn-primary gc-press gc-ripple" type="submit" style="width:100%;"><i class="bi bi-check2-circle"></i> {{ t('visits.complete') }}</button>
-      </form>
-      {% endif %}
-      {% if current_user.can_access('appointments') %}
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, doctor_id=visit.doctor_id) }}"><i class="bi bi-calendar-plus"></i> {{ t('visits.book_followup') }}</a>
-      {% endif %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.view', visit_id=visit.id) }}"><i class="bi bi-eye"></i> {{ t('visits.view_title') }}</a>
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=visit.patient_id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
     </div>
   </div>
 
+  <!-- Workflow tabs: case → diagnosis → investigations → files -->
+  <div class="visit-tabs no-print">
+    <button type="button" class="vtab" :class="tab==='case' && 'active'" x-on:click="go('case')">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('visits.tab_case') }}</button>
+    <button type="button" class="vtab" :class="tab==='dx' && 'active'" x-on:click="go('dx')">
+      <i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}
+      {% if visit.diagnoses %}<span class="vtab-count">{{ visit.diagnoses|length }}</span>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='inv' && 'active'" x-on:click="go('inv')">
+      <i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}
+      {% if visit.investigations %}<span class="vtab-count">{{ visit.investigations|length }}</span>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='files' && 'active'" x-on:click="go('files')">
+      <i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}
+      {% if visit.attachments %}<span class="vtab-count">{{ visit.attachments|length }}</span>{% endif %}</button>
+  </div>
+
   <!-- Continuity: what to review when the patient returns for the consultation -->
   {% if recent_visits or pending_investigations or recent_attachments %}
-  <div class="card gc-scale-in" style="animation-delay:0.05s;border-inline-start:4px solid var(--green-600);">
+  <div class="card gc-scale-in" x-show="tab==='case'" style="animation-delay:0.05s;border-inline-start:4px solid var(--green-600);">
     <h2 class="section-title"><i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.previous_context') }}</h2>
 
     {% if recent_visits %}
@@ -104,7 +119,7 @@
   {% endif %}
 
   <!-- Vitals + clinical (single form) -->
-  <form method="post">
+  <form method="post" id="visitForm" x-show="tab==='case'">
     <div class="card gc-scale-in" style="animation-delay:0.08s;">
       <h2 class="section-title"><i class="bi bi-activity"></i> {{ t('visits.vitals') }}</h2>
       <div class="vitals-grid">
@@ -129,14 +144,32 @@
     </div>
 
     <div class="card gc-scale-in" style="animation-delay:0.14s;">
-      <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.section_clinical') }}</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h2 class="section-title" style="margin:0;"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.section_clinical') }}</h2>
+        <button type="button" class="btn btn-outline btn-sm gc-press" x-show="prev" x-on:click="carryForward()">
+          <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.carry_forward') }}</button>
+      </div>
+
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
-        <textarea class="input" name="chief_complaint" rows="2">{{ visit.chief_complaint or '' }}</textarea></div>
+        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
+        <div class="smart-chips">
+          {% for key in ['fever','cough','diarrhea','vomiting','rash','followup','vaccine_visit'] %}
+          <button type="button" class="chip" x-on:click="addComplaint({{ t('visits.cc_' ~ key)|tojson }})">{{ t('visits.cc_' ~ key) }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
       <div class="form-row"><label>{{ t('visits.clinical_exam') }}</label>
-        <textarea class="input" name="clinical_exam" rows="3">{{ visit.clinical_exam or '' }}</textarea></div>
+        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"></textarea>
+        <div class="smart-chips">
+          <button type="button" class="chip chip--primary" x-on:click="normalExam()">
+            <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
+        </div>
+      </div>
+
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.plan') }}</label>
-          <textarea class="input" name="plan" rows="2">{{ visit.plan or '' }}</textarea></div>
+          <textarea class="input" name="plan" rows="2" x-model="planTxt"></textarea></div>
         <div class="form-row"><label>{{ t('visits.notes') }}</label>
           <textarea class="input" name="notes" rows="2">{{ visit.notes or '' }}</textarea></div>
       </div>
@@ -144,8 +177,25 @@
     </div>
   </form>
 
+  <!-- Prescriptions written from this visit -->
+  {% if visit.prescriptions %}
+  <div class="card gc-scale-in" x-show="tab==='case'">
+    <h2 class="section-title"><i class="bi bi-prescription2"></i> {{ t('rx.title') }}</h2>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      {% for rx in visit.prescriptions %}
+      <a class="dx-row" style="text-decoration:none;color:inherit;" href="{{ url_for('prescriptions.view', rx_id=rx.id) }}">
+        <i class="bi bi-prescription2" style="color:var(--green-700);"></i>
+        <span style="flex:1;">{{ rx.items|length }} {{ t('rx.items') }}{% if rx.diagnosis %} · {{ rx.diagnosis }}{% endif %}</span>
+        <span class="badge badge--muted" dir="ltr">{{ rx.rx_date }}</span>
+        <i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Diagnoses -->
-  <div class="card gc-scale-in" id="dx" style="animation-delay:0.2s;">
+  <div class="card gc-scale-in" id="dx" x-show="tab==='dx'" style="animation-delay:0.2s;">
     <h2 class="section-title"><i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}</h2>
 
     {% if visit.diagnoses %}
@@ -203,7 +253,7 @@
   </div>
 
   <!-- Investigations: request labs/imaging + record results -->
-  <div class="card gc-scale-in" id="inv" style="animation-delay:0.24s;">
+  <div class="card gc-scale-in" id="inv" x-show="tab==='inv'" style="animation-delay:0.24s;">
     <h2 class="section-title"><i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}</h2>
 
     {% if visit.investigations %}
@@ -268,7 +318,7 @@
   </div>
 
   <!-- Patient file attachments (lab/imaging reports) -->
-  <div class="card gc-scale-in" id="files" style="animation-delay:0.28s;">
+  <div class="card gc-scale-in" id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
     <h2 class="section-title"><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h2>
 
     {% if visit.attachments %}
@@ -307,6 +357,27 @@
       <p class="hint">{{ t('visits.att_hint') }}</p>
     </form>
   </div>
+
+  <!-- Sticky action bar: the few primary actions, always reachable -->
+  <div class="visit-actionbar no-print">
+    <div class="visit-actionbar__inner">
+      <button class="btn btn-primary gc-press gc-ripple" type="submit" form="visitForm">
+        <i class="bi bi-save"></i> {{ t('visits.save_visit') }}</button>
+      {% if current_user.can_access('prescriptions') %}
+      <a class="btn btn-primary gc-press" :href="rxHref('{{ _rx_base }}')">
+        <i class="bi bi-prescription2"></i> {{ t('rx.write_from_visit') }}</a>
+      {% endif %}
+      {% if current_user.can_access('appointments') %}
+      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, doctor_id=visit.doctor_id) }}">
+        <i class="bi bi-calendar-plus"></i> {{ t('visits.book_followup') }}</a>
+      {% endif %}
+      {% if not visit.is_completed %}
+      <form method="post" action="{{ url_for('visits.complete', visit_id=visit.id) }}" style="margin-inline-start:auto;">
+        <button class="btn btn-success gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('visits.complete') }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -322,6 +393,30 @@
     border:none; background:none; cursor:pointer; font-family:inherit; font-size:0.9rem; border-bottom:1px solid var(--line); }
   .icd-item:hover { background:var(--green-050); }
   [x-cloak]{ display:none !important; }
+  /* Workflow tabs */
+  .visit-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:14px 0; }
+  .vtab { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface,#fff); color:var(--ink); cursor:pointer;
+    font-family:inherit; font-size:0.9rem; font-weight:600; transition:all .15s ease; }
+  .vtab:hover { border-color:var(--green-600); }
+  .vtab.active { background:var(--green-600); color:#fff; border-color:var(--green-600); }
+  .vtab-count { background:rgba(0,0,0,.12); border-radius:999px; padding:0 7px; font-size:0.75rem; }
+  .vtab.active .vtab-count { background:rgba(255,255,255,.25); }
+  /* Smart-phrase chips */
+  .smart-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .chip { border:1px dashed var(--line); background:var(--surface,#fff); color:var(--muted);
+    border-radius:999px; padding:4px 11px; font-size:0.8rem; cursor:pointer; font-family:inherit;
+    transition:all .15s ease; }
+  .chip:hover { border-style:solid; border-color:var(--green-600); color:var(--green-800); }
+  .chip--primary { border-style:solid; border-color:var(--green-600); color:var(--green-800);
+    background:var(--green-050,#f3faf5); font-weight:600; }
+  /* Sticky action bar */
+  .visit-actionbar { position:sticky; bottom:0; z-index:30; margin:18px -4px 0;
+    background:linear-gradient(to top, var(--bg,#f6f8f7) 70%, transparent);
+    padding:10px 4px 12px; }
+  .visit-actionbar__inner { display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    background:var(--surface,#fff); border:1px solid var(--line); border-radius:14px;
+    padding:10px 12px; box-shadow:0 8px 24px rgba(0,0,0,.10); }
   @media (max-width:880px){ .vitals-grid { grid-template-columns:repeat(2,1fr); } }
 </style>
 {% endblock %}
@@ -329,10 +424,47 @@
 {% block scripts %}
 <script>
   window.current_lang = "{{ current_lang }}";
-  function visitPage(icdUrl, w, h) {
+  function visitPage(icdUrl, w, h, cfg) {
+    cfg = cfg || {};
     return {
       icdUrl, weight: w || '', height: h || '',
       q: '', results: [], code: '', title: '', version: '10',
+      // "Write less" helpers: clinical fields are Alpine-bound so smart phrases
+      // and carry-forward can fill them with one click.
+      cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
+      normalText: cfg.normal || '', prev: cfg.prev || null,
+      addComplaint(txt) {
+        const s = (this.cc || '').trim();
+        if (s.split('،').map(x => x.trim()).includes(txt)) return;  // no dupes
+        this.cc = s ? (s.replace(/[،,\s]*$/, '') + '، ' + txt) : txt;
+      },
+      normalExam() {
+        const t = (this.exam || '').trim();
+        this.exam = t ? (t + '\n' + this.normalText) : this.normalText;
+      },
+      carryForward() {
+        if (!this.prev) return;
+        if (this.prev.cc && !this.cc) this.cc = this.prev.cc;
+        if (this.prev.exam && !this.exam) this.exam = this.prev.exam;
+        if (this.prev.plan && !this.planTxt) this.planTxt = this.prev.plan;
+      },
+      tab: 'case',
+      // Restore the active tab from the URL hash so it survives the page
+      // reloads after adding a diagnosis (#dx) / investigation (#inv) / file (#files).
+      restore() {
+        const map = { '#dx': 'dx', '#inv': 'inv', '#files': 'files' };
+        this.tab = map[window.location.hash] || 'case';
+      },
+      go(tab) {
+        this.tab = tab;
+        const hash = { dx: '#dx', inv: '#inv', files: '#files' }[tab] || '';
+        history.replaceState(null, '', hash || window.location.pathname);
+      },
+      // Build the "write prescription" link, appending the live weight.
+      rxHref(base) {
+        const w = parseFloat(this.weight);
+        return base + (w > 0 ? '&weight=' + w : '');
+      },
       bmi() {
         const wv = parseFloat(this.weight), hv = parseFloat(this.height);
         if (wv > 0 && hv > 0) { const m = hv/100; return (wv/(m*m)).toFixed(1); }

@@ -21,9 +21,11 @@ from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog, GrowthRecord, Patient
 from app.utils.decorators import client_ip, module_required
+from app.utils import rcpch
 from app.utils.growth import (
     INDICATORS,
     age_in_months,
+    compute_at_age,
     compute_point,
     reference_curves,
     reference_range,
@@ -32,6 +34,19 @@ from app.utils.growth import (
 )
 
 MODULE = "growth"
+
+# Accept both our chart indicator keys and plain measurement names at the API.
+_MEASUREMENT_ALIASES = {
+    "weight": "wfa", "wfa": "wfa",
+    "height": "hfa", "length": "hfa", "hfa": "hfa",
+    "head": "hcfa", "ofc": "hcfa", "hc": "hcfa", "hcfa": "hcfa",
+    "bmi": "bmifa", "bmifa": "bmifa",
+}
+
+
+def _all_references():
+    """WHO/CDC (LMS) plus RCPCH (offline package) when it is installed."""
+    return references() + rcpch.sources()
 
 
 def _default_reference(patient):
@@ -71,7 +86,7 @@ def view(patient_id):
     return render_template(
         "growth/chart.html",
         patient=patient,
-        references=references(),
+        references=_all_references(),
         indicators=list(INDICATORS.keys()),
         default_ref=_default_reference(patient),
         has_records=bool(records),
@@ -89,9 +104,14 @@ def data(patient_id):
     if indicator not in INDICATORS:
         indicator = "wfa"
 
-    curves = reference_curves(ref, indicator, patient.gender)
     field = INDICATORS[indicator]["field"]
-    rng = reference_range(ref)
+    is_rcpch = rcpch.is_rcpch(ref)
+    if is_rcpch:
+        curves = rcpch.reference_curves(ref, indicator, patient.gender)
+        rng = rcpch.reference_range(ref)
+    else:
+        curves = reference_curves(ref, indicator, patient.gender)
+        rng = reference_range(ref)
 
     points = []
     for rec in _records(patient):
@@ -100,14 +120,58 @@ def data(patient_id):
         months = age_in_months(patient.date_of_birth, rec.record_date)
         if months is None or (rng and (months < rng[0] - 0.5 or months > rng[1] + 0.5)):
             continue
-        pt = compute_point(ref, indicator, patient.gender, patient.date_of_birth,
-                           rec.record_date, value)
+        if is_rcpch:
+            pt = rcpch.compute_point(ref, indicator, patient.gender, months, value)
+        else:
+            pt = compute_point(ref, indicator, patient.gender, patient.date_of_birth,
+                               rec.record_date, value)
         if pt:
             pt["date"] = rec.record_date.isoformat()
             pt["status"] = status_for_z(pt["z"])
             points.append(pt)
 
-    return jsonify({"curves": curves, "points": points, "unit": INDICATORS[indicator]["unit"]})
+    return jsonify({
+        "curves": curves, "points": points,
+        "unit": INDICATORS[indicator]["unit"], "gender": patient.gender,
+    })
+
+
+@growth_bp.route("/api/calculate", methods=["POST"])
+@module_required(MODULE)
+def api_calculate():
+    """Stateless Z-score / percentile calculator (all offline).
+
+    POST JSON: ``{gender, age_months, measurement_type, value, source}``
+    where ``source`` is ``WHO`` / ``CDC`` / ``RCPCH``. Routes WHO & CDC to the
+    bundled LMS engine and RCPCH to the ``rcpchgrowth`` package — no data leaves
+    the server. Returns ``{ok, z, percentile, status, source}``.
+    """
+    data = request.get_json(silent=True) or {}
+    gender = "female" if data.get("gender") == "female" else "male"
+    source = (data.get("source") or "WHO").strip()
+    indicator = _MEASUREMENT_ALIASES.get(
+        (data.get("measurement_type") or "weight").strip().lower()
+    )
+    if not indicator:
+        return jsonify({"ok": False, "error": "bad_measurement_type"}), 400
+    try:
+        age_months = float(data.get("age_months"))
+        value = float(data.get("value"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "bad_numeric_input"}), 400
+
+    if rcpch.is_rcpch(source):
+        pt = rcpch.compute_point(source, indicator, gender, age_months, value)
+    else:
+        pt = compute_at_age(source, indicator, gender, age_months, value)
+
+    if not pt or pt.get("z") is None:
+        return jsonify({"ok": False, "error": "out_of_range", "source": source}), 200
+    return jsonify({
+        "ok": True, "source": source, "measurement_type": indicator,
+        "z": pt["z"], "percentile": pt["percentile"],
+        "status": status_for_z(pt["z"]),
+    })
 
 
 @growth_bp.route("/<int:patient_id>/add", methods=["POST"])

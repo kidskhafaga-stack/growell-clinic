@@ -214,7 +214,39 @@ def view(patient_id):
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
+        growth_alert=_growth_concern(patient),
     )
+
+
+def _growth_concern(patient):
+    """If the patient's latest growth measurement falls in a caution/alert band
+    (|z|>2), return a compact dict so the profile can flag it prominently."""
+    from app.models import GrowthRecord
+    from app.utils.growth import (
+        INDICATORS, age_in_months, compute_point, status_for_z,
+    )
+
+    rec = (GrowthRecord.query.filter_by(patient_id=patient.id)
+           .order_by(GrowthRecord.record_date.desc(), GrowthRecord.id.desc()).first())
+    if rec is None:
+        return None
+    ref = "WHO" if patient.age_parts[0] < 5 else "CDC"
+    worst = None
+    for ind, meta in INDICATORS.items():
+        value = getattr(rec, meta["field"], None)
+        if not value:
+            continue
+        pt = compute_point(ref, ind, patient.gender,
+                           patient.date_of_birth, rec.record_date, value)
+        if not pt or pt.get("z") is None:
+            continue
+        status = status_for_z(pt["z"])
+        if status in ("caution", "alert"):
+            cand = {"indicator": ind, "z": pt["z"], "percentile": pt["percentile"],
+                    "status": status, "date": rec.record_date.isoformat()}
+            if worst is None or abs(pt["z"]) > abs(worst["z"]):
+                worst = cand
+    return worst
 
 
 # ---------------------------------------------------------------- edit -----
