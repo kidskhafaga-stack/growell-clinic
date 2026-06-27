@@ -45,8 +45,13 @@ _MEASUREMENT_ALIASES = {
 
 
 def _all_references():
-    """WHO/CDC (LMS) plus RCPCH (offline package) when it is installed."""
-    return references() + rcpch.sources()
+    """Reference list for the chart dropdown.
+
+    When the offline ``rcpchgrowth`` package is installed it serves WHO (0–19),
+    CDC (2–20) and RCPCH — fuller ranges than the bundled LMS — so we use those.
+    Otherwise we fall back to the bundled WHO (0–5) / CDC LMS tables."""
+    pkg = rcpch.sources()
+    return pkg if pkg else references()
 
 
 def _default_reference(patient):

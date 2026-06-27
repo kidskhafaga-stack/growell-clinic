@@ -418,7 +418,7 @@
     "section_clinical": "Clinical data",
     "completed_on": "Completed on",
     "print": "Print",
-    "investigations": "Investigations (labs / imaging)",
+    "investigations": "Investigations (labs / imaging \u0026 studies)",
     "no_inv": "No investigations ordered yet.",
     "order_investigation": "Order investigation",
     "inv_requested": "Requested",
@@ -467,7 +467,7 @@
     "pending_results": "Pending results (enter now)",
     "recent_files": "Recent files",
     "att_lab": "Lab",
-    "att_imaging": "Imaging"
+    "att_imaging": "Investigation"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1387,17 +1387,17 @@
     "severe": "Severe",
     "max_hint": "Max dose",
     "signature": "Doctor signature",
-    "investigations": "Investigations (labs / imaging)",
+    "investigations": "Investigations (labs / imaging \u0026 studies)",
     "inv_kind": "Type",
     "inv_lab": "Lab test",
-    "inv_imaging": "Imaging",
+    "inv_imaging": "Investigation",
     "inv_name": "Test / study",
     "inv_notes": "Notes",
-    "inv_search_ph": "Search lab tests / imaging…",
+    "inv_search_ph": "Search lab tests / investigations…",
     "add_lab": "Add lab test",
-    "add_imaging": "Add imaging",
+    "add_imaging": "Add investigation",
     "labs_requested": "Requested lab tests",
-    "imaging_requested": "Requested imaging",
+    "imaging_requested": "Requested investigations",
     "child_weight": "Child weight (kg)",
     "child_weight_hint": "Enter to auto-calculate weight-based doses.",
     "from_visit_note": "Prescription from the visit — patient, doctor, weight and diagnosis carried over.",
@@ -1513,7 +1513,7 @@
     "preview_hint": "Adjust margins and offset to see where content lands on the sheet instantly.",
     "preprinted_area": "Pre-printed letterhead area",
     "pv_doctor": "Dr. Name",
-    "pv_invest": "Labs / imaging requested"
+    "pv_invest": "Labs / investigations requested"
   },
   "store": {
     "title": "General store",
