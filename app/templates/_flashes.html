@@ -1,11 +1,28 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-    <div class="flashes">
+    <div class="flashes" id="flashes">
       {% for category, message in messages %}
-        <div class="flash flash--{{ category if category in ['success','danger','warning','info'] else 'info' }}">
-          {{ message }}
+        <div class="flash flash--{{ category if category in ['success','danger','warning','info'] else 'info' }}" role="status">
+          <span class="flash__msg">{{ message }}</span>
+          <button type="button" class="flash__close" aria-label="close"
+                  onclick="this.parentElement.remove()">&times;</button>
         </div>
       {% endfor %}
     </div>
+    <script>
+      // Toasts shouldn't linger: dismiss with × and auto-hide after a few
+      // seconds (errors stay a little longer so they can be read).
+      (function () {
+        document.querySelectorAll('#flashes .flash').forEach(function (el) {
+          var ttl = el.classList.contains('flash--danger') ? 8000 : 4500;
+          setTimeout(function () {
+            el.style.transition = 'opacity .4s ease, transform .4s ease';
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(-6px)';
+            setTimeout(function () { el.remove(); }, 420);
+          }, ttl);
+        });
+      })();
+    </script>
   {% endif %}
 {% endwith %}
