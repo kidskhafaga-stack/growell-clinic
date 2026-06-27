@@ -19,6 +19,7 @@ TEXT_KEYS = [
     "clinic_name", "clinic_name_ar", "clinic_phone",
     "clinic_address", "clinic_address_en", "clinic_tagline",
     "product_name", "product_name_en",
+    "program_slogan_ar", "program_slogan_en",
     # WhatsApp / messaging.
     "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_endpoint",
@@ -59,6 +60,19 @@ def index():
                 file.save(os.path.join(_logo_dir(), secure_filename(name)))
                 _remove_logo_file(Setting.get("clinic_logo"))
                 Setting.set("clinic_logo", name)
+            else:
+                flash(t("settings.bad_logo"), "warning")
+
+        # Program (PediaPro) logo upload — the software's own brand mark.
+        pfile = request.files.get("program_logo")
+        if pfile and pfile.filename:
+            ext = pfile.filename.rsplit(".", 1)[-1].lower() if "." in pfile.filename else ""
+            if ext in ALLOWED_LOGO:
+                name = f"{uuid.uuid4().hex}.{ext}"
+                os.makedirs(_logo_dir(), exist_ok=True)
+                pfile.save(os.path.join(_logo_dir(), secure_filename(name)))
+                _remove_logo_file(Setting.get("program_logo"))
+                Setting.set("program_logo", name)
             else:
                 flash(t("settings.bad_logo"), "warning")
 
@@ -128,6 +142,16 @@ def reset_data():
 def delete_logo():
     _remove_logo_file(Setting.get("clinic_logo"))
     Setting.set("clinic_logo", "")
+    db.session.commit()
+    flash(t("settings.logo_removed"), "info")
+    return redirect(url_for("settings.index"))
+
+
+@settings_bp.route("/program-logo/delete", methods=["POST"])
+@admin_required
+def delete_program_logo():
+    _remove_logo_file(Setting.get("program_logo"))
+    Setting.set("program_logo", "")
     db.session.commit()
     flash(t("settings.logo_removed"), "info")
     return redirect(url_for("settings.index"))
