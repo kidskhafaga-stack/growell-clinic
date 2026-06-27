@@ -223,16 +223,25 @@ def seed_demo():
             db.session.flush()
             eta.submit(edoc, user_id=doc.id)
 
-    # --- A few WhatsApp message logs ------------------------------------
-    for p in patients[:3]:
-        phone = p.contact_phone
-        if phone:
-            db.session.add(MessageLog(
-                patient_id=p.id, to_phone="2" + phone.lstrip("0"),
-                body=f"مرحباً {p.full_name}، تم تأكيد موعدك.",
-                provider="web", status="link",
-                link="https://wa.me/2" + phone.lstrip("0"),
-            ))
+    # --- WhatsApp message logs (varied statuses for the send dashboard) ---
+    _msg_defs = [
+        ("appointment confirmation", "تم تأكيد موعدك", "sent"),
+        ("vaccine reminder", "تذكير: تطعيم مستحق لطفلك", "sent"),
+        ("birthday", "كل سنة وطفلكم طيب 🎂", "link"),
+        ("appointment confirmation", "تم تأكيد موعدك", "failed"),
+        ("results ready", "نتائج التحاليل جاهزة", "sent"),
+    ]
+    for i, p in enumerate(patients[:5]):
+        phone = p.contact_phone or "01000000000"
+        _, body, status = _msg_defs[i % len(_msg_defs)]
+        db.session.add(MessageLog(
+            patient_id=p.id, to_phone="2" + phone.lstrip("0"),
+            body=f"مرحباً {p.full_name}، {body}.",
+            provider="web", status=status,
+            link=("https://wa.me/2" + phone.lstrip("0")) if status == "link" else None,
+            error="رقم غير صالح" if status == "failed" else None,
+            created_at=datetime.utcnow() - timedelta(days=i),
+        ))
 
     # --- Suppliers + vaccine inventory (if catalogue is present) --------
     from app.models import VaccineBrand
@@ -315,18 +324,46 @@ def seed_demo():
                         given_date=p.date_of_birth + timedelta(days=int(d.age_months * 30)),
                     ))
 
-    # Sample prescriptions (drugs catalogue is seeded separately).
+    # Sample prescriptions — linked to the patient's latest visit, with drugs
+    # and a requested lab/imaging so the visit→Rx flow shows fully populated.
+    from app.models import PrescriptionInvestigation, VisitInvestigation
+
     drugs = Drug.query.filter_by(is_active=True).limit(6).all()
     if drugs:
         for p in patients[:3]:
+            last_visit = (Visit.query.filter_by(patient_id=p.id)
+                          .order_by(Visit.id.desc()).first())
             rx = Prescription(patient_id=p.id, doctor_id=doc.id,
-                              diagnosis="نزلة شعبية", created_by=doc.id)
+                              visit_id=last_visit.id if last_visit else None,
+                              diagnosis="نزلة شعبية", diagnosis_code="J20.9",
+                              created_by=doc.id)
             db.session.add(rx)
             db.session.flush()
             for dr in rnd.sample(drugs, min(2, len(drugs))):
                 rx.items.append(PrescriptionItem(
                     drug_id=dr.id, drug_name=dr.trade_name, dose=dr.default_dose,
                     frequency=dr.default_frequency, duration="5 أيام"))
+            rx.investigations.append(PrescriptionInvestigation(
+                kind="lab", name="صورة دم كاملة CBC"))
+
+    # Visit investigations (labs / imaging & studies) — some with results
+    # recorded, some still pending, so the investigations workflow is visible.
+    _inv_defs = [
+        ("lab", "صورة دم كاملة CBC", "Hb 11.8 · WBC 9.2 · Plt 280"),
+        ("lab", "وظائف كبد", None),                       # pending
+        ("imaging", "أشعة صدر X-ray", "صدر سليم، لا ارتشاح"),
+        ("imaging", "إيكو قلب ECHO", None),               # pending
+    ]
+    for i, v in enumerate(Visit.query.order_by(Visit.id.desc()).limit(8).all()):
+        kind, name, result = _inv_defs[i % len(_inv_defs)]
+        db.session.add(VisitInvestigation(
+            visit_id=v.id, patient_id=v.patient_id, kind=kind, name=name,
+            request_notes="حسب الحالة",
+            status="resulted" if result else "requested",
+            result_text=result,
+            result_comment="ضمن المعدل الطبيعي" if result else None,
+            resulted_at=datetime.utcnow() if result else None,
+        ))
 
     # General store items + movements (one kept below reorder level).
     store_defs = [
