@@ -146,6 +146,7 @@ def register_commands(app):
             ("prescriptions", "diagnosis_code", "VARCHAR(20)"),
             ("invoices", "discount_id", "INTEGER"),
             ("invoices", "discount_name", "VARCHAR(120)"),
+            ("parents", "nationality", "VARCHAR(60)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

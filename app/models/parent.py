@@ -30,6 +30,7 @@ class Parent(db.Model):
     phone_alt = db.Column(db.String(30))
     email = db.Column(db.String(120))
     occupation = db.Column(db.String(120))
+    nationality = db.Column(db.String(60))
     address = db.Column(db.String(255))
 
     client_category = db.Column(db.String(20), default="normal", nullable=False)

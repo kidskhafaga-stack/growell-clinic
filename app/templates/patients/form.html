@@ -128,18 +128,32 @@
   <!-- Family -->
   <div class="card gc-scale-in" style="animation-delay:0.22s;">
     <h2 class="section-title"><i class="bi bi-house-heart"></i> {{ t('patients.family_section') }}</h2>
+    {% set _fid = form.family_id or prefill_family %}
+    {% set ns = namespace(fname='') %}
+    {% for fam in families %}{% if fam.id == _fid %}{% set ns.fname = fam.display_name(current_lang) %}{% endif %}{% endfor %}
     <div class="form-grid">
-      <div class="form-row">
-        <label for="family_id">{{ t('patients.select_family') }}</label>
-        <select class="select" id="family_id" name="family_id">
-          <option value="">{{ t('patients.no_family') }}</option>
-          {% for fam in families %}
-            <option value="{{ fam.id }}"
-              {{ 'selected' if (form.family_id and form.family_id == fam.id) or (prefill_family and prefill_family == fam.id) else '' }}>
-              {{ fam.display_name(current_lang) }}{% if fam.sibling_count %} ({{ fam.sibling_count }}){% endif %}
-            </option>
-          {% endfor %}
-        </select>
+      <div class="form-row" style="position:relative;"
+           x-data="familyPicker('{{ url_for('patients.family_search') }}', {{ _fid or 'null' }}, {{ ns.fname|tojson }})">
+        <label>{{ t('patients.select_family') }}</label>
+        <input type="hidden" name="family_id" :value="famId || ''">
+        <input class="input" x-model="q" autocomplete="off"
+               placeholder="{{ t('patients.family_search_ph') }}"
+               x-on:input.debounce.250ms="search()" x-on:focus="search()">
+        <div x-show="open && results.length" x-cloak
+             style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
+          <template x-for="f in results" :key="f.id">
+            <div x-on:click="pick(f)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
+                 x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+              <strong x-text="f.name"></strong>
+              <span style="color:var(--muted);font-size:0.8rem;" x-text="(f.number? ('#'+f.number+' ') : '')+'('+f.count+')'"></span>
+            </div>
+          </template>
+        </div>
+        <div class="hint" x-show="famId" x-cloak>
+          <i class="bi bi-check-circle" style="color:var(--green-700);"></i>
+          <span x-text="chosenName"></span>
+          <button type="button" x-on:click="clear()" style="border:none;background:none;cursor:pointer;color:var(--danger);">×</button>
+        </div>
       </div>
       <div class="form-row">
         <label for="new_family_name">{{ t('patients.or_new_family') }}</label>
@@ -164,4 +178,26 @@
     </a>
   </div>
 </form>
+
+<script>
+  function familyPicker(searchUrl, initialId, initialName) {
+    return {
+      searchUrl, famId: initialId || null, chosenName: initialName || '',
+      q: initialName || '', results: [], open: false,
+      async search() {
+        const term = (this.q || '').trim();
+        if (term.length < 1) { this.results = []; this.open = false; return; }
+        try {
+          const r = await fetch(`${this.searchUrl}?q=${encodeURIComponent(term)}`);
+          this.results = (await r.json()).families || []; this.open = true;
+        } catch (e) { this.results = []; this.open = false; }
+      },
+      pick(f) {
+        this.famId = f.id; this.chosenName = f.name; this.q = f.name;
+        this.open = false; this.results = [];
+      },
+      clear() { this.famId = null; this.chosenName = ''; this.q = ''; this.results = []; }
+    };
+  }
+</script>
 {% endblock %}

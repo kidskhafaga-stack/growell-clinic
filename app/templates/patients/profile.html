@@ -135,7 +135,31 @@
     </div>
 
     <!-- Family -->
-    <div class="gc-tab-panel" x-show="tab==='family'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='family'" x-cloak x-data="{ editFamily: false }">
+      {% if patient.family %}
+      <div class="card" style="box-shadow:none;border:1px solid var(--line);margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div><i class="bi bi-house-heart" style="color:var(--green-700);"></i>
+            <strong>{{ patient.family.display_name(current_lang) }}</strong>
+            {% if patient.family.family_number %}<span class="badge badge--muted">#{{ patient.family.family_number }}</span>{% endif %}</div>
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="editFamily=!editFamily">
+            <i class="bi bi-pencil"></i> {{ t('patients.edit_family') }}</button>
+        </div>
+        <form method="post" action="{{ url_for('patients.family_update', family_id=patient.family_id) }}"
+              x-show="editFamily" x-cloak style="margin-top:12px;">
+          <input type="hidden" name="patient_id" value="{{ patient.id }}">
+          <div class="form-grid">
+            <div class="form-row"><label>{{ t('patients.family_name') }} *</label>
+              <input class="input" name="family_name" value="{{ patient.family.family_name }}" required></div>
+            <div class="form-row"><label>{{ t('patients.family_name') }} (EN)</label>
+              <input class="input" name="family_name_en" dir="ltr" value="{{ patient.family.family_name_en or '' }}"></div>
+            <div class="form-row" style="grid-column:1/-1;"><label>{{ t('patients.notes') }}</label>
+              <input class="input" name="notes" value="{{ patient.family.notes or '' }}"></div>
+          </div>
+          <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+        </form>
+      </div>
+      {% endif %}
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <h3 class="section-title" style="margin:0;"><i class="bi bi-people"></i> {{ t('patients.parents') }}</h3>
         <button class="btn btn-primary btn-sm gc-press gc-ripple" x-on:click="showParent=true">
@@ -158,9 +182,12 @@
             <span class="badge badge--green">{{ t('categories.' ~ parent.client_category) }}</span>
           </div>
           <div class="meta-row" style="margin-top:8px;">
-            {% if parent.phone %}<span><i class="bi bi-telephone"></i> {{ parent.phone }}</span>{% endif %}
+            {% if parent.phone %}<span><i class="bi bi-telephone"></i> <span dir="ltr">{{ parent.phone }}</span></span>{% endif %}
+            {% if parent.phone_alt %}<span><i class="bi bi-telephone-plus"></i> <span dir="ltr">{{ parent.phone_alt }}</span></span>{% endif %}
             {% if parent.occupation %}<span><i class="bi bi-briefcase"></i> {{ parent.occupation }}</span>{% endif %}
+            {% if parent.nationality %}<span><i class="bi bi-globe"></i> {{ parent.nationality }}</span>{% endif %}
           </div>
+          {% if parent.address %}<div style="font-size:0.82rem;color:var(--muted);margin-top:4px;"><i class="bi bi-geo-alt"></i> {{ parent.address }}</div>{% endif %}
           <form method="post" action="{{ url_for('patients.delete_parent', parent_id=parent.id) }}"
                 style="margin-top:8px;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
             <input type="hidden" name="patient_id" value="{{ patient.id }}">
@@ -489,6 +516,10 @@
             <input class="input" name="phone" dir="ltr">
           </div>
           <div class="form-row">
+            <label>{{ t('patients.phone_alt') }}</label>
+            <input class="input" name="phone_alt" dir="ltr">
+          </div>
+          <div class="form-row">
             <label>{{ t('patients.client_category') }}</label>
             <select class="select" name="client_category">
               {% for c in categories %}<option value="{{ c }}">{{ t('categories.' ~ c) }}</option>{% endfor %}
@@ -499,8 +530,16 @@
             <input class="input" name="occupation">
           </div>
           <div class="form-row">
+            <label>{{ t('patients.nationality') }}</label>
+            <input class="input" name="nationality">
+          </div>
+          <div class="form-row">
             <label>{{ t('patients.email') }}</label>
             <input class="input" type="email" name="email" dir="ltr">
+          </div>
+          <div class="form-row" style="grid-column:1/-1;">
+            <label>{{ t('patients.address') }}</label>
+            <input class="input" name="address">
           </div>
         </div>
         <div class="form-row checkbox">
