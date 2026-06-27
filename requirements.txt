@@ -6,3 +6,5 @@ python-dotenv==1.0.1
 openpyxl==3.1.5
 requests==2.32.3
 segno==1.6.1
+# Offline RCPCH UK growth reference (UK-WHO / UK90) — local Z-score/centile math
+rcpchgrowth==4.5.0

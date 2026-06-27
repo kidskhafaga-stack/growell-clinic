@@ -140,6 +140,24 @@ def compute_point(ref, indicator, gender, dob, on_date, value):
     }
 
 
+def compute_at_age(ref, indicator, gender, age_months, value):
+    """Like :func:`compute_point` but driven by a known age in months (no DOB).
+
+    Used by the stateless ``/api/calculate`` endpoint."""
+    if age_months is None or value is None:
+        return None
+    lms = _lms(_table(ref, indicator, gender), age_months)
+    if lms is None:
+        return None
+    z = zscore(value, *lms)
+    return {
+        "age_months": round(age_months, 2),
+        "value": round(value, 2),
+        "z": round(z, 2) if z is not None else None,
+        "percentile": percentile_from_z(z),
+    }
+
+
 def reference_curves(ref, indicator, gender):
     """Percentile curves for charting: {months:[], P3:[], ... P97:[]}."""
     table = _table(ref, indicator, gender)
