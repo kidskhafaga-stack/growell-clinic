@@ -136,7 +136,16 @@ def create_app(config_name="default"):
             product = ((rows.get("product_name_en") if lang == "en" else None)
                        or rows.get("product_name") or product_default)
             # Program (PediaPro) identity — distinct from the clinic's own logo.
+            # An uploaded logo (Settings) wins; otherwise fall back to the
+            # default logo bundled in the repo at static/img/brand/ if present.
             prog_logo = rows.get("program_logo") or None
+            if prog_logo:
+                program_logo_url = url_for("static", filename="uploads/clinic/" + prog_logo)
+            else:
+                bundled = os.path.join(app.static_folder, "img", "brand",
+                                       "pediapro-logo.png")
+                program_logo_url = (url_for("static", filename="img/brand/pediapro-logo.png")
+                                    if os.path.exists(bundled) else None)
             slogan_default = ("Smart Pediatrics Care Solution" if lang == "en"
                               else "حلول طب الأطفال الذكية")
             program_slogan = ((rows.get("program_slogan_en") if lang == "en"
@@ -159,8 +168,7 @@ def create_app(config_name="default"):
                 "program": {
                     "name": product,
                     "slogan": program_slogan,
-                    "logo_url": (url_for("static", filename="uploads/clinic/" + prog_logo)
-                                 if prog_logo else None),
+                    "logo_url": program_logo_url,
                 },
             }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
