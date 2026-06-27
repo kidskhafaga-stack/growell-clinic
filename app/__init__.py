@@ -1,13 +1,31 @@
 """Application factory for GROWELL CLINIC."""
 import os
+import sqlite3
 from datetime import datetime
 
 from flask import render_template
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from config import config as config_map
 
 from app import i18n
 from app.extensions import db, login_manager
+
+
+@event.listens_for(Engine, "connect")
+def _set_sqlite_pragmas(dbapi_connection, _record):
+    """Make SQLite robust under the threaded dev server / bulk imports.
+
+    WAL lets a writer and readers work concurrently, and a busy-timeout makes a
+    momentarily-locked database wait instead of raising 'database is locked'
+    (e.g. during patient bulk import). No-ops for non-SQLite backends."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cur = dbapi_connection.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=15000")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.close()
 
 
 def create_app(config_name="default"):
