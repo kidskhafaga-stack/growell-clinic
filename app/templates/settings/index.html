@@ -114,6 +114,15 @@
         {% endif %}
       </div>
     </div>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-receipt"></i> {{ t('settings.thermal_title') }}</h3>
+    <div class="form-row">
+      <label>{{ t('settings.thermal_footer') }}</label>
+      <textarea class="input" name="thermal_footer_text" rows="3"
+                placeholder="{{ t('settings.thermal_footer_ph') }}">{{ values.get('thermal_footer_text','') }}</textarea>
+      <div class="hint">{{ t('settings.thermal_footer_hint') }}</div>
+    </div>
   </div>
 
   <!-- WhatsApp / messaging -->

@@ -1,0 +1,80 @@
+<!doctype html>
+<html dir="{{ direction }}" lang="{{ current_lang }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t('invoices.receipt') }} {{ invoice.invoice_number }}</title>
+  <style>
+    @page { size: 80mm auto; margin: 3mm; }
+    * { box-sizing: border-box; }
+    body { width: 72mm; margin: 0 auto; color: #000;
+      font-family: "Tahoma", "Courier New", monospace; font-size: 12px; line-height: 1.45; }
+    .center { text-align: center; }
+    .logo { max-width: 58mm; max-height: 22mm; object-fit: contain; }
+    .prog-logo { max-width: 30mm; max-height: 9mm; object-fit: contain; margin-top: 4px; }
+    .clinic-name { font-weight: 700; font-size: 14px; margin-top: 3px; }
+    .muted { color: #222; font-size: 10px; }
+    hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 1px 0; vertical-align: top; }
+    .r { text-align: end; } .b { font-weight: 700; }
+    .tax-badge { display: inline-block; border: 1.5px solid #000; border-radius: 4px;
+      padding: 1px 8px; font-weight: 700; margin-top: 4px; font-size: 11px; }
+    .foot { margin-top: 8px; font-size: 10.5px; white-space: pre-line; }
+    @media screen { body { box-shadow: 0 0 0 1px #ccc; padding: 6mm; margin: 22px auto; } }
+    @media print { .noprint { display: none !important; } }
+  </style>
+</head>
+<body onload="setTimeout(function(){ window.print(); }, 200);">
+  <div class="center">
+    {% if clinic.logo_url %}<img class="logo" src="{{ clinic.logo_url }}" alt="">{% endif %}
+    <div class="clinic-name">{{ clinic.name_ar if current_lang=='ar' and clinic.name_ar else clinic.name }}</div>
+    {% if clinic.phone %}<div class="muted" dir="ltr">{{ clinic.phone }}</div>{% endif %}
+    {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
+    {% if addr %}<div class="muted">{{ addr }}</div>{% endif %}
+    {% if invoice.is_tax %}<div class="tax-badge">{{ t('einvoice.tax_invoice') }}</div>{% endif %}
+  </div>
+
+  <hr>
+  <table>
+    <tr><td>{{ t('invoices.number') }}</td><td class="r b" dir="ltr">{{ invoice.invoice_number }}</td></tr>
+    <tr><td>{{ t('invoices.date') }}</td><td class="r" dir="ltr">{{ invoice.invoice_date }}</td></tr>
+    <tr><td>{{ t('invoices.patient') }}</td><td class="r">{{ invoice.patient.display_name(current_lang) }}</td></tr>
+    {% if invoice.doctor %}<tr><td>{{ t('invoices.doctor') }}</td><td class="r">{{ invoice.doctor.doctor_print_name(current_lang) }}</td></tr>{% endif %}
+  </table>
+
+  <hr>
+  <table>
+    <thead><tr><td class="b">{{ t('invoices.item') }}</td><td class="r b">{{ t('invoices.amount') }}</td></tr></thead>
+    <tbody>
+      {% for it in invoice.items %}
+      <tr><td>{{ it.description }}{% if it.quantity and it.quantity > 1 %} ×{{ it.quantity }}{% endif %}</td>
+        <td class="r" dir="ltr">{{ '%.2f'|format(it.net) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <hr>
+  <table>
+    {% if invoice.discount_total %}
+    <tr><td>{{ t('invoices.subtotal') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.subtotal) }}</td></tr>
+    <tr><td>{{ t('invoices.discount') }}{% if invoice.discount_name %} ({{ invoice.discount_name }}){% endif %}</td>
+      <td class="r" dir="ltr">-{{ '%.2f'|format(invoice.discount_total) }}</td></tr>
+    {% endif %}
+    <tr class="b" style="font-size:13px;"><td>{{ t('invoices.total') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.total) }}</td></tr>
+    <tr><td>{{ t('invoices.paid') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.paid) }}</td></tr>
+    {% if invoice.balance > 0 %}<tr class="b"><td>{{ t('invoices.balance') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.balance) }}</td></tr>{% endif %}
+  </table>
+  <hr>
+
+  <div class="center">
+    {% if thermal_footer %}<div class="foot">{{ thermal_footer }}</div>{% endif %}
+    <img class="prog-logo" src="{{ url_for('static', filename='img/brand/pediapro-logo-black.png') }}" alt=""
+         onerror="this.style.display='none'">
+    <div class="muted">{{ program.name }} · {{ program.slogan }}</div>
+  </div>
+
+  <div class="noprint center" style="margin-top:14px;">
+    <button onclick="window.print()" style="padding:8px 16px;font-size:13px;cursor:pointer;">🖨 {{ t('invoices.print') }}</button>
+  </div>
+</body>
+</html>

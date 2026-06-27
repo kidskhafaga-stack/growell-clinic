@@ -7,7 +7,7 @@
 <h1 class="page-title gc-animate">{{ t('invoices.new') }}</h1>
 
 <form method="post" action="{{ url_for('finance.invoice_new') }}"
-      x-data="invoiceForm()" x-init="init()">
+      x-data="invoiceForm()">
   <input type="hidden" name="visit_id" value="{{ visit_id or '' }}">
 
   <div class="card gc-scale-in">

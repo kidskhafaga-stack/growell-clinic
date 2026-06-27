@@ -455,6 +455,20 @@ def invoice_view(invoice_id):
     )
 
 
+@finance_bp.route("/invoices/<int:invoice_id>/receipt")
+@module_required(MODULE)
+def invoice_receipt(invoice_id):
+    """Compact 80mm thermal receipt — clinic logo on top, PediaPro mark below,
+    plus an admin-configurable footer line."""
+    from app.models import Setting
+
+    invoice = db.get_or_404(Invoice, invoice_id)
+    return render_template(
+        "finance/receipt_thermal.html", invoice=invoice,
+        thermal_footer=(Setting.get("thermal_footer_text") or "").strip(),
+    )
+
+
 @finance_bp.route("/invoices/<int:invoice_id>/payment", methods=["POST"])
 @module_required(MODULE)
 def invoice_payment(invoice_id):
