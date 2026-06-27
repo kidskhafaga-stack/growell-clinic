@@ -49,23 +49,27 @@
     </div>
   </div>
 
-  <!-- PediaPro program identity (kept alongside the clinic's own brand) -->
+  <!-- PediaPro program identity (kept alongside the clinic's own brand).
+       Sits on the green page background, so the logo gets a white chip and the
+       text is light, otherwise the green parts of the logo disappear. -->
   <div class="program-id">
-    {% if program.logo_url %}<img src="{{ program.logo_url }}" alt="{{ program.name }}" class="program-id__logo">
+    {% if program.logo_url %}
+    <span class="program-id__chip"><img src="{{ program.logo_url }}" alt="{{ program.name }}" class="program-id__logo"></span>
     {% else %}<span class="program-id__name">{{ program.name }}</span>{% endif %}
     <span class="program-id__slogan">{{ program.slogan }}</span>
   </div>
-  <div class="copyright" style="text-align:center;margin-top:8px;">{{ copyright_notice }}</div>
+  <div class="copyright copyright--onbrand" style="text-align:center;margin-top:8px;">{{ copyright_notice }}</div>
 </div>
 {% endblock %}
 
 {% block head %}
 <style>
-  .program-id { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:18px; }
-  .program-id__logo { max-height:42px; max-width:200px; object-fit:contain; }
-  .program-id__name { font-weight:800; font-size:1.1rem; letter-spacing:.3px;
-    background:linear-gradient(90deg,#1E7FC2,#5CB646); -webkit-background-clip:text;
-    background-clip:text; color:transparent; }
-  .program-id__slogan { font-size:0.78rem; color:var(--muted,#6b7280); }
+  .program-id { display:flex; flex-direction:column; align-items:center; gap:7px; margin-top:18px; }
+  .program-id__chip { background:#fff; border-radius:12px; padding:8px 14px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); display:inline-flex; }
+  .program-id__logo { max-height:40px; max-width:200px; object-fit:contain; display:block; }
+  .program-id__name { font-weight:800; font-size:1.2rem; letter-spacing:.3px; color:#fff; }
+  .program-id__slogan { font-size:0.82rem; color:rgba(255,255,255,.92); font-weight:600; }
+  .copyright--onbrand { color:rgba(255,255,255,.8); }
 </style>
 {% endblock %}

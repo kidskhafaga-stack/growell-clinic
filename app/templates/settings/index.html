@@ -93,6 +93,45 @@
     </div>
 
     <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-palette"></i> {{ t('settings.clinic_accent') }}</h3>
+    <p class="hint" style="margin-top:-6px;">{{ t('settings.clinic_accent_hint') }}</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <input type="color" name="clinic_accent" id="clinicAccent"
+             value="{{ values.get('clinic_accent') or '#198754' }}"
+             style="width:54px;height:40px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:none;">
+      {% if clinic.logo_url %}
+      <button type="button" class="btn btn-outline btn-sm gc-press" onclick="useLogoColors()">
+        <i class="bi bi-eyedropper"></i> {{ t('settings.use_logo_colors') }}</button>
+      <img id="accentLogoSrc" src="{{ clinic.logo_url }}" crossorigin="anonymous" alt="" style="display:none;">
+      {% endif %}
+      <button type="button" class="btn btn-outline btn-sm gc-press" onclick="document.getElementById('clinicAccent').value='#198754'">
+        {{ t('settings.accent_reset') }}</button>
+      <span class="hint" id="accentNote"></span>
+    </div>
+    <script>
+      // Pick the dominant non-neutral colour from the clinic logo (client-side).
+      function useLogoColors() {
+        var img = document.getElementById('accentLogoSrc'); if (!img) return;
+        try {
+          var c = document.createElement('canvas'), w = c.width = 64, h = c.height = 64;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          var d = c.getContext('2d').getImageData(0, 0, w, h).data;
+          var r = 0, g = 0, b = 0, n = 0;
+          for (var i = 0; i < d.length; i += 4) {
+            var R = d[i], G = d[i+1], B = d[i+2], A = d[i+3];
+            if (A < 128) continue;
+            var mx = Math.max(R,G,B), mn = Math.min(R,G,B);
+            if (mx - mn < 28 || mx > 240 || mx < 30) continue;  // skip greys/white/black
+            r += R; g += G; b += B; n++;
+          }
+          if (!n) { document.getElementById('accentNote').textContent = '—'; return; }
+          function hx(x){ x = Math.round(x/n).toString(16); return x.length<2?'0'+x:x; }
+          document.getElementById('clinicAccent').value = '#' + hx(r) + hx(g) + hx(b);
+        } catch (e) { document.getElementById('accentNote').textContent = '!'; }
+      }
+    </script>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-stars"></i> {{ t('settings.program_logo') }}</h3>
     <p class="hint" style="margin-top:-6px;">{{ t('settings.program_logo_hint') }}</p>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;">

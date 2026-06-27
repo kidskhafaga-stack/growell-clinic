@@ -78,8 +78,10 @@ def guide():
 @main_bp.route("/set-theme", methods=["POST"])
 @login_required
 def set_theme():
-    """Persist the user's light/dark preference (quick top-bar toggle)."""
-    theme = "dark" if request.form.get("theme") == "dark" else "light"
+    """Persist the user's appearance preference: light / dark / system."""
+    theme = (request.form.get("theme") or "").strip()
+    if theme not in ("light", "dark", "system"):
+        theme = "light"
     current_user.theme = theme
     db.session.commit()
     return {"theme": theme}

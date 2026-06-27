@@ -187,12 +187,14 @@ def create_app(config_name="default"):
                     "name": product,
                     "slogan": program_slogan,
                     "logo_url": program_logo_url,
+                    "accent": (rows.get("clinic_accent") or "").strip() or None,
                 },
             }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
             return {"clinic": defaults, "product_name": product_default,
                     "program": {"name": product_default,
-                                "slogan": "حلول طب الأطفال الذكية", "logo_url": None}}
+                                "slogan": "حلول طب الأطفال الذكية",
+                                "logo_url": None, "accent": None}}
 
     register_error_handlers(app)
     register_cli(app)

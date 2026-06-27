@@ -88,7 +88,18 @@
 .theme-toggle .light-on { display: none; }
 :root[data-theme="dark"] .theme-toggle .dark-on { display: none; }
 :root[data-theme="dark"] .theme-toggle .light-on { display: inline; }
-@media (max-width: 640px) { .topbar-date { display: none; } }
+
+/* Appearance switch: light / dark / system (segmented). */
+.theme-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; background: var(--card); }
+.theme-switch button { border: 0; background: transparent; color: var(--muted);
+  width: 34px; height: 36px; cursor: pointer; display: inline-flex; align-items: center;
+  justify-content: center; font-size: 1rem; }
+.theme-switch button + button { border-inline-start: 1px solid var(--line); }
+.theme-switch button:hover { color: var(--green-700); }
+.theme-switch button.active { background: var(--green-700); color: #fff; }
+@media (max-width: 640px) { .topbar-date { display: none; }
+  .theme-switch button { width: 30px; } }
 
 /* Font scale (per-user). */
 html.fs-sm { font-size: 14px; }

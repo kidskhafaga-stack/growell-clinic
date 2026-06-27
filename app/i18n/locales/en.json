@@ -835,7 +835,11 @@
     "thermal_title": "Thermal receipt",
     "thermal_footer": "Receipt footer text",
     "thermal_footer_hint": "Shown at the bottom of the thermal receipt (thanks / instructions / booking). One line each.",
-    "thermal_footer_ph": "Thank you for visiting!\nBooking: 01000000000"
+    "thermal_footer_ph": "Thank you for visiting!\nBooking: 01000000000",
+    "clinic_accent": "Primary app colour",
+    "clinic_accent_hint": "Recolour the app to match your clinic (can match the clinic logo).",
+    "use_logo_colors": "Use logo colours",
+    "accent_reset": "Default (green)"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1473,7 +1477,10 @@
     "fs_md": "Medium",
     "fs_lg": "Large",
     "landing": "Default landing page",
-    "landing_default": "Dashboard"
+    "landing_default": "Dashboard",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "System"
   },
   "rxtpl": {
     "title": "Prescription print templates",
