@@ -40,21 +40,30 @@ from app.utils.finance import generate_invoice_number
 from app.utils.patients import generate_patient_number
 
 def reset_all():
-    """Delete all operational data; keep users, roles, settings, catalogue."""
+    """Delete all operational data; keep users, roles, settings, catalogue.
+
+    Child tables are deleted before their parents so no orphan rows survive
+    (orphans would later crash page loads after a reset)."""
     from app.models import (
-        MessageTemplate, PayerContract, Prescription, PrescriptionItem,
-        StockMovement, StoreItem, Visit,
+        Expense, MessageTemplate, PatientAttachment, PayerContract,
+        Prescription, PrescriptionInvestigation, PrescriptionItem,
+        PurchaseOrder, PurchaseOrderItem, ScheduleException, StockMovement,
+        StoreItem, Visit, VisitInvestigation, WaitlistEntry,
     )
 
     order = [
-        MessageTemplate,
+        MessageTemplate, MessageLog,
         EInvoiceDocument, Payment, InvoiceItem, Invoice,
-        PrescriptionItem, Prescription,
-        StockMovement, StoreItem,
+        PrescriptionInvestigation, PrescriptionItem, Prescription,
+        PurchaseOrderItem, PurchaseOrder,
+        StockMovement, StoreItem, Expense,
         PatientCoverage, PayerContract, PayerServiceRate, PayerEntity,
         DoctorServiceCommission, ServiceBundleItem, Service,
-        MessageLog, PatientVaccine, GrowthRecord, VitalSigns, Diagnosis,
-        Visit, Appointment, DoctorSchedule, VaccineInventory, Supplier,
+        # Visit/patient children first, then the parents.
+        PatientAttachment, VisitInvestigation, PatientVaccine, GrowthRecord,
+        VitalSigns, Diagnosis, Visit,
+        WaitlistEntry, Appointment, ScheduleException, DoctorSchedule,
+        VaccineInventory, Supplier,
         Parent, Patient, Family,
     ]
     counts = {}
@@ -172,11 +181,13 @@ def seed_demo():
             w = round(3.3 + m * (0.6 if m < 12 else 0.2) + rnd.uniform(-0.4, 0.4), 1)
             h = round(50 + m * (2.0 if m < 12 else 1.0) + rnd.uniform(-1, 1), 1)
             hc = round(34 + m * (0.5 if m < 12 else 0.15) + rnd.uniform(-0.5, 0.5), 1)
+            w, h = max(2.5, w), max(48, h)
+            bmi = round(w / ((h / 100.0) ** 2), 1)  # so the BMI-for-age chart has data
             db.session.add(GrowthRecord(
                 patient_id=p.id,
                 record_date=p.date_of_birth + timedelta(days=m * 30),
-                weight_kg=max(2.5, w), height_cm=max(48, h),
-                head_circ_cm=max(32, hc), source="demo",
+                weight_kg=w, height_cm=h,
+                head_circ_cm=max(32, hc), bmi=bmi, source="demo",
             ))
 
     # --- Today's appointments (mixed statuses) --------------------------
