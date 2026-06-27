@@ -127,8 +127,51 @@ def _all():
     return _CACHE["data"]
 
 
+def _dismissed_map(user):
+    """Per-user record of dismissed alerts: {key: {'c': count, 'd': 'YYYY-MM-DD'}}."""
+    import json
+
+    from app.models import Setting
+
+    raw = Setting.get(f"notif_dismiss:{user.id}")
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+
+
+def dismiss(user, key):
+    """Mark an alert as seen for this user, snapshotting its current count so it
+    reappears only if new items show up later (and it auto-clears next day)."""
+    import json
+
+    from app.extensions import db
+    from app.models import Setting
+
+    if user is None or not getattr(user, "is_authenticated", False):
+        return
+    current = next((it["count"] for it in _all() if it["key"] == key), 0)
+    data = _dismissed_map(user)
+    data[key] = {"c": int(current or 0), "d": date.today().isoformat()}
+    Setting.set(f"notif_dismiss:{user.id}", json.dumps(data))
+    db.session.commit()
+
+
 def get_notifications(user):
-    """Alerts visible to this user (filtered by module access)."""
+    """Alerts visible to this user (filtered by module access + dismissals)."""
     if user is None or not getattr(user, "is_authenticated", False):
         return []
-    return [it for it in _all() if user.can_access(it["module"])]
+    dismissed = _dismissed_map(user)
+    today_s = date.today().isoformat()
+    out = []
+    for it in _all():
+        if not user.can_access(it["module"]):
+            continue
+        seen = dismissed.get(it["key"])
+        # Hide if dismissed today and nothing new has arrived since.
+        if seen and seen.get("d") == today_s and (it["count"] or 0) <= seen.get("c", 0):
+            continue
+        out.append(it)
+    return out

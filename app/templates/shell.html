@@ -89,7 +89,8 @@
             <div class="notif-head">{{ t('notif.title') }}</div>
             {% if notifications %}
               {% for n in notifications %}
-              <a class="notif-item" href="{{ url_for(n.endpoint, **n.kwargs) }}">
+              <a class="notif-item" href="{{ url_for(n.endpoint, **n.kwargs) }}"
+                 x-on:click="dismissNotif('{{ n.key }}')">
                 <span class="notif-ico sev-{{ n.severity }}"><i class="bi bi-{{ n.icon }}"></i></span>
                 <span class="notif-text">{{ t('notif.' ~ n.key, count=n.count) }}</span>
                 <span class="notif-count">{{ n.count }}</span>
@@ -136,6 +137,17 @@
   <span><strong>{{ program.name }}</strong> — {{ program.slogan }} · © Eng. Mohamed Khafaga — All rights reserved</span>
 </div>
 <script>
+  // Clicking an alert records it as seen (keepalive so it lands as we navigate),
+  // so it drops off the bell count on the next page. The link still navigates.
+  function dismissNotif(key) {
+    try {
+      fetch("{{ url_for('main.notif_dismiss') }}", {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'key=' + encodeURIComponent(key)
+      });
+    } catch (e) { /* navigation continues regardless */ }
+  }
   function toggleTheme() {
     var el = document.documentElement;
     var next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';

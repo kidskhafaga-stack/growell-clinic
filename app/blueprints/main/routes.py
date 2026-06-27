@@ -85,6 +85,18 @@ def set_theme():
     return {"theme": theme}
 
 
+@main_bp.route("/notifications/dismiss", methods=["POST"])
+@login_required
+def notif_dismiss():
+    """Mark a bell alert as seen so it drops from the count (click-to-dismiss)."""
+    from app.utils import notifications
+
+    key = (request.form.get("key") or "").strip()
+    if key:
+        notifications.dismiss(current_user, key)
+    return {"ok": True, "key": key}
+
+
 def _users_dir():
     path = os.path.join(current_app.static_folder, "uploads", "users")
     os.makedirs(path, exist_ok=True)
