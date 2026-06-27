@@ -133,7 +133,7 @@
     {% for fam in families %}{% if fam.id == _fid %}{% set ns.fname = fam.display_name(current_lang) %}{% endif %}{% endfor %}
     <div class="form-grid">
       <div class="form-row" style="position:relative;"
-           x-data="familyPicker('{{ url_for('patients.family_search') }}', {{ _fid or 'null' }}, {{ ns.fname|tojson }})">
+           x-data="familyPicker('{{ url_for('patients.family_search') }}', {{ _fid or 'null' }}, {{ ns.fname|tojson|forceescape }})">
         <label>{{ t('patients.select_family') }}</label>
         <input type="hidden" name="family_id" :value="famId || ''">
         <input class="input" x-model="q" autocomplete="off"
