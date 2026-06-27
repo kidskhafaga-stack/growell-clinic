@@ -464,7 +464,8 @@
     "cc_vaccine_visit": "تطعيم",
     "previous_context": "من الزيارة السابقة",
     "last_visit": "الزيارة السابقة",
-    "pending_results": "نتائج منتظرة (سجّلها الآن)",
+    "pending_results": "تحاليل/أشعة مطلوبة من زيارة سابقة",
+    "pending_results_hint": "طلبها الطبيب في زيارة سابقة ولسه محتاجة إدخال النتيجة — سجّلها الآن.",
     "recent_files": "ملفات حديثة",
     "att_lab": "تحاليل",
     "att_imaging": "فحوصات وأشعة"

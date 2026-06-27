@@ -464,7 +464,8 @@
     "cc_vaccine_visit": "Vaccination",
     "previous_context": "From the previous visit",
     "last_visit": "Previous visit",
-    "pending_results": "Pending results (enter now)",
+    "pending_results": "Labs/imaging requested in a previous visit",
+    "pending_results_hint": "Requested by the doctor in an earlier visit and still awaiting their result — enter it now.",
     "recent_files": "Recent files",
     "att_lab": "Lab",
     "att_imaging": "Investigation"
