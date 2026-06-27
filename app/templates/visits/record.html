@@ -10,7 +10,10 @@
 {% set _rx_base = url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id,
       visit_id=visit.id, diagnosis=(_dx.title if _dx else ''), diagnosis_code=(_dx.code if _dx and _dx.code else '')) %}
 <div x-data="visitPage('{{ url_for('visits.icd') }}',
-        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }})"
+        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }},
+        {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
+            'normal': t('visits.normal_exam_text'),
+            'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }})"
      x-init="restore()" style="padding-bottom:78px;">
 
   <!-- Patient header -->
@@ -141,14 +144,32 @@
     </div>
 
     <div class="card gc-scale-in" style="animation-delay:0.14s;">
-      <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.section_clinical') }}</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h2 class="section-title" style="margin:0;"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.section_clinical') }}</h2>
+        <button type="button" class="btn btn-outline btn-sm gc-press" x-show="prev" x-on:click="carryForward()">
+          <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.carry_forward') }}</button>
+      </div>
+
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
-        <textarea class="input" name="chief_complaint" rows="2">{{ visit.chief_complaint or '' }}</textarea></div>
+        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
+        <div class="smart-chips">
+          {% for key in ['fever','cough','diarrhea','vomiting','rash','followup','vaccine_visit'] %}
+          <button type="button" class="chip" x-on:click="addComplaint({{ t('visits.cc_' ~ key)|tojson }})">{{ t('visits.cc_' ~ key) }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
       <div class="form-row"><label>{{ t('visits.clinical_exam') }}</label>
-        <textarea class="input" name="clinical_exam" rows="3">{{ visit.clinical_exam or '' }}</textarea></div>
+        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"></textarea>
+        <div class="smart-chips">
+          <button type="button" class="chip chip--primary" x-on:click="normalExam()">
+            <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
+        </div>
+      </div>
+
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.plan') }}</label>
-          <textarea class="input" name="plan" rows="2">{{ visit.plan or '' }}</textarea></div>
+          <textarea class="input" name="plan" rows="2" x-model="planTxt"></textarea></div>
         <div class="form-row"><label>{{ t('visits.notes') }}</label>
           <textarea class="input" name="notes" rows="2">{{ visit.notes or '' }}</textarea></div>
       </div>
@@ -381,6 +402,14 @@
   .vtab.active { background:var(--green-600); color:#fff; border-color:var(--green-600); }
   .vtab-count { background:rgba(0,0,0,.12); border-radius:999px; padding:0 7px; font-size:0.75rem; }
   .vtab.active .vtab-count { background:rgba(255,255,255,.25); }
+  /* Smart-phrase chips */
+  .smart-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .chip { border:1px dashed var(--line); background:var(--surface,#fff); color:var(--muted);
+    border-radius:999px; padding:4px 11px; font-size:0.8rem; cursor:pointer; font-family:inherit;
+    transition:all .15s ease; }
+  .chip:hover { border-style:solid; border-color:var(--green-600); color:var(--green-800); }
+  .chip--primary { border-style:solid; border-color:var(--green-600); color:var(--green-800);
+    background:var(--green-050,#f3faf5); font-weight:600; }
   /* Sticky action bar */
   .visit-actionbar { position:sticky; bottom:0; z-index:30; margin:18px -4px 0;
     background:linear-gradient(to top, var(--bg,#f6f8f7) 70%, transparent);
@@ -395,10 +424,30 @@
 {% block scripts %}
 <script>
   window.current_lang = "{{ current_lang }}";
-  function visitPage(icdUrl, w, h) {
+  function visitPage(icdUrl, w, h, cfg) {
+    cfg = cfg || {};
     return {
       icdUrl, weight: w || '', height: h || '',
       q: '', results: [], code: '', title: '', version: '10',
+      // "Write less" helpers: clinical fields are Alpine-bound so smart phrases
+      // and carry-forward can fill them with one click.
+      cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
+      normalText: cfg.normal || '', prev: cfg.prev || null,
+      addComplaint(txt) {
+        const s = (this.cc || '').trim();
+        if (s.split('،').map(x => x.trim()).includes(txt)) return;  // no dupes
+        this.cc = s ? (s.replace(/[،,\s]*$/, '') + '، ' + txt) : txt;
+      },
+      normalExam() {
+        const t = (this.exam || '').trim();
+        this.exam = t ? (t + '\n' + this.normalText) : this.normalText;
+      },
+      carryForward() {
+        if (!this.prev) return;
+        if (this.prev.cc && !this.cc) this.cc = this.prev.cc;
+        if (this.prev.exam && !this.exam) this.exam = this.prev.exam;
+        if (this.prev.plan && !this.planTxt) this.planTxt = this.prev.plan;
+      },
       tab: 'case',
       // Restore the active tab from the URL hash so it survives the page
       // reloads after adding a diagnosis (#dx) / investigation (#inv) / file (#files).
