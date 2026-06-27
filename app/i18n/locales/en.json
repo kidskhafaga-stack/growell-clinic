@@ -418,7 +418,7 @@
     "section_clinical": "Clinical data",
     "completed_on": "Completed on",
     "print": "Print",
-    "investigations": "Investigations (labs / imaging \u0026 studies)",
+    "investigations": "Investigations (labs / imaging & studies)",
     "no_inv": "No investigations ordered yet.",
     "order_investigation": "Order investigation",
     "inv_requested": "Requested",
@@ -831,7 +831,11 @@
     "ai_anonymize": "Anonymize (omit name / file number / national id before sending)",
     "ai_patient_hint": "When enabled, a concise clinical summary of the open patient is sent to your chosen AI provider to answer questions.",
     "ai_local_badge": "Local — data stays in the clinic, works offline",
-    "ai_cloud_badge": "Cloud — sends data over the internet"
+    "ai_cloud_badge": "Cloud — sends data over the internet",
+    "thermal_title": "Thermal receipt",
+    "thermal_footer": "Receipt footer text",
+    "thermal_footer_hint": "Shown at the bottom of the thermal receipt (thanks / instructions / booking). One line each.",
+    "thermal_footer_ph": "Thank you for visiting!\nBooking: 01000000000"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -950,7 +954,9 @@
     "item_updated": "Item updated",
     "edit_invoice": "Edit invoice details",
     "edit_item": "Edit item",
-    "updated": "Invoice updated"
+    "updated": "Invoice updated",
+    "receipt": "Receipt",
+    "thermal": "Thermal receipt"
   },
   "expenses": {
     "title": "Expenses",
@@ -1387,7 +1393,7 @@
     "severe": "Severe",
     "max_hint": "Max dose",
     "signature": "Doctor signature",
-    "investigations": "Investigations (labs / imaging \u0026 studies)",
+    "investigations": "Investigations (labs / imaging & studies)",
     "inv_kind": "Type",
     "inv_lab": "Lab test",
     "inv_imaging": "Investigation",
