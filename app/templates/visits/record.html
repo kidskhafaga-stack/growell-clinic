@@ -18,7 +18,7 @@
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
 <div x-data="visitPage('{{ url_for('visits.icd') }}',
-        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }})"
+        {{ visit.vitals.weight_kg if (visit.vitals and visit.vitals.weight_kg) else 'null' }}, {{ visit.vitals.height_cm if (visit.vitals and visit.vitals.height_cm) else 'null' }})"
      x-init="restore()" style="padding-bottom:78px;">
 
   <!-- Patient header -->

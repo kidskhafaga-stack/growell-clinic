@@ -5,8 +5,9 @@
 {% block page_heading %}{{ t('growth.title') }}{% endblock %}
 
 {% block content %}
-<div x-data="growthChart({{ patient.id }}, '{{ url_for('growth.data', patient_id=patient.id) }}', '{{ default_ref }}', '{{ patient.gender }}')"
-     x-init="init()">
+<!-- Alpine auto-runs a component's init() — no x-init needed (a second call
+     would double-load and the re-render would destroy the chart). -->
+<div x-data="growthChart({{ patient.id }}, '{{ url_for('growth.data', patient_id=patient.id) }}', '{{ default_ref }}', '{{ patient.gender }}')">
 
   <!-- Header -->
   <div class="card profile-header gc-scale-in">
