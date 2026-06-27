@@ -13,7 +13,7 @@
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
     <div class="form-grid">
       <div class="form-row" style="position:relative;"
-           x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson) if selected_patient else 'null' }})">
+           x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson | forceescape) if selected_patient else 'null' }})">
         <label>{{ t('appointments.patient') }} *</label>
         <input type="hidden" name="patient_id" :value="chosen ? chosen.id : ''" required>
 

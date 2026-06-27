@@ -64,6 +64,11 @@
         </select></div>
       <div class="form-row"><label>{{ t('profile.specialty') }}</label><input class="input" name="specialty" value="{{ current_user.specialty or '' }}"></div>
       <div class="form-row"><label>{{ t('profile.sub_specialties') }}</label><input class="input" name="sub_specialties" value="{{ current_user.sub_specialties or '' }}"></div>
+      <div class="form-row" style="grid-column:1/-1;"><label>{{ t('profile.print_title_ar') }}</label>
+        <textarea class="input" name="print_title_ar" rows="3" placeholder="{{ t('profile.print_title_ph') }}">{{ current_user.print_title_ar or '' }}</textarea>
+        <div class="hint">{{ t('profile.print_title_hint') }}</div></div>
+      <div class="form-row" style="grid-column:1/-1;"><label>{{ t('profile.print_title_en') }}</label>
+        <textarea class="input" name="print_title_en" rows="3" dir="ltr" placeholder="Consultant Pediatrician&#10;Smouha University Hospital&#10;MRCPCH">{{ current_user.print_title_en or '' }}</textarea></div>
       <div class="form-row"><label>{{ t('profile.license') }}</label><input class="input" name="license_no" dir="ltr" value="{{ current_user.license_no or '' }}"></div>
       {% if rx_templates %}
       <div class="form-row"><label>{{ t('rxtpl.my_template') }}</label>

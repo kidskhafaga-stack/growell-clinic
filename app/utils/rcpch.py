@@ -34,28 +34,53 @@ _METHOD = {
     "bmifa": "bmi",
 }
 
-# One exposed source, backed by the chained UK-WHO/UK90 reference (2wk–20y).
-RCPCH_SOURCES = {
-    "RCPCH": {
-        "reference": "uk-who",
-        "label": {"en": "RCPCH (UK-WHO / UK90)", "ar": "RCPCH (المملكة المتحدة)"},
-        "min_month": 0.5,
-        "max_month": 240.0,
-    },
-}
-
 # RCPCH nine centiles and their Z-scores (two-thirds-SD spacing).
 RCPCH_CENTILES = [
     ("P0.4", -2.67), ("P2", -2.0), ("P9", -1.33), ("P25", -0.67),
     ("P50", 0.0), ("P75", 0.67), ("P91", 1.33), ("P98", 2.0), ("P99.6", 2.67),
 ]
+# WHO / CDC use the familiar five-line set (3rd–97th).
+WHO_CDC_CENTILES = [
+    ("P3", -1.88079), ("P15", -1.03643), ("P50", 0.0),
+    ("P85", 1.03643), ("P97", 1.88079),
+]
+
+# Sources computed offline via rcpchgrowth. WHO now spans 0–19 (the package
+# chains WHO 2006 + WHO 2007), CDC 2–20, and RCPCH the chained UK-WHO/UK90.
+RCPCH_SOURCES = {
+    "WHO": {
+        "reference": "who", "centiles": WHO_CDC_CENTILES,
+        "label": {"en": "WHO (0–19y)", "ar": "WHO (0–19 سنة)"},
+        "min_month": 0.5, "max_month": 228.0,
+    },
+    "CDC": {
+        "reference": "cdc", "centiles": WHO_CDC_CENTILES,
+        "label": {"en": "CDC (2–20y)", "ar": "CDC (2–20 سنة)"},
+        "min_month": 24.0, "max_month": 240.0,
+    },
+    "RCPCH": {
+        "reference": "uk-who", "centiles": RCPCH_CENTILES,
+        "label": {"en": "RCPCH (UK-WHO / UK90)", "ar": "RCPCH (المملكة المتحدة)"},
+        "min_month": 0.5, "max_month": 240.0,
+    },
+}
+
+
+def _centiles(source):
+    node = RCPCH_SOURCES.get(source)
+    return node["centiles"] if node else RCPCH_CENTILES
 
 _MONTHS_PER_YEAR = 12.0
 _EPS = 0.02  # nudge off the exact reference edge (interpolation is open there)
 
 
 def is_rcpch(source):
-    return source in RCPCH_SOURCES
+    """True when this source is computed by the offline package (WHO/CDC/RCPCH)."""
+    return RCPCH_AVAILABLE and source in RCPCH_SOURCES
+
+
+# Clearer alias — the wrapper now serves WHO and CDC too, not only RCPCH.
+is_package = is_rcpch
 
 
 def sources():
@@ -157,22 +182,24 @@ def compute_point(source, indicator, gender, age_months, value):
 
 
 def reference_curves(source, indicator, gender):
-    """Nine RCPCH centile curves over the reference age span, for charting."""
+    """Centile curves over the reference age span, for charting (5-line for
+    WHO/CDC, 9-line for RCPCH)."""
     if not RCPCH_AVAILABLE or not is_rcpch(source):
         return None
     method = _method(indicator)
     if not method:
         return None
     ref = RCPCH_SOURCES[source]["reference"]
+    centiles = _centiles(source)
     lo, hi = reference_range(source)
     sex = _sex(gender)
 
-    out = {"months": [], **{name: [] for name, _ in RCPCH_CENTILES}}
+    out = {"months": [], **{name: [] for name, _ in centiles}}
     for month in _age_grid(lo, hi):
         age_years = month / _MONTHS_PER_YEAR
         row = {}
         ok = True
-        for name, z in RCPCH_CENTILES:
+        for name, z in centiles:
             v = _safe_measurement(ref, z, method, sex, age_years)
             if v is None:
                 ok = False
@@ -181,7 +208,7 @@ def reference_curves(source, indicator, gender):
         if not ok:
             continue
         out["months"].append(round(month, 2))
-        for name, _z in RCPCH_CENTILES:
+        for name, _z in centiles:
             out[name].append(row[name])
     return out if out["months"] else None
 

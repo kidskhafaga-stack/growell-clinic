@@ -12,6 +12,7 @@ from flask import (
     Response,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -418,8 +419,11 @@ def add_parent(patient_id):
         full_name_en=(request.form.get("full_name_en") or "").strip(),
         national_id=(request.form.get("national_id") or "").strip(),
         phone=(request.form.get("phone") or "").strip(),
+        phone_alt=(request.form.get("phone_alt") or "").strip(),
         email=(request.form.get("email") or "").strip(),
         occupation=(request.form.get("occupation") or "").strip(),
+        nationality=(request.form.get("nationality") or "").strip(),
+        address=(request.form.get("address") or "").strip(),
         client_category=category if Parent.valid_category(category) else "normal",
         is_primary_contact=bool(request.form.get("is_primary_contact")),
     )
@@ -441,6 +445,49 @@ def delete_parent(parent_id):
     db.session.delete(parent)
     db.session.commit()
     flash(t("patients.parent_removed"), "info")
+    if patient_id:
+        return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+    return redirect(url_for("patients.index"))
+
+
+# ----------------------------------------------------------- families ------
+@patients_bp.route("/families/search")
+@module_required(MODULE)
+def family_search():
+    """Autocomplete for picking a family by name or number (booking/new patient)."""
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 1:
+        return jsonify({"families": []})
+    like = f"%{q}%"
+    rows = (
+        Family.query.filter(db.or_(
+            Family.family_name.ilike(like),
+            Family.family_name_en.ilike(like),
+            Family.family_number.ilike(like),
+        )).order_by(Family.family_name).limit(15).all()
+    )
+    return jsonify({"families": [
+        {"id": f.id, "name": f.display_name(),
+         "number": f.family_number or "",
+         "count": len(f.patients)} for f in rows
+    ]})
+
+
+@patients_bp.route("/families/<int:family_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def family_update(family_id):
+    """Rename / edit a family's details."""
+    family = db.get_or_404(Family, family_id)
+    name = (request.form.get("family_name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("patients.family_name"), "danger")
+    else:
+        family.family_name = name
+        family.family_name_en = (request.form.get("family_name_en") or "").strip() or None
+        family.notes = (request.form.get("notes") or "").strip() or None
+        db.session.commit()
+        flash(t("patients.family_updated"), "success")
+    patient_id = request.form.get("patient_id", type=int)
     if patient_id:
         return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
     return redirect(url_for("patients.index"))

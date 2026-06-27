@@ -12,7 +12,6 @@
       {% endif %}
       <h1>{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else (clinic.name or t('app.name')) }}</h1>
       {% if clinic.tagline %}<div class="sub">{{ clinic.tagline }}</div>{% endif %}
-      <div class="sub" style="opacity:.7;font-size:0.8rem;">{{ product_name }}</div>
       <div class="sub">{{ t('auth.login_subtitle') }}</div>
     </div>
 
@@ -49,6 +48,24 @@
       {% endfor %}
     </div>
   </div>
-  <div class="copyright" style="text-align:center;margin-top:16px;">{{ copyright_notice }}</div>
+
+  <!-- PediaPro program identity (kept alongside the clinic's own brand) -->
+  <div class="program-id">
+    {% if program.logo_url %}<img src="{{ program.logo_url }}" alt="{{ program.name }}" class="program-id__logo">
+    {% else %}<span class="program-id__name">{{ program.name }}</span>{% endif %}
+    <span class="program-id__slogan">{{ program.slogan }}</span>
+  </div>
+  <div class="copyright" style="text-align:center;margin-top:8px;">{{ copyright_notice }}</div>
 </div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .program-id { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:18px; }
+  .program-id__logo { max-height:42px; max-width:200px; object-fit:contain; }
+  .program-id__name { font-weight:800; font-size:1.1rem; letter-spacing:.3px;
+    background:linear-gradient(90deg,#1E7FC2,#5CB646); -webkit-background-clip:text;
+    background-clip:text; color:transparent; }
+  .program-id__slogan { font-size:0.78rem; color:var(--muted,#6b7280); }
+</style>
 {% endblock %}

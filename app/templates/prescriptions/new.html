@@ -8,7 +8,7 @@
 
 {% set pf = prefill or {} %}
 <form method="post" action="{{ url_for('prescriptions.new') }}"
-      x-data="rxForm({{ (pf.weight or '')|tojson }}, {{ (pf.diagnosis or '')|tojson }}, {{ (pf.diagnosis_code or '')|tojson }})"
+      x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }})"
       x-init="addLine()">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}

@@ -37,6 +37,10 @@ class User(UserMixin, db.Model):
     professional_title = db.Column(db.String(40))   # Professor/Consultant/...
     specialty = db.Column(db.String(160))           # التخصص الرئيسي
     sub_specialties = db.Column(db.String(255))     # التخصصات الفرعية
+    # Free multi-line titles printed under the doctor's name on the Rx — one
+    # qualification per line (consultant / hospital / fellowship…), AR & EN.
+    print_title_ar = db.Column(db.Text)
+    print_title_en = db.Column(db.Text)
     license_no = db.Column(db.String(60))           # رقم الترخيص/النقابة
     signature_file = db.Column(db.String(255))      # التوقيع الرقمي
     stamp_file = db.Column(db.String(255))          # الختم الطبي
@@ -106,6 +110,21 @@ class User(UserMixin, db.Model):
             return self.rx_display_name
         base = self.display_name(lang)
         return f"{self.professional_title} {base}" if self.professional_title else base
+
+    def doctor_title_lines(self, lang="ar"):
+        """Qualification lines printed under the name (one per line).
+
+        Uses the free multi-line ``print_title_*`` when set, otherwise falls
+        back to the structured specialty / sub-specialties fields."""
+        raw = (self.print_title_en if lang == "en" else self.print_title_ar) or ""
+        lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+        if lines:
+            return lines
+        fallback = []
+        if self.specialty:
+            fallback.append(self.specialty
+                            + (f" — {self.sub_specialties}" if self.sub_specialties else ""))
+        return fallback
 
     def role_label(self, lang="ar"):
         rec = self._role_record()

@@ -9,11 +9,16 @@
 {% set _dx = _finals[0] if _finals else (visit.diagnoses[0] if visit.diagnoses else None) %}
 {% set _rx_base = url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id,
       visit_id=visit.id, diagnosis=(_dx.title if _dx else ''), diagnosis_code=(_dx.code if _dx and _dx.code else '')) %}
+<!-- Visit config kept in a JSON script tag (NOT in the x-data attribute, whose
+     double quotes would clash with JSON's) so Alpine parses the component
+     reliably. -->
+<script type="application/json" id="visitCfg">
+{{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
+    'normal': t('visits.normal_exam_text'),
+    'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
+</script>
 <div x-data="visitPage('{{ url_for('visits.icd') }}',
-        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }},
-        {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
-            'normal': t('visits.normal_exam_text'),
-            'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }})"
+        {{ (visit.vitals.weight_kg or '') }}, {{ (visit.vitals.height_cm or '') if visit.vitals else '' }})"
      x-init="restore()" style="padding-bottom:78px;">
 
   <!-- Patient header -->
@@ -424,8 +429,10 @@
 {% block scripts %}
 <script>
   window.current_lang = "{{ current_lang }}";
-  function visitPage(icdUrl, w, h, cfg) {
-    cfg = cfg || {};
+  function visitPage(icdUrl, w, h) {
+    let cfg = {};
+    try { cfg = JSON.parse(document.getElementById('visitCfg').textContent || '{}'); }
+    catch (e) { cfg = {}; }
     return {
       icdUrl, weight: w || '', height: h || '',
       q: '', results: [], code: '', title: '', version: '10',

@@ -135,6 +135,12 @@ def create_app(config_name="default"):
             lang = getattr(g, "lang", "ar")
             product = ((rows.get("product_name_en") if lang == "en" else None)
                        or rows.get("product_name") or product_default)
+            # Program (PediaPro) identity — distinct from the clinic's own logo.
+            prog_logo = rows.get("program_logo") or None
+            slogan_default = ("Smart Pediatrics Care Solution" if lang == "en"
+                              else "حلول طب الأطفال الذكية")
+            program_slogan = ((rows.get("program_slogan_en") if lang == "en"
+                               else rows.get("program_slogan_ar")) or slogan_default)
             return {
                 "clinic": {
                     "name": rows.get("clinic_name") or defaults["name"],
@@ -150,9 +156,17 @@ def create_app(config_name="default"):
                     "address_en": rows.get("clinic_address_en"),
                 },
                 "product_name": product,
+                "program": {
+                    "name": product,
+                    "slogan": program_slogan,
+                    "logo_url": (url_for("static", filename="uploads/clinic/" + prog_logo)
+                                 if prog_logo else None),
+                },
             }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
-            return {"clinic": defaults, "product_name": product_default}
+            return {"clinic": defaults, "product_name": product_default,
+                    "program": {"name": product_default,
+                                "slogan": "حلول طب الأطفال الذكية", "logo_url": None}}
 
     register_error_handlers(app)
     register_cli(app)
