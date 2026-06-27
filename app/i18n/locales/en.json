@@ -1693,5 +1693,16 @@
     "contracts_expiring": "{count} contract(s) expiring soon",
     "vaccines_due": "{count} patient(s) with vaccines due",
     "birthdays": "{count} birthday(s) this week"
+  },
+  "analytics": {
+    "title": "Patient analytics",
+    "last_30": "30 days",
+    "last_90": "90 days",
+    "last_180": "6 months",
+    "last_365": "1 year",
+    "new_patients": "New patients",
+    "visits": "Visits",
+    "top_diagnoses": "Top diagnoses in period",
+    "no_diagnoses": "No diagnoses in this period"
   }
 }

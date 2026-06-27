@@ -126,6 +126,55 @@ def index():
     )
 
 
+# ------------------------------------------------------------ analytics ----
+@patients_bp.route("/analytics")
+@module_required(MODULE)
+def analytics():
+    """Patient analytics: gender / age distribution + top diagnoses in a period."""
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import func
+
+    from app.blueprints.main.routes import AGE_GROUPS, _age_group
+    from app.models import Diagnosis, Visit
+
+    days = request.args.get("days", 90, type=int)
+    if days not in (30, 90, 180, 365):
+        days = 90
+    start = datetime.utcnow().date() - timedelta(days=days)
+
+    patients = Patient.query.filter_by(is_active=True).all()
+    groups = {key: 0 for key, _ in AGE_GROUPS}
+    male = female = 0
+    for p in patients:
+        if p.gender == "male":
+            male += 1
+        elif p.gender == "female":
+            female += 1
+        groups[_age_group(p.age_days)] += 1
+    stats = {"total": len(patients), "male": male, "female": female, "groups": groups}
+
+    # Top diagnoses recorded in visits within the period.
+    top_dx = (
+        db.session.query(Diagnosis.title, func.count().label("n"))
+        .join(Visit, Diagnosis.visit_id == Visit.id)
+        .filter(Visit.visit_date >= start, Diagnosis.title.isnot(None))
+        .group_by(Diagnosis.title)
+        .order_by(func.count().desc())
+        .limit(10)
+        .all()
+    )
+    period = {
+        "days": days,
+        "new_patients": Patient.query.filter(Patient.created_at >= start).count(),
+        "visits": Visit.query.filter(Visit.visit_date >= start).count(),
+    }
+    return render_template(
+        "patients/analytics.html", stats=stats,
+        age_groups=[k for k, _ in AGE_GROUPS], top_dx=top_dx, period=period,
+    )
+
+
 # -------------------------------------------------------------- create -----
 @patients_bp.route("/new", methods=["GET", "POST"])
 @module_required(MODULE)

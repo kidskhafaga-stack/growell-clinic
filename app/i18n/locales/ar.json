@@ -1693,5 +1693,16 @@
     "contracts_expiring": "{count} عقود قاربت على الانتهاء",
     "vaccines_due": "{count} مرضى لديهم تطعيمات مستحقة",
     "birthdays": "{count} أعياد ميلاد هذا الأسبوع"
+  },
+  "analytics": {
+    "title": "تحليل المرضى",
+    "last_30": "30 يوم",
+    "last_90": "90 يوم",
+    "last_180": "6 شهور",
+    "last_365": "سنة",
+    "new_patients": "مرضى جدد",
+    "visits": "زيارات",
+    "top_diagnoses": "أهم التشخيصات في الفترة",
+    "no_diagnoses": "لا توجد تشخيصات في الفترة"
   }
 }

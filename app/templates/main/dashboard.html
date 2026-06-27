@@ -14,32 +14,16 @@
   <i class="bi bi-info-circle"></i> {{ t('dashboard.phase_notice') }}
 </div>
 
-{% if stats %}
-<!-- Patient classification -->
-<div class="card gc-scale-in" style="animation-delay:0.14s;">
-  <h2 style="margin-top:0;font-size:1.1rem;"><i class="bi bi-people"></i> {{ t('agegrp.title') }}</h2>
-
-  <h3 class="section-title" style="font-size:0.95rem;">{{ t('agegrp.by_gender') }}</h3>
-  <div class="stat-grid" style="margin-bottom:16px;">
-    <div class="stat-card edge-green"><i class="bi bi-people ico"></i><div class="value">{{ stats.total }}</div><div class="label">{{ t('agegrp.total') }}</div></div>
-    <div class="stat-card" style="border-inline-start-color:#3b82f6;"><i class="bi bi-gender-male ico" style="color:#3b82f6;"></i><div class="value" style="color:#2563eb;">{{ stats.male }}</div><div class="label">{{ t('genders.male') }}</div></div>
-    <div class="stat-card" style="border-inline-start-color:#ec4899;"><i class="bi bi-gender-female ico" style="color:#ec4899;"></i><div class="value" style="color:#be185d;">{{ stats.female }}</div><div class="label">{{ t('genders.female') }}</div></div>
-  </div>
-
-  <h3 class="section-title" style="font-size:0.95rem;">{{ t('agegrp.by_age') }}</h3>
-  <table class="table" style="margin:0;">
-    <thead><tr><th>{{ t('agegrp.group') }}</th><th>{{ t('agegrp.range') }}</th><th>{{ t('agegrp.count') }}</th></tr></thead>
-    <tbody>
-      {% for g in age_groups %}
-      <tr>
-        <td><strong>{{ t('agegrp.' ~ g) }}</strong></td>
-        <td style="color:var(--muted);">{{ t('agegrp.' ~ g ~ '_def') }}</td>
-        <td><span class="badge badge--role">{{ stats.groups[g] }}</span></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+{% if current_user.can_access('patients') %}
+<a class="card gc-scale-in gc-lift" href="{{ url_for('patients.analytics') }}"
+   style="animation-delay:0.14s;display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;">
+  <span style="width:46px;height:46px;border-radius:12px;background:var(--green-050);color:var(--green-700);display:grid;place-items:center;font-size:1.4rem;"><i class="bi bi-graph-up-arrow"></i></span>
+  <span style="flex:1;">
+    <span style="display:block;font-weight:700;">{{ t('analytics.title') }}</span>
+    <span style="color:var(--muted);font-size:0.88rem;">{{ t('agegrp.by_gender') }} · {{ t('agegrp.by_age') }} · {{ t('analytics.top_diagnoses') }}</span>
+  </span>
+  <i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}" style="color:var(--muted);"></i>
+</a>
 {% endif %}
 
 <div class="card gc-scale-in" style="animation-delay:0.16s;">
