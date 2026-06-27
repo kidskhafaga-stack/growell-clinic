@@ -140,6 +140,8 @@ def profile():
             u.professional_title = title if title in PROFESSIONAL_TITLES else None
             u.specialty = (request.form.get("specialty") or "").strip() or None
             u.sub_specialties = (request.form.get("sub_specialties") or "").strip() or None
+            u.print_title_ar = (request.form.get("print_title_ar") or "").strip() or None
+            u.print_title_en = (request.form.get("print_title_en") or "").strip() or None
             u.license_no = (request.form.get("license_no") or "").strip() or None
             u.rx_template_id = request.form.get("rx_template_id", type=int) or None
 

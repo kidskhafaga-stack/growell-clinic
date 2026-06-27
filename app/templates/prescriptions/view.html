@@ -52,7 +52,7 @@
       <div>
         {% if tpl.show_doctor and doc %}<h2 style="margin:0;color:var(--green-800);">{{ doc.doctor_print_name(current_lang) }}</h2>{% endif %}
         <div style="font-weight:700;color:var(--green-800);">{{ clinic.name_ar if current_lang=='ar' and clinic.name_ar else (clinic.name or clinic_name) }}</div>
-        {% if tpl.show_specialty and doc and doc.specialty %}<div style="color:var(--muted);font-size:0.85rem;">{{ doc.specialty }}{% if doc.sub_specialties %} — {{ doc.sub_specialties }}{% endif %}</div>{% endif %}
+        {% if tpl.show_specialty and doc %}{% for line in doc.doctor_title_lines(current_lang) %}<div style="color:var(--muted);font-size:0.85rem;line-height:1.35;">{{ line }}</div>{% endfor %}{% endif %}
         {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
         {% if tpl.show_contact and (addr or clinic.phone) %}<div style="color:var(--muted);font-size:0.8rem;">{% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</div>{% endif %}
         {% if tpl.show_license and doc and doc.license_no %}<div style="color:var(--muted);font-size:0.78rem;" dir="ltr">License: {{ doc.license_no }}</div>{% endif %}
