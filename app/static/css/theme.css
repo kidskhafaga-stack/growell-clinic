@@ -264,6 +264,8 @@ a:hover { color: var(--green-900); }
 .btn-outline { background: #fff; border-color: var(--line); color: var(--ink); }
 .btn-outline:hover { border-color: var(--green-700); color: var(--green-800); }
 .btn-danger { background: var(--danger); color: #fff; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-success:hover { background: #15803d; color: #fff; }
 .btn-sm { padding: 6px 11px; font-size: 0.8rem; }
 
 /* ---------- Tables ---------- */

@@ -6,7 +6,17 @@
 {% block content %}
 <h1 class="page-title gc-animate">{{ t('rx.new') }}</h1>
 
-<form method="post" action="{{ url_for('prescriptions.new') }}" x-data="rxForm()" x-init="addLine()">
+{% set pf = prefill or {} %}
+<form method="post" action="{{ url_for('prescriptions.new') }}"
+      x-data="rxForm({{ (pf.weight or '')|tojson }}, {{ (pf.diagnosis or '')|tojson }}, {{ (pf.diagnosis_code or '')|tojson }})"
+      x-init="addLine()">
+  {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
+  {% if pf.visit_id %}
+  <div class="card gc-scale-in" style="border-inline-start:4px solid var(--green-600);background:var(--green-050);">
+    <i class="bi bi-clipboard2-pulse" style="color:var(--green-700);"></i>
+    {{ t('rx.from_visit_note') }}
+  </div>
+  {% endif %}
   <div class="card gc-scale-in">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('rx.patient') }} *</label>
@@ -17,7 +27,7 @@
       <div class="form-row"><label>{{ t('rx.doctor') }}</label>
         <select class="select" name="doctor_id">
           <option value="">—</option>
-          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if current_user.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if (pf.doctor_id and pf.doctor_id==d.id) or (not pf.doctor_id and current_user.id==d.id) else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
       <div class="form-row" style="position:relative;"><label>{{ t('rx.diagnosis') }}</label>
         <input type="hidden" name="diagnosis_code" x-model="dxCode">
@@ -134,10 +144,10 @@
 
 <script>
 window.current_lang = "{{ current_lang }}";
-function rxForm(){
+function rxForm(prefillWeight, prefillDx, prefillDxCode){
   return {
-    lines: [], invs: [], weight: '',
-    dx: '', dxCode: '', dxSug: [], dxOpen: false,
+    lines: [], invs: [], weight: prefillWeight || '',
+    dx: prefillDx || '', dxCode: prefillDxCode || '', dxSug: [], dxOpen: false,
     async searchDx(){
       var q=(this.dx||'').trim(); if(q.length<1){ this.dxSug=[]; this.dxOpen=false; this.dxCode=''; return; }
       try{ var r=await fetch("{{ url_for('prescriptions.icd_search') }}?q="+encodeURIComponent(q));

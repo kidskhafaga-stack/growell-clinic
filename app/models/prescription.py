@@ -163,6 +163,7 @@ class Prescription(db.Model):
 
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
+    visit = db.relationship("Visit", backref="prescriptions")
     items = db.relationship("PrescriptionItem", back_populates="prescription",
                             cascade="all, delete-orphan")
     investigations = db.relationship(
