@@ -25,6 +25,7 @@ from app.models import (
     PAYMENT_METHODS,
     SERVICE_CATEGORIES,
     ActivityLog,
+    CashDrawerDay,
     DoctorServiceCommission,
     EInvoiceDocument,
     Expense,
@@ -253,6 +254,69 @@ def invoices():
     pagination = q.order_by(Invoice.id.desc()).paginate(page=page, per_page=25, error_out=False)
     return render_template("finance/invoices.html", pagination=pagination,
                            invoices=pagination.items, status=status)
+
+
+def _cashier_date():
+    raw = (request.values.get("date") or "").strip()
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date() if raw else date.today()
+    except ValueError:
+        return date.today()
+
+
+@finance_bp.route("/cashier")
+@module_required(MODULE)
+def cashier():
+    """Reception's till for the day: opening float, money taken in (by method),
+    expected cash to reconcile, and who still owes — with one-click collect."""
+    from collections import Counter
+
+    on_date = _cashier_date()
+    start = datetime.combine(on_date, datetime.min.time())
+    end = datetime.combine(on_date, datetime.max.time())
+
+    # Drawer: payments physically received on this day.
+    pays = Payment.query.filter(Payment.paid_at >= start, Payment.paid_at <= end).all()
+    by_method = Counter()
+    for p in pays:
+        by_method[p.method] += p.amount or 0
+    collected = round(sum(p.amount or 0 for p in pays), 2)
+    cash_collected = round(by_method.get("cash", 0), 2)
+
+    drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
+    opening_float = drawer.opening_float if drawer else 0
+    expected_cash = round(opening_float + cash_collected, 2)
+
+    todays = Invoice.query.filter(Invoice.invoice_date == on_date).all()
+    billed_today = round(sum(i.total for i in todays), 2)
+    outstanding = (Invoice.query.filter(Invoice.status.in_(["unpaid", "partial"]))
+                   .order_by(Invoice.id.desc()).limit(100).all())
+    outstanding_total = round(sum(i.balance for i in outstanding), 2)
+
+    return render_template(
+        "finance/cashier.html", on_date=on_date, drawer=drawer,
+        opening_float=opening_float, by_method=dict(by_method),
+        collected=collected, cash_collected=cash_collected,
+        expected_cash=expected_cash, billed_today=billed_today,
+        outstanding=outstanding, outstanding_total=outstanding_total,
+        payment_methods=PAYMENT_METHODS,
+    )
+
+
+@finance_bp.route("/cashier/float", methods=["POST"])
+@module_required(MODULE)
+def cashier_float():
+    """Set the opening change float reception is handed at the start of the day."""
+    on_date = _cashier_date()
+    amount = request.form.get("opening_float", type=float) or 0
+    drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
+    if drawer is None:
+        drawer = CashDrawerDay(drawer_date=on_date, opened_by=current_user.id)
+        db.session.add(drawer)
+    drawer.opening_float = round(amount, 2)
+    db.session.commit()
+    flash(t("cashier.float_saved"), "success")
+    return redirect(url_for("finance.cashier", date=on_date.isoformat()))
 
 
 def _apply_coverage(invoice, patient):
@@ -546,6 +610,8 @@ def invoice_payment(invoice_id):
                        detail=f"{invoice.invoice_number}:{amount}", ip_address=client_ip())
     db.session.commit()
     flash(t("invoices.payment_added"), "success")
+    if (request.form.get("next") or "") == "cashier":
+        return redirect(url_for("finance.cashier"))
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
 

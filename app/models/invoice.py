@@ -140,3 +140,28 @@ class Payment(db.Model):
 
     def __repr__(self):
         return f"<Payment {self.amount} for inv={self.invoice_id}>"
+
+
+class CashDrawerDay(db.Model):
+    """The cashier's drawer for one day: the opening change float reception is
+    handed at the start of the day. Expected cash = float + cash collected −
+    cash refunds, reconciled against the counted amount at close.
+    """
+    __tablename__ = "cash_drawer_days"
+
+    id = db.Column(db.Integer, primary_key=True)
+    drawer_date = db.Column(db.Date, unique=True, nullable=False, index=True)
+    opening_float = db.Column(db.Float, default=0, nullable=False)
+    opened_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # Close-of-day reconciliation (optional).
+    counted_cash = db.Column(db.Float)
+    closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    closed_at = db.Column(db.DateTime)
+    notes = db.Column(db.String(255))
+
+    opener = db.relationship("User", foreign_keys=[opened_by])
+    closer = db.relationship("User", foreign_keys=[closed_by])
+
+    def __repr__(self):
+        return f"<CashDrawerDay {self.drawer_date} float={self.opening_float}>"

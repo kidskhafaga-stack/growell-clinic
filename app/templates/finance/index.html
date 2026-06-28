@@ -8,6 +8,12 @@
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('services.subtitle') }}</p>
 
 <div class="grid gc-stagger" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:14px;">
+  <a class="card gc-lift" href="{{ url_for('finance.cashier') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-green"><i class="bi bi-cash-coin"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('cashier.title') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('cashier.subtitle') }}</p>
+  </a>
+
   <a class="card gc-lift" href="{{ url_for('finance.services') }}" style="text-decoration:none;">
     <div class="hub-ico edge-green"><i class="bi bi-cash-stack"></i></div>
     <h3 style="margin:10px 0 4px;">{{ t('services.hub_services') }}</h3>

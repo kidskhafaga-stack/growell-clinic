@@ -66,6 +66,7 @@ from app.models.service import (
 from app.models.invoice import (
     INVOICE_STATUSES,
     PAYMENT_METHODS,
+    CashDrawerDay,
     Invoice,
     InvoiceItem,
     Payment,
@@ -165,6 +166,7 @@ __all__ = [
     "Invoice",
     "InvoiceItem",
     "Payment",
+    "CashDrawerDay",
     "INVOICE_STATUSES",
     "PAYMENT_METHODS",
     "PayerEntity",

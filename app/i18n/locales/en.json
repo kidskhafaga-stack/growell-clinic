@@ -1762,5 +1762,22 @@
     "visits": "Visits",
     "top_diagnoses": "Top diagnoses in period",
     "no_diagnoses": "No diagnoses in this period"
+  },
+  "cashier": {
+    "title": "Cashier",
+    "subtitle": "Today's till — collect dues and reconcile the drawer",
+    "opening_float": "Opening float",
+    "cash_collected": "Cash collected",
+    "expected_cash": "Expected in drawer",
+    "collected_total": "Collected (all methods)",
+    "outstanding": "Outstanding",
+    "set_float": "Opening change float",
+    "float_hint": "The change amount reception is handed at the start of the day. Expected cash = float + cash collected.",
+    "float_saved": "Opening float saved",
+    "by_method": "By payment method",
+    "billed_today": "Billed today",
+    "who_owes": "Who still owes",
+    "collect": "Collect",
+    "all_settled": "Everything is settled — no outstanding dues."
   }
 }
