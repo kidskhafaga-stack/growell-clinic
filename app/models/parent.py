@@ -35,6 +35,9 @@ class Parent(db.Model):
 
     client_category = db.Column(db.String(20), default="normal", nullable=False)
     is_primary_contact = db.Column(db.Boolean, default=False, nullable=False)
+    # Name was auto-derived from the child's name on import (reception should
+    # verify it) rather than entered explicitly.
+    auto_named = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     family = db.relationship("Family", back_populates="parents")

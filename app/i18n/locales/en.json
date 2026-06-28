@@ -205,7 +205,9 @@
     "no_prescriptions": "No prescriptions yet.",
     "no_invoices": "No invoices yet.",
     "address": "Address",
-    "parent_updated": "Guardian updated"
+    "parent_updated": "Guardian updated",
+    "auto_named": "Auto name",
+    "auto_named_hint": "Guardian name was auto-derived from the child's name on import — please verify."
   },
   "import": {
     "title": "Import patient data",

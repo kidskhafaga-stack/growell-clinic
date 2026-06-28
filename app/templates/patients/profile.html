@@ -176,6 +176,7 @@
             <div>
               <div style="font-weight:600;">{{ parent.display_name(current_lang) }}
                 {% if parent.is_primary_contact %}<i class="bi bi-star-fill" style="color:#f0ad4e;font-size:0.8rem;" title="{{ t('patients.primary_contact') }}"></i>{% endif %}
+                {% if parent.auto_named %}<span class="badge" style="background:#fdf6ec;color:#b45309;font-size:0.66rem;" title="{{ t('patients.auto_named_hint') }}"><i class="bi bi-magic"></i> {{ t('patients.auto_named') }}</span>{% endif %}
               </div>
               <div style="font-size:0.82rem;color:var(--muted);">{{ t('relations.' ~ parent.relation) }}</div>
             </div>

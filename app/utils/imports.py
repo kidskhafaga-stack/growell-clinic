@@ -162,6 +162,25 @@ def build_rows(data_rows, mapping):
     return rows
 
 
+def derive_guardian_name(child_name):
+    """Father's name ≈ the child's name without the first given name.
+
+    Arabic full names run child → father → grandfather → family, so dropping
+    the first token is a good default guardian name (to be verified later).
+    Returns None when there isn't enough to derive.
+    """
+    parts = (child_name or "").strip().split()
+    if len(parts) >= 2:
+        return " ".join(parts[1:])
+    return None
+
+
+def normalize_phone(value):
+    """Digits-only phone for sibling matching, or None."""
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits or None
+
+
 def parse_gender(value):
     return _GENDER_MAP.get(_norm_header(value))
 
