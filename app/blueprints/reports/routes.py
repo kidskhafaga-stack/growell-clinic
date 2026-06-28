@@ -315,3 +315,40 @@ def staff_statement(doctor_id):
         "reports/staff_statement.html", doctor=doctor,
         date_from=date_from, date_to=date_to,
         breakdown=breakdown, totals=totals)
+
+
+@reports_bp.route("/vaccines")
+@module_required(MODULE)
+def vaccines():
+    """Vaccine profit/loss: per brand, doses given in range with revenue, cost,
+    doctor fees and the clinic's margin — so the clinic sees if it profits."""
+    date_from, date_to = _range()
+    given = PatientVaccine.query.filter(
+        PatientVaccine.event_type == "given",
+        PatientVaccine.given_date >= date_from,
+        PatientVaccine.given_date <= date_to).all()
+
+    grouped = {}
+    for pv in given:
+        b = pv.brand
+        if b is None:
+            continue
+        grouped.setdefault(b.id, {"brand": b, "count": 0})["count"] += 1
+
+    rows = []
+    for g in grouped.values():
+        b, n = g["brand"], g["count"]
+        rows.append({
+            "brand": b, "count": n,
+            "revenue": round((b.price or 0) * n, 2),
+            "cost": round((b.purchase_price or 0) * n, 2),
+            "doctor": round((b.doctor_fee or 0) * n, 2),
+            "margin": round(b.clinic_margin * n, 2),
+        })
+    rows.sort(key=lambda r: -r["margin"])
+    totals = {k: round(sum(r[k] for r in rows), 2)
+              for k in ("revenue", "cost", "doctor", "margin")}
+    totals["count"] = sum(r["count"] for r in rows)
+    return render_template(
+        "reports/vaccines.html", date_from=date_from, date_to=date_to,
+        rows=rows, totals=totals)

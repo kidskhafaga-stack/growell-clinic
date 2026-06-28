@@ -91,6 +91,7 @@ def register_commands(app):
             ("vaccine_brands", "purchase_price", "FLOAT"),
             ("vaccine_brands", "max_discount", "FLOAT"),
             ("vaccine_brands", "doses_per_vial", "INTEGER DEFAULT 1"),
+            ("vaccine_brands", "doctor_fee", "FLOAT"),
             ("doctor_service_commissions", "price_override", "FLOAT"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
             ("invoices", "payer_id", "INTEGER"),

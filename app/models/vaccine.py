@@ -86,6 +86,7 @@ class VaccineBrand(db.Model):
     manufacturer = db.Column(db.String(120))
     price = db.Column(db.Float)              # selling price
     purchase_price = db.Column(db.Float)     # cost price
+    doctor_fee = db.Column(db.Float)         # part of the price that goes to the doctor
     max_discount = db.Column(db.Float)       # max allowed discount (%)
     # Patient doses obtained from one purchased vial/ampoule. 1 = single-dose
     # ampoule (one vial per patient); >1 = multi-dose vial (e.g. a vial drawn
@@ -124,6 +125,11 @@ class VaccineBrand(db.Model):
         """Whole vials still on the shelf (multi-dose only), rounded down."""
         per = self.doses_per_vial or 1
         return self.stock // per if per > 1 else self.stock
+
+    @property
+    def clinic_margin(self):
+        """Clinic profit per dose = sell price − cost − doctor's fee."""
+        return round((self.price or 0) - (self.purchase_price or 0) - (self.doctor_fee or 0), 2)
 
     @property
     def available_batches(self):

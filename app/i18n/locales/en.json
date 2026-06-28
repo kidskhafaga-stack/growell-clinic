@@ -711,7 +711,9 @@
     "event_saved": "Documented",
     "bad_event": "Invalid event type",
     "doses_per_vial": "Doses per vial",
-    "doses_per_vial_hint": "1 = single-dose ampoule (one per patient). More = a multi-dose vial (e.g. 10 = one vial covers 10 patients)."
+    "doses_per_vial_hint": "1 = single-dose ampoule (one per patient). More = a multi-dose vial (e.g. 10 = one vial covers 10 patients).",
+    "doctor_fee": "Doctor's fee",
+    "doctor_fee_hint": "Part of the price that goes to the doctor. Clinic margin = price − cost − doctor's fee."
   },
   "vstatus": {
     "done": "Done",
@@ -1395,7 +1397,12 @@
     "doctor_statement": "Account statement",
     "by_service": "By service",
     "gross": "Gross",
-    "doctor_statement_note": "Doctor/clinic shares are internal — for settlement only, not shown to patients."
+    "doctor_statement_note": "Doctor/clinic shares are internal — for settlement only, not shown to patients.",
+    "vaccines": "Vaccine profit/loss",
+    "vaccines_desc": "Doses given, revenue, cost, doctor fees and clinic margin",
+    "doses_given": "Doses given",
+    "revenue": "Revenue",
+    "clinic_margin": "Clinic margin"
   },
   "ai": {
     "title": "AI Assistant",

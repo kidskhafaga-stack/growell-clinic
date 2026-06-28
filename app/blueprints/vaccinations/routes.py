@@ -466,6 +466,7 @@ def brand_new(vaccine_id):
         manufacturer=(request.form.get("manufacturer") or "").strip() or None,
         price=request.form.get("price", type=float),
         purchase_price=request.form.get("purchase_price", type=float),
+        doctor_fee=request.form.get("doctor_fee", type=float),
         max_discount=request.form.get("max_discount", type=float),
         doses_per_vial=max(request.form.get("doses_per_vial", type=int) or 1, 1),
         is_discontinued=bool(request.form.get("is_discontinued")),
@@ -488,6 +489,7 @@ def brand_edit(brand_id):
     brand.manufacturer = (request.form.get("manufacturer") or "").strip() or None
     brand.price = request.form.get("price", type=float)
     brand.purchase_price = request.form.get("purchase_price", type=float)
+    brand.doctor_fee = request.form.get("doctor_fee", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
     brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
     brand.is_discontinued = bool(request.form.get("is_discontinued"))
