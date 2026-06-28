@@ -42,6 +42,30 @@ tested + committed + reviewed. **Reuses existing models — no duplication.**
 ### Phase 6 — Discounts/category everywhere
 - Link a patient to their category + contract/discount from anywhere it's relevant (booking, visit, invoice), surfaced consistently and without re-entry.
 
+### Done since
+- **Per-doctor pricing** (`DoctorServiceCommission.price_override`, incl. free).
+- **Visit type → service mapping** (`utils/pricing.py`).
+- **Visit → invoice container**: billing a visit pre-fills the base line at the doctor's price.
+- **Doctor account statement** (Reports → Staff → كشف حساب): cases by service + doctor share, printable.
+
+### Doctor economics on vaccines (requested)
+- Add `VaccineBrand.doctor_fee` = the part of the vaccine price that goes to the
+  doctor (his cut per dose). So a vaccine dose, when billed, records a doctor
+  share like any service line, and shows up in the doctor statement.
+- **Profit/loss per vaccine** = `price − purchase_price − doctor_fee` (clinic
+  margin). A vaccine margin report so the clinic knows it profits vs loses.
+
+### Mandatory vs optional vaccines (confirmed understanding)
+- **Mandatory / government** vaccines: given at government units, **not** in the
+  clinic → **no stock, no charge**. Info-only: the doctor tracks the child's
+  status. (Code already skips stock when `is_mandatory`.)
+- **Optional** vaccines: given in the clinic → tracked in stock + billed.
+
+### Stocktake
+- Store stocktake exists (Inventory → Store → Stocktake) for general items.
+- A vaccine-batch stocktake (count vs system per batch) is still TODO.
+
 ## Open decisions
-- Visit types & prices (كشف / استشارة / إعادة …) — set as `Service` rows.
 - Refund on exam→consult: actual cash back vs paper drawer adjustment.
+- Vaccine doctor share as a per-brand `doctor_fee` (recommended) vs a separate
+  vaccination-fee service.
