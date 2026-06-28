@@ -48,6 +48,20 @@ tested + committed + reviewed. **Reuses existing models — no duplication.**
 - **Visit → invoice container**: billing a visit pre-fills the base line at the doctor's price.
 - **Doctor account statement** (Reports → Staff → كشف حساب): cases by service + doctor share, printable.
 
+### Vaccine path — done
+- **doctor_fee per brand** + **clinic_margin** (price − cost − fee).
+- **Vaccine profit/loss report** (Reports → Vaccine profit/loss).
+- **PatientVaccine.doctor_id**: doses credited to the doctor; the doctor
+  statement now shows a "Vaccines" line with their cut.
+- **Billing**: given priced doses pre-fill the patient's invoice and are
+  marked billed (PatientVaccine.invoice_id) so they collect on exit.
+
+### Vaccine path — remaining
+- Book a vaccine as a service (pick vaccine + dose at booking); purchase order
+  when not in stock.
+- "Given outside clinic" flag (doctor) → no stock deduction, no charge.
+- Vaccine-batch stocktake.
+
 ### Doctor economics on vaccines (requested)
 - Add `VaccineBrand.doctor_fee` = the part of the vaccine price that goes to the
   doctor (his cut per dose). So a vaccine dose, when billed, records a doctor
