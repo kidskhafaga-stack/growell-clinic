@@ -26,6 +26,7 @@
       <th>{{ t('appointments.doctor') }}</th><th>{{ t('reports.visits') }}</th>
       <th>{{ t('reports.invoices') }}</th><th>{{ t('reports.billed') }}</th>
       <th>{{ t('reports.collected') }}</th><th>{{ t('reports.commission') }}</th>
+      <th style="text-align:end;">{{ t('common.actions') }}</th>
     </tr></thead>
     <tbody>
       {% for r in rows %}
@@ -36,13 +37,17 @@
         <td>{{ r.billed }}</td>
         <td style="color:var(--green-700);">{{ r.collected }}</td>
         <td>{{ r.commission }}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('reports.staff_statement', doctor_id=r.doctor.id, date_from=date_from, date_to=date_to) }}">
+            <i class="bi bi-file-earmark-text"></i> {{ t('reports.doctor_statement') }}</a>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot><tr style="font-weight:700;border-top:2px solid var(--line);">
       <td>{{ t('reports.total') }}</td><td>{{ totals.visits }}</td><td></td>
       <td>{{ totals.billed }}</td><td style="color:var(--green-700);">{{ totals.collected }}</td>
-      <td>{{ totals.commission }}</td>
+      <td>{{ totals.commission }}</td><td></td>
     </tr></tfoot>
   </table>
   {% else %}

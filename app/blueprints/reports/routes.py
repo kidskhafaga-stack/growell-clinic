@@ -5,7 +5,7 @@ import io
 from collections import Counter, defaultdict
 from datetime import datetime
 
-from flask import Response, render_template, request
+from flask import Response, g, render_template, request
 
 from app.blueprints.reports import reports_bp
 from app.models import (
@@ -265,3 +265,53 @@ def staff():
     return render_template(
         "reports/staff.html", date_from=date_from, date_to=date_to,
         rows=rows, totals=totals)
+
+
+@reports_bp.route("/staff/<int:doctor_id>")
+@module_required(MODULE)
+def staff_statement(doctor_id):
+    """Printable account statement for one doctor: case counts + doctor share
+    broken down by service (how many exams / consultations / etc.)."""
+    from app.extensions import db
+
+    doctor = db.get_or_404(User, doctor_id)
+    date_from, date_to = _range()
+    invs = Invoice.query.filter(
+        Invoice.doctor_id == doctor_id,
+        Invoice.invoice_date >= date_from,
+        Invoice.invoice_date <= date_to).all()
+
+    groups = {}
+    for inv in invs:
+        for it in inv.items:
+            key = it.service_id or 0
+            g = groups.get(key)
+            if g is None:
+                label = it.service.display_name(getattr(g, "lang", "ar")) \
+                    if it.service else (it.description or "—")
+                g = groups[key] = {"label": label, "count": 0,
+                                   "gross": 0.0, "doctor": 0.0}
+            g["count"] += it.quantity or 1
+            g["gross"] += it.net
+            g["doctor"] += it.commission_amount or 0
+
+    breakdown = sorted(
+        ({"label": g["label"], "count": g["count"],
+          "gross": round(g["gross"], 2), "doctor": round(g["doctor"], 2)}
+         for g in groups.values()),
+        key=lambda r: -r["doctor"])
+
+    totals = {
+        "visits": Visit.query.filter(
+            Visit.doctor_id == doctor_id,
+            Visit.visit_date >= date_from,
+            Visit.visit_date <= date_to).count(),
+        "cases": sum(r["count"] for r in breakdown),
+        "billed": round(sum(i.total for i in invs), 2),
+        "collected": round(sum(i.paid for i in invs), 2),
+        "commission": round(sum(i.doctor_share_total for i in invs), 2),
+    }
+    return render_template(
+        "reports/staff_statement.html", doctor=doctor,
+        date_from=date_from, date_to=date_to,
+        breakdown=breakdown, totals=totals)
