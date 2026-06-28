@@ -398,7 +398,14 @@
     "consult_window": "مدة متابعة الاستشارة",
     "consult_free_days": "المدة المجانية (أيام)",
     "consult_max_days": "الحد الأقصى (أيام)",
-    "consult_window_saved": "تم حفظ مدة الاستشارة"
+    "consult_window_saved": "تم حفظ مدة الاستشارة",
+    "vaccine": "التطعيم",
+    "choose_vaccine": "اختر التطعيم (اختياري)",
+    "in_stock": "متوفر:",
+    "out_of_stock": "غير متوفر",
+    "dose_number": "الجرعة",
+    "order_vaccine": "طلب شراء",
+    "vaccine_hint": "تقدر تحجز حتى لو مش متوفر — اعمل طلب شراء عشان يبقى جاهز."
   },
   "appt_types": {
     "new": "كشف جديد",

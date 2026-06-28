@@ -25,6 +25,7 @@ from app.models import (
     Patient,
     ScheduleException,
     Setting,
+    VaccineBrand,
     WaitlistEntry,
 )
 from app.models.appointment import (
@@ -52,6 +53,14 @@ MODULE = "appointments"
 def _appt_type(value):
     """Validate a posted appointment-type key, falling back to the default."""
     return value if value in APPOINTMENT_TYPES else DEFAULT_APPT_TYPE
+
+
+def _vaccine_brands():
+    """Active, in-production vaccine brands for the booking picker."""
+    return (VaccineBrand.query
+            .filter(VaccineBrand.is_discontinued.is_(False))
+            .join(VaccineBrand.vaccine)
+            .order_by(VaccineBrand.name).all())
 
 
 # ----------------------------------------------- board (Today's screen) ----
@@ -189,7 +198,7 @@ def create():
             return render_template(
                 "appointments/form.html", doctors=doctors, form=request.form,
                 selected_patient=_patient_brief(chosen) if chosen else None,
-                appt_types=APPOINTMENT_TYPES,
+                appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
             )
 
         appt = Appointment(
@@ -202,6 +211,10 @@ def create():
             appt_type=appt_type,
             status="scheduled",
         )
+        # Vaccination booking: remember the chosen vaccine + dose.
+        if appt_type == "vaccination":
+            appt.vaccine_brand_id = request.form.get("vaccine_brand_id", type=int) or None
+            appt.vaccine_dose = request.form.get("vaccine_dose", type=int) or None
         db.session.add(appt)
         db.session.flush()
         ActivityLog.record(
@@ -240,7 +253,7 @@ def create():
     return render_template(
         "appointments/form.html", doctors=doctors, form=form,
         selected_patient=_patient_brief(chosen) if chosen else None,
-        appt_types=APPOINTMENT_TYPES,
+        appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
     )
 
 

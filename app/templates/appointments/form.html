@@ -98,6 +98,26 @@
         </select>
         <div id="consultBanner" class="info-note" style="display:none;margin-top:8px;font-size:0.88rem;"></div>
       </div>
+      <!-- Vaccination booking: which vaccine + dose (shown for type = vaccination) -->
+      <div class="form-row" id="vaccineRow" style="display:none;">
+        <label>{{ t('appointments.vaccine') }}</label>
+        <select class="select" name="vaccine_brand_id">
+          <option value="">{{ t('appointments.choose_vaccine') }}</option>
+          {% for b in vaccine_brands %}
+          <option value="{{ b.id }}" {{ 'selected' if form.vaccine_brand_id|string == b.id|string else '' }}>
+            {{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}
+            · {{ t('appointments.in_stock') ~ ' ' ~ b.stock if b.stock > 0 else t('appointments.out_of_stock') }}
+          </option>
+          {% endfor %}
+        </select>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+          <label style="margin:0;">{{ t('appointments.dose_number') }}</label>
+          <input class="input" type="number" min="1" name="vaccine_dose" value="{{ form.vaccine_dose or '' }}" style="width:90px;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchases') }}" target="_blank">
+            <i class="bi bi-cart-plus"></i> {{ t('appointments.order_vaccine') }}</a>
+        </div>
+        <p class="hint" style="margin-top:4px;">{{ t('appointments.vaccine_hint') }}</p>
+      </div>
       <div class="form-row">
         <label for="reason">{{ t('appointments.reason') }}</label>
         <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
@@ -285,6 +305,16 @@
       new MutationObserver(debounced).observe(row, { childList: true, subtree: true });
     }
     check();
+  })();
+
+  // Show the vaccine picker only when booking a vaccination.
+  (function () {
+    var typeSel = document.getElementById('appt_type');
+    var vrow = document.getElementById('vaccineRow');
+    if (!typeSel || !vrow) return;
+    function toggle() { vrow.style.display = (typeSel.value === 'vaccination') ? '' : 'none'; }
+    typeSel.addEventListener('change', toggle);
+    toggle();
   })();
 </script>
 {% endblock %}

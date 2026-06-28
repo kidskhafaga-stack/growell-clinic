@@ -398,7 +398,14 @@
     "consult_window": "Consultation follow-up window",
     "consult_free_days": "Free window (days)",
     "consult_max_days": "Max window (days)",
-    "consult_window_saved": "Consultation window saved"
+    "consult_window_saved": "Consultation window saved",
+    "vaccine": "Vaccine",
+    "choose_vaccine": "Choose a vaccine (optional)",
+    "in_stock": "in stock:",
+    "out_of_stock": "out of stock",
+    "dose_number": "Dose",
+    "order_vaccine": "Purchase order",
+    "vaccine_hint": "You can book even if it's out of stock — create a purchase order so it's ready."
   },
   "appt_types": {
     "new": "New visit",
