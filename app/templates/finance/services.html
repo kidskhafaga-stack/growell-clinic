@@ -113,18 +113,21 @@
   <details style="margin-top:12px;">
     <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-people"></i> {{ t('services.per_doctor') }}</summary>
     <form method="post" action="{{ url_for('finance.service_commissions', service_id=s.id) }}" style="margin-top:10px;">
-      <p class="hint">{{ t('services.override_hint') }}</p>
+      <p class="hint">{{ t('services.override_hint') }} · {{ t('services.price_override_hint') }}</p>
       {% set overrides = {} %}
       {% for oc in s.doctor_commissions %}{% set _ = overrides.update({oc.doctor_id: oc}) %}{% endfor %}
       <table class="table">
-        <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('services.commission_type') }}</th><th>{{ t('services.commission_value') }}</th></tr></thead>
+        <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('services.price') }}</th><th>{{ t('services.commission_type') }}</th><th>{{ t('services.commission_value') }}</th></tr></thead>
         <tbody>
           {% for d in doctors %}
           {% set oc = overrides.get(d.id) %}
           <tr>
             <td>{{ d.display_name(current_lang) }}</td>
+            <td><input class="input" type="number" step="0.01" name="price_{{ d.id }}"
+                       value="{{ oc.price_override if oc and oc.price_override is not none else '' }}"
+                       placeholder="{{ s.price }}"></td>
             <td>{{ commission_select('type_' ~ d.id, oc.commission_type if oc else 'none') }}</td>
-            <td><input class="input" type="number" step="0.01" name="value_{{ d.id }}" value="{{ oc.commission_value if oc else '' }}"></td>
+            <td><input class="input" type="number" step="0.01" name="value_{{ d.id }}" value="{{ oc.commission_value if oc and oc.commission_value else '' }}"></td>
           </tr>
           {% endfor %}
         </tbody>

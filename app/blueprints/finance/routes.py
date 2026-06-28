@@ -146,15 +146,21 @@ def service_commissions(service_id):
         if ctype not in COMMISSION_TYPES:
             ctype = "none"
         cval = request.form.get(f"value_{doc.id}", type=float) or 0
+        # Blank price = no override (default); "0" = free for this doctor.
+        raw_price = (request.form.get(f"price_{doc.id}") or "").strip()
+        price = request.form.get(f"price_{doc.id}", type=float) if raw_price != "" else None
+
         oc = existing.get(doc.id)
-        if ctype == "none":
-            if oc:  # clearing an override falls back to the service default
+        # A row is only worth keeping if it sets a commission or a price.
+        if ctype == "none" and price is None:
+            if oc:  # clearing both falls back to the service default
                 db.session.delete(oc)
             continue
         if oc is None:
             oc = DoctorServiceCommission(doctor_id=doc.id, service_id=svc.id)
             db.session.add(oc)
         oc.commission_type, oc.commission_value = ctype, cval
+        oc.price_override = price
     db.session.commit()
     flash(t("services.commissions_saved"), "success")
     return redirect(url_for("finance.services"))

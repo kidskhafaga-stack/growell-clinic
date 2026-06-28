@@ -61,6 +61,18 @@ class Service(db.Model):
                     return oc.commission_type, (oc.commission_value or 0)
         return self.commission_type, (self.commission_value or 0)
 
+    def price_for(self, doctor=None):
+        """This service's price for a doctor, honouring a per-doctor override.
+
+        A NULL override falls back to the default price; an explicit 0 means
+        the doctor performs it free of charge.
+        """
+        if doctor is not None:
+            for oc in self.doctor_commissions:
+                if oc.doctor_id == doctor.id and oc.price_override is not None:
+                    return oc.price_override
+        return self.price or 0
+
     def doctor_share(self, amount, doctor=None):
         """Doctor's cut of ``amount`` for this service (never exceeds amount)."""
         ctype, cval = self.commission_for(doctor)
@@ -111,6 +123,9 @@ class DoctorServiceCommission(db.Model):
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=False, index=True)
     commission_type = db.Column(db.String(10), default="none", nullable=False)
     commission_value = db.Column(db.Float, default=0)
+    # Per-doctor price for this service. NULL = use the service default;
+    # 0 = this doctor performs it for free (e.g. a free consultation).
+    price_override = db.Column(db.Float)
 
     doctor = db.relationship("User")
     service = db.relationship("Service", back_populates="doctor_commissions")

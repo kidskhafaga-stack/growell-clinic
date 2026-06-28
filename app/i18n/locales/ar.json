@@ -921,7 +921,8 @@
     "bundle_components": "الخدمات المضمّنة",
     "bundle_sum": "مجموع المكوّنات",
     "example_calc": "مثال الحساب على السعر الحالي",
-    "eta_item_type": "نوع تكويد ETA"
+    "eta_item_type": "نوع تكويد ETA",
+    "price_override_hint": "السعر: فاضي = الافتراضي، 0 = مجاناً لهذا الطبيب."
   },
   "commission_types": {
     "none": "بدون",
