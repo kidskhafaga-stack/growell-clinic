@@ -55,6 +55,10 @@ class Visit(db.Model):
         "PatientAttachment", back_populates="visit",
         order_by="PatientAttachment.id",
     )
+    services = db.relationship(
+        "VisitService", back_populates="visit",
+        cascade="all, delete-orphan", order_by="VisitService.id",
+    )
 
     @property
     def is_completed(self):
@@ -106,6 +110,28 @@ class VisitInvestigation(db.Model):
 
     def __repr__(self):
         return f"<VisitInvestigation {self.kind}:{self.name} {self.status}>"
+
+
+class VisitService(db.Model):
+    """A chargeable procedure/service the doctor performs during a visit
+    (e.g. echo, nebuliser). It flows into the visit's invoice as a line at the
+    doctor's price; the clinical price is resolved at billing time.
+    """
+    __tablename__ = "visit_services"
+
+    id = db.Column(db.Integer, primary_key=True)
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False, index=True)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=True)
+    name = db.Column(db.String(200), nullable=False)   # snapshot
+    quantity = db.Column(db.Integer, default=1, nullable=False)
+    notes = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    visit = db.relationship("Visit", back_populates="services")
+    service = db.relationship("Service")
+
+    def __repr__(self):
+        return f"<VisitService visit={self.visit_id} {self.name}>"
 
 
 class PatientAttachment(db.Model):

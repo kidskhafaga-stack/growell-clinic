@@ -496,7 +496,20 @@
     "pending_results_hint": "طلبها الطبيب في زيارة سابقة ولسه محتاجة إدخال النتيجة — سجّلها الآن.",
     "recent_files": "ملفات حديثة",
     "att_lab": "تحاليل",
-    "att_imaging": "فحوصات وأشعة"
+    "att_imaging": "فحوصات وأشعة",
+    "procedures": "الإجراءات",
+    "procedures_hint": "إجراءات بفلوس بتتعمل في الزيارة (إيكو، نيبولايزر…). بتدخل فاتورة الزيارة بسعر الدكتور.",
+    "no_procedures": "لا توجد إجراءات بعد.",
+    "procedure": "الإجراء",
+    "choose_procedure": "اختر إجراء",
+    "quantity": "الكمية",
+    "proc_notes": "ملاحظات",
+    "proc_notes_ph": "اختياري",
+    "add_procedure": "إضافة إجراء",
+    "no_procedure_catalog": "لا توجد خدمات إجراءات في الكتالوج بعد — أضفها من Finance → Services (الفئة: إجراء).",
+    "proc_need": "اختر إجراء",
+    "proc_added": "تمت إضافة الإجراء",
+    "proc_removed": "تم حذف الإجراء"
   },
   "diagnosis_types": {
     "working": "أولي",

@@ -36,6 +36,7 @@ from app.models.visit import (
     PatientAttachment,
     Visit,
     VisitInvestigation,
+    VisitService,
 )
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
@@ -116,6 +117,7 @@ __all__ = [
     "DoctorSchedule",
     "Visit",
     "VisitInvestigation",
+    "VisitService",
     "PatientAttachment",
     "INVESTIGATION_STATUSES",
     "VitalSigns",

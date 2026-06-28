@@ -496,7 +496,20 @@
     "pending_results_hint": "Requested by the doctor in an earlier visit and still awaiting their result — enter it now.",
     "recent_files": "Recent files",
     "att_lab": "Lab",
-    "att_imaging": "Investigation"
+    "att_imaging": "Investigation",
+    "procedures": "Procedures",
+    "procedures_hint": "Chargeable procedures done in this visit (echo, nebuliser…). They flow into the visit invoice at the doctor's price.",
+    "no_procedures": "No procedures added yet.",
+    "procedure": "Procedure",
+    "choose_procedure": "Choose a procedure",
+    "quantity": "Quantity",
+    "proc_notes": "Notes",
+    "proc_notes_ph": "Optional",
+    "add_procedure": "Add procedure",
+    "no_procedure_catalog": "No procedure services in the catalogue yet — add them in Finance → Services (category: Procedure).",
+    "proc_need": "Choose a procedure",
+    "proc_added": "Procedure added",
+    "proc_removed": "Procedure removed"
   },
   "diagnosis_types": {
     "working": "Working",

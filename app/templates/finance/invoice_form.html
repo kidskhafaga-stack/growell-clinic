@@ -101,13 +101,14 @@
 function invoiceForm(){
   const prices = { {% for s in services %}'{{ s.id }}': {{ s.price or 0 }},{% endfor %} };
   const names  = { {% for s in services %}'{{ s.id }}': {{ s.display_name(current_lang)|tojson }},{% endfor %} };
-  const prefill = {{ prefill_line|tojson if prefill_line else 'null' }};
+  const prefill = {{ prefill_lines|tojson if prefill_lines else 'null' }};
   return {
     lines: [],
     prices, names,
     init(){
-      // Seed the visit-type base line (at the doctor's price) when billing a visit.
-      if (prefill) { this.lines.push(this.blankLine(prefill)); }
+      // Seed the visit lines (base visit-type charge + procedures) at the
+      // doctor's price when billing a visit; otherwise start with one blank row.
+      if (prefill && prefill.length) { prefill.forEach(l => this.lines.push(this.blankLine(l))); }
       else { this.addLine(); }
     },
     blankLine(extra){ return Object.assign({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0'}, extra||{}); },

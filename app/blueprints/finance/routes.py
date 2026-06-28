@@ -345,24 +345,31 @@ def invoice_new():
     visit_id = request.args.get("visit_id", type=int)
     doctor_id = request.args.get("doctor_id", type=int)
 
-    # Coming from a visit: default the patient + doctor and pre-fill the base
-    # line from the visit type at this doctor's price (the cashier then just
-    # adds procedures/vaccines and collects).
-    prefill_line = None
+    # Coming from a visit: default the patient + doctor and pre-fill the lines —
+    # the base visit-type charge plus every procedure the doctor added — each at
+    # this doctor's price. The cashier then just collects.
+    prefill_lines = []
     visit = db.session.get(Visit, visit_id) if visit_id else None
     if visit is not None:
         patient = patient or visit.patient
         if doctor_id is None:
             doctor_id = visit.doctor_id
+        lang = getattr(g, "lang", "ar")
         appt_type = visit.appointment.appt_type if visit.appointment else None
-        svc = service_for_visit_type(appt_type) if appt_type else None
-        if svc is not None:
-            lang = getattr(g, "lang", "ar")
-            prefill_line = {
-                "service_id": str(svc.id),
-                "description": svc.display_name(lang),
-                "unit_price": svc.price_for(visit.doctor),
-            }
+        base = service_for_visit_type(appt_type) if appt_type else None
+        if base is not None:
+            prefill_lines.append({
+                "service_id": str(base.id),
+                "description": base.display_name(lang),
+                "unit_price": base.price_for(visit.doctor),
+            })
+        for vs in visit.services:
+            prefill_lines.append({
+                "service_id": str(vs.service_id) if vs.service_id else "",
+                "description": vs.name,
+                "unit_price": vs.service.price_for(visit.doctor) if vs.service else 0,
+                "quantity": vs.quantity or 1,
+            })
 
     return render_template(
         "finance/invoice_form.html", patient=patient,
@@ -371,7 +378,7 @@ def invoice_new():
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
-        visit_id=visit_id, doctor_id=doctor_id, prefill_line=prefill_line,
+        visit_id=visit_id, doctor_id=doctor_id, prefill_lines=prefill_lines or None,
     )
 
 
