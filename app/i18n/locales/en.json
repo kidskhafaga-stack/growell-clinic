@@ -688,7 +688,9 @@
     "ev_reason": "Reason",
     "ev_reason_ph": "e.g. parent declined / child unwell",
     "event_saved": "Documented",
-    "bad_event": "Invalid event type"
+    "bad_event": "Invalid event type",
+    "doses_per_vial": "Doses per vial",
+    "doses_per_vial_hint": "1 = single-dose ampoule (one per patient). More = a multi-dose vial (e.g. 10 = one vial covers 10 patients)."
   },
   "vstatus": {
     "done": "Done",
@@ -756,7 +758,11 @@
     "status": "Status",
     "select_brand": "Select brand",
     "back": "Back to inventory",
-    "notes": "Notes"
+    "notes": "Notes",
+    "qty_vials": "Number of vials",
+    "doses": "doses",
+    "vials": "vials",
+    "doses_per_vial_each": "doses/vial:"
   },
   "instatus": {
     "ok": "In stock",

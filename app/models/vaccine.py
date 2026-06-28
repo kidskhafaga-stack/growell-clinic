@@ -87,6 +87,10 @@ class VaccineBrand(db.Model):
     price = db.Column(db.Float)              # selling price
     purchase_price = db.Column(db.Float)     # cost price
     max_discount = db.Column(db.Float)       # max allowed discount (%)
+    # Patient doses obtained from one purchased vial/ampoule. 1 = single-dose
+    # ampoule (one vial per patient); >1 = multi-dose vial (e.g. a vial drawn
+    # for 10 patients). Stock is always counted in patient doses.
+    doses_per_vial = db.Column(db.Integer, default=1, nullable=False)
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     is_discontinued = db.Column(db.Boolean, default=False, nullable=False)  # production stopped
 
@@ -108,8 +112,18 @@ class VaccineBrand(db.Model):
 
     @property
     def stock(self):
-        """Total remaining usable units across all batches."""
+        """Total remaining usable patient doses across all batches."""
         return sum(b.qty_remaining for b in self.batches)
+
+    @property
+    def is_multidose(self):
+        return (self.doses_per_vial or 1) > 1
+
+    @property
+    def stock_vials(self):
+        """Whole vials still on the shelf (multi-dose only), rounded down."""
+        per = self.doses_per_vial or 1
+        return self.stock // per if per > 1 else self.stock
 
     @property
     def available_batches(self):

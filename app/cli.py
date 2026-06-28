@@ -90,6 +90,7 @@ def register_commands(app):
         additions = [
             ("vaccine_brands", "purchase_price", "FLOAT"),
             ("vaccine_brands", "max_discount", "FLOAT"),
+            ("vaccine_brands", "doses_per_vial", "INTEGER DEFAULT 1"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
             ("invoices", "payer_id", "INTEGER"),
             ("invoices", "coverage_card", "VARCHAR(60)"),

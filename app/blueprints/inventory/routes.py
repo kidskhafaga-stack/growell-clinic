@@ -82,13 +82,22 @@ def batch_new():
         flash(t("common.required") + ": " + t("vaccinations.brand"), "danger")
         return redirect(url_for("inventory.index"))
 
+    # Quantity may be entered as whole vials (multiplied by the brand's
+    # doses-per-vial) or directly as patient doses. Stock is stored in doses.
+    per = brand.doses_per_vial or 1
+    qty_vials = request.form.get("qty_vials", type=int)
+    if qty_vials:
+        qty_doses = qty_vials * per
+    else:
+        qty_doses = request.form.get("qty_received", type=int) or 0
+
     batch = VaccineInventory(
         brand_id=brand.id,
         supplier_id=request.form.get("supplier_id", type=int) or None,
         lot_number=(request.form.get("lot_number") or "").strip() or None,
         expiry_date=_parse_date("expiry_date"),
         received_date=_parse_date("received_date") or datetime.utcnow().date(),
-        qty_received=request.form.get("qty_received", type=int) or 0,
+        qty_received=qty_doses,
         unit_cost=request.form.get("unit_cost", type=float),
         storage_temp=(request.form.get("storage_temp") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
