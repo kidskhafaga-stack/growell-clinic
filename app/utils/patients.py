@@ -65,6 +65,38 @@ def generate_patient_number(scheme=None, prefix=None):
     return candidate
 
 
+def patient_number_allocator(scheme=None, prefix=None):
+    """Return a generator of sequential file numbers with no per-call DB query.
+
+    ``generate_patient_number`` scans every existing patient on each call, which
+    turns a bulk import into an O(n²) hang. This computes the starting sequence
+    once and then increments in memory — callers must persist the patients so a
+    later import continues from the right number.
+    """
+    scheme = scheme or Setting.get("patient_number_scheme", DEFAULT_SCHEME)
+    if scheme == "fixed":
+        prefix = prefix or Setting.get(
+            "patient_number_prefix_fixed", DEFAULT_FIXED_PREFIX
+        )
+        base = f"{prefix}-"
+        width = 6
+    else:  # yearly
+        prefix = prefix or Setting.get(
+            "patient_number_prefix", DEFAULT_YEARLY_PREFIX
+        )
+        base = f"{prefix}-{datetime.utcnow().year}-"
+        width = 4
+
+    seq = _next_sequence(base) - 1
+
+    def allocate():
+        nonlocal seq
+        seq += 1
+        return f"{base}{seq:0{width}d}"
+
+    return allocate
+
+
 def format_age(years, months, lang="ar"):
     """Human-friendly pediatric age, e.g. ``3y 2m`` / ``3 سنة 2 شهر``."""
     if lang == "ar":

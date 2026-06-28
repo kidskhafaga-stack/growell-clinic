@@ -101,6 +101,48 @@ def map_headers(raw_headers):
     return mapping
 
 
+# Required canonical keys (a patient cannot be created without these).
+REQUIRED_KEYS = {"full_name", "date_of_birth", "gender"}
+
+
+def import_fields():
+    """Field metadata for the column-mapping UI: (key, required, sample)."""
+    return [(key, required, sample) for key, required, _label, sample in IMPORT_COLUMNS]
+
+
+def guess_mapping(headers):
+    """Best-effort {canonical_key: column_index} from header aliases.
+
+    The first column matching a key wins, so duplicate headers don't clobber
+    an earlier good match.
+    """
+    mapping = {}
+    for idx, h in enumerate(headers):
+        key = COLUMN_ALIASES.get(_norm_header(h))
+        if key and key not in mapping:
+            mapping[key] = idx
+    return mapping
+
+
+def build_rows(data_rows, mapping):
+    """Build canonical-key dicts from raw rows using {key: column_index}.
+
+    ``mapping`` indices that are None/out of range are treated as "ignore".
+    """
+    rows = []
+    for raw in data_rows:
+        record = {}
+        for key, idx in mapping.items():
+            if idx is None or idx < 0 or idx >= len(raw):
+                continue
+            val = raw[idx]
+            if isinstance(val, str):
+                val = val.strip()
+            record[key] = val
+        rows.append(record)
+    return rows
+
+
 def parse_gender(value):
     return _GENDER_MAP.get(_norm_header(value))
 
@@ -139,6 +181,43 @@ def read_rows(file_storage):
     return [], "unsupported"
 
 
+def read_matrix(file_storage):
+    """Read an uploaded .xlsx/.csv into (headers, data_rows, error).
+
+    Unlike :func:`read_rows` this does NOT require a recognised name column —
+    the caller maps columns afterwards. ``headers`` is a list of header
+    strings; ``data_rows`` is a list of value lists aligned to ``headers``.
+    """
+    filename = (file_storage.filename or "").lower()
+    ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
+
+    if ext == "xlsx":
+        matrix, error = _read_xlsx_matrix(file_storage)
+    elif ext == "csv":
+        matrix, error = _read_csv_matrix(file_storage)
+    else:
+        return [], [], "unsupported"
+
+    if error:
+        return [], [], error
+    if not matrix:
+        return [], [], "empty"
+
+    headers = ["" if h is None else str(h).strip() for h in matrix[0]]
+    width = len(headers)
+    data = []
+    for raw in matrix[1:]:
+        if not any(str(c).strip() for c in raw if c is not None):
+            continue  # skip fully blank rows
+        row = list(raw)
+        if len(row) < width:  # pad short rows so column indices stay aligned
+            row += [None] * (width - len(row))
+        data.append(row)
+    if not data:
+        return headers, [], "empty"
+    return headers, data, None
+
+
 def _rows_from_matrix(matrix):
     if not matrix:
         return [], "empty"
@@ -159,7 +238,7 @@ def _rows_from_matrix(matrix):
     return rows, None
 
 
-def _read_xlsx(file_storage):
+def _read_xlsx_matrix(file_storage):
     from openpyxl import load_workbook
 
     try:
@@ -168,10 +247,10 @@ def _read_xlsx(file_storage):
         return [], "unreadable"
     ws = wb.active
     matrix = [list(row) for row in ws.iter_rows(values_only=True)]
-    return _rows_from_matrix(matrix)
+    return matrix, None
 
 
-def _read_csv(file_storage):
+def _read_csv_matrix(file_storage):
     raw = file_storage.read()
     if isinstance(raw, bytes):
         # utf-8-sig strips a BOM that Excel-exported CSVs often carry.
@@ -180,6 +259,20 @@ def _read_csv(file_storage):
         text = raw
     reader = csv.reader(io.StringIO(text))
     matrix = [row for row in reader]
+    return matrix, None
+
+
+def _read_xlsx(file_storage):
+    matrix, error = _read_xlsx_matrix(file_storage)
+    if error:
+        return [], error
+    return _rows_from_matrix(matrix)
+
+
+def _read_csv(file_storage):
+    matrix, error = _read_csv_matrix(file_storage)
+    if error:
+        return [], error
     return _rows_from_matrix(matrix)
 
 
