@@ -720,7 +720,8 @@
     "doses_per_vial": "Doses per vial",
     "doses_per_vial_hint": "1 = single-dose ampoule (one per patient). More = a multi-dose vial (e.g. 10 = one vial covers 10 patients).",
     "doctor_fee": "Doctor's fee",
-    "doctor_fee_hint": "Part of the price that goes to the doctor. Clinic margin = price − cost − doctor's fee."
+    "doctor_fee_hint": "Part of the price that goes to the doctor. Clinic margin = price − cost − doctor's fee.",
+    "given_outside": "Given outside the clinic (gov. unit / elsewhere) — record only, no stock or charge"
   },
   "vstatus": {
     "done": "Done",

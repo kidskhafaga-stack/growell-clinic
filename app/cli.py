@@ -94,6 +94,7 @@ def register_commands(app):
             ("vaccine_brands", "doctor_fee", "FLOAT"),
             ("patient_vaccines", "doctor_id", "INTEGER"),
             ("patient_vaccines", "invoice_id", "INTEGER"),
+            ("patient_vaccines", "given_outside", "BOOLEAN DEFAULT 0"),
             ("appointments", "vaccine_brand_id", "INTEGER"),
             ("appointments", "vaccine_dose", "INTEGER"),
             ("doctor_service_commissions", "price_override", "FLOAT"),

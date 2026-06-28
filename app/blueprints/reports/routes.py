@@ -307,6 +307,7 @@ def staff_statement(doctor_id):
     doses = PatientVaccine.query.filter(
         PatientVaccine.doctor_id == doctor_id,
         PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
         PatientVaccine.given_date >= date_from,
         PatientVaccine.given_date <= date_to).all()
     vaccine_doctor = round(sum((d.brand.doctor_fee or 0) for d in doses if d.brand), 2)
@@ -342,6 +343,7 @@ def vaccines():
     date_from, date_to = _range()
     given = PatientVaccine.query.filter(
         PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
         PatientVaccine.given_date >= date_from,
         PatientVaccine.given_date <= date_to).all()
 

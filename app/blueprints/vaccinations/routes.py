@@ -127,19 +127,21 @@ def record(patient_id):
         given_date = datetime.utcnow().date()
 
     lot_number = (request.form.get("lot_number") or "").strip() or None
+    given_outside = bool(request.form.get("given_outside"))
     pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
         dose_number=dose_number, given_date=given_date,
         doctor_id=request.form.get("doctor_id", type=int) or current_user.id,
-        lot_number=lot_number, event_type="given",
+        lot_number=lot_number, event_type="given", given_outside=given_outside,
         adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
     db.session.add(pv)
 
     # Deduct from inventory for clinic-provided (optional) vaccines using
-    # first-expiry-first-out; record the batch and its lot number.
-    if not vaccine.is_mandatory:
+    # first-expiry-first-out; record the batch and its lot number. Doses given
+    # elsewhere (given_outside) are informational — never touch stock.
+    if not vaccine.is_mandatory and not given_outside:
         batches = brand.available_batches
         if batches:
             batch = batches[0]

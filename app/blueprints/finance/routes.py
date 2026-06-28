@@ -365,6 +365,7 @@ def _uncharged_vaccines(patient_id, days=2):
     doses = (PatientVaccine.query.filter(
         PatientVaccine.patient_id == patient_id,
         PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
         PatientVaccine.invoice_id.is_(None),
         PatientVaccine.given_date >= since).all())
     return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
