@@ -405,7 +405,14 @@
     "out_of_stock": "out of stock",
     "dose_number": "Dose",
     "order_vaccine": "Purchase order",
-    "vaccine_hint": "You can book even if it's out of stock — create a purchase order so it's ready."
+    "vaccine_hint": "You can book even if it's out of stock — create a purchase order so it's ready.",
+    "seasonal": "Seasonal",
+    "seasonal_window": "Seasonal hours (e.g. Ramadan)",
+    "seasonal_hint": "Optional: a date range that overrides the normal hours for this weekday while it's active, then reverts automatically.",
+    "season_label": "Season name",
+    "ramadan": "Ramadan",
+    "season_from": "From date",
+    "season_to": "To date"
   },
   "appt_types": {
     "new": "New visit",

@@ -572,6 +572,13 @@ def schedules():
             flash(error, "danger")
             return redirect(url_for("appointments.schedules", doctor_id=doctor_id or selected))
 
+        def _opt_date(name):
+            raw = (request.form.get(name) or "").strip()
+            try:
+                return datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
+            except ValueError:
+                return None
+
         db.session.add(DoctorSchedule(
             doctor_id=doctor_id,
             weekday=weekday,
@@ -579,6 +586,9 @@ def schedules():
             end_time=datetime.strptime(end_raw, "%H:%M").time(),
             slot_minutes=slot_minutes,
             max_patients=max_patients,
+            start_date=_opt_date("start_date"),
+            end_date=_opt_date("end_date"),
+            season_label=(request.form.get("season_label") or "").strip() or None,
         ))
         db.session.commit()
         flash(t("appointments.schedule_added"), "success")

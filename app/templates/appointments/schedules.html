@@ -47,9 +47,10 @@
       <div class="sched-windows">
         {% if windows %}
           {% for w in windows %}
-          <span class="window-pill">
+          <span class="window-pill" {{ 'style=background:#fdf6ec;border-color:#f0d9a8;' if w.is_seasonal else '' }}>
             <i class="bi bi-clock"></i> {{ w.start_time.strftime('%H:%M') }}–{{ w.end_time.strftime('%H:%M') }}
             · {{ w.slot_minutes }}{{ t('patients.m_short') }}
+            {% if w.is_seasonal %}<span style="color:#b45309;font-size:0.78rem;"><i class="bi bi-moon-stars"></i> {{ w.season_label or t('appointments.seasonal') }} ({{ w.start_date or '…' }} → {{ w.end_date or '…' }})</span>{% endif %}
             <form method="post" action="{{ url_for('appointments.delete_schedule', schedule_id=w.id) }}" style="display:inline;">
               <button class="btn-x" type="submit" title="{{ t('common.delete') }}"><i class="bi bi-x"></i></button>
             </form>
@@ -84,6 +85,18 @@
         <div class="form-row"><label for="max_patients">{{ t('appointments.max_patients') }}</label>
           <input class="input" type="number" id="max_patients" name="max_patients" min="1"></div>
       </div>
+      <details style="margin:8px 0;">
+        <summary style="cursor:pointer;color:#b45309;font-size:0.9rem;"><i class="bi bi-moon-stars"></i> {{ t('appointments.seasonal_window') }}</summary>
+        <p class="hint" style="margin-top:6px;">{{ t('appointments.seasonal_hint') }}</p>
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('appointments.season_label') }}</label>
+            <input class="input" name="season_label" placeholder="{{ t('appointments.ramadan') }}"></div>
+          <div class="form-row"><label>{{ t('appointments.season_from') }}</label>
+            <input class="input" type="date" name="start_date"></div>
+          <div class="form-row"><label>{{ t('appointments.season_to') }}</label>
+            <input class="input" type="date" name="end_date"></div>
+        </div>
+      </details>
       <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-plus-lg"></i> {{ t('appointments.add_window') }}</button>
     </form>
   </div>

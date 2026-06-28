@@ -137,6 +137,24 @@ def day_capacity(schedules):
     return None
 
 
+def schedules_for(doctor_id, on_date):
+    """The doctor's working windows that apply on ``on_date`` for its weekday.
+
+    A seasonal window (one carrying a date range, e.g. Ramadan) overrides the
+    always-on schedule while ``on_date`` falls inside it; outside any season the
+    default windows apply again automatically.
+    """
+    rows = (DoctorSchedule.query.filter_by(
+        doctor_id=doctor_id, weekday=on_date.weekday(), is_active=True)
+        .order_by(DoctorSchedule.start_time).all())
+    seasonal = [r for r in rows if r.is_seasonal
+                and (r.start_date is None or r.start_date <= on_date)
+                and (r.end_date is None or on_date <= r.end_date)]
+    if seasonal:
+        return seasonal
+    return [r for r in rows if not r.is_seasonal]
+
+
 def available_slots(doctor_id, on_date, exclude_id=None):
     """Return ordered available ``HH:MM`` slots for a doctor on a date.
 
@@ -146,14 +164,7 @@ def available_slots(doctor_id, on_date, exclude_id=None):
     once the daily capacity is reached. This is the core of conflict-free
     smart booking.
     """
-    weekday = on_date.weekday()
-    schedules = (
-        DoctorSchedule.query.filter_by(
-            doctor_id=doctor_id, weekday=weekday, is_active=True
-        )
-        .order_by(DoctorSchedule.start_time)
-        .all()
-    )
+    schedules = schedules_for(doctor_id, on_date)
     if not schedules:
         return []
 
@@ -230,11 +241,9 @@ def first_available_doctor(from_date=None, days=LOOKAHEAD_DAYS, doctors=None):
 
 
 def slot_duration(doctor_id, on_date):
-    """Best-guess slot length for a doctor/date (first matching window)."""
-    sched = DoctorSchedule.query.filter_by(
-        doctor_id=doctor_id, weekday=on_date.weekday(), is_active=True
-    ).first()
-    return sched.slot_minutes if sched else 15
+    """Best-guess slot length for a doctor/date (first applicable window)."""
+    rows = schedules_for(doctor_id, on_date)
+    return rows[0].slot_minutes if rows else 15
 
 
 def parse_date_arg(value, default=None):
