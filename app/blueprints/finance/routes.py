@@ -32,6 +32,7 @@ from app.models import (
     Invoice,
     InvoiceItem,
     Patient,
+    PatientVaccine,
     PayerEntity,
     PayerServiceRate,
     Payment,
@@ -356,6 +357,19 @@ def _apply_coverage(invoice, patient):
                 item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
 
 
+def _uncharged_vaccines(patient_id, days=2):
+    """Recently-given, priced, not-yet-billed doses for a patient (charge on exit)."""
+    from datetime import timedelta
+
+    since = date.today() - timedelta(days=days)
+    doses = (PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient_id,
+        PatientVaccine.event_type == "given",
+        PatientVaccine.invoice_id.is_(None),
+        PatientVaccine.given_date >= since).all())
+    return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
+
+
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def invoice_new():
@@ -397,6 +411,11 @@ def invoice_new():
             _apply_named_discount(invoice, disc)
         _apply_coverage(invoice, patient)
 
+        # Mark the patient's recently-given uncharged vaccines as billed here so
+        # they aren't charged twice (they were pre-filled as lines above).
+        for dose in _uncharged_vaccines(patient.id):
+            dose.invoice_id = invoice.id
+
         invoice.recalc_status()
         ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
@@ -413,12 +432,12 @@ def invoice_new():
     # the base visit-type charge plus every procedure the doctor added — each at
     # this doctor's price. The cashier then just collects.
     prefill_lines = []
+    lang = getattr(g, "lang", "ar")
     visit = db.session.get(Visit, visit_id) if visit_id else None
     if visit is not None:
         patient = patient or visit.patient
         if doctor_id is None:
             doctor_id = visit.doctor_id
-        lang = getattr(g, "lang", "ar")
         appt_type = visit.appointment.appt_type if visit.appointment else None
         base = service_for_visit_type(appt_type) if appt_type else None
         if base is not None:
@@ -433,6 +452,19 @@ def invoice_new():
                 "description": vs.name,
                 "unit_price": vs.service.price_for(visit.doctor) if vs.service else 0,
                 "quantity": vs.quantity or 1,
+            })
+
+    # Any vaccines given to this patient that haven't been charged yet (so the
+    # cashier collects them on exit).
+    if patient is not None:
+        for dose in _uncharged_vaccines(patient.id):
+            b = dose.brand
+            name = (b.vaccine.display_name(lang) if b.vaccine else
+                    dose.vaccine.display_name(lang))
+            prefill_lines.append({
+                "service_id": "",
+                "description": name + " — " + b.display_name(lang),
+                "unit_price": b.price or 0,
             })
 
     return render_template(

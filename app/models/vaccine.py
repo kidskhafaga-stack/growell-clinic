@@ -227,6 +227,8 @@ class PatientVaccine(db.Model):
 
     # Doctor credited with the dose (for the doctor's vaccine share / statement).
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    # Invoice this dose was billed on (NULL = not charged yet).
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=True, index=True)
 
     # Clinical documentation (PDF): given / refused / delayed, plus details.
     event_type = db.Column(db.String(20), default="given", nullable=False)
