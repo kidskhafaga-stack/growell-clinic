@@ -162,17 +162,25 @@ def build_rows(data_rows, mapping):
     return rows
 
 
+# First-name particles that bind to the next word, so the child's own name is
+# two tokens ("عبد الله", "أبو بكر") — drop both when deriving the father.
+_COMPOUND_FIRST = {"عبد", "ابو", "أبو", "أم", "ام"}
+
+
 def derive_guardian_name(child_name):
-    """Father's name ≈ the child's name without the first given name.
+    """Father's name ≈ the child's name without their own (first) name.
 
     Arabic full names run child → father → grandfather → family, so dropping
-    the first token is a good default guardian name (to be verified later).
+    the child's first name yields a good default guardian name (to be verified
+    later — it's flagged on import). Handles two-word first names like
+    "عبد الله"; the attached spelling "عبدالله" is already a single token.
     Returns None when there isn't enough to derive.
     """
     parts = (child_name or "").strip().split()
-    if len(parts) >= 2:
-        return " ".join(parts[1:])
-    return None
+    first_len = 2 if (parts and parts[0] in _COMPOUND_FIRST) else 1
+    if len(parts) <= first_len:
+        return None
+    return " ".join(parts[first_len:])
 
 
 def normalize_phone(value):
