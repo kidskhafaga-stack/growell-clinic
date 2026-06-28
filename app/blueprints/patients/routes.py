@@ -918,6 +918,12 @@ def _process_import(rows):
                     relation=relation if Parent.valid_relation(relation) else "father",
                     full_name=parent_name,
                     phone=cell("parent_phone"),
+                    phone_alt=cell("parent_phone_alt"),
+                    national_id=cell("parent_national_id"),
+                    email=cell("parent_email"),
+                    occupation=cell("parent_occupation"),
+                    nationality=cell("parent_nationality"),
+                    address=cell("parent_address"),
                     client_category=category if Parent.valid_category(category) else "normal",
                 ))
 

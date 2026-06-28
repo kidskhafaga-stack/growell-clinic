@@ -274,7 +274,13 @@
     "field_parent_relation": "Guardian relation",
     "field_parent_phone": "Guardian phone",
     "field_client_category": "Client category",
-    "field_notes": "Notes"
+    "field_notes": "Notes",
+    "field_parent_phone_alt": "Guardian alt phone",
+    "field_parent_national_id": "Guardian national ID",
+    "field_parent_email": "Guardian email",
+    "field_parent_occupation": "Guardian occupation",
+    "field_parent_nationality": "Guardian nationality",
+    "field_parent_address": "Guardian address"
   },
   "appointments": {
     "title": "Appointments",
