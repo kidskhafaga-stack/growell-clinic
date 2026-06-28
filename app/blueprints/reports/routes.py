@@ -8,6 +8,7 @@ from datetime import datetime
 from flask import Response, g, render_template, request
 
 from app.blueprints.reports import reports_bp
+from app.i18n import t
 from app.models import (
     Appointment,
     Diagnosis,
@@ -301,6 +302,22 @@ def staff_statement(doctor_id):
          for g in groups.values()),
         key=lambda r: -r["doctor"])
 
+    # Vaccines credited to this doctor (their cut comes from each brand's
+    # doctor_fee, tracked on the dose — not via an invoice line).
+    doses = PatientVaccine.query.filter(
+        PatientVaccine.doctor_id == doctor_id,
+        PatientVaccine.event_type == "given",
+        PatientVaccine.given_date >= date_from,
+        PatientVaccine.given_date <= date_to).all()
+    vaccine_doctor = round(sum((d.brand.doctor_fee or 0) for d in doses if d.brand), 2)
+    if doses:
+        breakdown.append({
+            "label": t("reports.vaccines_line"), "count": len(doses),
+            "gross": round(sum((d.brand.price or 0) for d in doses if d.brand), 2),
+            "doctor": vaccine_doctor,
+        })
+
+    commission = round(sum(i.doctor_share_total for i in invs) + vaccine_doctor, 2)
     totals = {
         "visits": Visit.query.filter(
             Visit.doctor_id == doctor_id,
@@ -309,7 +326,7 @@ def staff_statement(doctor_id):
         "cases": sum(r["count"] for r in breakdown),
         "billed": round(sum(i.total for i in invs), 2),
         "collected": round(sum(i.paid for i in invs), 2),
-        "commission": round(sum(i.doctor_share_total for i in invs), 2),
+        "commission": commission,
     }
     return render_template(
         "reports/staff_statement.html", doctor=doctor,

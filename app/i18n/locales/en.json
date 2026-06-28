@@ -1402,7 +1402,8 @@
     "vaccines_desc": "Doses given, revenue, cost, doctor fees and clinic margin",
     "doses_given": "Doses given",
     "revenue": "Revenue",
-    "clinic_margin": "Clinic margin"
+    "clinic_margin": "Clinic margin",
+    "vaccines_line": "Vaccines"
   },
   "ai": {
     "title": "AI Assistant",

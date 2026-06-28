@@ -130,6 +130,7 @@ def record(patient_id):
     pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
         dose_number=dose_number, given_date=given_date,
+        doctor_id=request.form.get("doctor_id", type=int) or current_user.id,
         lot_number=lot_number, event_type="given",
         adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
