@@ -171,11 +171,12 @@
       {% if parents %}
       <div class="info-grid gc-stagger" style="margin-top:16px;">
         {% for parent in parents %}
-        <div class="card gc-lift" style="box-shadow:none;border:1px solid var(--line);">
+        <div class="card gc-lift" style="box-shadow:none;border:1px solid var(--line);" x-data="{ edit:false }">
           <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;">
             <div>
               <div style="font-weight:600;">{{ parent.display_name(current_lang) }}
                 {% if parent.is_primary_contact %}<i class="bi bi-star-fill" style="color:#f0ad4e;font-size:0.8rem;" title="{{ t('patients.primary_contact') }}"></i>{% endif %}
+                {% if parent.auto_named %}<span class="badge" style="background:#fdf6ec;color:#b45309;font-size:0.66rem;" title="{{ t('patients.auto_named_hint') }}"><i class="bi bi-magic"></i> {{ t('patients.auto_named') }}</span>{% endif %}
               </div>
               <div style="font-size:0.82rem;color:var(--muted);">{{ t('relations.' ~ parent.relation) }}</div>
             </div>
@@ -188,10 +189,53 @@
             {% if parent.nationality %}<span><i class="bi bi-globe"></i> {{ parent.nationality }}</span>{% endif %}
           </div>
           {% if parent.address %}<div style="font-size:0.82rem;color:var(--muted);margin-top:4px;"><i class="bi bi-geo-alt"></i> {{ parent.address }}</div>{% endif %}
-          <form method="post" action="{{ url_for('patients.delete_parent', parent_id=parent.id) }}"
-                style="margin-top:8px;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="edit=!edit"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</button>
+            <form method="post" action="{{ url_for('patients.delete_parent', parent_id=parent.id) }}"
+                  onsubmit="return confirm('{{ t('common.confirm') }}?');">
+              <input type="hidden" name="patient_id" value="{{ patient.id }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+            </form>
+          </div>
+
+          <!-- Inline edit -->
+          <form method="post" action="{{ url_for('patients.edit_parent', parent_id=parent.id) }}"
+                x-show="edit" x-cloak style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
             <input type="hidden" name="patient_id" value="{{ patient.id }}">
-            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('patients.parent_name') }} *</label>
+                <input class="input" name="full_name" value="{{ parent.full_name }}" required></div>
+              <div class="form-row"><label>{{ t('patients.full_name_en') }}</label>
+                <input class="input" name="full_name_en" dir="ltr" value="{{ parent.full_name_en or '' }}"></div>
+              <div class="form-row"><label>{{ t('patients.relation') }}</label>
+                <select class="select" name="relation">
+                  {% for r in ['father','mother','guardian'] %}<option value="{{ r }}" {{ 'selected' if parent.relation==r else '' }}>{{ t('relations.' ~ r) }}</option>{% endfor %}
+                </select></div>
+              <div class="form-row"><label>{{ t('patients.client_category') }}</label>
+                <select class="select" name="client_category">
+                  {% for cat in ['normal','friend','relative','employee'] %}<option value="{{ cat }}" {{ 'selected' if parent.client_category==cat else '' }}>{{ t('categories.' ~ cat) }}</option>{% endfor %}
+                </select></div>
+              <div class="form-row"><label>{{ t('patients.phone') }}</label>
+                <input class="input" name="phone" dir="ltr" value="{{ parent.phone or '' }}"></div>
+              <div class="form-row"><label>{{ t('patients.phone_alt') }}</label>
+                <input class="input" name="phone_alt" dir="ltr" value="{{ parent.phone_alt or '' }}"></div>
+              <div class="form-row"><label>{{ t('patients.national_id') }}</label>
+                <input class="input" name="national_id" dir="ltr" value="{{ parent.national_id or '' }}"></div>
+              <div class="form-row"><label>{{ t('patients.email') }}</label>
+                <input class="input" name="email" dir="ltr" value="{{ parent.email or '' }}"></div>
+              <div class="form-row"><label>{{ t('patients.occupation') }}</label>
+                <input class="input" name="occupation" value="{{ parent.occupation or '' }}"></div>
+              <div class="form-row"><label>{{ t('patients.nationality') }}</label>
+                <input class="input" name="nationality" value="{{ parent.nationality or '' }}"></div>
+              <div class="form-row" style="grid-column:1/-1;"><label>{{ t('patients.address') }}</label>
+                <input class="input" name="address" value="{{ parent.address or '' }}"></div>
+            </div>
+            <label class="form-row checkbox" style="margin:6px 0;"><input type="checkbox" name="is_primary_contact" value="1" {{ 'checked' if parent.is_primary_contact else '' }}>
+              <span style="font-weight:400;">{{ t('patients.primary_contact') }}</span></label>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+              <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="edit=false">{{ t('common.cancel') }}</button>
+            </div>
           </form>
         </div>
         {% endfor %}

@@ -42,8 +42,10 @@ from app.utils.imports import (
     build_rows,
     build_template_csv,
     build_template_workbook,
+    derive_guardian_name,
     guess_mapping,
     import_fields,
+    normalize_phone,
     parse_date,
     parse_gender,
     read_matrix,
@@ -480,6 +482,41 @@ def add_parent(patient_id):
     return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
 
 
+@patients_bp.route("/parents/<int:parent_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def edit_parent(parent_id):
+    parent = db.get_or_404(Parent, parent_id)
+    patient_id = request.form.get("patient_id", type=int)
+
+    full_name = (request.form.get("full_name") or "").strip()
+    if not full_name:
+        flash(t("common.required") + ": " + t("patients.parent_name"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+
+    relation = (request.form.get("relation") or parent.relation).strip()
+    category = (request.form.get("client_category") or parent.client_category).strip()
+    parent.relation = relation if Parent.valid_relation(relation) else parent.relation
+    parent.full_name = full_name
+    parent.full_name_en = (request.form.get("full_name_en") or "").strip()
+    parent.national_id = (request.form.get("national_id") or "").strip()
+    parent.phone = (request.form.get("phone") or "").strip()
+    parent.phone_alt = (request.form.get("phone_alt") or "").strip()
+    parent.email = (request.form.get("email") or "").strip()
+    parent.occupation = (request.form.get("occupation") or "").strip()
+    parent.nationality = (request.form.get("nationality") or "").strip()
+    parent.address = (request.form.get("address") or "").strip()
+    parent.client_category = category if Parent.valid_category(category) else parent.client_category
+    parent.is_primary_contact = bool(request.form.get("is_primary_contact"))
+
+    ActivityLog.record(
+        "parent.update", user_id=current_user.id, entity="parent",
+        entity_id=parent.id, detail=full_name, ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("patients.parent_updated"), "success")
+    return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+
+
 @patients_bp.route("/parents/<int:parent_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def delete_parent(parent_id):
@@ -813,14 +850,11 @@ def _process_import(rows):
     # Prefetch every existing family once (one query) so sibling-linking is an
     # in-memory dict lookup instead of a query (and autoflush) per row.
     family_cache = {f.family_name: f for f in Family.query.all()}
+    phone_family = {}        # guardian phone -> Family (siblings share a phone)
+    family_has_parent = set()  # id(family) that already carries a guardian
     next_number = patient_number_allocator()
 
-    def resolve_family(name):
-        if not name:
-            return None
-        key = str(name).strip()
-        if not key:
-            return None
+    def get_named_family(key):
         family = family_cache.get(key)
         if family is None:
             family = Family(family_name=key)
@@ -854,7 +888,27 @@ def _process_import(rows):
                 errors.append({"line": line, "reason": t("import.err_dob")})
                 continue
 
-            family = resolve_family(row.get("family_name"))
+            # Guardian name: explicit, or derived from the child's name (father
+            # = the name after the child's first name) and flagged for review.
+            given_parent = (row.get("parent_name") or "").strip()
+            derived_parent = derive_guardian_name(name)
+            parent_name = given_parent or derived_parent
+            phone = normalize_phone(row.get("parent_phone"))
+            fam_name = (row.get("family_name") or "").strip()
+
+            # Resolve family so siblings group: explicit family name → shared
+            # guardian phone → the (given/derived) guardian name.
+            if fam_name:
+                family = get_named_family(fam_name)
+            elif phone and phone in phone_family:
+                family = phone_family[phone]
+            elif phone:
+                family = get_named_family(parent_name or name)
+                phone_family[phone] = family
+            elif parent_name:
+                family = get_named_family(parent_name)
+            else:
+                family = None
 
             patient = Patient(
                 patient_number=next_number(),
@@ -873,18 +927,27 @@ def _process_import(rows):
             )
             db.session.add(patient)
 
-            # Optional guardian on the family.
-            parent_name = (row.get("parent_name") or "").strip()
-            if parent_name and family is not None:
+            # One guardian per family — skip if the family already has one
+            # (existing record or an earlier sibling in this import).
+            if (parent_name and family is not None
+                    and id(family) not in family_has_parent and not family.parents):
                 relation = (row.get("parent_relation") or "father").strip().lower()
                 category = (row.get("client_category") or "normal").strip().lower()
                 db.session.add(Parent(
                     family=family,
                     relation=relation if Parent.valid_relation(relation) else "father",
                     full_name=parent_name,
+                    auto_named=not given_parent,
                     phone=cell("parent_phone"),
+                    phone_alt=cell("parent_phone_alt"),
+                    national_id=cell("parent_national_id"),
+                    email=cell("parent_email"),
+                    occupation=cell("parent_occupation"),
+                    nationality=cell("parent_nationality"),
+                    address=cell("parent_address"),
                     client_category=category if Parent.valid_category(category) else "normal",
                 ))
+                family_has_parent.add(id(family))
 
             created += 1
 

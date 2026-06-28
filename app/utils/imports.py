@@ -23,6 +23,12 @@ IMPORT_COLUMNS = [
     ("parent_name", False, "اسم ولي الأمر", "محمد علي"),
     ("parent_relation", False, "صلة القرابة (father/mother)", "father"),
     ("parent_phone", False, "هاتف ولي الأمر", "01000000000"),
+    ("parent_phone_alt", False, "هاتف ولي الأمر الإضافي", "01100000000"),
+    ("parent_national_id", False, "الرقم القومي لولي الأمر", "28001011234567"),
+    ("parent_email", False, "بريد ولي الأمر", "parent@mail.com"),
+    ("parent_occupation", False, "مهنة ولي الأمر", "مهندس"),
+    ("parent_nationality", False, "جنسية ولي الأمر", "مصري"),
+    ("parent_address", False, "عنوان ولي الأمر", "الإسكندرية - سموحة"),
     ("client_category", False, "فئة العميل (normal/friend/relative/employee)", "normal"),
     ("notes", False, "ملاحظات", ""),
 ]
@@ -61,6 +67,19 @@ COLUMN_ALIASES = {
     "parent_phone": "parent_phone", "phone": "parent_phone",
     "هاتف ولي الأمر": "parent_phone", "الهاتف": "parent_phone",
     "التليفون": "parent_phone", "الموبايل": "parent_phone",
+    "parent_phone_alt": "parent_phone_alt", "phone2": "parent_phone_alt",
+    "هاتف إضافي": "parent_phone_alt", "هاتف اضافي": "parent_phone_alt",
+    "هاتف ولي الأمر الإضافي": "parent_phone_alt", "تليفون آخر": "parent_phone_alt",
+    "parent_national_id": "parent_national_id",
+    "الرقم القومي لولي الأمر": "parent_national_id", "قومي ولي الأمر": "parent_national_id",
+    "parent_email": "parent_email", "email": "parent_email",
+    "بريد ولي الأمر": "parent_email", "الايميل": "parent_email", "الإيميل": "parent_email",
+    "parent_occupation": "parent_occupation", "occupation": "parent_occupation",
+    "مهنة ولي الأمر": "parent_occupation", "المهنة": "parent_occupation", "الوظيفة": "parent_occupation",
+    "parent_nationality": "parent_nationality", "nationality": "parent_nationality",
+    "جنسية ولي الأمر": "parent_nationality", "الجنسية": "parent_nationality",
+    "parent_address": "parent_address", "address": "parent_address",
+    "عنوان ولي الأمر": "parent_address", "العنوان": "parent_address", "السكن": "parent_address",
     "client_category": "client_category", "category": "client_category",
     "فئة العميل": "client_category", "الفئة": "client_category",
     "فئة العميل (normal/friend/relative/employee)": "client_category",
@@ -141,6 +160,33 @@ def build_rows(data_rows, mapping):
             record[key] = val
         rows.append(record)
     return rows
+
+
+# First-name particles that bind to the next word, so the child's own name is
+# two tokens ("عبد الله", "أبو بكر") — drop both when deriving the father.
+_COMPOUND_FIRST = {"عبد", "ابو", "أبو", "أم", "ام"}
+
+
+def derive_guardian_name(child_name):
+    """Father's name ≈ the child's name without their own (first) name.
+
+    Arabic full names run child → father → grandfather → family, so dropping
+    the child's first name yields a good default guardian name (to be verified
+    later — it's flagged on import). Handles two-word first names like
+    "عبد الله"; the attached spelling "عبدالله" is already a single token.
+    Returns None when there isn't enough to derive.
+    """
+    parts = (child_name or "").strip().split()
+    first_len = 2 if (parts and parts[0] in _COMPOUND_FIRST) else 1
+    if len(parts) <= first_len:
+        return None
+    return " ".join(parts[first_len:])
+
+
+def normalize_phone(value):
+    """Digits-only phone for sibling matching, or None."""
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits or None
 
 
 def parse_gender(value):

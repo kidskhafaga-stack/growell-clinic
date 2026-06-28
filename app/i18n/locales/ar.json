@@ -203,7 +203,11 @@
     "ai_placeholder": "اسأل عن هذا المريض…",
     "ai_privacy": "يُرسَل ملخّص لسجل هذا المريض إلى مزوّد الـAI المضبوط. تحقّق إكلينيكياً دائماً.",
     "no_prescriptions": "لا توجد روشتات بعد.",
-    "no_invoices": "لا توجد فواتير بعد."
+    "no_invoices": "لا توجد فواتير بعد.",
+    "address": "العنوان",
+    "parent_updated": "تم تحديث ولي الأمر",
+    "auto_named": "اسم افتراضي",
+    "auto_named_hint": "اسم ولي الأمر اتاخد تلقائياً من اسم الطفل عند الرفع — برجاء المراجعة."
   },
   "import": {
     "title": "استيراد بيانات المرضى",
@@ -272,7 +276,13 @@
     "field_parent_relation": "صلة القرابة",
     "field_parent_phone": "هاتف ولي الأمر",
     "field_client_category": "فئة العميل",
-    "field_notes": "ملاحظات"
+    "field_notes": "ملاحظات",
+    "field_parent_phone_alt": "هاتف ولي الأمر الإضافي",
+    "field_parent_national_id": "الرقم القومي لولي الأمر",
+    "field_parent_email": "بريد ولي الأمر",
+    "field_parent_occupation": "مهنة ولي الأمر",
+    "field_parent_nationality": "جنسية ولي الأمر",
+    "field_parent_address": "عنوان ولي الأمر"
   },
   "appointments": {
     "title": "المواعيد",

@@ -101,6 +101,7 @@ def register_commands(app):
             ("doctor_schedules", "end_date", "DATE"),
             ("doctor_schedules", "season_label", "VARCHAR(60)"),
             ("doctor_service_commissions", "price_override", "FLOAT"),
+            ("parents", "auto_named", "BOOLEAN DEFAULT 0"),
             ("payments", "kind", "VARCHAR(10) DEFAULT 'payment'"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
             ("invoices", "payer_id", "INTEGER"),
