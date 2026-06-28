@@ -45,14 +45,16 @@ def reset_all():
     Child tables are deleted before their parents so no orphan rows survive
     (orphans would later crash page loads after a reset)."""
     from app.models import (
-        Expense, MessageTemplate, PatientAttachment, PayerContract,
-        Prescription, PrescriptionInvestigation, PrescriptionItem,
-        PurchaseOrder, PurchaseOrderItem, ScheduleException, StockMovement,
-        StoreItem, Visit, VisitInvestigation, WaitlistEntry,
+        CashDrawerDay, Expense, MessageTemplate, PatientAttachment,
+        PayerContract, Prescription, PrescriptionInvestigation,
+        PrescriptionItem, PurchaseOrder, PurchaseOrderItem, ScheduleException,
+        StockMovement, StoreItem, Visit, VisitInvestigation, VisitService,
+        WaitlistEntry,
     )
 
     order = [
         MessageTemplate, MessageLog,
+        CashDrawerDay,
         EInvoiceDocument, Payment, InvoiceItem, Invoice,
         PrescriptionInvestigation, PrescriptionItem, Prescription,
         PurchaseOrderItem, PurchaseOrder,
@@ -60,8 +62,8 @@ def reset_all():
         PatientCoverage, PayerContract, PayerServiceRate, PayerEntity,
         DoctorServiceCommission, ServiceBundleItem, Service,
         # Visit/patient children first, then the parents.
-        PatientAttachment, VisitInvestigation, PatientVaccine, GrowthRecord,
-        VitalSigns, Diagnosis, Visit,
+        PatientAttachment, VisitInvestigation, VisitService, PatientVaccine,
+        GrowthRecord, VitalSigns, Diagnosis, Visit,
         WaitlistEntry, Appointment, ScheduleException, DoctorSchedule,
         VaccineInventory, Supplier,
         Parent, Patient, Family,
@@ -146,7 +148,10 @@ def seed_demo():
         db.session.add(Parent(
             family_id=fam.id, relation="father", full_name="والد " + fam_name,
             phone=f"010{rnd.randint(10000000, 99999999)}", is_primary_contact=True,
-            client_category="normal",
+            client_category="normal", occupation=rnd.choice(["مهندس", "طبيب", "محاسب", "موظف"]),
+            nationality="مصري",
+            address=rnd.choice(["الإسكندرية - سموحة", "القاهرة - مدينة نصر",
+                                "الجيزة - المهندسين", "الإسكندرية - سيدي جابر"]),
         ))
         for _ in range(rnd.randint(1, 3)):
             boy = rnd.random() < 0.5
@@ -404,6 +409,71 @@ def seed_demo():
         db.session.add(MessageTemplate(
             name="تهنئة بالعيد", occasion="seasonal",
             body="كل عام و{patient} وعائلتكم بخير 🌙\nمن {clinic}."))
+
+    # --- Billing + vaccine workflow demo (per-doctor pricing, cashier, …) ---
+    from app.models import CashDrawerDay
+    from app.utils.pricing import save_visit_type_service_map
+
+    # A second doctor so per-doctor pricing is visible (one free consult, one paid).
+    doc2 = User.query.filter(User.role == "doctor", User.id != doc.id).first()
+    if doc2 is None:
+        doc2 = User(username="demo_doctor2", full_name="د. إسراء محمود",
+                    full_name_en="Dr. Esraa Mahmoud", role="doctor",
+                    is_active=True, is_practitioner=True, phone="01000000011")
+        doc2.set_password("demo12345")
+        db.session.add(doc2)
+        db.session.flush()
+
+    kashf, esh = services[0], services[1]   # كشف / استشارة
+    for did, sid, price, ctype, cval in [
+        (doc.id, kashf.id, 480, "fixed", 400),
+        (doc.id, esh.id, 0, "none", 0),        # this doctor's consultation is free
+        (doc2.id, kashf.id, 380, "fixed", 300),
+        (doc2.id, esh.id, 100, "fixed", 50),   # this doctor's consultation is paid
+    ]:
+        db.session.add(DoctorServiceCommission(
+            doctor_id=did, service_id=sid, price_override=price,
+            commission_type=ctype, commission_value=cval))
+
+    # Visit type -> base-charge service (vaccination billed separately).
+    save_visit_type_service_map({"new": kashf.id, "consultation": esh.id})
+
+    # Vaccine economics: a doctor fee on every priced brand (P&L + doctor share).
+    for b in VaccineBrand.query.all():
+        if b.price:
+            b.doctor_fee = round(b.price * 0.15, 2)
+
+    # A priced optional vaccine with a few clinic-given doses credited to the
+    # doctor (so the P&L report, doctor statement and billing all have data).
+    opt_brand = (VaccineBrand.query.join(VaccineBrand.vaccine)
+                 .filter(_Vaccine.is_mandatory.is_(False)).first()
+                 or VaccineBrand.query.first())
+    if opt_brand is not None:
+        opt_brand.price = opt_brand.price or 300
+        opt_brand.purchase_price = opt_brand.purchase_price or 180
+        opt_brand.doctor_fee = 45
+        for k, p in enumerate(patients[:4]):
+            db.session.add(PatientVaccine(
+                patient_id=p.id, vaccine_id=opt_brand.vaccine_id,
+                brand_id=opt_brand.id, dose_number=1,
+                given_date=today - timedelta(days=k), doctor_id=doc.id,
+                event_type="given"))  # k == 0 is today + uncharged -> billing demo
+
+    # Cashier opening float for today.
+    if not CashDrawerDay.query.filter_by(drawer_date=today).first():
+        db.session.add(CashDrawerDay(drawer_date=today, opening_float=200,
+                                     opened_by=doc.id))
+
+    # A couple of vaccination bookings (vaccine + dose) on today's board.
+    vbrand = VaccineBrand.query.first()
+    if vbrand is not None:
+        vacc_patients = patients[8:10] if len(patients) >= 10 else patients[:2]
+        for j, p in enumerate(vacc_patients):
+            db.session.add(Appointment(
+                patient_id=p.id, doctor_id=doc.id, appt_date=today,
+                appt_time=time(11, 0 if j == 0 else 30), duration_minutes=10,
+                status="scheduled", appt_type="vaccination",
+                vaccine_brand_id=vbrand.id, vaccine_dose=1, reason="تطعيم"))
 
     Setting.set("demo_seeded", "1")
     db.session.commit()

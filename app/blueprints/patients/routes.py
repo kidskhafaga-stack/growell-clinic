@@ -480,6 +480,41 @@ def add_parent(patient_id):
     return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
 
 
+@patients_bp.route("/parents/<int:parent_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def edit_parent(parent_id):
+    parent = db.get_or_404(Parent, parent_id)
+    patient_id = request.form.get("patient_id", type=int)
+
+    full_name = (request.form.get("full_name") or "").strip()
+    if not full_name:
+        flash(t("common.required") + ": " + t("patients.parent_name"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+
+    relation = (request.form.get("relation") or parent.relation).strip()
+    category = (request.form.get("client_category") or parent.client_category).strip()
+    parent.relation = relation if Parent.valid_relation(relation) else parent.relation
+    parent.full_name = full_name
+    parent.full_name_en = (request.form.get("full_name_en") or "").strip()
+    parent.national_id = (request.form.get("national_id") or "").strip()
+    parent.phone = (request.form.get("phone") or "").strip()
+    parent.phone_alt = (request.form.get("phone_alt") or "").strip()
+    parent.email = (request.form.get("email") or "").strip()
+    parent.occupation = (request.form.get("occupation") or "").strip()
+    parent.nationality = (request.form.get("nationality") or "").strip()
+    parent.address = (request.form.get("address") or "").strip()
+    parent.client_category = category if Parent.valid_category(category) else parent.client_category
+    parent.is_primary_contact = bool(request.form.get("is_primary_contact"))
+
+    ActivityLog.record(
+        "parent.update", user_id=current_user.id, entity="parent",
+        entity_id=parent.id, detail=full_name, ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("patients.parent_updated"), "success")
+    return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+
+
 @patients_bp.route("/parents/<int:parent_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def delete_parent(parent_id):
