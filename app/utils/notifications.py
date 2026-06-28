@@ -159,6 +159,25 @@ def dismiss(user, key):
     db.session.commit()
 
 
+def dismiss_all(user):
+    """Mark every currently-visible alert as seen for this user at once."""
+    import json
+
+    from app.extensions import db
+    from app.models import Setting
+
+    if user is None or not getattr(user, "is_authenticated", False):
+        return
+    today_s = date.today().isoformat()
+    data = _dismissed_map(user)
+    for it in _all():
+        if not user.can_access(it["module"]):
+            continue
+        data[it["key"]] = {"c": int(it["count"] or 0), "d": today_s}
+    Setting.set(f"notif_dismiss:{user.id}", json.dumps(data))
+    db.session.commit()
+
+
 def get_notifications(user):
     """Alerts visible to this user (filtered by module access + dismissals)."""
     if user is None or not getattr(user, "is_authenticated", False):

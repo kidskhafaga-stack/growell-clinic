@@ -86,7 +86,12 @@ class VaccineBrand(db.Model):
     manufacturer = db.Column(db.String(120))
     price = db.Column(db.Float)              # selling price
     purchase_price = db.Column(db.Float)     # cost price
+    doctor_fee = db.Column(db.Float)         # part of the price that goes to the doctor
     max_discount = db.Column(db.Float)       # max allowed discount (%)
+    # Patient doses obtained from one purchased vial/ampoule. 1 = single-dose
+    # ampoule (one vial per patient); >1 = multi-dose vial (e.g. a vial drawn
+    # for 10 patients). Stock is always counted in patient doses.
+    doses_per_vial = db.Column(db.Integer, default=1, nullable=False)
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     is_discontinued = db.Column(db.Boolean, default=False, nullable=False)  # production stopped
 
@@ -108,8 +113,23 @@ class VaccineBrand(db.Model):
 
     @property
     def stock(self):
-        """Total remaining usable units across all batches."""
+        """Total remaining usable patient doses across all batches."""
         return sum(b.qty_remaining for b in self.batches)
+
+    @property
+    def is_multidose(self):
+        return (self.doses_per_vial or 1) > 1
+
+    @property
+    def stock_vials(self):
+        """Whole vials still on the shelf (multi-dose only), rounded down."""
+        per = self.doses_per_vial or 1
+        return self.stock // per if per > 1 else self.stock
+
+    @property
+    def clinic_margin(self):
+        """Clinic profit per dose = sell price − cost − doctor's fee."""
+        return round((self.price or 0) - (self.purchase_price or 0) - (self.doctor_fee or 0), 2)
 
     @property
     def available_batches(self):
@@ -205,6 +225,14 @@ class PatientVaccine(db.Model):
     inventory_id = db.Column(db.Integer, db.ForeignKey("vaccine_inventory.id"), nullable=True)
     notes = db.Column(db.Text)
 
+    # Doctor credited with the dose (for the doctor's vaccine share / statement).
+    doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    # Invoice this dose was billed on (NULL = not charged yet).
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=True, index=True)
+    # Dose the doctor confirms was given elsewhere (gov. unit / another clinic):
+    # informational only — no stock deduction, no charge, no doctor fee.
+    given_outside = db.Column(db.Boolean, default=False, nullable=False)
+
     # Clinical documentation (PDF): given / refused / delayed, plus details.
     event_type = db.Column(db.String(20), default="given", nullable=False)
     adverse_events = db.Column(db.Text)        # ملاحظات الأعراض الجانبية بعد الجرعة
@@ -215,6 +243,7 @@ class PatientVaccine(db.Model):
     vaccine = db.relationship("Vaccine")
     brand = db.relationship("VaccineBrand")
     batch = db.relationship("VaccineInventory")
+    doctor = db.relationship("User")
 
     def __repr__(self):
         return f"<PatientVaccine p={self.patient_id} v={self.vaccine_id} #{self.dose_number}>"

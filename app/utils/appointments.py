@@ -6,12 +6,77 @@ from app.models import (
     Appointment,
     DoctorSchedule,
     ScheduleException,
+    Setting,
     User,
 )
 from app.models.appointment import ACTIVE_STATUSES
 
 # How far ahead the "next available" finders scan before giving up.
 LOOKAHEAD_DAYS = 60
+
+# Consultation = a follow-up to a paid exam (كشف) within a window. Defaults are
+# editable in settings.
+CONSULT_FREE_DAYS_DEFAULT = 7
+CONSULT_MAX_DAYS_DEFAULT = 10
+
+
+def _setting_int(key, default):
+    try:
+        return int(Setting.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def consult_window_days():
+    """Return (free_days, max_days) for the consultation follow-up window."""
+    free = _setting_int("consult_free_days", CONSULT_FREE_DAYS_DEFAULT)
+    mx = _setting_int("consult_max_days", CONSULT_MAX_DAYS_DEFAULT)
+    if mx < free:
+        mx = free
+    return free, mx
+
+
+def last_exam_date(patient_id, doctor_id, on_or_before=None):
+    """Date of the patient's most recent exam (كشف / appt_type 'new') with this
+    doctor, or None. Cancelled bookings are ignored."""
+    if not patient_id or not doctor_id:
+        return None
+    q = (Appointment.query
+         .filter(Appointment.patient_id == patient_id,
+                 Appointment.doctor_id == doctor_id,
+                 Appointment.appt_type == "new",
+                 Appointment.status != "cancelled"))
+    if on_or_before is not None:
+        q = q.filter(Appointment.appt_date <= on_or_before)
+    appt = q.order_by(Appointment.appt_date.desc()).first()
+    return appt.appt_date if appt else None
+
+
+def consultation_window(patient_id, doctor_id, on_date=None):
+    """Classify a consultation booking against the follow-up window.
+
+    Returns a dict: ``status`` is one of
+      * ``no_exam``  – no prior exam on record with this doctor
+      * ``ok``       – within the free follow-up window
+      * ``warn``     – past the free window but within the max
+      * ``exceeded`` – past the max → should be an exam (or doctor approval)
+    plus ``days`` since the last exam, ``last_date``, ``free_days``, ``max_days``.
+    """
+    on_date = on_date or date.today()
+    free_days, max_days = consult_window_days()
+    last = last_exam_date(patient_id, doctor_id, on_date)
+    if last is None:
+        return {"status": "no_exam", "days": None, "last_date": None,
+                "free_days": free_days, "max_days": max_days}
+    days = (on_date - last).days
+    if days <= free_days:
+        status = "ok"
+    elif days <= max_days:
+        status = "warn"
+    else:
+        status = "exceeded"
+    return {"status": status, "days": days, "last_date": last.isoformat(),
+            "free_days": free_days, "max_days": max_days}
 
 
 def list_doctors():
@@ -72,6 +137,24 @@ def day_capacity(schedules):
     return None
 
 
+def schedules_for(doctor_id, on_date):
+    """The doctor's working windows that apply on ``on_date`` for its weekday.
+
+    A seasonal window (one carrying a date range, e.g. Ramadan) overrides the
+    always-on schedule while ``on_date`` falls inside it; outside any season the
+    default windows apply again automatically.
+    """
+    rows = (DoctorSchedule.query.filter_by(
+        doctor_id=doctor_id, weekday=on_date.weekday(), is_active=True)
+        .order_by(DoctorSchedule.start_time).all())
+    seasonal = [r for r in rows if r.is_seasonal
+                and (r.start_date is None or r.start_date <= on_date)
+                and (r.end_date is None or on_date <= r.end_date)]
+    if seasonal:
+        return seasonal
+    return [r for r in rows if not r.is_seasonal]
+
+
 def available_slots(doctor_id, on_date, exclude_id=None):
     """Return ordered available ``HH:MM`` slots for a doctor on a date.
 
@@ -81,14 +164,7 @@ def available_slots(doctor_id, on_date, exclude_id=None):
     once the daily capacity is reached. This is the core of conflict-free
     smart booking.
     """
-    weekday = on_date.weekday()
-    schedules = (
-        DoctorSchedule.query.filter_by(
-            doctor_id=doctor_id, weekday=weekday, is_active=True
-        )
-        .order_by(DoctorSchedule.start_time)
-        .all()
-    )
+    schedules = schedules_for(doctor_id, on_date)
     if not schedules:
         return []
 
@@ -165,11 +241,9 @@ def first_available_doctor(from_date=None, days=LOOKAHEAD_DAYS, doctors=None):
 
 
 def slot_duration(doctor_id, on_date):
-    """Best-guess slot length for a doctor/date (first matching window)."""
-    sched = DoctorSchedule.query.filter_by(
-        doctor_id=doctor_id, weekday=on_date.weekday(), is_active=True
-    ).first()
-    return sched.slot_minutes if sched else 15
+    """Best-guess slot length for a doctor/date (first applicable window)."""
+    rows = schedules_for(doctor_id, on_date)
+    return rows[0].slot_minutes if rows else 15
 
 
 def parse_date_arg(value, default=None):

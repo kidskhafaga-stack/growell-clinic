@@ -19,6 +19,13 @@
   </div>
 </div>
 
+<form method="get" class="gc-animate" style="margin-bottom:16px;animation-delay:0.06s;">
+  <div class="search-box">
+    <i class="bi bi-search"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="{{ t('patients.search_placeholder') }}" autocomplete="off">
+  </div>
+</form>
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if patients %}
   <table class="table">
@@ -43,7 +50,7 @@
     </tbody>
   </table>
   {% else %}
-  <div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('patients.no_patients') }}</div>
+  <div class="empty-state"><i class="bi bi-{{ 'search' if q else 'shield-plus' }}"></i>{{ t('patients.no_results') if q else t('patients.no_patients') }}</div>
   {% endif %}
   {{ render_pagination(pagination) }}
 </div>

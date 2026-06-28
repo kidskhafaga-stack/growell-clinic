@@ -20,7 +20,6 @@ from flask import (
     url_for,
 )
 from flask_login import current_user
-from sqlalchemy import or_
 
 from app.blueprints.patients import patients_bp
 from app.extensions import db
@@ -40,15 +39,21 @@ from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import client_ip, module_required
 from app.utils.imports import (
     allowed_import_file,
+    build_rows,
     build_template_csv,
     build_template_workbook,
+    guess_mapping,
+    import_fields,
     parse_date,
     parse_gender,
-    read_rows,
+    read_matrix,
+    REQUIRED_KEYS,
 )
 from app.utils.patients import (
+    apply_patient_search,
     delete_patient_photo,
     generate_patient_number,
+    patient_number_allocator,
     save_patient_photo,
 )
 
@@ -98,18 +103,7 @@ def delete_document(att_id):
 @module_required(MODULE)
 def index():
     q = (request.args.get("q") or "").strip()
-    query = Patient.query
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            or_(
-                Patient.full_name.ilike(like),
-                Patient.full_name_en.ilike(like),
-                Patient.patient_number.ilike(like),
-                Patient.reference_number.ilike(like),
-                Patient.national_id.ilike(like),
-            )
-        )
+    query = apply_patient_search(Patient.query, q)
     pagination = query.order_by(Patient.created_at.desc()).paginate(
         page=request.args.get("page", 1, type=int), per_page=25, error_out=False
     )
@@ -667,30 +661,94 @@ def bulk_import():
             flash(t("import.bad_format"), "danger")
             return redirect(url_for("patients.bulk_import"))
 
-        rows, error = read_rows(file)
-        if error == "no_name_column":
-            flash(t("import.no_name_column"), "danger")
+        headers, data_rows, error = read_matrix(file)
+        if error == "unreadable":
+            flash(t("import.unreadable"), "danger")
             return redirect(url_for("patients.bulk_import"))
-        if error or not rows:
+        if error or not data_rows:
             flash(t("import.empty"), "warning")
             return redirect(url_for("patients.bulk_import"))
 
-        # Stash the parsed rows for the confirm step (dates -> ISO so they
-        # round-trip cleanly through JSON), then show a preview.
+        # Stash the raw sheet (headers + rows) so the mapping step can rebuild
+        # records however the user maps the columns. Dates -> ISO for JSON.
         token = uuid.uuid4().hex
         with open(os.path.join(_import_tmp_dir(), f"{token}.json"), "w",
                   encoding="utf-8") as fh:
-            json.dump(rows, fh, ensure_ascii=False, default=_json_cell)
+            json.dump({"headers": headers, "rows": data_rows, "filename": file.filename},
+                      fh, ensure_ascii=False, default=_json_cell)
 
-        preview, valid = _analyze_rows(rows)
         return render_template(
-            "patients/import_preview.html",
-            token=token, preview=preview[:MAX_PREVIEW_ROWS],
-            total=len(rows), valid=valid, invalid=len(rows) - valid,
-            shown=min(len(rows), MAX_PREVIEW_ROWS), filename=file.filename,
+            "patients/import_map.html",
+            token=token, headers=headers, filename=file.filename,
+            fields=import_fields(), required_keys=REQUIRED_KEYS,
+            guess=guess_mapping(headers),
+            sample=data_rows[:5], total=len(data_rows),
         )
 
     return render_template("patients/import.html")
+
+
+def _load_import_tmp(token):
+    """Return (path, payload) for a stashed import, or (None, None) if missing."""
+    if not token.isalnum():
+        return None, None
+    tmp_path = os.path.join(_import_tmp_dir(), f"{token}.json")
+    if not os.path.isfile(tmp_path):
+        return None, None
+    with open(tmp_path, encoding="utf-8") as fh:
+        return tmp_path, json.load(fh)
+
+
+@patients_bp.route("/import/map", methods=["POST"])
+@module_required(MODULE)
+def import_map():
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    # A freshly-stashed upload is a dict; older canonical payloads are a list.
+    if payload is None or not isinstance(payload, dict):
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.bulk_import"))
+
+    headers = payload["headers"]
+    data_rows = payload["rows"]
+
+    # Read the user's column choices: each field maps to a column index or "".
+    mapping = {}
+    for key, _required, _sample in import_fields():
+        raw = (request.form.get(f"map_{key}") or "").strip()
+        if raw == "":
+            continue
+        try:
+            idx = int(raw)
+        except ValueError:
+            continue
+        if 0 <= idx < len(headers):
+            mapping[key] = idx
+
+    missing = [k for k in REQUIRED_KEYS if k not in mapping]
+    if missing:
+        flash(t("import.map_required"), "danger")
+        return render_template(
+            "patients/import_map.html",
+            token=token, headers=headers, filename=payload.get("filename", ""),
+            fields=import_fields(), required_keys=REQUIRED_KEYS,
+            guess=mapping or guess_mapping(headers),
+            sample=data_rows[:5], total=len(data_rows), missing=missing,
+        )
+
+    rows = build_rows(data_rows, mapping)
+    # Overwrite the stash with canonical rows for the confirm step.
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(rows, fh, ensure_ascii=False, default=_json_cell)
+
+    preview, valid = _analyze_rows(rows)
+    return render_template(
+        "patients/import_preview.html",
+        token=token, preview=preview[:MAX_PREVIEW_ROWS],
+        total=len(rows), valid=valid, invalid=len(rows) - valid,
+        shown=min(len(rows), MAX_PREVIEW_ROWS),
+        filename=payload.get("filename", ""),
+    )
 
 
 def _json_cell(value):
@@ -703,17 +761,11 @@ def _json_cell(value):
 @module_required(MODULE)
 def import_confirm():
     token = (request.form.get("token") or "").strip()
-    # Guard against path traversal: tokens are plain hex.
-    if not token.isalnum():
+    tmp_path, rows = _load_import_tmp(token)
+    # The confirm step expects canonical rows (a list) written by import_map.
+    if rows is None or not isinstance(rows, list):
         flash(t("import.session_expired"), "warning")
         return redirect(url_for("patients.bulk_import"))
-    tmp_path = os.path.join(_import_tmp_dir(), f"{token}.json")
-    if not os.path.isfile(tmp_path):
-        flash(t("import.session_expired"), "warning")
-        return redirect(url_for("patients.bulk_import"))
-
-    with open(tmp_path, encoding="utf-8") as fh:
-        rows = json.load(fh)
 
     result = _process_import(rows)
     db.session.commit()
@@ -758,74 +810,82 @@ def _process_import(rows):
     """
     created = 0
     errors = []
-    family_cache = {}
+    # Prefetch every existing family once (one query) so sibling-linking is an
+    # in-memory dict lookup instead of a query (and autoflush) per row.
+    family_cache = {f.family_name: f for f in Family.query.all()}
+    next_number = patient_number_allocator()
 
     def resolve_family(name):
         if not name:
             return None
-        key = name.strip()
-        if key in family_cache:
-            return family_cache[key]
-        family = Family.query.filter_by(family_name=key).first()
+        key = str(name).strip()
+        if not key:
+            return None
+        family = family_cache.get(key)
         if family is None:
             family = Family(family_name=key)
             db.session.add(family)
-            db.session.flush()
-        family_cache[key] = family.id
-        return family.id
+            family_cache[key] = family
+        return family
 
-    for offset, row in enumerate(rows):
-        line = offset + 2  # account for the header row (1-based, human-friendly)
-        name = (row.get("full_name") or "").strip()
-        if not name:
-            errors.append({"line": line, "reason": t("import.err_name")})
-            continue
+    def cell(key):
+        val = row.get(key)
+        if val in (None, ""):
+            return None
+        return str(val).strip() or None
 
-        gender = parse_gender(row.get("gender"))
-        if gender is None:
-            errors.append({"line": line, "reason": t("import.err_gender")})
-            continue
+    # ``no_autoflush`` keeps SQLAlchemy from flushing the growing batch of
+    # pending patients on every read, which is what made large imports crawl.
+    with db.session.no_autoflush:
+        for offset, row in enumerate(rows):
+            line = offset + 2  # account for the header row (1-based)
+            name = (row.get("full_name") or "").strip()
+            if not name:
+                errors.append({"line": line, "reason": t("import.err_name")})
+                continue
 
-        dob = parse_date(row.get("date_of_birth"))
-        if dob is None:
-            errors.append({"line": line, "reason": t("import.err_dob")})
-            continue
+            gender = parse_gender(row.get("gender"))
+            if gender is None:
+                errors.append({"line": line, "reason": t("import.err_gender")})
+                continue
 
-        family_id = resolve_family(row.get("family_name"))
+            dob = parse_date(row.get("date_of_birth"))
+            if dob is None:
+                errors.append({"line": line, "reason": t("import.err_dob")})
+                continue
 
-        patient = Patient(
-            patient_number=generate_patient_number(),
-            reference_number=(str(row.get("reference_number")).strip()
-                              if row.get("reference_number") not in (None, "") else None),
-            family_id=family_id,
-            full_name=name,
-            full_name_en=(row.get("full_name_en") or "").strip() or None,
-            date_of_birth=dob,
-            gender=gender,
-            national_id=(str(row.get("national_id")).strip()
-                         if row.get("national_id") not in (None, "") else None),
-            blood_type=(row.get("blood_type") or "").strip() or None,
-            allergies=(row.get("allergies") or "").strip() or None,
-            chronic_diseases=(row.get("chronic_diseases") or "").strip() or None,
-            notes=(row.get("notes") or "").strip() or None,
-            is_active=True,
-        )
-        db.session.add(patient)
+            family = resolve_family(row.get("family_name"))
 
-        # Optional guardian on the family.
-        parent_name = (row.get("parent_name") or "").strip()
-        if parent_name and family_id:
-            relation = (row.get("parent_relation") or "father").strip().lower()
-            category = (row.get("client_category") or "normal").strip().lower()
-            db.session.add(Parent(
-                family_id=family_id,
-                relation=relation if Parent.valid_relation(relation) else "father",
-                full_name=parent_name,
-                phone=(str(row.get("parent_phone")).strip()
-                       if row.get("parent_phone") not in (None, "") else None),
-                client_category=category if Parent.valid_category(category) else "normal",
-            ))
+            patient = Patient(
+                patient_number=next_number(),
+                reference_number=cell("reference_number"),
+                family=family,
+                full_name=name,
+                full_name_en=cell("full_name_en"),
+                date_of_birth=dob,
+                gender=gender,
+                national_id=cell("national_id"),
+                blood_type=cell("blood_type"),
+                allergies=cell("allergies"),
+                chronic_diseases=cell("chronic_diseases"),
+                notes=cell("notes"),
+                is_active=True,
+            )
+            db.session.add(patient)
 
-        created += 1
+            # Optional guardian on the family.
+            parent_name = (row.get("parent_name") or "").strip()
+            if parent_name and family is not None:
+                relation = (row.get("parent_relation") or "father").strip().lower()
+                category = (row.get("client_category") or "normal").strip().lower()
+                db.session.add(Parent(
+                    family=family,
+                    relation=relation if Parent.valid_relation(relation) else "father",
+                    full_name=parent_name,
+                    phone=cell("parent_phone"),
+                    client_category=category if Parent.valid_category(category) else "normal",
+                ))
+
+            created += 1
 
     return {"created": created, "errors": errors, "total": len(rows)}

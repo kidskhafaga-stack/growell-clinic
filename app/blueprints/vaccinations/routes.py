@@ -35,6 +35,7 @@ from app.models import (
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
+from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
     chosen_brand,
     next_due_dose,
@@ -49,12 +50,15 @@ MODULE = "vaccinations"
 @vaccinations_bp.route("/")
 @module_required(MODULE)
 def index():
-    pagination = (
-        Patient.query.filter_by(is_active=True).order_by(Patient.full_name)
-        .paginate(page=request.args.get("page", 1, type=int), per_page=25, error_out=False)
-    )
+    q = (request.args.get("q") or "").strip()
+    query = apply_patient_search(
+        Patient.query.filter_by(is_active=True), q
+    ).order_by(Patient.full_name)
+    pagination = query.paginate(
+        page=request.args.get("page", 1, type=int), per_page=25, error_out=False)
     return render_template(
-        "vaccinations/index.html", patients=pagination.items, pagination=pagination
+        "vaccinations/index.html", patients=pagination.items,
+        pagination=pagination, q=q
     )
 
 
@@ -123,18 +127,21 @@ def record(patient_id):
         given_date = datetime.utcnow().date()
 
     lot_number = (request.form.get("lot_number") or "").strip() or None
+    given_outside = bool(request.form.get("given_outside"))
     pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
         dose_number=dose_number, given_date=given_date,
-        lot_number=lot_number, event_type="given",
+        doctor_id=request.form.get("doctor_id", type=int) or current_user.id,
+        lot_number=lot_number, event_type="given", given_outside=given_outside,
         adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
     db.session.add(pv)
 
     # Deduct from inventory for clinic-provided (optional) vaccines using
-    # first-expiry-first-out; record the batch and its lot number.
-    if not vaccine.is_mandatory:
+    # first-expiry-first-out; record the batch and its lot number. Doses given
+    # elsewhere (given_outside) are informational — never touch stock.
+    if not vaccine.is_mandatory and not given_outside:
         batches = brand.available_batches
         if batches:
             batch = batches[0]
@@ -462,7 +469,9 @@ def brand_new(vaccine_id):
         manufacturer=(request.form.get("manufacturer") or "").strip() or None,
         price=request.form.get("price", type=float),
         purchase_price=request.form.get("purchase_price", type=float),
+        doctor_fee=request.form.get("doctor_fee", type=float),
         max_discount=request.form.get("max_discount", type=float),
+        doses_per_vial=max(request.form.get("doses_per_vial", type=int) or 1, 1),
         is_discontinued=bool(request.form.get("is_discontinued")),
         is_default=not vaccine.brands,
     )
@@ -483,7 +492,9 @@ def brand_edit(brand_id):
     brand.manufacturer = (request.form.get("manufacturer") or "").strip() or None
     brand.price = request.form.get("price", type=float)
     brand.purchase_price = request.form.get("purchase_price", type=float)
+    brand.doctor_fee = request.form.get("doctor_fee", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
+    brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
     brand.is_discontinued = bool(request.form.get("is_discontinued"))
     ages = _parse_ages(request.form.get("dose_ages"))
     if ages:

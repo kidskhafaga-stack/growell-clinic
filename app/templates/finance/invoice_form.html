@@ -101,11 +101,18 @@
 function invoiceForm(){
   const prices = { {% for s in services %}'{{ s.id }}': {{ s.price or 0 }},{% endfor %} };
   const names  = { {% for s in services %}'{{ s.id }}': {{ s.display_name(current_lang)|tojson }},{% endfor %} };
+  const prefill = {{ prefill_lines|tojson if prefill_lines else 'null' }};
   return {
     lines: [],
     prices, names,
-    init(){ this.addLine(); },
-    addLine(){ this.lines.push({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0'}); },
+    init(){
+      // Seed the visit lines (base visit-type charge + procedures) at the
+      // doctor's price when billing a visit; otherwise start with one blank row.
+      if (prefill && prefill.length) { prefill.forEach(l => this.lines.push(this.blankLine(l))); }
+      else { this.addLine(); }
+    },
+    blankLine(extra){ return Object.assign({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0'}, extra||{}); },
+    addLine(){ this.lines.push(this.blankLine()); },
     onService(i){ const l=this.lines[i]; if(l.service_id){ l.unit_price=this.prices[l.service_id]||0; if(!l.description) l.description=this.names[l.service_id]||''; } },
     isPct(l){ return l.discount_is_percent === '1' || l.discount_is_percent === true; },
     lineTotal(l){ const g=(l.unit_price||0)*(l.quantity||1); const d=this.isPct(l) ? g*(l.discount_value||0)/100 : Math.min(l.discount_value||0,g); return Math.max(g-d,0); },

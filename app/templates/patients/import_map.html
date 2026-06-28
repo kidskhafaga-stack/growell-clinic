@@ -1,0 +1,99 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('import.map_title') }}{% endblock %}
+{% block page_heading %}{{ t('import.map_title') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('import.map_title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">
+  <i class="bi bi-file-earmark-text"></i> {{ filename }} —
+  {{ total }} {{ t('import.total_rows') }} · {{ t('import.map_subtitle') }}</p>
+
+{% if missing %}
+<div class="info-note gc-animate" style="margin-bottom:14px;border-color:#f3c0c0;background:#fdf2f2;color:#9a2828;">
+  <i class="bi bi-exclamation-triangle"></i> {{ t('import.map_required') }}</div>
+{% endif %}
+
+<!-- What's in the file: first rows so the user can recognise each column -->
+<div class="card gc-scale-in" style="padding:0;overflow:auto;animation-delay:0.1s;margin-bottom:18px;">
+  <table class="table" style="min-width:max-content;">
+    <thead><tr>
+      {% for h in headers %}
+      <th style="white-space:nowrap;">
+        <div style="color:var(--muted);font-size:0.72rem;font-weight:600;">{{ t('import.column') }} {{ loop.index }}</div>
+        {{ h or '—' }}
+      </th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+      {% for row in sample %}
+      <tr>
+        {% for cell in row %}
+        <td style="white-space:nowrap;font-size:0.85rem;">{{ '—' if cell in (None, '') else cell }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Mapping form -->
+<form method="post" action="{{ url_for('patients.import_map') }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <div class="card gc-scale-in" style="animation-delay:0.14s;">
+    <h2 class="section-title"><i class="bi bi-diagram-3"></i> {{ t('import.map_heading') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('import.map_hint') }}</p>
+
+    <div class="map-grid">
+      {% for key, required, _sample in fields %}
+      <div class="map-row {{ 'is-required' if key in required_keys else '' }}">
+        <div class="map-field">
+          <span class="map-label">{{ t('import.field_' ~ key) }}</span>
+          {% if key in required_keys %}
+            <span class="badge badge--danger" style="font-size:0.66rem;">{{ t('import.required') }}</span>
+          {% else %}
+            <span class="badge badge--muted" style="font-size:0.66rem;">{{ t('import.optional') }}</span>
+          {% endif %}
+        </div>
+        <div class="map-select">
+          <i class="bi bi-arrow-{{ 'left' if current_lang == 'ar' else 'right' }}-short"></i>
+          <select name="map_{{ key }}" class="form-control">
+            <option value="">— {{ t('import.ignore') }} —</option>
+            {% for h in headers %}
+            <option value="{{ loop.index0 }}" {{ 'selected' if guess.get(key) == loop.index0 else '' }}>
+              {{ t('import.column') }} {{ loop.index }}{% if h %} · {{ h }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+      <button class="btn btn-primary gc-press gc-ripple" type="submit">
+        <i class="bi bi-eye"></i> {{ t('import.preview_btn') }}</button>
+      <a class="btn btn-outline gc-press" href="{{ url_for('patients.bulk_import') }}">
+        <i class="bi bi-x-lg"></i> {{ t('common.cancel') }}</a>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block head %}
+<style>
+  .map-grid { display:grid; gap:10px; }
+  .map-row {
+    display:grid; grid-template-columns:1fr 1.3fr; gap:14px; align-items:center;
+    padding:10px 12px; border:1px solid var(--border); border-radius:12px;
+    background:var(--surface);
+  }
+  .map-row.is-required { border-color:var(--green-200); background:var(--green-050); }
+  .map-field { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .map-label { font-weight:600; }
+  .map-select { display:flex; align-items:center; gap:8px; }
+  .map-select .bi { color:var(--muted); font-size:1.2rem; }
+  .map-select select { flex:1; }
+  @media (max-width:640px){ .map-row { grid-template-columns:1fr; } }
+</style>
+{% endblock %}

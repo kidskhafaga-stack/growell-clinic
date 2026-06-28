@@ -5,9 +5,10 @@ import io
 from collections import Counter, defaultdict
 from datetime import datetime
 
-from flask import Response, render_template, request
+from flask import Response, g, render_template, request
 
 from app.blueprints.reports import reports_bp
+from app.i18n import t
 from app.models import (
     Appointment,
     Diagnosis,
@@ -264,4 +265,109 @@ def staff():
     }
     return render_template(
         "reports/staff.html", date_from=date_from, date_to=date_to,
+        rows=rows, totals=totals)
+
+
+@reports_bp.route("/staff/<int:doctor_id>")
+@module_required(MODULE)
+def staff_statement(doctor_id):
+    """Printable account statement for one doctor: case counts + doctor share
+    broken down by service (how many exams / consultations / etc.)."""
+    from app.extensions import db
+
+    doctor = db.get_or_404(User, doctor_id)
+    date_from, date_to = _range()
+    invs = Invoice.query.filter(
+        Invoice.doctor_id == doctor_id,
+        Invoice.invoice_date >= date_from,
+        Invoice.invoice_date <= date_to).all()
+
+    groups = {}
+    for inv in invs:
+        for it in inv.items:
+            key = it.service_id or 0
+            g = groups.get(key)
+            if g is None:
+                label = it.service.display_name(getattr(g, "lang", "ar")) \
+                    if it.service else (it.description or "—")
+                g = groups[key] = {"label": label, "count": 0,
+                                   "gross": 0.0, "doctor": 0.0}
+            g["count"] += it.quantity or 1
+            g["gross"] += it.net
+            g["doctor"] += it.commission_amount or 0
+
+    breakdown = sorted(
+        ({"label": g["label"], "count": g["count"],
+          "gross": round(g["gross"], 2), "doctor": round(g["doctor"], 2)}
+         for g in groups.values()),
+        key=lambda r: -r["doctor"])
+
+    # Vaccines credited to this doctor (their cut comes from each brand's
+    # doctor_fee, tracked on the dose — not via an invoice line).
+    doses = PatientVaccine.query.filter(
+        PatientVaccine.doctor_id == doctor_id,
+        PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
+        PatientVaccine.given_date >= date_from,
+        PatientVaccine.given_date <= date_to).all()
+    vaccine_doctor = round(sum((d.brand.doctor_fee or 0) for d in doses if d.brand), 2)
+    if doses:
+        breakdown.append({
+            "label": t("reports.vaccines_line"), "count": len(doses),
+            "gross": round(sum((d.brand.price or 0) for d in doses if d.brand), 2),
+            "doctor": vaccine_doctor,
+        })
+
+    commission = round(sum(i.doctor_share_total for i in invs) + vaccine_doctor, 2)
+    totals = {
+        "visits": Visit.query.filter(
+            Visit.doctor_id == doctor_id,
+            Visit.visit_date >= date_from,
+            Visit.visit_date <= date_to).count(),
+        "cases": sum(r["count"] for r in breakdown),
+        "billed": round(sum(i.total for i in invs), 2),
+        "collected": round(sum(i.paid for i in invs), 2),
+        "commission": commission,
+    }
+    return render_template(
+        "reports/staff_statement.html", doctor=doctor,
+        date_from=date_from, date_to=date_to,
+        breakdown=breakdown, totals=totals)
+
+
+@reports_bp.route("/vaccines")
+@module_required(MODULE)
+def vaccines():
+    """Vaccine profit/loss: per brand, doses given in range with revenue, cost,
+    doctor fees and the clinic's margin — so the clinic sees if it profits."""
+    date_from, date_to = _range()
+    given = PatientVaccine.query.filter(
+        PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
+        PatientVaccine.given_date >= date_from,
+        PatientVaccine.given_date <= date_to).all()
+
+    grouped = {}
+    for pv in given:
+        b = pv.brand
+        if b is None:
+            continue
+        grouped.setdefault(b.id, {"brand": b, "count": 0})["count"] += 1
+
+    rows = []
+    for g in grouped.values():
+        b, n = g["brand"], g["count"]
+        rows.append({
+            "brand": b, "count": n,
+            "revenue": round((b.price or 0) * n, 2),
+            "cost": round((b.purchase_price or 0) * n, 2),
+            "doctor": round((b.doctor_fee or 0) * n, 2),
+            "margin": round(b.clinic_margin * n, 2),
+        })
+    rows.sort(key=lambda r: -r["margin"])
+    totals = {k: round(sum(r[k] for r in rows), 2)
+              for k in ("revenue", "cost", "doctor", "margin")}
+    totals["count"] = sum(r["count"] for r in rows)
+    return render_template(
+        "reports/vaccines.html", date_from=date_from, date_to=date_to,
         rows=rows, totals=totals)

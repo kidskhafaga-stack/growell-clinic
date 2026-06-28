@@ -217,7 +217,7 @@
     "template_csv": "CSV template",
     "choose_file": "Choose a file (.xlsx or .csv)",
     "import_now": "Start import",
-    "columns_note": "Required columns: Arabic name, date of birth, gender. The rest are optional.",
+    "columns_note": "Upload any sheet — you'll match its columns in the next step. Only name, date of birth and gender are required.",
     "no_file": "Please choose a file",
     "bad_format": "Unsupported format — use a .xlsx or .csv file",
     "empty": "The file is empty or has no data rows",
@@ -246,7 +246,33 @@
     "parent": "Guardian",
     "showing_first": "Showing first",
     "of_total": "of",
-    "session_expired": "Preview expired, please upload the file again"
+    "session_expired": "Preview expired, please upload the file again",
+    "map_title": "Match your columns",
+    "map_subtitle": "match each column to a field",
+    "map_heading": "Which column holds each field?",
+    "map_hint": "We auto-matched from your header row — fix anything that's off, and set a field to \"Ignore\" if your file doesn't have it. Only name, date of birth and gender are required.",
+    "map_required": "Please pick a column for the required fields: name, date of birth, and gender.",
+    "column": "Column",
+    "ignore": "Ignore",
+    "required": "Required",
+    "optional": "Optional",
+    "unreadable": "Couldn't read the file — make sure it's a valid Excel (.xlsx) or CSV file.",
+    "upload_continue": "Upload & match columns",
+    "field_reference_number": "Old / reference file number",
+    "field_full_name": "Name (Arabic)",
+    "field_full_name_en": "Name (English)",
+    "field_date_of_birth": "Date of birth",
+    "field_gender": "Gender",
+    "field_national_id": "National ID",
+    "field_blood_type": "Blood type",
+    "field_allergies": "Allergies",
+    "field_chronic_diseases": "Chronic diseases",
+    "field_family_name": "Family name (links siblings)",
+    "field_parent_name": "Guardian name",
+    "field_parent_relation": "Guardian relation",
+    "field_parent_phone": "Guardian phone",
+    "field_client_category": "Client category",
+    "field_notes": "Notes"
   },
   "appointments": {
     "title": "Appointments",
@@ -362,7 +388,31 @@
     "exc_removed": "Time off removed",
     "exc_need": "Select a doctor and a date",
     "walk_in_flag": "Walk-in",
-    "no_growth": "No growth measurements yet."
+    "no_growth": "No growth measurements yet.",
+    "walk_in_pick_patient": "Choose a patient first.",
+    "walk_in_pick_doctor": "Choose a doctor to save the walk-in.",
+    "consult_no_exam": "No earlier exam on record with this doctor — this may need to be booked as an exam.",
+    "consult_ok": "Last exam was {days} day(s) ago — within the free consultation window.",
+    "consult_warn": "Last exam was {days} day(s) ago (free window is {free}) — still allowed, but close to the limit.",
+    "consult_exceeded": "Last exam was {days} day(s) ago — past the consultation limit ({max} days). It should be an exam, or needs the doctor's approval.",
+    "consult_window": "Consultation follow-up window",
+    "consult_free_days": "Free window (days)",
+    "consult_max_days": "Max window (days)",
+    "consult_window_saved": "Consultation window saved",
+    "vaccine": "Vaccine",
+    "choose_vaccine": "Choose a vaccine (optional)",
+    "in_stock": "in stock:",
+    "out_of_stock": "out of stock",
+    "dose_number": "Dose",
+    "order_vaccine": "Purchase order",
+    "vaccine_hint": "You can book even if it's out of stock — create a purchase order so it's ready.",
+    "seasonal": "Seasonal",
+    "seasonal_window": "Seasonal hours (e.g. Ramadan)",
+    "seasonal_hint": "Optional: a date range that overrides the normal hours for this weekday while it's active, then reverts automatically.",
+    "season_label": "Season name",
+    "ramadan": "Ramadan",
+    "season_from": "From date",
+    "season_to": "To date"
   },
   "appt_types": {
     "new": "New visit",
@@ -468,7 +518,20 @@
     "pending_results_hint": "Requested by the doctor in an earlier visit and still awaiting their result — enter it now.",
     "recent_files": "Recent files",
     "att_lab": "Lab",
-    "att_imaging": "Investigation"
+    "att_imaging": "Investigation",
+    "procedures": "Procedures",
+    "procedures_hint": "Chargeable procedures done in this visit (echo, nebuliser…). They flow into the visit invoice at the doctor's price.",
+    "no_procedures": "No procedures added yet.",
+    "procedure": "Procedure",
+    "choose_procedure": "Choose a procedure",
+    "quantity": "Quantity",
+    "proc_notes": "Notes",
+    "proc_notes_ph": "Optional",
+    "add_procedure": "Add procedure",
+    "no_procedure_catalog": "No procedure services in the catalogue yet — add them in Finance → Services (category: Procedure).",
+    "proc_need": "Choose a procedure",
+    "proc_added": "Procedure added",
+    "proc_removed": "Procedure removed"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -660,7 +723,12 @@
     "ev_reason": "Reason",
     "ev_reason_ph": "e.g. parent declined / child unwell",
     "event_saved": "Documented",
-    "bad_event": "Invalid event type"
+    "bad_event": "Invalid event type",
+    "doses_per_vial": "Doses per vial",
+    "doses_per_vial_hint": "1 = single-dose ampoule (one per patient). More = a multi-dose vial (e.g. 10 = one vial covers 10 patients).",
+    "doctor_fee": "Doctor's fee",
+    "doctor_fee_hint": "Part of the price that goes to the doctor. Clinic margin = price − cost − doctor's fee.",
+    "given_outside": "Given outside the clinic (gov. unit / elsewhere) — record only, no stock or charge"
   },
   "vstatus": {
     "done": "Done",
@@ -728,7 +796,18 @@
     "status": "Status",
     "select_brand": "Select brand",
     "back": "Back to inventory",
-    "notes": "Notes"
+    "notes": "Notes",
+    "qty_vials": "Number of vials",
+    "doses": "doses",
+    "vials": "vials",
+    "doses_per_vial_each": "doses/vial:",
+    "vaccine_stocktake": "Vaccine stocktake",
+    "vaccine_stocktake_desc": "Count actual doses per batch and reconcile against the system",
+    "system_qty": "System",
+    "counted": "Counted",
+    "apply_stocktake": "Apply stocktake",
+    "stocktake_hint": "Leave a row blank to keep it unchanged.",
+    "stocktake_done": "Stocktake applied ({n} batch(es) adjusted)"
   },
   "instatus": {
     "ok": "In stock",
@@ -887,7 +966,12 @@
     "bundle_components": "Included services",
     "bundle_sum": "Components total",
     "example_calc": "Example on current price",
-    "eta_item_type": "ETA item type"
+    "eta_item_type": "ETA item type",
+    "price_override_hint": "Price: blank = default, 0 = free for this doctor.",
+    "visit_type_services": "Visit type pricing",
+    "visit_type_hint": "Map each visit type to the service that sets its base charge (per-doctor price applies). Leave blank for no base charge (e.g. vaccination — billed separately).",
+    "no_charge": "No base charge",
+    "visit_types_saved": "Visit type pricing saved"
   },
   "commission_types": {
     "none": "None",
@@ -961,7 +1045,11 @@
     "edit_item": "Edit item",
     "updated": "Invoice updated",
     "receipt": "Receipt",
-    "thermal": "Thermal receipt"
+    "thermal": "Thermal receipt",
+    "refund": "Refund",
+    "refund_hint": "Return money to the patient (e.g. an exam re-billed as a consultation). It reconciles the cashier drawer.",
+    "refund_reason": "Reason",
+    "refund_added": "Refund recorded"
   },
   "expenses": {
     "title": "Expenses",
@@ -1331,7 +1419,17 @@
     "apply": "Apply",
     "invoices": "Invoices",
     "commission": "Commission",
-    "total": "Total"
+    "total": "Total",
+    "doctor_statement": "Account statement",
+    "by_service": "By service",
+    "gross": "Gross",
+    "doctor_statement_note": "Doctor/clinic shares are internal — for settlement only, not shown to patients.",
+    "vaccines": "Vaccine profit/loss",
+    "vaccines_desc": "Doses given, revenue, cost, doctor fees and clinic margin",
+    "doses_given": "Doses given",
+    "revenue": "Revenue",
+    "clinic_margin": "Clinic margin",
+    "vaccines_line": "Vaccines"
   },
   "ai": {
     "title": "AI Assistant",
@@ -1693,7 +1791,8 @@
     "low_stock": "{count} low-stock item(s)",
     "contracts_expiring": "{count} contract(s) expiring soon",
     "vaccines_due": "{count} patient(s) with vaccines due",
-    "birthdays": "{count} birthday(s) this week"
+    "birthdays": "{count} birthday(s) this week",
+    "mark_all_read": "Mark all as read"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -1705,5 +1804,23 @@
     "visits": "Visits",
     "top_diagnoses": "Top diagnoses in period",
     "no_diagnoses": "No diagnoses in this period"
+  },
+  "cashier": {
+    "title": "Cashier",
+    "subtitle": "Today's till — collect dues and reconcile the drawer",
+    "opening_float": "Opening float",
+    "cash_collected": "Cash collected",
+    "expected_cash": "Expected in drawer",
+    "collected_total": "Collected (all methods)",
+    "outstanding": "Outstanding",
+    "set_float": "Opening change float",
+    "float_hint": "The change amount reception is handed at the start of the day. Expected cash = float + cash collected.",
+    "float_saved": "Opening float saved",
+    "by_method": "By payment method",
+    "billed_today": "Billed today",
+    "who_owes": "Who still owes",
+    "collect": "Collect",
+    "all_settled": "Everything is settled — no outstanding dues.",
+    "refunds": "Refunds"
   }
 }

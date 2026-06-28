@@ -7,13 +7,14 @@ phases build invoices, doctor statements and discount claims on top.
 import calendar
 from datetime import date, datetime
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.blueprints.finance import finance_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    APPOINTMENT_TYPES,
     CLIENT_CATEGORIES,
     COMMISSION_TYPES,
     COVERAGE_TYPES,
@@ -24,12 +25,14 @@ from app.models import (
     PAYMENT_METHODS,
     SERVICE_CATEGORIES,
     ActivityLog,
+    CashDrawerDay,
     DoctorServiceCommission,
     EInvoiceDocument,
     Expense,
     Invoice,
     InvoiceItem,
     Patient,
+    PatientVaccine,
     PayerEntity,
     PayerServiceRate,
     Payment,
@@ -37,9 +40,15 @@ from app.models import (
     ServiceBundleItem,
     Setting,
     User,
+    Visit,
 )
 from app.utils.decorators import client_ip, module_required
 from app.utils.finance import generate_invoice_number
+from app.utils.pricing import (
+    save_visit_type_service_map,
+    service_for_visit_type,
+    visit_type_service_map,
+)
 from app.utils import einvoice as eta
 
 MODULE = "finance"
@@ -74,7 +83,23 @@ def services():
         "finance/services.html", services=services,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
         item_types=ETA_ITEM_TYPES, doctors=_doctors(),
+        appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
     )
+
+
+@finance_bp.route("/services/visit-types", methods=["POST"])
+@module_required(MODULE)
+def visit_type_services():
+    """Map each visit type (كشف / استشارة / …) to its base-charge service."""
+    mapping = {}
+    for appt_type in APPOINTMENT_TYPES:
+        sid = request.form.get(f"vt_{appt_type}", type=int)
+        if sid:
+            mapping[appt_type] = sid
+    save_visit_type_service_map(mapping)
+    db.session.commit()
+    flash(t("services.visit_types_saved"), "success")
+    return redirect(url_for("finance.services"))
 
 
 @finance_bp.route("/services/new", methods=["POST"])
@@ -146,15 +171,21 @@ def service_commissions(service_id):
         if ctype not in COMMISSION_TYPES:
             ctype = "none"
         cval = request.form.get(f"value_{doc.id}", type=float) or 0
+        # Blank price = no override (default); "0" = free for this doctor.
+        raw_price = (request.form.get(f"price_{doc.id}") or "").strip()
+        price = request.form.get(f"price_{doc.id}", type=float) if raw_price != "" else None
+
         oc = existing.get(doc.id)
-        if ctype == "none":
-            if oc:  # clearing an override falls back to the service default
+        # A row is only worth keeping if it sets a commission or a price.
+        if ctype == "none" and price is None:
+            if oc:  # clearing both falls back to the service default
                 db.session.delete(oc)
             continue
         if oc is None:
             oc = DoctorServiceCommission(doctor_id=doc.id, service_id=svc.id)
             db.session.add(oc)
         oc.commission_type, oc.commission_value = ctype, cval
+        oc.price_override = price
     db.session.commit()
     flash(t("services.commissions_saved"), "success")
     return redirect(url_for("finance.services"))
@@ -226,6 +257,80 @@ def invoices():
                            invoices=pagination.items, status=status)
 
 
+def _cashier_date():
+    raw = (request.values.get("date") or "").strip()
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date() if raw else date.today()
+    except ValueError:
+        return date.today()
+
+
+@finance_bp.route("/cashier")
+@module_required(MODULE)
+def cashier():
+    """Reception's till for the day: opening float, money taken in (by method),
+    expected cash to reconcile, and who still owes — with one-click collect."""
+    from collections import Counter
+
+    on_date = _cashier_date()
+    start = datetime.combine(on_date, datetime.min.time())
+    end = datetime.combine(on_date, datetime.max.time())
+
+    # Drawer: money moved on this day — payments in, refunds out.
+    pays = Payment.query.filter(Payment.paid_at >= start, Payment.paid_at <= end).all()
+    by_method = Counter()
+    refunds = 0.0
+    cash_in = cash_out = 0.0
+    for p in pays:
+        amt = p.amount or 0
+        if p.kind == "refund":
+            refunds += amt
+            if p.method == "cash":
+                cash_out += amt
+        else:
+            by_method[p.method] += amt
+            if p.method == "cash":
+                cash_in += amt
+    collected = round(sum(v for v in by_method.values()), 2)
+    refunds = round(refunds, 2)
+    cash_collected = round(cash_in - cash_out, 2)
+
+    drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
+    opening_float = drawer.opening_float if drawer else 0
+    expected_cash = round(opening_float + cash_collected, 2)
+
+    todays = Invoice.query.filter(Invoice.invoice_date == on_date).all()
+    billed_today = round(sum(i.total for i in todays), 2)
+    outstanding = (Invoice.query.filter(Invoice.status.in_(["unpaid", "partial"]))
+                   .order_by(Invoice.id.desc()).limit(100).all())
+    outstanding_total = round(sum(i.balance for i in outstanding), 2)
+
+    return render_template(
+        "finance/cashier.html", on_date=on_date, drawer=drawer,
+        opening_float=opening_float, by_method=dict(by_method),
+        collected=collected, cash_collected=cash_collected, refunds=refunds,
+        expected_cash=expected_cash, billed_today=billed_today,
+        outstanding=outstanding, outstanding_total=outstanding_total,
+        payment_methods=PAYMENT_METHODS,
+    )
+
+
+@finance_bp.route("/cashier/float", methods=["POST"])
+@module_required(MODULE)
+def cashier_float():
+    """Set the opening change float reception is handed at the start of the day."""
+    on_date = _cashier_date()
+    amount = request.form.get("opening_float", type=float) or 0
+    drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
+    if drawer is None:
+        drawer = CashDrawerDay(drawer_date=on_date, opened_by=current_user.id)
+        db.session.add(drawer)
+    drawer.opening_float = round(amount, 2)
+    db.session.commit()
+    flash(t("cashier.float_saved"), "success")
+    return redirect(url_for("finance.cashier", date=on_date.isoformat()))
+
+
 def _apply_coverage(invoice, patient):
     """Auto-apply a member's per-service coverage to the invoice lines.
 
@@ -261,6 +366,20 @@ def _apply_coverage(invoice, patient):
             item.discount_is_percent = False
             if item.service is not None:
                 item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+
+
+def _uncharged_vaccines(patient_id, days=2):
+    """Recently-given, priced, not-yet-billed doses for a patient (charge on exit)."""
+    from datetime import timedelta
+
+    since = date.today() - timedelta(days=days)
+    doses = (PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient_id,
+        PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
+        PatientVaccine.invoice_id.is_(None),
+        PatientVaccine.given_date >= since).all())
+    return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
 
 
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
@@ -304,6 +423,11 @@ def invoice_new():
             _apply_named_discount(invoice, disc)
         _apply_coverage(invoice, patient)
 
+        # Mark the patient's recently-given uncharged vaccines as billed here so
+        # they aren't charged twice (they were pre-filled as lines above).
+        for dose in _uncharged_vaccines(patient.id):
+            dose.invoice_id = invoice.id
+
         invoice.recalc_status()
         ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
@@ -313,6 +437,48 @@ def invoice_new():
 
     pid = request.args.get("patient_id", type=int)
     patient = db.session.get(Patient, pid) if pid else None
+    visit_id = request.args.get("visit_id", type=int)
+    doctor_id = request.args.get("doctor_id", type=int)
+
+    # Coming from a visit: default the patient + doctor and pre-fill the lines —
+    # the base visit-type charge plus every procedure the doctor added — each at
+    # this doctor's price. The cashier then just collects.
+    prefill_lines = []
+    lang = getattr(g, "lang", "ar")
+    visit = db.session.get(Visit, visit_id) if visit_id else None
+    if visit is not None:
+        patient = patient or visit.patient
+        if doctor_id is None:
+            doctor_id = visit.doctor_id
+        appt_type = visit.appointment.appt_type if visit.appointment else None
+        base = service_for_visit_type(appt_type) if appt_type else None
+        if base is not None:
+            prefill_lines.append({
+                "service_id": str(base.id),
+                "description": base.display_name(lang),
+                "unit_price": base.price_for(visit.doctor),
+            })
+        for vs in visit.services:
+            prefill_lines.append({
+                "service_id": str(vs.service_id) if vs.service_id else "",
+                "description": vs.name,
+                "unit_price": vs.service.price_for(visit.doctor) if vs.service else 0,
+                "quantity": vs.quantity or 1,
+            })
+
+    # Any vaccines given to this patient that haven't been charged yet (so the
+    # cashier collects them on exit).
+    if patient is not None:
+        for dose in _uncharged_vaccines(patient.id):
+            b = dose.brand
+            name = (b.vaccine.display_name(lang) if b.vaccine else
+                    dose.vaccine.display_name(lang))
+            prefill_lines.append({
+                "service_id": "",
+                "description": name + " — " + b.display_name(lang),
+                "unit_price": b.price or 0,
+            })
+
     return render_template(
         "finance/invoice_form.html", patient=patient,
         doctors=_doctors_active(),
@@ -320,8 +486,7 @@ def invoice_new():
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
-        visit_id=request.args.get("visit_id", type=int),
-        doctor_id=request.args.get("doctor_id", type=int),
+        visit_id=visit_id, doctor_id=doctor_id, prefill_lines=prefill_lines or None,
     )
 
 
@@ -489,6 +654,37 @@ def invoice_payment(invoice_id):
                        detail=f"{invoice.invoice_number}:{amount}", ip_address=client_ip())
     db.session.commit()
     flash(t("invoices.payment_added"), "success")
+    if (request.form.get("next") or "") == "cashier":
+        return redirect(url_for("finance.cashier"))
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/refund", methods=["POST"])
+@module_required(MODULE)
+def invoice_refund(invoice_id):
+    """Return money to the patient (e.g. an exam re-billed as a consultation)
+    and reconcile the cashier drawer."""
+    invoice = db.get_or_404(Invoice, invoice_id)
+    amount = request.form.get("amount", type=float)
+    if not amount or amount <= 0:
+        flash(t("invoices.bad_amount"), "danger")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    if amount > invoice.paid:  # can't refund more than was actually collected
+        amount = invoice.paid
+    method = (request.form.get("method") or "cash").strip()
+    invoice.payments.append(Payment(
+        amount=round(amount, 2), kind="refund",
+        method=method if method in PAYMENT_METHODS else "cash",
+        received_by=current_user.id,
+        notes=(request.form.get("notes") or "").strip() or None,
+    ))
+    invoice.recalc_status()
+    ActivityLog.record("invoice.refund", user_id=current_user.id, entity="invoice",
+                       detail=f"{invoice.invoice_number}:-{amount}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("invoices.refund_added"), "success")
+    if (request.form.get("next") or "") == "cashier":
+        return redirect(url_for("finance.cashier"))
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
 

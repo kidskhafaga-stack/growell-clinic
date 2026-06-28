@@ -82,13 +82,22 @@ def batch_new():
         flash(t("common.required") + ": " + t("vaccinations.brand"), "danger")
         return redirect(url_for("inventory.index"))
 
+    # Quantity may be entered as whole vials (multiplied by the brand's
+    # doses-per-vial) or directly as patient doses. Stock is stored in doses.
+    per = brand.doses_per_vial or 1
+    qty_vials = request.form.get("qty_vials", type=int)
+    if qty_vials:
+        qty_doses = qty_vials * per
+    else:
+        qty_doses = request.form.get("qty_received", type=int) or 0
+
     batch = VaccineInventory(
         brand_id=brand.id,
         supplier_id=request.form.get("supplier_id", type=int) or None,
         lot_number=(request.form.get("lot_number") or "").strip() or None,
         expiry_date=_parse_date("expiry_date"),
         received_date=_parse_date("received_date") or datetime.utcnow().date(),
-        qty_received=request.form.get("qty_received", type=int) or 0,
+        qty_received=qty_doses,
         unit_cost=request.form.get("unit_cost", type=float),
         storage_temp=(request.form.get("storage_temp") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
@@ -99,6 +108,38 @@ def batch_new():
     db.session.commit()
     flash(t("inventory.batch_added"), "success")
     return redirect(url_for("inventory.index"))
+
+
+@inventory_bp.route("/vaccine-stocktake", methods=["GET", "POST"])
+@module_required(MODULE)
+def vaccine_stocktake():
+    """Count actual doses per vaccine batch and reconcile against the system."""
+    batches = (VaccineInventory.query
+               .join(VaccineInventory.brand)
+               .order_by(VaccineBrand.name, VaccineInventory.expiry_date).all())
+    if request.method == "POST":
+        adjusted = 0
+        for batch in batches:
+            raw = request.form.get(f"count_{batch.id}")
+            if raw is None or raw.strip() == "":
+                continue
+            try:
+                counted = int(raw)
+            except ValueError:
+                continue
+            counted = max(counted, 0)
+            if counted != batch.qty_remaining:
+                # Keep qty_received; set used so remaining == counted.
+                batch.qty_used = max((batch.qty_received or 0) - counted, 0)
+                adjusted += 1
+        if adjusted:
+            ActivityLog.record("inventory.vaccine_stocktake", user_id=current_user.id,
+                               entity="vaccine_inventory", detail=f"adjusted={adjusted}",
+                               ip_address=client_ip())
+            db.session.commit()
+        flash(t("inventory.stocktake_done", n=adjusted), "success")
+        return redirect(url_for("inventory.vaccine_stocktake"))
+    return render_template("inventory/vaccine_stocktake.html", batches=batches)
 
 
 @inventory_bp.route("/batch/<int:batch_id>/delete", methods=["POST"])

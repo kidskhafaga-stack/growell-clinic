@@ -61,7 +61,12 @@ class Invoice(db.Model):
 
     @property
     def paid(self):
-        return round(sum(p.amount or 0 for p in self.payments), 2)
+        """Net collected = payments − refunds."""
+        return round(sum(p.signed_amount for p in self.payments), 2)
+
+    @property
+    def refunded(self):
+        return round(sum(p.amount or 0 for p in self.payments if p.kind == "refund"), 2)
 
     @property
     def balance(self):
@@ -131,12 +136,44 @@ class Payment(db.Model):
     invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)
     amount = db.Column(db.Float, default=0, nullable=False)
     method = db.Column(db.String(12), default="cash", nullable=False)
+    # "payment" = money in; "refund" = money out (e.g. exam re-billed as consult).
+    kind = db.Column(db.String(10), default="payment", nullable=False)
     received_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     paid_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.String(200))
+
+    @property
+    def signed_amount(self):
+        """+ for a payment, − for a refund (drawer/paid maths)."""
+        return -(self.amount or 0) if self.kind == "refund" else (self.amount or 0)
 
     invoice = db.relationship("Invoice", back_populates="payments")
     receiver = db.relationship("User")
 
     def __repr__(self):
         return f"<Payment {self.amount} for inv={self.invoice_id}>"
+
+
+class CashDrawerDay(db.Model):
+    """The cashier's drawer for one day: the opening change float reception is
+    handed at the start of the day. Expected cash = float + cash collected −
+    cash refunds, reconciled against the counted amount at close.
+    """
+    __tablename__ = "cash_drawer_days"
+
+    id = db.Column(db.Integer, primary_key=True)
+    drawer_date = db.Column(db.Date, unique=True, nullable=False, index=True)
+    opening_float = db.Column(db.Float, default=0, nullable=False)
+    opened_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # Close-of-day reconciliation (optional).
+    counted_cash = db.Column(db.Float)
+    closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    closed_at = db.Column(db.DateTime)
+    notes = db.Column(db.String(255))
+
+    opener = db.relationship("User", foreign_keys=[opened_by])
+    closer = db.relationship("User", foreign_keys=[closed_by])
+
+    def __repr__(self):
+        return f"<CashDrawerDay {self.drawer_date} float={self.opening_float}>"

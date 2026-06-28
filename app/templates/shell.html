@@ -11,6 +11,10 @@
     background:var(--surface,#fff); border:1px solid var(--line); border-radius:12px;
     box-shadow:0 16px 44px rgba(0,0,0,.18); z-index:60; overflow:hidden; }
   .notif-head { padding:11px 14px; font-weight:700; border-bottom:1px solid var(--line); }
+  .notif-readall { background:none; border:0; cursor:pointer; font-size:0.76rem; font-weight:600;
+    color:var(--green-700,#198754); display:inline-flex; align-items:center; gap:4px; padding:2px 4px;
+    border-radius:6px; }
+  .notif-readall:hover { background:var(--green-050,#f3faf5); }
   .notif-item { display:flex; align-items:center; gap:10px; padding:10px 14px; text-decoration:none;
     color:inherit; border-bottom:1px solid var(--line); }
   .notif-item:last-child { border-bottom:0; }
@@ -87,7 +91,13 @@
             {% if notif_count %}<span class="notif-badge">{{ notif_count if notif_count < 100 else '99+' }}</span>{% endif %}
           </button>
           <div class="notif-panel" x-show="open" x-cloak x-transition x-on:click.outside="open=false">
-            <div class="notif-head">{{ t('notif.title') }}</div>
+            <div class="notif-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span>{{ t('notif.title') }}</span>
+              {% if notifications %}
+              <button type="button" class="notif-readall" x-on:click.stop="dismissAllNotif()">
+                <i class="bi bi-check2-all"></i> {{ t('notif.mark_all_read') }}</button>
+              {% endif %}
+            </div>
             {% if notifications %}
               {% for n in notifications %}
               <a class="notif-item" href="{{ url_for(n.endpoint, **n.kwargs) }}"
@@ -148,6 +158,12 @@
         body: 'key=' + encodeURIComponent(key)
       });
     } catch (e) { /* navigation continues regardless */ }
+  }
+  // Mark every current alert as seen, then refresh so the bell clears.
+  function dismissAllNotif() {
+    fetch("{{ url_for('main.notif_dismiss_all') }}", { method: 'POST' })
+      .then(function () { location.reload(); })
+      .catch(function () { location.reload(); });
   }
   function _markThemeActive(mode) {
     document.querySelectorAll('.theme-switch button').forEach(function (b) {

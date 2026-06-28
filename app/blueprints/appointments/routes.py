@@ -3,7 +3,7 @@
 Includes the doctor's "Today's Appointments" board, conflict-free booking,
 the appointment status lifecycle, and per-doctor working-hours schedules.
 """
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import (
     flash,
@@ -24,6 +24,8 @@ from app.models import (
     DoctorSchedule,
     Patient,
     ScheduleException,
+    Setting,
+    VaccineBrand,
     WaitlistEntry,
 )
 from app.models.appointment import (
@@ -35,6 +37,8 @@ from app.models.appointment import (
 from app.models.doctor_schedule import WEEKDAY_ORDER
 from app.utils.appointments import (
     available_slots,
+    consult_window_days,
+    consultation_window,
     first_available_doctor,
     list_doctors,
     next_available,
@@ -49,6 +53,14 @@ MODULE = "appointments"
 def _appt_type(value):
     """Validate a posted appointment-type key, falling back to the default."""
     return value if value in APPOINTMENT_TYPES else DEFAULT_APPT_TYPE
+
+
+def _vaccine_brands():
+    """Active, in-production vaccine brands for the booking picker."""
+    return (VaccineBrand.query
+            .filter(VaccineBrand.is_discontinued.is_(False))
+            .join(VaccineBrand.vaccine)
+            .order_by(VaccineBrand.name).all())
 
 
 # ----------------------------------------------- board (Today's screen) ----
@@ -186,7 +198,7 @@ def create():
             return render_template(
                 "appointments/form.html", doctors=doctors, form=request.form,
                 selected_patient=_patient_brief(chosen) if chosen else None,
-                appt_types=APPOINTMENT_TYPES,
+                appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
             )
 
         appt = Appointment(
@@ -199,6 +211,10 @@ def create():
             appt_type=appt_type,
             status="scheduled",
         )
+        # Vaccination booking: remember the chosen vaccine + dose.
+        if appt_type == "vaccination":
+            appt.vaccine_brand_id = request.form.get("vaccine_brand_id", type=int) or None
+            appt.vaccine_dose = request.form.get("vaccine_dose", type=int) or None
         db.session.add(appt)
         db.session.flush()
         ActivityLog.record(
@@ -214,6 +230,15 @@ def create():
                 entry.appointment_id = appt.id
         db.session.commit()
         flash(t("appointments.created"), "success")
+        # Consultation follow-up window: warn reception if it's late / overdue.
+        if appt_type == "consultation":
+            info = consultation_window(patient_id, doctor_id, on_date)
+            if info["status"] == "warn":
+                flash(t("appointments.consult_warn",
+                        days=info["days"], free=info["free_days"]), "warning")
+            elif info["status"] == "exceeded":
+                flash(t("appointments.consult_exceeded",
+                        days=info["days"], max=info["max_days"]), "warning")
         return redirect(url_for("appointments.index", date=on_date.isoformat(),
                                 doctor_id=doctor_id))
 
@@ -228,8 +253,30 @@ def create():
     return render_template(
         "appointments/form.html", doctors=doctors, form=form,
         selected_patient=_patient_brief(chosen) if chosen else None,
-        appt_types=APPOINTMENT_TYPES,
+        appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
     )
+
+
+@appointments_bp.route("/consult-check")
+@module_required(MODULE)
+def consult_check():
+    """JSON: classify a consultation booking against the follow-up window so the
+    booking form can warn reception before saving."""
+    info = consultation_window(
+        request.args.get("patient_id", type=int),
+        request.args.get("doctor_id", type=int),
+        parse_date_arg(request.args.get("date"), default=None) or date.today(),
+    )
+    msgs = {
+        "no_exam": t("appointments.consult_no_exam"),
+        "ok": t("appointments.consult_ok", days=info["days"] or 0),
+        "warn": t("appointments.consult_warn",
+                  days=info["days"] or 0, free=info["free_days"]),
+        "exceeded": t("appointments.consult_exceeded",
+                     days=info["days"] or 0, max=info["max_days"]),
+    }
+    info["message"] = msgs.get(info["status"], "")
+    return jsonify(info)
 
 
 @appointments_bp.route("/slots")
@@ -525,6 +572,13 @@ def schedules():
             flash(error, "danger")
             return redirect(url_for("appointments.schedules", doctor_id=doctor_id or selected))
 
+        def _opt_date(name):
+            raw = (request.form.get(name) or "").strip()
+            try:
+                return datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
+            except ValueError:
+                return None
+
         db.session.add(DoctorSchedule(
             doctor_id=doctor_id,
             weekday=weekday,
@@ -532,6 +586,9 @@ def schedules():
             end_time=datetime.strptime(end_raw, "%H:%M").time(),
             slot_minutes=slot_minutes,
             max_patients=max_patients,
+            start_date=_opt_date("start_date"),
+            end_date=_opt_date("end_date"),
+            season_label=(request.form.get("season_label") or "").strip() or None,
         ))
         db.session.commit()
         flash(t("appointments.schedule_added"), "success")
@@ -554,11 +611,26 @@ def schedules():
             .all()
         )
 
+    free_days, max_days = consult_window_days()
     return render_template(
         "appointments/schedules.html",
         doctors=doctors, selected=selected, schedule_rows=schedule_rows,
         weekday_order=WEEKDAY_ORDER, exceptions=exceptions,
+        consult_free_days=free_days, consult_max_days=max_days,
     )
+
+
+@appointments_bp.route("/consult-settings", methods=["POST"])
+@module_required(MODULE)
+def consult_settings():
+    """Save the consultation follow-up window (free / max days)."""
+    free = max(request.form.get("consult_free_days", type=int) or 0, 0)
+    mx = max(request.form.get("consult_max_days", type=int) or 0, free)
+    Setting.set("consult_free_days", str(free))
+    Setting.set("consult_max_days", str(mx))
+    db.session.commit()
+    flash(t("appointments.consult_window_saved"), "success")
+    return redirect(url_for("appointments.schedules"))
 
 
 @appointments_bp.route("/schedules/<int:schedule_id>/delete", methods=["POST"])

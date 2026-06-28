@@ -26,9 +26,18 @@ class DoctorSchedule(db.Model):
     slot_minutes = db.Column(db.Integer, default=15, nullable=False)
     max_patients = db.Column(db.Integer)  # optional daily cap
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Optional seasonal window (e.g. Ramadan): a row with a date range overrides
+    # the always-on schedule while the date falls inside it, then reverts.
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    season_label = db.Column(db.String(60))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     doctor = db.relationship("User", backref="schedules")
+
+    @property
+    def is_seasonal(self):
+        return bool(self.start_date or self.end_date)
 
     def iter_slots(self):
         """Yield ``time`` objects from start to end stepped by slot length."""

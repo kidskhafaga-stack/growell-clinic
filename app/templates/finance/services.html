@@ -48,6 +48,28 @@
   </form>
 </details>
 
+<!-- Visit type -> base-charge service -->
+<details class="card gc-scale-in" style="animation-delay:0.06s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-diagram-3"></i> {{ t('services.visit_type_services') }}</summary>
+  <form method="post" action="{{ url_for('finance.visit_type_services') }}" style="margin-top:14px;">
+    <p class="hint">{{ t('services.visit_type_hint') }}</p>
+    <div class="form-grid">
+      {% for at in appt_types %}
+      <div class="form-row">
+        <label>{{ t('appt_types.' ~ at) }}</label>
+        <select class="select" name="vt_{{ at }}">
+          <option value="">— {{ t('services.no_charge') }} —</option>
+          {% for s in services %}
+          <option value="{{ s.id }}" {{ 'selected' if visit_type_map.get(at) == s.id else '' }}>{{ s.display_name(current_lang) }} ({{ s.price }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
 {% if not services %}
 <div class="card"><div class="empty-state"><i class="bi bi-cash-stack"></i>{{ t('services.no_services') }}</div></div>
 {% endif %}
@@ -113,18 +135,21 @@
   <details style="margin-top:12px;">
     <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-people"></i> {{ t('services.per_doctor') }}</summary>
     <form method="post" action="{{ url_for('finance.service_commissions', service_id=s.id) }}" style="margin-top:10px;">
-      <p class="hint">{{ t('services.override_hint') }}</p>
+      <p class="hint">{{ t('services.override_hint') }} · {{ t('services.price_override_hint') }}</p>
       {% set overrides = {} %}
       {% for oc in s.doctor_commissions %}{% set _ = overrides.update({oc.doctor_id: oc}) %}{% endfor %}
       <table class="table">
-        <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('services.commission_type') }}</th><th>{{ t('services.commission_value') }}</th></tr></thead>
+        <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('services.price') }}</th><th>{{ t('services.commission_type') }}</th><th>{{ t('services.commission_value') }}</th></tr></thead>
         <tbody>
           {% for d in doctors %}
           {% set oc = overrides.get(d.id) %}
           <tr>
             <td>{{ d.display_name(current_lang) }}</td>
+            <td><input class="input" type="number" step="0.01" name="price_{{ d.id }}"
+                       value="{{ oc.price_override if oc and oc.price_override is not none else '' }}"
+                       placeholder="{{ s.price }}"></td>
             <td>{{ commission_select('type_' ~ d.id, oc.commission_type if oc else 'none') }}</td>
-            <td><input class="input" type="number" step="0.01" name="value_{{ d.id }}" value="{{ oc.commission_value if oc else '' }}"></td>
+            <td><input class="input" type="number" step="0.01" name="value_{{ d.id }}" value="{{ oc.commission_value if oc and oc.commission_value else '' }}"></td>
           </tr>
           {% endfor %}
         </tbody>

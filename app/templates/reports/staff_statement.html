@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.doctor_statement') }}{% endblock %}
+{% block page_heading %}{{ t('reports.doctor_statement') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('reports.staff', date_from=date_from, date_to=date_to) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('reports.back') }}</a>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('reports.show') }}</button>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('reports.doctor_statement') ~ ' — ' ~ doctor.display_name(current_lang),
+                  t('reports.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}
+
+  <div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card edge-blue"><i class="bi bi-clipboard-pulse ico"></i><div class="value">{{ totals.visits }}</div><div class="label">{{ t('reports.visits') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-list-check ico"></i><div class="value">{{ totals.cases }}</div><div class="label">{{ t('reports.cases') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-cash-stack ico"></i><div class="value">{{ totals.billed }}</div><div class="label">{{ t('reports.billed') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-cash ico"></i><div class="value">{{ totals.collected }}</div><div class="label">{{ t('reports.collected') }}</div></div>
+    <div class="stat-card edge-yellow"><i class="bi bi-person-check ico"></i><div class="value">{{ totals.commission }}</div><div class="label">{{ t('reports.doctor_share') }}</div></div>
+  </div>
+
+  <h2 class="section-title"><i class="bi bi-bar-chart"></i> {{ t('reports.by_service') }}</h2>
+  {% if breakdown %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('invoices.service') }}</th>
+      <th style="text-align:center;">{{ t('reports.cases') }}</th>
+      <th>{{ t('reports.gross') }}</th>
+      <th>{{ t('reports.doctor_share') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in breakdown %}
+      <tr>
+        <td><strong>{{ r.label }}</strong></td>
+        <td style="text-align:center;">{{ r.count }}</td>
+        <td>{{ r.gross }}</td>
+        <td style="color:var(--green-700);font-weight:600;">{{ r.doctor }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr style="font-weight:700;border-top:2px solid var(--line);">
+      <td>{{ t('reports.total') }}</td>
+      <td style="text-align:center;">{{ totals.cases }}</td>
+      <td>{{ totals.billed }}</td>
+      <td style="color:var(--green-700);">{{ totals.commission }}</td>
+    </tr></tfoot>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('reports.no_data') }}</div>
+  {% endif %}
+
+  <p class="hint" style="margin-top:14px;">{{ t('reports.doctor_statement_note') }}</p>
+</div>
+{% endblock %}

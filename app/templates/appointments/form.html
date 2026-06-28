@@ -96,6 +96,27 @@
             <option value="{{ key }}" {{ 'selected' if (form.appt_type or 'new') == key else '' }}>{{ t('appt_types.' ~ key) }}</option>
           {% endfor %}
         </select>
+        <div id="consultBanner" class="info-note" style="display:none;margin-top:8px;font-size:0.88rem;"></div>
+      </div>
+      <!-- Vaccination booking: which vaccine + dose (shown for type = vaccination) -->
+      <div class="form-row" id="vaccineRow" style="display:none;">
+        <label>{{ t('appointments.vaccine') }}</label>
+        <select class="select" name="vaccine_brand_id">
+          <option value="">{{ t('appointments.choose_vaccine') }}</option>
+          {% for b in vaccine_brands %}
+          <option value="{{ b.id }}" {{ 'selected' if form.vaccine_brand_id|string == b.id|string else '' }}>
+            {{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}
+            · {{ t('appointments.in_stock') ~ ' ' ~ b.stock if b.stock > 0 else t('appointments.out_of_stock') }}
+          </option>
+          {% endfor %}
+        </select>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+          <label style="margin:0;">{{ t('appointments.dose_number') }}</label>
+          <input class="input" type="number" min="1" name="vaccine_dose" value="{{ form.vaccine_dose or '' }}" style="width:90px;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchases') }}" target="_blank">
+            <i class="bi bi-cart-plus"></i> {{ t('appointments.order_vaccine') }}</a>
+        </div>
+        <p class="hint" style="margin-top:4px;">{{ t('appointments.vaccine_hint') }}</p>
       </div>
       <div class="form-row">
         <label for="reason">{{ t('appointments.reason') }}</label>
@@ -244,5 +265,56 @@
       }
     };
   }
+
+  // Live consultation-window check: when reception books a "consultation",
+  // tell them how long since the last exam (free / warning / over the limit).
+  (function () {
+    var url = "{{ url_for('appointments.consult_check') }}";
+    var typeSel = document.getElementById('appt_type');
+    var docSel = document.getElementById('doctor_id');
+    var dateInp = document.getElementById('appt_date');
+    var hidden = document.querySelector('input[name="patient_id"]');
+    var banner = document.getElementById('consultBanner');
+    if (!typeSel || !banner || !hidden) return;
+    var timer = null;
+
+    function paint(status, msg) {
+      var c = { ok: ['#198754', '#eaf7f0'], warn: ['#b45309', '#fdf6ec'],
+                exceeded: ['#c0392b', '#fdf2f2'], no_exam: ['#b45309', '#fdf6ec'] }[status]
+                || ['#888', '#f6f6f6'];
+      banner.style.display = '';
+      banner.style.borderColor = c[0]; banner.style.background = c[1]; banner.style.color = c[0];
+      banner.textContent = msg;
+    }
+    function check() {
+      if (typeSel.value !== 'consultation') { banner.style.display = 'none'; return; }
+      var pid = hidden.value, did = docSel ? docSel.value : '', d = dateInp ? dateInp.value : '';
+      if (!pid || !did) { banner.style.display = 'none'; return; }
+      var qs = '?patient_id=' + pid + '&doctor_id=' + did + (d ? '&date=' + d : '');
+      fetch(url + qs).then(function (r) { return r.json(); })
+        .then(function (j) { if (j && j.message) paint(j.status, j.message); else banner.style.display = 'none'; })
+        .catch(function () { banner.style.display = 'none'; });
+    }
+    function debounced() { clearTimeout(timer); timer = setTimeout(check, 250); }
+
+    typeSel.addEventListener('change', debounced);
+    if (docSel) docSel.addEventListener('change', debounced);
+    if (dateInp) dateInp.addEventListener('change', debounced);
+    var row = hidden.closest('.form-row');  // patient chip mounts/unmounts on pick/clear
+    if (row && window.MutationObserver) {
+      new MutationObserver(debounced).observe(row, { childList: true, subtree: true });
+    }
+    check();
+  })();
+
+  // Show the vaccine picker only when booking a vaccination.
+  (function () {
+    var typeSel = document.getElementById('appt_type');
+    var vrow = document.getElementById('vaccineRow');
+    if (!typeSel || !vrow) return;
+    function toggle() { vrow.style.display = (typeSel.value === 'vaccination') ? '' : 'none'; }
+    typeSel.addEventListener('change', toggle);
+    toggle();
+  })();
 </script>
 {% endblock %}

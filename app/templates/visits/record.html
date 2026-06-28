@@ -54,6 +54,9 @@
     <button type="button" class="vtab" :class="tab==='inv' && 'active'" x-on:click="go('inv')">
       <i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}
       {% if visit.investigations %}<span class="vtab-count">{{ visit.investigations|length }}</span>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
+      <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
+      {% if visit.services %}<span class="vtab-count">{{ visit.services|length }}</span>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='files' && 'active'" x-on:click="go('files')">
       <i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}
       {% if visit.attachments %}<span class="vtab-count">{{ visit.attachments|length }}</span>{% endif %}</button>
@@ -323,6 +326,48 @@
     </form>
   </div>
 
+  <!-- Procedures: chargeable services performed in the visit (echo, nebuliser…) -->
+  <div class="card gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('visits.procedures_hint') }}</p>
+
+    {% if visit.services %}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      {% for s in visit.services %}
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <i class="bi bi-clipboard2-plus" style="color:var(--green-700);"></i>
+        <strong style="flex:1;">{{ s.name }}{% if s.quantity and s.quantity > 1 %} ×{{ s.quantity }}{% endif %}{% if s.notes %} <span style="color:var(--muted);font-weight:400;">— {{ s.notes }}</span>{% endif %}</strong>
+        <form method="post" action="{{ url_for('visits.delete_service', vs_id=s.id) }}" style="display:inline;">
+          <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_procedures') }}</p>
+    {% endif %}
+
+    {% if procedure_services %}
+    <form method="post" action="{{ url_for('visits.add_service', visit_id=visit.id) }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('visits.procedure') }} *</label>
+          <select class="select" name="service_id" required>
+            <option value="" disabled selected>{{ t('visits.choose_procedure') }}</option>
+            {% for s in procedure_services %}
+            <option value="{{ s.id }}">{{ s.display_name(current_lang) }}{% if s.price %} ({{ s.price }}){% endif %}</option>
+            {% endfor %}
+          </select></div>
+        <div class="form-row"><label>{{ t('visits.quantity') }}</label>
+          <input class="input" type="number" min="1" name="quantity" value="1"></div>
+        <div class="form-row"><label>{{ t('visits.proc_notes') }}</label>
+          <input class="input" name="notes" placeholder="{{ t('visits.proc_notes_ph') }}"></div>
+      </div>
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.add_procedure') }}</button>
+    </form>
+    {% else %}
+    <p class="hint">{{ t('visits.no_procedure_catalog') }}</p>
+    {% endif %}
+  </div>
+
   <!-- Patient file attachments (lab/imaging reports) -->
   <div class="card gc-scale-in" id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
     <h2 class="section-title"><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h2>
@@ -460,12 +505,12 @@
       // Restore the active tab from the URL hash so it survives the page
       // reloads after adding a diagnosis (#dx) / investigation (#inv) / file (#files).
       restore() {
-        const map = { '#dx': 'dx', '#inv': 'inv', '#files': 'files' };
+        const map = { '#dx': 'dx', '#inv': 'inv', '#proc': 'proc', '#files': 'files' };
         this.tab = map[window.location.hash] || 'case';
       },
       go(tab) {
         this.tab = tab;
-        const hash = { dx: '#dx', inv: '#inv', files: '#files' }[tab] || '';
+        const hash = { dx: '#dx', inv: '#inv', proc: '#proc', files: '#files' }[tab] || '';
         history.replaceState(null, '', hash || window.location.pathname);
       },
       // Build the "write prescription" link, appending the live weight.

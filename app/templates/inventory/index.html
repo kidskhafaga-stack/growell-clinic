@@ -14,6 +14,8 @@
       <i class="bi bi-box-seam"></i> {{ t('store.open') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.suppliers') }}">
       <i class="bi bi-truck"></i> {{ t('inventory.manage_suppliers') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.vaccine_stocktake') }}">
+      <i class="bi bi-check2-square"></i> {{ t('inventory.vaccine_stocktake') }}</a>
   </div>
 </div>
 
@@ -61,7 +63,8 @@
         <td>{{ b.vaccine.display_name(current_lang) }}</td>
         <td><strong>{{ b.display_name(current_lang) }}</strong></td>
         <td>{{ b.price if b.price is not none else '—' }}</td>
-        <td><span class="status-badge {{ 'st-completed' if b.stock > 5 else ('st-no_show' if b.stock == 0 else 'st-waiting') }}">{{ b.stock }}</span></td>
+        <td><span class="status-badge {{ 'st-completed' if b.stock > 5 else ('st-no_show' if b.stock == 0 else 'st-waiting') }}">{{ b.stock }} {{ t('inventory.doses') }}</span>
+          {% if b.is_multidose %}<div class="num" style="margin-top:3px;">≈ {{ b.stock_vials }} {{ t('inventory.vials') }} ({{ t('inventory.doses_per_vial_each') }} {{ b.doses_per_vial }})</div>{% endif %}</td>
       </tr>
       {% else %}
       <tr><td colspan="4" class="empty-state">{{ t('vaccinations.no_vaccines') }}</td></tr>
@@ -73,10 +76,11 @@
 <!-- Add batch -->
 <details class="card gc-scale-in" style="animation-delay:0.14s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('inventory.add_batch') }}</summary>
-  <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:14px;">
+  <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:14px;"
+        x-data="batchForm({{ brands|map(attribute='id')|list|tojson }}, {{ brands|map(attribute='doses_per_vial')|list|tojson }})">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('inventory.brand') }} *</label>
-        <select class="select" name="brand_id" required>
+        <select class="select" name="brand_id" required x-model.number="brandId">
           <option value="" disabled selected>{{ t('inventory.select_brand') }}</option>
           {% for b in brands %}<option value="{{ b.id }}">{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
@@ -88,7 +92,14 @@
       <div class="form-row"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="lot_number" dir="ltr"></div>
       <div class="form-row"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="expiry_date"></div>
       <div class="form-row"><label>{{ t('inventory.received_date') }}</label><input class="input" type="date" name="received_date"></div>
-      <div class="form-row"><label>{{ t('inventory.qty_received') }} *</label><input class="input" type="number" min="0" name="qty_received" required></div>
+      <!-- Single-dose: enter doses directly. Multi-dose: enter vials. -->
+      <div class="form-row" x-show="dpv <= 1">
+        <label>{{ t('inventory.qty_received') }} *</label>
+        <input class="input" type="number" min="0" name="qty_received" x-bind:required="dpv <= 1"></div>
+      <div class="form-row" x-show="dpv > 1" x-cloak>
+        <label>{{ t('inventory.qty_vials') }} *</label>
+        <input class="input" type="number" min="0" name="qty_vials" x-model.number="vials" x-bind:required="dpv > 1">
+        <div class="hint" x-show="vials > 0">= <span x-text="vials * dpv"></span> {{ t('inventory.doses') }} ({{ t('inventory.doses_per_vial_each') }} <span x-text="dpv"></span>)</div></div>
       <div class="form-row"><label>{{ t('inventory.unit_cost') }}</label><input class="input" type="number" step="0.01" name="unit_cost"></div>
       <div class="form-row"><label>{{ t('inventory.storage_temp') }}</label><input class="input" name="storage_temp" placeholder="2–8°C"></div>
     </div>
@@ -127,4 +138,20 @@
   <div class="empty-state"><i class="bi bi-box"></i>{{ t('inventory.no_batches') }}</div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Maps a chosen brand to its doses-per-vial so the quantity field can switch
+  // between "doses" (single-dose) and "vials" (multi-dose) live.
+  function batchForm(ids, dpvs) {
+    const map = {};
+    ids.forEach(function (id, i) { map[id] = dpvs[i] || 1; });
+    return {
+      brandId: null,
+      vials: '',
+      get dpv() { return this.brandId ? (map[this.brandId] || 1) : 1; },
+    };
+  }
+</script>
 {% endblock %}

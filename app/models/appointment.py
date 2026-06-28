@@ -72,6 +72,9 @@ class Appointment(db.Model):
 
     # Visit type (drives default duration / board colour) and booking metadata.
     appt_type = db.Column(db.String(20), default=DEFAULT_APPT_TYPE, nullable=False)
+    # For a vaccination booking: which vaccine brand + dose the patient is here for.
+    vaccine_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"), nullable=True)
+    vaccine_dose = db.Column(db.Integer)
     is_walk_in = db.Column(db.Boolean, default=False, nullable=False)
     cancel_reason = db.Column(db.String(200))      # why cancelled / no-show
     rescheduled_from = db.Column(db.String(120))   # audit: original date/time
@@ -88,6 +91,7 @@ class Appointment(db.Model):
 
     patient = db.relationship("Patient", backref="appointments")
     doctor = db.relationship("User", backref="appointments")
+    vaccine_brand = db.relationship("VaccineBrand")
 
     def can_transition_to(self, new_status):
         return new_status in STATUS_TRANSITIONS.get(self.status, set())

@@ -36,6 +36,7 @@ from app.models.visit import (
     PatientAttachment,
     Visit,
     VisitInvestigation,
+    VisitService,
 )
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
@@ -65,6 +66,7 @@ from app.models.service import (
 from app.models.invoice import (
     INVOICE_STATUSES,
     PAYMENT_METHODS,
+    CashDrawerDay,
     Invoice,
     InvoiceItem,
     Payment,
@@ -116,6 +118,7 @@ __all__ = [
     "DoctorSchedule",
     "Visit",
     "VisitInvestigation",
+    "VisitService",
     "PatientAttachment",
     "INVESTIGATION_STATUSES",
     "VitalSigns",
@@ -163,6 +166,7 @@ __all__ = [
     "Invoice",
     "InvoiceItem",
     "Payment",
+    "CashDrawerDay",
     "INVOICE_STATUSES",
     "PAYMENT_METHODS",
     "PayerEntity",

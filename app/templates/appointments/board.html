@@ -59,7 +59,7 @@
 {% endmacro %}
 
 {% block content %}
-<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }})">
+<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }}, {{ doctors[0].id if doctors|length == 1 else 'null' }})">
 <!-- Header row -->
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
@@ -211,6 +211,7 @@
         </td>
         <td>{{ age_label(a.patient) }}</td>
         <td><span class="type-tag tt-{{ a.type_color }}">{{ t('appt_types.' ~ a.appt_type) }}</span>
+          {% if a.vaccine_brand %}<div style="font-size:0.82rem;color:var(--green-700);margin-top:3px;"><i class="bi bi-shield-plus"></i> {{ a.vaccine_brand.display_name(current_lang) }}{% if a.vaccine_dose %} · {{ t('appointments.dose_number') }} {{ a.vaccine_dose }}{% endif %}{% if a.vaccine_brand.stock <= 0 %} <span style="color:var(--danger);">({{ t('appointments.out_of_stock') }})</span>{% endif %}</div>{% endif %}
           {% if a.reason %}<div style="font-size:0.85rem;color:var(--muted);margin-top:3px;">{{ a.reason }}</div>{% endif %}
         </td>
         <td><span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span>
@@ -299,9 +300,13 @@
 
 {% block scripts %}
 <script>
-function board(slotsUrl, searchUrl, boardDoctorId) {
+function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
   return {
-    slotsUrl, searchUrl, boardDoctorId,
+    slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
+    // Pre-fill the doctor: the board's filtered doctor, else the only doctor
+    // in the clinic (so a single-doctor clinic never has to pick one).
+    defaultDoctorId() { return this.boardDoctorId ? String(this.boardDoctorId)
+                             : (this.soleDoctorId ? String(this.soleDoctorId) : ''); },
     modal: null,                 // 'reschedule' | 'cancel' | 'walkin' | 'waitlist'
     // patient search (shared by walk-in & waitlist)
     q: '', results: [], chosen: null,
@@ -350,7 +355,7 @@ function board(slotsUrl, searchUrl, boardDoctorId) {
     },
     // Walk-in --------------------------------------------------------------
     openWalkIn() {
-      this.f = { doctorId: this.boardDoctorId ? String(this.boardDoctorId) : '', appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'' };
+      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'' };
       this.modal = 'walkin';
     },
     submitWalkIn() {
@@ -361,7 +366,7 @@ function board(slotsUrl, searchUrl, boardDoctorId) {
     },
     // Waitlist -------------------------------------------------------------
     openWaitlist() {
-      this.f = { doctorId: this.boardDoctorId ? String(this.boardDoctorId) : '', appt_type: 'new', reason: '', preferred_from:'', preferred_to:'' };
+      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'new', reason: '', preferred_from:'', preferred_to:'' };
       this.modal = 'waitlist';
     },
     submitWaitlist() {

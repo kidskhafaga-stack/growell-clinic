@@ -8,6 +8,7 @@ from datetime import datetime
 
 from flask import (
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -28,8 +29,10 @@ from app.models import (
     Investigation,
     Patient,
     PatientAttachment,
+    Service,
     Visit,
     VisitInvestigation,
+    VisitService,
     VitalSigns,
 )
 from app.utils.decorators import client_ip, module_required
@@ -150,10 +153,16 @@ def record(visit_id):
             PatientAttachment.visit_id != visit.id,
         ).order_by(PatientAttachment.created_at.desc()).limit(5).all()
     )
+    procedure_services = (
+        Service.query.filter(Service.is_active.is_(True),
+                             Service.category.in_(("procedure", "lab", "radiology")))
+        .order_by(Service.name).all()
+    )
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
+        procedure_services=procedure_services,
     )
 
 
@@ -270,6 +279,39 @@ def add_investigation(visit_id):
     db.session.commit()
     flash(t("visits.inv_added"), "success")
     return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
+
+
+@visits_bp.route("/<int:visit_id>/services", methods=["POST"])
+@module_required(MODULE)
+def add_service(visit_id):
+    """Add a chargeable procedure/service performed during the visit."""
+    visit = db.get_or_404(Visit, visit_id)
+    service = db.session.get(Service, request.form.get("service_id", type=int))
+    if service is None:
+        flash(t("visits.proc_need"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#proc")
+    db.session.add(VisitService(
+        visit_id=visit.id, service_id=service.id,
+        name=service.display_name(getattr(g, "lang", "ar")),
+        quantity=max(request.form.get("quantity", type=int) or 1, 1),
+        notes=(request.form.get("notes") or "").strip() or None,
+    ))
+    ActivityLog.record("visit.add_service", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, detail=service.name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.proc_added"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#proc")
+
+
+@visits_bp.route("/services/<int:vs_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_service(vs_id):
+    vs = db.get_or_404(VisitService, vs_id)
+    visit_id = vs.visit_id
+    db.session.delete(vs)
+    db.session.commit()
+    flash(t("visits.proc_removed"), "info")
+    return redirect(url_for("visits.record", visit_id=visit_id) + "#proc")
 
 
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])
