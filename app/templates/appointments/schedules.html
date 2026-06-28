@@ -25,6 +25,18 @@
   </form>
 </div>
 
+<!-- Consultation follow-up window -->
+<div class="card gc-animate" style="margin-bottom:18px;animation-delay:0.07s;">
+  <h2 class="section-title"><i class="bi bi-clock-history"></i> {{ t('appointments.consult_window') }}</h2>
+  <form method="post" action="{{ url_for('appointments.consult_settings') }}" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('appointments.consult_free_days') }}</label>
+      <input class="input" type="number" min="0" name="consult_free_days" value="{{ consult_free_days }}" style="width:120px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('appointments.consult_max_days') }}</label>
+      <input class="input" type="number" min="0" name="consult_max_days" value="{{ consult_max_days }}" style="width:120px;"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+
 <div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start;">
   <!-- Existing windows by weekday -->
   <div class="card gc-scale-in" style="animation-delay:0.1s;">

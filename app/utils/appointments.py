@@ -6,12 +6,77 @@ from app.models import (
     Appointment,
     DoctorSchedule,
     ScheduleException,
+    Setting,
     User,
 )
 from app.models.appointment import ACTIVE_STATUSES
 
 # How far ahead the "next available" finders scan before giving up.
 LOOKAHEAD_DAYS = 60
+
+# Consultation = a follow-up to a paid exam (كشف) within a window. Defaults are
+# editable in settings.
+CONSULT_FREE_DAYS_DEFAULT = 7
+CONSULT_MAX_DAYS_DEFAULT = 10
+
+
+def _setting_int(key, default):
+    try:
+        return int(Setting.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def consult_window_days():
+    """Return (free_days, max_days) for the consultation follow-up window."""
+    free = _setting_int("consult_free_days", CONSULT_FREE_DAYS_DEFAULT)
+    mx = _setting_int("consult_max_days", CONSULT_MAX_DAYS_DEFAULT)
+    if mx < free:
+        mx = free
+    return free, mx
+
+
+def last_exam_date(patient_id, doctor_id, on_or_before=None):
+    """Date of the patient's most recent exam (كشف / appt_type 'new') with this
+    doctor, or None. Cancelled bookings are ignored."""
+    if not patient_id or not doctor_id:
+        return None
+    q = (Appointment.query
+         .filter(Appointment.patient_id == patient_id,
+                 Appointment.doctor_id == doctor_id,
+                 Appointment.appt_type == "new",
+                 Appointment.status != "cancelled"))
+    if on_or_before is not None:
+        q = q.filter(Appointment.appt_date <= on_or_before)
+    appt = q.order_by(Appointment.appt_date.desc()).first()
+    return appt.appt_date if appt else None
+
+
+def consultation_window(patient_id, doctor_id, on_date=None):
+    """Classify a consultation booking against the follow-up window.
+
+    Returns a dict: ``status`` is one of
+      * ``no_exam``  – no prior exam on record with this doctor
+      * ``ok``       – within the free follow-up window
+      * ``warn``     – past the free window but within the max
+      * ``exceeded`` – past the max → should be an exam (or doctor approval)
+    plus ``days`` since the last exam, ``last_date``, ``free_days``, ``max_days``.
+    """
+    on_date = on_date or date.today()
+    free_days, max_days = consult_window_days()
+    last = last_exam_date(patient_id, doctor_id, on_date)
+    if last is None:
+        return {"status": "no_exam", "days": None, "last_date": None,
+                "free_days": free_days, "max_days": max_days}
+    days = (on_date - last).days
+    if days <= free_days:
+        status = "ok"
+    elif days <= max_days:
+        status = "warn"
+    else:
+        status = "exceeded"
+    return {"status": status, "days": days, "last_date": last.isoformat(),
+            "free_days": free_days, "max_days": max_days}
 
 
 def list_doctors():

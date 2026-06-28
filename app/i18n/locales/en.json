@@ -390,7 +390,15 @@
     "walk_in_flag": "Walk-in",
     "no_growth": "No growth measurements yet.",
     "walk_in_pick_patient": "Choose a patient first.",
-    "walk_in_pick_doctor": "Choose a doctor to save the walk-in."
+    "walk_in_pick_doctor": "Choose a doctor to save the walk-in.",
+    "consult_no_exam": "No earlier exam on record with this doctor — this may need to be booked as an exam.",
+    "consult_ok": "Last exam was {days} day(s) ago — within the free consultation window.",
+    "consult_warn": "Last exam was {days} day(s) ago (free window is {free}) — still allowed, but close to the limit.",
+    "consult_exceeded": "Last exam was {days} day(s) ago — past the consultation limit ({max} days). It should be an exam, or needs the doctor's approval.",
+    "consult_window": "Consultation follow-up window",
+    "consult_free_days": "Free window (days)",
+    "consult_max_days": "Max window (days)",
+    "consult_window_saved": "Consultation window saved"
   },
   "appt_types": {
     "new": "New visit",
