@@ -1721,7 +1721,8 @@
     "low_stock": "{count} أصناف مخزونها منخفض",
     "contracts_expiring": "{count} عقود قاربت على الانتهاء",
     "vaccines_due": "{count} مرضى لديهم تطعيمات مستحقة",
-    "birthdays": "{count} أعياد ميلاد هذا الأسبوع"
+    "birthdays": "{count} أعياد ميلاد هذا الأسبوع",
+    "mark_all_read": "تعليم الكل كمقروء"
   },
   "analytics": {
     "title": "تحليل المرضى",

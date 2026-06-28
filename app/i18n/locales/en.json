@@ -1721,7 +1721,8 @@
     "low_stock": "{count} low-stock item(s)",
     "contracts_expiring": "{count} contract(s) expiring soon",
     "vaccines_due": "{count} patient(s) with vaccines due",
-    "birthdays": "{count} birthday(s) this week"
+    "birthdays": "{count} birthday(s) this week",
+    "mark_all_read": "Mark all as read"
   },
   "analytics": {
     "title": "Patient analytics",

@@ -85,6 +85,16 @@ def notif_dismiss():
     return {"ok": True, "key": key}
 
 
+@main_bp.route("/notifications/dismiss-all", methods=["POST"])
+@login_required
+def notif_dismiss_all():
+    """Mark every current bell alert as seen so the bell clears."""
+    from app.utils import notifications
+
+    notifications.dismiss_all(current_user)
+    return {"ok": True}
+
+
 def _users_dir():
     path = os.path.join(current_app.static_folder, "uploads", "users")
     os.makedirs(path, exist_ok=True)
