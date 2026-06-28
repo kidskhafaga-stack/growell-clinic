@@ -388,7 +388,9 @@
     "exc_removed": "Time off removed",
     "exc_need": "Select a doctor and a date",
     "walk_in_flag": "Walk-in",
-    "no_growth": "No growth measurements yet."
+    "no_growth": "No growth measurements yet.",
+    "walk_in_pick_patient": "Choose a patient first.",
+    "walk_in_pick_doctor": "Choose a doctor to save the walk-in."
   },
   "appt_types": {
     "new": "New visit",
