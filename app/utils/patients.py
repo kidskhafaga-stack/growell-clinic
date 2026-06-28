@@ -65,6 +65,27 @@ def generate_patient_number(scheme=None, prefix=None):
     return candidate
 
 
+def apply_patient_search(query, q):
+    """Filter a Patient query by a free-text term (name/number/national id).
+
+    Shared by every patient-listing page so search behaves identically across
+    patients, vaccinations, growth, etc.
+    """
+    from sqlalchemy import or_
+
+    q = (q or "").strip()
+    if not q:
+        return query
+    like = f"%{q}%"
+    return query.filter(or_(
+        Patient.full_name.ilike(like),
+        Patient.full_name_en.ilike(like),
+        Patient.patient_number.ilike(like),
+        Patient.reference_number.ilike(like),
+        Patient.national_id.ilike(like),
+    ))
+
+
 def patient_number_allocator(scheme=None, prefix=None):
     """Return a generator of sequential file numbers with no per-call DB query.
 

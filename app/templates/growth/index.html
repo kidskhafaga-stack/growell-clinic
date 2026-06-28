@@ -9,6 +9,13 @@
 <h1 class="page-title gc-animate">{{ t('growth.title') }}</h1>
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('growth.select_patient') }}</p>
 
+<form method="get" class="gc-animate" style="margin-bottom:16px;animation-delay:0.06s;">
+  <div class="search-box">
+    <i class="bi bi-search"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="{{ t('patients.search_placeholder') }}" autocomplete="off">
+  </div>
+</form>
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if patients %}
   <table class="table">
@@ -33,7 +40,7 @@
     </tbody>
   </table>
   {% else %}
-  <div class="empty-state"><i class="bi bi-graph-up"></i>{{ t('growth.no_records') }}</div>
+  <div class="empty-state"><i class="bi bi-{{ 'search' if q else 'graph-up' }}"></i>{{ t('patients.no_results') if q else t('growth.no_records') }}</div>
   {% endif %}
   {{ render_pagination(pagination) }}
 </div>

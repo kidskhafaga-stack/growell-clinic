@@ -20,7 +20,6 @@ from flask import (
     url_for,
 )
 from flask_login import current_user
-from sqlalchemy import or_
 
 from app.blueprints.patients import patients_bp
 from app.extensions import db
@@ -51,6 +50,7 @@ from app.utils.imports import (
     REQUIRED_KEYS,
 )
 from app.utils.patients import (
+    apply_patient_search,
     delete_patient_photo,
     generate_patient_number,
     patient_number_allocator,
@@ -103,18 +103,7 @@ def delete_document(att_id):
 @module_required(MODULE)
 def index():
     q = (request.args.get("q") or "").strip()
-    query = Patient.query
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            or_(
-                Patient.full_name.ilike(like),
-                Patient.full_name_en.ilike(like),
-                Patient.patient_number.ilike(like),
-                Patient.reference_number.ilike(like),
-                Patient.national_id.ilike(like),
-            )
-        )
+    query = apply_patient_search(Patient.query, q)
     pagination = query.order_by(Patient.created_at.desc()).paginate(
         page=request.args.get("page", 1, type=int), per_page=25, error_out=False
     )
