@@ -56,11 +56,11 @@ tested + committed + reviewed. **Reuses existing models — no duplication.**
 - **Billing**: given priced doses pre-fill the patient's invoice and are
   marked billed (PatientVaccine.invoice_id) so they collect on exit.
 
-### Vaccine path — remaining
-- Book a vaccine as a service (pick vaccine + dose at booking); purchase order
-  when not in stock.
-- "Given outside clinic" flag (doctor) → no stock deduction, no charge.
-- Vaccine-batch stocktake.
+### Vaccine path — done (cont.)
+- **Book a vaccine as a service**: vaccine + dose on the appointment, stock
+  status in the picker, shown on the board; shortcut to a purchase order.
+- **"Given outside clinic"** flag → no stock, no charge, not in P&L/doctor share.
+- **Vaccine-batch stocktake** (Inventory → Vaccine stocktake).
 
 ### Doctor economics on vaccines (requested)
 - Add `VaccineBrand.doctor_fee` = the part of the vaccine price that goes to the
