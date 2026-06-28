@@ -793,7 +793,14 @@
     "qty_vials": "عدد الأمبولات",
     "doses": "جرعة",
     "vials": "أمبولة",
-    "doses_per_vial_each": "جرعات/أمبولة:"
+    "doses_per_vial_each": "جرعات/أمبولة:",
+    "vaccine_stocktake": "جرد التطعيمات",
+    "vaccine_stocktake_desc": "عُدّ الجرعات الفعلية لكل دفعة وطابقها مع النظام",
+    "system_qty": "النظام",
+    "counted": "الفعلي",
+    "apply_stocktake": "تطبيق الجرد",
+    "stocktake_hint": "اترك السطر فارغًا لتركه كما هو.",
+    "stocktake_done": "تم تطبيق الجرد (عُدّلت {n} دفعة)"
   },
   "instatus": {
     "ok": "متوفر",

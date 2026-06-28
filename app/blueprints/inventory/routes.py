@@ -110,6 +110,38 @@ def batch_new():
     return redirect(url_for("inventory.index"))
 
 
+@inventory_bp.route("/vaccine-stocktake", methods=["GET", "POST"])
+@module_required(MODULE)
+def vaccine_stocktake():
+    """Count actual doses per vaccine batch and reconcile against the system."""
+    batches = (VaccineInventory.query
+               .join(VaccineInventory.brand)
+               .order_by(VaccineBrand.name, VaccineInventory.expiry_date).all())
+    if request.method == "POST":
+        adjusted = 0
+        for batch in batches:
+            raw = request.form.get(f"count_{batch.id}")
+            if raw is None or raw.strip() == "":
+                continue
+            try:
+                counted = int(raw)
+            except ValueError:
+                continue
+            counted = max(counted, 0)
+            if counted != batch.qty_remaining:
+                # Keep qty_received; set used so remaining == counted.
+                batch.qty_used = max((batch.qty_received or 0) - counted, 0)
+                adjusted += 1
+        if adjusted:
+            ActivityLog.record("inventory.vaccine_stocktake", user_id=current_user.id,
+                               entity="vaccine_inventory", detail=f"adjusted={adjusted}",
+                               ip_address=client_ip())
+            db.session.commit()
+        flash(t("inventory.stocktake_done", n=adjusted), "success")
+        return redirect(url_for("inventory.vaccine_stocktake"))
+    return render_template("inventory/vaccine_stocktake.html", batches=batches)
+
+
 @inventory_bp.route("/batch/<int:batch_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def batch_delete(batch_id):

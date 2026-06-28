@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('inventory.vaccine_stocktake') }}{% endblock %}
+{% block page_heading %}{{ t('inventory.vaccine_stocktake') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('inventory.vaccine_stocktake') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('inventory.vaccine_stocktake_desc') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+</div>
+
+<form method="post">
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    {% if batches %}
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('inventory.brand') }}</th><th>{{ t('inventory.lot_number') }}</th>
+        <th>{{ t('inventory.expiry_date') }}</th>
+        <th>{{ t('inventory.system_qty') }}</th><th>{{ t('inventory.counted') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td>{{ b.brand.vaccine.display_name(current_lang) if b.brand.vaccine else '' }} — <strong>{{ b.brand.display_name(current_lang) }}</strong></td>
+          <td>{{ b.lot_number or '—' }}</td>
+          <td dir="ltr">{{ b.expiry_date or '—' }}</td>
+          <td><span class="badge badge--role">{{ b.qty_remaining }}</span></td>
+          <td><input class="input" type="number" min="0" name="count_{{ b.id }}" placeholder="{{ b.qty_remaining }}" style="width:110px;"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="padding:14px 18px;">
+      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check2-square"></i> {{ t('inventory.apply_stocktake') }}</button>
+      <span class="hint" style="margin-inline-start:8px;">{{ t('inventory.stocktake_hint') }}</span>
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-box"></i>{{ t('inventory.no_batches') }}</div>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

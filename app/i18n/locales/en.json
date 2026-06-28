@@ -793,7 +793,14 @@
     "qty_vials": "Number of vials",
     "doses": "doses",
     "vials": "vials",
-    "doses_per_vial_each": "doses/vial:"
+    "doses_per_vial_each": "doses/vial:",
+    "vaccine_stocktake": "Vaccine stocktake",
+    "vaccine_stocktake_desc": "Count actual doses per batch and reconcile against the system",
+    "system_qty": "System",
+    "counted": "Counted",
+    "apply_stocktake": "Apply stocktake",
+    "stocktake_hint": "Leave a row blank to keep it unchanged.",
+    "stocktake_done": "Stocktake applied ({n} batch(es) adjusted)"
   },
   "instatus": {
     "ok": "In stock",
