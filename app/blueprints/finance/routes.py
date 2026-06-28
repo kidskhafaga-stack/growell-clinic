@@ -7,7 +7,7 @@ phases build invoices, doctor statements and discount claims on top.
 import calendar
 from datetime import date, datetime
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.blueprints.finance import finance_bp
@@ -38,10 +38,15 @@ from app.models import (
     ServiceBundleItem,
     Setting,
     User,
+    Visit,
 )
 from app.utils.decorators import client_ip, module_required
 from app.utils.finance import generate_invoice_number
-from app.utils.pricing import save_visit_type_service_map, visit_type_service_map
+from app.utils.pricing import (
+    save_visit_type_service_map,
+    service_for_visit_type,
+    visit_type_service_map,
+)
 from app.utils import einvoice as eta
 
 MODULE = "finance"
@@ -337,6 +342,28 @@ def invoice_new():
 
     pid = request.args.get("patient_id", type=int)
     patient = db.session.get(Patient, pid) if pid else None
+    visit_id = request.args.get("visit_id", type=int)
+    doctor_id = request.args.get("doctor_id", type=int)
+
+    # Coming from a visit: default the patient + doctor and pre-fill the base
+    # line from the visit type at this doctor's price (the cashier then just
+    # adds procedures/vaccines and collects).
+    prefill_line = None
+    visit = db.session.get(Visit, visit_id) if visit_id else None
+    if visit is not None:
+        patient = patient or visit.patient
+        if doctor_id is None:
+            doctor_id = visit.doctor_id
+        appt_type = visit.appointment.appt_type if visit.appointment else None
+        svc = service_for_visit_type(appt_type) if appt_type else None
+        if svc is not None:
+            lang = getattr(g, "lang", "ar")
+            prefill_line = {
+                "service_id": str(svc.id),
+                "description": svc.display_name(lang),
+                "unit_price": svc.price_for(visit.doctor),
+            }
+
     return render_template(
         "finance/invoice_form.html", patient=patient,
         doctors=_doctors_active(),
@@ -344,8 +371,7 @@ def invoice_new():
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
-        visit_id=request.args.get("visit_id", type=int),
-        doctor_id=request.args.get("doctor_id", type=int),
+        visit_id=visit_id, doctor_id=doctor_id, prefill_line=prefill_line,
     )
 
 
