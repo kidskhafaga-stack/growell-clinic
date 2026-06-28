@@ -922,7 +922,11 @@
     "bundle_sum": "Components total",
     "example_calc": "Example on current price",
     "eta_item_type": "ETA item type",
-    "price_override_hint": "Price: blank = default, 0 = free for this doctor."
+    "price_override_hint": "Price: blank = default, 0 = free for this doctor.",
+    "visit_type_services": "Visit type pricing",
+    "visit_type_hint": "Map each visit type to the service that sets its base charge (per-doctor price applies). Leave blank for no base charge (e.g. vaccination — billed separately).",
+    "no_charge": "No base charge",
+    "visit_types_saved": "Visit type pricing saved"
   },
   "commission_types": {
     "none": "None",

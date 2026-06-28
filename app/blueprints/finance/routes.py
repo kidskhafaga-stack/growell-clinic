@@ -14,6 +14,7 @@ from app.blueprints.finance import finance_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    APPOINTMENT_TYPES,
     CLIENT_CATEGORIES,
     COMMISSION_TYPES,
     COVERAGE_TYPES,
@@ -40,6 +41,7 @@ from app.models import (
 )
 from app.utils.decorators import client_ip, module_required
 from app.utils.finance import generate_invoice_number
+from app.utils.pricing import save_visit_type_service_map, visit_type_service_map
 from app.utils import einvoice as eta
 
 MODULE = "finance"
@@ -74,7 +76,23 @@ def services():
         "finance/services.html", services=services,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
         item_types=ETA_ITEM_TYPES, doctors=_doctors(),
+        appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
     )
+
+
+@finance_bp.route("/services/visit-types", methods=["POST"])
+@module_required(MODULE)
+def visit_type_services():
+    """Map each visit type (كشف / استشارة / …) to its base-charge service."""
+    mapping = {}
+    for appt_type in APPOINTMENT_TYPES:
+        sid = request.form.get(f"vt_{appt_type}", type=int)
+        if sid:
+            mapping[appt_type] = sid
+    save_visit_type_service_map(mapping)
+    db.session.commit()
+    flash(t("services.visit_types_saved"), "success")
+    return redirect(url_for("finance.services"))
 
 
 @finance_bp.route("/services/new", methods=["POST"])
