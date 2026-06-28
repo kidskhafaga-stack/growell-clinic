@@ -98,6 +98,7 @@ def register_commands(app):
             ("appointments", "vaccine_brand_id", "INTEGER"),
             ("appointments", "vaccine_dose", "INTEGER"),
             ("doctor_service_commissions", "price_override", "FLOAT"),
+            ("payments", "kind", "VARCHAR(10) DEFAULT 'payment'"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
             ("invoices", "payer_id", "INTEGER"),
             ("invoices", "coverage_card", "VARCHAR(60)"),

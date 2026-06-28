@@ -28,6 +28,8 @@
     <div class="value">{{ expected_cash }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
   <div class="stat-card edge-blue gc-lift"><i class="bi bi-cash-stack ico"></i>
     <div class="value">{{ collected }}</div><div class="label">{{ t('cashier.collected_total') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-arrow-return-left ico"></i>
+    <div class="value">{{ refunds }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
   <div class="stat-card edge-red gc-lift"><i class="bi bi-hourglass ico"></i>
     <div class="value">{{ outstanding_total }}</div><div class="label">{{ t('cashier.outstanding') }}</div></div>
 </div>
@@ -54,6 +56,7 @@
         {% endfor %}
         <tr style="border-top:2px solid var(--line);font-weight:700;">
           <td>{{ t('cashier.collected_total') }}</td><td style="text-align:end;">{{ collected }}</td></tr>
+        <tr><td>{{ t('cashier.refunds') }}</td><td style="text-align:end;color:var(--danger);">−{{ refunds }}</td></tr>
         <tr><td>{{ t('cashier.billed_today') }}</td><td style="text-align:end;">{{ billed_today }}</td></tr>
       </tbody>
     </table>

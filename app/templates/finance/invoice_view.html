@@ -167,7 +167,9 @@
     <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.amount') }}</th><th>{{ t('invoices.method') }}</th><th>{{ t('invoices.received_by') }}</th></tr></thead>
     <tbody>
       {% for pay in invoice.payments %}
-      <tr><td dir="ltr">{{ pay.paid_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ pay.amount }}</td>
+      <tr><td dir="ltr">{{ pay.paid_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td style="color:{{ 'var(--danger)' if pay.kind == 'refund' else 'inherit' }};">
+            {% if pay.kind == 'refund' %}<i class="bi bi-arrow-return-left"></i> −{% endif %}{{ pay.amount }}</td>
           <td>{{ t('payment_methods.' ~ pay.method) }}</td><td>{{ pay.receiver.display_name(current_lang) if pay.receiver else '—' }}</td></tr>
       {% endfor %}
     </tbody>
@@ -183,6 +185,22 @@
     </div>
     <button class="btn btn-primary btn-sm gc-press gc-ripple" type="submit"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_payment') }}</button>
   </form>
+  {% endif %}
+
+  {% if invoice.paid > 0 %}
+  <details style="margin-top:12px;">
+    <summary style="cursor:pointer;color:var(--danger);font-size:0.9rem;"><i class="bi bi-arrow-return-left"></i> {{ t('invoices.refund') }}</summary>
+    <form method="post" action="{{ url_for('finance.invoice_refund', invoice_id=invoice.id) }}" style="margin-top:10px;">
+      <p class="hint">{{ t('invoices.refund_hint') }}</p>
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('invoices.amount') }} *</label><input class="input" type="number" step="0.01" name="amount" value="{{ invoice.paid if invoice.balance < 0 else '' }}" required></div>
+        <div class="form-row"><label>{{ t('invoices.method') }}</label>
+          <select class="select" name="method">{% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
+        <div class="form-row"><label>{{ t('invoices.refund_reason') }}</label><input class="input" name="notes"></div>
+      </div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);border-color:var(--danger);"><i class="bi bi-arrow-return-left"></i> {{ t('invoices.refund') }}</button>
+    </form>
+  </details>
   {% endif %}
 </div>
 {% endblock %}

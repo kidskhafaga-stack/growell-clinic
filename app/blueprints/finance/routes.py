@@ -276,13 +276,24 @@ def cashier():
     start = datetime.combine(on_date, datetime.min.time())
     end = datetime.combine(on_date, datetime.max.time())
 
-    # Drawer: payments physically received on this day.
+    # Drawer: money moved on this day — payments in, refunds out.
     pays = Payment.query.filter(Payment.paid_at >= start, Payment.paid_at <= end).all()
     by_method = Counter()
+    refunds = 0.0
+    cash_in = cash_out = 0.0
     for p in pays:
-        by_method[p.method] += p.amount or 0
-    collected = round(sum(p.amount or 0 for p in pays), 2)
-    cash_collected = round(by_method.get("cash", 0), 2)
+        amt = p.amount or 0
+        if p.kind == "refund":
+            refunds += amt
+            if p.method == "cash":
+                cash_out += amt
+        else:
+            by_method[p.method] += amt
+            if p.method == "cash":
+                cash_in += amt
+    collected = round(sum(v for v in by_method.values()), 2)
+    refunds = round(refunds, 2)
+    cash_collected = round(cash_in - cash_out, 2)
 
     drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
     opening_float = drawer.opening_float if drawer else 0
@@ -297,7 +308,7 @@ def cashier():
     return render_template(
         "finance/cashier.html", on_date=on_date, drawer=drawer,
         opening_float=opening_float, by_method=dict(by_method),
-        collected=collected, cash_collected=cash_collected,
+        collected=collected, cash_collected=cash_collected, refunds=refunds,
         expected_cash=expected_cash, billed_today=billed_today,
         outstanding=outstanding, outstanding_total=outstanding_total,
         payment_methods=PAYMENT_METHODS,
@@ -643,6 +654,35 @@ def invoice_payment(invoice_id):
                        detail=f"{invoice.invoice_number}:{amount}", ip_address=client_ip())
     db.session.commit()
     flash(t("invoices.payment_added"), "success")
+    if (request.form.get("next") or "") == "cashier":
+        return redirect(url_for("finance.cashier"))
+    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+
+@finance_bp.route("/invoices/<int:invoice_id>/refund", methods=["POST"])
+@module_required(MODULE)
+def invoice_refund(invoice_id):
+    """Return money to the patient (e.g. an exam re-billed as a consultation)
+    and reconcile the cashier drawer."""
+    invoice = db.get_or_404(Invoice, invoice_id)
+    amount = request.form.get("amount", type=float)
+    if not amount or amount <= 0:
+        flash(t("invoices.bad_amount"), "danger")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    if amount > invoice.paid:  # can't refund more than was actually collected
+        amount = invoice.paid
+    method = (request.form.get("method") or "cash").strip()
+    invoice.payments.append(Payment(
+        amount=round(amount, 2), kind="refund",
+        method=method if method in PAYMENT_METHODS else "cash",
+        received_by=current_user.id,
+        notes=(request.form.get("notes") or "").strip() or None,
+    ))
+    invoice.recalc_status()
+    ActivityLog.record("invoice.refund", user_id=current_user.id, entity="invoice",
+                       detail=f"{invoice.invoice_number}:-{amount}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("invoices.refund_added"), "success")
     if (request.form.get("next") or "") == "cashier":
         return redirect(url_for("finance.cashier"))
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))

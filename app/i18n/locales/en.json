@@ -1038,7 +1038,11 @@
     "edit_item": "Edit item",
     "updated": "Invoice updated",
     "receipt": "Receipt",
-    "thermal": "Thermal receipt"
+    "thermal": "Thermal receipt",
+    "refund": "Refund",
+    "refund_hint": "Return money to the patient (e.g. an exam re-billed as a consultation). It reconciles the cashier drawer.",
+    "refund_reason": "Reason",
+    "refund_added": "Refund recorded"
   },
   "expenses": {
     "title": "Expenses",
@@ -1809,6 +1813,7 @@
     "billed_today": "Billed today",
     "who_owes": "Who still owes",
     "collect": "Collect",
-    "all_settled": "Everything is settled — no outstanding dues."
+    "all_settled": "Everything is settled — no outstanding dues.",
+    "refunds": "Refunds"
   }
 }
