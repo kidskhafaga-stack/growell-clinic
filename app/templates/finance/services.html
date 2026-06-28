@@ -56,7 +56,7 @@
     <div class="form-grid">
       {% for at in appt_types %}
       <div class="form-row">
-        <label>{{ t('visit_types.' ~ at) }}</label>
+        <label>{{ t('appt_types.' ~ at) }}</label>
         <select class="select" name="vt_{{ at }}">
           <option value="">— {{ t('services.no_charge') }} —</option>
           {% for s in services %}
