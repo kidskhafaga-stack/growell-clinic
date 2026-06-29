@@ -526,6 +526,8 @@
     "vac_none_available": "No optional vaccine matches the child's age right now.",
     "vac_late": "Late",
     "vac_late_hint": "A course started here whose dose is past due",
+    "vac_seasonal": "Annual",
+    "vac_seasonal_hint": "A seasonal vaccine the child had before — due for its yearly dose",
     "save_visit": "Save visit",
     "carry_forward": "Copy from last visit",
     "normal_exam": "Normal exam",

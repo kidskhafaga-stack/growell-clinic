@@ -22,6 +22,9 @@ _DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "egypt_vaccin
 # How soon before the due date a dose is flagged as "due now".
 DUE_WINDOW_DAYS = 30
 
+# A seasonal vaccine (e.g. flu) taken here is due again after about a year.
+SEASONAL_RECALL_DAYS = 330
+
 
 def add_months(d, months):
     """Return ``d`` shifted by ``months`` (clamping day to month length)."""
@@ -58,6 +61,7 @@ def seed_vaccines():
                 code=v["code"], name_ar=v["name_ar"], name_en=v.get("name_en"),
                 is_mandatory=v.get("mandatory", True), sort_order=order,
                 route=v.get("route"), on_demand=v.get("on_demand", False),
+                is_seasonal=v.get("seasonal", False),
             )
             db.session.add(vaccine)
             db.session.flush()
@@ -67,6 +71,8 @@ def seed_vaccines():
                 vaccine.route = v["route"]  # backfill route on existing entries
             if v.get("on_demand") and not vaccine.on_demand:
                 vaccine.on_demand = True    # backfill situational flag
+            if v.get("seasonal") and not vaccine.is_seasonal:
+                vaccine.is_seasonal = True  # backfill seasonal flag
         for b in v["brands"]:
             if any(br.name == b["name"] for br in vaccine.brands):
                 continue
@@ -183,22 +189,54 @@ def next_due_dose(plan):
     return candidates[0]
 
 
-def next_due_for_started(plan):
-    """Most urgent overdue/due dose limited to courses the child already started
-    *with us* (≥1 dose given). We only chase a late dose when we know the
-    history — never a vaccine the child may have taken elsewhere.
+def seasonal_recall(patient, vaccine, today=None):
+    """For a seasonal vaccine the child already took here, whether a new annual
+    dose is due now. Returns ``(due, last_given_date, next_dose_number)`` — due
+    once ~11 months have passed since the last dose, regardless of the fixed
+    schedule (each season is a fresh dose).
     """
-    candidates = []
+    today = today or date.today()
+    given = (PatientVaccine.query
+             .filter_by(patient_id=patient.id, vaccine_id=vaccine.id, event_type="given")
+             .all())
+    if not given:
+        return False, None, None
+    last = max(g.given_date for g in given)
+    nxt = max(g.dose_number for g in given) + 1
+    return (today - last).days >= SEASONAL_RECALL_DAYS, last, nxt
+
+
+def patient_due_reminders(patient, lang="ar", today=None):
+    """Everything worth reminding this patient about, limited to courses started
+    *with us* (≥1 dose given) — we never chase a vaccine we never gave:
+
+      * a late/due next dose of a started course (incl. boosters), and
+      * a seasonal vaccine's annual recall once ~11 months have passed.
+
+    Returns a list of dicts ``{vaccine, brand, dose_number, due_date, status}``
+    sorted most-urgent first (``status`` is overdue / due / seasonal).
+    """
+    today = today or date.today()
+    plan = patient_plan(patient, lang)
+    out = []
     for v in plan:
-        if v["done"] == 0:            # course never started here
+        vac, brand = v["vaccine"], v["brand"]
+        done = [d for d in v["doses"] if d["status"] == "done"]
+        if not done:                       # course never started here
             continue
-        for d in v["doses"]:
-            if d["status"] in ("overdue", "due"):
-                candidates.append((d["due_date"], v["vaccine"], v["brand"], d))
-    if not candidates:
-        return None
-    candidates.sort(key=lambda c: c[0] or "")
-    return candidates[0]
+        if vac.is_seasonal:
+            last_iso = max((d["given_date"] for d in done if d["given_date"]), default=None)
+            if last_iso and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS:
+                out.append({"vaccine": vac, "brand": brand,
+                            "dose_number": max(d["dose_number"] for d in done) + 1,
+                            "due_date": None, "status": "seasonal"})
+            continue
+        nxt = next((d for d in v["doses"] if d["status"] in ("overdue", "due")), None)
+        if nxt:
+            out.append({"vaccine": vac, "brand": brand, "dose_number": nxt["dose_number"],
+                        "due_date": nxt["due_date"], "status": nxt["status"]})
+    out.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
+    return out
 
 
 def next_undone_dose_number(patient_id, vaccine, brand):
@@ -227,9 +265,10 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
     ``None`` / ``"no_brand"`` / ``"all_done"`` / ``"dose_exists"``.
     """
     # A vaccine locks to one brand once any dose is given; otherwise honour the
-    # requested brand, falling back to the default.
+    # requested brand, falling back to the default. Seasonal vaccines (flu) don't
+    # lock — each season's brand can differ.
     locked_brand, is_locked = chosen_brand(patient.id, vaccine)
-    if is_locked:
+    if is_locked and not vaccine.is_seasonal:
         brand = locked_brand
     elif brand is None:
         brand = vaccine.default_brand
@@ -237,7 +276,13 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
         return None, "no_brand"
 
     if dose_number is None:
-        dose_number = next_undone_dose_number(patient.id, vaccine, brand)
+        if vaccine.is_seasonal:
+            last = (PatientVaccine.query
+                    .filter_by(patient_id=patient.id, vaccine_id=vaccine.id, event_type="given")
+                    .order_by(PatientVaccine.dose_number.desc()).first())
+            dose_number = (last.dose_number + 1) if last else 1
+        else:
+            dose_number = next_undone_dose_number(patient.id, vaccine, brand)
     if dose_number is None:
         return None, "all_done"
 
@@ -286,6 +331,7 @@ def visit_vaccine_panel(patient, lang="ar"):
     Mandatory (EPI) and on-demand (rabies/travel) vaccines are excluded from the
     suggestions; the doctor adds those deliberately.
     """
+    today = date.today()
     plan = patient_plan(patient, lang)
     received, give_now, out_of_stock = [], [], []
     for v in plan:
@@ -294,6 +340,21 @@ def visit_vaccine_panel(patient, lang="ar"):
         if given:
             received.append({"vaccine": vac, "brand": brand, "doses": given})
         if vac.is_mandatory or vac.on_demand:
+            continue
+        # Seasonal vaccines taken here recur every year instead of following the
+        # fixed schedule — once ~11 months pass, offer the next yearly dose.
+        if vac.is_seasonal and given:
+            last_iso = max((d["given_date"] for d in given if d["given_date"]), default=None)
+            if (last_iso and brand is not None
+                    and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS):
+                batch = brand.available_batches[0] if brand.available_batches else None
+                entry = {"vaccine": vac, "brand": brand,
+                         "dose": {"dose_number": max(d["dose_number"] for d in given) + 1,
+                                  "due_date": None, "given_date": None,
+                                  "status": "due", "age_label": ""},
+                         "stock": brand.stock, "batch": batch, "price": brand.price,
+                         "started": True, "overdue": False, "seasonal": True}
+                (give_now if brand.stock > 0 else out_of_stock).append(entry)
             continue
         # Offer the first not-yet-given dose that's age-appropriate now
         # (its recommended age has arrived / is within the due window).
@@ -306,6 +367,7 @@ def visit_vaccine_panel(patient, lang="ar"):
                  # A course we started here can be genuinely "late"; one we never
                  # gave is only an offer (we don't know what was taken elsewhere).
                  "started": len(given) > 0,
-                 "overdue": len(given) > 0 and nxt["status"] == "overdue"}
+                 "overdue": len(given) > 0 and nxt["status"] == "overdue",
+                 "seasonal": False}
         (give_now if brand.stock > 0 else out_of_stock).append(entry)
     return {"received": received, "give_now": give_now, "out_of_stock": out_of_stock}

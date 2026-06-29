@@ -349,6 +349,7 @@
       "name_ar": "الإنفلونزا الموسمية",
       "name_en": "Seasonal Influenza",
       "mandatory": false,
+      "seasonal": true,
       "brands": [
         {
           "name": "Vaxigrip",

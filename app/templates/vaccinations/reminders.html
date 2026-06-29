@@ -35,6 +35,7 @@
         <td dir="ltr">{{ r.due_date or '—' }}</td>
         <td>
           {% if r.status == 'overdue' %}<span class="badge badge--danger">{{ t('vstatus.overdue') }}</span>
+          {% elif r.status == 'seasonal' %}<span class="badge badge--muted"><i class="bi bi-arrow-repeat"></i> {{ t('vaccinations.seasonal') }}</span>
           {% else %}<span class="badge badge--role">{{ t('vstatus.due') }}</span>{% endif %}
         </td>
         <td style="text-align:end;white-space:nowrap;">

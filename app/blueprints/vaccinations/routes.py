@@ -40,7 +40,7 @@ from app.utils.vaccines import (
     administer_dose,
     chosen_brand,
     next_due_dose,
-    next_due_for_started,
+    patient_due_reminders,
     patient_plan,
     plan_summary,
 )
@@ -524,19 +524,17 @@ def reminders():
     started_ids = [r[0] for r in (
         PatientVaccine.query.filter(PatientVaccine.event_type == "given")
         .with_entities(PatientVaccine.patient_id).distinct().all())]
+    lang = getattr(g, "lang", "ar")
     rows = []
     for patient in (Patient.query.filter(Patient.is_active.is_(True),
                                          Patient.id.in_(started_ids)).all()
                     if started_ids else []):
-        nd = next_due_for_started(patient_plan(patient))
-        if not nd:
-            continue
-        _due, vaccine, brand, dose = nd
-        rows.append({
-            "patient": patient, "vaccine": vaccine, "brand": brand,
-            "dose_number": dose["dose_number"], "due_date": dose["due_date"],
-            "status": dose["status"], "phone": patient.contact_phone,
-        })
+        for due in patient_due_reminders(patient, lang):
+            rows.append({
+                "patient": patient, "vaccine": due["vaccine"], "brand": due["brand"],
+                "dose_number": due["dose_number"], "due_date": due["due_date"],
+                "status": due["status"], "phone": patient.contact_phone,
+            })
     rows.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
     return render_template("vaccinations/reminders.html", rows=rows,
                            now_date=datetime.utcnow().date().isoformat())
@@ -547,21 +545,21 @@ def reminders():
 def remind_due(patient_id):
     """Send the patient's guardian a "dose due" reminder via the CRM template."""
     patient = db.get_or_404(Patient, patient_id)
-    nd = next_due_for_started(patient_plan(patient))
-    if not nd:
+    lang = getattr(g, "lang", "ar")
+    due_list = patient_due_reminders(patient, lang)
+    if not due_list:
         flash(t("vaccinations.no_due"), "info")
         return redirect(url_for("vaccinations.reminders"))
-    _due, vaccine, brand, dose = nd
+    due = due_list[0]
     phone = patient.contact_phone
     if not phone:
         flash(t("occasions.no_phone"), "warning")
         return redirect(url_for("vaccinations.reminders"))
-    lang = getattr(g, "lang", "ar")
     body = wa.render(wa.template_body("vaccine_due"), {
         "patient": patient.display_name(lang),
-        "vaccine": vaccine.display_name(lang),
-        "dose": _dose_label(dose["dose_number"], lang),
-        "due_date": dose["due_date"] or "—",
+        "vaccine": due["vaccine"].display_name(lang),
+        "dose": _dose_label(due["dose_number"], lang),
+        "due_date": due["due_date"] or "—",
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
     log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)

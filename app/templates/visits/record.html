@@ -403,6 +403,7 @@
           <strong>{{ e.vaccine.display_name(current_lang) }}</strong>
           <span style="color:var(--muted);font-size:0.82rem;">· {{ e.brand.display_name(current_lang) }} · {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
           {% if e.overdue %}<span class="badge" title="{{ t('visits.vac_late_hint') }}" style="background:#fdecea;color:#b42318;font-size:0.7rem;">{{ t('visits.vac_late') }}</span>{% endif %}
+          {% if e.seasonal %}<span class="badge badge--muted" title="{{ t('visits.vac_seasonal_hint') }}" style="font-size:0.7rem;"><i class="bi bi-arrow-repeat"></i> {{ t('visits.vac_seasonal') }}</span>{% endif %}
           <div style="color:var(--muted);font-size:0.78rem;margin-top:2px;">
             {{ t('visits.vac_in_stock') }}: {{ e.stock }}
             {%- if e.batch and e.batch.expiry_date %} · {{ t('visits.vac_expiry') }} <span dir="ltr">{{ e.batch.expiry_date }}</span>{% endif %}
