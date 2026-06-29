@@ -181,11 +181,19 @@ def record(visit_id):
                              Service.category.in_(("procedure", "lab", "radiology")))
         .order_by(Service.name).all()
     )
+    # Vaccination snapshot for the visit tab: what the child has taken and
+    # what's due, built once for this single patient (cheap).
+    from app.utils.vaccines import next_due_dose, patient_plan, plan_summary
+    vaccine_plan = patient_plan(visit.patient, getattr(g, "lang", "ar"))
+    vaccine_summary = plan_summary(vaccine_plan)
+    vaccine_due = next_due_dose(vaccine_plan)
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services,
+        vaccine_plan=vaccine_plan, vaccine_summary=vaccine_summary,
+        vaccine_due=vaccine_due,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )

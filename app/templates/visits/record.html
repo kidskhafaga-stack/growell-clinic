@@ -57,6 +57,10 @@
     <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
       <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
       {% if visit.services %}<span class="vtab-count">{{ visit.services|length }}</span>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='vac' && 'active'" x-on:click="go('vac')">
+      <i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}
+      {% set vac_due_count = (vaccine_summary.overdue or 0) + (vaccine_summary.due or 0) %}
+      {% if vac_due_count %}<span class="vtab-count">{{ vac_due_count }}</span>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='files' && 'active'" x-on:click="go('files')">
       <i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}
       {% if visit.attachments %}<span class="vtab-count">{{ visit.attachments|length }}</span>{% endif %}</button>
@@ -375,6 +379,58 @@
     {% endif %}
   </div>
 
+  <!-- Vaccinations: read-only snapshot of what the child took and what's due -->
+  <div class="card gc-scale-in" id="vac" x-show="tab==='vac'" style="animation-delay:0.27s;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 class="section-title" style="margin:0;"><i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}</h2>
+      {% if current_user.can_access('vaccinations') %}
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.view', patient_id=visit.patient_id) }}">
+        <i class="bi bi-box-arrow-up-right"></i> {{ t('visits.vac_open_record') }}</a>
+      {% endif %}
+    </div>
+    <p class="hint" style="margin-top:-2px;">{{ t('visits.vac_intro') }}</p>
+
+    {% if vaccine_plan %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px;">
+      <span class="badge badge--green">{{ t('vaccinations.stat_done') }}: {{ vaccine_summary.done }}</span>
+      <span class="badge" style="background:#fdecea;color:#b42318;">{{ t('vaccinations.stat_overdue') }}: {{ vaccine_summary.overdue }}</span>
+      <span class="badge" style="background:#fef3cd;color:#915907;">{{ t('vaccinations.stat_due') }}: {{ vaccine_summary.due }}</span>
+      <span class="badge badge--muted">{{ t('vaccinations.stat_upcoming') }}: {{ vaccine_summary.upcoming }}</span>
+    </div>
+
+    {% if vaccine_due %}
+    <div style="display:flex;align-items:center;gap:10px;border:1px solid #f5c2c7;background:#fff5f5;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+      <i class="bi bi-shield-exclamation" style="color:#b42318;font-size:1.2rem;"></i>
+      <div style="flex:1;">
+        <div style="font-weight:700;">{{ t('visits.vac_due_now') }}: {{ vaccine_due[1].display_name(current_lang) }}</div>
+        <div style="color:var(--muted);font-size:0.85rem;">{{ vaccine_due[2].display_name(current_lang) }} · {{ t('vaccinations.dose') }} {{ vaccine_due[3].dose_number }}{% if vaccine_due[3].due_date %} · {{ t('vaccinations.due_date') }} <span dir="ltr">{{ vaccine_due[3].due_date }}</span>{% endif %}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      {% for v in vaccine_plan %}
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <strong style="flex:1;">{{ v.vaccine.display_name(current_lang) }}
+            <span style="color:var(--muted);font-weight:400;font-size:0.82rem;">· {{ v.brand.display_name(current_lang) }}</span></strong>
+          <span class="badge {{ 'badge--green' if v.done == v.total and v.total else 'badge--muted' }}">{{ v.done }}/{{ v.total }}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+          {% for d in v.doses %}
+          {% set colors = {'done':'background:#e7f6ec;color:#1a7f37;','overdue':'background:#fdecea;color:#b42318;','due':'background:#fef3cd;color:#915907;','upcoming':'background:#eef1f0;color:#5b6b66;'} %}
+          <span title="{{ d.age_label }}" style="font-size:0.75rem;border-radius:6px;padding:2px 7px;{{ colors.get(d.status, '') }}">
+            {{ t('vaccinations.dose') }} {{ d.dose_number }}{% if d.given_date %} · <span dir="ltr">{{ d.given_date }}</span>{% elif d.due_date %} · <span dir="ltr">{{ d.due_date }}</span>{% endif %}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--muted);">{{ t('visits.vac_none') }}</p>
+    {% endif %}
+  </div>
+
   <!-- Patient file attachments (lab/imaging reports) -->
   <div class="card gc-scale-in" id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
     <h2 class="section-title"><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h2>
@@ -517,12 +573,12 @@
       // Restore the active tab from the URL hash so it survives the page
       // reloads after adding a diagnosis (#dx) / investigation (#inv) / file (#files).
       restore() {
-        const map = { '#dx': 'dx', '#inv': 'inv', '#proc': 'proc', '#files': 'files' };
+        const map = { '#dx': 'dx', '#inv': 'inv', '#proc': 'proc', '#vac': 'vac', '#files': 'files' };
         this.tab = map[window.location.hash] || 'case';
       },
       go(tab) {
         this.tab = tab;
-        const hash = { dx: '#dx', inv: '#inv', proc: '#proc', files: '#files' }[tab] || '';
+        const hash = { dx: '#dx', inv: '#inv', proc: '#proc', vac: '#vac', files: '#files' }[tab] || '';
         history.replaceState(null, '', hash || window.location.pathname);
       },
       // Build the "write prescription" link, appending the live weight.
