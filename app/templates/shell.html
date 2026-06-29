@@ -53,7 +53,7 @@
           {% set endpoint = MODULE_ENDPOINTS.get(module) %}
           <a class="nav-item gc-press {{ 'active' if active_module == module else '' }}"
              href="{{ url_for(endpoint) if endpoint else '#' }}"
-             {% if not endpoint %}title="{{ t('dashboard.phase_notice') }}"{% endif %}>
+             {% if not endpoint %}title="{{ t('common.coming_soon') }}"{% endif %}>
             <i class="bi bi-{{ MODULE_ICONS.get(module, 'dot') }}"></i>
             <span>{{ t('nav.' ~ module) }}</span>
           </a>
