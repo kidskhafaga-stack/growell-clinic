@@ -40,6 +40,7 @@ from app.utils.vaccines import (
     administer_dose,
     chosen_brand,
     next_due_dose,
+    next_due_for_started,
     patient_plan,
     plan_summary,
 )
@@ -514,10 +515,20 @@ def certificate(patient_id):
 @vaccinations_bp.route("/reminders")
 @module_required(MODULE)
 def reminders():
-    """Patients with an overdue / due-soon next dose, ready to be reminded."""
+    """Patients with a late/due dose of a course they started here.
+
+    Only patients who already have a dose recorded with us are considered — we
+    never chase a vaccine we never gave (it may have been taken elsewhere) — which
+    also keeps this cheap with thousands of patients on the books.
+    """
+    started_ids = [r[0] for r in (
+        PatientVaccine.query.filter(PatientVaccine.event_type == "given")
+        .with_entities(PatientVaccine.patient_id).distinct().all())]
     rows = []
-    for patient in Patient.query.filter_by(is_active=True).all():
-        nd = next_due_dose(patient_plan(patient))
+    for patient in (Patient.query.filter(Patient.is_active.is_(True),
+                                         Patient.id.in_(started_ids)).all()
+                    if started_ids else []):
+        nd = next_due_for_started(patient_plan(patient))
         if not nd:
             continue
         _due, vaccine, brand, dose = nd
@@ -536,7 +547,7 @@ def reminders():
 def remind_due(patient_id):
     """Send the patient's guardian a "dose due" reminder via the CRM template."""
     patient = db.get_or_404(Patient, patient_id)
-    nd = next_due_dose(patient_plan(patient))
+    nd = next_due_for_started(patient_plan(patient))
     if not nd:
         flash(t("vaccinations.no_due"), "info")
         return redirect(url_for("vaccinations.reminders"))

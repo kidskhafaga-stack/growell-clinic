@@ -402,6 +402,7 @@
         <div style="flex:1;min-width:200px;">
           <strong>{{ e.vaccine.display_name(current_lang) }}</strong>
           <span style="color:var(--muted);font-size:0.82rem;">· {{ e.brand.display_name(current_lang) }} · {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
+          {% if e.overdue %}<span class="badge" title="{{ t('visits.vac_late_hint') }}" style="background:#fdecea;color:#b42318;font-size:0.7rem;">{{ t('visits.vac_late') }}</span>{% endif %}
           <div style="color:var(--muted);font-size:0.78rem;margin-top:2px;">
             {{ t('visits.vac_in_stock') }}: {{ e.stock }}
             {%- if e.batch and e.batch.expiry_date %} · {{ t('visits.vac_expiry') }} <span dir="ltr">{{ e.batch.expiry_date }}</span>{% endif %}
@@ -425,6 +426,7 @@
         <div style="flex:1;min-width:200px;">
           <strong>{{ e.vaccine.display_name(current_lang) }}</strong>
           <span style="color:var(--muted);font-size:0.82rem;">· {{ e.brand.display_name(current_lang) }} · {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
+          {% if e.overdue %}<span class="badge" title="{{ t('visits.vac_late_hint') }}" style="background:#fdecea;color:#b42318;font-size:0.7rem;">{{ t('visits.vac_late') }}</span>{% endif %}
         </div>
         <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, appt_type='vaccination') }}">
           <i class="bi bi-calendar-plus"></i> {{ t('visits.vac_schedule_appt') }}</a>

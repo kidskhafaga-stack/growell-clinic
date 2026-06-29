@@ -524,6 +524,8 @@
     "vac_schedule_appt": "جدولة موعد",
     "vac_purchase_order": "طلب شراء",
     "vac_none_available": "مفيش تطعيم اختياري مناسب لعُمر الطفل دلوقتي.",
+    "vac_late": "متأخرة",
+    "vac_late_hint": "كورس بدأ عندنا وفاتت الجرعة عن موعدها",
     "save_visit": "حفظ الزيارة",
     "carry_forward": "نسخ من الزيارة السابقة",
     "normal_exam": "فحص طبيعي",

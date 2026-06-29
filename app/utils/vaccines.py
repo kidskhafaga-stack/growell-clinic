@@ -183,6 +183,24 @@ def next_due_dose(plan):
     return candidates[0]
 
 
+def next_due_for_started(plan):
+    """Most urgent overdue/due dose limited to courses the child already started
+    *with us* (≥1 dose given). We only chase a late dose when we know the
+    history — never a vaccine the child may have taken elsewhere.
+    """
+    candidates = []
+    for v in plan:
+        if v["done"] == 0:            # course never started here
+            continue
+        for d in v["doses"]:
+            if d["status"] in ("overdue", "due"):
+                candidates.append((d["due_date"], v["vaccine"], v["brand"], d))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda c: c[0] or "")
+    return candidates[0]
+
+
 def next_undone_dose_number(patient_id, vaccine, brand):
     """The next dose number to administer for a vaccine/brand."""
     given = {
@@ -284,6 +302,10 @@ def visit_vaccine_panel(patient, lang="ar"):
             continue
         batch = brand.available_batches[0] if brand.available_batches else None
         entry = {"vaccine": vac, "brand": brand, "dose": nxt,
-                 "stock": brand.stock, "batch": batch, "price": brand.price}
+                 "stock": brand.stock, "batch": batch, "price": brand.price,
+                 # A course we started here can be genuinely "late"; one we never
+                 # gave is only an offer (we don't know what was taken elsewhere).
+                 "started": len(given) > 0,
+                 "overdue": len(given) > 0 and nxt["status"] == "overdue"}
         (give_now if brand.stock > 0 else out_of_stock).append(entry)
     return {"received": received, "give_now": give_now, "out_of_stock": out_of_stock}

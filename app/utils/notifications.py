@@ -129,18 +129,21 @@ def _compute():
                         birthdays += 1
                 except ValueError:  # Feb 29
                     pass
-                gset = given.get(pid, ())
-                for vid, doses in schedule.items():
-                    found = False
-                    for dnum, age_m in doses:
-                        if (vid, dnum) in gset:
-                            continue
-                        if add_months(dob, age_m) <= cutoff:  # overdue or due-soon
-                            found = True
+                # Only chase courses started here (≥1 dose given) — a vaccine we
+                # never gave may well have been taken at a government unit.
+                gset = given.get(pid)
+                if gset:
+                    started_vids = {vid for vid, _ in gset}
+                    patient_due = False
+                    for vid in started_vids:
+                        for dnum, age_m in schedule.get(vid, ()):
+                            if (vid, dnum) not in gset and add_months(dob, age_m) <= cutoff:
+                                patient_due = True
+                                break
+                        if patient_due:
                             break
-                    if found:
+                    if patient_due:
                         vac_due += 1
-                        break
         if vac_due:
             items.append({"key": "vaccines_due", "module": "vaccinations",
                           "icon": "shield-exclamation", "severity": "warning", "count": vac_due,
