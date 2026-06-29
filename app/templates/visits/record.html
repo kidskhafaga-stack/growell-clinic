@@ -163,7 +163,7 @@
         <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
         <div class="smart-chips">
           {% for phrase in complaint_chips %}
-          <button type="button" class="chip" x-on:click="addComplaint({{ phrase|tojson }})">{{ phrase }}</button>
+          <button type="button" class="chip" x-on:click='addComplaint({{ phrase|tojson }})'>{{ phrase }}</button>
           {% endfor %}
         </div>
       </div>
@@ -174,7 +174,7 @@
           <button type="button" class="chip chip--primary" x-on:click="normalExam()">
             <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
           {% for phrase in exam_chips %}
-          <button type="button" class="chip" x-on:click="addExam({{ phrase|tojson }})">{{ phrase }}</button>
+          <button type="button" class="chip" x-on:click='addExam({{ phrase|tojson }})'>{{ phrase }}</button>
           {% endfor %}
         </div>
       </div>
@@ -319,7 +319,7 @@
             <template x-for="s in suggestions" :key="s.id">
               <div x-on:click="pick(s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
                    x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
-                <strong x-text="s.name"></strong> <span style="color:var(--muted);font-size:0.8rem;" x-text="s.category"></span>
+                <strong x-text="current_lang==='ar' ? s.name_ar : (s.name_en || s.name_ar)"></strong> <span style="color:var(--muted);font-size:0.8rem;" x-text="s.category"></span>
               </div>
             </template>
           </div>
