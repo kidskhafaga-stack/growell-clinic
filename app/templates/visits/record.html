@@ -75,7 +75,7 @@
         <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <span class="badge badge--role"><i class="bi bi-calendar3"></i> {{ pv.visit_date.strftime('%Y-%m-%d') }}</span>
-            {% for dx in pv.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span>{% endfor %}
+            {% for dx in pv.final_diagnoses() %}<span class="badge badge--green">{{ dx.display_title(current_lang) }}</span>{% endfor %}
             {% if pv.vitals and pv.vitals.weight_kg %}<span class="badge badge--muted"><i class="bi bi-speedometer2"></i> {{ pv.vitals.weight_kg }}kg</span>{% endif %}
             {% if pv.vitals and pv.vitals.temperature_c %}<span class="badge badge--muted">{{ pv.vitals.temperature_c }}°</span>{% endif %}
             <a style="margin-inline-start:auto;color:var(--green-700);" href="{{ url_for('visits.view', visit_id=pv.id) }}"><i class="bi bi-eye"></i></a>
@@ -97,7 +97,7 @@
         <div style="border:1px dashed var(--line);border-radius:10px;padding:10px;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
-            <strong style="flex:1;">{{ x.name }}</strong>
+            <strong style="flex:1;">{{ x.display_name(current_lang) }}</strong>
             <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ x.created_at.strftime('%Y-%m-%d') }}</span>
           </div>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
@@ -162,8 +162,8 @@
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
         <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
         <div class="smart-chips">
-          {% for key in ['fever','cough','diarrhea','vomiting','rash','followup','vaccine_visit'] %}
-          <button type="button" class="chip" x-on:click="addComplaint({{ t('visits.cc_' ~ key)|tojson }})">{{ t('visits.cc_' ~ key) }}</button>
+          {% for phrase in complaint_chips %}
+          <button type="button" class="chip" x-on:click="addComplaint({{ phrase|tojson }})">{{ phrase }}</button>
           {% endfor %}
         </div>
       </div>
@@ -173,6 +173,9 @@
         <div class="smart-chips">
           <button type="button" class="chip chip--primary" x-on:click="normalExam()">
             <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
+          {% for phrase in exam_chips %}
+          <button type="button" class="chip" x-on:click="addExam({{ phrase|tojson }})">{{ phrase }}</button>
+          {% endfor %}
         </div>
       </div>
 
@@ -212,7 +215,7 @@
       {% for dx in visit.diagnoses %}
       <div class="dx-row">
         <span class="badge badge--role">ICD-{{ dx.icd_version }}{% if dx.code %} · {{ dx.code }}{% endif %}</span>
-        <span style="flex:1;">{{ dx.title }}</span>
+        <span style="flex:1;">{{ dx.display_title(current_lang) }}</span>
         <span class="badge badge--{{ 'green' if dx.dx_type == 'final' else 'muted' }}">{{ t('diagnosis_types.' ~ dx.dx_type) }}</span>
         <form method="post" action="{{ url_for('visits.delete_diagnosis', dx_id=dx.id) }}" style="display:inline;">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button>
@@ -243,7 +246,9 @@
         <div class="form-row"><label>{{ t('visits.code') }}</label>
           <input class="input" name="code" dir="ltr" x-model="code"></div>
         <div class="form-row"><label>{{ t('visits.diagnosis') }} *</label>
-          <input class="input" name="title" x-model="title" required></div>
+          <input class="input" name="title" x-model="title" x-on:input="onTitleInput()" required>
+          <input type="hidden" name="title_ar" :value="titleAr">
+          <input type="hidden" name="title_en" :value="titleEn"></div>
         <div class="form-row"><label>{{ t('visits.dx_type') }}</label>
           <select class="select" name="dx_type">
             <option value="working">{{ t('diagnosis_types.working') }}</option>
@@ -271,7 +276,7 @@
       <div style="border:1px solid var(--line);border-radius:10px;padding:12px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
-          <strong style="flex:1;">{{ x.name }}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
+          <strong style="flex:1;">{{ x.display_name(current_lang) }}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
           <span class="badge {{ 'badge--green' if x.status=='resulted' else 'badge--muted' }}">{{ t('visits.inv_' ~ x.status) }}</span>
           <form method="post" action="{{ url_for('visits.delete_investigation', inv_id=x.id) }}" style="display:inline;">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
@@ -297,6 +302,8 @@
     <form method="post" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">
       <input type="hidden" name="investigation_id" :value="invId">
+      <input type="hidden" name="name_ar" :value="nameAr">
+      <input type="hidden" name="name_en" :value="nameEn">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('rx.inv_kind') }}</label>
           <select class="select" name="kind" x-model="kind">
@@ -306,7 +313,7 @@
         <div class="form-row" style="position:relative;"><label>{{ t('rx.inv_name') }} *</label>
           <input class="input" name="name" x-model="name" autocomplete="off" required
                  placeholder="{{ t('rx.inv_search_ph') }}"
-                 x-on:input.debounce.250ms="search()" x-on:focus="search()">
+                 x-on:input.debounce.250ms="onNameInput()" x-on:focus="search()">
           <div x-show="open && suggestions.length" x-cloak
                style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
             <template x-for="s in suggestions" :key="s.id">
@@ -481,7 +488,7 @@
     catch (e) { cfg = {}; }
     return {
       icdUrl, weight: w || '', height: h || '',
-      q: '', results: [], code: '', title: '', version: '10',
+      q: '', results: [], code: '', title: '', titleAr: '', titleEn: '', version: '10',
       // "Write less" helpers: clinical fields are Alpine-bound so smart phrases
       // and carry-forward can fill them with one click.
       cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
@@ -494,6 +501,11 @@
       normalExam() {
         const t = (this.exam || '').trim();
         this.exam = t ? (t + '\n' + this.normalText) : this.normalText;
+      },
+      addExam(txt) {
+        const t = (this.exam || '').trim();
+        if (t.split('\n').map(x => x.trim()).includes(txt)) return;  // no dupes
+        this.exam = t ? (t + '\n' + txt) : txt;
       },
       carryForward() {
         if (!this.prev) return;
@@ -531,15 +543,19 @@
         } catch (e) { this.results = []; }
       },
       pick(r) {
-        this.code = r.code; this.title = (current_lang === 'ar' ? r.ar : r.en);
+        // Keep both languages: title is the Arabic primary, title_en the English.
+        this.code = r.code; this.titleAr = r.ar; this.titleEn = r.en;
+        this.title = (current_lang === 'ar' ? r.ar : r.en);
         this.version = '10'; this.results = []; this.q = '';
-      }
+      },
+      // Manual edit overrides a previous pick (clear the bilingual snapshot).
+      onTitleInput() { this.titleAr = ''; this.titleEn = ''; }
     };
   }
 
   function invOrder(searchUrl) {
     return {
-      searchUrl, kind: 'lab', name: '', invId: '', suggestions: [], open: false,
+      searchUrl, kind: 'lab', name: '', nameAr: '', nameEn: '', invId: '', suggestions: [], open: false,
       async search() {
         const q = (this.name || '').trim();
         if (q.length < 1) { this.suggestions = []; this.open = false; return; }
@@ -548,7 +564,13 @@
           this.suggestions = await r.json(); this.open = true;
         } catch (e) { this.suggestions = []; this.open = false; }
       },
-      pick(s) { this.invId = s.id; this.name = s.name; this.kind = s.kind; this.open = false; this.suggestions = []; }
+      pick(s) {
+        this.invId = s.id; this.kind = s.kind;
+        this.nameAr = s.name_ar; this.nameEn = s.name_en;
+        this.name = (current_lang === 'ar' ? s.name_ar : (s.name_en || s.name_ar));
+        this.open = false; this.suggestions = [];
+      },
+      onNameInput() { this.nameAr = ''; this.nameEn = ''; this.invId = ''; this.search(); }
     };
   }
 </script>

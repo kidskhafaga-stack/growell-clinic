@@ -929,7 +929,11 @@
     "clinic_accent": "Primary app colour",
     "clinic_accent_hint": "Recolour the app to match your clinic (can match the clinic logo).",
     "use_logo_colors": "Use logo colours",
-    "accent_reset": "Default (green)"
+    "accent_reset": "Default (green)",
+    "visit_chips_title": "Visit quick phrases",
+    "visit_chips_hint": "Quick chips shown in the visit to reduce typing — one phrase per line. Edit/add as many as you like.",
+    "complaint_chips": "Common complaints",
+    "exam_chips": "Common exam findings"
   },
   "errors": {
     "403_title": "Forbidden",

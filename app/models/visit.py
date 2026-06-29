@@ -91,7 +91,8 @@ class VisitInvestigation(db.Model):
     investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"), nullable=True)
 
     kind = db.Column(db.String(12), default="lab", nullable=False)  # lab | imaging
-    name = db.Column(db.String(200), nullable=False)
+    name = db.Column(db.String(200), nullable=False)     # Arabic / primary snapshot
+    name_en = db.Column(db.String(200))                  # English snapshot (bilingual)
     request_notes = db.Column(db.String(255))
 
     status = db.Column(db.String(12), default="requested", nullable=False)
@@ -107,6 +108,11 @@ class VisitInvestigation(db.Model):
     @property
     def has_result(self):
         return bool((self.result_text or "").strip() or (self.result_comment or "").strip())
+
+    def display_name(self, lang="ar"):
+        if lang == "en" and (self.name_en or "").strip():
+            return self.name_en
+        return self.name
 
     def __repr__(self):
         return f"<VisitInvestigation {self.kind}:{self.name} {self.status}>"

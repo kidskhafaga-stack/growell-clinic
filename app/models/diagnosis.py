@@ -19,13 +19,20 @@ class Diagnosis(db.Model):
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False, index=True)
 
     code = db.Column(db.String(20))
-    title = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(255), nullable=False)      # Arabic / primary snapshot
+    title_en = db.Column(db.String(255))                  # English snapshot (bilingual)
     icd_version = db.Column(db.String(2), default="10", nullable=False)
     dx_type = db.Column(db.String(20), default="working", nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     visit = db.relationship("Visit", back_populates="diagnoses")
+
+    def display_title(self, lang="ar"):
+        """Title in the requested language, falling back to the stored one."""
+        if lang == "en" and (self.title_en or "").strip():
+            return self.title_en
+        return self.title
 
     @staticmethod
     def valid_type(value):
