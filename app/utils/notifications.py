@@ -85,26 +85,62 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
-    # --- single patient scan: vaccines due + birthdays this week ---------
+    # --- vaccines due + birthdays this week ------------------------------
+    # Computed with a handful of bulk queries instead of a per-patient plan
+    # build, so it stays cheap even with thousands of patients on the books.
     try:
-        from app.models import Patient
-        from app.utils.vaccines import next_due_dose, patient_plan
+        from sqlalchemy import or_
+
+        from app.models import Patient, PatientVaccine, Vaccine
+        from app.utils.vaccines import DUE_WINDOW_DAYS, add_months
+
+        # Dose schedule per vaccine (default brand) — small, loaded once.
+        schedule = {}
+        for v in Vaccine.query.order_by(Vaccine.sort_order).all():
+            brand = v.default_brand
+            if brand is None:
+                continue
+            schedule[v.id] = [(d.dose_number, d.age_months) for d in brand.doses]
+
+        # Every given dose, grouped by patient: {patient_id: {(vaccine_id, dose_number)}}.
+        given = {}
+        gq = (PatientVaccine.query
+              .filter(or_(PatientVaccine.event_type == "given",
+                          PatientVaccine.event_type.is_(None)))
+              .with_entities(PatientVaccine.patient_id,
+                             PatientVaccine.vaccine_id,
+                             PatientVaccine.dose_number))
+        for pid, vid, dnum in gq.all():
+            given.setdefault(pid, set()).add((vid, dnum))
 
         vac_due = 0
         birthdays = 0
-        end = today + timedelta(days=BIRTHDAY_AHEAD_DAYS)
-        for p in Patient.query.filter_by(is_active=True).all():
-            if p.date_of_birth:
+        cutoff = today + timedelta(days=DUE_WINDOW_DAYS)
+        bday_end = today + timedelta(days=BIRTHDAY_AHEAD_DAYS)
+        rows = (Patient.query.filter_by(is_active=True)
+                .with_entities(Patient.id, Patient.date_of_birth).all())
+        for pid, dob in rows:
+            if dob:
                 try:
-                    bd = p.date_of_birth.replace(year=today.year)
+                    bd = dob.replace(year=today.year)
                     if bd < today:
                         bd = bd.replace(year=today.year + 1)
-                    if today <= bd <= end:
+                    if today <= bd <= bday_end:
                         birthdays += 1
                 except ValueError:  # Feb 29
                     pass
-            if next_due_dose(patient_plan(p)):
-                vac_due += 1
+                gset = given.get(pid, ())
+                for vid, doses in schedule.items():
+                    found = False
+                    for dnum, age_m in doses:
+                        if (vid, dnum) in gset:
+                            continue
+                        if add_months(dob, age_m) <= cutoff:  # overdue or due-soon
+                            found = True
+                            break
+                    if found:
+                        vac_due += 1
+                        break
         if vac_due:
             items.append({"key": "vaccines_due", "module": "vaccinations",
                           "icon": "shield-exclamation", "severity": "warning", "count": vac_due,
