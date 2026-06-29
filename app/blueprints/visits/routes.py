@@ -183,14 +183,20 @@ def record(visit_id):
     )
     # Vaccination snapshot for the visit tab, framed as "what can I give now"
     # (received history + in-stock optional vaccines + out-of-stock suggestions).
+    from app.models import Vaccine
     from app.utils.vaccines import visit_vaccine_panel
     vac_panel = visit_vaccine_panel(visit.patient, getattr(g, "lang", "ar"))
+    # Mandatory (EPI) vaccines aren't suggested, but the doctor can add one
+    # deliberately (e.g. recording a government-unit dose).
+    mandatory_vaccines = (Vaccine.query
+                          .filter_by(is_mandatory=True, is_discontinued=False)
+                          .order_by(Vaccine.sort_order).all())
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services,
-        vac_panel=vac_panel,
+        vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )
@@ -361,7 +367,7 @@ def give_vaccine(visit_id):
     recently-given uncharged doses — so we never bill here (no double charge).
     """
     from app.models import Vaccine
-    from app.utils.vaccines import administer_dose
+    from app.utils.vaccines import administer_dose, chosen_brand
 
     visit = db.get_or_404(Visit, visit_id)
     vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
@@ -371,10 +377,17 @@ def give_vaccine(visit_id):
 
     brand_id = request.form.get("brand_id", type=int)
     req_brand = next((b for b in vaccine.brands if b.id == brand_id), None)
+    # Deliberately mixing brands is allowed, but flag it so it's never silent.
+    locked, is_locked = chosen_brand(visit.patient_id, vaccine)
+    if is_locked and not vaccine.is_seasonal and req_brand and locked and req_brand.id != locked.id:
+        lang = getattr(g, "lang", "ar")
+        flash(t("vaccinations.brand_mixed_warn", old=locked.display_name(lang),
+                new=req_brand.display_name(lang)), "warning")
     pv, result = administer_dose(
         visit.patient, vaccine, brand=req_brand,
         dose_number=request.form.get("dose_number", type=int),
         doctor_id=visit.doctor_id or current_user.id,
+        given_outside=bool(request.form.get("given_outside")),
     )
     if pv is None:
         flash(t(f"vaccinations.{result}"),

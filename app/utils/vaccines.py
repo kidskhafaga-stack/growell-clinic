@@ -264,14 +264,14 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
     ``(patient_vaccine, error_key)`` where ``error_key`` is one of
     ``None`` / ``"no_brand"`` / ``"all_done"`` / ``"dose_exists"``.
     """
-    # A vaccine locks to one brand once any dose is given; otherwise honour the
-    # requested brand, falling back to the default. Seasonal vaccines (flu) don't
-    # lock — each season's brand can differ.
+    # Resolve the brand. An explicitly requested brand is always honoured — the
+    # doctor may deliberately mix brands across doses (e.g. PCV13 primary +
+    # PPSV23 booster); callers warn on a mix. With no request, a non-seasonal
+    # course keeps its locked brand; seasonal vaccines and first doses use the
+    # default.
     locked_brand, is_locked = chosen_brand(patient.id, vaccine)
-    if is_locked and not vaccine.is_seasonal:
-        brand = locked_brand
-    elif brand is None:
-        brand = vaccine.default_brand
+    if brand is None:
+        brand = locked_brand if (is_locked and not vaccine.is_seasonal) else vaccine.default_brand
     if brand is None:
         return None, "no_brand"
 
@@ -364,6 +364,9 @@ def visit_vaccine_panel(patient, lang="ar"):
         batch = brand.available_batches[0] if brand.available_batches else None
         entry = {"vaccine": vac, "brand": brand, "dose": nxt,
                  "stock": brand.stock, "batch": batch, "price": brand.price,
+                 # Other in-stock brands of the same vaccine, so the doctor can
+                 # deliberately switch type (e.g. a different PCV for the booster).
+                 "in_stock_brands": [b for b in vac.active_brands if b.stock > 0],
                  # A course we started here can be genuinely "late"; one we never
                  # gave is only an offer (we don't know what was taken elsewhere).
                  "started": len(given) > 0,

@@ -397,13 +397,24 @@
       <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}"
             style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
         <input type="hidden" name="vaccine_id" value="{{ e.vaccine.id }}">
-        <input type="hidden" name="brand_id" value="{{ e.brand.id }}">
         <input type="hidden" name="dose_number" value="{{ e.dose.dose_number }}">
         <div style="flex:1;min-width:200px;">
           <strong>{{ e.vaccine.display_name(current_lang) }}</strong>
-          <span style="color:var(--muted);font-size:0.82rem;">· {{ e.brand.display_name(current_lang) }} · {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
+          <span style="color:var(--muted);font-size:0.82rem;">· {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
           {% if e.overdue %}<span class="badge" title="{{ t('visits.vac_late_hint') }}" style="background:#fdecea;color:#b42318;font-size:0.7rem;">{{ t('visits.vac_late') }}</span>{% endif %}
           {% if e.seasonal %}<span class="badge badge--muted" title="{{ t('visits.vac_seasonal_hint') }}" style="font-size:0.7rem;"><i class="bi bi-arrow-repeat"></i> {{ t('visits.vac_seasonal') }}</span>{% endif %}
+          <div style="margin-top:5px;">
+            {% if e.in_stock_brands|length > 1 %}
+            <select name="brand_id" class="select" style="height:32px;padding:2px 8px;font-size:0.82rem;max-width:220px;">
+              {% for b in e.in_stock_brands %}
+              <option value="{{ b.id }}" {{ 'selected' if b.id == e.brand.id else '' }}>{{ b.display_name(current_lang) }} ({{ b.stock }})</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="hidden" name="brand_id" value="{{ e.brand.id }}">
+            <span style="color:var(--muted);font-size:0.82rem;">{{ e.brand.display_name(current_lang) }}</span>
+            {% endif %}
+          </div>
           <div style="color:var(--muted);font-size:0.78rem;margin-top:2px;">
             {{ t('visits.vac_in_stock') }}: {{ e.stock }}
             {%- if e.batch and e.batch.expiry_date %} · {{ t('visits.vac_expiry') }} <span dir="ltr">{{ e.batch.expiry_date }}</span>{% endif %}
@@ -457,6 +468,27 @@
       </div>
       {% endfor %}
     </div>
+    {% endif %}
+
+    <!-- Add a mandatory vaccine deliberately (give here or document a gov dose) -->
+    {% if mandatory_vaccines %}
+    <details style="margin-top:18px;">
+      <summary style="cursor:pointer;color:var(--green-800);font-size:0.92rem;font-weight:600;">
+        <i class="bi bi-plus-circle"></i> {{ t('visits.vac_add_mandatory') }}</summary>
+      <p class="hint" style="margin:6px 0 8px;">{{ t('visits.vac_add_mandatory_hint') }}</p>
+      <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}"
+            style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <select name="vaccine_id" class="select" required style="max-width:260px;">
+          <option value="" disabled selected>{{ t('visits.vac_choose_vaccine') }}</option>
+          {% for mv in mandatory_vaccines %}
+          <option value="{{ mv.id }}">{{ mv.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+        <label class="checkbox" style="margin:0;font-weight:400;font-size:0.85rem;">
+          <input type="checkbox" name="given_outside" value="1"> {{ t('visits.vac_given_outside') }}</label>
+        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.vac_add') }}</button>
+      </form>
+    </details>
     {% endif %}
   </div>
 
