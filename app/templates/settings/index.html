@@ -162,6 +162,20 @@
                 placeholder="{{ t('settings.thermal_footer_ph') }}">{{ values.get('thermal_footer_text','') }}</textarea>
       <div class="hint">{{ t('settings.thermal_footer_hint') }}</div>
     </div>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-chat-square-text"></i> {{ t('settings.visit_chips_title') }}</h3>
+    <p class="hint" style="margin-top:-4px;">{{ t('settings.visit_chips_hint') }}</p>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>{{ t('settings.complaint_chips') }}</label>
+        <textarea class="input" name="visit_complaint_chips" rows="6" dir="auto">{{ values.get('visit_complaint_chips') or default_complaint_chips }}</textarea>
+      </div>
+      <div class="form-row">
+        <label>{{ t('settings.exam_chips') }}</label>
+        <textarea class="input" name="visit_exam_chips" rows="6" dir="auto">{{ values.get('visit_exam_chips') or default_exam_chips }}</textarea>
+      </div>
+    </div>
   </div>
 
   <!-- WhatsApp / messaging -->

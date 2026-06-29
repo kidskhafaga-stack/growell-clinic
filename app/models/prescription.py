@@ -207,8 +207,14 @@ class PrescriptionInvestigation(db.Model):
     )
     investigation_id = db.Column(db.Integer, db.ForeignKey("investigations.id"), nullable=True)
     kind = db.Column(db.String(12), default="lab", nullable=False)  # lab | imaging
-    name = db.Column(db.String(200), nullable=False)  # snapshot
+    name = db.Column(db.String(200), nullable=False)  # Arabic / primary snapshot
+    name_en = db.Column(db.String(200))               # English snapshot (bilingual)
     notes = db.Column(db.String(255))
 
     prescription = db.relationship("Prescription", back_populates="investigations")
     investigation = db.relationship("Investigation")
+
+    def display_name(self, lang="ar"):
+        if lang == "en" and (self.name_en or "").strip():
+            return self.name_en
+        return self.name

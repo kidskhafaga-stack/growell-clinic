@@ -57,7 +57,7 @@
   <ul style="padding-inline-start:18px;">
     {% for dx in visit.diagnoses %}
     <li style="margin-bottom:6px;">
-      <strong>{{ dx.title }}</strong>
+      <strong>{{ dx.display_title(current_lang) }}</strong>
       {% if dx.code %}<span class="badge badge--role">ICD-{{ dx.icd_version }} · {{ dx.code }}</span>{% endif %}
       <span class="badge badge--{{ 'green' if dx.dx_type == 'final' else 'muted' }}">{{ t('diagnosis_types.' ~ dx.dx_type) }}</span>
     </li>
@@ -75,7 +75,7 @@
       {% for x in visit.investigations %}
       <tr>
         <td>{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</td>
-        <td>{{ x.name }}{% if x.request_notes %} <span style="color:var(--muted);">({{ x.request_notes }})</span>{% endif %}</td>
+        <td>{{ x.display_name(current_lang) }}{% if x.request_notes %} <span style="color:var(--muted);">({{ x.request_notes }})</span>{% endif %}</td>
         <td>{{ x.result_text or '—' }}</td>
         <td>{{ x.result_comment or '—' }}</td>
       </tr>

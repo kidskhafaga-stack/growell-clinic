@@ -293,8 +293,10 @@ def new():
                 iid = int(inv_ids[i]) if i < len(inv_ids) and inv_ids[i] else None
             except (ValueError, TypeError):
                 iid = None
+            inv_obj = db.session.get(Investigation, iid) if iid else None
             rx.investigations.append(PrescriptionInvestigation(
                 investigation_id=iid, kind=kind, name=name,
+                name_en=(inv_obj.name_en if inv_obj else None),
                 notes=(inv_notes[i].strip() if i < len(inv_notes) else "") or None,
             ))
             inv_count += 1

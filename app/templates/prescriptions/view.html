@@ -87,7 +87,7 @@
       <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
         <i class="bi bi-droplet-half"></i> {{ t('rx.labs_requested') }}</div>
       <ol style="margin:0;padding-inline-start:22px;">
-        {% for x in rx.labs() %}<li>{{ x.name }}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
+        {% for x in rx.labs() %}<li>{{ x.display_name(current_lang) }}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
       </ol>
     </div>
     {% endif %}
@@ -96,7 +96,7 @@
       <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
         <i class="bi bi-radioactive"></i> {{ t('rx.imaging_requested') }}</div>
       <ol style="margin:0;padding-inline-start:22px;">
-        {% for x in rx.imaging() %}<li>{{ x.name }}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
+        {% for x in rx.imaging() %}<li>{{ x.display_name(current_lang) }}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
       </ol>
     </div>
     {% endif %}

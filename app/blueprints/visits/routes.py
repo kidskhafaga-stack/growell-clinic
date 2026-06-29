@@ -30,6 +30,7 @@ from app.models import (
     Patient,
     PatientAttachment,
     Service,
+    Setting,
     Visit,
     VisitInvestigation,
     VisitService,
@@ -40,6 +41,28 @@ from app.utils.icd import search_icd
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 
 MODULE = "visits"
+
+# Quick "write less" chips in the visit — editable in Settings, with sensible
+# pediatric defaults. One phrase per line (Arabic comma also splits).
+DEFAULT_COMPLAINT_CHIPS = [
+    "حرارة", "كحة", "رشح", "إسهال", "قيء", "مغص", "إمساك", "طفح جلدي",
+    "التهاب حلق", "التهاب أذن", "صعوبة تنفس", "صفير بالصدر", "ضعف شهية",
+    "خمول", "تسنين", "احمرار عين", "ألم بطن", "صداع", "تقيؤ",
+    "متابعة نمو", "متابعة تطعيم", "إعادة كشف",
+]
+DEFAULT_EXAM_CHIPS = [
+    "الحالة العامة جيدة", "الصدر: دخول هواء ثنائي متساوٍ بدون صفير",
+    "القلب: أصوات منتظمة بدون لغط", "البطن: لين غير منتفخ غير مؤلم",
+    "الحلق: محتقن", "الأذن: طبلة محتقنة", "لا توجد علامات جفاف",
+    "الغدد الليمفاوية غير متضخمة", "الجلد: سليم",
+]
+
+
+def _visit_chips(key, defaults):
+    """Read a settings-defined chip list (line/comma separated), else defaults."""
+    raw = Setting.get(key) or ""
+    items = [s.strip() for s in raw.replace("،", "\n").splitlines() if s.strip()]
+    return items or list(defaults)
 
 
 def _float(name):
@@ -163,6 +186,8 @@ def record(visit_id):
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services,
+        complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
+        exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )
 
 
@@ -199,7 +224,10 @@ def _save_vitals(visit):
 @module_required(MODULE)
 def add_diagnosis(visit_id):
     visit = db.get_or_404(Visit, visit_id)
-    title = (request.form.get("title") or "").strip()
+    # Bilingual snapshot: the hidden title_ar/title_en come from the ICD pick;
+    # a manually-typed title falls back to the visible field.
+    title = (request.form.get("title_ar") or request.form.get("title") or "").strip()
+    title_en = (request.form.get("title_en") or "").strip()
     if not title:
         flash(t("common.required") + ": " + t("visits.diagnosis"), "danger")
         return redirect(url_for("visits.record", visit_id=visit.id) + "#dx")
@@ -210,6 +238,7 @@ def add_diagnosis(visit_id):
         visit_id=visit.id,
         code=(request.form.get("code") or "").strip() or None,
         title=title,
+        title_en=title_en or None,
         icd_version=version if Diagnosis.valid_version(version) else "10",
         dx_type=dx_type if Diagnosis.valid_type(dx_type) else "working",
     ))
@@ -245,7 +274,8 @@ def investigation_search():
     if kind in ("lab", "imaging"):
         query = query.filter(Investigation.kind == kind)
     rows = query.order_by(Investigation.name_ar).limit(15).all()
-    return jsonify([{"id": x.id, "name": x.display_name(), "kind": x.kind,
+    return jsonify([{"id": x.id, "name": x.display_name(), "name_ar": x.name_ar,
+                     "name_en": x.name_en or "", "kind": x.kind,
                      "category": x.category or ""} for x in rows])
 
 
@@ -254,7 +284,10 @@ def investigation_search():
 def add_investigation(visit_id):
     """Order a lab test / imaging study during the visit."""
     visit = db.get_or_404(Visit, visit_id)
-    name = (request.form.get("name") or "").strip()
+    # Bilingual snapshot: hidden name_ar/name_en come from the catalogue pick;
+    # a manually-typed name falls back to the visible field.
+    name = (request.form.get("name_ar") or request.form.get("name") or "").strip()
+    name_en = (request.form.get("name_en") or "").strip()
     if not name:
         flash(t("visits.inv_need_name"), "danger")
         return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
@@ -266,14 +299,15 @@ def add_investigation(visit_id):
     if inv_id is None and request.form.get("add_to_catalog"):
         existing = Investigation.query.filter_by(name_ar=name, kind=kind).first()
         if existing is None:
-            existing = Investigation(name_ar=name, kind=kind, is_active=True)
+            existing = Investigation(name_ar=name, name_en=name_en or None,
+                                     kind=kind, is_active=True)
             db.session.add(existing)
             db.session.flush()
         inv_id = existing.id
 
     db.session.add(VisitInvestigation(
         visit_id=visit.id, patient_id=visit.patient_id,
-        investigation_id=inv_id, kind=kind, name=name,
+        investigation_id=inv_id, kind=kind, name=name, name_en=name_en or None,
         request_notes=(request.form.get("request_notes") or "").strip() or None,
     ))
     db.session.commit()

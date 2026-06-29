@@ -26,6 +26,8 @@ TEXT_KEYS = [
     "wa_wapilot_key", "wa_wapilot_endpoint",
     "wa_tpl_appt_confirm", "wa_tpl_doctor_schedule", "wa_tpl_vaccine_given",
     "queue_mode", "crm_mode",
+    # Visit quick-chips (one per line) — common complaints + exam findings.
+    "visit_complaint_chips", "visit_exam_chips",
     # ETA e-invoicing.
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",
@@ -84,10 +86,15 @@ def index():
         return redirect(url_for("settings.index"))
 
     from app.utils.ai import AI_PROVIDERS
+    from app.blueprints.visits.routes import (
+        DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS,
+    )
 
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
-        "settings/index.html", values=values, ai_providers=AI_PROVIDERS
+        "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        default_complaint_chips="\n".join(DEFAULT_COMPLAINT_CHIPS),
+        default_exam_chips="\n".join(DEFAULT_EXAM_CHIPS),
     )
 
 
