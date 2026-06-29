@@ -549,6 +549,7 @@
       "name_ar": "داء الكلب",
       "name_en": "Rabies",
       "mandatory": false,
+      "on_demand": true,
       "route": "IM",
       "brands": [
         {
@@ -571,6 +572,7 @@
       "name_ar": "الحمى الصفراء",
       "name_en": "Yellow Fever",
       "mandatory": false,
+      "on_demand": true,
       "route": "SC",
       "brands": [
         {
@@ -587,6 +589,7 @@
       "name_ar": "الكوليرا",
       "name_en": "Cholera",
       "mandatory": false,
+      "on_demand": true,
       "route": "oral",
       "brands": [
         {

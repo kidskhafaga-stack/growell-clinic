@@ -113,6 +113,7 @@ def register_commands(app):
             ("invoices", "is_tax", "BOOLEAN DEFAULT 0"),
             ("services", "eta_item_type", "VARCHAR(8) DEFAULT 'EGS'"),
             ("vaccines", "route", "VARCHAR(20)"),
+            ("vaccines", "on_demand", "BOOLEAN DEFAULT 0"),
             ("users", "photo", "VARCHAR(255)"),
             ("users", "job_title", "VARCHAR(120)"),
             ("users", "branch", "VARCHAR(120)"),

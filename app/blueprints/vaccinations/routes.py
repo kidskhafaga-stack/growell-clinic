@@ -37,9 +37,9 @@ from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
+    administer_dose,
     chosen_brand,
     next_due_dose,
-    next_undone_dose_number,
     patient_plan,
     plan_summary,
 )
@@ -83,41 +83,8 @@ def record(patient_id):
     patient = db.get_or_404(Patient, patient_id)
     vaccine = db.get_or_404(Vaccine, request.form.get("vaccine_id", type=int))
 
-    # Resolve the brand: locked brand if any dose given, else the posted choice.
-    locked_brand, is_locked = chosen_brand(patient.id, vaccine)
-    if is_locked:
-        brand = locked_brand
-    else:
-        brand_id = request.form.get("brand_id", type=int)
-        brand = next((b for b in vaccine.brands if b.id == brand_id), vaccine.default_brand)
-
-    if brand is None:
-        flash(t("vaccinations.no_brand"), "danger")
-        return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-    dose_number = request.form.get("dose_number", type=int) or \
-        next_undone_dose_number(patient.id, vaccine, brand)
-    if dose_number is None:
-        flash(t("vaccinations.all_done"), "info")
-        return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-    # Guard against double-recording the same dose (a prior refusal/delay does
-    # not block actually giving it later).
-    existing = PatientVaccine.query.filter_by(
-        patient_id=patient.id, vaccine_id=vaccine.id, dose_number=dose_number,
-        event_type="given",
-    ).first()
-    if existing:
-        flash(t("vaccinations.dose_exists"), "warning")
-        return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-    # Clear any earlier refusal/delay event for this dose now that it's given.
-    PatientVaccine.query.filter(
-        PatientVaccine.patient_id == patient.id,
-        PatientVaccine.vaccine_id == vaccine.id,
-        PatientVaccine.dose_number == dose_number,
-        PatientVaccine.event_type != "given",
-    ).delete(synchronize_session=False)
+    brand_id = request.form.get("brand_id", type=int)
+    req_brand = next((b for b in vaccine.brands if b.id == brand_id), None)
 
     raw_date = (request.form.get("given_date") or "").strip()
     try:
@@ -126,29 +93,22 @@ def record(patient_id):
     except ValueError:
         given_date = datetime.utcnow().date()
 
-    lot_number = (request.form.get("lot_number") or "").strip() or None
-    given_outside = bool(request.form.get("given_outside"))
-    pv = PatientVaccine(
-        patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
-        dose_number=dose_number, given_date=given_date,
+    pv, result = administer_dose(
+        patient, vaccine, brand=req_brand,
+        dose_number=request.form.get("dose_number", type=int),
         doctor_id=request.form.get("doctor_id", type=int) or current_user.id,
-        lot_number=lot_number, event_type="given", given_outside=given_outside,
+        given_date=given_date,
+        lot_number=(request.form.get("lot_number") or "").strip() or None,
+        given_outside=bool(request.form.get("given_outside")),
         adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
-    db.session.add(pv)
-
-    # Deduct from inventory for clinic-provided (optional) vaccines using
-    # first-expiry-first-out; record the batch and its lot number. Doses given
-    # elsewhere (given_outside) are informational — never touch stock.
-    if not vaccine.is_mandatory and not given_outside:
-        batches = brand.available_batches
-        if batches:
-            batch = batches[0]
-            batch.qty_used = (batch.qty_used or 0) + 1
-            pv.inventory_id = batch.id
-            if not pv.lot_number:
-                pv.lot_number = batch.lot_number
+    if pv is None:
+        flash(t(f"vaccinations.{result}"),
+              {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+    brand = result            # the resolved brand (for the next-dose reminder)
+    dose_number = pv.dose_number
 
     ActivityLog.record(
         "vaccine.record", user_id=current_user.id, entity="patient",

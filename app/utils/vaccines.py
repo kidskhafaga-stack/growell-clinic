@@ -57,13 +57,16 @@ def seed_vaccines():
             vaccine = Vaccine(
                 code=v["code"], name_ar=v["name_ar"], name_en=v.get("name_en"),
                 is_mandatory=v.get("mandatory", True), sort_order=order,
-                route=v.get("route"),
+                route=v.get("route"), on_demand=v.get("on_demand", False),
             )
             db.session.add(vaccine)
             db.session.flush()
             created += 1
-        elif v.get("route") and not vaccine.route:
-            vaccine.route = v["route"]  # backfill route on existing entries
+        else:
+            if v.get("route") and not vaccine.route:
+                vaccine.route = v["route"]  # backfill route on existing entries
+            if v.get("on_demand") and not vaccine.on_demand:
+                vaccine.on_demand = True    # backfill situational flag
         for b in v["brands"]:
             if any(br.name == b["name"] for br in vaccine.brands):
                 continue
@@ -192,3 +195,95 @@ def next_undone_dose_number(patient_id, vaccine, brand):
         if d.dose_number not in given:
             return d.dose_number
     return None
+
+
+def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id=None,
+                    given_date=None, lot_number=None, given_outside=False,
+                    adverse_events=None, notes=None):
+    """Record a *given* dose with first-expiry-first-out stock deduction.
+
+    Shared by the vaccinations module and in-visit administration so the lock,
+    double-record guard, stock deduction and doctor credit stay identical.
+    Does **not** commit — the caller owns the transaction. Returns
+    ``(patient_vaccine, error_key)`` where ``error_key`` is one of
+    ``None`` / ``"no_brand"`` / ``"all_done"`` / ``"dose_exists"``.
+    """
+    # A vaccine locks to one brand once any dose is given; otherwise honour the
+    # requested brand, falling back to the default.
+    locked_brand, is_locked = chosen_brand(patient.id, vaccine)
+    if is_locked:
+        brand = locked_brand
+    elif brand is None:
+        brand = vaccine.default_brand
+    if brand is None:
+        return None, "no_brand"
+
+    if dose_number is None:
+        dose_number = next_undone_dose_number(patient.id, vaccine, brand)
+    if dose_number is None:
+        return None, "all_done"
+
+    if PatientVaccine.query.filter_by(
+            patient_id=patient.id, vaccine_id=vaccine.id,
+            dose_number=dose_number, event_type="given").first():
+        return None, "dose_exists"
+
+    # A prior refusal/delay for this dose no longer applies once it's given.
+    PatientVaccine.query.filter(
+        PatientVaccine.patient_id == patient.id,
+        PatientVaccine.vaccine_id == vaccine.id,
+        PatientVaccine.dose_number == dose_number,
+        PatientVaccine.event_type != "given",
+    ).delete(synchronize_session=False)
+
+    pv = PatientVaccine(
+        patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
+        dose_number=dose_number, given_date=given_date or date.today(),
+        doctor_id=doctor_id, lot_number=lot_number, event_type="given",
+        given_outside=given_outside, adverse_events=adverse_events, notes=notes,
+    )
+    db.session.add(pv)
+
+    # Deduct one patient-dose from the soonest-expiry batch for clinic-provided
+    # (optional) vaccines. Doses given elsewhere never touch stock.
+    if not vaccine.is_mandatory and not given_outside:
+        batches = brand.available_batches
+        if batches:
+            batch = batches[0]
+            batch.qty_used = (batch.qty_used or 0) + 1
+            pv.inventory_id = batch.id
+            if not pv.lot_number:
+                pv.lot_number = batch.lot_number
+    return pv, brand
+
+
+def visit_vaccine_panel(patient, lang="ar"):
+    """Vaccine snapshot for the visit tab, framed as *what can I give now* —
+    no "overdue" alarms (we can't know what was given elsewhere).
+
+    Returns dict with:
+      * ``received``  — vaccines the child already has doses of (neutral history)
+      * ``give_now``  — optional, age-appropriate vaccines in stock (administer)
+      * ``out_of_stock`` — optional, age-appropriate but no stock (schedule / PO)
+    Mandatory (EPI) and on-demand (rabies/travel) vaccines are excluded from the
+    suggestions; the doctor adds those deliberately.
+    """
+    plan = patient_plan(patient, lang)
+    received, give_now, out_of_stock = [], [], []
+    for v in plan:
+        vac, brand = v["vaccine"], v["brand"]
+        given = [d for d in v["doses"] if d["status"] == "done"]
+        if given:
+            received.append({"vaccine": vac, "brand": brand, "doses": given})
+        if vac.is_mandatory or vac.on_demand:
+            continue
+        # Offer the first not-yet-given dose that's age-appropriate now
+        # (its recommended age has arrived / is within the due window).
+        nxt = next((d for d in v["doses"] if d["status"] in ("overdue", "due")), None)
+        if not nxt or brand is None:
+            continue
+        batch = brand.available_batches[0] if brand.available_batches else None
+        entry = {"vaccine": vac, "brand": brand, "dose": nxt,
+                 "stock": brand.stock, "batch": batch, "price": brand.price}
+        (give_now if brand.stock > 0 else out_of_stock).append(entry)
+    return {"received": received, "give_now": give_now, "out_of_stock": out_of_stock}

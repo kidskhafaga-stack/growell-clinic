@@ -181,19 +181,16 @@ def record(visit_id):
                              Service.category.in_(("procedure", "lab", "radiology")))
         .order_by(Service.name).all()
     )
-    # Vaccination snapshot for the visit tab: what the child has taken and
-    # what's due, built once for this single patient (cheap).
-    from app.utils.vaccines import next_due_dose, patient_plan, plan_summary
-    vaccine_plan = patient_plan(visit.patient, getattr(g, "lang", "ar"))
-    vaccine_summary = plan_summary(vaccine_plan)
-    vaccine_due = next_due_dose(vaccine_plan)
+    # Vaccination snapshot for the visit tab, framed as "what can I give now"
+    # (received history + in-stock optional vaccines + out-of-stock suggestions).
+    from app.utils.vaccines import visit_vaccine_panel
+    vac_panel = visit_vaccine_panel(visit.patient, getattr(g, "lang", "ar"))
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services,
-        vaccine_plan=vaccine_plan, vaccine_summary=vaccine_summary,
-        vaccine_due=vaccine_due,
+        vac_panel=vac_panel,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )
@@ -354,6 +351,42 @@ def delete_service(vs_id):
     db.session.commit()
     flash(t("visits.proc_removed"), "info")
     return redirect(url_for("visits.record", visit_id=visit_id) + "#proc")
+
+
+@visits_bp.route("/<int:visit_id>/give-vaccine", methods=["POST"])
+@module_required(MODULE)
+def give_vaccine(visit_id):
+    """Administer a vaccine dose during the visit: deduct stock + record the
+    dose. Billing is handled automatically by the cashier, which sweeps up
+    recently-given uncharged doses — so we never bill here (no double charge).
+    """
+    from app.models import Vaccine
+    from app.utils.vaccines import administer_dose
+
+    visit = db.get_or_404(Visit, visit_id)
+    vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
+    if vaccine is None:
+        flash(t("vaccinations.no_brand"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+
+    brand_id = request.form.get("brand_id", type=int)
+    req_brand = next((b for b in vaccine.brands if b.id == brand_id), None)
+    pv, result = administer_dose(
+        visit.patient, vaccine, brand=req_brand,
+        dose_number=request.form.get("dose_number", type=int),
+        doctor_id=visit.doctor_id or current_user.id,
+    )
+    if pv is None:
+        flash(t(f"vaccinations.{result}"),
+              {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+
+    ActivityLog.record("visit.give_vaccine", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, detail=f"{vaccine.code}#{pv.dose_number}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.vac_given"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])

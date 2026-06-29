@@ -23,6 +23,9 @@ class Vaccine(db.Model):
     name_ar = db.Column(db.String(120), nullable=False)
     name_en = db.Column(db.String(120))
     is_mandatory = db.Column(db.Boolean, default=True, nullable=False)
+    # Given only when indicated (post-exposure / travel) — e.g. rabies, yellow
+    # fever, cholera. Never suggested routinely by age; only added on purpose.
+    on_demand = db.Column(db.Boolean, default=False, nullable=False)
     route = db.Column(db.String(20))  # طريقة الإعطاء: IM/SC/ID/oral/intranasal
     sort_order = db.Column(db.Integer, default=0)
 
