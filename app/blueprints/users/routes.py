@@ -107,6 +107,8 @@ def create():
             phone=form["phone"],
             is_active=form["is_active"],
             is_practitioner=form["is_practitioner"],
+            # Doctors default to an English UI; others follow the program default.
+            language=form["language"] or ("en" if form["role"] == "doctor" else None),
         )
         user.set_password(form["password"])
         db.session.add(user)
@@ -144,6 +146,7 @@ def edit(user_id):
         user.phone = form["phone"]
         user.is_active = form["is_active"]
         user.is_practitioner = form["is_practitioner"]
+        user.language = form["language"] or None
         if form["password"]:
             user.set_password(form["password"])
 
@@ -164,6 +167,7 @@ def edit(user_id):
         "phone": user.phone or "",
         "is_active": user.is_active,
         "is_practitioner": user.is_practitioner,
+        "language": user.language or "",
         "password": "",
     }
     return render_template("users/form.html", roles=_roles(), user=user, form=form)
@@ -200,6 +204,7 @@ def _read_form():
         "password": request.form.get("password") or "",
         "is_active": bool(request.form.get("is_active")),
         "is_practitioner": bool(request.form.get("is_practitioner")),
+        "language": (request.form.get("language") or "").strip(),
     }
 
 
