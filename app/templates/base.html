@@ -31,6 +31,10 @@
         href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+  <!-- Hide Alpine-controlled elements (modals, dropdowns, the notifications
+       panel) until Alpine initialises, so they don't flash on every page load.
+       Must be global — Alpine is deferred. -->
+  <style>[x-cloak]{display:none!important;}</style>
   <!-- Alpine.js powers tabs, modals, dropdowns and transitions (no build step). -->
   <script defer src="{{ url_for('static', filename='vendor/alpine.min.js') }}"></script>
   {% block head %}{% endblock %}
