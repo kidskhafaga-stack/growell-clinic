@@ -25,6 +25,10 @@ DUE_WINDOW_DAYS = 30
 # A seasonal vaccine (e.g. flu) taken here is due again after about a year.
 SEASONAL_RECALL_DAYS = 330
 
+# Two injectable/intranasal live vaccines not given the same day must be at
+# least this far apart (ACIP). Oral live vaccines (rotavirus, OPV) are exempt.
+LIVE_SPACING_DAYS = 28
+
 # Well-established vaccine platform per code — factual, not clinical guidance.
 # Used only to prefill the catalogue's "type" field (editable afterwards).
 _VACCINE_TYPE = {
@@ -159,8 +163,20 @@ def patient_plan(patient, lang="ar"):
         else:
             events_index[(pv.vaccine_id, pv.dose_number)] = pv
 
+    all_vaccines = Vaccine.query.order_by(Vaccine.sort_order).all()
+    # Injectable/intranasal live vaccines (oral live are exempt) and the latest
+    # date each was given — used for the 28-day live-vaccine spacing rule.
+    live_ids = {v.id for v in all_vaccines
+                if (v.vaccine_type == "live" and (v.route or "") != "oral")}
+    live_given = {}
+    for (vid, _dn), gpv in given_index.items():
+        if vid in live_ids and gpv.given_date:
+            cur = live_given.get(vid)
+            if cur is None or gpv.given_date > cur:
+                live_given[vid] = gpv.given_date
+
     plan = []
-    for vaccine in Vaccine.query.order_by(Vaccine.sort_order).all():
+    for vaccine in all_vaccines:
         brand, locked = chosen_brand(patient.id, vaccine)
         if brand is None:
             continue
@@ -169,6 +185,13 @@ def patient_plan(patient, lang="ar"):
         # date (actual date if given, else its projected due date) so a child who
         # started late gets correctly-spaced due dates — not the raw age dates.
         min_iv = vaccine.min_interval_days
+        # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
+        # the child already got (can't co-administer with a past dose anymore).
+        earliest_live = None
+        if vaccine.id in live_ids:
+            others = [dt for vid2, dt in live_given.items() if vid2 != vaccine.id]
+            if others:
+                earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
         prev_date = None
         doses = []
         for d in brand.doses:
@@ -182,6 +205,8 @@ def patient_plan(patient, lang="ar"):
                     earliest = prev_date + timedelta(days=min_iv)
                     if earliest > due:
                         due = earliest
+                if due and earliest_live and earliest_live > due:
+                    due = earliest_live
                 effective = due
             prev_date = effective
             doses.append({
