@@ -43,26 +43,51 @@ from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 MODULE = "visits"
 
 # Quick "write less" chips in the visit — editable in Settings, with sensible
-# pediatric defaults. One phrase per line (Arabic comma also splits).
+# bilingual pediatric defaults. Stored one per line as "ar|en" (en optional);
+# the chip shows and inserts in the program language.
 DEFAULT_COMPLAINT_CHIPS = [
-    "حرارة", "كحة", "رشح", "إسهال", "قيء", "مغص", "إمساك", "طفح جلدي",
-    "التهاب حلق", "التهاب أذن", "صعوبة تنفس", "صفير بالصدر", "ضعف شهية",
-    "خمول", "تسنين", "احمرار عين", "ألم بطن", "صداع", "تقيؤ",
-    "متابعة نمو", "متابعة تطعيم", "إعادة كشف",
+    ("حرارة", "Fever"), ("كحة", "Cough"), ("رشح", "Runny nose"),
+    ("إسهال", "Diarrhea"), ("قيء", "Vomiting"), ("مغص", "Colic"),
+    ("إمساك", "Constipation"), ("طفح جلدي", "Skin rash"),
+    ("التهاب حلق", "Sore throat"), ("التهاب أذن", "Ear infection"),
+    ("صعوبة تنفس", "Difficulty breathing"), ("صفير بالصدر", "Wheezing"),
+    ("ضعف شهية", "Poor appetite"), ("خمول", "Lethargy"),
+    ("تسنين", "Teething"), ("احمرار عين", "Red eye"),
+    ("ألم بطن", "Abdominal pain"), ("صداع", "Headache"),
+    ("متابعة نمو", "Growth follow-up"), ("متابعة تطعيم", "Vaccination follow-up"),
+    ("إعادة كشف", "Re-examination"),
 ]
 DEFAULT_EXAM_CHIPS = [
-    "الحالة العامة جيدة", "الصدر: دخول هواء ثنائي متساوٍ بدون صفير",
-    "القلب: أصوات منتظمة بدون لغط", "البطن: لين غير منتفخ غير مؤلم",
-    "الحلق: محتقن", "الأذن: طبلة محتقنة", "لا توجد علامات جفاف",
-    "الغدد الليمفاوية غير متضخمة", "الجلد: سليم",
+    ("الحالة العامة جيدة", "General condition good"),
+    ("الصدر: دخول هواء ثنائي متساوٍ بدون صفير", "Chest: equal bilateral air entry, no wheeze"),
+    ("القلب: أصوات منتظمة بدون لغط", "Heart: regular sounds, no murmur"),
+    ("البطن: لين غير منتفخ غير مؤلم", "Abdomen: soft, not distended, non-tender"),
+    ("الحلق: محتقن", "Throat: congested"),
+    ("الأذن: طبلة محتقنة", "Ear: congested tympanic membrane"),
+    ("لا توجد علامات جفاف", "No signs of dehydration"),
+    ("الغدد الليمفاوية غير متضخمة", "Lymph nodes not enlarged"),
+    ("الجلد: سليم", "Skin: intact"),
 ]
 
 
 def _visit_chips(key, defaults):
-    """Read a settings-defined chip list (line/comma separated), else defaults."""
-    raw = Setting.get(key) or ""
-    items = [s.strip() for s in raw.replace("،", "\n").splitlines() if s.strip()]
-    return items or list(defaults)
+    """Bilingual quick-phrase chips as ``[{"ar":…, "en":…}]``.
+
+    Stored one per line as ``ar|en`` (English optional). Falls back to the
+    pediatric defaults when the clinic hasn't set its own.
+    """
+    raw = Setting.get(key)
+    if raw:
+        chips = []
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            ar, _, en = line.partition("|")
+            chips.append({"ar": ar.strip(), "en": en.strip()})
+        if chips:
+            return chips
+    return [{"ar": ar, "en": en} for ar, en in defaults]
 
 
 def _float(name):

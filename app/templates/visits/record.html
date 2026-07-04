@@ -5,10 +5,16 @@
 {% block page_heading %}{{ t('visits.record_title') }}{% endblock %}
 
 {% block content %}
+{# Carry the diagnosis into the prescription by classification: the final
+   diagnoses if any (all of them, in the program language), else the first
+   working one — plus the primary ICD code. #}
 {% set _finals = visit.final_diagnoses() %}
-{% set _dx = _finals[0] if _finals else (visit.diagnoses[0] if visit.diagnoses else None) %}
+{% set _dxlist = _finals if _finals else (visit.diagnoses[:1] if visit.diagnoses else []) %}
+{% set _ns = namespace(parts=[]) %}
+{% for d in _dxlist %}{% set _ns.parts = _ns.parts + [d.display_title(current_lang)] %}{% endfor %}
 {% set _rx_base = url_for('prescriptions.new', patient_id=visit.patient_id, doctor_id=visit.doctor_id,
-      visit_id=visit.id, diagnosis=(_dx.title if _dx else ''), diagnosis_code=(_dx.code if _dx and _dx.code else '')) %}
+      visit_id=visit.id, diagnosis=(_ns.parts | join('، ')),
+      diagnosis_code=(_dxlist[0].code if _dxlist and _dxlist[0].code else '')) %}
 <!-- Visit config kept in a JSON script tag (NOT in the x-data attribute, whose
      double quotes would clash with JSON's) so Alpine parses the component
      reliably. -->
@@ -166,7 +172,8 @@
         <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
         <div class="smart-chips">
           {% for phrase in complaint_chips %}
-          <button type="button" class="chip" x-on:click='addComplaint({{ phrase|tojson }})'>{{ phrase }}</button>
+          {% set _c = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
+          <button type="button" class="chip" x-on:click='addComplaint({{ _c|tojson }})'>{{ _c }}</button>
           {% endfor %}
         </div>
       </div>
@@ -177,7 +184,8 @@
           <button type="button" class="chip chip--primary" x-on:click="normalExam()">
             <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
           {% for phrase in exam_chips %}
-          <button type="button" class="chip" x-on:click='addExam({{ phrase|tojson }})'>{{ phrase }}</button>
+          {% set _e = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
+          <button type="button" class="chip" x-on:click='addExam({{ _e|tojson }})'>{{ _e }}</button>
           {% endfor %}
         </div>
       </div>

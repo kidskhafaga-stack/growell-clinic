@@ -974,9 +974,12 @@
     "use_logo_colors": "Use logo colours",
     "accent_reset": "Default (green)",
     "visit_chips_title": "Visit quick phrases",
-    "visit_chips_hint": "Quick chips shown in the visit to reduce typing — one phrase per line. Edit/add as many as you like.",
+    "visit_chips_hint": "Quick chips shown in the visit to reduce typing. Enter each phrase in Arabic and English; it shows in the program language. Add or remove as you like.",
     "complaint_chips": "Common complaints",
-    "exam_chips": "Common exam findings"
+    "exam_chips": "Common exam findings",
+    "chip_ar_ph": "Arabic",
+    "chip_en_ph": "English",
+    "chip_add": "Add phrase"
   },
   "errors": {
     "403_title": "Forbidden",
