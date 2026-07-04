@@ -8,7 +8,7 @@
 
 {% set pf = prefill or {} %}
 <form method="post" action="{{ url_for('prescriptions.new') }}"
-      x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }})"
+      x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }})"
       x-init="addLine()">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}
@@ -144,9 +144,14 @@
 
 <script>
 window.current_lang = "{{ current_lang }}";
-function rxForm(prefillWeight, prefillDx, prefillDxCode){
+function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs){
   return {
-    lines: [], invs: [], weight: prefillWeight || '',
+    lines: [],
+    invs: (prefillInvs || []).map(function(x){
+      return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
+              notes: x.notes || '', suggestions: [], open: false};
+    }),
+    weight: prefillWeight || '',
     dx: prefillDx || '', dxCode: prefillDxCode || '', dxSug: [], dxOpen: false,
     async searchDx(){
       var q=(this.dx||'').trim(); if(q.length<1){ this.dxSug=[]; this.dxOpen=false; this.dxCode=''; return; }

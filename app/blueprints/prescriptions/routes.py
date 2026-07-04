@@ -320,15 +320,31 @@ def new():
     # Pre-fill support when opened from inside a visit ("write prescription"):
     # patient + doctor + weight + the visit's final diagnosis carry over so the
     # doctor doesn't re-enter what they already recorded.
+    visit_id = request.args.get("visit_id", type=int)
     prefill = {
-        "visit_id": request.args.get("visit_id", type=int),
+        "visit_id": visit_id,
         "doctor_id": request.args.get("doctor_id", type=int),
         "weight": request.args.get("weight", type=float),
         "diagnosis": (request.args.get("diagnosis") or "").strip(),
         "diagnosis_code": (request.args.get("diagnosis_code") or "").strip(),
     }
+    # Investigations the doctor already ordered in this visit carry over to the
+    # prescription so labs/imaging asked for in the exam actually print on it.
+    prefill_invs = []
+    if visit_id:
+        from app.models import VisitInvestigation
+        lang = getattr(g, "lang", "ar")
+        for vi in (VisitInvestigation.query.filter_by(visit_id=visit_id)
+                   .order_by(VisitInvestigation.created_at).all()):
+            prefill_invs.append({
+                "id": vi.investigation_id or "",
+                "kind": vi.kind or "lab",
+                "name": vi.display_name(lang),
+                "notes": vi.request_notes or "",
+            })
     return render_template(
         "prescriptions/new.html", patient=patient, prefill=prefill,
+        prefill_invs=prefill_invs,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
         ai_ready=ai_utils.is_ready(),
