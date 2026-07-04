@@ -71,6 +71,11 @@ def register_commands(app):
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_drugs_safe()
+        try:
+            from app.utils.services import seed_services
+            seed_services()
+        except Exception:  # noqa: BLE001
+            pass
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
@@ -113,6 +118,13 @@ def register_commands(app):
             ("invoices", "is_tax", "BOOLEAN DEFAULT 0"),
             ("services", "eta_item_type", "VARCHAR(8) DEFAULT 'EGS'"),
             ("vaccines", "route", "VARCHAR(20)"),
+            ("vaccines", "on_demand", "BOOLEAN DEFAULT 0"),
+            ("vaccines", "vaccine_type", "VARCHAR(40)"),
+            ("vaccines", "min_interval_days", "INTEGER"),
+            ("vaccines", "catch_up_notes", "TEXT"),
+            ("vaccines", "coadministration_notes", "TEXT"),
+            ("vaccines", "precautions", "TEXT"),
+            ("vaccines", "reference", "VARCHAR(255)"),
             ("users", "photo", "VARCHAR(255)"),
             ("users", "job_title", "VARCHAR(120)"),
             ("users", "branch", "VARCHAR(120)"),
@@ -184,6 +196,11 @@ def register_commands(app):
         try:  # keep the vaccine catalogue current (idempotent)
             from app.utils.vaccines import seed_vaccines
             seed_vaccines()
+        except Exception:  # noqa: BLE001
+            pass
+        try:  # ensure base services + visit-type pricing exist (idempotent)
+            from app.utils.services import seed_services
+            seed_services()
         except Exception:  # noqa: BLE001
             pass
         db.session.commit()

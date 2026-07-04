@@ -349,6 +349,7 @@
       "name_ar": "الإنفلونزا الموسمية",
       "name_en": "Seasonal Influenza",
       "mandatory": false,
+      "seasonal": true,
       "brands": [
         {
           "name": "Vaxigrip",
@@ -549,6 +550,7 @@
       "name_ar": "داء الكلب",
       "name_en": "Rabies",
       "mandatory": false,
+      "on_demand": true,
       "route": "IM",
       "brands": [
         {
@@ -571,6 +573,7 @@
       "name_ar": "الحمى الصفراء",
       "name_en": "Yellow Fever",
       "mandatory": false,
+      "on_demand": true,
       "route": "SC",
       "brands": [
         {
@@ -587,6 +590,7 @@
       "name_ar": "الكوليرا",
       "name_en": "Cholera",
       "mandatory": false,
+      "on_demand": true,
       "route": "oral",
       "brands": [
         {

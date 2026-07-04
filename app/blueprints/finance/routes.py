@@ -490,6 +490,74 @@ def invoice_new():
     )
 
 
+@finance_bp.route("/collect/appointment/<int:appt_id>", methods=["POST"])
+@module_required(MODULE)
+def collect_appointment(appt_id):
+    """One-click reception collect: build this appointment's invoice (base
+    visit-type charge at the doctor's price + any uncharged vaccines already
+    given to the patient), take the full payment, and jump to the printable
+    receipt — so booking and collecting happen from the same screen instead of
+    a separate cashier trip.
+    """
+    from app.models import Appointment
+
+    appt = db.get_or_404(Appointment, appt_id)
+    patient = appt.patient
+    lang = getattr(g, "lang", "ar")
+
+    invoice = Invoice(
+        invoice_number=generate_invoice_number(),
+        patient_id=patient.id, doctor_id=appt.doctor_id,
+        created_by=current_user.id,
+    )
+    db.session.add(invoice)
+    db.session.flush()
+
+    base = service_for_visit_type(appt.appt_type)
+    if base is not None:
+        price = base.price_for(appt.doctor) if appt.doctor else base.price
+        if price is not None:
+            item = InvoiceItem(service_id=base.id, description=base.display_name(lang),
+                               unit_price=price, quantity=1)
+            item.commission_amount = base.doctor_share(item.net, invoice.doctor)
+            invoice.items.append(item)
+
+    # Vaccines given but not yet billed — collect them here (never twice).
+    for dose in _uncharged_vaccines(patient.id):
+        b = dose.brand
+        if b and b.price:
+            name = (b.vaccine.display_name(lang) if b.vaccine else
+                    dose.vaccine.display_name(lang))
+            invoice.items.append(InvoiceItem(
+                description=name + " — " + b.display_name(lang),
+                unit_price=b.price, quantity=1))
+        dose.invoice_id = invoice.id
+
+    if not invoice.items:
+        db.session.rollback()
+        flash(t("cashier.nothing_to_collect"), "warning")
+        return redirect(url_for("appointments.index", date=appt.appt_date.isoformat()))
+
+    _apply_coverage(invoice, patient)
+    invoice.recalc_status()
+
+    # Reception collected the balance now (default cash).
+    method = (request.form.get("method") or "cash").strip()
+    if invoice.balance > 0:
+        invoice.payments.append(Payment(
+            amount=invoice.balance,
+            method=method if method in PAYMENT_METHODS else "cash",
+            received_by=current_user.id,
+        ))
+        invoice.recalc_status()
+
+    ActivityLog.record("invoice.collect_appt", user_id=current_user.id, entity="invoice",
+                       detail=invoice.invoice_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t("invoices.created"), "success")
+    return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id))
+
+
 def _apply_named_discount(invoice, disc):
     """Apply a named discount to lines that have no manual discount yet."""
     invoice.discount_id = disc.id

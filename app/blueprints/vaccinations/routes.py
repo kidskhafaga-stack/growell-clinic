@@ -23,6 +23,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     VACCINE_ROUTES,
+    VACCINE_TYPES,
     ActivityLog,
     Patient,
     PatientVaccine,
@@ -37,9 +38,10 @@ from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
+    administer_dose,
     chosen_brand,
     next_due_dose,
-    next_undone_dose_number,
+    patient_due_reminders,
     patient_plan,
     plan_summary,
 )
@@ -83,41 +85,8 @@ def record(patient_id):
     patient = db.get_or_404(Patient, patient_id)
     vaccine = db.get_or_404(Vaccine, request.form.get("vaccine_id", type=int))
 
-    # Resolve the brand: locked brand if any dose given, else the posted choice.
-    locked_brand, is_locked = chosen_brand(patient.id, vaccine)
-    if is_locked:
-        brand = locked_brand
-    else:
-        brand_id = request.form.get("brand_id", type=int)
-        brand = next((b for b in vaccine.brands if b.id == brand_id), vaccine.default_brand)
-
-    if brand is None:
-        flash(t("vaccinations.no_brand"), "danger")
-        return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-    dose_number = request.form.get("dose_number", type=int) or \
-        next_undone_dose_number(patient.id, vaccine, brand)
-    if dose_number is None:
-        flash(t("vaccinations.all_done"), "info")
-        return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-    # Guard against double-recording the same dose (a prior refusal/delay does
-    # not block actually giving it later).
-    existing = PatientVaccine.query.filter_by(
-        patient_id=patient.id, vaccine_id=vaccine.id, dose_number=dose_number,
-        event_type="given",
-    ).first()
-    if existing:
-        flash(t("vaccinations.dose_exists"), "warning")
-        return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-    # Clear any earlier refusal/delay event for this dose now that it's given.
-    PatientVaccine.query.filter(
-        PatientVaccine.patient_id == patient.id,
-        PatientVaccine.vaccine_id == vaccine.id,
-        PatientVaccine.dose_number == dose_number,
-        PatientVaccine.event_type != "given",
-    ).delete(synchronize_session=False)
+    brand_id = request.form.get("brand_id", type=int)
+    req_brand = next((b for b in vaccine.brands if b.id == brand_id), None)
 
     raw_date = (request.form.get("given_date") or "").strip()
     try:
@@ -126,29 +95,22 @@ def record(patient_id):
     except ValueError:
         given_date = datetime.utcnow().date()
 
-    lot_number = (request.form.get("lot_number") or "").strip() or None
-    given_outside = bool(request.form.get("given_outside"))
-    pv = PatientVaccine(
-        patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
-        dose_number=dose_number, given_date=given_date,
+    pv, result = administer_dose(
+        patient, vaccine, brand=req_brand,
+        dose_number=request.form.get("dose_number", type=int),
         doctor_id=request.form.get("doctor_id", type=int) or current_user.id,
-        lot_number=lot_number, event_type="given", given_outside=given_outside,
+        given_date=given_date,
+        lot_number=(request.form.get("lot_number") or "").strip() or None,
+        given_outside=bool(request.form.get("given_outside")),
         adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
-    db.session.add(pv)
-
-    # Deduct from inventory for clinic-provided (optional) vaccines using
-    # first-expiry-first-out; record the batch and its lot number. Doses given
-    # elsewhere (given_outside) are informational — never touch stock.
-    if not vaccine.is_mandatory and not given_outside:
-        batches = brand.available_batches
-        if batches:
-            batch = batches[0]
-            batch.qty_used = (batch.qty_used or 0) + 1
-            pv.inventory_id = batch.id
-            if not pv.lot_number:
-                pv.lot_number = batch.lot_number
+    if pv is None:
+        flash(t(f"vaccinations.{result}"),
+              {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+    brand = result            # the resolved brand (for the next-dose reminder)
+    dose_number = pv.dose_number
 
     ActivityLog.record(
         "vaccine.record", user_id=current_user.id, entity="patient",
@@ -366,6 +328,14 @@ def vaccine_medical(vaccine_id):
     vaccine.risk_groups = (f.get("risk_groups") or "").strip() or None
     vaccine.contraindications = (f.get("contraindications") or "").strip() or None
     vaccine.adverse_events_info = (f.get("adverse_events_info") or "").strip() or None
+    vtype = (f.get("vaccine_type") or "").strip()
+    vaccine.vaccine_type = vtype if vtype in VACCINE_TYPES else None
+    vaccine.min_interval_days = f.get("min_interval_days", type=int)
+    vaccine.on_demand = bool(f.get("on_demand"))
+    vaccine.catch_up_notes = (f.get("catch_up_notes") or "").strip() or None
+    vaccine.coadministration_notes = (f.get("coadministration_notes") or "").strip() or None
+    vaccine.precautions = (f.get("precautions") or "").strip() or None
+    vaccine.reference = (f.get("reference") or "").strip() or None
     db.session.commit()
     flash(t("vaccinations.medical_saved"), "success")
     return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
@@ -376,7 +346,8 @@ def vaccine_medical(vaccine_id):
 @module_required(MODULE)
 def schedule_templates(vaccine_id):
     vaccine = db.get_or_404(Vaccine, vaccine_id)
-    return render_template("vaccinations/schedules.html", vaccine=vaccine)
+    return render_template("vaccinations/schedules.html", vaccine=vaccine,
+                           vaccine_types=VACCINE_TYPES)
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules/new", methods=["POST"])
@@ -554,18 +525,26 @@ def certificate(patient_id):
 @vaccinations_bp.route("/reminders")
 @module_required(MODULE)
 def reminders():
-    """Patients with an overdue / due-soon next dose, ready to be reminded."""
+    """Patients with a late/due dose of a course they started here.
+
+    Only patients who already have a dose recorded with us are considered — we
+    never chase a vaccine we never gave (it may have been taken elsewhere) — which
+    also keeps this cheap with thousands of patients on the books.
+    """
+    started_ids = [r[0] for r in (
+        PatientVaccine.query.filter(PatientVaccine.event_type == "given")
+        .with_entities(PatientVaccine.patient_id).distinct().all())]
+    lang = getattr(g, "lang", "ar")
     rows = []
-    for patient in Patient.query.filter_by(is_active=True).all():
-        nd = next_due_dose(patient_plan(patient))
-        if not nd:
-            continue
-        _due, vaccine, brand, dose = nd
-        rows.append({
-            "patient": patient, "vaccine": vaccine, "brand": brand,
-            "dose_number": dose["dose_number"], "due_date": dose["due_date"],
-            "status": dose["status"], "phone": patient.contact_phone,
-        })
+    for patient in (Patient.query.filter(Patient.is_active.is_(True),
+                                         Patient.id.in_(started_ids)).all()
+                    if started_ids else []):
+        for due in patient_due_reminders(patient, lang):
+            rows.append({
+                "patient": patient, "vaccine": due["vaccine"], "brand": due["brand"],
+                "dose_number": due["dose_number"], "due_date": due["due_date"],
+                "status": due["status"], "phone": patient.contact_phone,
+            })
     rows.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
     return render_template("vaccinations/reminders.html", rows=rows,
                            now_date=datetime.utcnow().date().isoformat())
@@ -576,21 +555,21 @@ def reminders():
 def remind_due(patient_id):
     """Send the patient's guardian a "dose due" reminder via the CRM template."""
     patient = db.get_or_404(Patient, patient_id)
-    nd = next_due_dose(patient_plan(patient))
-    if not nd:
+    lang = getattr(g, "lang", "ar")
+    due_list = patient_due_reminders(patient, lang)
+    if not due_list:
         flash(t("vaccinations.no_due"), "info")
         return redirect(url_for("vaccinations.reminders"))
-    _due, vaccine, brand, dose = nd
+    due = due_list[0]
     phone = patient.contact_phone
     if not phone:
         flash(t("occasions.no_phone"), "warning")
         return redirect(url_for("vaccinations.reminders"))
-    lang = getattr(g, "lang", "ar")
     body = wa.render(wa.template_body("vaccine_due"), {
         "patient": patient.display_name(lang),
-        "vaccine": vaccine.display_name(lang),
-        "dose": _dose_label(dose["dose_number"], lang),
-        "due_date": dose["due_date"] or "—",
+        "vaccine": due["vaccine"].display_name(lang),
+        "dose": _dose_label(due["dose_number"], lang),
+        "due_date": due["due_date"] or "—",
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
     log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)

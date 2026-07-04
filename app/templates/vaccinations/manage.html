@@ -69,6 +69,9 @@
         <span class="badge {{ 'badge--green' if vaccine.is_mandatory else 'badge--muted' }}">
           {{ t('vaccinations.mandatory') if vaccine.is_mandatory else t('vaccinations.optional') }}</span>
         {% if vaccine.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ vaccine.route) }}</span>{% endif %}
+        {% if vaccine.vaccine_type %}<span class="badge badge--muted">{{ t('vtype.' ~ vaccine.vaccine_type) }}</span>{% endif %}
+        {% if vaccine.on_demand %}<span class="badge badge--muted"><i class="bi bi-geo-alt"></i> {{ t('vaccinations.on_demand') }}</span>{% endif %}
+        {% if vaccine.is_seasonal %}<span class="badge badge--muted"><i class="bi bi-arrow-repeat"></i> {{ t('vaccinations.seasonal') }}</span>{% endif %}
         {% if vaccine.is_discontinued %}<span class="badge badge--danger"><i class="bi bi-slash-circle"></i> {{ t('vaccinations.discontinued') }}</span>{% endif %}
         {% if vaccine.replaced_by %}<span class="badge badge--muted">{{ t('vaccinations.replaced_by') }}: {{ vaccine.replaced_by.display_name(current_lang) }}</span>{% endif %}
       </h3>

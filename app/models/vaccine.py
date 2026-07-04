@@ -11,6 +11,10 @@ from app.extensions import db
 # Administration routes (طريقة الإعطاء).
 VACCINE_ROUTES = ["IM", "SC", "ID", "oral", "intranasal"]
 
+# Vaccine platform/type (نوع اللقاح).
+VACCINE_TYPES = ["live", "inactivated", "conjugate", "toxoid", "subunit",
+                 "polysaccharide", "recombinant", "mRNA", "combination"]
+
 # Documentation outcome of a dose event (PDF clinical notes).
 VACCINE_EVENT_TYPES = ["given", "refused", "delayed"]
 
@@ -23,6 +27,9 @@ class Vaccine(db.Model):
     name_ar = db.Column(db.String(120), nullable=False)
     name_en = db.Column(db.String(120))
     is_mandatory = db.Column(db.Boolean, default=True, nullable=False)
+    # Given only when indicated (post-exposure / travel) — e.g. rabies, yellow
+    # fever, cholera. Never suggested routinely by age; only added on purpose.
+    on_demand = db.Column(db.Boolean, default=False, nullable=False)
     route = db.Column(db.String(20))  # طريقة الإعطاء: IM/SC/ID/oral/intranasal
     sort_order = db.Column(db.Integer, default=0)
 
@@ -43,6 +50,13 @@ class Vaccine(db.Model):
     risk_groups = db.Column(db.String(255))           # فئات الخطر
     contraindications = db.Column(db.Text)            # موانع الإعطاء
     adverse_events_info = db.Column(db.Text)          # الأعراض الجانبية المحتملة
+    # Extended professional catalogue fields (all optional / additive).
+    vaccine_type = db.Column(db.String(40))           # حي / معطل / مقترن / توكسويد / وحدة / mRNA
+    min_interval_days = db.Column(db.Integer)         # أدنى فاصل بين الجرعات
+    catch_up_notes = db.Column(db.Text)               # شروط الجرعات التعويضية (catch-up)
+    coadministration_notes = db.Column(db.Text)       # إمكانية الإعطاء مع لقاحات أخرى
+    precautions = db.Column(db.Text)                  # الاحتياطات
+    reference = db.Column(db.String(255))             # المصدر / المرجع للمعلومات
 
     brands = db.relationship(
         "VaccineBrand", back_populates="vaccine", cascade="all, delete-orphan",
