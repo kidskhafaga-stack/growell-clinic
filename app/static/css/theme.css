@@ -49,6 +49,11 @@
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 :root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
+/* Deep-green sidebar so it sits with the slate body instead of glowing bright. */
+:root[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, #123726 0%, #0e2119 100%);
+  border-inline-end: 1px solid var(--line);
+}
 /* A handful of surfaces that don't already read the tokens. */
 :root[data-theme="dark"] .topbar,
 :root[data-theme="dark"] .table thead th,
