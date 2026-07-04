@@ -331,6 +331,8 @@
     "pay_balance": "Balance",
     "collect": "Collect",
     "bill": "Create invoice",
+    "collect_print": "Collect & print",
+    "collect_print_hint": "Create the appointment invoice, take payment and print the receipt in one step",
     "call_in": "Call in",
     "start_exam": "Start exam",
     "complete": "Complete visit",
@@ -1862,6 +1864,7 @@
   },
   "cashier": {
     "title": "Cashier",
+    "nothing_to_collect": "Nothing to collect for this appointment (no priced service or unbilled vaccine).",
     "subtitle": "Today's till — collect dues and reconcile the drawer",
     "opening_float": "Opening float",
     "cash_collected": "Cash collected",
