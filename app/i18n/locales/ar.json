@@ -715,6 +715,13 @@
     "seasonal": "تطعيم موسمي",
     "contraindications": "موانع الإعطاء",
     "adverse_info": "الأعراض الجانبية المحتملة",
+    "vaccine_type": "نوع اللقاح",
+    "min_interval_days_v": "أدنى فاصل بين الجرعات (يوم)",
+    "on_demand": "عند الحاجة (سفر/تعرّض)",
+    "precautions": "الاحتياطات",
+    "catch_up_notes": "شروط الجرعات التعويضية (Catch-up)",
+    "coadministration": "الإعطاء مع لقاحات أخرى",
+    "reference": "المصدر / المرجع",
     "tpl_help": "احفظ جداول الجرعات هنا (مش على التطعيم) علشان التطعيم الواحد يبقى له أكتر من جدول — مثلاً الجدول A يبدأ عند شهرين، والجدول C جدول تعويضي يبدأ عند ١٢ شهر.",
     "catch_up": "تعويضي (Catch-up)",
     "age_group": "الفئة العمرية",
@@ -768,6 +775,17 @@
     "due": "مستحق الآن",
     "overdue": "متأخر",
     "upcoming": "قادم"
+  },
+  "vtype": {
+    "live": "حي مُضعَّف",
+    "inactivated": "معطّل",
+    "conjugate": "مقترن",
+    "toxoid": "توكسويد",
+    "subunit": "وحدة بروتينية",
+    "polysaccharide": "عديد سكاريد",
+    "recombinant": "مؤتلف",
+    "mRNA": "mRNA",
+    "combination": "مركّب"
   },
   "genders": {
     "male": "ذكر",

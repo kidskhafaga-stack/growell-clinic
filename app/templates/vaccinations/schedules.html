@@ -29,15 +29,33 @@
         <input class="input" name="pregnancy_recommendation" value="{{ vaccine.pregnancy_recommendation or '' }}"></div>
       <div class="form-row"><label>{{ t('vaccinations.risk_groups') }}</label>
         <input class="input" name="risk_groups" value="{{ vaccine.risk_groups or '' }}"></div>
+      <div class="form-row"><label>{{ t('vaccinations.vaccine_type') }}</label>
+        <select class="select" name="vaccine_type">
+          <option value="">—</option>
+          {% for vt in vaccine_types %}
+          <option value="{{ vt }}" {{ 'selected' if vaccine.vaccine_type == vt else '' }}>{{ t('vtype.' ~ vt) }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('vaccinations.min_interval_days_v') }}</label>
+        <input class="input" type="number" name="min_interval_days" value="{{ vaccine.min_interval_days if vaccine.min_interval_days is not none else '' }}"></div>
     </div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin:6px 0;">
       <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="booster_required" value="1" {{ 'checked' if vaccine.booster_required else '' }}> {{ t('vaccinations.booster_required') }}</label>
       <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="is_seasonal" value="1" {{ 'checked' if vaccine.is_seasonal else '' }}> {{ t('vaccinations.seasonal') }}</label>
+      <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="on_demand" value="1" {{ 'checked' if vaccine.on_demand else '' }}> {{ t('vaccinations.on_demand') }}</label>
     </div>
     <div class="form-row"><label>{{ t('vaccinations.contraindications') }}</label>
       <textarea class="input" name="contraindications" rows="2" dir="auto">{{ vaccine.contraindications or '' }}</textarea></div>
+    <div class="form-row"><label>{{ t('vaccinations.precautions') }}</label>
+      <textarea class="input" name="precautions" rows="2" dir="auto">{{ vaccine.precautions or '' }}</textarea></div>
+    <div class="form-row"><label>{{ t('vaccinations.catch_up_notes') }}</label>
+      <textarea class="input" name="catch_up_notes" rows="2" dir="auto">{{ vaccine.catch_up_notes or '' }}</textarea></div>
+    <div class="form-row"><label>{{ t('vaccinations.coadministration') }}</label>
+      <textarea class="input" name="coadministration_notes" rows="2" dir="auto">{{ vaccine.coadministration_notes or '' }}</textarea></div>
     <div class="form-row"><label>{{ t('vaccinations.adverse_info') }}</label>
       <textarea class="input" name="adverse_events_info" rows="2" dir="auto">{{ vaccine.adverse_events_info or '' }}</textarea></div>
+    <div class="form-row"><label>{{ t('vaccinations.reference') }}</label>
+      <input class="input" name="reference" value="{{ vaccine.reference or '' }}" dir="auto"></div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>

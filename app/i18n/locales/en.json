@@ -715,6 +715,13 @@
     "seasonal": "Seasonal vaccine",
     "contraindications": "Contraindications",
     "adverse_info": "Possible adverse events",
+    "vaccine_type": "Vaccine type",
+    "min_interval_days_v": "Min interval between doses (days)",
+    "on_demand": "On demand (travel / exposure)",
+    "precautions": "Precautions",
+    "catch_up_notes": "Catch-up conditions",
+    "coadministration": "Co-administration with other vaccines",
+    "reference": "Source / reference",
     "tpl_help": "Keep dosing schedules here (not on the vaccine) so one vaccine can have several — e.g. Schedule A starts at 2 months, Schedule C is a catch-up starting at 12 months.",
     "catch_up": "Catch-up",
     "age_group": "Age group",
@@ -768,6 +775,17 @@
     "due": "Due now",
     "overdue": "Overdue",
     "upcoming": "Upcoming"
+  },
+  "vtype": {
+    "live": "Live attenuated",
+    "inactivated": "Inactivated",
+    "conjugate": "Conjugate",
+    "toxoid": "Toxoid",
+    "subunit": "Subunit",
+    "polysaccharide": "Polysaccharide",
+    "recombinant": "Recombinant",
+    "mRNA": "mRNA",
+    "combination": "Combination"
   },
   "genders": {
     "male": "Male",

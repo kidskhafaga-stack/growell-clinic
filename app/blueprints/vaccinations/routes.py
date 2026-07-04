@@ -23,6 +23,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import (
     VACCINE_ROUTES,
+    VACCINE_TYPES,
     ActivityLog,
     Patient,
     PatientVaccine,
@@ -327,6 +328,14 @@ def vaccine_medical(vaccine_id):
     vaccine.risk_groups = (f.get("risk_groups") or "").strip() or None
     vaccine.contraindications = (f.get("contraindications") or "").strip() or None
     vaccine.adverse_events_info = (f.get("adverse_events_info") or "").strip() or None
+    vtype = (f.get("vaccine_type") or "").strip()
+    vaccine.vaccine_type = vtype if vtype in VACCINE_TYPES else None
+    vaccine.min_interval_days = f.get("min_interval_days", type=int)
+    vaccine.on_demand = bool(f.get("on_demand"))
+    vaccine.catch_up_notes = (f.get("catch_up_notes") or "").strip() or None
+    vaccine.coadministration_notes = (f.get("coadministration_notes") or "").strip() or None
+    vaccine.precautions = (f.get("precautions") or "").strip() or None
+    vaccine.reference = (f.get("reference") or "").strip() or None
     db.session.commit()
     flash(t("vaccinations.medical_saved"), "success")
     return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
@@ -337,7 +346,8 @@ def vaccine_medical(vaccine_id):
 @module_required(MODULE)
 def schedule_templates(vaccine_id):
     vaccine = db.get_or_404(Vaccine, vaccine_id)
-    return render_template("vaccinations/schedules.html", vaccine=vaccine)
+    return render_template("vaccinations/schedules.html", vaccine=vaccine,
+                           vaccine_types=VACCINE_TYPES)
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules/new", methods=["POST"])

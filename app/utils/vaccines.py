@@ -25,6 +25,18 @@ DUE_WINDOW_DAYS = 30
 # A seasonal vaccine (e.g. flu) taken here is due again after about a year.
 SEASONAL_RECALL_DAYS = 330
 
+# Well-established vaccine platform per code — factual, not clinical guidance.
+# Used only to prefill the catalogue's "type" field (editable afterwards).
+_VACCINE_TYPE = {
+    "BCG": "live", "HBV0": "recombinant", "OPV": "live", "IPV": "inactivated",
+    "PENTA": "combination", "DTP_B": "combination", "MEASLES": "live",
+    "MMR": "live", "ROTA": "live", "PCV": "conjugate", "VARICELLA": "live",
+    "HAV": "inactivated", "FLU": "inactivated", "HEXA": "combination",
+    "PENTAXIM": "combination", "MMRV": "live", "MENACWY": "conjugate",
+    "MENB": "recombinant", "HPV": "recombinant", "TYPHOID": "conjugate",
+    "RABIES": "inactivated", "YELLOWFEVER": "live", "CHOLERA": "inactivated",
+}
+
 
 def add_months(d, months):
     """Return ``d`` shifted by ``months`` (clamping day to month length)."""
@@ -56,12 +68,19 @@ def seed_vaccines():
     created = 0
     for order, v in enumerate(data["vaccines"]):
         vaccine = Vaccine.query.filter_by(code=v["code"]).first()
+        # Factual prefill: vaccine platform + which body to verify against. The
+        # doctor reviews/edits these; no clinical numbers are invented.
+        vtype = _VACCINE_TYPE.get(v["code"])
+        vref = ("برنامج التطعيم القومي المصري (EPI) — للمراجعة"
+                if v.get("mandatory", True)
+                else "النشرة الدوائية للمُصنّع + ACIP/WHO — للمراجعة")
         if vaccine is None:
             vaccine = Vaccine(
                 code=v["code"], name_ar=v["name_ar"], name_en=v.get("name_en"),
                 is_mandatory=v.get("mandatory", True), sort_order=order,
                 route=v.get("route"), on_demand=v.get("on_demand", False),
                 is_seasonal=v.get("seasonal", False),
+                vaccine_type=vtype, reference=vref,
             )
             db.session.add(vaccine)
             db.session.flush()
@@ -73,6 +92,10 @@ def seed_vaccines():
                 vaccine.on_demand = True    # backfill situational flag
             if v.get("seasonal") and not vaccine.is_seasonal:
                 vaccine.is_seasonal = True  # backfill seasonal flag
+            if vtype and not vaccine.vaccine_type:
+                vaccine.vaccine_type = vtype
+            if not vaccine.reference:
+                vaccine.reference = vref
         for b in v["brands"]:
             if any(br.name == b["name"] for br in vaccine.brands):
                 continue
