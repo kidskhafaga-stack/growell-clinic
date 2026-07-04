@@ -87,14 +87,14 @@ def index():
 
     from app.utils.ai import AI_PROVIDERS
     from app.blueprints.visits.routes import (
-        DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS,
+        DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS, _visit_chips,
     )
 
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
-        default_complaint_chips="\n".join(DEFAULT_COMPLAINT_CHIPS),
-        default_exam_chips="\n".join(DEFAULT_EXAM_CHIPS),
+        complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
+        exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )
 
 

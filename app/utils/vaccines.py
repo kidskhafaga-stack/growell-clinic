@@ -7,7 +7,7 @@ a single brand once any dose has been given (no mixing brands).
 import calendar
 import json
 import os
-from datetime import date
+from datetime import date, timedelta
 
 from app.extensions import db
 from app.models import (
@@ -164,11 +164,26 @@ def patient_plan(patient, lang="ar"):
         brand, locked = chosen_brand(patient.id, vaccine)
         if brand is None:
             continue
+        # Catch-up: a not-yet-given dose can't fall due before the minimum gap
+        # after the previous dose. We chain forward from each dose's effective
+        # date (actual date if given, else its projected due date) so a child who
+        # started late gets correctly-spaced due dates — not the raw age dates.
+        min_iv = vaccine.min_interval_days
+        prev_date = None
         doses = []
         for d in brand.doses:
             pv = given_index.get((vaccine.id, d.dose_number))
             ev = events_index.get((vaccine.id, d.dose_number))
             due = add_months(dob, d.age_months) if dob else None
+            if pv is not None:
+                effective = pv.given_date
+            else:
+                if due and prev_date and min_iv:
+                    earliest = prev_date + timedelta(days=min_iv)
+                    if earliest > due:
+                        due = earliest
+                effective = due
+            prev_date = effective
             doses.append({
                 "dose_number": d.dose_number,
                 "age_months": d.age_months,
