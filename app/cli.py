@@ -135,6 +135,7 @@ def register_commands(app):
             ("users", "license_no", "VARCHAR(60)"),
             ("users", "signature_file", "VARCHAR(255)"),
             ("users", "stamp_file", "VARCHAR(255)"),
+            ("users", "language", "VARCHAR(5)"),
             ("users", "personal_logo", "VARCHAR(255)"),
             ("users", "accent_color", "VARCHAR(20)"),
             ("users", "rx_template_id", "INTEGER"),

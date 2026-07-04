@@ -35,49 +35,62 @@
   --green-050: color-mix(in srgb, var(--accent) 12%, white);
 }
 
-/* Dark mode (per-user). */
+/* Dark mode (per-user). One cohesive slate theme: components read the tokens
+   below (surfaces = --card, text = --ink, borders = --line), so flipping the
+   palette themes the whole app. Only colour-tints need explicit dark variants. */
 :root[data-theme="dark"] {
   --ink: #e6edf3;
-  --muted: #9aa7b4;
-  --line: #2b3440;
-  --bg: #0f141a;
-  --card: #161c24;
-  --green-050: #16241d;
-  --green-100: #1d3a2c;
-  --shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  --muted: #97a3b0;
+  --line: #2b3542;
+  --bg: #0e131a;
+  --card: #171e28;
+  --green-050: #17251e;
+  --green-100: #1e3a2c;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 :root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
-:root[data-theme="dark"] .card,
-:root[data-theme="dark"] .input,
-:root[data-theme="dark"] .select,
-:root[data-theme="dark"] .table { background: var(--card); color: var(--ink); }
-:root[data-theme="dark"] .input,
-:root[data-theme="dark"] .select { border-color: var(--line); }
+/* Deep-green sidebar so it sits with the slate body instead of glowing bright. */
+:root[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, #123726 0%, #0e2119 100%);
+  border-inline-end: 1px solid var(--line);
+}
+/* A handful of surfaces that don't already read the tokens. */
 :root[data-theme="dark"] .topbar,
-:root[data-theme="dark"] .table thead th { background: var(--card); }
-:root[data-theme="dark"] .badge--muted { background: #243040; color: var(--muted); }
-:root[data-theme="dark"] .popform { background: var(--card); }
-/* Broader dark coverage so every page looks right. */
-:root[data-theme="dark"] textarea.input,
+:root[data-theme="dark"] .table thead th,
 :root[data-theme="dark"] .stat-card,
 :root[data-theme="dark"] .module-card,
-:root[data-theme="dark"] .auth-card,
 :root[data-theme="dark"] .info-item,
 :root[data-theme="dark"] .window-pill,
-:root[data-theme="dark"] .theme-toggle { background: var(--card); color: var(--ink); }
+:root[data-theme="dark"] .theme-toggle,
+:root[data-theme="dark"] .popform { background: var(--card); color: var(--ink); }
+:root[data-theme="dark"] .module-card,
 :root[data-theme="dark"] .info-item,
-:root[data-theme="dark"] .window-pill,
-:root[data-theme="dark"] .module-card { border-color: var(--line); }
-:root[data-theme="dark"] .notice,
-:root[data-theme="dark"] .info-note { background: #15241d; border-color: var(--line); color: var(--ink); }
-:root[data-theme="dark"] .table tbody tr:hover { background: #1c2530; }
-:root[data-theme="dark"] .input::placeholder,
-:root[data-theme="dark"] .select { color: var(--ink); }
-:root[data-theme="dark"] .dropzone { background: #15241d; border-color: var(--line); color: var(--ink); }
-:root[data-theme="dark"] .page-title,
-:root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3 { color: var(--ink); }
-:root[data-theme="dark"] .btn-outline { color: var(--ink); border-color: var(--line); }
+:root[data-theme="dark"] .window-pill { border-color: var(--line); }
+:root[data-theme="dark"] .table tbody tr:hover,
+:root[data-theme="dark"] .table tbody tr:hover td { background: #1c2632; }
+:root[data-theme="dark"] h1, :root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3, :root[data-theme="dark"] .page-title { color: var(--ink); }
 :root[data-theme="dark"] a { color: #4ade80; }
+:root[data-theme="dark"] .btn-outline:hover { color: var(--green-500); border-color: var(--green-600); }
+:root[data-theme="dark"] .info-note,
+:root[data-theme="dark"] .notice,
+:root[data-theme="dark"] .dropzone { background: #14251c; border-color: var(--line); color: var(--ink); }
+/* Neutral colour-tints. */
+:root[data-theme="dark"] .badge--muted,
+:root[data-theme="dark"] .st-cancelled,
+:root[data-theme="dark"] .vst-upcoming { background: #263141; color: var(--muted); }
+/* Danger / warning / success tints — dark, readable versions. */
+:root[data-theme="dark"] .badge--danger,
+:root[data-theme="dark"] .alert-pill.danger,
+:root[data-theme="dark"] .st-no_show,
+:root[data-theme="dark"] .vst-overdue,
+:root[data-theme="dark"] .flash--danger { background: #3a1d21; color: #fca5a5; border-color: #5b2a30; }
+:root[data-theme="dark"] .alert-pill.warn,
+:root[data-theme="dark"] .st-waiting,
+:root[data-theme="dark"] .vst-due,
+:root[data-theme="dark"] .flash--warning { background: #392f16; color: #fcd34d; border-color: #5b4a1f; }
+:root[data-theme="dark"] .flash--success { background: #143221; color: #86efac; border-color: #1f5b37; }
+:root[data-theme="dark"] .flash--info { background: #12303a; color: #7dd3fc; border-color: #1f4d5b; }
 
 /* Top bar: today's date + theme toggle. */
 .topbar-date { font-size: 0.82rem; color: var(--muted); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -272,7 +285,7 @@ a:hover { color: var(--green-900); }
 }
 .btn-primary { background: var(--green-700); color: #fff; }
 .btn-primary:hover { background: var(--green-800); color: #fff; }
-.btn-outline { background: #fff; border-color: var(--line); color: var(--ink); }
+.btn-outline { background: var(--card); border-color: var(--line); color: var(--ink); }
 .btn-outline:hover { border-color: var(--green-700); color: var(--green-800); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-success { background: #16a34a; color: #fff; }
@@ -315,7 +328,7 @@ a:hover { color: var(--green-900); }
 .input, .select {
   width: 100%; padding: 10px 12px;
   border: 1px solid var(--line); border-radius: 10px;
-  font-family: inherit; font-size: 0.92rem; background: #fff;
+  font-family: inherit; font-size: 0.92rem; background: var(--card); color: var(--ink);
 }
 .input:focus, .select:focus { outline: none; border-color: var(--green-500); box-shadow: 0 0 0 3px var(--green-050); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
@@ -361,7 +374,7 @@ a:hover { color: var(--green-900); }
   padding: 24px;
 }
 .auth-card {
-  width: 100%; max-width: 410px; background: #fff;
+  width: 100%; max-width: 410px; background: var(--card);
   border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,0.2);
   padding: 34px 30px;
 }
@@ -480,7 +493,7 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .date-nav .current-date { font-weight: 600; min-width: 180px; text-align: center; }
 .date-nav .nav-btn {
   width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line);
-  background: #fff; display: grid; place-items: center; cursor: pointer; color: var(--ink);
+  background: var(--card); display: grid; place-items: center; cursor: pointer; color: var(--ink);
 }
 .date-nav .nav-btn:hover { border-color: var(--green-500); color: var(--green-700); }
 
@@ -493,7 +506,7 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .current-card .cc-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
 .current-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .current-cols .col {
-  background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
 }
 .current-cols .col h4 { margin: 0 0 10px; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
 .current-card .cc-foot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
@@ -524,7 +537,7 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .pager { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 16px; }
 .pager-btn {
   min-width: 38px; height: 38px; padding: 0 10px; border-radius: 10px;
-  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
   display: inline-flex; align-items: center; justify-content: center; font-size: 0.9rem;
 }
 .pager-btn:hover { border-color: var(--green-500); color: var(--green-700); }

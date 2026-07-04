@@ -45,6 +45,9 @@ def login():
             return render_template("auth/login.html"), 403
 
         login_user(user, remember=remember)
+        # Apply the user's preferred UI language (doctors default to English).
+        if user.language:
+            set_locale(user.language)
         user.last_login_at = datetime.utcnow()
         ActivityLog.record(
             "login", user_id=user.id, entity="user", entity_id=user.id,

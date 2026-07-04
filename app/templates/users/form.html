@@ -43,6 +43,15 @@
         <input class="input" id="phone" name="phone" value="{{ form.phone or '' }}">
       </div>
       <div class="form-row">
+        <label for="language">{{ t('users.language') }}</label>
+        <select class="select" id="language" name="language">
+          <option value="">{{ t('users.language_default') }}</option>
+          <option value="ar" {{ 'selected' if form.language == 'ar' else '' }}>{{ t('common.arabic') }}</option>
+          <option value="en" {{ 'selected' if form.language == 'en' else '' }}>{{ t('common.english') }}</option>
+        </select>
+        <div class="hint">{{ t('users.language_hint') }}</div>
+      </div>
+      <div class="form-row">
         <label for="password">{{ t('auth.password') if not editing else t('users.new_password') }}
           {{ '*' if not editing else '' }}</label>
         <input class="input" type="password" id="password" name="password"

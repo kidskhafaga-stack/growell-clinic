@@ -26,6 +26,8 @@ class User(UserMixin, db.Model):
     is_practitioner = db.Column(db.Boolean, default=False, nullable=False)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(30))
+    # Preferred UI language, applied on login (doctors default to English).
+    language = db.Column(db.String(5))
 
     # Profile.
     photo = db.Column(db.String(255))          # profile picture filename
