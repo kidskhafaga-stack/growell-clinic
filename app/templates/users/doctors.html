@@ -1,0 +1,51 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('doctors.manage') }}{% endblock %}
+{% block page_heading %}{{ t('doctors.manage') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('doctors.manage') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('doctors.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('users.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.08s;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>{{ t('users.full_name') }}</th>
+        <th>{{ t('doctors.specialty') }}</th>
+        <th>{{ t('doctors.license') }}</th>
+        <th>{{ t('common.status') }}</th>
+        <th style="text-align:end;">{{ t('common.actions') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in doctors %}
+      <tr>
+        <td>
+          <strong>{{ doc.display_name(current_lang) }}</strong>
+          {% if doc.professional_title %}<span class="badge badge--muted" style="margin-inline-start:6px;">{{ doc.professional_title }}</span>{% endif %}
+        </td>
+        <td>{{ doc.specialty or '—' }}</td>
+        <td dir="ltr" style="text-align:start;">{{ doc.license_no or '—' }}</td>
+        <td>
+          {% if doc.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>
+          {% else %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
+        </td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('users.doctor_manage', user_id=doc.id) }}">
+            <i class="bi bi-sliders"></i> {{ t('doctors.manage_one') }}</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px;">{{ t('doctors.none') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

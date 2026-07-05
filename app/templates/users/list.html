@@ -10,6 +10,8 @@
     <p class="page-sub" style="margin:0;">{{ t('users.list') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.doctors') }}">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('doctors.manage') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('users.roles') }}">
       <i class="bi bi-shield-lock"></i> {{ t('roles_mgmt.manage') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('users.create') }}">
