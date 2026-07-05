@@ -50,6 +50,9 @@
     </div>
   </div>
 
+  <!-- Clinical safety: allergies / chronic diseases, up front -->
+  {% with p = visit.patient %}{% include "_safety_banner.html" %}{% endwith %}
+
   <!-- Workflow tabs: case → diagnosis → investigations → files -->
   <div class="visit-tabs no-print">
     <button type="button" class="vtab" :class="tab==='case' && 'active'" x-on:click="go('case')">
