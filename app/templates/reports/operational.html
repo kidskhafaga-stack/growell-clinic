@@ -25,6 +25,17 @@
     <div class="stat-card edge-yellow"><i class="bi bi-shield-plus ico"></i><div class="value">{{ doses }}</div><div class="label">{{ t('reports.doses') }}</div></div>
   </div>
 
+  <h3 class="section-title" id="quality"><i class="bi bi-clipboard2-check"></i> {{ t('reports.quality_title') }}</h3>
+  <p class="hint" style="margin-top:-6px;">{{ t('reports.quality_hint') }}</p>
+  <div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card edge-green"><i class="bi bi-check2-circle ico"></i><div class="value">{{ quality.completion_pct }}%</div><div class="label">{{ t('reports.completion_rate') }}</div></div>
+    <div class="stat-card edge-red"><i class="bi bi-x-circle ico"></i><div class="value">{{ quality.cancellation_pct }}%</div><div class="label">{{ t('reports.cancellation_rate') }}</div></div>
+    <div class="stat-card edge-red"><i class="bi bi-person-x ico"></i><div class="value">{{ quality.no_show_pct }}%</div><div class="label">{{ t('reports.no_show_rate') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-hourglass-split ico"></i><div class="value">{{ quality.avg_wait if quality.avg_wait is not none else '—' }}{% if quality.avg_wait is not none %} {{ t('reports.min') }}{% endif %}</div><div class="label">{{ t('reports.avg_wait') }}</div></div>
+    <div class="stat-card edge-teal"><i class="bi bi-stopwatch ico"></i><div class="value">{{ quality.avg_consult if quality.avg_consult is not none else '—' }}{% if quality.avg_consult is not none %} {{ t('reports.min') }}{% endif %}</div><div class="label">{{ t('reports.avg_consult') }}</div></div>
+    <div class="stat-card edge-yellow"><i class="bi bi-cash-coin ico"></i><div class="value">{{ quality.unpaid_pct }}%</div><div class="label">{{ t('reports.unpaid_rate') }}</div></div>
+  </div>
+
   <h3 class="section-title"><i class="bi bi-bar-chart"></i> {{ t('reports.by_status') }}</h3>
   <table class="table"><thead><tr><th>{{ t('reports.status') }}</th><th>{{ t('reports.count') }}</th></tr></thead><tbody>
     {% for s, n in by_status %}<tr><td>{{ t('statuses.' ~ s) }}</td><td>{{ n }}</td></tr>

@@ -121,11 +121,34 @@ def operational():
     doses = PatientVaccine.query.filter(PatientVaccine.given_date >= date_from,
                                         PatientVaccine.given_date <= date_to).count()
 
+    # --- GAHAR quality indicators ----------------------------------------
+    total = len(appts)
+
+    def _pct(n):
+        return round(100.0 * n / total, 1) if total else 0.0
+
+    def _avg_minutes(pairs):
+        vals = [(b - a).total_seconds() / 60.0 for a, b in pairs
+                if a and b and b >= a]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    quality = {
+        "completion_pct": _pct(by_status.get("completed", 0)),
+        "cancellation_pct": _pct(by_status.get("cancelled", 0)),
+        "no_show_pct": _pct(by_status.get("no_show", 0)),
+        "avg_wait": _avg_minutes([(a.checked_in_at, a.started_at) for a in appts]),
+        "avg_consult": _avg_minutes([(a.started_at, a.completed_at) for a in appts]),
+    }
+    invoices = Invoice.query.filter(Invoice.invoice_date >= date_from,
+                                    Invoice.invoice_date <= date_to).all()
+    unpaid = sum(1 for i in invoices if i.status in ("unpaid", "partial"))
+    quality["unpaid_pct"] = round(100.0 * unpaid / len(invoices), 1) if invoices else 0.0
+
     return render_template(
         "reports/operational.html", date_from=date_from, date_to=date_to,
         by_status=sorted(by_status.items(), key=lambda kv: -kv[1]),
         appts_total=len(appts), new_patients=new_patients,
-        visits=visits, doses=doses,
+        visits=visits, doses=doses, quality=quality,
     )
 
 
