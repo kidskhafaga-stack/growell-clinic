@@ -132,6 +132,68 @@
       {% else %}
         <p style="color:var(--muted);">{{ t('patients.no_alerts') }}</p>
       {% endif %}
+
+      <!-- Problem list (GAHAR): structured ongoing/past problems across visits -->
+      <h3 class="section-title" style="margin-top:24px;" id="problems"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3>
+      {% set active_problems = patient.problems | selectattr('status', 'equalto', 'active') | list %}
+      {% set resolved_problems = patient.problems | selectattr('status', 'equalto', 'resolved') | list %}
+      {% if active_problems %}
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for pr in active_problems %}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:9px 12px;">
+          <span class="badge badge--danger"><i class="bi bi-record-circle"></i></span>
+          <div style="flex:1;min-width:180px;">
+            <strong>{{ pr.display_title(current_lang) }}</strong>
+            {% if pr.icd_code %}<span class="badge badge--muted" dir="ltr">{{ pr.icd_code }}</span>{% endif %}
+            <div style="font-size:0.78rem;color:var(--muted);">
+              {% if pr.onset_date %}{{ t('problems.onset') }}: <span dir="ltr">{{ pr.onset_date }}</span> · {% endif %}{{ t('problems.noted') }}: <span dir="ltr">{{ pr.noted_date }}</span>
+              {% if pr.notes %} · {{ pr.notes }}{% endif %}
+            </div>
+          </div>
+          <form method="post" action="{{ url_for('patients.toggle_problem', problem_id=pr.id) }}" style="display:inline;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('problems.resolve') }}</button></form>
+          <form method="post" action="{{ url_for('patients.delete_problem', problem_id=pr.id) }}" style="display:inline;"
+                onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn-x" type="submit"><i class="bi bi-trash"></i></button></form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('problems.none') }}</p>
+      {% endif %}
+
+      {% if resolved_problems %}
+      <details style="margin-top:10px;">
+        <summary style="cursor:pointer;color:var(--muted);font-size:0.88rem;">{{ t('problems.resolved_list') }} ({{ resolved_problems|length }})</summary>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+          {% for pr in resolved_problems %}
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;opacity:0.8;">
+            <span style="text-decoration:line-through;">{{ pr.display_title(current_lang) }}</span>
+            {% if pr.resolved_date %}<span style="font-size:0.76rem;color:var(--muted);">· {{ t('problems.resolved_on') }} <span dir="ltr">{{ pr.resolved_date }}</span></span>{% endif %}
+            <form method="post" action="{{ url_for('patients.toggle_problem', problem_id=pr.id) }}" style="display:inline;">
+              <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('problems.reactivate') }}</button></form>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('patients.add_problem', patient_id=patient.id) }}"
+            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('problems.title') }} *</label>
+            <input class="input" name="title" required></div>
+          <div class="form-row"><label>{{ t('problems.title') }} (EN)</label>
+            <input class="input" name="title_en" dir="ltr"></div>
+          <div class="form-row"><label>{{ t('problems.icd') }}</label>
+            <input class="input" name="icd_code" dir="ltr"></div>
+          <div class="form-row"><label>{{ t('problems.onset') }}</label>
+            <input class="input" type="date" name="onset_date"></div>
+          <div class="form-row" style="grid-column:1/-1;"><label>{{ t('problems.notes') }}</label>
+            <input class="input" name="notes"></div>
+        </div>
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('problems.add') }}</button>
+      </form>
     </div>
 
     <!-- Family -->

@@ -25,7 +25,13 @@ from app.models.parent import (
     PARENT_RELATIONS,
     Parent,
 )
-from app.models.patient import BLOOD_TYPES, GENDERS, Patient
+from app.models.patient import (
+    BLOOD_TYPES,
+    GENDERS,
+    PROBLEM_STATUSES,
+    Patient,
+    PatientProblem,
+)
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
 from app.models.setting import Setting
@@ -115,6 +121,8 @@ __all__ = [
     "Family",
     "Parent",
     "Patient",
+    "PatientProblem",
+    "PROBLEM_STATUSES",
     "Appointment",
     "DoctorSchedule",
     "Visit",

@@ -1343,6 +1343,23 @@
     "save_pricing": "Save prices",
     "no_services": "No active services."
   },
+  "problems": {
+    "title_list": "Problem list",
+    "title": "Problem / diagnosis",
+    "icd": "ICD code",
+    "onset": "Onset",
+    "noted": "Noted",
+    "notes": "Notes",
+    "add": "Add problem",
+    "added": "Problem added",
+    "updated": "Problem updated",
+    "deleted": "Problem removed",
+    "none": "No active problems.",
+    "resolve": "Resolve",
+    "reactivate": "Reactivate",
+    "resolved_list": "Resolved problems",
+    "resolved_on": "resolved on"
+  },
   "roles_mgmt": {
     "title": "Roles & permissions",
     "subtitle": "Control each role's access and add custom roles",
