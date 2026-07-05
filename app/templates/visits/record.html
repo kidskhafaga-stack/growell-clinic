@@ -62,6 +62,14 @@
   </div>
   {% endif %}
 
+  <!-- Medication reconciliation reference: recent meds (GAHAR) -->
+  {% if recent_meds %}
+  <div class="card gc-scale-in no-print" style="margin-bottom:14px;padding:10px 14px;">
+    <strong style="font-size:0.9rem;"><i class="bi bi-capsule"></i> {{ t('rx.reconcile_title') }}:</strong>
+    {% for m in recent_meds %}<span class="badge badge--muted" style="margin:2px;">{{ m.drug_name }}{% if m.dose %} · {{ m.dose }}{% endif %}</span>{% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Workflow tabs: case → diagnosis → investigations → files -->
   <div class="visit-tabs no-print">
     <button type="button" class="vtab" :class="tab==='case' && 'active'" x-on:click="go('case')">

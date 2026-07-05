@@ -342,9 +342,15 @@ def new():
                 "name": vi.display_name(lang),
                 "notes": vi.request_notes or "",
             })
+    # Medication reconciliation: the patient's recent meds to review while
+    # prescribing (continue / stop / modify).
+    recent_meds = []
+    if patient is not None:
+        from app.utils.meds import recent_medications
+        recent_meds = recent_medications(patient.id)
     return render_template(
         "prescriptions/new.html", patient=patient, prefill=prefill,
-        prefill_invs=prefill_invs,
+        prefill_invs=prefill_invs, recent_meds=recent_meds,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
         ai_ready=ai_utils.is_ready(),
