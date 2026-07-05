@@ -55,6 +55,24 @@
     </div>
   </div>
 
+  {% if recent_meds %}
+  <!-- Medication reconciliation: review the patient's recent meds (GAHAR) -->
+  <div class="card gc-scale-in no-print" style="animation-delay:0.05s;border-inline-start:4px solid var(--warning);">
+    <h2 class="section-title" style="font-size:1rem;"><i class="bi bi-clock-history"></i> {{ t('rx.reconcile_title') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('rx.reconcile_hint') }}</p>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      {% for m in recent_meds %}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;padding:7px 10px;">
+        <strong style="flex:1;min-width:160px;">{{ m.drug_name }}
+          <span style="color:var(--muted);font-weight:400;font-size:0.8rem;">{% if m.dose %}· {{ m.dose }}{% endif %}{% if m.frequency %} · {{ m.frequency }}{% endif %} · <span dir="ltr">{{ m.rx_date }}</span></span></strong>
+        <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click='continueMed({{ m|tojson }})'>
+          <i class="bi bi-arrow-repeat"></i> {{ t('rx.reconcile_continue') }}</button>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="card gc-scale-in" style="animation-delay:0.06s;">
     <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('rx.items') }}</h2>
     <template x-for="(line, i) in lines" :key="i">
@@ -164,6 +182,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs){
     },
     pickDx(s){ this.dx=(current_lang==='ar'?s.ar:s.en); this.dxCode=s.code; this.dxOpen=false; this.dxSug=[]; },
     addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    continueMed(m){ this.lines.push({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
     async aiDose(i){
       var l=this.lines[i]; if(!l.name || l.aiBusy) return;
       l.aiBusy=true; l.aiNote='';

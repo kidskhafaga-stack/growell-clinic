@@ -216,11 +216,14 @@ def record(visit_id):
     mandatory_vaccines = (Vaccine.query
                           .filter_by(is_mandatory=True, is_discontinued=False)
                           .order_by(Vaccine.sort_order).all())
+    # Medication reconciliation reference: the patient's recent meds.
+    from app.utils.meds import recent_medications
+    recent_meds = recent_medications(visit.patient_id)
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
-        procedure_services=procedure_services,
+        procedure_services=procedure_services, recent_meds=recent_meds,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
