@@ -194,6 +194,55 @@
         </div>
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('problems.add') }}</button>
       </form>
+
+      <!-- Consent (GAHAR): guardian-signed documented consents -->
+      <h3 class="section-title" style="margin-top:24px;" id="consent"><i class="bi bi-file-earmark-check"></i> {{ t('consent.title_list') }}</h3>
+      {% if patient.consents %}
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for cs in patient.consents %}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:9px 12px;">
+          <span class="badge badge--role">{{ t('consent.types.' ~ cs.consent_type) }}</span>
+          <div style="flex:1;min-width:180px;">
+            <strong>{{ cs.guardian_name }}</strong>
+            {% if cs.guardian_relation %}<span style="color:var(--muted);font-size:0.8rem;">({{ t('parent_relations.' ~ cs.guardian_relation) }})</span>{% endif %}
+            <div style="font-size:0.78rem;color:var(--muted);"><span dir="ltr">{{ cs.signed_date }}</span>{% if cs.statement %} · {{ cs.statement[:80] }}{% endif %}</div>
+          </div>
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.print_consent', consent_id=cs.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
+          <form method="post" action="{{ url_for('patients.delete_consent', consent_id=cs.id) }}" style="display:inline;"
+                onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn-x" type="submit"><i class="bi bi-trash"></i></button></form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('consent.none') }}</p>
+      {% endif %}
+
+      {% set g = patient.primary_guardian %}
+      <form method="post" action="{{ url_for('patients.add_consent', patient_id=patient.id) }}"
+            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+        <p class="hint" style="margin-top:0;"><i class="bi bi-info-circle"></i> {{ t('consent.pediatric_hint') }}</p>
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('consent.type') }}</label>
+            <select class="select" name="consent_type">
+              {% for ct in consent_types %}<option value="{{ ct }}">{{ t('consent.types.' ~ ct) }}</option>{% endfor %}
+            </select></div>
+          <div class="form-row"><label>{{ t('consent.guardian_name') }} *</label>
+            <input class="input" name="guardian_name" value="{{ g.display_name(current_lang) if g else '' }}" required></div>
+          <div class="form-row"><label>{{ t('consent.relation') }}</label>
+            <select class="select" name="guardian_relation">
+              <option value="">—</option>
+              {% for r in relations %}<option value="{{ r }}" {{ 'selected' if g and g.relation == r else '' }}>{{ t('parent_relations.' ~ r) }}</option>{% endfor %}
+            </select></div>
+          <div class="form-row"><label>{{ t('consent.guardian_id') }}</label>
+            <input class="input" name="guardian_id_no" dir="ltr" value="{{ g.national_id if g else '' }}"></div>
+          <div class="form-row"><label>{{ t('consent.date') }}</label>
+            <input class="input" type="date" name="signed_date"></div>
+          <div class="form-row" style="grid-column:1/-1;"><label>{{ t('consent.statement') }}</label>
+            <textarea class="input" name="statement" rows="2"></textarea></div>
+        </div>
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('consent.add') }}</button>
+      </form>
     </div>
 
     <!-- Family -->

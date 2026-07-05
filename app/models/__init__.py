@@ -27,8 +27,10 @@ from app.models.parent import (
 )
 from app.models.patient import (
     BLOOD_TYPES,
+    CONSENT_TYPES,
     GENDERS,
     PROBLEM_STATUSES,
+    Consent,
     Patient,
     PatientProblem,
 )
@@ -123,6 +125,8 @@ __all__ = [
     "Patient",
     "PatientProblem",
     "PROBLEM_STATUSES",
+    "Consent",
+    "CONSENT_TYPES",
     "Appointment",
     "DoctorSchedule",
     "Visit",

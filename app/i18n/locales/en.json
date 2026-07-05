@@ -1360,6 +1360,34 @@
     "resolved_list": "Resolved problems",
     "resolved_on": "resolved on"
   },
+  "consent": {
+    "title": "Informed consent",
+    "title_list": "Consents",
+    "type": "Consent type",
+    "types": {
+      "general": "General consent",
+      "examination": "Examination",
+      "procedure": "Medical procedure",
+      "vaccination": "Vaccination",
+      "anesthesia": "Anesthesia",
+      "data_privacy": "Use of data",
+      "photography": "Medical photography"
+    },
+    "guardian_name": "Guardian name",
+    "relation": "Relation",
+    "guardian_id": "Guardian ID no.",
+    "date": "Date",
+    "statement": "Consent statement",
+    "notes": "Notes",
+    "add": "Record consent",
+    "added": "Consent recorded",
+    "deleted": "Consent removed",
+    "none": "No consents recorded.",
+    "pediatric_hint": "The patient is a minor — consent is given and signed by the guardian on their behalf.",
+    "default_statement": "I, the child's guardian, confirm that I have been informed of the nature, risks and alternatives of the medical service, and I consent to it.",
+    "guardian_signature": "Guardian signature",
+    "witness": "Witness / staff"
+  },
   "roles_mgmt": {
     "title": "Roles & permissions",
     "subtitle": "Control each role's access and add custom roles",
