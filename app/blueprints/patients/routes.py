@@ -29,8 +29,10 @@ from app.models import (
     CLIENT_CATEGORIES,
     Family,
     GENDERS,
+    CONSENT_TYPES,
     PARENT_RELATIONS,
     ActivityLog,
+    Consent,
     Parent,
     Patient,
     PatientAttachment,
@@ -257,6 +259,7 @@ def view(patient_id):
         "patients/profile.html",
         patient=patient,
         relations=PARENT_RELATIONS,
+        consent_types=CONSENT_TYPES,
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient,
@@ -588,6 +591,52 @@ def delete_problem(problem_id):
     db.session.commit()
     flash(t("problems.deleted"), "info")
     return redirect(url_for("patients.view", patient_id=pid) + "#problems")
+
+
+# --------------------------------------------------------- consent ---------
+@patients_bp.route("/<int:patient_id>/consents", methods=["POST"])
+@module_required(MODULE)
+def add_consent(patient_id):
+    patient = db.get_or_404(Patient, patient_id)
+    guardian = (request.form.get("guardian_name") or "").strip()
+    ctype = (request.form.get("consent_type") or "general").strip()
+    if not guardian:
+        flash(t("common.required") + ": " + t("consent.guardian_name"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#consent")
+    db.session.add(Consent(
+        patient_id=patient.id,
+        consent_type=ctype if ctype in CONSENT_TYPES else "general",
+        guardian_name=guardian,
+        guardian_relation=(request.form.get("guardian_relation") or "").strip() or None,
+        guardian_id_no=(request.form.get("guardian_id_no") or "").strip() or None,
+        statement=(request.form.get("statement") or "").strip() or None,
+        notes=(request.form.get("notes") or "").strip() or None,
+        signed_date=_parse_date("signed_date") or date.today(),
+        obtained_by=current_user.id,
+    ))
+    ActivityLog.record("consent.add", user_id=current_user.id, entity="patient",
+                       entity_id=patient.id, detail=ctype, ip_address=client_ip())
+    db.session.commit()
+    flash(t("consent.added"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#consent")
+
+
+@patients_bp.route("/consents/<int:consent_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_consent(consent_id):
+    c = db.get_or_404(Consent, consent_id)
+    pid = c.patient_id
+    db.session.delete(c)
+    db.session.commit()
+    flash(t("consent.deleted"), "info")
+    return redirect(url_for("patients.view", patient_id=pid) + "#consent")
+
+
+@patients_bp.route("/consents/<int:consent_id>/print")
+@module_required(MODULE)
+def print_consent(consent_id):
+    c = db.get_or_404(Consent, consent_id)
+    return render_template("patients/consent_print.html", c=c, patient=c.patient)
 
 
 # ----------------------------------------------------------- families ------

@@ -112,6 +112,15 @@ class Patient(db.Model):
         return None
 
     @property
+    def primary_guardian(self):
+        """The primary-contact guardian (else the first parent), or None."""
+        if not self.family or not self.family.parents:
+            return None
+        parents = sorted(self.family.parents,
+                         key=lambda p: (0 if p.is_primary_contact else 1))
+        return parents[0] if parents else None
+
+    @property
     def client_category(self):
         """Client category from the primary guardian (normal/friend/relative/employee)."""
         if not self.family or not self.family.parents:
@@ -170,3 +179,36 @@ class PatientProblem(db.Model):
 
     def __repr__(self):
         return f"<PatientProblem p={self.patient_id} {self.title!r} {self.status}>"
+
+
+# Consent kinds a pediatric clinic documents (guardian-signed).
+CONSENT_TYPES = ["general", "examination", "procedure", "vaccination",
+                 "anesthesia", "data_privacy", "photography"]
+
+
+class Consent(db.Model):
+    """Documented informed consent (GAHAR). In pediatrics the patient is a
+    minor, so consent is given and signed by the **guardian**, not the child.
+    """
+    __tablename__ = "consents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    consent_type = db.Column(db.String(20), default="general", nullable=False)
+    # Who consents on the child's behalf.
+    guardian_name = db.Column(db.String(120), nullable=False)
+    guardian_relation = db.Column(db.String(20))
+    guardian_id_no = db.Column(db.String(20))          # national ID of the signer
+    statement = db.Column(db.Text)                     # the consent text
+    notes = db.Column(db.Text)
+    signed_date = db.Column(db.Date, default=date.today, nullable=False)
+    obtained_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient", backref=db.backref(
+        "consents", cascade="all, delete-orphan", order_by="Consent.signed_date.desc()"))
+    staff = db.relationship("User")
+
+    def __repr__(self):
+        return f"<Consent p={self.patient_id} {self.consent_type} {self.signed_date}>"
