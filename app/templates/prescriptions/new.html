@@ -6,6 +6,9 @@
 {% block content %}
 <h1 class="page-title gc-animate">{{ t('rx.new') }}</h1>
 
+{# Allergy / chronic alert for the selected patient — safe prescribing (GAHAR). #}
+{% with p = patient %}{% include "_safety_banner.html" %}{% endwith %}
+
 {% set pf = prefill or {} %}
 <form method="post" action="{{ url_for('prescriptions.new') }}"
       x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }})"

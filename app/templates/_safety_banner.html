@@ -1,0 +1,21 @@
+{# Reusable clinical safety banner — surfaces the patient's allergies and
+   chronic diseases prominently (GAHAR medication-safety / allergy alert).
+   Pass the patient as `p` (e.g. {% with p = visit.patient %}...{% endwith %}). #}
+{% if p and (p.allergies or p.chronic_diseases) %}
+<div class="alert-banner gc-scale-in no-print" style="margin-bottom:14px;">
+  {% if p.allergies %}
+  <div class="alert-banner__item ab-danger">
+    <span class="ab-ico pulse"><i class="bi bi-exclamation-octagon-fill"></i></span>
+    <div><div class="ab-title">{{ t('patients.allergies') }}</div>
+      <div class="ab-body">{{ p.allergies }}</div></div>
+  </div>
+  {% endif %}
+  {% if p.chronic_diseases %}
+  <div class="alert-banner__item ab-warn">
+    <span class="ab-ico"><i class="bi bi-heart-pulse-fill"></i></span>
+    <div><div class="ab-title">{{ t('patients.chronic_diseases') }}</div>
+      <div class="ab-body">{{ p.chronic_diseases }}</div></div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
