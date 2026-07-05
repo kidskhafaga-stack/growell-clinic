@@ -47,7 +47,6 @@
     {% for tid, icon, label in [
         ('clinic','hospital', t('settings.clinic_identity')),
         ('logo','image', t('settings.logo')),
-        ('whatsapp','whatsapp', t('settings.wa_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title'))] %}
     <button type="button" class="btn btn-sm gc-press"
@@ -201,59 +200,6 @@
         {{ chip_editor('visit_exam_chips', exam_chips) }}
       </div>
     </div>
-  </div>
-
-  <!-- WhatsApp / messaging -->
-  <div class="card gc-scale-in" x-show="tab==='whatsapp'" x-cloak>
-    <h2 class="section-title"><i class="bi bi-whatsapp"></i> {{ t('settings.wa_title') }}</h2>
-    <div class="form-grid">
-      <div class="form-row"><label>{{ t('settings.crm_mode') }}</label>
-        <select class="select" name="crm_mode">
-          <option value="manual" {{ 'selected' if values.get('crm_mode','manual')=='manual' else '' }}>{{ t('settings.crm_manual') }}</option>
-          <option value="automatic" {{ 'selected' if values.get('crm_mode')=='automatic' else '' }}>{{ t('settings.crm_automatic') }}</option>
-        </select><div class="hint">{{ t('settings.crm_mode_hint') }}</div></div>
-      <div class="form-row"><label>{{ t('settings.wa_provider') }} <span style="color:var(--muted);">({{ t('settings.crm_automatic') }})</span></label>
-        <select class="select" name="wa_provider">
-          {% for pv in ['web','cloud_api','wapilot'] %}
-          <option value="{{ pv }}" {{ 'selected' if values.get('wa_provider','web')==pv else '' }}>{{ t('settings.wa_' ~ pv) }}</option>
-          {% endfor %}
-        </select></div>
-      <div class="form-row"><label>{{ t('settings.wa_country_code') }}</label><input class="input" name="wa_country_code" dir="ltr" value="{{ values.get('wa_country_code','20') }}" placeholder="20"></div>
-      <div class="form-row"><label>{{ t('settings.queue_mode') }}</label>
-        <select class="select" name="queue_mode">
-          <option value="number" {{ 'selected' if values.get('queue_mode','number')=='number' else '' }}>{{ t('settings.queue_number') }}</option>
-          <option value="time" {{ 'selected' if values.get('queue_mode')=='time' else '' }}>{{ t('settings.queue_time') }}</option>
-        </select></div>
-    </div>
-
-    <details style="margin-top:8px;">
-      <summary style="cursor:pointer;color:var(--green-800);"><i class="bi bi-key"></i> {{ t('settings.wa_cloud_api') }}</summary>
-      <div class="form-grid" style="margin-top:10px;">
-        <div class="form-row"><label>{{ t('settings.wa_cloud_token') }}</label><input class="input" name="wa_cloud_token" dir="ltr" value="{{ values.get('wa_cloud_token','') }}"></div>
-        <div class="form-row"><label>{{ t('settings.wa_cloud_phone_id') }}</label><input class="input" name="wa_cloud_phone_id" dir="ltr" value="{{ values.get('wa_cloud_phone_id','') }}"></div>
-      </div>
-      <p class="hint"><a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noopener">{{ t('settings.wa_cloud_help') }}</a></p>
-    </details>
-    <details style="margin-top:6px;">
-      <summary style="cursor:pointer;color:var(--green-800);"><i class="bi bi-plugin"></i> WaPilot</summary>
-      <div class="form-grid" style="margin-top:10px;">
-        <div class="form-row"><label>{{ t('settings.wa_wapilot_key') }}</label><input class="input" name="wa_wapilot_key" dir="ltr" value="{{ values.get('wa_wapilot_key','') }}"></div>
-        <div class="form-row"><label>{{ t('settings.wa_wapilot_endpoint') }}</label><input class="input" name="wa_wapilot_endpoint" dir="ltr" value="{{ values.get('wa_wapilot_endpoint','') }}"></div>
-      </div>
-    </details>
-
-    <h3 style="margin:14px 0 6px;font-size:0.95rem;">{{ t('settings.wa_templates') }}</h3>
-    <div class="form-row"><label>{{ t('settings.wa_tpl_appt') }}</label>
-      <textarea class="input" name="wa_tpl_appt_confirm" rows="3" dir="auto">{{ values.get('wa_tpl_appt_confirm','') }}</textarea>
-      <div class="hint">{{ t('settings.wa_vars_appt') }}</div></div>
-    <div class="form-row"><label>{{ t('settings.wa_tpl_doctor') }}</label>
-      <textarea class="input" name="wa_tpl_doctor_schedule" rows="3" dir="auto">{{ values.get('wa_tpl_doctor_schedule','') }}</textarea>
-      <div class="hint">{{ t('settings.wa_vars_doctor') }}</div></div>
-    <div class="form-row"><label>{{ t('settings.wa_tpl_vaccine') }}</label>
-      <textarea class="input" name="wa_tpl_vaccine_given" rows="3" dir="auto">{{ values.get('wa_tpl_vaccine_given','') }}</textarea>
-      <div class="hint">{{ t('settings.wa_vars_vaccine') }}</div></div>
-    <p class="hint"><i class="bi bi-info-circle"></i> {{ t('settings.crm_central_hint') }}
-      <a href="{{ url_for('messages.occasions') }}">{{ t('occasions.title') }}</a></p>
   </div>
 
   <!-- ETA e-invoicing -->

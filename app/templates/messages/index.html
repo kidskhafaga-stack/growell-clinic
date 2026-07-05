@@ -11,11 +11,8 @@
     <p class="page-sub" style="margin:0;">{{ t('messages_mod.log') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}"><i class="bi bi-balloon"></i> {{ t('occasions.open') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}"><i class="bi bi-headset"></i> {{ t('crm.title') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('messages.roster') }}"><i class="bi bi-calendar-check"></i> {{ t('messages_mod.roster') }}</a>
-    {% if current_user.can_access('settings') %}
-    <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}#wa"><i class="bi bi-gear"></i> {{ t('settings.wa_title') }}</a>
-    {% endif %}
   </div>
 </div>
 

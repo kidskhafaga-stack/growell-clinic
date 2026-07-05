@@ -178,6 +178,10 @@ def register_commands(app):
             ("parents", "nationality", "VARCHAR(60)"),
             ("users", "print_title_ar", "TEXT"),
             ("users", "print_title_en", "TEXT"),
+            ("message_templates", "image_url", "VARCHAR(300)"),
+            ("message_templates", "send_mode", "VARCHAR(10) DEFAULT 'manual'"),
+            ("message_templates", "is_system", "BOOLEAN DEFAULT 0"),
+            ("message_logs", "image_url", "VARCHAR(300)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -202,6 +206,11 @@ def register_commands(app):
         try:  # ensure base services + visit-type pricing exist (idempotent)
             from app.utils.services import seed_services
             seed_services()
+        except Exception:  # noqa: BLE001
+            pass
+        try:  # unify CRM templates into the registry (migrates legacy settings)
+            from app.utils.whatsapp import seed_system_templates
+            seed_system_templates()
         except Exception:  # noqa: BLE001
             pass
         db.session.commit()

@@ -131,7 +131,9 @@ def record(patient_id):
             "next_date": _next_dose_date(patient, brand, dose_number) or "—",
             "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
         })
-        log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+        log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
+                      template_type="vaccine_given",
+                      image_url=wa.template_image("vaccine_given"))
         db.session.commit()
         return render_template(
             "messages/sent.html", log=log, appt=None,
@@ -572,7 +574,9 @@ def remind_due(patient_id):
         "due_date": due["due_date"] or "—",
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
-    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
+                  template_type="vaccine_due",
+                  image_url=wa.template_image("vaccine_due"))
     db.session.commit()
     return render_template("messages/sent.html", log=log, appt=None,
                            back_url=url_for("vaccinations.reminders"))
