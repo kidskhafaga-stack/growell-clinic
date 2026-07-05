@@ -192,6 +192,88 @@ def delete(user_id):
     return redirect(url_for("users.index"))
 
 
+# --- doctors management ----------------------------------------------------
+# One place per doctor: professional identity (titles / specialty / licence)
+# plus their per-service pricing & commission — the doctor-centric inverse of
+# the finance "per-service, all doctors" screen.
+@users_bp.route("/doctors")
+@admin_required
+def doctors():
+    docs = User.query.filter_by(role="doctor").order_by(User.full_name).all()
+    return render_template("users/doctors.html", doctors=docs)
+
+
+@users_bp.route("/doctors/<int:user_id>")
+@admin_required
+def doctor_manage(user_id):
+    from app.blueprints.main.routes import PROFESSIONAL_TITLES
+    from app.models import COMMISSION_TYPES, DoctorServiceCommission, Service
+
+    doc = db.get_or_404(User, user_id)
+    services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
+    overrides = {oc.service_id: oc
+                 for oc in DoctorServiceCommission.query.filter_by(doctor_id=doc.id).all()}
+    return render_template("users/doctor_manage.html", doc=doc, services=services,
+                           overrides=overrides, titles=PROFESSIONAL_TITLES,
+                           commission_types=COMMISSION_TYPES)
+
+
+@users_bp.route("/doctors/<int:user_id>/professional", methods=["POST"])
+@admin_required
+def doctor_professional(user_id):
+    from app.blueprints.main.routes import PROFESSIONAL_TITLES
+
+    doc = db.get_or_404(User, user_id)
+    f = request.form
+    doc.rx_display_name = (f.get("rx_display_name") or "").strip() or None
+    title = (f.get("professional_title") or "").strip()
+    doc.professional_title = title if title in PROFESSIONAL_TITLES else None
+    doc.specialty = (f.get("specialty") or "").strip() or None
+    doc.sub_specialties = (f.get("sub_specialties") or "").strip() or None
+    doc.license_no = (f.get("license_no") or "").strip() or None
+    doc.print_title_ar = (f.get("print_title_ar") or "").strip() or None
+    doc.print_title_en = (f.get("print_title_en") or "").strip() or None
+    ActivityLog.record("doctor.professional", user_id=current_user.id, entity="user",
+                       entity_id=doc.id, detail=doc.username, ip_address=client_ip())
+    db.session.commit()
+    flash(t("doctors.saved"), "success")
+    return redirect(url_for("users.doctor_manage", user_id=doc.id))
+
+
+@users_bp.route("/doctors/<int:user_id>/pricing", methods=["POST"])
+@admin_required
+def doctor_pricing(user_id):
+    from app.models import COMMISSION_TYPES, DoctorServiceCommission, Service
+
+    doc = db.get_or_404(User, user_id)
+    existing = {oc.service_id: oc
+                for oc in DoctorServiceCommission.query.filter_by(doctor_id=doc.id).all()}
+    for svc in Service.query.filter_by(is_active=True).all():
+        ctype = (request.form.get(f"type_{svc.id}") or "none").strip()
+        if ctype not in COMMISSION_TYPES:
+            ctype = "none"
+        cval = request.form.get(f"value_{svc.id}", type=float) or 0
+        # Blank price = no override (service default); "0" = free for this doctor.
+        raw_price = (request.form.get(f"price_{svc.id}") or "").strip()
+        price = request.form.get(f"price_{svc.id}", type=float) if raw_price != "" else None
+
+        oc = existing.get(svc.id)
+        if ctype == "none" and price is None:
+            if oc:
+                db.session.delete(oc)
+            continue
+        if oc is None:
+            oc = DoctorServiceCommission(doctor_id=doc.id, service_id=svc.id)
+            db.session.add(oc)
+        oc.commission_type, oc.commission_value = ctype, cval
+        oc.price_override = price
+    ActivityLog.record("doctor.pricing", user_id=current_user.id, entity="user",
+                       entity_id=doc.id, detail=doc.username, ip_address=client_ip())
+    db.session.commit()
+    flash(t("doctors.pricing_saved"), "success")
+    return redirect(url_for("users.doctor_manage", user_id=doc.id))
+
+
 # --- helpers ---------------------------------------------------------------
 def _read_form():
     return {
