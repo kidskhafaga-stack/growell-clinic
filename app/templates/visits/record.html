@@ -53,6 +53,15 @@
   <!-- Clinical safety: allergies / chronic diseases, up front -->
   {% with p = visit.patient %}{% include "_safety_banner.html" %}{% endwith %}
 
+  <!-- Active problem list (GAHAR continuity) -->
+  {% set _active_problems = visit.patient.problems | selectattr('status', 'equalto', 'active') | list %}
+  {% if _active_problems %}
+  <div class="card gc-scale-in no-print" style="border-inline-start:4px solid var(--warning);margin-bottom:14px;padding:10px 14px;">
+    <strong style="font-size:0.9rem;"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}:</strong>
+    {% for pr in _active_problems %}<span class="badge badge--muted" style="margin:2px;">{{ pr.display_title(current_lang) }}{% if pr.icd_code %} <span dir="ltr">({{ pr.icd_code }})</span>{% endif %}</span>{% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Workflow tabs: case → diagnosis → investigations → files -->
   <div class="visit-tabs no-print">
     <button type="button" class="vtab" :class="tab==='case' && 'active'" x-on:click="go('case')">

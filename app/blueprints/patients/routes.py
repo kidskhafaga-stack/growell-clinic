@@ -34,6 +34,7 @@ from app.models import (
     Parent,
     Patient,
     PatientAttachment,
+    PatientProblem,
 )
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import client_ip, module_required
@@ -528,6 +529,65 @@ def delete_parent(parent_id):
     if patient_id:
         return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
     return redirect(url_for("patients.index"))
+
+
+# ------------------------------------------------------ problem list -------
+def _parse_date(name):
+    raw = (request.form.get(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+@patients_bp.route("/<int:patient_id>/problems", methods=["POST"])
+@module_required(MODULE)
+def add_problem(patient_id):
+    patient = db.get_or_404(Patient, patient_id)
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash(t("common.required") + ": " + t("problems.title"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#problems")
+    db.session.add(PatientProblem(
+        patient_id=patient.id, title=title,
+        title_en=(request.form.get("title_en") or "").strip() or None,
+        icd_code=(request.form.get("icd_code") or "").strip() or None,
+        onset_date=_parse_date("onset_date"),
+        notes=(request.form.get("notes") or "").strip() or None,
+    ))
+    ActivityLog.record("problem.add", user_id=current_user.id, entity="patient",
+                       entity_id=patient.id, detail=title, ip_address=client_ip())
+    db.session.commit()
+    flash(t("problems.added"), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#problems")
+
+
+@patients_bp.route("/problems/<int:problem_id>/toggle", methods=["POST"])
+@module_required(MODULE)
+def toggle_problem(problem_id):
+    prob = db.get_or_404(PatientProblem, problem_id)
+    if prob.status == "active":
+        prob.status = "resolved"
+        prob.resolved_date = date.today()
+    else:
+        prob.status = "active"
+        prob.resolved_date = None
+    db.session.commit()
+    flash(t("problems.updated"), "success")
+    return redirect(url_for("patients.view", patient_id=prob.patient_id) + "#problems")
+
+
+@patients_bp.route("/problems/<int:problem_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_problem(problem_id):
+    prob = db.get_or_404(PatientProblem, problem_id)
+    pid = prob.patient_id
+    db.session.delete(prob)
+    db.session.commit()
+    flash(t("problems.deleted"), "info")
+    return redirect(url_for("patients.view", patient_id=pid) + "#problems")
 
 
 # ----------------------------------------------------------- families ------

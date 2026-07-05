@@ -133,3 +133,40 @@ class Patient(db.Model):
 
     def __repr__(self):
         return f"<Patient {self.patient_number} {self.full_name}>"
+
+
+PROBLEM_STATUSES = ["active", "resolved"]
+
+
+class PatientProblem(db.Model):
+    """A structured, longitudinal problem list (GAHAR): the patient's ongoing
+    and past problems/chronic conditions carried across visits — richer than the
+    free-text ``chronic_diseases`` field.
+    """
+    __tablename__ = "patient_problems"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)   # Arabic primary
+    title_en = db.Column(db.String(255))
+    icd_code = db.Column(db.String(20))
+    status = db.Column(db.String(12), default="active", nullable=False)
+    onset_date = db.Column(db.Date)                     # when it started
+    noted_date = db.Column(db.Date, default=date.today) # when added to the list
+    resolved_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient", backref=db.backref(
+        "problems", cascade="all, delete-orphan", order_by="PatientProblem.created_at.desc()"))
+
+    def display_title(self, lang="ar"):
+        return self.title_en if (lang == "en" and self.title_en) else self.title
+
+    @property
+    def is_active(self):
+        return self.status == "active"
+
+    def __repr__(self):
+        return f"<PatientProblem p={self.patient_id} {self.title!r} {self.status}>"
