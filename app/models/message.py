@@ -28,8 +28,8 @@ SYSTEM_TEMPLATE_TYPES = [
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
 # automation-capable occasion, so it joins the managed set.
-AUTOMATION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday"]
-OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "seasonal", "greeting", "custom"]
+AUTOMATION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback"]
+OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback", "seasonal", "greeting", "custom"]
 
 # Variables each template type understands. Surfaced in the templates UI so
 # staff can compose messages without guessing the tokens.
@@ -41,6 +41,7 @@ TEMPLATE_VARIABLES = {
     "vaccine_seasonal": ["patient", "vaccine", "year", "clinic"],
     "vaccine_changed": ["patient", "old_vaccine", "new_vaccine", "clinic"],
     "birthday": ["patient", "clinic"],
+    "feedback": ["patient", "clinic", "doctor", "link"],
     "seasonal": ["patient", "clinic"],
     "greeting": ["patient", "clinic"],
     "custom": ["patient", "clinic"],
@@ -72,6 +73,10 @@ TEMPLATE_DEFAULTS = {
     "birthday": (
         "كل سنة و{patient} طيب! 🎉\n"
         "عيلة {clinic} بتتمنالكم يوم سعيد وصحة دايمة. 🎂"
+    ),
+    "feedback": (
+        "شكراً لزيارتكم {clinic} 🌟\n"
+        "رأيكم يهمنا — قيّموا خدمتنا والدكتور {doctor} في أقل من دقيقة:\n{link}"
     ),
 }
 

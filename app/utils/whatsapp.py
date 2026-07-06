@@ -95,6 +95,21 @@ def template_for(template_type):
             or q.order_by(MessageTemplate.id).first())
 
 
+def feedback_link(token, cfg=None):
+    """Public survey URL for a feedback token — uses the configured public base
+    (tunnel/domain) so it opens on the patient's phone; falls back to the
+    request host."""
+    cfg = cfg or get_config()
+    base = cfg.get("public_base")
+    if base:
+        return f"{base}/f/{token}"
+    from flask import url_for
+    try:
+        return url_for("feedback.rate", token=token, _external=True)
+    except Exception:  # noqa: BLE001 - no request/app context
+        return f"/f/{token}"
+
+
 def template_image(template_type):
     """The image attached to a type's active template, or None."""
     tpl = template_for(template_type)

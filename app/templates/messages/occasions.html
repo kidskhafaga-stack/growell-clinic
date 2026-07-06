@@ -69,7 +69,8 @@ const WA_SAMPLES = {
   doctor:'د. سارة', queue:'3', vaccine:'الروتا', dose:'الجرعة الأولى',
   next_date:'2026-08-10', due_date:'2026-07-15', year:'2026',
   old_vaccine:'التطعيم السابق', new_vaccine:'التطعيم البديل',
-  count:'8', list:'1) 10:00 - محمد\n2) 10:30 - سارة\n3) 11:00 - يوسف'
+  count:'8', list:'1) 10:00 - محمد\n2) 10:30 - سارة\n3) 11:00 - يوسف',
+  link:'https://clinic.example.com/f/aXbY'
 };
 function waFill(text){ return (text||'').replace(/\{(\w+)\}/g, (m,k)=> WA_SAMPLES[k]!==undefined ? WA_SAMPLES[k] : m); }
 function tplEditor(id, occ){
@@ -117,7 +118,7 @@ function tplEditor(id, occ){
     <div class="crm-list">
       {% for tp in system_templates %}
       <button type="button" class="crm-typebtn" :class="sel==={{ tp.id }} && 'active'" x-on:click="sel={{ tp.id }}">
-        <i class="bi bi-{{ {'appointment_confirm':'calendar-check','doctor_schedule':'clipboard-data','vaccine_given':'shield-check','vaccine_due':'clock-history','vaccine_seasonal':'thermometer-sun','vaccine_changed':'arrow-repeat','birthday':'balloon'}.get(tp.occasion,'chat-dots') }}"></i>
+        <i class="bi bi-{{ {'appointment_confirm':'calendar-check','doctor_schedule':'clipboard-data','vaccine_given':'shield-check','vaccine_due':'clock-history','vaccine_seasonal':'thermometer-sun','vaccine_changed':'arrow-repeat','birthday':'balloon','feedback':'star'}.get(tp.occasion,'chat-dots') }}"></i>
         <span class="flex1">{{ t('occasions.occ_' ~ tp.occasion) }}</span>
         {% if tp.send_mode == 'auto' %}<i class="bi bi-lightning-charge-fill" title="{{ t('crm.auto') }}" style="color:var(--green-600);font-size:.8rem;"></i>{% endif %}
         {% if tp.image_url %}<i class="bi bi-image" style="color:var(--green-600);font-size:.8rem;"></i>{% endif %}

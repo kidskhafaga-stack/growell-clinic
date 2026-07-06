@@ -1918,6 +1918,7 @@
     "active": "Active",
     "patient": "Patient",
     "occ_birthday": "Birthday",
+    "occ_feedback": "Satisfaction survey",
     "occ_seasonal": "Seasonal/Feast",
     "occ_greeting": "Greeting",
     "occ_custom": "Custom",
@@ -1929,6 +1930,24 @@
     "occ_vaccine_due": "Vaccine due",
     "occ_vaccine_seasonal": "Seasonal vaccine",
     "occ_vaccine_changed": "Vaccine changed"
+  },
+  "feedback": {
+    "title": "Rate your visit",
+    "invalid": "Invalid link",
+    "invalid_hint": "This link is incorrect or has expired.",
+    "thanks_title": "Thanks for your feedback! 🌟",
+    "thanks_hint": "Your opinion helps us improve care for your children.",
+    "q_doctor": "Rate the doctor",
+    "q_service": "Rate the overall service",
+    "q_nps": "Would you recommend us to family & friends?",
+    "q_nps_sub": "(0 to 10)",
+    "nps_low": "Unlikely",
+    "nps_high": "Definitely",
+    "q_comment": "Any comments to add?",
+    "optional": "(optional)",
+    "comment_ph": "Write your feedback here…",
+    "submit": "Submit rating",
+    "privacy": "Your feedback is confidential and used only to improve the service."
   },
   "crm": {
     "title": "Patient Customer Service",

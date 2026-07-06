@@ -114,6 +114,7 @@ from app.models.message import (
     MessageLog,
     MessageTemplate,
 )
+from app.models.feedback import FEEDBACK_STATUSES, Feedback
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
@@ -223,4 +224,6 @@ __all__ = [
     "PO_STATUSES",
     "NamedDiscount",
     "DISCOUNT_TYPES",
+    "Feedback",
+    "FEEDBACK_STATUSES",
 ]

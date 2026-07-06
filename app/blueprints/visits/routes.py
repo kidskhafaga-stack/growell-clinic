@@ -25,6 +25,7 @@ from app.models import (
     ActivityLog,
     Appointment,
     Diagnosis,
+    Feedback,
     GrowthRecord,
     Investigation,
     Patient,
@@ -36,6 +37,7 @@ from app.models import (
     VisitService,
     VitalSigns,
 )
+from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.icd import search_icd
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
@@ -502,6 +504,39 @@ def delete_attachment(att_id):
     return redirect(request.referrer or fallback)
 
 
+def _send_feedback_survey(visit):
+    """Queue/send a post-visit satisfaction survey, if the type is active.
+
+    Creates one ``Feedback`` per visit and sends the template (with a public
+    ``{link}``) through the CRM engine — respecting the type's auto/manual and
+    on/off toggles. Returns the MessageLog, or None when skipped.
+    """
+    tpl = wa.template_for("feedback")
+    if tpl is None or not tpl.is_active:        # type switched off
+        return None
+    if Feedback.query.filter_by(visit_id=visit.id).first():  # already sent
+        return None
+    patient = visit.patient
+    phone = patient.contact_phone if patient else None
+    if not phone:
+        return None
+
+    fb = Feedback(patient_id=visit.patient_id, visit_id=visit.id,
+                  doctor_id=visit.doctor_id, token=Feedback.new_token(),
+                  created_by=current_user.id)
+    db.session.add(fb)
+
+    lang = getattr(g, "lang", "ar")
+    body = wa.render(wa.template_body("feedback"), {
+        "patient": patient.display_name(lang) if patient else "",
+        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+        "doctor": visit.doctor.display_name(lang) if visit.doctor else "",
+        "link": wa.feedback_link(fb.token),
+    })
+    return wa.send(body, phone, patient_id=visit.patient_id, user_id=current_user.id,
+                   template_type="feedback", image_url=wa.template_image("feedback"))
+
+
 # ------------------------------------------------------------ complete -----
 @visits_bp.route("/<int:visit_id>/complete", methods=["POST"])
 @module_required(MODULE)
@@ -518,6 +553,7 @@ def complete(visit_id):
         "visit.complete", user_id=current_user.id, entity="visit",
         entity_id=visit.id, ip_address=client_ip(),
     )
+    _send_feedback_survey(visit)  # post-visit satisfaction survey (if enabled)
     db.session.commit()
     flash(t("visits.completed"), "success")
     return redirect(url_for("visits.view", visit_id=visit.id))
