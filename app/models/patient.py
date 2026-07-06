@@ -43,6 +43,8 @@ class Patient(db.Model):
     notes = db.Column(db.Text)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Guardian has opted out of WhatsApp messages — CRM sends skip this patient.
+    wa_opt_out = db.Column(db.Boolean, default=False, nullable=False)
     # Opaque token for public vaccination-certificate QR verification.
     qr_token = db.Column(db.String(32), unique=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

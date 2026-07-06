@@ -8,10 +8,12 @@ from datetime import datetime
 
 from app.extensions import db
 
-# link  = a wa.me click-to-send link was produced (WhatsApp Web)
-# sent  = handed to a provider API successfully
+# link      = a wa.me click-to-send link was produced (WhatsApp Web)
+# sent      = handed to a provider API successfully
+# scheduled = queued for a future send time (dispatched by dispatch_due)
+# skipped   = intentionally not sent (patient opted out)
 # failed/queued = self-explanatory
-MESSAGE_STATUSES = ["queued", "link", "sent", "failed"]
+MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped"]
 
 # Per-notification delivery preference (independent of the global CRM switch).
 # auto   = when the clinic is in automatic mode, this type is sent via the API.
@@ -116,6 +118,9 @@ class MessageLog(db.Model):
     status = db.Column(db.String(12), default="queued", nullable=False)
     link = db.Column(db.Text)
     error = db.Column(db.String(200))
+    template_type = db.Column(db.String(30))          # which notification type
+    scheduled_at = db.Column(db.DateTime, index=True)  # future send time (queued)
+    sent_at = db.Column(db.DateTime)                    # when actually dispatched
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 

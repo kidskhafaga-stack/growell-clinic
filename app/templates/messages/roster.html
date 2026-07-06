@@ -33,11 +33,14 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit" style="background:#25D366;border-color:#25D366;">
       <i class="bi bi-whatsapp"></i> {{ t('messages_mod.send_to_doctor') }}</button>
   </form>
-  <form method="post" action="{{ url_for('messages.roster_notify') }}">
+  <form method="post" action="{{ url_for('messages.roster_notify') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="doctor_id" value="{{ doctor.id }}"><input type="hidden" name="date" value="{{ on_date }}">
+    <div class="form-row" style="margin:0;"><label style="font-size:.78rem;">{{ t('crm.schedule_at') }}</label>
+      <input class="input" type="datetime-local" name="schedule_at" style="min-width:200px;"></div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-send"></i> {{ t('messages_mod.notify_all') }}</button>
   </form>
 </div>
+<p class="hint" style="margin:-6px 0 10px;"><i class="bi bi-info-circle"></i> {{ t('crm.schedule_at_hint') }}</p>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   <table class="table">

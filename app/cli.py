@@ -182,6 +182,10 @@ def register_commands(app):
             ("message_templates", "send_mode", "VARCHAR(10) DEFAULT 'manual'"),
             ("message_templates", "is_system", "BOOLEAN DEFAULT 0"),
             ("message_logs", "image_url", "VARCHAR(300)"),
+            ("message_logs", "template_type", "VARCHAR(30)"),
+            ("message_logs", "scheduled_at", "DATETIME"),
+            ("message_logs", "sent_at", "DATETIME"),
+            ("patients", "wa_opt_out", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -215,6 +219,15 @@ def register_commands(app):
             pass
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
+
+    @app.cli.command("send-due")
+    def send_due_cmd():
+        """Dispatch scheduled WhatsApp messages whose time has come."""
+        from app.utils.whatsapp import dispatch_due
+        res = dispatch_due()
+        click.secho(
+            f"Dispatched {res['sent']} (skipped {res['skipped']}) "
+            f"of {res['considered']} due.", fg="green")
 
     @app.cli.command("seed-demo")
     def seed_demo_cmd():
