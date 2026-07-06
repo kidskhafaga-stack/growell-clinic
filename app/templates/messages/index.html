@@ -1,14 +1,17 @@
 {% extends "shell.html" %}
 {% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'messages' %}
-{% block title %}{{ t('messages_mod.title') }}{% endblock %}
-{% block page_heading %}{{ t('messages_mod.title') }}{% endblock %}
+{% block title %}{{ t('crm.dashboard') }}{% endblock %}
+{% block page_heading %}{{ t('crm.dashboard') }}{% endblock %}
+
+{% set badge = {'sent':'st-completed','link':'st-waiting','scheduled':'st-scheduled',
+                'failed':'st-no_show','skipped':'st-cancelled','queued':'st-waiting'} %}
 
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
-    <h1 class="page-title">{{ t('messages_mod.title') }}</h1>
-    <p class="page-sub" style="margin:0;">{{ t('messages_mod.log') }}</p>
+    <h1 class="page-title">{{ t('crm.dashboard') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('crm.dashboard_sub') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}"><i class="bi bi-headset"></i> {{ t('crm.title') }}</a>
@@ -16,27 +19,65 @@
   </div>
 </div>
 
+<!-- Stat tiles -->
+<div class="stat-grid gc-scale-in" style="margin-bottom:16px;">
+  <div class="stat-card edge-green"><i class="bi bi-check2-circle ico"></i><div class="value">{{ counts.sent }}</div><div class="label">{{ t('messages_mod.st_sent') }}</div></div>
+  <div class="stat-card edge-blue"><i class="bi bi-link-45deg ico"></i><div class="value">{{ counts.link }}</div><div class="label">{{ t('messages_mod.st_link') }}</div></div>
+  <div class="stat-card edge-yellow"><i class="bi bi-clock-history ico"></i><div class="value">{{ counts.scheduled }}</div><div class="label">{{ t('messages_mod.st_scheduled') }}</div></div>
+  <div class="stat-card edge-red"><i class="bi bi-x-circle ico"></i><div class="value">{{ counts.failed }}</div><div class="label">{{ t('messages_mod.st_failed') }}</div></div>
+  <div class="stat-card edge-teal"><i class="bi bi-send-check ico"></i><div class="value">{{ sent_today }}{% if daily_cap and daily_cap != '0' %} <span style="font-size:.7rem;color:var(--muted);">/ {{ daily_cap }}</span>{% endif %}</div><div class="label">{{ t('crm.sent_today') }}</div></div>
+</div>
+
+<!-- Due-now banner -->
+{% if due_now %}
+<div class="card gc-scale-in" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-inline-start:4px solid var(--warning, #f59e0b);margin-bottom:14px;">
+  <i class="bi bi-alarm" style="font-size:1.3rem;color:var(--warning,#f59e0b);"></i>
+  <div style="flex:1;min-width:200px;"><strong>{{ t('crm.due_now').replace('{n}', due_now|string) }}</strong>
+    <div class="hint" style="margin:0;">{{ t('crm.due_now_hint') }}</div></div>
+  <form method="post" action="{{ url_for('messages.send_due') }}">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-send"></i> {{ t('crm.send_due_now') }}</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- Status filter -->
+<div class="no-print gc-animate" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if not status else 'btn-outline' }}" href="{{ url_for('messages.index') }}">{{ t('crm.all') }}</a>
+  {% for s in statuses %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if status==s else 'btn-outline' }}" href="{{ url_for('messages.index', status=s) }}">{{ t('messages_mod.st_' ~ s) }} <span style="opacity:.7;">({{ counts[s] }})</span></a>
+  {% endfor %}
+</div>
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   {% if logs %}
+  <div style="overflow-x:auto;">
   <table class="table">
     <thead><tr>
       <th>{{ t('messages_mod.date') }}</th><th>{{ t('messages_mod.patient') }}</th><th>{{ t('messages_mod.to') }}</th>
-      <th>{{ t('messages_mod.message') }}</th><th>{{ t('messages_mod.status') }}</th><th></th>
+      <th>{{ t('messages_mod.message') }}</th><th>{{ t('messages_mod.status') }}</th><th>{{ t('crm.scheduled_for') }}</th><th></th>
     </tr></thead>
     <tbody>
       {% for m in logs %}
       <tr>
         <td dir="ltr" style="white-space:nowrap;">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>{{ m.patient.display_name(current_lang) if m.patient else '—' }}</td>
+        <td>{% if m.patient %}{{ m.patient.display_name(current_lang) }}{% if m.patient.wa_opt_out %} <span class="badge badge--danger" title="{{ t('crm.opted_out') }}"><i class="bi bi-slash-circle"></i></span>{% endif %}{% else %}—{% endif %}</td>
         <td dir="ltr">{{ m.to_phone or '—' }}</td>
-        <td style="max-width:320px;color:var(--muted);font-size:0.85rem;">{{ (m.body[:80] ~ '…') if m.body and m.body|length > 80 else m.body }}</td>
-        <td><span class="status-badge {{ 'st-completed' if m.status=='sent' else ('st-no_show' if m.status=='failed' else 'st-waiting') }}">{{ t('messages_mod.st_' ~ m.status) }}</span>
+        <td style="max-width:280px;color:var(--muted);font-size:0.85rem;">{{ (m.body[:70] ~ '…') if m.body and m.body|length > 70 else m.body }}</td>
+        <td><span class="status-badge {{ badge.get(m.status,'st-waiting') }}">{{ t('messages_mod.st_' ~ m.status) }}</span>
             <span style="color:var(--muted);font-size:0.75rem;">{{ m.provider }}</span></td>
-        <td>{% if m.link %}<a class="btn btn-outline btn-sm gc-press" href="{{ m.link }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i></a>{% endif %}</td>
+        <td dir="ltr" style="white-space:nowrap;font-size:.8rem;color:var(--muted);">{{ m.scheduled_at.strftime('%Y-%m-%d %H:%M') if m.scheduled_at else '' }}</td>
+        <td style="white-space:nowrap;">
+          {% if m.link %}<a class="btn btn-outline btn-sm gc-press" href="{{ m.link }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i></a>{% endif %}
+          {% if m.patient %}
+          <form method="post" action="{{ url_for('messages.opt_toggle', patient_id=m.patient.id) }}" style="display:inline;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" title="{{ t('crm.opt_in') if m.patient.wa_opt_out else t('crm.opt_out') }}"><i class="bi bi-{{ 'bell' if m.patient.wa_opt_out else 'bell-slash' }}"></i></button>
+          </form>{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="empty-state"><i class="bi bi-whatsapp"></i>{{ t('messages_mod.no_messages') }}</div>
   {% endif %}

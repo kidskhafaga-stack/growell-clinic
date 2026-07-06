@@ -18,6 +18,7 @@ from app.i18n import t
 from app.models import (
     ACTIVE_STATUSES,
     AUTOMATION_TYPES,
+    MESSAGE_STATUSES,
     OCCASION_TYPES,
     SEND_MODES,
     TEMPLATE_VARIABLES,
@@ -37,6 +38,7 @@ WA_CONFIG_KEYS = [
     "crm_mode", "wa_provider", "wa_country_code", "queue_mode",
     "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_endpoint", "wa_public_base_url",
+    "wa_send_from", "wa_send_to", "wa_daily_cap",
 ]
 
 
@@ -108,13 +110,56 @@ def _appt_confirm_body(appt, lang, queue=None):
 @messages_bp.route("/")
 @module_required(MODULE)
 def index():
+    """Send dashboard: delivery stats, status filter, scheduled queue, log."""
     page = request.args.get("page", 1, type=int)
-    pagination = (
-        MessageLog.query.order_by(MessageLog.created_at.desc())
-        .paginate(page=page, per_page=25, error_out=False)
+    status = (request.args.get("status") or "").strip()
+
+    q = MessageLog.query
+    if status in MESSAGE_STATUSES:
+        q = q.filter(MessageLog.status == status)
+    pagination = (q.order_by(MessageLog.created_at.desc())
+                  .paginate(page=page, per_page=25, error_out=False))
+
+    counts = {s: 0 for s in MESSAGE_STATUSES}
+    for st, n in (db.session.query(MessageLog.status, db.func.count())
+                  .group_by(MessageLog.status).all()):
+        counts[st] = n
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    sent_today = (MessageLog.query
+                  .filter(MessageLog.status == "sent",
+                          MessageLog.sent_at >= today).count())
+    due_now = (MessageLog.query
+               .filter(MessageLog.status == "scheduled",
+                       MessageLog.scheduled_at <= datetime.utcnow()).count())
+    return render_template(
+        "messages/index.html", pagination=pagination, logs=pagination.items,
+        counts=counts, status=status, statuses=MESSAGE_STATUSES,
+        sent_today=sent_today, due_now=due_now,
+        daily_cap=Setting.get("wa_daily_cap", "") or "0",
     )
-    return render_template("messages/index.html", pagination=pagination,
-                           logs=pagination.items)
+
+
+@messages_bp.route("/send-due", methods=["POST"])
+@module_required(MODULE)
+def send_due():
+    """Dispatch every scheduled message whose time has come."""
+    res = wa.dispatch_due()
+    if res["sent"] or res["skipped"]:
+        flash(t("crm.dispatched", n=res["sent"], skipped=res["skipped"]), "success")
+    else:
+        flash(t("crm.nothing_due"), "info")
+    return redirect(request.referrer or url_for("messages.index"))
+
+
+@messages_bp.route("/patient/<int:patient_id>/opt-toggle", methods=["POST"])
+@module_required(MODULE)
+def opt_toggle(patient_id):
+    """Flip a patient's WhatsApp opt-out preference."""
+    patient = db.get_or_404(Patient, patient_id)
+    patient.wa_opt_out = not patient.wa_opt_out
+    db.session.commit()
+    flash(t("crm.opted_out") if patient.wa_opt_out else t("crm.opted_in"), "info")
+    return redirect(request.referrer or url_for("messages.index"))
 
 
 @messages_bp.route("/appointment/<int:appt_id>/confirm")
@@ -194,12 +239,27 @@ def roster_doctor():
     return render_template("messages/sent.html", log=log, appt=None)
 
 
+def _parse_schedule():
+    """Optional ``schedule_at`` datetime-local from the form (future only)."""
+    raw = (request.form.get("schedule_at") or "").strip()
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
+        try:
+            when = datetime.strptime(raw, fmt)
+            return when if when > datetime.utcnow() else None
+        except ValueError:
+            continue
+    return None
+
+
 @messages_bp.route("/roster/notify", methods=["POST"])
 @module_required(MODULE)
 def roster_notify():
     on_date = _parse_day()
     doctor = db.get_or_404(User, request.form.get("doctor_id", type=int))
     lang = getattr(g, "lang", "ar")
+    schedule_at = _parse_schedule()
 
     results = []
     for idx, appt in enumerate(_day_appointments(doctor.id, on_date), start=1):
@@ -213,11 +273,12 @@ def roster_notify():
         log = wa.send(body, phone, patient_id=appt.patient_id,
                       appointment_id=appt.id, user_id=current_user.id,
                       template_type="appointment_confirm",
-                      image_url=wa.template_image("appointment_confirm"))
+                      image_url=wa.template_image("appointment_confirm"),
+                      scheduled_at=schedule_at)
         results.append({"appt": appt, "log": log})
     db.session.commit()
     return render_template("messages/notify_result.html", results=results,
-                           doctor=doctor, on_date=on_date)
+                           doctor=doctor, on_date=on_date, scheduled=schedule_at)
 
 
 # =======================================================================

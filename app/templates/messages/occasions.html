@@ -341,6 +341,15 @@ function tplEditor(id, occ){
         </select></div>
     </div>
 
+    <h3 style="font-size:0.95rem;margin:12px 0 6px;"><i class="bi bi-clock"></i> {{ t('crm.window_title') }}</h3>
+    <p class="hint" style="margin-top:0;">{{ t('crm.window_hint') }}</p>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('crm.send_from') }}</label><input class="input" type="number" min="0" max="23" name="wa_send_from" dir="ltr" value="{{ values.get('wa_send_from','') }}" placeholder="9"></div>
+      <div class="form-row"><label>{{ t('crm.send_to') }}</label><input class="input" type="number" min="1" max="24" name="wa_send_to" dir="ltr" value="{{ values.get('wa_send_to','') }}" placeholder="21"></div>
+      <div class="form-row"><label>{{ t('crm.daily_cap') }}</label><input class="input" type="number" min="0" name="wa_daily_cap" dir="ltr" value="{{ values.get('wa_daily_cap','') }}" placeholder="0">
+        <div class="hint">{{ t('crm.daily_cap_hint') }}</div></div>
+    </div>
+
     <div x-show="mode==='automatic' && provider==='cloud_api'" x-cloak style="margin-top:8px;">
       <h3 style="font-size:0.95rem;margin:8px 0 6px;"><i class="bi bi-key"></i> {{ t('settings.wa_cloud_api') }}</h3>
       <div class="form-grid">

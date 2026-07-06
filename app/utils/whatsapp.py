@@ -15,6 +15,7 @@ import json
 import re
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import MessageLog, Setting
@@ -38,7 +39,17 @@ def get_config():
         "wapilot_key": Setting.get("wa_wapilot_key", ""),
         "wapilot_endpoint": Setting.get("wa_wapilot_endpoint", ""),
         "public_base": (Setting.get("wa_public_base_url", "") or "").rstrip("/"),
+        "send_from": _int(Setting.get("wa_send_from", ""), 0),   # window start hour
+        "send_to": _int(Setting.get("wa_send_to", ""), 24),      # window end hour
+        "daily_cap": _int(Setting.get("wa_daily_cap", ""), 0),   # 0 = unlimited
     }
+
+
+def _int(val, default):
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
 
 
 def resolve_provider(cfg, template_type=None):
@@ -187,31 +198,56 @@ def _public_image_url(cfg, image_url):
     return None
 
 
-def send(body, to_phone, patient_id=None, appointment_id=None, user_id=None,
-         cfg=None, image_url=None, template_type=None):
-    """Prepare/deliver a WhatsApp message and log it. Returns the MessageLog."""
-    cfg = cfg or get_config()
-    phone = normalize_phone(to_phone, cfg["country_code"])
-    provider = resolve_provider(cfg, template_type)
-    log = MessageLog(
-        patient_id=patient_id, appointment_id=appointment_id, to_phone=phone,
-        body=body, image_url=image_url, provider=provider,
-        created_by=user_id, status="queued",
-    )
-    db.session.add(log)
+def _opted_out(patient_id):
+    if not patient_id:
+        return False
+    from app.models import Patient
+    p = db.session.get(Patient, patient_id)
+    return bool(p and p.wa_opt_out)
 
-    if not phone:
-        log.status = "failed"
-        log.error = "missing_phone"
-        return log
 
-    media = _public_image_url(cfg, image_url)
-    if provider == "cloud_api":
+def _in_window(cfg, when):
+    """Is ``when`` inside the configured daily send window?"""
+    lo, hi = cfg.get("send_from", 0), cfg.get("send_to", 24)
+    if lo <= 0 and hi >= 24:
+        return True
+    if lo >= hi:  # misconfigured — treat as always allowed
+        return True
+    return lo <= when.hour < hi
+
+
+def _cap_reached(cfg, when):
+    cap = cfg.get("daily_cap", 0)
+    if not cap or cap <= 0:
+        return False
+    start = when.replace(hour=0, minute=0, second=0, microsecond=0)
+    sent_today = (MessageLog.query
+                  .filter(MessageLog.status == "sent",
+                          MessageLog.sent_at >= start)
+                  .count())
+    return sent_today >= cap
+
+
+def _next_slot(cfg, now):
+    """Next moment inside the send window (today or tomorrow)."""
+    lo = cfg.get("send_from", 0)
+    if _in_window(cfg, now) and not _cap_reached(cfg, now):
+        return now
+    slot = now.replace(hour=max(lo, 0), minute=0, second=0, microsecond=0)
+    if slot <= now:
+        slot += timedelta(days=1)
+    return slot
+
+
+def _dispatch(log, cfg):
+    """Actually hand ``log`` to its provider (or build a link) and stamp it."""
+    phone, body, media = log.to_phone, log.body, _public_image_url(cfg, log.image_url)
+    if log.provider == "cloud_api":
         ok, err = _send_cloud(cfg, phone, body, media)
         log.status, log.error = ("sent", None) if ok else ("failed", err)
-        if not ok:  # keep a usable fallback link
+        if not ok:
             log.link = wa_link(phone, body)
-    elif provider == "wapilot":
+    elif log.provider == "wapilot":
         ok, err = _send_wapilot(cfg, phone, body, media)
         log.status, log.error = ("sent", None) if ok else ("failed", err)
         if not ok:
@@ -219,7 +255,78 @@ def send(body, to_phone, patient_id=None, appointment_id=None, user_id=None,
     else:  # web / default — wa.me carries text only; image is attached by hand
         log.status = "link"
         log.link = wa_link(phone, body)
+    log.sent_at = datetime.utcnow()
     return log
+
+
+def send(body, to_phone, patient_id=None, appointment_id=None, user_id=None,
+         cfg=None, image_url=None, template_type=None, scheduled_at=None):
+    """Prepare/deliver a WhatsApp message and log it. Returns the MessageLog.
+
+    Honours the patient opt-out, an explicit future ``scheduled_at``, and — for
+    API auto-sends — the daily send window and cap (deferring to the next slot
+    when outside them). ``web`` links are always produced immediately.
+    """
+    cfg = cfg or get_config()
+    phone = normalize_phone(to_phone, cfg["country_code"])
+    provider = resolve_provider(cfg, template_type)
+    log = MessageLog(
+        patient_id=patient_id, appointment_id=appointment_id, to_phone=phone,
+        body=body, image_url=image_url, provider=provider,
+        template_type=template_type, scheduled_at=scheduled_at,
+        created_by=user_id, status="queued",
+    )
+    db.session.add(log)
+
+    if _opted_out(patient_id):
+        log.status, log.error = "skipped", "opted_out"
+        return log
+    if not phone:
+        log.status, log.error = "failed", "missing_phone"
+        return log
+
+    now = datetime.utcnow()
+    if scheduled_at and scheduled_at > now:
+        log.status = "scheduled"
+        return log
+
+    # API auto-sends respect the window + daily cap; links go out anytime.
+    if provider in ("cloud_api", "wapilot") and (
+            not _in_window(cfg, now) or _cap_reached(cfg, now)):
+        log.status = "scheduled"
+        log.scheduled_at = _next_slot(cfg, now)
+        return log
+
+    return _dispatch(log, cfg)
+
+
+def dispatch_due(cfg=None, limit=500):
+    """Send every scheduled message whose time has come. Returns a summary.
+
+    Skips (re-schedules) while outside the window or over the cap so a manual
+    "send due now" and the ``send-due`` CLI behave identically.
+    """
+    cfg = cfg or get_config()
+    now = datetime.utcnow()
+    due = (MessageLog.query
+           .filter(MessageLog.status == "scheduled",
+                   MessageLog.scheduled_at <= now)
+           .order_by(MessageLog.scheduled_at)
+           .limit(limit).all())
+    sent = skipped = 0
+    for log in due:
+        if _opted_out(log.patient_id):
+            log.status, log.error = "skipped", "opted_out"
+            skipped += 1
+            continue
+        if log.provider in ("cloud_api", "wapilot") and (
+                not _in_window(cfg, now) or _cap_reached(cfg, now)):
+            log.scheduled_at = _next_slot(cfg, now)
+            continue  # still scheduled — try again next run
+        _dispatch(log, cfg)
+        sent += 1
+    db.session.commit()
+    return {"sent": sent, "skipped": skipped, "considered": len(due)}
 
 
 def _post_json(url, payload, headers, timeout=12):
