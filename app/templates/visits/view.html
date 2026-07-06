@@ -17,6 +17,11 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoice_new', patient_id=visit.patient_id, visit_id=visit.id, doctor_id=visit.doctor_id) }}">
       <i class="bi bi-receipt"></i> {{ t('invoices.create_for_visit') }}</a>
     {% endif %}
+    {% if current_user.can_access('messages') %}
+    <form method="post" action="{{ url_for('visits.send_survey', visit_id=visit.id) }}" style="display:inline;">
+      <button class="btn btn-outline gc-press" type="submit" style="color:#25D366;border-color:#25D366;"><i class="bi bi-star"></i> {{ t('visits.send_survey') }}</button>
+    </form>
+    {% endif %}
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('visits.print') }}</button>
   </div>
 </div>

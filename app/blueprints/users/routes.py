@@ -199,8 +199,11 @@ def delete(user_id):
 @users_bp.route("/doctors")
 @admin_required
 def doctors():
+    from app.utils.feedback import doctor_ratings
+
     docs = User.query.filter_by(role="doctor").order_by(User.full_name).all()
-    return render_template("users/doctors.html", doctors=docs)
+    return render_template("users/doctors.html", doctors=docs,
+                           ratings=doctor_ratings())
 
 
 @users_bp.route("/doctors/<int:user_id>")

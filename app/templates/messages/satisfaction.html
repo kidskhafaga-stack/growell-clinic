@@ -1,0 +1,102 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('sat.title') }}{% endblock %}
+{% block page_heading %}{{ t('sat.title') }}{% endblock %}
+
+{% macro stars(avg) %}
+  {%- set full = (avg or 0)|round(0, 'common')|int -%}
+  <span style="color:#f5b301;letter-spacing:1px;">{{ '★' * full }}{{ '☆' * (5 - full) }}</span>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('sat.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('sat.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}"><i class="bi bi-headset"></i> {{ t('crm.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}"><i class="bi bi-clock-history"></i> {{ t('crm.dashboard') }}</a>
+  </div>
+</div>
+
+<!-- Stat tiles -->
+<div class="stat-grid gc-scale-in" style="margin-bottom:16px;">
+  <div class="stat-card edge-yellow"><i class="bi bi-star-fill ico"></i>
+    <div class="value">{{ s.avg_doctor if s.avg_doctor is not none else '—' }}<span style="font-size:.7rem;color:var(--muted);">/5</span></div>
+    <div class="label">{{ t('sat.avg_doctor') }}</div></div>
+  <div class="stat-card edge-teal"><i class="bi bi-hand-thumbs-up ico"></i>
+    <div class="value">{{ s.avg_service if s.avg_service is not none else '—' }}<span style="font-size:.7rem;color:var(--muted);">/5</span></div>
+    <div class="label">{{ t('sat.avg_service') }}</div></div>
+  <div class="stat-card edge-green"><i class="bi bi-graph-up-arrow ico"></i>
+    <div class="value">{{ s.nps if s.nps is not none else '—' }}</div>
+    <div class="label">{{ t('sat.nps') }} <span style="color:var(--muted);">({{ s.nps_count }})</span></div></div>
+  <div class="stat-card edge-blue"><i class="bi bi-reply-all ico"></i>
+    <div class="value">{{ s.response_rate }}%</div>
+    <div class="label">{{ t('sat.response_rate') }} <span style="color:var(--muted);">{{ s.submitted }}/{{ s.sent }}</span></div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+  <!-- Distribution -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-bar-chart"></i> {{ t('sat.distribution') }}</h2>
+    {% if s.submitted %}
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:6px;">
+      {% for star in [5,4,3,2,1] %}
+      {% set n = s.distribution.get(star, 0) %}
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="width:44px;color:#f5b301;white-space:nowrap;">{{ star }} ★</span>
+        <div style="flex:1;background:var(--green-050);border-radius:8px;height:16px;overflow:hidden;">
+          <div style="height:100%;border-radius:8px;background:linear-gradient(90deg,#20c997,#12855f);width:{{ (n / s.dist_max * 100) if s.dist_max else 0 }}%;"></div>
+        </div>
+        <span style="width:34px;text-align:end;color:var(--muted);font-size:.85rem;">{{ n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-state"><i class="bi bi-emoji-neutral"></i>{{ t('sat.no_data') }}</div>{% endif %}
+  </div>
+
+  <!-- Doctor leaderboard -->
+  <div class="card gc-scale-in" style="animation-delay:.06s;">
+    <h2 class="section-title"><i class="bi bi-trophy"></i> {{ t('sat.leaderboard') }}</h2>
+    {% if leaderboard %}
+    <table class="table">
+      <thead><tr><th>{{ t('users.full_name') }}</th><th>{{ t('doctors.rating') }}</th><th style="text-align:end;">{{ t('sat.responses') }}</th></tr></thead>
+      <tbody>
+        {% for row in leaderboard %}
+        <tr>
+          <td><strong>{{ row.doctor.display_name(current_lang) }}</strong></td>
+          <td>{{ stars(row.avg) }} <strong style="margin-inline-start:4px;">{{ row.avg }}</strong></td>
+          <td style="text-align:end;color:var(--muted);">{{ row.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty-state"><i class="bi bi-person-badge"></i>{{ t('sat.no_data') }}</div>{% endif %}
+  </div>
+</div>
+
+<!-- Recent comments -->
+<div class="card gc-scale-in" style="animation-delay:.1s;margin-top:16px;">
+  <h2 class="section-title"><i class="bi bi-chat-quote"></i> {{ t('sat.comments') }}</h2>
+  {% if s.comments %}
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    {% for c in s.comments %}
+    <div class="window-pill" style="border-radius:12px;padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+        <span>
+          <strong>{{ c.patient.display_name(current_lang) if c.patient else t('sat.anon') }}</strong>
+          {% if c.doctor %}<span style="color:var(--muted);font-size:.85rem;">· {{ c.doctor.display_name(current_lang) }}</span>{% endif %}
+          {% if c.doctor_rating %}<span style="margin-inline-start:6px;">{{ stars(c.doctor_rating) }}</span>{% endif %}
+        </span>
+        <span style="color:var(--muted);font-size:.78rem;" dir="ltr">{{ c.submitted_at.strftime('%Y-%m-%d') if c.submitted_at else '' }}</span>
+      </div>
+      <div style="font-size:.92rem;" dir="auto">{{ c.comment }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-state"><i class="bi bi-chat-dots"></i>{{ t('sat.no_comments') }}</div>{% endif %}
+</div>
+
+<style>@media (max-width:820px){ .card + div[style*="grid-template-columns:1fr 1fr"], div[style*="grid-template-columns:1fr 1fr"]{ grid-template-columns:1fr !important; } }</style>
+{% endblock %}

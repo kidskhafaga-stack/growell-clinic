@@ -19,6 +19,7 @@
       <tr>
         <th>{{ t('users.full_name') }}</th>
         <th>{{ t('doctors.specialty') }}</th>
+        <th>{{ t('doctors.rating') }}</th>
         <th>{{ t('doctors.license') }}</th>
         <th>{{ t('common.status') }}</th>
         <th style="text-align:end;">{{ t('common.actions') }}</th>
@@ -32,6 +33,16 @@
           {% if doc.professional_title %}<span class="badge badge--muted" style="margin-inline-start:6px;">{{ doc.professional_title }}</span>{% endif %}
         </td>
         <td>{{ doc.specialty or '—' }}</td>
+        <td>
+          {% set r = ratings.get(doc.id) %}
+          {% if r %}
+            <span style="color:#f5b301;letter-spacing:1px;" title="{{ r.avg }} / 5">
+              {%- set full = r.avg|round(0, 'common')|int -%}
+              {{ '★' * full }}{{ '☆' * (5 - full) }}</span>
+            <strong style="margin-inline-start:4px;">{{ r.avg }}</strong>
+            <span style="color:var(--muted);font-size:0.8rem;">({{ r.count }})</span>
+          {% else %}<span style="color:var(--muted);">{{ t('doctors.no_ratings') }}</span>{% endif %}
+        </td>
         <td dir="ltr" style="text-align:start;">{{ doc.license_no or '—' }}</td>
         <td>
           {% if doc.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>
@@ -43,7 +54,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px;">{{ t('doctors.none') }}</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px;">{{ t('doctors.none') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
