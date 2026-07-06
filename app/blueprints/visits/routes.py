@@ -504,27 +504,30 @@ def delete_attachment(att_id):
     return redirect(request.referrer or fallback)
 
 
-def _send_feedback_survey(visit):
-    """Queue/send a post-visit satisfaction survey, if the type is active.
+def _send_feedback_survey(visit, force=False):
+    """Queue/send a post-visit satisfaction survey.
 
-    Creates one ``Feedback`` per visit and sends the template (with a public
-    ``{link}``) through the CRM engine — respecting the type's auto/manual and
-    on/off toggles. Returns the MessageLog, or None when skipped.
+    Auto path (``force=False``): only when the ``feedback`` type is active and
+    no survey exists yet for the visit. Manual path (``force=True``): always,
+    reusing the visit's existing survey token if there is one. Returns the
+    MessageLog, or None when skipped.
     """
     tpl = wa.template_for("feedback")
-    if tpl is None or not tpl.is_active:        # type switched off
-        return None
-    if Feedback.query.filter_by(visit_id=visit.id).first():  # already sent
+    if not force and (tpl is None or not tpl.is_active):   # type switched off
         return None
     patient = visit.patient
     phone = patient.contact_phone if patient else None
     if not phone:
         return None
 
-    fb = Feedback(patient_id=visit.patient_id, visit_id=visit.id,
-                  doctor_id=visit.doctor_id, token=Feedback.new_token(),
-                  created_by=current_user.id)
-    db.session.add(fb)
+    fb = Feedback.query.filter_by(visit_id=visit.id).first()
+    if fb is None:
+        fb = Feedback(patient_id=visit.patient_id, visit_id=visit.id,
+                      doctor_id=visit.doctor_id, token=Feedback.new_token(),
+                      created_by=current_user.id)
+        db.session.add(fb)
+    elif not force:                                        # already sent
+        return None
 
     lang = getattr(g, "lang", "ar")
     body = wa.render(wa.template_body("feedback"), {
@@ -535,6 +538,22 @@ def _send_feedback_survey(visit):
     })
     return wa.send(body, phone, patient_id=visit.patient_id, user_id=current_user.id,
                    template_type="feedback", image_url=wa.template_image("feedback"))
+
+
+@visits_bp.route("/<int:visit_id>/send-survey", methods=["POST"])
+@module_required(MODULE)
+def send_survey(visit_id):
+    """Manually send (or re-send) the satisfaction survey for a visit."""
+    visit = db.get_or_404(Visit, visit_id)
+    log = _send_feedback_survey(visit, force=True)
+    db.session.commit()
+    if log is None:
+        flash(t("visits.survey_no_phone"), "warning")
+    elif log.status == "link":
+        flash(t("visits.survey_link_ready"), "success")
+    else:
+        flash(t("visits.survey_sent"), "success")
+    return redirect(request.referrer or url_for("visits.view", visit_id=visit.id))
 
 
 # ------------------------------------------------------------ complete -----

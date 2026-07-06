@@ -139,6 +139,24 @@ def index():
     )
 
 
+@messages_bp.route("/satisfaction")
+@module_required(MODULE)
+def satisfaction():
+    """Patient-satisfaction analytics: CSAT/NPS, distribution, doctor board."""
+    from app.utils.feedback import clinic_summary, doctor_ratings
+
+    summary = clinic_summary()
+    ratings = doctor_ratings()
+    docs = ({u.id: u for u in User.query.filter(User.id.in_(ratings.keys())).all()}
+            if ratings else {})
+    leaderboard = sorted(
+        ({"doctor": docs[d], "avg": v["avg"], "count": v["count"]}
+         for d, v in ratings.items() if d in docs),
+        key=lambda x: (-x["avg"], -x["count"]))
+    return render_template("messages/satisfaction.html", s=summary,
+                           leaderboard=leaderboard)
+
+
 @messages_bp.route("/send-due", methods=["POST"])
 @module_required(MODULE)
 def send_due():
