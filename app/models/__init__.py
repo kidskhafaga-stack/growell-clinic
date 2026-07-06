@@ -103,9 +103,11 @@ from app.models.prescription import (
     RxPrintTemplate,
 )
 from app.models.message import (
+    AUTOMATION_TYPES,
     DEFAULT_BIRTHDAY_BODY,
     MESSAGE_STATUSES,
     OCCASION_TYPES,
+    SEND_MODES,
     SYSTEM_TEMPLATE_TYPES,
     TEMPLATE_DEFAULTS,
     TEMPLATE_VARIABLES,
@@ -207,6 +209,8 @@ __all__ = [
     "MessageTemplate",
     "MESSAGE_STATUSES",
     "OCCASION_TYPES",
+    "SEND_MODES",
+    "AUTOMATION_TYPES",
     "SYSTEM_TEMPLATE_TYPES",
     "TEMPLATE_DEFAULTS",
     "TEMPLATE_VARIABLES",

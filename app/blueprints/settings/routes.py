@@ -21,11 +21,8 @@ TEXT_KEYS = [
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
     "clinic_accent",
-    # WhatsApp / messaging.
-    "wa_provider", "wa_country_code", "wa_cloud_token", "wa_cloud_phone_id",
-    "wa_wapilot_key", "wa_wapilot_endpoint",
-    "wa_tpl_appt_confirm", "wa_tpl_doctor_schedule", "wa_tpl_vaccine_given",
-    "queue_mode", "crm_mode",
+    # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
+    # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.
     "visit_complaint_chips", "visit_exam_chips",
     # ETA e-invoicing.

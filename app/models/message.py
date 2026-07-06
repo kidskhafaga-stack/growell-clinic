@@ -13,11 +13,20 @@ from app.extensions import db
 # failed/queued = self-explanatory
 MESSAGE_STATUSES = ["queued", "link", "sent", "failed"]
 
+# Per-notification delivery preference (independent of the global CRM switch).
+# auto   = when the clinic is in automatic mode, this type is sent via the API.
+# manual = always produce a click-to-send link even in automatic mode.
+SEND_MODES = ["manual", "auto"]
+
 # System (automatic-trigger) template types + manual occasion types.
 SYSTEM_TEMPLATE_TYPES = [
     "appointment_confirm", "doctor_schedule", "vaccine_given",
     "vaccine_due", "vaccine_seasonal", "vaccine_changed",
 ]
+# Notification types the clinic manages centrally (each has one canonical
+# template with its own body/image/auto-or-manual toggle). Birthday is an
+# automation-capable occasion, so it joins the managed set.
+AUTOMATION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday"]
 OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "seasonal", "greeting", "custom"]
 
 # Variables each template type understands. Surfaced in the templates UI so
@@ -72,13 +81,21 @@ DEFAULT_BIRTHDAY_BODY = (
 
 
 class MessageTemplate(db.Model):
-    """Reusable CRM message template for occasions (birthdays, greetings…)."""
+    """Reusable CRM message template for occasions (birthdays, greetings…).
+
+    Also holds the single canonical template for each managed notification
+    type — the one place staff edit body/image and choose auto vs manual.
+    ``is_system`` marks those canonical rows (seeded, one per type).
+    """
     __tablename__ = "message_templates"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     occasion = db.Column(db.String(20), default="custom", nullable=False)
     body = db.Column(db.Text, nullable=False)
+    image_url = db.Column(db.String(300))          # optional attached image
+    send_mode = db.Column(db.String(10), default="manual", nullable=False)
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -94,6 +111,7 @@ class MessageLog(db.Model):
     appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), nullable=True)
     to_phone = db.Column(db.String(30))
     body = db.Column(db.Text, nullable=False)
+    image_url = db.Column(db.String(300))
     provider = db.Column(db.String(20))
     status = db.Column(db.String(12), default="queued", nullable=False)
     link = db.Column(db.Text)

@@ -4,18 +4,23 @@ Prepares patient appointment confirmations (and logs them). Depending on the
 configured provider the message is either sent through an API or surfaced as a
 click-to-send wa.me link for the front desk.
 """
+import os
+import uuid
 from datetime import date, datetime
 
-from flask import flash, g, redirect, render_template, request, url_for
+from flask import current_app, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
+from werkzeug.utils import secure_filename
 
 from app.blueprints.messages import messages_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
     ACTIVE_STATUSES,
-    DEFAULT_BIRTHDAY_BODY,
+    AUTOMATION_TYPES,
     OCCASION_TYPES,
+    SEND_MODES,
+    TEMPLATE_VARIABLES,
     Appointment,
     MessageLog,
     MessageTemplate,
@@ -24,9 +29,44 @@ from app.models import (
     User,
 )
 from app.utils import whatsapp as wa
-from app.utils.decorators import module_required
+from app.utils.decorators import admin_required, module_required
 
 MODULE = "messages"
+ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "gif"}
+WA_CONFIG_KEYS = [
+    "crm_mode", "wa_provider", "wa_country_code", "queue_mode",
+    "wa_cloud_token", "wa_cloud_phone_id",
+    "wa_wapilot_key", "wa_wapilot_endpoint", "wa_public_base_url",
+]
+
+
+def _crm_img_dir():
+    return os.path.join(current_app.static_folder, "uploads", "crm")
+
+
+def _save_crm_image(file):
+    """Store an uploaded template image, returning its static-relative path."""
+    if not file or not file.filename:
+        return None
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_IMG:
+        flash(t("crm.bad_image"), "warning")
+        return None
+    name = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(_crm_img_dir(), exist_ok=True)
+    file.save(os.path.join(_crm_img_dir(), secure_filename(name)))
+    return f"static/uploads/crm/{name}"
+
+
+def _remove_crm_image(rel_path):
+    if not rel_path or not rel_path.startswith("static/uploads/crm/"):
+        return
+    path = os.path.join(current_app.static_folder, rel_path.split("static/", 1)[1])
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def _day_appointments(doctor_id, on_date):
@@ -90,7 +130,8 @@ def confirm_appointment(appt_id):
     lang = getattr(g, "lang", "ar")
     body = _appt_confirm_body(appt, lang)
     log = wa.send(body, phone, patient_id=patient.id, appointment_id=appt.id,
-                  user_id=current_user.id)
+                  user_id=current_user.id, template_type="appointment_confirm",
+                  image_url=wa.template_image("appointment_confirm"))
     db.session.commit()
     return render_template("messages/sent.html", log=log, appt=appt)
 
@@ -146,7 +187,9 @@ def roster_doctor():
         "count": len(appts),
         "list": lines,
     })
-    log = wa.send(body, doctor.phone, user_id=current_user.id)
+    log = wa.send(body, doctor.phone, user_id=current_user.id,
+                  template_type="doctor_schedule",
+                  image_url=wa.template_image("doctor_schedule"))
     db.session.commit()
     return render_template("messages/sent.html", log=log, appt=None)
 
@@ -168,7 +211,9 @@ def roster_notify():
         queue = idx if mode == "number" else appt.time_label
         body = _appt_confirm_body(appt, lang, queue=queue)
         log = wa.send(body, phone, patient_id=appt.patient_id,
-                      appointment_id=appt.id, user_id=current_user.id)
+                      appointment_id=appt.id, user_id=current_user.id,
+                      template_type="appointment_confirm",
+                      image_url=wa.template_image("appointment_confirm"))
         results.append({"appt": appt, "log": log})
     db.session.commit()
     return render_template("messages/notify_result.html", results=results,
@@ -207,14 +252,71 @@ def _upcoming_birthdays(days=7):
 @messages_bp.route("/occasions")
 @module_required(MODULE)
 def occasions():
-    from app.models import TEMPLATE_VARIABLES
+    """The unified Patient Customer Service (CRM) hub.
 
-    templates = MessageTemplate.query.order_by(MessageTemplate.occasion,
-                                               MessageTemplate.name).all()
-    return render_template("messages/occasions.html",
-                           birthdays=_upcoming_birthdays(),
-                           templates=templates, occasion_types=OCCASION_TYPES,
-                           template_variables=TEMPLATE_VARIABLES)
+    One place for: the WhatsApp connection, the canonical per-type
+    notification templates (body + image + auto/manual), free-form occasion
+    templates, and upcoming birthdays.
+    """
+    # Make sure the canonical rows exist even before an upgrade-db has run.
+    wa.seed_system_templates()
+
+    system_rows = {
+        r.occasion: r for r in
+        MessageTemplate.query.filter_by(is_system=True).all()
+    }
+    system_templates = [system_rows[tp] for tp in AUTOMATION_TYPES
+                        if tp in system_rows]
+    custom_templates = (MessageTemplate.query
+                        .filter_by(is_system=False)
+                        .order_by(MessageTemplate.occasion, MessageTemplate.name)
+                        .all())
+    values = {row.key: row.value for row in Setting.query.all()}
+    return render_template(
+        "messages/occasions.html",
+        birthdays=_upcoming_birthdays(),
+        system_templates=system_templates,
+        custom_templates=custom_templates,
+        occasion_types=OCCASION_TYPES,
+        template_variables=TEMPLATE_VARIABLES,
+        send_modes=SEND_MODES,
+        values=values,
+        crm_mode=values.get("crm_mode", "manual"),
+    )
+
+
+@messages_bp.route("/connection", methods=["POST"])
+@admin_required
+def connection_save():
+    """Save the WhatsApp connection / delivery configuration from the hub."""
+    for key in WA_CONFIG_KEYS:
+        Setting.set(key, (request.form.get(key) or "").strip())
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("messages.occasions") + "#connection")
+
+
+@messages_bp.route("/type/<int:tpl_id>/save", methods=["POST"])
+@module_required(MODULE)
+def system_template_save(tpl_id):
+    """Edit a canonical notification type: body, image, auto/manual, on/off."""
+    tpl = db.get_or_404(MessageTemplate, tpl_id)
+    tpl.body = (request.form.get("body") or "").strip()
+    mode = (request.form.get("send_mode") or tpl.send_mode).strip()
+    tpl.send_mode = mode if mode in SEND_MODES else tpl.send_mode
+    tpl.is_active = bool(request.form.get("is_active"))
+
+    if request.form.get("remove_image"):
+        _remove_crm_image(tpl.image_url)
+        tpl.image_url = None
+    new_img = _save_crm_image(request.files.get("image"))
+    if new_img:
+        _remove_crm_image(tpl.image_url)
+        tpl.image_url = new_img
+
+    db.session.commit()
+    flash(t("crm.type_saved"), "success")
+    return redirect(url_for("messages.occasions") + "#types")
 
 
 @messages_bp.route("/occasions/birthday/<int:patient_id>")
@@ -231,7 +333,9 @@ def send_birthday(patient_id):
         "patient": patient.display_name(lang),
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
-    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id)
+    log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
+                  template_type="birthday",
+                  image_url=wa.template_image("birthday"))
     db.session.commit()
     return render_template("messages/sent.html", log=log, appt=None)
 
@@ -248,10 +352,11 @@ def occasion_template_new():
     db.session.add(MessageTemplate(
         name=name, body=body,
         occasion=occ if occ in OCCASION_TYPES else "custom",
+        image_url=_save_crm_image(request.files.get("image")),
     ))
     db.session.commit()
     flash(t("occasions.tpl_added"), "success")
-    return redirect(url_for("messages.occasions"))
+    return redirect(url_for("messages.occasions") + "#custom")
 
 
 @messages_bp.route("/occasions/template/<int:tpl_id>/edit", methods=["POST"])
@@ -263,16 +368,27 @@ def occasion_template_edit(tpl_id):
     occ = (request.form.get("occasion") or tpl.occasion).strip()
     tpl.occasion = occ if occ in OCCASION_TYPES else tpl.occasion
     tpl.is_active = bool(request.form.get("is_active"))
+    if request.form.get("remove_image"):
+        _remove_crm_image(tpl.image_url)
+        tpl.image_url = None
+    new_img = _save_crm_image(request.files.get("image"))
+    if new_img:
+        _remove_crm_image(tpl.image_url)
+        tpl.image_url = new_img
     db.session.commit()
     flash(t("occasions.tpl_updated"), "success")
-    return redirect(url_for("messages.occasions"))
+    return redirect(url_for("messages.occasions") + "#custom")
 
 
 @messages_bp.route("/occasions/template/<int:tpl_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def occasion_template_delete(tpl_id):
     tpl = db.get_or_404(MessageTemplate, tpl_id)
+    if tpl.is_system:  # canonical rows are managed, never deleted
+        flash(t("crm.cant_delete_system"), "warning")
+        return redirect(url_for("messages.occasions") + "#types")
+    _remove_crm_image(tpl.image_url)
     db.session.delete(tpl)
     db.session.commit()
     flash(t("occasions.tpl_deleted"), "info")
-    return redirect(url_for("messages.occasions"))
+    return redirect(url_for("messages.occasions") + "#custom")

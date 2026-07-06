@@ -97,7 +97,7 @@ def create_app(config_name="default"):
         "finance": "finance.index",
         "reports": "reports.index",
         "ai": "ai.index",
-        "messages": "messages.index",
+        "messages": "messages.occasions",
         "settings": "settings.index",
         "users": "users.index",
     }

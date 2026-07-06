@@ -1,24 +1,203 @@
 {% extends "shell.html" %}
 {% set active_module = 'messages' %}
-{% block title %}{{ t('occasions.title') }}{% endblock %}
-{% block page_heading %}{{ t('occasions.title') }}{% endblock %}
+{% block title %}{{ t('crm.title') }}{% endblock %}
+{% block page_heading %}{{ t('crm.title') }}{% endblock %}
 
 {% macro occ_options(sel='') %}
   {% for o in occasion_types %}<option value="{{ o }}" {{ 'selected' if sel==o else '' }}>{{ t('occasions.occ_' ~ o) }}</option>{% endfor %}
 {% endmacro %}
 
+{% macro img_url(path) %}{{ url_for('static', filename=path.split('static/', 1)[1]) if path and 'static/' in path else path }}{% endmacro %}
+
 {% block content %}
-<script>const TPL_VARS = {{ template_variables | tojson }};</script>
+<style>
+  .crm-md { display:grid; grid-template-columns:250px 1fr; gap:16px; }
+  .crm-list { display:flex; flex-direction:column; gap:6px; }
+  .crm-typebtn { display:flex; align-items:center; gap:8px; width:100%; text-align:start;
+    padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card);
+    cursor:pointer; transition:.15s; font-size:.9rem; color:var(--text); }
+  .crm-typebtn:hover { border-color:var(--green-500); }
+  .crm-typebtn.active { border-color:var(--green-600); background:var(--green-50, rgba(34,197,94,.08));
+    box-shadow:inset 0 0 0 1px var(--green-600); font-weight:600; }
+  .crm-typebtn .flex1 { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .crm-editor { display:grid; grid-template-columns:1fr 320px; gap:18px; align-items:start; }
+  .var-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  .var-chip { font-family:monospace; font-size:.78rem; padding:2px 8px; border-radius:20px;
+    border:1px dashed var(--green-500); color:var(--green-800); background:transparent; cursor:pointer; }
+  .var-chip:hover { background:var(--green-600); color:#fff; border-style:solid; }
+  /* WhatsApp-style preview */
+  .wa-wrap { position:sticky; top:12px; }
+  .wa-phone { background:#e5ddd5; border-radius:16px; padding:14px 12px 18px; min-height:180px;
+    background-image:radial-gradient(rgba(0,0,0,.04) 1px, transparent 1px); background-size:14px 14px;
+    border:1px solid rgba(0,0,0,.08); }
+  .wa-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; color:#075e54; font-weight:600; font-size:.82rem; }
+  .wa-head .dot { width:26px; height:26px; border-radius:50%; background:#25D366; color:#fff;
+    display:flex; align-items:center; justify-content:center; }
+  .wa-bubble { background:#dcf8c6; border-radius:10px 10px 10px 2px; padding:7px 9px 5px; max-width:92%;
+    margin-inline-start:auto; box-shadow:0 1px 1px rgba(0,0,0,.12); position:relative; }
+  .wa-img { width:100%; border-radius:6px; margin-bottom:5px; display:block; max-height:170px; object-fit:cover; }
+  .wa-text { white-space:pre-wrap; word-break:break-word; font-size:.86rem; line-height:1.5; color:#111b21; direction:rtl; }
+  .wa-meta { text-align:end; font-size:.66rem; color:#667781; margin-top:2px; }
+  .wa-meta .bi { color:#53bdeb; }
+  .wa-label { font-size:.72rem; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+  html[data-theme="dark"] .wa-phone, :root:not([data-theme="light"]) .wa-phone { }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-phone { background:#0b141a; background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); }
+    :root:not([data-theme="light"]) .wa-bubble { background:#005c4b; } :root:not([data-theme="light"]) .wa-text { color:#e9edef; }
+    :root:not([data-theme="light"]) .wa-head { color:#25D366; } }
+  html[data-theme="dark"] .wa-phone { background:#0b141a; background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); }
+  html[data-theme="dark"] .wa-bubble { background:#005c4b; }
+  html[data-theme="dark"] .wa-text { color:#e9edef; }
+  html[data-theme="dark"] .wa-head { color:#25D366; }
+  html[data-theme="light"] .wa-phone { background:#e5ddd5; background-image:radial-gradient(rgba(0,0,0,.04) 1px, transparent 1px); }
+  html[data-theme="light"] .wa-bubble { background:#dcf8c6; }
+  html[data-theme="light"] .wa-text { color:#111b21; }
+  @media (max-width:860px){ .crm-md{ grid-template-columns:1fr; } .crm-editor{ grid-template-columns:1fr; }
+    .crm-list{ flex-direction:row; overflow-x:auto; padding-bottom:4px; } .crm-typebtn{ width:auto; white-space:nowrap; }
+    .wa-wrap{ position:static; } }
+</style>
+
+<script>
+const TPL_VARS = {{ template_variables | tojson }};
+const CLINIC_NAME = {{ (values.get('clinic_name_ar') or values.get('clinic_name') or 'العيادة') | tojson }};
+const TPL_INIT = {
+  0: { body:'', img:'' },
+{% for tp in system_templates %}  {{ tp.id }}: { body: {{ tp.body | tojson }}, img: {{ (img_url(tp.image_url) if tp.image_url else '') | tojson }} },
+{% endfor %}{% for tp in custom_templates %}  {{ tp.id }}: { body: {{ tp.body | tojson }}, img: {{ (img_url(tp.image_url) if tp.image_url else '') | tojson }} },
+{% endfor %}};
+const WA_SAMPLES = {
+  patient:'محمد أحمد', clinic:CLINIC_NAME, date:'2026-07-10', time:'10:30 ص',
+  doctor:'د. سارة', queue:'3', vaccine:'الروتا', dose:'الجرعة الأولى',
+  next_date:'2026-08-10', due_date:'2026-07-15', year:'2026',
+  old_vaccine:'التطعيم السابق', new_vaccine:'التطعيم البديل',
+  count:'8', list:'1) 10:00 - محمد\n2) 10:30 - سارة\n3) 11:00 - يوسف'
+};
+function waFill(text){ return (text||'').replace(/\{(\w+)\}/g, (m,k)=> WA_SAMPLES[k]!==undefined ? WA_SAMPLES[k] : m); }
+function tplEditor(id, occ){
+  const seed = (typeof TPL_INIT !== 'undefined' && TPL_INIT[id]) || {body:'',img:''};
+  return {
+    body: seed.body || '', img: seed.img || '', rm:false, occ: occ || '',
+    onFile(e){ const f=e.target.files && e.target.files[0]; if(f){ this.img=URL.createObjectURL(f); this.rm=false; } },
+    insert(tok){ const el=this.$refs.body; const s=(el.selectionStart!=null?el.selectionStart:this.body.length);
+      const e=(el.selectionEnd!=null?el.selectionEnd:s); const tk='{'+tok+'}';
+      this.body=this.body.slice(0,s)+tk+this.body.slice(e);
+      this.$nextTick(()=>{ el.focus(); const p=s+tk.length; el.setSelectionRange(p,p); }); },
+    get preview(){ return waFill(this.body) || '…'; },
+    get showImg(){ return this.img && !this.rm; }
+  };
+}
+</script>
+
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title">{{ t('occasions.title') }}</h1>
-    <p class="page-sub" style="margin:0;">{{ t('occasions.subtitle') }}</p>
+    <h1 class="page-title">{{ t('crm.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('crm.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}"><i class="bi bi-clock-history"></i> {{ t('messages_mod.log') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.roster') }}"><i class="bi bi-calendar-check"></i> {{ t('messages_mod.roster') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}"><i class="bi bi-clock-history"></i> {{ t('messages_mod.log') }}</a>
+  </div>
 </div>
 
-<!-- Birthdays -->
-<div class="card gc-scale-in">
+<!-- Mode banner -->
+<div class="card gc-scale-in" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;{{ 'border-inline-start:4px solid var(--green-600);' if crm_mode=='automatic' else 'border-inline-start:4px solid var(--muted);' }}">
+  <i class="bi bi-{{ 'lightning-charge-fill' if crm_mode=='automatic' else 'hand-index-thumb' }}" style="font-size:1.4rem;color:{{ 'var(--green-600)' if crm_mode=='automatic' else 'var(--muted)' }};"></i>
+  <div style="flex:1;min-width:200px;">
+    <strong>{{ t('crm.mode_now') }}: {{ t('settings.crm_automatic') if crm_mode=='automatic' else t('settings.crm_manual') }}</strong>
+    <div class="hint" style="margin:0;">{{ t('crm.mode_now_hint_auto') if crm_mode=='automatic' else t('crm.mode_now_hint_manual') }}</div>
+  </div>
+</div>
+
+<!-- ============ Notification types (master-detail + live preview) ============ -->
+<div class="card gc-scale-in" id="types" style="animation-delay:0.05s;" x-data="{ sel: {{ system_templates[0].id if system_templates else 0 }} }">
+  <h2 class="section-title"><i class="bi bi-bell"></i> {{ t('crm.types_title') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('crm.types_hint') }}</p>
+
+  <div class="crm-md">
+    <!-- left: type list -->
+    <div class="crm-list">
+      {% for tp in system_templates %}
+      <button type="button" class="crm-typebtn" :class="sel==={{ tp.id }} && 'active'" x-on:click="sel={{ tp.id }}">
+        <i class="bi bi-{{ {'appointment_confirm':'calendar-check','doctor_schedule':'clipboard-data','vaccine_given':'shield-check','vaccine_due':'clock-history','vaccine_seasonal':'thermometer-sun','vaccine_changed':'arrow-repeat','birthday':'balloon'}.get(tp.occasion,'chat-dots') }}"></i>
+        <span class="flex1">{{ t('occasions.occ_' ~ tp.occasion) }}</span>
+        {% if tp.send_mode == 'auto' %}<i class="bi bi-lightning-charge-fill" title="{{ t('crm.auto') }}" style="color:var(--green-600);font-size:.8rem;"></i>{% endif %}
+        {% if tp.image_url %}<i class="bi bi-image" style="color:var(--green-600);font-size:.8rem;"></i>{% endif %}
+        {% if not tp.is_active %}<i class="bi bi-slash-circle" title="{{ t('common.inactive') }}" style="color:var(--danger);font-size:.8rem;"></i>{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- right: editor + preview for the selected type -->
+    <div>
+      {% for tp in system_templates %}
+      <div x-show="sel==={{ tp.id }}" x-cloak>
+        <form method="post" action="{{ url_for('messages.system_template_save', tpl_id=tp.id) }}" enctype="multipart/form-data" x-data="tplEditor({{ tp.id }})">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <h3 style="margin:0;font-size:1.05rem;">{{ t('occasions.occ_' ~ tp.occasion) }}</h3>
+            <span class="badge {{ 'badge--green' if tp.send_mode=='auto' else 'badge--muted' }}">{{ t('crm.auto') if tp.send_mode=='auto' else t('crm.manual') }}</span>
+          </div>
+
+          <div class="crm-editor">
+            <!-- editor column -->
+            <div>
+              <div class="form-row" style="margin-bottom:8px;"><label>{{ t('occasions.body') }}</label>
+                <textarea class="input" name="body" rows="6" dir="auto" x-ref="body" x-model="body">{{ tp.body }}</textarea>
+                <div class="hint">{{ t('crm.click_var_hint') }}</div>
+                <div class="var-chips">
+                  <template x-for="v in (TPL_VARS['{{ tp.occasion }}']||[])" :key="v">
+                    <button type="button" class="var-chip" x-on:click="insert(v)" x-text="'{'+v+'}'"></button>
+                  </template>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-row"><label>{{ t('crm.send_mode') }}</label>
+                  <select class="select" name="send_mode">
+                    <option value="manual" {{ 'selected' if tp.send_mode!='auto' else '' }}>{{ t('crm.manual') }} — {{ t('crm.manual_hint') }}</option>
+                    <option value="auto" {{ 'selected' if tp.send_mode=='auto' else '' }}>{{ t('crm.auto') }} — {{ t('crm.auto_hint') }}</option>
+                  </select>
+                </div>
+                <div class="form-row" style="display:flex;align-items:end;">
+                  <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin:0;font-weight:400;">
+                    <input type="checkbox" name="is_active" value="1" {{ 'checked' if tp.is_active else '' }}> {{ t('crm.enabled') }}
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-row"><label>{{ t('crm.image') }}</label>
+                {% if tp.image_url %}
+                <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;font-weight:400;color:var(--danger);">
+                  <input type="checkbox" name="remove_image" value="1" x-model="rm"> {{ t('crm.remove_image') }}</label>
+                {% endif %}
+                <input class="input" type="file" name="image" accept="image/*" x-on:change="onFile($event)">
+                <div class="hint">{{ t('crm.image_hint') }}</div>
+              </div>
+
+              <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+            </div>
+
+            <!-- preview column -->
+            <div class="wa-wrap">
+              <div class="wa-label"><i class="bi bi-eye"></i> {{ t('crm.preview') }}</div>
+              <div class="wa-phone">
+                <div class="wa-head"><span class="dot"><i class="bi bi-whatsapp"></i></span> {{ values.get('clinic_name_ar') or values.get('clinic_name') or t('crm.clinic') }}</div>
+                <div class="wa-bubble">
+                  <template x-if="showImg"><img class="wa-img" :src="img" alt=""></template>
+                  <div class="wa-text" x-text="preview"></div>
+                  <div class="wa-meta">10:30 <i class="bi bi-check2-all"></i></div>
+                </div>
+              </div>
+              <div class="hint" style="margin-top:6px;">{{ t('crm.preview_hint') }}</div>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ============ Birthdays ============ -->
+<div class="card gc-scale-in" style="animation-delay:0.1s;">
   <h2 class="section-title"><i class="bi bi-balloon"></i> {{ t('occasions.birthdays') }}</h2>
   {% if birthdays %}
   <table class="table">
@@ -42,44 +221,92 @@
   {% else %}<div class="empty-state"><i class="bi bi-balloon"></i>{{ t('occasions.no_birthdays') }}</div>{% endif %}
 </div>
 
-<!-- Templates -->
-<details class="card gc-scale-in" style="animation-delay:0.06s;">
+<!-- ============ Custom occasion templates ============ -->
+<details class="card gc-scale-in" id="custom" style="animation-delay:0.14s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('occasions.add_template') }}</summary>
-  <form method="post" action="{{ url_for('messages.occasion_template_new') }}" style="margin-top:12px;" x-data="{ occ: 'birthday' }">
-    <div class="form-grid">
-      <div class="form-row"><label>{{ t('occasions.name') }} *</label><input class="input" name="name" required></div>
-      <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion" x-model="occ">{{ occ_options('birthday') }}</select></div>
+  <form method="post" action="{{ url_for('messages.occasion_template_new') }}" enctype="multipart/form-data" style="margin-top:12px;" x-data="tplEditor(0, 'greeting')">
+    <div class="crm-editor">
+      <div>
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('occasions.name') }} *</label><input class="input" name="name" required></div>
+          <div class="form-row"><label>{{ t('occasions.occasion') }}</label>
+            <select class="select" name="occasion" x-model="occ">{{ occ_options('greeting') }}</select></div>
+        </div>
+        <div class="form-row"><label>{{ t('occasions.body') }} *</label>
+          <textarea class="input" name="body" rows="4" dir="auto" x-ref="body" x-model="body" required></textarea>
+          <div class="var-chips">
+            <template x-for="v in (TPL_VARS[occ]||['patient','clinic'])" :key="v">
+              <button type="button" class="var-chip" x-on:click="insert(v)" x-text="'{'+v+'}'"></button>
+            </template>
+          </div>
+        </div>
+        <div class="form-row"><label>{{ t('crm.image') }}</label><input class="input" type="file" name="image" accept="image/*" x-on:change="onFile($event)"></div>
+        <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+      </div>
+      <div class="wa-wrap">
+        <div class="wa-label"><i class="bi bi-eye"></i> {{ t('crm.preview') }}</div>
+        <div class="wa-phone">
+          <div class="wa-head"><span class="dot"><i class="bi bi-whatsapp"></i></span> {{ values.get('clinic_name_ar') or values.get('clinic_name') or t('crm.clinic') }}</div>
+          <div class="wa-bubble">
+            <template x-if="showImg"><img class="wa-img" :src="img" alt=""></template>
+            <div class="wa-text" x-text="preview"></div>
+            <div class="wa-meta">10:30 <i class="bi bi-check2-all"></i></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="form-row"><label>{{ t('occasions.body') }} *</label><textarea class="input" name="body" rows="3" dir="auto" required></textarea>
-      <div class="hint">{{ t('occasions.vars_for') }}:
-        <span dir="ltr" x-text="(TPL_VARS[occ]||[]).map(v => '{'+v+'}').join('  ')" style="font-family:monospace;"></span></div></div>
-    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
 
-<div class="card gc-scale-in" style="animation-delay:0.1s;">
+<div class="card gc-scale-in" style="animation-delay:0.16s;">
   <h2 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('occasions.templates') }}</h2>
-  {% if templates %}
+  {% if custom_templates %}
   <div style="display:flex;flex-direction:column;gap:8px;">
-    {% for tp in templates %}
+    {% for tp in custom_templates %}
     <details class="window-pill" style="display:block;border-radius:10px;padding:10px 12px;">
       <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <span><strong>{{ tp.name }}</strong> <span class="badge badge--role">{{ t('occasions.occ_' ~ tp.occasion) }}</span>
+          {% if tp.image_url %}<i class="bi bi-image" style="color:var(--green-600);"></i>{% endif %}
           {% if not tp.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</span>
         <span style="color:var(--muted);font-size:0.82rem;">{{ (tp.body[:50] ~ '…') if tp.body|length > 50 else tp.body }}</span>
       </summary>
-      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" style="margin-top:10px;" x-data="{ occ: '{{ tp.occasion }}' }">
-        <div class="form-grid">
-          <div class="form-row"><label>{{ t('occasions.name') }}</label><input class="input" name="name" value="{{ tp.name }}"></div>
-          <div class="form-row"><label>{{ t('occasions.occasion') }}</label><select class="select" name="occasion" x-model="occ">{{ occ_options(tp.occasion) }}</select></div>
-        </div>
-        <div class="form-row"><label>{{ t('occasions.body') }}</label><textarea class="input" name="body" rows="3" dir="auto">{{ tp.body }}</textarea>
-          <div class="hint">{{ t('occasions.vars_for') }}:
-            <span dir="ltr" x-text="(TPL_VARS[occ]||[]).map(v => '{'+v+'}').join('  ')" style="font-family:monospace;"></span></div></div>
-        <div class="form-row checkbox"><input type="checkbox" id="ta_{{ tp.id }}" name="is_active" value="1" {{ 'checked' if tp.is_active else '' }}><label for="ta_{{ tp.id }}" style="margin:0;font-weight:400;">{{ t('occasions.active') }}</label></div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-          <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('messages.occasion_template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" enctype="multipart/form-data" style="margin-top:10px;" x-data="tplEditor({{ tp.id }}, '{{ tp.occasion }}')">
+        <div class="crm-editor">
+          <div>
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('occasions.name') }}</label><input class="input" name="name" value="{{ tp.name }}"></div>
+              <div class="form-row"><label>{{ t('occasions.occasion') }}</label>
+                <select class="select" name="occasion" x-model="occ">{{ occ_options(tp.occasion) }}</select></div>
+            </div>
+            <div class="form-row"><label>{{ t('occasions.body') }}</label>
+              <textarea class="input" name="body" rows="4" dir="auto" x-ref="body" x-model="body">{{ tp.body }}</textarea>
+              <div class="var-chips">
+                <template x-for="v in (TPL_VARS[occ]||['patient','clinic'])" :key="v">
+                  <button type="button" class="var-chip" x-on:click="insert(v)" x-text="'{'+v+'}'"></button>
+                </template>
+              </div></div>
+            <div class="form-row"><label>{{ t('crm.image') }}</label>
+              {% if tp.image_url %}
+              <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;font-weight:400;color:var(--danger);">
+                <input type="checkbox" name="remove_image" value="1" x-model="rm"> {{ t('crm.remove_image') }}</label>{% endif %}
+              <input class="input" type="file" name="image" accept="image/*" x-on:change="onFile($event)"></div>
+            <div class="form-row checkbox"><input type="checkbox" id="ta_{{ tp.id }}" name="is_active" value="1" {{ 'checked' if tp.is_active else '' }}><label for="ta_{{ tp.id }}" style="margin:0;font-weight:400;">{{ t('occasions.active') }}</label></div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+              <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('messages.occasion_template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          <div class="wa-wrap">
+            <div class="wa-label"><i class="bi bi-eye"></i> {{ t('crm.preview') }}</div>
+            <div class="wa-phone">
+              <div class="wa-head"><span class="dot"><i class="bi bi-whatsapp"></i></span> {{ values.get('clinic_name_ar') or values.get('clinic_name') or t('crm.clinic') }}</div>
+              <div class="wa-bubble">
+                <template x-if="showImg"><img class="wa-img" :src="img" alt=""></template>
+                <div class="wa-text" x-text="preview"></div>
+                <div class="wa-meta">10:30 <i class="bi bi-check2-all"></i></div>
+              </div>
+            </div>
+          </div>
         </div>
       </form>
     </details>
@@ -87,4 +314,56 @@
   </div>
   {% else %}<div class="empty-state">{{ t('occasions.no_templates') }}</div>{% endif %}
 </div>
+
+<!-- ============ Connection (admin) ============ -->
+{% if current_user.can_access('settings') %}
+<details class="card gc-scale-in" id="connection" style="animation-delay:0.2s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-whatsapp"></i> {{ t('crm.connection_title') }}</summary>
+  <p class="hint" style="margin-top:4px;">{{ t('crm.connection_hint') }}</p>
+  <form method="post" action="{{ url_for('messages.connection_save') }}" style="margin-top:10px;" x-data="{ mode: '{{ values.get('crm_mode','manual') }}', provider: '{{ values.get('wa_provider','web') }}' }">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.crm_mode') }}</label>
+        <select class="select" name="crm_mode" x-model="mode">
+          <option value="manual">{{ t('settings.crm_manual') }}</option>
+          <option value="automatic">{{ t('settings.crm_automatic') }}</option>
+        </select><div class="hint">{{ t('settings.crm_mode_hint') }}</div></div>
+      <div class="form-row" x-show="mode==='automatic'" x-cloak><label>{{ t('settings.wa_provider') }}</label>
+        <select class="select" name="wa_provider" x-model="provider">
+          {% for pv in ['web','cloud_api','wapilot'] %}
+          <option value="{{ pv }}" {{ 'selected' if values.get('wa_provider','web')==pv else '' }}>{{ t('settings.wa_' ~ pv) }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('settings.wa_country_code') }}</label><input class="input" name="wa_country_code" dir="ltr" value="{{ values.get('wa_country_code','20') }}" placeholder="20"></div>
+      <div class="form-row"><label>{{ t('settings.queue_mode') }}</label>
+        <select class="select" name="queue_mode">
+          <option value="number" {{ 'selected' if values.get('queue_mode','number')=='number' else '' }}>{{ t('settings.queue_number') }}</option>
+          <option value="time" {{ 'selected' if values.get('queue_mode')=='time' else '' }}>{{ t('settings.queue_time') }}</option>
+        </select></div>
+    </div>
+
+    <div x-show="mode==='automatic' && provider==='cloud_api'" x-cloak style="margin-top:8px;">
+      <h3 style="font-size:0.95rem;margin:8px 0 6px;"><i class="bi bi-key"></i> {{ t('settings.wa_cloud_api') }}</h3>
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('settings.wa_cloud_token') }}</label><input class="input" name="wa_cloud_token" dir="ltr" value="{{ values.get('wa_cloud_token','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.wa_cloud_phone_id') }}</label><input class="input" name="wa_cloud_phone_id" dir="ltr" value="{{ values.get('wa_cloud_phone_id','') }}"></div>
+      </div>
+      <p class="hint"><a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noopener">{{ t('settings.wa_cloud_help') }}</a></p>
+    </div>
+
+    <div x-show="mode==='automatic' && provider==='wapilot'" x-cloak style="margin-top:8px;">
+      <h3 style="font-size:0.95rem;margin:8px 0 6px;"><i class="bi bi-plugin"></i> WaPilot</h3>
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('settings.wa_wapilot_key') }}</label><input class="input" name="wa_wapilot_key" dir="ltr" value="{{ values.get('wa_wapilot_key','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.wa_wapilot_endpoint') }}</label><input class="input" name="wa_wapilot_endpoint" dir="ltr" value="{{ values.get('wa_wapilot_endpoint','') }}"></div>
+      </div>
+    </div>
+
+    <div class="form-row" x-show="mode==='automatic'" x-cloak><label>{{ t('crm.public_base') }}</label>
+      <input class="input" name="wa_public_base_url" dir="ltr" value="{{ values.get('wa_public_base_url','') }}" placeholder="https://clinic.example.com">
+      <div class="hint">{{ t('crm.public_base_hint') }}</div></div>
+
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+{% endif %}
 {% endblock %}
