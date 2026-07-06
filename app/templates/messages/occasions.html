@@ -360,11 +360,13 @@ function tplEditor(id, occ){
     </div>
 
     <div x-show="mode==='automatic' && provider==='wapilot'" x-cloak style="margin-top:8px;">
-      <h3 style="font-size:0.95rem;margin:8px 0 6px;"><i class="bi bi-plugin"></i> WaPilot</h3>
+      <h3 style="font-size:0.95rem;margin:8px 0 6px;"><i class="bi bi-plugin"></i> WaPilot ({{ t('crm.wapilot_v2') }})</h3>
       <div class="form-grid">
-        <div class="form-row"><label>{{ t('settings.wa_wapilot_key') }}</label><input class="input" name="wa_wapilot_key" dir="ltr" value="{{ values.get('wa_wapilot_key','') }}"></div>
-        <div class="form-row"><label>{{ t('settings.wa_wapilot_endpoint') }}</label><input class="input" name="wa_wapilot_endpoint" dir="ltr" value="{{ values.get('wa_wapilot_endpoint','') }}"></div>
+        <div class="form-row"><label>{{ t('crm.wapilot_token') }}</label><input class="input" name="wa_wapilot_key" dir="ltr" value="{{ values.get('wa_wapilot_key','') }}"></div>
+        <div class="form-row"><label>{{ t('crm.wapilot_instance') }}</label><input class="input" name="wa_wapilot_instance" dir="ltr" value="{{ values.get('wa_wapilot_instance','') }}" placeholder="instance_123"></div>
+        <div class="form-row"><label>{{ t('crm.wapilot_base') }}</label><input class="input" name="wa_wapilot_endpoint" dir="ltr" value="{{ values.get('wa_wapilot_endpoint','') }}" placeholder="https://api.wapilot.net/api/v2"></div>
       </div>
+      <p class="hint">{{ t('crm.wapilot_hint') }}</p>
     </div>
 
     <div class="form-row" x-show="mode==='automatic'" x-cloak><label>{{ t('crm.public_base') }}</label>

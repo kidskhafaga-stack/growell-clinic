@@ -37,8 +37,8 @@ ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "gif"}
 WA_CONFIG_KEYS = [
     "crm_mode", "wa_provider", "wa_country_code", "queue_mode",
     "wa_cloud_token", "wa_cloud_phone_id",
-    "wa_wapilot_key", "wa_wapilot_endpoint", "wa_public_base_url",
-    "wa_send_from", "wa_send_to", "wa_daily_cap",
+    "wa_wapilot_key", "wa_wapilot_instance", "wa_wapilot_endpoint",
+    "wa_public_base_url", "wa_send_from", "wa_send_to", "wa_daily_cap",
 ]
 
 

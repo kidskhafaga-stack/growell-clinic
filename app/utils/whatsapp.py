@@ -12,9 +12,12 @@ network or credentials are unavailable the message is logged as ``failed`` and
 the caller can still fall back to the wa.me link.
 """
 import json
+import mimetypes
+import os
 import re
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timedelta
 
 from app.extensions import db
@@ -22,6 +25,7 @@ from app.models import MessageLog, Setting
 
 DEFAULT_COUNTRY_CODE = "20"  # Egypt
 GRAPH_VERSION = "v21.0"
+WAPILOT_BASE = "https://api.wapilot.net/api/v2"
 
 
 def get_config():
@@ -37,7 +41,9 @@ def get_config():
         "cloud_token": Setting.get("wa_cloud_token", ""),
         "cloud_phone_id": Setting.get("wa_cloud_phone_id", ""),
         "wapilot_key": Setting.get("wa_wapilot_key", ""),
-        "wapilot_endpoint": Setting.get("wa_wapilot_endpoint", ""),
+        "wapilot_instance": Setting.get("wa_wapilot_instance", ""),
+        "wapilot_endpoint": (Setting.get("wa_wapilot_endpoint", "")
+                             or WAPILOT_BASE).rstrip("/"),
         "public_base": (Setting.get("wa_public_base_url", "") or "").rstrip("/"),
         "send_from": _int(Setting.get("wa_send_from", ""), 0),   # window start hour
         "send_to": _int(Setting.get("wa_send_to", ""), 24),      # window end hour
@@ -241,14 +247,14 @@ def _next_slot(cfg, now):
 
 def _dispatch(log, cfg):
     """Actually hand ``log`` to its provider (or build a link) and stamp it."""
-    phone, body, media = log.to_phone, log.body, _public_image_url(cfg, log.image_url)
+    phone, body, image_url = log.to_phone, log.body, log.image_url
     if log.provider == "cloud_api":
-        ok, err = _send_cloud(cfg, phone, body, media)
+        ok, err = _send_cloud(cfg, phone, body, image_url)
         log.status, log.error = ("sent", None) if ok else ("failed", err)
         if not ok:
             log.link = wa_link(phone, body)
     elif log.provider == "wapilot":
-        ok, err = _send_wapilot(cfg, phone, body, media)
+        ok, err = _send_wapilot(cfg, phone, body, image_url)
         log.status, log.error = ("sent", None) if ok else ("failed", err)
         if not ok:
             log.link = wa_link(phone, body)
@@ -336,11 +342,47 @@ def _post_json(url, payload, headers, timeout=12):
         return resp.status, resp.read().decode("utf-8", "replace")
 
 
-def _send_cloud(cfg, phone, body, media=None):
+def _local_image_path(image_url):
+    """Filesystem path for a locally-uploaded template image, or None."""
+    if not image_url or image_url.startswith(("http://", "https://")):
+        return None
+    try:
+        from flask import current_app
+        rel = image_url.split("static/", 1)[1] if "static/" in image_url else image_url
+        path = os.path.join(current_app.static_folder, rel)
+        return path if os.path.isfile(path) else None
+    except Exception:  # noqa: BLE001 - no app context / bad path
+        return None
+
+
+def _post_multipart(url, fields, file_field, file_path, headers, timeout=20):
+    """POST a multipart/form-data request with one file upload (stdlib only)."""
+    boundary = "----pediapro" + uuid.uuid4().hex
+    with open(file_path, "rb") as fh:
+        file_data = fh.read()
+    fname = os.path.basename(file_path)
+    ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+    parts = []
+    for name, value in fields.items():
+        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; "
+                     f"name=\"{name}\"\r\n\r\n{value}\r\n".encode("utf-8"))
+    head = (f"--{boundary}\r\nContent-Disposition: form-data; "
+            f"name=\"{file_field}\"; filename=\"{fname}\"\r\n"
+            f"Content-Type: {ctype}\r\n\r\n").encode("utf-8")
+    body = b"".join(parts) + head + file_data + f"\r\n--{boundary}--\r\n".encode()
+    h = dict(headers)
+    h["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+    req = urllib.request.Request(url, data=body, headers=h, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        return resp.status, resp.read().decode("utf-8", "replace")
+
+
+def _send_cloud(cfg, phone, body, image_url=None):
     token, phone_id = cfg.get("cloud_token"), cfg.get("cloud_phone_id")
     if not token or not phone_id:
         return False, "cloud_not_configured"
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{phone_id}/messages"
+    media = _public_image_url(cfg, image_url)  # Cloud API fetches by link
     if media:  # image with the body as caption
         payload = {
             "messaging_product": "whatsapp", "to": phone,
@@ -359,16 +401,32 @@ def _send_cloud(cfg, phone, body, media=None):
         return False, str(exc)[:180]
 
 
-def _send_wapilot(cfg, phone, body, media=None):
-    key, endpoint = cfg.get("wapilot_key"), cfg.get("wapilot_endpoint")
-    if not key or not endpoint:
+def _send_wapilot(cfg, phone, body, image_url=None):
+    """WaPilot API v2: token-header auth, per-instance send-message / send-image.
+
+    Text  -> POST {base}/{instance}/send-message  (JSON chat_id + text)
+    Image -> POST {base}/{instance}/send-image    (multipart file upload)
+    A local template image is uploaded directly; an external image URL or a
+    missing file falls back to a text message.
+    """
+    token = cfg.get("wapilot_key")
+    instance = cfg.get("wapilot_instance")
+    base = cfg.get("wapilot_endpoint") or WAPILOT_BASE
+    if not token or not instance:
         return False, "wapilot_not_configured"
-    payload = {"phone": phone, "message": body}
-    if media:
-        payload["image"] = media  # provider-specific; harmless when unused
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+
+    local_img = _local_image_path(image_url)
     try:
-        status, _ = _post_json(endpoint, payload, headers)
+        if local_img:  # image message with the body as caption
+            url = f"{base}/{instance}/send-image"
+            status, _ = _post_multipart(
+                url, {"chat_id": phone, "caption": body or ""},
+                "image", local_img, {"token": token})
+        else:
+            url = f"{base}/{instance}/send-message"
+            status, _ = _post_json(
+                url, {"chat_id": phone, "text": body},
+                {"token": token, "Content-Type": "application/json"})
         return (200 <= status < 300), (None if 200 <= status < 300 else f"http_{status}")
     except Exception as exc:  # noqa: BLE001
         return False, str(exc)[:180]
