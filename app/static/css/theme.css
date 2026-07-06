@@ -499,8 +499,13 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 
 /* ---------- Current patient card (3 columns) ---------- */
 .current-card {
-  background: linear-gradient(120deg, var(--green-050), #fff);
-  border: 1px solid var(--green-100); border-radius: var(--radius);
+  position: relative; overflow: hidden;
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--green-500) 13%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--green-050), var(--card) 62%);
+  border: 1px solid var(--green-100);
+  border-inline-start: 4px solid var(--green-500);
+  border-radius: var(--radius);
   padding: 20px; box-shadow: var(--shadow);
 }
 .current-card .cc-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
