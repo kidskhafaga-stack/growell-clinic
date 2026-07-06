@@ -420,39 +420,41 @@
     <!-- Available to give now: optional + in stock -->
     <h3 style="font-size:0.95rem;color:var(--green-800);margin:14px 0 8px;"><i class="bi bi-syringe"></i> {{ t('visits.vac_give_now') }}</h3>
     {% if vac_panel.give_now %}
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      {% for e in vac_panel.give_now %}
-      <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}"
-            style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
-        <input type="hidden" name="vaccine_id" value="{{ e.vaccine.id }}">
-        <input type="hidden" name="dose_number" value="{{ e.dose.dose_number }}">
-        <div style="flex:1;min-width:200px;">
+    {% for e in vac_panel.give_now %}
+    <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}" class="vac-card gc-lift">
+      <input type="hidden" name="vaccine_id" value="{{ e.vaccine.id }}">
+      <input type="hidden" name="dose_number" value="{{ e.dose.dose_number }}">
+      <div class="vac-head">
+        <div>
           <strong>{{ e.vaccine.display_name(current_lang) }}</strong>
-          <span style="color:var(--muted);font-size:0.82rem;">· {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
-          {% if e.overdue %}<span class="badge" title="{{ t('visits.vac_late_hint') }}" style="background:#fdecea;color:#b42318;font-size:0.7rem;">{{ t('visits.vac_late') }}</span>{% endif %}
-          {% if e.seasonal %}<span class="badge badge--muted" title="{{ t('visits.vac_seasonal_hint') }}" style="font-size:0.7rem;"><i class="bi bi-arrow-repeat"></i> {{ t('visits.vac_seasonal') }}</span>{% endif %}
-          <div style="margin-top:5px;">
-            {% if e.in_stock_brands|length > 1 %}
-            <select name="brand_id" class="select" style="height:32px;padding:2px 8px;font-size:0.82rem;max-width:220px;">
-              {% for b in e.in_stock_brands %}
-              <option value="{{ b.id }}" {{ 'selected' if b.id == e.brand.id else '' }}>{{ b.display_name(current_lang) }} ({{ b.stock }})</option>
-              {% endfor %}
-            </select>
-            {% else %}
-            <input type="hidden" name="brand_id" value="{{ e.brand.id }}">
-            <span style="color:var(--muted);font-size:0.82rem;">{{ e.brand.display_name(current_lang) }}</span>
-            {% endif %}
-          </div>
-          <div style="color:var(--muted);font-size:0.78rem;margin-top:2px;">
-            {{ t('visits.vac_in_stock') }}: {{ e.stock }}
-            {%- if e.batch and e.batch.expiry_date %} · {{ t('visits.vac_expiry') }} <span dir="ltr">{{ e.batch.expiry_date }}</span>{% endif %}
-            {%- if e.price %} · {{ t('vaccinations.price') }} {{ e.price }}{% endif %}
-          </div>
+          {% if e.vaccine.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ e.vaccine.route) }}</span>{% endif %}
+          {% if e.seasonal %}<span class="badge badge--muted" title="{{ t('visits.vac_seasonal_hint') }}"><i class="bi bi-arrow-repeat"></i> {{ t('visits.vac_seasonal') }}</span>{% endif %}
         </div>
-        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-syringe"></i> {{ t('visits.vac_give_btn') }}</button>
-      </form>
-      {% endfor %}
-    </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          {% if e.in_stock_brands|length > 1 %}
+          <select name="brand_id" class="select" style="height:34px;padding:2px 8px;font-size:0.82rem;max-width:200px;">
+            {% for b in e.in_stock_brands %}
+            <option value="{{ b.id }}" {{ 'selected' if b.id == e.brand.id else '' }}>{{ b.display_name(current_lang) }} ({{ b.stock }})</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <input type="hidden" name="brand_id" value="{{ e.brand.id }}">
+          {% endif %}
+          <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-syringe"></i> {{ t('visits.vac_give_btn') }}</button>
+        </div>
+      </div>
+      <div class="dose-pills">
+        <div class="dose-pill">
+          <span class="dn">{{ t('vaccinations.dose') }} {{ e.dose.dose_number }}
+            <span class="vst vst-{{ 'overdue' if e.overdue else 'due' }}">{{ t('vstatus.overdue') if e.overdue else t('vstatus.due') }}</span></span>
+          {% if e.in_stock_brands|length <= 1 %}<span class="dd">{{ e.brand.display_name(current_lang) }}</span>{% endif %}
+          <span class="dd"><i class="bi bi-boxes"></i> {{ t('visits.vac_in_stock') }}: {{ e.stock }}
+            {%- if e.batch and e.batch.expiry_date %} · {{ t('visits.vac_expiry') }} <span dir="ltr">{{ e.batch.expiry_date }}</span>{% endif %}
+            {%- if e.price %} · {{ t('vaccinations.price') }} {{ e.price }}{% endif %}</span>
+        </div>
+      </div>
+    </form>
+    {% endfor %}
     {% else %}
     <p style="color:var(--muted);">{{ t('visits.vac_none_available') }}</p>
     {% endif %}
@@ -460,42 +462,55 @@
     <!-- Suggested but out of stock: schedule + purchase order -->
     {% if vac_panel.out_of_stock %}
     <h3 style="font-size:0.95rem;color:#915907;margin:18px 0 8px;"><i class="bi bi-hourglass-split"></i> {{ t('visits.vac_out_of_stock') }}</h3>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      {% for e in vac_panel.out_of_stock %}
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid #f5e3b3;background:#fffdf5;border-radius:10px;padding:10px 12px;">
-        <div style="flex:1;min-width:200px;">
+    {% for e in vac_panel.out_of_stock %}
+    <div class="vac-card gc-lift" style="border-inline-start:3px solid #e0a800;">
+      <div class="vac-head">
+        <div>
           <strong>{{ e.vaccine.display_name(current_lang) }}</strong>
-          <span style="color:var(--muted);font-size:0.82rem;">· {{ e.brand.display_name(current_lang) }} · {{ t('vaccinations.dose') }} {{ e.dose.dose_number }}</span>
-          {% if e.overdue %}<span class="badge" title="{{ t('visits.vac_late_hint') }}" style="background:#fdecea;color:#b42318;font-size:0.7rem;">{{ t('visits.vac_late') }}</span>{% endif %}
+          <span class="badge badge--danger"><i class="bi bi-boxes"></i> {{ t('vaccinations.out_of_stock') }}</span>
         </div>
-        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, appt_type='vaccination') }}">
-          <i class="bi bi-calendar-plus"></i> {{ t('visits.vac_schedule_appt') }}</a>
-        {% if current_user.can_access('inventory') %}
-        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchase_new') }}">
-          <i class="bi bi-cart-plus"></i> {{ t('visits.vac_purchase_order') }}</a>
-        {% endif %}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.create', patient_id=visit.patient_id, appt_type='vaccination') }}">
+            <i class="bi bi-calendar-plus"></i> {{ t('visits.vac_schedule_appt') }}</a>
+          {% if current_user.can_access('inventory') %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchase_new') }}">
+            <i class="bi bi-cart-plus"></i> {{ t('visits.vac_purchase_order') }}</a>
+          {% endif %}
+        </div>
       </div>
-      {% endfor %}
+      <div class="dose-pills">
+        <div class="dose-pill">
+          <span class="dn">{{ t('vaccinations.dose') }} {{ e.dose.dose_number }}
+            {% if e.overdue %}<span class="vst vst-overdue">{{ t('vstatus.overdue') }}</span>{% else %}<span class="vst vst-due">{{ t('vstatus.due') }}</span>{% endif %}</span>
+          <span class="dd">{{ e.brand.display_name(current_lang) }}</span>
+        </div>
+      </div>
     </div>
+    {% endfor %}
     {% endif %}
 
     <!-- What the child already received (neutral history, includes mandatory) -->
     {% if vac_panel.received %}
     <h3 style="font-size:0.95rem;color:var(--green-800);margin:18px 0 8px;"><i class="bi bi-clipboard2-check"></i> {{ t('visits.vac_received') }}</h3>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      {% for r in vac_panel.received %}
-      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
-        <strong>{{ r.vaccine.display_name(current_lang) }}</strong>
-        <span style="color:var(--muted);font-weight:400;font-size:0.82rem;">· {{ r.brand.display_name(current_lang) }}</span>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-          {% for d in r.doses %}
-          <span style="font-size:0.75rem;border-radius:6px;padding:2px 7px;background:#e7f6ec;color:#1a7f37;">
-            {{ t('vaccinations.dose') }} {{ d.dose_number }}{% if d.given_date %} · <span dir="ltr">{{ d.given_date }}</span>{% endif %}</span>
-          {% endfor %}
+    {% for r in vac_panel.received %}
+    <div class="vac-card gc-lift">
+      <div class="vac-head">
+        <div>
+          <strong>{{ r.vaccine.display_name(current_lang) }}</strong>
+          <span class="badge badge--role"><i class="bi bi-box"></i> {{ r.brand.display_name(current_lang) }}</span>
         </div>
+        <span style="font-size:0.8rem;color:var(--muted);">{{ r.doses|length }} {{ t('vaccinations.doses') }}</span>
       </div>
-      {% endfor %}
+      <div class="dose-pills">
+        {% for d in r.doses %}
+        <div class="dose-pill">
+          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-done">{{ t('vstatus.done') }}</span></span>
+          {% if d.given_date %}<span class="dd">✓ <span dir="ltr">{{ d.given_date }}</span></span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
     </div>
+    {% endfor %}
     {% endif %}
 
     <!-- Add a mandatory vaccine deliberately (give here or document a gov dose) -->
