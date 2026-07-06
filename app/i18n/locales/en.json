@@ -1980,7 +1980,12 @@
     "daily_cap": "Daily message cap",
     "daily_cap_hint": "0 = unlimited.",
     "schedule_at": "Schedule send (optional)",
-    "schedule_at_hint": "Leave empty to send now, or pick a time to schedule — dispatched by \"Send due\" or automatically."
+    "schedule_at_hint": "Leave empty to send now, or pick a time to schedule — dispatched by \"Send due\" or automatically.",
+    "wapilot_v2": "API v2",
+    "wapilot_token": "API token",
+    "wapilot_instance": "Instance name / id",
+    "wapilot_base": "API base URL (optional)",
+    "wapilot_hint": "From WaPilot API v2: create a token and pick your instance. Locally-uploaded images are sent directly — no public URL needed."
   },
   "notif": {
     "title": "Notifications",
