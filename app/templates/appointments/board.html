@@ -107,7 +107,14 @@
 </div>
 
 <!-- Stat cards -->
-<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+<style>
+  .stat-grid--compact { gap:10px !important; grid-template-columns:repeat(auto-fill, minmax(118px,1fr)) !important; }
+  .stat-grid--compact .stat-card { padding:9px 12px !important; border-inline-start-width:4px; box-shadow:none; }
+  .stat-grid--compact .stat-card .value { font-size:1.3rem !important; }
+  .stat-grid--compact .stat-card .label { font-size:0.72rem !important; }
+  .stat-grid--compact .stat-card .ico { font-size:1rem !important; opacity:.45; }
+</style>
+<div class="stat-grid stat-grid--compact gc-stagger" style="margin-bottom:14px;">
   <div class="stat-card edge-blue gc-lift"><i class="bi bi-calendar-check ico"></i>
     <div class="value gc-counter" data-count="{{ stats.total }}">0</div><div class="label">{{ t('appointments.stat_total') }}</div></div>
   <div class="stat-card edge-green gc-lift"><i class="bi bi-check2-all ico"></i>
