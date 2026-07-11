@@ -20,8 +20,6 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoice_receipt', invoice_id=invoice.id) }}" target="_blank">
       <i class="bi bi-receipt"></i> {{ t('invoices.thermal') }}</a>
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('invoices.print') }}</button>
-    <form method="post" action="{{ url_for('finance.invoice_delete', invoice_id=invoice.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
-      <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
   </div>
 </div>
 
@@ -177,14 +175,34 @@
   {% endif %}
 
   {% if invoice.balance > 0 %}
-  <form method="post" action="{{ url_for('finance.invoice_payment', invoice_id=invoice.id) }}" style="margin-top:10px;">
-    <div class="form-grid">
-      <div class="form-row"><label>{{ t('invoices.amount') }} *</label><input class="input" type="number" step="0.01" name="amount" value="{{ invoice.balance }}" required></div>
-      <div class="form-row"><label>{{ t('invoices.method') }}</label>
-        <select class="select" name="method">{% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}</select></div>
+  <form method="post" action="{{ url_for('finance.invoice_payment', invoice_id=invoice.id) }}" style="margin-top:10px;"
+        x-data="splitPay({{ invoice.balance }})">
+    <template x-for="(row, i) in rows" :key="i">
+      <div class="form-grid" style="align-items:end;margin-bottom:6px;">
+        <div class="form-row"><label x-show="i===0">{{ t('invoices.amount') }} *</label>
+          <input class="input" type="number" step="0.01" min="0" name="amount" x-model.number="row.amount" required></div>
+        <div class="form-row"><label x-show="i===0">{{ t('invoices.method') }}</label>
+          <select class="select" name="method" x-model="row.method">
+            {% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}
+          </select></div>
+        <div class="form-row" style="max-width:46px;justify-content:end;">
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-show="rows.length>1" x-on:click="rows.splice(i,1)" title="{{ t('common.delete') }}"><i class="bi bi-x-lg"></i></button></div>
+      </div>
+    </template>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 10px;">
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="rows.push({method:'cash', amount:remaining()})"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_method') }}</button>
+      <span class="hint" style="margin:0;">{{ t('invoices.total') }}: <strong x-text="total().toFixed(2)"></strong>
+        · {{ t('invoices.balance') }}: <strong x-text="(balance - total()).toFixed(2)"></strong></span>
     </div>
-    <button class="btn btn-primary btn-sm gc-press gc-ripple" type="submit"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_payment') }}</button>
+    <button class="btn btn-primary btn-sm gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('invoices.add_payment') }}</button>
   </form>
+  <script>
+    function splitPay(balance){
+      return { balance: balance, rows: [{ method: 'cash', amount: balance }],
+        total(){ return this.rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0); },
+        remaining(){ return Math.max(0, +(this.balance - this.total()).toFixed(2)); } };
+    }
+  </script>
   {% endif %}
 
   {% if invoice.paid > 0 %}

@@ -1097,6 +1097,7 @@
     "deleted": "Invoice deleted",
     "payment": "Payment",
     "add_payment": "Add payment",
+    "add_method": "Add payment method",
     "payment_added": "Payment recorded",
     "bad_amount": "Invalid amount",
     "method": "Method",
@@ -1194,6 +1195,7 @@
   "payment_methods": {
     "cash": "Cash",
     "card": "Card",
+    "instapay": "InstaPay",
     "transfer": "Transfer",
     "wallet": "Wallet"
   },

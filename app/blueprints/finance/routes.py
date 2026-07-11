@@ -706,20 +706,33 @@ def invoice_receipt(invoice_id):
 @module_required(MODULE)
 def invoice_payment(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
-    amount = request.form.get("amount", type=float)
-    if not amount or amount <= 0:
+    # One invoice can be settled with several methods at once (e.g. 500 cash +
+    # 1000 card + 500 instapay). The form submits parallel amount[]/method[]
+    # lists; a single quick-pay is just a one-element list.
+    amounts = request.form.getlist("amount")
+    methods = request.form.getlist("method")
+    notes = (request.form.get("notes") or "").strip() or None
+    added = 0.0
+    for amt_raw, m in zip(amounts, methods):
+        try:
+            amt = float(amt_raw)
+        except (TypeError, ValueError):
+            continue
+        if amt <= 0:
+            continue
+        invoice.payments.append(Payment(
+            amount=round(amt, 2),
+            method=m if m in PAYMENT_METHODS else "cash",
+            received_by=current_user.id, notes=notes,
+        ))
+        added += amt
+    if added <= 0:
         flash(t("invoices.bad_amount"), "danger")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
-    method = (request.form.get("method") or "cash").strip()
-    invoice.payments.append(Payment(
-        amount=round(amount, 2),
-        method=method if method in PAYMENT_METHODS else "cash",
-        received_by=current_user.id,
-        notes=(request.form.get("notes") or "").strip() or None,
-    ))
     invoice.recalc_status()
     ActivityLog.record("invoice.payment", user_id=current_user.id, entity="invoice",
-                       detail=f"{invoice.invoice_number}:{amount}", ip_address=client_ip())
+                       detail=f"{invoice.invoice_number}:{round(added, 2)}",
+                       ip_address=client_ip())
     db.session.commit()
     flash(t("invoices.payment_added"), "success")
     if (request.form.get("next") or "") == "cashier":
@@ -840,14 +853,8 @@ def invoice_edit(invoice_id):
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
 
-@finance_bp.route("/invoices/<int:invoice_id>/delete", methods=["POST"])
-@module_required(MODULE)
-def invoice_delete(invoice_id):
-    invoice = db.get_or_404(Invoice, invoice_id)
-    db.session.delete(invoice)
-    db.session.commit()
-    flash(t("invoices.deleted"), "info")
-    return redirect(url_for("finance.invoices"))
+# Invoices are never deleted (financial integrity + audit trail). A billing
+# mistake is corrected with a refund, not a deletion.
 
 
 # =======================================================================
