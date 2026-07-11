@@ -39,7 +39,7 @@ from app.models import (
     PatientProblem,
 )
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
-from app.utils.decorators import client_ip, module_required
+from app.utils.decorators import capability_required, client_ip, module_required
 from app.utils.imports import (
     allowed_import_file,
     build_rows,
@@ -71,6 +71,7 @@ def _upload_dir():
 
 @patients_bp.route("/<int:patient_id>/documents", methods=["POST"])
 @module_required(MODULE)
+@capability_required("patient_medical")
 def upload_document(patient_id):
     """Upload a document (lab/imaging/report) straight to the patient file."""
     patient = db.get_or_404(Patient, patient_id)
@@ -93,6 +94,7 @@ def upload_document(patient_id):
 
 @patients_bp.route("/documents/<int:att_id>/delete", methods=["POST"])
 @module_required(MODULE)
+@capability_required("patient_medical")
 def delete_document(att_id):
     att = db.get_or_404(PatientAttachment, att_id)
     patient_id = att.patient_id

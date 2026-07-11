@@ -92,6 +92,15 @@ class User(UserMixin, db.Model):
             return rec.is_admin or module in rec.module_list
         return role_can_access(self.role, module)  # static fallback
 
+    def can(self, capability):
+        """Whether this user's role has a fine-grained capability
+        (e.g. ``patient_medical`` to view the full clinical file)."""
+        from app.models.permissions import role_has_capability
+        rec = self._role_record()
+        if rec is not None and rec.is_admin:
+            return True
+        return role_has_capability(self.role, capability)
+
     @property
     def modules(self):
         """Modules visible to this user (drives the sidebar)."""

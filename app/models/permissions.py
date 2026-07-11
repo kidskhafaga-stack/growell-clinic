@@ -80,6 +80,37 @@ ROLE_PERMISSIONS = {
 }
 
 
+# --- Fine-grained capabilities (layered on top of module access) -------
+# Module access says "can reach this screen"; capabilities gate sensitive
+# actions/sections *within* screens — e.g. reception can open a patient to
+# register/book, but must not see the full medical file.
+CAPABILITIES = [
+    "patient_medical",   # view the full clinical file (visits, dx, rx, growth…)
+    "cashier",           # collect payments + print receipts
+    "finance_manage",    # full finance (P&L, expenses, payers, discounts)
+]
+
+ROLE_CAPABILITIES = {
+    "admin": list(CAPABILITIES),
+    "doctor": ["patient_medical"],
+    "reception": ["cashier"],
+    "accountant": ["cashier", "finance_manage"],
+    "pharmacy": [],
+}
+
+
+def role_capabilities(role):
+    if role == "admin":
+        return list(CAPABILITIES)
+    return ROLE_CAPABILITIES.get(role, [])
+
+
+def role_has_capability(role, capability):
+    if role == "admin":
+        return True
+    return capability in ROLE_CAPABILITIES.get(role, [])
+
+
 def role_modules(role):
     """Return the list of modules a role can access (admin gets everything)."""
     if role == "admin":
