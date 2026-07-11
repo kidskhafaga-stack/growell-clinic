@@ -4,7 +4,8 @@
 {% block page_heading %}{{ t('wizard.title') }}{% endblock %}
 
 {% block content %}
-<div class="gc-animate" style="max-width:920px;margin:0 auto;">
+<div class="gc-animate" style="max-width:960px;margin:0 auto;"
+     x-data='setupWizard({{ type_caps|tojson }}, {{ cap_modules|tojson }}, {{ base_modules|tojson }}, {{ template_data|tojson }}, {{ (current_caps|list)|tojson }}, {{ (current_modules|list)|tojson }}, {{ current_type|tojson }})'>
   <div style="margin-bottom:18px;">
     <h1 class="page-title"><i class="bi bi-magic"></i> {{ t('wizard.title') }}</h1>
     <p class="page-sub" style="margin:0;">
@@ -12,8 +13,21 @@
     </p>
   </div>
 
-  <form method="post" x-data='setupWizard({{ type_defaults|tojson }}, {{ (current_enabled|list)|tojson }})'>
-    <!-- 1) Facility type -->
+  <form method="post">
+    <!-- 0) Ready-made templates -->
+    <div class="card gc-scale-in" style="margin-bottom:16px;">
+      <h2 class="section-title"><i class="bi bi-collection"></i> {{ t('wizard.templates') }}</h2>
+      <p class="hint" style="margin-top:-6px;">{{ t('wizard.templates_hint') }}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% for key, meta in templates.items() %}
+        <button type="button" class="btn btn-outline gc-press" @click="applyTemplate('{{ key }}')">
+          <i class="bi bi-{{ meta.icon }}"></i> {{ t('templates.' ~ key) }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 1) Facility type (administrative only) -->
     <div class="card gc-scale-in" style="margin-bottom:16px;">
       <h2 class="section-title"><i class="bi bi-building"></i> {{ t('wizard.facility_type') }}</h2>
       <p class="hint" style="margin-top:-6px;">{{ t('wizard.type_hint') }}</p>
@@ -39,7 +53,29 @@
       </div>
     </div>
 
-    <!-- 3) Modules -->
+    <!-- 3) Services & Specialties (capabilities) -->
+    <div class="card gc-scale-in" style="margin-bottom:16px;">
+      <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('wizard.capabilities') }}</h2>
+      <p class="hint" style="margin-top:-6px;">{{ t('wizard.capabilities_hint') }}</p>
+      {% for group, caps in capability_groups.items() %}
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">
+          {{ t('capability_groups.' ~ group) }}</div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;">
+          {% for cap in caps %}
+          <label class="mtoggle" :class="{'mtoggle--on': caps_.includes('{{ cap }}')}"
+                 style="display:flex;gap:9px;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:10px;cursor:pointer;">
+            <input type="checkbox" name="capabilities" value="{{ cap }}" x-model="caps_"
+                   @change="recalcModules()" style="accent-color:var(--primary);">
+            <span>{{ t('capabilities.' ~ cap) }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- 4) System modules (auto-derived, overridable) -->
     <div class="card gc-scale-in" style="margin-bottom:16px;">
       <h2 class="section-title"><i class="bi bi-grid-3x3-gap"></i> {{ t('wizard.modules') }}</h2>
       <p class="hint" style="margin-top:-6px;">{{ t('wizard.modules_hint') }}</p>
@@ -56,7 +92,7 @@
       </div>
     </div>
 
-    <!-- 4) Demo data (first run only) -->
+    <!-- 5) Demo data (first run only) -->
     {% if not configured %}
     <div class="card gc-scale-in" style="margin-bottom:16px;">
       <label style="display:flex;gap:10px;align-items:center;cursor:pointer;">
@@ -80,13 +116,29 @@
   .ftype--on, .mtoggle--on { border-color:var(--primary) !important; background:color-mix(in srgb, var(--primary) 8%, transparent); }
 </style>
 <script>
-  function setupWizard(typeDefaults, current) {
+  function setupWizard(typeCaps, capModules, baseModules, templates, curCaps, curMods, curType) {
     return {
-      ftype: {{ current_type|tojson }},
-      mods: current.slice(),
+      ftype: curType,
+      caps_: curCaps.slice(),
+      mods: curMods.slice(),
+      // Modules implied by the current capabilities + the base set.
+      recalcModules() {
+        var wanted = new Set(baseModules);
+        this.caps_.forEach(function (c) {
+          (capModules[c] || []).forEach(function (m) { wanted.add(m); });
+        });
+        this.mods = Array.from(wanted);
+      },
       applyType(key) {
-        // Re-tick the preset for the chosen facility type.
-        this.mods = (typeDefaults[key] || []).slice();
+        this.caps_ = (typeCaps[key] || []).slice();
+        this.recalcModules();
+      },
+      applyTemplate(key) {
+        var tpl = templates[key];
+        if (!tpl) return;
+        this.ftype = tpl.type;
+        this.caps_ = (tpl.caps || []).slice();
+        this.recalcModules();
       },
     };
   }
