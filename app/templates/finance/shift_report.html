@@ -1,0 +1,103 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('shifts.report') }} #{{ shift.id }}{% endblock %}
+{% block page_heading %}{{ t('shifts.report') }} #{{ shift.id }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('shifts.report') }} #{{ shift.id }}{% if shift.label %} — {{ shift.label }}{% endif %}</h1>
+    <p class="page-sub" style="margin:0;">
+      {{ shift.opener.display_name(current_lang) if shift.opener else '' }} ·
+      {{ shift.opened_at.strftime('%Y-%m-%d %H:%M') }}
+      {% if shift.closed_at %}→ {{ shift.closed_at.strftime('%H:%M') }} ({{ shift.duration_minutes }} {{ t('shifts.minutes') }}){% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.shifts') }}"><i class="bi bi-clock-history"></i> {{ t('shifts.history') }}</a>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+  </div>
+</div>
+
+<div class="stat-grid gc-stagger print-area" style="margin-bottom:16px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-wallet2 ico"></i>
+    <div class="value">{{ shift.opening_float }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-cash-stack ico"></i>
+    <div class="value">{{ shift.collected }}</div><div class="label">{{ t('shifts.collected') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-cash ico"></i>
+    <div class="value">{{ shift.cash_collected }}</div><div class="label">{{ t('cashier.cash_collected') }}</div></div>
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-safe2 ico"></i>
+    <div class="value">{{ shift.expected_cash }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-arrow-return-left ico"></i>
+    <div class="value">{{ shift.refunds }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-bottom:16px;">
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-pie-chart"></i> {{ t('cashier.by_method') }}</h2>
+    <table class="table"><tbody>
+      {% for m in payment_methods %}
+      <tr><td>{{ t('payment_methods.' ~ m) }}</td>
+        <td style="text-align:end;font-weight:600;">{{ shift.by_method.get(m, 0)|round(2) }}</td></tr>
+      {% endfor %}
+      <tr style="border-top:2px solid var(--line);font-weight:700;">
+        <td>{{ t('shifts.collected') }}</td><td style="text-align:end;">{{ shift.collected }}</td></tr>
+    </tbody></table>
+  </div>
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-safe2"></i> {{ t('shifts.reconcile') }}</h2>
+    <table class="table"><tbody>
+      <tr><td>{{ t('cashier.opening_float') }}</td><td style="text-align:end;">{{ shift.opening_float }}</td></tr>
+      <tr><td>{{ t('cashier.cash_collected') }}</td><td style="text-align:end;">{{ shift.cash_collected }}</td></tr>
+      <tr style="font-weight:700;"><td>{{ t('cashier.expected_cash') }}</td><td style="text-align:end;">{{ shift.expected_cash }}</td></tr>
+      <tr><td>{{ t('shifts.counted_cash') }}</td><td style="text-align:end;">{{ shift.counted_cash if shift.counted_cash is not none else '—' }}</td></tr>
+      {% if shift.variance is not none %}
+      <tr style="font-weight:700;{% if shift.variance < 0 %}color:var(--danger);{% elif shift.variance > 0 %}color:var(--green-700);{% endif %}">
+        <td>{{ t('shifts.variance') }}</td><td style="text-align:end;">{{ shift.variance }}</td></tr>
+      {% endif %}
+    </tbody></table>
+    {% if shift.notes %}<p class="hint"><i class="bi bi-sticky"></i> {{ shift.notes }}</p>{% endif %}
+
+    {% if shift.status == 'open' %}
+    <form method="post" action="{{ url_for('finance.shift_close', shift_id=shift.id) }}" class="no-print"
+          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:10px;"
+          onsubmit="return confirm('{{ t('shifts.close_confirm') }}');">
+      <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('shifts.counted_cash') }}</label>
+        <input class="input" type="number" step="0.01" name="counted_cash" placeholder="{{ shift.expected_cash }}"></div>
+      <div class="form-row" style="margin:0;flex:2;min-width:160px;"><label>{{ t('common.notes') }}</label>
+        <input class="input" type="text" name="notes"></div>
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-door-closed"></i> {{ t('shifts.close') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-list-ul"></i> {{ t('shifts.payments') }} ({{ pays|length }})</h2>
+  {% if pays %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('shifts.time') }}</th>
+      <th>{{ t('invoices.number') }}</th>
+      <th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('invoices.method') }}</th>
+      <th style="text-align:end;">{{ t('invoices.amount') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for p in pays %}
+      <tr>
+        <td style="color:var(--muted);">{{ p.paid_at.strftime('%H:%M') }}</td>
+        <td>{% if p.invoice %}<a href="{{ url_for('finance.invoice_view', invoice_id=p.invoice.id) }}"><span class="badge badge--role">{{ p.invoice.invoice_number }}</span></a>{% else %}—{% endif %}</td>
+        <td>{{ p.invoice.patient.display_name(current_lang) if p.invoice and p.invoice.patient else '—' }}</td>
+        <td>{{ t('payment_methods.' ~ p.method) }}{% if p.kind == 'refund' %} <span class="badge" style="color:var(--danger);">{{ t('invoices.refund') }}</span>{% endif %}</td>
+        <td style="text-align:end;font-weight:600;{% if p.kind == 'refund' %}color:var(--danger);{% endif %}">
+          {{ '−' if p.kind == 'refund' else '' }}{{ p.amount }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('shifts.no_payments') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -139,6 +139,9 @@ class Payment(db.Model):
     # "payment" = money in; "refund" = money out (e.g. exam re-billed as consult).
     kind = db.Column(db.String(10), default="payment", nullable=False)
     received_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    # The cashier shift (وردية) this money was taken in, so each till session
+    # reconciles independently. Null for payments recorded outside any shift.
+    shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"), nullable=True, index=True)
     paid_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.String(200))
 
@@ -149,6 +152,7 @@ class Payment(db.Model):
 
     invoice = db.relationship("Invoice", back_populates="payments")
     receiver = db.relationship("User")
+    shift = db.relationship("CashierShift", back_populates="payments")
 
     def __repr__(self):
         return f"<Payment {self.amount} for inv={self.invoice_id}>"
@@ -177,3 +181,81 @@ class CashDrawerDay(db.Model):
 
     def __repr__(self):
         return f"<CashDrawerDay {self.drawer_date} float={self.opening_float}>"
+
+
+class CashierShift(db.Model):
+    """A cashier's till session (وردية). A cashier opens a shift with a change
+    float, collects money against it, then closes it against the counted cash.
+    Every ``Payment`` taken while the shift is open is tagged to it, so each
+    session reconciles on its own (X/Z report) instead of one big daily bucket.
+    """
+    __tablename__ = "cashier_shifts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(60))                 # optional name (صباحي/مسائي)
+    status = db.Column(db.String(10), default="open", nullable=False)  # open|closed
+    opening_float = db.Column(db.Float, default=0, nullable=False)
+    opened_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    # Close-of-shift reconciliation.
+    counted_cash = db.Column(db.Float)
+    closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    closed_at = db.Column(db.DateTime)
+    notes = db.Column(db.String(255))
+
+    opener = db.relationship("User", foreign_keys=[opened_by])
+    closer = db.relationship("User", foreign_keys=[closed_by])
+    payments = db.relationship("Payment", back_populates="shift")
+
+    # --- lookups -------------------------------------------------------
+    @classmethod
+    def open_for(cls, user_id):
+        """The user's currently-open shift, if any."""
+        return (cls.query.filter_by(opened_by=user_id, status="open")
+                .order_by(cls.opened_at.desc()).first())
+
+    @classmethod
+    def any_open(cls):
+        return cls.query.filter_by(status="open").order_by(cls.opened_at.desc()).first()
+
+    # --- money ---------------------------------------------------------
+    @property
+    def by_method(self):
+        """Net collected per method (payments − refunds)."""
+        out = {}
+        for p in self.payments:
+            out[p.method] = round(out.get(p.method, 0) + p.signed_amount, 2)
+        return out
+
+    @property
+    def collected(self):
+        """Net money in over the shift (payments − refunds)."""
+        return round(sum(p.signed_amount for p in self.payments), 2)
+
+    @property
+    def refunds(self):
+        return round(sum(p.amount or 0 for p in self.payments if p.kind == "refund"), 2)
+
+    @property
+    def cash_collected(self):
+        return round(sum(p.signed_amount for p in self.payments if p.method == "cash"), 2)
+
+    @property
+    def expected_cash(self):
+        """What the drawer should hold: float + net cash taken in."""
+        return round((self.opening_float or 0) + self.cash_collected, 2)
+
+    @property
+    def variance(self):
+        """Counted − expected (over/short). None until the shift is closed."""
+        if self.counted_cash is None:
+            return None
+        return round(self.counted_cash - self.expected_cash, 2)
+
+    @property
+    def duration_minutes(self):
+        end = self.closed_at or datetime.utcnow()
+        return int((end - self.opened_at).total_seconds() // 60)
+
+    def __repr__(self):
+        return f"<CashierShift {self.id} {self.status} float={self.opening_float}>"

@@ -26,6 +26,7 @@ from app.models import (
     SERVICE_CATEGORIES,
     ActivityLog,
     CashDrawerDay,
+    CashierShift,
     DoctorServiceCommission,
     EInvoiceDocument,
     Expense,
@@ -265,6 +266,12 @@ def _cashier_date():
         return date.today()
 
 
+def _current_shift_id():
+    """The open shift this cashier's money should be booked into, if any."""
+    shift = CashierShift.open_for(current_user.id) or CashierShift.any_open()
+    return shift.id if shift else None
+
+
 @finance_bp.route("/cashier")
 @module_required(MODULE)
 def cashier():
@@ -305,6 +312,10 @@ def cashier():
                    .order_by(Invoice.id.desc()).limit(100).all())
     outstanding_total = round(sum(i.balance for i in outstanding), 2)
 
+    open_shift = CashierShift.open_for(current_user.id) or CashierShift.any_open()
+    recent_shifts = (CashierShift.query.order_by(CashierShift.opened_at.desc())
+                     .limit(8).all())
+
     return render_template(
         "finance/cashier.html", on_date=on_date, drawer=drawer,
         opening_float=opening_float, by_method=dict(by_method),
@@ -312,6 +323,7 @@ def cashier():
         expected_cash=expected_cash, billed_today=billed_today,
         outstanding=outstanding, outstanding_total=outstanding_total,
         payment_methods=PAYMENT_METHODS,
+        open_shift=open_shift, recent_shifts=recent_shifts,
     )
 
 
@@ -329,6 +341,71 @@ def cashier_float():
     db.session.commit()
     flash(t("cashier.float_saved"), "success")
     return redirect(url_for("finance.cashier", date=on_date.isoformat()))
+
+
+# ----------------------------------------------------- cashier shifts ------
+@finance_bp.route("/shift/open", methods=["POST"])
+@module_required(MODULE)
+def shift_open():
+    """Open a till session (وردية) with a change float. One open shift per
+    cashier at a time — money collected from now on is booked into it."""
+    if CashierShift.open_for(current_user.id):
+        flash(t("shifts.already_open"), "warning")
+        return redirect(url_for("finance.cashier"))
+    shift = CashierShift(
+        opening_float=round(request.form.get("opening_float", type=float) or 0, 2),
+        label=(request.form.get("label") or "").strip() or None,
+        opened_by=current_user.id,
+    )
+    db.session.add(shift)
+    db.session.flush()
+    ActivityLog.record("shift.open", user_id=current_user.id, entity="cashier_shift",
+                       detail=str(shift.id), ip_address=client_ip())
+    db.session.commit()
+    flash(t("shifts.opened"), "success")
+    return redirect(url_for("finance.cashier"))
+
+
+@finance_bp.route("/shift/<int:shift_id>/close", methods=["POST"])
+@module_required(MODULE)
+def shift_close(shift_id):
+    """Close a shift against the counted cash and record over/short."""
+    shift = db.get_or_404(CashierShift, shift_id)
+    if shift.status == "closed":
+        flash(t("shifts.already_closed"), "warning")
+        return redirect(url_for("finance.shift_report", shift_id=shift.id))
+    shift.counted_cash = request.form.get("counted_cash", type=float)
+    shift.notes = (request.form.get("notes") or "").strip() or None
+    shift.status = "closed"
+    shift.closed_by = current_user.id
+    shift.closed_at = datetime.utcnow()
+    ActivityLog.record("shift.close", user_id=current_user.id, entity="cashier_shift",
+                       detail=f"{shift.id}:{shift.variance}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("shifts.closed"), "success")
+    return redirect(url_for("finance.shift_report", shift_id=shift.id))
+
+
+@finance_bp.route("/shifts")
+@module_required(MODULE)
+def shifts():
+    """History of till sessions (Z-reports)."""
+    page = request.args.get("page", 1, type=int)
+    pagination = (CashierShift.query.order_by(CashierShift.opened_at.desc())
+                  .paginate(page=page, per_page=25, error_out=False))
+    return render_template("finance/shifts.html", pagination=pagination,
+                           shifts=pagination.items,
+                           open_shift=CashierShift.open_for(current_user.id))
+
+
+@finance_bp.route("/shift/<int:shift_id>")
+@module_required(MODULE)
+def shift_report(shift_id):
+    """One shift's X/Z report: float, money by method, expected vs counted."""
+    shift = db.get_or_404(CashierShift, shift_id)
+    pays = sorted(shift.payments, key=lambda p: p.paid_at)
+    return render_template("finance/shift_report.html", shift=shift, pays=pays,
+                           payment_methods=PAYMENT_METHODS)
 
 
 def _apply_coverage(invoice, patient):
@@ -547,7 +624,7 @@ def collect_appointment(appt_id):
         invoice.payments.append(Payment(
             amount=invoice.balance,
             method=method if method in PAYMENT_METHODS else "cash",
-            received_by=current_user.id,
+            received_by=current_user.id, shift_id=_current_shift_id(),
         ))
         invoice.recalc_status()
 
@@ -713,6 +790,7 @@ def invoice_payment(invoice_id):
     methods = request.form.getlist("method")
     notes = (request.form.get("notes") or "").strip() or None
     added = 0.0
+    shift_id = _current_shift_id()
     for amt_raw, m in zip(amounts, methods):
         try:
             amt = float(amt_raw)
@@ -723,7 +801,7 @@ def invoice_payment(invoice_id):
         invoice.payments.append(Payment(
             amount=round(amt, 2),
             method=m if m in PAYMENT_METHODS else "cash",
-            received_by=current_user.id, notes=notes,
+            received_by=current_user.id, notes=notes, shift_id=shift_id,
         ))
         added += amt
     if added <= 0:
@@ -756,7 +834,7 @@ def invoice_refund(invoice_id):
     invoice.payments.append(Payment(
         amount=round(amount, 2), kind="refund",
         method=method if method in PAYMENT_METHODS else "cash",
-        received_by=current_user.id,
+        received_by=current_user.id, shift_id=_current_shift_id(),
         notes=(request.form.get("notes") or "").strip() or None,
     ))
     invoice.recalc_status()
