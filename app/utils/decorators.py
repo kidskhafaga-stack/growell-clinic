@@ -28,6 +28,24 @@ def module_required(module):
     return decorator
 
 
+def capability_required(capability):
+    """Restrict a view to users whose role holds a fine-grained ``capability``
+    (e.g. ``patient_medical``). Layered on top of ``module_required``."""
+
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return current_app.login_manager.unauthorized()
+            if not current_user.can(capability):
+                abort(403, description=t("auth.no_permission"))
+            return view(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
 def admin_required(view):
     """Restrict a view to administrators only."""
 
