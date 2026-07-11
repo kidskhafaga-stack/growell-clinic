@@ -374,6 +374,32 @@ function tplEditor(id, occ){
       <input class="input" name="wa_public_base_url" dir="ltr" value="{{ values.get('wa_public_base_url','') }}" placeholder="https://clinic.example.com">
       <div class="hint">{{ t('crm.public_base_hint') }}</div></div>
 
+    <!-- Inbound receiving (webhooks) -->
+    {% set base = values.get('wa_public_base_url','')|trim %}
+    {% set secret = values.get('wa_webhook_secret','') %}
+    <h3 style="font-size:0.95rem;margin:16px 0 6px;"><i class="bi bi-box-arrow-in-down-left"></i> {{ t('crm.inbound_title') }}</h3>
+    <p class="hint" style="margin-top:0;">{{ t('crm.inbound_hint') }}</p>
+    <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:400;">
+      <input type="checkbox" name="wa_inbound_enabled" value="1" {{ 'checked' if values.get('wa_inbound_enabled')=='1' else '' }}> {{ t('crm.inbound_enable') }}
+    </label>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('crm.meta_verify_token') }}</label>
+        <input class="input" name="wa_meta_verify_token" dir="ltr" value="{{ values.get('wa_meta_verify_token','') }}" placeholder="my-verify-token">
+        <div class="hint">{{ t('crm.meta_verify_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('crm.webhook_secret') }}</label>
+        <input class="input" dir="ltr" value="{{ secret or '' }}" readonly style="background:var(--green-050);">
+        <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:400;font-size:.82rem;">
+          <input type="checkbox" name="regen_secret" value="1"> {{ t('crm.regen_secret') }}</label></div>
+    </div>
+    <div class="form-row"><label>{{ t('crm.webhook_urls') }}</label>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div><span class="badge badge--role">Meta</span>
+          <code dir="ltr" style="font-size:.8rem;user-select:all;">{{ (base or '‹'~t('crm.public_base')~'›') }}/wa/webhook/meta</code></div>
+        <div><span class="badge badge--role">WaPilot</span>
+          <code dir="ltr" style="font-size:.8rem;user-select:all;">{{ (base or '‹'~t('crm.public_base')~'›') }}/wa/webhook/wapilot/{{ secret or '‹secret›' }}</code></div>
+      </div>
+      <div class="hint">{{ t('crm.webhook_urls_hint') }}</div></div>
+
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>

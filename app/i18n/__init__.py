@@ -28,7 +28,6 @@ _translations = {}
 
 def _load_translations():
     """Load every ``<lang>.json`` file from the locales directory once."""
-    global _translations
     if _translations:
         return _translations
 

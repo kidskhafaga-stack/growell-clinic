@@ -5,7 +5,8 @@
 {% block page_heading %}{{ t('crm.dashboard') }}{% endblock %}
 
 {% set badge = {'sent':'st-completed','link':'st-waiting','scheduled':'st-scheduled',
-                'failed':'st-no_show','skipped':'st-cancelled','queued':'st-waiting'} %}
+                'failed':'st-no_show','skipped':'st-cancelled','queued':'st-waiting',
+                'received':'st-completed'} %}
 
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
@@ -60,7 +61,8 @@
     <tbody>
       {% for m in logs %}
       <tr>
-        <td dir="ltr" style="white-space:nowrap;">{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td dir="ltr" style="white-space:nowrap;">
+          {% if m.direction == 'in' %}<i class="bi bi-box-arrow-in-down-left" title="{{ t('crm.incoming') }}" style="color:#25D366;"></i> {% endif %}{{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td>{% if m.patient %}{{ m.patient.display_name(current_lang) }}{% if m.patient.wa_opt_out %} <span class="badge badge--danger" title="{{ t('crm.opted_out') }}"><i class="bi bi-slash-circle"></i></span>{% endif %}{% else %}—{% endif %}</td>
         <td dir="ltr">{{ m.to_phone or '—' }}</td>
         <td style="max-width:280px;color:var(--muted);font-size:0.85rem;">{{ (m.body[:70] ~ '…') if m.body and m.body|length > 70 else m.body }}</td>
