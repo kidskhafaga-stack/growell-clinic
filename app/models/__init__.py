@@ -105,6 +105,7 @@ from app.models.prescription import (
 from app.models.message import (
     AUTOMATION_TYPES,
     DEFAULT_BIRTHDAY_BODY,
+    MESSAGE_DIRECTIONS,
     MESSAGE_STATUSES,
     OCCASION_TYPES,
     SEND_MODES,
@@ -209,6 +210,7 @@ __all__ = [
     "MessageLog",
     "MessageTemplate",
     "MESSAGE_STATUSES",
+    "MESSAGE_DIRECTIONS",
     "OCCASION_TYPES",
     "SEND_MODES",
     "AUTOMATION_TYPES",

@@ -185,6 +185,7 @@ def register_commands(app):
             ("message_logs", "template_type", "VARCHAR(30)"),
             ("message_logs", "scheduled_at", "DATETIME"),
             ("message_logs", "sent_at", "DATETIME"),
+            ("message_logs", "direction", "VARCHAR(3) DEFAULT 'out'"),
             ("patients", "wa_opt_out", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())

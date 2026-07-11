@@ -39,7 +39,9 @@ WA_CONFIG_KEYS = [
     "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_instance", "wa_wapilot_endpoint",
     "wa_public_base_url", "wa_send_from", "wa_send_to", "wa_daily_cap",
+    "wa_meta_verify_token",
 ]
+WA_TOGGLE_KEYS = ["wa_inbound_enabled"]
 
 
 def _crm_img_dir():
@@ -368,8 +370,15 @@ def occasions():
 @admin_required
 def connection_save():
     """Save the WhatsApp connection / delivery configuration from the hub."""
+    import secrets
+
     for key in WA_CONFIG_KEYS:
         Setting.set(key, (request.form.get(key) or "").strip())
+    for key in WA_TOGGLE_KEYS:
+        Setting.set(key, "1" if request.form.get(key) else "0")
+    # Regenerate or first-time-create the inbound webhook secret on demand.
+    if request.form.get("regen_secret") or not Setting.get("wa_webhook_secret", ""):
+        Setting.set("wa_webhook_secret", secrets.token_urlsafe(24))
     db.session.commit()
     flash(t("settings.saved"), "success")
     return redirect(url_for("messages.occasions") + "#connection")

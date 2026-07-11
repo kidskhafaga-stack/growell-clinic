@@ -12,8 +12,12 @@ from app.extensions import db
 # sent      = handed to a provider API successfully
 # scheduled = queued for a future send time (dispatched by dispatch_due)
 # skipped   = intentionally not sent (patient opted out)
+# received  = an inbound message from a patient (direction=in)
 # failed/queued = self-explanatory
-MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped"]
+MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped", "received"]
+
+# Message direction: outbound (we sent) vs inbound (patient replied).
+MESSAGE_DIRECTIONS = ["out", "in"]
 
 # Per-notification delivery preference (independent of the global CRM switch).
 # auto   = when the clinic is in automatic mode, this type is sent via the API.
@@ -120,6 +124,7 @@ class MessageLog(db.Model):
     body = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))
     provider = db.Column(db.String(20))
+    direction = db.Column(db.String(3), default="out", nullable=False, index=True)
     status = db.Column(db.String(12), default="queued", nullable=False)
     link = db.Column(db.Text)
     error = db.Column(db.String(200))

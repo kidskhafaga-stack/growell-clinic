@@ -52,6 +52,7 @@ def create_app(config_name="default"):
     from app.blueprints.appointments import appointments_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.feedback import feedback_bp
+    from app.blueprints.webhooks import webhooks_bp
     from app.blueprints.finance import finance_bp
     from app.blueprints.growth import growth_bp
     from app.blueprints.inventory import inventory_bp
@@ -81,6 +82,7 @@ def create_app(config_name="default"):
     app.register_blueprint(users_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(feedback_bp)
+    app.register_blueprint(webhooks_bp)
 
     # Template globals for navigation rendering.
     from app.models.permissions import MODULE_ICONS, MODULES

@@ -1270,6 +1270,7 @@
     "st_queued": "في الانتظار",
     "st_scheduled": "مجدولة",
     "st_skipped": "متجاهَلة",
+    "st_received": "وارد",
     "message": "الرسالة",
     "patient": "المريض",
     "date": "التاريخ",
@@ -2025,7 +2026,17 @@
     "wapilot_token": "رمز الـ API (token)",
     "wapilot_instance": "اسم/معرّف الـ Instance",
     "wapilot_base": "رابط الـ API (اختياري)",
-    "wapilot_hint": "من WaPilot API v2: أنشئ token واختر الـ Instance. الصور المرفوعة محلياً تُرسَل مباشرةً بدون حاجة لرابط نطاق عام."
+    "wapilot_hint": "من WaPilot API v2: أنشئ token واختر الـ Instance. الصور المرفوعة محلياً تُرسَل مباشرةً بدون حاجة لرابط نطاق عام.",
+    "incoming": "رسالة واردة",
+    "inbound_title": "استقبال رسائل المرضى (Webhook)",
+    "inbound_hint": "لاستقبال ردود المرضى (وتقييمهم من واتساب). يحتاج رابط نطاق عام (نفق/دومين) عشان يوصله واتساب.",
+    "inbound_enable": "تفعيل الاستقبال",
+    "meta_verify_token": "Meta verify token",
+    "meta_verify_hint": "أي كلمة سر تكتبها هنا وتحطها في إعداد Webhook عند Meta للتحقق.",
+    "webhook_secret": "سر الـ Webhook (لـ WaPilot)",
+    "regen_secret": "إعادة توليد السر عند الحفظ",
+    "webhook_urls": "روابط الـ Webhook (انسخها في لوحة المزوّد)",
+    "webhook_urls_hint": "اضبط رابط النطاق العام بالأعلى أولاً، ثم انسخ الرابط المناسب في إعدادات Webhook عند المزوّد."
   },
   "notif": {
     "title": "الإشعارات",
