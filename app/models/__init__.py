@@ -61,6 +61,7 @@ from app.models.vaccine import (
 from app.models.inventory import (
     LOW_STOCK_QTY,
     NEAR_EXPIRY_DAYS,
+    RECEIPT_REASONS,
     Supplier,
     VaccineInventory,
 )
@@ -176,6 +177,7 @@ __all__ = [
     "VaccineInventory",
     "NEAR_EXPIRY_DAYS",
     "LOW_STOCK_QTY",
+    "RECEIPT_REASONS",
     "Service",
     "ServiceBundleItem",
     "DoctorServiceCommission",

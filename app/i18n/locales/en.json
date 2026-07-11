@@ -859,7 +859,7 @@
     "supplier_added": "Supplier added",
     "supplier_deleted": "Supplier removed/deactivated",
     "no_suppliers": "No suppliers yet",
-    "no_batches": "No batches recorded",
+    "no_batches": "No batches for this item yet.",
     "status": "Status",
     "select_brand": "Select brand",
     "back": "Back to inventory",
@@ -874,7 +874,23 @@
     "counted": "Counted",
     "apply_stocktake": "Apply stocktake",
     "stocktake_hint": "Leave a row blank to keep it unchanged.",
-    "stocktake_done": "Stocktake applied ({n} batch(es) adjusted)"
+    "stocktake_done": "Stocktake applied ({n} batch(es) adjusted)",
+    "search_ph": "Search by scientific / trade name, manufacturer, barcode, code…",
+    "barcode": "Barcode / code",
+    "item_card": "Item card",
+    "below_reorder": "Below reorder level",
+    "goods_receipt": "Goods receipt",
+    "goods_receipt_hint": "Add stock outside a purchase order (opening balance / samples / donations / return / adjustment) — the batch is created as a result of the document, tagged with its reason.",
+    "receipt_reason": "Receipt reason",
+    "mfg_date": "Mfg date",
+    "receipt_added": "Goods receipt recorded and batch created",
+    "on_hand": "On hand",
+    "stock_value": "Stock value",
+    "doses_given": "Doses dispensed",
+    "reorder_level": "Reorder level",
+    "source": "Source",
+    "value": "Value",
+    "receipt_save": "Record receipt"
   },
   "instatus": {
     "ok": "In stock",
@@ -2194,5 +2210,13 @@
     "cardiology_clinic": "Cardiology clinic",
     "vaccination_center": "Vaccination center",
     "medical_center": "Medical center"
+  },
+  "receipt_reasons": {
+    "purchase": "Purchase",
+    "opening": "Opening balance",
+    "gift": "Samples/gift",
+    "donation": "Donation",
+    "return": "Return",
+    "adjustment": "Adjustment"
   }
 }

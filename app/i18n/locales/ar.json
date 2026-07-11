@@ -859,7 +859,7 @@
     "supplier_added": "تمت إضافة المورد",
     "supplier_deleted": "تم حذف/إيقاف المورد",
     "no_suppliers": "لا يوجد موردون بعد",
-    "no_batches": "لا توجد دفعات مسجلة",
+    "no_batches": "لا توجد دفعات لهذا الصنف بعد.",
     "status": "الحالة",
     "select_brand": "اختر الماركة",
     "back": "رجوع للمخزون",
@@ -874,7 +874,23 @@
     "counted": "الفعلي",
     "apply_stocktake": "تطبيق الجرد",
     "stocktake_hint": "اترك السطر فارغًا لتركه كما هو.",
-    "stocktake_done": "تم تطبيق الجرد (عُدّلت {n} دفعة)"
+    "stocktake_done": "تم تطبيق الجرد (عُدّلت {n} دفعة)",
+    "search_ph": "ابحث بالاسم العلمي/التجاري/الشركة/الباركود/الكود…",
+    "barcode": "الباركود/الكود",
+    "item_card": "كارت الصنف",
+    "below_reorder": "تحت حد إعادة الطلب",
+    "goods_receipt": "إذن إضافة مخزني",
+    "goods_receipt_hint": "إضافة رصيد خارج فاتورة الشراء (رصيد افتتاحي/عينات/تبرعات/مرتجع/تسوية) — الدفعة (Batch) بتتولّد كنتيجة للمستند بسببها.",
+    "receipt_reason": "سبب الإضافة",
+    "mfg_date": "تاريخ الإنتاج",
+    "receipt_added": "تم تسجيل إذن الإضافة وإنشاء الدفعة",
+    "on_hand": "الرصيد الحالي",
+    "stock_value": "قيمة المخزون",
+    "doses_given": "جرعات مصروفة",
+    "reorder_level": "حد إعادة الطلب",
+    "source": "المصدر",
+    "value": "القيمة",
+    "receipt_save": "تسجيل الإضافة"
   },
   "instatus": {
     "ok": "متوفر",
@@ -2194,5 +2210,13 @@
     "cardiology_clinic": "عيادة قلب",
     "vaccination_center": "مركز تطعيمات",
     "medical_center": "مركز طبي"
+  },
+  "receipt_reasons": {
+    "purchase": "شراء",
+    "opening": "رصيد افتتاحي",
+    "gift": "عينات/هدايا",
+    "donation": "تبرع",
+    "return": "مرتجع",
+    "adjustment": "تسوية"
   }
 }

@@ -19,6 +19,14 @@
   </div>
 </div>
 
+<!-- Item search (scientific / trade / manufacturer / barcode / code) -->
+<form method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  <input class="input" type="search" name="q" value="{{ q or '' }}" style="flex:1;min-width:220px;"
+         placeholder="{{ t('inventory.search_ph') }}">
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
+  {% if q %}<a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}">{{ t('common.cancel') }}</a>{% endif %}
+</form>
+
 <!-- Stats -->
 <div class="stat-grid gc-stagger" style="margin-bottom:18px;">
   <div class="stat-card edge-blue gc-lift"><i class="bi bi-box-seam ico"></i>
@@ -55,28 +63,35 @@
   <table class="table">
     <thead><tr>
       <th>{{ t('inventory.vaccine') }}</th><th>{{ t('inventory.brand') }}</th>
+      <th>{{ t('inventory.barcode') }}</th>
       <th>{{ t('vaccinations.sell_price') }}</th><th>{{ t('inventory.stock') }}</th>
+      <th></th>
     </tr></thead>
     <tbody>
       {% for b in brands %}
       <tr>
         <td>{{ b.vaccine.display_name(current_lang) }}</td>
-        <td><strong>{{ b.display_name(current_lang) }}</strong></td>
+        <td><a href="{{ url_for('inventory.item_card', brand_id=b.id) }}"><strong>{{ b.display_name(current_lang) }}</strong></a>
+          {% if b.manufacturer %}<div class="num" style="color:var(--muted);">{{ b.manufacturer }}</div>{% endif %}</td>
+        <td dir="ltr" style="color:var(--muted);">{{ b.barcode or b.item_code or '—' }}</td>
         <td>{{ b.price if b.price is not none else '—' }}</td>
         <td><span class="status-badge {{ 'st-completed' if b.stock > 5 else ('st-no_show' if b.stock == 0 else 'st-waiting') }}">{{ b.stock }} {{ t('inventory.doses') }}</span>
+          {% if b.is_low %}<span class="alert-pill warn" style="display:inline-block;margin-top:3px;"><i class="bi bi-graph-down"></i> {{ t('inventory.below_reorder') }}</span>{% endif %}
           {% if b.is_multidose %}<div class="num" style="margin-top:3px;">≈ {{ b.stock_vials }} {{ t('inventory.vials') }} ({{ t('inventory.doses_per_vial_each') }} {{ b.doses_per_vial }})</div>{% endif %}</td>
+        <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.item_card', brand_id=b.id) }}"><i class="bi bi-card-list"></i> {{ t('inventory.item_card') }}</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="empty-state">{{ t('vaccinations.no_vaccines') }}</td></tr>
+      <tr><td colspan="6" class="empty-state">{{ t('vaccinations.no_vaccines') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-<!-- Add batch -->
+<!-- Goods Receipt (إذن إضافة) — add stock outside a purchase, with a reason -->
 <details class="card gc-scale-in" style="animation-delay:0.14s;">
-  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('inventory.add_batch') }}</summary>
-  <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:14px;"
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-box-arrow-in-down"></i> {{ t('inventory.goods_receipt') }}</summary>
+  <p class="hint" style="margin-top:6px;">{{ t('inventory.goods_receipt_hint') }}</p>
+  <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:8px;"
         x-data="batchForm({{ brands|map(attribute='id')|list|tojson }}, {{ brands|map(attribute='doses_per_vial')|list|tojson }})">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('inventory.brand') }} *</label>
@@ -84,12 +99,17 @@
           <option value="" disabled selected>{{ t('inventory.select_brand') }}</option>
           {% for b in brands %}<option value="{{ b.id }}">{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
+      <div class="form-row"><label>{{ t('inventory.receipt_reason') }} *</label>
+        <select class="select" name="receipt_reason">
+          {% for r in receipt_reasons %}{% if r != 'purchase' %}<option value="{{ r }}">{{ t('receipt_reasons.' ~ r) }}</option>{% endif %}{% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('inventory.supplier') }}</label>
         <select class="select" name="supplier_id">
           <option value="">—</option>
           {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="lot_number" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('inventory.mfg_date') }}</label><input class="input" type="date" name="mfg_date"></div>
       <div class="form-row"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="expiry_date"></div>
       <div class="form-row"><label>{{ t('inventory.received_date') }}</label><input class="input" type="date" name="received_date"></div>
       <!-- Single-dose: enter doses directly. Multi-dose: enter vials. -->

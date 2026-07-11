@@ -188,6 +188,11 @@ def register_commands(app):
             ("message_logs", "direction", "VARCHAR(3) DEFAULT 'out'"),
             ("patients", "wa_opt_out", "BOOLEAN DEFAULT 0"),
             ("payments", "shift_id", "INTEGER"),
+            ("vaccine_brands", "barcode", "VARCHAR(60)"),
+            ("vaccine_brands", "item_code", "VARCHAR(40)"),
+            ("vaccine_brands", "min_stock", "INTEGER"),
+            ("vaccine_inventory", "mfg_date", "DATE"),
+            ("vaccine_inventory", "receipt_reason", "VARCHAR(20) DEFAULT 'opening'"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
