@@ -84,6 +84,7 @@ def index():
     stats = {
         "total": len(appointments),
         "completed": sum(1 for a in appointments if a.status == "completed"),
+        "in_progress": sum(1 for a in appointments if a.status == "in_progress"),
         "waiting": sum(1 for a in appointments if a.status in ("waiting", "scheduled")),
         "no_show": sum(1 for a in appointments if a.status == "no_show"),
     }
@@ -96,6 +97,10 @@ def index():
     )
     current = next((a for a in appointments if a.status == "in_progress"), None)
     current_summary = _current_summary(current.patient) if current else None
+
+    # Collection + the doctor's own share, today and this month (invoice-based,
+    # consistent with the doctor statement screen).
+    fin = _finance_summary(doctor_id, on_date)
 
     # Active waiting-list entries (optionally filtered to the selected doctor).
     wl_query = WaitlistEntry.query.filter_by(status="active")
@@ -121,7 +126,31 @@ def index():
         waitlist=waitlist,
         appt_types=APPOINTMENT_TYPES,
         pay=pay,
+        fin=fin,
     )
+
+
+def _finance_summary(doctor_id, on_date):
+    """Collection + doctor share for a doctor (or the whole clinic) — today and
+    month-to-date. Invoice-date based, matching the doctor statement screen."""
+    from app.models import Invoice
+
+    month_start = on_date.replace(day=1)
+    base = Invoice.query
+    if doctor_id:
+        base = base.filter(Invoice.doctor_id == doctor_id)
+
+    def agg(invoices):
+        return {
+            "collection": round(sum(i.paid for i in invoices), 2),
+            "share": round(sum(i.doctor_share_total for i in invoices), 2),
+        }
+
+    return {
+        "today": agg(base.filter(Invoice.invoice_date == on_date).all()),
+        "month": agg(base.filter(Invoice.invoice_date >= month_start,
+                                 Invoice.invoice_date <= on_date).all()),
+    }
 
 
 def _payment_status(appointments, on_date):

@@ -112,6 +112,8 @@
     <div class="value gc-counter" data-count="{{ stats.total }}">0</div><div class="label">{{ t('appointments.stat_total') }}</div></div>
   <div class="stat-card edge-green gc-lift"><i class="bi bi-check2-all ico"></i>
     <div class="value gc-counter" data-count="{{ stats.completed }}">0</div><div class="label">{{ t('appointments.stat_done') }}</div></div>
+  <div class="stat-card edge-teal gc-lift"><i class="bi bi-person-arms-up ico"></i>
+    <div class="value gc-counter" data-count="{{ stats.in_progress }}">0</div><div class="label">{{ t('appointments.stat_in_progress') }}</div></div>
   <div class="stat-card edge-yellow gc-lift"><i class="bi bi-hourglass-split ico"></i>
     <div class="value gc-counter" data-count="{{ stats.waiting }}">0</div><div class="label">{{ t('appointments.stat_waiting') }}</div></div>
   <div class="stat-card edge-red gc-lift"><i class="bi bi-person-x ico"></i>
@@ -121,6 +123,29 @@
   <div class="stat-card edge-orange gc-lift"><i class="bi bi-wallet2 ico"></i>
     <div class="value gc-counter" data-count="{{ stats.unpaid }}">0</div><div class="label">{{ t('appointments.stat_unpaid') }}</div></div>
 </div>
+
+<!-- Collection + doctor share (today / month) -->
+{% if current_user.role in ['doctor','admin','accountant'] or current_user.can('finance_manage') %}
+<div class="card gc-scale-in" style="margin-bottom:18px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+    <h3 class="section-title" style="margin:0;"><i class="bi bi-cash-stack"></i> {{ t('appointments.collection_title') }}{% if doctor_id %} · {{ (doctors | selectattr('id','equalto',doctor_id) | first).display_name(current_lang) if doctors else '' }}{% endif %}</h3>
+    <span class="hint" style="margin:0;">{{ on_date }}</span>
+  </div>
+  <div class="fin-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div class="fin-box"><div class="fin-k">{{ t('appointments.collection_today') }}</div><div class="fin-v">{{ fin.today.collection }}</div></div>
+    <div class="fin-box fin-mine"><div class="fin-k">{{ t('appointments.share_today') }}</div><div class="fin-v">{{ fin.today.share }}</div></div>
+    <div class="fin-box"><div class="fin-k">{{ t('appointments.collection_month') }}</div><div class="fin-v">{{ fin.month.collection }}</div></div>
+    <div class="fin-box fin-mine"><div class="fin-k">{{ t('appointments.share_month') }}</div><div class="fin-v">{{ fin.month.share }}</div></div>
+  </div>
+</div>
+<style>
+  .fin-box { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--card); }
+  .fin-box.fin-mine { border-inline-start:4px solid var(--green-600); }
+  .fin-k { color:var(--muted); font-size:.8rem; margin-bottom:4px; }
+  .fin-v { font-size:1.5rem; font-weight:800; }
+  @media (max-width:760px){ .fin-grid{ grid-template-columns:repeat(2,1fr) !important; } }
+</style>
+{% endif %}
 
 <!-- Current patient card -->
 {% if current %}
