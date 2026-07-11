@@ -155,6 +155,22 @@ class VaccineBrand(db.Model):
         return round(sum(b.qty_remaining * (b.unit_cost or 0) for b in self.batches), 2)
 
     @property
+    def avg_cost(self):
+        """Weighted-average unit cost across received batches that carry a cost."""
+        qty = sum((b.qty_received or 0) for b in self.batches if b.unit_cost)
+        if qty <= 0:
+            return self.purchase_price
+        val = sum((b.qty_received or 0) * (b.unit_cost or 0) for b in self.batches if b.unit_cost)
+        return round(val / qty, 2)
+
+    def recompute_avg_cost(self):
+        """Refresh the item's cost price to the weighted average of its batches."""
+        avg = self.avg_cost
+        if avg is not None:
+            self.purchase_price = avg
+        return self.purchase_price
+
+    @property
     def clinic_margin(self):
         """Clinic profit per dose = sell price − cost − doctor's fee."""
         return round((self.price or 0) - (self.purchase_price or 0) - (self.doctor_fee or 0), 2)

@@ -1902,7 +1902,11 @@
     "st_approved": "Approved",
     "st_partial": "Partial",
     "st_received": "Received",
-    "st_cancelled": "Cancelled"
+    "st_cancelled": "Cancelled",
+    "vaccine_item": "Vaccine item",
+    "vaccine_item_hint": "Pick a vaccine item and receiving will auto-create a batch in vaccine stock.",
+    "vaccine_line": "Vaccine",
+    "batch_details": "Batch details"
   },
   "agegrp": {
     "title": "Clinic patient classification",
