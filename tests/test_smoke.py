@@ -3,7 +3,13 @@
 Kept dependency-light (pytest + the app) so CI stays fast. These also give
 `pytest` something to collect (an empty run exits non-zero).
 """
-import pytest
+import os
+import sys
+
+# CI runs bare ``pytest``; make the project root importable regardless.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+import pytest  # noqa: E402
 
 
 @pytest.fixture()
