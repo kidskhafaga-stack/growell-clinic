@@ -36,8 +36,12 @@
     <h1 class="page-title">{{ t('settings.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('settings.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
-    <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.setup') }}">
+      <i class="bi bi-building-gear"></i> {{ t('wizard.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
+      <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
+  </div>
 </div>
 
 <form method="post" enctype="multipart/form-data"

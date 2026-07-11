@@ -19,6 +19,9 @@ def module_required(module):
         def wrapped(*args, **kwargs):
             if not current_user.is_authenticated:
                 return current_app.login_manager.unauthorized()
+            from app.utils.facility import module_enabled
+            if not module_enabled(module):
+                abort(404)
             if not current_user.can_access(module):
                 abort(403, description=t("auth.no_permission"))
             return view(*args, **kwargs)

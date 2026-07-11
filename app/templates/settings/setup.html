@@ -1,0 +1,94 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('wizard.title') }}{% endblock %}
+{% block page_heading %}{{ t('wizard.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="max-width:920px;margin:0 auto;">
+  <div style="margin-bottom:18px;">
+    <h1 class="page-title"><i class="bi bi-magic"></i> {{ t('wizard.title') }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {{ t('wizard.subtitle') if not configured else t('wizard.edit_subtitle') }}
+    </p>
+  </div>
+
+  <form method="post" x-data='setupWizard({{ type_defaults|tojson }}, {{ (current_enabled|list)|tojson }})'>
+    <!-- 1) Facility type -->
+    <div class="card gc-scale-in" style="margin-bottom:16px;">
+      <h2 class="section-title"><i class="bi bi-building"></i> {{ t('wizard.facility_type') }}</h2>
+      <p class="hint" style="margin-top:-6px;">{{ t('wizard.type_hint') }}</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+        {% for key, meta in facility_types.items() %}
+        <label class="ftype" :class="{'ftype--on': ftype === '{{ key }}'}"
+               style="display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;">
+          <input type="radio" name="facility_type" value="{{ key }}" x-model="ftype"
+                 @change="applyType('{{ key }}')" style="accent-color:var(--primary);">
+          <i class="bi bi-{{ meta.icon }}" style="font-size:1.3rem;color:var(--primary);"></i>
+          <span style="font-weight:600;">{{ t('facility_types.' ~ key) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 2) Facility name -->
+    <div class="card gc-scale-in" style="margin-bottom:16px;">
+      <h2 class="section-title"><i class="bi bi-pencil"></i> {{ t('wizard.facility_name') }}</h2>
+      <div class="form-row" style="margin:0;">
+        <input class="input" type="text" name="facility_name"
+               value="{{ clinic.name or '' }}" placeholder="{{ t('wizard.name_ph') }}">
+      </div>
+    </div>
+
+    <!-- 3) Modules -->
+    <div class="card gc-scale-in" style="margin-bottom:16px;">
+      <h2 class="section-title"><i class="bi bi-grid-3x3-gap"></i> {{ t('wizard.modules') }}</h2>
+      <p class="hint" style="margin-top:-6px;">{{ t('wizard.modules_hint') }}</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;">
+        {% for m in toggleable %}
+        <label class="mtoggle" :class="{'mtoggle--on': mods.includes('{{ m }}')}"
+               style="display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;">
+          <input type="checkbox" name="modules" value="{{ m }}" x-model="mods"
+                 style="accent-color:var(--primary);">
+          <i class="bi bi-{{ MODULE_ICONS.get(m, 'dot') }}" style="color:var(--muted);"></i>
+          <span>{{ t('nav.' ~ m) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 4) Demo data (first run only) -->
+    {% if not configured %}
+    <div class="card gc-scale-in" style="margin-bottom:16px;">
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;">
+        <input type="checkbox" name="seed_demo" value="1" style="accent-color:var(--primary);">
+        <span><strong>{{ t('wizard.seed_demo') }}</strong><br>
+          <span class="hint">{{ t('wizard.seed_hint') }}</span></span>
+      </label>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
+      {% if configured %}<a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}">{{ t('common.cancel') }}</a>{% endif %}
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-check2-circle"></i> {{ t('wizard.finish') if not configured else t('common.save') }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .ftype--on, .mtoggle--on { border-color:var(--primary) !important; background:color-mix(in srgb, var(--primary) 8%, transparent); }
+</style>
+<script>
+  function setupWizard(typeDefaults, current) {
+    return {
+      ftype: {{ current_type|tojson }},
+      mods: current.slice(),
+      applyType(key) {
+        // Re-tick the preset for the chosen facility type.
+        this.mods = (typeDefaults[key] || []).slice();
+      },
+    };
+  }
+</script>
+{% endblock %}

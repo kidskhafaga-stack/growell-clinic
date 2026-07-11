@@ -95,6 +95,54 @@ def index():
     )
 
 
+@settings_bp.route("/setup", methods=["GET", "POST"])
+@admin_required
+def setup():
+    """First-run wizard (and later editor) for the facility profile: type,
+    name and which modules are switched on. Optionally seeds demo data."""
+    from app.utils.facility import (
+        DEFAULT_FACILITY_TYPE, FACILITY_TYPES, TOGGLEABLE_MODULES,
+        apply_facility, default_modules_for, facility_type, is_configured,
+        module_enabled,
+    )
+
+    if request.method == "POST":
+        type_key = (request.form.get("facility_type") or "").strip()
+        if type_key not in FACILITY_TYPES:
+            type_key = DEFAULT_FACILITY_TYPE
+        name = (request.form.get("facility_name") or "").strip()
+        enabled = request.form.getlist("modules")
+        apply_facility(type_key, name, enabled)
+        ActivityLog.record("settings.facility_setup", user_id=current_user.id,
+                           entity="settings", detail=type_key, ip_address=client_ip())
+        db.session.commit()
+
+        if request.form.get("seed_demo"):
+            from app.utils.demo import seed_demo
+            if not seed_demo().get("skipped"):
+                db.session.commit()
+                flash(t("wizard.seeded"), "success")
+
+        flash(t("wizard.saved"), "success")
+        return redirect(url_for("main.dashboard"))
+
+    # Prefill: current profile if configured, else the default preset.
+    configured = is_configured()
+    current_type = facility_type()
+    if configured:
+        current_enabled = {m for m in TOGGLEABLE_MODULES if module_enabled(m)}
+    else:
+        current_enabled = set(default_modules_for(current_type))
+    # Per-type default sets so the UI can auto-tick on type change.
+    type_defaults = {k: default_modules_for(k) for k in FACILITY_TYPES}
+    return render_template(
+        "settings/setup.html", facility_types=FACILITY_TYPES,
+        toggleable=TOGGLEABLE_MODULES, current_type=current_type,
+        current_enabled=current_enabled, type_defaults=type_defaults,
+        configured=configured,
+    )
+
+
 @settings_bp.route("/data")
 @admin_required
 def data_tools():

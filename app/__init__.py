@@ -108,10 +108,12 @@ def create_app(config_name="default"):
 
     @app.context_processor
     def inject_navigation():
+        from app.utils.facility import module_enabled
         return {
             "ALL_MODULES": MODULES,
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
+            "module_enabled": module_enabled,
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
             "now_date": datetime.utcnow().date().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),
@@ -199,6 +201,31 @@ def create_app(config_name="default"):
                     "program": {"name": product_default,
                                 "slogan": "حلول طب الأطفال الذكية",
                                 "logo_url": None, "accent": None}}
+
+    @app.before_request
+    def _first_run_wizard():
+        """Send the admin to the setup wizard until the facility is configured.
+
+        Everyone else keeps working on the sensible defaults (all modules on).
+        """
+        from flask import redirect, request, url_for
+        from flask_login import current_user
+
+        if not current_user.is_authenticated or not current_user.is_admin:
+            return None
+        endpoint = request.endpoint or ""
+        # Don't trap static assets, auth, the wizard itself, or public pages.
+        allowed = ("static", "settings.setup", "auth.logout", "auth.login",
+                   "main.set_theme")
+        if endpoint in allowed or endpoint.startswith(("feedback.", "webhooks.")):
+            return None
+        from app.utils.facility import is_configured
+        try:
+            if not is_configured():
+                return redirect(url_for("settings.setup"))
+        except Exception:  # noqa: BLE001 - never break on a half-built DB
+            return None
+        return None
 
     register_error_handlers(app)
     register_cli(app)
