@@ -11,7 +11,7 @@ from datetime import datetime
 from app.extensions import db
 
 INVOICE_STATUSES = ["unpaid", "partial", "paid"]
-PAYMENT_METHODS = ["cash", "card", "transfer", "wallet"]
+PAYMENT_METHODS = ["cash", "card", "instapay", "transfer", "wallet"]
 
 
 class Invoice(db.Model):

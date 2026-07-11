@@ -1097,6 +1097,7 @@
     "deleted": "تم حذف الفاتورة",
     "payment": "دفعة",
     "add_payment": "تسجيل دفعة",
+    "add_method": "أضف طريقة دفع",
     "payment_added": "تم تسجيل الدفعة",
     "bad_amount": "مبلغ غير صالح",
     "method": "طريقة الدفع",
@@ -1194,6 +1195,7 @@
   "payment_methods": {
     "cash": "نقدي",
     "card": "بطاقة",
+    "instapay": "إنستاباي",
     "transfer": "تحويل",
     "wallet": "محفظة"
   },
