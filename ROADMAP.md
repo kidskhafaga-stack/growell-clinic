@@ -163,6 +163,18 @@ eInvoice، واتساب Cloud API، AI، RBAC+Audit، تقارير، Light/Dark+
 **🟡 قريب (v2):** #24 مستخدمون/جلسات، #25 نسخ احتياطية، #26 محرر استبيان،
 تقسيط/آجل/دفعة مقدّمة، تمهيد `branch_id`.
 
+### 💉 التطعيمات/المخزون كـ ERP — تقييم ومراحل
+**الأساس موجود فعلاً:** 3-tier (`Vaccine` ماستر / `VaccineBrand` صنف / `VaccineInventory` batch) ·
+صرف FEFO مربوط بالمريض (`inventory_id`) · دورة شراء (`PurchaseOrder`→approve→receive) ·
+جرد · جداول تطعيم متعددة. فبنملأ الفجوات فوقه، مش نعيد بناء.
+
+- ✅ **Phase 1 (PR #84):** Barcode/كود صنف + `min_stock` + **Search box** + تحويل Add Batch لمستند
+  **Goods Receipt (إذن إضافة)** بسبب (افتتاحي/عينات/تبرع/مرتجع/تسوية) + `mfg_date` + **Item Card**
+  (رصيد/قيمة/دفعات FEFO/جرعات مصروفة).
+- ⏭️ **Phase 2:** توحيد شراء التطعيم → توليد Batch تلقائي (يقفل ازدواجية المخزن العام/التطعيمات) + متوسط تكلفة.
+- ⏭️ **Phase 3–7:** تعدد المخازن + Stock Transfer · تقارير (Traceability/Item Card/Valuation/Reorder) ·
+  ترقيم مستندات (يدوي/تلقائي) · Seed علمي + جداول (مصر off-by-default).
+
 **🔴 مؤجّل صراحةً (v3+ — منعاً للـ Scope Creep):** تكامل الأجهزة الفعلي
 (SDK/COM/LAN auto-import) + calibration، HL7/FHIR/DICOM، Multi-branch/company كامل،
 الـ Builder Engines والـ Workflow/Rule Engine العام، MFA/DR، SaaS/Mobile/Marketplace،

@@ -12,6 +12,9 @@ from app.extensions import db
 NEAR_EXPIRY_DAYS = 60
 LOW_STOCK_QTY = 5
 
+# Why stock was added outside a purchase order (Goods Receipt document).
+RECEIPT_REASONS = ["purchase", "opening", "gift", "donation", "return", "adjustment"]
+
 
 class Supplier(db.Model):
     __tablename__ = "suppliers"
@@ -41,7 +44,10 @@ class VaccineInventory(db.Model):
 
     lot_number = db.Column(db.String(60))
     expiry_date = db.Column(db.Date)
+    mfg_date = db.Column(db.Date)
     received_date = db.Column(db.Date, default=lambda: datetime.utcnow().date())
+    # How this batch entered stock (Goods Receipt document reason).
+    receipt_reason = db.Column(db.String(20), default="opening")
     qty_received = db.Column(db.Integer, default=0, nullable=False)
     qty_used = db.Column(db.Integer, default=0, nullable=False)
     unit_cost = db.Column(db.Float)
@@ -55,6 +61,11 @@ class VaccineInventory(db.Model):
     @property
     def qty_remaining(self):
         return max((self.qty_received or 0) - (self.qty_used or 0), 0)
+
+    @property
+    def value(self):
+        """Remaining stock value for this batch."""
+        return round(self.qty_remaining * (self.unit_cost or 0), 2)
 
     @property
     def is_expired(self):

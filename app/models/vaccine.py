@@ -98,6 +98,10 @@ class VaccineBrand(db.Model):
     name = db.Column(db.String(120), nullable=False)
     name_en = db.Column(db.String(120))
     manufacturer = db.Column(db.String(120))
+    # Commercial identifiers for search / scanning (ERP inventory item).
+    barcode = db.Column(db.String(60), index=True)
+    item_code = db.Column(db.String(40), index=True)
+    min_stock = db.Column(db.Integer)        # reorder level (patient doses)
     price = db.Column(db.Float)              # selling price
     purchase_price = db.Column(db.Float)     # cost price
     doctor_fee = db.Column(db.Float)         # part of the price that goes to the doctor
@@ -139,6 +143,16 @@ class VaccineBrand(db.Model):
         """Whole vials still on the shelf (multi-dose only), rounded down."""
         per = self.doses_per_vial or 1
         return self.stock // per if per > 1 else self.stock
+
+    @property
+    def is_low(self):
+        """At or below the reorder level (only when a level is set)."""
+        return bool(self.min_stock) and self.stock <= self.min_stock
+
+    @property
+    def stock_value(self):
+        """On-hand valuation = Σ remaining doses × batch unit cost."""
+        return round(sum(b.qty_remaining * (b.unit_cost or 0) for b in self.batches), 2)
 
     @property
     def clinic_margin(self):
