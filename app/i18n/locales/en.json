@@ -2118,5 +2118,30 @@
     "minutes": "min",
     "time": "Time",
     "opened_at": "Opened at"
+  },
+  "wizard": {
+    "title": "Facility setup",
+    "subtitle": "Welcome! One quick step to tailor the system to your facility.",
+    "edit_subtitle": "Edit the facility type and which modules are enabled.",
+    "facility_type": "Facility type",
+    "type_hint": "Pick the closest match — we'll enable the right modules automatically, and you can tweak them.",
+    "facility_name": "Facility name",
+    "name_ph": "e.g. Growell Children's Center",
+    "modules": "Enabled modules",
+    "modules_hint": "Switch any module on or off to fit your needs. You can change this anytime.",
+    "seed_demo": "Load demo data",
+    "seed_hint": "Sample patients, services and invoices so you can try the system fast (removable later).",
+    "finish": "Start",
+    "saved": "Facility profile saved",
+    "seeded": "Demo data loaded"
+  },
+  "facility_types": {
+    "single_doctor": "Single-doctor clinic",
+    "multi_doctor": "Multi-doctor clinic",
+    "medical_center": "Medical center",
+    "peds_center": "Pediatric center",
+    "vaccination_center": "Vaccination center",
+    "audiology_center": "Audiology center",
+    "imaging_center": "Imaging / diagnostics center"
   }
 }
