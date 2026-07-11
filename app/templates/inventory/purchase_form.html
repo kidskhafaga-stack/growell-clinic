@@ -30,6 +30,12 @@
               <option value="">{{ t('purchases.free_text') }}</option>
               {% for it in items %}<option value="{{ it.id }}" data-name="{{ it.name }}" data-cost="{{ it.purchase_price or '' }}">{{ it.name }}{% if it.unit %} ({{ it.unit }}){% endif %}</option>{% endfor %}
             </select></div>
+          <div class="form-row"><label>{{ t('purchases.vaccine_item') }}</label>
+            <select class="select" name="item_vaccine_id" x-model="line.vaccine_id" x-on:change="onVaccine(i)">
+              <option value="">—</option>
+              {% for b in vaccine_brands %}<option value="{{ b.id }}" data-name="{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}" data-cost="{{ b.purchase_price or '' }}">{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}</option>{% endfor %}
+            </select>
+            <div class="hint">{{ t('purchases.vaccine_item_hint') }}</div></div>
           <div class="form-row"><label>{{ t('purchases.description') }} *</label><input class="input" name="item_desc" x-model="line.desc"></div>
           <div class="form-row"><label>{{ t('purchases.qty') }} *</label><input class="input" type="number" min="1" name="item_qty" x-model="line.qty"></div>
           <div class="form-row"><label>{{ t('purchases.unit_cost') }}</label><input class="input" type="number" step="0.01" name="item_cost" x-model="line.cost"></div>
@@ -49,10 +55,17 @@
 function poForm(){
   return {
     lines: [],
-    addLine(){ this.lines.push({store_id:'',desc:'',qty:1,cost:''}); },
+    addLine(){ this.lines.push({store_id:'',vaccine_id:'',desc:'',qty:1,cost:''}); },
     onItem(i){
       var l=this.lines[i]; if(!l.store_id) return;
+      l.vaccine_id='';  // a line is either a store item or a vaccine, not both
       var opt=document.querySelector('option[value="'+l.store_id+'"][data-name]');
+      if(opt){ l.desc=opt.dataset.name; if(!l.cost && opt.dataset.cost) l.cost=opt.dataset.cost; }
+    },
+    onVaccine(i){
+      var l=this.lines[i]; if(!l.vaccine_id) return;
+      l.store_id='';
+      var opt=document.querySelector('select[name="item_vaccine_id"] option[value="'+l.vaccine_id+'"]');
       if(opt){ l.desc=opt.dataset.name; if(!l.cost && opt.dataset.cost) l.cost=opt.dataset.cost; }
     }
   };

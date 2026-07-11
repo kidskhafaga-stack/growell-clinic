@@ -193,6 +193,7 @@ def register_commands(app):
             ("vaccine_brands", "min_stock", "INTEGER"),
             ("vaccine_inventory", "mfg_date", "DATE"),
             ("vaccine_inventory", "receipt_reason", "VARCHAR(20) DEFAULT 'opening'"),
+            ("purchase_order_items", "vaccine_brand_id", "INTEGER"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

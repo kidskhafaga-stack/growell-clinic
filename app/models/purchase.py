@@ -69,6 +69,9 @@ class PurchaseOrderItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey("purchase_orders.id"), nullable=False, index=True)
     store_item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"), nullable=True)
+    # A line may instead be a vaccine brand (commercial item); receiving it
+    # creates a VaccineInventory batch rather than a general-store movement.
+    vaccine_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"), nullable=True)
     description = db.Column(db.String(200), nullable=False)  # snapshot
     qty_ordered = db.Column(db.Integer, default=0, nullable=False)
     qty_received = db.Column(db.Integer, default=0, nullable=False)
@@ -76,6 +79,11 @@ class PurchaseOrderItem(db.Model):
 
     order = db.relationship("PurchaseOrder", back_populates="items")
     store_item = db.relationship("StoreItem")
+    vaccine_brand = db.relationship("VaccineBrand")
+
+    @property
+    def is_vaccine(self):
+        return self.vaccine_brand_id is not None
 
     @property
     def line_total(self):

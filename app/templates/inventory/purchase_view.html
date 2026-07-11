@@ -43,7 +43,9 @@
     <tbody>
       {% for it in po.items %}
       <tr>
-        <td>{{ it.description }}{% if not it.store_item_id %} <span class="badge badge--muted">{{ t('purchases.no_stock_link') }}</span>{% endif %}</td>
+        <td>{{ it.description }}
+          {% if it.is_vaccine %} <span class="badge badge--role">{{ t('purchases.vaccine_line') }}</span>
+          {% elif not it.store_item_id %} <span class="badge badge--muted">{{ t('purchases.no_stock_link') }}</span>{% endif %}</td>
         <td>{{ it.qty_ordered }}</td>
         <td>{{ it.qty_received }}{% if it.outstanding %} <span style="color:var(--muted);">(-{{ it.outstanding }})</span>{% endif %}</td>
         <td>{{ it.unit_cost }}</td>
@@ -52,6 +54,18 @@
         <td><input class="input" type="number" min="0" max="{{ it.outstanding }}" name="recv_{{ it.id }}" value="{{ it.outstanding }}" style="width:90px;"></td>
         {% endif %}
       </tr>
+      {% if it.is_vaccine and po.status in ['approved','partial'] and it.outstanding %}
+      <tr class="no-print">
+        <td colspan="6" style="background:var(--surface-2,rgba(0,0,0,.02));">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+            <span class="hint"><i class="bi bi-box-arrow-in-down"></i> {{ t('purchases.batch_details') }}:</span>
+            <div class="form-row" style="margin:0;"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="lot_{{ it.id }}" dir="ltr" style="width:130px;"></div>
+            <div class="form-row" style="margin:0;"><label>{{ t('inventory.mfg_date') }}</label><input class="input" type="date" name="mfg_{{ it.id }}" style="width:150px;"></div>
+            <div class="form-row" style="margin:0;"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="exp_{{ it.id }}" style="width:150px;"></div>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table>

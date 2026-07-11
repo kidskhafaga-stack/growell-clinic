@@ -1902,7 +1902,11 @@
     "st_approved": "معتمد",
     "st_partial": "جزئي",
     "st_received": "مُستلَم",
-    "st_cancelled": "ملغي"
+    "st_cancelled": "ملغي",
+    "vaccine_item": "صنف تطعيم",
+    "vaccine_item_hint": "لو اخترت صنف تطعيم، الاستلام هيولّد دفعة (Batch) في مخزون التطعيمات تلقائياً.",
+    "vaccine_line": "تطعيم",
+    "batch_details": "بيانات الدفعة"
   },
   "agegrp": {
     "title": "تصنيف مرضى العيادة",

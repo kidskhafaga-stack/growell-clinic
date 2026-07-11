@@ -171,7 +171,10 @@ eInvoice، واتساب Cloud API، AI، RBAC+Audit، تقارير، Light/Dark+
 - ✅ **Phase 1 (PR #84):** Barcode/كود صنف + `min_stock` + **Search box** + تحويل Add Batch لمستند
   **Goods Receipt (إذن إضافة)** بسبب (افتتاحي/عينات/تبرع/مرتجع/تسوية) + `mfg_date` + **Item Card**
   (رصيد/قيمة/دفعات FEFO/جرعات مصروفة).
-- ⏭️ **Phase 2:** توحيد شراء التطعيم → توليد Batch تلقائي (يقفل ازدواجية المخزن العام/التطعيمات) + متوسط تكلفة.
+- ✅ **Phase 2 (PR #85):** توحيد شراء التطعيم → توليد Batch تلقائي. سطر فاتورة الشراء يقدر
+  يبقى صنف تطعيم (`vaccine_brand_id`)، وعند الاستلام بيتولّد `VaccineInventory` batch
+  (reason=purchase) ببيانات الدفعة (lot/mfg/expiry) + تحديث **متوسط تكلفة** الصنف. قفلنا
+  ازدواجية المخزن العام/التطعيمات.
 - ⏭️ **Phase 3–7:** تعدد المخازن + Stock Transfer · تقارير (Traceability/Item Card/Valuation/Reorder) ·
   ترقيم مستندات (يدوي/تلقائي) · Seed علمي + جداول (مصر off-by-default).
 

@@ -409,6 +409,7 @@ def purchase_new():
 
         names = request.form.getlist("item_desc")
         item_ids = request.form.getlist("item_store_id")
+        vaccine_ids = request.form.getlist("item_vaccine_id")
         qtys = request.form.getlist("item_qty")
         costs = request.form.getlist("item_cost")
         count = 0
@@ -417,8 +418,11 @@ def purchase_new():
             qty = _to_int(qtys[i] if i < len(qtys) else "")
             if not desc or qty <= 0:
                 continue
+            vbid = _to_int(vaccine_ids[i]) or None if i < len(vaccine_ids) else None
             po.items.append(PurchaseOrderItem(
-                store_item_id=_to_int(item_ids[i]) or None if i < len(item_ids) else None,
+                store_item_id=(_to_int(item_ids[i]) or None if i < len(item_ids) else None)
+                if not vbid else None,
+                vaccine_brand_id=vbid,
                 description=desc, qty_ordered=qty,
                 unit_cost=_to_float(costs[i] if i < len(costs) else ""),
             ))
@@ -435,7 +439,8 @@ def purchase_new():
 
     return render_template("inventory/purchase_form.html",
                            suppliers=_suppliers(),
-                           items=StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all())
+                           items=StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all(),
+                           vaccine_brands=_optional_brands())
 
 
 @inventory_bp.route("/purchase/<int:po_id>")
@@ -481,7 +486,21 @@ def purchase_receive(po_id):
             continue
         item.qty_received = (item.qty_received or 0) + recv
         receipt_value += recv * (item.unit_cost or 0)
-        if item.store_item_id:
+        if item.vaccine_brand_id:
+            # A vaccine line becomes a real inventory batch (document → batch),
+            # tagged as a purchase receipt, then refresh the item's avg cost.
+            batch = VaccineInventory(
+                brand_id=item.vaccine_brand_id, supplier_id=po.supplier_id,
+                lot_number=(request.form.get(f"lot_{item.id}") or "").strip() or None,
+                expiry_date=_parse_date(f"exp_{item.id}"),
+                mfg_date=_parse_date(f"mfg_{item.id}"),
+                received_date=datetime.utcnow().date(), receipt_reason="purchase",
+                qty_received=recv, unit_cost=item.unit_cost,
+            )
+            db.session.add(batch)
+            if item.vaccine_brand:
+                item.vaccine_brand.recompute_avg_cost()
+        elif item.store_item_id:
             db.session.add(StockMovement(
                 item_id=item.store_item_id, kind="in", qty=recv,
                 reason=t("purchases.grn_reason", po=po.po_number),
