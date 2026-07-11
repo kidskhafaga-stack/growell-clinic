@@ -98,12 +98,14 @@ def index():
 @settings_bp.route("/setup", methods=["GET", "POST"])
 @admin_required
 def setup():
-    """First-run wizard (and later editor) for the facility profile: type,
-    name and which modules are switched on. Optionally seeds demo data."""
+    """First-run wizard (and later editor) for the facility profile — three
+    separate layers: administrative type, capabilities (services & specialties)
+    and the software modules they switch on. Optionally seeds demo data."""
     from app.utils.facility import (
-        DEFAULT_FACILITY_TYPE, FACILITY_TYPES, TOGGLEABLE_MODULES,
-        apply_facility, default_modules_for, facility_type, is_configured,
-        module_enabled,
+        BASE_MODULES, CAPABILITY_GROUPS, CAPABILITY_MODULES,
+        DEFAULT_FACILITY_TYPE, FACILITY_TYPES, TEMPLATES, TOGGLEABLE_MODULES,
+        apply_facility, capabilities, default_caps_for, facility_type,
+        is_configured, module_enabled,
     )
 
     if request.method == "POST":
@@ -111,8 +113,9 @@ def setup():
         if type_key not in FACILITY_TYPES:
             type_key = DEFAULT_FACILITY_TYPE
         name = (request.form.get("facility_name") or "").strip()
-        enabled = request.form.getlist("modules")
-        apply_facility(type_key, name, enabled)
+        caps = request.form.getlist("capabilities")
+        modules = request.form.getlist("modules")
+        apply_facility(type_key, name, caps, modules)
         ActivityLog.record("settings.facility_setup", user_id=current_user.id,
                            entity="settings", detail=type_key, ip_address=client_ip())
         db.session.commit()
@@ -126,20 +129,27 @@ def setup():
         flash(t("wizard.saved"), "success")
         return redirect(url_for("main.dashboard"))
 
-    # Prefill: current profile if configured, else the default preset.
     configured = is_configured()
     current_type = facility_type()
     if configured:
-        current_enabled = {m for m in TOGGLEABLE_MODULES if module_enabled(m)}
+        current_caps = set(capabilities())
+        current_modules = {m for m in TOGGLEABLE_MODULES if module_enabled(m)}
     else:
-        current_enabled = set(default_modules_for(current_type))
-    # Per-type default sets so the UI can auto-tick on type change.
-    type_defaults = {k: default_modules_for(k) for k in FACILITY_TYPES}
+        current_caps = set(default_caps_for(current_type))
+        from app.utils.facility import derive_modules
+        current_modules = set(derive_modules(current_caps))
+    # Client-side maps so the UI can auto-tick capabilities/modules.
+    type_caps = {k: FACILITY_TYPES[k]["caps"] for k in FACILITY_TYPES}
+    cap_modules = {c: sorted(m) for c, m in CAPABILITY_MODULES.items()}
+    template_data = {k: {"type": v["type"], "caps": v["caps"]}
+                     for k, v in TEMPLATES.items()}
     return render_template(
         "settings/setup.html", facility_types=FACILITY_TYPES,
-        toggleable=TOGGLEABLE_MODULES, current_type=current_type,
-        current_enabled=current_enabled, type_defaults=type_defaults,
-        configured=configured,
+        capability_groups=CAPABILITY_GROUPS, toggleable=TOGGLEABLE_MODULES,
+        templates=TEMPLATES, current_type=current_type,
+        current_caps=current_caps, current_modules=current_modules,
+        type_caps=type_caps, cap_modules=cap_modules, base_modules=BASE_MODULES,
+        template_data=template_data, configured=configured,
     )
 
 

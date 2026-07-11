@@ -2124,16 +2124,20 @@
     "subtitle": "أهلاً بيك! خطوة واحدة سريعة نجهّز بيها النظام حسب نوع منشأتك.",
     "edit_subtitle": "عدّل نوع المنشأة والموديولز المفعّلة.",
     "facility_type": "نوع المنشأة",
-    "type_hint": "اختَر الأقرب لمنشأتك — هنفعّل الموديولز المناسبة تلقائياً وتقدر تعدّلها.",
+    "type_hint": "الشكل الإداري للمنشأة فقط — يُستخدم لضبط الإعدادات الافتراضية.",
     "facility_name": "اسم المنشأة",
     "name_ph": "مثال: مركز جروِل للأطفال",
     "modules": "الموديولز المفعّلة",
-    "modules_hint": "شغّل أو طفّي أي موديول حسب احتياجك. تقدر ترجع تعدّلها في أي وقت.",
+    "modules_hint": "الوحدات البرمجية — بتتفعّل تلقائياً من الخدمات، وتقدر تعدّلها يدوياً بدون قيود.",
     "seed_demo": "تحميل بيانات تجريبية",
     "seed_hint": "مرضى وخدمات وفواتير وهمية علشان تجرّب النظام بسرعة (تقدر تمسحها بعدين).",
     "finish": "ابدأ التشغيل",
     "saved": "تم حفظ إعداد المنشأة",
-    "seeded": "تم تحميل البيانات التجريبية"
+    "seeded": "تم تحميل البيانات التجريبية",
+    "templates": "قوالب جاهزة",
+    "templates_hint": "ابدأ من قالب جاهز يملأ النوع والخدمات، وبعدها عدّل بحرية.",
+    "capabilities": "الخدمات والتخصصات",
+    "capabilities_hint": "اختَر الخدمات اللي المنشأة بتقدّمها — النظام هيفعّل الوحدات المناسبة تلقائياً."
   },
   "facility_types": {
     "single_doctor": "عيادة طبيب واحد",
@@ -2142,6 +2146,53 @@
     "peds_center": "مركز أطفال",
     "vaccination_center": "مركز تطعيمات",
     "audiology_center": "مركز سمعيات",
-    "imaging_center": "مركز أشعة/فحوصات"
+    "imaging_center": "مركز أشعة/فحوصات",
+    "polyclinic": "عيادة متعددة التخصصات",
+    "hospital": "مستشفى",
+    "diagnostic_center": "مركز تشخيصي",
+    "pediatric_center": "مركز أطفال",
+    "specialized_center": "مركز تخصصي"
+  },
+  "capability_groups": {
+    "clinical": "خدمات إكلينيكية",
+    "diagnostic": "خدمات تشخيصية",
+    "imaging": "الأشعة",
+    "laboratory": "المعمل",
+    "pharmacy": "الصيدلية",
+    "inpatient": "خدمات التنويم"
+  },
+  "capabilities": {
+    "general_consultation": "كشف عام",
+    "followup": "إعادة/متابعة",
+    "vaccination": "تطعيمات",
+    "growth_monitoring": "متابعة النمو",
+    "emergency_care": "طوارئ",
+    "home_care": "رعاية منزلية",
+    "ecg": "رسم قلب (ECG)",
+    "echo": "إيكو",
+    "eeg": "رسم مخ (EEG)",
+    "spirometry": "وظائف تنفس",
+    "audiology": "سمعيات",
+    "vision_screening": "فحص نظر",
+    "ultrasound": "سونار",
+    "xray": "أشعة عادية",
+    "ct": "أشعة مقطعية",
+    "mri": "رنين مغناطيسي",
+    "laboratory": "تحاليل",
+    "sample_collection": "سحب عينات",
+    "pathology": "باثولوجي",
+    "pharmacy": "صيدلية",
+    "clinical_pharmacy": "صيدلة إكلينيكية",
+    "observation": "غرفة ملاحظة",
+    "day_care": "رعاية نهارية",
+    "ward": "عنبر تنويم",
+    "nicu": "حضّانات (NICU)",
+    "icu": "عناية مركزة (ICU)"
+  },
+  "templates": {
+    "pediatric_clinic": "عيادة أطفال",
+    "cardiology_clinic": "عيادة قلب",
+    "vaccination_center": "مركز تطعيمات",
+    "medical_center": "مركز طبي"
   }
 }

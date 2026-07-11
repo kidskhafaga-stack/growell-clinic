@@ -2124,16 +2124,20 @@
     "subtitle": "Welcome! One quick step to tailor the system to your facility.",
     "edit_subtitle": "Edit the facility type and which modules are enabled.",
     "facility_type": "Facility type",
-    "type_hint": "Pick the closest match — we'll enable the right modules automatically, and you can tweak them.",
+    "type_hint": "The administrative shape of the facility only — used to preset defaults.",
     "facility_name": "Facility name",
     "name_ph": "e.g. Growell Children's Center",
     "modules": "Enabled modules",
-    "modules_hint": "Switch any module on or off to fit your needs. You can change this anytime.",
+    "modules_hint": "Software modules — auto-enabled from the services, and freely overridable.",
     "seed_demo": "Load demo data",
     "seed_hint": "Sample patients, services and invoices so you can try the system fast (removable later).",
     "finish": "Start",
     "saved": "Facility profile saved",
-    "seeded": "Demo data loaded"
+    "seeded": "Demo data loaded",
+    "templates": "Ready-made templates",
+    "templates_hint": "Start from a template that fills the type and services, then edit freely.",
+    "capabilities": "Services & specialties",
+    "capabilities_hint": "Pick the services your facility offers — the right modules switch on automatically."
   },
   "facility_types": {
     "single_doctor": "Single-doctor clinic",
@@ -2142,6 +2146,53 @@
     "peds_center": "Pediatric center",
     "vaccination_center": "Vaccination center",
     "audiology_center": "Audiology center",
-    "imaging_center": "Imaging / diagnostics center"
+    "imaging_center": "Imaging / diagnostics center",
+    "polyclinic": "Polyclinic",
+    "hospital": "Hospital",
+    "diagnostic_center": "Diagnostic center",
+    "pediatric_center": "Pediatric center",
+    "specialized_center": "Specialized center"
+  },
+  "capability_groups": {
+    "clinical": "Clinical services",
+    "diagnostic": "Diagnostic services",
+    "imaging": "Imaging services",
+    "laboratory": "Laboratory services",
+    "pharmacy": "Pharmacy",
+    "inpatient": "Inpatient services"
+  },
+  "capabilities": {
+    "general_consultation": "General consultation",
+    "followup": "Follow-up visits",
+    "vaccination": "Vaccination",
+    "growth_monitoring": "Growth monitoring",
+    "emergency_care": "Emergency care",
+    "home_care": "Home care",
+    "ecg": "ECG",
+    "echo": "Echo",
+    "eeg": "EEG",
+    "spirometry": "Spirometry",
+    "audiology": "Audiology",
+    "vision_screening": "Vision screening",
+    "ultrasound": "Ultrasound",
+    "xray": "X-Ray",
+    "ct": "CT scan",
+    "mri": "MRI",
+    "laboratory": "Laboratory",
+    "sample_collection": "Sample collection",
+    "pathology": "Pathology",
+    "pharmacy": "Pharmacy",
+    "clinical_pharmacy": "Clinical pharmacy",
+    "observation": "Observation room",
+    "day_care": "Day care",
+    "ward": "Ward",
+    "nicu": "NICU",
+    "icu": "ICU"
+  },
+  "templates": {
+    "pediatric_clinic": "Pediatric clinic",
+    "cardiology_clinic": "Cardiology clinic",
+    "vaccination_center": "Vaccination center",
+    "medical_center": "Medical center"
   }
 }
