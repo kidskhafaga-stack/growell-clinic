@@ -39,7 +39,8 @@
     "page": "Page",
     "total": "Total",
     "manage": "Manage",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "notes": "Notes"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -2087,5 +2088,35 @@
     "collect": "Collect",
     "all_settled": "Everything is settled — no outstanding dues.",
     "refunds": "Refunds"
+  },
+  "shifts": {
+    "open_now": "Open shift",
+    "open_title": "Open a collection shift",
+    "open_hint": "Open a shift with a change float; every collection from now is booked to it until you close it.",
+    "open": "Open shift",
+    "opened": "Shift opened",
+    "already_open": "You already have an open shift — close it first.",
+    "already_closed": "Shift is already closed.",
+    "label": "Shift name",
+    "label_ph": "Morning / Evening…",
+    "collected": "Total collected",
+    "counted_cash": "Counted cash",
+    "close": "Close shift",
+    "closed": "Shift closed",
+    "close_confirm": "Close this shift?",
+    "report": "Shift report",
+    "history": "Shift history",
+    "history_sub": "All collection shifts with expected vs counted variance.",
+    "cashier": "Cashier",
+    "variance": "Variance (over/short)",
+    "reconcile": "Cash reconciliation",
+    "payments": "Collections",
+    "no_payments": "No collections in this shift.",
+    "none": "No shifts yet.",
+    "st_open": "Open",
+    "st_closed": "Closed",
+    "minutes": "min",
+    "time": "Time",
+    "opened_at": "Opened at"
   }
 }

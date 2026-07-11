@@ -5,6 +5,13 @@
 {% block page_heading %}{{ t('cashier.title') }}{% endblock %}
 
 {% block content %}
+<style>
+  .stat-grid--compact { gap:10px !important; grid-template-columns:repeat(auto-fill, minmax(118px,1fr)) !important; }
+  .stat-grid--compact .stat-card { padding:9px 12px !important; border-inline-start-width:4px; box-shadow:none; }
+  .stat-grid--compact .stat-card .value { font-size:1.3rem !important; }
+  .stat-grid--compact .stat-card .label { font-size:0.72rem !important; }
+  .stat-grid--compact .stat-card .ico { font-size:1rem !important; opacity:.45; }
+</style>
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title">{{ t('cashier.title') }}</h1>
@@ -16,6 +23,53 @@
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-calendar-check"></i> {{ t('reports.show') }}</button>
     <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
   </form>
+</div>
+
+<!-- Shift (وردية) — the natural collection session -->
+<div class="card gc-scale-in no-print" style="margin-bottom:16px;border-inline-start:4px solid var(--primary,#2563eb);">
+  {% if open_shift %}
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+    <h2 class="section-title" style="margin:0;">
+      <i class="bi bi-hourglass-split"></i> {{ t('shifts.open_now') }}
+      {% if open_shift.label %}<span class="badge badge--role">{{ open_shift.label }}</span>{% endif %}
+      <span class="hint" style="font-weight:400;">— {{ open_shift.opener.display_name(current_lang) if open_shift.opener else '' }}
+        · {{ open_shift.opened_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    </h2>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.shift_report', shift_id=open_shift.id) }}"><i class="bi bi-receipt"></i> {{ t('shifts.report') }}</a>
+  </div>
+  <div class="stat-grid stat-grid--compact gc-stagger" style="margin-bottom:12px;">
+    <div class="stat-card edge-blue"><i class="bi bi-wallet2 ico"></i>
+      <div class="value">{{ open_shift.opening_float }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-cash-stack ico"></i>
+      <div class="value">{{ open_shift.collected }}</div><div class="label">{{ t('shifts.collected') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-cash ico"></i>
+      <div class="value">{{ open_shift.cash_collected }}</div><div class="label">{{ t('cashier.cash_collected') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-safe2 ico"></i>
+      <div class="value">{{ open_shift.expected_cash }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
+    <div class="stat-card edge-red"><i class="bi bi-arrow-return-left ico"></i>
+      <div class="value">{{ open_shift.refunds }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
+  </div>
+  <form method="post" action="{{ url_for('finance.shift_close', shift_id=open_shift.id) }}"
+        style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;"
+        onsubmit="return confirm('{{ t('shifts.close_confirm') }}');">
+    <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label>{{ t('shifts.counted_cash') }}</label>
+      <input class="input" type="number" step="0.01" name="counted_cash" placeholder="{{ open_shift.expected_cash }}"></div>
+    <div class="form-row" style="margin:0;flex:2;min-width:180px;"><label>{{ t('common.notes') }}</label>
+      <input class="input" type="text" name="notes"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-door-closed"></i> {{ t('shifts.close') }}</button>
+  </form>
+  {% else %}
+  <h2 class="section-title"><i class="bi bi-door-open"></i> {{ t('shifts.open_title') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('shifts.open_hint') }}</p>
+  <form method="post" action="{{ url_for('finance.shift_open') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('cashier.opening_float') }}</label>
+      <input class="input" type="number" step="0.01" name="opening_float" value="0"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('shifts.label') }}</label>
+      <input class="input" type="text" name="label" placeholder="{{ t('shifts.label_ph') }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-play-fill"></i> {{ t('shifts.open') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.shifts') }}"><i class="bi bi-clock-history"></i> {{ t('shifts.history') }}</a>
+  </form>
+  {% endif %}
 </div>
 
 <!-- Drawer summary -->
