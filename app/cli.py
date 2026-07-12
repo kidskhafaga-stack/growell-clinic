@@ -76,6 +76,7 @@ def register_commands(app):
             seed_services()
         except Exception:  # noqa: BLE001
             pass
+        _seed_visit_types_safe()
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
@@ -225,6 +226,7 @@ def register_commands(app):
             seed_system_templates()
         except Exception:  # noqa: BLE001
             pass
+        _seed_visit_types_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -350,6 +352,16 @@ _CRM_TPL_NAMES = {
     "vaccine_given": "إشعار تطعيم",
     "birthday": "تهنئة عيد ميلاد",
 }
+
+
+def _seed_visit_types_safe():
+    """Seed the editable visit-type catalogue from the built-in defaults
+    (idempotent, best-effort)."""
+    try:
+        from app.utils.visit_types import ensure_seeded
+        ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _seed_crm_templates_safe():

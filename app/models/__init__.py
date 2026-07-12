@@ -11,7 +11,9 @@ from app.models.appointment import (
     APPOINTMENT_TYPES,
     DEFAULT_APPT_TYPE,
     STATUS_TRANSITIONS,
+    VISIT_TYPE_COLORS,
     Appointment,
+    VisitType,
     type_minutes,
 )
 from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
@@ -134,6 +136,8 @@ __all__ = [
     "Consent",
     "CONSENT_TYPES",
     "Appointment",
+    "VisitType",
+    "VISIT_TYPE_COLORS",
     "DoctorSchedule",
     "Visit",
     "VisitInvestigation",

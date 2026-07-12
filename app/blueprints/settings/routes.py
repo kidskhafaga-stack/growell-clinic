@@ -153,6 +153,62 @@ def setup():
     )
 
 
+@settings_bp.route("/visit-types", methods=["GET", "POST"])
+@admin_required
+def visit_types():
+    """Manage the editable visit-type catalogue (كشف / متابعة / تطعيم / …)."""
+    from app.models import VISIT_TYPE_COLORS, VisitType
+    from app.utils.visit_types import ensure_seeded
+    import re
+
+    ensure_seeded()
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "add":
+            key = re.sub(r"[^a-z0-9_]", "", (request.form.get("key") or "").strip().lower())
+            if not key:
+                flash(t("visit_types.bad_key"), "danger")
+            elif VisitType.query.filter_by(key=key).first():
+                flash(t("visit_types.dup_key"), "warning")
+            else:
+                last = db.session.query(db.func.max(VisitType.sort_order)).scalar() or 0
+                color = request.form.get("color") or "blue"
+                db.session.add(VisitType(
+                    key=key, name_ar=(request.form.get("name_ar") or "").strip() or None,
+                    name_en=(request.form.get("name_en") or "").strip() or None,
+                    minutes=request.form.get("minutes", type=int) or 15,
+                    color=color if color in VISIT_TYPE_COLORS else "blue",
+                    sort_order=last + 1, is_active=True, is_system=False))
+                ActivityLog.record("settings.visit_type_add", user_id=current_user.id,
+                                   entity="visit_type", detail=key, ip_address=client_ip())
+                db.session.commit()
+                flash(t("visit_types.added"), "success")
+        elif action == "edit":
+            vt = db.session.get(VisitType, request.form.get("id", type=int))
+            if vt is not None:
+                vt.name_ar = (request.form.get("name_ar") or "").strip() or None
+                vt.name_en = (request.form.get("name_en") or "").strip() or None
+                vt.minutes = request.form.get("minutes", type=int) or vt.minutes
+                color = request.form.get("color") or vt.color
+                vt.color = color if color in VISIT_TYPE_COLORS else vt.color
+                vt.is_active = bool(request.form.get("is_active"))
+                db.session.commit()
+                flash(t("visit_types.saved"), "success")
+        elif action == "delete":
+            vt = db.session.get(VisitType, request.form.get("id", type=int))
+            if vt is None or vt.is_system:
+                flash(t("visit_types.cant_delete"), "warning")
+            else:
+                db.session.delete(vt)
+                db.session.commit()
+                flash(t("visit_types.deleted"), "info")
+        return redirect(url_for("settings.visit_types"))
+
+    types = VisitType.query.order_by(VisitType.sort_order, VisitType.id).all()
+    return render_template("settings/visit_types.html", types=types,
+                           colors=VISIT_TYPE_COLORS)
+
+
 @settings_bp.route("/data")
 @admin_required
 def data_tools():

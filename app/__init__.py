@@ -124,6 +124,19 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_visit_types():
+        """Expose the editable visit-type catalogue to templates: an active
+        list for selects, plus label/colour resolvers for any stored key."""
+        from flask import g
+        from app.utils import visit_types as vt
+        lang = getattr(g, "lang", "ar")
+        return {
+            "visit_types": vt.active_types(),
+            "visit_type_label": lambda key: vt.label(key, lang),
+            "visit_type_color": vt.color,
+        }
+
+    @app.context_processor
     def inject_notifications():
         """Topbar bell: live alerts filtered to the current user's modules."""
         from flask_login import current_user
