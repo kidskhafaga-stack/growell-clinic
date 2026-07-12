@@ -545,16 +545,9 @@ def patient_search():
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
         return jsonify({"patients": []})
-    like = f"%{q}%"
+    from app.utils.patients import apply_patient_search
     rows = (
-        Patient.query.filter(Patient.is_active.is_(True))
-        .filter(
-            db.or_(
-                Patient.full_name.ilike(like),
-                Patient.full_name_en.ilike(like),
-                Patient.patient_number.ilike(like),
-            )
-        )
+        apply_patient_search(Patient.query.filter(Patient.is_active.is_(True)), q)
         .order_by(Patient.full_name)
         .limit(15)
         .all()
@@ -608,6 +601,7 @@ def _patient_brief(p):
         "name": p.display_name(),
         "number": p.patient_number,
         "age": f"{years}y {months}m" if years else f"{months}m",
+        "phone": p.contact_phone or "",
     }
 
 

@@ -122,7 +122,7 @@
     "edit_patient": "Edit patient",
     "new_patient": "New patient",
     "profile": "Patient profile",
-    "search_placeholder": "Search by name, file number or national ID...",
+    "search_placeholder": "Search by name, file number, national ID or phone...",
     "file_number": "System file number",
     "system_number": "System number (auto)",
     "auto_number": "Auto-generate number",
