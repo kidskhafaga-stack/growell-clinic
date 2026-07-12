@@ -920,7 +920,19 @@
     "profit": "الربح",
     "profit_margin": "هامش الربح",
     "clinic_net": "صافي العيادة",
-    "doses_per_vial": "وحدات الصرف لكل وحدة إضافة"
+    "doses_per_vial": "وحدات الصرف لكل وحدة إضافة",
+    "items_title": "تعريف الأصناف",
+    "items_subtitle": "كل أصناف التطعيمات والمخزن العام في مكان واحد — بحث وإضافة سريعة، والتعديل التفصيلي في كارت الصنف.",
+    "items_search_ph": "ابحث بالاسم / المورد / الباركود / الكود…",
+    "items_all": "الكل",
+    "items_vaccines": "تطعيمات",
+    "items_store": "مخزن عام",
+    "items_empty": "لا توجد أصناف",
+    "item_kind": "نوع الصنف",
+    "master_vaccine": "اللقاح الرئيسي",
+    "select_master_vaccine": "اختر اللقاح الرئيسي",
+    "item_code": "كود الصنف",
+    "manufacturer": "الشركة المصنّعة"
   },
   "instatus": {
     "ok": "متوفر",
@@ -1916,7 +1928,8 @@
     "unit_ph": "جرعة / قطعة",
     "purchase_unit": "وحدة الشراء",
     "purchase_unit_ph": "علبة / كرتونة",
-    "units_per_purchase": "عدد الوحدات في وحدة الشراء"
+    "units_per_purchase": "عدد الوحدات في وحدة الشراء",
+    "opening_stock": "رصيد افتتاحي"
   },
   "purchases": {
     "title": "أوامر الشراء",

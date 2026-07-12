@@ -1,0 +1,104 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('inventory.items_title') }}{% endblock %}
+{% block page_heading %}{{ t('inventory.items_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('inventory.items_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('inventory.items_subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-arrow-right"></i> {{ t('inventory.title') }}</a>
+</div>
+
+<!-- Search + type filter -->
+<form method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+  <input class="input" type="search" name="q" value="{{ q or '' }}" style="flex:1;min-width:220px;"
+         placeholder="{{ t('inventory.items_search_ph') }}">
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
+  {% if q %}<a class="btn btn-outline gc-press" href="{{ url_for('inventory.items', kind=kind) }}">{{ t('common.cancel') }}</a>{% endif %}
+</form>
+
+<div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+  {% for k, label in [('', t('inventory.items_all')), ('vaccine', t('inventory.items_vaccines')), ('store', t('inventory.items_store'))] %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if kind == k else 'btn-outline' }}"
+     href="{{ url_for('inventory.items', kind=k, q=q) }}">
+    {{ label }} <span class="badge">{{ counts['all' if k == '' else k] }}</span></a>
+  {% endfor %}
+</div>
+
+<!-- Add item (type toggle) -->
+<details class="card gc-scale-in" style="margin-bottom:16px;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('inventory.define_item') }}</summary>
+  <form method="post" action="{{ url_for('inventory.item_new') }}" style="margin-top:10px;" x-data="{ kind: 'store' }">
+    <div class="form-row" style="max-width:360px;">
+      <label>{{ t('inventory.item_kind') }} *</label>
+      <select class="select" name="item_kind" x-model="kind">
+        <option value="store">{{ t('inventory.items_store') }}</option>
+        <option value="vaccine">{{ t('inventory.items_vaccines') }}</option>
+      </select>
+    </div>
+    <div class="form-grid" style="margin-top:8px;">
+      <div class="form-row" x-show="kind === 'vaccine'" x-cloak>
+        <label>{{ t('inventory.master_vaccine') }} *</label>
+        <select class="select" name="vaccine_id" x-bind:required="kind === 'vaccine'">
+          <option value="" disabled selected>{{ t('inventory.select_master_vaccine') }}</option>
+          {% for v in vaccines %}<option value="{{ v.id }}">{{ v.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('store.name') }} *</label><input class="input" name="name" required></div>
+      <div class="form-row"><label>{{ t('store.name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
+      <div class="form-row" x-show="kind === 'vaccine'" x-cloak><label>{{ t('inventory.manufacturer') }}</label><input class="input" name="manufacturer"></div>
+      <div class="form-row" x-show="kind === 'store'"><label>{{ t('store.category') }}</label><input class="input" name="category"></div>
+      <div class="form-row" x-show="kind === 'store'"><label>{{ t('store.unit') }}</label><input class="input" name="unit" placeholder="{{ t('store.unit_ph') }}"></div>
+      <div class="form-row" x-show="kind === 'store'"><label>{{ t('inventory.purchase_unit') }}</label><input class="input" name="purchase_unit"></div>
+      <div class="form-row">
+        <label x-text="kind === 'vaccine' ? '{{ t('inventory.doses_per_vial') }}' : '{{ t('store.units_per_purchase') }}'">{{ t('store.units_per_purchase') }}</label>
+        <input class="input" type="number" min="1" x-bind:name="kind === 'vaccine' ? 'doses_per_vial' : 'units_per_purchase'" value="1"></div>
+      <div class="form-row"><label>{{ t('inventory.barcode') }}</label><input class="input" name="barcode" dir="ltr"></div>
+      <div class="form-row" x-show="kind === 'vaccine'" x-cloak><label>{{ t('inventory.item_code') }}</label><input class="input" name="item_code" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('inventory.purchase_price') }}</label><input class="input" type="number" step="0.01" min="0" name="purchase_price"></div>
+      <div class="form-row"><label>{{ t('inventory.sell_price') }}</label><input class="input" type="number" step="0.01" min="0" name="price"></div>
+      <div class="form-row"><label>{{ t('inventory.reorder_level') }}</label><input class="input" type="number" min="0" name="min_stock"></div>
+      <div class="form-row" x-show="kind === 'store'"><label>{{ t('store.opening_stock') }}</label><input class="input" type="number" min="0" name="opening_stock"></div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<!-- Unified item list -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:640px;">
+      <thead><tr>
+        <th>{{ t('store.name') }}</th><th>{{ t('inventory.item_kind') }}</th>
+        <th>{{ t('inventory.barcode') }}</th>
+        <th style="text-align:end;">{{ t('inventory.purchase_price') }}</th>
+        <th style="text-align:end;">{{ t('inventory.sell_price') }}</th>
+        <th style="text-align:end;">{{ t('inventory.stock') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr {% if not r.active %}style="opacity:.55;"{% endif %}>
+          <td><a href="{{ r.url }}"><strong>{{ r.name }}</strong></a>
+            <div class="num" style="color:var(--muted);">{{ r.subtitle }}</div></td>
+          <td>
+            {% if r.kind == 'vaccine' %}<span class="type-tag tt-teal"><i class="bi bi-shield-plus"></i> {{ t('inventory.items_vaccines') }}</span>
+            {% else %}<span class="type-tag tt-blue"><i class="bi bi-box-seam"></i> {{ t('inventory.items_store') }}</span>{% endif %}</td>
+          <td dir="ltr" style="color:var(--muted);">{{ r.code or '—' }}</td>
+          <td style="text-align:end;">{{ r.purchase if r.purchase is not none else '—' }}</td>
+          <td style="text-align:end;">{{ r.sell if r.sell is not none else '—' }}</td>
+          <td style="text-align:end;">{{ r.stock }}</td>
+          <td style="text-align:end;"><a class="btn btn-outline btn-sm gc-press" href="{{ r.url }}"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty-state">{{ t('inventory.items_empty') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block head %}<style>[x-cloak]{display:none!important;}</style>{% endblock %}
