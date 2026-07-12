@@ -707,6 +707,119 @@ def collect_appointment(appt_id):
     return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id))
 
 
+def _checkout_lines(appt, lang):
+    """Resolve the billable lines for an appointment: the base visit-type
+    charge (at the doctor's price) + any vaccines already given but unbilled."""
+    lines = []
+    base = service_for_visit_type(appt.appt_type)
+    if base is not None:
+        price = base.price_for(appt.doctor) if appt.doctor else base.price
+        lines.append({"service_id": base.id, "description": base.display_name(lang),
+                      "unit_price": price or 0, "quantity": 1})
+    for dose in _uncharged_vaccines(appt.patient_id):
+        b = dose.brand
+        if b:
+            name = (b.vaccine.display_name(lang) if b.vaccine
+                    else dose.vaccine.display_name(lang))
+            lines.append({"service_id": "", "description": name + " — " + b.display_name(lang),
+                          "unit_price": b.price or 0, "quantity": 1, "dose_id": dose.id})
+    return lines
+
+
+@finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
+@module_required(MODULE)
+def checkout(appt_id):
+    """Reception checkout: show the appointment's charges with editable prices,
+    let the user add services, pick a named discount, and collect with one or
+    several payment methods — then print. Replaces the silent one-click collect
+    so the amount is always visible before payment."""
+    from app.models import Appointment
+    appt = db.get_or_404(Appointment, appt_id)
+    lang = getattr(g, "lang", "ar")
+
+    if request.method == "POST":
+        invoice = Invoice(invoice_number=generate_invoice_number(),
+                          patient_id=appt.patient_id, doctor_id=appt.doctor_id,
+                          created_by=current_user.id)
+        db.session.add(invoice)
+        db.session.flush()
+
+        descs = request.form.getlist("line_desc")
+        sids = request.form.getlist("line_service_id")
+        prices = request.form.getlist("line_price")
+        qtys = request.form.getlist("line_qty")
+        for i, desc in enumerate(descs):
+            desc = (desc or "").strip()
+            try:
+                price = float(prices[i]) if i < len(prices) and prices[i] != "" else 0
+            except (TypeError, ValueError):
+                price = 0
+            qty = 1
+            try:
+                qty = int(qtys[i]) if i < len(qtys) and qtys[i] else 1
+            except (TypeError, ValueError):
+                qty = 1
+            if not desc or price <= 0:
+                continue
+            sid = None
+            try:
+                sid = int(sids[i]) if i < len(sids) and sids[i] else None
+            except (TypeError, ValueError):
+                sid = None
+            item = InvoiceItem(service_id=sid, description=desc,
+                               unit_price=round(price, 2), quantity=max(qty, 1))
+            svc = db.session.get(Service, sid) if sid else None
+            if svc is not None:
+                item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
+            invoice.items.append(item)
+
+        # Mark any uncharged vaccines as billed on this invoice.
+        for dose in _uncharged_vaccines(appt.patient_id):
+            dose.invoice_id = invoice.id
+
+        if not invoice.items:
+            db.session.rollback()
+            flash(t("cashier.nothing_to_collect"), "warning")
+            return redirect(url_for("finance.checkout", appt_id=appt.id))
+
+        disc = (db.session.get(NamedDiscount, request.form.get("discount_id", type=int))
+                if request.form.get("discount_id", type=int) else None)
+        if disc is not None and disc.applies_to(appt.patient, appt.doctor_id):
+            _apply_named_discount(invoice, disc)
+        _apply_coverage(invoice, appt.patient)
+        invoice.recalc_status()
+
+        # Split payment: parallel amount[]/method[] (collect now); may be empty
+        # (collect later — leaves an open balance the cashier can settle).
+        amounts = request.form.getlist("amount")
+        methods = request.form.getlist("method")
+        shift_id = _current_shift_id()
+        for amt_raw, m in zip(amounts, methods):
+            try:
+                amt = float(amt_raw)
+            except (TypeError, ValueError):
+                continue
+            if amt <= 0:
+                continue
+            invoice.payments.append(Payment(
+                amount=round(amt, 2), method=m if m in PAYMENT_METHODS else "cash",
+                received_by=current_user.id, shift_id=shift_id))
+        invoice.recalc_status()
+        ActivityLog.record("invoice.checkout", user_id=current_user.id, entity="invoice",
+                           detail=invoice.invoice_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("invoices.created"), "success")
+        return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id))
+
+    lines = _checkout_lines(appt, lang)
+    return render_template(
+        "finance/checkout.html", appt=appt, lines=lines,
+        services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+        discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
+        payment_methods=PAYMENT_METHODS,
+    )
+
+
 def _apply_named_discount(invoice, disc):
     """Apply a named discount to lines that have no manual discount yet."""
     invoice.discount_id = disc.id

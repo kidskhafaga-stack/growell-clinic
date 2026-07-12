@@ -2325,5 +2325,19 @@
     "hl7": "HL7",
     "sdk": "SDK",
     "api": "API"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "services": "Services",
+    "add_service": "Add service",
+    "discount": "Discount",
+    "no_discount": "No discount",
+    "collect": "Collection",
+    "collect_hint": "Collect now with one or more methods, or leave it for the cashier (collect later).",
+    "paid": "Paid",
+    "remaining": "Remaining",
+    "pay_full": "Pay in full",
+    "pay_later": "Collect later",
+    "confirm": "Confirm & issue invoice"
   }
 }
