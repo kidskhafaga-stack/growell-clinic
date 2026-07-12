@@ -125,6 +125,12 @@ from app.models.feedback import FEEDBACK_STATUSES, Feedback
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
+from app.models.device import (
+    CONNECTION_TYPES,
+    DEVICE_TYPES,
+    IMPORT_MODES,
+    MedicalDevice,
+)
 
 __all__ = [
     "User",
@@ -240,4 +246,8 @@ __all__ = [
     "DISCOUNT_TYPES",
     "Feedback",
     "FEEDBACK_STATUSES",
+    "MedicalDevice",
+    "DEVICE_TYPES",
+    "CONNECTION_TYPES",
+    "IMPORT_MODES",
 ]

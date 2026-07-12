@@ -53,6 +53,9 @@ class Service(db.Model):
     cost = db.Column(db.Float)          # direct cost (for profitability)
     max_discount = db.Column(db.Float)  # max allowed discount (%)
 
+    # Device this service is performed on (when needs_device).
+    device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"), nullable=True)
+
     # Workflow properties — data, not code: they decide how the service is
     # handled operationally so new services never need new modules.
     needs_doctor = db.Column(db.Boolean, default=True, nullable=False)
@@ -83,6 +86,7 @@ class Service(db.Model):
         "DoctorServiceCommission", back_populates="service",
         cascade="all, delete-orphan",
     )
+    device = db.relationship("MedicalDevice", back_populates="services")
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name

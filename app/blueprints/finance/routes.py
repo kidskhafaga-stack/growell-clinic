@@ -85,6 +85,7 @@ def _apply_service_engine_fields(svc):
         svc.service_type = stype
     svc.cost = request.form.get("cost", type=float)
     svc.duration_minutes = request.form.get("duration_minutes", type=int)
+    svc.device_id = request.form.get("device_id", type=int) or None
     if request.form.get("se") == "1":
         for flag in _SERVICE_FLAGS:
             setattr(svc, flag, bool(request.form.get(flag)))
@@ -101,11 +102,14 @@ def index():
 @module_required(MODULE)
 def services():
     services = Service.query.order_by(Service.sort_order, Service.name).all()
-    from app.models import ETA_ITEM_TYPES, SERVICE_TYPES
+    from app.models import ETA_ITEM_TYPES, SERVICE_TYPES, MedicalDevice
+    devices = (MedicalDevice.query.filter_by(is_active=True)
+               .order_by(MedicalDevice.name).all())
     return render_template(
         "finance/services.html", services=services,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
-        item_types=ETA_ITEM_TYPES, service_types=SERVICE_TYPES, doctors=_doctors(),
+        item_types=ETA_ITEM_TYPES, service_types=SERVICE_TYPES, devices=devices,
+        doctors=_doctors(),
         appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
     )
 

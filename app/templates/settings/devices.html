@@ -1,0 +1,92 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('devices.title') }}{% endblock %}
+{% block page_heading %}{{ t('devices.title') }}{% endblock %}
+
+{% macro device_fields(d=None) %}
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('devices.name') }} *</label><input class="input" name="name" value="{{ d.name if d else '' }}" required></div>
+    <div class="form-row"><label>{{ t('devices.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ d.name_en if d else '' }}"></div>
+    <div class="form-row"><label>{{ t('devices.device_type') }}</label>
+      <select class="select" name="device_type">
+        {% for dt in device_types %}<option value="{{ dt }}" {{ 'selected' if d and d.device_type==dt else '' }}>{{ t('device_types.' ~ dt) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('devices.manufacturer') }}</label><input class="input" name="manufacturer" value="{{ d.manufacturer if d else '' }}"></div>
+    <div class="form-row"><label>{{ t('devices.model') }}</label><input class="input" name="model" dir="ltr" value="{{ d.model if d else '' }}"></div>
+    <div class="form-row"><label>{{ t('devices.software') }}</label><input class="input" name="software" dir="ltr" value="{{ d.software if d else '' }}"></div>
+    <div class="form-row"><label>{{ t('devices.connection') }}</label>
+      <select class="select" name="connection_type">
+        {% for c in connection_types %}<option value="{{ c }}" {{ 'selected' if d and d.connection_type==c else '' }}>{{ t('connection_types.' ~ c) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('devices.import_mode') }}</label>
+      <select class="select" name="import_mode">
+        {% for m in import_modes %}<option value="{{ m }}" {{ 'selected' if d and d.import_mode==m else '' }}>{{ t('import_modes.' ~ m) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('devices.serial') }}</label><input class="input" name="serial_number" dir="ltr" value="{{ d.serial_number if d else '' }}"></div>
+    <div class="form-row"><label>{{ t('devices.purchase_date') }}</label><input class="input" type="date" name="purchase_date" value="{{ d.purchase_date if d and d.purchase_date else '' }}"></div>
+    <div class="form-row"><label>{{ t('devices.warranty_until') }}</label><input class="input" type="date" name="warranty_until" value="{{ d.warranty_until if d and d.warranty_until else '' }}"></div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('devices.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('devices.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}"><i class="bi bi-arrow-right"></i> {{ t('settings.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  {% if devices %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('devices.device') }}</th><th>{{ t('devices.device_type') }}</th>
+      <th>{{ t('devices.connection') }}</th><th>{{ t('devices.import_mode') }}</th>
+      <th>{{ t('devices.warranty_until') }}</th><th>{{ t('common.status') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for d in devices %}
+      <tr>
+        <td><strong>{{ d.display_name(current_lang) }}</strong>
+          {% if d.manufacturer or d.model %}<div class="num" style="color:var(--muted);">{{ d.manufacturer or '' }} {{ d.model or '' }}</div>{% endif %}</td>
+        <td><span class="badge badge--role">{{ t('device_types.' ~ d.device_type) }}</span></td>
+        <td>{{ t('connection_types.' ~ d.connection_type) }}</td>
+        <td>{% if d.import_mode == 'manual' %}<span class="badge badge--muted">{{ t('import_modes.manual') }}</span>{% else %}<span class="badge badge--green">{{ t('import_modes.' ~ d.import_mode) }}</span>{% endif %}</td>
+        <td>{% if d.warranty_until %}{{ d.warranty_until }} {% if d.under_warranty %}<span class="badge badge--green">{{ t('devices.in_warranty') }}</span>{% endif %}{% else %}—{% endif %}</td>
+        <td>{% if d.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>{% else %}<span class="badge badge--danger">{{ t('common.inactive') }}</span>{% endif %}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <details style="position:relative;display:inline-block;">
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+            <form method="post" action="{{ url_for('settings.devices') }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">
+              <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ d.id }}">
+              {{ device_fields(d) }}
+              <label class="checkbox" style="font-weight:400;display:block;margin:6px 0;"><input type="checkbox" name="is_active" value="1" {{ 'checked' if d.is_active else '' }}> {{ t('common.active') }}</label>
+              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('settings.devices') }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ d.id }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-hdd-stack"></i>{{ t('devices.none') }}</div>
+  {% endif %}
+</div>
+
+<details class="card gc-scale-in">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('devices.add') }}</summary>
+  <form method="post" action="{{ url_for('settings.devices') }}" style="margin-top:12px;">
+    <input type="hidden" name="action" value="add">
+    {{ device_fields() }}
+    <button class="btn btn-primary gc-press" type="submit" style="margin-top:8px;"><i class="bi bi-plus-lg"></i> {{ t('devices.add') }}</button>
+  </form>
+</details>
+
+<style>.popform{position:absolute;z-index:30;inset-inline-end:0;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.12);}</style>
+{% endblock %}
