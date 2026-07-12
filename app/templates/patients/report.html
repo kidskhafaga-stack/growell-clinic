@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('report.title') }} — {{ patient.display_name(current_lang) }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif;
+         line-height:1.55; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-size:.92rem; font-weight:600; cursor:pointer; text-decoration:none;
+         display:inline-flex; align-items:center; gap:7px; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .hint-edit { text-align:center; color:var(--muted); font-size:.8rem; padding:6px; }
+  .sheet { background:#fff; max-width:820px; margin:16px auto; padding:34px 40px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .rhead { display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+           border-bottom:2px solid var(--brand); padding-bottom:14px; }
+  .rhead .clinic { font-size:1.35rem; font-weight:800; color:var(--brand); }
+  .rhead .sub { color:var(--muted); font-size:.85rem; margin-top:2px; }
+  .rhead .logo { max-height:64px; max-width:150px; }
+  h1.rtitle { text-align:center; font-size:1.2rem; letter-spacing:.5px; margin:18px 0 6px; }
+  .meta-line { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; margin:12px 0; }
+  .grid .k { color:var(--muted); font-size:.8rem; }
+  .grid .v { font-weight:600; }
+  section { margin-top:20px; }
+  h2.sec { font-size:1rem; color:var(--brand); border-bottom:1px solid var(--line);
+           padding-bottom:5px; margin:0 0 8px; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:start; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:.78rem; text-transform:uppercase; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:20px; font-size:.75rem; font-weight:600;
+          background:#eef7f1; color:var(--brand); }
+  .pill.warn { background:#fef3e2; color:#b45309; }
+  .pill.danger { background:#fdecec; color:#c0392b; }
+  .editable { border:1px dashed #c7ccd3; border-radius:8px; padding:10px 12px; min-height:60px;
+              background:#fcfdff; outline:none; }
+  .editable:focus { border-color:var(--brand); background:#fff; }
+  .muted { color:var(--muted); }
+  .sign { margin-top:40px; display:flex; justify-content:space-between; gap:20px; }
+  .sign .box { flex:1; }
+  .sign .line { margin-top:38px; border-top:1px solid var(--ink); padding-top:4px; font-size:.82rem; }
+  @media print {
+    body { background:#fff; }
+    .toolbar, .hint-edit { display:none !important; }
+    .sheet { box-shadow:none; margin:0; max-width:none; padding:0; }
+    .editable { border:none; background:none; padding:0; }
+    @page { margin:16mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('patients.view', patient_id=patient.id) }}">← {{ t('common.back') }}</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('report.print') }}</button>
+  </div>
+  <div class="hint-edit">{{ t('report.edit_hint') }}</div>
+
+  <div class="sheet">
+    <!-- Clinic header -->
+    <div class="rhead">
+      <div>
+        <div class="clinic">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div>
+        {% if clinic.tagline %}<div class="sub">{{ clinic.tagline }}</div>{% endif %}
+        <div class="sub">
+          {% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}
+          {% if clinic.address %} · {{ clinic.address }}{% endif %}
+        </div>
+      </div>
+      {% if clinic.show_logo_print and clinic.logo_url %}<img class="logo" src="{{ clinic.logo_url }}" alt="">{% endif %}
+    </div>
+
+    <h1 class="rtitle">{{ t('report.title') }}</h1>
+    <div class="meta-line">{{ t('report.generated_on') }}: {{ today }}{% if generated_by %} · {{ t('report.by') }} {{ generated_by.display_name(current_lang) }}{% endif %}</div>
+
+    <!-- Patient identity -->
+    <div class="grid">
+      <div><span class="k">{{ t('patients.full_name') }}:</span> <span class="v">{{ patient.display_name(current_lang) }}</span></div>
+      <div><span class="k">{{ t('patients.file_number') }}:</span> <span class="v">{{ patient.patient_number }}</span></div>
+      <div><span class="k">{{ t('patients.dob') }}:</span> <span class="v">{{ patient.date_of_birth }}</span></div>
+      <div><span class="k">{{ t('patients.age') }}:</span> <span class="v">{{ patient.age_parts[0] }} {{ t('patients.years') }} {{ patient.age_parts[1] }} {{ t('patients.months') }}</span></div>
+      <div><span class="k">{{ t('patients.gender') }}:</span> <span class="v">{{ t('genders.' ~ patient.gender) }}</span></div>
+      <div><span class="k">{{ t('patients.blood_type') }}:</span> <span class="v">{{ patient.blood_type or '—' }}</span></div>
+      <div><span class="k">{{ t('report.contact') }}:</span> <span class="v" dir="ltr">{{ patient.contact_phone or '—' }}</span></div>
+      {% if patient.active_coverage %}<div><span class="k">{{ t('report.coverage') }}:</span> <span class="v">{{ patient.active_coverage.payer.name if patient.active_coverage.payer else '—' }}</span></div>{% endif %}
+    </div>
+
+    <!-- Medical alerts -->
+    <section>
+      <h2 class="sec">{{ t('report.alerts') }}</h2>
+      {% if patient.allergies %}<div><span class="pill danger">{{ t('patients.allergies') }}</span> {{ patient.allergies }}</div>{% endif %}
+      {% if patient.chronic_diseases %}<div style="margin-top:4px;"><span class="pill warn">{{ t('patients.chronic_diseases') }}</span> {{ patient.chronic_diseases }}</div>{% endif %}
+      {% if not patient.allergies and not patient.chronic_diseases %}<div class="muted">{{ t('report.none') }}</div>{% endif %}
+    </section>
+
+    <!-- Problem list -->
+    <section>
+      <h2 class="sec">{{ t('report.problems') }}</h2>
+      {% if problems %}
+      <table><tbody>
+        {% for p in problems %}
+        <tr><td style="width:60%;"><strong>{{ p.title_en if current_lang == 'en' and p.title_en else p.title }}</strong>
+          {% if p.icd_code %}<span class="muted"> ({{ p.icd_code }})</span>{% endif %}</td>
+          <td class="muted">{{ p.onset_date or p.noted_date or '' }}</td></tr>
+        {% endfor %}
+      </tbody></table>
+      {% else %}<div class="muted">{{ t('report.no_problems') }}</div>{% endif %}
+    </section>
+
+    <!-- Growth -->
+    <section>
+      <h2 class="sec">{{ t('report.growth') }}</h2>
+      {% if latest_growth %}
+      <div class="grid">
+        <div><span class="k">{{ t('growth.date') }}:</span> <span class="v">{{ latest_growth.record_date }}</span></div>
+        <div><span class="k">{{ t('visits.weight') }}:</span> <span class="v">{{ latest_growth.weight_kg or '—' }} {% if latest_growth.weight_kg %}kg{% endif %}</span></div>
+        <div><span class="k">{{ t('visits.height') }}:</span> <span class="v">{{ latest_growth.height_cm or '—' }} {% if latest_growth.height_cm %}cm{% endif %}</span></div>
+        <div><span class="k">{{ t('visits.head_circ') }}:</span> <span class="v">{{ latest_growth.head_circ_cm or '—' }} {% if latest_growth.head_circ_cm %}cm{% endif %}</span></div>
+        {% if latest_growth.bmi %}<div><span class="k">BMI:</span> <span class="v">{{ latest_growth.bmi }}</span></div>{% endif %}
+      </div>
+      {% if growth_alert %}<div style="margin-top:6px;"><span class="pill {{ 'danger' if growth_alert.status == 'alert' else 'warn' }}">{{ t('report.growth_flag') }}: {{ growth_alert.indicator }} · Z {{ growth_alert.z }}</span></div>{% endif %}
+      {% else %}<div class="muted">{{ t('report.no_growth') }}</div>{% endif %}
+    </section>
+
+    <!-- Vaccination status -->
+    {% if vac %}
+    <section>
+      <h2 class="sec">{{ t('report.vaccination') }}</h2>
+      <div>
+        <span class="pill">{{ t('vstatus.done') }}: {{ vac.done }}</span>
+        {% if vac.due %}<span class="pill warn">{{ t('vstatus.due') }}: {{ vac.due }}</span>{% endif %}
+        {% if vac.overdue %}<span class="pill danger">{{ t('vstatus.overdue') }}: {{ vac.overdue }}</span>{% endif %}
+        <span class="muted"> · {{ t('report.of_total') }} {{ vac.total }}</span>
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- Recent visits -->
+    <section>
+      <h2 class="sec">{{ t('report.recent_visits') }}</h2>
+      {% if visits %}
+      <table>
+        <thead><tr><th>{{ t('report.date') }}</th><th>{{ t('visits.chief_complaint') }}</th><th>{{ t('report.diagnosis') }}</th></tr></thead>
+        <tbody>
+          {% for v in visits %}
+          <tr>
+            <td style="white-space:nowrap;">{{ v.visit_date }}</td>
+            <td>{{ v.chief_complaint or '—' }}</td>
+            <td>{% for d in v.diagnoses %}{{ d.title_en if current_lang == 'en' and d.title_en else d.title }}{% if not loop.last %}، {% endif %}{% else %}—{% endfor %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="muted">{{ t('report.no_visits') }}</div>{% endif %}
+    </section>
+
+    <!-- Current medications -->
+    {% if latest_rx and latest_rx.items %}
+    <section>
+      <h2 class="sec">{{ t('report.medications') }} <span class="muted" style="font-weight:400;font-size:.8rem;">({{ latest_rx.rx_date }})</span></h2>
+      <table>
+        <thead><tr><th>{{ t('rx.drug') }}</th><th>{{ t('rx.default_dose') }}</th><th>{{ t('rx.default_frequency') }}</th><th>{{ t('rx.duration') }}</th></tr></thead>
+        <tbody>
+          {% for it in latest_rx.items %}
+          <tr><td><strong>{{ it.drug_name }}</strong></td><td>{{ it.dose or '—' }}</td><td>{{ it.frequency or '—' }}</td><td>{{ it.duration or '—' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <!-- Editable clinical summary -->
+    <section>
+      <h2 class="sec">{{ t('report.summary') }}</h2>
+      <div class="editable" contenteditable="true">{% if visits %}{{ visits[0].plan or visits[0].notes or '' }}{% endif %}</div>
+    </section>
+
+    <!-- Signature -->
+    <div class="sign">
+      <div class="box"><div class="line">{{ t('report.doctor_sign') }}{% if generated_by %}: {{ generated_by.display_name(current_lang) }}{% endif %}</div></div>
+      <div class="box"><div class="line">{{ t('report.date_stamp') }}: {{ today }}</div></div>
+    </div>
+  </div>
+</body>
+</html>

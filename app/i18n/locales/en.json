@@ -2398,5 +2398,31 @@
     "pay_later": "Collect later",
     "confirm": "Confirm & issue invoice",
     "done": "Done"
+  },
+  "report": {
+    "title": "Comprehensive medical report",
+    "print": "Print",
+    "edit_hint": "You can edit the summary sections before printing — click inside any dashed box and type.",
+    "generated_on": "Generated on",
+    "by": "By",
+    "contact": "Contact",
+    "coverage": "Coverage/Insurance",
+    "alerts": "Medical alerts",
+    "none": "None",
+    "problems": "Problem list",
+    "no_problems": "No active problems",
+    "growth": "Growth",
+    "no_growth": "No measurements",
+    "growth_flag": "Growth flag",
+    "date": "Date",
+    "vaccination": "Vaccination status",
+    "of_total": "of total",
+    "recent_visits": "Recent visits",
+    "no_visits": "No visits",
+    "diagnosis": "Diagnosis",
+    "medications": "Current medications",
+    "summary": "Clinical summary & recommendations",
+    "doctor_sign": "Doctor's signature",
+    "date_stamp": "Date"
   }
 }

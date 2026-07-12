@@ -12,6 +12,7 @@ from flask import (
     Response,
     current_app,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -277,6 +278,40 @@ def view(patient_id):
         ai_patient=ai_patient,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
         growth_alert=_growth_concern(patient),
+    )
+
+
+@patients_bp.route("/<int:patient_id>/report")
+@module_required(MODULE)
+def report(patient_id):
+    """Generate a comprehensive medical report for the case: demographics,
+    problem list, growth, vaccination status, recent visits, current meds — all
+    assembled from the record. The doctor can edit any section inline in the
+    browser and print it (editing is browser-side; the record isn't changed)."""
+    from app.models import GrowthRecord, Prescription, Visit
+    from app.utils.vaccines import patient_plan, plan_summary
+
+    patient = db.get_or_404(Patient, patient_id)
+
+    problems = [p for p in getattr(patient, "problems", [])
+                if p.status == "active"]
+    visits = (Visit.query.filter_by(patient_id=patient.id)
+              .order_by(Visit.visit_date.desc(), Visit.id.desc()).limit(10).all())
+    latest_growth = (GrowthRecord.query.filter_by(patient_id=patient.id)
+                     .order_by(GrowthRecord.record_date.desc(),
+                               GrowthRecord.id.desc()).first())
+    try:
+        vac = plan_summary(patient_plan(patient, getattr(g, "lang", "ar")))
+    except Exception:  # noqa: BLE001
+        vac = None
+    latest_rx = (Prescription.query.filter_by(patient_id=patient.id)
+                 .order_by(Prescription.rx_date.desc(), Prescription.id.desc()).first())
+
+    return render_template(
+        "patients/report.html", patient=patient, problems=problems,
+        visits=visits, latest_growth=latest_growth, vac=vac,
+        latest_rx=latest_rx, growth_alert=_growth_concern(patient),
+        generated_by=current_user, today=date.today(),
     )
 
 

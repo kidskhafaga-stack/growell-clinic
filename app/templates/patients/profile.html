@@ -73,6 +73,10 @@
       <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('patients.edit', patient_id=patient.id) }}">
         <i class="bi bi-pencil"></i> {{ t('common.edit') }}
       </a>
+      {% if current_user.can('patient_medical') %}
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.report', patient_id=patient.id) }}" target="_blank">
+        <i class="bi bi-file-medical"></i> {{ t('report.title') }}</a>
+      {% endif %}
       {% if current_user.can_access('prescriptions') %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
         <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
