@@ -10,6 +10,19 @@ from app.extensions import db
 GENDERS = ["male", "female"]
 BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
+# From this age a child can carry their own phone, so we prompt reception to
+# capture a personal number for direct contact.
+OWN_PHONE_AGE = 13
+
+
+def own_phone_cutoff(today=None):
+    """Latest date of birth that makes a patient at least ``OWN_PHONE_AGE``."""
+    today = today or date.today()
+    try:
+        return today.replace(year=today.year - OWN_PHONE_AGE)
+    except ValueError:  # 29 Feb
+        return today.replace(year=today.year - OWN_PHONE_AGE, day=28)
+
 
 class Patient(db.Model):
     __tablename__ = "patients"
@@ -34,6 +47,9 @@ class Patient(db.Model):
     date_of_birth = db.Column(db.Date, nullable=False)
     gender = db.Column(db.String(10), nullable=False)
     national_id = db.Column(db.String(20))
+    # The patient's own phone (captured once they're old enough to carry one),
+    # so we can reach the teen directly rather than only through a guardian.
+    own_phone = db.Column(db.String(20))
     blood_type = db.Column(db.String(5))
     photo = db.Column(db.String(255))
 
@@ -89,6 +105,17 @@ class Patient(db.Model):
         return (date.today() - self.date_of_birth).days
 
     @property
+    def age_years(self):
+        return self.age_parts[0] if self.date_of_birth else 0
+
+    @property
+    def needs_own_phone(self):
+        """Active teen (≥ OWN_PHONE_AGE) who has no personal number yet — a
+        prompt for reception to update their contact details."""
+        return (self.is_active and self.age_years >= OWN_PHONE_AGE
+                and not (self.own_phone or "").strip())
+
+    @property
     def has_alerts(self):
         return bool((self.allergies or "").strip() or (self.chronic_diseases or "").strip())
 
@@ -103,7 +130,10 @@ class Patient(db.Model):
 
     @property
     def contact_phone(self):
-        """Best contact number: primary guardian first, else any with a phone."""
+        """Best contact number: the patient's own phone if set, then the primary
+        guardian, else any guardian with a phone."""
+        if (self.own_phone or "").strip():
+            return self.own_phone.strip()
         if not self.family or not self.family.parents:
             return None
         parents = sorted(self.family.parents,

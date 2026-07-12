@@ -71,6 +71,11 @@
             <input class="input" id="national_id" name="national_id" value="{{ form.national_id or '' }}" dir="ltr">
           </div>
           <div class="form-row">
+            <label for="own_phone">{{ t('patients.own_phone') }}</label>
+            <input class="input" id="own_phone" name="own_phone" value="{{ form.own_phone or '' }}" dir="ltr" placeholder="01xxxxxxxxx">
+            <div class="hint">{{ t('patients.own_phone_hint') }}</div>
+          </div>
+          <div class="form-row">
             <label for="blood_type">{{ t('patients.blood_type') }}</label>
             <select class="select" id="blood_type" name="blood_type">
               <option value="">—</option>

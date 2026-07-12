@@ -6,6 +6,13 @@
 {% block page_heading %}{{ t('patients.title') }}{% endblock %}
 
 {% block content %}
+{% if flag == 'teen_no_phone' %}
+<div class="card gc-animate" style="margin-bottom:16px;border-inline-start:4px solid var(--warn, #f59e0b);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+  <div><strong><i class="bi bi-telephone-plus"></i> {{ t('notif.teens_no_phone', count=pagination.total) }}</strong>
+    <p class="hint" style="margin:4px 0 0;">{{ t('patients.teen_phone_task') }}</p></div>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.index') }}">{{ t('common.cancel') }}</a>
+</div>
+{% endif %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px;">
   <div>
     <h1 class="page-title">{{ t('patients.title') }}</h1>
