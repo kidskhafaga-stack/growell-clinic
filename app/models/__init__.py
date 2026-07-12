@@ -75,6 +75,7 @@ from app.models.service import (
     DoctorServiceCommission,
     Service,
     ServiceBundleItem,
+    ServiceConsumable,
     service_type_for_category,
 )
 from app.models.invoice import (
@@ -192,6 +193,7 @@ __all__ = [
     "RECEIPT_REASONS",
     "Service",
     "ServiceBundleItem",
+    "ServiceConsumable",
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
     "SERVICE_TYPES",

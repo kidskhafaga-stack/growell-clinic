@@ -222,6 +222,28 @@
     </form>
   </details>
   {% endif %}
+
+  <!-- Consumables (auto-deducted on delivery) -->
+  {% if store_items %}
+  <details style="margin-top:10px;" {{ 'open' if s.consumables else '' }}>
+    <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-box-seam"></i> {{ t('services.consumables') }}{% if s.consumables %} ({{ s.consumables|length }}){% endif %}</summary>
+    <form method="post" action="{{ url_for('finance.service_consumables', service_id=s.id) }}" style="margin-top:10px;">
+      <p class="hint">{{ t('services.consumables_hint') }}</p>
+      {% set picked = {} %}
+      {% for c in s.consumables %}{% set _ = picked.update({c.store_item_id: c.quantity}) %}{% endfor %}
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto;">
+        {% for it in store_items %}
+        <label class="form-row" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" name="item_id" value="{{ it.id }}" {{ 'checked' if it.id in picked else '' }}>
+          <span style="flex:1;font-weight:400;">{{ it.display_name(current_lang) }} <span style="color:var(--muted);">({{ t('inventory.stock') }}: {{ it.current_stock }}{% if it.unit %} {{ it.unit }}{% endif %})</span></span>
+          <input class="input" type="number" min="1" name="qty_{{ it.id }}" value="{{ picked.get(it.id, 1) }}" style="width:70px;" title="{{ t('services.qty_per_service') }}">
+        </label>
+        {% endfor %}
+      </div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;">{{ t('common.save') }}</button>
+    </form>
+  </details>
+  {% endif %}
 </div>
 {% endfor %}
 {% endblock %}

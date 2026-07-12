@@ -208,6 +208,8 @@ def register_commands(app):
             ("services", "can_standalone", "BOOLEAN DEFAULT 1"),
             ("services", "can_add_during_visit", "BOOLEAN DEFAULT 1"),
             ("services", "device_id", "INTEGER"),
+            ("store_items", "purchase_unit", "VARCHAR(40)"),
+            ("store_items", "units_per_purchase", "INTEGER DEFAULT 1"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
