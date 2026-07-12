@@ -195,6 +195,17 @@ def register_commands(app):
             ("vaccine_inventory", "mfg_date", "DATE"),
             ("vaccine_inventory", "receipt_reason", "VARCHAR(20) DEFAULT 'opening'"),
             ("purchase_order_items", "vaccine_brand_id", "INTEGER"),
+            ("services", "service_type", "VARCHAR(20) DEFAULT 'other'"),
+            ("services", "duration_minutes", "INTEGER"),
+            ("services", "cost", "FLOAT"),
+            ("services", "needs_doctor", "BOOLEAN DEFAULT 1"),
+            ("services", "needs_device", "BOOLEAN DEFAULT 0"),
+            ("services", "needs_report", "BOOLEAN DEFAULT 0"),
+            ("services", "needs_consumables", "BOOLEAN DEFAULT 0"),
+            ("services", "needs_booking", "BOOLEAN DEFAULT 0"),
+            ("services", "needs_approval", "BOOLEAN DEFAULT 0"),
+            ("services", "can_standalone", "BOOLEAN DEFAULT 1"),
+            ("services", "can_add_during_visit", "BOOLEAN DEFAULT 1"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -227,6 +238,7 @@ def register_commands(app):
         except Exception:  # noqa: BLE001
             pass
         _seed_visit_types_safe()
+        _backfill_service_types_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -360,6 +372,20 @@ def _seed_visit_types_safe():
     try:
         from app.utils.visit_types import ensure_seeded
         ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _backfill_service_types_safe():
+    """Give services created before the Service Engine a sensible service_type
+    derived from their accounting category (idempotent, best-effort)."""
+    try:
+        from app.models import Service, service_type_for_category
+        for svc in Service.query.filter(
+                (Service.service_type.is_(None)) | (Service.service_type == "other")).all():
+            derived = service_type_for_category(svc.category)
+            if derived != "other":
+                svc.service_type = derived
     except Exception:  # noqa: BLE001
         pass
 

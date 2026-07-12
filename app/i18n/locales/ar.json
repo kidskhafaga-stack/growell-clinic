@@ -1061,7 +1061,21 @@
     "visit_type_services": "تسعير أنواع الزيارة",
     "visit_type_hint": "اربط كل نوع زيارة بالخدمة اللي بتحدد سعره الأساسي (وبيتطبق سعر كل دكتور). سيبه فاضي لو مفيش سعر أساسي (مثلاً التطعيم — بيتحاسب لوحده).",
     "no_charge": "بدون سعر أساسي",
-    "visit_types_saved": "تم حفظ تسعير أنواع الزيارة"
+    "visit_types_saved": "تم حفظ تسعير أنواع الزيارة",
+    "service_type": "نوع الخدمة",
+    "cost": "التكلفة",
+    "duration": "المدة (دقيقة)",
+    "workflow": "خصائص سير العمل",
+    "profit": "الربح",
+    "needs_visit": "يتطلب كشف",
+    "f_needs_doctor": "يحتاج طبيب",
+    "f_needs_device": "يحتاج جهاز",
+    "f_needs_report": "يحتاج تقرير",
+    "f_needs_consumables": "يستهلك مخزون",
+    "f_needs_booking": "يحتاج حجز",
+    "f_needs_approval": "يحتاج موافقة",
+    "f_can_standalone": "يُباع بدون كشف",
+    "f_can_add_during_visit": "يُضاف أثناء الزيارة"
   },
   "commission_types": {
     "none": "بدون",
@@ -2240,5 +2254,15 @@
     "bad_key": "مفتاح غير صالح",
     "dup_key": "المفتاح موجود بالفعل",
     "key_hint": "حروف إنجليزية صغيرة وأرقام و_ فقط، وثابت بعد الإنشاء."
+  },
+  "service_types": {
+    "consultation": "كشف",
+    "followup": "متابعة",
+    "procedure": "إجراء",
+    "vaccination": "تطعيم",
+    "diagnostic": "فحص تشخيصي",
+    "session": "جلسة",
+    "product": "منتج",
+    "other": "أخرى"
   }
 }

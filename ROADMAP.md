@@ -178,6 +178,19 @@ eInvoice، واتساب Cloud API، AI، RBAC+Audit، تقارير، Light/Dark+
 - ⏭️ **Phase 3–7:** تعدد المخازن + Stock Transfer · تقارير (Traceability/Item Card/Valuation/Reorder) ·
   ترقيم مستندات (يدوي/تلقائي) · Seed علمي + جداول (مصر off-by-default).
 
+### 🧩 محرّك الأعمال (Business Engine) — رؤية HIS، مراحل
+الفكرة: كل خدمة/جهاز/مستهلك = **بيانات وإعدادات** مش كود، عشان أي خدمة جديدة تتضاف من الشاشة.
+- ✅ **Phase A — Service Engine (PR #87):** الخدمة بقت كيان غني — `service_type` +
+  خصائص workflow (needs_doctor/device/report/consumables/booking/approval ·
+  can_standalone · can_add_during_visit) + `cost` + `duration` + **ربحية محسوبة**
+  (سعر − تكلفة − عمولة) + شاشة إدارة كاملة + backfill لكل الخدمات القديمة.
+- ⏭️ **Phase B — Consumables + Unit Conversion:** أنواع أصناف موحّدة + تحويل وحدات
+  (Box→Vial→Dose) + ربط مستهلكات بالخدمة تُخصم تلقائياً عند التنفيذ.
+- ⏭️ **Phase C — Devices + Measurement Templates (يدوي):** تعريف أجهزة + قوالب قياسات +
+  إدخال يدوي للنتائج + تقرير. (استيراد HL7/XML/SDK — Spirobank II مدعوم — Phase لاحقة.)
+- ⏭️ **Phase D — Financial/Accounting Engine:** شجرة حسابات + قيود تلقائية + مراكز تكلفة +
+  Credit Notes + Approval workflow.
+
 **🔴 مؤجّل صراحةً (v3+ — منعاً للـ Scope Creep):** تكامل الأجهزة الفعلي
 (SDK/COM/LAN auto-import) + calibration، HL7/FHIR/DICOM، Multi-branch/company كامل،
 الـ Builder Engines والـ Workflow/Rule Engine العام، MFA/DR، SaaS/Mobile/Marketplace،

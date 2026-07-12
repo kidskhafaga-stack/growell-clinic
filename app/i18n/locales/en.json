@@ -1061,7 +1061,21 @@
     "visit_type_services": "Visit type pricing",
     "visit_type_hint": "Map each visit type to the service that sets its base charge (per-doctor price applies). Leave blank for no base charge (e.g. vaccination — billed separately).",
     "no_charge": "No base charge",
-    "visit_types_saved": "Visit type pricing saved"
+    "visit_types_saved": "Visit type pricing saved",
+    "service_type": "Service type",
+    "cost": "Cost",
+    "duration": "Duration (min)",
+    "workflow": "Workflow properties",
+    "profit": "Profit",
+    "needs_visit": "Requires a visit",
+    "f_needs_doctor": "Needs doctor",
+    "f_needs_device": "Needs device",
+    "f_needs_report": "Needs report",
+    "f_needs_consumables": "Consumes stock",
+    "f_needs_booking": "Needs booking",
+    "f_needs_approval": "Needs approval",
+    "f_can_standalone": "Sold standalone",
+    "f_can_add_during_visit": "Add during visit"
   },
   "commission_types": {
     "none": "None",
@@ -2240,5 +2254,15 @@
     "bad_key": "Invalid key",
     "dup_key": "Key already exists",
     "key_hint": "Lowercase letters, digits and _ only; fixed after creation."
+  },
+  "service_types": {
+    "consultation": "Consultation",
+    "followup": "Follow-up",
+    "procedure": "Procedure",
+    "vaccination": "Vaccination",
+    "diagnostic": "Diagnostic",
+    "session": "Session",
+    "product": "Product",
+    "other": "Other"
   }
 }
