@@ -907,7 +907,20 @@
     "receipt_multi_hint": "Record several items in a single receipt — each line becomes a batch sharing the same reason, supplier and date.",
     "receipt_items": "Receipt items",
     "add_line": "Add line",
-    "post_receipt": "Post receipt"
+    "post_receipt": "Post receipt",
+    "pricing_units": "Pricing & units",
+    "pricing_saved": "Item data saved",
+    "purchase_price": "Purchase price",
+    "sell_price": "Sell price",
+    "doctor_fee": "Doctor's fee",
+    "max_discount": "Max discount",
+    "purchase_unit": "Addition (purchase) unit",
+    "dispense_unit": "Dispense unit",
+    "units_per_purchase_hint": "Dispense units per one purchase unit (e.g. 10 doses per vial).",
+    "profit": "Profit",
+    "profit_margin": "Profit margin",
+    "clinic_net": "Clinic net",
+    "doses_per_vial": "Dispense units per purchase unit"
   },
   "instatus": {
     "ok": "In stock",

@@ -32,6 +32,54 @@
   {% endif %}
 </div>
 
+<!-- Pricing & units (editable straight from the card) -->
+<div class="card gc-scale-in" style="margin-bottom:16px;"
+     x-data="pricing({{ brand.purchase_price or 0 }}, {{ brand.price or 0 }}, {{ brand.doctor_fee or 0 }})">
+  <h2 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('inventory.pricing_units') }}</h2>
+  <form method="post" action="{{ url_for('inventory.item_pricing', brand_id=brand.id) }}">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('inventory.purchase_price') }}</label>
+        <input class="input" type="number" step="0.01" min="0" name="purchase_price"
+               x-model.number="cost" value="{{ brand.purchase_price if brand.purchase_price is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('inventory.sell_price') }}</label>
+        <input class="input" type="number" step="0.01" min="0" name="price"
+               x-model.number="sell" value="{{ brand.price if brand.price is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('inventory.doctor_fee') }}</label>
+        <input class="input" type="number" step="0.01" min="0" name="doctor_fee"
+               x-model.number="fee" value="{{ brand.doctor_fee if brand.doctor_fee is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('inventory.max_discount') }} (%)</label>
+        <input class="input" type="number" step="0.01" min="0" name="max_discount"
+               value="{{ brand.max_discount if brand.max_discount is not none else '' }}"></div>
+      <div class="form-row"><label>{{ t('inventory.purchase_unit') }}</label>
+        <input class="input" name="purchase_unit" value="{{ brand.purchase_unit or '' }}"
+               placeholder="{{ brand.purchase_unit_label(current_lang) }}"></div>
+      <div class="form-row"><label>{{ t('inventory.dispense_unit') }}</label>
+        <input class="input" name="dispense_unit" value="{{ brand.dispense_unit or '' }}"
+               placeholder="{{ brand.dispense_unit_label(current_lang) }}"></div>
+      <div class="form-row"><label>{{ t('inventory.doses_per_vial') }}</label>
+        <input class="input" type="number" min="1" name="doses_per_vial" value="{{ brand.doses_per_vial or 1 }}">
+        <div class="hint">{{ t('inventory.units_per_purchase_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('inventory.reorder_level') }}</label>
+        <input class="input" type="number" min="0" name="min_stock" value="{{ brand.min_stock if brand.min_stock is not none else '' }}"></div>
+    </div>
+    <!-- Live profit readout: profit = sell − cost; margin = profit / sell. -->
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:6px 0 12px;">
+      <div class="pl-box"><span class="pl-k">{{ t('inventory.profit') }}</span>
+        <span class="pl-v" x-text="(sell - cost).toFixed(2)"></span></div>
+      <div class="pl-box"><span class="pl-k">{{ t('inventory.profit_margin') }}</span>
+        <span class="pl-v" x-text="sell > 0 ? ((sell - cost) / sell * 100).toFixed(1) + '%' : '—'"></span></div>
+      <div class="pl-box"><span class="pl-k">{{ t('inventory.clinic_net') }}</span>
+        <span class="pl-v" x-text="(sell - cost - fee).toFixed(2)"></span></div>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+<style>
+  .pl-box { display:flex; flex-direction:column; gap:2px; }
+  .pl-k { color:var(--muted); font-size:.78rem; }
+  .pl-v { font-size:1.25rem; font-weight:800; }
+</style>
+
 <!-- Batches (soonest expiry first = FEFO dispense order) -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
   <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-list-ul"></i> {{ t('inventory.batches') }}</h2>
@@ -100,4 +148,12 @@
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('inventory.receipt_save') }}</button>
   </form>
 </details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function pricing(cost, sell, fee) {
+    return { cost: cost || 0, sell: sell || 0, fee: fee || 0 };
+  }
+</script>
 {% endblock %}
