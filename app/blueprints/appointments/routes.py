@@ -103,6 +103,9 @@ def index():
     # consistent with the doctor statement screen).
     fin = _finance_summary(doctor_id, on_date)
 
+    # Visit-type breakdown (كشف/متابعة/تطعيم…) + new vs returning, day & month.
+    breakdown = _visit_breakdown(doctor_id, on_date)
+
     # Active waiting-list entries (optionally filtered to the selected doctor).
     wl_query = WaitlistEntry.query.filter_by(status="active")
     if doctor_id:
@@ -128,6 +131,7 @@ def index():
         appt_types=APPOINTMENT_TYPES,
         pay=pay,
         fin=fin,
+        breakdown=breakdown,
     )
 
 
@@ -151,6 +155,72 @@ def _finance_summary(doctor_id, on_date):
         "today": agg(base.filter(Invoice.invoice_date == on_date).all()),
         "month": agg(base.filter(Invoice.invoice_date >= month_start,
                                  Invoice.invoice_date <= on_date).all()),
+    }
+
+
+def _visit_breakdown(doctor_id, on_date):
+    """Visit-type breakdown for the board (doctor + reception): how many of each
+    visit type (كشف / متابعة / تطعيم …) and how many new vs returning patients —
+    today and month-to-date. Whole panel and its month/new-old parts are each
+    show/hide-able from settings so the board never gets crowded."""
+    if Setting.get("board_show_breakdown", "1") == "0":
+        return {"enabled": False}
+
+    from collections import Counter
+    from flask import g
+    from app.utils.visit_types import active_types, label as vt_label
+
+    lang = getattr(g, "lang", "ar")
+    show_month = Setting.get("board_breakdown_month", "1") != "0"
+    show_newold = Setting.get("board_breakdown_newold", "1") != "0"
+    month_start = on_date.replace(day=1)
+
+    # Real visits only — a cancelled or no-show slot is not a patient seen.
+    base = Appointment.query.filter(
+        Appointment.status.notin_(("cancelled", "no_show")))
+    if doctor_id:
+        base = base.filter(Appointment.doctor_id == doctor_id)
+    day_appts = base.filter(Appointment.appt_date == on_date).all()
+    month_appts = base.filter(Appointment.appt_date >= month_start,
+                              Appointment.appt_date <= on_date).all()
+
+    day_c = Counter(a.appt_type for a in day_appts)
+    month_c = Counter(a.appt_type for a in month_appts)
+    rows, seen = [], set()
+    for vt in active_types():
+        rows.append({"key": vt.key, "label": vt.display_name(lang),
+                     "color": vt.color, "day": day_c.get(vt.key, 0),
+                     "month": month_c.get(vt.key, 0)})
+        seen.add(vt.key)
+    for k in set(day_c) | set(month_c):
+        if k not in seen:
+            rows.append({"key": k, "label": vt_label(k, lang), "color": "blue",
+                         "day": day_c.get(k, 0), "month": month_c.get(k, 0)})
+
+    def _newold(appts, start):
+        """New = the patient's first-ever real visit (any doctor) falls inside
+        the window; otherwise they are a returning patient."""
+        pids = {a.patient_id for a in appts}
+        if not pids:
+            return {"new": 0, "old": 0, "total": 0}
+        firsts = dict(
+            db.session.query(Appointment.patient_id,
+                             db.func.min(Appointment.appt_date))
+            .filter(Appointment.patient_id.in_(pids),
+                    Appointment.status.notin_(("cancelled", "no_show")))
+            .group_by(Appointment.patient_id).all())
+        new = sum(1 for p in pids
+                  if firsts.get(p) and start <= firsts[p] <= on_date)
+        return {"new": new, "old": len(pids) - new, "total": len(pids)}
+
+    return {
+        "enabled": True,
+        "show_month": show_month,
+        "show_newold": show_newold,
+        "rows": rows,
+        "total": {"day": len(day_appts), "month": len(month_appts)},
+        "newold": {"day": _newold(day_appts, on_date),
+                   "month": _newold(month_appts, month_start)},
     }
 
 
