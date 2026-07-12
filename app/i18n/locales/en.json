@@ -2338,6 +2338,7 @@
     "remaining": "Remaining",
     "pay_full": "Pay in full",
     "pay_later": "Collect later",
-    "confirm": "Confirm & issue invoice"
+    "confirm": "Confirm & issue invoice",
+    "done": "Done"
   }
 }

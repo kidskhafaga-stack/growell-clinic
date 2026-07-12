@@ -75,6 +75,15 @@
 
   <div class="noprint center" style="margin-top:14px;">
     <button onclick="window.print()" style="padding:8px 16px;font-size:13px;cursor:pointer;">🖨 {{ t('invoices.print') }}</button>
+    {% if back_url %}<a href="{{ back_url }}" style="padding:8px 16px;font-size:13px;margin-inline-start:6px;text-decoration:none;border:1px solid #999;border-radius:4px;color:#000;">✕ {{ t('checkout.done') }}</a>{% endif %}
   </div>
+  {% if back_url %}
+  <script>
+    // Print-and-close: after the print dialog closes, return to the board.
+    window.addEventListener('afterprint', function () {
+      setTimeout(function () { window.location.href = {{ back_url|tojson }}; }, 300);
+    });
+  </script>
+  {% endif %}
 </body>
 </html>
