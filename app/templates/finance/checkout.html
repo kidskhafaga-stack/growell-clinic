@@ -1,0 +1,492 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('finance.checkout') }}{% endblock %}
+{% block page_heading %}{{ t('finance.checkout') }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:900px;">
+  
+  <!-- البحث عن المريض -->
+  <div class="card gc-scale-in" style="margin-bottom:18px;">
+    <h2 class="section-title">🔍 {{ t('finance.search_patient') }}</h2>
+    
+    <div class="form-row">
+      <label>{{ t('appointments.patient') }}</label>
+      <div style="position:relative;">
+        <input type="text" 
+               id="patientSearch" 
+               class="input" 
+               placeholder="{{ t('finance.search_by_name_or_phone') }}"
+               autocomplete="off"
+               style="width:100%;">
+        
+        <!-- نتائج البحث -->
+        <div id="searchResults" class="search-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ccc; border-radius:4px; max-height:200px; overflow-y:auto; z-index:10; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- بيانات الحجز والفاتورة -->
+  {% if appointment %}
+  <form method="post" action="{{ url_for('finance.process_checkout', appt_id=appointment.id) }}" id="checkoutForm">
+    
+    <!-- معلومات الحجز -->
+    <div class="card gc-scale-in" style="margin-bottom:18px;">
+      <h2 class="section-title">📋 {{ t('finance.booking_details') }}</h2>
+      
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:16px; margin-bottom:16px;">
+        <div>
+          <label class="form-label" style="font-weight:600; margin-bottom:4px; display:block;">{{ t('appointments.patient') }}</label>
+          <div style="padding:10px; background:#f9f9f9; border-radius:4px;">
+            <strong>{{ appointment.patient.display_name(current_lang) }}</strong><br>
+            <small style="color:#666;">{{ appointment.patient.patient_number }}</small>
+          </div>
+        </div>
+        
+        <div>
+          <label class="form-label" style="font-weight:600; margin-bottom:4px; display:block;">{{ t('appointments.doctor') }}</label>
+          <select class="select" name="doctor_id" required>
+            <option value="">-- {{ t('common.select') }} --</option>
+            {% for doc in doctors %}
+            <option value="{{ doc.id }}" {% if doc.id == appointment.doctor_id %}selected{% endif %}>
+              {{ doc.display_name(current_lang) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div>
+          <label class="form-label" style="font-weight:600; margin-bottom:4px; display:block;">{{ t('appointments.date_time') }}</label>
+          <div style="padding:10px; background:#f9f9f9; border-radius:4px;">
+            <strong>{{ appointment.appt_date }} - {{ appointment.appt_time }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الخدمات -->
+    <div class="card gc-scale-in" style="margin-bottom:18px;">
+      <h2 class="section-title">🛒 {{ t('finance.services') }}</h2>
+      
+      {% if invoice_items %}
+      <table class="table" style="margin-bottom:12px;">
+        <thead>
+          <tr>
+            <th>{{ t('finance.service') }}</th>
+            <th>{{ t('finance.price') }}</th>
+            <th style="text-align:center;">{{ t('finance.qty') }}</th>
+            <th style="text-align:right;">{{ t('finance.total') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set subtotal = 0 %}
+          {% for item in invoice_items %}
+          <tr class="service-item" data-price="{{ item.gross }}">
+            <td>{{ item.description }}</td>
+            <td dir="ltr">{{ "%.2f"|format(item.unit_price) }}</td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(item.gross) }}</td>
+          </tr>
+          {% set subtotal = subtotal + item.gross %}
+          {% endfor %}
+        </tbody>
+      </table>
+      
+      <div style="text-align:right; padding:12px; background:#f9f9f9; border-radius:4px; margin-top:12px;">
+        <strong style="font-size:1.1rem;">{{ t('finance.subtotal') }}: <span id="subtotal" dir="ltr">{{ "%.2f"|format(subtotal) }}</span> {{ t('finance.currency') }}</strong>
+      </div>
+      {% else %}
+      <div class="empty-state">{{ t('finance.no_services') }}</div>
+      {% endif %}
+    </div>
+
+    <!-- الخصم -->
+    <div class="card gc-scale-in" style="margin-bottom:18px;">
+      <h2 class="section-title">🏷️ {{ t('finance.discount') }} ({{ t('common.optional') }})</h2>
+      
+      <div class="form-row">
+        <label>{{ t('finance.select_discount') }}</label>
+        <select class="select" name="discount_id" id="discountSelect" onchange="applyDiscount()">
+          <option value="">-- {{ t('finance.no_discount') }} --</option>
+          {% for discount in discounts %}
+          <option value="{{ discount.id }}" 
+                  data-value="{{ discount.value }}"
+                  data-is-percent="{{ discount.is_percent|lower }}">
+            {{ discount.display_name() }}
+            ({% if discount.is_percent %}{{ discount.value }}%{% else %}{{ "%.2f"|format(discount.value) }} {{ t('finance.currency') }}{% endif %})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div style="margin-top:12px; padding:12px; background:#f9f9f9; border-radius:4px;">
+        <strong>{{ t('finance.discount_amount') }}: -<span id="discountAmount" dir="ltr">0.00</span> {{ t('finance.currency') }}</strong>
+      </div>
+    </div>
+
+    <!-- الإجمالي النهائي -->
+    <div class="card gc-scale-in" style="margin-bottom:18px; background:#f0f8ff; border-left:4px solid #0e7490;">
+      <h2 style="text-align:center; color:#0e7490; margin:0;">
+        💰 {{ t('finance.total') }}: <span id="totalAmount" dir="ltr">{{ "%.2f"|format(subtotal) }}</span> {{ t('finance.currency') }}
+      </h2>
+      <input type="hidden" name="total_amount" id="totalAmountInput" value="{{ "%.2f"|format(subtotal) }}">
+    </div>
+
+    <!-- طريقة الدفع -->
+    <div class="card gc-scale-in" style="margin-bottom:18px;">
+      <h2 class="section-title">💳 {{ t('finance.payment_method') }}</h2>
+      
+      <div class="form-row">
+        <label>{{ t('finance.payment_mode') }}</label>
+        <div style="display:flex; gap:20px;">
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="payment_mode" value="single" id="mode_single" checked onchange="togglePaymentMode()">
+            {{ t('finance.single_payment') }}
+          </label>
+          
+          <label style="display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="payment_mode" value="multiple" id="mode_multiple" onchange="togglePaymentMode()">
+            {{ t('finance.multiple_payments') }}
+          </label>
+        </div>
+      </div>
+
+      <!-- دفعة واحدة -->
+      <div id="singlePaymentSection" style="margin-top:16px;">
+        <div class="form-row">
+          <label>{{ t('finance.payment_method_type') }}</label>
+          <select class="select" name="single_method" id="singleMethod">
+            <option value="cash">💵 {{ t('payment_methods.cash') }}</option>
+            <option value="card">💳 {{ t('payment_methods.card') }}</option>
+            <option value="instapay">📱 {{ t('payment_methods.instapay') }}</option>
+            <option value="transfer">🏦 {{ t('payment_methods.transfer') }}</option>
+            <option value="wallet">👛 {{ t('payment_methods.wallet') }}</option>
+          </select>
+        </div>
+        
+        <div class="form-row">
+          <label>{{ t('finance.amount') }}</label>
+          <input type="number" 
+                 name="single_amount" 
+                 id="singleAmount"
+                 class="input" 
+                 readonly
+                 dir="ltr"
+                 value="{{ "%.2f"|format(subtotal) }}">
+        </div>
+      </div>
+
+      <!-- دفعات متعددة -->
+      <div id="multiplePaymentSection" style="display:none; margin-top:16px;">
+        <div id="paymentsContainer"></div>
+        
+        <button type="button" class="btn btn-outline" onclick="addPaymentMethod()" style="margin-top:12px; width:100%;">
+          ➕ {{ t('finance.add_payment_method') }}
+        </button>
+
+        <!-- ملخص الدفع المتعدد -->
+        <div style="margin-top:16px; padding:12px; background:#f0f8ff; border-radius:4px;">
+          <h4 style="margin-top:0;">📊 {{ t('finance.payment_summary') }}</h4>
+          <table class="table" style="margin:0; font-size:0.9rem;">
+            <tr>
+              <td>{{ t('finance.total') }}</td>
+              <td style="text-align:right;"><strong id="multiTotal" dir="ltr">0.00</strong> {{ t('finance.currency') }}</td>
+            </tr>
+            <tr>
+              <td>{{ t('finance.paid') }}</td>
+              <td style="text-align:right;"><strong id="multiPaid" dir="ltr">0.00</strong> {{ t('finance.currency') }}</td>
+            </tr>
+            <tr>
+              <td>{{ t('finance.balance') }}</td>
+              <td style="text-align:right;"><strong id="multiBalance" dir="ltr">0.00</strong> {{ t('finance.currency') }}</td>
+            </tr>
+            <tr>
+              <td>{{ t('finance.status') }}</td>
+              <td style="text-align:right;"><strong id="multiStatus">🟡 {{ t('finance.incomplete') }}</strong></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- أزرار الإجراء -->
+    <div style="display:flex; gap:12px; margin-top:24px;">
+      <button type="submit" class="btn btn-primary" style="flex:1; padding:12px; font-size:16px;">
+        ✅ {{ t('finance.confirm_payment') }}
+      </button>
+      <button type="button" class="btn btn-outline" style="flex:1; padding:12px; font-size:16px;" onclick="window.history.back()">
+        ❌ {{ t('common.cancel') }}
+      </button>
+    </div>
+
+  </form>
+
+  {% else %}
+  <div class="card" style="text-align:center; padding:40px;">
+    <i class="bi bi-info-circle" style="font-size:3rem; color:#666; display:block; margin-bottom:12px;"></i>
+    <p style="color:#666; font-size:1.1rem;">
+      ⚠️ {{ t('finance.select_patient_first') }}
+    </p>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+  .container {
+    padding: 20px;
+  }
+
+  .form-row {
+    margin-bottom: 12px;
+  }
+
+  .form-row label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .form-row input,
+  .form-row select {
+    width: 100%;
+  }
+
+  .search-results {
+    border-radius: 4px;
+    background: white;
+  }
+
+  .search-result {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+  }
+
+  .search-result:hover {
+    background: #f5f5f5;
+  }
+
+  .search-result:last-child {
+    border-bottom: none;
+  }
+
+  .payment-method-card {
+    border: 1px solid #ddd;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    background: #fafafa;
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table th {
+    background: #f9f9f9;
+    padding: 8px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #ddd;
+  }
+
+  .table td {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+  }
+</style>
+
+<script>
+// البحث عن المريض
+let searchTimeout;
+document.getElementById('patientSearch')?.addEventListener('input', function(e) {
+  clearTimeout(searchTimeout);
+  const q = e.target.value.trim();
+  
+  if (q.length < 2) {
+    document.getElementById('searchResults').style.display = 'none';
+    return;
+  }
+  
+  searchTimeout = setTimeout(async () => {
+    try {
+      const response = await fetch(`{{ url_for('appointments.patient_search') }}?q=${encodeURIComponent(q)}`);
+      const data = await response.json();
+      const results = document.getElementById('searchResults');
+      
+      if (data.patients && data.patients.length > 0) {
+        results.innerHTML = data.patients.map(p => `
+          <div class="search-result" onclick="selectPatient(${p.id}, '${p.name}')">
+            <strong>${p.name}</strong><br>
+            <small style="color:#666;">☎️ ${p.number}</small>
+          </div>
+        `).join('');
+        results.style.display = 'block';
+      } else {
+        results.style.display = 'none';
+      }
+    } catch(e) {
+      console.error('Search error:', e);
+    }
+  }, 300);
+});
+
+// اختيار المريض
+function selectPatient(patientId, patientName) {
+  document.getElementById('patientSearch').value = patientName;
+  document.getElementById('searchResults').style.display = 'none';
+  
+  // تحديث النموذج بالمريض الجديد
+  location.href = `{{ url_for('finance.checkout') }}?appt_id={{ appointment.id if appointment else '' }}&patient_id=${patientId}`;
+}
+
+// تبديل نمط الدفع
+function togglePaymentMode() {
+  const mode = document.querySelector('input[name="payment_mode"]:checked').value;
+  
+  if (mode === 'single') {
+    document.getElementById('singlePaymentSection').style.display = 'block';
+    document.getElementById('multiplePaymentSection').style.display = 'none';
+  } else {
+    document.getElementById('singlePaymentSection').style.display = 'none';
+    document.getElementById('multiplePaymentSection').style.display = 'block';
+    renderPaymentMethods();
+  }
+}
+
+// إضافة طريقة دفع جديدة
+function addPaymentMethod() {
+  const container = document.getElementById('paymentsContainer');
+  const methodNum = container.children.length + 1;
+  
+  const html = `
+    <div class="payment-method-card" id="payment_${methodNum}">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h4 style="margin:0;">💳 {{ t('finance.payment_method') }} #${methodNum}</h4>
+        <button type="button" class="btn btn-outline btn-sm" onclick="removePaymentMethod('payment_${methodNum}')">
+          🗑️ {{ t('common.delete') }}
+        </button>
+      </div>
+      
+      <div class="form-row">
+        <label>{{ t('finance.type') }}</label>
+        <select class="select" name="method_${methodNum}" onchange="updatePaymentSummary()">
+          <option value="">-- {{ t('common.select') }} --</option>
+          <option value="cash">💵 {{ t('payment_methods.cash') }}</option>
+          <option value="card">💳 {{ t('payment_methods.card') }}</option>
+          <option value="instapay">📱 {{ t('payment_methods.instapay') }}</option>
+          <option value="transfer">🏦 {{ t('payment_methods.transfer') }}</option>
+          <option value="wallet">👛 {{ t('payment_methods.wallet') }}</option>
+        </select>
+      </div>
+      
+      <div class="form-row">
+        <label>{{ t('finance.amount') }}</label>
+        <input type="number" 
+               name="amount_${methodNum}" 
+               class="input"
+               step="0.01"
+               onchange="updatePaymentSummary()"
+               placeholder="0.00"
+               dir="ltr">
+      </div>
+      
+      <div class="payment-extra-options" id="extra_${methodNum}" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #ddd;">
+        <div class="form-row">
+          <label>{{ t('finance.due_date') }}</label>
+          <input type="date" name="due_date_${methodNum}" class="input">
+        </div>
+        <div class="form-row">
+          <label>{{ t('common.notes') }}</label>
+          <input type="text" name="notes_${methodNum}" class="input" placeholder="{{ t('finance.cheque_number') }}">
+        </div>
+      </div>
+    </div>
+  `;
+  
+  container.insertAdjacentHTML('beforeend', html);
+  updatePaymentSummary();
+}
+
+// حذف طريقة دفع
+function removePaymentMethod(id) {
+  document.getElementById(id)?.remove();
+  updatePaymentSummary();
+}
+
+// تحديث ملخص الدفع
+function updatePaymentSummary() {
+  const totalAmount = parseFloat(document.getElementById('totalAmountInput').value) || 0;
+  let paidAmount = 0;
+  
+  document.querySelectorAll('input[name^="amount_"]').forEach(input => {
+    paidAmount += parseFloat(input.value) || 0;
+  });
+  
+  const balance = totalAmount - paidAmount;
+  let status = '🟡 {{ t("finance.incomplete") }}';
+  
+  if (balance === 0) {
+    status = '✅ {{ t("finance.paid_full") }}';
+  } else if (balance < 0) {
+    status = '⚠️ {{ t("finance.overpaid") }}';
+  }
+  
+  document.getElementById('multiTotal').textContent = totalAmount.toFixed(2);
+  document.getElementById('multiPaid').textContent = paidAmount.toFixed(2);
+  document.getElementById('multiBalance').textContent = Math.abs(balance).toFixed(2);
+  document.getElementById('multiStatus').textContent = status;
+}
+
+// تطبيق الخصم
+function applyDiscount() {
+  const select = document.getElementById('discountSelect');
+  const option = select.options[select.selectedIndex];
+  
+  if (!option.value) {
+    document.getElementById('discountAmount').textContent = '0.00';
+    recalculateTotal();
+    return;
+  }
+  
+  const discValue = parseFloat(option.dataset.value);
+  const isPercent = option.dataset.isPercent === 'true';
+  const subtotal = parseFloat(document.getElementById('subtotal').textContent);
+  
+  const discAmount = isPercent ? (subtotal * discValue / 100) : discValue;
+  document.getElementById('discountAmount').textContent = discAmount.toFixed(2);
+  
+  recalculateTotal();
+}
+
+// إعادة حساب الإجمالي
+function recalculateTotal() {
+  const subtotal = parseFloat(document.getElementById('subtotal').textContent);
+  const discount = parseFloat(document.getElementById('discountAmount').textContent) || 0;
+  const total = Math.max(0, subtotal - discount);
+  
+  document.getElementById('totalAmount').textContent = total.toFixed(2);
+  document.getElementById('totalAmountInput').value = total.toFixed(2);
+  document.getElementById('singleAmount').value = total.toFixed(2);
+  
+  updatePaymentSummary();
+}
+
+// عرض طرق الدفع
+function renderPaymentMethods() {
+  const container = document.getElementById('paymentsContainer');
+  if (container.children.length === 0) {
+    addPaymentMethod();
+  }
+}
+</script>
+{% endblock %}
