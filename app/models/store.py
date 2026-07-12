@@ -19,7 +19,11 @@ class StoreItem(db.Model):
     name = db.Column(db.String(160), nullable=False)
     name_en = db.Column(db.String(160))
     category = db.Column(db.String(80))
-    unit = db.Column(db.String(40))            # علبة / قطعة / عبوة
+    unit = db.Column(db.String(40))            # dispense/stock unit (قطعة / جرعة)
+    # Unit conversion: buy in a bigger pack, stock/dispense in the small unit.
+    # e.g. purchase_unit="علبة", unit="قطعة", units_per_purchase=10.
+    purchase_unit = db.Column(db.String(40))
+    units_per_purchase = db.Column(db.Integer, default=1)
     barcode = db.Column(db.String(60))
     purchase_price = db.Column(db.Float)
     sell_price = db.Column(db.Float)
@@ -42,6 +46,10 @@ class StoreItem(db.Model):
     @property
     def is_low(self):
         return self.current_stock <= (self.reorder_level or 0)
+
+    def stock_from_purchase(self, packs):
+        """Convert a purchased quantity (in purchase units) to stock units."""
+        return int(packs or 0) * (self.units_per_purchase or 1)
 
     @property
     def stock_value(self):

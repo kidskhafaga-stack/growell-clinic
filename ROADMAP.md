@@ -184,8 +184,10 @@ eInvoice، واتساب Cloud API، AI، RBAC+Audit، تقارير، Light/Dark+
   خصائص workflow (needs_doctor/device/report/consumables/booking/approval ·
   can_standalone · can_add_during_visit) + `cost` + `duration` + **ربحية محسوبة**
   (سعر − تكلفة − عمولة) + شاشة إدارة كاملة + backfill لكل الخدمات القديمة.
-- ⏭️ **Phase B — Consumables + Unit Conversion:** أنواع أصناف موحّدة + تحويل وحدات
-  (Box→Vial→Dose) + ربط مستهلكات بالخدمة تُخصم تلقائياً عند التنفيذ.
+- ✅ **Phase B — Consumables + Unit Conversion (PR #89):** `ServiceConsumable`
+  (خدمة ↔ صنف مخزن + كمية) تُخصم تلقائياً من المخزن عند فوترة الخدمة (StockMovement out)؛
+  محرّر مستهلكات على كل خدمة؛ `StoreItem.purchase_unit`/`units_per_purchase` + `stock_from_purchase`
+  (علبة→قطعة). (خصم مستهلكات في تدفق الزيارة نفسه = تحسين لاحق.)
 - 🟡 **Phase C — Devices + Measurement Templates (يدوي):**
   - ✅ **C.1 Device Registry (PR #88):** `MedicalDevice` (نوع/شركة/موديل/اتصال/طريقة إدخال
     النتائج/سيريال/ضمان) + seed أجهزة المثال (Spirobank II · ECG · Echo · EEG · Ultrasound ·

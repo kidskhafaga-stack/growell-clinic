@@ -267,6 +267,8 @@ def store_item_new():
         name_en=(request.form.get("name_en") or "").strip() or None,
         category=(request.form.get("category") or "").strip() or None,
         unit=(request.form.get("unit") or "").strip() or None,
+        purchase_unit=(request.form.get("purchase_unit") or "").strip() or None,
+        units_per_purchase=request.form.get("units_per_purchase", type=int) or 1,
         barcode=(request.form.get("barcode") or "").strip() or None,
         purchase_price=request.form.get("purchase_price", type=float),
         sell_price=request.form.get("sell_price", type=float),
@@ -289,6 +291,8 @@ def store_item_edit(item_id):
     item.name_en = (request.form.get("name_en") or "").strip() or None
     item.category = (request.form.get("category") or "").strip() or None
     item.unit = (request.form.get("unit") or "").strip() or None
+    item.purchase_unit = (request.form.get("purchase_unit") or "").strip() or None
+    item.units_per_purchase = request.form.get("units_per_purchase", type=int) or 1
     item.barcode = (request.form.get("barcode") or "").strip() or None
     item.purchase_price = request.form.get("purchase_price", type=float)
     item.sell_price = request.form.get("sell_price", type=float)

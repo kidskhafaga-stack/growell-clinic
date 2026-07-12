@@ -1076,7 +1076,13 @@
     "f_needs_approval": "يحتاج موافقة",
     "f_can_standalone": "يُباع بدون كشف",
     "f_can_add_during_visit": "يُضاف أثناء الزيارة",
-    "device": "الجهاز"
+    "device": "الجهاز",
+    "consumables": "المستهلكات",
+    "consumables_hint": "الأصناف اللي تُخصم من المخزن تلقائياً كل مرة تُقدّم فيها الخدمة (مثلاً وظائف تنفس → تربينة FlowMIR).",
+    "consumables_saved": "تم حفظ المستهلكات",
+    "consumables_deducted": "تم خصم {n} صنف من المخزن",
+    "consumed_by": "استهلاك: {svc}",
+    "qty_per_service": "الكمية لكل خدمة"
   },
   "commission_types": {
     "none": "بدون",
@@ -1871,7 +1877,11 @@
     "diff": "الفرق",
     "stocktake_done": "تم الجرد — {n} تسوية",
     "stocktake_hint": "اكتب العدد الفعلي لكل صنف؛ الفروقات تتسجّل كتسويات تلقائياً.",
-    "save_stocktake": "حفظ الجرد"
+    "save_stocktake": "حفظ الجرد",
+    "unit_ph": "جرعة / قطعة",
+    "purchase_unit": "وحدة الشراء",
+    "purchase_unit_ph": "علبة / كرتونة",
+    "units_per_purchase": "عدد الوحدات في وحدة الشراء"
   },
   "purchases": {
     "title": "أوامر الشراء",

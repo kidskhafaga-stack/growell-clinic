@@ -87,6 +87,10 @@ class Service(db.Model):
         cascade="all, delete-orphan",
     )
     device = db.relationship("MedicalDevice", back_populates="services")
+    consumables = db.relationship(
+        "ServiceConsumable", back_populates="service",
+        cascade="all, delete-orphan",
+    )
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
@@ -166,6 +170,27 @@ class ServiceBundleItem(db.Model):
 
     def __repr__(self):
         return f"<BundleItem bundle={self.bundle_id} comp={self.component_id}>"
+
+
+class ServiceConsumable(db.Model):
+    """A store item consumed each time a service is delivered (e.g. Spirometry
+    burns one FlowMIR turbine). Deducted automatically when the service is
+    billed, in the item's dispense units."""
+    __tablename__ = "service_consumables"
+    __table_args__ = (
+        db.UniqueConstraint("service_id", "store_item_id", name="uq_service_consumable"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=False, index=True)
+    store_item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"), nullable=False, index=True)
+    quantity = db.Column(db.Integer, default=1, nullable=False)  # units per service
+
+    service = db.relationship("Service", back_populates="consumables")
+    item = db.relationship("StoreItem")
+
+    def __repr__(self):
+        return f"<ServiceConsumable svc={self.service_id} item={self.store_item_id}>"
 
 
 class DoctorServiceCommission(db.Model):

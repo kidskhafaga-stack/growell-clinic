@@ -102,14 +102,16 @@ def index():
 @module_required(MODULE)
 def services():
     services = Service.query.order_by(Service.sort_order, Service.name).all()
-    from app.models import ETA_ITEM_TYPES, SERVICE_TYPES, MedicalDevice
+    from app.models import ETA_ITEM_TYPES, SERVICE_TYPES, MedicalDevice, StoreItem
     devices = (MedicalDevice.query.filter_by(is_active=True)
                .order_by(MedicalDevice.name).all())
+    store_items = (StoreItem.query.filter_by(is_active=True)
+                   .order_by(StoreItem.name).all())
     return render_template(
         "finance/services.html", services=services,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
         item_types=ETA_ITEM_TYPES, service_types=SERVICE_TYPES, devices=devices,
-        doctors=_doctors(),
+        store_items=store_items, doctors=_doctors(),
         appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
     )
 
@@ -238,6 +240,25 @@ def service_bundle(service_id):
     return redirect(url_for("finance.services"))
 
 
+@finance_bp.route("/services/<int:service_id>/consumables", methods=["POST"])
+@module_required(MODULE)
+def service_consumables(service_id):
+    """Set the store items a service consumes on delivery (auto-deducted)."""
+    from app.models import ServiceConsumable, StoreItem
+    svc = db.get_or_404(Service, service_id)
+    svc.consumables.clear()
+    db.session.flush()
+    for item_id in request.form.getlist("item_id", type=int):
+        qty = request.form.get(f"qty_{item_id}", type=int) or 1
+        if item_id and db.session.get(StoreItem, item_id) is not None and qty > 0:
+            db.session.add(ServiceConsumable(
+                service_id=svc.id, store_item_id=item_id, quantity=qty))
+    svc.needs_consumables = bool(svc.consumables) or bool(request.form.getlist("item_id"))
+    db.session.commit()
+    flash(t("services.consumables_saved"), "success")
+    return redirect(url_for("finance.services"))
+
+
 # =======================================================================
 # Invoices & payments
 # =======================================================================
@@ -272,6 +293,28 @@ def _add_item_from_form(invoice, prefix=""):
     if service is not None:
         item.commission_amount = service.doctor_share(item.net, invoice.doctor)
     return item
+
+
+def _deduct_service_consumables(item, invoice):
+    """Post 'out' stock movements for the consumables a billed service burns
+    (qty × line quantity). Returns the number of items deducted."""
+    from app.models import StockMovement
+    service = item.service if item.service_id else None
+    if service is None or not service.consumables:
+        return 0
+    line_qty = item.quantity or 1
+    n = 0
+    for cons in service.consumables:
+        take = (cons.quantity or 1) * line_qty
+        if take <= 0 or cons.store_item_id is None:
+            continue
+        db.session.add(StockMovement(
+            item_id=cons.store_item_id, kind="out", qty=-abs(take),
+            reason=t("services.consumed_by", svc=service.display_name(getattr(g, "lang", "ar"))),
+            created_by=current_user.id,
+        ))
+        n += 1
+    return n
 
 
 @finance_bp.route("/invoices")
@@ -886,8 +929,12 @@ def invoice_item_add(invoice_id):
     else:
         invoice.items.append(item)
         invoice.recalc_status()
+        db.session.flush()
+        deducted = _deduct_service_consumables(item, invoice)
         db.session.commit()
         flash(t("invoices.item_added"), "success")
+        if deducted:
+            flash(t("services.consumables_deducted", n=deducted), "info")
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
 

@@ -1076,7 +1076,13 @@
     "f_needs_approval": "Needs approval",
     "f_can_standalone": "Sold standalone",
     "f_can_add_during_visit": "Add during visit",
-    "device": "Device"
+    "device": "Device",
+    "consumables": "Consumables",
+    "consumables_hint": "Items auto-deducted from stock each time the service is delivered (e.g. Spirometry → FlowMIR turbine).",
+    "consumables_saved": "Consumables saved",
+    "consumables_deducted": "Deducted {n} item(s) from stock",
+    "consumed_by": "Consumed by: {svc}",
+    "qty_per_service": "Qty per service"
   },
   "commission_types": {
     "none": "None",
@@ -1871,7 +1877,11 @@
     "diff": "Difference",
     "stocktake_done": "Stocktake done — {n} adjustments",
     "stocktake_hint": "Enter the counted quantity per item; differences post as adjustments automatically.",
-    "save_stocktake": "Save stocktake"
+    "save_stocktake": "Save stocktake",
+    "unit_ph": "dose / piece",
+    "purchase_unit": "Purchase unit",
+    "purchase_unit_ph": "box / carton",
+    "units_per_purchase": "Units per purchase unit"
   },
   "purchases": {
     "title": "Purchase orders",
