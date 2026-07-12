@@ -92,11 +92,12 @@ def services():
 @module_required(MODULE)
 def visit_type_services():
     """Map each visit type (كشف / استشارة / …) to its base-charge service."""
+    from app.utils.visit_types import active_types
     mapping = {}
-    for appt_type in APPOINTMENT_TYPES:
-        sid = request.form.get(f"vt_{appt_type}", type=int)
+    for vt in active_types():
+        sid = request.form.get(f"vt_{vt.key}", type=int)
         if sid:
-            mapping[appt_type] = sid
+            mapping[vt.key] = sid
     save_visit_type_service_map(mapping)
     db.session.commit()
     flash(t("services.visit_types_saved"), "success")

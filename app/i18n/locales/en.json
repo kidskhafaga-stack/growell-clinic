@@ -2222,5 +2222,23 @@
     "donation": "Donation",
     "return": "Return",
     "adjustment": "Adjustment"
+  },
+  "visit_types": {
+    "title": "Visit types",
+    "subtitle": "Manage visit types (consultation / follow-up / vaccination…) — name, duration, colour and status, and add your own.",
+    "key": "Key",
+    "name_ar": "Arabic name",
+    "name_en": "English name",
+    "minutes": "Duration (min)",
+    "color": "Colour",
+    "system": "System",
+    "add": "Add type",
+    "added": "Type added",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "cant_delete": "System types can't be deleted (you can deactivate them).",
+    "bad_key": "Invalid key",
+    "dup_key": "Key already exists",
+    "key_hint": "Lowercase letters, digits and _ only; fixed after creation."
   }
 }

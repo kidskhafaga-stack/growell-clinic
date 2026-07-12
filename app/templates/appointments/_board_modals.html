@@ -34,7 +34,7 @@
 
 {% macro type_select(model) %}
   <select class="select" x-model="{{ model }}">
-    {% for key in appt_types %}<option value="{{ key }}">{{ t('appt_types.' ~ key) }}</option>{% endfor %}
+    {% for vt in visit_types %}<option value="{{ vt.key }}">{{ vt.display_name(current_lang) }}</option>{% endfor %}
   </select>
 {% endmacro %}
 

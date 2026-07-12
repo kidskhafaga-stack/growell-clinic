@@ -34,8 +34,14 @@ DEFAULT_APPT_TYPE = "new"
 
 
 def type_minutes(appt_type, fallback=15):
-    meta = APPOINTMENT_TYPES.get(appt_type)
-    return meta["minutes"] if meta else fallback
+    """Default slot length for a visit type. Reads the DB catalogue first
+    (admin-editable), falling back to the built-in defaults."""
+    try:
+        from app.utils.visit_types import minutes as _resolved
+        return _resolved(appt_type, fallback)
+    except Exception:  # noqa: BLE001 - pre-DB / import cycles
+        meta = APPOINTMENT_TYPES.get(appt_type)
+        return meta["minutes"] if meta else fallback
 
 # Statuses that occupy a time slot (block double-booking).
 ACTIVE_STATUSES = {"scheduled", "waiting", "in_progress", "completed"}
@@ -113,8 +119,12 @@ class Appointment(db.Model):
 
     @property
     def type_color(self):
-        meta = APPOINTMENT_TYPES.get(self.appt_type)
-        return meta["color"] if meta else "blue"
+        try:
+            from app.utils.visit_types import color as _resolved
+            return _resolved(self.appt_type)
+        except Exception:  # noqa: BLE001
+            meta = APPOINTMENT_TYPES.get(self.appt_type)
+            return meta["color"] if meta else "blue"
 
     @staticmethod
     def valid_status(value):
@@ -122,3 +132,41 @@ class Appointment(db.Model):
 
     def __repr__(self):
         return f"<Appointment {self.appt_date} {self.time_label} p={self.patient_id}>"
+
+
+# Colours a visit type may use (map to the board's ``tt-*`` / ``edge-*`` classes).
+VISIT_TYPE_COLORS = ["blue", "green", "teal", "purple", "orange", "red",
+                     "yellow", "pink", "gray"]
+
+
+class VisitType(db.Model):
+    """Admin-editable catalogue of visit types (كشف / متابعة / تطعيم / …).
+
+    Replaces the hardcoded ``APPOINTMENT_TYPES`` dict: the built-in types are
+    seeded as ``is_system`` rows (their ``key`` is stable because some flows
+    special-case it, e.g. ``vaccination``/``consultation``), while the clinic
+    can add its own types and tune the label / duration / colour of any of them.
+    """
+    __tablename__ = "visit_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(60))
+    name_en = db.Column(db.String(60))
+    minutes = db.Column(db.Integer, default=15, nullable=False)
+    color = db.Column(db.String(12), default="blue", nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+
+    def display_name(self, lang="ar"):
+        name = self.name_en if lang == "en" else self.name_ar
+        if name:
+            return name
+        # System types fall back to their i18n label; custom types to the key.
+        from app.i18n import t
+        label = t("appt_types." + self.key)
+        return label if label != "appt_types." + self.key else self.key
+
+    def __repr__(self):
+        return f"<VisitType {self.key}>"

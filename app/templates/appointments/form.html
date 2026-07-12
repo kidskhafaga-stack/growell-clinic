@@ -92,8 +92,8 @@
       <div class="form-row">
         <label for="appt_type">{{ t('appointments.visit_type') }}</label>
         <select class="select" id="appt_type" name="appt_type">
-          {% for key, meta in appt_types.items() %}
-            <option value="{{ key }}" {{ 'selected' if (form.appt_type or 'new') == key else '' }}>{{ t('appt_types.' ~ key) }}</option>
+          {% for vt in visit_types %}
+            <option value="{{ vt.key }}" {{ 'selected' if (form.appt_type or 'new') == vt.key else '' }}>{{ vt.display_name(current_lang) }}</option>
           {% endfor %}
         </select>
         <div id="consultBanner" class="info-note" style="display:none;margin-top:8px;font-size:0.88rem;"></div>

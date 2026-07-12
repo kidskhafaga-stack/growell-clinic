@@ -52,7 +52,8 @@ MODULE = "appointments"
 
 def _appt_type(value):
     """Validate a posted appointment-type key, falling back to the default."""
-    return value if value in APPOINTMENT_TYPES else DEFAULT_APPT_TYPE
+    from app.utils.visit_types import valid_key
+    return value if valid_key(value) else DEFAULT_APPT_TYPE
 
 
 def _vaccine_brands():
