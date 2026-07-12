@@ -91,6 +91,25 @@ DEFAULT_BIRTHDAY_BODY = (
 )
 
 
+def _template_schedule(tpl, base=None):
+    """Compute when a template's message should go out, from its delay + fixed
+    hour settings. Returns a future datetime, or None for 'as soon as due'."""
+    from datetime import datetime as _dt, timedelta as _td
+    now = _dt.utcnow()
+    at = base or now
+    delay = (tpl.delay_days or 0, tpl.delay_hours or 0)
+    if delay != (0, 0):
+        at = at + _td(days=tpl.delay_days or 0, hours=tpl.delay_hours or 0)
+    if tpl.send_hour is not None:
+        at = at.replace(hour=max(0, min(23, tpl.send_hour)), minute=0,
+                        second=0, microsecond=0)
+        # If a fixed hour with no delay has already passed today, push to it
+        # anyway (dispatch_due will pick it up); keep it simple and forward-only.
+        if delay == (0, 0) and at < now:
+            at = at + _td(days=1)
+    return at if at > now else None
+
+
 class MessageTemplate(db.Model):
     """Reusable CRM message template for occasions (birthdays, greetings…).
 
@@ -106,6 +125,11 @@ class MessageTemplate(db.Model):
     body = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))          # optional attached image
     send_mode = db.Column(db.String(10), default="manual", nullable=False)
+    # Scheduling: delay after the trigger event (e.g. feedback N days/hours after
+    # the visit) and/or a fixed hour-of-day to send (e.g. birthday at 10:00).
+    delay_days = db.Column(db.Integer, default=0)
+    delay_hours = db.Column(db.Integer, default=0)
+    send_hour = db.Column(db.Integer)          # 0–23, or NULL for "as soon as due"
     is_system = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

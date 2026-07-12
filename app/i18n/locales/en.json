@@ -2090,7 +2090,11 @@
     "webhook_secret": "Webhook secret (for WaPilot)",
     "regen_secret": "Regenerate the secret on save",
     "webhook_urls": "Webhook URLs (copy into the provider console)",
-    "webhook_urls_hint": "Set the public base URL above first, then copy the matching URL into the provider's Webhook settings."
+    "webhook_urls_hint": "Set the public base URL above first, then copy the matching URL into the provider's Webhook settings.",
+    "delay_days": "Send after (days)",
+    "delay_hours": "+ hours",
+    "send_hour": "Send hour (0–23)",
+    "schedule_hint": "e.g. feedback 1 day after the visit → days=1. Birthday at 10:00 → send hour=10. Leave blank = send as soon as due."
   },
   "notif": {
     "title": "Notifications",
