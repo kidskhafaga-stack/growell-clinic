@@ -164,6 +164,17 @@ function tplEditor(id, occ){
                 </div>
               </div>
 
+              <!-- Scheduling: send N days/hours after the trigger, at a fixed hour -->
+              <div class="form-grid">
+                <div class="form-row"><label>{{ t('crm.delay_days') }}</label>
+                  <input class="input" type="number" min="0" name="delay_days" value="{{ tp.delay_days or 0 }}"></div>
+                <div class="form-row"><label>{{ t('crm.delay_hours') }}</label>
+                  <input class="input" type="number" min="0" max="23" name="delay_hours" value="{{ tp.delay_hours or 0 }}"></div>
+                <div class="form-row"><label>{{ t('crm.send_hour') }}</label>
+                  <input class="input" type="number" min="0" max="23" name="send_hour" value="{{ tp.send_hour if tp.send_hour is not none else '' }}" placeholder="—"></div>
+              </div>
+              <div class="hint" style="margin-top:-4px;">{{ t('crm.schedule_hint') }}</div>
+
               <div class="form-row"><label>{{ t('crm.image') }}</label>
                 {% if tp.image_url %}
                 <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;font-weight:400;color:var(--danger);">

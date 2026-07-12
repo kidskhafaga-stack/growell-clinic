@@ -393,6 +393,11 @@ def system_template_save(tpl_id):
     mode = (request.form.get("send_mode") or tpl.send_mode).strip()
     tpl.send_mode = mode if mode in SEND_MODES else tpl.send_mode
     tpl.is_active = bool(request.form.get("is_active"))
+    # Per-template scheduling: delay after the trigger + fixed hour of day.
+    tpl.delay_days = max(0, request.form.get("delay_days", type=int) or 0)
+    tpl.delay_hours = max(0, request.form.get("delay_hours", type=int) or 0)
+    sh = request.form.get("send_hour", type=int)
+    tpl.send_hour = max(0, min(23, sh)) if sh is not None else None
 
     if request.form.get("remove_image"):
         _remove_crm_image(tpl.image_url)
@@ -421,8 +426,11 @@ def send_birthday(patient_id):
         "patient": patient.display_name(lang),
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
+    from app.models.message import _template_schedule
+    btpl = wa.template_for("birthday")
+    schedule_at = _template_schedule(btpl) if btpl is not None else None
     log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
-                  template_type="birthday",
+                  template_type="birthday", scheduled_at=schedule_at,
                   image_url=wa.template_image("birthday"))
     db.session.commit()
     return render_template("messages/sent.html", log=log, appt=None)

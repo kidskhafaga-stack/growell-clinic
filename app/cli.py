@@ -210,6 +210,9 @@ def register_commands(app):
             ("services", "device_id", "INTEGER"),
             ("store_items", "purchase_unit", "VARCHAR(40)"),
             ("store_items", "units_per_purchase", "INTEGER DEFAULT 1"),
+            ("message_templates", "delay_days", "INTEGER DEFAULT 0"),
+            ("message_templates", "delay_hours", "INTEGER DEFAULT 0"),
+            ("message_templates", "send_hour", "INTEGER"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

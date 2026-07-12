@@ -536,8 +536,13 @@ def _send_feedback_survey(visit, force=False):
         "doctor": visit.doctor.display_name(lang) if visit.doctor else "",
         "link": wa.feedback_link(fb.token),
     })
+    # Honour the template's schedule (e.g. "send the survey N days after the
+    # visit"); None means send as soon as due.
+    from app.models.message import _template_schedule
+    schedule_at = _template_schedule(tpl) if tpl is not None else None
     return wa.send(body, phone, patient_id=visit.patient_id, user_id=current_user.id,
-                   template_type="feedback", image_url=wa.template_image("feedback"))
+                   template_type="feedback", image_url=wa.template_image("feedback"),
+                   scheduled_at=schedule_at)
 
 
 @visits_bp.route("/<int:visit_id>/send-survey", methods=["POST"])
