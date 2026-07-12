@@ -86,6 +86,7 @@
             {{ patient_avatar(p, 'sm') }}
             <div>
               <div class="name">{{ p.display_name(current_lang) }}</div>
+              {% if p.contact_phone %}<a class="num" href="tel:{{ p.contact_phone }}" dir="ltr" style="color:var(--muted);text-decoration:none;"><i class="bi bi-telephone"></i> {{ p.contact_phone }}{% if p.own_phone %} <span title="{{ t('patients.own_phone') }}">·</span>{% endif %}</a>{% endif %}
               {% if not p.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
             </div>
           </div>

@@ -10,7 +10,7 @@
         <template x-for="p in results" :key="p.id">
           <button type="button" class="mini-result gc-press" x-on:click="pickPatient(p)">
             <span x-text="p.name"></span>
-            <span style="color:var(--muted);font-size:0.85rem;" x-text="p.number + ' · ' + p.age"></span>
+            <span style="color:var(--muted);font-size:0.85rem;" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
           </button>
         </template>
       </div>
