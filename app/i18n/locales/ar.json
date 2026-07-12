@@ -890,7 +890,15 @@
     "reorder_level": "حد إعادة الطلب",
     "source": "المصدر",
     "value": "القيمة",
-    "receipt_save": "تسجيل الإضافة"
+    "receipt_save": "تسجيل الإضافة",
+    "add_purchase": "إضافة فاتورة شراء",
+    "define_item": "تعريف صنف",
+    "new_receipt": "إذن إضافة جديد",
+    "receipt_multi_added": "تم تسجيل إذن الإضافة ({n} صنف)",
+    "receipt_multi_hint": "سجّل أكثر من صنف في إذن واحد — كل سطر يتولّد منه دفعة (Batch) بنفس السبب والمورد والتاريخ.",
+    "receipt_items": "أصناف الإذن",
+    "add_line": "إضافة سطر",
+    "post_receipt": "ترحيل الإذن"
   },
   "instatus": {
     "ok": "متوفر",

@@ -890,7 +890,15 @@
     "reorder_level": "Reorder level",
     "source": "Source",
     "value": "Value",
-    "receipt_save": "Record receipt"
+    "receipt_save": "Record receipt",
+    "add_purchase": "Add purchase invoice",
+    "define_item": "Define item",
+    "new_receipt": "New goods receipt",
+    "receipt_multi_added": "Goods receipt posted ({n} items)",
+    "receipt_multi_hint": "Record several items in a single receipt — each line becomes a batch sharing the same reason, supplier and date.",
+    "receipt_items": "Receipt items",
+    "add_line": "Add line",
+    "post_receipt": "Post receipt"
   },
   "instatus": {
     "ok": "In stock",
