@@ -10,6 +10,12 @@
     <p class="page-sub" style="margin:0;">{{ t('inventory.subtitle') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary gc-press" href="{{ url_for('inventory.receipt_new') }}">
+      <i class="bi bi-box-arrow-in-down"></i> {{ t('inventory.goods_receipt') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.purchase_new') }}">
+      <i class="bi bi-receipt"></i> {{ t('inventory.add_purchase') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.manage') }}">
+      <i class="bi bi-tag"></i> {{ t('inventory.define_item') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}">
       <i class="bi bi-box-seam"></i> {{ t('store.open') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('inventory.suppliers') }}">
@@ -87,45 +93,15 @@
   </table>
 </div>
 
-<!-- Goods Receipt (إذن إضافة) — add stock outside a purchase, with a reason -->
-<details class="card gc-scale-in" style="animation-delay:0.14s;">
-  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-box-arrow-in-down"></i> {{ t('inventory.goods_receipt') }}</summary>
-  <p class="hint" style="margin-top:6px;">{{ t('inventory.goods_receipt_hint') }}</p>
-  <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:8px;"
-        x-data="batchForm({{ brands|map(attribute='id')|list|tojson }}, {{ brands|map(attribute='doses_per_vial')|list|tojson }})">
-    <div class="form-grid">
-      <div class="form-row"><label>{{ t('inventory.brand') }} *</label>
-        <select class="select" name="brand_id" required x-model.number="brandId">
-          <option value="" disabled selected>{{ t('inventory.select_brand') }}</option>
-          {% for b in brands %}<option value="{{ b.id }}">{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}</option>{% endfor %}
-        </select></div>
-      <div class="form-row"><label>{{ t('inventory.receipt_reason') }} *</label>
-        <select class="select" name="receipt_reason">
-          {% for r in receipt_reasons %}{% if r != 'purchase' %}<option value="{{ r }}">{{ t('receipt_reasons.' ~ r) }}</option>{% endif %}{% endfor %}
-        </select></div>
-      <div class="form-row"><label>{{ t('inventory.supplier') }}</label>
-        <select class="select" name="supplier_id">
-          <option value="">—</option>
-          {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-        </select></div>
-      <div class="form-row"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="lot_number" dir="ltr"></div>
-      <div class="form-row"><label>{{ t('inventory.mfg_date') }}</label><input class="input" type="date" name="mfg_date"></div>
-      <div class="form-row"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="expiry_date"></div>
-      <div class="form-row"><label>{{ t('inventory.received_date') }}</label><input class="input" type="date" name="received_date"></div>
-      <!-- Single-dose: enter doses directly. Multi-dose: enter vials. -->
-      <div class="form-row" x-show="dpv <= 1">
-        <label>{{ t('inventory.qty_received') }} *</label>
-        <input class="input" type="number" min="0" name="qty_received" x-bind:required="dpv <= 1"></div>
-      <div class="form-row" x-show="dpv > 1" x-cloak>
-        <label>{{ t('inventory.qty_vials') }} *</label>
-        <input class="input" type="number" min="0" name="qty_vials" x-model.number="vials" x-bind:required="dpv > 1">
-        <div class="hint" x-show="vials > 0">= <span x-text="vials * dpv"></span> {{ t('inventory.doses') }} ({{ t('inventory.doses_per_vial_each') }} <span x-text="dpv"></span>)</div></div>
-      <div class="form-row"><label>{{ t('inventory.unit_cost') }}</label><input class="input" type="number" step="0.01" name="unit_cost"></div>
-      <div class="form-row"><label>{{ t('inventory.storage_temp') }}</label><input class="input" name="storage_temp" placeholder="2–8°C"></div>
-    </div>
-    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
-  </form>
-</details>
+<!-- Goods Receipt (إذن إضافة) — many items in one receipt, on its own screen -->
+<div class="card gc-scale-in" style="animation-delay:0.14s;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div>
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-box-arrow-in-down"></i> {{ t('inventory.goods_receipt') }}</h2>
+    <p class="hint" style="margin:6px 0 0;">{{ t('inventory.receipt_multi_hint') }}</p>
+  </div>
+  <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('inventory.receipt_new') }}">
+    <i class="bi bi-plus-lg"></i> {{ t('inventory.new_receipt') }}</a>
+</div>
 
 <!-- Batches list -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.18s;">

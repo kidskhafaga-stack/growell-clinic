@@ -31,7 +31,11 @@ MODULE = "inventory"
 
 
 def _parse_date(name):
-    raw = (request.form.get(name) or "").strip()
+    return _parse_date_str(request.form.get(name))
+
+
+def _parse_date_str(raw):
+    raw = (raw or "").strip()
     if not raw:
         return None
     try:
@@ -133,6 +137,74 @@ def batch_new():
     db.session.commit()
     flash(t("inventory.receipt_added"), "success")
     return redirect(url_for("inventory.item_card", brand_id=brand.id))
+
+
+@inventory_bp.route("/receipt/new", methods=["GET", "POST"])
+@module_required(MODULE)
+def receipt_new():
+    """Multi-item Goods Receipt (إذن إضافة مخزني): one receipt document that adds
+    stock for SEVERAL vaccine items at once — each line becomes its own batch,
+    all sharing the receipt's reason, supplier and date. This replaces the old
+    one-item-at-a-time form so a whole delivery can be posted in a single go."""
+    brands = _optional_brands()
+    if request.method == "POST":
+        reason = (request.form.get("receipt_reason") or "opening").strip()
+        if reason not in RECEIPT_REASONS:
+            reason = "opening"
+        supplier_id = request.form.get("supplier_id", type=int) or None
+        received = _parse_date("received_date") or datetime.utcnow().date()
+        header_note = (request.form.get("notes") or "").strip() or None
+
+        brand_ids = request.form.getlist("line_brand_id")
+        qtys = request.form.getlist("line_qty")
+        units = request.form.getlist("line_unit")
+        lots = request.form.getlist("line_lot")
+        exps = request.form.getlist("line_expiry")
+        mfgs = request.form.getlist("line_mfg")
+        costs = request.form.getlist("line_cost")
+
+        by_id = {b.id: b for b in brands}
+        added = 0
+        touched = []
+        for i in range(len(brand_ids)):
+            brand = by_id.get(_to_int(brand_ids[i]))
+            qty = _to_int(qtys[i] if i < len(qtys) else "")
+            if brand is None or qty <= 0:
+                continue
+            unit = (units[i] if i < len(units) else "") or "doses"
+            per = brand.doses_per_vial or 1
+            qty_doses = qty * per if unit == "vials" else qty
+            db.session.add(VaccineInventory(
+                brand_id=brand.id, supplier_id=supplier_id,
+                lot_number=(lots[i].strip() if i < len(lots) else "") or None,
+                expiry_date=_parse_date_str(exps[i] if i < len(exps) else ""),
+                mfg_date=_parse_date_str(mfgs[i] if i < len(mfgs) else ""),
+                received_date=received, receipt_reason=reason,
+                qty_received=qty_doses,
+                unit_cost=_to_float(costs[i]) if i < len(costs) and costs[i].strip() else None,
+                notes=header_note,
+            ))
+            added += 1
+            if brand not in touched:
+                touched.append(brand)
+
+        if added == 0:
+            flash(t("purchases.need_item"), "warning")
+            return redirect(url_for("inventory.receipt_new"))
+
+        ActivityLog.record("inventory.goods_receipt", user_id=current_user.id,
+                           entity="vaccine_inventory",
+                           detail=f"{reason}:{added} lines", ip_address=client_ip())
+        for brand in touched:
+            brand.recompute_avg_cost()
+        db.session.commit()
+        flash(t("inventory.receipt_multi_added", n=added), "success")
+        return redirect(url_for("inventory.index"))
+
+    return render_template(
+        "inventory/receipt_form.html", brands=brands, suppliers=_suppliers(),
+        receipt_reasons=RECEIPT_REASONS, today=datetime.utcnow().date().isoformat(),
+    )
 
 
 @inventory_bp.route("/item/<int:brand_id>")

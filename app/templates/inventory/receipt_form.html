@@ -1,0 +1,79 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('inventory.goods_receipt') }}{% endblock %}
+{% block page_heading %}{{ t('inventory.goods_receipt') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('inventory.goods_receipt') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('inventory.receipt_multi_hint') }}</p>
+</div>
+
+<form method="post" action="{{ url_for('inventory.receipt_new') }}" x-data="receiptForm()" x-init="addLine()">
+  <!-- Shared header: one reason / supplier / date for the whole receipt -->
+  <div class="card gc-scale-in">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('inventory.receipt_reason') }} *</label>
+        <select class="select" name="receipt_reason">
+          {% for r in receipt_reasons %}{% if r != 'purchase' %}<option value="{{ r }}">{{ t('receipt_reasons.' ~ r) }}</option>{% endif %}{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('inventory.supplier') }}</label>
+        <select class="select" name="supplier_id"><option value="">—</option>
+          {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('inventory.received_date') }}</label>
+        <input class="input" type="date" name="received_date" value="{{ today }}"></div>
+      <div class="form-row"><label>{{ t('inventory.notes') }}</label><input class="input" name="notes"></div>
+    </div>
+  </div>
+
+  <!-- Line items: many vaccines in one receipt -->
+  <div class="card gc-scale-in" style="animation-delay:0.06s;">
+    <h2 class="section-title"><i class="bi bi-list-ul"></i> {{ t('inventory.receipt_items') }}</h2>
+    <template x-for="(line, i) in lines" :key="line.uid">
+      <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
+        <button type="button" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);"
+                x-on:click="removeLine(i)" x-show="lines.length > 1"><i class="bi bi-x-lg"></i></button>
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('inventory.brand') }} *</label>
+            <select class="select" name="line_brand_id" x-model.number="line.brand_id" x-on:change="onBrand(line)">
+              <option value="">{{ t('inventory.select_brand') }}</option>
+              {% for b in brands %}<option value="{{ b.id }}" data-dpv="{{ b.doses_per_vial or 1 }}" data-cost="{{ b.purchase_price or '' }}">{{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}</option>{% endfor %}
+            </select></div>
+          <div class="form-row"><label x-text="line.dpv > 1 ? '{{ t('inventory.qty_vials') }}' : '{{ t('inventory.qty_received') }}'">{{ t('inventory.qty_received') }}</label>
+            <input class="input" type="number" min="0" name="line_qty" x-model.number="line.qty">
+            <input type="hidden" name="line_unit" x-bind:value="line.dpv > 1 ? 'vials' : 'doses'">
+            <div class="hint" x-show="line.dpv > 1 && line.qty > 0" x-cloak>= <span x-text="line.qty * line.dpv"></span> {{ t('inventory.doses') }}</div></div>
+          <div class="form-row"><label>{{ t('inventory.lot_number') }}</label><input class="input" name="line_lot" dir="ltr" x-model="line.lot"></div>
+          <div class="form-row"><label>{{ t('inventory.expiry_date') }}</label><input class="input" type="date" name="line_expiry" x-model="line.expiry"></div>
+          <div class="form-row"><label>{{ t('inventory.mfg_date') }}</label><input class="input" type="date" name="line_mfg" x-model="line.mfg"></div>
+          <div class="form-row"><label>{{ t('inventory.unit_cost') }}</label><input class="input" type="number" step="0.01" name="line_cost" x-model="line.cost"></div>
+        </div>
+      </div>
+    </template>
+    <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('inventory.add_line') }}</button>
+  </div>
+
+  <div class="gc-animate" style="margin-top:14px;display:flex;gap:10px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('inventory.post_receipt') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+
+<script>
+function receiptForm(){
+  return {
+    seq: 0,
+    lines: [],
+    addLine(){ this.lines.push({uid:this.seq++, brand_id:'', dpv:1, qty:'', lot:'', expiry:'', mfg:'', cost:''}); },
+    removeLine(i){ this.lines.splice(i,1); if(this.lines.length===0) this.addLine(); },
+    onBrand(line){
+      if(!line.brand_id){ line.dpv=1; return; }
+      var opt=document.querySelector('option[value="'+line.brand_id+'"][data-dpv]');
+      if(opt){ line.dpv=parseInt(opt.dataset.dpv||'1',10)||1; if(!line.cost && opt.dataset.cost) line.cost=opt.dataset.cost; }
+    }
+  };
+}
+</script>
+{% endblock %}
+{% block head %}<style>[x-cloak]{display:none!important;}</style>{% endblock %}
