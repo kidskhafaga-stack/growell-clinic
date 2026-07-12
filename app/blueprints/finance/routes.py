@@ -531,6 +531,163 @@ def _uncharged_vaccines(patient_id, days=2):
     return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
 
 
+# ========================================================= checkout ------
+@finance_bp.route("/checkout", methods=["GET"])
+@module_required(MODULE)
+def checkout():
+    """Checkout screen: patient search + appointment selection + payment processing."""
+    from app.models import Appointment
+    
+    appt_id = request.args.get("appt_id", type=int)
+    appointment = None
+    invoice_items = []
+    
+    if appt_id:
+        appointment = db.get_or_404(Appointment, appt_id)
+        
+        # Build invoice items from appointment
+        lang = getattr(g, "lang", "ar")
+        base = service_for_visit_type(appointment.appt_type)
+        
+        if base:
+            price = base.price_for(appointment.doctor) if appointment.doctor else base.price
+            if price:
+                invoice_items.append({
+                    'id': f'base_{base.id}',
+                    'description': base.display_name(lang),
+                    'unit_price': price,
+                    'quantity': 1,
+                    'gross': price
+                })
+        
+        # Any uncharged vaccines
+        for dose in _uncharged_vaccines(appointment.patient_id):
+            b = dose.brand
+            if b and b.price:
+                name = (b.vaccine.display_name(lang) if b.vaccine else
+                        dose.vaccine.display_name(lang))
+                invoice_items.append({
+                    'id': f'vaccine_{dose.id}',
+                    'description': name + " — " + b.display_name(lang),
+                    'unit_price': b.price,
+                    'quantity': 1,
+                    'gross': b.price
+                })
+    
+    return render_template(
+        "finance/checkout.html",
+        appointment=appointment,
+        invoice_items=invoice_items,
+        doctors=_doctors_active(),
+        discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
+    )
+
+
+@finance_bp.route("/checkout/<int:appt_id>/process", methods=["POST"])
+@module_required(MODULE)
+def process_checkout(appt_id):
+    """Process the checkout: create invoice and payments."""
+    from app.models import Appointment
+    
+    appt = db.get_or_404(Appointment, appt_id)
+    patient = appt.patient
+    lang = getattr(g, "lang", "ar")
+    
+    # Create invoice
+    invoice = Invoice(
+        invoice_number=generate_invoice_number(),
+        patient_id=patient.id,
+        doctor_id=request.form.get("doctor_id", type=int) or appt.doctor_id,
+        visit_id=None,
+        created_by=current_user.id,
+    )
+    db.session.add(invoice)
+    db.session.flush()
+    
+    # Add services
+    base = service_for_visit_type(appt.appt_type)
+    if base:
+        price = base.price_for(invoice.doctor) if invoice.doctor else base.price
+        if price and price > 0:
+            item = InvoiceItem(
+                service_id=base.id,
+                description=base.display_name(lang),
+                unit_price=price,
+                quantity=1
+            )
+            item.commission_amount = base.doctor_share(item.net, invoice.doctor)
+            invoice.items.append(item)
+    
+    # Add uncharged vaccines
+    for dose in _uncharged_vaccines(patient.id):
+        b = dose.brand
+        if b and b.price:
+            name = (b.vaccine.display_name(lang) if b.vaccine else
+                    dose.vaccine.display_name(lang))
+            invoice.items.append(InvoiceItem(
+                description=name + " — " + b.display_name(lang),
+                unit_price=b.price,
+                quantity=1
+            ))
+        dose.invoice_id = invoice.id
+    
+    if not invoice.items:
+        db.session.rollback()
+        flash(t("cashier.nothing_to_collect"), "warning")
+        return redirect(url_for("appointments.index", date=appt.appt_date.isoformat()))
+    
+    # Apply discount
+    discount_id = request.form.get("discount_id", type=int)
+    if discount_id:
+        disc = db.session.get(NamedDiscount, discount_id)
+        if disc and disc.is_active:
+            _apply_named_discount(invoice, disc)
+    
+    _apply_coverage(invoice, patient)
+    invoice.recalc_status()
+    
+    # Process payments
+    payment_mode = request.form.get("payment_mode", "single")
+    
+    if payment_mode == "single":
+        method = request.form.get("single_method", "cash")
+        amount = request.form.get("single_amount", type=float) or 0
+        
+        if amount > 0:
+            invoice.payments.append(Payment(
+                amount=round(amount, 2),
+                method=method if method in PAYMENT_METHODS else "cash",
+                received_by=current_user.id,
+                shift_id=_current_shift_id(),
+            ))
+    else:  # multiple
+        idx = 1
+        while request.form.get(f"method_{idx}"):
+            method = request.form.get(f"method_{idx}", "").strip()
+            amount = request.form.get(f"amount_{idx}", type=float) or 0
+            notes = request.form.get(f"notes_{idx}", "").strip() or None
+            
+            if amount > 0 and method in PAYMENT_METHODS:
+                invoice.payments.append(Payment(
+                    amount=round(amount, 2),
+                    method=method,
+                    received_by=current_user.id,
+                    shift_id=_current_shift_id(),
+                    notes=notes,
+                ))
+            
+            idx += 1
+    
+    invoice.recalc_status()
+    
+    ActivityLog.record("invoice.checkout", user_id=current_user.id, entity="invoice",
+                      detail=invoice.invoice_number, ip_address=client_ip())
+    db.session.commit()
+    
+    flash(t("invoices.created"), "success")
+    return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id))
+
+
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def invoice_new():
