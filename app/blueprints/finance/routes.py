@@ -809,7 +809,7 @@ def checkout(appt_id):
                            detail=invoice.invoice_number, ip_address=client_ip())
         db.session.commit()
         flash(t("invoices.created"), "success")
-        return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id))
+        return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id, auto=1))
 
     lines = _checkout_lines(appt, lang)
     return render_template(
@@ -958,8 +958,12 @@ def invoice_receipt(invoice_id):
     from app.models import Setting
 
     invoice = db.get_or_404(Invoice, invoice_id)
+    # When reception reaches the receipt straight after checkout (auto=1), the
+    # screen auto-prints and then returns to the appointments board — so it
+    # behaves like a print-and-close popup.
+    back_url = url_for("appointments.index") if request.args.get("auto") else None
     return render_template(
-        "finance/receipt_thermal.html", invoice=invoice,
+        "finance/receipt_thermal.html", invoice=invoice, back_url=back_url,
         thermal_footer=(Setting.get("thermal_footer_text") or "").strip(),
     )
 
