@@ -65,25 +65,52 @@ def generate_patient_number(scheme=None, prefix=None):
     return candidate
 
 
-def apply_patient_search(query, q):
-    """Filter a Patient query by a free-text term (name/number/national id).
+def _digits_norm(col):
+    """SQL expression that strips spaces, dashes and a leading + from a phone
+    column, so a stored ``0109 508-2412`` still matches a typed ``01095082412``."""
+    from sqlalchemy import func
+    return func.replace(func.replace(func.replace(col, " ", ""), "-", ""), "+", "")
 
-    Shared by every patient-listing page so search behaves identically across
-    patients, vaccinations, growth, etc.
+
+def apply_patient_search(query, q):
+    """Filter a Patient query by a free-text term.
+
+    Matches the patient's name, file number, legacy reference, national id and
+    — when the term contains digits — any phone on record: the patient's own
+    number *and* their guardians' primary/alt numbers. Shared by every patient-
+    listing page (patients, vaccinations, growth, booking) so search behaves
+    identically everywhere.
     """
     from sqlalchemy import or_
+
+    from app.extensions import db
+    from app.models import Parent
 
     q = (q or "").strip()
     if not q:
         return query
     like = f"%{q}%"
-    return query.filter(or_(
+    conds = [
         Patient.full_name.ilike(like),
         Patient.full_name_en.ilike(like),
         Patient.patient_number.ilike(like),
         Patient.reference_number.ilike(like),
         Patient.national_id.ilike(like),
-    ))
+    ]
+
+    # Phone search: only when the term has digits, matched against normalised
+    # (space/dash-free) numbers so formatting differences don't hide a match.
+    digits = "".join(ch for ch in q if ch.isdigit())
+    if digits:
+        pat = f"%{digits}%"
+        conds.append(_digits_norm(Patient.own_phone).like(pat))
+        guardians = db.session.query(Parent.family_id).filter(or_(
+            _digits_norm(Parent.phone).like(pat),
+            _digits_norm(Parent.phone_alt).like(pat),
+        ))
+        conds.append(Patient.family_id.in_(guardians))
+
+    return query.filter(or_(*conds))
 
 
 def patient_number_allocator(scheme=None, prefix=None):
