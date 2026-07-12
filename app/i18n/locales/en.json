@@ -1075,7 +1075,8 @@
     "f_needs_booking": "Needs booking",
     "f_needs_approval": "Needs approval",
     "f_can_standalone": "Sold standalone",
-    "f_can_add_during_visit": "Add during visit"
+    "f_can_add_during_visit": "Add during visit",
+    "device": "Device"
   },
   "commission_types": {
     "none": "None",
@@ -2264,5 +2265,55 @@
     "session": "Session",
     "product": "Product",
     "other": "Other"
+  },
+  "devices": {
+    "title": "Medical devices",
+    "subtitle": "Register your devices (spirometry/ECG/echo/audiology…) and link them to services. Manual entry now, auto-import later.",
+    "device": "Device",
+    "name": "Name",
+    "name_en": "English name",
+    "device_type": "Type",
+    "manufacturer": "Manufacturer",
+    "model": "Model",
+    "software": "Companion software",
+    "connection": "Connection",
+    "import_mode": "Result entry",
+    "serial": "Serial number",
+    "purchase_date": "Purchase date",
+    "warranty_until": "Warranty until",
+    "in_warranty": "In warranty",
+    "add": "Add device",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "deactivated": "Device deactivated (linked to services)",
+    "none": "No devices yet."
+  },
+  "device_types": {
+    "spirometry": "Spirometry",
+    "ecg": "ECG",
+    "echo": "Echo",
+    "eeg": "EEG",
+    "ultrasound": "Ultrasound",
+    "audiometry": "Audiometry",
+    "tympanometry": "Tympanometry",
+    "holter": "Holter",
+    "other": "Other"
+  },
+  "connection_types": {
+    "usb": "USB",
+    "serial": "Serial",
+    "lan": "LAN",
+    "wifi": "Wi-Fi",
+    "bluetooth": "Bluetooth",
+    "manual": "Manual"
+  },
+  "import_modes": {
+    "manual": "Manual entry",
+    "folder": "Folder watch",
+    "csv": "CSV",
+    "xml": "XML",
+    "hl7": "HL7",
+    "sdk": "SDK",
+    "api": "API"
   }
 }

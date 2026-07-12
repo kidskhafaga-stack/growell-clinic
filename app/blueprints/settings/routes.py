@@ -209,6 +209,73 @@ def visit_types():
                            colors=VISIT_TYPE_COLORS)
 
 
+@settings_bp.route("/devices", methods=["GET", "POST"])
+@admin_required
+def devices():
+    """Manage the medical-device registry (Spirometry / ECG / Echo / …)."""
+    from app.models import (CONNECTION_TYPES, DEVICE_TYPES, IMPORT_MODES,
+                            MedicalDevice)
+
+    def _date(name):
+        raw = (request.form.get(name) or "").strip()
+        if not raw:
+            return None
+        from datetime import datetime as _dt
+        try:
+            return _dt.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "delete":
+            dev = db.session.get(MedicalDevice, request.form.get("id", type=int))
+            if dev is not None:
+                if dev.services:
+                    dev.is_active = False  # keep history, just deactivate
+                    flash(t("devices.deactivated"), "info")
+                else:
+                    db.session.delete(dev)
+                    flash(t("devices.deleted"), "info")
+                db.session.commit()
+            return redirect(url_for("settings.devices"))
+
+        dev = (db.session.get(MedicalDevice, request.form.get("id", type=int))
+               if action == "edit" else MedicalDevice())
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash(t("common.required") + ": " + t("devices.name"), "danger")
+            return redirect(url_for("settings.devices"))
+        dev.name = name
+        dev.name_en = (request.form.get("name_en") or "").strip() or None
+        dev.manufacturer = (request.form.get("manufacturer") or "").strip() or None
+        dev.model = (request.form.get("model") or "").strip() or None
+        dtype = (request.form.get("device_type") or "other").strip()
+        dev.device_type = dtype if dtype in DEVICE_TYPES else "other"
+        conn = (request.form.get("connection_type") or "manual").strip()
+        dev.connection_type = conn if conn in CONNECTION_TYPES else "manual"
+        imode = (request.form.get("import_mode") or "manual").strip()
+        dev.import_mode = imode if imode in IMPORT_MODES else "manual"
+        dev.software = (request.form.get("software") or "").strip() or None
+        dev.serial_number = (request.form.get("serial_number") or "").strip() or None
+        dev.purchase_date = _date("purchase_date")
+        dev.warranty_until = _date("warranty_until")
+        dev.is_active = bool(request.form.get("is_active")) if action == "edit" else True
+        if action != "edit":
+            db.session.add(dev)
+        ActivityLog.record(f"settings.device_{action or 'add'}", user_id=current_user.id,
+                           entity="medical_device", detail=name, ip_address=client_ip())
+        db.session.commit()
+        flash(t("devices.saved"), "success")
+        return redirect(url_for("settings.devices"))
+
+    return render_template(
+        "settings/devices.html",
+        devices=MedicalDevice.query.order_by(MedicalDevice.device_type, MedicalDevice.name).all(),
+        device_types=DEVICE_TYPES, connection_types=CONNECTION_TYPES,
+        import_modes=IMPORT_MODES)
+
+
 @settings_bp.route("/data")
 @admin_required
 def data_tools():

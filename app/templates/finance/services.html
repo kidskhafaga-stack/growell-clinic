@@ -45,6 +45,10 @@
       <div class="form-row"><label>{{ t('services.price') }} *</label><input class="input" type="number" step="0.01" name="price" required></div>
       <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost"></div>
       <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes"></div>
+      <div class="form-row"><label>{{ t('services.device') }}</label>
+        <select class="select" name="device_id"><option value="">—</option>
+          {% for dv in devices %}<option value="{{ dv.id }}">{{ dv.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount"></div>
       <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type') }}</div>
       <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value"></div>
@@ -113,6 +117,7 @@
           {% if s[f] %}<span class="badge badge--muted"><i class="bi bi-dot"></i>{{ t('services.f_' ~ f) }}</span>{% endif %}
         {% endfor %}
         {% if not s.can_standalone %}<span class="badge badge--muted">{{ t('services.needs_visit') }}</span>{% endif %}
+        {% if s.device %}<span class="badge badge--role"><i class="bi bi-hdd-stack"></i> {{ s.device.display_name(current_lang) }}</span>{% endif %}
       </div>
       <!-- Worked example on the current price -->
       <div style="margin-top:6px;font-size:0.82rem;">
@@ -149,6 +154,11 @@
           <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ s.max_discount or '' }}"></div>
           <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type', s.commission_type) }}</div>
           <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value" value="{{ s.commission_value or '' }}"></div>
+          <div class="form-row"><label>{{ t('services.device') }}</label>
+            <select class="select" name="device_id">
+              <option value="">—</option>
+              {% for dv in devices %}<option value="{{ dv.id }}" {{ 'selected' if s.device_id==dv.id else '' }}>{{ dv.display_name(current_lang) }}</option>{% endfor %}
+            </select></div>
           <div style="font-weight:600;color:var(--muted);font-size:.78rem;margin:6px 0 3px;">{{ t('services.workflow') }}</div>
           {% for f in ['needs_doctor','needs_device','needs_report','needs_consumables','needs_booking','needs_approval','can_standalone','can_add_during_visit'] %}
           <label class="checkbox" style="font-weight:400;display:block;"><input type="checkbox" name="{{ f }}" value="1" {{ 'checked' if s[f] else '' }}> {{ t('services.f_' ~ f) }}</label>

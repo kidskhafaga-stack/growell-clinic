@@ -186,8 +186,11 @@ eInvoice، واتساب Cloud API، AI، RBAC+Audit، تقارير، Light/Dark+
   (سعر − تكلفة − عمولة) + شاشة إدارة كاملة + backfill لكل الخدمات القديمة.
 - ⏭️ **Phase B — Consumables + Unit Conversion:** أنواع أصناف موحّدة + تحويل وحدات
   (Box→Vial→Dose) + ربط مستهلكات بالخدمة تُخصم تلقائياً عند التنفيذ.
-- ⏭️ **Phase C — Devices + Measurement Templates (يدوي):** تعريف أجهزة + قوالب قياسات +
-  إدخال يدوي للنتائج + تقرير. (استيراد HL7/XML/SDK — Spirobank II مدعوم — Phase لاحقة.)
+- 🟡 **Phase C — Devices + Measurement Templates (يدوي):**
+  - ✅ **C.1 Device Registry (PR #88):** `MedicalDevice` (نوع/شركة/موديل/اتصال/طريقة إدخال
+    النتائج/سيريال/ضمان) + seed أجهزة المثال (Spirobank II · ECG · Echo · EEG · Ultrasound ·
+    Audiometer · Tympanometer) + شاشة إدارة + ربط الخدمة بجهاز (`Service.device_id`).
+  - ⏭️ C.2 Measurement Templates + إدخال يدوي للنتائج + تقرير. (استيراد HL7/XML/SDK لاحقاً.)
 - ⏭️ **Phase D — Financial/Accounting Engine:** شجرة حسابات + قيود تلقائية + مراكز تكلفة +
   Credit Notes + Approval workflow.
 

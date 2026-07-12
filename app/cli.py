@@ -77,6 +77,7 @@ def register_commands(app):
         except Exception:  # noqa: BLE001
             pass
         _seed_visit_types_safe()
+        _seed_devices_safe()
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
@@ -206,6 +207,7 @@ def register_commands(app):
             ("services", "needs_approval", "BOOLEAN DEFAULT 0"),
             ("services", "can_standalone", "BOOLEAN DEFAULT 1"),
             ("services", "can_add_during_visit", "BOOLEAN DEFAULT 1"),
+            ("services", "device_id", "INTEGER"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -239,6 +241,7 @@ def register_commands(app):
             pass
         _seed_visit_types_safe()
         _backfill_service_types_safe()
+        _seed_devices_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -372,6 +375,33 @@ def _seed_visit_types_safe():
     try:
         from app.utils.visit_types import ensure_seeded
         ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# Default medical-device catalogue (from the project's device discussion).
+# name, name_en, manufacturer, model, device_type
+_DEFAULT_DEVICES = [
+    ("جهاز وظائف تنفس", "Spirometer", "MIR", "Spirobank II", "spirometry", "WinSpiroPRO"),
+    ("جهاز رسم قلب", "ECG", None, None, "ecg", None),
+    ("جهاز إيكو", "Echocardiography", None, None, "echo", None),
+    ("جهاز رسم مخ", "EEG", None, None, "eeg", None),
+    ("جهاز موجات صوتية", "Ultrasound", None, None, "ultrasound", None),
+    ("جهاز سمعيات", "Audiometer", None, None, "audiometry", None),
+    ("جهاز ضغط الأذن", "Tympanometer", None, None, "tympanometry", None),
+]
+
+
+def _seed_devices_safe():
+    """Seed the default medical-device catalogue (idempotent, best-effort)."""
+    try:
+        from app.models import MedicalDevice
+        for name, name_en, manuf, model, dtype, sw in _DEFAULT_DEVICES:
+            if MedicalDevice.query.filter_by(name=name).first() is None:
+                db.session.add(MedicalDevice(
+                    name=name, name_en=name_en, manufacturer=manuf, model=model,
+                    device_type=dtype, software=sw, connection_type="usb",
+                    import_mode="manual", is_active=True, is_system=True))
     except Exception:  # noqa: BLE001
         pass
 

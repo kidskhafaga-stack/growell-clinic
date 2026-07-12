@@ -1075,7 +1075,8 @@
     "f_needs_booking": "يحتاج حجز",
     "f_needs_approval": "يحتاج موافقة",
     "f_can_standalone": "يُباع بدون كشف",
-    "f_can_add_during_visit": "يُضاف أثناء الزيارة"
+    "f_can_add_during_visit": "يُضاف أثناء الزيارة",
+    "device": "الجهاز"
   },
   "commission_types": {
     "none": "بدون",
@@ -2264,5 +2265,55 @@
     "session": "جلسة",
     "product": "منتج",
     "other": "أخرى"
+  },
+  "devices": {
+    "title": "الأجهزة الطبية",
+    "subtitle": "سجّل أجهزتك (وظائف تنفس/رسم قلب/إيكو/سمعيات…) واربطها بالخدمات. الاستيراد يدوي الآن، والأوتوماتيك لاحقاً.",
+    "device": "الجهاز",
+    "name": "الاسم",
+    "name_en": "الاسم بالإنجليزي",
+    "device_type": "النوع",
+    "manufacturer": "الشركة المصنعة",
+    "model": "الموديل",
+    "software": "البرنامج المصاحب",
+    "connection": "طريقة الاتصال",
+    "import_mode": "طريقة إدخال النتائج",
+    "serial": "الرقم التسلسلي",
+    "purchase_date": "تاريخ الشراء",
+    "warranty_until": "الضمان حتى",
+    "in_warranty": "تحت الضمان",
+    "add": "إضافة جهاز",
+    "saved": "تم الحفظ",
+    "deleted": "تم الحذف",
+    "deactivated": "تم تعطيل الجهاز (مرتبط بخدمات)",
+    "none": "لا توجد أجهزة بعد."
+  },
+  "device_types": {
+    "spirometry": "وظائف تنفس",
+    "ecg": "رسم قلب",
+    "echo": "إيكو",
+    "eeg": "رسم مخ",
+    "ultrasound": "موجات صوتية",
+    "audiometry": "سمعيات",
+    "tympanometry": "ضغط الأذن",
+    "holter": "هولتر",
+    "other": "أخرى"
+  },
+  "connection_types": {
+    "usb": "USB",
+    "serial": "Serial",
+    "lan": "شبكة LAN",
+    "wifi": "Wi-Fi",
+    "bluetooth": "بلوتوث",
+    "manual": "يدوي"
+  },
+  "import_modes": {
+    "manual": "إدخال يدوي",
+    "folder": "مراقبة مجلد",
+    "csv": "CSV",
+    "xml": "XML",
+    "hl7": "HL7",
+    "sdk": "SDK",
+    "api": "API"
   }
 }
