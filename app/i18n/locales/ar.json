@@ -907,7 +907,20 @@
     "receipt_multi_hint": "سجّل أكثر من صنف في إذن واحد — كل سطر يتولّد منه دفعة (Batch) بنفس السبب والمورد والتاريخ.",
     "receipt_items": "أصناف الإذن",
     "add_line": "إضافة سطر",
-    "post_receipt": "ترحيل الإذن"
+    "post_receipt": "ترحيل الإذن",
+    "pricing_units": "الأسعار والوحدات",
+    "pricing_saved": "تم حفظ بيانات الصنف",
+    "purchase_price": "سعر الشراء",
+    "sell_price": "سعر البيع",
+    "doctor_fee": "نصيب الطبيب",
+    "max_discount": "أقصى خصم",
+    "purchase_unit": "وحدة الإضافة (الشراء)",
+    "dispense_unit": "وحدة الصرف",
+    "units_per_purchase_hint": "عدد وحدات الصرف في وحدة الإضافة الواحدة (مثال: 10 جرعات في العبوة).",
+    "profit": "الربح",
+    "profit_margin": "هامش الربح",
+    "clinic_net": "صافي العيادة",
+    "doses_per_vial": "وحدات الصرف لكل وحدة إضافة"
   },
   "instatus": {
     "ok": "متوفر",

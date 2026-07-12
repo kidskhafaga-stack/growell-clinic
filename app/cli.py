@@ -193,6 +193,8 @@ def register_commands(app):
             ("vaccine_brands", "barcode", "VARCHAR(60)"),
             ("vaccine_brands", "item_code", "VARCHAR(40)"),
             ("vaccine_brands", "min_stock", "INTEGER"),
+            ("vaccine_brands", "purchase_unit", "VARCHAR(30)"),
+            ("vaccine_brands", "dispense_unit", "VARCHAR(30)"),
             ("vaccine_inventory", "mfg_date", "DATE"),
             ("vaccine_inventory", "receipt_reason", "VARCHAR(20) DEFAULT 'opening'"),
             ("purchase_order_items", "vaccine_brand_id", "INTEGER"),

@@ -110,6 +110,12 @@ class VaccineBrand(db.Model):
     # ampoule (one vial per patient); >1 = multi-dose vial (e.g. a vial drawn
     # for 10 patients). Stock is always counted in patient doses.
     doses_per_vial = db.Column(db.Integer, default=1, nullable=False)
+    # Human-readable unit labels for the item card. The *purchase (addition) unit*
+    # is what you buy/receive (e.g. vial/عبوة); the *dispense unit* is what you
+    # bill/administer (e.g. dose/جرعة). doses_per_vial is how many dispense units
+    # come out of one purchase unit. Left blank → sensible vial/dose defaults.
+    purchase_unit = db.Column(db.String(30))
+    dispense_unit = db.Column(db.String(30))
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     is_discontinued = db.Column(db.Boolean, default=False, nullable=False)  # production stopped
 
@@ -174,6 +180,28 @@ class VaccineBrand(db.Model):
     def clinic_margin(self):
         """Clinic profit per dose = sell price − cost − doctor's fee."""
         return round((self.price or 0) - (self.purchase_price or 0) - (self.doctor_fee or 0), 2)
+
+    @property
+    def profit(self):
+        """Gross profit per dispense unit = sell price − cost."""
+        return round((self.price or 0) - (self.purchase_price or 0), 2)
+
+    @property
+    def profit_margin(self):
+        """Profit as a % of the sell price (None when there is no sell price)."""
+        if not self.price:
+            return None
+        return round(self.profit / self.price * 100, 1)
+
+    def purchase_unit_label(self, lang="ar"):
+        if self.purchase_unit:
+            return self.purchase_unit
+        return "عبوة" if lang == "ar" else "vial"
+
+    def dispense_unit_label(self, lang="ar"):
+        if self.dispense_unit:
+            return self.dispense_unit
+        return "جرعة" if lang == "ar" else "dose"
 
     @property
     def available_batches(self):

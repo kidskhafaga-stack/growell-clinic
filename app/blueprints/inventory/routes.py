@@ -227,6 +227,30 @@ def item_card(brand_id):
     )
 
 
+@inventory_bp.route("/item/<int:brand_id>/pricing", methods=["POST"])
+@module_required(MODULE)
+def item_pricing(brand_id):
+    """Edit an item's commercial data straight from its card: cost (شراء) and
+    sell (بيع) price, the doctor's fee, max discount, reorder level, and the
+    purchase/dispense unit labels with the doses-per-purchase-unit conversion.
+    The profit margin is derived from cost & sell, so it isn't stored."""
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    brand.purchase_price = request.form.get("purchase_price", type=float)
+    brand.price = request.form.get("price", type=float)
+    brand.doctor_fee = request.form.get("doctor_fee", type=float)
+    brand.max_discount = request.form.get("max_discount", type=float)
+    brand.min_stock = request.form.get("min_stock", type=int)
+    brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
+    brand.purchase_unit = (request.form.get("purchase_unit") or "").strip() or None
+    brand.dispense_unit = (request.form.get("dispense_unit") or "").strip() or None
+    ActivityLog.record("inventory.item_pricing", user_id=current_user.id,
+                       entity="vaccine_brand", entity_id=brand.id,
+                       detail=brand.name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("inventory.pricing_saved"), "success")
+    return redirect(url_for("inventory.item_card", brand_id=brand.id))
+
+
 @inventory_bp.route("/vaccine-stocktake", methods=["GET", "POST"])
 @module_required(MODULE)
 def vaccine_stocktake():
