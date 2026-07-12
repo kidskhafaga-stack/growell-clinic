@@ -85,6 +85,24 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    try:
+        from sqlalchemy import or_ as _or
+
+        from app.models import Patient
+        from app.models.patient import own_phone_cutoff
+        n = (Patient.query
+             .filter(Patient.is_active.is_(True),
+                     Patient.date_of_birth <= own_phone_cutoff(),
+                     _or(Patient.own_phone.is_(None), Patient.own_phone == ""))
+             .count())
+        if n:
+            items.append({"key": "teens_no_phone", "module": "patients",
+                          "icon": "telephone-plus", "severity": "info", "count": n,
+                          "endpoint": "patients.index",
+                          "kwargs": {"flag": "teen_no_phone"}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # --- vaccines due + birthdays this week ------------------------------
     # Computed with a handful of bulk queries instead of a per-patient plan
     # build, so it stays cheap even with thousands of patients on the books.

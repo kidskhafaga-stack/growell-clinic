@@ -189,6 +189,7 @@ def register_commands(app):
             ("message_logs", "sent_at", "DATETIME"),
             ("message_logs", "direction", "VARCHAR(3) DEFAULT 'out'"),
             ("patients", "wa_opt_out", "BOOLEAN DEFAULT 0"),
+            ("patients", "own_phone", "VARCHAR(20)"),
             ("payments", "shift_id", "INTEGER"),
             ("vaccine_brands", "barcode", "VARCHAR(60)"),
             ("vaccine_brands", "item_code", "VARCHAR(40)"),

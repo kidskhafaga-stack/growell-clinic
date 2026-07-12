@@ -110,7 +110,16 @@ def delete_document(att_id):
 @module_required(MODULE)
 def index():
     q = (request.args.get("q") or "").strip()
+    flag = (request.args.get("flag") or "").strip()
     query = apply_patient_search(Patient.query, q)
+    if flag == "teen_no_phone":
+        # Reception task: active teens (≥13) with no personal phone captured yet.
+        from app.models.patient import own_phone_cutoff
+        query = query.filter(
+            Patient.is_active.is_(True),
+            Patient.date_of_birth <= own_phone_cutoff(),
+            db.or_(Patient.own_phone.is_(None), Patient.own_phone == ""),
+        )
     pagination = query.order_by(Patient.created_at.desc()).paginate(
         page=request.args.get("page", 1, type=int), per_page=25, error_out=False
     )
@@ -123,7 +132,7 @@ def index():
     }
     return render_template(
         "patients/list.html", patients=pagination.items, pagination=pagination,
-        q=q, stats=stats,
+        q=q, stats=stats, flag=flag,
     )
 
 
@@ -206,6 +215,7 @@ def create():
             date_of_birth=form["date_of_birth"],
             gender=form["gender"],
             national_id=form["national_id"],
+            own_phone=form["own_phone"] or None,
             blood_type=form["blood_type"],
             allergies=form["allergies"],
             chronic_diseases=form["chronic_diseases"],
@@ -328,6 +338,7 @@ def edit(patient_id):
         patient.date_of_birth = form["date_of_birth"]
         patient.gender = form["gender"]
         patient.national_id = form["national_id"]
+        patient.own_phone = form["own_phone"] or None
         patient.blood_type = form["blood_type"]
         patient.allergies = form["allergies"]
         patient.chronic_diseases = form["chronic_diseases"]
@@ -357,6 +368,7 @@ def edit(patient_id):
         "date_of_birth": patient.date_of_birth.isoformat() if patient.date_of_birth else "",
         "gender": patient.gender,
         "national_id": patient.national_id or "",
+        "own_phone": patient.own_phone or "",
         "blood_type": patient.blood_type or "",
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
@@ -695,6 +707,7 @@ def _read_patient_form():
         "date_of_birth_raw": (request.form.get("date_of_birth") or "").strip(),
         "gender": (request.form.get("gender") or "").strip(),
         "national_id": (request.form.get("national_id") or "").strip(),
+        "own_phone": (request.form.get("own_phone") or "").strip(),
         "blood_type": (request.form.get("blood_type") or "").strip(),
         "allergies": (request.form.get("allergies") or "").strip(),
         "chronic_diseases": (request.form.get("chronic_diseases") or "").strip(),

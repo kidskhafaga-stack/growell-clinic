@@ -211,7 +211,12 @@
     "address": "Address",
     "parent_updated": "Guardian updated",
     "auto_named": "Auto name",
-    "auto_named_hint": "Guardian name was auto-derived from the child's name on import — please verify."
+    "auto_named_hint": "Guardian name was auto-derived from the child's name on import — please verify.",
+    "teen_phone_task": "Data-update task: patients who turned 13 and need a personal phone for direct contact.",
+    "own_phone": "Patient's own phone",
+    "own_phone_hint": "The patient's own number (used from age 13+ for direct contact).",
+    "ask_own_phone": "This patient is 13+ — ask whether they have their own phone and update their details.",
+    "update_now": "Update now"
   },
   "import": {
     "title": "Import patient data",
@@ -2154,7 +2159,8 @@
     "contracts_expiring": "{count} contract(s) expiring soon",
     "vaccines_due": "{count} patient(s) with vaccines due",
     "birthdays": "{count} birthday(s) this week",
-    "mark_all_read": "Mark all as read"
+    "mark_all_read": "Mark all as read",
+    "teens_no_phone": "{count} teen(s) (13+) with no personal phone — update their details"
   },
   "analytics": {
     "title": "Patient analytics",
