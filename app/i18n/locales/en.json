@@ -434,7 +434,16 @@
     "season_label": "Season name",
     "ramadan": "Ramadan",
     "season_from": "From date",
-    "season_to": "To date"
+    "season_to": "To date",
+    "breakdown_title": "Visit-type breakdown",
+    "breakdown_today": "Today",
+    "breakdown_month": "Month",
+    "breakdown_visit_type": "Visit type",
+    "breakdown_total": "Total",
+    "breakdown_new": "new",
+    "breakdown_returning": "returning",
+    "breakdown_newold_today": "Today's patients (new / returning)",
+    "breakdown_newold_month": "This month (new / returning)"
   },
   "appt_types": {
     "new": "New visit",
@@ -1017,7 +1026,12 @@
     "exam_chips": "Common exam findings",
     "chip_ar_ph": "Arabic",
     "chip_en_ph": "English",
-    "chip_add": "Add phrase"
+    "chip_add": "Add phrase",
+    "board_title": "Appointments board",
+    "board_hint": "Control the visit-type breakdown panel shown to doctors and reception on the board.",
+    "board_show_breakdown": "Show the visit-type breakdown panel (consultation/follow-up/vaccination…)",
+    "board_breakdown_month": "Show a month-to-date column next to today",
+    "board_breakdown_newold": "Show new vs returning patient counts"
   },
   "errors": {
     "403_title": "Forbidden",

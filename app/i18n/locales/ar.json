@@ -434,7 +434,16 @@
     "season_label": "اسم الموسم",
     "ramadan": "رمضان",
     "season_from": "من تاريخ",
-    "season_to": "إلى تاريخ"
+    "season_to": "إلى تاريخ",
+    "breakdown_title": "توزيع أنواع الزيارات",
+    "breakdown_today": "اليوم",
+    "breakdown_month": "الشهر",
+    "breakdown_visit_type": "نوع الزيارة",
+    "breakdown_total": "الإجمالي",
+    "breakdown_new": "جديد",
+    "breakdown_returning": "قديم",
+    "breakdown_newold_today": "مرضى اليوم (جديد / قديم)",
+    "breakdown_newold_month": "مرضى الشهر (جديد / قديم)"
   },
   "appt_types": {
     "new": "كشف جديد",
@@ -1017,7 +1026,12 @@
     "exam_chips": "نتائج الفحص الشائعة",
     "chip_ar_ph": "عربي",
     "chip_en_ph": "English",
-    "chip_add": "إضافة عبارة"
+    "chip_add": "إضافة عبارة",
+    "board_title": "شاشة المواعيد",
+    "board_hint": "تحكّم في لوحة توزيع أنواع الزيارات التي تظهر للطبيب والاستقبال في شاشة المواعيد.",
+    "board_show_breakdown": "إظهار لوحة توزيع أنواع الزيارات (كشف/متابعة/تطعيم…)",
+    "board_breakdown_month": "إظهار عمود إجمالي الشهر بجانب اليوم",
+    "board_breakdown_newold": "إظهار عدد المرضى الجدد مقابل القدامى"
   },
   "errors": {
     "403_title": "ممنوع الوصول",

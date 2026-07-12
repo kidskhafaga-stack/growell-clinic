@@ -153,6 +153,66 @@
 </style>
 {% endif %}
 
+<!-- Visit-type breakdown (كشف/متابعة/تطعيم…) + new vs returning · day/month -->
+{% if breakdown.enabled %}
+<details class="card gc-scale-in" style="margin-bottom:18px;">
+  <summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;list-style:none;">
+    <span class="section-title" style="margin:0;"><i class="bi bi-bar-chart-line"></i> {{ t('appointments.breakdown_title') }}</span>
+    <span class="hint" style="margin:0;">{{ t('appointments.breakdown_today') }}: <strong>{{ breakdown.total.day }}</strong>{% if breakdown.show_month %} · {{ t('appointments.breakdown_month') }}: <strong>{{ breakdown.total.month }}</strong>{% endif %}</span>
+  </summary>
+
+  <div style="overflow-x:auto;margin-top:12px;">
+    <table class="table" style="min-width:360px;">
+      <thead><tr>
+        <th>{{ t('appointments.breakdown_visit_type') }}</th>
+        <th style="text-align:center;">{{ t('appointments.breakdown_today') }}</th>
+        {% if breakdown.show_month %}<th style="text-align:center;">{{ t('appointments.breakdown_month') }}</th>{% endif %}
+      </tr></thead>
+      <tbody>
+        {% for r in breakdown.rows %}
+        <tr>
+          <td><span class="type-tag tt-{{ r.color }}">{{ r.label }}</span></td>
+          <td style="text-align:center;font-weight:700;">{{ r.day }}</td>
+          {% if breakdown.show_month %}<td style="text-align:center;color:var(--muted);">{{ r.month }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+        <tr style="border-top:2px solid var(--line);font-weight:800;">
+          <td>{{ t('appointments.breakdown_total') }}</td>
+          <td style="text-align:center;">{{ breakdown.total.day }}</td>
+          {% if breakdown.show_month %}<td style="text-align:center;">{{ breakdown.total.month }}</td>{% endif %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% if breakdown.show_newold %}
+  <div class="no-grid" style="display:grid;grid-template-columns:repeat({{ 2 if breakdown.show_month else 1 }},1fr);gap:12px;margin-top:14px;">
+    <div class="no-box">
+      <div class="fin-k">{{ t('appointments.breakdown_newold_today') }}</div>
+      <div style="display:flex;gap:16px;margin-top:4px;">
+        <div><span class="no-v" style="color:var(--green-700);">{{ breakdown.newold.day.new }}</span> <span class="hint">{{ t('appointments.breakdown_new') }}</span></div>
+        <div><span class="no-v">{{ breakdown.newold.day.old }}</span> <span class="hint">{{ t('appointments.breakdown_returning') }}</span></div>
+      </div>
+    </div>
+    {% if breakdown.show_month %}
+    <div class="no-box">
+      <div class="fin-k">{{ t('appointments.breakdown_newold_month') }}</div>
+      <div style="display:flex;gap:16px;margin-top:4px;">
+        <div><span class="no-v" style="color:var(--green-700);">{{ breakdown.newold.month.new }}</span> <span class="hint">{{ t('appointments.breakdown_new') }}</span></div>
+        <div><span class="no-v">{{ breakdown.newold.month.old }}</span> <span class="hint">{{ t('appointments.breakdown_returning') }}</span></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</details>
+<style>
+  .no-box { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--card); }
+  .no-v { font-size:1.4rem; font-weight:800; }
+  @media (max-width:760px){ .no-grid{ grid-template-columns:1fr !important; } }
+</style>
+{% endif %}
+
 <!-- Current patient card -->
 {% if current %}
 <div class="current-card gc-scale-in" style="margin-bottom:18px;">

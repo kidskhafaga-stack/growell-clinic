@@ -55,6 +55,7 @@
     {% for tid, icon, label in [
         ('clinic','hospital', t('settings.clinic_identity')),
         ('logo','image', t('settings.logo')),
+        ('board','bar-chart-line', t('settings.board_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title'))] %}
     <button type="button" class="btn btn-sm gc-press"
@@ -207,6 +208,27 @@
         <label>{{ t('settings.exam_chips') }}</label>
         {{ chip_editor('visit_exam_chips', exam_chips) }}
       </div>
+    </div>
+  </div>
+
+  <!-- Appointments board display -->
+  <div class="card gc-scale-in" x-show="tab==='board'" x-cloak>
+    <h2 class="section-title"><i class="bi bi-bar-chart-line"></i> {{ t('settings.board_title') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('settings.board_hint') }}</p>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="board_show_breakdown" name="board_show_breakdown" value="1"
+             {{ 'checked' if values.get('board_show_breakdown','1') != '0' else '' }}>
+      <label for="board_show_breakdown" style="margin:0;font-weight:400;">{{ t('settings.board_show_breakdown') }}</label>
+    </div>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="board_breakdown_month" name="board_breakdown_month" value="1"
+             {{ 'checked' if values.get('board_breakdown_month','1') != '0' else '' }}>
+      <label for="board_breakdown_month" style="margin:0;font-weight:400;">{{ t('settings.board_breakdown_month') }}</label>
+    </div>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="board_breakdown_newold" name="board_breakdown_newold" value="1"
+             {{ 'checked' if values.get('board_breakdown_newold','1') != '0' else '' }}>
+      <label for="board_breakdown_newold" style="margin:0;font-weight:400;">{{ t('settings.board_breakdown_newold') }}</label>
     </div>
   </div>
 

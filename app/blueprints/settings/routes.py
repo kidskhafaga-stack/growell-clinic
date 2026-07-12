@@ -34,7 +34,10 @@ TEXT_KEYS = [
     "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_system_prompt",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
-               "ai_patient_context", "ai_anonymize"]
+               "ai_patient_context", "ai_anonymize",
+               # Appointments board: visit-type breakdown panel + its parts.
+               "board_show_breakdown", "board_breakdown_month",
+               "board_breakdown_newold"]
 
 
 def _logo_dir():
