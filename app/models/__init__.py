@@ -71,9 +71,11 @@ from app.models.service import (
     COMMISSION_TYPES,
     ETA_ITEM_TYPES,
     SERVICE_CATEGORIES,
+    SERVICE_TYPES,
     DoctorServiceCommission,
     Service,
     ServiceBundleItem,
+    service_type_for_category,
 )
 from app.models.invoice import (
     INVOICE_STATUSES,
@@ -186,6 +188,8 @@ __all__ = [
     "ServiceBundleItem",
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
+    "SERVICE_TYPES",
+    "service_type_for_category",
     "COMMISSION_TYPES",
     "ETA_ITEM_TYPES",
     "Invoice",

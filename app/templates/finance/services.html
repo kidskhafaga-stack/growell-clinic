@@ -25,22 +25,35 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('services.add_service') }}</summary>
   <form method="post" action="{{ url_for('finance.service_new') }}" style="margin-top:14px;">
+    <input type="hidden" name="se" value="1">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('services.name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
       <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" placeholder="EGS / GS1"></div>
-      <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
-        <select class="select" name="eta_item_type">
-          {% for it in item_types %}<option value="{{ it }}">{{ it }}</option>{% endfor %}
+      <div class="form-row"><label>{{ t('services.service_type') }}</label>
+        <select class="select" name="service_type">
+          {% for st in service_types %}<option value="{{ st }}">{{ t('service_types.' ~ st) }}</option>{% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('services.category') }}</label>
         <select class="select" name="category">
           {% for c in categories %}<option value="{{ c }}">{{ t('service_categories.' ~ c) }}</option>{% endfor %}
         </select></div>
+      <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
+        <select class="select" name="eta_item_type">
+          {% for it in item_types %}<option value="{{ it }}">{{ it }}</option>{% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('services.price') }} *</label><input class="input" type="number" step="0.01" name="price" required></div>
+      <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost"></div>
+      <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes"></div>
       <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount"></div>
       <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type') }}</div>
       <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value"></div>
+    </div>
+    <div style="margin-top:6px;font-weight:600;color:var(--muted);font-size:.8rem;">{{ t('services.workflow') }}</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 10px;">
+      {% for f, dflt in [('needs_doctor',1),('needs_device',0),('needs_report',0),('needs_consumables',0),('needs_booking',0),('needs_approval',0),('can_standalone',1),('can_add_during_visit',1)] %}
+      <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="{{ f }}" value="1" {{ 'checked' if dflt else '' }}> {{ t('services.f_' ~ f) }}</label>
+      {% endfor %}
     </div>
     <div class="form-row checkbox"><input type="checkbox" id="is_bundle" name="is_bundle" value="1">
       <label for="is_bundle" style="margin:0;font-weight:400;">{{ t('services.is_bundle') }}</label></div>
@@ -80,22 +93,32 @@
     <div>
       <h3 style="margin:0;">{{ s.display_name(current_lang) }}
         {% if s.code %}<span class="badge badge--role">{{ s.code }}</span>{% endif %}
+        <span class="badge badge--role">{{ t('service_types.' ~ s.kind) }}</span>
         <span class="badge badge--muted">{{ t('service_categories.' ~ s.category) }}</span>
         {% if s.is_bundle %}<span class="badge badge--green"><i class="bi bi-boxes"></i> Bundle</span>{% endif %}
         {% if not s.is_active %}<span class="badge badge--danger">{{ t('common.inactive') }}</span>{% endif %}
       </h3>
       <div style="color:var(--muted);font-size:0.9rem;margin-top:4px;">
         {{ t('services.price') }}: <strong>{{ s.price }}</strong>
+        {% if s.cost is not none %}· {{ t('services.cost') }}: {{ s.cost }}{% endif %}
         {% if s.max_discount %}· {{ t('services.max_discount') }}: {{ s.max_discount }}{% endif %}
         · {{ t('services.commission') }}:
         {% if s.commission_type == 'none' %}—
         {% elif s.commission_type == 'percent' %}{{ s.commission_value }}%
         {% else %}{{ s.commission_value }}{% endif %}
+        {% if s.duration_minutes %}· {{ s.duration_minutes }} {{ t('shifts.minutes') }}{% endif %}
+      </div>
+      <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">
+        {% for f in ['needs_device','needs_report','needs_consumables','needs_booking','needs_approval'] %}
+          {% if s[f] %}<span class="badge badge--muted"><i class="bi bi-dot"></i>{{ t('services.f_' ~ f) }}</span>{% endif %}
+        {% endfor %}
+        {% if not s.can_standalone %}<span class="badge badge--muted">{{ t('services.needs_visit') }}</span>{% endif %}
       </div>
       <!-- Worked example on the current price -->
       <div style="margin-top:6px;font-size:0.82rem;">
         <span class="badge badge--green">{{ t('services.doctor_share') }}: {{ s.doctor_share(s.price) }}</span>
         <span class="badge badge--role">{{ t('services.clinic_share') }}: {{ s.clinic_share(s.price) }}</span>
+        {% if s.cost is not none %}<span class="badge {{ 'badge--green' if s.profit >= 0 else 'badge--danger' }}">{{ t('services.profit') }}: {{ s.profit }}{% if s.profit_margin is not none %} ({{ s.profit_margin }}%){% endif %}</span>{% endif %}
         <span style="color:var(--muted);">({{ t('services.example_calc') }})</span>
       </div>
     </div>
@@ -103,23 +126,34 @@
       <!-- Edit -->
       <details style="position:relative;">
         <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
-        <form method="post" action="{{ url_for('finance.service_edit', service_id=s.id) }}" class="popform" style="width:330px;">
+        <form method="post" action="{{ url_for('finance.service_edit', service_id=s.id) }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">
+          <input type="hidden" name="se" value="1">
           <div class="form-row"><label>{{ t('services.name') }}</label><input class="input" name="name" value="{{ s.name }}"></div>
           <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ s.name_en or '' }}"></div>
           <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" value="{{ s.code or '' }}" placeholder="EGS / GS1"></div>
-          <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
-            <select class="select" name="eta_item_type">
-              {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
+          <div class="form-row"><label>{{ t('services.service_type') }}</label>
+            <select class="select" name="service_type">
+              {% for st in service_types %}<option value="{{ st }}" {{ 'selected' if s.kind==st else '' }}>{{ t('service_types.' ~ st) }}</option>{% endfor %}
             </select></div>
           <div class="form-row"><label>{{ t('services.category') }}</label>
             <select class="select" name="category">
               {% for c in categories %}<option value="{{ c }}" {{ 'selected' if s.category==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
             </select></div>
+          <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
+            <select class="select" name="eta_item_type">
+              {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
+            </select></div>
           <div class="form-row"><label>{{ t('services.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ s.price }}"></div>
+          <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost" value="{{ s.cost if s.cost is not none else '' }}"></div>
+          <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}"></div>
           <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ s.max_discount or '' }}"></div>
           <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type', s.commission_type) }}</div>
           <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value" value="{{ s.commission_value or '' }}"></div>
-          <div class="form-row checkbox"><input type="checkbox" id="active_{{ s.id }}" name="is_active" value="1" {{ 'checked' if s.is_active else '' }}>
+          <div style="font-weight:600;color:var(--muted);font-size:.78rem;margin:6px 0 3px;">{{ t('services.workflow') }}</div>
+          {% for f in ['needs_doctor','needs_device','needs_report','needs_consumables','needs_booking','needs_approval','can_standalone','can_add_during_visit'] %}
+          <label class="checkbox" style="font-weight:400;display:block;"><input type="checkbox" name="{{ f }}" value="1" {{ 'checked' if s[f] else '' }}> {{ t('services.f_' ~ f) }}</label>
+          {% endfor %}
+          <div class="form-row checkbox" style="margin-top:6px;"><input type="checkbox" id="active_{{ s.id }}" name="is_active" value="1" {{ 'checked' if s.is_active else '' }}>
             <label for="active_{{ s.id }}" style="margin:0;font-weight:400;">{{ t('services.is_active') }}</label></div>
           <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
         </form>

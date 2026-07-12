@@ -17,6 +17,25 @@ SERVICE_CATEGORIES = [
 COMMISSION_TYPES = ["none", "percent", "fixed"]
 ETA_ITEM_TYPES = ["EGS", "GS1"]  # ETA item coding schemes
 
+# The Service Engine's kind of service — richer than the accounting category,
+# it drives the operational workflow (does it need a device / report / stock…).
+SERVICE_TYPES = [
+    "consultation", "followup", "procedure", "vaccination",
+    "diagnostic", "session", "product", "other",
+]
+
+# Map the legacy accounting category to a sensible default service type
+# (used to backfill existing rows).
+_CATEGORY_TO_TYPE = {
+    "consultation": "consultation", "booking": "consultation",
+    "procedure": "procedure", "vaccination_fee": "vaccination",
+    "lab": "diagnostic", "radiology": "diagnostic", "other": "other",
+}
+
+
+def service_type_for_category(category):
+    return _CATEGORY_TO_TYPE.get(category, "other")
+
 
 class Service(db.Model):
     __tablename__ = "services"
@@ -27,8 +46,23 @@ class Service(db.Model):
     code = db.Column(db.String(40))
     eta_item_type = db.Column(db.String(8), default="EGS")  # EGS | GS1 (ETA coding)
     category = db.Column(db.String(40), default="other", nullable=False)
+    # Service Engine: operational kind + how the service behaves in a visit.
+    service_type = db.Column(db.String(20), default="other")
+    duration_minutes = db.Column(db.Integer)
     price = db.Column(db.Float, default=0, nullable=False)
+    cost = db.Column(db.Float)          # direct cost (for profitability)
     max_discount = db.Column(db.Float)  # max allowed discount (%)
+
+    # Workflow properties — data, not code: they decide how the service is
+    # handled operationally so new services never need new modules.
+    needs_doctor = db.Column(db.Boolean, default=True, nullable=False)
+    needs_device = db.Column(db.Boolean, default=False, nullable=False)
+    needs_report = db.Column(db.Boolean, default=False, nullable=False)
+    needs_consumables = db.Column(db.Boolean, default=False, nullable=False)
+    needs_booking = db.Column(db.Boolean, default=False, nullable=False)
+    needs_approval = db.Column(db.Boolean, default=False, nullable=False)
+    can_standalone = db.Column(db.Boolean, default=True, nullable=False)      # sold without a consultation
+    can_add_during_visit = db.Column(db.Boolean, default=True, nullable=False)  # doctor may add mid-visit
 
     # Default doctor commission for this service.
     commission_type = db.Column(db.String(10), default="none", nullable=False)
@@ -84,6 +118,25 @@ class Service(db.Model):
 
     def clinic_share(self, amount, doctor=None):
         return round(max(amount, 0) - self.doctor_share(amount, doctor), 2)
+
+    @property
+    def kind(self):
+        """Operational service type, falling back to a category-derived default
+        for rows created before the Service Engine."""
+        return self.service_type or service_type_for_category(self.category)
+
+    @property
+    def profit(self):
+        """Clinic profit at full price = price − cost − the default doctor cut."""
+        cut = self.doctor_share(self.price or 0)
+        return round((self.price or 0) - (self.cost or 0) - cut, 2)
+
+    @property
+    def profit_margin(self):
+        """Profit as a percentage of price (None when price is 0)."""
+        if not self.price:
+            return None
+        return round(self.profit / self.price * 100.0, 1)
 
     @property
     def bundle_price(self):

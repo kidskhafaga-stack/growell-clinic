@@ -68,6 +68,28 @@ def _clean_commission():
     return ctype, cval
 
 
+# Service Engine workflow flags read off the edit/add form.
+_SERVICE_FLAGS = [
+    "needs_doctor", "needs_device", "needs_report", "needs_consumables",
+    "needs_booking", "needs_approval", "can_standalone", "can_add_during_visit",
+]
+
+
+def _apply_service_engine_fields(svc):
+    """Read the Service Engine fields (type / cost / duration / flags) off the
+    form onto ``svc``. Flags are only applied when the form marks itself as
+    Service-Engine-aware (``se=1``) so the simple edit popover doesn't wipe them."""
+    from app.models import SERVICE_TYPES
+    stype = (request.form.get("service_type") or "").strip()
+    if stype in SERVICE_TYPES:
+        svc.service_type = stype
+    svc.cost = request.form.get("cost", type=float)
+    svc.duration_minutes = request.form.get("duration_minutes", type=int)
+    if request.form.get("se") == "1":
+        for flag in _SERVICE_FLAGS:
+            setattr(svc, flag, bool(request.form.get(flag)))
+
+
 @finance_bp.route("/")
 @module_required(MODULE)
 def index():
@@ -79,11 +101,11 @@ def index():
 @module_required(MODULE)
 def services():
     services = Service.query.order_by(Service.sort_order, Service.name).all()
-    from app.models import ETA_ITEM_TYPES
+    from app.models import ETA_ITEM_TYPES, SERVICE_TYPES
     return render_template(
         "finance/services.html", services=services,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
-        item_types=ETA_ITEM_TYPES, doctors=_doctors(),
+        item_types=ETA_ITEM_TYPES, service_types=SERVICE_TYPES, doctors=_doctors(),
         appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
     )
 
@@ -125,6 +147,7 @@ def service_new():
         is_bundle=bool(request.form.get("is_bundle")),
         notes=(request.form.get("notes") or "").strip() or None,
     )
+    _apply_service_engine_fields(svc)
     db.session.add(svc)
     ActivityLog.record("service.add", user_id=current_user.id, entity="service",
                        detail=name, ip_address=client_ip())
@@ -147,6 +170,7 @@ def service_edit(service_id):
     svc.max_discount = request.form.get("max_discount", type=float)
     svc.commission_type, svc.commission_value = _clean_commission()
     svc.is_active = bool(request.form.get("is_active"))
+    _apply_service_engine_fields(svc)
     db.session.commit()
     flash(t("services.updated"), "success")
     return redirect(url_for("finance.services"))
