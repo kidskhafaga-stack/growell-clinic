@@ -39,7 +39,7 @@
               <template x-for="p in results" :key="p.id">
                 <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
                   <span x-text="p.name"></span>
-                  <span class="muted" x-text="p.number + ' · ' + p.age"></span>
+                  <span class="muted" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
                 </button>
               </template>
               <div x-show="!searching && results.length === 0" class="patient-result muted" style="cursor:default;">
