@@ -163,9 +163,14 @@ def _payment_status(appointments, on_date):
     if not appointments:
         return {}
     patient_ids = {a.patient_id for a in appointments}
+    # Today's invoices, plus any still-outstanding balance from any date — so a
+    # charge the doctor added after the patient paid (or a lingering due) shows
+    # up for the cashier instead of silently disappearing.
     invoices = (
         Invoice.query.filter(
-            Invoice.patient_id.in_(patient_ids), Invoice.invoice_date == on_date
+            Invoice.patient_id.in_(patient_ids),
+            db.or_(Invoice.invoice_date == on_date,
+                   Invoice.status.in_(["unpaid", "partial"])),
         ).all()
     )
     by_patient = {}

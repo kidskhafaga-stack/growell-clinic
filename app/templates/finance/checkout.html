@@ -1,0 +1,123 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('checkout.title') }}{% endblock %}
+{% block page_heading %}{{ t('checkout.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="max-width:760px;margin:0 auto;"
+     x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }})'>
+  <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+    <div>
+      <h1 class="page-title"><i class="bi bi-cash-coin"></i> {{ t('checkout.title') }}</h1>
+      <p class="page-sub" style="margin:0;">
+        {{ appt.patient.display_name(current_lang) if appt.patient }}
+        {% if appt.doctor %} · {{ appt.doctor.display_name(current_lang) }}{% endif %}
+        · {{ appt.appt_date }} {{ appt.time_label }}</p>
+    </div>
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) }}"><i class="bi bi-arrow-right"></i> {{ t('appointments.title') }}</a>
+  </div>
+
+  <form method="post">
+    <!-- Services / charges -->
+    <div class="card gc-scale-in" style="margin-bottom:14px;">
+      <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('checkout.services') }}</h2>
+      <table class="table"><thead><tr>
+        <th>{{ t('invoices.description') }}</th><th style="width:110px;">{{ t('services.price') }}</th>
+        <th style="width:70px;">{{ t('invoices.quantity') }}</th><th style="width:100px;">{{ t('invoices.total') }}</th><th></th>
+      </tr></thead><tbody>
+        <template x-for="(l, i) in lines" :key="i">
+          <tr>
+            <td><input class="input" type="text" :name="'line_desc'" x-model="l.description">
+              <input type="hidden" :name="'line_service_id'" :value="l.service_id"></td>
+            <td><input class="input" type="number" step="0.01" min="0" :name="'line_price'" x-model.number="l.unit_price" @input="recalc()"></td>
+            <td><input class="input" type="number" min="1" :name="'line_qty'" x-model.number="l.quantity" @input="recalc()"></td>
+            <td style="font-weight:600;" x-text="((l.unit_price||0)*(l.quantity||1)).toFixed(2)"></td>
+            <td><button type="button" class="btn btn-outline btn-sm" @click="lines.splice(i,1); recalc()"><i class="bi bi-x-lg"></i></button></td>
+          </tr>
+        </template>
+      </tbody></table>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <select class="select" x-model.number="addId" style="max-width:280px;">
+          <option value="">{{ t('checkout.add_service') }}…</option>
+          {% for s in services %}<option value="{{ s.id }}" data-name="{{ s.display_name(current_lang) }}" data-price="{{ s.price or 0 }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
+        </select>
+        <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+      </div>
+    </div>
+
+    <!-- Discount + totals -->
+    <div class="card gc-scale-in" style="margin-bottom:14px;">
+      <div class="form-row" style="margin:0 0 10px;"><label>{{ t('checkout.discount') }}</label>
+        <select class="select" name="discount_id" x-model.number="discountId" @change="recalc()">
+          <option value="">— {{ t('checkout.no_discount') }} —</option>
+          {% for d in discounts %}<option value="{{ d.id }}" data-value="{{ d.value }}" data-percent="{{ 'true' if d.is_percent else 'false' }}">{{ d.display_name(current_lang) }} ({% if d.is_percent %}{{ d.value }}%{% else %}{{ d.value }}{% endif %})</option>{% endfor %}
+        </select></div>
+      <table class="table"><tbody>
+        <tr><td>{{ t('invoices.subtotal') }}</td><td style="text-align:end;" x-text="subtotal.toFixed(2)"></td></tr>
+        <tr x-show="discountAmt>0"><td>{{ t('checkout.discount') }}</td><td style="text-align:end;color:var(--danger);" x-text="'−'+discountAmt.toFixed(2)"></td></tr>
+        <tr style="font-weight:800;font-size:1.05rem;border-top:2px solid var(--line);"><td>{{ t('invoices.total') }}</td><td style="text-align:end;" x-text="total.toFixed(2)"></td></tr>
+      </tbody></table>
+    </div>
+
+    <!-- Payment (split) -->
+    <div class="card gc-scale-in" style="margin-bottom:14px;">
+      <h2 class="section-title"><i class="bi bi-wallet2"></i> {{ t('checkout.collect') }}</h2>
+      <p class="hint" style="margin-top:-6px;">{{ t('checkout.collect_hint') }}</p>
+      <template x-for="(p, i) in payments" :key="i">
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+          <input class="input" type="number" step="0.01" min="0" name="amount" x-model.number="p.amount" @input="recalc()" style="flex:1;" :placeholder="remaining.toFixed(2)">
+          <select class="select" name="method" x-model="p.method" style="width:auto;">
+            {% for m in payment_methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}
+          </select>
+          <button type="button" class="btn btn-outline btn-sm" @click="payments.splice(i,1); recalc()" x-show="payments.length>1"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </template>
+      <button type="button" class="btn btn-outline btn-sm gc-press" @click="payments.push({amount:0,method:'cash'})"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_method') }}</button>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline btn-sm" @click="payFull()">{{ t('checkout.pay_full') }}</button>
+        <button type="button" class="btn btn-outline btn-sm" @click="payments=[{amount:0,method:'cash'}]; recalc()">{{ t('checkout.pay_later') }}</button>
+      </div>
+      <table class="table" style="margin-top:10px;"><tbody>
+        <tr><td>{{ t('checkout.paid') }}</td><td style="text-align:end;color:var(--green-700);" x-text="paid.toFixed(2)"></td></tr>
+        <tr style="font-weight:700;"><td>{{ t('checkout.remaining') }}</td><td style="text-align:end;" :style="remaining>0.001?'color:var(--danger)':'color:var(--green-700)'" x-text="remaining.toFixed(2)"></td></tr>
+      </tbody></table>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
+      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) }}">{{ t('common.cancel') }}</a>
+      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function checkout(initLines, methods) {
+    return {
+      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1})),
+      addId: '', discountId: '',
+      payments: [{amount:0, method:'cash'}],
+      subtotal: 0, discountAmt: 0, total: 0, paid: 0, remaining: 0,
+      addLine() {
+        if (!this.addId) return;
+        var opt = document.querySelector('option[value="'+this.addId+'"][data-name]');
+        if (opt) this.lines.push({service_id:this.addId, description:opt.dataset.name, unit_price:Number(opt.dataset.price)||0, quantity:1});
+        this.addId=''; this.recalc();
+      },
+      recalc() {
+        this.subtotal = this.lines.reduce((s,l)=>s+(Number(l.unit_price)||0)*(l.quantity||1),0);
+        var d = 0;
+        if (this.discountId) {
+          var o = document.querySelector('select[name="discount_id"] option[value="'+this.discountId+'"]');
+          if (o) { var v=Number(o.dataset.value)||0; d = o.dataset.percent==='true' ? this.subtotal*v/100 : v; }
+        }
+        this.discountAmt = Math.min(d, this.subtotal);
+        this.total = Math.max(0, this.subtotal - this.discountAmt);
+        this.paid = this.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+        this.remaining = Math.max(0, this.total - this.paid);
+      },
+      payFull() { this.payments=[{amount:0,method:this.payments[0]?this.payments[0].method:'cash'}]; this.recalc(); this.payments[0].amount=Number(this.total.toFixed(2)); this.recalc(); },
+      init() { this.recalc(); }
+    };
+  }
+</script>
+{% endblock %}

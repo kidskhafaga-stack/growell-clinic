@@ -29,10 +29,9 @@
          href="{{ url_for('finance.invoice_view', invoice_id=p.invoice_id) }}"><i class="bi bi-cash"></i> {{ t('appointments.collect') }}</a>
     {% elif p.state == 'none' %}
       <span style="display:inline-flex;gap:4px;margin-top:4px;">
-        <form method="post" action="{{ url_for('finance.collect_appointment', appt_id=appt.id) }}" style="display:inline;">
-          <button type="submit" class="btn btn-outline btn-sm gc-press" style="display:inline-flex;color:#0e7490;border-color:#0e7490;"
-                  title="{{ t('appointments.collect_print_hint') }}"><i class="bi bi-cash-coin"></i> {{ t('appointments.collect_print') }}</button>
-        </form>
+        <a class="btn btn-outline btn-sm gc-press" style="display:inline-flex;color:#0e7490;border-color:#0e7490;"
+           href="{{ url_for('finance.checkout', appt_id=appt.id) }}"
+           title="{{ t('appointments.collect_print_hint') }}"><i class="bi bi-cash-coin"></i> {{ t('appointments.collect_print') }}</a>
         <a class="btn btn-outline btn-sm gc-press" style="display:inline-flex;color:var(--muted);border-color:var(--line);"
            href="{{ url_for('finance.invoice_new', patient_id=appt.patient_id, doctor_id=appt.doctor_id) }}"
            title="{{ t('appointments.bill') }}"><i class="bi bi-receipt"></i></a>
