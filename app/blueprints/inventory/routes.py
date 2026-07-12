@@ -93,6 +93,109 @@ def index():
     )
 
 
+@inventory_bp.route("/items")
+@module_required(MODULE)
+def items():
+    """Unified item catalogue (تعريف الأصناف): vaccine items and general-store
+    items in one searchable, filterable list, with quick-add for both. Deep
+    editing still happens on each item's own card."""
+    from flask import g
+    lang = getattr(g, "lang", "ar")
+    q = (request.args.get("q") or "").strip()
+    kind = (request.args.get("kind") or "").strip()
+    like = f"%{q}%" if q else None
+
+    rows = []
+    if kind in ("", "vaccine"):
+        vq = VaccineBrand.query.join(Vaccine)
+        if like:
+            vq = vq.filter(db.or_(
+                VaccineBrand.name.ilike(like), VaccineBrand.name_en.ilike(like),
+                VaccineBrand.manufacturer.ilike(like), VaccineBrand.barcode.ilike(like),
+                VaccineBrand.item_code.ilike(like),
+                Vaccine.name_ar.ilike(like), Vaccine.name_en.ilike(like)))
+        for b in vq.all():
+            rows.append({
+                "kind": "vaccine", "name": b.display_name(lang),
+                "subtitle": b.vaccine.display_name(lang),
+                "code": b.barcode or b.item_code, "purchase": b.purchase_price,
+                "sell": b.price, "stock": b.stock, "active": not b.is_discontinued,
+                "url": url_for("inventory.item_card", brand_id=b.id)})
+    if kind in ("", "store"):
+        sq = StoreItem.query
+        if like:
+            sq = sq.filter(db.or_(
+                StoreItem.name.ilike(like), StoreItem.name_en.ilike(like),
+                StoreItem.category.ilike(like), StoreItem.barcode.ilike(like)))
+        for it in sq.all():
+            rows.append({
+                "kind": "store", "name": it.name, "subtitle": it.category or "—",
+                "code": it.barcode, "purchase": it.purchase_price,
+                "sell": it.sell_price, "stock": it.current_stock, "active": it.is_active,
+                "url": url_for("inventory.store_item", item_id=it.id)})
+
+    rows.sort(key=lambda r: (r["name"] or "").lower())
+    counts = {"all": len(rows),
+              "vaccine": sum(1 for r in rows if r["kind"] == "vaccine"),
+              "store": sum(1 for r in rows if r["kind"] == "store")}
+    vaccines = Vaccine.query.order_by(Vaccine.sort_order, Vaccine.name_ar).all()
+    return render_template("inventory/items.html", rows=rows, q=q, kind=kind,
+                           counts=counts, vaccines=vaccines)
+
+
+@inventory_bp.route("/items/new", methods=["POST"])
+@module_required(MODULE)
+def item_new():
+    """Create an item from the unified catalogue — dispatched by kind to the
+    right underlying model (vaccine brand under a master vaccine, or store item)."""
+    kind = (request.form.get("item_kind") or "store").strip()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("store.name"), "danger")
+        return redirect(url_for("inventory.items"))
+
+    if kind == "vaccine":
+        vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
+        if vaccine is None:
+            flash(t("common.required") + ": " + t("inventory.master_vaccine"), "danger")
+            return redirect(url_for("inventory.items"))
+        brand = VaccineBrand(
+            vaccine_id=vaccine.id, name=name,
+            name_en=(request.form.get("name_en") or "").strip() or None,
+            manufacturer=(request.form.get("manufacturer") or "").strip() or None,
+            barcode=(request.form.get("barcode") or "").strip() or None,
+            item_code=(request.form.get("item_code") or "").strip() or None,
+            purchase_price=request.form.get("purchase_price", type=float),
+            price=request.form.get("price", type=float),
+            doses_per_vial=max(request.form.get("doses_per_vial", type=int) or 1, 1),
+            min_stock=request.form.get("min_stock", type=int),
+            is_default=not vaccine.brands)
+        db.session.add(brand)
+        ActivityLog.record("inventory.item_define", user_id=current_user.id,
+                           entity="vaccine_brand", detail=name, ip_address=client_ip())
+        db.session.commit()
+        flash(t("vaccinations.brand_added"), "success")
+        return redirect(url_for("inventory.item_card", brand_id=brand.id))
+
+    item = StoreItem(
+        name=name, name_en=(request.form.get("name_en") or "").strip() or None,
+        category=(request.form.get("category") or "").strip() or None,
+        unit=(request.form.get("unit") or "").strip() or None,
+        purchase_unit=(request.form.get("purchase_unit") or "").strip() or None,
+        units_per_purchase=request.form.get("units_per_purchase", type=int) or 1,
+        barcode=(request.form.get("barcode") or "").strip() or None,
+        purchase_price=request.form.get("purchase_price", type=float),
+        sell_price=request.form.get("price", type=float),
+        reorder_level=request.form.get("min_stock", type=int) or 0,
+        opening_stock=request.form.get("opening_stock", type=int) or 0)
+    db.session.add(item)
+    ActivityLog.record("inventory.item_define", user_id=current_user.id,
+                       entity="store_item", detail=name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("store.item_added"), "success")
+    return redirect(url_for("inventory.store_item", item_id=item.id))
+
+
 @inventory_bp.route("/batch/new", methods=["POST"])
 @module_required(MODULE)
 def batch_new():

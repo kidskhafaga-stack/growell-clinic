@@ -920,7 +920,19 @@
     "profit": "Profit",
     "profit_margin": "Profit margin",
     "clinic_net": "Clinic net",
-    "doses_per_vial": "Dispense units per purchase unit"
+    "doses_per_vial": "Dispense units per purchase unit",
+    "items_title": "Item catalogue",
+    "items_subtitle": "All vaccine and general-store items in one place — search & quick-add; detailed editing lives on each item card.",
+    "items_search_ph": "Search by name / supplier / barcode / code…",
+    "items_all": "All",
+    "items_vaccines": "Vaccines",
+    "items_store": "General store",
+    "items_empty": "No items",
+    "item_kind": "Item type",
+    "master_vaccine": "Master vaccine",
+    "select_master_vaccine": "Select master vaccine",
+    "item_code": "Item code",
+    "manufacturer": "Manufacturer"
   },
   "instatus": {
     "ok": "In stock",
@@ -1916,7 +1928,8 @@
     "unit_ph": "dose / piece",
     "purchase_unit": "Purchase unit",
     "purchase_unit_ph": "box / carton",
-    "units_per_purchase": "Units per purchase unit"
+    "units_per_purchase": "Units per purchase unit",
+    "opening_stock": "Opening stock"
   },
   "purchases": {
     "title": "Purchase orders",
