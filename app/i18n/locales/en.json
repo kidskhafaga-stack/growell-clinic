@@ -2491,5 +2491,31 @@
     "send": "Send",
     "sent": "Sent",
     "no_phone": "No phone on this conversation"
+  },
+  "journal": {
+    "title": "Journal",
+    "subtitle": "Entries generated automatically from operations (invoice/payment/refund/expense) — view & audit, no manual typing.",
+    "accounts": "Chart of accounts & balances",
+    "code": "Code",
+    "account": "Account",
+    "type": "Type",
+    "balance": "Balance",
+    "entries": "Entries",
+    "number": "Entry no.",
+    "date": "Date",
+    "memo": "Memo",
+    "lines": "Lines",
+    "amount": "Amount",
+    "totals": "Total debit/credit",
+    "empty": "No entries yet — they are generated with the first invoice or payment.",
+    "type_asset": "Assets",
+    "type_liability": "Liabilities",
+    "type_equity": "Equity",
+    "type_revenue": "Revenue",
+    "type_expense": "Expenses",
+    "src_invoice": "Invoice",
+    "src_payment": "Payment/refund",
+    "src_expense": "Expense",
+    "src_manual": "Manual"
   }
 }
