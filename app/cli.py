@@ -78,6 +78,7 @@ def register_commands(app):
             pass
         _seed_visit_types_safe()
         _seed_devices_safe()
+        _seed_accounts_safe()
         db.session.commit()
         click.secho("Database initialised.", fg="green")
 
@@ -259,6 +260,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _backfill_service_types_safe()
         _seed_devices_safe()
+        _seed_accounts_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -419,6 +421,16 @@ def _seed_devices_safe():
                     name=name, name_en=name_en, manufacturer=manuf, model=model,
                     device_type=dtype, software=sw, connection_type="usb",
                     import_mode="manual", is_active=True, is_system=True))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _seed_accounts_safe():
+    """Seed the chart of accounts once (idempotent; silent pre-table)."""
+    try:
+        from app.utils.accounting import ensure_seeded
+        if ensure_seeded():
+            click.echo("  + chart of accounts seeded")
     except Exception:  # noqa: BLE001
         pass
 

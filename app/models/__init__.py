@@ -126,6 +126,12 @@ from app.models.feedback import FEEDBACK_STATUSES, Feedback
 from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
+from app.models.accounting import (
+    ACCOUNT_TYPES,
+    Account,
+    JournalEntry,
+    JournalLine,
+)
 from app.models.device import (
     CONNECTION_TYPES,
     DEVICE_TYPES,
@@ -252,4 +258,8 @@ __all__ = [
     "DEVICE_TYPES",
     "CONNECTION_TYPES",
     "IMPORT_MODES",
+    "Account",
+    "JournalEntry",
+    "JournalLine",
+    "ACCOUNT_TYPES",
 ]

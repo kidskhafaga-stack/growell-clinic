@@ -1,0 +1,80 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('journal.title') }}{% endblock %}
+{% block page_heading %}{{ t('journal.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('journal.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('journal.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">
+    <i class="bi bi-receipt"></i> {{ t('invoices.title') }}</a>
+</div>
+
+<!-- Chart of accounts + balances -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-diagram-3"></i> {{ t('journal.accounts') }}</h2>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr>
+        <th>{{ t('journal.code') }}</th><th>{{ t('journal.account') }}</th>
+        <th>{{ t('journal.type') }}</th>
+        <th style="text-align:end;">{{ t('journal.balance') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for a in accounts %}
+        <tr {% if not a.parent_id %}style="background:var(--green-050,#f3faf5);font-weight:700;"{% endif %}>
+          <td dir="ltr">{{ a.code }}</td>
+          <td>{% if a.parent_id %}<span style="color:var(--muted);">└</span> {% endif %}{{ a.display_name(current_lang) }}</td>
+          <td><span class="badge">{{ t('journal.type_' ~ a.type) }}</span></td>
+          <td style="text-align:end;font-weight:600;">{{ '%.2f'|format(a.balance) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Journal entries -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.06s;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 18px 0;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-journal-text"></i> {{ t('journal.entries') }}</h2>
+    <span class="hint" style="margin:0;">{{ t('journal.totals') }}: {{ '%.2f'|format(totals.debit) }} / {{ '%.2f'|format(totals.credit) }}</span>
+  </div>
+  {% if entries %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:620px;">
+      <thead><tr>
+        <th>{{ t('journal.number') }}</th><th>{{ t('journal.date') }}</th>
+        <th>{{ t('journal.memo') }}</th>
+        <th>{{ t('journal.lines') }}</th>
+        <th style="text-align:end;">{{ t('journal.amount') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td dir="ltr"><strong>{{ e.entry_number }}</strong>
+            {% if e.source_type %}<div class="num" style="color:var(--muted);">{{ t('journal.src_' ~ e.source_type) }}</div>{% endif %}</td>
+          <td style="white-space:nowrap;">{{ e.entry_date }}</td>
+          <td>{{ e.memo or '—' }}</td>
+          <td>
+            {% for ln in e.lines %}
+            <div style="font-size:.82rem;{% if ln.credit %}padding-inline-start:18px;color:var(--muted);{% endif %}">
+              {{ ln.account.display_name(current_lang) if ln.account }}
+              <span dir="ltr">{% if ln.debit %}Dr {{ '%.2f'|format(ln.debit) }}{% else %}Cr {{ '%.2f'|format(ln.credit) }}{% endif %}</span>
+            </div>
+            {% endfor %}
+          </td>
+          <td style="text-align:end;font-weight:700;">{{ '%.2f'|format(e.total_debit) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-journal"></i>{{ t('journal.empty') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
