@@ -74,6 +74,63 @@ def delete_backup(name):
     return False
 
 
+def apply_retention(keep):
+    """Trim *automatic* snapshots (auto/prerestore/preupgrade) to the newest
+    ``keep``. Manual backups are the admin's — never deleted automatically."""
+    try:
+        keep = max(int(keep), 1)
+    except (TypeError, ValueError):
+        keep = 14
+    autos = [b for b in list_backups()
+             if not b["name"].endswith("-manual.db")]
+    removed = 0
+    for b in autos[keep:]:
+        if delete_backup(b["name"]):
+            removed += 1
+    return removed
+
+
+# Throttle so the due-check costs nothing on normal requests.
+_AUTO = {"checked_at": 0.0}
+_AUTO_CHECK_EVERY = 300  # seconds
+
+
+def auto_backup_if_due():
+    """Opportunistic daily backup (poor-man's cron for a single clinic PC).
+
+    On the first request after the configured hour on any day without an
+    automatic snapshot yet, take one and apply retention. Throttled to one
+    cheap check every few minutes; never raises.
+    """
+    import time as _time
+
+    now = _time.time()
+    if now - _AUTO["checked_at"] < _AUTO_CHECK_EVERY:
+        return None
+    _AUTO["checked_at"] = now
+    try:
+        from app.models import Setting
+
+        if Setting.get("backup_auto_enabled", "1") == "0":
+            return None
+        try:
+            hour = int(Setting.get("backup_hour", "2"))
+        except (TypeError, ValueError):
+            hour = 2
+        today = datetime.now()
+        if today.hour < hour:
+            return None
+        stamp = today.strftime("%Y%m%d")
+        if any(b["name"].startswith(f"backup-{stamp}-")
+               and b["name"].endswith("-auto.db") for b in list_backups()):
+            return None
+        name = create_backup("auto")
+        apply_retention(Setting.get("backup_keep", "14"))
+        return name
+    except Exception:  # noqa: BLE001 - a failed backup must never break a request
+        return None
+
+
 def restore_backup(name):
     """Replace the live database with a backup's content.
 

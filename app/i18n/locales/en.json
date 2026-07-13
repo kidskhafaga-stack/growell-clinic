@@ -2441,6 +2441,10 @@
     "restored": "Restored successfully — an automatic snapshot was taken first ({pre})",
     "restore_failed": "Restore failed",
     "bad_confirm": "Wrong confirmation — type RESTORE",
-    "restore_prompt": "Restoring replaces the entire current database (an automatic snapshot is taken first). Type RESTORE to confirm:"
+    "restore_prompt": "Restoring replaces the entire current database (an automatic snapshot is taken first). Type RESTORE to confirm:",
+    "auto_enabled": "Daily automatic backup",
+    "auto_hour": "Starting from hour",
+    "keep": "Keep last (copies)",
+    "auto_hint": "The automatic snapshot is taken on first use after the set hour each day. Retention trims automatic snapshots only — manual backups are never auto-deleted. A snapshot is also taken before every database upgrade."
   }
 }

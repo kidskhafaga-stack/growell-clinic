@@ -290,8 +290,27 @@ def data_tools():
         "invoices": Invoice.query.count(),
         "seeded": Setting.get("demo_seeded") == "1",
     }
+    bset = {
+        "enabled": Setting.get("backup_auto_enabled", "1") != "0",
+        "hour": Setting.get("backup_hour", "2"),
+        "keep": Setting.get("backup_keep", "14"),
+    }
     return render_template("settings/data.html", stats=stats,
-                           backups=list_backups())
+                           backups=list_backups(), bset=bset)
+
+
+@settings_bp.route("/data/backup-settings", methods=["POST"])
+@admin_required
+def backup_settings():
+    Setting.set("backup_auto_enabled",
+                "1" if request.form.get("backup_auto_enabled") else "0")
+    hour = request.form.get("backup_hour", type=int)
+    Setting.set("backup_hour", str(min(max(hour if hour is not None else 2, 0), 23)))
+    keep = request.form.get("backup_keep", type=int)
+    Setting.set("backup_keep", str(min(max(keep if keep is not None else 14, 1), 365)))
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("settings.data_tools"))
 
 
 @settings_bp.route("/data/backup", methods=["POST"])

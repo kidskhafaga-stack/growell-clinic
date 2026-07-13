@@ -216,6 +216,12 @@ def create_app(config_name="default"):
                                 "logo_url": None, "accent": None}}
 
     @app.before_request
+    def _auto_backup():
+        """Daily automatic DB snapshot (throttled, silent, never breaks a request)."""
+        from app.utils.backups import auto_backup_if_due
+        auto_backup_if_due()
+
+    @app.before_request
     def _first_run_wizard():
         """Send the admin to the setup wizard until the facility is configured.
 
