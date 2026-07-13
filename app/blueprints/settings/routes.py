@@ -283,13 +283,57 @@ def devices():
 @admin_required
 def data_tools():
     from app.models import Invoice, Patient
+    from app.utils.backups import list_backups
 
     stats = {
         "patients": Patient.query.count(),
         "invoices": Invoice.query.count(),
         "seeded": Setting.get("demo_seeded") == "1",
     }
-    return render_template("settings/data.html", stats=stats)
+    return render_template("settings/data.html", stats=stats,
+                           backups=list_backups())
+
+
+@settings_bp.route("/data/backup", methods=["POST"])
+@admin_required
+def backup_create():
+    from app.utils.backups import create_backup
+
+    try:
+        name = create_backup("manual")
+    except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
+        flash(t("backups.failed"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    ActivityLog.record("backup.create", user_id=current_user.id,
+                       entity="system", detail=name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("backups.created"), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
+@settings_bp.route("/data/backup/<name>/download")
+@admin_required
+def backup_download(name):
+    from flask import abort, send_file
+    from app.utils.backups import backup_path
+
+    path = backup_path(name)
+    if not path:
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=name)
+
+
+@settings_bp.route("/data/backup/<name>/delete", methods=["POST"])
+@admin_required
+def backup_delete(name):
+    from app.utils.backups import delete_backup
+
+    if delete_backup(name):
+        ActivityLog.record("backup.delete", user_id=current_user.id,
+                           entity="system", detail=name, ip_address=client_ip())
+        db.session.commit()
+        flash(t("backups.deleted"), "info")
+    return redirect(url_for("settings.data_tools"))
 
 
 @settings_bp.route("/data/seed-demo", methods=["POST"])

@@ -2424,5 +2424,18 @@
     "summary": "Clinical summary & recommendations",
     "doctor_sign": "Doctor's signature",
     "date_stamp": "Date"
+  },
+  "backups": {
+    "title": "Backups",
+    "hint": "A safe, consistent snapshot of the database (even while running). Take one before any big change and download copies off this machine regularly.",
+    "create_btn": "Create backup now",
+    "created": "Backup created",
+    "failed": "Backup failed",
+    "deleted": "Backup deleted",
+    "file": "File",
+    "created_at": "Date",
+    "size": "Size",
+    "download": "Download",
+    "none": "No backups yet — create the first one now."
   }
 }
