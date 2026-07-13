@@ -50,6 +50,12 @@
           <td style="text-align:end;white-space:nowrap;">
             <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.backup_download', name=b.name) }}">
               <i class="bi bi-download"></i> {{ t('backups.download') }}</a>
+            <form method="post" action="{{ url_for('settings.backup_restore', name=b.name) }}" style="display:inline;"
+                  onsubmit="var v=prompt('{{ t('backups.restore_prompt') }}'); if(v!=='RESTORE'){return false;} this.confirm.value=v; return true;">
+              <input type="hidden" name="confirm" value="">
+              <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);">
+                <i class="bi bi-arrow-counterclockwise"></i> {{ t('backups.restore') }}</button>
+            </form>
             <form method="post" action="{{ url_for('settings.backup_delete', name=b.name) }}" style="display:inline;"
                   onsubmit="return confirm('{{ t('common.confirm') }}?');">
               <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>

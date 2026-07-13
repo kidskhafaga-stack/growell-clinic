@@ -323,6 +323,28 @@ def backup_download(name):
     return send_file(path, as_attachment=True, download_name=name)
 
 
+@settings_bp.route("/data/backup/<name>/restore", methods=["POST"])
+@admin_required
+def backup_restore(name):
+    from app.utils.backups import restore_backup
+
+    # Typed confirmation — restoring overwrites the live database.
+    if (request.form.get("confirm") or "").strip() != "RESTORE":
+        flash(t("backups.bad_confirm"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    try:
+        pre = restore_backup(name)
+    except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
+        flash(t("backups.restore_failed"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    ActivityLog.record("backup.restore", user_id=current_user.id,
+                       entity="system", detail=f"{name} (pre={pre})",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("backups.restored", pre=pre), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
 @settings_bp.route("/data/backup/<name>/delete", methods=["POST"])
 @admin_required
 def backup_delete(name):

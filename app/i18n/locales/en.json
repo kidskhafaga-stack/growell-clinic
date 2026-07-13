@@ -2436,6 +2436,11 @@
     "created_at": "Date",
     "size": "Size",
     "download": "Download",
-    "none": "No backups yet — create the first one now."
+    "none": "No backups yet — create the first one now.",
+    "restore": "Restore",
+    "restored": "Restored successfully — an automatic snapshot was taken first ({pre})",
+    "restore_failed": "Restore failed",
+    "bad_confirm": "Wrong confirmation — type RESTORE",
+    "restore_prompt": "Restoring replaces the entire current database (an automatic snapshot is taken first). Type RESTORE to confirm:"
   }
 }
