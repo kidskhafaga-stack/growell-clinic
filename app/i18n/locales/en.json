@@ -1061,7 +1061,19 @@
     "board_hint": "Control the visit-type breakdown panel shown to doctors and reception on the board.",
     "board_show_breakdown": "Show the visit-type breakdown panel (consultation/follow-up/vaccination…)",
     "board_breakdown_month": "Show a month-to-date column next to today",
-    "board_breakdown_newold": "Show new vs returning patient counts"
+    "board_breakdown_newold": "Show new vs returning patient counts",
+    "numbering_title": "Document numbering",
+    "numbering_hint": "One unified number series per document — the printed receipt carries the invoice number itself. Change prefix, scheme or starting number with no code changes.",
+    "numbering_invoices": "Invoices & receipts",
+    "numbering_patients": "Patient file numbers",
+    "number_prefix": "Prefix",
+    "number_scheme": "Scheme",
+    "number_start": "Starting number",
+    "number_start_hint": "Useful to continue a paper-book or previous-system series (e.g. 1000).",
+    "scheme_fixed": "Continuous sequence",
+    "scheme_yearly": "Yearly (resets each year)",
+    "prefix_yearly": "Yearly-scheme prefix",
+    "prefix_fixed": "Continuous-scheme prefix"
   },
   "errors": {
     "403_title": "Forbidden",
