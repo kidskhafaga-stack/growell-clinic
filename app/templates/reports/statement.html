@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('statement.title') }} — {{ patient.display_name(current_lang) }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; line-height:1.5; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-weight:600; cursor:pointer; text-decoration:none; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .sheet { background:#fff; max-width:780px; margin:16px auto; padding:30px 36px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .head { display:flex; justify-content:space-between; border-bottom:2px solid var(--brand); padding-bottom:12px; }
+  .clinic { font-size:1.25rem; font-weight:800; color:var(--brand); }
+  h1 { text-align:center; font-size:1.1rem; margin:16px 0 4px; }
+  .meta { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:start; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-size:.76rem; text-transform:uppercase; }
+  .sum { display:flex; gap:20px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+  .sum div { text-align:center; }
+  .sum .k { color:var(--muted); font-size:.78rem; }
+  .sum .v { font-size:1.15rem; font-weight:800; }
+  .neg { color:#c0392b; }
+  @media print { body{background:#fff;} .toolbar{display:none;} .sheet{box-shadow:none;margin:0;max-width:none;padding:0;} @page{margin:14mm;} }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('reports.ar_aging') }}">← {{ t('common.back') }}</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('report.print') }}</button>
+  </div>
+  <div class="sheet">
+    <div class="head">
+      <div>
+        <div class="clinic">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div>
+        <div style="color:var(--muted);font-size:.85rem;">
+          {% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}
+          {% if clinic.address %} · {{ clinic.address }}{% endif %}</div>
+      </div>
+      {% if clinic.show_logo_print and clinic.logo_url %}<img src="{{ clinic.logo_url }}" style="max-height:56px;" alt="">{% endif %}
+    </div>
+
+    <h1>{{ t('statement.title') }}</h1>
+    <div class="meta">{{ patient.display_name(current_lang) }} · {{ patient.patient_number }}
+      {% if patient.contact_phone %} · <span dir="ltr">{{ patient.contact_phone }}</span>{% endif %}
+      · {{ t('report.generated_on') }}: {{ today }}</div>
+
+    <table>
+      <thead><tr>
+        <th>{{ t('statement.date') }}</th><th>{{ t('statement.doc') }}</th>
+        <th>{{ t('statement.ref') }}</th>
+        <th style="text-align:end;">{{ t('statement.debit') }}</th>
+        <th style="text-align:end;">{{ t('statement.credit') }}</th>
+        <th style="text-align:end;">{{ t('statement.balance') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td style="white-space:nowrap;">{{ e.date }}</td>
+          <td>{{ t('statement.kind_' ~ e.kind) }}</td>
+          <td dir="ltr">{{ e.ref }}</td>
+          <td style="text-align:end;">{% if e.kind in ('invoice','refund') %}{{ '%.2f'|format(e.amount) }}{% else %}—{% endif %}</td>
+          <td style="text-align:end;">{% if e.kind == 'payment' %}{{ '%.2f'|format(e.amount) }}{% else %}—{% endif %}</td>
+          <td style="text-align:end;font-weight:700;" class="{{ 'neg' if e.balance > 0 else '' }}">{{ '%.2f'|format(e.balance) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">{{ t('statement.empty') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="sum">
+      <div><div class="k">{{ t('statement.total_billed') }}</div><div class="v">{{ '%.2f'|format(summary.billed) }}</div></div>
+      <div><div class="k">{{ t('statement.total_paid') }}</div><div class="v">{{ '%.2f'|format(summary.paid) }}</div></div>
+      {% if summary.refunded %}<div><div class="k">{{ t('statement.total_refunded') }}</div><div class="v">{{ '%.2f'|format(summary.refunded) }}</div></div>{% endif %}
+      <div><div class="k">{{ t('statement.due') }}</div><div class="v {{ 'neg' if summary.balance > 0 else '' }}">{{ '%.2f'|format(summary.balance) }}</div></div>
+    </div>
+  </div>
+</body>
+</html>

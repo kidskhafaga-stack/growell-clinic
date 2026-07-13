@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.ar_aging') }}{% endblock %}
+{% block page_heading %}{{ t('reports.ar_aging') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('reports.ar_aging') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('aging.subtitle') }} · {{ today }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-arrow-right"></i> {{ t('reports.title') }}</a>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-cash-stack ico"></i>
+    <div class="value">{{ '%.2f'|format(grand) }}</div><div class="label">{{ t('aging.grand_total') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-people ico"></i>
+    <div class="value">{{ rows|length }}</div><div class="label">{{ t('aging.debtors') }}</div></div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:640px;">
+      <thead><tr>
+        <th>{{ t('aging.patient') }}</th>
+        <th style="text-align:end;">0–30</th>
+        <th style="text-align:end;">31–60</th>
+        <th style="text-align:end;">61–90</th>
+        <th style="text-align:end;">+90</th>
+        <th style="text-align:end;">{{ t('aging.total') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><strong>{{ r.patient.display_name(current_lang) if r.patient }}</strong>
+            <div class="num" style="color:var(--muted);">{{ r.patient.patient_number if r.patient }} · {{ r.count }} {{ t('aging.invoices') }}</div></td>
+          {% for b in r.buckets %}
+          <td style="text-align:end;{% if loop.index >= 3 and b > 0 %}color:var(--danger);font-weight:700;{% endif %}">{{ '%.2f'|format(b) if b else '—' }}</td>
+          {% endfor %}
+          <td style="text-align:end;font-weight:800;">{{ '%.2f'|format(r.total) }}</td>
+          <td style="text-align:end;white-space:nowrap;">
+            <a class="btn btn-outline btn-sm gc-press" target="_blank"
+               href="{{ url_for('reports.patient_statement', patient_id=r.patient.id) }}">
+              <i class="bi bi-file-earmark-text"></i> {{ t('aging.statement') }}</a></td>
+        </tr>
+        {% endfor %}
+        <tr style="border-top:2px solid var(--line);font-weight:800;background:var(--green-050,#f3faf5);">
+          <td>{{ t('aging.total') }}</td>
+          {% for tot in totals %}<td style="text-align:end;">{{ '%.2f'|format(tot) }}</td>{% endfor %}
+          <td style="text-align:end;">{{ '%.2f'|format(grand) }}</td><td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-emoji-smile"></i>{{ t('aging.empty') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

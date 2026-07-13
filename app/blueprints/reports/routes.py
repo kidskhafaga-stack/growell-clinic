@@ -102,6 +102,116 @@ def financial():
     )
 
 
+@reports_bp.route("/income")
+@module_required(MODULE)
+def income():
+    """Income statement (F3): revenue vs expenses from the journal, per
+    account, for a period — the first true P&L, powered by the auto entries."""
+    from app.models import Account, JournalEntry, JournalLine
+    from app.extensions import db
+    from app.utils.accounting import ensure_seeded
+
+    ensure_seeded()
+    date_from, date_to = _range()
+    rows = (
+        db.session.query(Account, db.func.sum(JournalLine.debit),
+                         db.func.sum(JournalLine.credit))
+        .join(JournalLine, JournalLine.account_id == Account.id)
+        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+        .filter(JournalEntry.entry_date >= date_from,
+                JournalEntry.entry_date <= date_to,
+                Account.type.in_(["revenue", "expense"]))
+        .group_by(Account.id).order_by(Account.code).all()
+    )
+    revenue, expenses = [], []
+    for acc, total_d, total_c in rows:
+        if acc.type == "revenue":
+            amount = round((total_c or 0) - (total_d or 0), 2)
+            if amount:
+                revenue.append((acc, amount))
+        else:
+            amount = round((total_d or 0) - (total_c or 0), 2)
+            if amount:
+                expenses.append((acc, amount))
+    total_rev = round(sum(a for _, a in revenue), 2)
+    total_exp = round(sum(a for _, a in expenses), 2)
+    return render_template(
+        "reports/income.html", date_from=date_from, date_to=date_to,
+        revenue=revenue, expenses=expenses, total_rev=total_rev,
+        total_exp=total_exp, net=round(total_rev - total_exp, 2),
+    )
+
+
+AGING_BUCKETS = [(0, 30), (31, 60), (61, 90), (91, None)]
+
+
+@reports_bp.route("/ar-aging")
+@module_required(MODULE)
+def ar_aging():
+    """AR aging (أعمار الديون): every unpaid balance bucketed by how long it
+    has been outstanding, grouped per patient — the collection to-do list."""
+    today = datetime.utcnow().date()
+    open_invoices = [i for i in Invoice.query
+                     .filter(Invoice.status.in_(["unpaid", "partial"])).all()
+                     if i.balance > 0.009]
+    per_patient = {}
+    totals = [0.0] * len(AGING_BUCKETS)
+    for inv in open_invoices:
+        age = (today - inv.invoice_date).days if inv.invoice_date else 0
+        idx = next(i for i, (lo, hi) in enumerate(AGING_BUCKETS)
+                   if age >= lo and (hi is None or age <= hi))
+        row = per_patient.setdefault(inv.patient_id, {
+            "patient": inv.patient, "buckets": [0.0] * len(AGING_BUCKETS),
+            "total": 0.0, "count": 0,
+        })
+        row["buckets"][idx] = round(row["buckets"][idx] + inv.balance, 2)
+        row["total"] = round(row["total"] + inv.balance, 2)
+        row["count"] += 1
+        totals[idx] = round(totals[idx] + inv.balance, 2)
+    rows = sorted(per_patient.values(), key=lambda r: -r["total"])
+    return render_template(
+        "reports/ar_aging.html", rows=rows, totals=totals,
+        grand=round(sum(totals), 2), today=today,
+    )
+
+
+@reports_bp.route("/statement/<int:patient_id>")
+@module_required(MODULE)
+def patient_statement(patient_id):
+    """Printable patient statement (كشف حساب): invoices and payments in
+    chronological order with a running balance."""
+    from app.extensions import db
+
+    patient = db.get_or_404(Patient, patient_id)
+    events = []
+    for inv in Invoice.query.filter_by(patient_id=patient.id).all():
+        events.append({"date": inv.invoice_date, "kind": "invoice",
+                       "ref": inv.invoice_number, "amount": inv.total})
+        for pay in inv.payments:
+            events.append({
+                "date": pay.paid_at.date() if pay.paid_at else inv.invoice_date,
+                "kind": "refund" if pay.kind == "refund" else "payment",
+                "ref": inv.invoice_number, "amount": pay.amount or 0,
+            })
+    events.sort(key=lambda e: (e["date"] or datetime.utcnow().date(), e["kind"]))
+    balance = 0.0
+    for e in events:
+        if e["kind"] == "invoice" or e["kind"] == "refund":
+            balance = round(balance + e["amount"], 2)
+        else:
+            balance = round(balance - e["amount"], 2)
+        e["balance"] = balance
+    summary = {
+        "billed": round(sum(e["amount"] for e in events if e["kind"] == "invoice"), 2),
+        "paid": round(sum(e["amount"] for e in events if e["kind"] == "payment"), 2),
+        "refunded": round(sum(e["amount"] for e in events if e["kind"] == "refund"), 2),
+        "balance": balance,
+    }
+    return render_template("reports/statement.html", patient=patient,
+                           events=events, summary=summary,
+                           today=datetime.utcnow().date())
+
+
 @reports_bp.route("/operational")
 @module_required(MODULE)
 def operational():

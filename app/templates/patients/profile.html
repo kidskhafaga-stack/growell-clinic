@@ -600,7 +600,14 @@
     {% if current_user.can('cashier') or current_user.can_access('finance') %}
     <!-- Finance -->
     <div class="gc-tab-panel" x-show="tab==='finance'" x-cloak>
-      <h3 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('patients.tab_finance') }}</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-cash-coin"></i> {{ t('patients.tab_finance') }}</h3>
+        {% if current_user.can_access('reports') %}
+        <a class="btn btn-outline btn-sm gc-press" target="_blank"
+           href="{{ url_for('reports.patient_statement', patient_id=patient.id) }}">
+          <i class="bi bi-file-earmark-text"></i> {{ t('statement.title') }}</a>
+        {% endif %}
+      </div>
       <div class="stat-grid" style="margin-bottom:14px;">
         <div class="stat-card edge-blue"><div class="value">{{ fin.total }}</div><div class="label">{{ t('invoices.total') }}</div></div>
         <div class="stat-card edge-green"><div class="value">{{ fin.paid }}</div><div class="label">{{ t('invoices.paid') }}</div></div>

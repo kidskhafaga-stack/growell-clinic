@@ -1692,7 +1692,11 @@
     "doses_given": "Doses given",
     "revenue": "Revenue",
     "clinic_margin": "Clinic margin",
-    "vaccines_line": "Vaccines"
+    "vaccines_line": "Vaccines",
+    "income": "Income statement",
+    "income_desc": "Revenue vs expenses and net profit from the automatic journal.",
+    "ar_aging": "AR aging",
+    "ar_aging_desc": "Outstanding patient balances bucketed by age (0-30/31-60/61-90/90+)."
   },
   "ai": {
     "title": "AI Assistant",
@@ -2517,5 +2521,40 @@
     "src_payment": "Payment/refund",
     "src_expense": "Expense",
     "src_manual": "Manual"
+  },
+  "income": {
+    "revenue": "Revenue",
+    "expenses": "Expenses",
+    "total_revenue": "Total revenue",
+    "total_expenses": "Total expenses",
+    "net": "Net profit",
+    "none": "No movement in this period"
+  },
+  "aging": {
+    "subtitle": "Every uncollected balance bucketed by age — the collection follow-up list",
+    "grand_total": "Total outstanding",
+    "debtors": "Patients with balance",
+    "patient": "Patient",
+    "total": "Total",
+    "invoices": "invoices",
+    "statement": "Statement",
+    "empty": "No outstanding balances — everything is collected 🎉"
+  },
+  "statement": {
+    "title": "Patient statement",
+    "date": "Date",
+    "doc": "Document",
+    "ref": "Reference",
+    "debit": "Debit",
+    "credit": "Credit",
+    "balance": "Balance",
+    "kind_invoice": "Invoice",
+    "kind_payment": "Payment",
+    "kind_refund": "Refund",
+    "total_billed": "Total billed",
+    "total_paid": "Total paid",
+    "total_refunded": "Total refunded",
+    "due": "Balance due",
+    "empty": "No transactions"
   }
 }
