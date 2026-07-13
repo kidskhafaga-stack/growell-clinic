@@ -72,3 +72,31 @@ def delete_backup(name):
         os.remove(path)
         return True
     return False
+
+
+def restore_backup(name):
+    """Replace the live database with a backup's content.
+
+    A fresh snapshot of the current state is taken first (reason
+    ``prerestore``) so a mistaken restore is itself reversible. SQLAlchemy's
+    pool is disposed before copying so no pooled connection serves stale
+    pages; the copy runs through SQLite's backup API (backup file → live DB),
+    which is safe against readers and needs no app restart.
+    Returns the pre-restore snapshot's filename.
+    """
+    src = backup_path(name)
+    if not src:
+        raise RuntimeError("backup not found")
+    live = db_path()
+    if not live or not os.path.isfile(live):
+        raise RuntimeError("database file not found")
+
+    pre = create_backup("prerestore")
+
+    from app.extensions import db as _db
+    _db.session.remove()
+    _db.engine.dispose()
+
+    with sqlite3.connect(src) as source, sqlite3.connect(live) as target:
+        source.backup(target)
+    return pre
