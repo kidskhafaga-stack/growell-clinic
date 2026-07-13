@@ -1,0 +1,62 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.income') }}{% endblock %}
+{% block page_heading %}{{ t('reports.income') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('reports.income') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('reports.income_desc') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label>
+      <input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label>
+      <input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('common.search') }}</button>
+  </form>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-arrow-down-left-circle ico"></i>
+    <div class="value">{{ '%.2f'|format(total_rev) }}</div><div class="label">{{ t('income.total_revenue') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-arrow-up-right-circle ico"></i>
+    <div class="value">{{ '%.2f'|format(total_exp) }}</div><div class="label">{{ t('income.total_expenses') }}</div></div>
+  <div class="stat-card {{ 'edge-green' if net >= 0 else 'edge-red' }} gc-lift"><i class="bi bi-graph-up-arrow ico"></i>
+    <div class="value">{{ '%.2f'|format(net) }}</div><div class="label">{{ t('income.net') }}</div></div>
+</div>
+
+<div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;">
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-cash-coin"></i> {{ t('income.revenue') }}</h2>
+    <table class="table">
+      <tbody>
+        {% for acc, amount in revenue %}
+        <tr><td>{{ acc.display_name(current_lang) }} <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
+            <td style="text-align:end;font-weight:700;">{{ '%.2f'|format(amount) }}</td></tr>
+        {% else %}
+        <tr><td colspan="2" class="empty-state">{{ t('income.none') }}</td></tr>
+        {% endfor %}
+        {% if revenue %}<tr style="border-top:2px solid var(--line);font-weight:800;">
+          <td>{{ t('income.total_revenue') }}</td><td style="text-align:end;">{{ '%.2f'|format(total_rev) }}</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.06s;">
+    <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-wallet2"></i> {{ t('income.expenses') }}</h2>
+    <table class="table">
+      <tbody>
+        {% for acc, amount in expenses %}
+        <tr><td>{{ acc.display_name(current_lang) }} <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
+            <td style="text-align:end;font-weight:700;">{{ '%.2f'|format(amount) }}</td></tr>
+        {% else %}
+        <tr><td colspan="2" class="empty-state">{{ t('income.none') }}</td></tr>
+        {% endfor %}
+        {% if expenses %}<tr style="border-top:2px solid var(--line);font-weight:800;">
+          <td>{{ t('income.total_expenses') }}</td><td style="text-align:end;">{{ '%.2f'|format(total_exp) }}</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
