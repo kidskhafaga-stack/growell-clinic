@@ -86,6 +86,28 @@ def role_delete(role_id):
     return redirect(url_for("users.roles"))
 
 
+def _save_user_photo():
+    """Persist an uploaded avatar (already circle-cropped client-side) into
+    static/uploads/users; returns the stored filename or None."""
+    import os
+    import uuid
+
+    from flask import current_app
+    from werkzeug.utils import secure_filename
+
+    file = request.files.get("photo")
+    if not file or not file.filename:
+        return None
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in {"png", "jpg", "jpeg", "webp"}:
+        return None
+    path = os.path.join(current_app.static_folder, "uploads", "users")
+    os.makedirs(path, exist_ok=True)
+    name = f"{uuid.uuid4().hex}.{ext}"
+    file.save(os.path.join(path, secure_filename(name)))
+    return name
+
+
 @users_bp.route("/new", methods=["GET", "POST"])
 @admin_required
 def create():
@@ -111,6 +133,9 @@ def create():
             language=form["language"] or ("en" if form["role"] == "doctor" else None),
         )
         user.set_password(form["password"])
+        photo = _save_user_photo()
+        if photo:
+            user.photo = photo
         db.session.add(user)
         db.session.flush()
         ActivityLog.record(
@@ -149,6 +174,9 @@ def edit(user_id):
         user.language = form["language"] or None
         if form["password"]:
             user.set_password(form["password"])
+        photo = _save_user_photo()
+        if photo:
+            user.photo = photo
 
         ActivityLog.record(
             "user.update", user_id=current_user.id, entity="user",

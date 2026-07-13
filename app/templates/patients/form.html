@@ -37,7 +37,7 @@
           <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
             <i class="bi bi-upload"></i> {{ t('patients.photo') }}
             <input type="file" name="photo" accept="image/*" hidden
-                   x-on:change="gcCropSquare($event.target, () => previewPhoto($event))">
+                   x-on:change="gcAvatarCrop($event.target, () => previewPhoto($event))">
           </label>
         </div>
       </div>

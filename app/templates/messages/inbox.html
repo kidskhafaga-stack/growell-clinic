@@ -1,0 +1,51 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% from "patients/_macros.html" import patient_avatar %}
+{% block title %}{{ t('inbox.title') }}{% endblock %}
+{% block page_heading %}{{ t('inbox.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-whatsapp"></i> {{ t('inbox.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('inbox.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}">
+      <i class="bi bi-graph-up"></i> {{ t('inbox.dashboard') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}">
+      <i class="bi bi-chat-square-text"></i> {{ t('crm.title') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if conversations %}
+  <div style="display:flex;flex-direction:column;">
+    {% for c in conversations %}
+    <a href="{{ url_for('messages.inbox_thread', key=c.key) }}"
+       style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;">
+      {% if c.patient %}{{ patient_avatar(c.patient, 'sm') }}
+      {% else %}<div class="patient-avatar sm"><i class="bi bi-telephone"></i></div>{% endif %}
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <strong>{{ c.patient.display_name(current_lang) if c.patient else c.phone }}</strong>
+          <span class="num" style="color:var(--muted);white-space:nowrap;">{{ c.last.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <span style="color:var(--muted);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70ch;">
+            {% if c.last.direction == 'out' %}<i class="bi bi-arrow-up-left" style="color:var(--green-700);"></i>{% else %}<i class="bi bi-arrow-down-right" style="color:#2563eb;"></i>{% endif %}
+            {{ c.last.body[:120] }}</span>
+          <span style="display:flex;gap:6px;align-items:center;">
+            {% if c.unread %}<span class="badge" style="background:var(--primary,#198754);color:#fff;border-radius:999px;">{{ c.unread }}</span>{% endif %}
+            <span class="num" style="color:var(--muted);">{{ c.count }}</span>
+          </span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-whatsapp"></i>{{ t('inbox.none') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
