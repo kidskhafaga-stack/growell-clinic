@@ -32,6 +32,9 @@ TEXT_KEYS = [
     "eta_vat_rate", "eta_send_gap", "eta_default_item_type", "eta_client_secret2",
     # AI assistant (provider-agnostic).
     "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_system_prompt",
+    # Document numbering (F1): patient file + invoice/receipt series.
+    "patient_number_scheme", "patient_number_prefix", "patient_number_prefix_fixed",
+    "invoice_number_prefix", "invoice_number_scheme", "invoice_number_start",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize",

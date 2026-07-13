@@ -55,6 +55,7 @@
     {% for tid, icon, label in [
         ('clinic','hospital', t('settings.clinic_identity')),
         ('logo','image', t('settings.logo')),
+        ('numbering','123', t('settings.numbering_title')),
         ('board','bar-chart-line', t('settings.board_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title'))] %}
@@ -208,6 +209,44 @@
         <label>{{ t('settings.exam_chips') }}</label>
         {{ chip_editor('visit_exam_chips', exam_chips) }}
       </div>
+    </div>
+  </div>
+
+  <!-- Document numbering (F1) -->
+  <div class="card gc-scale-in" x-show="tab==='numbering'" x-cloak>
+    <h2 class="section-title"><i class="bi bi-123"></i> {{ t('settings.numbering_title') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('settings.numbering_hint') }}</p>
+
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-receipt"></i> {{ t('settings.numbering_invoices') }}</h3>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.number_prefix') }}</label>
+        <input class="input" name="invoice_number_prefix" dir="ltr" placeholder="INV"
+               value="{{ values.get('invoice_number_prefix','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.number_scheme') }}</label>
+        <select class="select" name="invoice_number_scheme">
+          <option value="fixed" {{ 'selected' if values.get('invoice_number_scheme','fixed') == 'fixed' else '' }}>{{ t('settings.scheme_fixed') }} (INV-000123)</option>
+          <option value="yearly" {{ 'selected' if values.get('invoice_number_scheme') == 'yearly' else '' }}>{{ t('settings.scheme_yearly') }} (INV-2026-0001)</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('settings.number_start') }}</label>
+        <input class="input" type="number" min="1" name="invoice_number_start" dir="ltr"
+               value="{{ values.get('invoice_number_start','') }}" placeholder="1">
+        <div class="hint">{{ t('settings.number_start_hint') }}</div></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-person-vcard"></i> {{ t('settings.numbering_patients') }}</h3>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.number_scheme') }}</label>
+        <select class="select" name="patient_number_scheme">
+          <option value="yearly" {{ 'selected' if values.get('patient_number_scheme','yearly') == 'yearly' else '' }}>{{ t('settings.scheme_yearly') }} (PM-2026-0001)</option>
+          <option value="fixed" {{ 'selected' if values.get('patient_number_scheme') == 'fixed' else '' }}>{{ t('settings.scheme_fixed') }} (GC-000123)</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('settings.prefix_yearly') }}</label>
+        <input class="input" name="patient_number_prefix" dir="ltr" placeholder="PM"
+               value="{{ values.get('patient_number_prefix','') }}"></div>
+      <div class="form-row"><label>{{ t('settings.prefix_fixed') }}</label>
+        <input class="input" name="patient_number_prefix_fixed" dir="ltr" placeholder="GC"
+               value="{{ values.get('patient_number_prefix_fixed','') }}"></div>
     </div>
   </div>
 
