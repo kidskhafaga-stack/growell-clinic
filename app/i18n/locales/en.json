@@ -1387,7 +1387,8 @@
     "links_ready": "Links ready to send",
     "show": "Show",
     "pick_doctor_day": "Select a doctor and day to view the roster",
-    "sent_count": "Prepared/sent"
+    "sent_count": "Prepared/sent",
+    "st_read": "Read"
   },
   "coverage": {
     "title": "Insurance / Membership",
@@ -2466,5 +2467,17 @@
     "flow5": "Any outstanding balance from previous days shows automatically on the patient's board card — no need to hunt for it.",
     "warn_once": "Every service/vaccine is billed exactly once — the system marks it automatically and it will never repeat on another invoice.",
     "manual_invoice_note": "Use the manual invoice (Finance → New invoice) only for product sales without a visit or special cases — it is not a substitute for the checkout screen."
+  },
+  "inbox": {
+    "title": "WhatsApp inbox",
+    "subtitle": "All outbound and inbound messages grouped as per-patient conversations — open, read, and reply in place.",
+    "dashboard": "Send dashboard",
+    "none": "No conversations yet",
+    "empty_thread": "No messages in this conversation",
+    "open_patient": "Patient file",
+    "reply_ph": "Type a reply…",
+    "send": "Send",
+    "sent": "Sent",
+    "no_phone": "No phone on this conversation"
   }
 }

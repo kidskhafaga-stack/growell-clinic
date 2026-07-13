@@ -141,6 +141,79 @@ def index():
     )
 
 
+@messages_bp.route("/inbox")
+@module_required(MODULE)
+def inbox():
+    """WhatsApp conversations: one row per patient/phone with the last message,
+    newest first — the smart in-app view over everything sent and received."""
+    logs = (MessageLog.query
+            .order_by(MessageLog.created_at.desc()).limit(600).all())
+    convs, order = {}, []
+    for m in logs:
+        key = f"p{m.patient_id}" if m.patient_id else (m.to_phone or "?")
+        if key not in convs:
+            convs[key] = {"key": key, "patient": m.patient, "phone": m.to_phone,
+                          "last": m, "count": 0, "unread": 0}
+            order.append(key)
+        convs[key]["count"] += 1
+        if m.direction == "in" and m.status != "read":
+            convs[key]["unread"] += 1
+    return render_template("messages/inbox.html",
+                           conversations=[convs[k] for k in order])
+
+
+def _thread_query(key):
+    if key.startswith("p") and key[1:].isdigit():
+        return MessageLog.query.filter(MessageLog.patient_id == int(key[1:]))
+    return MessageLog.query.filter(MessageLog.patient_id.is_(None),
+                                   MessageLog.to_phone == key)
+
+
+@messages_bp.route("/inbox/<key>")
+@module_required(MODULE)
+def inbox_thread(key):
+    """One conversation as a chat: bubbles in/out + a reply box."""
+    msgs = _thread_query(key).order_by(MessageLog.created_at).all()
+    if not msgs:
+        flash(t("inbox.empty_thread"), "warning")
+        return redirect(url_for("messages.inbox"))
+    # Opening the thread marks its inbound messages as read.
+    changed = False
+    for m in msgs:
+        if m.direction == "in" and m.status != "read":
+            m.status = "read"
+            changed = True
+    if changed:
+        db.session.commit()
+    patient = next((m.patient for m in msgs if m.patient), None)
+    phone = next((m.to_phone for m in reversed(msgs) if m.to_phone), None)
+    return render_template("messages/thread.html", msgs=msgs, key=key,
+                           patient=patient, phone=phone)
+
+
+@messages_bp.route("/inbox/<key>/send", methods=["POST"])
+@module_required(MODULE)
+def inbox_send(key):
+    """Reply inside a conversation via the active provider."""
+    body = (request.form.get("body") or "").strip()
+    if not body:
+        return redirect(url_for("messages.inbox_thread", key=key))
+    last = _thread_query(key).order_by(MessageLog.created_at.desc()).first()
+    if last is None:
+        return redirect(url_for("messages.inbox"))
+    phone = last.to_phone or (last.patient.contact_phone if last.patient else None)
+    if not phone:
+        flash(t("inbox.no_phone"), "danger")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    log = wa.send(body, phone, patient_id=last.patient_id,
+                  user_id=current_user.id)
+    db.session.commit()
+    if log.link:  # web provider: open the wa.me link for the user to hit send
+        return redirect(log.link)
+    flash(t("inbox.sent"), "success")
+    return redirect(url_for("messages.inbox_thread", key=key))
+
+
 @messages_bp.route("/satisfaction")
 @module_required(MODULE)
 def satisfaction():

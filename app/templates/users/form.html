@@ -9,7 +9,24 @@
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('users.title') }}</p>
 
 <div class="card gc-scale-in" style="max-width:720px;animation-delay:0.1s;">
-  <form method="post">
+  <form method="post" enctype="multipart/form-data"
+        x-data="{ photo: null }">
+    <!-- Photo (same avatar + interactive circular crop as the profile) -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+      <template x-if="photo"><img :src="photo" class="patient-avatar lg" alt=""></template>
+      <template x-if="!photo">
+        {% if editing and user.photo %}
+        <img src="{{ url_for('static', filename='uploads/users/' ~ user.photo) }}" class="patient-avatar lg" alt="">
+        {% else %}
+        <div class="patient-avatar lg">{{ (form.full_name or '?')[:1] | upper }}</div>
+        {% endif %}
+      </template>
+      <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
+        <i class="bi bi-upload"></i> {{ t('profile.photo') }}
+        <input type="file" name="photo" accept="image/*" hidden
+               x-on:change="gcAvatarCrop($event.target, () => { const f=$event.target.files[0]; if(f) photo=URL.createObjectURL(f); })">
+      </label>
+    </div>
     <div class="form-grid">
       <div class="form-row">
         <label for="full_name">{{ t('users.full_name') }} *</label>

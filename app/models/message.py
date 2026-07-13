@@ -14,7 +14,7 @@ from app.extensions import db
 # skipped   = intentionally not sent (patient opted out)
 # received  = an inbound message from a patient (direction=in)
 # failed/queued = self-explanatory
-MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped", "received"]
+MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped", "received", "read"]
 
 # Message direction: outbound (we sent) vs inbound (patient replied).
 MESSAGE_DIRECTIONS = ["out", "in"]
