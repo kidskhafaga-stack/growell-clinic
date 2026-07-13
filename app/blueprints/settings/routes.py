@@ -294,6 +294,7 @@ def data_tools():
         "enabled": Setting.get("backup_auto_enabled", "1") != "0",
         "hour": Setting.get("backup_hour", "2"),
         "keep": Setting.get("backup_keep", "14"),
+        "every": Setting.get("backup_every_days", "1"),
     }
     return render_template("settings/data.html", stats=stats,
                            backups=list_backups(), bset=bset)
@@ -306,6 +307,10 @@ def backup_settings():
                 "1" if request.form.get("backup_auto_enabled") else "0")
     hour = request.form.get("backup_hour", type=int)
     Setting.set("backup_hour", str(min(max(hour if hour is not None else 2, 0), 23)))
+    every = request.form.get("backup_every_days", type=int)
+    if every not in (1, 2, 7):
+        every = 1
+    Setting.set("backup_every_days", str(every))
     keep = request.form.get("backup_keep", type=int)
     Setting.set("backup_keep", str(min(max(keep if keep is not None else 14, 1), 365)))
     db.session.commit()

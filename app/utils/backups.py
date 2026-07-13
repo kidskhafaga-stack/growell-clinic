@@ -96,11 +96,12 @@ _AUTO_CHECK_EVERY = 300  # seconds
 
 
 def auto_backup_if_due():
-    """Opportunistic daily backup (poor-man's cron for a single clinic PC).
+    """Opportunistic scheduled backup (poor-man's cron for a single clinic PC).
 
-    On the first request after the configured hour on any day without an
-    automatic snapshot yet, take one and apply retention. Throttled to one
-    cheap check every few minutes; never raises.
+    On the first request after the configured hour, once every N days
+    (``backup_every_days``: 1 = daily, 2 = every other day, 7 = weekly,
+    counted from the last automatic snapshot), take a backup and apply
+    retention. Throttled to one cheap check every few minutes; never raises.
     """
     import time as _time
 
@@ -117,13 +118,21 @@ def auto_backup_if_due():
             hour = int(Setting.get("backup_hour", "2"))
         except (TypeError, ValueError):
             hour = 2
+        try:
+            every = max(int(Setting.get("backup_every_days", "1")), 1)
+        except (TypeError, ValueError):
+            every = 1
         today = datetime.now()
         if today.hour < hour:
             return None
-        stamp = today.strftime("%Y%m%d")
-        if any(b["name"].startswith(f"backup-{stamp}-")
-               and b["name"].endswith("-auto.db") for b in list_backups()):
-            return None
+        # Due when `every` days have passed since the last auto snapshot.
+        last = next((b for b in list_backups()
+                     if b["name"].endswith("-auto.db")), None)
+        if last is not None:
+            last_date = datetime.strptime(
+                last["name"].split("-")[1], "%Y%m%d").date()
+            if (today.date() - last_date).days < every:
+                return None
         name = create_backup("auto")
         apply_retention(Setting.get("backup_keep", "14"))
         return name

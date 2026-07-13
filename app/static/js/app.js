@@ -84,3 +84,45 @@
     });
   }
 })();
+
+// Center-square crop for avatar uploads (data-crop="square" on a file input):
+// draws the picked image centered onto a 512px square canvas and swaps the
+// input's file for the cropped JPEG, so the stored photo looks right
+// everywhere (lists, profile, print) instead of relying on CSS cropping.
+window.gcCropSquare = function (input, done) {
+  var file = input.files && input.files[0];
+  if (!file || !file.type || file.type.indexOf("image/") !== 0) { if (done) done(); return; }
+  if (file.type === "image/gif" || file.type === "image/svg+xml") { if (done) done(); return; }
+  var img = new Image();
+  var url = URL.createObjectURL(file);
+  img.onload = function () {
+    try {
+      var side = Math.min(img.naturalWidth, img.naturalHeight);
+      var sx = (img.naturalWidth - side) / 2;
+      var sy = (img.naturalHeight - side) / 2;
+      var size = Math.min(side, 512);
+      var canvas = document.createElement("canvas");
+      canvas.width = canvas.height = size;
+      canvas.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      canvas.toBlob(function (blob) {
+        if (blob) {
+          var name = (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
+          var dt = new DataTransfer();
+          dt.items.add(new File([blob], name, { type: "image/jpeg" }));
+          input.files = dt.files;
+        }
+        URL.revokeObjectURL(url);
+        if (done) done();
+      }, "image/jpeg", 0.9);
+    } catch (e) { URL.revokeObjectURL(url); if (done) done(); }
+  };
+  img.onerror = function () { URL.revokeObjectURL(url); if (done) done(); };
+  img.src = url;
+};
+
+document.addEventListener("change", function (e) {
+  var input = e.target;
+  if (input && input.matches && input.matches('input[type="file"][data-crop="square"]')) {
+    window.gcCropSquare(input);
+  }
+});

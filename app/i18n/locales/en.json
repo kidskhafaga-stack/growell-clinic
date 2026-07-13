@@ -2397,7 +2397,13 @@
     "pay_full": "Pay in full",
     "pay_later": "Collect later",
     "confirm": "Confirm & issue invoice",
-    "done": "Done"
+    "done": "Done",
+    "steps_title": "Collection steps:",
+    "step1": "Review services & prices (editable)",
+    "step2": "Pick a discount if any",
+    "step3": "Choose payment method(s) or \"collect later\"",
+    "step4": "Confirm → receipt prints and returns automatically",
+    "one_path_warn": "Collect from this screen only — anything invoiced here will never appear again (no double billing)."
   },
   "report": {
     "title": "Comprehensive medical report",
@@ -2445,6 +2451,20 @@
     "auto_enabled": "Daily automatic backup",
     "auto_hour": "Starting from hour",
     "keep": "Keep last (copies)",
-    "auto_hint": "The automatic snapshot is taken on first use after the set hour each day. Retention trims automatic snapshots only — manual backups are never auto-deleted. A snapshot is also taken before every database upgrade."
+    "auto_hint": "The automatic snapshot is taken on first use after the set hour each day. Retention trims automatic snapshots only — manual backups are never auto-deleted. A snapshot is also taken before every database upgrade.",
+    "every": "Frequency",
+    "every_day": "Daily",
+    "every_2days": "Every 2 days",
+    "every_week": "Weekly"
+  },
+  "reception_guide": {
+    "title": "Reception guide — visit & collection cycle",
+    "flow1": "Book the appointment or register a walk-in — both follow the same path.",
+    "flow2": "The doctor examines and adds any extra services (echo/session/vaccine…) during the visit — they appear automatically at checkout.",
+    "flow3": "Collect only via the 💳 button on the appointment card: the screen shows everything due (visit fee + doctor-added services + unbilled vaccines) with visible, reviewable prices.",
+    "flow4": "If the patient pays later: confirm the invoice without payment — an \"unpaid\" badge stays on the board until settled.",
+    "flow5": "Any outstanding balance from previous days shows automatically on the patient's board card — no need to hunt for it.",
+    "warn_once": "Every service/vaccine is billed exactly once — the system marks it automatically and it will never repeat on another invoice.",
+    "manual_invoice_note": "Use the manual invoice (Finance → New invoice) only for product sales without a visit or special cases — it is not a substitute for the checkout screen."
   }
 }

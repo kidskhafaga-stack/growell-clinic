@@ -153,6 +153,24 @@
 </style>
 {% endif %}
 
+<!-- Reception money-flow instructions (one clear path) -->
+{% if current_user.role in ['reception', 'admin'] %}
+<details class="card gc-scale-in" style="margin-bottom:18px;">
+  <summary class="section-title" style="cursor:pointer;margin:0;">
+    <i class="bi bi-signpost-2"></i> {{ t('reception_guide.title') }}</summary>
+  <ol style="margin:12px 0 4px;padding-inline-start:20px;display:flex;flex-direction:column;gap:8px;">
+    <li>{{ t('reception_guide.flow1') }}</li>
+    <li>{{ t('reception_guide.flow2') }}</li>
+    <li><strong>{{ t('reception_guide.flow3') }}</strong></li>
+    <li>{{ t('reception_guide.flow4') }}</li>
+    <li>{{ t('reception_guide.flow5') }}</li>
+  </ol>
+  <div class="alert-pill warn" style="display:inline-flex;gap:8px;align-items:center;margin-top:8px;">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('reception_guide.warn_once') }}</div>
+  <p class="hint" style="margin:10px 0 0;">{{ t('reception_guide.manual_invoice_note') }}</p>
+</details>
+{% endif %}
+
 <!-- Visit-type breakdown (كشف/متابعة/تطعيم…) + new vs returning · day/month -->
 {% if breakdown.enabled %}
 <details class="card gc-scale-in" style="margin-bottom:18px;">

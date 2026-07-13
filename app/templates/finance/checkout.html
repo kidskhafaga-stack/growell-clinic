@@ -17,6 +17,21 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) }}"><i class="bi bi-arrow-right"></i> {{ t('appointments.title') }}</a>
   </div>
 
+  <!-- Reception instructions: one path, four steps -->
+  <div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--primary,#198754);">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+      <strong style="white-space:nowrap;"><i class="bi bi-info-circle"></i> {{ t('checkout.steps_title') }}</strong>
+      <ol style="display:flex;gap:16px;flex-wrap:wrap;margin:0;padding:0;list-style:none;counter-reset:s;">
+        {% for k in ['step1','step2','step3','step4'] %}
+        <li style="display:flex;align-items:center;gap:6px;">
+          <span style="background:var(--primary,#198754);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;">{{ loop.index }}</span>
+          <span style="font-size:.88rem;">{{ t('checkout.' ~ k) }}</span></li>
+        {% endfor %}
+      </ol>
+    </div>
+    <p class="hint" style="margin:8px 0 0;"><i class="bi bi-exclamation-triangle"></i> {{ t('checkout.one_path_warn') }}</p>
+  </div>
+
   <form method="post">
     <!-- Services / charges -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">

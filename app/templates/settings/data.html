@@ -41,6 +41,14 @@
              {{ 'checked' if bset.enabled else '' }}>
       <label for="backup_auto_enabled" style="margin:0;font-weight:400;">{{ t('backups.auto_enabled') }}</label>
     </div>
+    <div class="form-row" style="margin:0;max-width:160px;">
+      <label>{{ t('backups.every') }}</label>
+      <select class="select" name="backup_every_days">
+        <option value="1" {{ 'selected' if bset.every == '1' else '' }}>{{ t('backups.every_day') }}</option>
+        <option value="2" {{ 'selected' if bset.every == '2' else '' }}>{{ t('backups.every_2days') }}</option>
+        <option value="7" {{ 'selected' if bset.every == '7' else '' }}>{{ t('backups.every_week') }}</option>
+      </select>
+    </div>
     <div class="form-row" style="margin:0;max-width:130px;">
       <label>{{ t('backups.auto_hour') }}</label>
       <input class="input" type="number" min="0" max="23" name="backup_hour" value="{{ bset.hour }}">
