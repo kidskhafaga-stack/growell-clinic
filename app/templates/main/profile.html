@@ -11,7 +11,10 @@
       {% endif %}
       <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
         <i class="bi bi-upload"></i> {{ t('profile.upload') }}
-        <input type="file" name="{{ field }}" accept="image/*" hidden></label>
+        {# The personal photo is an avatar → square-crop on pick; signatures,
+           stamps and logos keep their natural aspect ratio. #}
+        <input type="file" name="{{ field }}" accept="image/*" hidden
+               {% if field == 'photo' %}data-crop="square"{% endif %}></label>
       {% if current %}
       <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('main.profile_image_delete', field=field) }}" formnovalidate><i class="bi bi-trash"></i></button>
       {% endif %}

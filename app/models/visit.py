@@ -128,6 +128,9 @@ class VisitService(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False, index=True)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=True)
+    # Set once the line lands on an invoice — the "billed" marker that keeps a
+    # doctor-added service from being charged twice (same guard vaccines have).
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=True)
     name = db.Column(db.String(200), nullable=False)   # snapshot
     quantity = db.Column(db.Integer, default=1, nullable=False)
     notes = db.Column(db.String(255))

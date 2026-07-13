@@ -576,6 +576,13 @@ def invoice_new():
         # they aren't charged twice (they were pre-filled as lines above).
         for dose in _uncharged_vaccines(patient.id):
             dose.invoice_id = invoice.id
+        # Same guard for doctor-added visit services when billing from a visit.
+        if invoice.visit_id:
+            visit = db.session.get(Visit, invoice.visit_id)
+            if visit is not None:
+                for vs in visit.services:
+                    if vs.invoice_id is None:
+                        vs.invoice_id = invoice.id
 
         invoice.recalc_status()
         ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
@@ -608,6 +615,8 @@ def invoice_new():
                 "unit_price": base.price_for(visit.doctor),
             })
         for vs in visit.services:
+            if vs.invoice_id is not None:
+                continue  # already billed — never pre-fill twice
             prefill_lines.append({
                 "service_id": str(vs.service_id) if vs.service_id else "",
                 "description": vs.name,
@@ -639,83 +648,36 @@ def invoice_new():
     )
 
 
-@finance_bp.route("/collect/appointment/<int:appt_id>", methods=["POST"])
-@module_required(MODULE)
-def collect_appointment(appt_id):
-    """One-click reception collect: build this appointment's invoice (base
-    visit-type charge at the doctor's price + any uncharged vaccines already
-    given to the patient), take the full payment, and jump to the printable
-    receipt — so booking and collecting happen from the same screen instead of
-    a separate cashier trip.
-    """
-    from app.models import Appointment
+# NOTE: the legacy one-click "collect_appointment" route (silent full payment,
+# no visible prices) was removed — finance.checkout is the single reception
+# collection path, so pricing/billing logic lives in exactly one place.
 
-    appt = db.get_or_404(Appointment, appt_id)
-    patient = appt.patient
-    lang = getattr(g, "lang", "ar")
 
-    invoice = Invoice(
-        invoice_number=generate_invoice_number(),
-        patient_id=patient.id, doctor_id=appt.doctor_id,
-        created_by=current_user.id,
-    )
-    db.session.add(invoice)
-    db.session.flush()
+def _unbilled_visit_services(appt):
+    """Doctor-added services on this appointment's visit(s) not yet invoiced."""
+    from app.models import VisitService
 
-    base = service_for_visit_type(appt.appt_type)
-    if base is not None:
-        price = base.price_for(appt.doctor) if appt.doctor else base.price
-        if price is not None:
-            item = InvoiceItem(service_id=base.id, description=base.display_name(lang),
-                               unit_price=price, quantity=1)
-            item.commission_amount = base.doctor_share(item.net, invoice.doctor)
-            invoice.items.append(item)
-
-    # Vaccines given but not yet billed — collect them here (never twice).
-    for dose in _uncharged_vaccines(patient.id):
-        b = dose.brand
-        if b and b.price:
-            name = (b.vaccine.display_name(lang) if b.vaccine else
-                    dose.vaccine.display_name(lang))
-            invoice.items.append(InvoiceItem(
-                description=name + " — " + b.display_name(lang),
-                unit_price=b.price, quantity=1))
-        dose.invoice_id = invoice.id
-
-    if not invoice.items:
-        db.session.rollback()
-        flash(t("cashier.nothing_to_collect"), "warning")
-        return redirect(url_for("appointments.index", date=appt.appt_date.isoformat()))
-
-    _apply_coverage(invoice, patient)
-    invoice.recalc_status()
-
-    # Reception collected the balance now (default cash).
-    method = (request.form.get("method") or "cash").strip()
-    if invoice.balance > 0:
-        invoice.payments.append(Payment(
-            amount=invoice.balance,
-            method=method if method in PAYMENT_METHODS else "cash",
-            received_by=current_user.id, shift_id=_current_shift_id(),
-        ))
-        invoice.recalc_status()
-
-    ActivityLog.record("invoice.collect_appt", user_id=current_user.id, entity="invoice",
-                       detail=invoice.invoice_number, ip_address=client_ip())
-    db.session.commit()
-    flash(t("invoices.created"), "success")
-    return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id))
+    return (VisitService.query
+            .join(Visit, VisitService.visit_id == Visit.id)
+            .filter(Visit.appointment_id == appt.id,
+                    VisitService.invoice_id.is_(None))
+            .all())
 
 
 def _checkout_lines(appt, lang):
     """Resolve the billable lines for an appointment: the base visit-type
-    charge (at the doctor's price) + any vaccines already given but unbilled."""
+    charge (at the doctor's price) + any services the doctor added during the
+    visit + any vaccines already given — each only while still unbilled."""
     lines = []
     base = service_for_visit_type(appt.appt_type)
     if base is not None:
         price = base.price_for(appt.doctor) if appt.doctor else base.price
         lines.append({"service_id": base.id, "description": base.display_name(lang),
                       "unit_price": price or 0, "quantity": 1})
+    for vs in _unbilled_visit_services(appt):
+        price = vs.service.price_for(appt.doctor) if vs.service else 0
+        lines.append({"service_id": vs.service_id or "", "description": vs.name,
+                      "unit_price": price or 0, "quantity": vs.quantity or 1})
     for dose in _uncharged_vaccines(appt.patient_id):
         b = dose.brand
         if b:
@@ -773,9 +735,11 @@ def checkout(appt_id):
                 item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
             invoice.items.append(item)
 
-        # Mark any uncharged vaccines as billed on this invoice.
+        # Mark any uncharged vaccines + visit services as billed here (never twice).
         for dose in _uncharged_vaccines(appt.patient_id):
             dose.invoice_id = invoice.id
+        for vs in _unbilled_visit_services(appt):
+            vs.invoice_id = invoice.id
 
         if not invoice.items:
             db.session.rollback()
