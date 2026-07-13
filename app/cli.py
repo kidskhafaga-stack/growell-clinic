@@ -90,6 +90,14 @@ def register_commands(app):
         """
         from sqlalchemy import inspect, text
 
+        # Safety net: snapshot the DB before touching the schema (skipped
+        # silently when there is no database file yet, e.g. first init).
+        try:
+            from app.utils.backups import create_backup
+            click.echo("  ~ pre-upgrade backup: " + create_backup("preupgrade"))
+        except Exception:  # noqa: BLE001
+            pass
+
         db.create_all()  # creates any brand-new tables (suppliers, inventory…)
         inspector = inspect(db.engine)
 
