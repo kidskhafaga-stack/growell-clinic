@@ -55,6 +55,68 @@ from app.utils import einvoice as eta
 MODULE = "finance"
 
 
+@finance_bp.route("/refund-requests")
+@module_required(MODULE)
+def refund_requests():
+    """Pending refund requests awaiting a manager + recent decisions (F4)."""
+    from app.models import RefundRequest
+
+    pending = (RefundRequest.query.filter_by(status="pending")
+               .order_by(RefundRequest.created_at).all())
+    history = (RefundRequest.query.filter(RefundRequest.status != "pending")
+               .order_by(RefundRequest.decided_at.desc()).limit(50).all())
+    return render_template("finance/refund_requests.html",
+                           pending=pending, history=history)
+
+
+@finance_bp.route("/refund-requests/<int:req_id>/decide", methods=["POST"])
+@module_required(MODULE)
+def refund_request_decide(req_id):
+    """Approve (posts the real refund + journal entry) or reject. Admin only."""
+    from datetime import datetime as _dt
+
+    from flask import abort
+
+    from app.models import RefundRequest
+
+    if not current_user.is_admin:
+        abort(403)
+    req = db.get_or_404(RefundRequest, req_id)
+    if req.status != "pending":
+        flash(t("refunds.already_decided"), "warning")
+        return redirect(url_for("finance.refund_requests"))
+
+    decision = (request.form.get("decision") or "").strip()
+    if decision == "approve":
+        invoice = req.invoice
+        refund_pay = Payment(
+            amount=round(min(req.amount, invoice.paid), 2), kind="refund",
+            method=req.method, received_by=current_user.id,
+            shift_id=_current_shift_id(), notes=req.reason)
+        invoice.payments.append(refund_pay)
+        invoice.recalc_status()
+        req.status = "approved"
+        req.decided_by = current_user.id
+        req.decided_at = _dt.utcnow()
+        ActivityLog.record("refund.approve", user_id=current_user.id,
+                           entity="invoice", detail=invoice.invoice_number,
+                           ip_address=client_ip())
+        db.session.commit()
+        _post_journal_safe("payment", refund_pay)
+        flash(t("refunds.approved"), "success")
+    else:
+        req.status = "rejected"
+        req.decided_by = current_user.id
+        req.decided_at = _dt.utcnow()
+        ActivityLog.record("refund.reject", user_id=current_user.id,
+                           entity="invoice",
+                           detail=req.invoice.invoice_number if req.invoice else "",
+                           ip_address=client_ip())
+        db.session.commit()
+        flash(t("refunds.rejected"), "info")
+    return redirect(url_for("finance.refund_requests"))
+
+
 @finance_bp.route("/journal")
 @module_required(MODULE)
 def journal():
@@ -1023,10 +1085,32 @@ def invoice_payment(invoice_id):
 def invoice_refund(invoice_id):
     """Return money to the patient (e.g. an exam re-billed as a consultation)
     and reconcile the cashier drawer."""
+    from app.models import RefundRequest, Setting
+
     invoice = db.get_or_404(Invoice, invoice_id)
     amount = request.form.get("amount", type=float)
     if not amount or amount <= 0:
         flash(t("invoices.bad_amount"), "danger")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+
+    # F4 approval workflow: unless the setting is off, only admins refund
+    # directly — everyone else files a request a manager must approve.
+    needs_approval = (Setting.get("refund_approval_required", "1") != "0"
+                      and not current_user.is_admin)
+    if needs_approval:
+        method = (request.form.get("method") or "cash").strip()
+        db.session.add(RefundRequest(
+            invoice_id=invoice.id, amount=round(min(amount, invoice.paid), 2),
+            method=method if method in PAYMENT_METHODS else "cash",
+            reason=(request.form.get("notes") or "").strip() or None,
+            requested_by=current_user.id))
+        ActivityLog.record("refund.request", user_id=current_user.id,
+                           entity="invoice", detail=invoice.invoice_number,
+                           ip_address=client_ip())
+        db.session.commit()
+        flash(t("refunds.request_sent"), "info")
+        if (request.form.get("next") or "") == "cashier":
+            return redirect(url_for("finance.cashier"))
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     if amount > invoice.paid:  # can't refund more than was actually collected
         amount = invoice.paid

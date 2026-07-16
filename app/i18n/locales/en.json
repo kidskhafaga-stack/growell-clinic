@@ -2177,7 +2177,8 @@
     "vaccines_due": "{count} patient(s) with vaccines due",
     "birthdays": "{count} birthday(s) this week",
     "mark_all_read": "Mark all as read",
-    "teens_no_phone": "{count} teen(s) (13+) with no personal phone — update their details"
+    "teens_no_phone": "{count} teen(s) (13+) with no personal phone — update their details",
+    "refund_requests": "{count} refund request(s) awaiting manager approval"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -2556,5 +2557,27 @@
     "total_refunded": "Total refunded",
     "due": "Balance due",
     "empty": "No transactions"
+  },
+  "refunds": {
+    "title": "Refund requests",
+    "subtitle": "Refunds need a manager's approval — pending requests live here; approving pays out and posts the journal entry automatically.",
+    "pending": "Awaiting approval",
+    "patient": "Patient",
+    "amount": "Amount",
+    "reason": "Reason",
+    "requested_by": "Requested by",
+    "approve": "Approve & pay",
+    "reject": "Reject",
+    "approve_confirm": "The amount will leave the drawer and the refund entry will be posted. Continue?",
+    "awaiting_admin": "Awaiting manager",
+    "none_pending": "No pending requests",
+    "history": "History",
+    "no_history": "No history yet",
+    "st_approved": "Approved",
+    "st_rejected": "Rejected",
+    "request_sent": "Refund request sent to the manager for approval",
+    "already_decided": "This request was already decided",
+    "approved": "Approved — refund paid out",
+    "rejected": "Request rejected"
   }
 }

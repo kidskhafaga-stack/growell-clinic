@@ -103,6 +103,17 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    try:
+        from app.models import RefundRequest
+        n = RefundRequest.query.filter_by(status="pending").count()
+        if n:
+            items.append({"key": "refund_requests", "module": "finance",
+                          "icon": "arrow-counterclockwise", "severity": "warning",
+                          "count": n, "endpoint": "finance.refund_requests",
+                          "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     # --- vaccines due + birthdays this week ------------------------------
     # Computed with a handful of bulk queries instead of a per-patient plan
     # build, so it stays cheap even with thousands of patients on the books.

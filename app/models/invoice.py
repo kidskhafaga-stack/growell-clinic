@@ -158,6 +158,37 @@ class Payment(db.Model):
         return f"<Payment {self.amount} for inv={self.invoice_id}>"
 
 
+class RefundRequest(db.Model):
+    """A refund awaiting a manager's decision (F4 approval workflow).
+
+    Non-admin staff can't take money out of the drawer directly: their refund
+    becomes a pending request; an admin approves (which posts the real refund
+    Payment + journal entry) or rejects it. Admins refund directly as before.
+    """
+
+    __tablename__ = "refund_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"),
+                           nullable=False, index=True)
+    amount = db.Column(db.Float, nullable=False)
+    method = db.Column(db.String(12), default="cash", nullable=False)
+    reason = db.Column(db.String(200))
+    status = db.Column(db.String(10), default="pending", nullable=False,
+                       index=True)  # pending / approved / rejected
+    requested_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    decided_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    decided_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    invoice = db.relationship("Invoice")
+    requester = db.relationship("User", foreign_keys=[requested_by])
+    decider = db.relationship("User", foreign_keys=[decided_by])
+
+    def __repr__(self):
+        return f"<RefundRequest {self.amount} inv={self.invoice_id} {self.status}>"
+
+
 class CashDrawerDay(db.Model):
     """The cashier's drawer for one day: the opening change float reception is
     handed at the start of the day. Expected cash = float + cash collected −
