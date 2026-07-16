@@ -446,6 +446,54 @@ def _current_shift_id():
     return shift.id if shift else None
 
 
+def _uncollected_by_patient(days=7):
+    """Money that silently falls through the till: vaccine doses given (and
+    priced) but never invoiced + doctor-added visit services with no invoice —
+    typically because the visit was collected *before* the doctor added them.
+    Grouped per patient so the cashier can chase each one with one click."""
+    from datetime import timedelta
+
+    from app.models import VisitService
+
+    since = date.today() - timedelta(days=days)
+    lang = getattr(g, "lang", "ar")
+    out = {}
+
+    def bucket(patient):
+        return out.setdefault(patient.id, {"patient": patient, "items": [],
+                                           "total": 0.0})
+
+    doses = (PatientVaccine.query.filter(
+        PatientVaccine.event_type == "given",
+        PatientVaccine.given_outside.is_(False),
+        PatientVaccine.invoice_id.is_(None),
+        PatientVaccine.given_date >= since).all())
+    for d in doses:
+        b = d.brand
+        if not (b and (b.price or 0) > 0 and d.patient):
+            continue
+        e = bucket(d.patient)
+        name = b.vaccine.display_name(lang) if b.vaccine else d.vaccine.display_name(lang)
+        e["items"].append(f"{name} — {b.display_name(lang)}")
+        e["total"] = round(e["total"] + (b.price or 0), 2)
+
+    svcs = (VisitService.query.join(Visit, VisitService.visit_id == Visit.id)
+            .filter(VisitService.invoice_id.is_(None),
+                    Visit.visit_date >= since).all())
+    for vs in svcs:
+        visit = vs.visit
+        if visit is None or visit.patient is None:
+            continue
+        price = vs.service.price_for(visit.doctor) if vs.service else 0
+        if (price or 0) <= 0:
+            continue
+        e = bucket(visit.patient)
+        e["items"].append(vs.name)
+        e["total"] = round(e["total"] + price * (vs.quantity or 1), 2)
+
+    return sorted(out.values(), key=lambda e: -e["total"])
+
+
 @finance_bp.route("/cashier")
 @module_required(MODULE)
 def cashier():
@@ -489,6 +537,7 @@ def cashier():
     open_shift = CashierShift.open_for(current_user.id) or CashierShift.any_open()
     recent_shifts = (CashierShift.query.order_by(CashierShift.opened_at.desc())
                      .limit(8).all())
+    uncollected = _uncollected_by_patient()
 
     return render_template(
         "finance/cashier.html", on_date=on_date, drawer=drawer,
@@ -498,6 +547,7 @@ def cashier():
         outstanding=outstanding, outstanding_total=outstanding_total,
         payment_methods=PAYMENT_METHODS,
         open_shift=open_shift, recent_shifts=recent_shifts,
+        uncollected=uncollected,
     )
 
 
@@ -633,6 +683,22 @@ def _uncharged_vaccines(patient_id, days=2):
     return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
 
 
+def _unbilled_patient_services(patient_id, days=7):
+    """Recent doctor-added visit services of this patient not yet invoiced —
+    across visits, because a dose/procedure added after the visit was already
+    collected would otherwise never reach a bill."""
+    from datetime import timedelta
+
+    from app.models import VisitService
+
+    since = date.today() - timedelta(days=days)
+    return (VisitService.query.join(Visit, VisitService.visit_id == Visit.id)
+            .filter(Visit.patient_id == patient_id,
+                    VisitService.invoice_id.is_(None),
+                    Visit.visit_date >= since)
+            .all())
+
+
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def invoice_new():
@@ -678,13 +744,11 @@ def invoice_new():
         # they aren't charged twice (they were pre-filled as lines above).
         for dose in _uncharged_vaccines(patient.id):
             dose.invoice_id = invoice.id
-        # Same guard for doctor-added visit services when billing from a visit.
-        if invoice.visit_id:
-            visit = db.session.get(Visit, invoice.visit_id)
-            if visit is not None:
-                for vs in visit.services:
-                    if vs.invoice_id is None:
-                        vs.invoice_id = invoice.id
+        # Same guard for doctor-added visit services. Not just the linked
+        # visit: any recent unbilled service of this patient was pre-filled
+        # below, so sweep them all (else they'd be charged again next time).
+        for vs in _unbilled_patient_services(patient.id):
+            vs.invoice_id = invoice.id
 
         invoice.recalc_status()
         ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
@@ -717,13 +781,17 @@ def invoice_new():
                 "description": base.display_name(lang),
                 "unit_price": base.price_for(visit.doctor),
             })
-        for vs in visit.services:
-            if vs.invoice_id is not None:
-                continue  # already billed — never pre-fill twice
+    # Doctor-added services still unbilled — the linked visit's ones plus any
+    # recent leftovers from other visits of this patient (added after their
+    # checkout was already collected), so nothing falls through the till.
+    if patient is not None:
+        for vs in _unbilled_patient_services(patient.id):
+            v = vs.visit
+            doc = v.doctor if v else None
             prefill_lines.append({
                 "service_id": str(vs.service_id) if vs.service_id else "",
                 "description": vs.name,
-                "unit_price": vs.service.price_for(visit.doctor) if vs.service else 0,
+                "unit_price": vs.service.price_for(doc) if vs.service else 0,
                 "quantity": vs.quantity or 1,
             })
 

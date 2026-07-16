@@ -2208,7 +2208,11 @@
     "who_owes": "Who still owes",
     "collect": "Collect",
     "all_settled": "Everything is settled — no outstanding dues.",
-    "refunds": "Refunds"
+    "refunds": "Refunds",
+    "uncollected_title": "Not yet billed",
+    "uncollected_hint": "Vaccines or services the doctor added after the visit was collected — bill them now so nothing slips through.",
+    "uncollected_items": "Items",
+    "collect_now": "Collect now"
   },
   "shifts": {
     "open_now": "Open shift",
@@ -2421,7 +2425,8 @@
     "step2": "Pick a discount if any",
     "step3": "Choose payment method(s) or \"collect later\"",
     "step4": "Confirm → receipt prints and returns automatically",
-    "one_path_warn": "Collect from this screen only — anything invoiced here will never appear again (no double billing)."
+    "one_path_warn": "Collect from this screen only — anything invoiced here will never appear again (no double billing).",
+    "includes_carryover": "The list includes previously uncollected dues (vaccines/services from an earlier visit)."
   },
   "report": {
     "title": "Comprehensive medical report",
