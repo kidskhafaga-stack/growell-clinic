@@ -445,10 +445,20 @@
         </div>
         {% endfor %}
         {% for d in r.upcoming %}
-        <div class="dose-pill" style="opacity:.85;border-style:dashed;">
+        <div class="dose-pill" style="opacity:.9;border-style:dashed;">
           <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }}
-            <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span></span>
-          {% if d.due_date %}<span class="dd"><i class="bi bi-calendar-event"></i> {{ t('visits.vac_expected') }} <span dir="ltr">{{ d.due_date }}</span></span>{% endif %}
+            <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span>
+            {% if d.planned %}<span class="badge badge--role" title="{{ t('visits.vac_planned_hint') }}"><i class="bi bi-person-check"></i></span>{% endif %}</span>
+          <form method="post" action="{{ url_for('visits.plan_dose', visit_id=visit.id) }}"
+                style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+            <input type="hidden" name="vaccine_id" value="{{ r.vaccine.id }}">
+            <input type="hidden" name="dose_number" value="{{ d.dose_number }}">
+            <span class="dd" style="margin:0;"><i class="bi bi-calendar-event"></i> {{ t('visits.vac_expected') }}</span>
+            <input class="input" type="date" name="planned_date" value="{{ d.due_date or '' }}"
+                   style="height:28px;padding:2px 6px;font-size:0.78rem;max-width:140px;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit" title="{{ t('visits.vac_plan_save') }}"
+                    style="height:28px;padding:2px 8px;"><i class="bi bi-check-lg"></i></button>
+          </form>
         </div>
         {% endfor %}
         {% if not r.upcoming %}

@@ -444,6 +444,40 @@ def give_vaccine(visit_id):
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
+@visits_bp.route("/<int:visit_id>/plan-dose", methods=["POST"])
+@module_required(MODULE)
+def plan_dose(visit_id):
+    """The doctor sets/updates the expected date of an upcoming dose — their
+    schedule wins over the computed one (shows on the tab, prints, reminders)."""
+    from datetime import date as _date
+
+    from app.models import Vaccine
+    from app.utils.vaccines import plan_dose as _plan
+
+    visit = db.get_or_404(Visit, visit_id)
+    vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
+    dose_number = request.form.get("dose_number", type=int)
+    raw = (request.form.get("planned_date") or "").strip()
+    try:
+        on_date = _date.fromisoformat(raw)
+    except ValueError:
+        on_date = None
+    if vaccine is None or not dose_number or on_date is None:
+        flash(t("visits.vac_plan_bad"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+    row = _plan(visit.patient, vaccine, dose_number, on_date)
+    if row is None:
+        flash(t("vaccinations.no_brand"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+    ActivityLog.record("visit.plan_dose", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id,
+                       detail=f"{vaccine.code}#{dose_number}={on_date.isoformat()}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.vac_plan_saved"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
+
+
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])
 @module_required(MODULE)
 def result_investigation(inv_id):

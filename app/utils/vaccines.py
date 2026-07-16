@@ -198,6 +198,8 @@ def patient_plan(patient, lang="ar"):
             pv = given_index.get((vaccine.id, d.dose_number))
             ev = events_index.get((vaccine.id, d.dose_number))
             due = add_months(dob, d.age_months) if dob else None
+            planned = (ev.given_date if ev is not None and pv is None
+                       and ev.event_type == "planned" and ev.given_date else None)
             if pv is not None:
                 effective = pv.given_date
             else:
@@ -207,6 +209,10 @@ def patient_plan(patient, lang="ar"):
                         due = earliest
                 if due and earliest_live and earliest_live > due:
                     due = earliest_live
+                # The doctor's explicit appointment for this dose wins over
+                # the computed schedule (their patient, their timing).
+                if planned:
+                    due = planned
                 effective = due
             prev_date = effective
             doses.append({
@@ -217,8 +223,11 @@ def patient_plan(patient, lang="ar"):
                 "given_date": pv.given_date.isoformat() if pv else None,
                 "lot_number": pv.lot_number if pv else None,
                 "status": _status(due, pv is not None, today),
-                "event_type": ev.event_type if (ev and not pv) else None,
-                "event_reason": ev.refusal_reason if (ev and not pv) else None,
+                "planned": planned is not None,
+                "event_type": (ev.event_type if (ev and not pv
+                               and ev.event_type != "planned") else None),
+                "event_reason": (ev.refusal_reason if (ev and not pv
+                                 and ev.event_type != "planned") else None),
             })
         plan.append({
             "vaccine": vaccine, "brand": brand, "locked": locked,
@@ -381,6 +390,59 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
             if not pv.lot_number:
                 pv.lot_number = batch.lot_number
     return pv, brand
+
+
+def plan_dose(patient, vaccine, dose_number, on_date):
+    """Record the doctor's chosen appointment for a not-yet-given dose.
+
+    Stored as a ``planned`` event row; ``patient_plan`` then uses this date as
+    the dose's due date instead of the computed schedule. Re-planning the same
+    dose updates the row; giving the dose later supersedes it naturally.
+    """
+    brand, _ = chosen_brand(patient.id, vaccine)
+    if brand is None:
+        brand = vaccine.default_brand
+    if brand is None:
+        return None
+    row = (PatientVaccine.query
+           .filter_by(patient_id=patient.id, vaccine_id=vaccine.id,
+                      dose_number=dose_number, event_type="planned").first())
+    if row is None:
+        row = PatientVaccine(patient_id=patient.id, vaccine_id=vaccine.id,
+                             brand_id=brand.id, dose_number=dose_number,
+                             event_type="planned", given_outside=False)
+        db.session.add(row)
+    row.given_date = on_date
+    return row
+
+
+def visit_given_summary(patient, on_date, lang="ar"):
+    """Doses administered here on ``on_date`` framed for the prescription:
+    trade name, dose X of N and where the course goes next (next dose with
+    its expected date / seasonal recall / course complete)."""
+    plan = patient_plan(patient, lang)
+    today_iso = on_date.isoformat()
+    out = []
+    for v in plan:
+        vac, brand = v["vaccine"], v["brand"]
+        given_today = [d for d in v["doses"]
+                       if d["given_date"] == today_iso]
+        if not given_today:
+            continue
+        upcoming = [d for d in v["doses"] if d["status"] != "done"]
+        if upcoming:
+            nxt = {"kind": "dose", "dose_number": upcoming[0]["dose_number"],
+                   "date": upcoming[0]["due_date"]}
+        elif vac.is_seasonal:
+            nxt = {"kind": "seasonal",
+                   "date": (on_date + timedelta(days=SEASONAL_RECALL_DAYS)).isoformat()}
+        else:
+            nxt = {"kind": "none", "date": None}
+        for d in given_today:
+            out.append({"vaccine": vac, "brand": brand,
+                        "dose_number": d["dose_number"], "total": v["total"],
+                        "next": nxt})
+    return out
 
 
 def visit_vaccine_panel(patient, lang="ar"):

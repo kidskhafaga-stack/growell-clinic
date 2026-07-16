@@ -374,11 +374,24 @@ def resolve_template(doctor, override_id=None):
 @prescriptions_bp.route("/<int:rx_id>")
 @module_required(MODULE)
 def view(rx_id):
+    from flask import g as _g
+
+    from app.utils.vaccines import visit_given_summary
+
     rx = db.get_or_404(Prescription, rx_id)
     warnings = interaction_warnings([it.drug_id for it in rx.items])
     tpl = resolve_template(rx.doctor, request.args.get("template", type=int))
+    # Vaccinations administered in this visit (or on the rx date) print on the
+    # prescription with dose X/N and the expected date of the next dose.
+    try:
+        on_date = rx.visit.visit_date if rx.visit else rx.rx_date
+        rx_vaccines = visit_given_summary(rx.patient, on_date,
+                                          getattr(_g, "lang", "ar"))
+    except Exception:  # noqa: BLE001 - printing must never break on plan maths
+        rx_vaccines = []
     return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
-                           tpl=tpl, templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
+                           tpl=tpl, rx_vaccines=rx_vaccines,
+                           templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
 
 
 # ----------------------------------------------------- print templates -----
