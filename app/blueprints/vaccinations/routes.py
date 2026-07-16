@@ -502,9 +502,21 @@ def _qr_svg(url, scale=3):
     return buf.getvalue().decode("utf-8")
 
 
+def _apply_print_lang():
+    """Per-print language choice (?lang=ar|en): reports/certificates can be
+    handed to the family in either language regardless of the UI language."""
+    lang = request.args.get("lang")
+    if lang in ("ar", "en"):
+        from app.i18n import get_direction
+
+        g.lang = lang
+        g.direction = get_direction(lang)
+
+
 @vaccinations_bp.route("/<int:patient_id>/certificate")
 @module_required(MODULE)
 def certificate(patient_id):
+    _apply_print_lang()
     patient = db.get_or_404(Patient, patient_id)
     given = (
         PatientVaccine.query.filter_by(patient_id=patient.id)
@@ -512,12 +524,28 @@ def certificate(patient_id):
         .order_by(PatientVaccine.given_date)
         .all()
     )
+    # Optional upcoming-plan table (?schedule=1): every not-yet-given dose
+    # with its expected date — doctor-planned dates included — so the family
+    # leaves knowing exactly what is next and when.
+    upcoming = []
+    if request.args.get("schedule") == "1":
+        for v in patient_plan(patient, getattr(g, "lang", "ar")):
+            for d in v["doses"]:
+                if d["status"] == "done":
+                    continue
+                upcoming.append({"vaccine": v["vaccine"], "brand": v["brand"],
+                                 "dose_number": d["dose_number"],
+                                 "due_date": d["due_date"],
+                                 "planned": d.get("planned"),
+                                 "age_label": d["age_label"]})
+        upcoming.sort(key=lambda r: r["due_date"] or "9999")
     # Ensure a stable verification token and build the public QR.
     patient.ensure_qr_token()
     db.session.commit()
     verify_url = url_for("vaccinations.verify", token=patient.qr_token, _external=True)
     return render_template(
         "vaccinations/certificate.html", patient=patient, given=given,
+        upcoming=upcoming, with_schedule=request.args.get("schedule") == "1",
         now_date=datetime.utcnow().date().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,
     )

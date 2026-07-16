@@ -608,7 +608,8 @@
     "vac_plan_saved": "Next-dose date saved.",
     "vac_plan_bad": "Pick a valid date for the dose.",
     "vac_plan_save": "Save date",
-    "vac_planned_hint": "Date set by the doctor (overrides the computed schedule)"
+    "vac_planned_hint": "Date set by the doctor (overrides the computed schedule)",
+    "vac_print_plan": "Print vaccination plan"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -813,7 +814,12 @@
     "doses_per_vial_hint": "1 = single-dose ampoule (one per patient). More = a multi-dose vial (e.g. 10 = one vial covers 10 patients).",
     "doctor_fee": "Doctor's fee",
     "doctor_fee_hint": "Part of the price that goes to the doctor. Clinic margin = price − cost − doctor's fee.",
-    "given_outside": "Given outside the clinic (gov. unit / elsewhere) — record only, no stock or charge"
+    "given_outside": "Given outside the clinic (gov. unit / elsewhere) — record only, no stock or charge",
+    "age": "Recommended age",
+    "cert_with_schedule": "With upcoming schedule",
+    "cert_upcoming_title": "Upcoming doses & expected dates",
+    "cert_upcoming_hint": "Dates are estimates per the vaccination schedule and may be adjusted by the doctor.",
+    "cert_no_upcoming": "No upcoming doses — the course is complete."
   },
   "vstatus": {
     "done": "Done",
