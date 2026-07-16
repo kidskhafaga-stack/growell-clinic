@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('storedocs.title') }}{% endblock %}
+{% block page_heading %}{{ t('storedocs.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('storedocs.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('storedocs.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if not kind else 'btn-outline' }}"
+       href="{{ url_for('inventory.documents') }}">{{ t('common.all') }}</a>
+    {% for k in doc_kinds %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if kind == k else 'btn-outline' }}"
+       href="{{ url_for('inventory.documents', kind=k) }}">{{ t('storedocs.kind_' ~ k) }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if documents %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:680px;">
+      <thead><tr>
+        <th>{{ t('storedocs.number') }}</th><th>{{ t('storedocs.kind') }}</th>
+        <th>{{ t('storedocs.date') }}</th><th>{{ t('storedocs.reference') }}</th>
+        <th>{{ t('suppliers.supplier') }}</th>
+        <th style="text-align:end;">{{ t('storedocs.lines') }}</th>
+        <th style="text-align:end;">{{ t('storedocs.value') }}</th>
+        <th>{{ t('storedocs.by') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for d in documents %}
+        <tr>
+          <td dir="ltr"><a href="{{ url_for('inventory.document_view', doc_id=d.id) }}">
+            <span class="badge badge--role">{{ d.doc_number }}</span></a></td>
+          <td><span class="status-badge st-{{ {'grn':'completed','issue':'in_progress','adjust':'scheduled','waste':'no_show'}[d.kind] }}">{{ t('storedocs.kind_' ~ d.kind) }}</span></td>
+          <td dir="ltr">{{ d.doc_date }}</td>
+          <td style="color:var(--muted);">{{ d.reference or '—' }}</td>
+          <td>{{ d.supplier.name if d.supplier else '—' }}</td>
+          <td style="text-align:end;">{{ d.movements|length }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(d.total_value) }}</td>
+          <td style="color:var(--muted);">{{ d.creator.display_name(current_lang) if d.creator else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-journals"></i>{{ t('storedocs.none') }}</div>
+  {% endif %}
+</div>
+
+{% if pagination.pages > 1 %}
+<div style="display:flex;gap:6px;justify-content:center;margin-top:14px;">
+  {% if pagination.has_prev %}<a class="btn btn-outline btn-sm" href="{{ url_for('inventory.documents', kind=kind or None, page=pagination.prev_num) }}">‹</a>{% endif %}
+  <span class="hint" style="align-self:center;">{{ pagination.page }} / {{ pagination.pages }}</span>
+  {% if pagination.has_next %}<a class="btn btn-outline btn-sm" href="{{ url_for('inventory.documents', kind=kind or None, page=pagination.next_num) }}">›</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

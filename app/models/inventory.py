@@ -48,6 +48,9 @@ class VaccineInventory(db.Model):
     received_date = db.Column(db.Date, default=lambda: datetime.utcnow().date())
     # How this batch entered stock (Goods Receipt document reason).
     receipt_reason = db.Column(db.String(20), default="opening")
+    # The numbered warehouse document (GRN) this batch arrived on (W1).
+    document_id = db.Column(db.Integer, db.ForeignKey("store_documents.id"),
+                            nullable=True, index=True)
     qty_received = db.Column(db.Integer, default=0, nullable=False)
     qty_used = db.Column(db.Integer, default=0, nullable=False)
     unit_cost = db.Column(db.Float)

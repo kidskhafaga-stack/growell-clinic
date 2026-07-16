@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ doc.doc_number }}{% endblock %}
+{% block page_heading %}{{ t('storedocs.kind_' ~ doc.kind) }} {{ doc.doc_number }}{% endblock %}
+
+{% block content %}
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.documents') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('storedocs.kind_' ~ doc.kind) ~ ' — ' ~ doc.doc_number,
+                  t('storedocs.date') ~ ': <strong>' ~ doc.doc_date ~ '</strong>') }}
+
+  <div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="k">{{ t('storedocs.number') }}</div><div class="v" dir="ltr">{{ doc.doc_number }}</div></div>
+    <div class="info-item"><div class="k">{{ t('storedocs.reference') }}</div><div class="v">{{ doc.reference or '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('suppliers.supplier') }}</div><div class="v">{{ doc.supplier.name if doc.supplier else '—' }}</div></div>
+    <div class="info-item"><div class="k">{{ t('storedocs.by') }}</div><div class="v">{{ doc.creator.display_name(current_lang) if doc.creator else '—' }}</div></div>
+  </div>
+
+  {% if doc.movements %}
+  <h3 style="font-size:0.95rem;color:var(--green-800);margin:0 0 8px;">{{ t('storedocs.store_lines') }}</h3>
+  <table class="table" style="margin-bottom:16px;">
+    <thead><tr>
+      <th>{{ t('store.item') }}</th><th style="text-align:end;">{{ t('store.qty') }}</th>
+      <th style="text-align:end;">{{ t('store.unit_cost') }}</th>
+      <th style="text-align:end;">{{ t('storedocs.line_value') }}</th>
+      <th>{{ t('store.reason') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for m in doc.movements %}
+      <tr>
+        <td>{{ m.item.display_name(current_lang) if m.item else '—' }}</td>
+        <td style="text-align:end;font-weight:700;{{ 'color:var(--danger);' if m.qty < 0 else 'color:var(--green-700);' }}">{{ m.qty }}</td>
+        <td style="text-align:end;">{{ '%.2f'|format(m.unit_cost) if m.unit_cost else '—' }}</td>
+        <td style="text-align:end;">{{ '%.2f'|format((m.qty|abs) * (m.unit_cost or 0)) }}</td>
+        <td style="color:var(--muted);">{{ m.reason or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if batches %}
+  <h3 style="font-size:0.95rem;color:var(--green-800);margin:0 0 8px;">{{ t('storedocs.vaccine_lines') }}</h3>
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('vaccinations.brand') }}</th><th style="text-align:end;">{{ t('inventory.qty_received') }}</th>
+      <th>{{ t('inventory.lot_number') }}</th><th>{{ t('inventory.expiry_date') }}</th>
+      <th style="text-align:end;">{{ t('store.unit_cost') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td>{{ b.brand.display_name(current_lang) if b.brand }}</td>
+        <td style="text-align:end;font-weight:700;color:var(--green-700);">{{ b.qty_received }}</td>
+        <td dir="ltr">{{ b.lot_number or '—' }}</td>
+        <td dir="ltr">{{ b.expiry_date or '—' }}</td>
+        <td style="text-align:end;">{{ '%.2f'|format(b.unit_cost) if b.unit_cost else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if not doc.movements and not batches %}
+  <p style="color:var(--muted);">{{ t('storedocs.no_lines') }}</p>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;margin-top:16px;">
+    <span class="hint">{{ doc.notes or '' }}</span>
+    <strong>{{ t('storedocs.value') }}: {{ '%.2f'|format(total_value) }}</strong>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;">
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:180px;padding-top:6px;">{{ t('storedocs.sig_keeper') }}</div></div>
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:180px;padding-top:6px;">{{ t('storedocs.sig_recipient') }}</div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; } .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}

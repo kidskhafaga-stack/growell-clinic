@@ -234,6 +234,16 @@
         <div class="hint">{{ t('settings.number_start_hint') }}</div></div>
     </div>
 
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-journals"></i> {{ t('settings.numbering_store') }}</h3>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('settings.number_scheme') }}</label>
+        <select class="select" name="store_number_scheme">
+          <option value="yearly" {{ 'selected' if values.get('store_number_scheme','yearly') == 'yearly' else '' }}>{{ t('settings.scheme_yearly') }} (GRN-2026-000001)</option>
+          <option value="fixed" {{ 'selected' if values.get('store_number_scheme') == 'fixed' else '' }}>{{ t('settings.scheme_fixed') }} (GRN-000123)</option>
+        </select>
+        <div class="hint">{{ t('settings.numbering_store_hint') }}</div></div>
+    </div>
+
     <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-person-vcard"></i> {{ t('settings.numbering_patients') }}</h3>
     <div class="form-grid">
