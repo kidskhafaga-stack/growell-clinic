@@ -81,6 +81,9 @@ class Appointment(db.Model):
     # For a vaccination booking: which vaccine brand + dose the patient is here for.
     vaccine_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"), nullable=True)
     vaccine_dose = db.Column(db.Integer)
+    # Extra services requested at booking (comma-separated Service ids) — they
+    # flow into the checkout as additional lines alongside the base charge.
+    extra_service_ids = db.Column(db.String(200))
     is_walk_in = db.Column(db.Boolean, default=False, nullable=False)
     cancel_reason = db.Column(db.String(200))      # why cancelled / no-show
     rescheduled_from = db.Column(db.String(120))   # audit: original date/time

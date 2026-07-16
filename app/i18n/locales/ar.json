@@ -386,7 +386,7 @@
     "reschedule_title": "إعادة جدولة الموعد",
     "rescheduled": "تمت إعادة جدولة الموعد",
     "reschedule_need_slot": "اختر تاريخاً ووقتاً جديدين",
-    "change_doctor": "الطبيب (تغيير اختياري)",
+    "change_doctor": "تغيير الطبيب",
     "walk_in": "بدون موعد",
     "walk_in_btn": "مريض بدون موعد",
     "walk_in_added": "تمت إضافة المريض للطابور",
@@ -448,7 +448,11 @@
     "breakdown_new": "جديد",
     "breakdown_returning": "قديم",
     "breakdown_newold_today": "مرضى اليوم (جديد / قديم)",
-    "breakdown_newold_month": "مرضى الشهر (جديد / قديم)"
+    "breakdown_newold_month": "مرضى الشهر (جديد / قديم)",
+    "search_doctor_ph": "ابحث عن الطبيب بالاسم…",
+    "no_doctor_found": "لا يوجد طبيب بهذا الاسم",
+    "extra_services": "خدمات إضافية (اختياري)",
+    "extra_services_hint": "تُضاف هذه الخدمات تلقائياً لشاشة التحصيل مع سعر الكشف."
   },
   "appt_types": {
     "new": "كشف جديد",

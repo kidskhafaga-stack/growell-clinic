@@ -845,6 +845,16 @@ def _checkout_lines(appt, lang):
         price = base.price_for(appt.doctor) if appt.doctor else base.price
         lines.append({"service_id": base.id, "description": base.display_name(lang),
                       "unit_price": price or 0, "quantity": 1})
+    # Extra services chosen at booking time (comma-separated Service ids).
+    for sid_s in (appt.extra_service_ids or "").split(","):
+        if not sid_s.strip().isdigit():
+            continue
+        svc = db.session.get(Service, int(sid_s))
+        if svc is None or (base is not None and svc.id == base.id):
+            continue
+        price = svc.price_for(appt.doctor) if appt.doctor else svc.price
+        lines.append({"service_id": svc.id, "description": svc.display_name(lang),
+                      "unit_price": price or 0, "quantity": 1})
     for vs in _unbilled_visit_services(appt):
         price = vs.service.price_for(appt.doctor) if vs.service else 0
         lines.append({"service_id": vs.service_id or "", "description": vs.name,
