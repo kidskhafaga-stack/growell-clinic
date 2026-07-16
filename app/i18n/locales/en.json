@@ -604,7 +604,11 @@
     "vac_expected": "Expected",
     "vac_next_dose": "Next dose",
     "vac_next_none": "None — course complete",
-    "vac_no_received": "No doses recorded for this child yet."
+    "vac_no_received": "No doses recorded for this child yet.",
+    "vac_plan_saved": "Next-dose date saved.",
+    "vac_plan_bad": "Pick a valid date for the dose.",
+    "vac_plan_save": "Save date",
+    "vac_planned_hint": "Date set by the doctor (overrides the computed schedule)"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1806,7 +1810,12 @@
     "suggested": "Suggested",
     "max_per_day": "max/day",
     "diagnosis_search_ph": "Search ICD-10 by name or code…",
-    "ai_suggest": "Suggest dose (AI)"
+    "ai_suggest": "Suggest dose (AI)",
+    "vaccines_given": "Vaccinations this visit & upcoming doses",
+    "vac_dose_of": "Dose {n} of {total}",
+    "vac_next_dose": "Next dose: {n}",
+    "vac_next_seasonal": "Next dose: seasonal",
+    "vac_next_none": "Next dose: none — course complete"
   },
   "drug_forms": {
     "tablet": "Tablet",

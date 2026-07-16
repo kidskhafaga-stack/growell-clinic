@@ -604,7 +604,11 @@
     "vac_expected": "متوقع",
     "vac_next_dose": "الجرعة القادمة",
     "vac_next_none": "لا يوجد — اكتمل الجدول",
-    "vac_no_received": "لم تُسجَّل أي جرعات لهذا الطفل بعد."
+    "vac_no_received": "لم تُسجَّل أي جرعات لهذا الطفل بعد.",
+    "vac_plan_saved": "تم حفظ موعد الجرعة القادمة.",
+    "vac_plan_bad": "اختر تاريخاً صحيحاً للجرعة.",
+    "vac_plan_save": "حفظ التاريخ",
+    "vac_planned_hint": "تاريخ حدده الطبيب (يتقدم على الجدول المحسوب)"
   },
   "diagnosis_types": {
     "working": "أولي",
@@ -1806,7 +1810,12 @@
     "suggested": "المقترح",
     "max_per_day": "الأقصى/يوم",
     "diagnosis_search_ph": "ابحث ICD-10 بالاسم أو الكود…",
-    "ai_suggest": "اقترح الجرعة (AI)"
+    "ai_suggest": "اقترح الجرعة (AI)",
+    "vaccines_given": "تطعيمات هذه الزيارة ومواعيد الجرعات القادمة",
+    "vac_dose_of": "الجرعة {n} من {total}",
+    "vac_next_dose": "الجرعة القادمة: {n}",
+    "vac_next_seasonal": "الجرعة القادمة: موسمي",
+    "vac_next_none": "الجرعة القادمة: لا يوجد — اكتمل الجدول"
   },
   "drug_forms": {
     "tablet": "أقراص",
