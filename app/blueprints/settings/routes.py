@@ -40,7 +40,9 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                "ai_patient_context", "ai_anonymize",
                # Appointments board: visit-type breakdown panel + its parts.
                "board_show_breakdown", "board_breakdown_month",
-               "board_breakdown_newold"]
+               "board_breakdown_newold",
+               # Workflow policies: doctor privacy + refund manager sign-off.
+               "doctors_see_own_only", "refund_approval_required"]
 
 
 def _logo_dir():

@@ -57,6 +57,7 @@
         ('logo','image', t('settings.logo')),
         ('numbering','123', t('settings.numbering_title')),
         ('board','bar-chart-line', t('settings.board_title')),
+        ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title'))] %}
     <button type="button" class="btn btn-sm gc-press"
@@ -269,6 +270,24 @@
              {{ 'checked' if values.get('board_breakdown_newold','1') != '0' else '' }}>
       <label for="board_breakdown_newold" style="margin:0;font-weight:400;">{{ t('settings.board_breakdown_newold') }}</label>
     </div>
+  </div>
+
+  <!-- Workflow policies -->
+  <div class="card gc-scale-in" x-show="tab==='policies'" x-cloak>
+    <h2 class="section-title"><i class="bi bi-shield-lock"></i> {{ t('settings.policies_title') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('settings.policies_hint') }}</p>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="doctors_see_own_only" name="doctors_see_own_only" value="1"
+             {{ 'checked' if values.get('doctors_see_own_only','1') != '0' else '' }}>
+      <label for="doctors_see_own_only" style="margin:0;font-weight:400;">{{ t('settings.doctors_see_own_only') }}</label>
+    </div>
+    <p class="hint">{{ t('settings.doctors_see_own_only_hint') }}</p>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="refund_approval_required" name="refund_approval_required" value="1"
+             {{ 'checked' if values.get('refund_approval_required','1') != '0' else '' }}>
+      <label for="refund_approval_required" style="margin:0;font-weight:400;">{{ t('settings.refund_approval_required') }}</label>
+    </div>
+    <p class="hint">{{ t('settings.refund_approval_required_hint') }}</p>
   </div>
 
   <!-- ETA e-invoicing -->
