@@ -117,6 +117,35 @@
   </div>
 </div>
 
+{% if uncollected %}
+<!-- Never-billed money: doses/services given after the visit was collected -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--warning,#f0ad4e);">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-cash-stack"></i> {{ t('cashier.uncollected_title') }} ({{ uncollected|length }})</h2>
+  <p class="hint" style="padding:0 18px;margin:4px 0 8px;">{{ t('cashier.uncollected_hint') }}</p>
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('cashier.uncollected_items') }}</th>
+      <th style="text-align:end;">{{ t('invoices.total') }}</th>
+      <th style="text-align:end;">{{ t('cashier.collect') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for e in uncollected %}
+      <tr>
+        <td><a href="{{ url_for('patients.view', patient_id=e.patient.id) }}">{{ e.patient.display_name(current_lang) }}</a></td>
+        <td style="color:var(--muted);">{{ e['items']|join(' · ') }}</td>
+        <td style="text-align:end;font-weight:700;color:var(--danger);">{{ '%.2f'|format(e.total) }}</td>
+        <td style="text-align:end;">
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('finance.invoice_new', patient_id=e.patient.id) }}">
+            <i class="bi bi-receipt"></i> {{ t('cashier.collect_now') }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <!-- Outstanding dues with quick collect -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-exclamation-circle"></i> {{ t('cashier.who_owes') }}</h2>
