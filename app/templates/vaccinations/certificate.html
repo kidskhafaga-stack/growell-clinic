@@ -6,10 +6,23 @@
 {% block page_heading %}{{ t('vaccinations.certificate') }}{% endblock %}
 
 {% block content %}
-<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;">
+<div class="no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
   <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.view', patient_id=patient.id) }}">
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
-  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <!-- Print language: hand the family the paper in either language -->
+    <div class="btn-group" style="display:flex;gap:4px;">
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'ar' else 'btn-outline' }}"
+         href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang='ar', schedule='1' if with_schedule else None) }}">العربية</a>
+      <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'en' else 'btn-outline' }}"
+         href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang='en', schedule='1' if with_schedule else None) }}">English</a>
+    </div>
+    <!-- Include the upcoming plan table -->
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if with_schedule else 'btn-outline' }}"
+       href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang=current_lang, schedule=None if with_schedule else '1') }}">
+      <i class="bi bi-calendar-week"></i> {{ t('vaccinations.cert_with_schedule') }}</a>
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+  </div>
 </div>
 
 <div class="card gc-scale-in print-area">
@@ -42,6 +55,34 @@
   </table>
   {% else %}
   <p style="color:var(--muted);">{{ t('vaccinations.no_given') }}</p>
+  {% endif %}
+
+  {% if with_schedule %}
+  <h3 style="font-size:1rem;color:var(--green-800);margin:22px 0 8px;">
+    <i class="bi bi-calendar-week"></i> {{ t('vaccinations.cert_upcoming_title') }}</h3>
+  {% if upcoming %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('vaccinations.cert_vaccine') }}</th><th>{{ t('vaccinations.brand') }}</th>
+      <th>{{ t('vaccinations.dose') }}</th><th>{{ t('vaccinations.age') }}</th>
+      <th>{{ t('visits.vac_expected') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for u in upcoming %}
+      <tr>
+        <td>{{ u.vaccine.display_name(current_lang) }}</td>
+        <td>{{ u.brand.display_name(current_lang) }}</td>
+        <td>{{ u.dose_number }}</td>
+        <td>{{ u.age_label }}</td>
+        <td dir="ltr">{{ u.due_date or '—' }}{% if u.planned %} <i class="bi bi-person-check" title="{{ t('visits.vac_planned_hint') }}"></i>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="hint" style="font-size:0.78rem;">{{ t('vaccinations.cert_upcoming_hint') }}</p>
+  {% else %}
+  <p style="color:var(--muted);">{{ t('vaccinations.cert_no_upcoming') }}</p>
+  {% endif %}
   {% endif %}
 
   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;flex-wrap:wrap;">

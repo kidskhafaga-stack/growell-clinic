@@ -411,8 +411,13 @@
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <h2 class="section-title" style="margin:0;"><i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}</h2>
       {% if current_user.can_access('vaccinations') %}
-      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.view', patient_id=visit.patient_id) }}">
-        <i class="bi bi-box-arrow-up-right"></i> {{ t('visits.vac_open_record') }}</a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="btn btn-outline btn-sm gc-press" target="_blank"
+           href="{{ url_for('vaccinations.certificate', patient_id=visit.patient_id, schedule='1') }}">
+          <i class="bi bi-printer"></i> {{ t('visits.vac_print_plan') }}</a>
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.view', patient_id=visit.patient_id) }}">
+          <i class="bi bi-box-arrow-up-right"></i> {{ t('visits.vac_open_record') }}</a>
+      </div>
       {% endif %}
     </div>
     <p class="hint" style="margin-top:-2px;">{{ t('visits.vac_intro') }}</p>
