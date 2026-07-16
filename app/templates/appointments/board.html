@@ -431,7 +431,7 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     // cancel
     cancel: { id: null, reason: '' },
     // walk-in / waitlist fields
-    f: { doctorId: '', appt_type: 'new', reason: '', preferred_from: '', preferred_to: '' },
+    f: { doctorId: '', appt_type: 'new', reason: '', preferred_from: '', preferred_to: '', services: [] },
 
     close() { this.modal = null; this.q=''; this.results=[]; this.chosen=null; },
     async searchPatients() {
@@ -471,18 +471,19 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     },
     // Walk-in --------------------------------------------------------------
     openWalkIn() {
-      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'' };
+      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'', services: [] };
       this.modal = 'walkin';
     },
     submitWalkIn() {
       if (!this.chosen || !this.f.doctorId) return;
       this.postForm(`/appointments/walk-in`, {
         patient_id: this.chosen.id, doctor_id: this.f.doctorId,
-        appt_type: this.f.appt_type, reason: this.f.reason });
+        appt_type: this.f.appt_type, reason: this.f.reason,
+        extra_services: this.f.services });
     },
     // Waitlist -------------------------------------------------------------
     openWaitlist() {
-      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'new', reason: '', preferred_from:'', preferred_to:'' };
+      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'new', reason: '', preferred_from:'', preferred_to:'', services: [] };
       this.modal = 'waitlist';
     },
     submitWaitlist() {
@@ -496,9 +497,12 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
       const form = document.createElement('form');
       form.method = 'post'; form.action = action;
       for (const k in fields) {
-        const i = document.createElement('input');
-        i.type = 'hidden'; i.name = k; i.value = fields[k] == null ? '' : fields[k];
-        form.appendChild(i);
+        const vals = Array.isArray(fields[k]) ? fields[k] : [fields[k]];
+        for (const v of vals) {
+          const i = document.createElement('input');
+          i.type = 'hidden'; i.name = k; i.value = v == null ? '' : v;
+          form.appendChild(i);
+        }
       }
       document.body.appendChild(form); form.submit();
     }

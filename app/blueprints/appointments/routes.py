@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 
 from flask import (
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -132,6 +133,7 @@ def index():
         pay=pay,
         fin=fin,
         breakdown=breakdown,
+        bookable_services=_bookable_services(),
     )
 
 
@@ -304,6 +306,8 @@ def create():
                 "appointments/form.html", doctors=doctors, form=request.form,
                 selected_patient=_patient_brief(chosen) if chosen else None,
                 appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
+                doctor_options=_doctor_options(doctors),
+                services=_bookable_services(),
             )
 
         appt = Appointment(
@@ -320,6 +324,7 @@ def create():
         if appt_type == "vaccination":
             appt.vaccine_brand_id = request.form.get("vaccine_brand_id", type=int) or None
             appt.vaccine_dose = request.form.get("vaccine_dose", type=int) or None
+        appt.extra_service_ids = _extra_services_arg() or None
         db.session.add(appt)
         db.session.flush()
         ActivityLog.record(
@@ -359,7 +364,28 @@ def create():
         "appointments/form.html", doctors=doctors, form=form,
         selected_patient=_patient_brief(chosen) if chosen else None,
         appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
+        doctor_options=_doctor_options(doctors),
+        services=_bookable_services(),
     )
+
+
+def _doctor_options(doctors):
+    """Doctors as plain dicts for the searchable picker on the booking form."""
+    lang = getattr(g, "lang", "ar")
+    return [{"id": d.id, "name": d.display_name(lang)} for d in doctors]
+
+
+def _bookable_services():
+    """Active services offered as optional extras at booking time."""
+    from app.models import Service
+
+    return Service.query.filter_by(is_active=True).order_by(Service.name).all()
+
+
+def _extra_services_arg():
+    """Sanitise the extra_services[] checkboxes into a comma-separated id list."""
+    ids = [s for s in request.form.getlist("extra_services") if s.strip().isdigit()]
+    return ",".join(ids[:20])
 
 
 @appointments_bp.route("/consult-check")
@@ -477,6 +503,7 @@ def walk_in():
         appt_time=appt_time, duration_minutes=type_minutes(appt_type),
         reason=reason or t("appointments.walk_in"), appt_type=appt_type,
         is_walk_in=True, status="waiting",
+        extra_service_ids=_extra_services_arg() or None,
     )
     appt.apply_status("waiting")  # stamp check-in time
     db.session.add(appt)

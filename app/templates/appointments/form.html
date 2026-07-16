@@ -74,15 +74,36 @@
           </div>
         </template>
       </div>
-      <div class="form-row">
-        <label for="doctor_id">{{ t('appointments.doctor') }} *</label>
-        <select class="select" id="doctor_id" name="doctor_id" required
-                x-model="doctorId" x-on:change="loadSlots()">
-          <option value="" disabled {{ 'selected' if not form.doctor_id else '' }}>{{ t('appointments.select_doctor') }}</option>
-          {% for d in doctors %}
-            <option value="{{ d.id }}" {{ 'selected' if form.doctor_id|string == d.id|string else '' }}>{{ d.display_name(current_lang) }}</option>
-          {% endfor %}
-        </select>
+      <div class="form-row" style="position:relative;">
+        <label>{{ t('appointments.doctor') }} *</label>
+        <input type="hidden" id="doctor_id" name="doctor_id" :value="doctorId" required>
+        <!-- Chosen doctor chip -->
+        <template x-if="doctorId">
+          <div class="chosen-patient">
+            <strong x-text="doctorName()"></strong>
+            <button type="button" class="btn btn-outline btn-sm gc-press"
+                    x-show="doctors.length > 1" x-on:click="clearDoctor()">
+              <i class="bi bi-x-lg"></i> {{ t('appointments.change_doctor') }}</button>
+          </div>
+        </template>
+        <!-- Searchable list -->
+        <template x-if="!doctorId">
+          <div>
+            <input class="input" type="search" autocomplete="off" x-model="docQ"
+                   x-on:focus="docOpen = true" x-on:input="docOpen = true"
+                   placeholder="{{ t('appointments.search_doctor_ph') }}">
+            <div class="patient-results" x-show="docOpen" x-cloak>
+              <template x-for="d in doctorMatches()" :key="d.id">
+                <button type="button" class="patient-result gc-press" x-on:click="pickDoctor(d)">
+                  <span x-text="d.name"></span>
+                </button>
+              </template>
+              <div x-show="doctorMatches().length === 0" class="patient-result muted" style="cursor:default;">
+                {{ t('appointments.no_doctor_found') }}
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
       <div class="form-row">
         <label for="appt_date">{{ t('appointments.date') }} *</label>
@@ -123,6 +144,24 @@
         <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
       </div>
     </div>
+
+    <!-- Extra services requested at booking (billed at checkout) -->
+    {% if services %}
+    <div class="form-row" x-data="{open: false}">
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open" style="align-self:start;">
+        <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-plus-lg'"></i> {{ t('appointments.extra_services') }}
+      </button>
+      <div x-show="open" x-cloak style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
+        {% for s in services %}
+        <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:.88rem;">
+          <input type="checkbox" name="extra_services" value="{{ s.id }}">
+          {{ s.display_name(current_lang) }} <span class="muted" style="color:var(--muted);">({{ s.price }})</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="hint" x-show="open" x-cloak style="margin-top:6px;">{{ t('appointments.extra_services_hint') }}</p>
+    </div>
+    {% endif %}
 
     <!-- Smart available slots -->
     <div class="form-row">
@@ -184,7 +223,30 @@
     return {
       url, nextUrl, firstUrl,
       doctorId: '{{ form.doctor_id or '' }}', date: '{{ form.appt_date or '' }}',
+      doctors: {{ doctor_options | tojson }},
+      docQ: '', docOpen: false,
       slots: [], selected: preselected, loading: false, finderMsg: '',
+      doctorMatches() {
+        var q = this.docQ.trim().toLowerCase();
+        if (!q) return this.doctors;
+        return this.doctors.filter(function (d) {
+          return d.name.toLowerCase().indexOf(q) !== -1;
+        });
+      },
+      doctorName() {
+        var id = String(this.doctorId);
+        var d = this.doctors.find(function (x) { return String(x.id) === id; });
+        return d ? d.name : '';
+      },
+      pickDoctor(d) {
+        this.doctorId = String(d.id); this.docQ = ''; this.docOpen = false;
+        this.loadSlots();
+        this.$nextTick(function () {
+          var el = document.getElementById('doctor_id');
+          if (el) el.dispatchEvent(new Event('change'));  // consult-window check
+        });
+      },
+      clearDoctor() { this.doctorId = ''; this.slots = []; this.selected = ''; },
       async loadSlots() {
         this.selected = ''; this.finderMsg = '';
         if (!this.doctorId || !this.date) { this.slots = []; return; }
@@ -220,7 +282,11 @@
           await this._applyFound(await res.json());
         } catch (e) {}
       },
-      init() { if (this.doctorId && this.date) this.loadSlots(); }
+      init() {
+        // A single-doctor clinic never has to pick one.
+        if (!this.doctorId && this.doctors.length === 1) this.doctorId = String(this.doctors[0].id);
+        if (this.doctorId && this.date) this.loadSlots();
+      }
     };
   }
 

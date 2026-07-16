@@ -386,7 +386,7 @@
     "reschedule_title": "Reschedule appointment",
     "rescheduled": "Appointment rescheduled",
     "reschedule_need_slot": "Pick a new date and time",
-    "change_doctor": "Doctor (optional change)",
+    "change_doctor": "Change doctor",
     "walk_in": "Walk-in",
     "walk_in_btn": "Walk-in",
     "walk_in_added": "Walk-in added to the queue",
@@ -448,7 +448,11 @@
     "breakdown_new": "new",
     "breakdown_returning": "returning",
     "breakdown_newold_today": "Today's patients (new / returning)",
-    "breakdown_newold_month": "This month (new / returning)"
+    "breakdown_newold_month": "This month (new / returning)",
+    "search_doctor_ph": "Search doctor by name…",
+    "no_doctor_found": "No doctor with that name",
+    "extra_services": "Extra services (optional)",
+    "extra_services_hint": "These services are added automatically to the checkout alongside the visit charge."
   },
   "appt_types": {
     "new": "New visit",

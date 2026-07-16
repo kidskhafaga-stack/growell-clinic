@@ -113,6 +113,7 @@ def register_commands(app):
             ("patient_vaccines", "given_outside", "BOOLEAN DEFAULT 0"),
             ("appointments", "vaccine_brand_id", "INTEGER"),
             ("appointments", "vaccine_dose", "INTEGER"),
+            ("appointments", "extra_service_ids", "VARCHAR(200)"),
             ("doctor_schedules", "start_date", "DATE"),
             ("doctor_schedules", "end_date", "DATE"),
             ("doctor_schedules", "season_label", "VARCHAR(60)"),
