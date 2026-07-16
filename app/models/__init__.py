@@ -86,6 +86,7 @@ from app.models.invoice import (
     Invoice,
     InvoiceItem,
     Payment,
+    RefundRequest,
 )
 from app.models.payer import (
     COVERAGE_TYPES,
@@ -258,6 +259,7 @@ __all__ = [
     "DEVICE_TYPES",
     "CONNECTION_TYPES",
     "IMPORT_MODES",
+    "RefundRequest",
     "Account",
     "JournalEntry",
     "JournalLine",

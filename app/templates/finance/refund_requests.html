@@ -1,0 +1,79 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('refunds.title') }}{% endblock %}
+{% block page_heading %}{{ t('refunds.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('refunds.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('refunds.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.cashier') }}"><i class="bi bi-cash-stack"></i> {{ t('cashier.title') }}</a>
+</div>
+
+<!-- Pending -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-hourglass-split"></i> {{ t('refunds.pending') }} ({{ pending|length }})</h2>
+  {% if pending %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:640px;">
+      <thead><tr>
+        <th>{{ t('invoices.invoice_number') }}</th><th>{{ t('refunds.patient') }}</th>
+        <th style="text-align:end;">{{ t('refunds.amount') }}</th>
+        <th>{{ t('refunds.reason') }}</th><th>{{ t('refunds.requested_by') }}</th>
+        <th style="text-align:end;">{{ t('common.actions') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in pending %}
+        <tr>
+          <td dir="ltr"><a href="{{ url_for('finance.invoice_view', invoice_id=r.invoice_id) }}">{{ r.invoice.invoice_number if r.invoice }}</a></td>
+          <td>{{ r.invoice.patient.display_name(current_lang) if r.invoice and r.invoice.patient }}</td>
+          <td style="text-align:end;font-weight:800;color:var(--danger);">{{ '%.2f'|format(r.amount) }}</td>
+          <td style="color:var(--muted);">{{ r.reason or '—' }}</td>
+          <td>{{ r.requester.display_name(current_lang) if r.requester }}
+            <div class="num" style="color:var(--muted);">{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</div></td>
+          <td style="text-align:end;white-space:nowrap;">
+            {% if current_user.is_admin %}
+            <form method="post" action="{{ url_for('finance.refund_request_decide', req_id=r.id) }}" style="display:inline;"
+                  onsubmit="return confirm('{{ t('refunds.approve_confirm') }}');">
+              <input type="hidden" name="decision" value="approve">
+              <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('refunds.approve') }}</button>
+            </form>
+            <form method="post" action="{{ url_for('finance.refund_request_decide', req_id=r.id) }}" style="display:inline;">
+              <input type="hidden" name="decision" value="reject">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-lg"></i> {{ t('refunds.reject') }}</button>
+            </form>
+            {% else %}<span class="hint">{{ t('refunds.awaiting_admin') }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-check2-circle"></i>{{ t('refunds.none_pending') }}</div>
+  {% endif %}
+</div>
+
+<!-- History -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.06s;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-clock-history"></i> {{ t('refunds.history') }}</h2>
+  {% if history %}
+  <table class="table">
+    <tbody>
+      {% for r in history %}
+      <tr>
+        <td dir="ltr">{{ r.invoice.invoice_number if r.invoice }}</td>
+        <td style="text-align:end;">{{ '%.2f'|format(r.amount) }}</td>
+        <td><span class="status-badge {{ 'st-completed' if r.status == 'approved' else 'st-no_show' }}">{{ t('refunds.st_' ~ r.status) }}</span></td>
+        <td style="color:var(--muted);">{{ r.decider.display_name(current_lang) if r.decider }} · {{ r.decided_at.strftime('%Y-%m-%d %H:%M') if r.decided_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">{{ t('refunds.no_history') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
