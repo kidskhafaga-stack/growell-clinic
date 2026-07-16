@@ -551,6 +551,31 @@ def cashier():
     )
 
 
+@finance_bp.route("/cashier/poll")
+@module_required(MODULE)
+def cashier_poll():
+    """Cheap change fingerprint for the cashier's live refresh: the day's
+    payments + open invoices + pending refund requests. The page reloads only
+    when something actually changed."""
+    import hashlib
+
+    from flask import jsonify
+
+    from app.models import RefundRequest
+
+    on_date = _cashier_date()
+    start = datetime.combine(on_date, datetime.min.time())
+    end = datetime.combine(on_date, datetime.max.time())
+    pays = (db.session.query(Payment.id, Payment.amount, Payment.kind)
+            .filter(Payment.paid_at >= start, Payment.paid_at <= end).all())
+    open_invs = (db.session.query(Invoice.id)
+                 .filter(Invoice.status.in_(["unpaid", "partial"]))
+                 .order_by(Invoice.id.desc()).limit(100).all())
+    pending_refunds = RefundRequest.query.filter_by(status="pending").count()
+    fp = hashlib.md5(repr((sorted(pays), open_invs, pending_refunds)).encode()).hexdigest()
+    return jsonify({"fp": fp})
+
+
 @finance_bp.route("/cashier/float", methods=["POST"])
 @module_required(MODULE)
 def cashier_float():

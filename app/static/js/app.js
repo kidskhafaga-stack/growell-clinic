@@ -217,3 +217,26 @@
     }
   });
 })();
+
+// Live refresh: poll a cheap fingerprint endpoint and reload only when the
+// data actually changed. Pauses while the tab is hidden or a form field is
+// focused (so it never eats what the user is typing).
+window.gcLivePoll = function (url, everyMs) {
+  var last = null;
+  var every = everyMs || 12000;
+  function busy() {
+    var el = document.activeElement;
+    return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
+  }
+  setInterval(function () {
+    if (document.hidden || busy()) return;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.fp) return;
+        if (last === null) { last = j.fp; return; }
+        if (j.fp !== last) window.location.reload();
+      })
+      .catch(function () {});
+  }, every);
+};

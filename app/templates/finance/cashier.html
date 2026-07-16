@@ -184,4 +184,11 @@
   <div class="empty-state"><i class="bi bi-check2-circle"></i>{{ t('cashier.all_settled') }}</div>
   {% endif %}
 </div>
+
+<script>
+  // Live refresh: reload only when the day's money actually changed.
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.gcLivePoll) window.gcLivePoll("{{ url_for('finance.cashier_poll', date=on_date.isoformat()) }}", 12000);
+  });
+</script>
 {% endblock %}

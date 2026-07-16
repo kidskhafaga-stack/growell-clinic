@@ -513,5 +513,10 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     }
   };
 }
+
+// Live refresh: reload the board only when the day's appointments changed.
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.gcLivePoll) window.gcLivePoll("{{ url_for('appointments.poll', date=on_date.isoformat(), doctor_id=doctor_id or None) }}", 12000);
+});
 </script>
 {% endblock %}
