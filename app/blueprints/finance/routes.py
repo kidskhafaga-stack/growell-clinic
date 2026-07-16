@@ -708,6 +708,19 @@ def _uncharged_vaccines(patient_id, days=2):
     return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
 
 
+def _todays_invoice(patient_id):
+    """The patient's invoice for today, if any — the visit's ONE bill.
+
+    Exam, in-clinic procedures and vaccines all land on the same invoice
+    (appended as the day unfolds) instead of spawning a new invoice per
+    collection step, so the patient's statement stays clean and accounting
+    correct."""
+    return (Invoice.query
+            .filter(Invoice.patient_id == patient_id,
+                    Invoice.invoice_date == date.today())
+            .order_by(Invoice.id.desc()).first())
+
+
 def _unbilled_patient_services(patient_id, days=7):
     """Recent doctor-added visit services of this patient not yet invoiced —
     across visits, because a dose/procedure added after the visit was already
@@ -733,17 +746,28 @@ def invoice_new():
             flash(t("invoices.need_patient"), "danger")
             return redirect(url_for("finance.invoice_new"))
 
-        invoice = Invoice(
-            invoice_number=generate_invoice_number(),
-            patient_id=patient.id,
-            doctor_id=request.form.get("doctor_id", type=int) or None,
-            visit_id=request.form.get("visit_id", type=int) or None,
-            payer_id=request.form.get("payer_id", type=int) or None,
-            created_by=current_user.id,
-            notes=(request.form.get("notes") or "").strip() or None,
-        )
-        db.session.add(invoice)
-        db.session.flush()
+        # One invoice per visit-day: extend today's invoice when it exists
+        # (e.g. collecting a vaccine given after the exam was already paid)
+        # instead of raising a second invoice for the same patient's day.
+        invoice = _todays_invoice(patient.id)
+        created = invoice is None
+        if created:
+            invoice = Invoice(
+                invoice_number=generate_invoice_number(),
+                patient_id=patient.id,
+                doctor_id=request.form.get("doctor_id", type=int) or None,
+                visit_id=request.form.get("visit_id", type=int) or None,
+                payer_id=request.form.get("payer_id", type=int) or None,
+                created_by=current_user.id,
+                notes=(request.form.get("notes") or "").strip() or None,
+            )
+            db.session.add(invoice)
+            db.session.flush()
+        else:
+            if invoice.doctor_id is None:
+                invoice.doctor_id = request.form.get("doctor_id", type=int) or None
+            if invoice.visit_id is None:
+                invoice.visit_id = request.form.get("visit_id", type=int) or None
 
         # Multiple line rows submitted as service_id[], etc.
         count = 0
@@ -776,11 +800,14 @@ def invoice_new():
             vs.invoice_id = invoice.id
 
         invoice.recalc_status()
-        ActivityLog.record("invoice.create", user_id=current_user.id, entity="invoice",
+        ActivityLog.record("invoice.create" if created else "invoice.append",
+                           user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
         db.session.commit()
         _post_journal_safe("invoice", invoice)
-        flash(t("invoices.created"), "success")
+        flash(t("invoices.created") if created
+              else t("invoices.appended_today", number=invoice.invoice_number),
+              "success")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
     pid = request.args.get("patient_id", type=int)
@@ -863,10 +890,15 @@ def _unbilled_visit_services(appt):
 def _checkout_lines(appt, lang):
     """Resolve the billable lines for an appointment: the base visit-type
     charge (at the doctor's price) + any services the doctor added during the
-    visit + any vaccines already given — each only while still unbilled."""
+    visit + any vaccines already given — each only while still unbilled.
+    Anything already on today's invoice is skipped, so re-opening the
+    checkout never charges the exam (or a booked extra) twice."""
     lines = []
+    inv_today = _todays_invoice(appt.patient_id)
+    billed_sids = ({i.service_id for i in inv_today.items if i.service_id}
+                   if inv_today else set())
     base = service_for_visit_type(appt.appt_type)
-    if base is not None:
+    if base is not None and base.id not in billed_sids:
         price = base.price_for(appt.doctor) if appt.doctor else base.price
         lines.append({"service_id": base.id, "description": base.display_name(lang),
                       "unit_price": price or 0, "quantity": 1})
@@ -875,7 +907,8 @@ def _checkout_lines(appt, lang):
         if not sid_s.strip().isdigit():
             continue
         svc = db.session.get(Service, int(sid_s))
-        if svc is None or (base is not None and svc.id == base.id):
+        if (svc is None or (base is not None and svc.id == base.id)
+                or svc.id in billed_sids):
             continue
         price = svc.price_for(appt.doctor) if appt.doctor else svc.price
         lines.append({"service_id": svc.id, "description": svc.display_name(lang),
@@ -906,11 +939,18 @@ def checkout(appt_id):
     lang = getattr(g, "lang", "ar")
 
     if request.method == "POST":
-        invoice = Invoice(invoice_number=generate_invoice_number(),
-                          patient_id=appt.patient_id, doctor_id=appt.doctor_id,
-                          created_by=current_user.id)
-        db.session.add(invoice)
-        db.session.flush()
+        # One invoice per visit-day: append to today's invoice when it exists
+        # (exam collected first, then a procedure/vaccine added later) instead
+        # of raising a new invoice for every collection step.
+        invoice = _todays_invoice(appt.patient_id)
+        if invoice is None:
+            invoice = Invoice(invoice_number=generate_invoice_number(),
+                              patient_id=appt.patient_id, doctor_id=appt.doctor_id,
+                              created_by=current_user.id)
+            db.session.add(invoice)
+            db.session.flush()
+        elif invoice.doctor_id is None:
+            invoice.doctor_id = appt.doctor_id
 
         descs = request.form.getlist("line_desc")
         sids = request.form.getlist("line_service_id")
@@ -961,19 +1001,24 @@ def checkout(appt_id):
 
         # Split payment: parallel amount[]/method[] (collect now); may be empty
         # (collect later — leaves an open balance the cashier can settle).
+        # Every payment is clamped to the remaining balance so the invoice can
+        # never be overpaid (no more negative balances from double submits).
         amounts = request.form.getlist("amount")
         methods = request.form.getlist("method")
         shift_id = _current_shift_id()
+        remaining = invoice.balance
         for amt_raw, m in zip(amounts, methods):
             try:
                 amt = float(amt_raw)
             except (TypeError, ValueError):
                 continue
+            amt = min(amt, remaining)
             if amt <= 0:
                 continue
             invoice.payments.append(Payment(
                 amount=round(amt, 2), method=m if m in PAYMENT_METHODS else "cash",
                 received_by=current_user.id, shift_id=shift_id))
+            remaining = round(remaining - amt, 2)
         invoice.recalc_status()
         ActivityLog.record("invoice.checkout", user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
@@ -1152,11 +1197,20 @@ def invoice_payment(invoice_id):
     added = 0.0
     new_payments = []
     shift_id = _current_shift_id()
+    # Never accept more than the open balance: a double click or a stale form
+    # can otherwise pay the same invoice twice (negative balance).
+    remaining = invoice.balance
+    if remaining <= 0:
+        flash(t("invoices.already_settled"), "warning")
+        return redirect(url_for("finance.cashier")
+                        if (request.form.get("next") or "") == "cashier"
+                        else url_for("finance.invoice_view", invoice_id=invoice.id))
     for amt_raw, m in zip(amounts, methods):
         try:
             amt = float(amt_raw)
         except (TypeError, ValueError):
             continue
+        amt = min(amt, remaining)
         if amt <= 0:
             continue
         pay = Payment(
@@ -1167,6 +1221,7 @@ def invoice_payment(invoice_id):
         invoice.payments.append(pay)
         new_payments.append(pay)
         added += amt
+        remaining = round(remaining - amt, 2)
     if added <= 0:
         flash(t("invoices.bad_amount"), "danger")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))

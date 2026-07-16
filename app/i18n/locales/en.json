@@ -1252,7 +1252,9 @@
     "refund": "Refund",
     "refund_hint": "Return money to the patient (e.g. an exam re-billed as a consultation). It reconciles the cashier drawer.",
     "refund_reason": "Reason",
-    "refund_added": "Refund recorded"
+    "refund_added": "Refund recorded",
+    "already_settled": "The invoice is already fully settled — nothing left to collect.",
+    "appended_today": "Lines added to today's invoice {number} (one invoice per visit)."
   },
   "expenses": {
     "title": "Expenses",
