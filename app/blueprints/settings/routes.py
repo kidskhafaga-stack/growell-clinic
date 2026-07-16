@@ -340,6 +340,36 @@ def backup_create():
     return redirect(url_for("settings.data_tools"))
 
 
+@settings_bp.route("/data/backup/upload", methods=["POST"])
+@admin_required
+def backup_upload():
+    """Accept a backup file from the admin's device (e.g. moving PCs or
+    restoring an off-site copy). Validated as one of our SQLite databases,
+    stored as backup-…-uploaded.db, restorable via the normal restore flow."""
+    from app.utils.backups import save_uploaded_backup
+
+    file = request.files.get("backup_file")
+    if not file or not file.filename:
+        flash(t("backups.upload_need_file"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    try:
+        name = save_uploaded_backup(file)
+    except ValueError as exc:
+        key = {"not_sqlite": "upload_not_sqlite", "too_big": "upload_too_big",
+               "corrupt": "upload_corrupt", "wrong_app": "upload_wrong_app"}.get(
+            str(exc), "upload_failed")
+        flash(t(f"backups.{key}"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
+        flash(t("backups.upload_failed"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    ActivityLog.record("backup.upload", user_id=current_user.id,
+                       entity="system", detail=name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("backups.uploaded", name=name), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
 @settings_bp.route("/data/backup/<name>/download")
 @admin_required
 def backup_download(name):

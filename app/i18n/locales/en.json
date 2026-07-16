@@ -2490,7 +2490,16 @@
     "every": "Frequency",
     "every_day": "Daily",
     "every_2days": "Every 2 days",
-    "every_week": "Weekly"
+    "every_week": "Weekly",
+    "upload_btn": "Upload from device",
+    "upload_hint": "Upload a backup file (.db) from your device — it is checked to be a healthy database belonging to this program, then appears in the list and can be restored with the same safe restore flow.",
+    "upload_need_file": "Choose the backup file first.",
+    "upload_not_sqlite": "The file is not a valid SQLite database.",
+    "upload_too_big": "The file exceeds the allowed size.",
+    "upload_corrupt": "The file is corrupt — integrity check failed.",
+    "upload_wrong_app": "The file is a database but does not belong to this program.",
+    "upload_failed": "Could not upload the backup.",
+    "uploaded": "Uploaded: {name} — you can restore from it in the list."
   },
   "reception_guide": {
     "title": "Reception guide — visit & collection cycle",
