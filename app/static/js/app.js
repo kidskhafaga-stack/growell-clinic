@@ -240,3 +240,13 @@ window.gcLivePoll = function (url, everyMs) {
       .catch(function () {});
   }, every);
 };
+
+// Double-submit guard: a second submit of the same form within a few seconds
+// is dropped (double clicks on Collect/Save used to post payments twice).
+document.addEventListener("submit", function (e) {
+  var f = e.target;
+  if (!f || f.method.toLowerCase() !== "post") return;
+  if (f.__gcBusy) { e.preventDefault(); return; }
+  f.__gcBusy = true;
+  setTimeout(function () { f.__gcBusy = false; }, 4000);
+}, true);

@@ -72,13 +72,18 @@ def _je_number():
     return f"{prefix}{top + 1:06d}"
 
 
-def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=None):
+def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=None,
+               replace=False):
     """Create a balanced journal entry.
 
     ``lines``: iterable of (account_code, debit, credit, description).
     Skips silently when accounts aren't seeded; raises ValueError when the
     entry doesn't balance (a programming error worth surfacing in dev).
     Commits on success and returns the entry (or None when skipped).
+
+    ``replace=True``: when the source document was already posted, rebuild the
+    existing entry's lines in place (same entry number) instead of skipping —
+    used for invoices that grow during the day (one invoice per visit).
     """
     built = []
     for code, debit, credit, desc in lines:
@@ -98,10 +103,21 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
     if abs(total_d - total_c) > 0.01:
         raise ValueError(f"unbalanced entry: D{total_d} != C{total_c}")
 
-    # Avoid double-posting the same source document.
-    if source_type and source_id and JournalEntry.query.filter_by(
-            source_type=source_type, source_id=source_id).first() is not None:
-        return None
+    # Avoid double-posting the same source document. With ``replace`` the
+    # existing entry is refreshed (delete-orphan swaps the lines) so the
+    # ledger always mirrors the document's current state.
+    if source_type and source_id:
+        existing = JournalEntry.query.filter_by(
+            source_type=source_type, source_id=source_id).first()
+        if existing is not None:
+            if not replace:
+                return None
+            existing.lines = built
+            existing.memo = memo
+            if entry_date:
+                existing.entry_date = entry_date
+            db.session.commit()
+            return existing
 
     entry = JournalEntry(entry_number=_je_number(),
                          entry_date=entry_date or date.today(),
@@ -137,7 +153,8 @@ def post_invoice(invoice, user_id=None):
         lines.append(("4020", 0, vac, invoice.invoice_number))
     return post_entry("invoice", invoice.id,
                       f"فاتورة {invoice.invoice_number}", lines,
-                      entry_date=invoice.invoice_date, user_id=user_id)
+                      entry_date=invoice.invoice_date, user_id=user_id,
+                      replace=True)
 
 
 def post_payment(payment, user_id=None):
