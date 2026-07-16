@@ -116,7 +116,14 @@ def _int(name):
 @visits_bp.route("/")
 @module_required(MODULE)
 def index():
-    pagination = Visit.query.order_by(Visit.created_at.desc()).paginate(
+    from app.utils.privacy import doctor_locked_id
+
+    query = Visit.query
+    locked = doctor_locked_id()
+    if locked:
+        query = query.filter(or_(Visit.doctor_id == locked,
+                                 Visit.doctor_id.is_(None)))
+    pagination = query.order_by(Visit.created_at.desc()).paginate(
         page=request.args.get("page", 1, type=int), per_page=25, error_out=False
     )
     return render_template(
@@ -161,7 +168,12 @@ def start(patient_id):
 @visits_bp.route("/<int:visit_id>/record", methods=["GET", "POST"])
 @module_required(MODULE)
 def record(visit_id):
+    from app.utils.privacy import can_see_visit
+
     visit = db.get_or_404(Visit, visit_id)
+    if not can_see_visit(visit):
+        flash(t("visits.not_yours"), "warning")
+        return redirect(url_for("visits.index"))
 
     if request.method == "POST":
         visit.chief_complaint = (request.form.get("chief_complaint") or "").strip()

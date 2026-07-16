@@ -73,7 +73,10 @@ def index():
     doctors = list_doctors()
 
     # Default the doctor filter: the logged-in doctor sees their own board.
-    doctor_id = request.args.get("doctor_id", type=int)
+    # With the privacy policy on, a doctor is locked to it (no switching).
+    from app.utils.privacy import doctor_locked_id
+    locked = doctor_locked_id()
+    doctor_id = locked or request.args.get("doctor_id", type=int)
     if doctor_id is None and current_user.role == "doctor":
         doctor_id = current_user.id
 
@@ -134,6 +137,7 @@ def index():
         fin=fin,
         breakdown=breakdown,
         bookable_services=_bookable_services(),
+        doctor_locked=bool(locked),
     )
 
 

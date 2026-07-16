@@ -452,7 +452,8 @@
     "search_doctor_ph": "Search doctor by name…",
     "no_doctor_found": "No doctor with that name",
     "extra_services": "Extra services (optional)",
-    "extra_services_hint": "These services are added automatically to the checkout alongside the visit charge."
+    "extra_services_hint": "These services are added automatically to the checkout alongside the visit charge.",
+    "own_board_only": "Your board only — doctor privacy policy is on"
   },
   "appt_types": {
     "new": "New visit",
@@ -597,7 +598,8 @@
     "no_procedure_catalog": "No procedure services in the catalogue yet — add them in Finance → Services (category: Procedure).",
     "proc_need": "Choose a procedure",
     "proc_added": "Procedure added",
-    "proc_removed": "Procedure removed"
+    "proc_removed": "Procedure removed",
+    "not_yours": "This visit belongs to another doctor — the privacy policy prevents opening it."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1077,7 +1079,13 @@
     "scheme_fixed": "Continuous sequence",
     "scheme_yearly": "Yearly (resets each year)",
     "prefix_yearly": "Yearly-scheme prefix",
-    "prefix_fixed": "Continuous-scheme prefix"
+    "prefix_fixed": "Continuous-scheme prefix",
+    "policies_title": "Workflow policies",
+    "policies_hint": "Rules for who sees what and who approves what — applied immediately to all users.",
+    "doctors_see_own_only": "Each doctor sees only their own cases (board & visits)",
+    "doctors_see_own_only_hint": "When on: a non-admin doctor is locked to their own appointments/visits and cannot open another doctor's record. Admin, reception and nursing see everything.",
+    "refund_approval_required": "Refunds require manager approval",
+    "refund_approval_required_hint": "When on: non-admin refunds go to the manager's approval queue instead of leaving the drawer directly."
   },
   "errors": {
     "403_title": "Forbidden",
