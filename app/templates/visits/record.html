@@ -417,8 +417,62 @@
     </div>
     <p class="hint" style="margin-top:-2px;">{{ t('visits.vac_intro') }}</p>
 
+    <!-- Search across every section (name, trade name, dose) -->
+    <input class="input" type="search" id="vacSearch" autocomplete="off"
+           placeholder="{{ t('visits.vac_search_ph') }}" style="max-width:340px;margin:6px 0 4px;"
+           oninput="gcVacFilter(this.value)">
+
+    <!-- What the child already received — first, with the upcoming doses -->
+    <details open class="vac-section">
+      <summary style="cursor:pointer;color:var(--green-800);font-size:0.95rem;font-weight:600;margin:14px 0 8px;">
+        <i class="bi bi-clipboard2-check"></i> {{ t('visits.vac_received') }} ({{ vac_panel.received|length }})</summary>
+    {% if vac_panel.received %}
+    {% for r in vac_panel.received %}
+    <div class="vac-card gc-lift">
+      <div class="vac-head">
+        <div>
+          <strong>{{ r.vaccine.display_name(current_lang) }}</strong>
+          <span class="badge badge--role"><i class="bi bi-box"></i> {{ r.brand.display_name(current_lang) }}</span>
+          {% if r.seasonal %}<span class="badge badge--muted"><i class="bi bi-arrow-repeat"></i> {{ t('visits.vac_seasonal') }}</span>{% endif %}
+        </div>
+        <span style="font-size:0.8rem;color:var(--muted);">{{ r.doses|length }} / {{ r.total }} {{ t('vaccinations.doses') }}</span>
+      </div>
+      <div class="dose-pills">
+        {% for d in r.doses %}
+        <div class="dose-pill">
+          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-done">{{ t('vstatus.done') }}</span></span>
+          {% if d.given_date %}<span class="dd">✓ <span dir="ltr">{{ d.given_date }}</span></span>{% endif %}
+        </div>
+        {% endfor %}
+        {% for d in r.upcoming %}
+        <div class="dose-pill" style="opacity:.85;border-style:dashed;">
+          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }}
+            <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span></span>
+          {% if d.due_date %}<span class="dd"><i class="bi bi-calendar-event"></i> {{ t('visits.vac_expected') }} <span dir="ltr">{{ d.due_date }}</span></span>{% endif %}
+        </div>
+        {% endfor %}
+        {% if not r.upcoming %}
+        <div class="dose-pill" style="opacity:.85;border-style:dashed;">
+          {% if r.next_seasonal %}
+          <span class="dn">{{ t('visits.vac_next_dose') }}: {{ t('visits.vac_seasonal') }}</span>
+          <span class="dd"><i class="bi bi-calendar-event"></i> {{ t('visits.vac_expected') }} <span dir="ltr">{{ r.next_seasonal }}</span></span>
+          {% else %}
+          <span class="dn">{{ t('visits.vac_next_dose') }}: {{ t('visits.vac_next_none') }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--muted);">{{ t('visits.vac_no_received') }}</p>
+    {% endif %}
+    </details>
+
     <!-- Available to give now: optional + in stock -->
-    <h3 style="font-size:0.95rem;color:var(--green-800);margin:14px 0 8px;"><i class="bi bi-syringe"></i> {{ t('visits.vac_give_now') }}</h3>
+    <details open class="vac-section">
+      <summary style="cursor:pointer;color:var(--green-800);font-size:0.95rem;font-weight:600;margin:14px 0 8px;">
+        <i class="bi bi-syringe"></i> {{ t('visits.vac_give_now') }} ({{ vac_panel.give_now|length }})</summary>
     {% if vac_panel.give_now %}
     {% for e in vac_panel.give_now %}
     <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}" class="vac-card gc-lift">
@@ -458,10 +512,13 @@
     {% else %}
     <p style="color:var(--muted);">{{ t('visits.vac_none_available') }}</p>
     {% endif %}
+    </details>
 
     <!-- Suggested but out of stock: schedule + purchase order -->
     {% if vac_panel.out_of_stock %}
-    <h3 style="font-size:0.95rem;color:#915907;margin:18px 0 8px;"><i class="bi bi-hourglass-split"></i> {{ t('visits.vac_out_of_stock') }}</h3>
+    <details open class="vac-section">
+      <summary style="cursor:pointer;color:#915907;font-size:0.95rem;font-weight:600;margin:18px 0 8px;">
+        <i class="bi bi-hourglass-split"></i> {{ t('visits.vac_out_of_stock') }} ({{ vac_panel.out_of_stock|length }})</summary>
     {% for e in vac_panel.out_of_stock %}
     <div class="vac-card gc-lift" style="border-inline-start:3px solid #e0a800;">
       <div class="vac-head">
@@ -487,35 +544,12 @@
       </div>
     </div>
     {% endfor %}
-    {% endif %}
-
-    <!-- What the child already received (neutral history, includes mandatory) -->
-    {% if vac_panel.received %}
-    <h3 style="font-size:0.95rem;color:var(--green-800);margin:18px 0 8px;"><i class="bi bi-clipboard2-check"></i> {{ t('visits.vac_received') }}</h3>
-    {% for r in vac_panel.received %}
-    <div class="vac-card gc-lift">
-      <div class="vac-head">
-        <div>
-          <strong>{{ r.vaccine.display_name(current_lang) }}</strong>
-          <span class="badge badge--role"><i class="bi bi-box"></i> {{ r.brand.display_name(current_lang) }}</span>
-        </div>
-        <span style="font-size:0.8rem;color:var(--muted);">{{ r.doses|length }} {{ t('vaccinations.doses') }}</span>
-      </div>
-      <div class="dose-pills">
-        {% for d in r.doses %}
-        <div class="dose-pill">
-          <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-done">{{ t('vstatus.done') }}</span></span>
-          {% if d.given_date %}<span class="dd">✓ <span dir="ltr">{{ d.given_date }}</span></span>{% endif %}
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endfor %}
+    </details>
     {% endif %}
 
     <!-- Add a mandatory vaccine deliberately (give here or document a gov dose) -->
     {% if mandatory_vaccines %}
-    <details style="margin-top:18px;">
+    <details style="margin-top:18px;" class="vac-section">
       <summary style="cursor:pointer;color:var(--green-800);font-size:0.92rem;font-weight:600;">
         <i class="bi bi-plus-circle"></i> {{ t('visits.vac_add_mandatory') }}</summary>
       <p class="hint" style="margin:6px 0 8px;">{{ t('visits.vac_add_mandatory_hint') }}</p>
@@ -642,6 +676,23 @@
 {% block scripts %}
 <script>
   window.current_lang = "{{ current_lang }}";
+  // Vaccine tab search: filter cards across every section by any text
+  // (scientific name, trade name, dose) and hide sections left empty.
+  function gcVacFilter(q) {
+    q = (q || '').trim().toLowerCase();
+    document.querySelectorAll('#vac .vac-section').forEach(function (sec) {
+      var any = false;
+      sec.querySelectorAll('.vac-card').forEach(function (card) {
+        var hit = !q || card.textContent.toLowerCase().indexOf(q) !== -1;
+        card.style.display = hit ? '' : 'none';
+        if (hit) any = true;
+      });
+      if (sec.querySelectorAll('.vac-card').length) {
+        sec.style.display = any ? '' : 'none';
+        if (q && any) sec.setAttribute('open', '');
+      }
+    });
+  }
   function visitPage(icdUrl, w, h) {
     let cfg = {};
     try { cfg = JSON.parse(document.getElementById('visitCfg').textContent || '{}'); }
