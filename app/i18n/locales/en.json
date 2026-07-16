@@ -599,7 +599,12 @@
     "proc_need": "Choose a procedure",
     "proc_added": "Procedure added",
     "proc_removed": "Procedure removed",
-    "not_yours": "This visit belongs to another doctor — the privacy policy prevents opening it."
+    "not_yours": "This visit belongs to another doctor — the privacy policy prevents opening it.",
+    "vac_search_ph": "Search a vaccine (scientific or trade name)…",
+    "vac_expected": "Expected",
+    "vac_next_dose": "Next dose",
+    "vac_next_none": "None — course complete",
+    "vac_no_received": "No doses recorded for this child yet."
   },
   "diagnosis_types": {
     "working": "Working",

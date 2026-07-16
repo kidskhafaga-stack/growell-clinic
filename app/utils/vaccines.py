@@ -401,7 +401,21 @@ def visit_vaccine_panel(patient, lang="ar"):
         vac, brand = v["vaccine"], v["brand"]
         given = [d for d in v["doses"] if d["status"] == "done"]
         if given:
-            received.append({"vaccine": vac, "brand": brand, "doses": given})
+            # Upcoming doses (with their expected dates) so the doctor sees
+            # the whole course at a glance; seasonal courses recur yearly, so
+            # their "next" is a projected annual recall instead.
+            upcoming = [d for d in v["doses"] if d["status"] != "done"]
+            next_seasonal = None
+            if vac.is_seasonal and not upcoming:
+                last_iso = max((d["given_date"] for d in given
+                                if d["given_date"]), default=None)
+                if last_iso:
+                    next_seasonal = (date.fromisoformat(last_iso)
+                                     + timedelta(days=SEASONAL_RECALL_DAYS)).isoformat()
+            received.append({"vaccine": vac, "brand": brand, "doses": given,
+                             "upcoming": upcoming, "total": v["total"],
+                             "seasonal": vac.is_seasonal,
+                             "next_seasonal": next_seasonal})
         if vac.is_mandatory or vac.on_demand:
             continue
         # Seasonal vaccines taken here recur every year instead of following the
