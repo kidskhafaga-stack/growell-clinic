@@ -392,6 +392,29 @@ def _extra_services_arg():
     return ",".join(ids[:20])
 
 
+@appointments_bp.route("/poll")
+@module_required(MODULE)
+def poll():
+    """Cheap change fingerprint for the board's live refresh.
+
+    One indexed query over the day's appointments (id/status/time); the page
+    reloads only when the fingerprint changes, so idle polling costs almost
+    nothing and the screen stays current without the user refreshing.
+    """
+    import hashlib
+
+    on_date = parse_date_arg(request.args.get("date"))
+    from app.utils.privacy import doctor_locked_id
+    doctor_id = doctor_locked_id() or request.args.get("doctor_id", type=int)
+
+    q = (db.session.query(Appointment.id, Appointment.status, Appointment.appt_time)
+         .filter(Appointment.appt_date == on_date))
+    if doctor_id:
+        q = q.filter(Appointment.doctor_id == doctor_id)
+    fp = hashlib.md5(repr(sorted(q.all())).encode()).hexdigest()
+    return jsonify({"fp": fp})
+
+
 @appointments_bp.route("/consult-check")
 @module_required(MODULE)
 def consult_check():
