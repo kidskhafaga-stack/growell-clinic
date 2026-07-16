@@ -66,6 +66,39 @@ def backup_path(name):
     return path if os.path.isfile(path) else None
 
 
+def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024):
+    """Store a backup file uploaded from the admin's device.
+
+    The file must be a real SQLite database (header + quick_check) and must
+    look like one of ours (a ``users`` table exists) so a stray/wrong file
+    can't be restored over the clinic's data. Returns the stored filename.
+    """
+    header = file_storage.stream.read(16)
+    file_storage.stream.seek(0)
+    if header != b"SQLite format 3\x00":
+        raise ValueError("not_sqlite")
+
+    name = f"backup-{datetime.now():%Y%m%d-%H%M%S}-uploaded.db"
+    dest = os.path.join(backup_dir(), name)
+    file_storage.save(dest)
+    try:
+        if os.path.getsize(dest) > max_bytes:
+            raise ValueError("too_big")
+        with sqlite3.connect(dest) as conn:
+            ok = conn.execute("PRAGMA quick_check").fetchone()
+            if not ok or ok[0] != "ok":
+                raise ValueError("corrupt")
+            has_users = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'"
+            ).fetchone()
+            if not has_users:
+                raise ValueError("wrong_app")
+    except Exception:
+        os.remove(dest)
+        raise
+    return name
+
+
 def delete_backup(name):
     path = backup_path(name)
     if path:
@@ -82,7 +115,7 @@ def apply_retention(keep):
     except (TypeError, ValueError):
         keep = 14
     autos = [b for b in list_backups()
-             if not b["name"].endswith("-manual.db")]
+             if not b["name"].endswith(("-manual.db", "-uploaded.db"))]
     removed = 0
     for b in autos[keep:]:
         if delete_backup(b["name"]):

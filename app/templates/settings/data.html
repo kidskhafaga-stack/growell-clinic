@@ -28,11 +28,21 @@
       <h2 class="section-title" style="margin:0;"><i class="bi bi-safe"></i> {{ t('backups.title') }}</h2>
       <p class="hint" style="margin:6px 0 0;">{{ t('backups.hint') }}</p>
     </div>
-    <form method="post" action="{{ url_for('settings.backup_create') }}">
-      <button class="btn btn-primary gc-press gc-ripple" type="submit">
-        <i class="bi bi-plus-lg"></i> {{ t('backups.create_btn') }}</button>
-    </form>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <form method="post" action="{{ url_for('settings.backup_create') }}">
+        <button class="btn btn-primary gc-press gc-ripple" type="submit">
+          <i class="bi bi-plus-lg"></i> {{ t('backups.create_btn') }}</button>
+      </form>
+      <form method="post" action="{{ url_for('settings.backup_upload') }}" enctype="multipart/form-data"
+            style="display:flex;gap:8px;align-items:center;">
+        <input type="file" name="backup_file" accept=".db,.sqlite,.sqlite3" required
+               style="max-width:230px;" class="input">
+        <button class="btn btn-outline gc-press" type="submit">
+          <i class="bi bi-upload"></i> {{ t('backups.upload_btn') }}</button>
+      </form>
+    </div>
   </div>
+  <p class="hint" style="margin:8px 0 0;">{{ t('backups.upload_hint') }}</p>
   <!-- Auto-backup schedule + retention -->
   <form method="post" action="{{ url_for('settings.backup_settings') }}"
         style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
