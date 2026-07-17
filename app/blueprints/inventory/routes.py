@@ -247,6 +247,9 @@ def batch_new():
                        entity="vaccine_inventory",
                        detail=f"{brand.name}:{reason}:{qty_doses}", ip_address=client_ip())
     db.session.commit()
+    # Purchases feed the inventory asset (W3); gifts/opening carry no debt.
+    if reason == "purchase":
+        _post_doc_safe(grn)
     flash(t("inventory.receipt_added"), "success")
     return redirect(url_for("inventory.item_card", brand_id=brand.id))
 
@@ -317,6 +320,8 @@ def receipt_new():
         for brand in touched:
             brand.recompute_avg_cost()
         db.session.commit()
+        if reason == "purchase" and grn is not None:
+            _post_doc_safe(grn)
         flash(t("inventory.receipt_multi_added", n=added), "success")
         return redirect(url_for("inventory.index"))
 
@@ -540,11 +545,16 @@ def store_move(item_id):
     db.session.add(StockMovement(
         item_id=item.id, kind=kind, qty=signed, document_id=doc.id,
         reason=(request.form.get("reason") or "").strip() or None,
-        unit_cost=request.form.get("unit_cost", type=float),
+        unit_cost=request.form.get("unit_cost", type=float)
+                  or (item.purchase_price if kind != "in" else None),
         supplier_id=request.form.get("supplier_id", type=int) or None,
         created_by=current_user.id,
     ))
     db.session.commit()
+    # W3 journal: consumption (out) hits COGS, wastage hits expenses. A manual
+    # "in" stays document-only (its financing depends on why it arrived).
+    if kind in ("out", "waste"):
+        _post_doc_safe(doc)
     flash(t("store.move_done_doc", doc=doc.doc_number), "success")
     return redirect(url_for("inventory.store_item", item_id=item.id))
 
@@ -738,6 +748,111 @@ def transfer_new():
     lang = getattr(g, "lang", "ar")
     return render_template("inventory/transfer_form.html", warehouses=whs,
                            items=items, batches=batches, lang=lang)
+
+
+def _post_doc_safe(doc):
+    """Best-effort inventory journal (W3): Dr/Cr المخزون حسب نوع الإذن —
+    a bookkeeping hiccup must never block store work."""
+    try:
+        from app.utils import accounting as acct
+
+        acct.post_store_doc(doc, user_id=current_user.id)
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+
+
+@inventory_bp.route("/return/new", methods=["GET", "POST"])
+@module_required(MODULE)
+def return_new():
+    """Return stock to a supplier under a numbered RTN document (W3): store
+    items post an out movement; a vaccine batch is consumed at its cost.
+    The journal recovers the value from the supplier (Dr 2010 / Cr 1040)."""
+    from app.utils.store_docs import open_document
+
+    whs = _warehouses()
+    items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
+    batches = [b for b in VaccineInventory.query.order_by(VaccineInventory.id.desc()).all()
+               if b.qty_remaining > 0]
+
+    if request.method == "POST":
+        src = db.session.get(Warehouse, request.form.get("from_id", type=int)) \
+            or Warehouse.default()
+        supplier_id = request.form.get("supplier_id", type=int) or None
+        reason = (request.form.get("reason") or "").strip() or None
+
+        doc = None
+        moved = 0
+
+        item_ids = request.form.getlist("line_item_id")
+        qtys = request.form.getlist("line_item_qty")
+        by_id = {i.id: i for i in items}
+        for i in range(len(item_ids)):
+            item = by_id.get(_to_int(item_ids[i]))
+            qty = _to_int(qtys[i] if i < len(qtys) else "")
+            if item is None or qty <= 0:
+                continue
+            if item.stock_in(src) < qty:
+                flash(t("warehouses.not_enough", item=item.name), "danger")
+                db.session.rollback()
+                return redirect(url_for("inventory.return_new"))
+            if doc is None:
+                doc = open_document("return", reference=reason,
+                                    supplier_id=supplier_id)
+                doc.warehouse_id = src.id
+            db.session.add(StockMovement(
+                item_id=item.id, kind="out", qty=-qty, document_id=doc.id,
+                warehouse_id=src.id, unit_cost=item.purchase_price,
+                supplier_id=supplier_id, created_by=current_user.id,
+                reason=t("returns.reason", doc=doc.doc_number)))
+            moved += 1
+
+        b_ids = request.form.getlist("line_batch_id")
+        b_qtys = request.form.getlist("line_batch_qty")
+        by_bid = {b.id: b for b in batches}
+        default_wh = Warehouse.default()
+        for i in range(len(b_ids)):
+            batch = by_bid.get(_to_int(b_ids[i]))
+            qty = _to_int(b_qtys[i] if i < len(b_qtys) else "")
+            if batch is None or qty <= 0:
+                continue
+            if batch.qty_remaining < qty:
+                flash(t("warehouses.not_enough",
+                        item=batch.brand.name if batch.brand else "?"), "danger")
+                db.session.rollback()
+                return redirect(url_for("inventory.return_new"))
+            if doc is None:
+                doc = open_document("return", reference=reason,
+                                    supplier_id=supplier_id or batch.supplier_id)
+                doc.warehouse_id = batch.warehouse_id or default_wh.id
+            batch.qty_used = (batch.qty_used or 0) + qty
+            # Marker row carrying the returned qty/cost on the document:
+            # received == used so it holds no stock, but the document (and the
+            # journal) see the returned value.
+            db.session.add(VaccineInventory(
+                brand_id=batch.brand_id, supplier_id=supplier_id or batch.supplier_id,
+                lot_number=batch.lot_number, expiry_date=batch.expiry_date,
+                received_date=datetime.utcnow().date(),
+                receipt_reason="return", qty_received=qty, qty_used=qty,
+                unit_cost=batch.unit_cost, document_id=doc.id,
+                warehouse_id=doc.warehouse_id,
+                notes=t("returns.batch_note", qty=qty, n=batch.id)))
+            moved += 1
+
+        if moved == 0:
+            db.session.rollback()
+            flash(t("purchases.need_item"), "warning")
+            return redirect(url_for("inventory.return_new"))
+
+        ActivityLog.record("store.return", user_id=current_user.id,
+                           entity="store", entity_id=doc.id,
+                           detail=doc.doc_number, ip_address=client_ip())
+        db.session.commit()
+        _post_doc_safe(doc)
+        flash(t("returns.done", doc=doc.doc_number), "success")
+        return redirect(url_for("inventory.document_view", doc_id=doc.id))
+
+    return render_template("inventory/return_form.html", warehouses=whs,
+                           items=items, batches=batches, suppliers=_suppliers())
 
 
 # ============================================== warehouse documents (W1) ===
@@ -944,6 +1059,9 @@ def purchase_receive(po_id):
     ActivityLog.record("po.receive", user_id=current_user.id, entity="purchase",
                        entity_id=po.id, detail=po.po_number, ip_address=client_ip())
     db.session.commit()
+    # Inventory journal (W3): Dr 1040 المخزون / Cr 2010 الموردون for this GRN.
+    if grn is not None:
+        _post_doc_safe(grn)
     flash(t("purchases.received_ok"), "success")
     return redirect(url_for("inventory.purchase_view", po_id=po.id))
 

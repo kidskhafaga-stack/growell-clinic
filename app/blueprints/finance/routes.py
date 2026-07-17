@@ -149,6 +149,10 @@ def _post_journal_safe(kind, obj):
             acct.post_invoice(obj, user_id=current_user.id)
             for p in obj.payments:
                 acct.post_payment(p, user_id=current_user.id)
+            # COGS for consumables issued with this invoice (W3).
+            iss = getattr(obj, "_iss_doc", None)
+            if iss is not None:
+                acct.post_store_doc(iss, user_id=current_user.id)
         elif kind == "payment":
             acct.post_payment(obj, user_id=current_user.id)
         elif kind == "expense":
@@ -421,6 +425,7 @@ def _deduct_service_consumables(item, invoice):
         db.session.add(StockMovement(
             item_id=cons.store_item_id, kind="out", qty=-abs(take),
             reason=t("services.consumed_by", svc=service.display_name(getattr(g, "lang", "ar"))),
+            unit_cost=(cons.item.purchase_price if cons.item else None),
             created_by=current_user.id, document_id=doc.id,
         ))
         n += 1

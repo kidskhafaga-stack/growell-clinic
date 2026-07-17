@@ -182,3 +182,67 @@ def post_expense(expense, user_id=None):
              ("1010", 0, expense.amount, memo)]
     return post_entry("expense", expense.id, memo, lines,
                       entry_date=expense.expense_date, user_id=user_id)
+
+
+# ------------------------------------------------ warehouse documents (W3) --
+def _doc_value(doc):
+    """A store document's cost value: movement lines + linked vaccine batches."""
+    from app.models import VaccineInventory
+
+    value = sum(abs(m.qty or 0) * (m.unit_cost or 0) for m in doc.movements)
+    for b in VaccineInventory.query.filter_by(document_id=doc.id).all():
+        value += (b.qty_received or 0) * (b.unit_cost or 0)
+    return round(value, 2)
+
+
+def post_store_doc(doc, user_id=None):
+    """Inventory-side journal for a warehouse document (skipped at value 0):
+
+    * GRN (purchase)   → Dr 1040 المخزون / Cr 2010 الموردون
+    * RTN (to supplier)→ Dr 2010 الموردون / Cr 1040 المخزون
+    * ISS (consumption)→ Dr 5020 تكلفة المبيعات / Cr 1040 المخزون
+    * WST (wastage)    → Dr 5010 مصروفات تشغيل / Cr 1040 المخزون
+    Transfers and adjustments move quantity, not money — no entry.
+    """
+    if doc is None:
+        return None
+    value = _doc_value(doc)
+    if value <= 0:
+        return None
+    memo_map = {"grn": "إذن إضافة", "return": "مرتجع مورد",
+                "issue": "إذن صرف", "waste": "هالك مخزني"}
+    memo = f"{memo_map.get(doc.kind, doc.kind)} — {doc.doc_number}"
+    if doc.kind == "grn":
+        lines = [("1040", value, 0, doc.doc_number),
+                 ("2010", 0, value, doc.doc_number)]
+    elif doc.kind == "return":
+        lines = [("2010", value, 0, doc.doc_number),
+                 ("1040", 0, value, doc.doc_number)]
+    elif doc.kind == "issue":
+        lines = [("5020", value, 0, doc.doc_number),
+                 ("1040", 0, value, doc.doc_number)]
+    elif doc.kind == "waste":
+        lines = [("5010", value, 0, doc.doc_number),
+                 ("1040", 0, value, doc.doc_number)]
+    else:
+        return None
+    return post_entry("store_doc", doc.id, memo, lines,
+                      entry_date=doc.doc_date, user_id=user_id)
+
+
+def post_dose_cogs(pv, user_id=None):
+    """COGS for one administered vaccine dose: Dr 5020 / Cr 1040 at the batch
+    cost (falling back to the brand's average purchase cost)."""
+    if pv is None or getattr(pv, "given_outside", False):
+        return None
+    cost = None
+    if getattr(pv, "batch", None) is not None:
+        cost = pv.batch.unit_cost
+    if not cost and getattr(pv, "brand", None) is not None:
+        cost = getattr(pv.brand, "purchase_price", None)
+    if not cost or cost <= 0:
+        return None
+    name = pv.brand.name if pv.brand else "جرعة تطعيم"
+    memo = f"تكلفة جرعة — {name} #{pv.dose_number}"
+    lines = [("5020", cost, 0, memo), ("1040", 0, cost, memo)]
+    return post_entry("vaccine_dose", pv.id, memo, lines, user_id=user_id)
