@@ -1,0 +1,67 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('warehouses.transfer_btn') }}{% endblock %}
+{% block page_heading %}{{ t('warehouses.transfer_btn') }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('warehouses.transfer_btn') }}</h1>
+<p class="page-sub gc-animate">{{ t('warehouses.transfer_hint') }}</p>
+
+<form method="post" class="card gc-scale-in" style="max-width:860px;">
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('warehouses.from') }} *</label>
+      <select class="select" name="from_id" required>
+        {% for w in warehouses %}<option value="{{ w.id }}">{{ w.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('warehouses.to') }} *</label>
+      <select class="select" name="to_id" required>
+        {% for w in warehouses %}<option value="{{ w.id }}" {{ 'selected' if loop.index == 2 else '' }}>{{ w.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+  </div>
+
+  <h2 class="section-title" style="margin-top:14px;"><i class="bi bi-box-seam"></i> {{ t('warehouses.store_items') }}</h2>
+  <div id="itemLines">
+    <div class="line" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <select class="select" name="line_item_id" style="flex:2;min-width:220px;">
+        <option value="">—</option>
+        {% for i in items %}<option value="{{ i.id }}">{{ i.display_name(current_lang) }} ({{ i.current_stock }})</option>{% endfor %}
+      </select>
+      <input class="input" type="number" min="1" name="line_item_qty" placeholder="{{ t('store.qty') }}" style="width:110px;">
+    </div>
+  </div>
+  <button type="button" class="btn btn-outline btn-sm gc-press" onclick="gcAddLine('itemLines')">
+    <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+
+  <h2 class="section-title" style="margin-top:18px;"><i class="bi bi-capsule"></i> {{ t('warehouses.vaccine_batches') }}</h2>
+  <div id="batchLines">
+    <div class="line" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <select class="select" name="line_batch_id" style="flex:2;min-width:260px;">
+        <option value="">—</option>
+        {% for b in batches %}
+        <option value="{{ b.id }}">{{ b.brand.display_name(current_lang) if b.brand }} · {{ b.lot_number or '—' }} · {{ t('warehouses.remaining') }} {{ b.qty_remaining }}{% if b.warehouse %} · {{ b.warehouse.display_name(current_lang) }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <input class="input" type="number" min="1" name="line_batch_qty" placeholder="{{ t('store.qty') }}" style="width:110px;">
+    </div>
+  </div>
+  <button type="button" class="btn btn-outline btn-sm gc-press" onclick="gcAddLine('batchLines')">
+    <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+
+  <div style="display:flex;gap:10px;margin-top:18px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-arrow-left-right"></i> {{ t('warehouses.do_transfer') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.warehouses') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function gcAddLine(boxId) {
+    var box = document.getElementById(boxId);
+    var first = box.querySelector('.line');
+    var clone = first.cloneNode(true);
+    clone.querySelectorAll('select,input').forEach(function (el) { el.value = ''; });
+    box.appendChild(clone);
+  }
+</script>
+{% endblock %}

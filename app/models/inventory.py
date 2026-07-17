@@ -13,7 +13,9 @@ NEAR_EXPIRY_DAYS = 60
 LOW_STOCK_QTY = 5
 
 # Why stock was added outside a purchase order (Goods Receipt document).
-RECEIPT_REASONS = ["purchase", "opening", "gift", "donation", "return", "adjustment"]
+# "transfer" batches are created by warehouse transfers (W2), not by the form.
+RECEIPT_REASONS = ["purchase", "opening", "gift", "donation", "return", "adjustment",
+                   "transfer"]
 
 
 class Supplier(db.Model):
@@ -51,6 +53,10 @@ class VaccineInventory(db.Model):
     # The numbered warehouse document (GRN) this batch arrived on (W1).
     document_id = db.Column(db.Integer, db.ForeignKey("store_documents.id"),
                             nullable=True, index=True)
+    # Which warehouse holds this batch (W2); NULL = the default one.
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"),
+                             nullable=True, index=True)
+    warehouse = db.relationship("Warehouse")
     qty_received = db.Column(db.Integer, default=0, nullable=False)
     qty_used = db.Column(db.Integer, default=0, nullable=False)
     unit_cost = db.Column(db.Float)
