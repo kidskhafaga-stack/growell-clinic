@@ -71,9 +71,9 @@
           {% for d in discounts %}<option value="{{ d.id }}" data-value="{{ d.value }}" data-percent="{{ 'true' if d.is_percent else 'false' }}">{{ d.display_name(current_lang) }} ({% if d.is_percent %}{{ d.value }}%{% else %}{{ d.value }}{% endif %})</option>{% endfor %}
         </select></div>
       <table class="table"><tbody>
-        <tr><td>{{ t('invoices.subtotal') }}</td><td style="text-align:end;" x-text="subtotal.toFixed(2)"></td></tr>
-        <tr x-show="discountAmt>0"><td>{{ t('checkout.discount') }}</td><td style="text-align:end;color:var(--danger);" x-text="'−'+discountAmt.toFixed(2)"></td></tr>
-        <tr style="font-weight:800;font-size:1.05rem;border-top:2px solid var(--line);"><td>{{ t('invoices.total') }}</td><td style="text-align:end;" x-text="total.toFixed(2)"></td></tr>
+        <tr><td>{{ t('invoices.subtotal') }}</td><td style="text-align:end;"><span x-text="subtotal.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr x-show="discountAmt>0"><td>{{ t('checkout.discount') }}</td><td style="text-align:end;color:var(--danger);"><span x-text="'−'+discountAmt.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr style="font-weight:800;font-size:1.05rem;border-top:2px solid var(--line);"><td>{{ t('invoices.total') }}</td><td style="text-align:end;"><span x-text="total.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
       </tbody></table>
     </div>
 
@@ -96,8 +96,8 @@
         <button type="button" class="btn btn-outline btn-sm" @click="payments=[{amount:0,method:'cash'}]; recalc()">{{ t('checkout.pay_later') }}</button>
       </div>
       <table class="table" style="margin-top:10px;"><tbody>
-        <tr><td>{{ t('checkout.paid') }}</td><td style="text-align:end;color:var(--green-700);" x-text="paid.toFixed(2)"></td></tr>
-        <tr style="font-weight:700;"><td>{{ t('checkout.remaining') }}</td><td style="text-align:end;" :style="remaining>0.001?'color:var(--danger)':'color:var(--green-700)'" x-text="remaining.toFixed(2)"></td></tr>
+        <tr><td>{{ t('checkout.paid') }}</td><td style="text-align:end;color:var(--green-700);"><span x-text="paid.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr style="font-weight:700;"><td>{{ t('checkout.remaining') }}</td><td style="text-align:end;" :style="remaining>0.001?'color:var(--danger)':'color:var(--green-700)'" ><span x-text="remaining.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
       </tbody></table>
     </div>
 

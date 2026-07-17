@@ -91,7 +91,7 @@
         <td>{{ p.invoice.patient.display_name(current_lang) if p.invoice and p.invoice.patient else '—' }}</td>
         <td>{{ t('payment_methods.' ~ p.method) }}{% if p.kind == 'refund' %} <span class="badge" style="color:var(--danger);">{{ t('invoices.refund') }}</span>{% endif %}</td>
         <td style="text-align:end;font-weight:600;{% if p.kind == 'refund' %}color:var(--danger);{% endif %}">
-          {{ '−' if p.kind == 'refund' else '' }}{{ p.amount }}</td>
+          {{ '−' if p.kind == 'refund' else '' }}{{ p.amount|money }}</td>
       </tr>
       {% endfor %}
     </tbody>

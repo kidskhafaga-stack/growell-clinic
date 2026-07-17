@@ -32,7 +32,7 @@
         <td><strong>{{ r.entity.display_name(current_lang) }}</strong></td>
         <td>{{ t('payer_types.' ~ r.entity.entity_type) }}</td>
         <td>{{ r.count }}</td>
-        <td><strong style="color:var(--green-700);">{{ r.claim }}</strong></td>
+        <td><strong style="color:var(--green-700);">{{ r.claim|money }}</strong></td>
         <td style="text-align:end;">
           {% if r.count %}
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.claim_detail', payer_id=r.entity.id, date_from=date_from, date_to=date_to) }}">

@@ -20,11 +20,11 @@
 
 <div class="stat-grid gc-stagger" style="margin-bottom:16px;">
   <div class="stat-card edge-green gc-lift"><i class="bi bi-arrow-down-left-circle ico"></i>
-    <div class="value">{{ '%.2f'|format(total_rev) }}</div><div class="label">{{ t('income.total_revenue') }}</div></div>
+    <div class="value">{{ total_rev|money }}</div><div class="label">{{ t('income.total_revenue') }}</div></div>
   <div class="stat-card edge-red gc-lift"><i class="bi bi-arrow-up-right-circle ico"></i>
-    <div class="value">{{ '%.2f'|format(total_exp) }}</div><div class="label">{{ t('income.total_expenses') }}</div></div>
+    <div class="value">{{ total_exp|money }}</div><div class="label">{{ t('income.total_expenses') }}</div></div>
   <div class="stat-card {{ 'edge-green' if net >= 0 else 'edge-red' }} gc-lift"><i class="bi bi-graph-up-arrow ico"></i>
-    <div class="value">{{ '%.2f'|format(net) }}</div><div class="label">{{ t('income.net') }}</div></div>
+    <div class="value">{{ net|money }}</div><div class="label">{{ t('income.net') }}</div></div>
 </div>
 
 <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;">
@@ -34,12 +34,12 @@
       <tbody>
         {% for acc, amount in revenue %}
         <tr><td>{{ acc.display_name(current_lang) }} <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
-            <td style="text-align:end;font-weight:700;">{{ '%.2f'|format(amount) }}</td></tr>
+            <td style="text-align:end;font-weight:700;">{{ amount|money }}</td></tr>
         {% else %}
         <tr><td colspan="2" class="empty-state">{{ t('income.none') }}</td></tr>
         {% endfor %}
         {% if revenue %}<tr style="border-top:2px solid var(--line);font-weight:800;">
-          <td>{{ t('income.total_revenue') }}</td><td style="text-align:end;">{{ '%.2f'|format(total_rev) }}</td></tr>{% endif %}
+          <td>{{ t('income.total_revenue') }}</td><td style="text-align:end;">{{ total_rev|money }}</td></tr>{% endif %}
       </tbody>
     </table>
   </div>
@@ -49,12 +49,12 @@
       <tbody>
         {% for acc, amount in expenses %}
         <tr><td>{{ acc.display_name(current_lang) }} <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
-            <td style="text-align:end;font-weight:700;">{{ '%.2f'|format(amount) }}</td></tr>
+            <td style="text-align:end;font-weight:700;">{{ amount|money }}</td></tr>
         {% else %}
         <tr><td colspan="2" class="empty-state">{{ t('income.none') }}</td></tr>
         {% endfor %}
         {% if expenses %}<tr style="border-top:2px solid var(--line);font-weight:800;">
-          <td>{{ t('income.total_expenses') }}</td><td style="text-align:end;">{{ '%.2f'|format(total_exp) }}</td></tr>{% endif %}
+          <td>{{ t('income.total_expenses') }}</td><td style="text-align:end;">{{ total_exp|money }}</td></tr>{% endif %}
       </tbody>
     </table>
   </div>

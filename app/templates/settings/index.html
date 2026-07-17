@@ -78,6 +78,14 @@
         <input class="input" name="program_slogan_ar" value="{{ values.get('program_slogan_ar','') }}" placeholder="حلول طب الأطفال الذكية"></div>
       <div class="form-row"><label>{{ t('settings.program_slogan') }} (EN)</label>
         <input class="input" name="program_slogan_en" dir="ltr" value="{{ values.get('program_slogan_en','') }}" placeholder="Smart Pediatrics Care Solution"></div>
+      <div class="form-row"><label>{{ t('settings.currency') }}</label>
+        <select class="select" name="currency_code">
+          {% for code, cfg in currencies.items() %}
+          <option value="{{ code }}" {{ 'selected' if values.get('currency_code','EGP') == code else '' }}>
+            {{ code }} — {{ cfg[0] }}{% if cfg[2] != 2 %} ({{ cfg[2] }}{{ ' ' ~ t('settings.currency_decimals') }}){% endif %}</option>
+          {% endfor %}
+        </select>
+        <div class="hint">{{ t('settings.currency_hint') }}</div></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
         <input class="input" name="clinic_name_ar" value="{{ values.get('clinic_name_ar','') }}"></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_en') }}</label>

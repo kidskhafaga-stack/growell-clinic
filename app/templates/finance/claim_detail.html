@@ -34,16 +34,16 @@
         <td dir="ltr">{{ inv.invoice_date }}</td>
         <td>{{ inv.patient.display_name(current_lang) }}</td>
         <td dir="ltr">{{ inv.coverage_card or '—' }}{% if inv.coverage_expiry %}<br><span style="color:var(--muted);font-size:0.75rem;">{{ inv.coverage_expiry }}</span>{% endif %}</td>
-        <td>{{ inv.subtotal }}</td>
-        <td><strong style="color:var(--green-700);">{{ inv.discount_total }}</strong></td>
-        <td>{{ inv.total }}</td>
+        <td>{{ inv.subtotal|money }}</td>
+        <td><strong style="color:var(--green-700);">{{ inv.discount_total|money }}</strong></td>
+        <td>{{ inv.total|money }}</td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr style="font-weight:700;border-top:2px solid var(--green-600);">
         <td colspan="5" style="text-align:end;">{{ t('claims.claim_amount') }}</td>
-        <td colspan="2"><span style="font-size:1.15rem;color:var(--green-800);">{{ total_claim }}</span></td>
+        <td colspan="2"><span style="font-size:1.15rem;color:var(--green-800);">{{ total_claim|money }}</span></td>
       </tr>
     </tfoot>
   </table>
