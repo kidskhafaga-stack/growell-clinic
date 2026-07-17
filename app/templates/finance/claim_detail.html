@@ -11,6 +11,17 @@
   <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('claims.print') }}</button>
 </div>
 
+
+<form method="post" action="{{ url_for('finance.claim_create') }}" class="no-print card gc-scale-in"
+      style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+  <input type="hidden" name="payer_id" value="{{ entity.id }}">
+  <input type="hidden" name="date_from" value="{{ date_from }}">
+  <input type="hidden" name="date_to" value="{{ date_to }}">
+  <strong><i class="bi bi-file-earmark-plus"></i> {{ t('claims.create_title') }}</strong>
+  <span class="hint" style="margin:0;">{{ t('claims.create_hint', n=claimable_count, total=claimable_total|money) }}</span>
+  <button class="btn btn-primary btn-sm gc-press" type="submit" {{ 'disabled' if not claimable_count }}>
+    <i class="bi bi-check-lg"></i> {{ t('claims.create_btn') }}</button>
+</form>
 <div class="card gc-scale-in print-area">
   {{ print_header(t('claims.claim_for') ~ ': ' ~ entity.display_name(current_lang),
        t('claims.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}

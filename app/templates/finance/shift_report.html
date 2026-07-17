@@ -10,7 +10,7 @@
     <p class="page-sub" style="margin:0;">
       {{ shift.opener.display_name(current_lang) if shift.opener else '' }} ·
       {{ shift.opened_at.strftime('%Y-%m-%d %H:%M') }}
-      {% if shift.closed_at %}→ {{ shift.closed_at.strftime('%H:%M') }} ({{ shift.duration_minutes }} {{ t('shifts.minutes') }}){% endif %}
+      {% if shift.closed_at %}→ {{ shift.closed_at.strftime('%Y-%m-%d %H:%M') }} ({{ shift.duration_minutes }} {{ t('shifts.minutes') }}){% endif %}
     </p>
   </div>
   <div style="display:flex;gap:8px;">

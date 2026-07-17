@@ -18,6 +18,7 @@
     <thead><tr>
       <th>#</th>
       <th>{{ t('shifts.opened_at') }}</th>
+      <th>{{ t('shifts.closed_at') }}</th>
       <th>{{ t('shifts.cashier') }}</th>
       <th>{{ t('cashier.opening_float') }}</th>
       <th>{{ t('shifts.collected') }}</th>
@@ -31,7 +32,8 @@
       {% for s in shifts %}
       <tr>
         <td><span class="badge badge--role" dir="ltr">{{ s.shift_number or '#' ~ s.id }}</span>{% if s.label %} {{ s.label }}{% endif %}</td>
-        <td>{{ s.opened_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td dir="ltr">{{ s.opened_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td dir="ltr">{{ s.closed_at.strftime('%Y-%m-%d %H:%M') if s.closed_at else '—' }}</td>
         <td style="color:var(--muted);">{{ s.opener.display_name(current_lang) if s.opener else '—' }}</td>
         <td>{{ s.opening_float }}</td>
         <td style="color:var(--green-700);font-weight:600;">{{ s.collected }}</td>

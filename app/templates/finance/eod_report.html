@@ -46,7 +46,7 @@
             <span class="badge badge--role">{{ s.shift_number or '#' ~ s.id }}</span></a>
             {% if s.label %}<div class="hint">{{ s.label }}</div>{% endif %}</td>
           <td>{{ s.opener.display_name(current_lang) if s.opener else '—' }}</td>
-          <td dir="ltr" style="color:var(--muted);font-size:.82rem;">{{ s.opened_at.strftime('%H:%M') }}{% if s.closed_at %} → {{ s.closed_at.strftime('%H:%M') }}{% endif %}</td>
+          <td dir="ltr" style="color:var(--muted);font-size:.82rem;">{{ s.opened_at.strftime('%Y-%m-%d %H:%M') }}{% if s.closed_at %}<br>→ {{ s.closed_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
           <td style="text-align:end;">{{ s.opening_float|money }}</td>
           <td style="text-align:end;color:var(--green-700);">{{ s.collected|money }}</td>
           <td style="text-align:end;">{{ s.expected_cash|money }}</td>
