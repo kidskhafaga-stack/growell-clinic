@@ -1,12 +1,12 @@
 {% extends "shell.html" %}
 {% set active_module = 'finance' %}
-{% block title %}{{ t('shifts.report') }} #{{ shift.id }}{% endblock %}
-{% block page_heading %}{{ t('shifts.report') }} #{{ shift.id }}{% endblock %}
+{% block title %}{{ t('shifts.report') }} {{ shift.shift_number or '#' ~ shift.id }}{% endblock %}
+{% block page_heading %}{{ t('shifts.report') }} {{ shift.shift_number or '#' ~ shift.id }}{% endblock %}
 
 {% block content %}
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
-    <h1 class="page-title">{{ t('shifts.report') }} #{{ shift.id }}{% if shift.label %} — {{ shift.label }}{% endif %}</h1>
+    <h1 class="page-title">{{ t('shifts.report') }} <span dir="ltr">{{ shift.shift_number or '#' ~ shift.id }}</span>{% if shift.label %} — {{ shift.label }}{% endif %}</h1>
     <p class="page-sub" style="margin:0;">
       {{ shift.opener.display_name(current_lang) if shift.opener else '' }} ·
       {{ shift.opened_at.strftime('%Y-%m-%d %H:%M') }}

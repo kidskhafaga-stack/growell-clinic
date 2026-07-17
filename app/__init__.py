@@ -139,6 +139,20 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_open_shift():
+        """Topbar "close your shift" chip for cashiers with an open till."""
+        from flask_login import current_user
+
+        try:
+            if (getattr(current_user, "is_authenticated", False)
+                    and current_user.can_access("finance")):
+                from app.models import CashierShift
+                return {"my_open_shift": CashierShift.open_for(current_user.id)}
+        except Exception:  # noqa: BLE001 - never break a page over the chip
+            pass
+        return {"my_open_shift": None}
+
+    @app.context_processor
     def inject_notifications():
         """Topbar bell: live alerts filtered to the current user's modules."""
         from flask_login import current_user

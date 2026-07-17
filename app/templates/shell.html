@@ -84,6 +84,13 @@
           <button type="button" data-mode="system" onclick="setThemeMode('system')" title="{{ t('profile.theme_system') }}"><i class="bi bi-display"></i></button>
         </div>
 
+        {% if my_open_shift %}
+        <a class="btn btn-sm gc-press" href="{{ url_for('finance.cashier') }}"
+           title="{{ t('shifts.quick_close_hint', number=my_open_shift.shift_number or my_open_shift.id) }}"
+           style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;display:inline-flex;align-items:center;gap:6px;">
+          <i class="bi bi-hourglass-split"></i> {{ t('shifts.quick_close') }}</a>
+        {% endif %}
+
         <div class="notif-wrap" x-data="{ open: false }" x-on:keydown.escape.window="open=false">
           <button type="button" class="theme-toggle" x-on:click="open=!open"
                   title="{{ t('notif.title') }}" aria-label="notifications" style="position:relative;">

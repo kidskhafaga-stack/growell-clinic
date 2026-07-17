@@ -306,6 +306,12 @@
       <label for="refund_approval_required" style="margin:0;font-weight:400;">{{ t('settings.refund_approval_required') }}</label>
     </div>
     <p class="hint">{{ t('settings.refund_approval_required_hint') }}</p>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="require_shift_to_collect" name="require_shift_to_collect" value="1"
+             {{ 'checked' if values.get('require_shift_to_collect','1') != '0' else '' }}>
+      <label for="require_shift_to_collect" style="margin:0;font-weight:400;">{{ t('settings.require_shift_to_collect') }}</label>
+    </div>
+    <p class="hint">{{ t('settings.require_shift_to_collect_hint') }}</p>
   </div>
 
   <!-- ETA e-invoicing -->

@@ -120,6 +120,7 @@ def register_commands(app):
             ("vaccine_inventory", "warehouse_id", "INTEGER"),
             ("store_documents", "warehouse_id", "INTEGER"),
             ("store_documents", "to_warehouse_id", "INTEGER"),
+            ("cashier_shifts", "shift_number", "VARCHAR(40)"),
             ("doctor_schedules", "start_date", "DATE"),
             ("doctor_schedules", "end_date", "DATE"),
             ("doctor_schedules", "season_label", "VARCHAR(60)"),
