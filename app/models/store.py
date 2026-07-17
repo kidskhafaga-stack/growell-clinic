@@ -12,8 +12,48 @@ from app.extensions import db
 MOVEMENT_KINDS = ["in", "out", "adjust", "waste"]
 
 # Documentary cycle (W1): every stock change belongs to a numbered document.
-DOC_KINDS = ["grn", "issue", "adjust", "waste"]  # إذن إضافة / صرف / تسوية / هالك
-DOC_PREFIXES = {"grn": "GRN", "issue": "ISS", "adjust": "ADJ", "waste": "WST"}
+# W2 adds transfers between warehouses (TRF).
+DOC_KINDS = ["grn", "issue", "adjust", "waste", "transfer"]
+DOC_PREFIXES = {"grn": "GRN", "issue": "ISS", "adjust": "ADJ", "waste": "WST",
+                "transfer": "TRF"}
+
+WAREHOUSE_KINDS = ["main", "sub", "fridge"]  # رئيسي / فرعي / ثلاجة تطعيمات
+
+
+class Warehouse(db.Model):
+    """A physical stock location (W2): main store, a sub-store, or the vaccine
+    fridge. Every movement/batch belongs to one; a default warehouse absorbs
+    everything recorded before multi-warehouse existed."""
+
+    __tablename__ = "warehouses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    name_en = db.Column(db.String(120))
+    kind = db.Column(db.String(10), default="main", nullable=False)
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    notes = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def display_name(self, lang="ar"):
+        return self.name_en if (lang == "en" and self.name_en) else self.name
+
+    @classmethod
+    def default(cls):
+        """The default warehouse, created lazily on first use."""
+        wh = cls.query.filter_by(is_default=True).first()
+        if wh is None:
+            wh = cls.query.order_by(cls.id).first()
+        if wh is None:
+            wh = cls(name="المخزن الرئيسي", name_en="Main store",
+                     kind="main", is_default=True)
+            db.session.add(wh)
+            db.session.flush()
+        return wh
+
+    def __repr__(self):
+        return f"<Warehouse {self.name}>"
 
 
 class StoreDocument(db.Model):
@@ -32,6 +72,9 @@ class StoreDocument(db.Model):
     kind = db.Column(db.String(10), default="grn", nullable=False, index=True)
     doc_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(),
                          nullable=False, index=True)
+    # Where the document acts (W2); a transfer also has a destination.
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=True)
+    to_warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     # What produced it: a PO number, an invoice number, a stocktake…
     reference = db.Column(db.String(80))
@@ -41,6 +84,8 @@ class StoreDocument(db.Model):
 
     supplier = db.relationship("Supplier")
     creator = db.relationship("User")
+    warehouse = db.relationship("Warehouse", foreign_keys=[warehouse_id])
+    to_warehouse = db.relationship("Warehouse", foreign_keys=[to_warehouse_id])
     movements = db.relationship("StockMovement", back_populates="document")
 
     @property
@@ -83,6 +128,16 @@ class StoreItem(db.Model):
     def current_stock(self):
         return (self.opening_stock or 0) + sum(m.qty or 0 for m in self.movements)
 
+    def stock_in(self, warehouse):
+        """Stock held in one warehouse (W2). Movements with no warehouse —
+        and the opening balance — belong to the default warehouse."""
+        total = (self.opening_stock or 0) if warehouse.is_default else 0
+        for m in self.movements:
+            wid = m.warehouse_id
+            if wid == warehouse.id or (wid is None and warehouse.is_default):
+                total += m.qty or 0
+        return total
+
     @property
     def is_low(self):
         return self.current_stock <= (self.reorder_level or 0)
@@ -107,6 +162,9 @@ class StockMovement(db.Model):
     # The warehouse document this change belongs to (W1 documentary cycle).
     document_id = db.Column(db.Integer, db.ForeignKey("store_documents.id"),
                             nullable=True, index=True)
+    # Which warehouse the change happened in (W2); NULL = the default one.
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"),
+                             nullable=True, index=True)
     kind = db.Column(db.String(10), default="in", nullable=False)
     qty = db.Column(db.Integer, default=0, nullable=False)   # signed
     reason = db.Column(db.String(160))
@@ -119,6 +177,7 @@ class StockMovement(db.Model):
     item = db.relationship("StoreItem", back_populates="movements")
     supplier = db.relationship("Supplier")
     document = db.relationship("StoreDocument", back_populates="movements")
+    warehouse = db.relationship("Warehouse")
 
     def __repr__(self):
         return f"<StockMovement item={self.item_id} {self.kind} {self.qty}>"

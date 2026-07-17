@@ -18,6 +18,10 @@
   <div class="info-grid" style="margin-bottom:16px;">
     <div class="info-item"><div class="k">{{ t('storedocs.number') }}</div><div class="v" dir="ltr">{{ doc.doc_number }}</div></div>
     <div class="info-item"><div class="k">{{ t('storedocs.reference') }}</div><div class="v">{{ doc.reference or '—' }}</div></div>
+    {% if doc.warehouse %}
+    <div class="info-item"><div class="k">{{ t('warehouses.warehouse') }}</div>
+      <div class="v">{{ doc.warehouse.display_name(current_lang) }}{% if doc.to_warehouse %} ← {{ doc.to_warehouse.display_name(current_lang) }}{% endif %}</div></div>
+    {% endif %}
     <div class="info-item"><div class="k">{{ t('suppliers.supplier') }}</div><div class="v">{{ doc.supplier.name if doc.supplier else '—' }}</div></div>
     <div class="info-item"><div class="k">{{ t('storedocs.by') }}</div><div class="v">{{ doc.creator.display_name(current_lang) if doc.creator else '—' }}</div></div>
   </div>

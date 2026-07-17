@@ -40,7 +40,10 @@
     "total": "Total",
     "manage": "Manage",
     "error": "Something went wrong",
-    "notes": "Notes"
+    "notes": "Notes",
+    "enable": "Enable",
+    "disable": "Disable",
+    "saved": "Saved."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -2364,7 +2367,8 @@
     "gift": "Samples/gift",
     "donation": "Donation",
     "return": "Return",
-    "adjustment": "Adjustment"
+    "adjustment": "Adjustment",
+    "transfer": "Warehouse transfer"
   },
   "visit_types": {
     "title": "Visit types",
@@ -2656,5 +2660,34 @@
   },
   "suppliers": {
     "supplier": "Supplier"
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "subtitle": "Multiple stock locations (main/sub/vaccine fridge) with numbered transfers between them.",
+    "warehouse": "Warehouse",
+    "name": "Warehouse name",
+    "kind": "Kind",
+    "kind_main": "Main",
+    "kind_sub": "Sub-store",
+    "kind_fridge": "Vaccine fridge",
+    "default": "Default",
+    "items_with_stock": "Items with stock",
+    "add_title": "Add a warehouse",
+    "added": "Warehouse added.",
+    "cannot_disable_default": "The default warehouse cannot be disabled.",
+    "transfer_btn": "Warehouse transfer",
+    "transfers_log": "Transfers log",
+    "transfer_hint": "Pick source and destination then the lines — a numbered transfer (TRF) posts an out from the source and an in to the destination.",
+    "from": "From warehouse",
+    "to": "To warehouse",
+    "store_items": "General store items",
+    "vaccine_batches": "Vaccine batches",
+    "remaining": "Remaining",
+    "bad_pair": "Pick two different warehouses.",
+    "not_enough": "Not enough stock in the source warehouse: {item}",
+    "trf_reason": "Warehouse transfer {doc}",
+    "trf_from_batch": "Transferred from batch #{n}",
+    "transferred": "Transferred on document {doc}.",
+    "do_transfer": "Execute transfer"
   }
 }

@@ -128,9 +128,11 @@ from app.models.store import (
     DOC_KINDS,
     DOC_PREFIXES,
     MOVEMENT_KINDS,
+    WAREHOUSE_KINDS,
     StockMovement,
     StoreDocument,
     StoreItem,
+    Warehouse,
 )
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
@@ -255,8 +257,10 @@ __all__ = [
     "StoreItem",
     "StockMovement",
     "StoreDocument",
+    "Warehouse",
     "DOC_KINDS",
     "DOC_PREFIXES",
+    "WAREHOUSE_KINDS",
     "MOVEMENT_KINDS",
     "PurchaseOrder",
     "PurchaseOrderItem",

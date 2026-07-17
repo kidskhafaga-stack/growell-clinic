@@ -6,7 +6,7 @@ mandatory (government) vaccines do not.
 """
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.blueprints.inventory import inventory_bp
@@ -16,6 +16,7 @@ from app.models import (
     DOC_KINDS,
     MOVEMENT_KINDS,
     RECEIPT_REASONS,
+    WAREHOUSE_KINDS,
     ActivityLog,
     PurchaseOrder,
     PurchaseOrderItem,
@@ -26,6 +27,7 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineInventory,
+    Warehouse,
 )
 from app.utils.decorators import client_ip, module_required
 
@@ -591,6 +593,151 @@ def stocktake():
         flash(t("store.stocktake_done").replace("{n}", str(adjusted)), "success")
         return redirect(url_for("inventory.store"))
     return render_template("inventory/stocktake.html", items=items)
+
+
+# ===================================================== warehouses (W2) =====
+def _warehouses():
+    """Active warehouses, guaranteeing the default one exists."""
+    Warehouse.default()
+    db.session.commit()
+    return Warehouse.query.filter_by(is_active=True).order_by(Warehouse.id).all()
+
+
+@inventory_bp.route("/warehouses", methods=["GET", "POST"])
+@module_required(MODULE)
+def warehouses():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash(t("common.required") + ": " + t("warehouses.name"), "danger")
+            return redirect(url_for("inventory.warehouses"))
+        kind = (request.form.get("kind") or "sub").strip()
+        db.session.add(Warehouse(
+            name=name, name_en=(request.form.get("name_en") or "").strip() or None,
+            kind=kind if kind in WAREHOUSE_KINDS else "sub",
+            notes=(request.form.get("notes") or "").strip() or None,
+        ))
+        db.session.commit()
+        flash(t("warehouses.added"), "success")
+        return redirect(url_for("inventory.warehouses"))
+    whs = _warehouses()
+    items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
+    # Per-warehouse stock snapshot for the overview table.
+    stock = {w.id: sum(1 for i in items if i.stock_in(w) > 0) for w in whs}
+    return render_template("inventory/warehouses.html", warehouses=whs,
+                           warehouse_kinds=WAREHOUSE_KINDS, stock=stock)
+
+
+@inventory_bp.route("/warehouses/<int:wh_id>/toggle", methods=["POST"])
+@module_required(MODULE)
+def warehouse_toggle(wh_id):
+    wh = db.get_or_404(Warehouse, wh_id)
+    if wh.is_default:
+        flash(t("warehouses.cannot_disable_default"), "warning")
+    else:
+        wh.is_active = not wh.is_active
+        db.session.commit()
+        flash(t("common.saved"), "success")
+    return redirect(url_for("inventory.warehouses"))
+
+
+@inventory_bp.route("/transfer/new", methods=["GET", "POST"])
+@module_required(MODULE)
+def transfer_new():
+    """Transfer stock between warehouses under one numbered TRF document:
+    general-store items move as an out+in movement pair; a vaccine batch
+    moves by consuming from the source batch and opening a linked batch in
+    the destination (lot/expiry/cost preserved)."""
+    from app.utils.store_docs import open_document
+
+    whs = _warehouses()
+    items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
+    batches = [b for b in VaccineInventory.query.order_by(VaccineInventory.id.desc()).all()
+               if b.qty_remaining > 0 and not b.is_expired]
+
+    if request.method == "POST":
+        src = db.session.get(Warehouse, request.form.get("from_id", type=int))
+        dst = db.session.get(Warehouse, request.form.get("to_id", type=int))
+        if src is None or dst is None or src.id == dst.id:
+            flash(t("warehouses.bad_pair"), "danger")
+            return redirect(url_for("inventory.transfer_new"))
+
+        doc = None
+        moved = 0
+
+        # General-store lines: item_id[] + qty[]
+        item_ids = request.form.getlist("line_item_id")
+        qtys = request.form.getlist("line_item_qty")
+        by_id = {i.id: i for i in items}
+        for i in range(len(item_ids)):
+            item = by_id.get(_to_int(item_ids[i]))
+            qty = _to_int(qtys[i] if i < len(qtys) else "")
+            if item is None or qty <= 0:
+                continue
+            if item.stock_in(src) < qty:
+                flash(t("warehouses.not_enough", item=item.name), "danger")
+                db.session.rollback()
+                return redirect(url_for("inventory.transfer_new"))
+            if doc is None:
+                doc = open_document("transfer")
+                doc.warehouse_id, doc.to_warehouse_id = src.id, dst.id
+            reason = t("warehouses.trf_reason", doc=doc.doc_number)
+            db.session.add(StockMovement(
+                item_id=item.id, kind="out", qty=-qty, document_id=doc.id,
+                warehouse_id=src.id, reason=reason,
+                unit_cost=item.purchase_price, created_by=current_user.id))
+            db.session.add(StockMovement(
+                item_id=item.id, kind="in", qty=qty, document_id=doc.id,
+                warehouse_id=dst.id, reason=reason,
+                unit_cost=item.purchase_price, created_by=current_user.id))
+            moved += 1
+
+        # Vaccine batch lines: batch_id[] + qty[]
+        b_ids = request.form.getlist("line_batch_id")
+        b_qtys = request.form.getlist("line_batch_qty")
+        by_bid = {b.id: b for b in batches}
+        default_wh = Warehouse.default()
+        for i in range(len(b_ids)):
+            batch = by_bid.get(_to_int(b_ids[i]))
+            qty = _to_int(b_qtys[i] if i < len(b_qtys) else "")
+            if batch is None or qty <= 0:
+                continue
+            b_wh = batch.warehouse_id or default_wh.id
+            if b_wh != src.id or batch.qty_remaining < qty:
+                flash(t("warehouses.not_enough",
+                        item=batch.brand.name if batch.brand else "?"), "danger")
+                db.session.rollback()
+                return redirect(url_for("inventory.transfer_new"))
+            if doc is None:
+                doc = open_document("transfer")
+                doc.warehouse_id, doc.to_warehouse_id = src.id, dst.id
+            batch.qty_used = (batch.qty_used or 0) + qty
+            db.session.add(VaccineInventory(
+                brand_id=batch.brand_id, supplier_id=batch.supplier_id,
+                lot_number=batch.lot_number, expiry_date=batch.expiry_date,
+                mfg_date=batch.mfg_date,
+                received_date=datetime.utcnow().date(),
+                receipt_reason="transfer", qty_received=qty,
+                unit_cost=batch.unit_cost, warehouse_id=dst.id,
+                document_id=doc.id,
+                notes=t("warehouses.trf_from_batch", n=batch.id)))
+            moved += 1
+
+        if moved == 0:
+            db.session.rollback()
+            flash(t("purchases.need_item"), "warning")
+            return redirect(url_for("inventory.transfer_new"))
+
+        ActivityLog.record("store.transfer", user_id=current_user.id,
+                           entity="store", entity_id=doc.id,
+                           detail=doc.doc_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("warehouses.transferred", doc=doc.doc_number), "success")
+        return redirect(url_for("inventory.document_view", doc_id=doc.id))
+
+    lang = getattr(g, "lang", "ar")
+    return render_template("inventory/transfer_form.html", warehouses=whs,
+                           items=items, batches=batches, lang=lang)
 
 
 # ============================================== warehouse documents (W1) ===

@@ -26,6 +26,7 @@
       <thead><tr>
         <th>{{ t('storedocs.number') }}</th><th>{{ t('storedocs.kind') }}</th>
         <th>{{ t('storedocs.date') }}</th><th>{{ t('storedocs.reference') }}</th>
+        <th>{{ t('warehouses.warehouse') }}</th>
         <th>{{ t('suppliers.supplier') }}</th>
         <th style="text-align:end;">{{ t('storedocs.lines') }}</th>
         <th style="text-align:end;">{{ t('storedocs.value') }}</th>
@@ -36,9 +37,10 @@
         <tr>
           <td dir="ltr"><a href="{{ url_for('inventory.document_view', doc_id=d.id) }}">
             <span class="badge badge--role">{{ d.doc_number }}</span></a></td>
-          <td><span class="status-badge st-{{ {'grn':'completed','issue':'in_progress','adjust':'scheduled','waste':'no_show'}[d.kind] }}">{{ t('storedocs.kind_' ~ d.kind) }}</span></td>
+          <td><span class="status-badge st-{{ {'grn':'completed','issue':'in_progress','adjust':'scheduled','waste':'no_show','transfer':'waiting'}.get(d.kind, 'scheduled') }}">{{ t('storedocs.kind_' ~ d.kind) }}</span></td>
           <td dir="ltr">{{ d.doc_date }}</td>
           <td style="color:var(--muted);">{{ d.reference or '—' }}</td>
+          <td>{% if d.warehouse %}{{ d.warehouse.display_name(current_lang) }}{% if d.to_warehouse %} ← {{ d.to_warehouse.display_name(current_lang) }}{% endif %}{% else %}—{% endif %}</td>
           <td>{{ d.supplier.name if d.supplier else '—' }}</td>
           <td style="text-align:end;">{{ d.movements|length }}</td>
           <td style="text-align:end;">{{ '%.2f'|format(d.total_value) }}</td>

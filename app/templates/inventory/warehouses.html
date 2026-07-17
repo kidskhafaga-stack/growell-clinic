@@ -1,0 +1,70 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('warehouses.title') }}{% endblock %}
+{% block page_heading %}{{ t('warehouses.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('warehouses.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('warehouses.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary gc-press" href="{{ url_for('inventory.transfer_new') }}">
+      <i class="bi bi-arrow-left-right"></i> {{ t('warehouses.transfer_btn') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.documents', kind='transfer') }}">
+      <i class="bi bi-journals"></i> {{ t('warehouses.transfers_log') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('warehouses.name') }}</th><th>{{ t('warehouses.kind') }}</th>
+      <th>{{ t('warehouses.items_with_stock') }}</th><th>{{ t('common.status') }}</th>
+      <th style="text-align:end;"></th>
+    </tr></thead>
+    <tbody>
+      {% for w in warehouses %}
+      <tr>
+        <td><strong>{{ w.display_name(current_lang) }}</strong>
+          {% if w.is_default %}<span class="badge badge--role">{{ t('warehouses.default') }}</span>{% endif %}</td>
+        <td>{{ t('warehouses.kind_' ~ w.kind) }}</td>
+        <td>{{ stock.get(w.id, 0) }}</td>
+        <td><span class="status-badge {{ 'st-completed' if w.is_active else 'st-no_show' }}">
+          {{ t('common.active') if w.is_active else t('common.inactive') }}</span></td>
+        <td style="text-align:end;">
+          {% if not w.is_default %}
+          <form method="post" action="{{ url_for('inventory.warehouse_toggle', wh_id=w.id) }}" style="display:inline;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">
+              {{ t('common.disable') if w.is_active else t('common.enable') }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-plus-lg"></i> {{ t('warehouses.add_title') }}</h2>
+  <form method="post">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('warehouses.name') }} *</label>
+        <input class="input" name="name" required></div>
+      <div class="form-row"><label>{{ t('warehouses.name') }} (EN)</label>
+        <input class="input" name="name_en" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('warehouses.kind') }}</label>
+        <select class="select" name="kind">
+          {% for k in warehouse_kinds %}
+          <option value="{{ k }}" {{ 'selected' if k == 'sub' else '' }}>{{ t('warehouses.kind_' ~ k) }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('common.notes') }}</label>
+        <input class="input" name="notes"></div>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+{% endblock %}
