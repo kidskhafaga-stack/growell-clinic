@@ -1,0 +1,120 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'finance' %}
+{% block title %}{{ claim.claim_number }}{% endblock %}
+{% block page_heading %}{{ t('claims.claim') }} {{ claim.claim_number }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.claims') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+</div>
+
+<!-- Lifecycle actions -->
+<div class="card gc-scale-in no-print" style="margin-bottom:14px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div>
+      <span class="status-badge {{ {'draft':'st-scheduled','submitted':'st-waiting','approved':'st-in_progress','rejected':'st-no_show','paid':'st-completed'}[claim.status] }}"
+            style="font-size:.95rem;">{{ t('claims.st_' ~ claim.status) }}</span>
+      {% if claim.submitted_at %}<span class="hint">· {{ t('claims.submitted_at') }} {{ claim.submitted_at.strftime('%Y-%m-%d') }}</span>{% endif %}
+      {% if claim.decided_at %}<span class="hint">· {{ t('claims.decided_at') }} {{ claim.decided_at.strftime('%Y-%m-%d') }}</span>{% endif %}
+      {% if claim.paid_at %}<span class="hint">· {{ t('claims.paid_at') }} {{ claim.paid_at.strftime('%Y-%m-%d') }}</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      {% if claim.status == 'draft' %}
+      <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:inline;">
+        <input type="hidden" name="action" value="submit">
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-send"></i> {{ t('claims.submit') }}</button>
+      </form>
+      <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:inline;"
+            onsubmit="return confirm('{{ t('common.confirm') }}?');">
+        <input type="hidden" name="action" value="delete">
+        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
+      </form>
+      {% elif claim.status == 'submitted' %}
+      <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:flex;gap:6px;align-items:center;">
+        <input type="hidden" name="action" value="approve">
+        <input class="input" type="number" step="0.01" name="approved_amount" value="{{ claim.total_amount }}"
+               style="width:130px;" title="{{ t('claims.approved_amount') }}">
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('claims.approve') }}</button>
+      </form>
+      <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:flex;gap:6px;align-items:center;">
+        <input type="hidden" name="action" value="reject">
+        <input class="input" type="text" name="notes" placeholder="{{ t('claims.reject_reason') }}" style="width:170px;">
+        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-lg"></i> {{ t('claims.reject') }}</button>
+      </form>
+      {% elif claim.status == 'approved' %}
+      <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <input type="hidden" name="action" value="pay">
+        <input class="input" type="number" step="0.01" name="paid_amount"
+               value="{{ claim.approved_amount if claim.approved_amount is not none else claim.total_amount }}" style="width:130px;">
+        <select class="select" name="payment_method" style="width:auto;">
+          {% for m in payment_methods %}<option value="{{ m }}" {{ 'selected' if m == 'transfer' else '' }}>{{ t('payment_methods.' ~ m) }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-cash-coin"></i> {{ t('claims.record_payment') }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Printable claim document -->
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('claims.claim') ~ ' — ' ~ claim.claim_number,
+                  t('claims.period') ~ ': <strong dir="ltr">' ~ claim.date_from ~ ' → ' ~ claim.date_to ~ '</strong>') }}
+
+  <div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="k">{{ t('claims.entity') }}</div><div class="v">{{ claim.payer.display_name(current_lang) }}</div></div>
+    <div class="info-item"><div class="k">{{ t('claims.claim_amount') }}</div><div class="v">{{ claim.total_amount|money }}</div></div>
+    {% if claim.approved_amount is not none %}
+    <div class="info-item"><div class="k">{{ t('claims.approved_amount') }}</div><div class="v">{{ claim.approved_amount|money }}</div></div>
+    {% endif %}
+    {% if claim.paid_amount %}
+    <div class="info-item"><div class="k">{{ t('claims.paid_amount') }}</div>
+      <div class="v">{{ claim.paid_amount|money }} · {{ t('payment_methods.' ~ claim.payment_method) if claim.payment_method }}</div></div>
+    {% endif %}
+  </div>
+
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('invoices.invoice_number') }}</th><th>{{ t('invoices.date') }}</th>
+      <th>{{ t('appointments.patient') }}</th><th>{{ t('coverage.card') }}</th>
+      <th style="text-align:end;">{{ t('claims.claim_amount') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for it in claim.items %}
+      <tr>
+        <td dir="ltr"><a href="{{ url_for('finance.invoice_view', invoice_id=it.invoice_id) }}">{{ it.invoice.invoice_number if it.invoice }}</a></td>
+        <td dir="ltr">{{ it.invoice.invoice_date if it.invoice }}</td>
+        <td>{{ it.invoice.patient.display_name(current_lang) if it.invoice and it.invoice.patient }}</td>
+        <td dir="ltr">{{ it.invoice.coverage_card or '—' if it.invoice }}</td>
+        <td style="text-align:end;font-weight:700;">{{ it.amount|money }}</td>
+      </tr>
+      {% endfor %}
+      <tr style="border-top:2px solid var(--line);font-weight:800;">
+        <td colspan="4">{{ t('claims.claim_amount') }}</td>
+        <td style="text-align:end;">{{ claim.total_amount|money }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {% if claim.notes %}<p class="hint" style="margin-top:10px;">{{ claim.notes }}</p>{% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;">
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:180px;padding-top:6px;">{{ t('claims.sig_clinic') }}</div></div>
+    <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:180px;padding-top:6px;">{{ t('claims.sig_payer') }}</div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; } .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}

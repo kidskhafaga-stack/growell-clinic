@@ -27,6 +27,8 @@ from app.models import (
     ActivityLog,
     CashDrawerDay,
     CashierShift,
+    Claim,
+    ClaimItem,
     DoctorServiceCommission,
     EInvoiceDocument,
     Expense,
@@ -1634,8 +1636,140 @@ def claims():
         invs = q.all()
         claim = round(sum(i.discount_total for i in invs), 2)
         rows.append({"entity": entity, "count": len(invs), "claim": claim})
+    claim_docs = Claim.query.order_by(Claim.id.desc()).limit(50).all()
     return render_template("finance/claims.html", rows=rows,
+                           claim_docs=claim_docs,
                            date_from=date_from, date_to=date_to)
+
+
+def _claim_number():
+    """Serial claim number: CLM-2026-000001 (per year)."""
+    prefix = f"CLM-{datetime.utcnow().year}-"
+    top = 0
+    rows = (Claim.query.filter(Claim.claim_number.like(prefix + "%"))
+            .with_entities(Claim.claim_number).all())
+    for (num,) in rows:
+        tail = num[len(prefix):]
+        if tail.isdigit():
+            top = max(top, int(tail))
+    return f"{prefix}{top + 1:06d}"
+
+
+def _claimable_invoices(payer_id, date_from, date_to):
+    """Covered invoices of the period not already sitting on a live claim
+    (draft/submitted/approved/paid) — a rejected claim releases its invoices."""
+    taken = {ci.invoice_id for ci in
+             (ClaimItem.query.join(Claim)
+              .filter(Claim.payer_id == payer_id, Claim.status != "rejected")
+              .all())}
+    q = Invoice.query.filter(Invoice.payer_id == payer_id)
+    if date_from:
+        q = q.filter(Invoice.invoice_date >= date_from)
+    if date_to:
+        q = q.filter(Invoice.invoice_date <= date_to)
+    return [i for i in q.order_by(Invoice.invoice_date, Invoice.id).all()
+            if i.discount_total > 0 and i.id not in taken]
+
+
+@finance_bp.route("/claims/create", methods=["POST"])
+@module_required(MODULE)
+def claim_create():
+    """Freeze the period's covered invoices into a numbered draft claim."""
+    payer = db.get_or_404(PayerEntity, request.form.get("payer_id", type=int))
+
+    def _form_date(name):
+        raw = (request.form.get(name) or "").strip()
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date() if raw else None
+        except ValueError:
+            return None
+
+    date_from = _form_date("date_from")
+    date_to = _form_date("date_to")
+    if not date_from or not date_to:
+        flash(t("claims.need_period"), "danger")
+        return redirect(url_for("finance.claims"))
+    invoices = _claimable_invoices(payer.id, date_from, date_to)
+    if not invoices:
+        flash(t("claims.nothing_claimable"), "warning")
+        return redirect(url_for("finance.claim_detail", payer_id=payer.id,
+                                date_from=date_from, date_to=date_to))
+    claim = Claim(claim_number=_claim_number(), payer_id=payer.id,
+                  date_from=date_from, date_to=date_to,
+                  created_by=current_user.id)
+    for inv in invoices:
+        claim.items.append(ClaimItem(invoice_id=inv.id, amount=inv.discount_total))
+    claim.total_amount = round(sum(it.amount for it in claim.items), 2)
+    db.session.add(claim)
+    ActivityLog.record("claim.create", user_id=current_user.id, entity="claim",
+                       detail=claim.claim_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t("claims.created", number=claim.claim_number), "success")
+    return redirect(url_for("finance.claim_view", claim_id=claim.id))
+
+
+@finance_bp.route("/claim/<int:claim_id>")
+@module_required(MODULE)
+def claim_view(claim_id):
+    claim = db.get_or_404(Claim, claim_id)
+    return render_template("finance/claim_view.html", claim=claim,
+                           payment_methods=PAYMENT_METHODS)
+
+
+@finance_bp.route("/claim/<int:claim_id>/action", methods=["POST"])
+@module_required(MODULE)
+def claim_action(claim_id):
+    """Drive the claim lifecycle: submit → approve/reject → record payment.
+    Deleting is draft-only; collection posts Dr cash-or-bank / Cr revenue."""
+    claim = db.get_or_404(Claim, claim_id)
+    action = (request.form.get("action") or "").strip()
+
+    if action == "submit" and claim.status == "draft":
+        claim.status = "submitted"
+        claim.submitted_at = datetime.utcnow()
+    elif action == "approve" and claim.status == "submitted":
+        approved = request.form.get("approved_amount", type=float)
+        claim.approved_amount = round(min(approved if approved is not None
+                                          else claim.total_amount,
+                                          claim.total_amount), 2)
+        claim.status = "approved"
+        claim.decided_at = datetime.utcnow()
+    elif action == "reject" and claim.status == "submitted":
+        claim.status = "rejected"
+        claim.decided_at = datetime.utcnow()
+        claim.notes = (request.form.get("notes") or "").strip() or claim.notes
+    elif action == "pay" and claim.status == "approved":
+        amount = request.form.get("paid_amount", type=float)
+        base = claim.approved_amount if claim.approved_amount is not None \
+            else claim.total_amount
+        claim.paid_amount = round(min(amount if amount is not None else base,
+                                      base), 2)
+        method = (request.form.get("payment_method") or "transfer").strip()
+        claim.payment_method = method if method in PAYMENT_METHODS else "transfer"
+        claim.status = "paid"
+        claim.paid_at = datetime.utcnow()
+    elif action == "delete" and claim.status == "draft":
+        number = claim.claim_number
+        db.session.delete(claim)
+        db.session.commit()
+        flash(t("claims.deleted", number=number), "info")
+        return redirect(url_for("finance.claims"))
+    else:
+        flash(t("claims.bad_action"), "warning")
+        return redirect(url_for("finance.claim_view", claim_id=claim.id))
+
+    ActivityLog.record(f"claim.{action}", user_id=current_user.id, entity="claim",
+                       detail=claim.claim_number, ip_address=client_ip())
+    db.session.commit()
+    if action == "pay":
+        # Payer collection: Dr cash/bank / Cr services revenue — best-effort.
+        try:
+            from app.utils import accounting as acct
+            acct.post_claim_payment(claim, user_id=current_user.id)
+        except Exception:  # noqa: BLE001
+            db.session.rollback()
+    flash(t(f"claims.done_{action}"), "success")
+    return redirect(url_for("finance.claim_view", claim_id=claim.id))
 
 
 @finance_bp.route("/claims/<int:payer_id>")
@@ -1653,8 +1787,12 @@ def claim_detail(payer_id):
         q = q.filter(Invoice.invoice_date <= date_to)
     invoices = q.order_by(Invoice.invoice_date, Invoice.id).all()
     total_claim = round(sum(i.discount_total for i in invoices), 2)
+    claimable = _claimable_invoices(entity.id, date_from, date_to)
     return render_template("finance/claim_detail.html", entity=entity,
                            invoices=invoices, total_claim=total_claim,
+                           claimable_count=len(claimable),
+                           claimable_total=round(sum(i.discount_total
+                                                     for i in claimable), 2),
                            date_from=date_from, date_to=date_to)
 
 

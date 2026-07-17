@@ -184,6 +184,20 @@ def post_expense(expense, user_id=None):
                       entry_date=expense.expense_date, user_id=user_id)
 
 
+def post_claim_payment(claim, user_id=None):
+    """Payer settled a claim: Dr cash/bank / Cr services revenue.
+
+    The covered share was billed as a line discount (never revenue, never
+    AR), so the payer's money is recognised as revenue when it lands."""
+    if claim is None or (claim.paid_amount or 0) <= 0:
+        return None
+    cash_code = "1010" if (claim.payment_method or "") == "cash" else "1020"
+    memo = f"تحصيل مطالبة — {claim.claim_number}"
+    lines = [(cash_code, claim.paid_amount, 0, claim.claim_number),
+             ("4010", 0, claim.paid_amount, claim.claim_number)]
+    return post_entry("claim", claim.id, memo, lines, user_id=user_id)
+
+
 # ------------------------------------------------ warehouse documents (W3) --
 def _doc_value(doc):
     """A store document's cost value: movement lines + linked vaccine batches."""

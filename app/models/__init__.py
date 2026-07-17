@@ -89,8 +89,11 @@ from app.models.invoice import (
     RefundRequest,
 )
 from app.models.payer import (
+    CLAIM_STATUSES,
     COVERAGE_TYPES,
     PAYER_TYPES,
+    Claim,
+    ClaimItem,
     PatientCoverage,
     PayerContract,
     PayerEntity,
@@ -224,6 +227,9 @@ __all__ = [
     "INVOICE_STATUSES",
     "PAYMENT_METHODS",
     "PayerEntity",
+    "Claim",
+    "ClaimItem",
+    "CLAIM_STATUSES",
     "PayerServiceRate",
     "PayerContract",
     "PatientCoverage",

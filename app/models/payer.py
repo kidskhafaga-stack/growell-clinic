@@ -149,3 +149,63 @@ class PatientCoverage(db.Model):
     def __repr__(self):
         return f"<PatientCoverage p={self.patient_id} payer={self.payer_id}>"
 
+
+
+CLAIM_STATUSES = ["draft", "submitted", "approved", "rejected", "paid"]
+
+
+class Claim(db.Model):
+    """A numbered claim document (مطالبة) submitted to a payer entity.
+
+    Snapshots the covered invoices of a period into an auditable document
+    with a lifecycle: draft → submitted → approved/rejected → paid. Once an
+    invoice sits on a live claim it can't be claimed again; a rejected
+    claim releases its invoices.
+    """
+
+    __tablename__ = "claims"
+
+    id = db.Column(db.Integer, primary_key=True)
+    claim_number = db.Column(db.String(40), unique=True, nullable=False, index=True)
+    payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"),
+                         nullable=False, index=True)
+    date_from = db.Column(db.Date, nullable=False)
+    date_to = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(10), default="draft", nullable=False, index=True)
+    total_amount = db.Column(db.Float, default=0, nullable=False)   # snapshot
+    approved_amount = db.Column(db.Float)     # what the payer accepted
+    paid_amount = db.Column(db.Float)
+    payment_method = db.Column(db.String(12))
+    submitted_at = db.Column(db.DateTime)
+    decided_at = db.Column(db.DateTime)
+    paid_at = db.Column(db.DateTime)
+    notes = db.Column(db.String(255))
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    payer = db.relationship("PayerEntity")
+    creator = db.relationship("User")
+    items = db.relationship("ClaimItem", back_populates="claim",
+                            cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Claim {self.claim_number} {self.status}>"
+
+
+class ClaimItem(db.Model):
+    """One covered invoice inside a claim, with its claimable amount frozen."""
+
+    __tablename__ = "claim_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    claim_id = db.Column(db.Integer, db.ForeignKey("claims.id"),
+                         nullable=False, index=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"),
+                           nullable=False, index=True)
+    amount = db.Column(db.Float, default=0, nullable=False)
+
+    claim = db.relationship("Claim", back_populates="items")
+    invoice = db.relationship("Invoice")
+
+    def __repr__(self):
+        return f"<ClaimItem claim={self.claim_id} inv={self.invoice_id}>"

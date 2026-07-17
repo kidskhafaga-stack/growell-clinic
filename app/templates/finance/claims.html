@@ -46,4 +46,33 @@
     </tbody>
   </table>
 </div>
+
+<!-- Claim documents (the auditable lifecycle) -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-file-earmark-text"></i> {{ t('claims.docs_title') }}</h2>
+  {% if claim_docs %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('claims.number') }}</th><th>{{ t('claims.entity') }}</th>
+      <th>{{ t('claims.period') }}</th>
+      <th style="text-align:end;">{{ t('claims.claim_amount') }}</th>
+      <th>{{ t('invoices.status') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for cl in claim_docs %}
+      <tr>
+        <td dir="ltr"><a href="{{ url_for('finance.claim_view', claim_id=cl.id) }}">
+          <span class="badge badge--role">{{ cl.claim_number }}</span></a></td>
+        <td>{{ cl.payer.display_name(current_lang) if cl.payer }}</td>
+        <td dir="ltr" style="color:var(--muted);font-size:.82rem;">{{ cl.date_from }} → {{ cl.date_to }}</td>
+        <td style="text-align:end;font-weight:700;">{{ cl.total_amount|money }}</td>
+        <td><span class="status-badge {{ {'draft':'st-scheduled','submitted':'st-waiting','approved':'st-in_progress','rejected':'st-no_show','paid':'st-completed'}[cl.status] }}">{{ t('claims.st_' ~ cl.status) }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">{{ t('claims.no_docs') }}</div>
+  {% endif %}
+</div>
 {% endblock %}
