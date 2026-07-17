@@ -2368,7 +2368,8 @@
     "donation": "Donation",
     "return": "Return",
     "adjustment": "Adjustment",
-    "transfer": "Warehouse transfer"
+    "transfer": "Warehouse transfer",
+    "return_marker": "Returned to supplier"
   },
   "visit_types": {
     "title": "Visit types",
@@ -2656,7 +2657,8 @@
     "line_value": "Line value",
     "no_lines": "No lines on this document.",
     "sig_keeper": "Storekeeper",
-    "sig_recipient": "Recipient"
+    "sig_recipient": "Recipient",
+    "kind_return": "Supplier return"
   },
   "suppliers": {
     "supplier": "Supplier"
@@ -2689,5 +2691,15 @@
     "trf_from_batch": "Transferred from batch #{n}",
     "transferred": "Transferred on document {doc}.",
     "do_transfer": "Execute transfer"
+  },
+  "returns": {
+    "title": "Return to supplier",
+    "hint": "Return goods to a supplier under a numbered RTN document: quantity leaves stock and the value is recovered against the supplier's account.",
+    "reason_lbl": "Return reason",
+    "reason_ph": "Damaged / near expiry / wrong delivery…",
+    "reason": "Supplier return {doc}",
+    "batch_note": "Returned {qty} doses from batch #{n}",
+    "done": "Returned on document {doc}.",
+    "do_return": "Execute return"
   }
 }

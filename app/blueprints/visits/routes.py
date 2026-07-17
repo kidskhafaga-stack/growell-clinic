@@ -440,6 +440,13 @@ def give_vaccine(visit_id):
                        entity_id=visit.id, detail=f"{vaccine.code}#{pv.dose_number}",
                        ip_address=client_ip())
     db.session.commit()
+    # COGS for the consumed dose (W3): Dr 5020 / Cr 1040 at batch cost.
+    # Best-effort — a bookkeeping hiccup must never block care.
+    try:
+        from app.utils import accounting as acct
+        acct.post_dose_cogs(pv, user_id=current_user.id)
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
     flash(t("visits.vac_given"), "success")
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 

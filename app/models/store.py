@@ -12,10 +12,10 @@ from app.extensions import db
 MOVEMENT_KINDS = ["in", "out", "adjust", "waste"]
 
 # Documentary cycle (W1): every stock change belongs to a numbered document.
-# W2 adds transfers between warehouses (TRF).
-DOC_KINDS = ["grn", "issue", "adjust", "waste", "transfer"]
+# W2 adds transfers between warehouses (TRF); W3 adds supplier returns (RTN).
+DOC_KINDS = ["grn", "issue", "adjust", "waste", "transfer", "return"]
 DOC_PREFIXES = {"grn": "GRN", "issue": "ISS", "adjust": "ADJ", "waste": "WST",
-                "transfer": "TRF"}
+                "transfer": "TRF", "return": "RTN"}
 
 WAREHOUSE_KINDS = ["main", "sub", "fridge"]  # رئيسي / فرعي / ثلاجة تطعيمات
 
