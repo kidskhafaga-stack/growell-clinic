@@ -66,9 +66,9 @@
           <td style="white-space:nowrap;">{{ e.date }}</td>
           <td>{{ t('statement.kind_' ~ e.kind) }}</td>
           <td dir="ltr">{{ e.ref }}</td>
-          <td style="text-align:end;">{% if e.kind in ('invoice','refund') %}{{ '%.2f'|format(e.amount) }}{% else %}—{% endif %}</td>
-          <td style="text-align:end;">{% if e.kind == 'payment' %}{{ '%.2f'|format(e.amount) }}{% else %}—{% endif %}</td>
-          <td style="text-align:end;font-weight:700;" class="{{ 'neg' if e.balance > 0 else '' }}">{{ '%.2f'|format(e.balance) }}</td>
+          <td style="text-align:end;">{% if e.kind in ('invoice','refund') %}{{ e.amount|money }}{% else %}—{% endif %}</td>
+          <td style="text-align:end;">{% if e.kind == 'payment' %}{{ e.amount|money }}{% else %}—{% endif %}</td>
+          <td style="text-align:end;font-weight:700;" class="{{ 'neg' if e.balance > 0 else '' }}">{{ e.balance|money }}</td>
         </tr>
         {% else %}
         <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">{{ t('statement.empty') }}</td></tr>
@@ -77,10 +77,10 @@
     </table>
 
     <div class="sum">
-      <div><div class="k">{{ t('statement.total_billed') }}</div><div class="v">{{ '%.2f'|format(summary.billed) }}</div></div>
-      <div><div class="k">{{ t('statement.total_paid') }}</div><div class="v">{{ '%.2f'|format(summary.paid) }}</div></div>
-      {% if summary.refunded %}<div><div class="k">{{ t('statement.total_refunded') }}</div><div class="v">{{ '%.2f'|format(summary.refunded) }}</div></div>{% endif %}
-      <div><div class="k">{{ t('statement.due') }}</div><div class="v {{ 'neg' if summary.balance > 0 else '' }}">{{ '%.2f'|format(summary.balance) }}</div></div>
+      <div><div class="k">{{ t('statement.total_billed') }}</div><div class="v">{{ summary.billed|money }}</div></div>
+      <div><div class="k">{{ t('statement.total_paid') }}</div><div class="v">{{ summary.paid|money }}</div></div>
+      {% if summary.refunded %}<div><div class="k">{{ t('statement.total_refunded') }}</div><div class="v">{{ summary.refunded|money }}</div></div>{% endif %}
+      <div><div class="k">{{ t('statement.due') }}</div><div class="v {{ 'neg' if summary.balance > 0 else '' }}">{{ summary.balance|money }}</div></div>
     </div>
   </div>
 </body>

@@ -42,6 +42,8 @@ def create_app(config_name="default"):
     db.init_app(app)
     login_manager.init_app(app)
     i18n.init_app(app)
+    from app.utils import money as _money
+    _money.init_app(app)
 
     # Make sure models are imported so tables are registered.
     with app.app_context():

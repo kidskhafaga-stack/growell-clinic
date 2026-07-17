@@ -67,10 +67,10 @@
       {% for it in invoice.items %}
       <tr>
         <td>{{ it.description }}</td>
-        <td>{{ it.unit_price }}</td>
+        <td>{{ it.unit_price|money }}</td>
         <td>{{ it.quantity }}</td>
         <td>{{ it.discount_amount }}{% if it.discount_is_percent %} <span style="color:var(--muted);">({{ it.discount_value }}%)</span>{% endif %}</td>
-        <td><strong>{{ it.net }}</strong></td>
+        <td><strong>{{ it.net|money }}</strong></td>
         <td class="no-print" style="white-space:nowrap;">
           <details style="position:relative;display:inline-block;">
             <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
@@ -95,18 +95,18 @@
   <!-- Totals -->
   <div style="display:flex;justify-content:flex-end;margin-top:14px;">
     <table style="min-width:280px;">
-      <tr><td style="padding:4px 12px;color:var(--muted);">{{ t('invoices.subtotal') }}</td><td style="text-align:end;">{{ invoice.subtotal }}</td></tr>
-      <tr><td style="padding:4px 12px;color:var(--muted);">{{ t('invoices.discount') }}{% if invoice.discount_name %} <span class="badge badge--role">{{ invoice.discount_name }}</span>{% endif %}</td><td style="text-align:end;">-{{ invoice.discount_total }}</td></tr>
-      <tr style="font-size:1.1rem;font-weight:700;border-top:1px solid var(--line);"><td style="padding:6px 12px;">{{ t('invoices.total') }}</td><td style="text-align:end;">{{ invoice.total }}</td></tr>
-      <tr><td style="padding:4px 12px;color:var(--green-700);">{{ t('invoices.paid') }}</td><td style="text-align:end;color:var(--green-700);">{{ invoice.paid }}</td></tr>
-      <tr style="font-weight:700;"><td style="padding:4px 12px;color:{{ 'var(--danger)' if invoice.balance>0 else 'inherit' }};">{{ t('invoices.balance') }}</td><td style="text-align:end;color:{{ 'var(--danger)' if invoice.balance>0 else 'inherit' }};">{{ invoice.balance }}</td></tr>
+      <tr><td style="padding:4px 12px;color:var(--muted);">{{ t('invoices.subtotal') }}</td><td style="text-align:end;">{{ invoice.subtotal|money }}</td></tr>
+      <tr><td style="padding:4px 12px;color:var(--muted);">{{ t('invoices.discount') }}{% if invoice.discount_name %} <span class="badge badge--role">{{ invoice.discount_name }}</span>{% endif %}</td><td style="text-align:end;">-{{ invoice.discount_total|money }}</td></tr>
+      <tr style="font-size:1.1rem;font-weight:700;border-top:1px solid var(--line);"><td style="padding:6px 12px;">{{ t('invoices.total') }}</td><td style="text-align:end;">{{ invoice.total|money }}</td></tr>
+      <tr><td style="padding:4px 12px;color:var(--green-700);">{{ t('invoices.paid') }}</td><td style="text-align:end;color:var(--green-700);">{{ invoice.paid|money }}</td></tr>
+      <tr style="font-weight:700;"><td style="padding:4px 12px;color:{{ 'var(--danger)' if invoice.balance>0 else 'inherit' }};">{{ t('invoices.balance') }}</td><td style="text-align:end;color:{{ 'var(--danger)' if invoice.balance>0 else 'inherit' }};">{{ invoice.balance|money }}</td></tr>
     </table>
   </div>
 
   {% if invoice.doctor %}
   <div class="no-print" style="margin-top:10px;font-size:0.85rem;color:var(--muted);">
-    <span class="badge badge--green">{{ t('invoices.doctor_share') }}: {{ invoice.doctor_share_total }}</span>
-    <span class="badge badge--role">{{ t('invoices.clinic_share') }}: {{ invoice.clinic_share_total }}</span>
+    <span class="badge badge--green">{{ t('invoices.doctor_share') }}: {{ invoice.doctor_share_total|money }}</span>
+    <span class="badge badge--role">{{ t('invoices.clinic_share') }}: {{ invoice.clinic_share_total|money }}</span>
   </div>
   {% endif %}
 

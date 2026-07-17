@@ -38,9 +38,9 @@
         <td>{{ inv.patient.display_name(current_lang) }}</td>
         <td>{{ inv.doctor.display_name(current_lang) if inv.doctor else '—' }}</td>
         <td dir="ltr">{{ inv.invoice_date }}</td>
-        <td>{{ inv.total }}</td>
-        <td style="color:var(--green-700);">{{ inv.paid }}</td>
-        <td style="color:{{ 'var(--danger)' if inv.balance > 0 else 'var(--muted)' }};">{{ inv.balance }}</td>
+        <td>{{ inv.total|money }}</td>
+        <td style="color:var(--green-700);">{{ inv.paid|money }}</td>
+        <td style="color:{{ 'var(--danger)' if inv.balance > 0 else 'var(--muted)' }};">{{ inv.balance|money }}</td>
         <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
       </tr>
       {% endfor %}

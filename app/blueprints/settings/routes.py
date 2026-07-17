@@ -37,6 +37,8 @@ TEXT_KEYS = [
     "invoice_number_prefix", "invoice_number_scheme", "invoice_number_start",
     # Warehouse documents (W1): yearly (GRN-2026-000001) or continuous series.
     "store_number_scheme",
+    # Unified currency (Financial Formatter): every amount renders with it.
+    "currency_code",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize",
@@ -97,9 +99,12 @@ def index():
         DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS, _visit_chips,
     )
 
+    from app.utils.money import CURRENCIES
+
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        currencies=CURRENCIES,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )

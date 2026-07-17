@@ -39,15 +39,15 @@
   </div>
   <div class="stat-grid stat-grid--compact gc-stagger" style="margin-bottom:12px;">
     <div class="stat-card edge-blue"><i class="bi bi-wallet2 ico"></i>
-      <div class="value">{{ open_shift.opening_float }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>
+      <div class="value">{{ open_shift.opening_float|money }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>
     <div class="stat-card edge-green"><i class="bi bi-cash-stack ico"></i>
-      <div class="value">{{ open_shift.collected }}</div><div class="label">{{ t('shifts.collected') }}</div></div>
+      <div class="value">{{ open_shift.collected|money }}</div><div class="label">{{ t('shifts.collected') }}</div></div>
     <div class="stat-card edge-green"><i class="bi bi-cash ico"></i>
-      <div class="value">{{ open_shift.cash_collected }}</div><div class="label">{{ t('cashier.cash_collected') }}</div></div>
+      <div class="value">{{ open_shift.cash_collected|money }}</div><div class="label">{{ t('cashier.cash_collected') }}</div></div>
     <div class="stat-card edge-blue"><i class="bi bi-safe2 ico"></i>
-      <div class="value">{{ open_shift.expected_cash }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
+      <div class="value">{{ open_shift.expected_cash|money }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
     <div class="stat-card edge-red"><i class="bi bi-arrow-return-left ico"></i>
-      <div class="value">{{ open_shift.refunds }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
+      <div class="value">{{ open_shift.refunds|money }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
   </div>
   <form method="post" action="{{ url_for('finance.shift_close', shift_id=open_shift.id) }}"
         style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;"
@@ -75,17 +75,17 @@
 <!-- Drawer summary -->
 <div class="stat-grid gc-stagger print-area" style="margin-bottom:8px;">
   <div class="stat-card edge-blue gc-lift"><i class="bi bi-wallet2 ico"></i>
-    <div class="value">{{ opening_float }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>
+    <div class="value">{{ opening_float|money }}</div><div class="label">{{ t('cashier.opening_float') }}</div></div>
   <div class="stat-card edge-green gc-lift"><i class="bi bi-cash ico"></i>
-    <div class="value">{{ cash_collected }}</div><div class="label">{{ t('cashier.cash_collected') }}</div></div>
+    <div class="value">{{ cash_collected|money }}</div><div class="label">{{ t('cashier.cash_collected') }}</div></div>
   <div class="stat-card edge-green gc-lift"><i class="bi bi-safe2 ico"></i>
-    <div class="value">{{ expected_cash }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
+    <div class="value">{{ expected_cash|money }}</div><div class="label">{{ t('cashier.expected_cash') }}</div></div>
   <div class="stat-card edge-blue gc-lift"><i class="bi bi-cash-stack ico"></i>
-    <div class="value">{{ collected }}</div><div class="label">{{ t('cashier.collected_total') }}</div></div>
+    <div class="value">{{ collected|money }}</div><div class="label">{{ t('cashier.collected_total') }}</div></div>
   <div class="stat-card edge-red gc-lift"><i class="bi bi-arrow-return-left ico"></i>
-    <div class="value">{{ refunds }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
+    <div class="value">{{ refunds|money }}</div><div class="label">{{ t('cashier.refunds') }}</div></div>
   <div class="stat-card edge-red gc-lift"><i class="bi bi-hourglass ico"></i>
-    <div class="value">{{ outstanding_total }}</div><div class="label">{{ t('cashier.outstanding') }}</div></div>
+    <div class="value">{{ outstanding_total|money }}</div><div class="label">{{ t('cashier.outstanding') }}</div></div>
 </div>
 
 <!-- Opening float + by-method -->
@@ -106,12 +106,12 @@
       <tbody>
         {% for m in payment_methods %}
         <tr><td>{{ t('payment_methods.' ~ m) }}</td>
-          <td style="text-align:end;font-weight:600;">{{ by_method.get(m, 0)|round(2) }}</td></tr>
+          <td style="text-align:end;font-weight:600;">{{ by_method.get(m, 0)|money }}</td></tr>
         {% endfor %}
         <tr style="border-top:2px solid var(--line);font-weight:700;">
-          <td>{{ t('cashier.collected_total') }}</td><td style="text-align:end;">{{ collected }}</td></tr>
-        <tr><td>{{ t('cashier.refunds') }}</td><td style="text-align:end;color:var(--danger);">−{{ refunds }}</td></tr>
-        <tr><td>{{ t('cashier.billed_today') }}</td><td style="text-align:end;">{{ billed_today }}</td></tr>
+          <td>{{ t('cashier.collected_total') }}</td><td style="text-align:end;">{{ collected|money }}</td></tr>
+        <tr><td>{{ t('cashier.refunds') }}</td><td style="text-align:end;color:var(--danger);">−{{ refunds|money }}</td></tr>
+        <tr><td>{{ t('cashier.billed_today') }}</td><td style="text-align:end;">{{ billed_today|money }}</td></tr>
       </tbody>
     </table>
   </div>
@@ -134,7 +134,7 @@
       <tr>
         <td><a href="{{ url_for('patients.view', patient_id=e.patient.id) }}">{{ e.patient.display_name(current_lang) }}</a></td>
         <td style="color:var(--muted);">{{ e['items']|join(' · ') }}</td>
-        <td style="text-align:end;font-weight:700;color:var(--danger);">{{ '%.2f'|format(e.total) }}</td>
+        <td style="text-align:end;font-weight:700;color:var(--danger);">{{ e.total|money }}</td>
         <td style="text-align:end;">
           <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('finance.invoice_new', patient_id=e.patient.id) }}">
             <i class="bi bi-receipt"></i> {{ t('cashier.collect_now') }}</a>
@@ -163,9 +163,9 @@
         <td><a href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}"><span class="badge badge--role">{{ inv.invoice_number }}</span></a></td>
         <td>{{ inv.patient.display_name(current_lang) if inv.patient else '—' }}</td>
         <td style="color:var(--muted);">{{ inv.doctor.display_name(current_lang) if inv.doctor else '—' }}</td>
-        <td>{{ inv.total }}</td>
-        <td style="color:var(--green-700);">{{ inv.paid }}</td>
-        <td style="font-weight:700;color:var(--danger);">{{ inv.balance }}</td>
+        <td>{{ inv.total|money }}</td>
+        <td style="color:var(--green-700);">{{ inv.paid|money }}</td>
+        <td style="font-weight:700;color:var(--danger);">{{ inv.balance|money }}</td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.invoice_payment', invoice_id=inv.id) }}" style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
             <input type="hidden" name="next" value="cashier">

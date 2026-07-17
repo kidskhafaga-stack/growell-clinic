@@ -1105,7 +1105,10 @@
     "refund_approval_required": "Refunds require manager approval",
     "refund_approval_required_hint": "When on: non-admin refunds go to the manager's approval queue instead of leaving the drawer directly.",
     "numbering_store": "Warehouse documents (GRN / ISS / ADJ / WST)",
-    "numbering_store_hint": "Applies to goods receipts, issues, adjustments and wastage documents."
+    "numbering_store_hint": "Applies to goods receipts, issues, adjustments and wastage documents.",
+    "currency": "Facility currency",
+    "currency_decimals": "decimals",
+    "currency_hint": "Every amount in the program renders with this currency and its correct format (e.g. EGP 1,250.00) — cashier, invoices and reports included."
   },
   "errors": {
     "403_title": "Forbidden",
