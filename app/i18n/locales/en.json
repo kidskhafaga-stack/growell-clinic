@@ -1108,7 +1108,9 @@
     "numbering_store_hint": "Applies to goods receipts, issues, adjustments and wastage documents.",
     "currency": "Facility currency",
     "currency_decimals": "decimals",
-    "currency_hint": "Every amount in the program renders with this currency and its correct format (e.g. EGP 1,250.00) — cashier, invoices and reports included."
+    "currency_hint": "Every amount in the program renders with this currency and its correct format (e.g. EGP 1,250.00) — cashier, invoices and reports included.",
+    "require_shift_to_collect": "Collecting requires an open shift",
+    "require_shift_to_collect_hint": "When on: no collection is accepted without an open shift — every amount is booked to a numbered shift."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2286,7 +2288,10 @@
     "st_closed": "Closed",
     "minutes": "min",
     "time": "Time",
-    "opened_at": "Opened at"
+    "opened_at": "Opened at",
+    "quick_close": "Close your shift",
+    "quick_close_hint": "You have an open shift ({number}) — click to count and close.",
+    "gate_blocked": "Open your shift before collecting — every amount must belong to a shift."
   },
   "wizard": {
     "title": "Facility setup",
@@ -2704,5 +2709,16 @@
     "batch_note": "Returned {qty} doses from batch #{n}",
     "done": "Returned on document {doc}.",
     "do_return": "Execute return"
+  },
+  "eod": {
+    "title": "End-of-day report",
+    "subtitle": "Every shift of the day by serial number: collected, expected, counted and over/short + clinic totals.",
+    "shift_no": "Shift no.",
+    "cashier": "Cashier",
+    "times": "Times",
+    "variance": "Over/short",
+    "totals": "Day totals",
+    "still_open": "{n} shift(s) still open — close them before signing off.",
+    "none": "No shifts on this day."
   }
 }

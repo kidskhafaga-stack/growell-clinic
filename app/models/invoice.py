@@ -223,6 +223,9 @@ class CashierShift(db.Model):
     __tablename__ = "cashier_shifts"
 
     id = db.Column(db.Integer, primary_key=True)
+    # Serial audit number (SHIFT-2026-000001) — the shift's identity on
+    # reviews and the end-of-day report.
+    shift_number = db.Column(db.String(40), unique=True, index=True)
     label = db.Column(db.String(60))                 # optional name (صباحي/مسائي)
     status = db.Column(db.String(10), default="open", nullable=False)  # open|closed
     opening_float = db.Column(db.Float, default=0, nullable=False)

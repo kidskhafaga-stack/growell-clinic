@@ -453,10 +453,33 @@ def _cashier_date():
         return date.today()
 
 
+def _shift_number():
+    """Serial audit number for a new shift: SHIFT-2026-000001 (per year)."""
+    prefix = f"SHIFT-{datetime.utcnow().year}-"
+    top = 0
+    rows = (CashierShift.query
+            .filter(CashierShift.shift_number.like(prefix + "%"))
+            .with_entities(CashierShift.shift_number).all())
+    for (num,) in rows:
+        tail = num[len(prefix):]
+        if tail.isdigit():
+            top = max(top, int(tail))
+    return f"{prefix}{top + 1:06d}"
+
+
 def _current_shift_id():
     """The open shift this cashier's money should be booked into, if any."""
     shift = CashierShift.open_for(current_user.id) or CashierShift.any_open()
     return shift.id if shift else None
+
+
+def _shift_gate_blocked():
+    """Whether collecting money must be refused right now: the policy
+    ``require_shift_to_collect`` (default ON) says every collection belongs
+    to an open shift — no shift, no money in the drawer."""
+    if Setting.get("require_shift_to_collect", "1") == "0":
+        return False
+    return _current_shift_id() is None
 
 
 def _uncollected_by_patient(days=7):
@@ -615,6 +638,7 @@ def shift_open():
         flash(t("shifts.already_open"), "warning")
         return redirect(url_for("finance.cashier"))
     shift = CashierShift(
+        shift_number=_shift_number(),
         opening_float=round(request.form.get("opening_float", type=float) or 0, 2),
         label=(request.form.get("label") or "").strip() or None,
         opened_by=current_user.id,
@@ -658,6 +682,41 @@ def shifts():
     return render_template("finance/shifts.html", pagination=pagination,
                            shifts=pagination.items,
                            open_shift=CashierShift.open_for(current_user.id))
+
+
+@finance_bp.route("/eod")
+@module_required(MODULE)
+def eod_report():
+    """End-of-day summary: every shift opened that day with its serial,
+    cashier, money by method, expected vs counted and the over/short — plus
+    a clinic-wide totals row. Printable."""
+    on_date = _cashier_date()
+    start = datetime.combine(on_date, datetime.min.time())
+    end = datetime.combine(on_date, datetime.max.time())
+    shifts = (CashierShift.query
+              .filter(CashierShift.opened_at >= start,
+                      CashierShift.opened_at <= end)
+              .order_by(CashierShift.opened_at).all())
+    totals = {
+        "float": round(sum(s.opening_float or 0 for s in shifts), 2),
+        "collected": round(sum(s.collected for s in shifts), 2),
+        "cash": round(sum(s.cash_collected for s in shifts), 2),
+        "expected": round(sum(s.expected_cash for s in shifts), 2),
+        "counted": round(sum(s.counted_cash or 0 for s in shifts
+                             if s.counted_cash is not None), 2),
+        "variance": round(sum(s.variance or 0 for s in shifts
+                              if s.variance is not None), 2),
+        "refunds": round(sum(s.refunds for s in shifts), 2),
+    }
+    by_method = {}
+    for s in shifts:
+        for m, v in s.by_method.items():
+            by_method[m] = round(by_method.get(m, 0) + v, 2)
+    open_count = sum(1 for s in shifts if s.status == "open")
+    return render_template("finance/eod_report.html", on_date=on_date,
+                           shifts=shifts, totals=totals, by_method=by_method,
+                           open_count=open_count,
+                           payment_methods=PAYMENT_METHODS)
 
 
 @finance_bp.route("/shift/<int:shift_id>")
@@ -1018,6 +1077,12 @@ def checkout(appt_id):
         # never be overpaid (no more negative balances from double submits).
         amounts = request.form.getlist("amount")
         methods = request.form.getlist("method")
+        # Shift gate: collecting now needs an open shift ("pay later" doesn't).
+        if any((a or "").strip() not in ("", "0", "0.0") for a in amounts) \
+                and _shift_gate_blocked():
+            db.session.rollback()
+            flash(t("shifts.gate_blocked"), "warning")
+            return redirect(url_for("finance.cashier"))
         shift_id = _current_shift_id()
         remaining = invoice.balance
         for amt_raw, m in zip(amounts, methods):
@@ -1204,6 +1269,10 @@ def invoice_payment(invoice_id):
     # One invoice can be settled with several methods at once (e.g. 500 cash +
     # 1000 card + 500 instapay). The form submits parallel amount[]/method[]
     # lists; a single quick-pay is just a one-element list.
+    # Shift gate: money only enters the drawer inside an open shift.
+    if _shift_gate_blocked():
+        flash(t("shifts.gate_blocked"), "warning")
+        return redirect(url_for("finance.cashier"))
     amounts = request.form.getlist("amount")
     methods = request.form.getlist("method")
     notes = (request.form.get("notes") or "").strip() or None

@@ -1,0 +1,94 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('eod.title') }}{% endblock %}
+{% block page_heading %}{{ t('eod.title') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('eod.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('eod.subtitle') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('appointments.date') }}</label>
+      <input class="input" type="date" name="date" value="{{ on_date }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-calendar-check"></i> {{ t('reports.show') }}</button>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.shifts') }}"><i class="bi bi-clock-history"></i> {{ t('shifts.history') }}</a>
+  </form>
+</div>
+
+<div class="card gc-scale-in print-area" style="padding:0;overflow:hidden;">
+  <div style="padding:16px 18px 0;">
+    {{ print_header(t('eod.title'), t('appointments.date') ~ ': <strong>' ~ on_date ~ '</strong>') }}
+    {% if open_count %}
+    <p class="hint" style="color:#b45309;"><i class="bi bi-exclamation-triangle"></i> {{ t('eod.still_open', n=open_count) }}</p>
+    {% endif %}
+  </div>
+  {% if shifts %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:860px;">
+      <thead><tr>
+        <th>{{ t('eod.shift_no') }}</th><th>{{ t('eod.cashier') }}</th>
+        <th>{{ t('eod.times') }}</th>
+        <th style="text-align:end;">{{ t('cashier.opening_float') }}</th>
+        <th style="text-align:end;">{{ t('shifts.collected') }}</th>
+        <th style="text-align:end;">{{ t('cashier.expected_cash') }}</th>
+        <th style="text-align:end;">{{ t('shifts.counted_cash') }}</th>
+        <th style="text-align:end;">{{ t('eod.variance') }}</th>
+        <th>{{ t('common.status') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for s in shifts %}
+        <tr>
+          <td dir="ltr"><a href="{{ url_for('finance.shift_report', shift_id=s.id) }}">
+            <span class="badge badge--role">{{ s.shift_number or '#' ~ s.id }}</span></a>
+            {% if s.label %}<div class="hint">{{ s.label }}</div>{% endif %}</td>
+          <td>{{ s.opener.display_name(current_lang) if s.opener else '—' }}</td>
+          <td dir="ltr" style="color:var(--muted);font-size:.82rem;">{{ s.opened_at.strftime('%H:%M') }}{% if s.closed_at %} → {{ s.closed_at.strftime('%H:%M') }}{% endif %}</td>
+          <td style="text-align:end;">{{ s.opening_float|money }}</td>
+          <td style="text-align:end;color:var(--green-700);">{{ s.collected|money }}</td>
+          <td style="text-align:end;">{{ s.expected_cash|money }}</td>
+          <td style="text-align:end;">{{ s.counted_cash|money if s.counted_cash is not none else '—' }}</td>
+          <td style="text-align:end;font-weight:800;{% if s.variance is not none and s.variance < 0 %}color:var(--danger);{% elif s.variance %}color:#b45309;{% endif %}">
+            {{ s.variance|money if s.variance is not none else '—' }}</td>
+          <td><span class="status-badge {{ 'st-completed' if s.status == 'closed' else 'st-waiting' }}">
+            {{ t('shifts.st_closed') if s.status == 'closed' else t('shifts.st_open') }}</span></td>
+        </tr>
+        {% endfor %}
+        <tr style="border-top:2px solid var(--line);font-weight:800;">
+          <td colspan="3">{{ t('eod.totals') }}</td>
+          <td style="text-align:end;">{{ totals.float|money }}</td>
+          <td style="text-align:end;color:var(--green-700);">{{ totals.collected|money }}</td>
+          <td style="text-align:end;">{{ totals.expected|money }}</td>
+          <td style="text-align:end;">{{ totals.counted|money }}</td>
+          <td style="text-align:end;{% if totals.variance < 0 %}color:var(--danger);{% endif %}">{{ totals.variance|money }}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="display:flex;gap:18px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line);">
+    <strong>{{ t('cashier.by_method') }}:</strong>
+    {% for m in payment_methods %}{% if by_method.get(m) %}
+    <span>{{ t('payment_methods.' ~ m) }}: <strong>{{ by_method.get(m)|money }}</strong></span>
+    {% endif %}{% endfor %}
+    <span style="color:var(--danger);">{{ t('cashier.refunds') }}: {{ totals.refunds|money }}</span>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-moon-stars"></i>{{ t('eod.none') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    .sidebar, .topbar, .no-print, .flashes { display:none !important; }
+    .main { margin:0 !important; } .content { padding:0 !important; }
+    .card { box-shadow:none !important; border:none !important; }
+    body { background:#fff !important; }
+  }
+</style>
+{% endblock %}

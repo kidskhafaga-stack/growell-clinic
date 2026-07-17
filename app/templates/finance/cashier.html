@@ -35,7 +35,10 @@
       <span class="hint" style="font-weight:400;">— {{ open_shift.opener.display_name(current_lang) if open_shift.opener else '' }}
         · {{ open_shift.opened_at.strftime('%Y-%m-%d %H:%M') }}</span>
     </h2>
-    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.shift_report', shift_id=open_shift.id) }}"><i class="bi bi-receipt"></i> {{ t('shifts.report') }}</a>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.shift_report', shift_id=open_shift.id) }}"><i class="bi bi-receipt"></i> {{ t('shifts.report') }}</a>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.eod_report', date=on_date) }}"><i class="bi bi-journal-check"></i> {{ t('eod.title') }}</a>
+    </div>
   </div>
   <div class="stat-grid stat-grid--compact gc-stagger" style="margin-bottom:12px;">
     <div class="stat-card edge-blue"><i class="bi bi-wallet2 ico"></i>

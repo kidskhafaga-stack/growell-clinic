@@ -30,7 +30,7 @@
     <tbody>
       {% for s in shifts %}
       <tr>
-        <td><span class="badge badge--role">{{ s.id }}</span>{% if s.label %} {{ s.label }}{% endif %}</td>
+        <td><span class="badge badge--role" dir="ltr">{{ s.shift_number or '#' ~ s.id }}</span>{% if s.label %} {{ s.label }}{% endif %}</td>
         <td>{{ s.opened_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td style="color:var(--muted);">{{ s.opener.display_name(current_lang) if s.opener else '—' }}</td>
         <td>{{ s.opening_float }}</td>
@@ -38,7 +38,7 @@
         <td>{{ s.expected_cash }}</td>
         <td>{{ s.counted_cash if s.counted_cash is not none else '—' }}</td>
         <td style="font-weight:700;{% if s.variance and s.variance < 0 %}color:var(--danger);{% elif s.variance and s.variance > 0 %}color:var(--green-700);{% endif %}">
-          {{ s.variance if s.variance is not none else '—' }}</td>
+          {{ s.variance|money if s.variance is not none else '—' }}</td>
         <td>
           {% if s.status == 'open' %}<span class="badge" style="background:var(--primary,#2563eb);color:#fff;">{{ t('shifts.st_open') }}</span>
           {% else %}<span class="badge">{{ t('shifts.st_closed') }}</span>{% endif %}

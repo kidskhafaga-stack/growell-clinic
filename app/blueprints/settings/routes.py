@@ -45,8 +45,10 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # Appointments board: visit-type breakdown panel + its parts.
                "board_show_breakdown", "board_breakdown_month",
                "board_breakdown_newold",
-               # Workflow policies: doctor privacy + refund manager sign-off.
-               "doctors_see_own_only", "refund_approval_required"]
+               # Workflow policies: doctor privacy + refund manager sign-off
+               # + the cashier shift gate (no open shift, no collection).
+               "doctors_see_own_only", "refund_approval_required",
+               "require_shift_to_collect"]
 
 
 def _logo_dir():
