@@ -11,6 +11,46 @@ from app.extensions import db
 
 MOVEMENT_KINDS = ["in", "out", "adjust", "waste"]
 
+# Documentary cycle (W1): every stock change belongs to a numbered document.
+DOC_KINDS = ["grn", "issue", "adjust", "waste"]  # إذن إضافة / صرف / تسوية / هالك
+DOC_PREFIXES = {"grn": "GRN", "issue": "ISS", "adjust": "ADJ", "waste": "WST"}
+
+
+class StoreDocument(db.Model):
+    """A numbered warehouse document (إذن مخزني) grouping stock changes.
+
+    One GRN per goods receipt, one issue per dispense/consumption, one
+    adjustment per stocktake — so the audit trail reads like a paper store:
+    documents first, quantities inside them. Vaccine batches and general-store
+    movements both link back to the document that created them.
+    """
+
+    __tablename__ = "store_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    doc_number = db.Column(db.String(40), unique=True, nullable=False, index=True)
+    kind = db.Column(db.String(10), default="grn", nullable=False, index=True)
+    doc_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(),
+                         nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    # What produced it: a PO number, an invoice number, a stocktake…
+    reference = db.Column(db.String(80))
+    notes = db.Column(db.String(255))
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    supplier = db.relationship("Supplier")
+    creator = db.relationship("User")
+    movements = db.relationship("StockMovement", back_populates="document")
+
+    @property
+    def total_value(self):
+        return round(sum(abs(m.qty or 0) * (m.unit_cost or 0)
+                         for m in self.movements), 2)
+
+    def __repr__(self):
+        return f"<StoreDocument {self.doc_number} {self.kind}>"
+
 
 class StoreItem(db.Model):
     __tablename__ = "store_items"
@@ -64,6 +104,9 @@ class StockMovement(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"), nullable=False, index=True)
+    # The warehouse document this change belongs to (W1 documentary cycle).
+    document_id = db.Column(db.Integer, db.ForeignKey("store_documents.id"),
+                            nullable=True, index=True)
     kind = db.Column(db.String(10), default="in", nullable=False)
     qty = db.Column(db.Integer, default=0, nullable=False)   # signed
     reason = db.Column(db.String(160))
@@ -75,6 +118,7 @@ class StockMovement(db.Model):
 
     item = db.relationship("StoreItem", back_populates="movements")
     supplier = db.relationship("Supplier")
+    document = db.relationship("StoreDocument", back_populates="movements")
 
     def __repr__(self):
         return f"<StockMovement item={self.item_id} {self.kind} {self.qty}>"

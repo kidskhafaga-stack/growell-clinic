@@ -114,6 +114,8 @@ def register_commands(app):
             ("appointments", "vaccine_brand_id", "INTEGER"),
             ("appointments", "vaccine_dose", "INTEGER"),
             ("appointments", "extra_service_ids", "VARCHAR(200)"),
+            ("stock_movements", "document_id", "INTEGER"),
+            ("vaccine_inventory", "document_id", "INTEGER"),
             ("doctor_schedules", "start_date", "DATE"),
             ("doctor_schedules", "end_date", "DATE"),
             ("doctor_schedules", "season_label", "VARCHAR(60)"),

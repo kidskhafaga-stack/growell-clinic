@@ -13,12 +13,14 @@ from app.blueprints.inventory import inventory_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import (
+    DOC_KINDS,
     MOVEMENT_KINDS,
     RECEIPT_REASONS,
     ActivityLog,
     PurchaseOrder,
     PurchaseOrderItem,
     StockMovement,
+    StoreDocument,
     StoreItem,
     Supplier,
     Vaccine,
@@ -220,6 +222,10 @@ def batch_new():
     if reason not in RECEIPT_REASONS:
         reason = "opening"
 
+    from app.utils.store_docs import open_document
+
+    grn = open_document("grn", reference=t(f"receipt_reasons.{reason}"),
+                        supplier_id=request.form.get("supplier_id", type=int) or None)
     batch = VaccineInventory(
         brand_id=brand.id,
         supplier_id=request.form.get("supplier_id", type=int) or None,
@@ -232,6 +238,7 @@ def batch_new():
         unit_cost=request.form.get("unit_cost", type=float),
         storage_temp=(request.form.get("storage_temp") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
+        document_id=grn.id,
     )
     db.session.add(batch)
     ActivityLog.record("inventory.goods_receipt", user_id=current_user.id,
@@ -266,14 +273,21 @@ def receipt_new():
         mfgs = request.form.getlist("line_mfg")
         costs = request.form.getlist("line_cost")
 
+        from app.utils.store_docs import open_document
+
         by_id = {b.id: b for b in brands}
         added = 0
         touched = []
+        grn = None  # one numbered GRN for the whole delivery
         for i in range(len(brand_ids)):
             brand = by_id.get(_to_int(brand_ids[i]))
             qty = _to_int(qtys[i] if i < len(qtys) else "")
             if brand is None or qty <= 0:
                 continue
+            if grn is None:
+                grn = open_document("grn", reference=t(f"receipt_reasons.{reason}"),
+                                    supplier_id=supplier_id, notes=header_note,
+                                    doc_date=received)
             unit = (units[i] if i < len(units) else "") or "doses"
             per = brand.doses_per_vial or 1
             qty_doses = qty * per if unit == "vials" else qty
@@ -285,7 +299,7 @@ def receipt_new():
                 received_date=received, receipt_reason=reason,
                 qty_received=qty_doses,
                 unit_cost=_to_float(costs[i]) if i < len(costs) and costs[i].strip() else None,
-                notes=header_note,
+                notes=header_note, document_id=grn.id,
             ))
             added += 1
             if brand not in touched:
@@ -513,17 +527,23 @@ def store_move(item_id):
     if qty <= 0:
         flash(t("store.bad_qty"), "danger")
         return redirect(url_for("inventory.store"))
-    # Receipts add, issues/wastage subtract.
+    # Receipts add, issues/wastage subtract — each under a numbered document.
+    from app.utils.store_docs import open_document
+
     signed = qty if kind == "in" else -qty
+    doc_kind = {"in": "grn", "out": "issue", "waste": "waste"}.get(kind, "adjust")
+    doc = open_document(doc_kind,
+                        reference=(request.form.get("reason") or "").strip() or None,
+                        supplier_id=request.form.get("supplier_id", type=int) or None)
     db.session.add(StockMovement(
-        item_id=item.id, kind=kind, qty=signed,
+        item_id=item.id, kind=kind, qty=signed, document_id=doc.id,
         reason=(request.form.get("reason") or "").strip() or None,
         unit_cost=request.form.get("unit_cost", type=float),
         supplier_id=request.form.get("supplier_id", type=int) or None,
         created_by=current_user.id,
     ))
     db.session.commit()
-    flash(t("store.move_done"), "success")
+    flash(t("store.move_done_doc", doc=doc.doc_number), "success")
     return redirect(url_for("inventory.store_item", item_id=item.id))
 
 
@@ -542,9 +562,12 @@ def store_item(item_id):
 @inventory_bp.route("/store/stocktake", methods=["GET", "POST"])
 @module_required(MODULE)
 def stocktake():
+    from app.utils.store_docs import open_document
+
     items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
     if request.method == "POST":
         adjusted = 0
+        doc = None  # one adjustment document for the whole count
         for item in items:
             raw = request.form.get(f"count_{item.id}")
             if raw is None or raw.strip() == "":
@@ -555,8 +578,10 @@ def stocktake():
                 continue
             diff = counted - item.current_stock
             if diff != 0:
+                if doc is None:
+                    doc = open_document("adjust", reference=t("store.stocktake"))
                 db.session.add(StockMovement(
-                    item_id=item.id, kind="adjust", qty=diff,
+                    item_id=item.id, kind="adjust", qty=diff, document_id=doc.id,
                     reason=t("store.stocktake"), created_by=current_user.id,
                 ))
                 adjusted += 1
@@ -566,6 +591,37 @@ def stocktake():
         flash(t("store.stocktake_done").replace("{n}", str(adjusted)), "success")
         return redirect(url_for("inventory.store"))
     return render_template("inventory/stocktake.html", items=items)
+
+
+# ============================================== warehouse documents (W1) ===
+@inventory_bp.route("/documents")
+@module_required(MODULE)
+def documents():
+    """The store's documentary ledger: every GRN / issue / adjustment / waste
+    as a numbered document, filterable by kind."""
+    kind = (request.args.get("kind") or "").strip()
+    q = StoreDocument.query
+    if kind in DOC_KINDS:
+        q = q.filter(StoreDocument.kind == kind)
+    page = request.args.get("page", 1, type=int)
+    pagination = (q.order_by(StoreDocument.id.desc())
+                  .paginate(page=page, per_page=25, error_out=False))
+    return render_template("inventory/documents.html", pagination=pagination,
+                           documents=pagination.items, kind=kind,
+                           doc_kinds=DOC_KINDS)
+
+
+@inventory_bp.route("/documents/<int:doc_id>")
+@module_required(MODULE)
+def document_view(doc_id):
+    """One warehouse document, printable: header + its stock lines (general
+    store movements and/or vaccine batches)."""
+    doc = db.get_or_404(StoreDocument, doc_id)
+    batches = VaccineInventory.query.filter_by(document_id=doc.id).all()
+    total_value = round(doc.total_value + sum(
+        (b.qty_received or 0) * (b.unit_cost or 0) for b in batches), 2)
+    return render_template("inventory/document_view.html", doc=doc,
+                           batches=batches, total_value=total_value)
 
 
 # ================================================= purchase orders =========
@@ -677,8 +733,11 @@ def purchase_receive(po_id):
         flash(t("purchases.cannot_receive"), "warning")
         return redirect(url_for("inventory.purchase_view", po_id=po.id))
 
+    from app.utils.store_docs import open_document
+
     posted = 0
     receipt_value = 0.0   # value of THIS GRN only (not cumulative)
+    grn = None            # opened lazily so an empty submit leaves no document
     for item in po.items:
         recv = _to_int(request.form.get(f"recv_{item.id}", ""))
         if recv <= 0:
@@ -687,6 +746,9 @@ def purchase_receive(po_id):
         recv = min(recv, item.outstanding)
         if recv <= 0:
             continue
+        if grn is None:
+            grn = open_document("grn", reference=po.po_number,
+                                supplier_id=po.supplier_id)
         item.qty_received = (item.qty_received or 0) + recv
         receipt_value += recv * (item.unit_cost or 0)
         if item.vaccine_brand_id:
@@ -699,6 +761,7 @@ def purchase_receive(po_id):
                 mfg_date=_parse_date(f"mfg_{item.id}"),
                 received_date=datetime.utcnow().date(), receipt_reason="purchase",
                 qty_received=recv, unit_cost=item.unit_cost,
+                document_id=grn.id,
             )
             db.session.add(batch)
             if item.vaccine_brand:
@@ -708,7 +771,7 @@ def purchase_receive(po_id):
                 item_id=item.store_item_id, kind="in", qty=recv,
                 reason=t("purchases.grn_reason", po=po.po_number),
                 unit_cost=item.unit_cost, supplier_id=po.supplier_id,
-                created_by=current_user.id,
+                created_by=current_user.id, document_id=grn.id,
             ))
         posted += 1
 

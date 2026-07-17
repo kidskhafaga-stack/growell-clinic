@@ -1100,7 +1100,9 @@
     "doctors_see_own_only": "Each doctor sees only their own cases (board & visits)",
     "doctors_see_own_only_hint": "When on: a non-admin doctor is locked to their own appointments/visits and cannot open another doctor's record. Admin, reception and nursing see everything.",
     "refund_approval_required": "Refunds require manager approval",
-    "refund_approval_required_hint": "When on: non-admin refunds go to the manager's approval queue instead of leaving the drawer directly."
+    "refund_approval_required_hint": "When on: non-admin refunds go to the manager's approval queue instead of leaving the drawer directly.",
+    "numbering_store": "Warehouse documents (GRN / ISS / ADJ / WST)",
+    "numbering_store_hint": "Applies to goods receipts, issues, adjustments and wastage documents."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1985,7 +1987,9 @@
     "purchase_unit": "Purchase unit",
     "purchase_unit_ph": "box / carton",
     "units_per_purchase": "Units per purchase unit",
-    "opening_stock": "Opening stock"
+    "opening_stock": "Opening stock",
+    "item": "Item",
+    "move_done_doc": "Movement posted on document {doc}."
   },
   "purchases": {
     "title": "Purchase orders",
@@ -2627,5 +2631,30 @@
     "already_decided": "This request was already decided",
     "approved": "Approved — refund paid out",
     "rejected": "Request rejected"
+  },
+  "storedocs": {
+    "title": "Warehouse documents",
+    "subtitle": "The documentary cycle: every stock change under a numbered document — GRN, issue, adjustment, wastage.",
+    "number": "Document no.",
+    "kind": "Kind",
+    "date": "Date",
+    "reference": "Reference",
+    "lines": "Lines",
+    "value": "Value",
+    "by": "By",
+    "none": "No documents yet — they appear automatically with the first stock change.",
+    "kind_grn": "Goods receipt",
+    "kind_issue": "Issue",
+    "kind_adjust": "Adjustment",
+    "kind_waste": "Wastage",
+    "store_lines": "General store lines",
+    "vaccine_lines": "Vaccine lines (batches)",
+    "line_value": "Line value",
+    "no_lines": "No lines on this document.",
+    "sig_keeper": "Storekeeper",
+    "sig_recipient": "Recipient"
+  },
+  "suppliers": {
+    "supplier": "Supplier"
   }
 }

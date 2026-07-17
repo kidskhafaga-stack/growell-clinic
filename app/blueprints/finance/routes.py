@@ -399,8 +399,12 @@ def _add_item_from_form(invoice, prefix=""):
 
 def _deduct_service_consumables(item, invoice):
     """Post 'out' stock movements for the consumables a billed service burns
-    (qty × line quantity). Returns the number of items deducted."""
+    (qty × line quantity). Returns the number of items deducted.
+
+    All deductions of one invoice share one numbered issue document (ISS),
+    opened lazily and cached on the invoice object."""
     from app.models import StockMovement
+    from app.utils.store_docs import open_document
     service = item.service if item.service_id else None
     if service is None or not service.consumables:
         return 0
@@ -410,10 +414,14 @@ def _deduct_service_consumables(item, invoice):
         take = (cons.quantity or 1) * line_qty
         if take <= 0 or cons.store_item_id is None:
             continue
+        doc = getattr(invoice, "_iss_doc", None)
+        if doc is None:
+            doc = open_document("issue", reference=invoice.invoice_number)
+            invoice._iss_doc = doc
         db.session.add(StockMovement(
             item_id=cons.store_item_id, kind="out", qty=-abs(take),
             reason=t("services.consumed_by", svc=service.display_name(getattr(g, "lang", "ar"))),
-            created_by=current_user.id,
+            created_by=current_user.id, document_id=doc.id,
         ))
         n += 1
     return n

@@ -35,6 +35,8 @@ TEXT_KEYS = [
     # Document numbering (F1): patient file + invoice/receipt series.
     "patient_number_scheme", "patient_number_prefix", "patient_number_prefix_fixed",
     "invoice_number_prefix", "invoice_number_scheme", "invoice_number_start",
+    # Warehouse documents (W1): yearly (GRN-2026-000001) or continuous series.
+    "store_number_scheme",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize",

@@ -124,7 +124,14 @@ from app.models.message import (
     MessageTemplate,
 )
 from app.models.feedback import FEEDBACK_STATUSES, Feedback
-from app.models.store import MOVEMENT_KINDS, StockMovement, StoreItem
+from app.models.store import (
+    DOC_KINDS,
+    DOC_PREFIXES,
+    MOVEMENT_KINDS,
+    StockMovement,
+    StoreDocument,
+    StoreItem,
+)
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
 from app.models.accounting import (
@@ -247,6 +254,9 @@ __all__ = [
     "DEFAULT_BIRTHDAY_BODY",
     "StoreItem",
     "StockMovement",
+    "StoreDocument",
+    "DOC_KINDS",
+    "DOC_PREFIXES",
     "MOVEMENT_KINDS",
     "PurchaseOrder",
     "PurchaseOrderItem",
