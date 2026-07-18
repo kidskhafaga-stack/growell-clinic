@@ -2851,10 +2851,10 @@
   },
   "compliance": {
     "title": "Immunization compliance",
-    "subtitle": "Up-to-date vs overdue across the children we vaccinate",
-    "empty": "No patients have started doses with us yet.",
+    "subtitle": "Compliance for the optional vaccines the clinic administers (EPI ones are given free at government units)",
+    "empty": "No children have started an optional-vaccine course with us yet.",
     "headline": "{total} children tracked",
-    "headline_hint": "Counts only children who have received at least one dose with us.",
+    "headline_hint": "Covers only the optional vaccines the clinic gives, for children who received at least one dose with us.",
     "tracked": "Tracked",
     "up_to_date": "Up to date",
     "due_soon": "Due soon",
