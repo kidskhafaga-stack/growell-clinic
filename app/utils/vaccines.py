@@ -416,14 +416,20 @@ def patient_due_reminders(patient, lang="ar", today=None):
 
 
 def immunization_compliance(lang="ar", today=None):
-    """Population-level immunization compliance across active patients who have
-    started at least one course *with us* (we never chase vaccines we never
-    gave). Each such patient is classified once — overdue / due-soon / up-to-date
-    — from their plan, plus a per-vaccine coverage tally and the most-overdue
-    patients for follow-up.
+    """Population-level immunization compliance for the vaccines *the clinic
+    actually administers* — the optional (paid) schedule.
 
-    Cost scales with started patients (same as the reminders screen): one plan
-    computation each, no per-dose extra queries.
+    Mandatory EPI vaccines are deliberately excluded: they're given free at
+    government units, so the clinic isn't the one keeping them on schedule and
+    can't be measured on them (same reason the visit panel never suggests them).
+    On-demand vaccines (rabies/travel) are situational, not schedule-based, so
+    they're excluded too.
+
+    Only patients who started at least one *optional* course with us are counted
+    (we never chase a vaccine we never gave). Each is classified once —
+    overdue / due-soon / up-to-date — from their plan, with a per-vaccine
+    coverage tally and the most-overdue patients for follow-up. Cost scales with
+    those patients: one plan computation each.
     """
     today = today or date.today()
     started_ids = {r[0] for r in (
@@ -434,19 +440,25 @@ def immunization_compliance(lang="ar", today=None):
                                      Patient.id.in_(started_ids)).all()
                 if started_ids else [])
 
-    up_to_date = due_soon = overdue = 0
+    total = up_to_date = due_soon = overdue = 0
     per_vaccine = {}          # vaccine_id -> {vaccine, doses, patients, overdue}
     overdue_patients = []
     for p in patients:
         plan = patient_plan(p, lang)
         p_over = p_due = 0
+        has_optional = False
         for v in plan:
+            vac = v["vaccine"]
+            # Only the optional schedule the clinic runs — skip EPI/on-demand.
+            if vac.is_mandatory or vac.on_demand:
+                continue
             given = [d for d in v["doses"] if d["status"] == "done"]
             if not given:
                 continue      # course not started here — ignore
+            has_optional = True
             slot = per_vaccine.setdefault(
-                v["vaccine"].id,
-                {"vaccine": v["vaccine"], "doses": 0, "patients": 0, "overdue": 0})
+                vac.id,
+                {"vaccine": vac, "doses": 0, "patients": 0, "overdue": 0})
             slot["doses"] += len(given)
             slot["patients"] += 1
             if any(d["status"] == "overdue" for d in v["doses"]):
@@ -454,13 +466,16 @@ def immunization_compliance(lang="ar", today=None):
                 p_over += 1
             elif any(d["status"] == "due" for d in v["doses"]):
                 p_due += 1
-            elif v["vaccine"].is_seasonal:
+            elif vac.is_seasonal:
                 # Seasonal course with no pending dose: due again once the
                 # annual recall window has passed since the last dose.
                 last_iso = max((d["given_date"] for d in given
                                 if d["given_date"]), default=None)
                 if last_iso and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS:
                     p_due += 1
+        if not has_optional:
+            continue          # no optional course with us — not our compliance
+        total += 1
         if p_over:
             overdue += 1
             overdue_patients.append({"patient": p, "overdue": p_over})
@@ -469,7 +484,6 @@ def immunization_compliance(lang="ar", today=None):
         else:
             up_to_date += 1
 
-    total = len(patients)
     overdue_patients.sort(key=lambda r: -r["overdue"])
     per_vaccine_rows = sorted(per_vaccine.values(), key=lambda r: -r["doses"])
     return {
