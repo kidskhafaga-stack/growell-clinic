@@ -640,7 +640,17 @@
     "station_empty": "لا يوجد مرضى في الانتظار الآن.",
     "station_save": "حفظ العلامات",
     "station_recorded": "تم التسجيل",
-    "station_saved": "تم حفظ علامات {name} الحيوية."
+    "station_saved": "تم حفظ علامات {name} الحيوية.",
+    "ai_summary_btn": "توليد ملخص الزيارة (AI)",
+    "ai_thinking": "جاري التوليد…",
+    "ai_hint": "مسودة يراجعها الطبيب قبل الحفظ.",
+    "ai_a_child": "طفل",
+    "ai_insert_notes": "إدراج في الملاحظات",
+    "ai_regenerate": "إعادة التوليد",
+    "ai_not_configured": "المساعد الذكي غير مُهيّأ.",
+    "ai_configure": "تهيئة الآن",
+    "ai_empty": "لا توجد بيانات كافية في الزيارة للتلخيص.",
+    "ai_error": "تعذّر توليد الملخص."
   },
   "diagnosis_types": {
     "working": "أولي",
