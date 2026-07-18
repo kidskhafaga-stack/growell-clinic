@@ -1,0 +1,72 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('perms.title') }}{% endblock %}
+{% block page_heading %}{{ t('perms.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-shield-check"></i> {{ t('perms.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('perms.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.roles') }}"><i class="bi bi-shield-lock"></i> {{ t('roles_mgmt.manage') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}"><i class="bi bi-people"></i> {{ t('users.title') }}</a>
+  </div>
+</div>
+
+<div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('perms.hint') }}</div>
+
+<!-- Module access matrix -->
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;margin-bottom:16px;">
+  <table class="table" style="min-width:640px;">
+    <thead><tr>
+      <th style="position:sticky;{{ 'right' if direction=='rtl' else 'left' }}:0;background:var(--surface,#fff);">{{ t('perms.module') }}</th>
+      {% for r in roles %}
+      <th style="text-align:center;">{{ r.label(current_lang) }}
+        <div style="font-weight:400;color:var(--muted);font-size:0.72rem;">
+          {{ user_counts.get(r.name, 0) }} {{ t('perms.users_short') }}</div></th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+      {% for m in modules %}
+      <tr>
+        <td style="position:sticky;{{ 'right' if direction=='rtl' else 'left' }}:0;background:var(--surface,#fff);white-space:nowrap;">
+          <i class="bi bi-{{ module_icons.get(m, 'dot') }}"></i> {{ t('nav.' ~ m) }}</td>
+        {% for r in roles %}
+        <td style="text-align:center;">
+          {% if access[m][r.id] %}<i class="bi bi-check-lg" style="color:var(--green-600);"></i>
+          {% else %}<span style="color:var(--line);">·</span>{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Sensitive capabilities matrix -->
+<div class="card gc-scale-in" style="padding:0;overflow-x:auto;">
+  <h2 style="margin:0;font-size:1.05rem;padding:16px 16px 0;"><i class="bi bi-key"></i> {{ t('perms.capabilities') }}</h2>
+  <p class="page-sub" style="padding:0 16px;margin:4px 0 0;">{{ t('perms.capabilities_hint') }}</p>
+  <table class="table" style="min-width:640px;margin-top:10px;">
+    <thead><tr>
+      <th style="position:sticky;{{ 'right' if direction=='rtl' else 'left' }}:0;background:var(--surface,#fff);">{{ t('perms.capability') }}</th>
+      {% for r in roles %}<th style="text-align:center;">{{ r.label(current_lang) }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+      {% for c in capabilities %}
+      <tr>
+        <td style="position:sticky;{{ 'right' if direction=='rtl' else 'left' }}:0;background:var(--surface,#fff);white-space:nowrap;">{{ t('cap.' ~ c) }}</td>
+        {% for r in roles %}
+        <td style="text-align:center;">
+          {% if caps[c][r.id] %}<i class="bi bi-check-lg" style="color:var(--green-600);"></i>
+          {% else %}<span style="color:var(--line);">·</span>{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
