@@ -1,0 +1,109 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('archive.title') }}{% endblock %}
+{% block page_heading %}{{ t('archive.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-archive"></i> {{ t('archive.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('archive.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-people"></i> {{ t('nav.patients') }}</a>
+</div>
+
+<!-- Active / inactive analytics -->
+<div class="grid grid--cards gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ stats.total }}">0</div><div class="label">{{ t('archive.total') }}</div></div>
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ stats.active }}" style="color:var(--green-600);">0</div><div class="label">{{ t('archive.active') }}</div></div>
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ stats.archived }}" style="color:var(--muted);">0</div><div class="label">{{ t('archive.archived') }}</div></div>
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ stats.candidates }}" style="color:var(--danger);">0</div><div class="label">{{ t('archive.candidates_label') }}</div></div>
+</div>
+
+<!-- Policy -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 style="margin-top:0;font-size:1.05rem;"><i class="bi bi-gear"></i> {{ t('archive.policy') }}</h2>
+  <form method="post" action="{{ url_for('patients.archive_settings') }}"
+        style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('archive.years_label') }}</label>
+      <input class="input" type="number" name="years" min="1" max="20" value="{{ years }}" style="width:120px;">
+    </div>
+    <label class="checkbox" style="font-weight:400;margin-bottom:10px;">
+      <input type="checkbox" name="auto_enabled" value="1" {{ 'checked' if auto_enabled else '' }}>
+      {{ t('archive.auto_enable') }}</label>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  <p class="info-note" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('archive.policy_hint', years=years) }}</p>
+</div>
+
+<!-- Candidates (due for archiving) -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 style="margin:0;font-size:1.05rem;"><i class="bi bi-hourglass-split"></i> {{ t('archive.candidates_title') }}
+      <span class="badge badge--muted">{{ candidates|length }}</span></h2>
+    {% if candidates %}
+    <form method="post" action="{{ url_for('patients.archive_run') }}"
+          onsubmit="return confirm('{{ t('archive.confirm_sweep', n=candidates|length) }}');">
+      <button class="btn btn-danger gc-press gc-ripple" type="submit"><i class="bi bi-archive"></i> {{ t('archive.run_now') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if candidates %}
+  <table class="table" style="margin-top:12px;">
+    <thead><tr>
+      <th>{{ t('patients.file_no') }}</th><th>{{ t('patients.name') }}</th>
+      <th>{{ t('archive.last_activity') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for p, last in candidates %}
+      <tr>
+        <td>{{ p.patient_number }}</td>
+        <td><a href="{{ url_for('patients.view', patient_id=p.id) }}">{{ p.display_name(current_lang) }}</a></td>
+        <td dir="ltr">{{ last }} <span style="color:var(--muted);">· {{ (today - last).days // 365 }}{{ t('common.year_short') }}</span></td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('patients.archive_one', patient_id=p.id) }}" style="display:inline;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="placeholder-soft" style="margin:10px 0 0;">{{ t('archive.no_candidates') }}</p>
+  {% endif %}
+</div>
+
+<!-- Archived files (restore) -->
+<div class="card gc-scale-in">
+  <h2 style="margin-top:0;font-size:1.05rem;"><i class="bi bi-box-seam"></i> {{ t('archive.archived_title') }}
+    <span class="badge badge--muted">{{ stats.archived }}</span></h2>
+  {% if archived %}
+  <table class="table" style="margin-top:12px;">
+    <thead><tr>
+      <th>{{ t('patients.file_no') }}</th><th>{{ t('patients.name') }}</th>
+      <th>{{ t('archive.archived_at') }}</th><th>{{ t('archive.reason') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for p in archived %}
+      <tr>
+        <td>{{ p.patient_number }}</td>
+        <td><a href="{{ url_for('patients.view', patient_id=p.id) }}">{{ p.display_name(current_lang) }}</a></td>
+        <td dir="ltr">{{ p.archived_at.strftime('%Y-%m-%d') if p.archived_at else '—' }}</td>
+        <td>{% if p.archive_reason %}<span class="badge {{ 'badge--role' if p.archive_reason == 'auto' else 'badge--muted' }}">{{ t('archive.reason_' ~ p.archive_reason) }}</span>{% else %}—{% endif %}</td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('patients.restore_one', patient_id=p.id) }}" style="display:inline;">
+            <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('archive.restore_btn') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="placeholder-soft" style="margin:10px 0 0;">{{ t('archive.none_archived') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

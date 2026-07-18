@@ -81,6 +81,18 @@
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
         <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
       {% endif %}
+      {% if patient.is_active %}
+      <form method="post" action="{{ url_for('patients.archive_one', patient_id=patient.id) }}"
+            onsubmit="return confirm('{{ t('archive.confirm_one') }}');">
+        <button class="btn btn-outline btn-sm gc-press" type="submit" style="width:100%;">
+          <i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('patients.restore_one', patient_id=patient.id) }}">
+        <button class="btn btn-primary btn-sm gc-press" type="submit" style="width:100%;">
+          <i class="bi bi-arrow-counterclockwise"></i> {{ t('archive.restore_btn') }}</button>
+      </form>
+      {% endif %}
       <form method="post" action="{{ url_for('patients.delete', patient_id=patient.id) }}"
             onsubmit="return confirm('{{ t('common.confirm') }}?');">
         <button class="btn btn-danger btn-sm gc-press" type="submit" style="width:100%;">
