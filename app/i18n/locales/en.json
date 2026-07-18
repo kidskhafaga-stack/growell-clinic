@@ -1868,7 +1868,11 @@
     "vac_dose_of": "Dose {n} of {total}",
     "vac_next_dose": "Next dose: {n}",
     "vac_next_seasonal": "Next dose: seasonal",
-    "vac_next_none": "Next dose: none — course complete"
+    "vac_next_none": "Next dose: none — course complete",
+    "interactions_title": "Drug interaction warning",
+    "sev_severe": "Severe",
+    "sev_moderate": "Moderate",
+    "sev_mild": "Mild"
   },
   "drug_forms": {
     "tablet": "Tablet",

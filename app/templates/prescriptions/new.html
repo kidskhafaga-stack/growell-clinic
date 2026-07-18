@@ -75,9 +75,24 @@
 
   <div class="card gc-scale-in" style="animation-delay:0.06s;">
     <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('rx.items') }}</h2>
+    <!-- Live drug-interaction warnings -->
+    <template x-if="interactions.length">
+      <div style="margin-bottom:12px;border:1px solid #f0b8b8;border-radius:10px;overflow:hidden;">
+        <div style="background:#fdf2f2;color:#9a1c1c;padding:8px 12px;font-weight:700;">
+          <i class="bi bi-exclamation-triangle-fill"></i> {{ t('rx.interactions_title') }}</div>
+        <template x-for="(w, wi) in interactions" :key="wi">
+          <div style="display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #f6dede;">
+            <span class="badge" x-bind:style="w.severity==='severe' ? 'background:#dc2626;color:#fff' : (w.severity==='moderate' ? 'background:#d97706;color:#fff' : 'background:#eab308;color:#fff')"
+                  x-text="w.severity==='severe' ? '{{ t('rx.sev_severe') }}' : (w.severity==='moderate' ? '{{ t('rx.sev_moderate') }}' : '{{ t('rx.sev_mild') }}')"></span>
+            <strong x-text="w.a + ' + ' + w.b"></strong>
+            <span style="color:var(--muted);" x-text="'— ' + w.note"></span>
+          </div>
+        </template>
+      </div>
+    </template>
     <template x-for="(line, i) in lines" :key="i">
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
-        <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="lines.splice(i,1)"><i class="bi bi-x-lg"></i></button>
+        <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="removeLine(i)"><i class="bi bi-x-lg"></i></button>
         <input type="hidden" name="item_drug_id" :value="line.drug_id">
         <div class="form-row" style="position:relative;">
           <label>{{ t('rx.drug') }}</label>
@@ -168,6 +183,15 @@ window.current_lang = "{{ current_lang }}";
 function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs){
   return {
     lines: [],
+    interactions: [],
+    async checkInteractions(){
+      const ids = this.lines.map(l => l.drug_id).filter(Boolean);
+      if(ids.length < 2){ this.interactions = []; return; }
+      try{
+        const r = await fetch("{{ url_for('prescriptions.interactions_check') }}?ids=" + ids.join(','));
+        this.interactions = (await r.json()).warnings || [];
+      }catch(e){ this.interactions = []; }
+    },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
               notes: x.notes || '', suggestions: [], open: false};
@@ -238,7 +262,9 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs){
       if(w>0 && l.dosePerKg){ this.computeLine(l, true); }
       else if(!l.dose){ l.dose=s.dose; }
       l.open=false; l.suggestions=[];
-    }
+      this.checkInteractions();
+    },
+    removeLine(i){ this.lines.splice(i,1); this.checkInteractions(); }
   };
 }
 </script>

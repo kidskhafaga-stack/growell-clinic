@@ -1868,7 +1868,11 @@
     "vac_dose_of": "الجرعة {n} من {total}",
     "vac_next_dose": "الجرعة القادمة: {n}",
     "vac_next_seasonal": "الجرعة القادمة: موسمي",
-    "vac_next_none": "الجرعة القادمة: لا يوجد — اكتمل الجدول"
+    "vac_next_none": "الجرعة القادمة: لا يوجد — اكتمل الجدول",
+    "interactions_title": "تحذير تعارض دوائي",
+    "sev_severe": "شديد",
+    "sev_moderate": "متوسط",
+    "sev_mild": "خفيف"
   },
   "drug_forms": {
     "tablet": "أقراص",

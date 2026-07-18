@@ -29,14 +29,41 @@ MODULE = "prescriptions"
 
 
 def interaction_warnings(drug_ids):
-    """Return interaction rows among the given drug ids."""
-    ids = [i for i in drug_ids if i]
+    """Interaction rows among the given drug ids — matched by GENERIC so every
+    brand of an interacting generic is caught (not just the seeded pair)."""
+    ids = [int(i) for i in drug_ids if i]
     if len(ids) < 2:
         return []
-    rows = DrugInteraction.query.filter(
-        DrugInteraction.drug_a_id.in_(ids), DrugInteraction.drug_b_id.in_(ids)
-    ).all()
-    return rows
+    drugs = Drug.query.filter(Drug.id.in_(ids)).all()
+    generics = {(d.generic_name or "").strip() for d in drugs if d.generic_name}
+    if len(generics) < 2:
+        return []
+    out, seen = [], set()
+    for r in DrugInteraction.query.all():
+        ga = (r.drug_a.generic_name or "").strip() if r.drug_a else ""
+        gb = (r.drug_b.generic_name or "").strip() if r.drug_b else ""
+        if ga and gb and ga != gb and ga in generics and gb in generics:
+            key = tuple(sorted((ga, gb)))
+            if key not in seen:
+                seen.add(key)
+                out.append(r)
+    return out
+
+
+@prescriptions_bp.route("/interactions/check")
+@module_required(MODULE)
+def interactions_check():
+    """JSON: live interaction warnings for a set of drug ids (rx builder)."""
+    raw = (request.args.get("ids") or "").split(",")
+    ids = [int(x) for x in raw if x.strip().isdigit()]
+    lang = getattr(g, "lang", "ar")
+    warnings = [{
+        "a": w.drug_a.trade_name if w.drug_a else "",
+        "b": w.drug_b.trade_name if w.drug_b else "",
+        "severity": w.severity or "moderate",
+        "note": w.note or "",
+    } for w in interaction_warnings(ids)]
+    return jsonify({"warnings": warnings})
 
 
 @prescriptions_bp.route("/")
