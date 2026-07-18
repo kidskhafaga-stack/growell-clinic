@@ -5,6 +5,39 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models import Feedback
 
+# The survey's built-in questions, in display order. The wording and visibility
+# of each are editable from the survey builder (stored in Settings); the data
+# columns on ``Feedback`` stay fixed so the analytics keep working.
+SURVEY_QUESTIONS = ["doctor", "service", "nps", "comment"]
+
+
+def survey_config(lang="ar"):
+    """The survey as the clinic has customised it: per-question label + whether
+    it's shown, plus the intro title and thank-you line. Any field left blank in
+    Settings falls back to the built-in translated default, so an untouched
+    clinic still gets a complete, sensible survey."""
+    from app.i18n import t
+    from app.models import Setting
+
+    def _text(key, default):
+        return (Setting.get(f"{key}_{lang}") or "").strip() or default
+
+    def _shown(key):
+        return Setting.get(f"survey_show_{key}", "1") != "0"
+
+    defaults = {
+        "doctor": t("feedback.q_doctor"), "service": t("feedback.q_service"),
+        "nps": t("feedback.q_nps"), "comment": t("feedback.q_comment"),
+    }
+    return {
+        "intro": _text("survey_intro", t("feedback.title")),
+        "thanks": _text("survey_thanks", t("feedback.thanks_hint")),
+        "questions": {
+            q: {"label": _text(f"survey_q_{q}", defaults[q]), "show": _shown(q)}
+            for q in SURVEY_QUESTIONS
+        },
+    }
+
 
 def doctor_ratings():
     """``{doctor_id: {"avg": float, "count": int}}`` over submitted ratings."""

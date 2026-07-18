@@ -232,6 +232,38 @@ def satisfaction():
                            leaderboard=leaderboard)
 
 
+@messages_bp.route("/survey", methods=["GET", "POST"])
+@admin_required
+def survey_builder():
+    """Customise the public satisfaction survey: reword or hide each built-in
+    question and edit the intro / thank-you text, per language. Stored in
+    Settings; the data columns stay fixed so analytics are unaffected."""
+    from app.utils.feedback import SURVEY_QUESTIONS
+
+    langs = ("ar", "en")
+    if request.method == "POST":
+        for q in SURVEY_QUESTIONS:
+            Setting.set(f"survey_show_{q}", "1" if request.form.get(f"show_{q}") else "0")
+            for lang in langs:
+                Setting.set(f"survey_q_{q}_{lang}",
+                            (request.form.get(f"q_{q}_{lang}") or "").strip())
+        for base in ("survey_intro", "survey_thanks"):
+            for lang in langs:
+                Setting.set(f"{base}_{lang}",
+                            (request.form.get(f"{base}_{lang}") or "").strip())
+        db.session.commit()
+        flash(t("survey.saved"), "success")
+        return redirect(url_for("messages.survey_builder"))
+
+    from app.utils.feedback import survey_config
+    return render_template(
+        "messages/survey_builder.html",
+        cfg={lang: survey_config(lang) for lang in langs},
+        questions=SURVEY_QUESTIONS,
+        values={s.key: s.value for s in Setting.query.filter(
+            Setting.key.like("survey_%")).all()})
+
+
 @messages_bp.route("/send-due", methods=["POST"])
 @module_required(MODULE)
 def send_due():

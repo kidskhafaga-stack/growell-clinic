@@ -35,9 +35,10 @@ def rate(token):
     if fb is None:
         return render_template("feedback/rate.html", fb=None,
                                clinic=_clinic_name(lang)), 404
+    from app.utils.feedback import survey_config
     return render_template(
         "feedback/rate.html", fb=fb, clinic=_clinic_name(lang),
-        done=(fb.status == "submitted"),
+        done=(fb.status == "submitted"), survey=survey_config(lang),
         doctor_name=fb.doctor.display_name(lang) if fb.doctor else None,
         patient_name=fb.patient.display_name(lang) if fb.patient else None,
     )

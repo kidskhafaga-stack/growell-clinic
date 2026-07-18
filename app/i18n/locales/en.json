@@ -2298,7 +2298,8 @@
     "delay_days": "Send after (days)",
     "delay_hours": "+ hours",
     "send_hour": "Send hour (0–23)",
-    "schedule_hint": "e.g. feedback 1 day after the visit → days=1. Birthday at 10:00 → send hour=10. Leave blank = send as soon as due."
+    "schedule_hint": "e.g. feedback 1 day after the visit → days=1. Birthday at 10:00 → send hour=10. Leave blank = send as soon as due.",
+    "satisfaction": "Patient satisfaction"
   },
   "notif": {
     "title": "Notifications",
@@ -2897,5 +2898,26 @@
     "patient_medical": "View full medical file",
     "cashier": "Collect payments",
     "finance_manage": "Full finance management"
+  },
+  "survey": {
+    "title": "Survey builder",
+    "subtitle": "Reword or hide the patient-satisfaction questions — in both languages",
+    "hint": "These are the standard survey questions. You can reword or hide them; the analytics (doctor / service / NPS) keep working unchanged.",
+    "texts": "General texts",
+    "intro": "Survey heading",
+    "thanks": "Thank-you message",
+    "questions": "Questions",
+    "show": "Show",
+    "wording": "Wording",
+    "blank_hint": "Leave a field blank to use the built-in translated default.",
+    "saved": "Survey saved.",
+    "q_doctor": "Doctor rating",
+    "q_service": "Service rating",
+    "q_nps": "Recommendation (NPS)",
+    "q_comment": "Comment",
+    "type_doctor": "1–5 stars",
+    "type_service": "1–5 stars",
+    "type_nps": "0–10",
+    "type_comment": "Free text"
   }
 }

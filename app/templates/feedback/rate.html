@@ -63,7 +63,7 @@
       <div class="thanks">
         <div class="big">🌟</div>
         <h1 style="margin:8px 0 4px;">{{ t('feedback.thanks_title') }}</h1>
-        <p style="color:#6c7a89;margin:0 0 14px;">{{ t('feedback.thanks_hint') }}</p>
+        <p style="color:#6c7a89;margin:0 0 14px;">{{ survey.thanks if survey else t('feedback.thanks_hint') }}</p>
         <div style="text-align:start;">
           {% if fb.doctor_rating %}<div class="ro-row"><span class="k">{{ t('feedback.q_doctor') }}{% if doctor_name %} — {{ doctor_name }}{% endif %}</span>
             <span style="color:#f5b301;">{{ '★' * fb.doctor_rating }}{{ '☆' * (5 - fb.doctor_rating) }}</span></div>{% endif %}
@@ -75,28 +75,33 @@
     {% else %}
       <div class="fb-head">
         <div class="fb-badge">💬</div>
-        <h1>{{ t('feedback.title') }}</h1>
+        <h1>{{ survey.intro if survey else t('feedback.title') }}</h1>
         <p>{{ clinic }}{% if patient_name %} · {{ patient_name }}{% endif %}</p>
       </div>
       <form method="post" action="{{ url_for('feedback.submit', token=fb.token) }}">
+        {% if survey.questions.doctor.show %}
         <div class="q">
-          <label class="qlab">{{ t('feedback.q_doctor') }}{% if doctor_name %} <span class="sub">— {{ doctor_name }}</span>{% endif %}</label>
+          <label class="qlab">{{ survey.questions.doctor.label }}{% if doctor_name %} <span class="sub">— {{ doctor_name }}</span>{% endif %}</label>
           <div class="rate">
             {% for i in [5,4,3,2,1] %}
             <input type="radio" id="d{{ i }}" name="doctor_rating" value="{{ i }}"><label for="d{{ i }}" title="{{ i }}">★</label>
             {% endfor %}
           </div>
         </div>
+        {% endif %}
+        {% if survey.questions.service.show %}
         <div class="q">
-          <label class="qlab">{{ t('feedback.q_service') }}</label>
+          <label class="qlab">{{ survey.questions.service.label }}</label>
           <div class="rate">
             {% for i in [5,4,3,2,1] %}
             <input type="radio" id="s{{ i }}" name="service_rating" value="{{ i }}"><label for="s{{ i }}" title="{{ i }}">★</label>
             {% endfor %}
           </div>
         </div>
+        {% endif %}
+        {% if survey.questions.nps.show %}
         <div class="q">
-          <label class="qlab">{{ t('feedback.q_nps') }} <span class="sub">{{ t('feedback.q_nps_sub') }}</span></label>
+          <label class="qlab">{{ survey.questions.nps.label }} <span class="sub">{{ t('feedback.q_nps_sub') }}</span></label>
           <div class="nps">
             {% for i in range(0, 11) %}
             <input type="radio" id="n{{ i }}" name="nps" value="{{ i }}"><label for="n{{ i }}">{{ i }}</label>
@@ -104,10 +109,13 @@
           </div>
           <div class="nps-ends"><span>{{ t('feedback.nps_low') }}</span><span>{{ t('feedback.nps_high') }}</span></div>
         </div>
+        {% endif %}
+        {% if survey.questions.comment.show %}
         <div class="q">
-          <label class="qlab">{{ t('feedback.q_comment') }} <span class="sub">{{ t('feedback.optional') }}</span></label>
+          <label class="qlab">{{ survey.questions.comment.label }} <span class="sub">{{ t('feedback.optional') }}</span></label>
           <textarea class="fb-comment" name="comment" dir="auto" placeholder="{{ t('feedback.comment_ph') }}"></textarea>
         </div>
+        {% endif %}
         <button class="fb-btn" type="submit">{{ t('feedback.submit') }}</button>
         <p class="fb-note">{{ t('feedback.privacy') }}</p>
       </form>
