@@ -4,11 +4,91 @@
 {% block page_heading %}{{ t('dashboard.title') }}{% endblock %}
 
 {% block content %}
-<h1 class="page-title gc-animate">{{ t('dashboard.welcome_message') }}</h1>
+<h1 class="page-title gc-animate">{{ t('dashboard.greet_' ~ greeting) }}، {{ current_user.doctor_print_name(current_lang) if (current_user.role == 'doctor' or current_user.is_practitioner) else current_user.display_name(current_lang) }} 👋</h1>
 <p class="page-sub gc-animate" style="animation-delay:0.06s;">
-  {{ t('common.welcome') }}، {{ current_user.display_name(current_lang) }}
-  · {{ t('dashboard.your_role') }}: <span class="badge badge--role">{{ t('roles.' ~ current_user.role) }}</span>
+  {{ t('common.welcome') }} · {{ t('dashboard.your_role') }}: <span class="badge badge--role">{{ t('roles.' ~ current_user.role) }}</span>
 </p>
+
+{% if home is defined %}
+{# ---------------- Doctor home: live queue + booking control ---------------- #}
+<div class="card gc-scale-in" style="animation-delay:0.10s;"
+     x-data="doctorHome('{{ url_for('appointments.poll', doctor_id=current_user.id) }}')">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <h2 style="margin:0;font-size:1.1rem;"><i class="bi bi-clipboard2-pulse"></i> {{ t('dashboard.today_clinic') }}</h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      {# Booking open / stop toggle #}
+      <form method="post" action="{{ url_for('appointments.toggle_booking') }}" style="margin:0;">
+        {% if booking_open %}
+        <button class="btn btn-outline btn-sm gc-press" type="submit" title="{{ t('appointments.booking_pause') }}">
+          <span class="dot-live" style="background:var(--green-600);"></span> {{ t('appointments.booking_on') }}</button>
+        {% else %}
+        <button class="btn btn-danger btn-sm gc-press" type="submit" title="{{ t('appointments.booking_resume') }}">
+          <span class="dot-live" style="background:#fff;"></span> {{ t('appointments.booking_off') }}</button>
+        {% endif %}
+      </form>
+      <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('appointments.index', doctor_id=current_user.id) }}">
+        <i class="bi bi-calendar2-week"></i> {{ t('dashboard.open_board') }}</a>
+    </div>
+  </div>
+
+  {% if not booking_open %}
+  <div class="info-note" style="margin-top:12px;border-color:var(--danger);color:var(--danger);">
+    <i class="bi bi-pause-circle"></i> {{ t('appointments.booking_closed_banner') }}</div>
+  {% endif %}
+
+  {# Stat chips #}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+    <span class="stat-chip"><strong>{{ home.counts.waiting }}</strong> {{ t('appointments.stat_waiting') }}</span>
+    <span class="stat-chip"><strong>{{ home.counts.in_progress }}</strong> {{ t('appointments.stat_in_progress') }}</span>
+    <span class="stat-chip"><strong>{{ home.counts.completed }}</strong> {{ t('appointments.stat_done') }}</span>
+    <span class="stat-chip"><strong>{{ home.counts.total }}</strong> {{ t('appointments.stat_total') }}</span>
+  </div>
+
+  {# Currently in the room #}
+  {% if home.current %}
+  <div class="queue-row queue-row--current" style="margin-top:14px;">
+    <span class="status-badge st-in_progress">{{ t('statuses.in_progress') }}</span>
+    <span style="flex:1;">
+      <strong>{{ home.current.patient.full_name if home.current.patient else '—' }}</strong>
+      <span style="color:var(--muted);">· {{ home.current.appt_time.strftime('%H:%M') }}</span>
+    </span>
+    <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=home.current.patient_id, appointment_id=home.current.id) }}">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('visits.record_visit') }}</a>
+    <form method="post" action="{{ url_for('appointments.change_status', appt_id=home.current.id) }}" style="margin:0;">
+      <input type="hidden" name="status" value="completed">
+      <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('appointments.complete') }}</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {# The waiting / expected queue #}
+  <div style="margin-top:14px;">
+    <div class="section-title" style="font-size:0.9rem;margin-bottom:8px;">{{ t('dashboard.up_next') }}</div>
+    {% for a in home.queue %}
+    <div class="queue-row">
+      <span class="status-badge st-{{ a.status }}">{{ t('statuses.' ~ a.status) }}</span>
+      <span style="flex:1;min-width:0;">
+        <strong>{{ a.patient.full_name if a.patient else '—' }}</strong>
+        <span style="color:var(--muted);">· {{ a.appt_time.strftime('%H:%M') }}{% if a.reason %} · {{ a.reason }}{% endif %}</span>
+      </span>
+      {% if a.status == 'scheduled' %}
+      <form method="post" action="{{ url_for('appointments.change_status', appt_id=a.id) }}" style="margin:0;">
+        <input type="hidden" name="status" value="waiting">
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-megaphone"></i> {{ t('appointments.call_in') }}</button>
+      </form>
+      {% elif a.status == 'waiting' %}
+      <form method="post" action="{{ url_for('appointments.change_status', appt_id=a.id) }}" style="margin:0;">
+        <input type="hidden" name="status" value="in_progress">
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-play-circle"></i> {{ t('appointments.start_exam') }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="placeholder-soft" style="margin:6px 0;">{{ t('dashboard.queue_empty') }}</p>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 {% if current_user.can_access('patients') %}
 <a class="card gc-scale-in gc-lift" href="{{ url_for('patients.analytics') }}"
@@ -36,4 +116,43 @@
     {% endfor %}
   </div>
 </div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .stat-chip { background:var(--surface-2,var(--green-050)); border:1px solid var(--border); border-radius:999px;
+               padding:6px 14px; font-size:0.9rem; color:var(--muted); }
+  .stat-chip strong { color:var(--text); font-size:1.05rem; margin-inline-end:4px; }
+  .queue-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border);
+               border-radius:12px; margin-bottom:8px; flex-wrap:wrap; }
+  .queue-row--current { border-color:var(--green-600); background:var(--green-050); }
+  .dot-live { display:inline-block; width:8px; height:8px; border-radius:50%; margin-inline-end:5px; vertical-align:middle;
+              animation:pulseLive 1.6s ease-in-out infinite; }
+  @keyframes pulseLive { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Lightweight live refresh: poll the board fingerprint; reload the home panel
+  // only when the queue actually changes (idle polling is essentially free).
+  function doctorHome(pollUrl) {
+    return {
+      fp: null,
+      init() {
+        this.tick();
+        this._timer = setInterval(() => this.tick(), 15000);
+      },
+      async tick() {
+        try {
+          const r = await fetch(pollUrl, { headers: { 'X-Requested-With': 'fetch' } });
+          if (!r.ok) return;
+          const data = await r.json();
+          if (this.fp === null) { this.fp = data.fp; return; }
+          if (data.fp !== this.fp) { this.fp = data.fp; window.location.reload(); }
+        } catch (e) { /* transient network error — try again next tick */ }
+      },
+    };
+  }
+</script>
 {% endblock %}

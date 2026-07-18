@@ -46,12 +46,59 @@ def _age_group(days):
     return "over"
 
 
+def _greeting_key(hour):
+    """Time-of-day greeting bucket (local server time)."""
+    if hour < 12:
+        return "morning"
+    if hour < 17:
+        return "afternoon"
+    return "evening"
+
+
+def _doctor_home(user):
+    """Live queue snapshot for a doctor's personalised home panel: today's
+    waiting / in-progress / scheduled patients for this doctor, ordered by time,
+    plus counts and the patient currently in the room. Cheap — one indexed query
+    over today's appointments for this doctor."""
+    from datetime import datetime as _dt
+
+    from app.models import Appointment
+
+    today = _dt.now().date()
+    appts = (Appointment.query
+             .filter(Appointment.appt_date == today,
+                     Appointment.doctor_id == user.id)
+             .order_by(Appointment.appt_time)
+             .all())
+    counts = {
+        "waiting": sum(1 for a in appts if a.status == "waiting"),
+        "scheduled": sum(1 for a in appts if a.status == "scheduled"),
+        "in_progress": sum(1 for a in appts if a.status == "in_progress"),
+        "completed": sum(1 for a in appts if a.status == "completed"),
+        "total": len(appts),
+    }
+    current = next((a for a in appts if a.status == "in_progress"), None)
+    # The live queue: who is checked in and who is still expected (not the ones
+    # already seen / cancelled / no-show), most-imminent first.
+    queue = [a for a in appts if a.status in ("waiting", "scheduled")]
+    return {"queue": queue, "current": current, "counts": counts, "date": today}
+
+
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
     # Patient classification now lives on the dedicated analytics page
     # (patients.analytics), linked from here.
-    return render_template("main/dashboard.html")
+    from datetime import datetime as _dt
+
+    from app.models import Setting
+
+    ctx = {"greeting": _greeting_key(_dt.now().hour)}
+    # Doctors (and practitioners standing in as one) get a live home panel.
+    if current_user.role == "doctor" or getattr(current_user, "is_practitioner", False):
+        ctx["home"] = _doctor_home(current_user)
+        ctx["booking_open"] = Setting.get("clinic_booking_open", "1") != "0"
+    return render_template("main/dashboard.html", **ctx)
 
 
 @main_bp.route("/guide")
