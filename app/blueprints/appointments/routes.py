@@ -289,12 +289,39 @@ def _current_summary(patient):
 
 
 # -------------------------------------------------------- booking ----------
+@appointments_bp.route("/toggle-booking", methods=["POST"])
+@module_required(MODULE)
+def toggle_booking():
+    """Pause / resume accepting new bookings from the clinic (doctor's home).
+
+    A simple clinic-wide gate the doctor flips when the day is full or they're
+    stepping out; reception sees a clear banner and can't create appointments
+    while it's paused (an admin can still override in an emergency)."""
+    now_open = Setting.get("clinic_booking_open", "1") != "0"
+    Setting.set("clinic_booking_open", "0" if now_open else "1")
+    ActivityLog.record(
+        "appointment.booking_toggle", user_id=current_user.id,
+        entity="setting", detail=("closed" if now_open else "open"),
+        ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("appointments.booking_paused" if now_open else "appointments.booking_resumed"),
+          "info" if now_open else "success")
+    return redirect(request.referrer or url_for("main.dashboard"))
+
+
 @appointments_bp.route("/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def create():
     doctors = list_doctors()
+    booking_open = Setting.get("clinic_booking_open", "1") != "0"
 
     if request.method == "POST":
+        # Booking gate: when a doctor has paused clinic bookings, only an admin
+        # may still push one through (emergency add); everyone else is stopped.
+        if not booking_open and not current_user.is_admin:
+            flash(t("appointments.booking_closed_msg"), "warning")
+            return redirect(url_for("appointments.create"))
         patient_id = request.form.get("patient_id", type=int)
         doctor_id = request.form.get("doctor_id", type=int)
         on_date = parse_date_arg(request.form.get("appt_date"), default=None)
@@ -370,6 +397,7 @@ def create():
         appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
         doctor_options=_doctor_options(doctors),
         services=_bookable_services(),
+        booking_open=booking_open,
     )
 
 

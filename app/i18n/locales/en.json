@@ -43,7 +43,9 @@
     "notes": "Notes",
     "enable": "Enable",
     "disable": "Disable",
-    "saved": "Saved."
+    "saved": "Saved.",
+    "year_short": "y",
+    "month_short": "m"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -91,7 +93,15 @@
     "phase_notice": "System under development — Phase 1: Foundation (database, i18n, login, permissions)",
     "your_role": "Your role",
     "your_modules": "Your available modules",
-    "quick_links": "Quick links"
+    "quick_links": "Quick links",
+    "greet_morning": "Good morning",
+    "greet_afternoon": "Good afternoon",
+    "greet_evening": "Good evening",
+    "today_clinic": "Today's clinic",
+    "open_board": "Open today's board",
+    "up_next": "Up next",
+    "queue_empty": "No patients waiting right now.",
+    "vitals_station": "Nurse station"
   },
   "users": {
     "title": "User Management",
@@ -456,7 +466,16 @@
     "no_doctor_found": "No doctor with that name",
     "extra_services": "Extra services (optional)",
     "extra_services_hint": "These services are added automatically to the checkout alongside the visit charge.",
-    "own_board_only": "Your board only — doctor privacy policy is on"
+    "own_board_only": "Your board only — doctor privacy policy is on",
+    "booking_on": "Booking open",
+    "booking_off": "Booking paused",
+    "booking_pause": "Pause accepting bookings",
+    "booking_resume": "Resume accepting bookings",
+    "booking_paused": "New bookings are now paused.",
+    "booking_resumed": "Bookings resumed.",
+    "booking_closed_banner": "Booking is paused — reception cannot add new appointments until it resumes.",
+    "booking_closed_msg": "Booking is currently paused. Ask the doctor to resume it, or use admin override.",
+    "booking_admin_override": "As an admin you can override and still book."
   },
   "appt_types": {
     "new": "New visit",
@@ -612,7 +631,13 @@
     "vac_plan_bad": "Pick a valid date for the dose.",
     "vac_plan_save": "Save date",
     "vac_planned_hint": "Date set by the doctor (overrides the computed schedule)",
-    "vac_print_plan": "Print vaccination plan"
+    "vac_print_plan": "Print vaccination plan",
+    "station_title": "Vitals station",
+    "station_subtitle": "Record vitals for waiting patients before the doctor sees them",
+    "station_empty": "No patients waiting right now.",
+    "station_save": "Save vitals",
+    "station_recorded": "Recorded",
+    "station_saved": "Saved {name}'s vitals."
   },
   "diagnosis_types": {
     "working": "Working",
