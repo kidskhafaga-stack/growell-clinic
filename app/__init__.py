@@ -110,12 +110,14 @@ def create_app(config_name="default"):
 
     @app.context_processor
     def inject_navigation():
+        from app.models import Setting
         from app.utils.facility import module_enabled
         return {
             "ALL_MODULES": MODULES,
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
+            "small_clinic_mode": Setting.get("small_clinic_mode", "0") == "1",
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
             "now_date": datetime.utcnow().date().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),
