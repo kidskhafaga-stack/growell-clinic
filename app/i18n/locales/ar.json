@@ -45,7 +45,8 @@
     "disable": "تعطيل",
     "saved": "تم الحفظ.",
     "year_short": "س",
-    "month_short": "ش"
+    "month_short": "ش",
+    "filter": "تصفية"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -2696,7 +2697,8 @@
     "total_paid": "إجمالي المدفوع",
     "total_refunded": "إجمالي المسترد",
     "due": "الرصيد المستحق",
-    "empty": "لا توجد حركات"
+    "empty": "لا توجد حركات",
+    "opening_balance": "رصيد افتتاحي"
   },
   "refunds": {
     "title": "طلبات الاسترداد",

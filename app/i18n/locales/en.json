@@ -45,7 +45,8 @@
     "disable": "Disable",
     "saved": "Saved.",
     "year_short": "y",
-    "month_short": "m"
+    "month_short": "m",
+    "filter": "Filter"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -2696,7 +2697,8 @@
     "total_paid": "Total paid",
     "total_refunded": "Total refunded",
     "due": "Balance due",
-    "empty": "No transactions"
+    "empty": "No transactions",
+    "opening_balance": "Opening balance"
   },
   "refunds": {
     "title": "Refund requests",

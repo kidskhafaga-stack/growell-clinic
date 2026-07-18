@@ -34,6 +34,14 @@
 <body>
   <div class="toolbar">
     <a class="btn" href="{{ url_for('reports.ar_aging') }}">← {{ t('common.back') }}</a>
+    <a class="btn" href="{{ url_for('reports.patient_statement', patient_id=patient.id, lang='ar', from=request.args.get('from'), to=request.args.get('to')) }}">العربية</a>
+    <a class="btn" href="{{ url_for('reports.patient_statement', patient_id=patient.id, lang='en', from=request.args.get('from'), to=request.args.get('to')) }}">English</a>
+    <form method="get" style="display:flex;gap:6px;align-items:center;">
+      {% if request.args.get('lang') %}<input type="hidden" name="lang" value="{{ request.args.get('lang') }}">{% endif %}
+      <input class="btn" type="date" name="from" value="{{ request.args.get('from') or '' }}" style="padding:7px 10px;">
+      <input class="btn" type="date" name="to" value="{{ request.args.get('to') or '' }}" style="padding:7px 10px;">
+      <button class="btn" type="submit">{{ t('common.filter') }}</button>
+    </form>
     <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('report.print') }}</button>
   </div>
   <div class="sheet">
@@ -50,7 +58,8 @@
     <h1>{{ t('statement.title') }}</h1>
     <div class="meta">{{ patient.display_name(current_lang) }} · {{ patient.patient_number }}
       {% if patient.contact_phone %} · <span dir="ltr">{{ patient.contact_phone }}</span>{% endif %}
-      · {{ t('report.generated_on') }}: {{ today }}</div>
+      · {{ t('report.generated_on') }}: {{ today }}
+      {% if date_from or date_to %}<br><span dir="ltr">{{ date_from or '…' }} → {{ date_to or '…' }}</span>{% endif %}</div>
 
     <table>
       <thead><tr>
@@ -61,6 +70,13 @@
         <th style="text-align:end;">{{ t('statement.balance') }}</th>
       </tr></thead>
       <tbody>
+        {% if date_from %}
+        <tr style="background:#f6f8fa;">
+          <td style="white-space:nowrap;">{{ date_from }}</td>
+          <td colspan="4" style="font-weight:600;">{{ t('statement.opening_balance') }}</td>
+          <td style="text-align:end;font-weight:700;" class="{{ 'neg' if opening > 0 else '' }}">{{ opening|money }}</td>
+        </tr>
+        {% endif %}
         {% for e in events %}
         <tr>
           <td style="white-space:nowrap;">{{ e.date }}</td>
