@@ -1,0 +1,98 @@
+{% extends "shell.html" %}
+{% set active_module = 'users' %}
+{% block title %}{{ t('audit.title') }}{% endblock %}
+{% block page_heading %}{{ t('audit.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-clock-history"></i> {{ t('audit.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('audit.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
+    <i class="bi bi-people"></i> {{ t('users.title') }}</a>
+</div>
+
+{% if failed_24h %}
+<div class="info-note gc-animate" style="border-color:var(--danger);color:var(--danger);margin-bottom:14px;">
+  <i class="bi bi-shield-exclamation"></i> {{ t('audit.failed_24h', n=failed_24h) }}
+  <a href="{{ url_for('users.audit', action='login_failed') }}" style="text-decoration:underline;color:inherit;">{{ t('audit.view_failed') }}</a>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('audit.action') }}</label>
+      <select class="select" name="action" onchange="this.form.submit()">
+        <option value="">{{ t('audit.all_actions') }}</option>
+        {% for a in actions %}
+        <option value="{{ a }}" {{ 'selected' if action == a else '' }} dir="ltr">{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('audit.user') }}</label>
+      <select class="select" name="user_id" onchange="this.form.submit()">
+        <option value="">{{ t('audit.all_users') }}</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {{ 'selected' if user_id == u.id else '' }}>{{ u.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if action or user_id %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.audit') }}"><i class="bi bi-x-lg"></i> {{ t('common.clear') }}</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('audit.time') }}</th><th>{{ t('audit.user') }}</th>
+      <th>{{ t('audit.action') }}</th><th>{{ t('audit.detail') }}</th>
+      <th>{{ t('audit.ip') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for e in entries %}
+      <tr {% if e.action in ('login_failed','login_disabled') %}style="background:color-mix(in srgb, var(--danger) 8%, transparent);"{% endif %}>
+        <td style="white-space:nowrap;font-size:0.84rem;" dir="ltr">{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{% if e.user %}{{ e.user.display_name(current_lang) }}{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+        <td>
+          {% if e.action == 'login_failed' %}
+          <span class="badge badge--danger">{{ t('audit.act_login_failed') }}</span>
+          {% elif e.action == 'login_disabled' %}
+          <span class="badge badge--danger">{{ t('audit.act_login_disabled') }}</span>
+          {% elif e.action == 'login' %}
+          <span class="badge badge--green">{{ t('audit.act_login') }}</span>
+          {% elif e.action == 'logout' %}
+          <span class="badge badge--muted">{{ t('audit.act_logout') }}</span>
+          {% else %}
+          <span class="badge badge--muted" dir="ltr">{{ e.action }}</span>
+          {% endif %}
+        </td>
+        <td style="font-size:0.84rem;color:var(--muted);">
+          {{ e.entity or '' }}{% if e.detail %} · <span dir="auto">{{ e.detail }}</span>{% endif %}
+        </td>
+        <td style="font-size:0.84rem;" dir="ltr">{{ e.ip_address or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="placeholder-soft" style="padding:20px;">{{ t('audit.empty') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if pagination.pages > 1 %}
+<div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
+  {% if pagination.has_prev %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('users.audit', page=pagination.prev_num, action=action, user_id=user_id) }}"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></a>
+  {% endif %}
+  <span class="btn btn-outline btn-sm" style="pointer-events:none;">{{ pagination.page }} / {{ pagination.pages }}</span>
+  {% if pagination.has_next %}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('users.audit', page=pagination.next_num, action=action, user_id=user_id) }}"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

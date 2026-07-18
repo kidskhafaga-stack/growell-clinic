@@ -17,11 +17,62 @@ def _roles():
     return Role.query.order_by(Role.is_system.desc(), Role.name).all()
 
 
+def _last_login_ip_map(user_ids):
+    """{user_id: last login IP} from the audit log (one query, no N+1)."""
+    if not user_ids:
+        return {}
+    rows = (db.session.query(
+                ActivityLog.user_id, ActivityLog.ip_address,
+                db.func.max(ActivityLog.created_at))
+            .filter(ActivityLog.action == "login",
+                    ActivityLog.user_id.in_(user_ids))
+            .group_by(ActivityLog.user_id).all())
+    return {uid: ip for uid, ip, _ in rows}
+
+
 @users_bp.route("/")
 @admin_required
 def index():
     users = User.query.order_by(User.created_at.desc()).all()
-    return render_template("users/list.html", users=users, roles=_roles())
+    last_ip = _last_login_ip_map([u.id for u in users])
+    return render_template("users/list.html", users=users, roles=_roles(),
+                           last_ip=last_ip)
+
+
+# ----------------------------------------------------------- audit ---------
+# Security-relevant actions worth surfacing as their own filter in the log.
+AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
+                 "user.create", "user.update", "user.delete",
+                 "role.create", "role.update", "role.delete",
+                 "patient.archive", "patient.restore", "patient.delete",
+                 "appointment.booking_toggle"]
+
+
+@users_bp.route("/audit")
+@admin_required
+def audit():
+    """Security & activity audit trail: who did what, when and from where.
+    Filterable by user and action; failed sign-ins are highlighted."""
+    action = (request.args.get("action") or "").strip()
+    user_id = request.args.get("user_id", type=int)
+    q = ActivityLog.query
+    if action:
+        q = q.filter(ActivityLog.action == action)
+    if user_id:
+        q = q.filter(ActivityLog.user_id == user_id)
+    pagination = q.order_by(ActivityLog.created_at.desc()).paginate(
+        page=request.args.get("page", 1, type=int), per_page=50, error_out=False)
+    # Failed sign-ins in the last 24h — a quick brute-force signal.
+    from datetime import datetime, timedelta
+    since = datetime.utcnow() - timedelta(hours=24)
+    failed_24h = (ActivityLog.query
+                  .filter(ActivityLog.action == "login_failed",
+                          ActivityLog.created_at >= since).count())
+    return render_template(
+        "users/audit.html", entries=pagination.items, pagination=pagination,
+        users=User.query.order_by(User.full_name).all(),
+        actions=AUDIT_ACTIONS, action=action, user_id=user_id,
+        failed_24h=failed_24h)
 
 
 # ----------------------------------------------------------- roles ---------
