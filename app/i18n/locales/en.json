@@ -2879,5 +2879,20 @@
     "follow_up": "Most overdue — follow up",
     "overdue_doses": "Overdue doses",
     "open_reminders": "All reminders"
+  },
+  "perms": {
+    "title": "Permissions matrix",
+    "subtitle": "Who can reach which screen and sensitive capability — at a glance",
+    "hint": "This screen is read-only. To change a role, open role management.",
+    "module": "Screen",
+    "capability": "Capability",
+    "capabilities": "Sensitive capabilities",
+    "capabilities_hint": "Fine-grained rights inside screens (beyond just reaching the screen).",
+    "users_short": "users"
+  },
+  "cap": {
+    "patient_medical": "View full medical file",
+    "cashier": "Collect payments",
+    "finance_manage": "Full finance management"
   }
 }

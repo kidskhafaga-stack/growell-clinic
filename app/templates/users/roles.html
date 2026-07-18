@@ -22,8 +22,12 @@
     <h1 class="page-title">{{ t('roles_mgmt.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('roles_mgmt.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
-    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.users') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.permissions') }}">
+      <i class="bi bi-shield-check"></i> {{ t('perms.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.index') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.users') }}</a>
+  </div>
 </div>
 
 <!-- Add custom role -->

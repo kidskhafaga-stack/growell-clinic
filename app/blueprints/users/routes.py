@@ -82,6 +82,28 @@ def roles():
     return render_template("users/roles.html", roles=_roles(), modules=MODULES)
 
 
+@users_bp.route("/permissions")
+@admin_required
+def permissions():
+    """Read-only permissions audit: every role vs every module and sensitive
+    capability, at a glance — who can reach what, and how many users hold each
+    role. Editing still happens on the roles screen."""
+    from app.models.permissions import (
+        CAPABILITIES, MODULE_ICONS, role_capabilities,
+    )
+
+    roles = _roles()
+    access = {m: {r.id: (m in r.module_list) for r in roles} for m in MODULES}
+    caps = {c: {r.id: (r.is_admin or c in role_capabilities(r.name)) for r in roles}
+            for c in CAPABILITIES}
+    counts = dict(db.session.query(User.role, db.func.count())
+                  .group_by(User.role).all())
+    return render_template(
+        "users/permissions.html", roles=roles, modules=MODULES,
+        module_icons=MODULE_ICONS, access=access,
+        capabilities=CAPABILITIES, caps=caps, user_counts=counts)
+
+
 @users_bp.route("/roles/new", methods=["POST"])
 @admin_required
 def role_new():
