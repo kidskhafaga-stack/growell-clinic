@@ -12,6 +12,8 @@
     <p class="page-sub" style="margin:0;">{{ t('vaccinations.select_patient') }}</p>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.compliance') }}">
+      <i class="bi bi-clipboard2-check"></i> {{ t('compliance.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.reminders') }}">
       <i class="bi bi-bell"></i> {{ t('vaccinations.reminders_title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.manage') }}">

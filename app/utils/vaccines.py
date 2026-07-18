@@ -415,6 +415,74 @@ def patient_due_reminders(patient, lang="ar", today=None):
     return out
 
 
+def immunization_compliance(lang="ar", today=None):
+    """Population-level immunization compliance across active patients who have
+    started at least one course *with us* (we never chase vaccines we never
+    gave). Each such patient is classified once — overdue / due-soon / up-to-date
+    — from their plan, plus a per-vaccine coverage tally and the most-overdue
+    patients for follow-up.
+
+    Cost scales with started patients (same as the reminders screen): one plan
+    computation each, no per-dose extra queries.
+    """
+    today = today or date.today()
+    started_ids = {r[0] for r in (
+        PatientVaccine.query.filter(PatientVaccine.event_type == "given")
+        .with_entities(PatientVaccine.patient_id).distinct().all())}
+    from app.models import Patient
+    patients = (Patient.query.filter(Patient.is_active.is_(True),
+                                     Patient.id.in_(started_ids)).all()
+                if started_ids else [])
+
+    up_to_date = due_soon = overdue = 0
+    per_vaccine = {}          # vaccine_id -> {vaccine, doses, patients, overdue}
+    overdue_patients = []
+    for p in patients:
+        plan = patient_plan(p, lang)
+        p_over = p_due = 0
+        for v in plan:
+            given = [d for d in v["doses"] if d["status"] == "done"]
+            if not given:
+                continue      # course not started here — ignore
+            slot = per_vaccine.setdefault(
+                v["vaccine"].id,
+                {"vaccine": v["vaccine"], "doses": 0, "patients": 0, "overdue": 0})
+            slot["doses"] += len(given)
+            slot["patients"] += 1
+            if any(d["status"] == "overdue" for d in v["doses"]):
+                slot["overdue"] += 1
+                p_over += 1
+            elif any(d["status"] == "due" for d in v["doses"]):
+                p_due += 1
+            elif v["vaccine"].is_seasonal:
+                # Seasonal course with no pending dose: due again once the
+                # annual recall window has passed since the last dose.
+                last_iso = max((d["given_date"] for d in given
+                                if d["given_date"]), default=None)
+                if last_iso and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS:
+                    p_due += 1
+        if p_over:
+            overdue += 1
+            overdue_patients.append({"patient": p, "overdue": p_over})
+        elif p_due:
+            due_soon += 1
+        else:
+            up_to_date += 1
+
+    total = len(patients)
+    overdue_patients.sort(key=lambda r: -r["overdue"])
+    per_vaccine_rows = sorted(per_vaccine.values(), key=lambda r: -r["doses"])
+    return {
+        "total": total,
+        "up_to_date": up_to_date,
+        "due_soon": due_soon,
+        "overdue": overdue,
+        "rate": round(up_to_date / total * 100, 1) if total else 0.0,
+        "per_vaccine": per_vaccine_rows,
+        "overdue_patients": overdue_patients[:50],
+    }
+
+
 def next_undone_dose_number(patient_id, vaccine, brand):
     """The next dose number to administer for a vaccine/brand."""
     given = {

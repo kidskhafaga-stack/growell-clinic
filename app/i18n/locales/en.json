@@ -2848,5 +2848,24 @@
     "act_logout": "Logout",
     "failed_24h": "{n} failed sign-in attempt(s) in the last 24h.",
     "view_failed": "View them"
+  },
+  "compliance": {
+    "title": "Immunization compliance",
+    "subtitle": "Up-to-date vs overdue across the children we vaccinate",
+    "empty": "No patients have started doses with us yet.",
+    "headline": "{total} children tracked",
+    "headline_hint": "Counts only children who have received at least one dose with us.",
+    "tracked": "Tracked",
+    "up_to_date": "Up to date",
+    "due_soon": "Due soon",
+    "overdue": "Overdue",
+    "per_vaccine": "Coverage by vaccine",
+    "patients": "Children",
+    "doses_given": "Doses given",
+    "with_overdue": "With overdue",
+    "coverage": "On-schedule",
+    "follow_up": "Most overdue — follow up",
+    "overdue_doses": "Overdue doses",
+    "open_reminders": "All reminders"
   }
 }

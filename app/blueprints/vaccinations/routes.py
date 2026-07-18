@@ -40,6 +40,7 @@ from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
     administer_dose,
     chosen_brand,
+    immunization_compliance,
     next_due_dose,
     patient_due_reminders,
     patient_plan,
@@ -567,6 +568,18 @@ def certificate(patient_id):
         now_date=datetime.utcnow().date().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,
     )
+
+
+# ---------------------------------------------------- compliance panel -----
+@vaccinations_bp.route("/compliance")
+@module_required(MODULE)
+def compliance():
+    """Population immunization-compliance panel: up-to-date vs overdue across
+    patients we vaccinate, per-vaccine coverage and the most-overdue patients."""
+    lang = getattr(g, "lang", "ar")
+    data = immunization_compliance(lang)
+    return render_template("vaccinations/compliance.html", data=data,
+                           now_date=datetime.utcnow().date().isoformat())
 
 
 # ------------------------------------------------------ due reminders ------
