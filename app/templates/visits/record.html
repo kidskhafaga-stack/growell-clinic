@@ -21,6 +21,7 @@
 <script type="application/json" id="visitCfg">
 {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
     'normal': t('visits.normal_exam_text'),
+    'age_days': (visit.patient.age_days or 0),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
 <div x-data="visitPage('{{ url_for('visits.icd') }}',
@@ -170,15 +171,30 @@
         <div class="form-row"><label>{{ t('visits.bmi') }}</label>
           <input class="input" type="text" readonly x-bind:value="bmi() || '—'" style="background:#f4f7f6;color:var(--green-700);font-weight:700;"></div>
         <div class="form-row"><label>{{ t('visits.temperature') }}</label>
-          <input class="input" type="number" step="0.1" name="temperature_c" value="{{ visit.vitals.temperature_c if visit.vitals and visit.vitals.temperature_c is not none else '' }}"></div>
+          <input class="input" type="number" step="0.1" name="temperature_c" x-model="vTemp"
+                 :class="vitalClass('temp', vTemp)"
+                 value="{{ visit.vitals.temperature_c if visit.vitals and visit.vitals.temperature_c is not none else '' }}"></div>
         <div class="form-row"><label>{{ t('visits.pulse') }}</label>
-          <input class="input" type="number" name="pulse_bpm" value="{{ visit.vitals.pulse_bpm if visit.vitals and visit.vitals.pulse_bpm is not none else '' }}"></div>
+          <input class="input" type="number" name="pulse_bpm" x-model="vPulse"
+                 :class="vitalClass('hr', vPulse)"
+                 value="{{ visit.vitals.pulse_bpm if visit.vitals and visit.vitals.pulse_bpm is not none else '' }}"></div>
         <div class="form-row"><label>{{ t('visits.resp_rate') }}</label>
-          <input class="input" type="number" name="resp_rate" value="{{ visit.vitals.resp_rate if visit.vitals and visit.vitals.resp_rate is not none else '' }}"></div>
+          <input class="input" type="number" name="resp_rate" x-model="vResp"
+                 :class="vitalClass('rr', vResp)"
+                 value="{{ visit.vitals.resp_rate if visit.vitals and visit.vitals.resp_rate is not none else '' }}"></div>
         <div class="form-row"><label>{{ t('visits.spo2') }}</label>
-          <input class="input" type="number" name="spo2" value="{{ visit.vitals.spo2 if visit.vitals and visit.vitals.spo2 is not none else '' }}"></div>
+          <input class="input" type="number" name="spo2" x-model="vSpo2"
+                 :class="vitalClass('spo2', vSpo2)"
+                 value="{{ visit.vitals.spo2 if visit.vitals and visit.vitals.spo2 is not none else '' }}"></div>
       </div>
-      <p class="hint"><i class="bi bi-graph-up"></i> {{ t('visits.growth_note') }}</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:2px;">
+        <p class="hint" style="margin:0;"><i class="bi bi-graph-up"></i> {{ t('visits.growth_note') }}</p>
+        <span class="hint" style="margin:0;display:inline-flex;gap:10px;align-items:center;">
+          <span><span class="vt-dot vt-ok"></span> {{ t('vitals.normal') }}</span>
+          <span><span class="vt-dot vt-warn"></span> {{ t('vitals.borderline') }}</span>
+          <span><span class="vt-dot vt-bad"></span> {{ t('vitals.abnormal') }}</span>
+        </span>
+      </div>
     </div>
 
     <div class="card gc-scale-in" style="animation-delay:0.14s;">
@@ -651,6 +667,12 @@
 {% block head %}
 <style>
   .vitals-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0 16px; }
+  /* Vitals colour-coding by pediatric age ranges */
+  .input.vt-ok   { border-color:#16a34a; box-shadow:0 0 0 2px rgba(22,163,74,.14); }
+  .input.vt-warn { border-color:#d97706; box-shadow:0 0 0 2px rgba(217,119,6,.16); background:#fffdf5; }
+  .input.vt-bad  { border-color:#dc2626; box-shadow:0 0 0 2px rgba(220,38,38,.18); background:#fff5f5; font-weight:700; }
+  .vt-dot { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-inline-end:2px; }
+  .vt-dot.vt-ok { background:#16a34a; } .vt-dot.vt-warn { background:#d97706; } .vt-dot.vt-bad { background:#dc2626; }
   .dx-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; }
   .btn-x { border:none; background:none; cursor:pointer; color:var(--muted); padding:0 4px; }
   .btn-x:hover { color:var(--danger); }
@@ -714,6 +736,36 @@
     catch (e) { cfg = {}; }
     return {
       icdUrl, weight: w || '', height: h || '',
+      ageMonths: Math.floor((cfg.age_days || 0) / 30.44),
+      // Live vitals: bound so the border colours by pediatric age ranges.
+      vTemp: '{{ visit.vitals.temperature_c if visit.vitals and visit.vitals.temperature_c is not none else '' }}',
+      vPulse: '{{ visit.vitals.pulse_bpm if visit.vitals and visit.vitals.pulse_bpm is not none else '' }}',
+      vResp: '{{ visit.vitals.resp_rate if visit.vitals and visit.vitals.resp_rate is not none else '' }}',
+      vSpo2: '{{ visit.vitals.spo2 if visit.vitals and visit.vitals.spo2 is not none else '' }}',
+      // Age-banded normal (ok) and tolerated (warn) ranges. Outside warn = red.
+      // Each HR/RR row: [maxAgeMonths, okLow, okHigh, warnLow, warnHigh].
+      _peds: {
+        hr: [[3,100,160,90,180],[12,90,160,80,180],[36,80,140,70,160],
+             [72,70,120,60,140],[144,65,110,55,130],[9999,60,100,50,120]],
+        rr: [[12,30,55,25,65],[36,24,40,20,50],[72,22,34,18,42],
+             [144,18,30,14,36],[9999,12,20,10,26]],
+      },
+      vitalRange(kind) {
+        if (kind === 'temp') return [36.0, 37.5, 35.5, 38.0];
+        if (kind === 'spo2') return [95, 100, 91, 100];
+        const table = this._peds[kind] || [];
+        for (const b of table) if (this.ageMonths <= b[0]) return [b[1], b[2], b[3], b[4]];
+        return null;
+      },
+      vitalClass(kind, val) {
+        const v = parseFloat(val);
+        if (isNaN(v)) return '';
+        const r = this.vitalRange(kind);
+        if (!r) return '';
+        if (v >= r[0] && v <= r[1]) return 'vt-ok';
+        if (v >= r[2] && v <= r[3]) return 'vt-warn';
+        return 'vt-bad';
+      },
       q: '', results: [], code: '', title: '', titleAr: '', titleEn: '', version: '10',
       // "Write less" helpers: clinical fields are Alpine-bound so smart phrases
       // and carry-forward can fill them with one click.
