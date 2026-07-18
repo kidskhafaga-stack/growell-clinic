@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('balsheet.title') }}{% endblock %}
+{% block page_heading %}{{ t('balsheet.title') }}{% endblock %}
+
+{% macro section(title, icon, rows, total, total_label) %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-{{ icon }}"></i> {{ title }}</h2>
+  <table class="table">
+    <tbody>
+      {% for acc, amount in rows %}
+      <tr><td>{{ acc.display_name(current_lang) }}
+        <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
+        <td style="text-align:end;font-weight:700;">{{ amount|money }}</td></tr>
+      {% else %}
+      <tr><td colspan="2" class="empty-state">{{ t('balsheet.none') }}</td></tr>
+      {% endfor %}
+      <tr style="border-top:2px solid var(--line);font-weight:800;background:var(--surface-2);">
+        <td>{{ total_label }}</td><td style="text-align:end;">{{ total|money }}</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('balsheet.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('balsheet.desc') }}</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('trial.as_of') }}</label>
+      <input class="input" type="date" name="as_of" value="{{ as_of }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('common.search') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;padding:14px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+     border-inline-start:4px solid {{ 'var(--green-600)' if balanced else 'var(--danger)' }};">
+  <i class="bi bi-{{ 'check-circle-fill' if balanced else 'exclamation-triangle-fill' }}"
+     style="font-size:1.3rem;color:{{ 'var(--green-600)' if balanced else 'var(--danger)' }};"></i>
+  <strong>{{ t('balsheet.equation') }}</strong>
+  <span style="color:var(--muted);" dir="ltr">
+    {{ total_assets|money }} = {{ total_le|money }}</span>
+</div>
+
+<div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;">
+  <!-- Assets -->
+  {{ section(t('balsheet.assets'), 'buildings', assets, total_assets, t('balsheet.total_assets')) }}
+
+  <!-- Liabilities + Equity -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+    {{ section(t('balsheet.liabilities'), 'credit-card', liabilities, total_liab, t('balsheet.total_liabilities')) }}
+    <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+      <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-piggy-bank"></i> {{ t('balsheet.equity') }}</h2>
+      <table class="table">
+        <tbody>
+          {% for acc, amount in equity %}
+          <tr><td>{{ acc.display_name(current_lang) }}
+            <span class="num" style="color:var(--muted);" dir="ltr">{{ acc.code }}</span></td>
+            <td style="text-align:end;font-weight:700;">{{ amount|money }}</td></tr>
+          {% endfor %}
+          <tr><td>{{ t('balsheet.retained') }}</td>
+            <td style="text-align:end;font-weight:700;color:{{ 'var(--green-600)' if net_income >= 0 else 'var(--danger)' }};">
+              {{ net_income|money }}</td></tr>
+          <tr style="border-top:2px solid var(--line);font-weight:800;background:var(--surface-2);">
+            <td>{{ t('balsheet.total_equity') }}</td><td style="text-align:end;">{{ total_equity|money }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="padding:14px 18px;font-weight:800;display:flex;justify-content:space-between;background:var(--surface-2);">
+      <span>{{ t('balsheet.total_le') }}</span><span>{{ total_le|money }}</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
