@@ -8,7 +8,7 @@
     font-size:0.62rem; font-weight:700; min-width:16px; height:16px; line-height:16px; text-align:center;
     border-radius:999px; padding:0 3px; }
   .notif-panel { position:absolute; inset-inline-end:0; top:calc(100% + 8px); width:320px; max-width:90vw;
-    background:var(--surface,#fff); border:1px solid var(--line); border-radius:12px;
+    background:var(--surface,#fff); color:var(--ink); border:1px solid var(--line); border-radius:12px;
     box-shadow:0 16px 44px rgba(0,0,0,.18); z-index:60; overflow:hidden; }
   .notif-head { padding:11px 14px; font-weight:700; border-bottom:1px solid var(--line); }
   .notif-readall { background:none; border:0; cursor:pointer; font-size:0.76rem; font-weight:600;
@@ -85,7 +85,7 @@
         </div>
 
         {% if my_open_shift %}
-        <a class="btn btn-sm gc-press" href="{{ url_for('finance.cashier') }}"
+        <a class="btn btn-sm gc-press topbar__amber-chip" href="{{ url_for('finance.cashier') }}"
            title="{{ t('shifts.quick_close_hint', number=my_open_shift.shift_number or my_open_shift.id) }}"
            style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;display:inline-flex;align-items:center;gap:6px;">
           <i class="bi bi-hourglass-split"></i> {{ t('shifts.quick_close') }}</a>

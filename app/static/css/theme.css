@@ -15,6 +15,13 @@
   --line: #e3e8ee;
   --bg: #f4f7f6;
   --card: #ffffff;
+  /* Surface aliases used across components (dropdowns, chips, modals, sticky
+     table columns). These track --card/--line so they theme automatically —
+     previously they were undefined and always fell back to white, which broke
+     those elements in dark mode. */
+  --surface: var(--card);
+  --surface-2: #f1f4f8;
+  --border: var(--line);
   --danger: #dc3545;
   --warning: #f0ad4e;
   --info: #0dcaf0;
@@ -46,7 +53,13 @@
   --card: #171e28;
   --green-050: #17251e;
   --green-100: #1e3a2c;
+  --surface-2: #212b38;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+/* Light-amber topbar pills (e.g. the quick "close your shift" chip) need a
+   readable dark variant instead of their fixed light colours. */
+:root[data-theme="dark"] .topbar__amber-chip {
+  background: #3a2a12 !important; border-color: #7c5a24 !important; color: #fcd9a6 !important;
 }
 :root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
 /* Deep-green sidebar so it sits with the slate body instead of glowing bright. */
