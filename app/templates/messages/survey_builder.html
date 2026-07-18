@@ -1,0 +1,58 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('survey.title') }}{% endblock %}
+{% block page_heading %}{{ t('survey.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-ui-checks"></i> {{ t('survey.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('survey.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.satisfaction') }}">
+    <i class="bi bi-emoji-smile"></i> {{ t('crm.satisfaction') }}</a>
+</div>
+
+<div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('survey.hint') }}</div>
+
+<form method="post">
+  <!-- Intro / thank-you -->
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 style="margin-top:0;font-size:1.05rem;">{{ t('survey.texts') }}</h2>
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('survey.intro') }} (ع)</label>
+        <input class="input" name="survey_intro_ar" value="{{ values.get('survey_intro_ar','') }}" placeholder="{{ cfg.ar.intro }}"></div>
+      <div class="form-row"><label>{{ t('survey.intro') }} (EN)</label>
+        <input class="input" name="survey_intro_en" dir="ltr" value="{{ values.get('survey_intro_en','') }}" placeholder="{{ cfg.en.intro }}"></div>
+      <div class="form-row"><label>{{ t('survey.thanks') }} (ع)</label>
+        <input class="input" name="survey_thanks_ar" value="{{ values.get('survey_thanks_ar','') }}" placeholder="{{ cfg.ar.thanks }}"></div>
+      <div class="form-row"><label>{{ t('survey.thanks') }} (EN)</label>
+        <input class="input" name="survey_thanks_en" dir="ltr" value="{{ values.get('survey_thanks_en','') }}" placeholder="{{ cfg.en.thanks }}"></div>
+    </div>
+  </div>
+
+  <!-- Questions -->
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 style="margin-top:0;font-size:1.05rem;">{{ t('survey.questions') }}</h2>
+    {% for q in questions %}
+    <div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <strong>{{ t('survey.q_' ~ q) }} <span class="badge badge--muted">{{ t('survey.type_' ~ q) }}</span></strong>
+        <label class="checkbox" style="font-weight:400;">
+          <input type="checkbox" name="show_{{ q }}" value="1" {{ 'checked' if cfg.ar.questions[q].show else '' }}>
+          {{ t('survey.show') }}</label>
+      </div>
+      <div class="form-grid" style="margin-top:8px;">
+        <div class="form-row" style="margin:0;"><label>{{ t('survey.wording') }} (ع)</label>
+          <input class="input" name="q_{{ q }}_ar" value="{{ values.get('survey_q_' ~ q ~ '_ar','') }}" placeholder="{{ cfg.ar.questions[q].label }}"></div>
+        <div class="form-row" style="margin:0;"><label>{{ t('survey.wording') }} (EN)</label>
+          <input class="input" name="q_{{ q }}_en" dir="ltr" value="{{ values.get('survey_q_' ~ q ~ '_en','') }}" placeholder="{{ cfg.en.questions[q].label }}"></div>
+      </div>
+    </div>
+    {% endfor %}
+    <p class="hint">{{ t('survey.blank_hint') }}</p>
+  </div>
+
+  <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+</form>
+{% endblock %}
