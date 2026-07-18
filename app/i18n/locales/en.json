@@ -1110,7 +1110,10 @@
     "currency_decimals": "decimals",
     "currency_hint": "Every amount in the program renders with this currency and its correct format (e.g. EGP 1,250.00) — cashier, invoices and reports included.",
     "require_shift_to_collect": "Collecting requires an open shift",
-    "require_shift_to_collect_hint": "When on: no collection is accepted without an open shift — every amount is booked to a numbered shift."
+    "require_shift_to_collect_hint": "When on: no collection is accepted without an open shift — every amount is booked to a numbered shift.",
+    "complaint_chips_hint": "Quick complaint phrases the doctor taps instead of typing (fever, cough…).",
+    "exam_chips_hint": "Quick exam phrases (general condition good, chest clear…).",
+    "visit_chips_lang_hint": "Each phrase has two texts: Arabic and English (optional) — shown in the current program language."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1865,7 +1868,11 @@
     "vac_dose_of": "Dose {n} of {total}",
     "vac_next_dose": "Next dose: {n}",
     "vac_next_seasonal": "Next dose: seasonal",
-    "vac_next_none": "Next dose: none — course complete"
+    "vac_next_none": "Next dose: none — course complete",
+    "interactions_title": "Drug interaction warning",
+    "sev_severe": "Severe",
+    "sev_moderate": "Moderate",
+    "sev_mild": "Mild"
   },
   "drug_forms": {
     "tablet": "Tablet",

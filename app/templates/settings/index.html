@@ -57,6 +57,7 @@
         ('logo','image', t('settings.logo')),
         ('numbering','123', t('settings.numbering_title')),
         ('board','bar-chart-line', t('settings.board_title')),
+        ('phrases','chat-square-text', t('settings.visit_chips_title')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title'))] %}
@@ -206,19 +207,25 @@
       <div class="hint">{{ t('settings.thermal_footer_hint') }}</div>
     </div>
 
-    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
-    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-chat-square-text"></i> {{ t('settings.visit_chips_title') }}</h3>
+  </div>
+
+  <!-- Visit quick-phrases (dedicated tab) -->
+  <div class="card gc-scale-in" x-show="tab==='phrases'" x-cloak>
+    <h2 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('settings.visit_chips_title') }}</h2>
     <p class="hint" style="margin-top:-4px;">{{ t('settings.visit_chips_hint') }}</p>
     <div class="form-grid">
       <div class="form-row">
-        <label>{{ t('settings.complaint_chips') }}</label>
+        <label><i class="bi bi-clipboard2-pulse"></i> {{ t('settings.complaint_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.complaint_chips_hint') }}</div>
         {{ chip_editor('visit_complaint_chips', complaint_chips) }}
       </div>
       <div class="form-row">
-        <label>{{ t('settings.exam_chips') }}</label>
+        <label><i class="bi bi-heart-pulse"></i> {{ t('settings.exam_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.exam_chips_hint') }}</div>
         {{ chip_editor('visit_exam_chips', exam_chips) }}
       </div>
     </div>
+    <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('settings.visit_chips_lang_hint') }}</p>
   </div>
 
   <!-- Document numbering (F1) -->
