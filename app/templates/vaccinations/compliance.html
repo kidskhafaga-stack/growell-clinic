@@ -1,0 +1,118 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import patient_avatar with context %}
+{% set active_module = 'vaccinations' %}
+{% block title %}{{ t('compliance.title') }}{% endblock %}
+{% block page_heading %}{{ t('compliance.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-clipboard2-check"></i> {{ t('compliance.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('compliance.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.reminders') }}">
+      <i class="bi bi-bell"></i> {{ t('vaccinations.reminders_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.index') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('vaccinations.back_to_patients') }}</a>
+  </div>
+</div>
+
+{% if not data.total %}
+<div class="card gc-scale-in"><p class="placeholder-soft" style="margin:0;">{{ t('compliance.empty') }}</p></div>
+{% else %}
+
+<!-- Headline compliance rate -->
+<div class="card gc-scale-in" style="margin-bottom:16px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+  {% set rate = data.rate %}
+  <div style="--r:{{ rate }};position:relative;width:120px;height:120px;border-radius:50%;
+    background:conic-gradient(var(--green-600) calc(var(--r)*1%), var(--line) 0);display:grid;place-items:center;flex-shrink:0;">
+    <div style="width:88px;height:88px;border-radius:50%;background:var(--bg);display:grid;place-items:center;">
+      <div style="text-align:center;">
+        <div style="font-size:1.6rem;font-weight:800;">{{ rate }}%</div>
+        <div style="font-size:0.72rem;color:var(--muted);">{{ t('compliance.up_to_date') }}</div>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;min-width:220px;">
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">{{ t('compliance.headline', total=data.total) }}</h2>
+    <p style="margin:0;color:var(--muted);">{{ t('compliance.headline_hint') }}</p>
+  </div>
+</div>
+
+<!-- Status cards -->
+<div class="grid grid--cards gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ data.total }}">0</div><div class="label">{{ t('compliance.tracked') }}</div></div>
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ data.up_to_date }}" style="color:var(--green-600);">0</div><div class="label">{{ t('compliance.up_to_date') }}</div></div>
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ data.due_soon }}" style="color:#c78a00;">0</div><div class="label">{{ t('compliance.due_soon') }}</div></div>
+  <div class="stat-card"><div class="value gc-counter" data-count="{{ data.overdue }}" style="color:var(--danger);">0</div><div class="label">{{ t('compliance.overdue') }}</div></div>
+</div>
+
+<!-- Per-vaccine coverage -->
+<div class="card gc-scale-in" style="margin-bottom:18px;padding:0;overflow:hidden;">
+  <h2 style="margin:0;font-size:1.05rem;padding:16px 16px 0;"><i class="bi bi-bar-chart"></i> {{ t('compliance.per_vaccine') }}</h2>
+  <table class="table" style="margin-top:10px;">
+    <thead><tr>
+      <th>{{ t('vaccinations.cert_vaccine') }}</th>
+      <th>{{ t('compliance.patients') }}</th>
+      <th>{{ t('compliance.doses_given') }}</th>
+      <th>{{ t('compliance.with_overdue') }}</th>
+      <th style="min-width:140px;">{{ t('compliance.coverage') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in data.per_vaccine %}
+      {% set pct = ((r.patients - r.overdue) / r.patients * 100) if r.patients else 0 %}
+      <tr>
+        <td><strong>{{ r.vaccine.display_name(current_lang) }}</strong>
+          {% if r.vaccine.is_seasonal %}<span class="badge badge--muted">{{ t('vaccinations.seasonal') }}</span>{% endif %}</td>
+        <td>{{ r.patients }}</td>
+        <td>{{ r.doses }}</td>
+        <td>{% if r.overdue %}<span class="badge badge--danger">{{ r.overdue }}</span>{% else %}<span style="color:var(--muted);">0</span>{% endif %}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:8px;border-radius:99px;background:var(--line);overflow:hidden;">
+              <div style="height:100%;width:{{ pct|round }}%;background:{{ 'var(--green-600)' if pct >= 90 else ('#c78a00' if pct >= 70 else 'var(--danger)') }};"></div>
+            </div>
+            <span style="font-size:0.8rem;color:var(--muted);min-width:38px;">{{ pct|round }}%</span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Most-overdue patients for follow-up -->
+{% if data.overdue_patients %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 16px 0;">
+    <h2 style="margin:0;font-size:1.05rem;"><i class="bi bi-exclamation-triangle"></i> {{ t('compliance.follow_up') }}</h2>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.reminders') }}">{{ t('compliance.open_reminders') }}</a>
+  </div>
+  <table class="table" style="margin-top:10px;">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('compliance.overdue_doses') }}</th>
+      <th style="text-align:end;">{{ t('appointments.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in data.overdue_patients %}
+      <tr>
+        <td><div class="patient-row {{ 'gm' if r.patient.gender == 'male' else 'gf' }}">{{ patient_avatar(r.patient, 'sm') }}
+          <div><a class="name" href="{{ url_for('vaccinations.view', patient_id=r.patient.id) }}" style="color:inherit;">{{ r.patient.display_name(current_lang) }}</a>
+          <div style="font-size:0.76rem;color:var(--muted);">#{{ r.patient.patient_number }}</div></div></div></td>
+        <td><span class="badge badge--danger">{{ r.overdue }}</span></td>
+        <td style="text-align:end;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.view', patient_id=r.patient.id) }}"><i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+          {% if current_user.can_access('messages') %}
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('vaccinations.remind_due', patient_id=r.patient.id) }}"><i class="bi bi-whatsapp"></i> {{ t('vaccinations.send_reminder') }}</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
