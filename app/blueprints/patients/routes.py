@@ -186,6 +186,84 @@ def analytics():
     )
 
 
+# ------------------------------------------------------------ archiving ----
+@patients_bp.route("/archive")
+@module_required(MODULE)
+def archive():
+    """Archiving hub: policy, the inactivity candidate list, active/inactive
+    analytics and the archived files (with restore)."""
+    from app.utils.archiving import (
+        archive_stats, auto_enabled, inactive_candidates, inactive_years,
+    )
+
+    years = inactive_years()
+    candidates = inactive_candidates(years)
+    archived = (Patient.query.filter_by(is_active=False)
+                .order_by(Patient.archived_at.desc())
+                .limit(200).all())
+    return render_template(
+        "patients/archive.html",
+        stats=archive_stats(years), years=years, auto_enabled=auto_enabled(),
+        candidates=candidates, archived=archived, today=date.today(),
+    )
+
+
+@patients_bp.route("/archive/settings", methods=["POST"])
+@module_required(MODULE)
+def archive_settings():
+    from app.models import Setting
+
+    years = request.form.get("years", type=int) or 3
+    Setting.set("archive_inactive_years", str(min(max(years, 1), 20)))
+    Setting.set("archive_auto_enabled", "1" if request.form.get("auto_enabled") else "0")
+    db.session.commit()
+    flash(t("archive.settings_saved"), "success")
+    return redirect(url_for("patients.archive"))
+
+
+@patients_bp.route("/archive/run", methods=["POST"])
+@module_required(MODULE)
+def archive_run():
+    """Archive every current inactivity candidate now (manual sweep)."""
+    from app.utils.archiving import auto_archive
+    n = auto_archive()
+    ActivityLog.record("patient.archive_sweep", user_id=current_user.id,
+                       entity="patient", detail=str(n), ip_address=client_ip())
+    db.session.commit()
+    flash(t("archive.swept", n=n), "success" if n else "info")
+    return redirect(url_for("patients.archive"))
+
+
+@patients_bp.route("/<int:patient_id>/archive", methods=["POST"])
+@module_required(MODULE)
+def archive_one(patient_id):
+    from app.utils.archiving import archive_patient
+    patient = db.get_or_404(Patient, patient_id)
+    if archive_patient(patient, reason="manual"):
+        ActivityLog.record("patient.archive", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           detail=patient.patient_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("archive.archived_one", name=patient.display_name(g.get("lang", "ar"))),
+              "info")
+    return redirect(request.referrer or url_for("patients.view", patient_id=patient.id))
+
+
+@patients_bp.route("/<int:patient_id>/restore", methods=["POST"])
+@module_required(MODULE)
+def restore_one(patient_id):
+    from app.utils.archiving import restore_patient
+    patient = db.get_or_404(Patient, patient_id)
+    if restore_patient(patient):
+        ActivityLog.record("patient.restore", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           detail=patient.patient_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("archive.restored_one", name=patient.display_name(g.get("lang", "ar"))),
+              "success")
+    return redirect(request.referrer or url_for("patients.view", patient_id=patient.id))
+
+
 # -------------------------------------------------------------- create -----
 @patients_bp.route("/new", methods=["GET", "POST"])
 @module_required(MODULE)

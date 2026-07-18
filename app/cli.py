@@ -236,6 +236,8 @@ def register_commands(app):
             ("message_templates", "send_hour", "INTEGER"),
             ("vaccine_schedule_templates", "source", "VARCHAR(20) DEFAULT 'custom'"),
             ("vaccine_schedule_templates", "is_seeded", "BOOLEAN DEFAULT 0"),
+            ("patients", "archived_at", "DATETIME"),
+            ("patients", "archive_reason", "VARCHAR(20)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -283,6 +285,20 @@ def register_commands(app):
         click.secho(
             f"Dispatched {res['sent']} (skipped {res['skipped']}) "
             f"of {res['considered']} due.", fg="green")
+
+    @app.cli.command("archive-inactive")
+    @click.option("--force", is_flag=True,
+                  help="Run even when auto-archiving is disabled in settings.")
+    def archive_inactive_cmd(force):
+        """Archive patient files with no activity for the configured N years."""
+        from app.utils.archiving import auto_archive, auto_enabled, inactive_years
+        if not force and not auto_enabled():
+            click.secho("Auto-archiving is disabled (use --force to run anyway).",
+                        fg="yellow")
+            return
+        n = auto_archive()
+        click.secho(f"Archived {n} inactive file(s) "
+                    f"(> {inactive_years()} years).", fg="green")
 
     @app.cli.command("seed-demo")
     def seed_demo_cmd():

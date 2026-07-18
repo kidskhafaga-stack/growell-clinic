@@ -59,6 +59,11 @@ class Patient(db.Model):
     notes = db.Column(db.Text)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Archiving: an inactive file is kept (never deleted) but set is_active=False.
+    # ``archived_at`` stamps when, and ``archive_reason`` records how it happened
+    # ("auto" = the inactivity sweep, "manual" = a user archived it deliberately).
+    archived_at = db.Column(db.DateTime)
+    archive_reason = db.Column(db.String(20))
     # Guardian has opted out of WhatsApp messages — CRM sends skip this patient.
     wa_opt_out = db.Column(db.Boolean, default=False, nullable=False)
     # Opaque token for public vaccination-certificate QR verification.
@@ -69,6 +74,22 @@ class Patient(db.Model):
     )
 
     family = db.relationship("Family", back_populates="patients")
+
+    @property
+    def is_archived(self):
+        return not self.is_active
+
+    @property
+    def last_activity_date(self):
+        """Most recent sign of activity: the latest visit date, falling back to
+        when the file was created. Used to judge inactivity for archiving."""
+        from app.models import Visit
+
+        last = (db.session.query(db.func.max(Visit.visit_date))
+                .filter(Visit.patient_id == self.id).scalar())
+        created = self.created_at.date() if self.created_at else None
+        dates = [d for d in (last, created) if d is not None]
+        return max(dates) if dates else None
 
     def ensure_qr_token(self):
         """Lazily assign a random verification token; returns it."""

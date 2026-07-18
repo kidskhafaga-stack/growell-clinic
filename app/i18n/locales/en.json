@@ -229,7 +229,9 @@
     "own_phone": "Patient's own phone",
     "own_phone_hint": "The patient's own number (used from age 13+ for direct contact).",
     "ask_own_phone": "This patient is 13+ — ask whether they have their own phone and update their details.",
-    "update_now": "Update now"
+    "update_now": "Update now",
+    "file_no": "File #",
+    "name": "Name"
   },
   "import": {
     "title": "Import patient data",
@@ -2798,5 +2800,35 @@
     "normal": "Normal",
     "borderline": "Borderline",
     "abnormal": "Abnormal"
+  },
+  "archive": {
+    "title": "Patient archive",
+    "subtitle": "Archive inactive files (never deleted) with one-click restore",
+    "total": "Total files",
+    "active": "Active",
+    "archived": "Archived",
+    "candidates_label": "Due for archiving",
+    "policy": "Archiving policy",
+    "years_label": "Inactive years",
+    "auto_enable": "Enable auto-archiving",
+    "policy_hint": "A file is inactive if it has had no activity (visit) for {years} years. Archiving deletes nothing — it just hides the file from the active list and can be restored anytime.",
+    "settings_saved": "Archiving policy saved.",
+    "candidates_title": "Files due for archiving",
+    "last_activity": "Last activity",
+    "no_candidates": "No inactive files right now.",
+    "run_now": "Archive all now",
+    "confirm_sweep": "{n} inactive file(s) will be archived. Continue?",
+    "swept": "Archived {n} file(s).",
+    "archive_btn": "Archive",
+    "restore_btn": "Restore",
+    "confirm_one": "Archive this file?",
+    "archived_one": "Archived {name}.",
+    "restored_one": "Restored {name}.",
+    "archived_title": "Archived files",
+    "archived_at": "Archived on",
+    "reason": "Reason",
+    "reason_auto": "Auto",
+    "reason_manual": "Manual",
+    "none_archived": "No archived files."
   }
 }
