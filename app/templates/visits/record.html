@@ -230,9 +230,35 @@
         <div class="form-row"><label>{{ t('visits.plan') }}</label>
           <textarea class="input" name="plan" rows="2" x-model="planTxt"></textarea></div>
         <div class="form-row"><label>{{ t('visits.notes') }}</label>
-          <textarea class="input" name="notes" rows="2">{{ visit.notes or '' }}</textarea></div>
+          <textarea class="input" name="notes" id="visitNotes" rows="2">{{ visit.notes or '' }}</textarea></div>
       </div>
       <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-save"></i> {{ t('common.save') }}</button>
+
+      <!-- AI visit summary (draft; doctor reviews before keeping) -->
+      <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;"
+           x-data="aiSummary('{{ url_for('visits.ai_summary', visit_id=visit.id) }}')">
+        {% if ai_ready %}
+        <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="run()" :disabled="loading">
+          <i class="bi bi-stars"></i> <span x-show="!loading">{{ t('visits.ai_summary_btn') }}</span>
+          <span x-show="loading" x-cloak>{{ t('visits.ai_thinking') }}</span></button>
+        <span style="color:var(--muted);font-size:0.8rem;margin-inline-start:8px;">{{ t('visits.ai_hint') }}</span>
+        <template x-if="error">
+          <div class="info-note" style="margin-top:10px;border-color:var(--danger);color:var(--danger);" x-text="error"></div>
+        </template>
+        <template x-if="text">
+          <div style="margin-top:10px;">
+            <textarea class="input" rows="7" x-model="text" dir="auto"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button type="button" class="btn btn-primary btn-sm gc-press" x-on:click="insert()"><i class="bi bi-box-arrow-in-down"></i> {{ t('visits.ai_insert_notes') }}</button>
+              <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="run()"><i class="bi bi-arrow-repeat"></i> {{ t('visits.ai_regenerate') }}</button>
+            </div>
+          </div>
+        </template>
+        {% else %}
+        <span style="color:var(--muted);font-size:0.85rem;"><i class="bi bi-stars"></i> {{ t('visits.ai_not_configured') }}
+          {% if current_user.is_admin %}<a href="{{ url_for('settings.index') }}#ai">{{ t('visits.ai_configure') }}</a>{% endif %}</span>
+        {% endif %}
+      </div>
     </div>
   </form>
 
@@ -713,6 +739,36 @@
 {% block scripts %}
 <script>
   window.current_lang = "{{ current_lang }}";
+  // AI visit summary: ask the server (which calls the configured provider) for a
+  // draft, shown in an editable box the doctor reviews before keeping.
+  function aiSummary(url) {
+    return {
+      loading: false, text: '', error: '',
+      async run() {
+        this.loading = true; this.error = '';
+        try {
+          const r = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'fetch' } });
+          const data = await r.json();
+          if (data.ok) { this.text = (data.text || '').trim(); }
+          else {
+            const map = {
+              not_configured: "{{ t('visits.ai_not_configured') }}",
+              empty: "{{ t('visits.ai_empty') }}",
+              disabled: "{{ t('visits.ai_not_configured') }}",
+            };
+            this.error = map[data.error] || ("{{ t('visits.ai_error') }}" + ' ' + (data.error || ''));
+          }
+        } catch (e) { this.error = "{{ t('visits.ai_error') }}"; }
+        finally { this.loading = false; }
+      },
+      insert() {
+        const box = document.getElementById('visitNotes');
+        if (!box) return;
+        box.value = (box.value ? box.value.trim() + '\n\n' : '') + this.text;
+        box.focus();
+      },
+    };
+  }
   // Vaccine tab search: filter cards across every section by any text
   // (scientific name, trade name, dose) and hide sections left empty.
   function gcVacFilter(q) {

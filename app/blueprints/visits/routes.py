@@ -233,6 +233,7 @@ def record(visit_id):
     # Medication reconciliation reference: the patient's recent meds.
     from app.utils.meds import recent_medications
     recent_meds = recent_medications(visit.patient_id)
+    from app.utils import ai
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         pending_investigations=pending_investigations,
@@ -241,7 +242,92 @@ def record(visit_id):
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
+        ai_ready=ai.is_ready(),
     )
+
+
+def _visit_clinical_text(visit, anonymize=True):
+    """Flatten a visit's saved structured data into plain text for the AI.
+    Sends clinical content only; the patient's name is withheld when the AI
+    anonymize option is on (age/sex is enough clinical context)."""
+    p = visit.patient
+    yrs, mos = p.age_parts
+    who = "A child" if anonymize else p.full_name
+    lines = [f"{who}, {yrs}y {mos}m, {p.gender}."]
+    v = visit.vitals
+    if v:
+        vit = []
+        if v.weight_kg:
+            vit.append(f"weight {v.weight_kg}kg")
+        if v.height_cm:
+            vit.append(f"height {v.height_cm}cm")
+        if v.head_circ_cm:
+            vit.append(f"head circ {v.head_circ_cm}cm")
+        if v.temperature_c:
+            vit.append(f"temp {v.temperature_c}C")
+        if v.pulse_bpm:
+            vit.append(f"pulse {v.pulse_bpm}")
+        if v.resp_rate:
+            vit.append(f"resp {v.resp_rate}")
+        if v.spo2:
+            vit.append(f"SpO2 {v.spo2}%")
+        if vit:
+            lines.append("Vitals: " + ", ".join(vit) + ".")
+    if visit.chief_complaint:
+        lines.append("Chief complaint: " + visit.chief_complaint)
+    if visit.clinical_exam:
+        lines.append("Examination: " + visit.clinical_exam)
+    dx = [d.title for d in visit.diagnoses if d.title]
+    if dx:
+        lines.append("Diagnoses: " + "; ".join(dx))
+    meds = [it.drug_name for rx in getattr(visit, "prescriptions", [])
+            for it in rx.items if it.drug_name]
+    if meds:
+        lines.append("Medications: " + "; ".join(meds))
+    invs = [i.name for i in visit.investigations if i.name]
+    if invs:
+        lines.append("Investigations: " + "; ".join(invs))
+    if visit.plan:
+        lines.append("Plan: " + visit.plan)
+    if visit.notes:
+        lines.append("Notes: " + visit.notes)
+    return "\n".join(lines)
+
+
+@visits_bp.route("/<int:visit_id>/ai-summary", methods=["POST"])
+@module_required(MODULE)
+def ai_summary(visit_id):
+    """Draft a concise clinical visit summary from the saved notes, using the
+    clinic's configured AI provider. Never auto-saved — it's returned for the
+    doctor to review, edit and paste into the notes/plan."""
+    from app.utils import ai
+    from app.utils.privacy import can_see_visit
+
+    visit = db.get_or_404(Visit, visit_id)
+    if not can_see_visit(visit):
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+    if not ai.is_ready():
+        return jsonify({"ok": False, "error": "not_configured"})
+
+    if not (visit.chief_complaint or visit.clinical_exam or visit.diagnoses
+            or visit.plan or visit.notes or visit.vitals):
+        return jsonify({"ok": False, "error": "empty"})
+
+    lang_name = "Arabic" if getattr(g, "lang", "ar") == "ar" else "English"
+    system = (
+        f"You are a pediatric clinical scribe. Write a concise, professional visit "
+        f"summary in {lang_name} from the structured notes provided, under short "
+        f"headings: Chief complaint, Examination, Assessment, Plan. Only use what is "
+        f"in the notes — never invent findings, medications, doses or diagnoses. "
+        f"This is a draft for the treating doctor to review and edit."
+    )
+    text = _visit_clinical_text(visit, anonymize=ai.anonymize_enabled())
+    res = ai.chat([{"role": "user", "content": text}], system=system)
+    if res.get("ok"):
+        ActivityLog.record("visit.ai_summary", user_id=current_user.id,
+                           entity="visit", entity_id=visit.id, ip_address=client_ip())
+        db.session.commit()
+    return jsonify(res)
 
 
 # ------------------------------------------------------- nurse station -----
