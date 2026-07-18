@@ -14,6 +14,8 @@
       <i class="bi bi-clipboard2-pulse"></i> {{ t('doctors.manage') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('users.roles') }}">
       <i class="bi bi-shield-lock"></i> {{ t('roles_mgmt.manage') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('users.audit') }}">
+      <i class="bi bi-clock-history"></i> {{ t('audit.title') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('users.create') }}">
       <i class="bi bi-person-plus"></i> {{ t('users.add_user') }}</a>
   </div>
@@ -49,6 +51,7 @@
         </td>
         <td style="font-size:0.84rem;color:var(--muted);">
           {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else t('users.never') }}
+          {% if last_ip.get(user.id) %}<div style="font-size:0.76rem;" dir="ltr">{{ last_ip.get(user.id) }}</div>{% endif %}
         </td>
         <td style="text-align:end;white-space:nowrap;">
           <a class="btn btn-outline btn-sm" href="{{ url_for('users.edit', user_id=user.id) }}">

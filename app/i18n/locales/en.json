@@ -2830,5 +2830,23 @@
     "reason_auto": "Auto",
     "reason_manual": "Manual",
     "none_archived": "No archived files."
+  },
+  "audit": {
+    "title": "Security & activity log",
+    "subtitle": "Who did what, when and from where — with failed sign-ins highlighted",
+    "time": "Time",
+    "user": "User",
+    "action": "Action",
+    "detail": "Detail",
+    "ip": "IP",
+    "all_actions": "All actions",
+    "all_users": "All users",
+    "empty": "No log entries.",
+    "act_login": "Login",
+    "act_login_failed": "Failed login",
+    "act_login_disabled": "Disabled account",
+    "act_logout": "Logout",
+    "failed_24h": "{n} failed sign-in attempt(s) in the last 24h.",
+    "view_failed": "View them"
   }
 }

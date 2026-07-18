@@ -37,10 +37,23 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user is None or not user.check_password(password):
+            # Audit failed sign-ins (wrong user or password) so brute-force
+            # attempts are visible — the username tried is kept, never the
+            # password. Attributed to the user id when the name matched.
+            ActivityLog.record(
+                "login_failed", user_id=(user.id if user else None),
+                entity="user", detail=username[:80], ip_address=client_ip(),
+            )
+            db.session.commit()
             flash(t("auth.invalid_credentials"), "danger")
             return render_template("auth/login.html"), 401
 
         if not user.is_active:
+            ActivityLog.record(
+                "login_disabled", user_id=user.id, entity="user",
+                entity_id=user.id, detail=username[:80], ip_address=client_ip(),
+            )
+            db.session.commit()
             flash(t("auth.account_disabled"), "warning")
             return render_template("auth/login.html"), 403
 
