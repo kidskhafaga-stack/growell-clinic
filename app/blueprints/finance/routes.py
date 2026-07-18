@@ -45,7 +45,7 @@ from app.models import (
     User,
     Visit,
 )
-from app.utils.decorators import client_ip, module_required
+from app.utils.decorators import cashier_access, client_ip, module_required
 from app.utils.finance import generate_invoice_number
 from app.utils.pricing import (
     save_visit_type_service_map,
@@ -435,7 +435,7 @@ def _deduct_service_consumables(item, invoice):
 
 
 @finance_bp.route("/invoices")
-@module_required(MODULE)
+@cashier_access
 def invoices():
     status = (request.args.get("status") or "").strip()
     q = Invoice.query
@@ -533,7 +533,7 @@ def _uncollected_by_patient(days=7):
 
 
 @finance_bp.route("/cashier")
-@module_required(MODULE)
+@cashier_access
 def cashier():
     """Reception's till for the day: opening float, money taken in (by method),
     expected cash to reconcile, and who still owes — with one-click collect."""
@@ -590,7 +590,7 @@ def cashier():
 
 
 @finance_bp.route("/cashier/poll")
-@module_required(MODULE)
+@cashier_access
 def cashier_poll():
     """Cheap change fingerprint for the cashier's live refresh: the day's
     payments + open invoices + pending refund requests. The page reloads only
@@ -615,7 +615,7 @@ def cashier_poll():
 
 
 @finance_bp.route("/cashier/float", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def cashier_float():
     """Set the opening change float reception is handed at the start of the day."""
     on_date = _cashier_date()
@@ -632,7 +632,7 @@ def cashier_float():
 
 # ----------------------------------------------------- cashier shifts ------
 @finance_bp.route("/shift/open", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def shift_open():
     """Open a till session (وردية) with a change float. One open shift per
     cashier at a time — money collected from now on is booked into it."""
@@ -655,7 +655,7 @@ def shift_open():
 
 
 @finance_bp.route("/shift/<int:shift_id>/close", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def shift_close(shift_id):
     """Close a shift against the counted cash and record over/short."""
     shift = db.get_or_404(CashierShift, shift_id)
@@ -675,7 +675,7 @@ def shift_close(shift_id):
 
 
 @finance_bp.route("/shifts")
-@module_required(MODULE)
+@cashier_access
 def shifts():
     """History of till sessions (Z-reports)."""
     page = request.args.get("page", 1, type=int)
@@ -687,7 +687,7 @@ def shifts():
 
 
 @finance_bp.route("/eod")
-@module_required(MODULE)
+@cashier_access
 def eod_report():
     """End-of-day summary: every shift opened that day with its serial,
     cashier, money by method, expected vs counted and the over/short — plus
@@ -722,7 +722,7 @@ def eod_report():
 
 
 @finance_bp.route("/shift/<int:shift_id>")
-@module_required(MODULE)
+@cashier_access
 def shift_report(shift_id):
     """One shift's X/Z report: float, money by method, expected vs counted."""
     shift = db.get_or_404(CashierShift, shift_id)
@@ -812,7 +812,7 @@ def _unbilled_patient_services(patient_id, days=7):
 
 
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_new():
     if request.method == "POST":
         patient = db.session.get(Patient, request.form.get("patient_id", type=int))
@@ -1002,7 +1002,7 @@ def _checkout_lines(appt, lang):
 
 
 @finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
-@module_required(MODULE)
+@cashier_access
 def checkout(appt_id):
     """Reception checkout: show the appointment's charges with editable prices,
     let the user add services, pick a named discount, and collect with one or
@@ -1234,7 +1234,7 @@ def _build_line(invoice, idx):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>")
-@module_required(MODULE)
+@cashier_access
 def invoice_view(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     return render_template(
@@ -1247,7 +1247,7 @@ def invoice_view(invoice_id):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/receipt")
-@module_required(MODULE)
+@cashier_access
 def invoice_receipt(invoice_id):
     """Compact 80mm thermal receipt — clinic logo on top, PediaPro mark below,
     plus an admin-configurable footer line."""
@@ -1265,7 +1265,7 @@ def invoice_receipt(invoice_id):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/payment", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_payment(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     # One invoice can be settled with several methods at once (e.g. 500 cash +
@@ -1376,7 +1376,7 @@ def invoice_refund(invoice_id):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/item/add", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_item_add(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     item = _add_item_from_form(invoice)
@@ -1395,7 +1395,7 @@ def invoice_item_add(invoice_id):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/item/<int:item_id>/delete", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_item_delete(invoice_id, item_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     item = db.session.get(InvoiceItem, item_id)
@@ -1409,7 +1409,7 @@ def invoice_item_delete(invoice_id, item_id):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/item/<int:item_id>/edit", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_item_edit(invoice_id, item_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     item = db.session.get(InvoiceItem, item_id)
@@ -1435,7 +1435,7 @@ def invoice_item_edit(invoice_id, item_id):
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/edit", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_edit(invoice_id):
     """Edit invoice header fields (patient, doctor, payer, date, notes)."""
     invoice = db.get_or_404(Invoice, invoice_id)

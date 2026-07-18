@@ -48,7 +48,9 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # Workflow policies: doctor privacy + refund manager sign-off
                # + the cashier shift gate (no open shift, no collection).
                "doctors_see_own_only", "refund_approval_required",
-               "require_shift_to_collect"]
+               "require_shift_to_collect",
+               # Small-clinic mode: reception also runs the till (cashier only).
+               "small_clinic_mode"]
 
 
 def _logo_dir():

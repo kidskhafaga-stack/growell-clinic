@@ -319,6 +319,12 @@
       <label for="require_shift_to_collect" style="margin:0;font-weight:400;">{{ t('settings.require_shift_to_collect') }}</label>
     </div>
     <p class="hint">{{ t('settings.require_shift_to_collect_hint') }}</p>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="small_clinic_mode" name="small_clinic_mode" value="1"
+             {{ 'checked' if values.get('small_clinic_mode','0') == '1' else '' }}>
+      <label for="small_clinic_mode" style="margin:0;font-weight:400;">{{ t('settings.small_clinic_mode') }}</label>
+    </div>
+    <p class="hint">{{ t('settings.small_clinic_mode_hint') }}</p>
   </div>
 
   <!-- ETA e-invoicing -->
