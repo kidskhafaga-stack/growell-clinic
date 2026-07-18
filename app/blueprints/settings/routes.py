@@ -312,8 +312,28 @@ def data_tools():
         "keep": Setting.get("backup_keep", "14"),
         "every": Setting.get("backup_every_days", "1"),
     }
+    from app.utils.export import DATASETS, dataset_count
+    exports = [{"kind": k, "count": dataset_count(k)} for k in DATASETS]
     return render_template("settings/data.html", stats=stats,
-                           backups=list_backups(), bset=bset)
+                           backups=list_backups(), bset=bset, exports=exports)
+
+
+@settings_bp.route("/data/export/<kind>")
+@admin_required
+def data_export(kind):
+    """Download a dataset (patients / invoices / appointments / vaccinations)
+    as CSV or Excel (?fmt=xlsx)."""
+    from app.models import ActivityLog
+    from app.utils.export import export_response
+
+    resp = export_response(kind, (request.args.get("fmt") or "csv").lower())
+    if resp is None:
+        flash(t("common.not_found"), "warning")
+        return redirect(url_for("settings.data_tools"))
+    ActivityLog.record("data.export", user_id=current_user.id, entity="export",
+                       detail=kind, ip_address=client_ip())
+    db.session.commit()
+    return resp
 
 
 @settings_bp.route("/data/backup-settings", methods=["POST"])
