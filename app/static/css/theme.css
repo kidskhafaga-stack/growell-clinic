@@ -195,11 +195,16 @@ a:hover { color: var(--green-900); }
 .nav-item .bi { font-size: 1.1rem; }
 
 .sidebar__footer {
-  padding: 14px;
-  font-size: 0.75rem;
-  opacity: 0.8;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
+.sidebar__brandline { display: flex; align-items: center; gap: 8px; }
+.sidebar__product { font-weight: 700; font-size: 0.92rem; color: #fff; letter-spacing: 0.2px; }
+.sidebar__ver {
+  font-size: 0.64rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.88);
+}
+.sidebar__role { font-size: 0.72rem; color: rgba(255, 255, 255, 0.58); margin-top: 3px; }
 
 /* ---------- Main column ---------- */
 .main {
@@ -451,7 +456,11 @@ img.patient-avatar.gender-male { border: 2px solid #3b82f6; }
 img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .patient-row.gm { border-inline-start: 3px solid #3b82f6; padding-inline-start: 9px; }
 .patient-row.gf { border-inline-start: 3px solid #ec4899; padding-inline-start: 9px; }
-.copyright { font-size: 0.68rem; opacity: 0.75; line-height: 1.5; margin-top: 6px; }
+.copyright {
+  font-size: 0.64rem; line-height: 1.5; margin-top: 10px; padding-top: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
 
 /* ---------- Profile header ---------- */
 .profile-header {
