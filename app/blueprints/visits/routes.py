@@ -244,6 +244,61 @@ def record(visit_id):
     )
 
 
+# ------------------------------------------------------- nurse station -----
+@visits_bp.route("/station")
+@module_required(MODULE)
+def station():
+    """Nurse vitals station: today's checked-in queue with a quick vitals entry
+    per child, so weight/height/temp/… are captured before the doctor sees them.
+    Saving pre-fills the open visit the doctor then continues."""
+    from app.models import Appointment
+
+    today = datetime.utcnow().date()
+    appts = (Appointment.query
+             .filter(Appointment.appt_date == today,
+                     Appointment.status.in_(("waiting", "in_progress")))
+             .order_by(Appointment.appt_time)
+             .all())
+    rows = []
+    for a in appts:
+        v = (Visit.query.filter_by(patient_id=a.patient_id, status="open")
+             .order_by(Visit.created_at.desc()).first())
+        rows.append({"appt": a, "patient": a.patient,
+                     "vitals": v.vitals if v else None,
+                     "done": bool(v and v.vitals and v.vitals.has_growth)})
+    return render_template("visits/station.html", rows=rows, today=today)
+
+
+@visits_bp.route("/station/<int:appointment_id>/vitals", methods=["POST"])
+@module_required(MODULE)
+def station_vitals(appointment_id):
+    """Record (or update) a waiting child's vitals from the nurse station.
+
+    Reuses the open visit if one exists (so the doctor continues the same
+    encounter) or opens one attached to the appointment; then upserts vitals via
+    the shared helper, which also mirrors the growth measurements."""
+    from app.models import Appointment
+
+    appt = db.get_or_404(Appointment, appointment_id)
+    visit = (Visit.query.filter_by(patient_id=appt.patient_id, status="open")
+             .order_by(Visit.created_at.desc()).first())
+    if visit is None:
+        visit = Visit(patient_id=appt.patient_id, doctor_id=appt.doctor_id,
+                      appointment_id=appt.id)
+        db.session.add(visit)
+        db.session.flush()
+    _save_vitals(visit)
+    ActivityLog.record(
+        "visit.vitals_station", user_id=current_user.id, entity="visit",
+        entity_id=visit.id, detail=appt.patient.patient_number,
+        ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("visits.station_saved", name=appt.patient.display_name(g.get("lang", "ar"))),
+          "success")
+    return redirect(url_for("visits.station"))
+
+
 def _save_vitals(visit):
     """Upsert the visit's vitals and mirror growth measurements."""
     vitals = visit.vitals or VitalSigns(visit_id=visit.id)

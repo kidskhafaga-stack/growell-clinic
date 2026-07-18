@@ -43,7 +43,9 @@
     "notes": "Notes",
     "enable": "Enable",
     "disable": "Disable",
-    "saved": "Saved."
+    "saved": "Saved.",
+    "year_short": "y",
+    "month_short": "m"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -98,7 +100,8 @@
     "today_clinic": "Today's clinic",
     "open_board": "Open today's board",
     "up_next": "Up next",
-    "queue_empty": "No patients waiting right now."
+    "queue_empty": "No patients waiting right now.",
+    "vitals_station": "Nurse station"
   },
   "users": {
     "title": "User Management",
@@ -628,7 +631,13 @@
     "vac_plan_bad": "Pick a valid date for the dose.",
     "vac_plan_save": "Save date",
     "vac_planned_hint": "Date set by the doctor (overrides the computed schedule)",
-    "vac_print_plan": "Print vaccination plan"
+    "vac_print_plan": "Print vaccination plan",
+    "station_title": "Vitals station",
+    "station_subtitle": "Record vitals for waiting patients before the doctor sees them",
+    "station_empty": "No patients waiting right now.",
+    "station_save": "Save vitals",
+    "station_recorded": "Recorded",
+    "station_saved": "Saved {name}'s vitals."
   },
   "diagnosis_types": {
     "working": "Working",

@@ -43,7 +43,9 @@
     "notes": "ملاحظات",
     "enable": "تفعيل",
     "disable": "تعطيل",
-    "saved": "تم الحفظ."
+    "saved": "تم الحفظ.",
+    "year_short": "س",
+    "month_short": "ش"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -98,7 +100,8 @@
     "today_clinic": "عيادة اليوم",
     "open_board": "فتح لوحة اليوم",
     "up_next": "التالي في الانتظار",
-    "queue_empty": "لا يوجد مرضى في الانتظار حاليًا."
+    "queue_empty": "لا يوجد مرضى في الانتظار حاليًا.",
+    "vitals_station": "محطة التمريض"
   },
   "users": {
     "title": "إدارة المستخدمين",
@@ -628,7 +631,13 @@
     "vac_plan_bad": "اختر تاريخاً صحيحاً للجرعة.",
     "vac_plan_save": "حفظ التاريخ",
     "vac_planned_hint": "تاريخ حدده الطبيب (يتقدم على الجدول المحسوب)",
-    "vac_print_plan": "طباعة خطة التطعيم"
+    "vac_print_plan": "طباعة خطة التطعيم",
+    "station_title": "محطة العلامات الحيوية",
+    "station_subtitle": "تسجيل العلامات الحيوية للمنتظرين قبل دخولهم على الطبيب",
+    "station_empty": "لا يوجد مرضى في الانتظار الآن.",
+    "station_save": "حفظ العلامات",
+    "station_recorded": "تم التسجيل",
+    "station_saved": "تم حفظ علامات {name} الحيوية."
   },
   "diagnosis_types": {
     "working": "أولي",

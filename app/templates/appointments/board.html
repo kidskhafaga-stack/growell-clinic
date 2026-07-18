@@ -79,6 +79,10 @@
     {% endif %}
     <button type="button" class="btn btn-outline gc-press" x-on:click="openWalkIn()">
       <i class="bi bi-person-walking"></i> {{ t('appointments.walk_in_btn') }}</button>
+    {% if current_user.can_access('visits') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.station') }}">
+      <i class="bi bi-heart-pulse"></i> {{ t('dashboard.vitals_station') }}</a>
+    {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('appointments.schedules', doctor_id=doctor_id) }}">
       <i class="bi bi-calendar2-week"></i> {{ t('appointments.manage_schedules') }}</a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('appointments.create') }}">

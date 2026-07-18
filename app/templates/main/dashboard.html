@@ -26,6 +26,10 @@
           <span class="dot-live" style="background:#fff;"></span> {{ t('appointments.booking_off') }}</button>
         {% endif %}
       </form>
+      {% if current_user.can_access('visits') %}
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.station') }}">
+        <i class="bi bi-heart-pulse"></i> {{ t('dashboard.vitals_station') }}</a>
+      {% endif %}
       <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('appointments.index', doctor_id=current_user.id) }}">
         <i class="bi bi-calendar2-week"></i> {{ t('dashboard.open_board') }}</a>
     </div>
