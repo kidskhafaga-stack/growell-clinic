@@ -2753,5 +2753,10 @@
     "totals": "Day totals",
     "still_open": "{n} shift(s) still open — close them before signing off.",
     "none": "No shifts on this day."
+  },
+  "vitals": {
+    "normal": "Normal",
+    "borderline": "Borderline",
+    "abnormal": "Abnormal"
   }
 }
