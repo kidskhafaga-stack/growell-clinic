@@ -67,6 +67,9 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
     <h3 style="margin:0;">{{ t('vaccinations.schedule') }} {{ tpl.code }}
+      <span class="badge {{ 'badge--green' if tpl.source == 'who' else ('badge--role' if tpl.source == 'manufacturer' else 'badge--muted') }}">
+        <i class="bi bi-{{ 'globe2' if tpl.source == 'who' else ('building' if tpl.source == 'manufacturer' else ('flag' if tpl.source == 'national' else 'pencil')) }}"></i>
+        {{ t('vaccinations.source_' ~ tpl.source) }}</span>
       {% if tpl.label %}<span style="color:var(--muted);font-weight:400;font-size:0.9rem;">— {{ tpl.label }}</span>{% endif %}
       {% if tpl.age_group %}<span class="badge badge--role">{{ tpl.age_group }}</span>{% endif %}
       {% if tpl.is_catch_up %}<span class="badge badge--muted">{{ t('vaccinations.catch_up') }}</span>{% endif %}
@@ -119,6 +122,13 @@
   <form method="post" action="{{ url_for('vaccinations.template_new', vaccine_id=vaccine.id) }}" style="margin-top:14px;">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('vaccinations.tpl_code') }} *</label><input class="input" name="code" dir="ltr" placeholder="A / B / C / D" required></div>
+      <div class="form-row"><label>{{ t('vaccinations.tpl_source') }}</label>
+        <select class="select" name="source">
+          <option value="manufacturer">{{ t('vaccinations.source_manufacturer') }}</option>
+          <option value="who">{{ t('vaccinations.source_who') }}</option>
+          <option value="national">{{ t('vaccinations.source_national') }}</option>
+          <option value="custom" selected>{{ t('vaccinations.source_custom') }}</option>
+        </select></div>
       <div class="form-row"><label>{{ t('vaccinations.tpl_label') }}</label><input class="input" name="label" placeholder="{{ t('vaccinations.tpl_label_ph') }}"></div>
       <div class="form-row"><label>{{ t('vaccinations.age_group') }}</label><input class="input" name="age_group" placeholder="2-6m"></div>
       <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="0"></div>

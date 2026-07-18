@@ -822,7 +822,15 @@
     "cert_with_schedule": "مع جدول الجرعات القادمة",
     "cert_upcoming_title": "الجرعات القادمة والتواريخ المتوقعة",
     "cert_upcoming_hint": "التواريخ تقديرية وفق جدول التطعيمات وقد يعدلها الطبيب حسب حالة الطفل.",
-    "cert_no_upcoming": "لا توجد جرعات قادمة — اكتمل الجدول."
+    "cert_no_upcoming": "لا توجد جرعات قادمة — اكتمل الجدول.",
+    "tpl_source": "المصدر",
+    "source_manufacturer": "الشركة المنتجة",
+    "source_who": "منظمة الصحة العالمية",
+    "source_national": "البرنامج القومي",
+    "source_custom": "مخصّص",
+    "brand_prefer": "اجعله الترشيح الأول",
+    "brand_preferred": "الترشيح الأول",
+    "brand_preferred_set": "تم تعيين الاسم التجاري كترشيح أول."
   },
   "vstatus": {
     "done": "تم",

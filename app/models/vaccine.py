@@ -249,7 +249,16 @@ class VaccineScheduleTemplate(db.Model):
     age_group = db.Column(db.String(120))             # "2-6 months"
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Where this schedule comes from: the manufacturer's leaflet (SmPC), the WHO
+    # position paper, the national EPI program, or a clinic-authored one. The
+    # doctor can keep several sources side by side and pick which to follow.
+    source = db.Column(db.String(20), default="custom", nullable=False)
+    # Whether the app auto-created this template (so re-seeding can leave the
+    # doctor's own edits untouched while still filling gaps).
+    is_seeded = db.Column(db.Boolean, default=False, nullable=False)
     sort_order = db.Column(db.Integer, default=0)
+
+    SOURCES = ["manufacturer", "who", "national", "custom"]
 
     vaccine = db.relationship("Vaccine", back_populates="schedule_templates")
     doses = db.relationship(
