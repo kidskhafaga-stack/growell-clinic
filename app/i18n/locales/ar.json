@@ -2919,5 +2919,13 @@
     "type_service": "نجوم ١–٥",
     "type_nps": "٠–١٠",
     "type_comment": "نص حر"
+  },
+  "data_export": {
+    "title": "سحب البيانات (تصدير)",
+    "hint": "نزّل السجلات الخام كـ CSV أو Excel — للنقل أو التحليل الخارجي أو الأرشفة.",
+    "kind_patients": "المرضى",
+    "kind_invoices": "الفواتير",
+    "kind_appointments": "المواعيد",
+    "kind_vaccinations": "التطعيمات"
   }
 }

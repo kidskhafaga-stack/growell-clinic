@@ -21,6 +21,26 @@
     <div class="value" style="font-size:1rem;">{{ t('data_tools.status_seeded') if stats.seeded else t('data_tools.status_clean') }}</div><div class="label">{{ t('data_tools.current') }}</div></div>
 </div>
 
+<!-- Data export (raw records → CSV / Excel) -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-filetype-csv"></i> {{ t('data_export.title') }}</h2>
+  <p class="hint" style="margin:6px 0 14px;">{{ t('data_export.hint') }}</p>
+  <div class="grid grid--cards">
+    {% for ex in exports %}
+    <div class="window-pill" style="justify-content:space-between;width:100%;border-radius:12px;padding:12px 14px;">
+      <span><strong>{{ t('data_export.kind_' ~ ex.kind) }}</strong>
+        <span class="badge badge--muted">{{ ex.count }}</span></span>
+      <span style="display:flex;gap:6px;">
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.data_export', kind=ex.kind, fmt='csv') }}">
+          <i class="bi bi-filetype-csv"></i> CSV</a>
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.data_export', kind=ex.kind, fmt='xlsx') }}">
+          <i class="bi bi-filetype-xlsx"></i> Excel</a>
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
 <!-- Backups (Phase 0 — the safety net) -->
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">

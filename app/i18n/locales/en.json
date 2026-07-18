@@ -2919,5 +2919,13 @@
     "type_service": "1–5 stars",
     "type_nps": "0–10",
     "type_comment": "Free text"
+  },
+  "data_export": {
+    "title": "Data export",
+    "hint": "Download raw records as CSV or Excel — for migration, external analysis or archiving.",
+    "kind_patients": "Patients",
+    "kind_invoices": "Invoices",
+    "kind_appointments": "Appointments",
+    "kind_vaccinations": "Vaccinations"
   }
 }
