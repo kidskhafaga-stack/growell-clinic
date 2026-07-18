@@ -175,14 +175,46 @@ def ar_aging():
     )
 
 
+def _apply_print_lang():
+    """Per-print language choice (?lang=ar|en) so a statement can be handed to
+    the family in either language regardless of the staff UI language."""
+    lang = request.args.get("lang")
+    if lang in ("ar", "en"):
+        from app.i18n import get_direction
+
+        g.lang = lang
+        g.direction = get_direction(lang)
+
+
+def _delta(e):
+    """Signed effect of an event on the running balance (owed by the patient)."""
+    return e["amount"] if e["kind"] in ("invoice", "refund") else -e["amount"]
+
+
 @reports_bp.route("/statement/<int:patient_id>")
 @module_required(MODULE)
 def patient_statement(patient_id):
     """Printable patient statement (كشف حساب): invoices and payments in
-    chronological order with a running balance."""
+    chronological order with a running balance. Supports an optional date range
+    (?from=&to=) with a carried-forward opening balance, and a per-print
+    language choice (?lang=)."""
+    from datetime import date as _date
+
     from app.extensions import db
 
+    _apply_print_lang()
     patient = db.get_or_404(Patient, patient_id)
+
+    def _parse(name):
+        raw = (request.args.get(name) or "").strip()
+        try:
+            return _date.fromisoformat(raw) if raw else None
+        except ValueError:
+            return None
+
+    date_from = _parse("from")
+    date_to = _parse("to")
+
     events = []
     for inv in Invoice.query.filter_by(patient_id=patient.id).all():
         events.append({"date": inv.invoice_date, "kind": "invoice",
@@ -194,21 +226,30 @@ def patient_statement(patient_id):
                 "ref": inv.invoice_number, "amount": pay.amount or 0,
             })
     events.sort(key=lambda e: (e["date"] or datetime.utcnow().date(), e["kind"]))
-    balance = 0.0
-    for e in events:
-        if e["kind"] == "invoice" or e["kind"] == "refund":
-            balance = round(balance + e["amount"], 2)
-        else:
-            balance = round(balance - e["amount"], 2)
+
+    # Opening balance = net of everything strictly before the range start; the
+    # in-range rows then continue the running balance from there.
+    opening = 0.0
+    if date_from:
+        opening = round(sum(_delta(e) for e in events
+                            if e["date"] and e["date"] < date_from), 2)
+    shown = [e for e in events
+             if (not date_from or (e["date"] and e["date"] >= date_from))
+             and (not date_to or (e["date"] and e["date"] <= date_to))]
+
+    balance = opening
+    for e in shown:
+        balance = round(balance + _delta(e), 2)
         e["balance"] = balance
     summary = {
-        "billed": round(sum(e["amount"] for e in events if e["kind"] == "invoice"), 2),
-        "paid": round(sum(e["amount"] for e in events if e["kind"] == "payment"), 2),
-        "refunded": round(sum(e["amount"] for e in events if e["kind"] == "refund"), 2),
+        "billed": round(sum(e["amount"] for e in shown if e["kind"] == "invoice"), 2),
+        "paid": round(sum(e["amount"] for e in shown if e["kind"] == "payment"), 2),
+        "refunded": round(sum(e["amount"] for e in shown if e["kind"] == "refund"), 2),
         "balance": balance,
     }
     return render_template("reports/statement.html", patient=patient,
-                           events=events, summary=summary,
+                           events=shown, summary=summary,
+                           opening=opening, date_from=date_from, date_to=date_to,
                            today=datetime.utcnow().date())
 
 
