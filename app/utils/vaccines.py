@@ -15,6 +15,8 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineScheduleDose,
+    VaccineScheduleTemplate,
 )
 
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "egypt_vaccines.json")
@@ -112,6 +114,108 @@ def seed_vaccines():
             db.session.flush()
             for i, age in enumerate(b["doses_age_months"], start=1):
                 db.session.add(VaccineBrandDose(brand_id=brand.id, dose_number=i, age_months=age))
+    db.session.commit()
+    return created
+
+
+# WHO routine positions (recommended age in months, min interval days) for the
+# optional vaccines where WHO's routine schedule is well established and differs
+# from a common manufacturer leaflet. Authored *for the doctor to review* — the
+# seed only fills a blank WHO schedule and never overwrites the doctor's edits.
+_WHO_ROUTINE = {
+    "ROTA": [(2, None), (4, 28)],                 # 2 doses from 6 weeks, ≥4w apart
+    "PCV": [(2, None), (4, 28), (9, None)],       # WHO 2p+1
+    "MEASLES": [(9, None), (15, None)],
+    "MMR": [(12, None), (15, 28)],
+    "HAV": [(12, None)],                          # WHO: single dose suffices
+    "VARICELLA": [(12, None), (15, 84)],
+    "HPV": [(108, None), (114, 180)],             # 2 doses 9–14y, ~6 months apart
+    "FLU": [(6, None)],
+}
+
+# Minimum inter-dose interval (days) used to turn a routine schedule into a
+# catch-up skeleton (interval-driven rather than age-driven). Conservative
+# 4-week default for most; the doctor edits per current guidance.
+_CATCH_UP_MIN_INTERVAL = 28
+
+
+def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
+                   sort_order=0):
+    """Create one seeded schedule template if a seeded one of the same
+    (code, source) isn't already there. ``doses`` is a list of
+    ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
+    template was created, else 0. Never touches doctor-edited templates."""
+    existing = VaccineScheduleTemplate.query.filter_by(
+        vaccine_id=vaccine.id, code=code, source=source).first()
+    if existing is not None:
+        return 0
+    tpl = VaccineScheduleTemplate(
+        vaccine_id=vaccine.id, code=code, source=source, label=label,
+        is_catch_up=is_catch_up, is_seeded=True, sort_order=sort_order,
+    )
+    db.session.add(tpl)
+    db.session.flush()
+    for i, (age, min_iv) in enumerate(doses, start=1):
+        db.session.add(VaccineScheduleDose(
+            template_id=tpl.id, dose_number=i,
+            recommended_age_months=age, min_interval_days=min_iv,
+        ))
+    return 1
+
+
+def seed_vaccine_schedules():
+    """Auto-seed routine + catch-up schedule templates so every vaccine ships
+    with an editable schedule out of the box, each tagged by its *source*:
+
+      * national (EPI)  — for mandatory vaccines, from the government schedule
+      * manufacturer    — for optional vaccines, from the default brand's leaflet
+      * who             — WHO routine, for optional vaccines (curated where known)
+      * a catch-up skeleton (interval-driven) for multi-dose optional vaccines
+
+    Idempotent: only creates a template when no template of the same
+    (code, source) exists, so a doctor's edits are never overwritten.
+    """
+    created = 0
+    for vaccine in Vaccine.query.order_by(Vaccine.sort_order).all():
+        brand = vaccine.default_brand
+        if brand is None or not brand.doses:
+            continue
+        ages = [d.age_months for d in brand.doses]
+        min_iv = vaccine.min_interval_days
+
+        if vaccine.is_mandatory:
+            # National EPI schedule (routine), age-driven.
+            created += _seed_template(
+                vaccine, code="EPI", source="national",
+                label="برنامج التطعيم القومي المصري — للمراجعة",
+                doses=[(a, None) for a in ages], sort_order=0)
+            continue
+
+        # Optional vaccine: manufacturer routine (from the default brand leaflet).
+        created += _seed_template(
+            vaccine, code="STD", source="manufacturer",
+            label="جدول الشركة المنتجة — للمراجعة",
+            doses=[(a, (min_iv if i else None)) for i, a in enumerate(ages)],
+            sort_order=0)
+
+        # WHO routine, where a well-established position exists; else skip (the
+        # doctor can add a WHO source with the built-in editor + selector).
+        who = _WHO_ROUTINE.get(vaccine.code)
+        if who:
+            created += _seed_template(
+                vaccine, code="WHO", source="who",
+                label="توصية منظمة الصحة العالمية — للمراجعة",
+                doses=who, sort_order=1)
+
+        # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
+        if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
+            cu = [(ages[0], None)] + [
+                (a, (min_iv or _CATCH_UP_MIN_INTERVAL)) for a in ages[1:]]
+            created += _seed_template(
+                vaccine, code="CATCHUP", source="manufacturer",
+                label="جدول تعويضي (Catch-up) — للمراجعة",
+                doses=cu, is_catch_up=True, sort_order=2)
+
     db.session.commit()
     return created
 

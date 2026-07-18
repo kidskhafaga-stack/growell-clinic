@@ -822,7 +822,15 @@
     "cert_with_schedule": "With upcoming schedule",
     "cert_upcoming_title": "Upcoming doses & expected dates",
     "cert_upcoming_hint": "Dates are estimates per the vaccination schedule and may be adjusted by the doctor.",
-    "cert_no_upcoming": "No upcoming doses — the course is complete."
+    "cert_no_upcoming": "No upcoming doses — the course is complete.",
+    "tpl_source": "Source",
+    "source_manufacturer": "Manufacturer",
+    "source_who": "WHO",
+    "source_national": "National program",
+    "source_custom": "Custom",
+    "brand_prefer": "Make first choice",
+    "brand_preferred": "First choice",
+    "brand_preferred_set": "Brand set as first choice."
   },
   "vstatus": {
     "done": "Done",

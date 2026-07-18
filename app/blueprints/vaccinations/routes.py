@@ -360,11 +360,13 @@ def template_new(vaccine_id):
     if not code:
         flash(t("common.required") + ": " + t("vaccinations.tpl_code"), "danger")
         return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+    source = (request.form.get("source") or "custom").strip()
     tpl = VaccineScheduleTemplate(
         vaccine_id=vaccine.id, code=code,
         label=(request.form.get("label") or "").strip() or None,
         age_group=(request.form.get("age_group") or "").strip() or None,
         is_catch_up=bool(request.form.get("is_catch_up")),
+        source=source if source in VaccineScheduleTemplate.SOURCES else "custom",
         sort_order=request.form.get("sort_order", type=int) or 0,
     )
     db.session.add(tpl)
@@ -474,6 +476,22 @@ def brand_edit(brand_id):
         _set_brand_doses(brand, ages)
     db.session.commit()
     flash(t("vaccinations.brand_updated"), "success")
+    return redirect(url_for("vaccinations.manage"))
+
+
+@vaccinations_bp.route("/manage/brand/<int:brand_id>/prefer", methods=["POST"])
+@module_required(MODULE)
+def brand_prefer(brand_id):
+    """Star a brand as the doctor's first-choice (default) for its vaccine.
+
+    Clears the star from the vaccine's other brands so exactly one is preferred;
+    the preferred brand is what a new course and the visit panel suggest first.
+    """
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    for b in brand.vaccine.brands:
+        b.is_default = (b.id == brand.id)
+    db.session.commit()
+    flash(t("vaccinations.brand_preferred_set"), "success")
     return redirect(url_for("vaccinations.manage"))
 
 

@@ -127,7 +127,14 @@
         {% if not vaccine.is_mandatory %}· <span class="badge {{ 'badge--green' if brand.stock > 5 else ('badge--muted' if brand.stock == 0 else 'badge--role') }}">{{ t('vaccinations.stock_available') }}: {{ brand.stock }}</span>{% endif %}
         {% if brand.manufacturer %}<span style="color:var(--muted);">({{ brand.manufacturer }})</span>{% endif %}
       </span>
-      <span style="display:flex;gap:6px;">
+      <span style="display:flex;gap:6px;align-items:center;">
+        {% if brand.is_default %}
+        <span class="btn-x" title="{{ t('vaccinations.brand_preferred') }}" style="cursor:default;"><i class="bi bi-star-fill" style="color:#f0ad4e;"></i></span>
+        {% else %}
+        <form method="post" action="{{ url_for('vaccinations.brand_prefer', brand_id=brand.id) }}" title="{{ t('vaccinations.brand_prefer') }}">
+          <button class="btn-x" type="submit"><i class="bi bi-star"></i></button>
+        </form>
+        {% endif %}
         <details style="position:relative;">
           <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
           <form method="post" action="{{ url_for('vaccinations.brand_edit', brand_id=brand.id) }}" class="popform">

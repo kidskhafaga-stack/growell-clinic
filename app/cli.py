@@ -234,6 +234,8 @@ def register_commands(app):
             ("message_templates", "delay_days", "INTEGER DEFAULT 0"),
             ("message_templates", "delay_hours", "INTEGER DEFAULT 0"),
             ("message_templates", "send_hour", "INTEGER"),
+            ("vaccine_schedule_templates", "source", "VARCHAR(20) DEFAULT 'custom'"),
+            ("vaccine_schedule_templates", "is_seeded", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -251,8 +253,9 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_drugs_safe()
         try:  # keep the vaccine catalogue current (idempotent)
-            from app.utils.vaccines import seed_vaccines
+            from app.utils.vaccines import seed_vaccine_schedules, seed_vaccines
             seed_vaccines()
+            seed_vaccine_schedules()
         except Exception:  # noqa: BLE001
             pass
         try:  # ensure base services + visit-type pricing exist (idempotent)
@@ -302,20 +305,23 @@ def register_commands(app):
     @app.cli.command("seed-vaccines")
     def seed_vaccines_cmd():
         """Load the bundled Egyptian vaccine catalogue into the database."""
-        from app.utils.vaccines import seed_vaccines
+        from app.utils.vaccines import seed_vaccine_schedules, seed_vaccines
         db.create_all()
         n = seed_vaccines()
-        click.secho(f"Vaccine catalogue seeded ({n} new vaccines).", fg="green")
+        s = seed_vaccine_schedules()
+        click.secho(f"Vaccine catalogue seeded ({n} new vaccines, "
+                    f"{s} schedule templates).", fg="green")
 
     @app.cli.command("seed")
     def seed():
         """Create demo users, default settings and the vaccine catalogue."""
-        from app.utils.vaccines import seed_vaccines
+        from app.utils.vaccines import seed_vaccine_schedules, seed_vaccines
         db.create_all()
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_drugs_safe()
         seed_vaccines()
+        seed_vaccine_schedules()
 
         created = 0
         for username, password, name_ar, name_en, role in DEMO_USERS:
