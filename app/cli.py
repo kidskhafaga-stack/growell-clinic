@@ -281,6 +281,11 @@ def register_commands(app):
             pass
         _seed_visit_types_safe()
         _backfill_service_types_safe()
+        try:  # every service carries a code (auto-generate for older rows)
+            from app.utils.services import backfill_service_codes
+            backfill_service_codes()
+        except Exception:  # noqa: BLE001
+            pass
         _seed_devices_safe()
         _seed_accounts_safe()
         _ensure_owner_safe()

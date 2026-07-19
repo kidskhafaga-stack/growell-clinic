@@ -133,8 +133,14 @@
     <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('appointments.add_time_off') }}</h2>
     <form method="post" action="{{ url_for('appointments.add_exception') }}">
       <input type="hidden" name="doctor_id" value="{{ selected }}">
-      <div class="form-row"><label>{{ t('appointments.date') }} *</label>
-        <input class="input" type="date" name="exc_date" required></div>
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('appointments.exc_from') }} *</label>
+          <input class="input" type="date" name="exc_date" required></div>
+        <div class="form-row" x-show="fullDay">
+          <label>{{ t('appointments.exc_to') }}</label>
+          <input class="input" type="date" name="exc_date_to">
+          <div class="hint">{{ t('appointments.exc_to_hint') }}</div></div>
+      </div>
       <div class="form-row checkbox">
         <input type="checkbox" id="is_full_day" name="is_full_day" value="1" x-model="fullDay" checked>
         <label for="is_full_day" style="margin:0;font-weight:400;">{{ t('appointments.full_day') }}</label>

@@ -484,7 +484,12 @@
     "booking_resumed": "Bookings resumed.",
     "booking_closed_banner": "Booking is paused — reception cannot add new appointments until it resumes.",
     "booking_closed_msg": "Booking is currently paused. Ask the doctor to resume it, or use admin override.",
-    "booking_admin_override": "As an admin you can override and still book."
+    "booking_admin_override": "As an admin you can override and still book.",
+    "exc_from": "From date",
+    "exc_to": "To date (optional)",
+    "exc_to_hint": "Leave empty for one day — or set it for a full vacation",
+    "exc_added_n": "{n} days off registered",
+    "quick_search": "Search name / file no / phone…"
   },
   "appt_types": {
     "new": "New visit",
@@ -1246,7 +1251,8 @@
     "consumables_saved": "Consumables saved",
     "consumables_deducted": "Deducted {n} item(s) from stock",
     "consumed_by": "Consumed by: {svc}",
-    "qty_per_service": "Qty per service"
+    "qty_per_service": "Qty per service",
+    "auto_seeded": "Base clinic services were auto-created with their codes — adjust prices as needed"
   },
   "commission_types": {
     "none": "None",

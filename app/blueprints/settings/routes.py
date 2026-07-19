@@ -524,6 +524,9 @@ def reset_data():
         return redirect(url_for("settings.data_tools"))
 
     reset_all()
+    # A reset clinic still needs its base coded services + visit-type pricing.
+    from app.utils.services import seed_services
+    seed_services()
     ActivityLog.record("data.reset", user_id=current_user.id, entity="system",
                        ip_address=client_ip())
     db.session.commit()

@@ -74,3 +74,25 @@ def _ensure_visit_type_map():
     mapping = {k: v for k, v in mapping.items() if v}
     if mapping:
         save_visit_type_service_map(mapping)
+
+
+def next_service_code():
+    """Sequential auto-code (SVC-001, SVC-002…) for services created without
+    one, skipping past both auto and canonical codes."""
+    top = 0
+    for (code,) in Service.query.with_entities(Service.code).all():
+        if code and code.upper().startswith("SVC-"):
+            tail = code[4:]
+            if tail.isdigit():
+                top = max(top, int(tail))
+    return f"SVC-{top + 1:03d}"
+
+
+def backfill_service_codes():
+    """Give every code-less service an auto code (idempotent; no commit)."""
+    fixed = 0
+    for svc in Service.query.filter((Service.code.is_(None)) | (Service.code == "")).all():
+        svc.code = next_service_code()
+        db.session.flush()
+        fixed += 1
+    return fixed

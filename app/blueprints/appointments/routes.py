@@ -828,9 +828,13 @@ def delete_schedule(schedule_id):
 @appointments_bp.route("/schedules/exception", methods=["POST"])
 @module_required(MODULE)
 def add_exception():
-    """Register a doctor's time off: a full day, or a timed break."""
+    """Register a doctor's time off: a full day, a date *range* (vacation from
+    date X to date Y — one row per day), or a timed break within one day."""
+    from datetime import timedelta
+
     doctor_id = request.form.get("doctor_id", type=int)
     exc_date = parse_date_arg(request.form.get("exc_date"), default=None)
+    exc_date_to = parse_date_arg(request.form.get("exc_date_to"), default=None)
     full_day = bool(request.form.get("is_full_day"))
     if not doctor_id or exc_date is None:
         flash(t("appointments.exc_need"), "danger")
@@ -838,6 +842,7 @@ def add_exception():
 
     start_t = end_t = None
     if not full_day:
+        exc_date_to = None  # a timed break applies to a single day
         try:
             start_t = datetime.strptime(request.form.get("start_time") or "", "%H:%M").time()
             end_t = datetime.strptime(request.form.get("end_time") or "", "%H:%M").time()
@@ -848,13 +853,29 @@ def add_exception():
             flash(t("appointments.bad_window"), "danger")
             return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
 
-    db.session.add(ScheduleException(
-        doctor_id=doctor_id, exc_date=exc_date, is_full_day=full_day,
-        start_time=start_t, end_time=end_t,
-        reason=(request.form.get("reason") or "").strip() or None,
-    ))
+    # Expand a vacation range into one row per day (capped at 60 days),
+    # skipping days that already have a full-day exception.
+    last = exc_date_to if (exc_date_to and exc_date_to > exc_date) else exc_date
+    if (last - exc_date).days > 60:
+        last = exc_date + timedelta(days=60)
+    reason = (request.form.get("reason") or "").strip() or None
+    existing = {e.exc_date for e in ScheduleException.query.filter(
+        ScheduleException.doctor_id == doctor_id,
+        ScheduleException.exc_date >= exc_date,
+        ScheduleException.exc_date <= last,
+        ScheduleException.is_full_day.is_(True)).all()}
+    added = 0
+    day = exc_date
+    while day <= last:
+        if not (full_day and day in existing):
+            db.session.add(ScheduleException(
+                doctor_id=doctor_id, exc_date=day, is_full_day=full_day,
+                start_time=start_t, end_time=end_t, reason=reason))
+            added += 1
+        day += timedelta(days=1)
     db.session.commit()
-    flash(t("appointments.exc_added"), "success")
+    flash(t("appointments.exc_added_n").replace("{n}", str(added))
+          if added > 1 else t("appointments.exc_added"), "success")
     return redirect(url_for("appointments.schedules", doctor_id=doctor_id))
 
 
