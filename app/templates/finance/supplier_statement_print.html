@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('payables.statement') }} — {{ supplier.name }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; line-height:1.5; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-weight:600; cursor:pointer; text-decoration:none; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .sheet { background:#fff; max-width:780px; margin:16px auto; padding:30px 36px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .head { display:flex; justify-content:space-between; border-bottom:2px solid var(--brand); padding-bottom:12px; }
+  .clinic { font-size:1.25rem; font-weight:800; color:var(--brand); }
+  h1 { text-align:center; font-size:1.1rem; margin:16px 0 4px; }
+  .meta { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:start; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-size:.76rem; text-transform:uppercase; }
+  .sum { display:flex; gap:20px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+  .sum div { text-align:center; }
+  .sum .k { color:var(--muted); font-size:.78rem; }
+  .sum .v { font-size:1.15rem; font-weight:800; }
+  .neg { color:#c0392b; }
+  @media print { body{background:#fff;} .toolbar{display:none;} .sheet{box-shadow:none;margin:0;max-width:none;padding:0;} @page{margin:14mm;} }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('finance.supplier_statement', supplier_id=supplier.id) }}">← {{ t('common.back') }}</a>
+    <a class="btn" href="{{ url_for('finance.supplier_statement_print', supplier_id=supplier.id, lang='ar') }}">العربية</a>
+    <a class="btn" href="{{ url_for('finance.supplier_statement_print', supplier_id=supplier.id, lang='en') }}">English</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('report.print') }}</button>
+  </div>
+  <div class="sheet">
+    <div class="head">
+      <div>
+        <div class="clinic">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div>
+        <div style="color:var(--muted);font-size:.85rem;">
+          {% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}
+          {% if clinic.address %} · {{ clinic.address }}{% endif %}</div>
+      </div>
+      {% if clinic.show_logo_print and clinic.logo_url %}<img src="{{ clinic.logo_url }}" style="max-height:56px;" alt="">{% endif %}
+    </div>
+
+    <h1>{{ t('payables.statement') }}</h1>
+    <div class="meta">{{ supplier.name }}
+      {% if supplier.phone %} · <span dir="ltr">{{ supplier.phone }}</span>{% endif %}
+      · {{ t('report.generated_on') }}: {{ today }}</div>
+
+    <table>
+      <thead><tr>
+        <th>{{ t('payables.date') }}</th><th>{{ t('payables.event') }}</th>
+        <th>{{ t('payables.doc') }}</th>
+        <th style="text-align:end;">{{ t('payables.billed') }}</th>
+        <th style="text-align:end;">{{ t('payables.paid') }}</th>
+        <th style="text-align:end;">{{ t('payables.running') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td style="white-space:nowrap;">{{ e.date }}</td>
+          <td>{% if e.kind == 'grn' %}{{ t('payables.ev_receipt') }}{% elif e.kind == 'return' %}{{ t('payables.ev_return') }}{% else %}{{ t('payables.ev_payment') }}{% endif %}</td>
+          <td dir="ltr">{{ e.ref }}{% if e.supplier_ref %} · {{ e.supplier_ref }}{% endif %}</td>
+          <td style="text-align:end;">{% if e.kind == 'grn' %}{{ e.amount|money }}{% else %}—{% endif %}</td>
+          <td style="text-align:end;">{% if e.kind != 'grn' %}{{ (-e.amount)|money }}{% else %}—{% endif %}</td>
+          <td style="text-align:end;font-weight:700;" class="{{ 'neg' if e.running > 0 else '' }}">{{ e.running|money }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">{{ t('payables.none') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="sum">
+      <div><div class="k">{{ t('payables.billed') }}</div><div class="v">{{ summary.billed|money }}</div></div>
+      <div><div class="k">{{ t('payables.paid') }}</div><div class="v">{{ summary.paid|money }}</div></div>
+      <div><div class="k">{{ t('payables.balance') }}</div><div class="v {{ 'neg' if summary.balance > 0 else '' }}">{{ summary.balance|money }}</div></div>
+    </div>
+  </div>
+</body>
+</html>

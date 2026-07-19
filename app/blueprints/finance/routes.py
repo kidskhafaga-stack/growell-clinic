@@ -2228,3 +2228,29 @@ def document_terms(doc_id):
     flash(t("payables.terms_saved"), "success")
     target = request.form.get("next") or url_for("finance.payables")
     return redirect(target)
+
+
+@finance_bp.route("/payables/<int:supplier_id>/print")
+@module_required(MODULE)
+def supplier_statement_print(supplier_id):
+    """Printable supplier statement (كشف حساب مورد) with a per-print language
+    choice (?lang=ar|en), mirroring the patient statement print."""
+    from app.models import Supplier
+    from app.utils import payables as ap
+
+    lang = request.args.get("lang")
+    if lang in ("ar", "en"):
+        from app.i18n import get_direction
+        g.lang = lang
+        g.direction = get_direction(lang)
+
+    supplier = db.get_or_404(Supplier, supplier_id)
+    events = ap.supplier_statement(supplier_id)
+    summary = {
+        "billed": ap.supplier_billed(supplier_id),
+        "paid": ap.supplier_paid(supplier_id),
+        "balance": ap.supplier_balance(supplier_id),
+    }
+    return render_template(
+        "finance/supplier_statement_print.html", supplier=supplier,
+        events=events, summary=summary, today=date.today())
