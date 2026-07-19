@@ -2969,5 +2969,21 @@
     "invoices": "Invoices",
     "totals": "Totals",
     "none": "No tax invoices in this period"
+  },
+  "manual_je": {
+    "new": "Manual entry",
+    "title": "Manual journal entry",
+    "hint": "For adjustments, opening balances and depreciation — debits must equal credits.",
+    "memo_ph": "Entry memo (e.g. adjustment / opening balance)",
+    "default_memo": "Manual entry",
+    "pick_account": "Pick account",
+    "add_line": "Add line",
+    "post": "Post entry",
+    "balanced": "Entry is balanced",
+    "diff": "Difference",
+    "need_lines": "At least two lines with amounts are required",
+    "unbalanced": "Entry is not balanced — debits do not equal credits",
+    "failed": "Could not post the entry — check the accounts",
+    "posted": "Entry {n} posted"
   }
 }
