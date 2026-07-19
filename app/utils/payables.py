@@ -137,6 +137,82 @@ def ap_aging(today=None):
     return rows, totals, round(sum(totals), 2)
 
 
+def installments_for(document_id):
+    from app.models import SupplierInstallment
+    return (SupplierInstallment.query.filter_by(document_id=document_id)
+            .order_by(SupplierInstallment.seq).all())
+
+
+def generate_schedule(doc, count, start_date, every_days=30):
+    """(Re)build an equal-instalment schedule for a credit goods-receipt.
+
+    Splits the receipt's value into ``count`` dated instalments ``every_days``
+    apart from ``start_date`` (the last absorbs the rounding remainder). Any
+    existing *pending* rows are replaced; already-paid instalments are kept."""
+    from datetime import timedelta
+
+    from app.models import SupplierInstallment
+
+    count = max(1, min(int(count or 1), 60))
+    total = doc_value(doc)
+    paid = [i for i in installments_for(doc.id) if i.is_paid]
+    for i in installments_for(doc.id):
+        if not i.is_paid:
+            db.session.delete(i)
+    already = round(sum(i.amount for i in paid), 2)
+    remaining = round(total - already, 2)
+    if remaining <= 0 or count <= 0:
+        db.session.commit()
+        return []
+    base = round(remaining / count, 2)
+    start_seq = len(paid) + 1
+    out = []
+    for n in range(count):
+        amt = base if n < count - 1 else round(remaining - base * (count - 1), 2)
+        inst = SupplierInstallment(
+            document_id=doc.id, seq=start_seq + n,
+            due_date=start_date + timedelta(days=every_days * n), amount=amt)
+        db.session.add(inst)
+        out.append(inst)
+    db.session.commit()
+    return out
+
+
+def pay_installment(inst, method="cash", paid_at=None, user_id=None):
+    """Settle one instalment: record a supplier payment for its amount and mark
+    it paid (linked to that payment)."""
+    from datetime import date
+
+    if inst.is_paid:
+        return None
+    payment = record_payment(
+        inst.document.supplier_id, inst.amount, method=method,
+        paid_at=paid_at or date.today(), document_id=inst.document_id,
+        notes=f"قسط #{inst.seq}", user_id=user_id)
+    inst.status = "paid"
+    inst.paid_at = paid_at or date.today()
+    inst.payment_id = payment.id
+    db.session.commit()
+    return payment
+
+
+def upcoming_installments(within_days=30, today=None):
+    """Pending instalments that are overdue or fall due within ``within_days``,
+    across all suppliers, soonest first — the follow-up list."""
+    from datetime import date, timedelta
+
+    from app.models import SupplierInstallment
+
+    today = today or date.today()
+    horizon = today + timedelta(days=within_days)
+    rows = (SupplierInstallment.query
+            .filter(SupplierInstallment.status == "pending",
+                    SupplierInstallment.due_date <= horizon)
+            .order_by(SupplierInstallment.due_date).all())
+    return [{"inst": i, "supplier": i.document.supplier if i.document else None,
+             "overdue": i.is_overdue(today)} for i in rows]
+
+
 def record_payment(supplier_id, amount, method="cash", paid_at=None,
                    reference=None, notes=None, document_id=None, user_id=None):
     """Create a supplier payment and post its journal. Returns the payment."""

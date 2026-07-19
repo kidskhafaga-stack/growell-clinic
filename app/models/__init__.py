@@ -138,7 +138,11 @@ from app.models.store import (
     Warehouse,
 )
 from app.models.purchase import PO_STATUSES, PurchaseOrder, PurchaseOrderItem
-from app.models.payable import SUPPLIER_PAYMENT_METHODS, SupplierPayment
+from app.models.payable import (
+    SUPPLIER_PAYMENT_METHODS,
+    SupplierInstallment,
+    SupplierPayment,
+)
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
 from app.models.accounting import (
     ACCOUNT_TYPES,
@@ -272,6 +276,7 @@ __all__ = [
     "PurchaseOrder",
     "PurchaseOrderItem",
     "SupplierPayment",
+    "SupplierInstallment",
     "SUPPLIER_PAYMENT_METHODS",
     "PO_STATUSES",
     "NamedDiscount",

@@ -38,3 +38,39 @@ class SupplierPayment(db.Model):
 
     def __repr__(self):
         return f"<SupplierPayment {self.amount} supplier={self.supplier_id}>"
+
+
+class SupplierInstallment(db.Model):
+    """One planned instalment of a credit goods-receipt (terms = installments).
+
+    A schedule of dated amounts that should sum to the receipt's value. Each row
+    is settled by recording a supplier payment against it; overdue/upcoming rows
+    drive the payables follow-up.
+    """
+    __tablename__ = "supplier_installments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey("store_documents.id"),
+                            nullable=False, index=True)
+    seq = db.Column(db.Integer, default=1, nullable=False)     # 1..N
+    due_date = db.Column(db.Date, nullable=False, index=True)
+    amount = db.Column(db.Float, default=0, nullable=False)
+    status = db.Column(db.String(10), default="pending", nullable=False, index=True)  # pending|paid
+    paid_at = db.Column(db.Date)
+    payment_id = db.Column(db.Integer, db.ForeignKey("supplier_payments.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    document = db.relationship("StoreDocument")
+    payment = db.relationship("SupplierPayment")
+
+    @property
+    def is_paid(self):
+        return self.status == "paid"
+
+    def is_overdue(self, today=None):
+        from datetime import date as _date
+        return (not self.is_paid and self.due_date
+                and self.due_date < (today or _date.today()))
+
+    def __repr__(self):
+        return f"<SupplierInstallment doc={self.document_id} #{self.seq} {self.status}>"
