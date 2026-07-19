@@ -61,3 +61,15 @@
 </div>
 {% endfor %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+  // Keep the nurse queue current as reception checks patients in and doctors
+  // pull them through — reuses the appointments fingerprint, reloading only
+  // when today's queue actually changes (idle polling is essentially free).
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.gcLivePoll)
+      window.gcLivePoll("{{ url_for('appointments.poll', date=today.isoformat()) }}", 12000);
+  });
+</script>
+{% endblock %}
