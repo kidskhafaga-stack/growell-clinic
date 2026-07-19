@@ -2423,7 +2423,8 @@
     "templates": "Ready-made templates",
     "templates_hint": "Start from a template that fills the type and services, then edit freely.",
     "capabilities": "Services & specialties",
-    "capabilities_hint": "Pick the services your facility offers — the right modules switch on automatically."
+    "capabilities_hint": "Pick the services your facility offers — the right modules switch on automatically.",
+    "services_seeded": "{n} base coded services were created from your selections — adjust prices in the Services screen"
   },
   "facility_types": {
     "single_doctor": "Single-doctor clinic",

@@ -137,9 +137,15 @@ def setup():
         caps = request.form.getlist("capabilities")
         modules = request.form.getlist("modules")
         apply_facility(type_key, name, caps, modules)
+        # The ticked services/specialties bring their base coded services with
+        # them (idempotent — re-running the wizard only adds what's new).
+        from app.utils.services import seed_services_for_caps
+        n_services = seed_services_for_caps(caps)
         ActivityLog.record("settings.facility_setup", user_id=current_user.id,
                            entity="settings", detail=type_key, ip_address=client_ip())
         db.session.commit()
+        if n_services:
+            flash(t("wizard.services_seeded").replace("{n}", str(n_services)), "info")
 
         if request.form.get("seed_demo"):
             from app.utils.demo import seed_demo
