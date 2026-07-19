@@ -73,6 +73,17 @@ AI_PROVIDERS = {
         "models": ["mistral-large-latest", "mistral-small-latest"],
         "keys_url": "https://console.mistral.ai/api-keys",
     },
+    "aihubmix": {
+        "label": "AiHubMix (many models, one key)",
+        "api": "openai",
+        "base_url": "https://aihubmix.com/v1/chat/completions",
+        "default_model": "gpt-4o-mini",
+        # An aggregator: one key reaches many vendors' models. These are just
+        # a few suggestions — any model id the account can access works.
+        "models": ["gpt-4o-mini", "gpt-4o", "gemini-2.0-flash",
+                   "deepseek-chat", "claude-3-5-haiku-20241022"],
+        "keys_url": "https://aihubmix.com/token",
+    },
     "ollama": {
         "label": "Local — Ollama (offline, private)",
         "api": "openai",
