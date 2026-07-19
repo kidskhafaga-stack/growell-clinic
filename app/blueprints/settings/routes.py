@@ -10,7 +10,7 @@ from app.blueprints.settings import settings_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog, Setting
-from app.utils.decorators import admin_required, client_ip
+from app.utils.decorators import admin_required, client_ip, owner_required
 
 ALLOWED_LOGO = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
 
@@ -115,7 +115,7 @@ def index():
 
 
 @settings_bp.route("/setup", methods=["GET", "POST"])
-@admin_required
+@owner_required
 def setup():
     """First-run wizard (and later editor) for the facility profile — three
     separate layers: administrative type, capabilities (services & specialties)
@@ -465,7 +465,7 @@ def seed_demo_data():
 
 
 @settings_bp.route("/data/reset", methods=["POST"])
-@admin_required
+@owner_required
 def reset_data():
     from app.utils.demo import reset_all
 

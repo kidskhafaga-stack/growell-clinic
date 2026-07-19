@@ -17,6 +17,14 @@ def _roles():
     return Role.query.order_by(Role.is_system.desc(), Role.name).all()
 
 
+def _owner_count(exclude=None):
+    """How many institution owners exist (optionally excluding one user)."""
+    q = User.query.filter_by(is_super_admin=True)
+    if exclude is not None:
+        q = q.filter(User.id != exclude)
+    return q.count()
+
+
 def _last_login_ip_map(user_ids):
     """{user_id: last login IP} from the audit log (one query, no N+1)."""
     if not user_ids:
@@ -202,6 +210,8 @@ def create():
             phone=form["phone"],
             is_active=form["is_active"],
             is_practitioner=form["is_practitioner"],
+            # Only an existing owner may mint another owner (super-admin).
+            is_super_admin=form["is_super_admin"] and current_user.is_owner,
             # Doctors default to an English UI; others follow the program default.
             language=form["language"] or ("en" if form["role"] == "doctor" else None),
         )
@@ -245,6 +255,13 @@ def edit(user_id):
         user.is_active = form["is_active"]
         user.is_practitioner = form["is_practitioner"]
         user.language = form["language"] or None
+        # Only owners may change owner status, and never remove the last owner.
+        if current_user.is_owner:
+            new_owner = form["is_super_admin"]
+            if user.is_super_admin and not new_owner and _owner_count(exclude=user.id) == 0:
+                flash(t("owner.last_owner"), "warning")
+            else:
+                user.is_super_admin = new_owner
         if form["password"]:
             user.set_password(form["password"])
         photo = _save_user_photo()
@@ -268,6 +285,7 @@ def edit(user_id):
         "phone": user.phone or "",
         "is_active": user.is_active,
         "is_practitioner": user.is_practitioner,
+        "is_super_admin": user.is_super_admin,
         "language": user.language or "",
         "password": "",
     }
@@ -281,6 +299,15 @@ def delete(user_id):
     if user.id == current_user.id:
         flash(t("users.cannot_delete_self"), "warning")
         return redirect(url_for("users.index"))
+    # Owners are protected: only another owner may remove one, and never the
+    # last one standing.
+    if user.is_super_admin:
+        if not current_user.is_owner:
+            flash(t("owner.only_owner_removes"), "warning")
+            return redirect(url_for("users.index"))
+        if _owner_count(exclude=user.id) == 0:
+            flash(t("owner.last_owner"), "warning")
+            return redirect(url_for("users.index"))
 
     username = user.username
     db.session.delete(user)
@@ -390,6 +417,7 @@ def _read_form():
         "password": request.form.get("password") or "",
         "is_active": bool(request.form.get("is_active")),
         "is_practitioner": bool(request.form.get("is_practitioner")),
+        "is_super_admin": bool(request.form.get("is_super_admin")),
         "language": (request.form.get("language") or "").strip(),
     }
 

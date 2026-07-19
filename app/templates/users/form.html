@@ -85,8 +85,19 @@
                {{ 'checked' if form.is_practitioner else '' }}>
         <label for="is_practitioner" style="margin:0;font-weight:400;">{{ t('users.is_practitioner') }}</label>
       </div>
+      {% if current_user.is_owner %}
+      <div class="form-row checkbox" style="align-self:end;">
+        <input type="checkbox" id="is_super_admin" name="is_super_admin" value="1"
+               {{ 'checked' if form.is_super_admin else '' }}>
+        <label for="is_super_admin" style="margin:0;font-weight:400;">
+          <i class="bi bi-shield-lock"></i> {{ t('users.super_admin') }}</label>
+      </div>
+      {% endif %}
     </div>
     <p class="hint" style="margin:-4px 0 0;"><i class="bi bi-info-circle"></i> {{ t('users.is_practitioner_hint') }}</p>
+    {% if current_user.is_owner %}
+    <p class="hint" style="margin:4px 0 0;"><i class="bi bi-shield-lock"></i> {{ t('users.super_admin_hint') }}</p>
+    {% endif %}
 
     <div style="display:flex;gap:10px;margin-top:10px;">
       <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>

@@ -88,6 +88,22 @@ def admin_required(view):
     return wrapped
 
 
+def owner_required(view):
+    """Restrict a view to the institution owner (super-admin) — the
+    institution/clinic-level settings a plain admin must not reshape
+    (facility setup, multi-doctor config, data reset)."""
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return current_app.login_manager.unauthorized()
+        if not current_user.is_owner:
+            abort(403, description=t("auth.owner_only"))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def client_ip():
     """Best-effort client IP, honoring a single proxy hop."""
     forwarded = request.headers.get("X-Forwarded-For", "")
