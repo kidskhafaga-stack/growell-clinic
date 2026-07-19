@@ -241,6 +241,9 @@ def register_commands(app):
             ("expenses", "recur_start", "DATE"),
             ("expenses", "recur_end", "DATE"),
             ("users", "is_super_admin", "BOOLEAN DEFAULT 0"),
+            ("store_documents", "supplier_ref", "VARCHAR(60)"),
+            ("store_documents", "due_date", "DATE"),
+            ("store_documents", "payment_terms", "VARCHAR(12)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

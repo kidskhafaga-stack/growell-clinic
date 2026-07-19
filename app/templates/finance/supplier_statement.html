@@ -1,0 +1,108 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ supplier.name }}{% endblock %}
+{% block page_heading %}{{ t('payables.statement') }}{% endblock %}
+
+{% macro kind_label(k) %}
+  {%- if k == 'grn' -%}{{ t('payables.ev_receipt') }}
+  {%- elif k == 'return' -%}{{ t('payables.ev_return') }}
+  {%- else -%}{{ t('payables.ev_payment') }}{%- endif -%}
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ supplier.name }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('payables.statement') }}
+      {% if supplier.phone %}· <span dir="ltr">{{ supplier.phone }}</span>{% endif %}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.payables') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('payables.title') }}</a>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-basket ico"></i>
+    <div class="value">{{ billed|money }}</div><div class="label">{{ t('payables.billed') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-cash-coin ico"></i>
+    <div class="value">{{ paid|money }}</div><div class="label">{{ t('payables.paid') }}</div></div>
+  <div class="stat-card {{ 'edge-red' if balance > 0.009 else 'edge-green' }} gc-lift"><i class="bi bi-wallet2 ico"></i>
+    <div class="value">{{ balance|money }}</div><div class="label">{{ t('payables.balance') }}</div></div>
+</div>
+
+<!-- Record a payment -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-cash-stack"></i> {{ t('payables.record_payment') }}</h2>
+  <form method="post" action="{{ url_for('finance.supplier_pay', supplier_id=supplier.id) }}"
+        style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;max-width:160px;">
+      <label>{{ t('payables.amount') }} *</label>
+      <input class="input" type="number" step="0.01" min="0" name="amount" required></div>
+    <div class="form-row" style="margin:0;max-width:150px;">
+      <label>{{ t('payables.method') }}</label>
+      <select class="select" name="method">
+        {% for m in methods %}<option value="{{ m }}">{{ t('supplier_pay_methods.' ~ m) }}</option>{% endfor %}</select></div>
+    <div class="form-row" style="margin:0;max-width:160px;">
+      <label>{{ t('payables.date') }}</label>
+      <input class="input" type="date" name="paid_at" value="{{ today }}"></div>
+    <div class="form-row" style="margin:0;max-width:180px;">
+      <label>{{ t('payables.reference') }}</label>
+      <input class="input" name="reference" placeholder="{{ t('payables.reference_ph') }}"></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('payables.pay') }}</button>
+  </form>
+</div>
+
+<!-- Statement -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-journal-text"></i> {{ t('payables.movements') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;">
+    <thead><tr>
+      <th>{{ t('payables.date') }}</th>
+      <th>{{ t('payables.event') }}</th>
+      <th>{{ t('payables.doc') }}</th>
+      <th>{{ t('payables.due') }}</th>
+      <th style="text-align:end;">{{ t('payables.amount') }}</th>
+      <th style="text-align:end;">{{ t('payables.running') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for e in events %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ e.date }}</td>
+        <td>
+          <span class="badge {{ 'badge--green' if e.kind == 'payment' else 'badge--muted' }}">{{ kind_label(e.kind) }}</span>
+        </td>
+        <td>{{ e.ref }}{% if e.supplier_ref %} <span style="color:var(--muted);">· {{ e.supplier_ref }}</span>{% endif %}
+          {% if e.kind == 'payment' and e.method %}<span style="color:var(--muted);">· {{ t('supplier_pay_methods.' ~ e.method) }}</span>{% endif %}</td>
+        <td dir="ltr" style="white-space:nowrap;color:var(--muted);">
+          {% if e.kind == 'grn' %}
+          <details style="display:inline-block;">
+            <summary style="cursor:pointer;list-style:none;">{{ e.due or t('payables.set_due') }}
+              {% if e.terms %}<span class="badge badge--muted">{{ t('payment_terms_opts.' ~ e.terms) }}</span>{% endif %}</summary>
+            <form method="post" action="{{ url_for('finance.document_terms', doc_id=e.doc_id) }}"
+                  style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:end;" dir="{{ direction }}">
+              <input type="hidden" name="next" value="{{ url_for('finance.supplier_statement', supplier_id=supplier.id) }}">
+              <div class="form-row" style="margin:0;max-width:140px;"><label style="font-size:.75rem;">{{ t('payables.supplier_ref') }}</label>
+                <input class="input" name="supplier_ref" value="{{ e.supplier_ref or '' }}"></div>
+              <div class="form-row" style="margin:0;max-width:150px;"><label style="font-size:.75rem;">{{ t('payables.due') }}</label>
+                <input class="input" type="date" name="due_date" value="{{ e.due or '' }}"></div>
+              <div class="form-row" style="margin:0;max-width:140px;"><label style="font-size:.75rem;">{{ t('payables.terms') }}</label>
+                <select class="select" name="payment_terms">
+                  <option value="">—</option>
+                  {% for opt in ['cash','credit','installments'] %}
+                  <option value="{{ opt }}" {{ 'selected' if e.terms==opt else '' }}>{{ t('payment_terms_opts.' ~ opt) }}</option>{% endfor %}</select></div>
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i></button>
+            </form>
+          </details>
+          {% else %}{{ e.due or '—' }}{% endif %}
+        </td>
+        <td style="text-align:end;{{ 'color:var(--green-700);' if e.amount < 0 else '' }}">{{ e.amount|money }}</td>
+        <td style="text-align:end;font-weight:700;">{{ e.running|money }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty-state">{{ t('payables.none') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

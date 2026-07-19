@@ -2998,5 +2998,51 @@
   "owner": {
     "last_owner": "Cannot remove the last institution owner",
     "only_owner_removes": "Only another owner can remove an owner"
+  },
+  "payables": {
+    "title": "Supplier accounts",
+    "subtitle": "What you owe suppliers, payments, and aging",
+    "billed": "Total purchases",
+    "paid": "Payment recorded",
+    "balance": "Balance owed",
+    "by_supplier": "By supplier",
+    "statement": "Statement",
+    "aging": "Payables aging",
+    "none": "No movements",
+    "no_dues": "Nothing outstanding",
+    "record_payment": "Record a payment",
+    "amount": "Amount",
+    "method": "Method",
+    "date": "Date",
+    "reference": "Reference",
+    "reference_ph": "Cheque / transfer no.",
+    "pay": "Pay",
+    "paid_ok": "Payment recorded",
+    "need_amount": "Enter a valid amount",
+    "movements": "Movements",
+    "event": "Event",
+    "doc": "Document",
+    "due": "Due",
+    "running": "Balance",
+    "ev_receipt": "Goods receipt",
+    "ev_return": "Return",
+    "ev_payment": "Payment",
+    "terms_saved": "Invoice details saved",
+    "against_doc": "Against invoice",
+    "on_account": "On account",
+    "set_due": "Set due",
+    "supplier_ref": "Supplier invoice no.",
+    "terms": "Terms"
+  },
+  "supplier_pay_methods": {
+    "cash": "Cash",
+    "bank": "Bank",
+    "transfer": "Transfer",
+    "cheque": "Cheque"
+  },
+  "payment_terms_opts": {
+    "cash": "Cash",
+    "credit": "Credit",
+    "installments": "Installments"
   }
 }

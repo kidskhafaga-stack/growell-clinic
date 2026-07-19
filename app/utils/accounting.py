@@ -244,6 +244,20 @@ def post_store_doc(doc, user_id=None):
                       entry_date=doc.doc_date, user_id=user_id)
 
 
+def post_supplier_payment(payment, user_id=None):
+    """Paying a supplier: Dr 2010 الموردون / Cr cash|bank. Clears the payable
+    the goods-receipt raised."""
+    if payment is None or (payment.amount or 0) <= 0:
+        return None
+    cash_code = "1020" if (payment.method or "") in ("bank", "transfer") else "1010"
+    name = payment.supplier.name if payment.supplier else "مورد"
+    memo = f"سداد مورد — {name}"
+    lines = [("2010", payment.amount, 0, memo),
+             (cash_code, 0, payment.amount, memo)]
+    return post_entry("supplier_payment", payment.id, memo, lines,
+                      entry_date=payment.paid_at, user_id=user_id)
+
+
 def post_dose_cogs(pv, user_id=None):
     """COGS for one administered vaccine dose: Dr 5020 / Cr 1040 at the batch
     cost (falling back to the brand's average purchase cost)."""

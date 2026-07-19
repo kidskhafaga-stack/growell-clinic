@@ -2143,3 +2143,88 @@ def pnl():
         collected=collected, invoiced=invoiced, expenses_total=expenses_total,
         net=net, margin=margin, cats=cats,
     )
+
+
+# ============================================================ PAYABLES (AP) ==
+@finance_bp.route("/payables")
+@module_required(MODULE)
+def payables():
+    """Accounts payable: suppliers we owe, with balances and aging."""
+    from app.utils import payables as ap
+
+    rows = ap.ap_summary()
+    aging_rows, aging_totals, aging_grand = ap.ap_aging()
+    totals = {
+        "billed": round(sum(r["billed"] for r in rows), 2),
+        "paid": round(sum(r["paid"] for r in rows), 2),
+        "balance": round(sum(r["balance"] for r in rows), 2),
+    }
+    return render_template("finance/payables.html", rows=rows, totals=totals,
+                           aging_rows=aging_rows, aging_totals=aging_totals,
+                           aging_grand=aging_grand,
+                           buckets=ap.AP_AGING_BUCKETS)
+
+
+@finance_bp.route("/payables/<int:supplier_id>")
+@module_required(MODULE)
+def supplier_statement(supplier_id):
+    """One supplier's account: statement + record-payment + set terms."""
+    from app.models import SUPPLIER_PAYMENT_METHODS, Supplier
+    from app.utils import payables as ap
+
+    supplier = db.get_or_404(Supplier, supplier_id)
+    events = ap.supplier_statement(supplier_id)
+    balance = ap.supplier_balance(supplier_id)
+    # Open receipts (for attaching a payment / setting terms).
+    open_docs = [e for e in events if e["kind"] == "grn"]
+    return render_template(
+        "finance/supplier_statement.html", supplier=supplier, events=events,
+        balance=balance, billed=ap.supplier_billed(supplier_id),
+        paid=ap.supplier_paid(supplier_id), open_docs=open_docs,
+        methods=SUPPLIER_PAYMENT_METHODS, today=date.today().isoformat())
+
+
+@finance_bp.route("/payables/<int:supplier_id>/pay", methods=["POST"])
+@module_required(MODULE)
+def supplier_pay(supplier_id):
+    from app.models import Supplier
+    from app.utils import payables as ap
+
+    supplier = db.get_or_404(Supplier, supplier_id)
+    amount = request.form.get("amount", type=float) or 0
+    if amount <= 0:
+        flash(t("payables.need_amount"), "danger")
+        return redirect(url_for("finance.supplier_statement", supplier_id=supplier_id))
+    method = (request.form.get("method") or "cash").strip()
+    doc_id = request.form.get("document_id", type=int) or None
+    ap.record_payment(
+        supplier.id, amount, method=method,
+        paid_at=parse_date_or_today(request.form.get("paid_at")),
+        reference=(request.form.get("reference") or "").strip() or None,
+        notes=(request.form.get("notes") or "").strip() or None,
+        document_id=doc_id, user_id=current_user.id)
+    ActivityLog.record("supplier.pay", user_id=current_user.id, entity="supplier",
+                       entity_id=supplier.id, detail=f"{amount:.2f}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("payables.paid"), "success")
+    return redirect(url_for("finance.supplier_statement", supplier_id=supplier_id))
+
+
+@finance_bp.route("/documents/<int:doc_id>/terms", methods=["POST"])
+@module_required(MODULE)
+def document_terms(doc_id):
+    """Set the purchase-invoice terms on a goods-receipt (supplier invoice no,
+    due date, payment terms)."""
+    from app.models import StoreDocument
+
+    doc = db.get_or_404(StoreDocument, doc_id)
+    doc.supplier_ref = (request.form.get("supplier_ref") or "").strip() or None
+    doc.due_date = parse_date_or_today(request.form.get("due_date"), None) \
+        if (request.form.get("due_date") or "").strip() else None
+    terms = (request.form.get("payment_terms") or "").strip()
+    doc.payment_terms = terms if terms in ("cash", "credit", "installments") else None
+    db.session.commit()
+    flash(t("payables.terms_saved"), "success")
+    target = request.form.get("next") or url_for("finance.payables")
+    return redirect(target)

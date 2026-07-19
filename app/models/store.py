@@ -78,6 +78,11 @@ class StoreDocument(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     # What produced it: a PO number, an invoice number, a stocktake…
     reference = db.Column(db.String(80))
+    # Purchase-invoice terms for a supplier goods-receipt: the supplier's own
+    # invoice number, when the payment falls due, and how it's settled.
+    supplier_ref = db.Column(db.String(60))     # supplier's invoice number
+    due_date = db.Column(db.Date)
+    payment_terms = db.Column(db.String(12))    # cash | credit | installments
     notes = db.Column(db.String(255))
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
