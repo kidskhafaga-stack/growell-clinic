@@ -22,24 +22,101 @@ CORE_SERVICES = [
 ]
 
 
-def seed_services():
-    """Idempotently ensure the clinic has base services and a visit-type map.
+# Wizard capability → the base coded services it brings. Ticking a capability
+# in the facility setup creates these (idempotent by code); the user then edits
+# prices/commissions or adds extra services with the same screen.
+CAPABILITY_SERVICES = {
+    "general_consultation": [
+        ("SVC-KASHF", "كشف", "Consultation", 250, "consultation", "percent", 40),
+        ("SVC-ESHARA", "استشارة", "Follow-up consultation", 150, "consultation", "percent", 50),
+        ("SVC-NEB", "جلسة نيبولايزر", "Nebulizer session", 100, "procedure", "percent", 30),
+    ],
+    "followup": [
+        ("SVC-MOTABAA", "متابعة", "Follow-up", 150, "consultation", "percent", 50),
+    ],
+    "vaccination": [
+        ("SVC-VACFEE", "رسم تطعيم", "Vaccination fee", 100, "vaccination_fee", "fixed", 20),
+    ],
+    "growth_monitoring": [
+        ("SVC-GROWTH", "تقييم نمو", "Growth assessment", 100, "consultation", "percent", 40),
+    ],
+    "emergency_care": [
+        ("SVC-URGENT", "كشف طوارئ", "Urgent consultation", 350, "consultation", "percent", 40),
+    ],
+    "home_care": [
+        ("SVC-HOME", "زيارة منزلية", "Home visit", 500, "consultation", "percent", 50),
+    ],
+    "ecg": [("SVC-ECG", "رسم قلب", "ECG", 150, "procedure", "percent", 30)],
+    "echo": [("SVC-ECHO", "إيكو على القلب", "Echocardiography", 400, "radiology", "percent", 30)],
+    "eeg": [("SVC-EEG", "رسم مخ", "EEG", 300, "procedure", "percent", 30)],
+    "spirometry": [("SVC-SPIRO", "قياس وظائف تنفس", "Spirometry", 200, "procedure", "percent", 30)],
+    "audiology": [("SVC-AUDIO", "قياس سمع", "Audiometry", 200, "procedure", "percent", 30)],
+    "vision_screening": [("SVC-VISION", "فحص نظر", "Vision screening", 100, "procedure", "percent", 30)],
+    "ultrasound": [("SVC-US", "سونار", "Ultrasound", 300, "radiology", "percent", 30)],
+    "xray": [("SVC-XRAY", "أشعة عادية", "X-ray", 200, "radiology", "percent", 30)],
+    "laboratory": [("SVC-LAB", "تحاليل", "Lab tests", 0, "lab", "none", 0)],
+    "sample_collection": [("SVC-SAMPLE", "سحب عينة", "Sample collection", 50, "lab", "none", 0)],
+    "observation": [("SVC-OBS", "ملاحظة (يوم)", "Observation (day)", 500, "other", "none", 0)],
+    "day_care": [("SVC-DAYCARE", "رعاية نهارية (يوم)", "Day care (day)", 700, "other", "none", 0)],
+    "nicu": [("SVC-NICU", "حضّانة (يوم)", "NICU (day)", 1500, "other", "none", 0)],
+    "icu": [("SVC-ICU", "رعاية مركزة (يوم)", "ICU (day)", 2000, "other", "none", 0)],
+    "ward": [("SVC-WARD", "إقامة داخلية (يوم)", "Inpatient ward (day)", 800, "other", "none", 0)],
+}
 
-    On a fresh database (no services at all) the canonical set is created. On
-    any database, the visit-type→service map is filled in if it's empty, so the
-    reception collect flow always has a base charge to bill. Never overrides an
-    existing map or existing services. Does not commit — caller owns the txn.
-    """
+
+def _add_rows(rows, existing):
     created = 0
-    if Service.query.first() is None:
-        for code, ar, en, price, cat, ctype, cval in CORE_SERVICES:
-            db.session.add(Service(
-                code=code, name=ar, name_en=en, price=price, category=cat,
-                commission_type=ctype, commission_value=cval, is_active=True))
-            created += 1
+    for code, ar, en, price, cat, ctype, cval in rows:
+        if code in existing:
+            continue
+        db.session.add(Service(
+            code=code, name=ar, name_en=en, price=price, category=cat,
+            commission_type=ctype, commission_value=cval, is_active=True))
+        existing.add(code)
+        created += 1
+    return created
+
+
+def seed_services_for_caps(caps):
+    """Create the base coded services matching the facility's ticked
+    capabilities (idempotent by code — re-running the wizard only adds what's
+    new). Falls back to the canonical core set when no capability maps.
+    Does not commit — caller owns the txn."""
+    existing = {c for (c,) in Service.query.with_entities(Service.code).all() if c}
+    created = 0
+    matched = False
+    for cap in caps or []:
+        rows = CAPABILITY_SERVICES.get(cap)
+        if rows:
+            matched = True
+            created += _add_rows(rows, existing)
+    if not matched and Service.query.first() is None:
+        created += _add_rows(CORE_SERVICES, existing)
+    if created:
         db.session.flush()
     _ensure_visit_type_map()
     return created
+
+
+def seed_services():
+    """Idempotently ensure the clinic has base services and a visit-type map.
+
+    Uses the facility's configured capabilities (from the setup wizard) when
+    available so the seeded set matches what the clinic actually offers; falls
+    back to the canonical core set otherwise. On any database, the visit-type→
+    service map is filled in if it's empty, so the reception collect flow
+    always has a base charge to bill. Never overrides existing services or a
+    clinic-defined map. Does not commit — caller owns the txn.
+    """
+    if Service.query.first() is not None:
+        _ensure_visit_type_map()
+        return 0
+    try:
+        from app.utils.facility import capabilities
+        caps = capabilities()
+    except Exception:  # noqa: BLE001 - settings table not ready
+        caps = []
+    return seed_services_for_caps(caps)
 
 
 def _ensure_visit_type_map():
