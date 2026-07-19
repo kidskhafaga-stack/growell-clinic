@@ -848,8 +848,11 @@ def study_new(patient_id):
 @module_required(MODULE)
 def study_view(study_id):
     from app.models import DeviceStudy
+    from app.utils.spirometry import analyse
+
     study = db.get_or_404(DeviceStudy, study_id)
-    return render_template("visits/study_view.html", study=study)
+    return render_template("visits/study_view.html", study=study,
+                           spiro=analyse(study))
 
 
 @visits_bp.route("/studies/<int:study_id>/print")
@@ -857,6 +860,7 @@ def study_view(study_id):
 def study_print(study_id):
     """Printable device-study report with a per-print language choice (?lang=)."""
     from app.models import DeviceStudy
+    from app.utils.spirometry import analyse
 
     lang = request.args.get("lang")
     if lang in ("ar", "en"):
@@ -865,4 +869,4 @@ def study_print(study_id):
         g.direction = get_direction(lang)
     study = db.get_or_404(DeviceStudy, study_id)
     return render_template("visits/study_print.html", study=study,
-                           today=datetime.utcnow().date())
+                           spiro=analyse(study), today=datetime.utcnow().date())

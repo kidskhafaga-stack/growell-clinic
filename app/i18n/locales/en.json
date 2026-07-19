@@ -3105,5 +3105,17 @@
     "no_values": "No values",
     "no_studies": "No device studies",
     "no_template": "This device has no measurement template — define its fields first"
+  },
+  "spiro": {
+    "curves": "Spirometry curves",
+    "flow_volume": "Flow–Volume curve",
+    "volume_time": "Volume–Time curve",
+    "auto_read": "Automatic read",
+    "p_obstructive": "Obstructive pattern (low ratio)",
+    "p_borderline": "Borderline ratio",
+    "p_normal_ratio": "Normal ratio",
+    "n_severity_needs_pred": "Grading severity needs predicted values (next phase)",
+    "n_restrict_needs_pred": "Excluding restriction needs predicted values",
+    "schematic_note": "Curves are schematic, computed from the entered values (not the device's raw signal) — clinical judgement prevails."
   }
 }
