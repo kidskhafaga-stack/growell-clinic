@@ -2998,5 +2998,51 @@
   "owner": {
     "last_owner": "لا يمكن إزالة آخر مالك للمؤسسة",
     "only_owner_removes": "فقط مالك آخر يمكنه إزالة مالك"
+  },
+  "payables": {
+    "title": "حسابات الموردين",
+    "subtitle": "المستحق للموردين، السداد، وأعمار الدائنين",
+    "billed": "إجمالي المشتريات",
+    "paid": "تم تسجيل الدفعة",
+    "balance": "المستحق عليك",
+    "by_supplier": "حسب المورد",
+    "statement": "كشف حساب",
+    "aging": "أعمار الدائنين",
+    "none": "لا توجد حركات",
+    "no_dues": "لا مستحقات",
+    "record_payment": "تسجيل دفعة",
+    "amount": "المبلغ",
+    "method": "طريقة الدفع",
+    "date": "التاريخ",
+    "reference": "مرجع",
+    "reference_ph": "رقم شيك/تحويل",
+    "pay": "سداد",
+    "paid_ok": "تم تسجيل الدفعة",
+    "need_amount": "أدخل مبلغاً صحيحاً",
+    "movements": "الحركات",
+    "event": "الحركة",
+    "doc": "المستند",
+    "due": "الاستحقاق",
+    "running": "الرصيد",
+    "ev_receipt": "إذن إضافة",
+    "ev_return": "مرتجع",
+    "ev_payment": "سداد",
+    "terms_saved": "تم حفظ بيانات الفاتورة",
+    "against_doc": "على فاتورة",
+    "on_account": "على الحساب",
+    "set_due": "تحديد الاستحقاق",
+    "supplier_ref": "رقم فاتورة المورد",
+    "terms": "الشروط"
+  },
+  "supplier_pay_methods": {
+    "cash": "نقدي",
+    "bank": "بنك",
+    "transfer": "تحويل",
+    "cheque": "شيك"
+  },
+  "payment_terms_opts": {
+    "cash": "نقدي",
+    "credit": "آجل",
+    "installments": "أقساط"
   }
 }

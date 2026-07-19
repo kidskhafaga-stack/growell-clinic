@@ -1,0 +1,89 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('payables.title') }}{% endblock %}
+{% block page_heading %}{{ t('payables.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('payables.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('payables.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.suppliers') }}">
+    <i class="bi bi-truck"></i> {{ t('inventory.suppliers') }}</a>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-basket ico"></i>
+    <div class="value">{{ totals.billed|money }}</div><div class="label">{{ t('payables.billed') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-cash-coin ico"></i>
+    <div class="value">{{ totals.paid|money }}</div><div class="label">{{ t('payables.paid') }}</div></div>
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-exclamation-circle ico"></i>
+    <div class="value">{{ totals.balance|money }}</div><div class="label">{{ t('payables.balance') }}</div></div>
+</div>
+
+<!-- Suppliers with balances -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-people"></i> {{ t('payables.by_supplier') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;">
+    <thead><tr>
+      <th>{{ t('inventory.supplier_name') }}</th>
+      <th style="text-align:end;">{{ t('payables.billed') }}</th>
+      <th style="text-align:end;">{{ t('payables.paid') }}</th>
+      <th style="text-align:end;">{{ t('payables.balance') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><strong>{{ r.supplier.name }}</strong></td>
+        <td style="text-align:end;">{{ r.billed|money }}</td>
+        <td style="text-align:end;color:var(--green-700);">{{ r.paid|money }}</td>
+        <td style="text-align:end;font-weight:800;{{ 'color:var(--danger);' if r.balance > 0.009 }}">{{ r.balance|money }}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.supplier_statement', supplier_id=r.supplier.id) }}">
+            <i class="bi bi-journal-text"></i> {{ t('payables.statement') }}</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-state">{{ t('payables.none') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- AP aging -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-hourglass-split"></i> {{ t('payables.aging') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;">
+    <thead><tr>
+      <th>{{ t('inventory.supplier_name') }}</th>
+      {% for lo, hi in buckets %}
+      <th style="text-align:end;">{{ lo }}{{ ('–' ~ hi) if hi else '+' }}</th>
+      {% endfor %}
+      <th style="text-align:end;">{{ t('payables.balance') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in aging_rows %}
+      <tr>
+        <td>{{ r.supplier.name }}</td>
+        {% for b in r.buckets %}<td style="text-align:end;">{{ b|money if b else '—' }}</td>{% endfor %}
+        <td style="text-align:end;font-weight:700;">{{ r.total|money }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ buckets|length + 2 }}" class="empty-state">{{ t('payables.no_dues') }}</td></tr>
+      {% endfor %}
+      {% if aging_rows %}
+      <tr style="border-top:2px solid var(--line);font-weight:800;background:var(--surface-2);">
+        <td>{{ t('vat.totals') }}</td>
+        {% for tot in aging_totals %}<td style="text-align:end;">{{ tot|money if tot else '—' }}</td>{% endfor %}
+        <td style="text-align:end;">{{ aging_grand|money }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}
