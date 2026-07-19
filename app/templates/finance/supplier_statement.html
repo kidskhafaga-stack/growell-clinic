@@ -55,6 +55,65 @@
   </form>
 </div>
 
+<!-- Instalment schedules (credit receipts) -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-calendar2-range"></i> {{ t('installments.title') }}</h2>
+  <p class="hint" style="margin:0 0 12px;">{{ t('installments.hint') }}</p>
+  {% for e in open_docs %}
+  <div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">
+      <strong dir="ltr">{{ e.ref }}</strong>
+      <span class="badge badge--muted">{{ e.amount|money }}</span>
+    </div>
+    {% set sched = schedules.get(e.doc_id) %}
+    {% if sched %}
+    <table class="table" style="margin-top:8px;">
+      <thead><tr><th>#</th><th>{{ t('payables.due') }}</th><th style="text-align:end;">{{ t('payables.amount') }}</th><th>{{ t('installments.status') }}</th><th></th></tr></thead>
+      <tbody>
+        {% for i in sched %}
+        <tr>
+          <td>{{ i.seq }}</td>
+          <td dir="ltr" style="white-space:nowrap;">{{ i.due_date }}</td>
+          <td style="text-align:end;font-weight:700;">{{ i.amount|money }}</td>
+          <td>
+            {% if i.is_paid %}<span class="badge badge--green">{{ t('installments.paid_status') }}</span>
+            {% elif i.is_overdue(today) %}<span class="badge" style="background:#fde8e8;color:#c0392b;">{{ t('installments.overdue') }}</span>
+            {% else %}<span class="badge badge--muted">{{ t('installments.pending') }}</span>{% endif %}
+          </td>
+          <td style="text-align:end;">
+            {% if not i.is_paid %}
+            <form method="post" action="{{ url_for('finance.installment_pay', inst_id=i.id) }}" style="display:inline-flex;gap:6px;">
+              <select class="select" name="method" style="max-width:120px;">
+                {% for m in methods %}<option value="{{ m }}">{{ t('supplier_pay_methods.' ~ m) }}</option>{% endfor %}</select>
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-cash"></i> {{ t('installments.pay') }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <!-- Generate / replace schedule -->
+    <details style="margin-top:8px;">
+      <summary style="cursor:pointer;color:var(--muted);font-size:.85rem;">{{ t('installments.set_schedule') }}</summary>
+      <form method="post" action="{{ url_for('finance.document_schedule', doc_id=e.doc_id) }}"
+            style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px;">
+        <div class="form-row" style="margin:0;max-width:120px;"><label style="font-size:.75rem;">{{ t('installments.count') }}</label>
+          <input class="input" type="number" min="1" max="60" name="count" value="3"></div>
+        <div class="form-row" style="margin:0;max-width:150px;"><label style="font-size:.75rem;">{{ t('installments.start') }}</label>
+          <input class="input" type="date" name="start_date" value="{{ today }}"></div>
+        <div class="form-row" style="margin:0;max-width:150px;"><label style="font-size:.75rem;">{{ t('installments.every') }}</label>
+          <input class="input" type="number" min="1" max="365" name="every_days" value="30"></div>
+        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-calendar-plus"></i> {{ t('installments.generate') }}</button>
+      </form>
+    </details>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-calendar2"></i>{{ t('installments.no_receipts') }}</div>
+  {% endfor %}
+</div>
+
 <!-- Statement -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-journal-text"></i> {{ t('payables.movements') }}</h2>

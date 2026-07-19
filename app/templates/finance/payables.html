@@ -53,6 +53,35 @@
   </div>
 </div>
 
+<!-- Upcoming / overdue instalments -->
+{% if upcoming %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-calendar2-check"></i> {{ t('installments.upcoming_title') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:520px;">
+    <thead><tr>
+      <th>{{ t('inventory.supplier_name') }}</th>
+      <th>{{ t('payables.due') }}</th>
+      <th style="text-align:end;">{{ t('payables.amount') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for u in upcoming %}
+      <tr>
+        <td>{% if u.supplier %}<a href="{{ url_for('finance.supplier_statement', supplier_id=u.supplier.id) }}">{{ u.supplier.name }}</a>{% else %}—{% endif %}</td>
+        <td dir="ltr" style="white-space:nowrap;">{{ u.inst.due_date }}
+          {% if u.overdue %}<span class="badge" style="background:#fde8e8;color:#c0392b;margin-inline-start:4px;">{{ t('installments.overdue') }}</span>{% endif %}</td>
+        <td style="text-align:end;font-weight:700;">{{ u.inst.amount|money }}</td>
+        <td style="text-align:end;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.supplier_statement', supplier_id=u.supplier.id) if u.supplier }}"><i class="bi bi-cash"></i></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- AP aging -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-hourglass-split"></i> {{ t('payables.aging') }}</h2>

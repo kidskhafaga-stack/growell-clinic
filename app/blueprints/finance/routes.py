@@ -2159,10 +2159,11 @@ def payables():
         "paid": round(sum(r["paid"] for r in rows), 2),
         "balance": round(sum(r["balance"] for r in rows), 2),
     }
+    upcoming = ap.upcoming_installments(within_days=30)
     return render_template("finance/payables.html", rows=rows, totals=totals,
                            aging_rows=aging_rows, aging_totals=aging_totals,
-                           aging_grand=aging_grand,
-                           buckets=ap.AP_AGING_BUCKETS)
+                           aging_grand=aging_grand, upcoming=upcoming,
+                           today=date.today(), buckets=ap.AP_AGING_BUCKETS)
 
 
 @finance_bp.route("/payables/<int:supplier_id>")
@@ -2177,11 +2178,15 @@ def supplier_statement(supplier_id):
     balance = ap.supplier_balance(supplier_id)
     # Open receipts (for attaching a payment / setting terms).
     open_docs = [e for e in events if e["kind"] == "grn"]
+    # Instalment schedule per receipt (only credit receipts carry one).
+    schedules = {e["doc_id"]: ap.installments_for(e["doc_id"])
+                 for e in open_docs}
     return render_template(
         "finance/supplier_statement.html", supplier=supplier, events=events,
         balance=balance, billed=ap.supplier_billed(supplier_id),
         paid=ap.supplier_paid(supplier_id), open_docs=open_docs,
-        methods=SUPPLIER_PAYMENT_METHODS, today=date.today().isoformat())
+        schedules=schedules, methods=SUPPLIER_PAYMENT_METHODS,
+        today=date.today())
 
 
 @finance_bp.route("/payables/<int:supplier_id>/pay", methods=["POST"])
@@ -2254,3 +2259,43 @@ def supplier_statement_print(supplier_id):
     return render_template(
         "finance/supplier_statement_print.html", supplier=supplier,
         events=events, summary=summary, today=date.today())
+
+
+@finance_bp.route("/documents/<int:doc_id>/schedule", methods=["POST"])
+@module_required(MODULE)
+def document_schedule(doc_id):
+    """Build an equal-instalment schedule for a credit goods-receipt."""
+    from app.models import StoreDocument
+    from app.utils import payables as ap
+
+    doc = db.get_or_404(StoreDocument, doc_id)
+    count = request.form.get("count", type=int) or 1
+    every = request.form.get("every_days", type=int) or 30
+    start = parse_date_or_today(request.form.get("start_date"))
+    # A schedule implies credit terms.
+    if doc.payment_terms != "installments":
+        doc.payment_terms = "installments"
+    ap.generate_schedule(doc, count, start, every_days=every)
+    flash(t("installments.saved"), "success")
+    return redirect(request.form.get("next")
+                    or url_for("finance.supplier_statement",
+                               supplier_id=doc.supplier_id))
+
+
+@finance_bp.route("/installments/<int:inst_id>/pay", methods=["POST"])
+@module_required(MODULE)
+def installment_pay(inst_id):
+    from app.models import SupplierInstallment
+    from app.utils import payables as ap
+
+    inst = db.get_or_404(SupplierInstallment, inst_id)
+    supplier_id = inst.document.supplier_id if inst.document else None
+    ap.pay_installment(inst, method=(request.form.get("method") or "cash"),
+                       user_id=current_user.id)
+    ActivityLog.record("supplier.installment_pay", user_id=current_user.id,
+                       entity="supplier", entity_id=supplier_id,
+                       detail=f"{inst.amount:.2f}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("installments.paid"), "success")
+    return redirect(request.form.get("next")
+                    or url_for("finance.supplier_statement", supplier_id=supplier_id))

@@ -3051,5 +3051,23 @@
     "cash": "Cash",
     "credit": "Credit",
     "installments": "Installments"
+  },
+  "installments": {
+    "title": "Instalment schedule",
+    "hint": "Split a credit goods-receipt into dated instalments.",
+    "set_schedule": "Set / edit schedule",
+    "count": "Instalments",
+    "start": "Starts",
+    "every": "Every (days)",
+    "generate": "Generate schedule",
+    "status": "Status",
+    "pending": "Due",
+    "paid_status": "Paid",
+    "overdue": "Overdue",
+    "pay": "Pay",
+    "saved": "Instalment schedule saved",
+    "paid": "Instalment paid",
+    "no_receipts": "No goods receipts for this supplier",
+    "upcoming_title": "Upcoming / overdue instalments"
   }
 }
