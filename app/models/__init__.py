@@ -155,6 +155,8 @@ from app.models.device import (
     DEVICE_TYPES,
     IMPORT_MODES,
     DeviceMeasurement,
+    DeviceStudy,
+    DeviceStudyValue,
     MedicalDevice,
 )
 
@@ -286,6 +288,8 @@ __all__ = [
     "FEEDBACK_STATUSES",
     "MedicalDevice",
     "DeviceMeasurement",
+    "DeviceStudy",
+    "DeviceStudyValue",
     "DEVICE_TYPES",
     "CONNECTION_TYPES",
     "IMPORT_MODES",

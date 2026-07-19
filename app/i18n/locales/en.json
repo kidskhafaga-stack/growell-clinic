@@ -3085,5 +3085,25 @@
     "none": "No fields yet — add measurement fields",
     "saved": "Field saved",
     "deleted": "Field deleted"
+  },
+  "study": {
+    "title": "Device report",
+    "title_list": "Device studies",
+    "new": "New device study",
+    "device": "Device",
+    "pick_device": "Pick a device",
+    "date": "Date",
+    "value": "Value",
+    "conclusion": "Conclusion",
+    "notes": "Notes",
+    "save": "Save study",
+    "saved": "Study saved",
+    "low": "Low",
+    "high": "High",
+    "normal": "Normal",
+    "out_of_range": "out of range",
+    "no_values": "No values",
+    "no_studies": "No device studies",
+    "no_template": "This device has no measurement template — define its fields first"
   }
 }

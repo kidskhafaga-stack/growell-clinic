@@ -486,6 +486,32 @@
       {% else %}
       <p style="color:var(--muted);margin-top:14px;">{{ t('visits.no_visits') }}</p>
       {% endif %}
+
+      <!-- Device studies (C.2) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:26px;">
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-activity"></i> {{ t('study.title_list') }}</h3>
+        {% if current_user.can_access('visits') %}
+        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.study_new', patient_id=patient.id) }}">
+          <i class="bi bi-plus-circle"></i> {{ t('study.new') }}</a>
+        {% endif %}
+      </div>
+      {% set pstudies = patient.device_studies|sort(attribute='study_date', reverse=true) %}
+      {% if pstudies %}
+      <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+        {% for s in pstudies %}
+        <a class="card gc-lift" href="{{ url_for('visits.study_view', study_id=s.id) }}"
+           style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span class="badge badge--role"><i class="bi bi-calendar3"></i> {{ s.study_date }}</span>
+          <span style="flex:1;font-weight:600;">{{ s.device.display_name(current_lang) if s.device }}</span>
+          {% set outn = s.values|selectattr('flag','in',['low','high'])|list|length %}
+          {% if outn %}<span class="badge" style="background:#fde8e8;color:#c0392b;">{{ outn }} {{ t('study.out_of_range') }}</span>
+          {% else %}<span class="badge badge--muted">{{ s.values|length }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);margin-top:8px;">{{ t('study.no_studies') }}</p>
+      {% endif %}
     </div>
 
     <!-- Growth -->
