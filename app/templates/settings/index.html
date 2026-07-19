@@ -109,16 +109,17 @@
     <h2 class="section-title"><i class="bi bi-image"></i> {{ t('settings.logo') }}</h2>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;">
       <div style="text-align:center;">
-        {% if clinic.logo_url %}
-          <img src="{{ clinic.logo_url }}" alt="logo" style="max-width:140px;max-height:90px;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff;">
-        {% else %}
-          <div class="patient-avatar lg"><i class="bi bi-image"></i></div>
-        {% endif %}
+        <img id="clinicLogoImg" src="{{ clinic.logo_url or '' }}" alt="logo"
+             style="max-width:140px;max-height:90px;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff;{{ '' if clinic.logo_url else 'display:none;' }}">
+        <div id="clinicLogoPh" class="patient-avatar lg" style="{{ 'display:none;' if clinic.logo_url else '' }}"><i class="bi bi-image"></i></div>
+        <div id="clinicLogoNote" class="hint" style="display:none;color:#92400e;margin-top:6px;font-weight:600;">
+          <i class="bi bi-check-circle"></i> {{ t('settings.logo_pending') }}</div>
       </div>
       <div style="flex:1;min-width:240px;">
         <label class="btn btn-outline gc-press" style="cursor:pointer;">
           <i class="bi bi-upload"></i> {{ t('settings.upload_logo') }}
-          <input type="file" name="logo" accept="image/*" hidden>
+          <input type="file" name="logo" accept="image/*" hidden
+                 onchange="previewLogo(this,'clinicLogoImg','clinicLogoPh','clinicLogoNote')">
         </label>
         {% if clinic.logo_url %}
         <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('settings.delete_logo') }}" formnovalidate>
@@ -155,6 +156,20 @@
       <span class="hint" id="accentNote"></span>
     </div>
     <script>
+      // Live preview a chosen logo before saving, so it's obvious the file was
+      // picked up (the actual upload still happens on Save).
+      function previewLogo(input, imgId, phId, noteId) {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var img = document.getElementById(imgId), ph = document.getElementById(phId),
+            note = document.getElementById(noteId), reader = new FileReader();
+        reader.onload = function (e) {
+          img.src = e.target.result; img.style.display = '';
+          if (ph) ph.style.display = 'none';
+          if (note) note.style.display = '';
+        };
+        reader.readAsDataURL(file);
+      }
       // Pick the dominant non-neutral colour from the clinic logo (client-side).
       function useLogoColors() {
         var img = document.getElementById('accentLogoSrc'); if (!img) return;
@@ -182,16 +197,17 @@
     <p class="hint" style="margin-top:-6px;">{{ t('settings.program_logo_hint') }}</p>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;">
       <div style="text-align:center;">
-        {% if program.logo_url %}
-          <img src="{{ program.logo_url }}" alt="program logo" style="max-width:160px;max-height:80px;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff;">
-        {% else %}
-          <div class="patient-avatar lg"><i class="bi bi-stars"></i></div>
-        {% endif %}
+        <img id="programLogoImg" src="{{ program.logo_url or '' }}" alt="program logo"
+             style="max-width:160px;max-height:80px;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff;{{ '' if program.logo_url else 'display:none;' }}">
+        <div id="programLogoPh" class="patient-avatar lg" style="{{ 'display:none;' if program.logo_url else '' }}"><i class="bi bi-stars"></i></div>
+        <div id="programLogoNote" class="hint" style="display:none;color:#92400e;margin-top:6px;font-weight:600;">
+          <i class="bi bi-check-circle"></i> {{ t('settings.logo_pending') }}</div>
       </div>
       <div style="flex:1;min-width:240px;">
         <label class="btn btn-outline gc-press" style="cursor:pointer;">
           <i class="bi bi-upload"></i> {{ t('settings.upload_program_logo') }}
-          <input type="file" name="program_logo" accept="image/*" hidden>
+          <input type="file" name="program_logo" accept="image/*" hidden
+                 onchange="previewLogo(this,'programLogoImg','programLogoPh','programLogoNote')">
         </label>
         {% if program.logo_url %}
         <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('settings.delete_program_logo') }}" formnovalidate>

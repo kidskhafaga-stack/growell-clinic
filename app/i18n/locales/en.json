@@ -1166,7 +1166,8 @@
     "exam_chips_hint": "Quick exam phrases (general condition good, chest clear…).",
     "visit_chips_lang_hint": "Each phrase has two texts: Arabic and English (optional) — shown in the current program language.",
     "small_clinic_mode": "Small-clinic mode (reception runs the till)",
-    "small_clinic_mode_hint": "Lets a reception user collect payments, run the shift and do checkout — without exposing P&L, expenses or financial reports."
+    "small_clinic_mode_hint": "Lets a reception user collect payments, run the shift and do checkout — without exposing P&L, expenses or financial reports.",
+    "logo_pending": "Image selected — click Save to apply"
   },
   "errors": {
     "403_title": "Forbidden",
