@@ -275,6 +275,55 @@ def balance_sheet():
     )
 
 
+@reports_bp.route("/vat")
+@module_required(MODULE)
+def vat_summary():
+    """Output-VAT summary (ملخص ض.ق.م): the tax collected on tax invoices in a
+    period — the output side of the VAT return. Input VAT (on purchases) is not
+    tracked yet, so VAT payable here equals output VAT."""
+    from app.utils.einvoice import get_config as eta_config
+
+    date_from, date_to = _range()
+    cfg = eta_config()
+    rate = cfg["vat_rate"]
+
+    invoices = (Invoice.query
+                .filter(Invoice.invoice_date >= date_from,
+                        Invoice.invoice_date <= date_to)
+                .order_by(Invoice.invoice_date).all())
+
+    taxable_base = exempt_base = output_vat = 0.0
+    tax_count = 0
+    by_month = defaultdict(lambda: {"base": 0.0, "vat": 0.0, "count": 0})
+    for inv in invoices:
+        base = inv.total
+        if inv.is_tax:
+            vat = round(base * rate / 100.0, 2)
+            taxable_base += base
+            output_vat += vat
+            tax_count += 1
+            key = inv.invoice_date.strftime("%Y-%m")
+            by_month[key]["base"] = round(by_month[key]["base"] + base, 2)
+            by_month[key]["vat"] = round(by_month[key]["vat"] + vat, 2)
+            by_month[key]["count"] += 1
+        else:
+            exempt_base += base
+
+    totals = {
+        "taxable_base": round(taxable_base, 2),
+        "exempt_base": round(exempt_base, 2),
+        "output_vat": round(output_vat, 2),
+        "gross": round(taxable_base + output_vat, 2),
+        "tax_count": tax_count,
+        "rate": rate,
+    }
+    months = sorted(by_month.items())
+    return render_template(
+        "reports/vat_summary.html", date_from=date_from, date_to=date_to,
+        totals=totals, months=months,
+    )
+
+
 def _apply_print_lang():
     """Per-print language choice (?lang=ar|en) so a statement can be handed to
     the family in either language regardless of the staff UI language."""

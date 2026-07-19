@@ -2953,5 +2953,21 @@
     "total_le": "Total liabilities & equity",
     "equation": "Assets = Liabilities + Equity",
     "none": "No balance"
+  },
+  "vat": {
+    "title": "VAT summary",
+    "desc": "Value-added tax collected on tax invoices for the period",
+    "rate": "Rate",
+    "taxable_base": "Taxable base",
+    "output_vat": "Output VAT",
+    "gross": "Gross (incl. VAT)",
+    "exempt_base": "Exempt sales",
+    "payable": "VAT payable",
+    "payable_hint": "Output VAT minus input VAT — input VAT on purchases is not tracked yet, so payable equals output VAT",
+    "by_month": "Monthly breakdown",
+    "month": "Month",
+    "invoices": "Invoices",
+    "totals": "Totals",
+    "none": "No tax invoices in this period"
   }
 }

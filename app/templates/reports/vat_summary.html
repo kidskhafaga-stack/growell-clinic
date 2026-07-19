@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('vat.title') }}{% endblock %}
+{% block page_heading %}{{ t('vat.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('vat.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('vat.desc') }} · {{ t('vat.rate') }} {{ totals.rate }}%</p>
+  </div>
+  <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label>
+      <input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label>
+      <input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('common.search') }}</button>
+  </form>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-receipt-cutoff ico"></i>
+    <div class="value">{{ totals.taxable_base|money }}</div><div class="label">{{ t('vat.taxable_base') }}</div></div>
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-percent ico"></i>
+    <div class="value">{{ totals.output_vat|money }}</div><div class="label">{{ t('vat.output_vat') }}</div></div>
+  <div class="stat-card edge-teal gc-lift"><i class="bi bi-cash-stack ico"></i>
+    <div class="value">{{ totals.gross|money }}</div><div class="label">{{ t('vat.gross') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-shield-slash ico"></i>
+    <div class="value">{{ totals.exempt_base|money }}</div><div class="label">{{ t('vat.exempt_base') }}</div></div>
+</div>
+
+<!-- VAT payable (output − input; input not tracked yet) -->
+<div class="card gc-scale-in" style="margin-bottom:16px;padding:16px 18px;display:flex;justify-content:space-between;
+     align-items:center;gap:12px;flex-wrap:wrap;border-inline-start:4px solid var(--green-600);">
+  <div>
+    <strong style="font-size:1.05rem;">{{ t('vat.payable') }}</strong>
+    <div class="hint" style="margin:2px 0 0;">{{ t('vat.payable_hint') }}</div>
+  </div>
+  <strong style="font-size:1.4rem;color:var(--green-700);">{{ totals.output_vat|money }}</strong>
+</div>
+
+<!-- Monthly breakdown -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-calendar3"></i> {{ t('vat.by_month') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:520px;">
+    <thead><tr>
+      <th>{{ t('vat.month') }}</th>
+      <th style="text-align:end;">{{ t('vat.invoices') }}</th>
+      <th style="text-align:end;">{{ t('vat.taxable_base') }}</th>
+      <th style="text-align:end;">{{ t('vat.output_vat') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for key, m in months %}
+      <tr>
+        <td dir="ltr" style="font-family:monospace;">{{ key }}</td>
+        <td style="text-align:end;color:var(--muted);">{{ m.count }}</td>
+        <td style="text-align:end;font-weight:700;">{{ m.base|money }}</td>
+        <td style="text-align:end;font-weight:700;">{{ m.vat|money }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">{{ t('vat.none') }}</td></tr>
+      {% endfor %}
+      {% if months %}
+      <tr style="border-top:2px solid var(--line);font-weight:800;background:var(--surface-2);">
+        <td>{{ t('vat.totals') }}</td>
+        <td style="text-align:end;">{{ totals.tax_count }}</td>
+        <td style="text-align:end;">{{ totals.taxable_base|money }}</td>
+        <td style="text-align:end;">{{ totals.output_vat|money }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}
