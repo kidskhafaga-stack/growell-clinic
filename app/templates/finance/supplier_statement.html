@@ -16,8 +16,12 @@
     <p class="page-sub" style="margin:0;">{{ t('payables.statement') }}
       {% if supplier.phone %}· <span dir="ltr">{{ supplier.phone }}</span>{% endif %}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('finance.payables') }}">
-    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('payables.title') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.supplier_statement_print', supplier_id=supplier.id) }}" target="_blank">
+      <i class="bi bi-printer"></i> {{ t('report.print') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.payables') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('payables.title') }}</a>
+  </div>
 </div>
 
 <div class="stat-grid gc-stagger" style="margin-bottom:16px;">
