@@ -175,6 +175,106 @@ def ar_aging():
     )
 
 
+def _as_of():
+    """Single ``?as_of=`` cut-off date for the cumulative statements
+    (trial balance / balance sheet); defaults to today."""
+    raw = (request.args.get("as_of") or "").strip()
+    if raw:
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return datetime.utcnow().date()
+
+
+def _ledger_movements(as_of):
+    """Cumulative (debit_sum, credit_sum) per account up to and including
+    ``as_of``, keyed by Account — the raw material for both statements."""
+    from app.extensions import db
+    from app.models import Account, JournalEntry, JournalLine
+    from app.utils.accounting import ensure_seeded
+
+    ensure_seeded()
+    rows = (
+        db.session.query(Account, db.func.sum(JournalLine.debit),
+                         db.func.sum(JournalLine.credit))
+        .join(JournalLine, JournalLine.account_id == Account.id)
+        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+        .filter(JournalEntry.entry_date <= as_of)
+        .group_by(Account.id).order_by(Account.code).all()
+    )
+    return [(acc, round(d or 0, 2), round(c or 0, 2)) for acc, d, c in rows]
+
+
+@reports_bp.route("/trial-balance")
+@module_required(MODULE)
+def trial_balance():
+    """Trial balance (ميزان المراجعة): every account's net balance on its
+    natural side as of a date. Total debits must equal total credits — the
+    books' self-check, straight from the auto-posted journal."""
+    as_of = _as_of()
+    rows = []
+    total_d = total_c = 0.0
+    for acc, d, c in _ledger_movements(as_of):
+        net = round(d - c, 2)
+        if abs(net) < 0.005:
+            continue
+        # Placement is purely by the sign of net movement: a net debit
+        # (net>0) sits in the debit column, a net credit in the credit column.
+        on_debit = net > 0
+        amount = abs(net)
+        rows.append({"acc": acc,
+                     "debit": amount if on_debit else 0.0,
+                     "credit": amount if not on_debit else 0.0})
+        total_d += amount if on_debit else 0.0
+        total_c += amount if not on_debit else 0.0
+    return render_template(
+        "reports/trial_balance.html", rows=rows, as_of=as_of,
+        total_debit=round(total_d, 2), total_credit=round(total_c, 2),
+        balanced=abs(total_d - total_c) < 0.01,
+    )
+
+
+@reports_bp.route("/balance-sheet")
+@module_required(MODULE)
+def balance_sheet():
+    """Balance sheet (الميزانية العمومية): assets vs liabilities + equity as
+    of a date. Retained earnings for the period (revenue − expenses) is folded
+    into equity so the sheet balances against the auto-posted journal."""
+    as_of = _as_of()
+    assets, liabilities, equity = [], [], []
+    net_income = 0.0
+    for acc, d, c in _ledger_movements(as_of):
+        if acc.type == "asset":
+            bal = round(d - c, 2)
+            if abs(bal) >= 0.005:
+                assets.append((acc, bal))
+        elif acc.type == "liability":
+            bal = round(c - d, 2)
+            if abs(bal) >= 0.005:
+                liabilities.append((acc, bal))
+        elif acc.type == "equity":
+            bal = round(c - d, 2)
+            if abs(bal) >= 0.005:
+                equity.append((acc, bal))
+        elif acc.type == "revenue":
+            net_income += round(c - d, 2)
+        elif acc.type == "expense":
+            net_income -= round(d - c, 2)
+    net_income = round(net_income, 2)
+    total_assets = round(sum(b for _, b in assets), 2)
+    total_liab = round(sum(b for _, b in liabilities), 2)
+    total_equity = round(sum(b for _, b in equity) + net_income, 2)
+    total_le = round(total_liab + total_equity, 2)
+    return render_template(
+        "reports/balance_sheet.html", as_of=as_of,
+        assets=assets, liabilities=liabilities, equity=equity,
+        net_income=net_income, total_assets=total_assets,
+        total_liab=total_liab, total_equity=total_equity, total_le=total_le,
+        balanced=abs(total_assets - total_le) < 0.01,
+    )
+
+
 def _apply_print_lang():
     """Per-print language choice (?lang=ar|en) so a statement can be handed to
     the family in either language regardless of the staff UI language."""

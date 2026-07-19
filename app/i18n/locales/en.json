@@ -2927,5 +2927,31 @@
     "kind_invoices": "Invoices",
     "kind_appointments": "Appointments",
     "kind_vaccinations": "Vaccinations"
+  },
+  "trial": {
+    "title": "Trial balance",
+    "desc": "Every account's debit/credit balance as of a date — the books' self-check",
+    "as_of": "As of",
+    "account": "Account",
+    "debit": "Debit",
+    "credit": "Credit",
+    "totals": "Totals",
+    "balanced": "Books balanced — total debits equal total credits",
+    "unbalanced": "Books not balanced — review the entries",
+    "none": "No movements up to this date"
+  },
+  "balsheet": {
+    "title": "Balance sheet",
+    "desc": "A snapshot of assets vs liabilities and equity as of a date",
+    "assets": "Assets",
+    "liabilities": "Liabilities",
+    "equity": "Equity",
+    "retained": "Period earnings (retained)",
+    "total_assets": "Total assets",
+    "total_liabilities": "Total liabilities",
+    "total_equity": "Total equity",
+    "total_le": "Total liabilities & equity",
+    "equation": "Assets = Liabilities + Equity",
+    "none": "No balance"
   }
 }
