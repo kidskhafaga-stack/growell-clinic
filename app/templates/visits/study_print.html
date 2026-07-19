@@ -74,6 +74,28 @@
       </tbody>
     </table>
 
+    {% if spiro %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;">
+      {% if spiro.flow_volume %}
+      <div style="border:1px solid var(--line);border-radius:8px;padding:8px;">
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:4px;">{{ t('spiro.flow_volume') }}</div>
+        {{ spiro.flow_volume|safe }}
+      </div>
+      {% endif %}
+      {% if spiro.volume_time %}
+      <div style="border:1px solid var(--line);border-radius:8px;padding:8px;">
+        <div style="font-weight:700;font-size:.82rem;margin-bottom:4px;">{{ t('spiro.volume_time') }}</div>
+        {{ spiro.volume_time|safe }}
+      </div>
+      {% endif %}
+    </div>
+    {% if spiro.interpretation %}
+    <div class="concl"><h3>{{ t('spiro.auto_read') }}</h3>
+      <div>{{ t('spiro.p_' ~ spiro.interpretation.pattern) }} — <span style="color:var(--muted);">{{ t('spiro.n_' ~ spiro.interpretation.note) }}</span></div></div>
+    {% endif %}
+    <div style="color:var(--muted);font-size:.75rem;margin-top:6px;">{{ t('spiro.schematic_note') }}</div>
+    {% endif %}
+
     {% if study.conclusion %}
     <div class="concl"><h3>{{ t('study.conclusion') }}</h3><div style="white-space:pre-wrap;">{{ study.conclusion }}</div></div>
     {% endif %}
