@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ study.device.display_name(current_lang) }} — {{ study.patient.display_name(current_lang) }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; line-height:1.5; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-weight:600; cursor:pointer; text-decoration:none; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .sheet { background:#fff; max-width:780px; margin:16px auto; padding:30px 36px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .head { display:flex; justify-content:space-between; border-bottom:2px solid var(--brand); padding-bottom:12px; }
+  .clinic { font-size:1.25rem; font-weight:800; color:var(--brand); }
+  h1 { text-align:center; font-size:1.1rem; margin:16px 0 4px; }
+  .meta { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { text-align:start; padding:7px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-size:.76rem; text-transform:uppercase; }
+  .low { color:#1c5fd6; font-weight:700; } .high { color:#c0392b; font-weight:700; }
+  .concl { margin-top:16px; }
+  .concl h3 { font-size:.95rem; margin:0 0 4px; }
+  @media print { body{background:#fff;} .toolbar{display:none;} .sheet{box-shadow:none;margin:0;max-width:none;padding:0;} @page{margin:14mm;} }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('visits.study_view', study_id=study.id) }}">← {{ t('common.back') }}</a>
+    <a class="btn" href="{{ url_for('visits.study_print', study_id=study.id, lang='ar') }}">العربية</a>
+    <a class="btn" href="{{ url_for('visits.study_print', study_id=study.id, lang='en') }}">English</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('report.print') }}</button>
+  </div>
+  <div class="sheet">
+    <div class="head">
+      <div>
+        <div class="clinic">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div>
+        <div style="color:var(--muted);font-size:.85rem;">
+          {% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}
+          {% if clinic.address %} · {{ clinic.address }}{% endif %}</div>
+      </div>
+      {% if clinic.show_logo_print and clinic.logo_url %}<img src="{{ clinic.logo_url }}" style="max-height:56px;" alt="">{% endif %}
+    </div>
+
+    <h1>{{ study.device.display_name(current_lang) }}</h1>
+    <div class="meta">{{ study.patient.display_name(current_lang) }} · {{ study.patient.patient_number }}
+      {% if study.patient.date_of_birth %} · {{ study.patient.date_of_birth }}{% endif %}
+      · <span dir="ltr">{{ study.study_date }}</span></div>
+
+    <table>
+      <thead><tr>
+        <th>{{ t('measure.name') }}</th>
+        <th style="text-align:end;">{{ t('study.value') }}</th>
+        <th>{{ t('measure.unit') }}</th>
+        <th>{{ t('measure.normal_range') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for v in study.values %}
+        <tr>
+          <td>{{ v.name }}</td>
+          <td style="text-align:end;" class="{{ v.flag }}" dir="ltr">{{ v.value }}
+            {% if v.flag == 'low' %}↓{% elif v.flag == 'high' %}↑{% endif %}</td>
+          <td dir="ltr">{{ v.unit or '' }}</td>
+          <td dir="ltr">{{ v.measurement.normal_range if v.measurement else '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px;">{{ t('study.no_values') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if study.conclusion %}
+    <div class="concl"><h3>{{ t('study.conclusion') }}</h3><div style="white-space:pre-wrap;">{{ study.conclusion }}</div></div>
+    {% endif %}
+    {% if study.notes %}
+    <div class="concl"><h3>{{ t('study.notes') }}</h3><div style="white-space:pre-wrap;color:var(--muted);">{{ study.notes }}</div></div>
+    {% endif %}
+
+    <div style="margin-top:28px;display:flex;justify-content:space-between;color:var(--muted);font-size:.85rem;">
+      <div>{{ t('report.generated_on') }}: {{ today }}</div>
+      {% if study.performer %}<div>{{ study.performer.display_name(current_lang) }}</div>{% endif %}
+    </div>
+  </div>
+</body>
+</html>

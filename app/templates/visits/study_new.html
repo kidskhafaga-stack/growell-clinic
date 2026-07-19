@@ -1,0 +1,78 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('study.new') }}{% endblock %}
+{% block page_heading %}{{ t('study.new') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('study.new') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ patient.display_name(current_lang) }} · {{ patient.patient_number }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+</div>
+
+<!-- Pick device -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;min-width:240px;">
+      <label>{{ t('study.device') }}</label>
+      <select class="select" name="device_id" onchange="this.form.submit()">
+        <option value="">— {{ t('study.pick_device') }} —</option>
+        {% for d in devices %}
+        <option value="{{ d.id }}" {{ 'selected' if device and device.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+{% if device %}
+{% if device.measurements %}
+<form method="post" action="{{ url_for('visits.study_new', patient_id=patient.id, device_id=device.id) }}">
+  <div class="card gc-scale-in" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end;">
+      <h2 class="section-title" style="margin:0;"><i class="bi bi-rulers"></i> {{ device.display_name(current_lang) }}</h2>
+      <div class="form-row" style="margin:0;max-width:180px;">
+        <label>{{ t('study.date') }}</label>
+        <input class="input" type="date" name="study_date" value="{{ today }}"></div>
+    </div>
+    <div style="overflow-x:auto;margin-top:12px;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr>
+        <th>{{ t('measure.name') }}</th>
+        <th style="width:160px;">{{ t('study.value') }}</th>
+        <th>{{ t('measure.unit') }}</th>
+        <th>{{ t('measure.normal_range') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for m in device.measurements %}
+        <tr>
+          <td><strong>{{ m.display_name(current_lang) }}</strong></td>
+          <td><input class="input" name="value_{{ m.id }}" dir="ltr" autocomplete="off"></td>
+          <td dir="ltr" style="color:var(--muted);">{{ m.unit or '' }}</td>
+          <td dir="ltr" style="color:var(--muted);">{{ m.normal_range or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="form-row" style="margin-top:12px;"><label>{{ t('study.conclusion') }}</label>
+      <textarea class="input" name="conclusion" rows="2"></textarea></div>
+    <div class="form-row"><label>{{ t('study.notes') }}</label>
+      <textarea class="input" name="notes" rows="2"></textarea></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('study.save') }}</button>
+  </div>
+</form>
+{% else %}
+<div class="card gc-scale-in">
+  <div class="empty-state"><i class="bi bi-rulers"></i>{{ t('study.no_template') }}</div>
+  <div style="text-align:center;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.device_measurements', device_id=device.id) }}">
+      <i class="bi bi-sliders"></i> {{ t('measure.title') }}</a>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

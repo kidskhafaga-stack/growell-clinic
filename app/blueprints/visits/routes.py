@@ -790,3 +790,79 @@ def view(visit_id):
 @module_required(MODULE)
 def icd():
     return jsonify({"results": search_icd(request.args.get("q", ""))})
+
+
+# ================================================= device studies (C.2) =====
+@visits_bp.route("/studies/new/<int:patient_id>", methods=["GET", "POST"])
+@module_required(MODULE)
+def study_new(patient_id):
+    """Record a manually-entered device study (spirometry/ECG/…) for a patient:
+    pick a device and enter its measurement-template values, flagged in/out of
+    the normal range."""
+    from datetime import datetime as _dt
+
+    from app.models import DeviceStudy, DeviceStudyValue, MedicalDevice
+
+    patient = db.get_or_404(Patient, patient_id)
+    devices = (MedicalDevice.query.filter_by(is_active=True)
+               .order_by(MedicalDevice.name).all())
+    device_id = request.values.get("device_id", type=int)
+    device = db.session.get(MedicalDevice, device_id) if device_id else None
+
+    if request.method == "POST" and device is not None:
+        try:
+            sdate = _dt.strptime((request.form.get("study_date") or "").strip(),
+                                 "%Y-%m-%d").date()
+        except ValueError:
+            sdate = _dt.utcnow().date()
+        # Attach to the patient's open visit, if any.
+        open_visit = (Visit.query.filter_by(patient_id=patient.id, status="open")
+                      .order_by(Visit.created_at.desc()).first())
+        study = DeviceStudy(
+            patient_id=patient.id, device_id=device.id,
+            visit_id=open_visit.id if open_visit else None, study_date=sdate,
+            performed_by=current_user.id,
+            conclusion=(request.form.get("conclusion") or "").strip() or None,
+            notes=(request.form.get("notes") or "").strip() or None)
+        for m in device.measurements:
+            raw = (request.form.get(f"value_{m.id}") or "").strip()
+            if raw == "":
+                continue
+            study.values.append(DeviceStudyValue(
+                measurement_id=m.id, name=m.name, unit=m.unit,
+                value=raw, flag=m.flag(raw)))
+        db.session.add(study)
+        ActivityLog.record("study.create", user_id=current_user.id,
+                           entity="device_study", detail=device.name,
+                           ip_address=client_ip())
+        db.session.commit()
+        flash(t("study.saved"), "success")
+        return redirect(url_for("visits.study_view", study_id=study.id))
+
+    return render_template("visits/study_new.html", patient=patient,
+                           devices=devices, device=device,
+                           today=datetime.utcnow().date().isoformat())
+
+
+@visits_bp.route("/studies/<int:study_id>")
+@module_required(MODULE)
+def study_view(study_id):
+    from app.models import DeviceStudy
+    study = db.get_or_404(DeviceStudy, study_id)
+    return render_template("visits/study_view.html", study=study)
+
+
+@visits_bp.route("/studies/<int:study_id>/print")
+@module_required(MODULE)
+def study_print(study_id):
+    """Printable device-study report with a per-print language choice (?lang=)."""
+    from app.models import DeviceStudy
+
+    lang = request.args.get("lang")
+    if lang in ("ar", "en"):
+        from app.i18n import get_direction
+        g.lang = lang
+        g.direction = get_direction(lang)
+    study = db.get_or_404(DeviceStudy, study_id)
+    return render_template("visits/study_print.html", study=study,
+                           today=datetime.utcnow().date())

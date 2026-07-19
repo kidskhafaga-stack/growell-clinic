@@ -108,3 +108,56 @@ class DeviceMeasurement(db.Model):
 
     def __repr__(self):
         return f"<DeviceMeasurement {self.name} dev={self.device_id}>"
+
+
+class DeviceStudy(db.Model):
+    """One performed device test for a patient — the manually-entered result of
+    running a device (spirometry/ECG/echo…), optionally tied to a visit."""
+
+    __tablename__ = "device_studies"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"),
+                          nullable=False, index=True)
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
+    study_date = db.Column(db.Date, default=date.today, nullable=False, index=True)
+    performed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    conclusion = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient", backref="device_studies")
+    device = db.relationship("MedicalDevice")
+    visit = db.relationship("Visit")
+    performer = db.relationship("User")
+    values = db.relationship("DeviceStudyValue", back_populates="study",
+                             cascade="all, delete-orphan",
+                             order_by="DeviceStudyValue.id")
+
+    def __repr__(self):
+        return f"<DeviceStudy {self.id} patient={self.patient_id}>"
+
+
+class DeviceStudyValue(db.Model):
+    """One measured value in a study. The field name/unit are snapshotted so the
+    record stays readable even if the device's template later changes."""
+
+    __tablename__ = "device_study_values"
+
+    id = db.Column(db.Integer, primary_key=True)
+    study_id = db.Column(db.Integer, db.ForeignKey("device_studies.id"),
+                         nullable=False, index=True)
+    measurement_id = db.Column(db.Integer,
+                               db.ForeignKey("device_measurements.id"), nullable=True)
+    name = db.Column(db.String(120), nullable=False)   # snapshot
+    unit = db.Column(db.String(30))                    # snapshot
+    value = db.Column(db.String(60))                   # free text (numeric or note)
+    flag = db.Column(db.String(10))                    # low|high|normal|'' snapshot
+
+    study = db.relationship("DeviceStudy", back_populates="values")
+    measurement = db.relationship("DeviceMeasurement")
+
+    def __repr__(self):
+        return f"<DeviceStudyValue {self.name}={self.value}>"

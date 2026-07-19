@@ -1,0 +1,61 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('study.title') }}{% endblock %}
+{% block page_heading %}{{ t('study.title') }}{% endblock %}
+
+{% macro flag_badge(f) %}
+  {%- if f == 'low' -%}<span class="badge" style="background:#e7f0fe;color:#1c5fd6;">↓ {{ t('study.low') }}</span>
+  {%- elif f == 'high' -%}<span class="badge" style="background:#fde8e8;color:#c0392b;">↑ {{ t('study.high') }}</span>
+  {%- elif f == 'normal' -%}<span class="badge badge--green">{{ t('study.normal') }}</span>
+  {%- endif -%}
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ study.device.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ study.patient.display_name(current_lang) }} · {{ study.patient.patient_number }}
+      · <span dir="ltr">{{ study.study_date }}</span></p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.study_print', study_id=study.id) }}" target="_blank">
+      <i class="bi bi-printer"></i> {{ t('report.print') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=study.patient_id) }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:520px;">
+    <thead><tr>
+      <th>{{ t('measure.name') }}</th>
+      <th style="text-align:end;">{{ t('study.value') }}</th>
+      <th>{{ t('measure.unit') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for v in study.values %}
+      <tr>
+        <td><strong>{{ v.name }}</strong></td>
+        <td style="text-align:end;font-weight:700;" dir="ltr">{{ v.value }}</td>
+        <td dir="ltr" style="color:var(--muted);">{{ v.unit or '' }}</td>
+        <td>{{ flag_badge(v.flag) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">{{ t('study.no_values') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+{% if study.conclusion or study.notes %}
+<div class="card gc-scale-in">
+  {% if study.conclusion %}<h2 class="section-title" style="margin-top:0;"><i class="bi bi-clipboard-check"></i> {{ t('study.conclusion') }}</h2>
+  <p style="white-space:pre-wrap;">{{ study.conclusion }}</p>{% endif %}
+  {% if study.notes %}<h2 class="section-title"><i class="bi bi-sticky"></i> {{ t('study.notes') }}</h2>
+  <p style="white-space:pre-wrap;color:var(--muted);">{{ study.notes }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
