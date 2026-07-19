@@ -297,6 +297,53 @@ def devices():
         import_modes=IMPORT_MODES)
 
 
+@settings_bp.route("/devices/<int:device_id>/measurements", methods=["GET", "POST"])
+@admin_required
+def device_measurements(device_id):
+    """Define the measurement fields a device's report captures (its template):
+    name, unit and a normal range per field, so manual results can be flagged."""
+    from app.models import DeviceMeasurement, MedicalDevice
+
+    device = db.get_or_404(MedicalDevice, device_id)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "delete":
+            m = db.session.get(DeviceMeasurement, request.form.get("id", type=int))
+            if m is not None and m.device_id == device.id:
+                db.session.delete(m)
+                db.session.commit()
+                flash(t("measure.deleted"), "info")
+            return redirect(url_for("settings.device_measurements", device_id=device.id))
+
+        def _num(name):
+            raw = (request.form.get(name) or "").strip()
+            try:
+                return float(raw) if raw != "" else None
+            except ValueError:
+                return None
+
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash(t("common.required") + ": " + t("measure.name"), "danger")
+            return redirect(url_for("settings.device_measurements", device_id=device.id))
+        m = (db.session.get(DeviceMeasurement, request.form.get("id", type=int))
+             if action == "edit" else DeviceMeasurement(device_id=device.id))
+        m.name = name
+        m.name_en = (request.form.get("name_en") or "").strip() or None
+        m.unit = (request.form.get("unit") or "").strip() or None
+        m.normal_low = _num("normal_low")
+        m.normal_high = _num("normal_high")
+        m.sort_order = request.form.get("sort_order", type=int) or 0
+        if action != "edit":
+            db.session.add(m)
+        db.session.commit()
+        flash(t("measure.saved"), "success")
+        return redirect(url_for("settings.device_measurements", device_id=device.id))
+
+    return render_template("settings/device_measurements.html", device=device)
+
+
 @settings_bp.route("/data")
 @admin_required
 def data_tools():

@@ -41,6 +41,11 @@ class MedicalDevice(db.Model):
 
     # Services performed on this device.
     services = db.relationship("Service", back_populates="device")
+    # The measurements this device's report captures (its result template).
+    measurements = db.relationship(
+        "DeviceMeasurement", back_populates="device",
+        cascade="all, delete-orphan",
+        order_by="DeviceMeasurement.sort_order, DeviceMeasurement.id")
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
@@ -51,3 +56,55 @@ class MedicalDevice(db.Model):
 
     def __repr__(self):
         return f"<MedicalDevice {self.name}>"
+
+
+class DeviceMeasurement(db.Model):
+    """One field a device's report captures — the measurement template. e.g. a
+    spirometer has FEV1, FVC, FEV1/FVC…, each with a unit and a normal range so
+    manually-entered results can be flagged in/out of range."""
+
+    __tablename__ = "device_measurements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer, db.ForeignKey("medical_devices.id"),
+                          nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)      # Arabic / primary
+    name_en = db.Column(db.String(120))
+    unit = db.Column(db.String(30))                       # %, L, mmHg, bpm…
+    normal_low = db.Column(db.Float)
+    normal_high = db.Column(db.Float)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    device = db.relationship("MedicalDevice", back_populates="measurements")
+
+    def display_name(self, lang="ar"):
+        return self.name_en if (lang == "en" and self.name_en) else self.name
+
+    @property
+    def normal_range(self):
+        lo, hi = self.normal_low, self.normal_high
+        if lo is not None and hi is not None:
+            return f"{lo:g}–{hi:g}"
+        if lo is not None:
+            return f"≥ {lo:g}"
+        if hi is not None:
+            return f"≤ {hi:g}"
+        return ""
+
+    def flag(self, value):
+        """'low' / 'high' / 'normal' / '' for a numeric value against range."""
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return ""
+        if self.normal_low is not None and v < self.normal_low:
+            return "low"
+        if self.normal_high is not None and v > self.normal_high:
+            return "high"
+        if self.normal_low is not None or self.normal_high is not None:
+            return "normal"
+        return ""
+
+    def __repr__(self):
+        return f"<DeviceMeasurement {self.name} dev={self.device_id}>"
