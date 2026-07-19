@@ -56,6 +56,9 @@
         <td>{% if d.warranty_until %}{{ d.warranty_until }} {% if d.under_warranty %}<span class="badge badge--green">{{ t('devices.in_warranty') }}</span>{% endif %}{% else %}—{% endif %}</td>
         <td>{% if d.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>{% else %}<span class="badge badge--danger">{{ t('common.inactive') }}</span>{% endif %}</td>
         <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.device_measurements', device_id=d.id) }}"
+             title="{{ t('measure.title') }}"><i class="bi bi-rulers"></i>
+            {% if d.measurements %}<span class="badge badge--muted">{{ d.measurements|length }}</span>{% endif %}</a>
           <details style="position:relative;display:inline-block;">
             <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
             <form method="post" action="{{ url_for('settings.devices') }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">

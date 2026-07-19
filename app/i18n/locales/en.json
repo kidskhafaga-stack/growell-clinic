@@ -3069,5 +3069,21 @@
     "paid": "Instalment paid",
     "no_receipts": "No goods receipts for this supplier",
     "upcoming_title": "Upcoming / overdue instalments"
+  },
+  "measure": {
+    "title": "Measurement template",
+    "subtitle": "Define the fields the device report captures, with normal ranges",
+    "fields": "Measurement fields",
+    "name": "Name",
+    "name_en": "English",
+    "unit": "Unit",
+    "normal_range": "Normal range",
+    "normal_low": "Normal low",
+    "normal_high": "Normal high",
+    "order": "Order",
+    "add": "Add field",
+    "none": "No fields yet — add measurement fields",
+    "saved": "Field saved",
+    "deleted": "Field deleted"
   }
 }

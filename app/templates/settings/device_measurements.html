@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('measure.title') }} — {{ device.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('measure.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ device.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('measure.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.devices') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('devices.title') }}</a>
+</div>
+
+<!-- Existing fields -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-rulers"></i> {{ t('measure.fields') }}</h2>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:560px;">
+    <thead><tr>
+      <th style="width:40px;">#</th>
+      <th>{{ t('measure.name') }}</th>
+      <th>{{ t('measure.unit') }}</th>
+      <th>{{ t('measure.normal_range') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for m in device.measurements %}
+      <tr>
+        <td style="color:var(--muted);">{{ m.sort_order }}</td>
+        <td><strong>{{ m.name }}</strong>{% if m.name_en %} <span style="color:var(--muted);" dir="ltr">/ {{ m.name_en }}</span>{% endif %}</td>
+        <td dir="ltr">{{ m.unit or '—' }}</td>
+        <td dir="ltr">{{ m.normal_range or '—' }}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <details style="position:relative;display:inline-block;">
+            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
+            <form method="post" class="popform" style="width:320px;">
+              <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ m.id }}">
+              <div class="form-row"><label>{{ t('measure.name') }} *</label><input class="input" name="name" value="{{ m.name }}" required></div>
+              <div class="form-row"><label>{{ t('measure.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ m.name_en or '' }}"></div>
+              <div class="form-row"><label>{{ t('measure.unit') }}</label><input class="input" name="unit" dir="ltr" value="{{ m.unit or '' }}"></div>
+              <div style="display:flex;gap:8px;">
+                <div class="form-row" style="flex:1;"><label>{{ t('measure.normal_low') }}</label><input class="input" type="number" step="any" name="normal_low" value="{{ m.normal_low if m.normal_low is not none else '' }}"></div>
+                <div class="form-row" style="flex:1;"><label>{{ t('measure.normal_high') }}</label><input class="input" type="number" step="any" name="normal_high" value="{{ m.normal_high if m.normal_high is not none else '' }}"></div>
+              </div>
+              <div class="form-row"><label>{{ t('measure.order') }}</label><input class="input" type="number" name="sort_order" value="{{ m.sort_order }}"></div>
+              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+            </form>
+          </details>
+          <form method="post" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ m.id }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-state">{{ t('measure.none') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- Add field -->
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('measure.add') }}</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="add">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('measure.name') }} *</label><input class="input" name="name" required></div>
+      <div class="form-row"><label>{{ t('measure.name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('measure.unit') }}</label><input class="input" name="unit" dir="ltr" placeholder="%, L, mmHg…"></div>
+      <div class="form-row"><label>{{ t('measure.normal_low') }}</label><input class="input" type="number" step="any" name="normal_low"></div>
+      <div class="form-row"><label>{{ t('measure.normal_high') }}</label><input class="input" type="number" step="any" name="normal_high"></div>
+      <div class="form-row"><label>{{ t('measure.order') }}</label><input class="input" type="number" name="sort_order" value="{{ device.measurements|length }}"></div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+{% endblock %}
