@@ -2022,22 +2022,38 @@ def expenses():
                .order_by(Expense.expense_date.desc()).all())
     recurring = (Expense.query.filter(Expense.is_recurring.is_(True))
                  .order_by(Expense.category).all())
-    month_total = round(sum(e.amount for e in one_off)
-                        + sum(e.amount for e in recurring), 2)
+    # A recurring cost only counts in a month its active window covers; those
+    # outside their window stay listed (to manage) but are flagged inactive.
+    active_recur_ids = {e.id for e in recurring if e.active_in(start, end)}
+    month_total = round(
+        sum(e.amount for e in one_off)
+        + sum(e.amount for e in recurring if e.id in active_recur_ids), 2)
     return render_template(
         "finance/expenses.html", one_off=one_off, recurring=recurring,
+        active_recur_ids=active_recur_ids,
         categories=EXPENSE_CATEGORIES, methods=PAYMENT_METHODS,
         month=f"{year:04d}-{month:02d}", month_total=month_total,
     )
 
 
+def _parse_date_opt(raw):
+    try:
+        return datetime.strptime((raw or "").strip(), "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def _read_expense(form):
     cat = (form.get("category") or "other").strip()
+    recurring = bool(form.get("is_recurring"))
     return {
         "category": cat if cat in EXPENSE_CATEGORIES else "other",
         "description": (form.get("description") or "").strip() or None,
         "amount": form.get("amount", type=float) or 0,
-        "is_recurring": bool(form.get("is_recurring")),
+        "is_recurring": recurring,
+        # Active window only applies to recurring costs; cleared otherwise.
+        "recur_start": _parse_date_opt(form.get("recur_start")) if recurring else None,
+        "recur_end": _parse_date_opt(form.get("recur_end")) if recurring else None,
         "vendor": (form.get("vendor") or "").strip() or None,
         "payment_method": (form.get("payment_method") or "").strip() or None,
         "notes": (form.get("notes") or "").strip() or None,
@@ -2111,7 +2127,8 @@ def pnl():
     # Expenses = one-off this month + fixed recurring; grouped by category.
     one_off = (Expense.query.filter(Expense.is_recurring.is_(False))
                .filter(Expense.expense_date >= start, Expense.expense_date <= end).all())
-    recurring = Expense.query.filter(Expense.is_recurring.is_(True)).all()
+    recurring = [e for e in Expense.query.filter(Expense.is_recurring.is_(True)).all()
+                 if e.active_in(start, end)]
     by_category = {c: 0.0 for c in EXPENSE_CATEGORIES}
     for e in one_off + recurring:
         by_category[e.category] = round(by_category.get(e.category, 0) + e.amount, 2)

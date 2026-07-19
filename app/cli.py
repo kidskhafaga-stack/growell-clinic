@@ -238,6 +238,8 @@ def register_commands(app):
             ("vaccine_schedule_templates", "is_seeded", "BOOLEAN DEFAULT 0"),
             ("patients", "archived_at", "DATETIME"),
             ("patients", "archive_reason", "VARCHAR(20)"),
+            ("expenses", "recur_start", "DATE"),
+            ("expenses", "recur_end", "DATE"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

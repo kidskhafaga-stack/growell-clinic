@@ -1344,7 +1344,12 @@
     "cat_maintenance": "صيانة",
     "cat_marketing": "تسويق",
     "cat_taxes": "ضرائب",
-    "cat_other": "أخرى"
+    "cat_other": "أخرى",
+    "recur_start": "يبدأ من",
+    "recur_end": "ينتهي في",
+    "recur_window": "فترة السريان",
+    "recur_window_hint": "اتركها فارغة يعني بدون بداية/نهاية محددة",
+    "recur_inactive": "خارج الشهر"
   },
   "pnl": {
     "title": "الأرباح والخسائر (P&L)",

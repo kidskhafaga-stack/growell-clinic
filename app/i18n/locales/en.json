@@ -1344,7 +1344,12 @@
     "cat_maintenance": "Maintenance",
     "cat_marketing": "Marketing",
     "cat_taxes": "Taxes",
-    "cat_other": "Other"
+    "cat_other": "Other",
+    "recur_start": "Starts",
+    "recur_end": "Ends",
+    "recur_window": "Active window",
+    "recur_window_hint": "Leave blank for no fixed start / end",
+    "recur_inactive": "Not this month"
   },
   "pnl": {
     "title": "P&L (Profit & Loss)",
