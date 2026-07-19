@@ -240,6 +240,7 @@ def register_commands(app):
             ("patients", "archive_reason", "VARCHAR(20)"),
             ("expenses", "recur_start", "DATE"),
             ("expenses", "recur_end", "DATE"),
+            ("users", "is_super_admin", "BOOLEAN DEFAULT 0"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -276,6 +277,7 @@ def register_commands(app):
         _backfill_service_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
+        _ensure_owner_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -351,6 +353,8 @@ def register_commands(app):
                 full_name_en=name_en,
                 role=role,
                 is_active=True,
+                # The primary admin is the institution owner (super-admin).
+                is_super_admin=(role == "admin"),
             )
             user.set_password(password)
             db.session.add(user)
@@ -373,7 +377,8 @@ def register_commands(app):
         if User.query.filter_by(username=username).first():
             click.secho("Username already exists.", fg="red")
             return
-        user = User(username=username, full_name=name, role="admin", is_active=True)
+        user = User(username=username, full_name=name, role="admin",
+                    is_active=True, is_super_admin=True)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -463,6 +468,24 @@ def _seed_accounts_safe():
         from app.utils.accounting import ensure_seeded
         if ensure_seeded():
             click.echo("  + chart of accounts seeded")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _ensure_owner_safe():
+    """Guarantee at least one institution owner exists. On an existing DB the
+    new ``is_super_admin`` flag defaults to 0, so promote every current admin to
+    owner (no one loses access); only later can owners create plain admins."""
+    try:
+        if User.query.filter_by(is_super_admin=True).first() is not None:
+            return
+        promoted = 0
+        for u in User.query.all():
+            if u.is_admin:
+                u.is_super_admin = True
+                promoted += 1
+        if promoted:
+            click.echo(f"  + {promoted} admin(s) promoted to owner")
     except Exception:  # noqa: BLE001
         pass
 

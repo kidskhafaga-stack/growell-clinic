@@ -20,6 +20,10 @@ class User(UserMixin, db.Model):
     full_name_en = db.Column(db.String(120))
 
     role = db.Column(db.String(20), nullable=False, default="reception")
+    # Owner / super-admin: an admin who also controls the institution-level
+    # settings (facility setup, multi-doctor config, data reset). A plain admin
+    # runs everything else but cannot reshape the clinic itself.
+    is_super_admin = db.Column(db.Boolean, default=False, nullable=False)
     # Non-doctor roles (e.g. an admin who also sees patients) can be flagged as
     # practitioners so they appear in the appointments / doctor pickers without
     # every admin showing up as a doctor.
@@ -84,6 +88,12 @@ class User(UserMixin, db.Model):
         if rec is not None:
             return rec.is_admin
         return self.role == "admin"
+
+    @property
+    def is_owner(self):
+        """Super-admin: an admin flagged as the institution's owner. Owners
+        reach the facility/institution settings a plain admin cannot."""
+        return bool(self.is_super_admin) and self.is_admin
 
     def can_access(self, module):
         """Whether this user's role may reach ``module``."""

@@ -79,7 +79,8 @@
     "login_required": "Please sign in to access this page",
     "logged_out": "You have been signed out successfully",
     "welcome_back": "Welcome back, {name}",
-    "no_permission": "You do not have permission to access this page"
+    "no_permission": "You do not have permission to access this page",
+    "owner_only": "These settings are for the institution owner (super-admin) only"
   },
   "roles": {
     "admin": "Administrator",
@@ -128,7 +129,10 @@
     "last_login": "Last login",
     "never": "Never logged in",
     "is_practitioner": "Practitioner (sees patients)",
-    "is_practitioner_hint": "Tick this for a non-doctor (e.g. an admin) who also examines patients, so they appear in the appointments doctor list. Doctors are always included."
+    "is_practitioner_hint": "Tick this for a non-doctor (e.g. an admin) who also examines patients, so they appear in the appointments doctor list. Doctors are always included.",
+    "super_admin": "Institution owner (super-admin)",
+    "super_admin_hint": "The owner controls institution settings (facility setup, opening doctors, data reset) — a plain admin runs everything else.",
+    "owner_badge": "Owner"
   },
   "patients": {
     "title": "Patients & Families",
@@ -2990,5 +2994,9 @@
     "unbalanced": "Entry is not balanced — debits do not equal credits",
     "failed": "Could not post the entry — check the accounts",
     "posted": "Entry {n} posted"
+  },
+  "owner": {
+    "last_owner": "Cannot remove the last institution owner",
+    "only_owner_removes": "Only another owner can remove an owner"
   }
 }

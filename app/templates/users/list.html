@@ -41,7 +41,8 @@
           {% if user.email %}<div style="font-size:0.78rem;color:var(--muted);">{{ user.email }}</div>{% endif %}
         </td>
         <td>{{ user.username }}</td>
-        <td><span class="badge badge--role">{{ user.role_label(current_lang) }}</span></td>
+        <td><span class="badge badge--role">{{ user.role_label(current_lang) }}</span>
+          {% if user.is_owner %}<span class="badge" style="background:var(--amber-100,#fef3c7);color:#92400e;"><i class="bi bi-shield-lock"></i> {{ t('users.owner_badge') }}</span>{% endif %}</td>
         <td>
           {% if user.is_active %}
             <span class="badge badge--green">{{ t('common.active') }}</span>

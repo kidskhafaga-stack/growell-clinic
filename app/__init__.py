@@ -248,7 +248,9 @@ def create_app(config_name="default"):
         from flask import redirect, request, url_for
         from flask_login import current_user
 
-        if not current_user.is_authenticated or not current_user.is_admin:
+        # Only the owner can run the facility setup, so only trap the owner;
+        # a plain admin keeps working on the sensible defaults until then.
+        if not current_user.is_authenticated or not current_user.is_owner:
             return None
         endpoint = request.endpoint or ""
         # Don't trap static assets, auth, the wizard itself, or public pages.
