@@ -138,7 +138,76 @@ def journal():
         "credit": round(sum(e.total_credit for e in entries), 2),
     }
     return render_template("finance/journal.html", accounts=accounts,
-                           entries=entries, totals=totals)
+                           entries=entries, totals=totals,
+                           today=date.today().isoformat())
+
+
+@finance_bp.route("/journal/new", methods=["POST"])
+@module_required(MODULE)
+def journal_entry_new():
+    """Post a manual, balanced journal entry (adjustments, opening balances,
+    depreciation…). Admin-only — this is the one place a human writes to the
+    ledger, so it validates that debits equal credits before posting."""
+    from flask import abort
+
+    from app.models import Account
+    from app.utils.accounting import ensure_seeded, post_entry
+
+    if not current_user.is_admin:
+        abort(403)
+    ensure_seeded()
+
+    memo = (request.form.get("memo") or "").strip()
+    raw_date = (request.form.get("entry_date") or "").strip()
+    try:
+        entry_date = datetime.strptime(raw_date, "%Y-%m-%d").date() if raw_date else date.today()
+    except ValueError:
+        entry_date = date.today()
+
+    # Parallel arrays: account code, debit, credit per row.
+    codes = request.form.getlist("line_account")
+    debits = request.form.getlist("line_debit")
+    credits = request.form.getlist("line_credit")
+    lines = []
+    total_d = total_c = 0.0
+    for i, code in enumerate(codes):
+        code = (code or "").strip()
+        if not code:
+            continue
+        try:
+            d = float(debits[i] or 0) if i < len(debits) else 0.0
+            c = float(credits[i] or 0) if i < len(credits) else 0.0
+        except ValueError:
+            d = c = 0.0
+        if d <= 0 and c <= 0:
+            continue
+        lines.append((code, round(d, 2), round(c, 2), memo))
+        total_d += d
+        total_c += c
+
+    if len(lines) < 2:
+        flash(t("manual_je.need_lines"), "danger")
+        return redirect(url_for("finance.journal"))
+    if abs(round(total_d - total_c, 2)) > 0.01:
+        flash(t("manual_je.unbalanced"), "danger")
+        return redirect(url_for("finance.journal"))
+
+    try:
+        entry = post_entry("manual", None, memo or t("manual_je.default_memo"),
+                           lines, entry_date=entry_date, user_id=current_user.id)
+    except ValueError:
+        flash(t("manual_je.unbalanced"), "danger")
+        return redirect(url_for("finance.journal"))
+    if entry is None:
+        flash(t("manual_je.failed"), "danger")
+        return redirect(url_for("finance.journal"))
+
+    ActivityLog.record("journal.manual", user_id=current_user.id,
+                       entity="journal_entry", detail=entry.entry_number,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("manual_je.posted").replace("{n}", entry.entry_number), "success")
+    return redirect(url_for("finance.journal"))
 
 
 def _post_journal_safe(kind, obj):
