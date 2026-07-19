@@ -60,6 +60,9 @@ DEFAULT_SETTINGS = {
     "eta_vat_rate": "14",
     "eta_send_gap": "0",
     "eta_default_item_type": "EGS",
+    # Login security: lock an account after N failed attempts for M minutes.
+    "login_max_attempts": "5",
+    "login_lockout_minutes": "15",
 }
 
 

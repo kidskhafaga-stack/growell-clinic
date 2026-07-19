@@ -1,5 +1,5 @@
 """Authentication routes: login, logout and language switching."""
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import (
     flash,
@@ -15,13 +15,33 @@ from flask_login import current_user, login_required, login_user, logout_user
 from app.blueprints.auth import auth_bp
 from app.extensions import db
 from app.i18n import set_locale, t
-from app.models import ActivityLog, User
+from app.models import ActivityLog, Setting, User
 from app.utils.decorators import client_ip
 
 
 def _is_safe_next(target):
     """Only allow same-app relative redirects after login."""
     return bool(target) and target.startswith("/") and not target.startswith("//")
+
+
+def _lockout_config():
+    """(max_attempts, window_minutes) for the failed-login lockout; 0 attempts
+    disables it. Defaults: 5 attempts / 15 minutes."""
+    def _int(key, default):
+        try:
+            return max(0, int(Setting.get(key, str(default)) or default))
+        except (TypeError, ValueError):
+            return default
+    return _int("login_max_attempts", 5), _int("login_lockout_minutes", 15)
+
+
+def _recent_failures(username, minutes):
+    """How many failed sign-ins this username has had within the window."""
+    since = datetime.utcnow() - timedelta(minutes=minutes)
+    return (ActivityLog.query
+            .filter(ActivityLog.action == "login_failed",
+                    ActivityLog.detail == username[:80],
+                    ActivityLog.created_at >= since).count())
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -33,6 +53,17 @@ def login():
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
         remember = bool(request.form.get("remember_me"))
+
+        # Brute-force guard: after N failed attempts within the window, refuse
+        # further tries (without touching the password) until it elapses.
+        max_attempts, window = _lockout_config()
+        if username and max_attempts and _recent_failures(username, window) >= max_attempts:
+            ActivityLog.record(
+                "login_locked", user_id=None, entity="user",
+                detail=username[:80], ip_address=client_ip())
+            db.session.commit()
+            flash(t("auth.too_many_attempts").replace("{n}", str(window)), "danger")
+            return render_template("auth/login.html"), 429
 
         user = User.query.filter_by(username=username).first()
 
