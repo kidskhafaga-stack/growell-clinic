@@ -315,6 +315,13 @@
 <!-- Appointments table -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.12s;">
   {% if appointments %}
+  <div style="padding:12px 14px 0;display:flex;justify-content:flex-end;">
+    <div style="position:relative;max-width:280px;width:100%;">
+      <i class="bi bi-search" style="position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+      <input class="input" x-model="listQ" placeholder="{{ t('appointments.quick_search') }}"
+             style="padding-inline-start:32px;" autocomplete="off">
+    </div>
+  </div>
   <table class="table">
     <thead><tr>
       <th>#</th><th>{{ t('appointments.time') }}</th><th>{{ t('appointments.patient') }}</th>
@@ -324,7 +331,8 @@
     </tr></thead>
     <tbody>
       {% for a in appointments %}
-      <tr>
+      <tr data-search="{{ (a.patient.full_name ~ ' ' ~ (a.patient.full_name_en or '') ~ ' ' ~ a.patient.patient_number ~ ' ' ~ (a.patient.contact_phone or ''))|lower }}"
+          x-show="!listQ || $el.dataset.search.includes(listQ.toLowerCase())">
         <td style="color:var(--muted);">{{ loop.index }}</td>
         <td><strong>{{ a.time_label }}</strong>
           {% if a.is_walk_in %}<div><span class="type-tag tt-red">{{ t('appointments.walk_in_flag') }}</span></div>{% endif %}
@@ -433,6 +441,8 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     defaultDoctorId() { return this.boardDoctorId ? String(this.boardDoctorId)
                              : (this.soleDoctorId ? String(this.soleDoctorId) : ''); },
     modal: null,                 // 'reschedule' | 'cancel' | 'walkin' | 'waitlist'
+    // quick filter over the day's list (client-side, name/file no/phone)
+    listQ: '',
     // patient search (shared by walk-in & waitlist)
     q: '', results: [], chosen: null,
     // reschedule

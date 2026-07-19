@@ -47,6 +47,7 @@ from app.models import (
 )
 from app.utils.decorators import cashier_access, client_ip, module_required
 from app.utils.finance import generate_invoice_number
+from app.utils.services import next_service_code
 from app.utils.pricing import (
     save_visit_type_service_map,
     service_for_visit_type,
@@ -278,6 +279,12 @@ def index():
 @finance_bp.route("/services")
 @module_required(MODULE)
 def services():
+    # Self-heal: a clinic must never see an empty services screen — seed the
+    # canonical coded set (and the visit-type map) if the table is empty.
+    from app.utils.services import seed_services
+    if seed_services():
+        db.session.commit()
+        flash(t("services.auto_seeded"), "info")
     services = Service.query.order_by(Service.sort_order, Service.name).all()
     from app.models import ETA_ITEM_TYPES, SERVICE_TYPES, MedicalDevice, StoreItem
     devices = (MedicalDevice.query.filter_by(is_active=True)
@@ -321,7 +328,8 @@ def service_new():
     svc = Service(
         name=name,
         name_en=(request.form.get("name_en") or "").strip() or None,
-        code=(request.form.get("code") or "").strip() or None,
+        # Every service carries a code; auto-generate when none is given.
+        code=(request.form.get("code") or "").strip() or next_service_code(),
         eta_item_type=("GS1" if request.form.get("eta_item_type") == "GS1" else "EGS"),
         category=category if category in SERVICE_CATEGORIES else "other",
         price=request.form.get("price", type=float) or 0,
@@ -345,7 +353,7 @@ def service_edit(service_id):
     svc = db.get_or_404(Service, service_id)
     svc.name = (request.form.get("name") or svc.name).strip()
     svc.name_en = (request.form.get("name_en") or "").strip() or None
-    svc.code = (request.form.get("code") or "").strip() or None
+    svc.code = (request.form.get("code") or "").strip() or svc.code or next_service_code()
     svc.eta_item_type = "GS1" if request.form.get("eta_item_type") == "GS1" else "EGS"
     category = (request.form.get("category") or svc.category).strip()
     svc.category = category if category in SERVICE_CATEGORIES else svc.category
