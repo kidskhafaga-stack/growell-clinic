@@ -23,7 +23,7 @@
 
 <div class="stat-grid gc-stagger" style="margin-bottom:16px;">
   <div class="stat-card edge-red"><i class="bi bi-cash-stack ico"></i>
-    <div class="value">{{ month_total }}</div><div class="label">{{ t('expenses.month_total') }}</div></div>
+    <div class="value">{{ month_total|money }}</div><div class="label">{{ t('expenses.month_total') }}</div></div>
 </div>
 
 <!-- Add expense -->
@@ -67,7 +67,7 @@
         <td style="white-space:nowrap;font-size:.85rem;color:var(--muted);" dir="ltr">
           {{ e.recur_start or '…' }} → {{ e.recur_end or '…' }}
           {% if inactive %}<span class="badge badge--muted" style="margin-inline-start:4px;">{{ t('expenses.recur_inactive') }}</span>{% endif %}</td>
-        <td><strong>{{ e.amount }}</strong></td>
+        <td><strong>{{ e.amount|money }}</strong></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
             <input type="hidden" name="month" value="{{ month }}">
@@ -92,7 +92,7 @@
         <td dir="ltr">{{ e.expense_date }}</td>
         <td><span class="badge badge--muted">{{ t('expenses.cat_' ~ e.category) }}</span></td>
         <td>{{ e.description or '—' }}{% if e.vendor %} <span style="color:var(--muted);">· {{ e.vendor }}</span>{% endif %}</td>
-        <td><strong>{{ e.amount }}</strong></td>
+        <td><strong>{{ e.amount|money }}</strong></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
             <input type="hidden" name="month" value="{{ month }}">
