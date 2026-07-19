@@ -343,6 +343,21 @@
       <label for="small_clinic_mode" style="margin:0;font-weight:400;">{{ t('settings.small_clinic_mode') }}</label>
     </div>
     <p class="hint">{{ t('settings.small_clinic_mode_hint') }}</p>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
+    <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-lock"></i> {{ t('settings.login_security') }}</h3>
+    <p class="hint" style="margin-top:-6px;">{{ t('settings.login_security_hint') }}</p>
+    <div class="form-grid">
+      <div class="form-row" style="max-width:200px;">
+        <label>{{ t('settings.login_max_attempts') }}</label>
+        <input class="input" type="number" min="0" max="50" name="login_max_attempts"
+               value="{{ values.get('login_max_attempts','5') }}"></div>
+      <div class="form-row" style="max-width:200px;">
+        <label>{{ t('settings.login_lockout_minutes') }}</label>
+        <input class="input" type="number" min="1" max="1440" name="login_lockout_minutes"
+               value="{{ values.get('login_lockout_minutes','15') }}"></div>
+    </div>
+    <p class="hint">{{ t('settings.login_max_attempts_hint') }}</p>
   </div>
 
   <!-- ETA e-invoicing -->

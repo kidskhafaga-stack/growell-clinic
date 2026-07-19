@@ -80,7 +80,8 @@
     "logged_out": "You have been signed out successfully",
     "welcome_back": "Welcome back, {name}",
     "no_permission": "You do not have permission to access this page",
-    "owner_only": "These settings are for the institution owner (super-admin) only"
+    "owner_only": "These settings are for the institution owner (super-admin) only",
+    "too_many_attempts": "Too many failed attempts. Try again in {n} minutes."
   },
   "roles": {
     "admin": "Administrator",
@@ -1167,7 +1168,12 @@
     "visit_chips_lang_hint": "Each phrase has two texts: Arabic and English (optional) — shown in the current program language.",
     "small_clinic_mode": "Small-clinic mode (reception runs the till)",
     "small_clinic_mode_hint": "Lets a reception user collect payments, run the shift and do checkout — without exposing P&L, expenses or financial reports.",
-    "logo_pending": "Image selected — click Save to apply"
+    "logo_pending": "Image selected — click Save to apply",
+    "login_security": "Login security",
+    "login_security_hint": "Temporarily lock an account after repeated failed attempts to deter guessing.",
+    "login_max_attempts": "Allowed attempts",
+    "login_lockout_minutes": "Lockout window (minutes)",
+    "login_max_attempts_hint": "Set attempts to 0 to disable the lock. Passwords are stored hashed (PBKDF2-SHA256)."
   },
   "errors": {
     "403_title": "Forbidden",

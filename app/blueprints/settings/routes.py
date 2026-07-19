@@ -39,6 +39,8 @@ TEXT_KEYS = [
     "store_number_scheme",
     # Unified currency (Financial Formatter): every amount renders with it.
     "currency_code",
+    # Login security: lock an account after N failed attempts for M minutes.
+    "login_max_attempts", "login_lockout_minutes",
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize",
