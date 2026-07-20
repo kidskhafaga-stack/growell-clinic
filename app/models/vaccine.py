@@ -153,6 +153,10 @@ class VaccineBrand(db.Model):
     dispense_unit = db.Column(db.String(30))
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     is_discontinued = db.Column(db.Boolean, default=False, nullable=False)  # production stopped
+    # Trade-name-specific schedule/catch-up when it differs from the vaccine's
+    # (RotaRix 2 doses vs RotaTeq 3; Menactra ≥9mo vs Menveo ≥2mo; Trumenba ≥10y).
+    # Falls back to the vaccine's catch-up when blank.
+    catch_up_notes = db.Column(db.Text)
 
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(
@@ -165,6 +169,18 @@ class VaccineBrand(db.Model):
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
+
+    def schedule_ages(self, lang="ar"):
+        """This trade name's own dose schedule as friendly age labels."""
+        doses = sorted(self.doses, key=lambda d: d.age_months or 0)
+        return [Vaccine.age_label(d.age_months, lang) for d in doses]
+
+    def effective_catch_up(self):
+        """This brand's catch-up rule, falling back to the vaccine's when the
+        trade name has no schedule difference of its own."""
+        if self.catch_up_notes:
+            return self.catch_up_notes
+        return self.vaccine.catch_up_notes if self.vaccine else None
 
     @property
     def doses_count(self):

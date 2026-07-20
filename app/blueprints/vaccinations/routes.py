@@ -485,6 +485,7 @@ def brand_edit(brand_id):
     brand.doctor_fee = request.form.get("doctor_fee", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
     brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
+    brand.catch_up_notes = (request.form.get("catch_up_notes") or "").strip() or None
     brand.is_discontinued = bool(request.form.get("is_discontinued"))
     ages = _parse_ages(request.form.get("dose_ages"))
     if ages:

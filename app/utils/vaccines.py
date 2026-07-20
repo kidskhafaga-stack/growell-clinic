@@ -121,12 +121,18 @@ def seed_vaccines():
             if v.get("booster") and not vaccine.booster_required:
                 vaccine.booster_required = True
         for b in v["brands"]:
-            if any(br.name == b["name"] for br in vaccine.brands):
+            existing = next((br for br in vaccine.brands if br.name == b["name"]), None)
+            if existing is not None:
+                # Backfill the trade-name-specific catch-up onto existing rows,
+                # only when the clinic hasn't set one (never clobber edits).
+                if b.get("catch_up_ar") and not existing.catch_up_notes:
+                    existing.catch_up_notes = b["catch_up_ar"]
                 continue
             brand = VaccineBrand(
                 vaccine_id=vaccine.id, name=b["name"], name_en=b.get("name_en"),
                 manufacturer=b.get("manufacturer"), price=b.get("price"),
                 is_default=b.get("default", False),
+                catch_up_notes=b.get("catch_up_ar"),
             )
             db.session.add(brand)
             db.session.flush()
