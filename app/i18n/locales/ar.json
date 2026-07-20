@@ -880,7 +880,14 @@
     "brand_prefer": "اجعله الترشيح الأول",
     "brand_preferred": "الترشيح الأول",
     "brand_preferred_set": "تم تعيين الاسم التجاري كترشيح أول.",
-    "admin_fee_line": "رسم تطعيم (إعطاء)"
+    "admin_fee_line": "رسم تطعيم (إعطاء)",
+    "cat_all": "الكل",
+    "cat_mandatory": "حكومي (إلزامي)",
+    "cat_optional": "اختياري",
+    "routine_schedule": "الجدول الطبيعي",
+    "no_schedule": "لا يوجد جدول محدّد",
+    "age_range": "العمر المسموح",
+    "days": "يوم"
   },
   "vstatus": {
     "done": "تم",

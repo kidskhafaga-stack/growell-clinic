@@ -86,6 +86,37 @@ class Vaccine(db.Model):
     def active_brands(self):
         return [b for b in self.brands if not b.is_discontinued]
 
+    @staticmethod
+    def age_label(months, lang="ar"):
+        """A friendly age label for a dose: birth / N months / N years."""
+        if months is None:
+            return ""
+        if months <= 0:
+            return "At birth" if lang == "en" else "عند الولادة"
+        if months < 12 or months % 12 != 0:
+            return f"{months} mo" if lang == "en" else f"{months} شهر"
+        years = months // 12
+        if lang == "en":
+            return f"{years} yr"
+        return f"{years} سنة" if years > 1 else "سنة"
+
+    def routine_schedule(self, lang="ar"):
+        """The vaccine's normal (routine) schedule as friendly age labels —
+        taken from the preferred/government brand's dose ages."""
+        brand = self.default_brand
+        if brand is None:
+            return []
+        doses = sorted(brand.doses, key=lambda d: d.age_months or 0)
+        return [self.age_label(d.age_months, lang) for d in doses]
+
+    def age_range_label(self, lang="ar"):
+        """"min–max" eligible age as friendly labels, if either bound is set."""
+        if self.min_age_months is None and self.max_age_months is None:
+            return ""
+        lo = self.age_label(self.min_age_months, lang) if self.min_age_months is not None else "—"
+        hi = self.age_label(self.max_age_months, lang) if self.max_age_months is not None else "—"
+        return f"{lo} → {hi}"
+
     def __repr__(self):
         return f"<Vaccine {self.code}>"
 

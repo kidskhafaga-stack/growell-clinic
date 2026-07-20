@@ -247,9 +247,23 @@ def _set_brand_doses(brand, ages):
 @vaccinations_bp.route("/manage")
 @module_required(MODULE)
 def manage():
-    vaccines = Vaccine.query.order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all()
+    cat = (request.args.get("cat") or "all").strip()
+    all_vaccines = (Vaccine.query
+                    .order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all())
+    counts = {
+        "all": len(all_vaccines),
+        "mandatory": sum(1 for v in all_vaccines if v.is_mandatory),
+        "optional": sum(1 for v in all_vaccines if not v.is_mandatory),
+    }
+    if cat == "mandatory":
+        vaccines = [v for v in all_vaccines if v.is_mandatory]
+    elif cat == "optional":
+        vaccines = [v for v in all_vaccines if not v.is_mandatory]
+    else:
+        cat = "all"
+        vaccines = all_vaccines
     return render_template("vaccinations/manage.html", vaccines=vaccines,
-                           routes=VACCINE_ROUTES)
+                           routes=VACCINE_ROUTES, cat=cat, counts=counts)
 
 
 @vaccinations_bp.route("/manage/vaccine/new", methods=["POST"])
