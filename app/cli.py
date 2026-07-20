@@ -276,6 +276,11 @@ def register_commands(app):
             seed_services()
         except Exception:  # noqa: BLE001
             pass
+        try:  # seed default general-store consumables on a fresh store
+            from app.utils.store_seed import seed_store_items_if_empty
+            seed_store_items_if_empty()
+        except Exception:  # noqa: BLE001
+            pass
         try:  # unify CRM templates into the registry (migrates legacy settings)
             from app.utils.whatsapp import seed_system_templates
             seed_system_templates()
