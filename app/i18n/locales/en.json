@@ -1192,7 +1192,9 @@
     "login_security_hint": "Temporarily lock an account after repeated failed attempts to deter guessing.",
     "login_max_attempts": "Allowed attempts",
     "login_lockout_minutes": "Lockout window (minutes)",
-    "login_max_attempts_hint": "Set attempts to 0 to disable the lock. Passwords are stored hashed (PBKDF2-SHA256)."
+    "login_max_attempts_hint": "Set attempts to 0 to disable the lock. Passwords are stored hashed (PBKDF2-SHA256).",
+    "ai_model_custom": "— Type a model id manually —",
+    "ai_model_custom_ph": "Type the exact model id as the provider names it"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2268,7 +2270,8 @@
     "optional": "(optional)",
     "comment_ph": "Write your feedback here…",
     "submit": "Submit rating",
-    "privacy": "Your feedback is confidential and used only to improve the service."
+    "privacy": "Your feedback is confidential and used only to improve the service.",
+    "inline_reply_hint": "Reply with your answers by number, e.g. 1) 5  2) 4  3) 9 — thank you 🙏"
   },
   "sat": {
     "title": "Patient satisfaction analytics",
@@ -2975,7 +2978,14 @@
     "type_doctor": "1–5 stars",
     "type_service": "1–5 stars",
     "type_nps": "0–10",
-    "type_comment": "Free text"
+    "type_comment": "Free text",
+    "delivery_title": "Survey delivery",
+    "mode_link": "Built-in rating page link",
+    "mode_link_hint": "Needs a public base URL (domain/tunnel) to open outside the clinic LAN.",
+    "mode_external": "External link (e.g. Google Form)",
+    "mode_external_hint": "Paste the form link — works even when the program is LAN-only, since the form is hosted outside.",
+    "mode_inline": "Questions inside the message itself",
+    "mode_inline_hint": "Questions are numbered inside the WhatsApp message and the patient replies — answers arrive in the WhatsApp inbox."
   },
   "data_export": {
     "title": "Data export",

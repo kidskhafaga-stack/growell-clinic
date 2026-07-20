@@ -39,6 +39,44 @@ def survey_config(lang="ar"):
     }
 
 
+def survey_delivery():
+    """How the survey reaches the patient — chosen in the survey builder.
+
+    * ``link`` (default): a link to the built-in public rating page. Needs the
+      clinic's public base URL (tunnel/domain) to open outside the LAN.
+    * ``external``: a link the clinic pasted (e.g. a Google Form) — works even
+      when the program itself is offline/LAN-only, since the form is hosted
+      outside.
+    * ``inline``: no page at all — the questions are numbered inside the
+      WhatsApp message and the patient simply replies; answers arrive in the
+      WhatsApp inbox.
+    """
+    from app.models import Setting
+    mode = (Setting.get("survey_mode", "link") or "link").strip()
+    if mode not in ("link", "external", "inline"):
+        mode = "link"
+    return mode, (Setting.get("survey_external_url", "") or "").strip()
+
+
+def inline_survey_text(lang="ar"):
+    """The survey as a numbered WhatsApp text block (inline mode): intro, the
+    visible questions with their answer scale, and a one-line reply example."""
+    from app.i18n import t
+    cfg = survey_config(lang)
+    scales = {"doctor": " (1-5)", "service": " (1-5)", "nps": " (0-10)",
+              "comment": ""}
+    lines = [cfg["intro"]]
+    n = 0
+    for q in SURVEY_QUESTIONS:
+        meta = cfg["questions"][q]
+        if not meta["show"]:
+            continue
+        n += 1
+        lines.append(f"{n}. {meta['label']}{scales.get(q, '')}")
+    lines.append(t("feedback.inline_reply_hint"))
+    return "\n".join(lines)
+
+
 def doctor_ratings():
     """``{doctor_id: {"avg": float, "count": int}}`` over submitted ratings."""
     rows = (db.session.query(
