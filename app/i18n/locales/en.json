@@ -46,7 +46,8 @@
     "saved": "Saved.",
     "year_short": "y",
     "month_short": "m",
-    "filter": "Filter"
+    "filter": "Filter",
+    "refresh": "Refresh"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -2143,7 +2144,11 @@
     "lifo": "LIFO — last in, first out",
     "default_margin": "Default margin %",
     "fefo_note": "Vaccines/medications always dispense soonest-expiry-first (FEFO) — not configurable.",
-    "policy_saved": "Store policies saved"
+    "policy_saved": "Store policies saved",
+    "label_title": "Barcode label",
+    "label_copies": "Copies",
+    "print_label": "Print barcode",
+    "code": "Item code"
   },
   "purchases": {
     "title": "Purchase orders",

@@ -14,7 +14,11 @@
       {% if brand.item_code %} · {{ brand.item_code }}{% endif %}
     </p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-arrow-right"></i> {{ t('inventory.title') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.brand_label', brand_id=brand.id) }}" target="_blank">
+      <i class="bi bi-upc-scan"></i> {{ t('store.print_label') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-arrow-right"></i> {{ t('inventory.title') }}</a>
+  </div>
 </div>
 
 <div class="stat-grid gc-stagger" style="margin-bottom:16px;">

@@ -46,7 +46,8 @@
     "saved": "تم الحفظ.",
     "year_short": "س",
     "month_short": "ش",
-    "filter": "تصفية"
+    "filter": "تصفية",
+    "refresh": "تحديث"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -2143,7 +2144,11 @@
     "lifo": "LIFO — آخر ما دخل أول ما يخرج",
     "default_margin": "الهامش الافتراضي %",
     "fefo_note": "التطعيمات والأدوية بتتصرف دايماً بأقرب صلاحية (FEFO) — دي مش بتتغيّر.",
-    "policy_saved": "تم حفظ سياسات المخزن"
+    "policy_saved": "تم حفظ سياسات المخزن",
+    "label_title": "ليبل باركود",
+    "label_copies": "عدد النسخ",
+    "print_label": "طباعة باركود",
+    "code": "كود الصنف"
   },
   "purchases": {
     "title": "أوامر الشراء",
