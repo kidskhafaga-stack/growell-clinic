@@ -724,12 +724,26 @@ def _send_feedback_survey(visit, force=False):
         return None
 
     lang = getattr(g, "lang", "ar")
+    # {link} depends on the survey delivery mode: the built-in page, an
+    # external form (Google Form — works when the program is LAN-only), or
+    # nothing (inline mode: the questions ride inside the message itself and
+    # the patient just replies on WhatsApp).
+    from app.utils.feedback import inline_survey_text, survey_delivery
+    mode, ext_url = survey_delivery()
+    if mode == "external" and ext_url:
+        link = ext_url
+    elif mode == "inline":
+        link = ""
+    else:
+        link = wa.feedback_link(fb.token)
     body = wa.render(wa.template_body("feedback"), {
         "patient": patient.display_name(lang) if patient else "",
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
         "doctor": visit.doctor.display_name(lang) if visit.doctor else "",
-        "link": wa.feedback_link(fb.token),
-    })
+        "link": link,
+    }).strip()
+    if mode == "inline":
+        body = f"{body}\n\n{inline_survey_text(lang)}"
     # Honour the template's schedule (e.g. "send the survey N days after the
     # visit"); None means send as soon as due.
     from app.models.message import _template_schedule

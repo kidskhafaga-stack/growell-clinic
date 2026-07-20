@@ -15,7 +15,29 @@
 
 <div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('survey.hint') }}</div>
 
-<form method="post">
+<form method="post" x-data="{ mode: '{{ values.get('survey_mode','link') or 'link' }}' }">
+  <!-- How the survey reaches the patient -->
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 style="margin-top:0;font-size:1.05rem;"><i class="bi bi-send"></i> {{ t('survey.delivery_title') }}</h2>
+    <div class="form-row">
+      <label style="display:flex;gap:8px;align-items:start;font-weight:400;cursor:pointer;">
+        <input type="radio" name="survey_mode" value="link" x-model="mode">
+        <span><strong>{{ t('survey.mode_link') }}</strong><br><span class="hint">{{ t('survey.mode_link_hint') }}</span></span></label>
+    </div>
+    <div class="form-row">
+      <label style="display:flex;gap:8px;align-items:start;font-weight:400;cursor:pointer;">
+        <input type="radio" name="survey_mode" value="external" x-model="mode">
+        <span><strong>{{ t('survey.mode_external') }}</strong><br><span class="hint">{{ t('survey.mode_external_hint') }}</span></span></label>
+      <input class="input" name="survey_external_url" dir="ltr" x-show="mode==='external'" x-cloak
+             value="{{ values.get('survey_external_url','') }}" placeholder="https://forms.gle/…" style="margin-top:6px;">
+    </div>
+    <div class="form-row" style="margin-bottom:0;">
+      <label style="display:flex;gap:8px;align-items:start;font-weight:400;cursor:pointer;">
+        <input type="radio" name="survey_mode" value="inline" x-model="mode">
+        <span><strong>{{ t('survey.mode_inline') }}</strong><br><span class="hint">{{ t('survey.mode_inline_hint') }}</span></span></label>
+    </div>
+  </div>
+
   <!-- Intro / thank-you -->
   <div class="card gc-scale-in" style="margin-bottom:14px;">
     <h2 style="margin-top:0;font-size:1.05rem;">{{ t('survey.texts') }}</h2>

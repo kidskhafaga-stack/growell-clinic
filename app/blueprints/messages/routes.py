@@ -251,6 +251,13 @@ def survey_builder():
             for lang in langs:
                 Setting.set(f"{base}_{lang}",
                             (request.form.get(f"{base}_{lang}") or "").strip())
+        # Delivery: built-in page link / external form (Google Form) / inline
+        # questions answered by replying on WhatsApp.
+        mode = (request.form.get("survey_mode") or "link").strip()
+        Setting.set("survey_mode",
+                    mode if mode in ("link", "external", "inline") else "link")
+        Setting.set("survey_external_url",
+                    (request.form.get("survey_external_url") or "").strip())
         db.session.commit()
         flash(t("survey.saved"), "success")
         return redirect(url_for("messages.survey_builder"))
