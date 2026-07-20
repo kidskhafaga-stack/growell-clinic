@@ -247,6 +247,7 @@ def register_commands(app):
             ("store_documents", "supplier_ref", "VARCHAR(60)"),
             ("store_documents", "due_date", "DATE"),
             ("store_documents", "payment_terms", "VARCHAR(12)"),
+            ("named_discounts", "scope", "VARCHAR(20) DEFAULT 'all'"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

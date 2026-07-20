@@ -46,7 +46,8 @@
         <template x-for="(l, i) in lines" :key="i">
           <tr>
             <td><input class="input" type="text" :name="'line_desc'" x-model="l.description">
-              <input type="hidden" :name="'line_service_id'" :value="l.service_id"></td>
+              <input type="hidden" :name="'line_service_id'" :value="l.service_id">
+              <input type="hidden" :name="'line_no_commission'" :value="l.no_commission || '0'"></td>
             <td><input class="input" type="number" step="0.01" min="0" :name="'line_price'" x-model.number="l.unit_price" @input="recalc()"></td>
             <td><input class="input" type="number" min="1" placeholder="1" :name="'line_qty'" x-model.number="l.quantity" @input="recalc()"></td>
             <td style="font-weight:600;" x-text="((l.unit_price||0)*(l.quantity||1)).toFixed(2)"></td>
@@ -68,7 +69,7 @@
       <div class="form-row" style="margin:0 0 10px;"><label>{{ t('checkout.discount') }}</label>
         <select class="select" name="discount_id" x-model.number="discountId" @change="recalc()">
           <option value="">— {{ t('checkout.no_discount') }} —</option>
-          {% for d in discounts %}<option value="{{ d.id }}" data-value="{{ d.value }}" data-percent="{{ 'true' if d.is_percent else 'false' }}">{{ d.display_name(current_lang) }} ({% if d.is_percent %}{{ d.value }}%{% else %}{{ d.value }}{% endif %})</option>{% endfor %}
+          {% for d in discounts %}<option value="{{ d.id }}" data-value="{{ d.value }}" data-percent="{{ 'true' if d.is_percent else 'false' }}">{{ d.display_name(current_lang) }} ({% if d.is_percent %}{{ d.value }}%{% else %}{{ d.value }}{% endif %}) · {{ t('discounts.on') }} {{ d.scope_label(current_lang) }}</option>{% endfor %}
         </select></div>
       <table class="table"><tbody>
         <tr><td>{{ t('invoices.subtotal') }}</td><td style="text-align:end;"><span x-text="subtotal.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
@@ -111,14 +112,14 @@
 <script>
   function checkout(initLines, methods) {
     return {
-      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1})),
+      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0'})),
       addId: '', discountId: '',
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, paid: 0, remaining: 0,
       addLine() {
         if (!this.addId) return;
         var opt = document.querySelector('option[value="'+this.addId+'"][data-name]');
-        if (opt) this.lines.push({service_id:this.addId, description:opt.dataset.name, unit_price:Number(opt.dataset.price)||0, quantity:1});
+        if (opt) this.lines.push({service_id:this.addId, description:opt.dataset.name, unit_price:Number(opt.dataset.price)||0, quantity:1, no_commission:'0'});
         this.addId=''; this.recalc();
       },
       recalc() {

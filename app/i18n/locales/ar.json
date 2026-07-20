@@ -879,7 +879,8 @@
     "source_custom": "مخصّص",
     "brand_prefer": "اجعله الترشيح الأول",
     "brand_preferred": "الترشيح الأول",
-    "brand_preferred_set": "تم تعيين الاسم التجاري كترشيح أول."
+    "brand_preferred_set": "تم تعيين الاسم التجاري كترشيح أول.",
+    "admin_fee_line": "رسم تطعيم (إعطاء)"
   },
   "vstatus": {
     "done": "تم",
@@ -1405,7 +1406,12 @@
     "t_campaign": "حملة عيادة",
     "t_doctor": "خصم طبيب",
     "t_category": "خصم فئة",
-    "t_special": "خصم خاص"
+    "t_special": "خصم خاص",
+    "on": "على",
+    "on_label": "الخصم على",
+    "on_hint": "حدّد البنود اللي الخصم يتطبّق عليها: كل البنود أو نوع خدمة واحد (كشف / جهاز / تطعيم…).",
+    "scope_all": "كل البنود",
+    "eligibility": "لِمَن"
   },
   "payment_methods": {
     "cash": "نقدي",

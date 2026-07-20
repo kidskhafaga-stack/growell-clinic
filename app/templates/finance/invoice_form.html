@@ -41,7 +41,7 @@
         <select class="select" name="discount_id">
           <option value="">{{ t('discounts.none_select') }}</option>
           {% for d in discounts %}
-          <option value="{{ d.id }}">{{ d.display_name(current_lang) }} — {{ d.value }}{{ '%' if d.is_percent else '' }} ({{ t('discounts.t_' ~ d.dtype) }})</option>
+          <option value="{{ d.id }}">{{ d.display_name(current_lang) }} — {{ d.value }}{{ '%' if d.is_percent else '' }} · {{ t('discounts.on') }} {{ d.scope_label(current_lang) }} ({{ t('discounts.t_' ~ d.dtype) }})</option>
           {% endfor %}
         </select><div class="hint">{{ t('discounts.form_hint') }}</div></div>
       {% endif %}
@@ -67,6 +67,7 @@
                   {% for s in services %}<option value="{{ s.id }}" data-price="{{ s.price }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
                 </select>
                 <input type="text" class="input" name="line_description" x-model="line.description" placeholder="{{ t('invoices.description') }}" style="margin-top:4px;">
+                <input type="hidden" name="line_no_commission" :value="line.no_commission || '0'">
               </td>
               <td><input class="input" type="number" step="0.01" name="line_unit_price" x-model.number="line.unit_price" style="width:90px;"></td>
               <td><input class="input" type="number" min="1" name="line_quantity" x-model.number="line.quantity" style="width:64px;"></td>
@@ -111,7 +112,7 @@ function invoiceForm(){
       if (prefill && prefill.length) { prefill.forEach(l => this.lines.push(this.blankLine(l))); }
       else { this.addLine(); }
     },
-    blankLine(extra){ return Object.assign({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0'}, extra||{}); },
+    blankLine(extra){ return Object.assign({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0',no_commission:'0'}, extra||{}); },
     addLine(){ this.lines.push(this.blankLine()); },
     onService(i){ const l=this.lines[i]; if(l.service_id){ l.unit_price=this.prices[l.service_id]||0; if(!l.description) l.description=this.names[l.service_id]||''; } },
     isPct(l){ return l.discount_is_percent === '1' || l.discount_is_percent === true; },
