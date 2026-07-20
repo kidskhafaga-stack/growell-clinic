@@ -109,6 +109,9 @@ class StoreItem(db.Model):
     name = db.Column(db.String(160), nullable=False)
     name_en = db.Column(db.String(160))
     category = db.Column(db.String(80))
+    # Internal program code (ITM-0001…), auto-assigned; doubles as the printed
+    # barcode when no supplier barcode is set.
+    item_code = db.Column(db.String(40), index=True)
     unit = db.Column(db.String(40))            # dispense/stock unit (قطعة / جرعة)
     # Unit conversion: buy in a bigger pack, stock/dispense in the small unit.
     # e.g. purchase_unit="علبة", unit="قطعة", units_per_purchase=10.

@@ -253,6 +253,7 @@ def register_commands(app):
             ("vaccine_brands", "margin_percent", "FLOAT"),
             ("store_items", "price_policy", "VARCHAR(10) DEFAULT 'manual'"),
             ("store_items", "margin_percent", "FLOAT"),
+            ("store_items", "item_code", "VARCHAR(40)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -283,6 +284,11 @@ def register_commands(app):
         try:  # seed default general-store consumables on a fresh store
             from app.utils.store_seed import seed_store_items_if_empty
             seed_store_items_if_empty()
+        except Exception:  # noqa: BLE001
+            pass
+        try:  # internal item codes (ITM-/VAC-) + default barcodes, fill-only
+            from app.utils.item_codes import backfill_item_codes
+            backfill_item_codes()
         except Exception:  # noqa: BLE001
             pass
         try:  # unify CRM templates into the registry (migrates legacy settings)

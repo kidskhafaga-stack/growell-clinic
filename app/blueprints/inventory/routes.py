@@ -182,8 +182,10 @@ def item_new():
         flash(t("vaccinations.brand_added"), "success")
         return redirect(url_for("inventory.item_card", brand_id=brand.id))
 
+    from app.utils.item_codes import next_store_code
     item = StoreItem(
         name=name, name_en=(request.form.get("name_en") or "").strip() or None,
+        item_code=next_store_code(),
         category=(request.form.get("category") or "").strip() or None,
         unit=(request.form.get("unit") or "").strip() or None,
         purchase_unit=(request.form.get("purchase_unit") or "").strip() or None,
@@ -527,8 +529,10 @@ def store_item_new():
     if not name:
         flash(t("common.required") + ": " + t("store.name"), "danger")
         return redirect(url_for("inventory.store"))
+    from app.utils.item_codes import next_store_code
     item = StoreItem(
         name=name,
+        item_code=next_store_code(),
         name_en=(request.form.get("name_en") or "").strip() or None,
         category=(request.form.get("category") or "").strip() or None,
         unit=(request.form.get("unit") or "").strip() or None,
@@ -1165,3 +1169,32 @@ def _to_float(raw):
         return float((raw or "").strip())
     except (ValueError, AttributeError):
         return 0.0
+
+
+@inventory_bp.route("/store/<int:item_id>/label")
+@module_required(MODULE)
+def store_item_label(item_id):
+    """Printable barcode label for a general-store item (Code 39, offline)."""
+    item = db.get_or_404(StoreItem, item_id)
+    from app.utils.barcode39 import svg
+    code = item.barcode or item.item_code or str(item.id)
+    copies = min(max(request.args.get("copies", 1, type=int) or 1, 1), 40)
+    return render_template(
+        "inventory/label.html", name=item.display_name(getattr(g, "lang", "ar")),
+        code=code, price=item.sell_price, barcode_svg=svg(code), copies=copies)
+
+
+@inventory_bp.route("/brand/<int:brand_id>/label")
+@module_required(MODULE)
+def brand_label(brand_id):
+    """Printable barcode label for a vaccine brand (Code 39, offline)."""
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    from app.utils.barcode39 import svg
+    code = brand.barcode or brand.item_code or str(brand.id)
+    copies = min(max(request.args.get("copies", 1, type=int) or 1, 1), 40)
+    lang = getattr(g, "lang", "ar")
+    name = (f"{brand.vaccine.display_name(lang)} — {brand.display_name(lang)}"
+            if brand.vaccine else brand.display_name(lang))
+    return render_template(
+        "inventory/label.html", name=name, code=code,
+        price=brand.price, barcode_svg=svg(code), copies=copies)

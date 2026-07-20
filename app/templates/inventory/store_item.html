@@ -7,10 +7,15 @@
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title">{{ item.display_name(current_lang) }}
+      {% if item.item_code %}<span class="badge badge--role" dir="ltr">{{ item.item_code }}</span>{% endif %}
       <span class="status-badge {{ 'st-no_show' if item.is_low else 'st-completed' }}" style="font-size:1rem;">{{ t('store.stock') }}: {{ item.current_stock }}</span></h1>
     <p class="page-sub" style="margin:0;">{{ item.category or '' }} {% if item.unit %}· {{ item.unit }}{% endif %}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('store.items') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store_item_label', item_id=item.id) }}" target="_blank">
+      <i class="bi bi-upc-scan"></i> {{ t('store.print_label') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('store.items') }}</a>
+  </div>
 </div>
 
 <div class="grid" style="grid-template-columns:1.1fr 1fr;gap:16px;align-items:start;">

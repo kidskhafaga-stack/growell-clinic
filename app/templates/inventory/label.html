@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ direction }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t('store.label_title') }} — {{ code }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f1f5f9; padding: 20px; }
+    .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+    .btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 8px 16px;
+           cursor: pointer; font-size: 0.95rem; }
+    .btn-primary { background: #15803d; border-color: #15803d; color: #fff; }
+    .sheet { display: flex; flex-wrap: wrap; gap: 4mm; }
+    /* 50×30mm thermal label */
+    .label { width: 50mm; height: 30mm; background: #fff; border: 1px dashed #cbd5e1;
+             border-radius: 2mm; padding: 1.5mm 2mm; display: flex; flex-direction: column;
+             align-items: center; justify-content: space-between; overflow: hidden; }
+    .label .clinic { font-size: 6.5pt; color: #475569; white-space: nowrap; }
+    .label .name { font-size: 8pt; font-weight: 700; text-align: center; line-height: 1.15;
+                   max-height: 8mm; overflow: hidden; }
+    .label svg { width: 46mm; height: 9mm; }
+    .label .meta { display: flex; gap: 3mm; align-items: baseline; font-size: 7.5pt; }
+    .label .code { font-family: monospace; letter-spacing: 1px; }
+    .label .price { font-weight: 700; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .label { border: none; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('common.print') }}</button>
+    <form method="get" style="display:flex;gap:6px;align-items:center;">
+      <label style="font-size:0.9rem;">{{ t('store.label_copies') }}</label>
+      <input class="btn" style="width:70px;" type="number" name="copies" min="1" max="40" value="{{ copies }}">
+      <button class="btn" type="submit">{{ t('common.refresh') }}</button>
+    </form>
+    <button class="btn" onclick="history.back()">{{ t('common.back') }}</button>
+  </div>
+  <div class="sheet">
+    {% for _ in range(copies) %}
+    <div class="label">
+      <div class="clinic">{{ clinic.name if clinic else '' }}</div>
+      <div class="name">{{ name }}</div>
+      {{ barcode_svg | safe }}
+      <div class="meta">
+        <span class="code">{{ code }}</span>
+        {% if price %}<span class="price">{{ price|money }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>
