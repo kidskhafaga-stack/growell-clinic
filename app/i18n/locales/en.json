@@ -887,7 +887,13 @@
     "routine_schedule": "Routine schedule",
     "no_schedule": "No schedule set",
     "age_range": "Eligible age",
-    "days": "days"
+    "days": "days",
+    "catalogue_settings": "Load default catalogue",
+    "catalogue_hint": "Choose which ready-made vaccine sets load automatically. Loading adds what's missing (with schedules + catch-up) and never deletes anything; you can edit afterwards.",
+    "load_gov_set": "Government vaccines (national EPI programme)",
+    "load_optional_set": "Optional vaccines",
+    "load_now": "Load now",
+    "catalogue_loaded": "Catalogue loaded ({n} new vaccines)"
   },
   "vstatus": {
     "done": "Done",

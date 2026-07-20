@@ -56,6 +56,22 @@
   </form>
 </details>
 
+<!-- Default catalogue loader (government EPI / optional sets) -->
+<details class="card gc-scale-in" style="animation-delay:0.055s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-cloud-download"></i> {{ t('vaccinations.catalogue_settings') }}</summary>
+  <form method="post" action="{{ url_for('vaccinations.catalogue_settings') }}" style="margin-top:12px;">
+    <p class="hint" style="margin-top:0;">{{ t('vaccinations.catalogue_hint') }}</p>
+    <div class="form-row checkbox"><input type="checkbox" id="load_gov" name="load_gov" value="1" {{ 'checked' if load_gov else '' }}>
+      <label for="load_gov" style="margin:0;font-weight:400;"><i class="bi bi-shield-fill-check"></i> {{ t('vaccinations.load_gov_set') }}</label></div>
+    <div class="form-row checkbox"><input type="checkbox" id="load_optional" name="load_optional" value="1" {{ 'checked' if load_optional else '' }}>
+      <label for="load_optional" style="margin:0;font-weight:400;"><i class="bi bi-shield"></i> {{ t('vaccinations.load_optional_set') }}</label></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit" name="load_now" value="1"><i class="bi bi-cloud-download"></i> {{ t('vaccinations.load_now') }}</button>
+    </div>
+  </form>
+</details>
+
 <!-- حكومي / اختياري filter -->
 <div class="vseg gc-animate" style="animation-delay:0.06s;">
   {% for key in ['all', 'mandatory', 'optional'] %}

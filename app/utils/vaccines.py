@@ -66,14 +66,40 @@ def age_label(months, lang="ar"):
 
 
 # ----------------------------------------------------------- seeding -------
+def _catalogue_load_flags():
+    """Which parts of the bundled catalogue the clinic wants auto-loaded:
+    the government/EPI (mandatory) set and/or the optional set. Both default ON.
+    Reading is best-effort — before the settings table exists we load both."""
+    try:
+        from app.models import Setting
+        gov = Setting.get("load_gov_vaccines", "1") != "0"
+        optional = Setting.get("load_optional_vaccines", "1") != "0"
+    except Exception:  # noqa: BLE001 - settings table not ready yet
+        gov = optional = True
+    return gov, optional
+
+
 def seed_vaccines():
-    """Idempotently load the bundled vaccine catalogue into the database."""
+    """Idempotently load the bundled vaccine catalogue into the database.
+
+    Honours the clinic's catalogue toggles: a clinic that doesn't run the
+    national programme can turn the government (EPI) set off and keep only the
+    optional vaccines (or vice-versa). Loading is additive/fill-only and never
+    deletes what's already there — turning a set off just stops auto-loading it.
+    """
+    gov_on, optional_on = _catalogue_load_flags()
     with open(os.path.abspath(_DATA_PATH), encoding="utf-8") as fh:
         data = json.load(fh)
 
     created = 0
     for order, v in enumerate(data["vaccines"]):
+        # Skip a set the clinic chose not to load (unless the vaccine already
+        # exists — then we still refresh its schedule conditions below).
+        is_gov = v.get("mandatory", True)
+        wanted = gov_on if is_gov else optional_on
         vaccine = Vaccine.query.filter_by(code=v["code"]).first()
+        if vaccine is None and not wanted:
+            continue
         # Factual prefill: vaccine platform + which body to verify against. The
         # doctor reviews/edits these; no clinical numbers are invented.
         vtype = _VACCINE_TYPE.get(v["code"])
