@@ -249,6 +249,10 @@ def register_commands(app):
             ("store_documents", "payment_terms", "VARCHAR(12)"),
             ("named_discounts", "scope", "VARCHAR(20) DEFAULT 'all'"),
             ("vaccine_brands", "catch_up_notes", "TEXT"),
+            ("vaccine_brands", "price_policy", "VARCHAR(10) DEFAULT 'manual'"),
+            ("vaccine_brands", "margin_percent", "FLOAT"),
+            ("store_items", "price_policy", "VARCHAR(10) DEFAULT 'manual'"),
+            ("store_items", "margin_percent", "FLOAT"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

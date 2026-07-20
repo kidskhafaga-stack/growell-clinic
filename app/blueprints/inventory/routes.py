@@ -29,6 +29,7 @@ from app.models import (
     VaccineInventory,
     Warehouse,
 )
+from app.utils.costing import apply_purchase_cost, issue_unit_cost
 from app.utils.decorators import client_ip, module_required
 
 MODULE = "inventory"
@@ -296,6 +297,12 @@ def receipt_new():
             unit = (units[i] if i < len(units) else "") or "doses"
             per = brand.doses_per_vial or 1
             qty_doses = qty * per if unit == "vials" else qty
+            line_cost = _to_float(costs[i]) if i < len(costs) and costs[i].strip() else None
+            if line_cost:
+                # New purchase cost: auto-refresh the sell price when the
+                # brand's pricing policy asks for it (آخر سعر شراء + هامش).
+                from app.utils.costing import apply_purchase_cost
+                apply_purchase_cost(brand, line_cost)
             db.session.add(VaccineInventory(
                 brand_id=brand.id, supplier_id=supplier_id,
                 lot_number=(lots[i].strip() if i < len(lots) else "") or None,
@@ -303,7 +310,7 @@ def receipt_new():
                 mfg_date=_parse_date_str(mfgs[i] if i < len(mfgs) else ""),
                 received_date=received, receipt_reason=reason,
                 qty_received=qty_doses,
-                unit_cost=_to_float(costs[i]) if i < len(costs) and costs[i].strip() else None,
+                unit_cost=line_cost,
                 notes=header_note, document_id=grn.id,
             ))
             added += 1
@@ -471,12 +478,34 @@ def store():
         "low": len(low),
         "value": round(sum(i.stock_value for i in items if i.is_active), 2),
     }
+    from app.utils.costing import default_margin, store_dispense_policy
     from app.utils.store_seed import (store_categories, store_purchase_units,
                                        store_units)
     return render_template("inventory/store.html", items=items, low=low,
                            stats=stats, suppliers=_suppliers(),
                            categories=store_categories(), units=store_units(),
-                           purchase_units=store_purchase_units())
+                           purchase_units=store_purchase_units(),
+                           dispense_policy=store_dispense_policy(),
+                           margin_default=default_margin())
+
+
+@inventory_bp.route("/store/policy", methods=["POST"])
+@module_required(MODULE)
+def store_policy():
+    """Save the general store's issue-costing policy (FIFO/LIFO) and the
+    clinic-wide default profit margin for auto-priced items. Vaccines always
+    dispense FEFO (soonest expiry first) — that isn't configurable."""
+    from app.models import Setting
+    from app.utils.costing import DISPENSE_POLICIES
+    pol = (request.form.get("dispense_policy") or "fifo").strip()
+    Setting.set("store_dispense_policy",
+                pol if pol in DISPENSE_POLICIES else "fifo")
+    margin = request.form.get("default_margin", type=float)
+    if margin is not None and margin >= 0:
+        Setting.set("default_margin_percent", str(margin))
+    db.session.commit()
+    flash(t("store.policy_saved"), "success")
+    return redirect(url_for("inventory.store"))
 
 
 @inventory_bp.route("/store/load-defaults", methods=["POST"])
@@ -508,6 +537,8 @@ def store_item_new():
         barcode=(request.form.get("barcode") or "").strip() or None,
         purchase_price=request.form.get("purchase_price", type=float),
         sell_price=request.form.get("sell_price", type=float),
+        price_policy=("auto" if request.form.get("price_policy") == "auto" else "manual"),
+        margin_percent=request.form.get("margin_percent", type=float),
         reorder_level=request.form.get("reorder_level", type=int) or 0,
         opening_stock=request.form.get("opening_stock", type=int) or 0,
     )
@@ -532,6 +563,8 @@ def store_item_edit(item_id):
     item.barcode = (request.form.get("barcode") or "").strip() or None
     item.purchase_price = request.form.get("purchase_price", type=float)
     item.sell_price = request.form.get("sell_price", type=float)
+    item.price_policy = "auto" if request.form.get("price_policy") == "auto" else "manual"
+    item.margin_percent = request.form.get("margin_percent", type=float)
     item.reorder_level = request.form.get("reorder_level", type=int) or 0
     item.is_active = bool(request.form.get("is_active"))
     db.session.commit()
@@ -561,11 +594,17 @@ def store_move(item_id):
     db.session.add(StockMovement(
         item_id=item.id, kind=kind, qty=signed, document_id=doc.id,
         reason=(request.form.get("reason") or "").strip() or None,
+        # Issues/wastage are costed by the store's dispensing policy (FIFO by
+        # default, LIFO if configured); a typed cost always wins.
         unit_cost=request.form.get("unit_cost", type=float)
-                  or (item.purchase_price if kind != "in" else None),
+                  or (issue_unit_cost(item) if kind != "in" else None),
         supplier_id=request.form.get("supplier_id", type=int) or None,
         created_by=current_user.id,
     ))
+    # A costed receipt is a new purchase price → honour the item's sell-price
+    # policy (auto margin) and stamp آخر سعر شراء.
+    if kind == "in":
+        apply_purchase_cost(item, request.form.get("unit_cost", type=float))
     db.session.commit()
     # W3 journal: consumption (out) hits COGS, wastage hits expenses. A manual
     # "in" stays document-only (its financing depends on why it arrived).
@@ -712,14 +751,15 @@ def transfer_new():
                 doc = open_document("transfer")
                 doc.warehouse_id, doc.to_warehouse_id = src.id, dst.id
             reason = t("warehouses.trf_reason", doc=doc.doc_number)
+            trf_cost = issue_unit_cost(item)  # both legs carry the same value
             db.session.add(StockMovement(
                 item_id=item.id, kind="out", qty=-qty, document_id=doc.id,
                 warehouse_id=src.id, reason=reason,
-                unit_cost=item.purchase_price, created_by=current_user.id))
+                unit_cost=trf_cost, created_by=current_user.id))
             db.session.add(StockMovement(
                 item_id=item.id, kind="in", qty=qty, document_id=doc.id,
                 warehouse_id=dst.id, reason=reason,
-                unit_cost=item.purchase_price, created_by=current_user.id))
+                unit_cost=trf_cost, created_by=current_user.id))
             moved += 1
 
         # Vaccine batch lines: batch_id[] + qty[]
@@ -821,7 +861,7 @@ def return_new():
                 doc.warehouse_id = src.id
             db.session.add(StockMovement(
                 item_id=item.id, kind="out", qty=-qty, document_id=doc.id,
-                warehouse_id=src.id, unit_cost=item.purchase_price,
+                warehouse_id=src.id, unit_cost=issue_unit_cost(item),
                 supplier_id=supplier_id, created_by=current_user.id,
                 reason=t("returns.reason", doc=doc.doc_number)))
             moved += 1
@@ -1048,6 +1088,7 @@ def purchase_receive(po_id):
             db.session.add(batch)
             if item.vaccine_brand:
                 item.vaccine_brand.recompute_avg_cost()
+                apply_purchase_cost(item.vaccine_brand, item.unit_cost)
         elif item.store_item_id:
             db.session.add(StockMovement(
                 item_id=item.store_item_id, kind="in", qty=recv,
@@ -1055,6 +1096,8 @@ def purchase_receive(po_id):
                 unit_cost=item.unit_cost, supplier_id=po.supplier_id,
                 created_by=current_user.id, document_id=grn.id,
             ))
+            if item.store_item:
+                apply_purchase_cost(item.store_item, item.unit_cost)
         posted += 1
 
     if posted == 0:

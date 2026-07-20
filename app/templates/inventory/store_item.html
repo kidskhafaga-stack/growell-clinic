@@ -41,8 +41,17 @@
           <div class="form-row"><label>{{ t('store.name') }}</label><input class="input" name="name" value="{{ item.name }}"></div>
           <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category" list="cat_list" value="{{ item.category or '' }}"></div>
           <div class="form-row"><label>{{ t('store.unit') }}</label><input class="input" name="unit" list="unit_list" value="{{ item.unit or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.purchase_unit') }}</label><input class="input" name="purchase_unit" list="punit_list" value="{{ item.purchase_unit or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.units_per_purchase') }}</label><input class="input" type="number" min="1" name="units_per_purchase" value="{{ item.units_per_purchase or 1 }}"></div>
+          <div class="form-row"><label>{{ t('store.barcode') }}</label><input class="input" name="barcode" dir="ltr" value="{{ item.barcode or '' }}"></div>
           <div class="form-row"><label>{{ t('store.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ item.purchase_price or '' }}"></div>
           <div class="form-row"><label>{{ t('store.sell_price') }}</label><input class="input" type="number" step="0.01" name="sell_price" value="{{ item.sell_price or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.price_policy') }}</label>
+            <select class="select" name="price_policy">
+              <option value="manual" {{ 'selected' if item.price_policy != 'auto' else '' }}>{{ t('store.policy_manual') }}</option>
+              <option value="auto" {{ 'selected' if item.price_policy == 'auto' else '' }}>{{ t('store.policy_auto') }}</option>
+            </select></div>
+          <div class="form-row"><label>{{ t('store.margin') }}</label><input class="input" type="number" step="0.5" name="margin_percent" value="{{ item.margin_percent if item.margin_percent is not none else '' }}" placeholder="25"></div>
           <div class="form-row"><label>{{ t('store.reorder') }}</label><input class="input" type="number" name="reorder_level" value="{{ item.reorder_level }}"></div>
         </div>
         <datalist id="cat_list">{% for c in categories %}<option value="{{ c }}"></option>{% endfor %}</datalist>

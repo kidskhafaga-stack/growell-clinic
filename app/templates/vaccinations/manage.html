@@ -10,6 +10,12 @@
     <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price"></div>
     <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price"></div>
     <div class="form-row"><label>{{ t('vaccinations.doctor_fee') }}</label><input class="input" type="number" step="0.01" name="doctor_fee"><div class="hint">{{ t('vaccinations.doctor_fee_hint') }}</div></div>
+    <div class="form-row"><label>{{ t('store.price_policy') }}</label>
+      <select class="select" name="price_policy">
+        <option value="manual">{{ t('store.policy_manual') }}</option>
+        <option value="auto">{{ t('store.policy_auto') }}</option>
+      </select></div>
+    <div class="form-row"><label>{{ t('store.margin') }}</label><input class="input" type="number" step="0.5" name="margin_percent" placeholder="25"><div class="hint">{{ t('store.margin_hint') }}</div></div>
     <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount"></div>
     <div class="form-row"><label>{{ t('vaccinations.doses_per_vial') }}</label><input class="input" type="number" min="1" name="doses_per_vial" value="1"><div class="hint">{{ t('vaccinations.doses_per_vial_hint') }}</div></div>
     <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" placeholder="0, 2, 4, 6"><div class="hint">{{ t('vaccinations.dose_ages_hint') }}</div></div>
@@ -192,6 +198,12 @@
             <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ brand.purchase_price or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.doctor_fee') }}</label><input class="input" type="number" step="0.01" name="doctor_fee" value="{{ brand.doctor_fee or '' }}"></div>
+            <div class="form-row"><label>{{ t('store.price_policy') }}</label>
+              <select class="select" name="price_policy">
+                <option value="manual" {{ 'selected' if brand.price_policy != 'auto' else '' }}>{{ t('store.policy_manual') }}</option>
+                <option value="auto" {{ 'selected' if brand.price_policy == 'auto' else '' }}>{{ t('store.policy_auto') }}</option>
+              </select></div>
+            <div class="form-row"><label>{{ t('store.margin') }}</label><input class="input" type="number" step="0.5" name="margin_percent" value="{{ brand.margin_percent if brand.margin_percent is not none else '' }}" placeholder="25"></div>
             <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ brand.max_discount or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.doses_per_vial') }}</label><input class="input" type="number" min="1" name="doses_per_vial" value="{{ brand.doses_per_vial or 1 }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" value="{{ brand.doses|map(attribute='age_months')|join(', ') }}"></div>

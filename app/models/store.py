@@ -117,6 +117,10 @@ class StoreItem(db.Model):
     barcode = db.Column(db.String(60))
     purchase_price = db.Column(db.Float)
     sell_price = db.Column(db.Float)
+    # Sell-price policy: "manual" (default) or "auto" — auto refreshes the sell
+    # price from each new purchase cost × (1 + margin%). NULL margin = clinic default.
+    price_policy = db.Column(db.String(10), default="manual", nullable=False)
+    margin_percent = db.Column(db.Float)
     reorder_level = db.Column(db.Integer, default=0)
     opening_stock = db.Column(db.Integer, default=0, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
