@@ -879,7 +879,8 @@
     "source_custom": "Custom",
     "brand_prefer": "Make first choice",
     "brand_preferred": "First choice",
-    "brand_preferred_set": "Brand set as first choice."
+    "brand_preferred_set": "Brand set as first choice.",
+    "admin_fee_line": "Vaccination fee (administration)"
   },
   "vstatus": {
     "done": "Done",
@@ -1405,7 +1406,12 @@
     "t_campaign": "Campaign",
     "t_doctor": "Doctor",
     "t_category": "Category",
-    "t_special": "Special"
+    "t_special": "Special",
+    "on": "on",
+    "on_label": "Discount on",
+    "on_hint": "Which lines the discount reduces: all lines, or one service type (consultation / device / vaccination…).",
+    "scope_all": "All lines",
+    "eligibility": "For whom"
   },
   "payment_methods": {
     "cash": "Cash",

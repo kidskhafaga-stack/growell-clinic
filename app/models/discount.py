@@ -23,7 +23,13 @@ class NamedDiscount(db.Model):
     value = db.Column(db.Float, default=0, nullable=False)
     is_percent = db.Column(db.Boolean, default=True, nullable=False)
 
-    # Scope: a doctor (doctor type) or a client category (category type).
+    # What the discount is applied *to*: "all" (every line) or a single service
+    # category — consultation (كشف/استشارة), procedure/radiology (جهاز),
+    # vaccination_fee (تطعيم), lab… — so the reception sees exactly what a named
+    # discount reduces and it never bleeds onto unrelated lines.
+    scope = db.Column(db.String(20), default="all", nullable=False)
+
+    # Eligibility: a doctor (doctor type) or a client category (category type).
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     client_category = db.Column(db.String(20))
 
@@ -37,6 +43,29 @@ class NamedDiscount(db.Model):
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
+
+    @property
+    def is_all_scope(self):
+        return not self.scope or self.scope == "all"
+
+    def scope_label(self, lang="ar"):
+        """Human label for what this discount applies to (كشف / جهاز / تطعيم…)."""
+        from app.i18n import t
+        if self.is_all_scope:
+            return t("discounts.scope_all")
+        return t("service_categories." + self.scope)
+
+    def applies_to_line(self, service):
+        """Whether this discount may reduce a line billed for ``service``.
+
+        An "all" discount hits every line; a scoped discount only hits lines
+        whose service category matches — free-text lines (no service) are only
+        touched by an "all" discount."""
+        if self.is_all_scope:
+            return True
+        if service is None:
+            return False
+        return service.category == self.scope
 
     def in_window(self, on_date=None):
         d = on_date or date.today()

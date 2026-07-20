@@ -859,6 +859,91 @@ def _uncharged_vaccines(patient_id, days=2):
     return [d for d in doses if d.brand and (d.brand.price or 0) > 0]
 
 
+def _vaccine_service():
+    """The coded vaccination service every vaccine line is billed under, so a
+    dose reads as a real "تطعيم" service (selectable in the dropdown) instead of
+    free text. Self-heals: if the clinic never seeded a vaccination-fee service
+    (e.g. the wizard's vaccination capability was left unticked) one is created
+    now, editable afterwards like any other service."""
+    svc = service_for_visit_type("vaccination")
+    if svc is not None:
+        return svc
+    svc = (Service.query.filter_by(code="SVC-VACFEE").first()
+           or Service.query.filter_by(category="vaccination_fee",
+                                       is_active=True).first())
+    if svc is None:
+        svc = Service(code="SVC-VACFEE", name="رسم تطعيم",
+                      name_en="Vaccination fee", price=0,
+                      category="vaccination_fee", commission_type="none",
+                      commission_value=0, is_active=True)
+        db.session.add(svc)
+        db.session.flush()
+        # Point the vaccination visit type at it too, if that map slot is empty.
+        vt_map = visit_type_service_map()
+        if "vaccination" not in vt_map:
+            vt_map["vaccination"] = svc.id
+            save_visit_type_service_map(vt_map)
+    return svc
+
+
+def _vaccine_prefill_lines(patient_id, doctor, lang, has_vacc_base):
+    """Prefill lines for a patient's uncharged vaccine doses.
+
+    Each dose bills as the vaccination *service* (not free text): one line for
+    the vaccine itself at the brand price — its doctor share is the brand's
+    ``doctor_fee`` tracked on the dose, so this line carries **no** invoice
+    commission (``no_commission``) to avoid double-crediting the doctor. On top,
+    the administration fee (رسم تطعيم) is added once, priced per the giving
+    doctor (free when their price override is 0) — unless the invoice already
+    carries a vaccination-visit base charge, which *is* that fee."""
+    doses = _uncharged_vaccines(patient_id)
+    if not doses:
+        return []
+    vac_svc = _vaccine_service()
+    sid = str(vac_svc.id) if vac_svc else ""
+    lines = []
+    # Charge the administration fee at most once: not if the visit base already
+    # is it, and not if today's invoice already carries a vaccination-fee line
+    # (e.g. the exam was collected first and we're now collecting a leftover dose).
+    inv_today = _todays_invoice(patient_id)
+    already_fee = bool(inv_today) and any(
+        it.service and it.service.category == "vaccination_fee"
+        for it in inv_today.items)
+    admin_added = has_vacc_base or already_fee
+    for dose in doses:
+        b = dose.brand
+        name = (b.vaccine.display_name(lang) if b.vaccine
+                else dose.vaccine.display_name(lang))
+        lines.append({
+            "service_id": sid,
+            "description": name + " — " + b.display_name(lang),
+            "unit_price": b.price or 0,
+            "quantity": 1,
+            "no_commission": "1",
+            "dose_id": dose.id,
+        })
+        if not admin_added and vac_svc is not None:
+            fee = vac_svc.price_for(dose.doctor or doctor)
+            if fee and fee > 0:
+                lines.append({
+                    "service_id": sid,
+                    "description": t("vaccinations.admin_fee_line"),
+                    "unit_price": fee,
+                    "quantity": 1,
+                })
+                admin_added = True
+    return lines
+
+
+def _vaccine_doctor(patient_id):
+    """The doctor to credit/preselect when collecting a patient's uncharged
+    doses — the doctor who actually gave the (first) dose."""
+    for dose in _uncharged_vaccines(patient_id):
+        if dose.doctor_id:
+            return dose.doctor_id
+    return None
+
+
 def _todays_invoice(patient_id):
     """The patient's invoice for today, if any — the visit's ONE bill.
 
@@ -971,6 +1056,7 @@ def invoice_new():
     # this doctor's price. The cashier then just collects.
     prefill_lines = []
     lang = getattr(g, "lang", "ar")
+    has_vacc_base = False
     visit = db.session.get(Visit, visit_id) if visit_id else None
     if visit is not None:
         patient = patient or visit.patient
@@ -979,11 +1065,23 @@ def invoice_new():
         appt_type = visit.appointment.appt_type if visit.appointment else None
         base = service_for_visit_type(appt_type) if appt_type else None
         if base is not None:
+            has_vacc_base = base.category == "vaccination_fee"
             prefill_lines.append({
                 "service_id": str(base.id),
                 "description": base.display_name(lang),
                 "unit_price": base.price_for(visit.doctor),
             })
+    # Collecting a vaccine given after checkout (from the cashier's "not billed"
+    # list, no visit context): preselect the doctor who gave it so the doctor's
+    # per-service pricing/commission is right and the cashier needn't guess.
+    if doctor_id is None and patient is not None:
+        doctor_id = _vaccine_doctor(patient.id)
+        if doctor_id is None:
+            for vs in _unbilled_patient_services(patient.id):
+                if vs.visit and vs.visit.doctor_id:
+                    doctor_id = vs.visit.doctor_id
+                    break
+
     # Doctor-added services still unbilled — the linked visit's ones plus any
     # recent leftovers from other visits of this patient (added after their
     # checkout was already collected), so nothing falls through the till.
@@ -998,18 +1096,12 @@ def invoice_new():
                 "quantity": vs.quantity or 1,
             })
 
-    # Any vaccines given to this patient that haven't been charged yet (so the
-    # cashier collects them on exit).
+    # Any vaccines given to this patient that haven't been charged yet: billed as
+    # the vaccination service (brand price + per-doctor admin fee), not free text.
     if patient is not None:
-        for dose in _uncharged_vaccines(patient.id):
-            b = dose.brand
-            name = (b.vaccine.display_name(lang) if b.vaccine else
-                    dose.vaccine.display_name(lang))
-            prefill_lines.append({
-                "service_id": "",
-                "description": name + " — " + b.display_name(lang),
-                "unit_price": b.price or 0,
-            })
+        doc = db.session.get(User, doctor_id) if doctor_id else None
+        prefill_lines.extend(
+            _vaccine_prefill_lines(patient.id, doc, lang, has_vacc_base))
 
     return render_template(
         "finance/invoice_form.html", patient=patient,
@@ -1049,6 +1141,7 @@ def _checkout_lines(appt, lang):
     billed_sids = ({i.service_id for i in inv_today.items if i.service_id}
                    if inv_today else set())
     base = service_for_visit_type(appt.appt_type)
+    has_vacc_base = base is not None and base.category == "vaccination_fee"
     if base is not None and base.id not in billed_sids:
         price = base.price_for(appt.doctor) if appt.doctor else base.price
         lines.append({"service_id": base.id, "description": base.display_name(lang),
@@ -1068,13 +1161,11 @@ def _checkout_lines(appt, lang):
         price = vs.service.price_for(appt.doctor) if vs.service else 0
         lines.append({"service_id": vs.service_id or "", "description": vs.name,
                       "unit_price": price or 0, "quantity": vs.quantity or 1})
-    for dose in _uncharged_vaccines(appt.patient_id):
-        b = dose.brand
-        if b:
-            name = (b.vaccine.display_name(lang) if b.vaccine
-                    else dose.vaccine.display_name(lang))
-            lines.append({"service_id": "", "description": name + " — " + b.display_name(lang),
-                          "unit_price": b.price or 0, "quantity": 1, "dose_id": dose.id})
+    # Uncharged vaccines → billed as the vaccination service (brand price +
+    # per-doctor admin fee), not free text; the base above already is the fee
+    # for a vaccination visit, so the helper won't add it twice.
+    lines.extend(_vaccine_prefill_lines(appt.patient_id, appt.doctor, lang,
+                                        has_vacc_base))
     return lines
 
 
@@ -1107,6 +1198,7 @@ def checkout(appt_id):
         sids = request.form.getlist("line_service_id")
         prices = request.form.getlist("line_price")
         qtys = request.form.getlist("line_qty")
+        nocomms = request.form.getlist("line_no_commission")
         for i, desc in enumerate(descs):
             desc = (desc or "").strip()
             try:
@@ -1128,7 +1220,10 @@ def checkout(appt_id):
             item = InvoiceItem(service_id=sid, description=desc,
                                unit_price=round(price, 2), quantity=max(qty, 1))
             svc = db.session.get(Service, sid) if sid else None
-            if svc is not None:
+            # Vaccine product lines carry no invoice commission (doctor share is
+            # the brand's doctor_fee, tracked on the dose — never double-paid).
+            no_comm = i < len(nocomms) and nocomms[i] in ("1", "on", "true")
+            if svc is not None and not no_comm:
                 item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
             invoice.items.append(item)
 
@@ -1194,12 +1289,16 @@ def checkout(appt_id):
 
 
 def _apply_named_discount(invoice, disc):
-    """Apply a named discount to lines that have no manual discount yet."""
+    """Apply a named discount to lines that have no manual discount yet — and,
+    when the discount is scoped (كشف / جهاز / تطعيم…), only to lines of that
+    service category, so a "vaccination discount" never touches the exam line."""
     invoice.discount_id = disc.id
     invoice.discount_name = disc.display_name()
     for item in invoice.items:
         if (item.discount_value or 0) > 0:
             continue  # keep manual discounts
+        if not disc.applies_to_line(item.service):
+            continue  # out of this discount's scope
         amount = disc.amount_for(item.gross)
         # Respect a service's max discount cap (percentage of gross).
         if item.service and item.service.max_discount:
@@ -1222,10 +1321,12 @@ def discounts():
             flash(t("common.required") + ": " + t("discounts.name"), "danger")
             return redirect(url_for("finance.discounts"))
         dtype = (request.form.get("dtype") or "special").strip()
+        scope = (request.form.get("scope") or "all").strip()
         db.session.add(NamedDiscount(
             name=name,
             name_en=(request.form.get("name_en") or "").strip() or None,
             dtype=dtype if dtype in DISCOUNT_TYPES else "special",
+            scope=scope if scope in SERVICE_CATEGORIES else "all",
             value=request.form.get("value", type=float) or 0,
             is_percent=(request.form.get("unit") or "percent") == "percent",
             doctor_id=request.form.get("doctor_id", type=int) or None,
@@ -1241,7 +1342,8 @@ def discounts():
         "finance/discounts.html",
         discounts=NamedDiscount.query.order_by(NamedDiscount.is_active.desc(),
                                                NamedDiscount.name).all(),
-        types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES, doctors=_doctors_active())
+        types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES,
+        service_categories=SERVICE_CATEGORIES, doctors=_doctors_active())
 
 
 @finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])
@@ -1280,6 +1382,7 @@ def _build_line(invoice, idx):
     qtys = request.form.getlist("line_quantity")
     discs = request.form.getlist("line_discount_value")
     dpcts = request.form.getlist("line_discount_is_percent")
+    nocomm = request.form.getlist("line_no_commission")
 
     def _num(lst, i, cast, default=None):
         try:
@@ -1305,7 +1408,10 @@ def _build_line(invoice, idx):
         discount_value=_num(discs, idx, float, 0) or 0,
         discount_is_percent=(idx < len(dpcts) and dpcts[idx] in ("1", "on", "true")),
     )
-    if service is not None:
+    # Vaccine product lines carry no invoice commission — the doctor's share is
+    # the brand's doctor_fee, tracked on the dose (else it would be double-paid).
+    no_commission = idx < len(nocomm) and nocomm[idx] in ("1", "on", "true")
+    if service is not None and not no_commission:
         item.commission_amount = service.doctor_share(item.net, invoice.doctor)
     return item
 
