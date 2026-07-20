@@ -2129,7 +2129,19 @@
     "move_done_doc": "Movement posted on document {doc}.",
     "defaults_loaded": "Loaded {n} default items",
     "empty_hint": "The general store is empty — load a ready-made consumables list and edit it.",
-    "load_defaults": "Load default consumables"
+    "load_defaults": "Load default consumables",
+    "price_policy": "Sell-price policy",
+    "policy_manual": "Manual (price untouched)",
+    "policy_auto": "Auto: last purchase + margin %",
+    "margin": "Profit margin %",
+    "margin_hint": "Leave blank = clinic default margin",
+    "policy_title": "Store & pricing policies",
+    "dispense_policy": "General-store dispensing policy",
+    "fifo": "FIFO — first in, first out",
+    "lifo": "LIFO — last in, first out",
+    "default_margin": "Default margin %",
+    "fefo_note": "Vaccines/medications always dispense soonest-expiry-first (FEFO) — not configurable.",
+    "policy_saved": "Store policies saved"
   },
   "purchases": {
     "title": "Purchase orders",

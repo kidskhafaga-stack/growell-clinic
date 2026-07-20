@@ -140,6 +140,10 @@ class VaccineBrand(db.Model):
     price = db.Column(db.Float)              # selling price
     purchase_price = db.Column(db.Float)     # cost price
     doctor_fee = db.Column(db.Float)         # part of the price that goes to the doctor
+    # Sell-price policy: "manual" (default) or "auto" — auto refreshes the sell
+    # price from each new purchase cost × (1 + margin%). NULL margin = clinic default.
+    price_policy = db.Column(db.String(10), default="manual", nullable=False)
+    margin_percent = db.Column(db.Float)
     max_discount = db.Column(db.Float)       # max allowed discount (%)
     # Patient doses obtained from one purchased vial/ampoule. 1 = single-dose
     # ampoule (one vial per patient); >1 = multi-dose vial (e.g. a vial drawn

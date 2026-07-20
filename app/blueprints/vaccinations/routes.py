@@ -483,6 +483,8 @@ def brand_new(vaccine_id):
         purchase_price=request.form.get("purchase_price", type=float),
         doctor_fee=request.form.get("doctor_fee", type=float),
         max_discount=request.form.get("max_discount", type=float),
+        price_policy=("auto" if request.form.get("price_policy") == "auto" else "manual"),
+        margin_percent=request.form.get("margin_percent", type=float),
         doses_per_vial=max(request.form.get("doses_per_vial", type=int) or 1, 1),
         is_discontinued=bool(request.form.get("is_discontinued")),
         is_default=not vaccine.brands,
@@ -506,6 +508,8 @@ def brand_edit(brand_id):
     brand.purchase_price = request.form.get("purchase_price", type=float)
     brand.doctor_fee = request.form.get("doctor_fee", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
+    brand.price_policy = "auto" if request.form.get("price_policy") == "auto" else "manual"
+    brand.margin_percent = request.form.get("margin_percent", type=float)
     brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
     brand.catch_up_notes = (request.form.get("catch_up_notes") or "").strip() or None
     brand.is_discontinued = bool(request.form.get("is_discontinued"))

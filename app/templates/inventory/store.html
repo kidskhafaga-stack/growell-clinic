@@ -45,11 +45,33 @@
       <div class="form-row"><label>{{ t('store.barcode') }}</label><input class="input" name="barcode" dir="ltr"></div>
       <div class="form-row"><label>{{ t('store.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price"></div>
       <div class="form-row"><label>{{ t('store.sell_price') }}</label><input class="input" type="number" step="0.01" name="sell_price"></div>
+      <div class="form-row"><label>{{ t('store.price_policy') }}</label>
+        <select class="select" name="price_policy">
+          <option value="manual">{{ t('store.policy_manual') }}</option>
+          <option value="auto">{{ t('store.policy_auto') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('store.margin') }}</label><input class="input" type="number" step="0.5" name="margin_percent" placeholder="25"><div class="hint">{{ t('store.margin_hint') }}</div></div>
       <div class="form-row"><label>{{ t('store.reorder') }}</label><input class="input" type="number" name="reorder_level" value="0"></div>
       <div class="form-row"><label>{{ t('store.opening') }}</label><input class="input" type="number" name="opening_stock" value="0"></div>
     </div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
+</details>
+
+<!-- Issue-costing policy + default margin (vaccines are always FEFO) -->
+<details class="card gc-scale-in" style="animation-delay:0.06s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-sliders"></i> {{ t('store.policy_title') }}</summary>
+  <form method="post" action="{{ url_for('inventory.store_policy') }}" style="margin-top:12px;display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('store.dispense_policy') }}</label>
+      <select class="select" name="dispense_policy" style="min-width:220px;">
+        <option value="fifo" {{ 'selected' if dispense_policy == 'fifo' else '' }}>{{ t('store.fifo') }}</option>
+        <option value="lifo" {{ 'selected' if dispense_policy == 'lifo' else '' }}>{{ t('store.lifo') }}</option>
+      </select></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('store.default_margin') }}</label>
+      <input class="input" type="number" step="0.5" min="0" name="default_margin" value="{{ margin_default }}" style="width:120px;"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;"><i class="bi bi-snow"></i> {{ t('store.fefo_note') }}</p>
 </details>
 
 <datalist id="cat_list">{% for c in categories %}<option value="{{ c }}"></option>{% endfor %}</datalist>

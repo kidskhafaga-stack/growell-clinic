@@ -501,10 +501,12 @@ def _deduct_service_consumables(item, invoice):
         if doc is None:
             doc = open_document("issue", reference=invoice.invoice_number)
             invoice._iss_doc = doc
+        from app.utils.costing import issue_unit_cost
         db.session.add(StockMovement(
             item_id=cons.store_item_id, kind="out", qty=-abs(take),
             reason=t("services.consumed_by", svc=service.display_name(getattr(g, "lang", "ar"))),
-            unit_cost=(cons.item.purchase_price if cons.item else None),
+            # COGS follows the store's dispensing policy (FIFO/LIFO layers).
+            unit_cost=(issue_unit_cost(cons.item) if cons.item else None),
             created_by=current_user.id, document_id=doc.id,
         ))
         n += 1
