@@ -88,17 +88,21 @@ class Vaccine(db.Model):
 
     @staticmethod
     def age_label(months, lang="ar"):
-        """A friendly age label for a dose: birth / N months / N years."""
+        """A friendly age label for a dose: birth / N months / N years (+months).
+
+        Under 2 years we speak in months (so 18mo reads "18 شهر"); from 2 years
+        we speak in years, adding the remaining months when not a whole year."""
         if months is None:
             return ""
         if months <= 0:
             return "At birth" if lang == "en" else "عند الولادة"
-        if months < 12 or months % 12 != 0:
+        if months < 24:
             return f"{months} mo" if lang == "en" else f"{months} شهر"
-        years = months // 12
+        years, rem = divmod(months, 12)
         if lang == "en":
-            return f"{years} yr"
-        return f"{years} سنة" if years > 1 else "سنة"
+            return f"{years}y" if rem == 0 else f"{years}y {rem}m"
+        yr = "سنة" if years == 1 else f"{years} سنة"
+        return yr if rem == 0 else f"{yr} و{rem} شهر"
 
     def routine_schedule(self, lang="ar"):
         """The vaccine's normal (routine) schedule as friendly age labels —
