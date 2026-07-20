@@ -96,6 +96,7 @@ from app.models.payer import (
     ClaimItem,
     PatientCoverage,
     PayerContract,
+    PayerContractRate,
     PayerEntity,
     PayerServiceRate,
 )
@@ -240,6 +241,7 @@ __all__ = [
     "CLAIM_STATUSES",
     "PayerServiceRate",
     "PayerContract",
+    "PayerContractRate",
     "PatientCoverage",
     "PAYER_TYPES",
     "COVERAGE_TYPES",

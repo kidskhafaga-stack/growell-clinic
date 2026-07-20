@@ -1528,7 +1528,8 @@
     "syndicate": "Syndicate",
     "insurance": "Insurance",
     "company": "Company",
-    "other": "Other"
+    "other": "Other",
+    "cash": "Cash agreement"
   },
   "messages_mod": {
     "title": "Messages (WhatsApp)",
@@ -1595,7 +1596,9 @@
     "entity_covers": "Entity covers",
     "patient_pays": "Patient pays",
     "card": "Card no.",
-    "benefits_hint": "Leave \"None\" for uncovered services (patient pays in full)"
+    "benefits_hint": "Leave \"None\" for uncovered services (patient pays in full)",
+    "t_percent": "Percent %",
+    "t_fixed": "Fixed amount"
   },
   "coverage_types": {
     "none": "None",
@@ -1784,7 +1787,17 @@
     "inactive": "Inactive",
     "status": "Status",
     "none_active_warn": "No contract in force for this entity on the invoice date — discount not applied",
-    "hint": "Coverage applies only during an active contract. With no contracts, the entity always applies coverage."
+    "hint": "Coverage applies only during an active contract. With no contracts, the entity always applies coverage.",
+    "rates_title": "Contract price list",
+    "rates_subtitle": "A negotiated price per service (blank = clinic price) + the entity's share. When the list has rows, it is what members are billed by.",
+    "special_price": "Contract price",
+    "default_price": "Clinic price",
+    "rates_hint": "Empty rows (no price, no coverage) are outside the contract — the member pays the full clinic price.",
+    "rates_saved": "Contract price list saved",
+    "rates_btn": "Prices",
+    "copy_btn": "Copy contract",
+    "copy_hint": "A new copy with the same price list — adjust prices and dates afterwards.",
+    "copied": "Contract copied with its price list ({n} rows) — adjust prices and dates"
   },
   "reports": {
     "title": "Reports",

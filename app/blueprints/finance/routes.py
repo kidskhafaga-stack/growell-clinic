@@ -844,6 +844,11 @@ def _apply_coverage(invoice, patient):
     for item in invoice.items:
         if not item.service_id or (item.discount_value or 0) > 0:
             continue  # keep manual discounts; skip free-text lines
+        # Contract tariff (سعر تعاقدي): members are billed at the contract's
+        # negotiated price for the service, then coverage splits it.
+        tariff = payer.tariff(item.service, invoice.invoice_date)
+        if tariff is not None:
+            item.unit_price = tariff
         covered = payer.covers(item.service, item.gross, invoice.invoice_date)
         if covered > 0:
             item.discount_value = covered
@@ -1787,6 +1792,64 @@ def contract_delete(contract_id):
     db.session.commit()
     flash(t("contracts.deleted"), "info")
     return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/contract/<int:contract_id>/rates", methods=["GET", "POST"])
+@module_required(MODULE)
+def contract_rates(contract_id):
+    """The contract's own price list: per service a negotiated price (سعر
+    تعاقدي, blank = clinic default) + what the entity covers of it. When any
+    row exists the contract list is authoritative for billing; empty falls
+    back to the payer's default benefits table."""
+    from app.models import PayerContract, PayerContractRate
+
+    c = db.get_or_404(PayerContract, contract_id)
+    services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
+    if request.method == "POST":
+        existing = {r.service_id: r for r in c.rates}
+        for svc in services:
+            raw_price = (request.form.get(f"price_{svc.id}") or "").strip()
+            price = request.form.get(f"price_{svc.id}", type=float) if raw_price else None
+            ctype = (request.form.get(f"type_{svc.id}") or "none").strip()
+            cval = request.form.get(f"value_{svc.id}", type=float) or 0
+            has_cov = ctype in COVERAGE_TYPES and cval > 0
+            rate = existing.get(svc.id)
+            if price is None and not has_cov:
+                if rate:            # cleared row = service out of the contract
+                    db.session.delete(rate)
+                continue
+            if rate is None:
+                rate = PayerContractRate(contract_id=c.id, service_id=svc.id)
+                db.session.add(rate)
+            rate.special_price = price
+            rate.coverage_type = ctype if has_cov else "percent"
+            rate.coverage_value = cval if has_cov else 0
+        db.session.commit()
+        flash(t("contracts.rates_saved"), "success")
+        return redirect(url_for("finance.contract_rates", contract_id=c.id))
+
+    return render_template("finance/contract_rates.html", contract=c,
+                           payer=c.payer, services=services,
+                           rates={r.service_id: r for r in c.rates},
+                           coverage_types=COVERAGE_TYPES)
+
+
+@finance_bp.route("/contract/<int:contract_id>/copy", methods=["POST"])
+@module_required(MODULE)
+def contract_copy(contract_id):
+    """Renewal: duplicate a contract with its whole price list into a new
+    period, then adjust the prices on the copy."""
+    from app.models import PayerContract
+
+    old = db.get_or_404(PayerContract, contract_id)
+    clone = old.copy_to(
+        number=(request.form.get("number") or "").strip() or None,
+        start_date=_parse_date_arg2(request.form.get("start_date")),
+        end_date=_parse_date_arg2(request.form.get("end_date")))
+    db.session.add(clone)
+    db.session.commit()
+    flash(t("contracts.copied").replace("{n}", str(len(clone.rates))), "success")
+    return redirect(url_for("finance.contract_rates", contract_id=clone.id))
 
 
 def _parse_date_arg2(raw):

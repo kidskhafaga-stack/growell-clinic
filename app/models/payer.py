@@ -14,7 +14,7 @@ from datetime import date, datetime
 
 from app.extensions import db
 
-PAYER_TYPES = ["club", "syndicate", "insurance", "company", "other"]
+PAYER_TYPES = ["club", "syndicate", "insurance", "company", "cash", "other"]
 COVERAGE_TYPES = ["percent", "fixed"]
 
 
@@ -59,18 +59,45 @@ class PayerEntity(db.Model):
 
         Option (ب): a service with no rule is NOT covered (patient pays full).
         If the entity has any contracts, coverage applies only when a contract
-        is in force on ``on_date``.
+        is in force on ``on_date`` — and when that contract carries its own
+        price list, the contract's rows win over the payer-level defaults (so
+        renewing a contract with new terms changes billing on its start date).
         """
         if service is None:
             return 0.0
-        if self.contracts and self.active_contract(on_date) is None:
-            return 0.0
-        rate = next((r for r in self.service_rates if r.service_id == service.id), None)
+        rate = None
+        if self.contracts:
+            contract = self.active_contract(on_date)
+            if contract is None:
+                return 0.0
+            if contract.rates:
+                rate = next((r for r in contract.rates
+                             if r.service_id == service.id), None)
+                if rate is None:
+                    return 0.0      # contract list is authoritative when present
+        if rate is None:
+            rate = next((r for r in self.service_rates
+                         if r.service_id == service.id), None)
         if rate is None:
             return 0.0
         if rate.coverage_type == "percent":
             return round(max(amount, 0) * (rate.coverage_value or 0) / 100.0, 2)
         return round(min(rate.coverage_value or 0, max(amount, 0)), 2)
+
+    def tariff(self, service, on_date=None):
+        """The active contract's negotiated price for ``service`` (or None).
+
+        A contract row may fix the service's price for members (سعر تعاقدي) —
+        e.g. a cash-agreement list or an insurer tariff. Billing reprices the
+        line to this before coverage is applied."""
+        if service is None or not self.contracts:
+            return None
+        contract = self.active_contract(on_date)
+        if contract is None:
+            return None
+        rate = next((r for r in contract.rates
+                     if r.service_id == service.id), None)
+        return rate.special_price if rate and rate.special_price is not None else None
 
     def __repr__(self):
         return f"<PayerEntity {self.name}>"
@@ -110,6 +137,22 @@ class PayerContract(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     payer = db.relationship("PayerEntity", back_populates="contracts")
+    rates = db.relationship("PayerContractRate", back_populates="contract",
+                            cascade="all, delete-orphan")
+
+    def copy_to(self, number=None, start_date=None, end_date=None):
+        """A new (unsaved) contract for the same payer carrying a full copy of
+        this contract's price list — the renewal workflow: copy, adjust prices,
+        set the new period."""
+        clone = PayerContract(
+            payer_id=self.payer_id, number=number,
+            start_date=start_date, end_date=end_date,
+            notes=self.notes, is_active=True)
+        for r in self.rates:
+            clone.rates.append(PayerContractRate(
+                service_id=r.service_id, special_price=r.special_price,
+                coverage_type=r.coverage_type, coverage_value=r.coverage_value))
+        return clone
 
     @property
     def is_current(self):
@@ -120,6 +163,32 @@ class PayerContract(db.Model):
 
     def __repr__(self):
         return f"<PayerContract payer={self.payer_id} {self.start_date}..{self.end_date}>"
+
+
+class PayerContractRate(db.Model):
+    """One service row of a contract's price list: an optional negotiated
+    price (سعر تعاقدي — what the line is billed at for members) and what the
+    entity covers of it. A contract with rows is authoritative; one without
+    falls back to the payer's default benefits table."""
+    __tablename__ = "payer_contract_rates"
+    __table_args__ = (
+        db.UniqueConstraint("contract_id", "service_id", name="uq_contract_service"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("payer_contracts.id"),
+                            nullable=False, index=True)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                           nullable=False, index=True)
+    special_price = db.Column(db.Float)            # NULL = clinic default price
+    coverage_type = db.Column(db.String(10), default="percent", nullable=False)
+    coverage_value = db.Column(db.Float, default=0)
+
+    contract = db.relationship("PayerContract", back_populates="rates")
+    service = db.relationship("Service")
+
+    def __repr__(self):
+        return f"<ContractRate c={self.contract_id} svc={self.service_id}>"
 
 
 class PatientCoverage(db.Model):

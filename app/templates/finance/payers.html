@@ -103,7 +103,21 @@
                   <td>{% if c.is_current %}<span class="badge badge--green">{{ t('contracts.current') }}</span>
                       {% elif not c.is_active %}<span class="badge badge--muted">{{ t('contracts.inactive') }}</span>
                       {% else %}<span class="badge badge--danger">{{ t('contracts.expired') }}</span>{% endif %}</td>
-                  <td style="text-align:end;">
+                  <td style="text-align:end;white-space:nowrap;">
+                    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.contract_rates', contract_id=c.id) }}"
+                       title="{{ t('contracts.rates_title') }}"><i class="bi bi-currency-exchange"></i> {{ t('contracts.rates_btn') }}
+                       {% if c.rates %}<span class="badge badge--green">{{ c.rates|length }}</span>{% endif %}</a>
+                    <details style="display:inline-block;position:relative;">
+                      <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;" title="{{ t('contracts.copy_btn') }}"><i class="bi bi-files"></i></summary>
+                      <form method="post" action="{{ url_for('finance.contract_copy', contract_id=c.id) }}"
+                            style="position:absolute;z-index:30;inset-inline-end:0;margin-top:6px;width:250px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px;text-align:start;">
+                        <p class="hint" style="margin:0 0 8px;">{{ t('contracts.copy_hint') }}</p>
+                        <div class="form-row"><label>{{ t('contracts.number') }}</label><input class="input" name="number" dir="ltr"></div>
+                        <div class="form-row"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
+                        <div class="form-row"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date"></div>
+                        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-files"></i> {{ t('contracts.copy_btn') }}</button>
+                      </form>
+                    </details>
                     <form method="post" action="{{ url_for('finance.contract_delete', contract_id=c.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');" style="display:inline;">
                       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
                   </td>
