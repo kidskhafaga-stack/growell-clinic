@@ -680,6 +680,11 @@ def cashier_poll():
 
     from app.models import RefundRequest
 
+    # The cashier screen polls all day — a free heartbeat that drains the
+    # message queue (campaigns included) without a separate scheduler.
+    from app.utils import whatsapp as wa
+    wa.maybe_dispatch()
+
     on_date = _cashier_date()
     start = datetime.combine(on_date, datetime.min.time())
     end = datetime.combine(on_date, datetime.max.time())

@@ -2257,7 +2257,20 @@
     "vars_for": "Available variables",
     "occ_vaccine_due": "Vaccine due",
     "occ_vaccine_seasonal": "Seasonal vaccine",
-    "occ_vaccine_changed": "Vaccine changed"
+    "occ_vaccine_changed": "Vaccine changed",
+    "occ_date": "Occasion date",
+    "occ_date_hint": "When this day arrives the campaign is queued and trickles out over days under the daily cap.",
+    "repeat": "Recurrence",
+    "repeat_once": "Once (manual date — right for Hijri events)",
+    "repeat_yearly": "Yearly — same Gregorian day every year",
+    "repeat_hint": "Ramadan and the Eids move ~11 days earlier each year — set their date manually each year. Mother's Day / clinic anniversary are fixed yearly.",
+    "no_next_date": "Needs next occasion date",
+    "needs_next_date": "Last campaign finished — set next year's date",
+    "campaign_stats": "Sent {sent}/{total} over {days} day(s)",
+    "campaign_pending": "{n} queued",
+    "enqueue_now": "Queue campaign now",
+    "enqueue_confirm": "One message per family will be queued and sent gradually under the daily cap. Sure?",
+    "campaign_queued": "{n} messages queued — they will go out under the daily cap"
   },
   "feedback": {
     "title": "Rate your visit",

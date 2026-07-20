@@ -329,10 +329,18 @@ def dispatch_due(cfg=None, limit=500):
     """
     cfg = cfg or get_config()
     now = datetime.utcnow()
+    try:  # arm any occasion campaign whose date has arrived (idempotent)
+        from app.utils.occasions import enqueue_due_occasions
+        enqueue_due_occasions()
+    except Exception:  # noqa: BLE001 - campaigns must never block sending
+        pass
+    # Operational messages (confirmations, surveys, reminders) always beat
+    # bulk campaign messages, so a big occasion blast can't starve them.
     due = (MessageLog.query
            .filter(MessageLog.status == "scheduled",
                    MessageLog.scheduled_at <= now)
-           .order_by(MessageLog.scheduled_at)
+           .order_by(MessageLog.template_id.isnot(None),
+                     MessageLog.scheduled_at)
            .limit(limit).all())
     sent = skipped = 0
     for log in due:
@@ -348,6 +356,29 @@ def dispatch_due(cfg=None, limit=500):
         sent += 1
     db.session.commit()
     return {"sent": sent, "skipped": skipped, "considered": len(due)}
+
+
+def maybe_dispatch(min_gap_minutes=10):
+    """Opportunistic queue drain: piggybacks on the screens' live-refresh
+    polling so scheduled messages/campaigns go out during the day without a
+    separate scheduler. Throttled by a settings timestamp; silent on failure —
+    a UI poll must never break because sending hiccuped."""
+    try:
+        from datetime import timedelta
+        now = datetime.utcnow()
+        last = Setting.get("wa_last_auto_dispatch", "")
+        if last:
+            try:
+                if now - datetime.fromisoformat(last) < timedelta(minutes=min_gap_minutes):
+                    return None
+            except ValueError:
+                pass
+        Setting.set("wa_last_auto_dispatch", now.isoformat())
+        db.session.commit()
+        return dispatch_due()
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+        return None
 
 
 def _post_json(url, payload, headers, timeout=12):

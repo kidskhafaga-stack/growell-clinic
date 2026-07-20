@@ -416,6 +416,16 @@ def roster_notify():
 # =======================================================================
 # CRM — occasions & birthdays
 # =======================================================================
+def _parse_form_date(name):
+    raw = (request.form.get(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def _upcoming_birthdays(days=7):
     """Active patients whose birthday falls within the next ``days`` days."""
     today = date.today()
@@ -465,6 +475,10 @@ def occasions():
                         .order_by(MessageTemplate.occasion, MessageTemplate.name)
                         .all())
     values = {row.key: row.value for row in Setting.query.all()}
+    # Campaign roll-up per dated template (sent / pending / over how many days).
+    from app.utils.occasions import campaign_report
+    campaigns = {tpl.id: campaign_report(tpl)
+                 for tpl in custom_templates if tpl.occasion_date or tpl.last_enqueued_on}
     return render_template(
         "messages/occasions.html",
         birthdays=_upcoming_birthdays(),
@@ -474,8 +488,24 @@ def occasions():
         template_variables=TEMPLATE_VARIABLES,
         send_modes=SEND_MODES,
         values=values,
+        campaigns=campaigns,
+        today=date.today(),
         crm_mode=values.get("crm_mode", "manual"),
     )
+
+
+@messages_bp.route("/occasions/template/<int:tpl_id>/enqueue", methods=["POST"])
+@module_required(MODULE)
+def occasion_enqueue_now(tpl_id):
+    """Queue this occasion's campaign now (same throttled pipeline — the daily
+    cap still paces the actual sending over the coming days)."""
+    tpl = db.get_or_404(MessageTemplate, tpl_id)
+    tpl.last_enqueued_on = None                 # force a fresh campaign run
+    from app.utils.occasions import enqueue_occasion
+    n = enqueue_occasion(tpl, user_id=current_user.id, on_date=date.today())
+    db.session.commit()
+    flash(t("occasions.campaign_queued").replace("{n}", str(n)), "success")
+    return redirect(url_for("messages.occasions") + "#custom")
 
 
 @messages_bp.route("/connection", methods=["POST"])
@@ -557,9 +587,12 @@ def occasion_template_new():
         flash(t("common.required") + ": " + t("occasions.name"), "danger")
         return redirect(url_for("messages.occasions"))
     occ = (request.form.get("occasion") or "custom").strip()
+    repeat = (request.form.get("repeat_rule") or "once").strip()
     db.session.add(MessageTemplate(
         name=name, body=body,
         occasion=occ if occ in OCCASION_TYPES else "custom",
+        occasion_date=_parse_form_date("occasion_date"),
+        repeat_rule=repeat if repeat in ("once", "yearly") else "once",
         image_url=_save_crm_image(request.files.get("image")),
     ))
     db.session.commit()
@@ -575,6 +608,12 @@ def occasion_template_edit(tpl_id):
     tpl.body = (request.form.get("body") or tpl.body).strip()
     occ = (request.form.get("occasion") or tpl.occasion).strip()
     tpl.occasion = occ if occ in OCCASION_TYPES else tpl.occasion
+    new_date = _parse_form_date("occasion_date")
+    if new_date != tpl.occasion_date:
+        tpl.occasion_date = new_date
+        tpl.last_enqueued_on = None   # a new date is a new campaign
+    repeat = (request.form.get("repeat_rule") or tpl.repeat_rule).strip()
+    tpl.repeat_rule = repeat if repeat in ("once", "yearly") else tpl.repeat_rule
     tpl.is_active = bool(request.form.get("is_active"))
     if request.form.get("remove_image"):
         _remove_crm_image(tpl.image_url)

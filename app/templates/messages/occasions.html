@@ -243,6 +243,15 @@ function tplEditor(id, occ){
           <div class="form-row"><label>{{ t('occasions.name') }} *</label><input class="input" name="name" required></div>
           <div class="form-row"><label>{{ t('occasions.occasion') }}</label>
             <select class="select" name="occasion" x-model="occ">{{ occ_options('greeting') }}</select></div>
+          <div class="form-row"><label>{{ t('occasions.occ_date') }}</label>
+            <input class="input" type="date" name="occasion_date">
+            <div class="hint">{{ t('occasions.occ_date_hint') }}</div></div>
+          <div class="form-row"><label>{{ t('occasions.repeat') }}</label>
+            <select class="select" name="repeat_rule">
+              <option value="once">{{ t('occasions.repeat_once') }}</option>
+              <option value="yearly">{{ t('occasions.repeat_yearly') }}</option>
+            </select>
+            <div class="hint">{{ t('occasions.repeat_hint') }}</div></div>
         </div>
         <div class="form-row"><label>{{ t('occasions.body') }} *</label>
           <textarea class="input" name="body" rows="4" dir="auto" x-ref="body" x-model="body" required></textarea>
@@ -279,6 +288,17 @@ function tplEditor(id, occ){
       <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <span><strong>{{ tp.name }}</strong> <span class="badge badge--role">{{ t('occasions.occ_' ~ tp.occasion) }}</span>
           {% if tp.image_url %}<i class="bi bi-image" style="color:var(--green-600);"></i>{% endif %}
+          {% if tp.occasion_date %}
+            <span class="badge {{ 'badge--green' if tp.occasion_date >= today else 'badge--muted' }}" dir="ltr">
+              <i class="bi bi-calendar-event"></i> {{ tp.occasion_date }}{{ ' ↻' if tp.repeat_rule == 'yearly' else '' }}</span>
+          {% elif tp.last_enqueued_on %}
+            <span class="badge badge--muted" title="{{ t('occasions.needs_next_date') }}"><i class="bi bi-exclamation-triangle"></i> {{ t('occasions.no_next_date') }}</span>
+          {% endif %}
+          {% set rep = campaigns.get(tp.id) %}
+          {% if rep and rep.total %}
+            <span class="badge badge--muted">{{ t('occasions.campaign_stats').replace('{sent}', rep.sent|string).replace('{total}', rep.total|string).replace('{days}', rep.days|string) }}
+              {% if rep.pending %}· {{ t('occasions.campaign_pending').replace('{n}', rep.pending|string) }}{% endif %}</span>
+          {% endif %}
           {% if not tp.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</span>
         <span style="color:var(--muted);font-size:0.82rem;">{{ (tp.body[:50] ~ '…') if tp.body|length > 50 else tp.body }}</span>
       </summary>
@@ -289,6 +309,13 @@ function tplEditor(id, occ){
               <div class="form-row"><label>{{ t('occasions.name') }}</label><input class="input" name="name" value="{{ tp.name }}"></div>
               <div class="form-row"><label>{{ t('occasions.occasion') }}</label>
                 <select class="select" name="occasion" x-model="occ">{{ occ_options(tp.occasion) }}</select></div>
+              <div class="form-row"><label>{{ t('occasions.occ_date') }}</label>
+                <input class="input" type="date" name="occasion_date" value="{{ tp.occasion_date or '' }}"></div>
+              <div class="form-row"><label>{{ t('occasions.repeat') }}</label>
+                <select class="select" name="repeat_rule">
+                  <option value="once" {{ 'selected' if tp.repeat_rule != 'yearly' else '' }}>{{ t('occasions.repeat_once') }}</option>
+                  <option value="yearly" {{ 'selected' if tp.repeat_rule == 'yearly' else '' }}>{{ t('occasions.repeat_yearly') }}</option>
+                </select></div>
             </div>
             <div class="form-row"><label>{{ t('occasions.body') }}</label>
               <textarea class="input" name="body" rows="4" dir="auto" x-ref="body" x-model="body">{{ tp.body }}</textarea>
@@ -303,8 +330,12 @@ function tplEditor(id, occ){
                 <input type="checkbox" name="remove_image" value="1" x-model="rm"> {{ t('crm.remove_image') }}</label>{% endif %}
               <input class="input" type="file" name="image" accept="image/*" x-on:change="onFile($event)"></div>
             <div class="form-row checkbox"><input type="checkbox" id="ta_{{ tp.id }}" name="is_active" value="1" {{ 'checked' if tp.is_active else '' }}><label for="ta_{{ tp.id }}" style="margin:0;font-weight:400;">{{ t('occasions.active') }}</label></div>
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+              <button class="btn btn-outline btn-sm gc-press" type="submit"
+                      formaction="{{ url_for('messages.occasion_enqueue_now', tpl_id=tp.id) }}" formnovalidate
+                      onclick="return confirm('{{ t('occasions.enqueue_confirm') }}');">
+                <i class="bi bi-send"></i> {{ t('occasions.enqueue_now') }}</button>
               <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('messages.occasion_template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
             </div>
           </div>
