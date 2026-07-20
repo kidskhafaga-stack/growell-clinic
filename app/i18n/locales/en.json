@@ -880,7 +880,14 @@
     "brand_prefer": "Make first choice",
     "brand_preferred": "First choice",
     "brand_preferred_set": "Brand set as first choice.",
-    "admin_fee_line": "Vaccination fee (administration)"
+    "admin_fee_line": "Vaccination fee (administration)",
+    "cat_all": "All",
+    "cat_mandatory": "Government (EPI)",
+    "cat_optional": "Optional",
+    "routine_schedule": "Routine schedule",
+    "no_schedule": "No schedule set",
+    "age_range": "Eligible age",
+    "days": "days"
   },
   "vstatus": {
     "done": "Done",

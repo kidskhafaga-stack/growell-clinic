@@ -80,13 +80,22 @@ def seed_vaccines():
         vref = ("برنامج التطعيم القومي المصري (EPI) — للمراجعة"
                 if v.get("mandatory", True)
                 else "النشرة الدوائية للمُصنّع + ACIP/WHO — للمراجعة")
+        # Standard WHO/EPI + manufacturer schedule conditions bundled with the
+        # catalogue (min interval, upper age, booster, catch-up rules). All
+        # "for review" — the doctor confirms/edits; we never overwrite edits.
+        cu = v.get("catch_up_ar")
+        cu_ref = v.get("reference_ar") or vref
         if vaccine is None:
             vaccine = Vaccine(
                 code=v["code"], name_ar=v["name_ar"], name_en=v.get("name_en"),
                 is_mandatory=v.get("mandatory", True), sort_order=order,
                 route=v.get("route"), on_demand=v.get("on_demand", False),
                 is_seasonal=v.get("seasonal", False),
-                vaccine_type=vtype, reference=vref,
+                vaccine_type=vtype, reference=cu_ref,
+                min_interval_days=v.get("min_interval_days"),
+                max_age_months=v.get("max_age_months"),
+                booster_required=v.get("booster", False),
+                catch_up_notes=cu,
             )
             db.session.add(vaccine)
             db.session.flush()
@@ -101,14 +110,29 @@ def seed_vaccines():
             if vtype and not vaccine.vaccine_type:
                 vaccine.vaccine_type = vtype
             if not vaccine.reference:
-                vaccine.reference = vref
+                vaccine.reference = cu_ref
+            # Fill schedule conditions only where the clinic hasn't set them.
+            if cu and not vaccine.catch_up_notes:
+                vaccine.catch_up_notes = cu
+            if v.get("min_interval_days") and vaccine.min_interval_days is None:
+                vaccine.min_interval_days = v["min_interval_days"]
+            if v.get("max_age_months") and vaccine.max_age_months is None:
+                vaccine.max_age_months = v["max_age_months"]
+            if v.get("booster") and not vaccine.booster_required:
+                vaccine.booster_required = True
         for b in v["brands"]:
-            if any(br.name == b["name"] for br in vaccine.brands):
+            existing = next((br for br in vaccine.brands if br.name == b["name"]), None)
+            if existing is not None:
+                # Backfill the trade-name-specific catch-up onto existing rows,
+                # only when the clinic hasn't set one (never clobber edits).
+                if b.get("catch_up_ar") and not existing.catch_up_notes:
+                    existing.catch_up_notes = b["catch_up_ar"]
                 continue
             brand = VaccineBrand(
                 vaccine_id=vaccine.id, name=b["name"], name_en=b.get("name_en"),
                 manufacturer=b.get("manufacturer"), price=b.get("price"),
                 is_default=b.get("default", False),
+                catch_up_notes=b.get("catch_up_ar"),
             )
             db.session.add(brand)
             db.session.flush()

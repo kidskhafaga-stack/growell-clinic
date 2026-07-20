@@ -247,9 +247,23 @@ def _set_brand_doses(brand, ages):
 @vaccinations_bp.route("/manage")
 @module_required(MODULE)
 def manage():
-    vaccines = Vaccine.query.order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all()
+    cat = (request.args.get("cat") or "all").strip()
+    all_vaccines = (Vaccine.query
+                    .order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all())
+    counts = {
+        "all": len(all_vaccines),
+        "mandatory": sum(1 for v in all_vaccines if v.is_mandatory),
+        "optional": sum(1 for v in all_vaccines if not v.is_mandatory),
+    }
+    if cat == "mandatory":
+        vaccines = [v for v in all_vaccines if v.is_mandatory]
+    elif cat == "optional":
+        vaccines = [v for v in all_vaccines if not v.is_mandatory]
+    else:
+        cat = "all"
+        vaccines = all_vaccines
     return render_template("vaccinations/manage.html", vaccines=vaccines,
-                           routes=VACCINE_ROUTES)
+                           routes=VACCINE_ROUTES, cat=cat, counts=counts)
 
 
 @vaccinations_bp.route("/manage/vaccine/new", methods=["POST"])
@@ -471,6 +485,7 @@ def brand_edit(brand_id):
     brand.doctor_fee = request.form.get("doctor_fee", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
     brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
+    brand.catch_up_notes = (request.form.get("catch_up_notes") or "").strip() or None
     brand.is_discontinued = bool(request.form.get("is_discontinued"))
     ages = _parse_ages(request.form.get("dose_ages"))
     if ages:

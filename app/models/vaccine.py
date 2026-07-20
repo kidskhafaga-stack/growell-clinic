@@ -86,6 +86,41 @@ class Vaccine(db.Model):
     def active_brands(self):
         return [b for b in self.brands if not b.is_discontinued]
 
+    @staticmethod
+    def age_label(months, lang="ar"):
+        """A friendly age label for a dose: birth / N months / N years (+months).
+
+        Under 2 years we speak in months (so 18mo reads "18 شهر"); from 2 years
+        we speak in years, adding the remaining months when not a whole year."""
+        if months is None:
+            return ""
+        if months <= 0:
+            return "At birth" if lang == "en" else "عند الولادة"
+        if months < 24:
+            return f"{months} mo" if lang == "en" else f"{months} شهر"
+        years, rem = divmod(months, 12)
+        if lang == "en":
+            return f"{years}y" if rem == 0 else f"{years}y {rem}m"
+        yr = "سنة" if years == 1 else f"{years} سنة"
+        return yr if rem == 0 else f"{yr} و{rem} شهر"
+
+    def routine_schedule(self, lang="ar"):
+        """The vaccine's normal (routine) schedule as friendly age labels —
+        taken from the preferred/government brand's dose ages."""
+        brand = self.default_brand
+        if brand is None:
+            return []
+        doses = sorted(brand.doses, key=lambda d: d.age_months or 0)
+        return [self.age_label(d.age_months, lang) for d in doses]
+
+    def age_range_label(self, lang="ar"):
+        """"min–max" eligible age as friendly labels, if either bound is set."""
+        if self.min_age_months is None and self.max_age_months is None:
+            return ""
+        lo = self.age_label(self.min_age_months, lang) if self.min_age_months is not None else "—"
+        hi = self.age_label(self.max_age_months, lang) if self.max_age_months is not None else "—"
+        return f"{lo} → {hi}"
+
     def __repr__(self):
         return f"<Vaccine {self.code}>"
 
@@ -118,6 +153,10 @@ class VaccineBrand(db.Model):
     dispense_unit = db.Column(db.String(30))
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     is_discontinued = db.Column(db.Boolean, default=False, nullable=False)  # production stopped
+    # Trade-name-specific schedule/catch-up when it differs from the vaccine's
+    # (RotaRix 2 doses vs RotaTeq 3; Menactra ≥9mo vs Menveo ≥2mo; Trumenba ≥10y).
+    # Falls back to the vaccine's catch-up when blank.
+    catch_up_notes = db.Column(db.Text)
 
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(
@@ -130,6 +169,18 @@ class VaccineBrand(db.Model):
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
+
+    def schedule_ages(self, lang="ar"):
+        """This trade name's own dose schedule as friendly age labels."""
+        doses = sorted(self.doses, key=lambda d: d.age_months or 0)
+        return [Vaccine.age_label(d.age_months, lang) for d in doses]
+
+    def effective_catch_up(self):
+        """This brand's catch-up rule, falling back to the vaccine's when the
+        trade name has no schedule difference of its own."""
+        if self.catch_up_notes:
+            return self.catch_up_notes
+        return self.vaccine.catch_up_notes if self.vaccine else None
 
     @property
     def doses_count(self):
