@@ -254,6 +254,10 @@ def register_commands(app):
             ("store_items", "price_policy", "VARCHAR(10) DEFAULT 'manual'"),
             ("store_items", "margin_percent", "FLOAT"),
             ("store_items", "item_code", "VARCHAR(40)"),
+            ("message_templates", "occasion_date", "DATE"),
+            ("message_templates", "repeat_rule", "VARCHAR(10) DEFAULT 'once'"),
+            ("message_templates", "last_enqueued_on", "DATE"),
+            ("message_logs", "template_id", "INTEGER"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0

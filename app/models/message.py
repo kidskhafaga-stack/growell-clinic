@@ -125,6 +125,14 @@ class MessageTemplate(db.Model):
     body = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))          # optional attached image
     send_mode = db.Column(db.String(10), default="manual", nullable=False)
+    # Occasion campaigns (عيد الفطر، عيد الأم، ذكرى العيادة…): the date the
+    # campaign fires, whether it recurs every year on the same Gregorian day
+    # ("yearly") or is set by hand each time ("once" — Hijri events move ~11
+    # days back a year, so their next date is entered manually), and the last
+    # occasion date already queued (so a campaign is enqueued exactly once).
+    occasion_date = db.Column(db.Date)
+    repeat_rule = db.Column(db.String(10), default="once", nullable=False)
+    last_enqueued_on = db.Column(db.Date)
     # Scheduling: delay after the trigger event (e.g. feedback N days/hours after
     # the visit) and/or a fixed hour-of-day to send (e.g. birthday at 10:00).
     delay_days = db.Column(db.Integer, default=0)
@@ -153,6 +161,10 @@ class MessageLog(db.Model):
     link = db.Column(db.Text)
     error = db.Column(db.String(200))
     template_type = db.Column(db.String(30))          # which notification type
+    # The campaign template this message belongs to (occasion blasts) — lets
+    # the campaign report count sent/pending/days per occasion.
+    template_id = db.Column(db.Integer, db.ForeignKey("message_templates.id"),
+                            nullable=True, index=True)
     scheduled_at = db.Column(db.DateTime, index=True)  # future send time (queued)
     sent_at = db.Column(db.DateTime)                    # when actually dispatched
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
