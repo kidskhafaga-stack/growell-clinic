@@ -263,7 +263,29 @@ def manage():
         cat = "all"
         vaccines = all_vaccines
     return render_template("vaccinations/manage.html", vaccines=vaccines,
-                           routes=VACCINE_ROUTES, cat=cat, counts=counts)
+                           routes=VACCINE_ROUTES, cat=cat, counts=counts,
+                           load_gov=Setting.get("load_gov_vaccines", "1") != "0",
+                           load_optional=Setting.get("load_optional_vaccines", "1") != "0")
+
+
+@vaccinations_bp.route("/manage/catalogue", methods=["POST"])
+@module_required(MODULE)
+def catalogue_settings():
+    """Save which bundled sets auto-load (government EPI / optional) and, when
+    asked, load the enabled sets now. Loading is additive — it adds what's
+    missing (with its WHO/manufacturer schedule + catch-up) and never deletes."""
+    Setting.set("load_gov_vaccines", "1" if request.form.get("load_gov") else "0")
+    Setting.set("load_optional_vaccines", "1" if request.form.get("load_optional") else "0")
+    db.session.commit()
+    if request.form.get("load_now"):
+        from app.utils.vaccines import seed_vaccine_schedules, seed_vaccines
+        n = seed_vaccines()
+        seed_vaccine_schedules()
+        db.session.commit()
+        flash(t("vaccinations.catalogue_loaded").replace("{n}", str(n)), "success")
+    else:
+        flash(t("common.saved"), "success")
+    return redirect(url_for("vaccinations.manage"))
 
 
 @vaccinations_bp.route("/manage/vaccine/new", methods=["POST"])
