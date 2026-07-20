@@ -38,9 +38,9 @@
   <form method="post" action="{{ url_for('inventory.store_item_new') }}" style="margin-top:12px;">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('store.name') }} *</label><input class="input" name="name" required></div>
-      <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category"></div>
-      <div class="form-row"><label>{{ t('store.unit') }}</label><input class="input" name="unit" placeholder="{{ t('store.unit_ph') }}"></div>
-      <div class="form-row"><label>{{ t('store.purchase_unit') }}</label><input class="input" name="purchase_unit" placeholder="{{ t('store.purchase_unit_ph') }}"></div>
+      <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category" list="cat_list"></div>
+      <div class="form-row"><label>{{ t('store.unit') }}</label><input class="input" name="unit" list="unit_list" placeholder="{{ t('store.unit_ph') }}"></div>
+      <div class="form-row"><label>{{ t('store.purchase_unit') }}</label><input class="input" name="purchase_unit" list="punit_list" placeholder="{{ t('store.purchase_unit_ph') }}"></div>
       <div class="form-row"><label>{{ t('store.units_per_purchase') }}</label><input class="input" type="number" min="1" name="units_per_purchase" value="1"></div>
       <div class="form-row"><label>{{ t('store.barcode') }}</label><input class="input" name="barcode" dir="ltr"></div>
       <div class="form-row"><label>{{ t('store.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price"></div>
@@ -51,6 +51,19 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
+
+<datalist id="cat_list">{% for c in categories %}<option value="{{ c }}"></option>{% endfor %}</datalist>
+<datalist id="unit_list">{% for u in units %}<option value="{{ u }}"></option>{% endfor %}</datalist>
+<datalist id="punit_list">{% for u in purchase_units %}<option value="{{ u }}"></option>{% endfor %}</datalist>
+
+{% if not items %}
+<div class="card gc-scale-in" style="animation-delay:0.07s;text-align:center;padding:22px;">
+  <p style="margin:0 0 10px;color:var(--muted);"><i class="bi bi-box-seam"></i> {{ t('store.empty_hint') }}</p>
+  <form method="post" action="{{ url_for('inventory.store_load_defaults') }}" style="display:inline;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-cloud-download"></i> {{ t('store.load_defaults') }}</button>
+  </form>
+</div>
+{% endif %}
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if items %}

@@ -471,8 +471,24 @@ def store():
         "low": len(low),
         "value": round(sum(i.stock_value for i in items if i.is_active), 2),
     }
+    from app.utils.store_seed import (store_categories, store_purchase_units,
+                                       store_units)
     return render_template("inventory/store.html", items=items, low=low,
-                           stats=stats, suppliers=_suppliers())
+                           stats=stats, suppliers=_suppliers(),
+                           categories=store_categories(), units=store_units(),
+                           purchase_units=store_purchase_units())
+
+
+@inventory_bp.route("/store/load-defaults", methods=["POST"])
+@module_required(MODULE)
+def store_load_defaults():
+    """Seed the default clinic consumables (fill-only) so the store isn't empty
+    on a fresh setup. Never touches or duplicates items already defined."""
+    from app.utils.store_seed import seed_store_items
+    n = seed_store_items()
+    db.session.commit()
+    flash(t("store.defaults_loaded").replace("{n}", str(n)), "success")
+    return redirect(url_for("inventory.store"))
 
 
 @inventory_bp.route("/store/new", methods=["POST"])
@@ -567,8 +583,12 @@ def store_item(item_id):
         StockMovement.query.filter_by(item_id=item.id)
         .order_by(StockMovement.created_at.desc()).all()
     )
+    from app.utils.store_seed import (store_categories, store_purchase_units,
+                                       store_units)
     return render_template("inventory/store_item.html", item=item,
-                           movements=movements, suppliers=_suppliers())
+                           movements=movements, suppliers=_suppliers(),
+                           categories=store_categories(), units=store_units(),
+                           purchase_units=store_purchase_units())
 
 
 @inventory_bp.route("/store/stocktake", methods=["GET", "POST"])
