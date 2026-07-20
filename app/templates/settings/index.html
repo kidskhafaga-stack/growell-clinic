@@ -410,7 +410,24 @@
 
   <!-- AI assistant -->
   <div class="card gc-scale-in" x-show="tab==='ai'" x-cloak id="ai"
-       x-data="{ provider: '{{ values.get('ai_provider','claude') }}' }">
+       x-data="{
+         provider: '{{ values.get('ai_provider','claude') }}',
+         model: {{ values.get('ai_model','')|tojson }},
+         modelPick: '',
+         list() { return AI_MODELS[this.provider] || []; },
+         syncPick() {
+           const l = this.list();
+           this.modelPick = l.includes(this.model) ? this.model
+                            : (this.model ? '__custom__' : (l[0] || '__custom__'));
+         },
+         init() {
+           this.syncPick();
+           this.$watch('provider', () => {
+             // New provider → offer its own models, defaulting to the first.
+             this.modelPick = this.list()[0] || '__custom__';
+           });
+         },
+       }">
     <h2 class="section-title"><i class="bi bi-robot"></i> {{ t('settings.ai_title') }}</h2>
     <p class="page-sub" style="margin:-4px 0 12px;">{{ t('settings.ai_subtitle') }}</p>
 
@@ -427,7 +444,12 @@
           {% endfor %}
         </select><div class="hint">{{ t('settings.ai_provider_hint') }}</div>
         {% set local_keys = [] %}{% for pid, meta in ai_providers.items() if meta.get('local') %}{{ local_keys.append(pid) or '' }}{% endfor %}
-        <script>const AI_LOCAL = {{ local_keys | tojson }};</script>
+        <script>
+          const AI_LOCAL = {{ local_keys | tojson }};
+          // Each provider's own model suggestions — the Model dropdown below
+          // only ever offers the selected provider's models.
+          const AI_MODELS = { {% for pid, meta in ai_providers.items() %}'{{ pid }}': {{ meta.models | tojson }},{% endfor %} };
+        </script>
         <div style="margin-top:6px;">
           <span class="badge badge--green" x-show="AI_LOCAL.includes(provider)" x-cloak>
             <i class="bi bi-hdd-network"></i> {{ t('settings.ai_local_badge') }}</span>
@@ -437,14 +459,17 @@
       </div>
 
       <div class="form-row"><label>{{ t('settings.ai_model') }}</label>
-        <input class="input" name="ai_model" dir="ltr" list="ai-model-list"
-               value="{{ values.get('ai_model','') }}"
-               placeholder="{{ ai_providers.get(values.get('ai_provider','claude')).default_model }}">
-        <datalist id="ai-model-list">
-          {% for pid, meta in ai_providers.items() %}
-            {% for m in meta.models %}<option value="{{ m }}">{{ meta.label }}</option>{% endfor %}
-          {% endfor %}
-        </datalist>
+        <select class="select" dir="ltr" x-model="modelPick" autocomplete="off">
+          <template x-for="m in list()" :key="m">
+            <option :value="m" x-text="m"></option>
+          </template>
+          <option value="__custom__">{{ t('settings.ai_model_custom') }}</option>
+        </select>
+        <input class="input" dir="ltr" x-show="modelPick==='__custom__'" x-cloak
+               x-model="model" autocomplete="off" style="margin-top:6px;"
+               placeholder="{{ t('settings.ai_model_custom_ph') }}">
+        <input type="hidden" name="ai_model"
+               :value="modelPick==='__custom__' ? model : modelPick">
         <div class="hint">{{ t('settings.ai_model_hint') }}</div></div>
 
       <div class="form-row"><label>{{ t('settings.ai_api_key') }}</label>
