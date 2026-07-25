@@ -154,6 +154,62 @@ def drugbook_generic(generic_id):
                            interactions=interactions)
 
 
+@prescriptions_bp.route("/drugbook/import", methods=["GET", "POST"])
+@admin_required
+def drugbook_import():
+    """Bring in a real drug list (EDA export, supplier or pharmacy file).
+
+    The seeded catalogue is a working set; the market is thousands of items.
+    A file is read one product per row — trade name + strength — naming its
+    ingredient and class, and anything missing is created as it reads, so one
+    file can build the whole tree. Preview first, then import: numbers before
+    a live catalogue changes."""
+    from app.utils.drugbook_import import import_rows, parse
+
+    summary = errors = None
+    preview = request.form.get("mode") != "import"
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or not file.filename:
+            flash(t("drugbook.import_need_file"), "danger")
+            return redirect(url_for("prescriptions.drugbook_import"))
+        rows, errors = parse(file.read())
+        if not rows:
+            flash(t("drugbook.import_no_rows"), "warning")
+        else:
+            summary = import_rows(rows, dry_run=preview)
+            if preview:
+                flash(t("drugbook.import_preview_done"), "info")
+            else:
+                db.session.commit()
+                ActivityLog.record("drugbook.import", user_id=current_user.id,
+                                   entity="drug", detail=str(summary["rows"]),
+                                   ip_address=client_ip())
+                db.session.commit()
+                flash(t("drugbook.import_done")
+                      .replace("{n}", str(summary["brands"])), "success")
+    counts = {
+        "classes": DrugClass.query.count(),
+        "generics": GenericDrug.query.count(),
+        "brands": Drug.query.count(),
+    }
+    return render_template("prescriptions/drugbook_import.html", summary=summary,
+                           errors=errors, preview=preview, counts=counts)
+
+
+@prescriptions_bp.route("/drugbook/import/template")
+@admin_required
+def drugbook_template():
+    """The blank CSV to fill in (UTF-8 with a BOM so Excel opens it right)."""
+    from flask import Response
+
+    from app.utils.drugbook_import import template_csv
+
+    return Response(
+        template_csv(), mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=drugbook-template.csv"})
+
+
 # ----------------------------------------------------- drug catalogue ------
 @prescriptions_bp.route("/drugs")
 @admin_required

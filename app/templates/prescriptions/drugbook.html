@@ -9,8 +9,14 @@
     <h1 class="page-title">{{ t('drugbook.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('drugbook.subtitle') }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}">
-    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if current_user.can_access('settings') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook_import') }}">
+      <i class="bi bi-upload"></i> {{ t('drugbook.import_nav') }}</a>
+    {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+  </div>
 </div>
 
 <form method="get" class="gc-animate" style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
