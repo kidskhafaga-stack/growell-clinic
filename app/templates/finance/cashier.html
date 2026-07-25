@@ -125,6 +125,50 @@
   </div>
 </div>
 
+{% if settlements %}
+<!-- Paid vaccine ≠ what the doctor did: refuse / swap → refund or collect -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--danger);">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-shield-exclamation"></i>
+    {{ t('vaccine_settle.title') }} ({{ settlements|length }})</h2>
+  <p class="hint" style="padding:0 18px;margin:4px 0 8px;">{{ t('vaccine_settle.hint') }}</p>
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('vaccine_settle.what_happened') }}</th>
+      <th style="text-align:end;">{{ t('vaccine_settle.amount') }}</th>
+      <th style="text-align:end;">{{ t('common.action') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for s in settlements %}
+      <tr>
+        <td><a href="{{ url_for('patients.view', patient_id=s.patient_id) }}">{{ s.patient.display_name(current_lang) if s.patient else '—' }}</a>
+          <div style="color:var(--muted);font-size:.8rem;">{{ s.invoice.invoice_number if s.invoice else '' }}</div></td>
+        <td>
+          {% if s.reason == 'refused' %}
+            <span class="badge badge--role" style="color:var(--danger);">{{ t('vaccine_settle.refused') }}</span>
+            {{ s.billed_brand.display_name(current_lang) if s.billed_brand else '' }}
+          {% else %}
+            <span class="badge badge--role">{{ t('vaccine_settle.swapped') }}</span>
+            {{ s.billed_brand.display_name(current_lang) if s.billed_brand else '' }}
+            → {{ s.actual_brand.display_name(current_lang) if s.actual_brand else '' }}
+          {% endif %}
+        </td>
+        <td style="text-align:end;font-weight:700;color:{{ 'var(--danger)' if s.is_refund else 'var(--green-700)' }};">
+          {{ (t('vaccine_settle.refund_to') if s.is_refund else t('vaccine_settle.collect_from')) }}
+          {{ s.abs_amount|money }}</td>
+        <td style="text-align:end;">
+          <form method="post" action="{{ url_for('finance.vaccine_settle', settlement_id=s.id) }}">
+            <button class="btn btn-primary btn-sm gc-press" type="submit">
+              <i class="bi bi-check2-circle"></i> {{ t('vaccine_settle.apply') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if uncollected %}
 <!-- Never-billed money: doses/services given after the visit was collected -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--warning,#f0ad4e);">

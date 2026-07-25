@@ -9,6 +9,7 @@ import io
 from datetime import date, datetime
 
 from flask import (
+    current_app,
     flash,
     g,
     redirect,
@@ -80,6 +81,17 @@ def view(patient_id):
     )
 
 
+def _settle_paid_vaccines(patient, on_date):
+    """Reconcile the day's paid vaccine lines with what was really done.
+    Never blocks the clinical record: a billing hiccup must not lose a dose."""
+    try:
+        from app.utils.vaccine_settlement import sync_for_patient
+        return sync_for_patient(patient.id, on_date)
+    except Exception:                                   # pragma: no cover
+        current_app.logger.exception("vaccine settlement sync failed")
+        return []
+
+
 @vaccinations_bp.route("/<int:patient_id>/record", methods=["POST"])
 @module_required(MODULE)
 def record(patient_id):
@@ -118,6 +130,9 @@ def record(patient_id):
         entity_id=patient.id, detail=f"{vaccine.code}#{dose_number}",
         ip_address=client_ip(),
     )
+    # A vaccine already paid for at reception but swapped in the room leaves
+    # money to settle — raise it now so the cashier sees the difference.
+    _settle_paid_vaccines(patient, given_date)
     db.session.commit()
     flash(t("vaccinations.recorded"), "success")
 
@@ -178,6 +193,8 @@ def record_event(patient_id):
     ActivityLog.record(f"vaccine.{event_type}", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=f"{vaccine.code}#{dose_number}", ip_address=client_ip())
+    # Refusing a dose the parent already paid for owes them the price back.
+    _settle_paid_vaccines(patient, datetime.utcnow().date())
     db.session.commit()
     flash(t("vaccinations.event_saved"), "success")
     return redirect(url_for("vaccinations.view", patient_id=patient.id))
