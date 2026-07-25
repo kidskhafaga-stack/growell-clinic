@@ -133,6 +133,7 @@ def register_commands(app):
             ("visit_investigations", "name_en", "VARCHAR(200)"),
             ("prescription_investigations", "name_en", "VARCHAR(200)"),
             ("payments", "kind", "VARCHAR(10) DEFAULT 'payment'"),
+            ("payments", "tendered", "FLOAT"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
             ("invoices", "payer_id", "INTEGER"),
             ("invoices", "coverage_card", "VARCHAR(60)"),

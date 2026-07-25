@@ -51,10 +51,13 @@ def capability_required(capability):
 
 def cashier_access(view):
     """Allow the cashier/checkout screens to users who can reach the finance
-    module *or*, in small-clinic mode, anyone holding the ``cashier`` capability
-    (typically reception). Small-clinic mode lets one person run reception and
-    the till without exposing the clinic's P&L / expenses / reports, which stay
-    gated behind full finance access.
+    module *or* anyone holding the ``cashier`` capability (typically reception).
+
+    Reception has to collect money and see what it collected — that used to
+    require handing them the *whole* finance module (P&L, expenses, payroll,
+    claims) or switching the clinic into small-clinic mode. The ``cashier``
+    capability alone is enough for the till: everything else stays behind
+    ``module_required("finance")``.
     """
 
     @wraps(view)
@@ -64,10 +67,7 @@ def cashier_access(view):
         from app.utils.facility import module_enabled
         if not module_enabled("finance"):
             abort(404)
-        if current_user.can_access("finance"):
-            return view(*args, **kwargs)
-        from app.models import Setting
-        if Setting.get("small_clinic_mode", "0") == "1" and current_user.can("cashier"):
+        if current_user.can_access("finance") or current_user.can("cashier"):
             return view(*args, **kwargs)
         abort(403, description=t("auth.no_permission"))
 

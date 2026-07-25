@@ -554,6 +554,21 @@ def _current_shift_id():
     return shift.id if shift else None
 
 
+def _shift_label_presets():
+    """Ready-made shift names (صباحي/مسائي/ليلي) plus any label already used —
+    offered as a pick list on a free-text field, so a clinic that names its
+    shifts differently just types its own."""
+    presets = [t("shifts.preset_morning"), t("shifts.preset_evening"),
+               t("shifts.preset_night")]
+    used = [lbl for (lbl,) in db.session.query(CashierShift.label)
+            .filter(CashierShift.label.isnot(None)).distinct().all() if lbl]
+    out = []
+    for lbl in presets + used:
+        if lbl and lbl not in out:
+            out.append(lbl)
+    return out
+
+
 def _shift_gate_blocked():
     """Whether collecting money must be refused right now: the policy
     ``require_shift_to_collect`` (default ON) says every collection belongs
@@ -561,6 +576,40 @@ def _shift_gate_blocked():
     if Setting.get("require_shift_to_collect", "1") == "0":
         return False
     return _current_shift_id() is None
+
+
+def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None):
+    """Record one collection line and work out the change.
+
+    The cashier types what the patient actually handed over — a 200 note for a
+    127.50 bill. Only the open balance is applied to the invoice (so it can
+    never be overpaid); the surplus is **change to give back**, stored on the
+    payment so the receipt and the audit can show "paid 200, change 72.50".
+
+    Returns ``(payment_or_None, new_remaining, change)``.
+    """
+    try:
+        given = round(float(amt_raw), 2)
+    except (TypeError, ValueError):
+        return None, remaining, 0.0
+    if given <= 0 or remaining <= 0:
+        return None, remaining, 0.0
+    applied = round(min(given, remaining), 2)
+    change = round(given - applied, 2)
+    pay = Payment(
+        amount=applied, method=method if method in PAYMENT_METHODS else "cash",
+        tendered=given if change > 0 else None, notes=notes,
+        received_by=current_user.id, shift_id=shift_id)
+    invoice.payments.append(pay)
+    return pay, round(remaining - applied, 2), change
+
+
+def _flash_change(change):
+    """Tell the cashier, loudly, how much to hand back."""
+    if change and change > 0:
+        from app.utils.money import format_money
+        flash(t("cashier.change_flash").replace("{amount}", format_money(change)),
+              "warning")
 
 
 def _uncollected_by_patient(days=7):
@@ -684,7 +733,7 @@ def cashier():
         outstanding=outstanding, outstanding_total=outstanding_total,
         payment_methods=PAYMENT_METHODS,
         open_shift=open_shift, recent_shifts=recent_shifts,
-        uncollected=uncollected,
+        uncollected=uncollected, shift_label_presets=_shift_label_presets(),
     )
 
 
@@ -1308,24 +1357,18 @@ def checkout(appt_id):
             return redirect(url_for("finance.cashier"))
         shift_id = _current_shift_id()
         remaining = invoice.balance
+        change_total = 0.0
         for amt_raw, m in zip(amounts, methods):
-            try:
-                amt = float(amt_raw)
-            except (TypeError, ValueError):
-                continue
-            amt = min(amt, remaining)
-            if amt <= 0:
-                continue
-            invoice.payments.append(Payment(
-                amount=round(amt, 2), method=m if m in PAYMENT_METHODS else "cash",
-                received_by=current_user.id, shift_id=shift_id))
-            remaining = round(remaining - amt, 2)
+            _, remaining, change = _take_payment(invoice, amt_raw, m,
+                                                 remaining, shift_id)
+            change_total = round(change_total + change, 2)
         invoice.recalc_status()
         ActivityLog.record("invoice.checkout", user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
         db.session.commit()
         _post_journal_safe("invoice", invoice)
         flash(t("invoices.created"), "success")
+        _flash_change(change_total)
         return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id, auto=1))
 
     lines = _checkout_lines(appt, lang)
@@ -1521,23 +1564,14 @@ def invoice_payment(invoice_id):
         return redirect(url_for("finance.cashier")
                         if (request.form.get("next") or "") == "cashier"
                         else url_for("finance.invoice_view", invoice_id=invoice.id))
+    change_total = 0.0
     for amt_raw, m in zip(amounts, methods):
-        try:
-            amt = float(amt_raw)
-        except (TypeError, ValueError):
-            continue
-        amt = min(amt, remaining)
-        if amt <= 0:
-            continue
-        pay = Payment(
-            amount=round(amt, 2),
-            method=m if m in PAYMENT_METHODS else "cash",
-            received_by=current_user.id, notes=notes, shift_id=shift_id,
-        )
-        invoice.payments.append(pay)
-        new_payments.append(pay)
-        added += amt
-        remaining = round(remaining - amt, 2)
+        pay, remaining, change = _take_payment(invoice, amt_raw, m, remaining,
+                                               shift_id, notes=notes)
+        change_total = round(change_total + change, 2)
+        if pay is not None:
+            new_payments.append(pay)
+            added += pay.amount
     if added <= 0:
         flash(t("invoices.bad_amount"), "danger")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
@@ -1549,6 +1583,7 @@ def invoice_payment(invoice_id):
     for pay in new_payments:
         _post_journal_safe("payment", pay)
     flash(t("invoices.payment_added"), "success")
+    _flash_change(change_total)
     if (request.form.get("next") or "") == "cashier":
         return redirect(url_for("finance.cashier"))
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))

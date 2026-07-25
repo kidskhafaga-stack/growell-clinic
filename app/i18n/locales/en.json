@@ -2443,7 +2443,8 @@
     "amount": "Amount",
     "sign_cashier": "Cashier signature",
     "sign_manager": "Manager signature",
-    "print_report": "Print report"
+    "print_report": "Print report",
+    "change_flash": "Give the patient {amount} change"
   },
   "shifts": {
     "open_now": "Open shift",
@@ -2482,7 +2483,11 @@
     "number": "Shift no.",
     "counted": "Counted cash",
     "open_st": "Open",
-    "closed_st": "Closed"
+    "closed_st": "Closed",
+    "label_hint": "Pick one or type your own name.",
+    "preset_morning": "Morning",
+    "preset_evening": "Evening",
+    "preset_night": "Night"
   },
   "wizard": {
     "title": "Facility setup",
@@ -2669,7 +2674,11 @@
     "step3": "Choose payment method(s) or \"collect later\"",
     "step4": "Confirm → receipt prints and returns automatically",
     "one_path_warn": "Collect from this screen only — anything invoiced here will never appear again (no double billing).",
-    "includes_carryover": "The list includes previously uncollected dues (vaccines/services from an earlier visit)."
+    "includes_carryover": "The list includes previously uncollected dues (vaccines/services from an earlier visit).",
+    "tendered": "Cash received",
+    "change_due": "Change due",
+    "change_hint": "Give the change back before the patient leaves — it does not stay in the drawer.",
+    "pay_later_hint": "\"Collect later\" = credit: the invoice stays open with a balance the cashier settles later."
   },
   "report": {
     "title": "Comprehensive medical report",
