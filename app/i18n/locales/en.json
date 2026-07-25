@@ -2437,7 +2437,13 @@
     "uncollected_title": "Not yet billed",
     "uncollected_hint": "Vaccines or services the doctor added after the visit was collected — bill them now so nothing slips through.",
     "uncollected_items": "Items",
-    "collect_now": "Collect now"
+    "collect_now": "Collect now",
+    "print_title": "Daily till report",
+    "method": "Method",
+    "amount": "Amount",
+    "sign_cashier": "Cashier signature",
+    "sign_manager": "Manager signature",
+    "print_report": "Print report"
   },
   "shifts": {
     "open_now": "Open shift",
@@ -2471,7 +2477,12 @@
     "quick_close": "Close your shift",
     "quick_close_hint": "You have an open shift ({number}) — click to count and close.",
     "gate_blocked": "Open your shift before collecting — every amount must belong to a shift.",
-    "closed_at": "Closed at"
+    "closed_at": "Closed at",
+    "title": "Today's shifts",
+    "number": "Shift no.",
+    "counted": "Counted cash",
+    "open_st": "Open",
+    "closed_st": "Closed"
   },
   "wizard": {
     "title": "Facility setup",

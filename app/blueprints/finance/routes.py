@@ -611,18 +611,12 @@ def _uncollected_by_patient(days=7):
     return sorted(out.values(), key=lambda e: -e["total"])
 
 
-@finance_bp.route("/cashier")
-@cashier_access
-def cashier():
-    """Reception's till for the day: opening float, money taken in (by method),
-    expected cash to reconcile, and who still owes — with one-click collect."""
+def _drawer_summary(on_date):
+    """The day's drawer figures (shared by the cashier screen and its print)."""
     from collections import Counter
 
-    on_date = _cashier_date()
     start = datetime.combine(on_date, datetime.min.time())
     end = datetime.combine(on_date, datetime.max.time())
-
-    # Drawer: money moved on this day — payments in, refunds out.
     pays = Payment.query.filter(Payment.paid_at >= start, Payment.paid_at <= end).all()
     by_method = Counter()
     refunds = 0.0
@@ -637,16 +631,42 @@ def cashier():
             by_method[p.method] += amt
             if p.method == "cash":
                 cash_in += amt
-    collected = round(sum(v for v in by_method.values()), 2)
-    refunds = round(refunds, 2)
-    cash_collected = round(cash_in - cash_out, 2)
-
     drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
     opening_float = drawer.opening_float if drawer else 0
-    expected_cash = round(opening_float + cash_collected, 2)
-
+    cash_collected = round(cash_in - cash_out, 2)
     todays = Invoice.query.filter(Invoice.invoice_date == on_date).all()
-    billed_today = round(sum(i.total for i in todays), 2)
+    day_shifts = (CashierShift.query
+                  .filter(CashierShift.opened_at >= start,
+                          CashierShift.opened_at <= end)
+                  .order_by(CashierShift.opened_at).all())
+    return {
+        "drawer": drawer,
+        "opening_float": opening_float,
+        "by_method": dict(by_method),
+        "collected": round(sum(by_method.values()), 2),
+        "refunds": round(refunds, 2),
+        "cash_collected": cash_collected,
+        "expected_cash": round(opening_float + cash_collected, 2),
+        "billed_today": round(sum(i.total for i in todays), 2),
+        "day_shifts": day_shifts,
+    }
+
+
+@finance_bp.route("/cashier")
+@cashier_access
+def cashier():
+    """Reception's till for the day: opening float, money taken in (by method),
+    expected cash to reconcile, and who still owes — with one-click collect."""
+    on_date = _cashier_date()
+    day = _drawer_summary(on_date)
+    drawer = day["drawer"]
+    opening_float = day["opening_float"]
+    by_method = day["by_method"]
+    collected = day["collected"]
+    refunds = day["refunds"]
+    cash_collected = day["cash_collected"]
+    expected_cash = day["expected_cash"]
+    billed_today = day["billed_today"]
     outstanding = (Invoice.query.filter(Invoice.status.in_(["unpaid", "partial"]))
                    .order_by(Invoice.id.desc()).limit(100).all())
     outstanding_total = round(sum(i.balance for i in outstanding), 2)
@@ -666,6 +686,23 @@ def cashier():
         open_shift=open_shift, recent_shifts=recent_shifts,
         uncollected=uncollected,
     )
+
+
+@finance_bp.route("/cashier/print")
+@cashier_access
+def cashier_print():
+    """Printable daily till report (كشف الخزنة اليومي) — a clean standalone
+    document (not a screen print): drawer figures, money by method, and the
+    day's shifts with over/short. Per-print language via ?lang=ar|en."""
+    lang = request.args.get("lang")
+    if lang in ("ar", "en"):
+        from app.i18n import get_direction
+        g.lang = lang
+        g.direction = get_direction(lang)
+    on_date = _cashier_date()
+    day = _drawer_summary(on_date)
+    return render_template("finance/cashier_print.html", on_date=on_date,
+                           day=day, payment_methods=PAYMENT_METHODS)
 
 
 @finance_bp.route("/cashier/poll")

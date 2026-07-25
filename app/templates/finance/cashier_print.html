@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('cashier.print_title') }} — {{ on_date }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; line-height:1.5; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-weight:600; cursor:pointer; text-decoration:none; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .sheet { background:#fff; max-width:780px; margin:16px auto; padding:30px 36px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .head { display:flex; justify-content:space-between; border-bottom:2px solid var(--brand); padding-bottom:12px; }
+  .clinic { font-size:1.25rem; font-weight:800; color:var(--brand); }
+  h1 { text-align:center; font-size:1.1rem; margin:16px 0 4px; }
+  .meta { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+  h2 { font-size:.95rem; margin:18px 0 6px; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:start; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-size:.76rem; }
+  td.n, th.n { text-align:end; }
+  .sum { display:flex; gap:20px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+  .sum div { text-align:center; }
+  .sum .k { color:var(--muted); font-size:.78rem; }
+  .sum .v { font-size:1.15rem; font-weight:800; }
+  .neg { color:#c0392b; }
+  .pos { color:var(--brand); }
+  .sign { display:flex; justify-content:space-between; margin-top:36px; color:var(--muted); font-size:.85rem; }
+  .sign span { border-top:1px dashed var(--line); padding-top:6px; min-width:170px; text-align:center; }
+  @media print { body{background:#fff;} .toolbar{display:none;} .sheet{box-shadow:none;margin:0;max-width:none;padding:0;} @page{margin:14mm;} }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('finance.cashier', date=on_date.isoformat()) }}">← {{ t('common.back') }}</a>
+    <a class="btn" href="{{ url_for('finance.cashier_print', date=on_date.isoformat(), lang='ar') }}">العربية</a>
+    <a class="btn" href="{{ url_for('finance.cashier_print', date=on_date.isoformat(), lang='en') }}">English</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('reports.print') }}</button>
+  </div>
+
+  <div class="sheet">
+    <div class="head">
+      <div class="clinic">{{ clinic.name }}</div>
+      <div style="text-align:end;color:var(--muted);font-size:.85rem;">
+        {{ t('cashier.print_title') }}<br><span dir="ltr">{{ on_date }}</span></div>
+    </div>
+    <h1>{{ t('cashier.print_title') }}</h1>
+    <div class="meta" dir="ltr">{{ on_date }} · {{ t('weekdays.' ~ on_date.weekday()) }}</div>
+
+    <h2>{{ t('cashier.by_method') }}</h2>
+    <table>
+      <thead><tr><th>{{ t('cashier.method') }}</th><th class="n">{{ t('cashier.amount') }}</th></tr></thead>
+      <tbody>
+        {% for m in payment_methods %}
+        <tr><td>{{ t('payment_methods.' ~ m) }}</td><td class="n">{{ day.by_method.get(m, 0)|money }}</td></tr>
+        {% endfor %}
+        <tr style="font-weight:700;"><td>{{ t('cashier.collected_total') }}</td><td class="n">{{ day.collected|money }}</td></tr>
+        <tr><td>{{ t('cashier.refunds') }}</td><td class="n neg">−{{ day.refunds|money }}</td></tr>
+        <tr><td>{{ t('cashier.billed_today') }}</td><td class="n">{{ day.billed_today|money }}</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sum">
+      <div><div class="k">{{ t('cashier.opening_float') }}</div><div class="v">{{ day.opening_float|money }}</div></div>
+      <div><div class="k">{{ t('cashier.cash_collected') }}</div><div class="v">{{ day.cash_collected|money }}</div></div>
+      <div><div class="k">{{ t('cashier.expected_cash') }}</div><div class="v pos">{{ day.expected_cash|money }}</div></div>
+    </div>
+
+    {% if day.day_shifts %}
+    <h2>{{ t('shifts.title') }}</h2>
+    <table>
+      <thead><tr>
+        <th>{{ t('shifts.number') }}</th><th>{{ t('shifts.cashier') }}</th>
+        <th class="n">{{ t('cashier.opening_float') }}</th><th class="n">{{ t('shifts.collected') }}</th>
+        <th class="n">{{ t('cashier.expected_cash') }}</th><th class="n">{{ t('shifts.counted') }}</th>
+        <th class="n">{{ t('shifts.variance') }}</th><th>{{ t('common.status') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for s in day.day_shifts %}
+        <tr>
+          <td dir="ltr">{{ s.shift_number or s.id }}</td>
+          <td>{{ s.opener.display_name(current_lang) if s.opener else '—' }}</td>
+          <td class="n">{{ s.opening_float|money }}</td>
+          <td class="n">{{ s.collected|money }}</td>
+          <td class="n">{{ s.expected_cash|money }}</td>
+          <td class="n">{{ s.counted_cash|money if s.counted_cash is not none else '—' }}</td>
+          <td class="n {{ 'neg' if s.variance is not none and s.variance < 0 else '' }}">
+            {{ s.variance|money if s.variance is not none else '—' }}</td>
+          <td>{{ t('shifts.open_st') if s.status == 'open' else t('shifts.closed_st') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="sign">
+      <span>{{ t('cashier.sign_cashier') }}</span>
+      <span>{{ t('cashier.sign_manager') }}</span>
+    </div>
+  </div>
+</body>
+</html>

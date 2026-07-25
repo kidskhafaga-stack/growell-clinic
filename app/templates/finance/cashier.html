@@ -21,7 +21,7 @@
     <div class="form-row" style="margin:0;"><label>{{ t('appointments.date') }}</label>
       <input class="input" type="date" name="date" value="{{ on_date }}"></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-calendar-check"></i> {{ t('reports.show') }}</button>
-    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.cashier_print', date=on_date.isoformat()) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('cashier.print_report') }}</a>
   </form>
 </div>
 
