@@ -49,7 +49,8 @@
     "filter": "Filter",
     "refresh": "Refresh",
     "action": "Action",
-    "reset": "Reset"
+    "reset": "Reset",
+    "not_found": "Not found"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -3324,5 +3325,30 @@
     "warn_no_weight": "Enter the child's weight for weight-based dosing.",
     "warn_no_rule": "No dosing rule recorded for this ingredient — add one from the reference screen.",
     "nav": "Drug reference"
+  },
+  "periods": {
+    "title": "Accounting periods",
+    "subtitle": "Close the month once it's reviewed — a closed period takes no more money.",
+    "year": "Year",
+    "generate": "Create this year's months",
+    "generated": "{n} period(s) created.",
+    "hint": "If the months aren't listed, create them. Nothing is closed automatically.",
+    "period": "Period",
+    "from": "From",
+    "to": "To",
+    "open": "Open",
+    "closed": "Closed",
+    "close": "Close period",
+    "reopen": "Reopen",
+    "close_confirm": "Close this period? No money can be recorded in it afterwards.",
+    "reopen_confirm": "Reopening a closed period is exceptional and is logged under your name. Continue?",
+    "closed_ok": "{name} is now closed.",
+    "reopened_ok": "{name} is open again — changes to it are logged.",
+    "closed_by": "Closed by",
+    "admin_only": "Admin only",
+    "none": "No periods for this year — create the months.",
+    "locked_warn": "{name} is closed for accounting — no money can be recorded or changed in it. Reopen the period first if a correction is genuinely needed.",
+    "lock_note": "A closed period blocks: creating or editing an invoice dated in it, collections, refunds, expenses and manual journal entries — so old reports stay as printed.",
+    "nav": "Accounting periods"
   }
 }

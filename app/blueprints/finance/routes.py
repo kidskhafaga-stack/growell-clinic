@@ -166,6 +166,8 @@ def journal_entry_new():
         entry_date = datetime.strptime(raw_date, "%Y-%m-%d").date() if raw_date else date.today()
     except ValueError:
         entry_date = date.today()
+    if _period_blocked(entry_date):
+        return redirect(url_for("finance.journal"))
 
     # Parallel arrays: account code, debit, credit per row.
     codes = request.form.getlist("line_account")
@@ -578,6 +580,21 @@ def _shift_gate_blocked():
     if Setting.get("require_shift_to_collect", "1") == "0":
         return False
     return _current_shift_id() is None
+
+
+def _period_blocked(on_date, flash_it=True):
+    """Whether ``on_date`` falls inside a closed accounting period.
+
+    A closed month is closed for money: the January report a clinic printed
+    must still read the same in March. Callers bail out instead of writing."""
+    from app.utils.periods import locked_period
+
+    period = locked_period(on_date)
+    if period is None:
+        return False
+    if flash_it:
+        flash(t("periods.locked_warn").replace("{name}", period.name), "danger")
+    return True
 
 
 def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None):
@@ -1680,6 +1697,10 @@ def invoice_payment(invoice_id):
     # One invoice can be settled with several methods at once (e.g. 500 cash +
     # 1000 card + 500 instapay). The form submits parallel amount[]/method[]
     # lists; a single quick-pay is just a one-element list.
+    # A closed accounting period is a harder rule than the shift gate, so it
+    # is checked first — the cashier gets the real reason, not "open a shift".
+    if _period_blocked(invoice.invoice_date):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     # Shift gate: money only enters the drawer inside an open shift.
     if _shift_gate_blocked():
         flash(t("shifts.gate_blocked"), "warning")
@@ -1735,6 +1756,8 @@ def invoice_refund(invoice_id):
     if not amount or amount <= 0:
         flash(t("invoices.bad_amount"), "danger")
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    if _period_blocked(invoice.invoice_date):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
     # F4 approval workflow: unless the setting is off, only admins refund
     # directly — everyone else files a request a manager must approve.
@@ -1780,6 +1803,8 @@ def invoice_refund(invoice_id):
 @cashier_access
 def invoice_item_add(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
+    if _period_blocked(invoice.invoice_date):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     item = _add_item_from_form(invoice)
     if item is None:
         flash(t("invoices.need_item"), "warning")
@@ -1799,6 +1824,8 @@ def invoice_item_add(invoice_id):
 @cashier_access
 def invoice_item_delete(invoice_id, item_id):
     invoice = db.get_or_404(Invoice, invoice_id)
+    if _period_blocked(invoice.invoice_date):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     item = db.session.get(InvoiceItem, item_id)
     if item and item.invoice_id == invoice.id:
         db.session.delete(item)
@@ -1813,6 +1840,8 @@ def invoice_item_delete(invoice_id, item_id):
 @cashier_access
 def invoice_item_edit(invoice_id, item_id):
     invoice = db.get_or_404(Invoice, invoice_id)
+    if _period_blocked(invoice.invoice_date):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     item = db.session.get(InvoiceItem, item_id)
     if not item or item.invoice_id != invoice.id:
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
@@ -1840,6 +1869,11 @@ def invoice_item_edit(invoice_id, item_id):
 def invoice_edit(invoice_id):
     """Edit invoice header fields (patient, doctor, payer, date, notes)."""
     invoice = db.get_or_404(Invoice, invoice_id)
+    if _period_blocked(invoice.invoice_date):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    moved_to = _parse_date_arg2(request.form.get("invoice_date"))
+    if moved_to and _period_blocked(moved_to):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     patient = db.session.get(Patient, request.form.get("patient_id", type=int))
     if patient is not None:
         invoice.patient_id = patient.id
@@ -1871,6 +1905,69 @@ def invoice_edit(invoice_id):
 # =======================================================================
 # Payer entities & discount claims
 # =======================================================================
+# ================================================ accounting periods =======
+@finance_bp.route("/periods", methods=["GET", "POST"])
+@module_required(MODULE)
+def periods():
+    """The books, month by month: which periods are open and which are closed.
+
+    Closing a month is an admin's decision and it is what makes a printed
+    report permanent — money can no longer be written into a closed month."""
+    from flask import abort
+
+    from app.models import AccountingPeriod
+    from app.utils.periods import close_period, generate_months, reopen_period
+
+    year = request.values.get("year", type=int) or date.today().year
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+        if action == "generate":
+            made = generate_months(year)
+            db.session.commit()
+            flash(t("periods.generated").replace("{n}", str(made)), "success")
+            return redirect(url_for("finance.periods", year=year))
+        if not current_user.is_admin:
+            abort(403)          # closing/reopening the books is admin-only
+        period = db.session.get(AccountingPeriod,
+                                request.form.get("period_id", type=int))
+        if period is None:
+            flash(t("common.not_found"), "danger")
+            return redirect(url_for("finance.periods", year=year))
+        if action == "close":
+            close_period(period, current_user.id)
+            ActivityLog.record("period.close", user_id=current_user.id,
+                               entity="accounting_period", entity_id=period.id,
+                               detail=period.name, ip_address=client_ip())
+            flash(t("periods.closed_ok").replace("{name}", period.name), "success")
+        elif action == "reopen":
+            reopen_period(period, current_user.id)
+            ActivityLog.record("period.reopen", user_id=current_user.id,
+                               entity="accounting_period", entity_id=period.id,
+                               detail=period.name, ip_address=client_ip())
+            flash(t("periods.reopened_ok").replace("{name}", period.name), "warning")
+        db.session.commit()
+        return redirect(url_for("finance.periods", year=year))
+
+    rows = (AccountingPeriod.query
+            .filter(db.extract("year", AccountingPeriod.start_date) == year)
+            .order_by(AccountingPeriod.start_date).all())
+    totals = {}
+    for p in rows:
+        invoices = Invoice.query.filter(
+            Invoice.invoice_date >= p.start_date,
+            Invoice.invoice_date <= p.end_date).all()
+        totals[p.id] = {
+            "billed": round(sum(i.total for i in invoices), 2),
+            "collected": round(sum(i.paid for i in invoices), 2),
+            "count": len(invoices),
+        }
+    years = sorted({y for (y,) in db.session.query(
+        db.extract("year", AccountingPeriod.start_date)).distinct().all() if y}
+        | {date.today().year})
+    return render_template("finance/periods.html", periods=rows, year=year,
+                           years=[int(y) for y in years], totals=totals)
+
+
 @finance_bp.route("/payers", methods=["GET", "POST"])
 @module_required(MODULE)
 def payers():
@@ -2494,6 +2591,8 @@ def expense_new():
         return redirect(url_for("finance.expenses", month=request.form.get("month")))
     exp = Expense(created_by=current_user.id, **data)
     exp.expense_date = parse_date_or_today(request.form.get("expense_date"))
+    if _period_blocked(exp.expense_date):
+        return redirect(url_for("finance.expenses", month=request.form.get("month")))
     db.session.add(exp)
     ActivityLog.record("expense.create", user_id=current_user.id, entity="expense",
                        detail=data["category"], ip_address=client_ip())
@@ -2507,6 +2606,8 @@ def expense_new():
 @module_required(MODULE)
 def expense_edit(expense_id):
     exp = db.get_or_404(Expense, expense_id)
+    if _period_blocked(exp.expense_date):
+        return redirect(url_for("finance.expenses", month=request.form.get("month")))
     for k, v in _read_expense(request.form).items():
         setattr(exp, k, v)
     exp.expense_date = parse_date_or_today(request.form.get("expense_date"), exp.expense_date)
@@ -2519,6 +2620,8 @@ def expense_edit(expense_id):
 @module_required(MODULE)
 def expense_delete(expense_id):
     exp = db.get_or_404(Expense, expense_id)
+    if _period_blocked(exp.expense_date):
+        return redirect(url_for("finance.expenses", month=request.form.get("month")))
     db.session.delete(exp)
     db.session.commit()
     flash(t("expenses.deleted"), "info")

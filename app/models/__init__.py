@@ -156,7 +156,9 @@ from app.models.payable import (
 from app.models.discount import DISCOUNT_TYPES, NamedDiscount
 from app.models.accounting import (
     ACCOUNT_TYPES,
+    PERIOD_STATUSES,
     Account,
+    AccountingPeriod,
     JournalEntry,
     JournalLine,
 )
@@ -215,6 +217,8 @@ __all__ = [
     "DIAGNOSIS_TYPES",
     "ICD_VERSIONS",
     "Vaccine",
+    "AccountingPeriod",
+    "PERIOD_STATUSES",
     "DrugClass",
     "GenericDrug",
     "GenericDoseBand",

@@ -94,3 +94,42 @@ class JournalLine(db.Model):
 
     def __repr__(self):
         return f"<JournalLine {self.account_id} D{self.debit} C{self.credit}>"
+
+
+PERIOD_STATUSES = ["open", "closed"]
+
+
+class AccountingPeriod(db.Model):
+    """A closed accounting period (فترة محاسبية) — the month/quarter/year the
+    books were reviewed and handed over.
+
+    Once a period is closed, money can no longer be written into it: no
+    back-dated invoice, payment, refund, expense or manual entry. That is the
+    whole point — a report you printed for January must still say the same
+    thing in March. An admin can reopen a period (a deliberate, logged act)
+    when something genuinely has to be corrected.
+    """
+
+    __tablename__ = "accounting_periods"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(60), nullable=False)      # يناير 2026
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date, nullable=False, index=True)
+    status = db.Column(db.String(10), default="open", nullable=False, index=True)
+    notes = db.Column(db.String(200))
+    closed_at = db.Column(db.DateTime)
+    closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    closer = db.relationship("User")
+
+    @property
+    def is_closed(self):
+        return self.status == "closed"
+
+    def covers(self, on_date):
+        return bool(on_date and self.start_date <= on_date <= self.end_date)
+
+    def __repr__(self):
+        return f"<AccountingPeriod {self.name} {self.status}>"

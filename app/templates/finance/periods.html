@@ -1,0 +1,88 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('periods.title') }}{% endblock %}
+{% block page_heading %}{{ t('periods.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('periods.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('periods.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.finance') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+  <form method="get" style="display:flex;gap:8px;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('periods.year') }}</label>
+      <select class="select" name="year" onchange="this.form.submit()" dir="ltr">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == year else '' }}>{{ y }}</option>{% endfor %}
+      </select></div>
+  </form>
+  <form method="post" style="display:flex;gap:8px;align-items:end;">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="action" value="generate">
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-calendar-plus"></i> {{ t('periods.generate') }}</button>
+  </form>
+  <p class="hint" style="margin:0;flex:1;min-width:240px;">{{ t('periods.hint') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if periods %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('periods.period') }}</th>
+      <th>{{ t('periods.from') }}</th><th>{{ t('periods.to') }}</th>
+      <th style="text-align:end;">{{ t('invoices.title') }}</th>
+      <th style="text-align:end;">{{ t('cashier.billed_today') }}</th>
+      <th style="text-align:end;">{{ t('invoices.paid') }}</th>
+      <th>{{ t('common.status') }}</th>
+      <th style="text-align:end;">{{ t('common.action') if t('common.action') != 'common.action' else t('common.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for p in periods %}
+      <tr>
+        <td><strong>{{ p.name }}</strong>
+          {% if p.is_closed and p.closer %}
+          <div style="color:var(--muted);font-size:.78rem;">
+            {{ t('periods.closed_by') }} {{ p.closer.display_name(current_lang) }}
+            {% if p.closed_at %}· <span dir="ltr">{{ p.closed_at.strftime('%Y-%m-%d') }}</span>{% endif %}</div>
+          {% endif %}</td>
+        <td dir="ltr">{{ p.start_date }}</td>
+        <td dir="ltr">{{ p.end_date }}</td>
+        <td style="text-align:end;">{{ totals[p.id].count }}</td>
+        <td style="text-align:end;">{{ totals[p.id].billed|money }}</td>
+        <td style="text-align:end;color:var(--green-700);">{{ totals[p.id].collected|money }}</td>
+        <td>
+          {% if p.is_closed %}<span class="badge badge--danger"><i class="bi bi-lock-fill"></i> {{ t('periods.closed') }}</span>
+          {% else %}<span class="badge badge--green"><i class="bi bi-unlock"></i> {{ t('periods.open') }}</span>{% endif %}
+        </td>
+        <td style="text-align:end;white-space:nowrap;">
+          {% if current_user.is_admin %}
+          <form method="post" style="display:inline;"
+                onsubmit="return confirm('{{ t('periods.close_confirm') if not p.is_closed else t('periods.reopen_confirm') }}');">
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="period_id" value="{{ p.id }}">
+            <input type="hidden" name="action" value="{{ 'reopen' if p.is_closed else 'close' }}">
+            {% if p.is_closed %}
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-unlock"></i> {{ t('periods.reopen') }}</button>
+            {% else %}
+            <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-lock"></i> {{ t('periods.close') }}</button>
+            {% endif %}
+          </form>
+          {% else %}
+          <span class="muted" style="color:var(--muted);font-size:.82rem;">{{ t('periods.admin_only') }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding:26px;">{{ t('periods.none') }}</div>
+  {% endif %}
+</div>
+
+<p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('periods.lock_note') }}</p>
+{% endblock %}
