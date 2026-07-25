@@ -327,6 +327,14 @@ def register_commands(app):
             backfill_item_codes()
         except Exception:  # noqa: BLE001
             pass
+        try:  # message log: one spelling per number, so one conversation per
+              # family instead of "01…" and "201…" sitting side by side
+            from app.utils.inbox import normalize_logged_phones
+            moved = normalize_logged_phones()
+            if moved:
+                click.echo(f"  ~ phone numbers normalised in {moved} message(s)")
+        except Exception:  # noqa: BLE001
+            pass
         try:  # drug reference: classes/ingredients/brands on a fresh install,
               # and link hand-typed drugs to their ingredient afterwards
             from app.utils.drugbook_seed import (link_existing_drugs,
