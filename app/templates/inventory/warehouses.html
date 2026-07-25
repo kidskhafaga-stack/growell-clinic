@@ -21,7 +21,8 @@
   <table class="table">
     <thead><tr>
       <th>{{ t('warehouses.name') }}</th><th>{{ t('warehouses.kind') }}</th>
-      <th>{{ t('warehouses.items_with_stock') }}</th><th>{{ t('common.status') }}</th>
+      <th>{{ t('warehouses.items_with_stock') }}</th>
+      <th>{{ t('warehouses.keepers') }}</th><th>{{ t('common.status') }}</th>
       <th style="text-align:end;"></th>
     </tr></thead>
     <tbody>
@@ -31,6 +32,33 @@
           {% if w.is_default %}<span class="badge badge--role">{{ t('warehouses.default') }}</span>{% endif %}</td>
         <td>{{ t('warehouses.kind_' ~ w.kind) }}</td>
         <td>{{ stock.get(w.id, 0) }}</td>
+        <td>
+          {% if w.keepers %}
+            {% for k in w.keepers %}<span class="badge badge--role">{{ k.display_name(current_lang) }}</span>{% endfor %}
+          {% else %}
+            <span class="muted" style="color:var(--muted);">{{ t('warehouses.keepers_open') }}</span>
+          {% endif %}
+          {% if staff %}
+          <details style="margin-top:6px;">
+            <summary style="cursor:pointer;color:var(--green-800);font-size:.85rem;">
+              <i class="bi bi-people"></i> {{ t('warehouses.set_keepers') }}</summary>
+            <form method="post" action="{{ url_for('inventory.warehouse_keepers', wh_id=w.id) }}"
+                  style="margin-top:8px;">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;max-width:420px;">
+                {% for u in staff %}
+                <label style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:5px 9px;font-size:.85rem;cursor:pointer;">
+                  <input type="checkbox" name="user_ids" value="{{ u.id }}"
+                         {{ 'checked' if w.keepers and u in w.keepers else '' }}>
+                  {{ u.display_name(current_lang) }}</label>
+                {% endfor %}
+              </div>
+              <button class="btn btn-outline btn-sm gc-press" type="submit" style="margin-top:8px;">
+                <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+              <p class="hint" style="margin:6px 0 0;">{{ t('warehouses.keepers_hint') }}</p>
+            </form>
+          </details>
+          {% endif %}
+        </td>
         <td><span class="status-badge {{ 'st-completed' if w.is_active else 'st-no_show' }}">
           {{ t('common.active') if w.is_active else t('common.inactive') }}</span></td>
         <td style="text-align:end;">

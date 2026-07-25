@@ -2938,7 +2938,13 @@
     "trf_reason": "Warehouse transfer {doc}",
     "trf_from_batch": "Transferred from batch #{n}",
     "transferred": "Transferred on document {doc}.",
-    "do_transfer": "Execute transfer"
+    "do_transfer": "Execute transfer",
+    "keepers": "Store keepers",
+    "keepers_open": "open to everyone",
+    "set_keepers": "Set keepers",
+    "keepers_saved": "Store keepers saved.",
+    "keepers_hint": "Leave empty to keep the warehouse open to everyone. Once a keeper is assigned, only they work in it — and they see only their own stores (admins see all).",
+    "no_access": "You are not a keeper of this warehouse — ask an admin."
   },
   "returns": {
     "title": "Return to supplier",
