@@ -109,8 +109,13 @@ class Drug(db.Model):
     # Commercial data (EDA / pharmacy): pack, price and barcode.
     pack_size = db.Column(db.String(60))
     price = db.Column(db.Float)
+    price_updated_at = db.Column(db.DateTime)     # when the price was last set
     barcode = db.Column(db.String(60), index=True)
     manufacturer = db.Column(db.String(120))
+    # Catalogue media: the package photo the parent recognises on the shelf,
+    # and the leaflet/SPC to read before prescribing.
+    image = db.Column(db.String(255))
+    leaflet = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -122,6 +127,30 @@ class Drug(db.Model):
         if self.strength:
             parts.append(self.strength)
         return " ".join(parts)
+
+    @property
+    def price_per_unit(self):
+        """Price per millilitre (or per unit of pack) — what makes two brands
+        of the same ingredient actually comparable."""
+        if not self.price or not self.pack_size:
+            return None
+        digits = "".join(c for c in str(self.pack_size)
+                         if c.isdigit() or c == ".").strip(".")
+        try:
+            size = float(digits)
+        except ValueError:
+            return None
+        return round(self.price / size, 3) if size > 0 else None
+
+    def alternatives(self, limit=12):
+        """Other products carrying the same active ingredient, cheapest first
+        (products with no price last) — the answer to "is there a cheaper one?"."""
+        if not self.generic_id:
+            return []
+        rows = [d for d in Drug.query.filter(Drug.generic_id == self.generic_id,
+                                             Drug.id != self.id,
+                                             Drug.is_active.is_(True)).all()]
+        return sorted(rows, key=lambda d: (d.price is None, d.price or 0))[:limit]
 
     def __repr__(self):
         return f"<Drug {self.trade_name}>"
