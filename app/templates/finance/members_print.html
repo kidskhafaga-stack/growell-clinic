@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('members.title') }} — {{ payer.display_name(current_lang) }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif; line-height:1.5; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-weight:600; cursor:pointer; text-decoration:none; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .sheet { background:#fff; max-width:820px; margin:16px auto; padding:30px 36px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .head { display:flex; justify-content:space-between; border-bottom:2px solid var(--brand); padding-bottom:12px; }
+  .clinic { font-size:1.25rem; font-weight:800; color:var(--brand); }
+  h1 { text-align:center; font-size:1.1rem; margin:16px 0 4px; }
+  .meta { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:start; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-size:.76rem; }
+  .sign { display:flex; justify-content:space-between; margin-top:36px; color:var(--muted); font-size:.85rem; }
+  .sign span { border-top:1px dashed var(--line); padding-top:6px; min-width:180px; text-align:center; }
+  @media print { body{background:#fff;} .toolbar{display:none;} .sheet{box-shadow:none;margin:0;max-width:none;padding:0;} @page{margin:14mm;} }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('finance.payer_members', payer_id=payer.id) }}">← {{ t('common.back') }}</a>
+    <a class="btn" href="{{ url_for('finance.payer_members', payer_id=payer.id, print=1, lang='ar') }}">العربية</a>
+    <a class="btn" href="{{ url_for('finance.payer_members', payer_id=payer.id, print=1, lang='en') }}">English</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('reports.print') }}</button>
+  </div>
+
+  <div class="sheet">
+    <div class="head">
+      <div class="clinic">{{ clinic.name }}</div>
+      <div style="text-align:end;color:var(--muted);font-size:.85rem;">
+        {{ t('members.title') }}<br><span dir="ltr">{{ today }}</span></div>
+    </div>
+    <h1>{{ payer.display_name(current_lang) }} — {{ t('members.title') }}</h1>
+    <div class="meta">{{ t('payer_types.' ~ payer.entity_type) }} · {{ t('members.count') }}: {{ rows|length }}</div>
+
+    <table>
+      <thead><tr>
+        <th>#</th>
+        <th>{{ t('appointments.patient') }}</th>
+        <th>{{ t('patients.file_number') }}</th>
+        <th>{{ t('coverage.membership_number') }}</th>
+        <th>{{ t('coverage.expiry') }}</th>
+        <th>{{ t('claims.phone') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for c in rows %}
+        <tr>
+          <td dir="ltr">{{ loop.index }}</td>
+          <td>{{ c.patient.display_name(current_lang) if c.patient else '—' }}</td>
+          <td dir="ltr">{{ c.patient.patient_number if c.patient else '—' }}</td>
+          <td dir="ltr">{{ c.membership_number or '—' }}</td>
+          <td dir="ltr">{{ c.expiry_date or '—' }}</td>
+          <td dir="ltr">{{ c.patient.contact_phone if c.patient else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="sign">
+      <span>{{ t('members.sign_clinic') }}</span>
+      <span>{{ t('members.sign_entity') }}</span>
+    </div>
+  </div>
+</body>
+</html>

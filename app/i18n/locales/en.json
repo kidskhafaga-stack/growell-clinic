@@ -1438,7 +1438,11 @@
     "on_label": "Discount on",
     "on_hint": "Which lines the discount reduces: all lines, or one service type (consultation / device / vaccination…).",
     "scope_all": "All lines",
-    "eligibility": "For whom"
+    "eligibility": "For whom",
+    "payer": "Entity / club",
+    "auto": "automatic for members",
+    "payer_hint": "Applied automatically to any patient holding a valid card for this entity — reception doesn't have to remember to pick it.",
+    "t_payer": "Entity / club discount"
   },
   "payment_methods": {
     "cash": "Cash",
@@ -3388,5 +3392,17 @@
     "locked_warn": "{name} is closed for accounting — no money can be recorded or changed in it. Reopen the period first if a correction is genuinely needed.",
     "lock_note": "A closed period blocks: creating or editing an invoice dated in it, collections, refunds, expenses and manual journal entries — so old reports stay as printed.",
     "nav": "Accounting periods"
+  },
+  "members": {
+    "title": "Entity members",
+    "count": "Members",
+    "none": "No members recorded for this entity yet.",
+    "how": "How does this agreement work?",
+    "discount_on": "Members automatically get a named discount — no price list needed:",
+    "contract_on": "This entity works by contract with a per-service price list (negotiated price and/or coverage).",
+    "nothing_on": "No member discount and no contract in force — members are billed at the normal prices.",
+    "add_hint": "Membership is recorded on the patient's file (coverage card) with the card number and expiry.",
+    "sign_clinic": "Clinic signature",
+    "sign_entity": "Entity representative"
   }
 }

@@ -33,6 +33,10 @@
       <div class="form-row" x-show="dt==='doctor'" x-cloak><label>{{ t('appointments.doctor') }}</label>
         <select class="select" name="doctor_id"><option value="">—</option>
           {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <div class="form-row" x-show="dt==='payer'" x-cloak><label>{{ t('discounts.payer') }}</label>
+        <select class="select" name="payer_id"><option value="">—</option>
+          {% for p in payers %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>{% endfor %}</select>
+        <div class="hint">{{ t('discounts.payer_hint') }}</div></div>
       <div class="form-row" x-show="dt==='category'" x-cloak><label>{{ t('discounts.category') }}</label>
         <select class="select" name="client_category"><option value="">—</option>
           {% for c in categories %}<option value="{{ c }}">{{ t('categories.' ~ c) }}</option>{% endfor %}</select></div>
@@ -56,6 +60,9 @@
         <td><span class="badge {{ 'badge--muted' if d.is_all_scope else 'badge--green' }}">{{ d.scope_label(current_lang) }}</span></td>
         <td>{% if d.dtype=='doctor' and d.doctor %}{{ d.doctor.display_name(current_lang) }}
             {% elif d.dtype=='category' and d.client_category %}{{ t('categories.' ~ d.client_category) }}
+            {% elif d.dtype=='payer' and d.payer %}
+              <a href="{{ url_for('finance.payer_members', payer_id=d.payer_id) }}">{{ d.payer.display_name(current_lang) }}</a>
+              <span class="badge badge--green">{{ t('discounts.auto') }}</span>
             {% else %}—{% endif %}</td>
         <td dir="ltr" style="color:var(--muted);font-size:0.85rem;">{{ d.start_date or '…' }} → {{ d.end_date or '…' }}</td>
         <td><span class="badge {{ 'badge--green' if d.is_active else 'badge--muted' }}">{{ t('common.active') if d.is_active else t('common.inactive') }}</span></td>
