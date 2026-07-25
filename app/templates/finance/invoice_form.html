@@ -39,11 +39,18 @@
       {% if discounts %}
       <div class="form-row"><label>{{ t('discounts.apply_named') }}</label>
         <select class="select" name="discount_id">
-          <option value="">{{ t('discounts.none_select') }}</option>
+          <option value="">{{ t('discounts.auto_mode') }}</option>
+          <option value="none">{{ t('discounts.none_select') }}</option>
           {% for d in discounts %}
           <option value="{{ d.id }}">{{ d.display_name(current_lang) }} — {{ d.value }}{{ '%' if d.is_percent else '' }} · {{ t('discounts.on') }} {{ d.scope_label(current_lang) }} ({{ t('discounts.t_' ~ d.dtype) }})</option>
           {% endfor %}
-        </select><div class="hint">{{ t('discounts.form_hint') }}</div></div>
+        </select>
+        {% if suggested %}
+        <div class="hint"><i class="bi bi-magic"></i>
+          {{ t('discounts.best_hint').replace('{name}', suggested.display_name(current_lang)).replace('{amount}', suggested_amount|money) }}</div>
+        {% endif %}
+        <div class="hint">{{ t('discounts.form_hint') }}</div>
+        <div class="hint">{{ t('discounts.no_stack_hint') }}</div></div>
       {% endif %}
     </div>
   </div>

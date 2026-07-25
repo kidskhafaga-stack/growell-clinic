@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="gc-animate" style="max-width:760px;margin:0 auto;"
-     x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }})'>
+     x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }}, {{ suggested_amount or 0 }})'>
   <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
     <div>
       <h1 class="page-title"><i class="bi bi-cash-coin"></i> {{ t('checkout.title') }}</h1>
@@ -68,10 +68,16 @@
     <!-- Discount + totals -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">
       <div class="form-row" style="margin:0 0 10px;"><label>{{ t('checkout.discount') }}</label>
-        <select class="select" name="discount_id" x-model.number="discountId" @change="recalc()">
-          <option value="">— {{ t('checkout.no_discount') }} —</option>
+        <select class="select" name="discount_id" x-model="discountId" @change="recalc()">
+          <option value="">— {{ t('discounts.auto_mode') }} —</option>
+          <option value="none">— {{ t('checkout.no_discount') }} —</option>
           {% for d in discounts %}<option value="{{ d.id }}" data-value="{{ d.value }}" data-percent="{{ 'true' if d.is_percent else 'false' }}">{{ d.display_name(current_lang) }} ({% if d.is_percent %}{{ d.value }}%{% else %}{{ d.value }}{% endif %}) · {{ t('discounts.on') }} {{ d.scope_label(current_lang) }}</option>{% endfor %}
-        </select></div>
+        </select>
+        {% if suggested %}
+        <div class="hint" x-show="discountId===''"><i class="bi bi-magic"></i>
+          {{ t('discounts.best_hint').replace('{name}', suggested.display_name(current_lang)).replace('{amount}', suggested_amount|money) }}</div>
+        {% endif %}
+        <div class="hint">{{ t('discounts.no_stack_hint') }}</div></div>
       <table class="table"><tbody>
         <tr><td>{{ t('invoices.subtotal') }}</td><td style="text-align:end;"><span x-text="subtotal.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
         <tr x-show="discountAmt>0"><td>{{ t('checkout.discount') }}</td><td style="text-align:end;color:var(--danger);"><span x-text="'−'+discountAmt.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
@@ -118,10 +124,10 @@
 </div>
 
 <script>
-  function checkout(initLines, methods) {
+  function checkout(initLines, methods, autoAmt) {
     return {
       lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||''})),
-      addId: '', discountId: '',
+      addId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,
       addLine() {
@@ -132,8 +138,12 @@
       },
       recalc() {
         this.subtotal = this.lines.reduce((s,l)=>s+(Number(l.unit_price)||0)*(l.quantity||1),0);
+        // '' = let the system pick the biggest rule (the server already
+        // priced it); 'none' = the cashier says no discount on this bill.
         var d = 0;
-        if (this.discountId) {
+        if (this.discountId === '') {
+          d = this.autoAmt;
+        } else if (this.discountId !== 'none') {
           var o = document.querySelector('select[name="discount_id"] option[value="'+this.discountId+'"]');
           if (o) { var v=Number(o.dataset.value)||0; d = o.dataset.percent==='true' ? this.subtotal*v/100 : v; }
         }

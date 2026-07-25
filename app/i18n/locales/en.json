@@ -1424,7 +1424,7 @@
   },
   "discounts": {
     "title": "Named discounts",
-    "subtitle": "Reusable discounts: campaign / doctor / category / special — on top of manual line discounts.",
+    "subtitle": "Reusable discounts: campaign / doctor / category / club / siblings — the biggest one applies.",
     "add": "Add discount",
     "name": "Name",
     "dtype": "Type",
@@ -1459,7 +1459,21 @@
     "t_sibling": "Sibling discount",
     "min_siblings": "Siblings needed",
     "sibling_hint": "Applies automatically once this many children of the same family are seen on the same day (booking, visit or invoice).",
-    "sibling_applied": "“{name}” applied — siblings from the same family on the same day."
+    "sibling_applied": "“{name}” applied — siblings from the same family on the same day.",
+    "updated": "Discount updated",
+    "service": "Specific service",
+    "service_any": "All services in scope",
+    "service_hint": "Pick a service and the discount touches only that line — the exam, say, and nothing else.",
+    "same_doctor": "Same doctor",
+    "same_doctor_hint": "The siblings must be seen by the same doctor on the same day for this to apply.",
+    "family_wide": "Covers siblings",
+    "family_wide_hint": "If the brother holds the club card, the child gets the member discount too.",
+    "auto_apply": "Applied automatically",
+    "auto_apply_hint": "The system picks it by itself when the patient qualifies. A special discount is always by hand.",
+    "auto_mode": "Automatic — the biggest discount",
+    "best_hint": "Biggest discount due: {name} — {amount}. You can change it.",
+    "no_stack_hint": "One discount per line: a patient entitled to several gets the biggest, never both.",
+    "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due."
   },
   "payment_methods": {
     "cash": "Cash",

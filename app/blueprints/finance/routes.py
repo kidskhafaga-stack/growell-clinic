@@ -980,33 +980,17 @@ def shift_report(shift_id):
                            payment_methods=PAYMENT_METHODS)
 
 
-def _member_discount(patient, on_date=None):
-    """A club/company discount the patient qualifies for by membership.
-
-    A club that just gives its members a flat percentage doesn't need a
-    negotiated price list — it needs one named discount tied to the payer.
-    Members then get it automatically, without reception remembering to pick
-    it. Returns the best (largest percentage / amount) match, or None."""
-    from app.models import NamedDiscount
-
-    if patient is None:
-        return None
-    rows = (NamedDiscount.query
-            .filter(NamedDiscount.dtype == "payer",
-                    NamedDiscount.is_active.is_(True)).all())
-    eligible = [d for d in rows if d.applies_to(patient, None, on_date)]
-    if not eligible:
-        return None
-    return sorted(eligible, key=lambda d: (d.is_percent, d.value or 0))[-1]
-
-
-def _siblings_seen_today(patient, on_date=None):
+def _siblings_seen_today(patient, on_date=None, doctor_id=None):
     """How many children of this family the clinic saw on ``on_date``.
 
     "Seen" is deliberately generous: a sibling counts once they have an
     appointment that wasn't cancelled, a visit, or an invoice that day — the
     discount is about the family's trip to the clinic, not about who happened
-    to be invoiced first."""
+    to be invoiced first.
+
+    Pass ``doctor_id`` to count only the children that doctor saw: "الأخوين
+    سوا" is one doctor's offer on their own list, so two children who saw two
+    different doctors on the same day are two separate visits, not a pair."""
     from app.models import Appointment
 
     if patient is None or not patient.family_id:
@@ -1016,41 +1000,105 @@ def _siblings_seen_today(patient, on_date=None):
     if not ids:
         return 0
     seen = {patient.id}
-    for row in (Appointment.query
-                .filter(Appointment.patient_id.in_(ids),
-                        Appointment.appt_date == day,
-                        Appointment.status.notin_(("cancelled", "no_show"))).all()):
-        seen.add(row.patient_id)
-    for row in (Visit.query.filter(Visit.patient_id.in_(ids),
-                                   Visit.visit_date == day).all()):
-        seen.add(row.patient_id)
-    for row in (Invoice.query.filter(Invoice.patient_id.in_(ids),
-                                     Invoice.invoice_date == day).all()):
-        seen.add(row.patient_id)
+    appts = Appointment.query.filter(
+        Appointment.patient_id.in_(ids), Appointment.appt_date == day,
+        Appointment.status.notin_(("cancelled", "no_show")))
+    visits = Visit.query.filter(Visit.patient_id.in_(ids), Visit.visit_date == day)
+    invoices = Invoice.query.filter(Invoice.patient_id.in_(ids),
+                                    Invoice.invoice_date == day)
+    if doctor_id:
+        appts = appts.filter(Appointment.doctor_id == doctor_id)
+        visits = visits.filter(Visit.doctor_id == doctor_id)
+        invoices = invoices.filter(Invoice.doctor_id == doctor_id)
+    for query in (appts, visits, invoices):
+        for row in query.all():
+            seen.add(row.patient_id)
     return len(seen)
 
 
-def _sibling_discount(patient, on_date=None):
-    """The family discount when enough siblings came together.
+def _sibling_rule_met(disc, patient, on_date=None, doctor_id=None):
+    """Whether enough siblings came together for this family rule to fire."""
+    if patient is None or not patient.family_id:
+        return False
+    count = _siblings_seen_today(patient, on_date,
+                                 doctor_id if disc.same_doctor else None)
+    return count >= max(disc.min_siblings or 2, 2)
 
-    "الأخوين سوا" is a real clinic offer, and reception shouldn't have to
-    count heads and remember to pick it — the rule says how many children of
-    one family make it apply, and the day's own bookings answer the rest."""
+
+def _line_discount_amount(item, disc):
+    """What ``disc`` would take off one invoice line — capped by the service.
+
+    Returns 0 for a line the rule doesn't reach, or one that already carries a
+    discount: nothing is ever stacked on top of an existing reduction."""
+    if (item.discount_value or 0) > 0:
+        return 0
+    if not disc.applies_to_line(item.service):
+        return 0
+    amount = disc.amount_for(item.gross)
+    service = item.service
+    if service is not None and service.max_discount:
+        amount = min(amount, round(item.gross * service.max_discount / 100.0, 2))
+    return max(amount, 0)
+
+
+def _discount_worth(invoice, disc):
+    """What this rule is actually worth on *this* invoice, in money.
+
+    Comparing rules by their headline percentage is the wrong question: 50% of
+    a 100 EGP exam is less than 20% of a 900 EGP bill, and a rule aimed at one
+    service may be worth nothing here at all. "The bigger discount" has to mean
+    the bigger number on the patient's own bill, so every candidate is priced
+    against the real lines before they are compared."""
+    return round(sum(_line_discount_amount(i, disc) for i in invoice.items), 2)
+
+
+def _auto_candidates(invoice, patient, doctor_id=None):
+    """Every named discount this invoice legitimately qualifies for."""
     from app.models import NamedDiscount
 
-    if patient is None or not patient.family_id:
+    on_date = invoice.invoice_date or date.today()
+    if doctor_id is None:
+        doctor_id = invoice.doctor_id
+    out = []
+    for disc in NamedDiscount.query.filter(NamedDiscount.is_active.is_(True)).all():
+        if disc.dtype == "special" or not disc.auto_apply:
+            continue                      # chosen by hand only
+        if not disc.applies_to(patient, doctor_id, on_date):
+            continue
+        if disc.dtype == "sibling" and not _sibling_rule_met(
+                disc, patient, on_date, doctor_id):
+            continue
+        out.append(disc)
+    return out
+
+
+def _best_discount(invoice, patient, doctor_id=None):
+    """The single largest discount the patient qualifies for — or None.
+
+    A child can be entitled to several at once: his club gives members 20% and
+    he came with his brother for 50%. He gets one of them — the bigger one —
+    never both, and reception can still overrule the pick."""
+    scored = [(_discount_worth(invoice, d), d.id, d)
+              for d in _auto_candidates(invoice, patient, doctor_id)]
+    scored = [row for row in scored if row[0] > 0]
+    if not scored:
         return None
-    rows = (NamedDiscount.query
-            .filter(NamedDiscount.dtype == "sibling",
-                    NamedDiscount.is_active.is_(True)).all())
-    live = [d for d in rows if d.in_window(on_date)]
-    if not live:
+    scored.sort(key=lambda row: (row[0], row[1]))
+    return scored[-1][2]
+
+
+def _auto_apply_best(invoice, patient, doctor_id=None):
+    """Pick and apply the biggest discount, and say which one it was."""
+    if invoice.discount_id is not None:
+        return None                        # reception already chose
+    best = _best_discount(invoice, patient, doctor_id)
+    if best is None:
         return None
-    count = _siblings_seen_today(patient, on_date)
-    eligible = [d for d in live if count >= max(d.min_siblings or 2, 2)]
-    if not eligible:
-        return None
-    return sorted(eligible, key=lambda d: (d.is_percent, d.value or 0))[-1]
+    _apply_named_discount(invoice, best)
+    flash(t("discounts.auto_applied")
+          .replace("{name}", best.display_name(getattr(g, "lang", "ar"))),
+          "info")
+    return best
 
 
 def _apply_cash_prices(invoice):
@@ -1073,13 +1121,17 @@ def _apply_cash_prices(invoice):
                                                                invoice.doctor)
 
 
-def _apply_coverage(invoice, patient):
+def _apply_coverage(invoice, patient, auto_discount=True):
     """Auto-apply a member's per-service coverage to the invoice lines.
 
     For each covered line the entity's share becomes the line discount (so the
     patient pays the rest and the entity share is claimable). Uncovered
     services are left untouched (patient pays full — option ب). An expired card
     is not applied automatically; the user is warned instead.
+
+    Afterwards the best named discount the patient qualifies for is applied to
+    whatever is still undiscounted — unless reception already picked one, or
+    asked for none (``auto_discount=False``).
     """
     coverage = patient.active_coverage if patient else None
     # If the card exists but is expired/inactive, warn and skip auto-apply.
@@ -1091,14 +1143,8 @@ def _apply_coverage(invoice, patient):
         # It is not a third party that pays, so no payer is stamped on the
         # invoice and nothing becomes claimable — it only sets the price.
         _apply_cash_prices(invoice)
-        if invoice.discount_id is None:
-            sibling = _sibling_discount(patient, invoice.invoice_date)
-            if sibling is not None:
-                _apply_named_discount(invoice, sibling)
-                flash(t("discounts.sibling_applied")
-                      .replace("{name}",
-                               sibling.display_name(getattr(g, "lang", "ar"))),
-                      "info")
+        if auto_discount:
+            _auto_apply_best(invoice, patient)
         return
 
     payer = coverage.payer
@@ -1127,20 +1173,11 @@ def _apply_coverage(invoice, patient):
                 item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
 
     # A club whose agreement is "members pay 15% less" carries no price list,
-    # so nothing above touched the invoice. Its member discount applies here —
-    # never on top of a line the coverage already reduced.
-    if invoice.discount_id is None:
-        member = _member_discount(patient, invoice.invoice_date)
-        if member is not None:
-            _apply_named_discount(invoice, member)
-    if invoice.discount_id is None:
-        # No club/company discount? then the family offer may still apply.
-        sibling = _sibling_discount(patient, invoice.invoice_date)
-        if sibling is not None:
-            _apply_named_discount(invoice, sibling)
-            flash(t("discounts.sibling_applied")
-                  .replace("{name}", sibling.display_name(getattr(g, "lang", "ar"))),
-                  "info")
+    # so nothing above touched the invoice — its member discount lands here.
+    # Same for the family offer. Whichever is worth more wins, and only on the
+    # lines the coverage didn't already reduce.
+    if auto_discount:
+        _auto_apply_best(invoice, patient)
 
 
 def _uncharged_vaccines(patient_id, days=2):
@@ -1318,11 +1355,10 @@ def invoice_new():
 
         # Apply a chosen named discount first (campaign/doctor/category/special),
         # then insurance coverage fills any remaining undiscounted lines.
-        disc = db.session.get(NamedDiscount, request.form.get("discount_id", type=int)) \
-            if request.form.get("discount_id", type=int) else None
-        if disc and disc.is_active:
+        disc, auto = _chosen_discount()
+        if disc is not None:
             _apply_named_discount(invoice, disc)
-        _apply_coverage(invoice, patient)
+        _apply_coverage(invoice, patient, auto_discount=auto)
 
         # Mark the patient's recently-given uncharged vaccines as billed here so
         # they aren't charged twice (they were pre-filled as lines above).
@@ -1402,8 +1438,11 @@ def invoice_new():
         prefill_lines.extend(
             _vaccine_prefill_lines(patient.id, doc, lang, has_vacc_base))
 
+    suggested, suggested_amount = _discount_preview(patient, doctor_id,
+                                                    prefill_lines)
     return render_template(
         "finance/invoice_form.html", patient=patient,
+        suggested=suggested, suggested_amount=suggested_amount,
         doctors=_doctors_active(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
@@ -1597,11 +1636,10 @@ def checkout(appt_id):
             flash(t("cashier.nothing_to_collect"), "warning")
             return redirect(url_for("finance.checkout", appt_id=appt.id))
 
-        disc = (db.session.get(NamedDiscount, request.form.get("discount_id", type=int))
-                if request.form.get("discount_id", type=int) else None)
-        if disc is not None and disc.applies_to(appt.patient, appt.doctor_id):
+        disc, auto = _chosen_discount()
+        if disc is not None:
             _apply_named_discount(invoice, disc)
-        _apply_coverage(invoice, appt.patient)
+        _apply_coverage(invoice, appt.patient, auto_discount=auto)
         invoice.recalc_status()
 
         # Split payment: parallel amount[]/method[] (collect now); may be empty
@@ -1635,30 +1673,73 @@ def checkout(appt_id):
         return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id, auto=1))
 
     lines = _checkout_lines(appt, lang)
+    suggested, suggested_amount = _discount_preview(appt.patient,
+                                                    appt.doctor_id, lines)
     return render_template(
         "finance/checkout.html", appt=appt, lines=lines,
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
+        suggested=suggested, suggested_amount=suggested_amount,
         payment_methods=PAYMENT_METHODS,
     )
 
 
+def _discount_preview(patient, doctor_id, lines):
+    """What the automatic pick *would* be for these draft lines → (disc, amount).
+
+    The invoice doesn't exist yet on the checkout screen, but the cashier needs
+    to see the discount before taking the money — not discover it on the
+    printed receipt. The draft lines are priced through the same chooser, so
+    what is shown is what will be applied."""
+    from types import SimpleNamespace
+
+    if patient is None or not lines:
+        return None, 0
+    items = []
+    for line in lines:
+        sid = str(line.get("service_id") or "")
+        svc = db.session.get(Service, int(sid)) if sid.isdigit() else None
+        try:
+            gross = (float(line.get("unit_price") or 0)
+                     * float(line.get("quantity") or 1))
+        except (TypeError, ValueError):
+            gross = 0
+        items.append(SimpleNamespace(service=svc, gross=round(gross, 2),
+                                     discount_value=0))
+    draft = SimpleNamespace(invoice_date=date.today(), doctor_id=doctor_id,
+                            items=items)
+    best = _best_discount(draft, patient, doctor_id)
+    return best, (_discount_worth(draft, best) if best is not None else 0)
+
+
+def _chosen_discount():
+    """Reception's pick on the submitted form → ``(discount, allow_auto)``.
+
+    Three answers, not two. Blank means "work it out for me" — the system
+    applies the biggest rule the patient qualifies for. ``none`` means the
+    cashier looked and decided this bill carries no discount. An id is the
+    cashier overruling the automatic pick, and it is honoured as chosen: they
+    are standing in front of the family and we are not."""
+    raw = (request.form.get("discount_id") or "").strip()
+    if raw == "none":
+        return None, False
+    if raw.isdigit():
+        disc = db.session.get(NamedDiscount, int(raw))
+        if disc is not None and disc.is_active:
+            return disc, False
+    return None, True
+
+
 def _apply_named_discount(invoice, disc):
-    """Apply a named discount to lines that have no manual discount yet — and,
-    when the discount is scoped (كشف / جهاز / تطعيم…), only to lines of that
-    service category, so a "vaccination discount" never touches the exam line."""
+    """Apply a named discount to lines that have no discount yet — and, when
+    the discount is aimed at a category (كشف / جهاز / تطعيم…) or at one named
+    service, only to those lines, so a "vaccination discount" never touches
+    the exam line. One named discount per invoice: a line that already carries
+    a reduction (manual, coverage, or an earlier rule) is left alone."""
     invoice.discount_id = disc.id
     invoice.discount_name = disc.display_name()
     for item in invoice.items:
-        if (item.discount_value or 0) > 0:
-            continue  # keep manual discounts
-        if not disc.applies_to_line(item.service):
-            continue  # out of this discount's scope
-        amount = disc.amount_for(item.gross)
-        # Respect a service's max discount cap (percentage of gross).
-        if item.service and item.service.max_discount:
-            cap = round(item.gross * item.service.max_discount / 100.0, 2)
-            amount = min(amount, cap)
+        amount = _line_discount_amount(item, disc)
         if amount > 0:
             item.discount_value = amount
             item.discount_is_percent = False
@@ -1675,22 +1756,9 @@ def discounts():
         if not name:
             flash(t("common.required") + ": " + t("discounts.name"), "danger")
             return redirect(url_for("finance.discounts"))
-        dtype = (request.form.get("dtype") or "special").strip()
-        scope = (request.form.get("scope") or "all").strip()
-        db.session.add(NamedDiscount(
-            name=name,
-            name_en=(request.form.get("name_en") or "").strip() or None,
-            dtype=dtype if dtype in DISCOUNT_TYPES else "special",
-            scope=scope if scope in SERVICE_CATEGORIES else "all",
-            value=request.form.get("value", type=float) or 0,
-            is_percent=(request.form.get("unit") or "percent") == "percent",
-            doctor_id=request.form.get("doctor_id", type=int) or None,
-            client_category=(request.form.get("client_category") or "").strip() or None,
-            payer_id=request.form.get("payer_id", type=int) or None,
-            min_siblings=max(request.form.get("min_siblings", type=int) or 2, 2),
-            start_date=_parse_date_arg("start_date"),
-            end_date=_parse_date_arg("end_date"),
-        ))
+        row = NamedDiscount(name=name)
+        _fill_discount(row)
+        db.session.add(row)
         db.session.commit()
         flash(t("discounts.added"), "success")
         return redirect(url_for("finance.discounts"))
@@ -1701,8 +1769,47 @@ def discounts():
                                                NamedDiscount.name).all(),
         types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES,
         service_categories=SERVICE_CATEGORIES, doctors=_doctors_active(),
+        services=Service.query.filter_by(is_active=True)
+        .order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True)
         .order_by(PayerEntity.name).all())
+
+
+def _fill_discount(row):
+    """Read one discount's fields off the submitted form (add and edit share it)."""
+    name = (request.form.get("name") or "").strip()
+    if name:
+        row.name = name
+    row.name_en = (request.form.get("name_en") or "").strip() or None
+    dtype = (request.form.get("dtype") or row.dtype or "special").strip()
+    row.dtype = dtype if dtype in DISCOUNT_TYPES else "special"
+    scope = (request.form.get("scope") or "all").strip()
+    row.scope = scope if scope in SERVICE_CATEGORIES else "all"
+    row.service_id = request.form.get("service_id", type=int) or None
+    row.value = request.form.get("value", type=float) or 0
+    row.is_percent = (request.form.get("unit") or "percent") == "percent"
+    row.doctor_id = request.form.get("doctor_id", type=int) or None
+    row.client_category = (request.form.get("client_category") or "").strip() or None
+    row.payer_id = request.form.get("payer_id", type=int) or None
+    row.min_siblings = max(request.form.get("min_siblings", type=int) or 2, 2)
+    row.same_doctor = bool(request.form.get("same_doctor"))
+    row.family_wide = bool(request.form.get("family_wide"))
+    row.auto_apply = bool(request.form.get("auto_apply"))
+    row.start_date = _parse_date_arg("start_date")
+    row.end_date = _parse_date_arg("end_date")
+    return row
+
+
+@finance_bp.route("/discounts/<int:discount_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def discount_edit(discount_id):
+    """Edit a discount in place — the offer changes, the rule shouldn't have to
+    be deleted and retyped (and the invoices that used it keep their name)."""
+    row = db.get_or_404(NamedDiscount, discount_id)
+    _fill_discount(row)
+    db.session.commit()
+    flash(t("discounts.updated"), "success")
+    return redirect(url_for("finance.discounts"))
 
 
 @finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])
