@@ -264,11 +264,24 @@
   .brand-catchup { font-size:0.82rem; line-height:1.5; color:var(--muted); padding:2px 12px 4px;
     border-inline-start:2px solid var(--line); margin-inline-start:6px; }
   .brand-catchup strong { color:var(--text); }
+  /* Dark styling follows the *app's* theme, not only the operating system:
+     on a machine set to dark, day mode used to get the pale dark-mode text on
+     its light chips — unreadable. The media query now applies only while the
+     app hasn't been switched to light, and the explicit [data-theme] rules
+     win in both directions. */
   @media (prefers-color-scheme: dark) {
-    .sched-chip { background:rgba(255,255,255,.06); }
-    .sched-chip.sched-primary { background:rgba(34,197,94,.16); color:#86efac; }
-    .sched-chip.sched-amber { background:rgba(245,158,11,.16); color:#fcd34d; }
-    .catchup-note { background:rgba(59,130,246,.14); color:#bfdbfe; }
+    :root:not([data-theme="light"]) .sched-chip { background:rgba(255,255,255,.06); }
+    :root:not([data-theme="light"]) .sched-chip.sched-primary { background:rgba(34,197,94,.16); color:#86efac; }
+    :root:not([data-theme="light"]) .sched-chip.sched-amber { background:rgba(245,158,11,.16); color:#fcd34d; }
+    :root:not([data-theme="light"]) .catchup-note { background:rgba(59,130,246,.14); color:#bfdbfe; }
   }
+  html[data-theme="dark"] .sched-chip { background:rgba(255,255,255,.06); }
+  html[data-theme="dark"] .sched-chip.sched-primary { background:rgba(34,197,94,.16); color:#86efac; }
+  html[data-theme="dark"] .sched-chip.sched-amber { background:rgba(245,158,11,.16); color:#fcd34d; }
+  html[data-theme="dark"] .catchup-note { background:rgba(59,130,246,.14); color:#bfdbfe; }
+  html[data-theme="light"] .sched-chip { background:var(--surface-2,#f1f5f9); color:var(--text); }
+  html[data-theme="light"] .sched-chip.sched-primary { background:#e6f4ea; color:#15803d; }
+  html[data-theme="light"] .sched-chip.sched-amber { background:#fef3c7; color:#b45309; }
+  html[data-theme="light"] .catchup-note { background:#eff6ff; color:#1e40af; }
 </style>
 {% endblock %}
