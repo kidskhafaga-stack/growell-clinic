@@ -682,8 +682,10 @@
     "open_study": "Open a study on a device",
     "no_devices": "No active devices — add them in settings.",
     "study_charged": "billed",
-    "study_charge_hint": "Saving the study adds the device's service to the visit's bill once, and the cashier collects it with everything else.",
-    "enter_results": "Enter results"
+    "study_charge_hint": "The service is added to the visit's bill **once**: if it is already on the visit, a second study on the same device adds no second charge, and once the cashier has invoiced it, it is never invoiced again.",
+    "enter_results": "Enter results",
+    "study_invoiced": "invoiced",
+    "study_stock_hint": "The consumables listed under each device are deducted from the store when the service is invoiced — once, with the invoice, not every time the screen is opened."
   },
   "diagnosis_types": {
     "working": "Working",

@@ -14,6 +14,18 @@ runs on install, on every upgrade, and on demand via ``flask seed-reference``.
 """
 from app.extensions import db
 
+# The devices a paediatric clinic runs studies on. Catalogue data, so it
+# belongs with the rest of the reference rather than only in the CLI.
+DEFAULT_DEVICES = [
+    ("جهاز وظائف تنفس", "Spirometer", "MIR", "Spirobank II", "spirometry", "WinSpiroPRO"),
+    ("جهاز رسم قلب", "ECG", None, None, "ecg", None),
+    ("جهاز إيكو", "Echocardiography", None, None, "echo", None),
+    ("جهاز رسم مخ", "EEG", None, None, "eeg", None),
+    ("جهاز موجات صوتية", "Ultrasound", None, None, "ultrasound", None),
+    ("جهاز سمعيات", "Audiometer", None, None, "audiometry", None),
+    ("جهاز ضغط الأذن", "Tympanometer", None, None, "tympanometry", None),
+]
+
 
 def _try(step, key, out):
     """Run one seeding step; a failure is recorded, never fatal."""
@@ -55,6 +67,20 @@ def seed_reference():
         link_existing_drugs()
         seed_interactions()
         return (made.get("generics", 0) or 0) + (made.get("brands", 0) or 0)
+
+    def _devices():
+        from app.models import MedicalDevice
+        made = 0
+        for name, name_en, manuf, model, dtype, sw in DEFAULT_DEVICES:
+            if MedicalDevice.query.filter_by(name=name).first() is not None:
+                continue
+            db.session.add(MedicalDevice(
+                name=name, name_en=name_en, manufacturer=manuf, model=model,
+                device_type=dtype, software=sw, connection_type="usb",
+                import_mode="manual", is_active=True, is_system=True))
+            made += 1
+        db.session.flush()
+        return made
 
     def _device_services():
         """Give every device the service that bills it.
@@ -109,6 +135,40 @@ def seed_reference():
         from app.utils.store_seed import seed_store_items_if_empty
         return seed_store_items_if_empty() or 0
 
+    def _device_consumables():
+        """Tie each device's service to what it burns per test.
+
+        Running the spirometer costs a mouthpiece and a filter; the ECG costs
+        electrodes and paper. Billing the service deducts them from the store,
+        so the shelf and the bill tell the same story. Fill-only: a clinic that
+        edited its own list is left alone."""
+        from app.models import MedicalDevice, ServiceConsumable, StoreItem
+
+        burns = {
+            "spirometry": (("مبسم وظائف تنفس", 1), ("فلتر بكتيري لوظائف التنفس", 1)),
+            "ecg": (("أقطاب رسم قلب", 4), ("ورق رسم قلب", 1)),
+            "echo": (("جل الموجات الصوتية", 1),),
+            "ultrasound": (("جل الموجات الصوتية", 1),),
+            "eeg": (("أقطاب رسم مخ", 8),),
+            "audiometry": (("فوهة قياس السمع", 2),),
+        }
+        items = {i.name: i for i in StoreItem.query.all()}
+        made = 0
+        for dev in MedicalDevice.query.filter_by(is_active=True).all():
+            svc = next((s for s in dev.services if s.is_active), None)
+            if svc is None or svc.consumables:
+                continue                      # never overwrite the clinic's own
+            for item_name, qty in burns.get(dev.device_type, ()):
+                item = items.get(item_name)
+                if item is None:
+                    continue
+                db.session.add(ServiceConsumable(
+                    service_id=svc.id, store_item_id=item.id, quantity=qty))
+                svc.needs_consumables = True
+                made += 1
+        db.session.flush()
+        return made
+
     def _templates():
         from app.utils.whatsapp import seed_system_templates
         return seed_system_templates() or 0
@@ -118,8 +178,10 @@ def seed_reference():
     _try(_drugs, "drugs", out)
     _try(_investigations, "investigations", out)
     _try(_drugbook, "drug_reference", out)
+    _try(_devices, "devices", out)
     _try(_device_services, "device_services", out)
     _try(_store, "store_items", out)
+    _try(_device_consumables, "device_consumables", out)
     _try(_templates, "message_templates", out)
     db.session.commit()
     return out

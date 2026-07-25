@@ -1469,6 +1469,7 @@ def checkout(appt_id):
         qtys = request.form.getlist("line_qty")
         nocomms = request.form.getlist("line_no_commission")
         brands = request.form.getlist("line_brand_id")
+        new_items = []          # only these burn consumables (see below)
         for i, desc in enumerate(descs):
             desc = (desc or "").strip()
             try:
@@ -1503,6 +1504,18 @@ def checkout(appt_id):
             if svc is not None and not no_comm:
                 item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
             invoice.items.append(item)
+            new_items.append(item)
+
+        # Consumables: a billed service burns store items (a spirometry burns a
+        # mouthpiece and a filter). This used to happen only when a line was
+        # added to an existing invoice, so the main checkout never deducted
+        # anything. Deducted once, here, as the invoice is raised.
+        db.session.flush()
+        burned = 0
+        for item in new_items:
+            if item.service_id is None:
+                continue
+            burned += _deduct_service_consumables(item, invoice)
 
         # Mark any uncharged vaccines + visit services as billed here (never twice).
         for dose in _uncharged_vaccines(appt.patient_id):
@@ -1547,6 +1560,8 @@ def checkout(appt_id):
         db.session.commit()
         _post_journal_safe("invoice", invoice)
         flash(t("invoices.created"), "success")
+        if burned:
+            flash(t("services.consumables_deducted", n=burned), "info")
         _flash_change(change_total)
         return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id, auto=1))
 

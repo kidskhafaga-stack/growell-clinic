@@ -555,15 +555,22 @@
     {% if study_devices %}
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
       {% for d in study_devices %}
-      <a class="btn btn-outline gc-press"
+      <a class="btn btn-outline gc-press" style="flex-direction:column;align-items:flex-start;gap:4px;"
          href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=d.device.id, visit_id=visit.id) }}">
-        <i class="bi bi-activity"></i> {{ d.device.display_name(current_lang) }}
-        {% if d.price %}<span class="badge badge--role">{{ d.price|money }}</span>{% endif %}
-        {% if d.charged %}<span class="badge badge--green">{{ t('visits.study_charged') }}</span>{% endif %}
+        <span><i class="bi bi-activity"></i> {{ d.device.display_name(current_lang) }}
+          {% if d.price %}<span class="badge badge--role">{{ d.price|money }}</span>{% endif %}
+          {% if d.invoiced %}<span class="badge badge--green">{{ t('visits.study_invoiced') }}</span>
+          {% elif d.charged %}<span class="badge badge--green">{{ t('visits.study_charged') }}</span>{% endif %}
+        </span>
+        {% if d.consumables %}
+        <span class="hint" style="font-size:.76rem;"><i class="bi bi-box-seam"></i>
+          {% for name, qty in d.consumables %}{{ name }} ×{{ qty }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+        {% endif %}
       </a>
       {% endfor %}
     </div>
     <p class="hint" style="margin-top:8px;">{{ t('visits.study_charge_hint') }}</p>
+    <p class="hint" style="margin-top:4px;"><i class="bi bi-box-seam"></i> {{ t('visits.study_stock_hint') }}</p>
     {% else %}
     <p style="color:var(--muted);">{{ t('visits.no_devices') }}</p>
     {% endif %}
