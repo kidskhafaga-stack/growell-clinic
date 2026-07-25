@@ -30,7 +30,7 @@
 
 {% if device %}
 {% if device.measurements %}
-<form method="post" action="{{ url_for('visits.study_new', patient_id=patient.id, device_id=device.id) }}">
+<form method="post" action="{{ url_for('visits.study_new', patient_id=patient.id, device_id=device.id, visit_id=visit_id or None) }}">
   <div class="card gc-scale-in" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end;">
       <h2 class="section-title" style="margin:0;"><i class="bi bi-rulers"></i> {{ device.display_name(current_lang) }}</h2>
