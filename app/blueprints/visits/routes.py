@@ -241,11 +241,17 @@ def record(visit_id):
     for dev in (MedicalDevice.query.filter_by(is_active=True)
                 .order_by(MedicalDevice.name).all()):
         svc = next((sv for sv in dev.services if sv.is_active), None)
+        charged_row = next((vs for vs in visit.services
+                            if svc and vs.service_id == svc.id), None)
         study_devices.append({
             "device": dev, "service": svc,
             "price": (svc.price_for(visit.doctor) if svc else None),
-            "charged": bool(svc and any(vs.service_id == svc.id
-                                        for vs in visit.services)),
+            "charged": charged_row is not None,
+            # Already on an invoice? then the cashier has taken it — the study
+            # screen says so instead of leaving the doctor to wonder.
+            "invoiced": bool(charged_row and charged_row.invoice_id),
+            "consumables": [(c.item.display_name(getattr(g, "lang", "ar")), c.quantity)
+                            for c in (svc.consumables if svc else []) if c.item],
         })
     # Medicines written in this visit + their safety check (dose for this
     # child's weight/age, and interactions between what's on the list).
