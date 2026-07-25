@@ -1800,7 +1800,21 @@
     "rates_btn": "Prices",
     "copy_btn": "Copy contract",
     "copy_hint": "A new copy with the same price list — adjust prices and dates afterwards.",
-    "copied": "Contract copied with its price list ({n} rows) — adjust prices and dates"
+    "copied": "Contract copied with its price list ({n} rows) — adjust prices and dates",
+    "scheduled": "Scheduled",
+    "bills_today": "In force today",
+    "bills_today_hint": "This is the contract invoices are priced from today.",
+    "overlap_badge": "Overlapping",
+    "overlap_badge_hint": "Shares days with another contract — the later start date bills.",
+    "overlap_warn": "This contract overlaps {n} other contract(s) — ({winner}) is the one that bills on the shared days (the later start date).",
+    "period_hint": "A contract can be set to start on a given date (it stays \"scheduled\" until then), and several contracts may cover the same period — the one starting later is the one that bills.",
+    "cash_list": "Cash price list",
+    "cash_list_hint": "The walk-in patient's price list — applied automatically to every invoice with no payer, with no card and nothing to tick per patient. Prices come from the contract in force on the invoice date.",
+    "cash_payer": "Entity holding the list",
+    "cash_none": "None (plain service prices)",
+    "cash_active": "The list is pricing cash invoices.",
+    "cash_inactive": "No contract in force — invoices use the plain service prices.",
+    "cash_saved": "Cash price list saved."
   },
   "reports": {
     "title": "Reports",
