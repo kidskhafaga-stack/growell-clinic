@@ -3445,5 +3445,15 @@
     "add_hint": "Membership is recorded on the patient's file (coverage card) with the card number and expiry.",
     "sign_clinic": "Clinic signature",
     "sign_entity": "Entity representative"
+  },
+  "allergy": {
+    "title": "Allergy warning",
+    "line_match": "the file records an allergy to",
+    "line_caution": "possible cross-reaction with a recorded allergy to",
+    "flash_match": "Allergy warning: “{drug}” — the file records an allergy to “{allergy}”. Review before dispensing.",
+    "flash_caution": "Caution: “{drug}” belongs to a family that may cross-react with the recorded allergy “{allergy}”.",
+    "reason_same_drug": "the same drug or the recorded trade name.",
+    "reason_same_family": "the same drug family as the recorded allergy.",
+    "reason_cross_family": "a related family — cross-reaction is possible, not certain."
   }
 }

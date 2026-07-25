@@ -1,6 +1,9 @@
 """Safety checks for a list of medicines — used by the visit and the rx writer.
 
-Two questions get asked every time a doctor writes a drug for a child:
+Three questions get asked every time a doctor writes a drug for a child:
+
+* **is the child allergic to it?** — the allergies already on the file, matched
+  against the ingredient, the brand and the drug family;
 
 * **is this dose right for this child?** — the paediatric rules on the active
   ingredient, run against the patient's own weight and age;
@@ -14,6 +17,7 @@ here blocks the doctor: it returns warnings for the screen to show.
 """
 from app.extensions import db
 from app.models import Drug, DrugInteraction, GenericDrug
+from app.utils.allergy import check_drug
 from app.utils.dosing import age_months_of, calculate, latest_weight
 
 
@@ -100,6 +104,11 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
             "generic_name": generic.display_name(lang) if generic else "",
             "result": None,
             "warnings": [],
+            # The allergy check runs even when the ingredient is unknown — a
+            # hand-typed brand the reference has never seen still gets matched
+            # against what the parent told us.
+            "allergy": check_drug(patient, generic=generic, drug=it.get("drug"),
+                                  name=it.get("name") or ""),
         }
         if generic is not None:
             generic_ids.append(generic.id)
@@ -118,8 +127,9 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
         "interactions": interaction_pairs(generic_ids),
         "weight": weight_kg,
         "age_months": age_months,
-        "has_warnings": any(l["warnings"] for l in lines) or bool(
-            interaction_pairs(generic_ids)),
+        "has_warnings": (any(l["warnings"] or l["allergy"] for l in lines)
+                         or bool(interaction_pairs(generic_ids))),
+        "allergies": [l for l in lines if l["allergy"]],
     }
 
 
@@ -136,6 +146,7 @@ def as_json(result, lang="ar"):
             "ml": (l["result"] or {}).get("ml"),
             "doses_per_day": (l["result"] or {}).get("doses_per_day"),
             "warnings": l["warnings"],
+            "allergy": l["allergy"],
         } for l in result["lines"]],
         "interactions": [{
             "a": r.pair_names(lang)[0],

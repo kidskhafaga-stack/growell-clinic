@@ -616,9 +616,17 @@ def add_medication(visit_id):
     result = rx_check(visit.medications, patient=visit.patient,
                       lang=getattr(g, "lang", "ar"))
     for line in result["lines"]:
-        if line["name"] == med.name:
-            for w in line["warnings"]:
-                flash(f"{med.name}: " + t("drugbook.warn_" + w), "warning")
+        if line["name"] != med.name:
+            continue
+        alg = line.get("allergy")
+        if alg:
+            # The loudest warning in the room: the file says this child reacts
+            # to it. Never a block — the doctor decides, knowingly.
+            flash(t("allergy.flash_" + alg["level"])
+                  .replace("{drug}", med.name)
+                  .replace("{allergy}", alg["allergy"]), "danger")
+        for w in line["warnings"]:
+            flash(f"{med.name}: " + t("drugbook.warn_" + w), "warning")
     for r in result["interactions"]:
         a, b = r.pair_names(getattr(g, "lang", "ar"))
         msg = t("rx.interaction_line").replace("{a}", a).replace("{b}", b)
