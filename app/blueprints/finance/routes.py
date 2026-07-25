@@ -1000,6 +1000,59 @@ def _member_discount(patient, on_date=None):
     return sorted(eligible, key=lambda d: (d.is_percent, d.value or 0))[-1]
 
 
+def _siblings_seen_today(patient, on_date=None):
+    """How many children of this family the clinic saw on ``on_date``.
+
+    "Seen" is deliberately generous: a sibling counts once they have an
+    appointment that wasn't cancelled, a visit, or an invoice that day — the
+    discount is about the family's trip to the clinic, not about who happened
+    to be invoiced first."""
+    from app.models import Appointment
+
+    if patient is None or not patient.family_id:
+        return 0
+    day = on_date or date.today()
+    ids = {p.id for p in Patient.query.filter_by(family_id=patient.family_id).all()}
+    if not ids:
+        return 0
+    seen = {patient.id}
+    for row in (Appointment.query
+                .filter(Appointment.patient_id.in_(ids),
+                        Appointment.appt_date == day,
+                        Appointment.status.notin_(("cancelled", "no_show"))).all()):
+        seen.add(row.patient_id)
+    for row in (Visit.query.filter(Visit.patient_id.in_(ids),
+                                   Visit.visit_date == day).all()):
+        seen.add(row.patient_id)
+    for row in (Invoice.query.filter(Invoice.patient_id.in_(ids),
+                                     Invoice.invoice_date == day).all()):
+        seen.add(row.patient_id)
+    return len(seen)
+
+
+def _sibling_discount(patient, on_date=None):
+    """The family discount when enough siblings came together.
+
+    "الأخوين سوا" is a real clinic offer, and reception shouldn't have to
+    count heads and remember to pick it — the rule says how many children of
+    one family make it apply, and the day's own bookings answer the rest."""
+    from app.models import NamedDiscount
+
+    if patient is None or not patient.family_id:
+        return None
+    rows = (NamedDiscount.query
+            .filter(NamedDiscount.dtype == "sibling",
+                    NamedDiscount.is_active.is_(True)).all())
+    live = [d for d in rows if d.in_window(on_date)]
+    if not live:
+        return None
+    count = _siblings_seen_today(patient, on_date)
+    eligible = [d for d in live if count >= max(d.min_siblings or 2, 2)]
+    if not eligible:
+        return None
+    return sorted(eligible, key=lambda d: (d.is_percent, d.value or 0))[-1]
+
+
 def _apply_cash_prices(invoice):
     """Reprice the lines from the clinic's cash price list (التسعيرة النقدية).
 
@@ -1038,6 +1091,14 @@ def _apply_coverage(invoice, patient):
         # It is not a third party that pays, so no payer is stamped on the
         # invoice and nothing becomes claimable — it only sets the price.
         _apply_cash_prices(invoice)
+        if invoice.discount_id is None:
+            sibling = _sibling_discount(patient, invoice.invoice_date)
+            if sibling is not None:
+                _apply_named_discount(invoice, sibling)
+                flash(t("discounts.sibling_applied")
+                      .replace("{name}",
+                               sibling.display_name(getattr(g, "lang", "ar"))),
+                      "info")
         return
 
     payer = coverage.payer
@@ -1072,6 +1133,14 @@ def _apply_coverage(invoice, patient):
         member = _member_discount(patient, invoice.invoice_date)
         if member is not None:
             _apply_named_discount(invoice, member)
+    if invoice.discount_id is None:
+        # No club/company discount? then the family offer may still apply.
+        sibling = _sibling_discount(patient, invoice.invoice_date)
+        if sibling is not None:
+            _apply_named_discount(invoice, sibling)
+            flash(t("discounts.sibling_applied")
+                  .replace("{name}", sibling.display_name(getattr(g, "lang", "ar"))),
+                  "info")
 
 
 def _uncharged_vaccines(patient_id, days=2):
@@ -1618,6 +1687,7 @@ def discounts():
             doctor_id=request.form.get("doctor_id", type=int) or None,
             client_category=(request.form.get("client_category") or "").strip() or None,
             payer_id=request.form.get("payer_id", type=int) or None,
+            min_siblings=max(request.form.get("min_siblings", type=int) or 2, 2),
             start_date=_parse_date_arg("start_date"),
             end_date=_parse_date_arg("end_date"),
         ))

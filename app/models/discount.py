@@ -9,7 +9,8 @@ from datetime import date, datetime
 
 from app.extensions import db
 
-DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "special"]
+DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "sibling",
+                  "special"]
 
 
 class NamedDiscount(db.Model):
@@ -37,6 +38,9 @@ class NamedDiscount(db.Model):
     client_category = db.Column(db.String(20))
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"),
                          nullable=True, index=True)
+    # Sibling discount: how many children of the same family have to be seen
+    # on the same day before it applies (2 = "two brothers together").
+    min_siblings = db.Column(db.Integer, default=2)
 
     # Optional validity window (used by campaigns; open-ended otherwise).
     start_date = db.Column(db.Date)
@@ -87,6 +91,10 @@ class NamedDiscount(db.Model):
         if self.dtype == "category":
             cat = patient.client_category if patient else None
             return self.client_category is not None and self.client_category == cat
+        if self.dtype == "sibling":
+            # Needs the day's context (who else from the family was seen), so
+            # the caller decides — here we only confirm the rule is live.
+            return patient is not None and patient.family_id is not None
         if self.dtype == "payer":
             # Members only: the patient must hold a *valid* card for this payer.
             if self.payer_id is None or patient is None:

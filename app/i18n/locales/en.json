@@ -1455,7 +1455,11 @@
     "payer": "Entity / club",
     "auto": "automatic for members",
     "payer_hint": "Applied automatically to any patient holding a valid card for this entity — reception doesn't have to remember to pick it.",
-    "t_payer": "Entity / club discount"
+    "t_payer": "Entity / club discount",
+    "t_sibling": "Sibling discount",
+    "min_siblings": "Siblings needed",
+    "sibling_hint": "Applies automatically once this many children of the same family are seen on the same day (booking, visit or invoice).",
+    "sibling_applied": "“{name}” applied — siblings from the same family on the same day."
   },
   "payment_methods": {
     "cash": "Cash",
