@@ -90,6 +90,11 @@ class Drug(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     trade_name = db.Column(db.String(160), nullable=False, index=True)
     generic_name = db.Column(db.String(160), index=True)
+    # Link to the drug reference (المرجع الدوائي): the active ingredient this
+    # brand carries. Optional — a brand typed in a hurry still works, it just
+    # doesn't get the paediatric dosing and the safety flags.
+    generic_id = db.Column(db.Integer, db.ForeignKey("generic_drugs.id"),
+                           nullable=True, index=True)
     form = db.Column(db.String(20))
     strength = db.Column(db.String(60))            # e.g. "250 mg/5 ml"
     default_dose = db.Column(db.String(120))       # suggested dose text
@@ -101,9 +106,16 @@ class Drug(db.Model):
     dose_per_kg = db.Column(db.Float)
     max_per_kg = db.Column(db.Float)
     conc_mg_per_ml = db.Column(db.Float)
+    # Commercial data (EDA / pharmacy): pack, price and barcode.
+    pack_size = db.Column(db.String(60))
+    price = db.Column(db.Float)
+    barcode = db.Column(db.String(60), index=True)
+    manufacturer = db.Column(db.String(120))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    generic = db.relationship("GenericDrug", back_populates="brands")
 
     def label(self, lang="ar"):
         parts = [self.trade_name]
