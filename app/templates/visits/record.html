@@ -85,6 +85,9 @@
       <i class="bi bi-capsule"></i> {{ t('visits.medications') }}
       {% if visit.medications %}<span class="vtab-count">{{ visit.medications|length }}</span>{% endif %}
       {% if med_safety and med_safety.has_warnings %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='consent' && 'active'" x-on:click="go('consent')">
+      <i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}
+      {% if consent and consent.missing %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='studies' && 'active'" x-on:click="go('studies')">
       <i class="bi bi-activity"></i> {{ t('visits.studies') }}
       {% if visit.studies %}<span class="vtab-count">{{ visit.studies|length }}</span>{% endif %}</button>
@@ -531,6 +534,84 @@
         <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="instructions" x-model="instructions"></div>
       </div>
       <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.add_medication') }}</button>
+    </form>
+  </div>
+
+  <!-- Informed consent, in the room where it's needed -->
+  <div class="card gc-scale-in" id="consent" x-show="tab==='consent'" style="animation-delay:0.25s;">
+    <h2 class="section-title"><i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('consent.visit_hint') }}</p>
+
+    {% if consent and consent.needed %}
+    <table class="table" style="margin-bottom:14px;">
+      <thead><tr>
+        <th>{{ t('consent.type') }}</th><th>{{ t('consent.why') }}</th><th>{{ t('common.status') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for n in consent.needed %}
+        <tr>
+          <td><strong>{{ t('consent.types.' ~ n.kind) }}</strong></td>
+          <td style="color:var(--muted);">{{ t('consent.reason_' ~ n.reason) }}</td>
+          <td>
+            {% if n.kind in consent.signed %}
+            <span class="badge badge--green"><i class="bi bi-check2"></i> {{ t('consent.signed') }}</span>
+            {% else %}
+            <span class="badge badge--danger"><i class="bi bi-exclamation-triangle"></i> {{ t('consent.missing') }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if visit.patient.consents %}
+    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-archive"></i> {{ t('consent.on_file') }}</h3>
+    <table class="table" style="margin-bottom:14px;">
+      <tbody>
+        {% for c in visit.patient.consents[:6] %}
+        <tr>
+          <td><span class="badge badge--role">{{ t('consent.types.' ~ c.consent_type) }}</span></td>
+          <td>{{ c.guardian_name }}{% if c.guardian_relation %} <span style="color:var(--muted);">({{ c.guardian_relation }})</span>{% endif %}</td>
+          <td dir="ltr">{{ c.signed_date }}</td>
+          <td style="text-align:end;">
+            <a class="btn btn-outline btn-sm gc-press" target="_blank"
+               href="{{ url_for('patients.print_consent', consent_id=c.id) }}">
+              <i class="bi bi-printer"></i> {{ t('reports.print') }}</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-pen"></i> {{ t('consent.record_now') }}</h3>
+    <form method="post" action="{{ url_for('visits.add_visit_consent', visit_id=visit.id) }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('consent.type') }}</label>
+          <select class="select" name="consent_type">
+            {% for n in (consent.missing if consent and consent.missing else consent.needed) %}
+            <option value="{{ n.kind }}">{{ t('consent.types.' ~ n.kind) }}</option>
+            {% endfor %}
+            <option value="anesthesia">{{ t('consent.types.anesthesia') }}</option>
+            <option value="data_privacy">{{ t('consent.types.data_privacy') }}</option>
+            <option value="photography">{{ t('consent.types.photography') }}</option>
+          </select></div>
+        <div class="form-row"><label>{{ t('consent.guardian_name') }} *</label>
+          <input class="input" name="guardian_name" required
+                 value="{{ consent_guardian.name if consent_guardian else '' }}"></div>
+        <div class="form-row"><label>{{ t('consent.guardian_relation') }}</label>
+          <input class="input" name="guardian_relation"
+                 value="{{ consent_guardian.relation if consent_guardian else '' }}"></div>
+        <div class="form-row"><label>{{ t('consent.guardian_id_no') }}</label>
+          <input class="input" name="guardian_id_no" dir="ltr"
+                 value="{{ consent_guardian.id_no if consent_guardian else '' }}"></div>
+        <div class="form-row"><label>{{ t('common.notes') }}</label>
+          <input class="input" name="notes"></div>
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-check-lg"></i> {{ t('consent.record_now') }}</button>
+      <p class="hint" style="margin-top:8px;">{{ t('consent.print_hint') }}</p>
     </form>
   </div>
 
