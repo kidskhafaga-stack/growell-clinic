@@ -436,6 +436,16 @@
     </p>
     {% endif %}
 
+    {% if med_safety and med_safety.allergies %}
+    {% for l in med_safety.allergies %}
+    <div class="info-note" style="margin-bottom:8px;border-inline-start:4px solid var(--danger);color:var(--danger);">
+      <strong><i class="bi bi-exclamation-octagon-fill"></i> {{ l.name }}</strong> —
+      {{ t('allergy.line_' ~ l.allergy.level) }} «{{ l.allergy.allergy }}»
+      <span class="hint" style="display:inline;">{{ t('allergy.reason_' ~ l.allergy.reason) }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
     {% if med_safety and med_safety.interactions %}
     {% for r in med_safety.interactions %}
     <div class="info-note" style="margin-bottom:8px;border-inline-start:4px solid {{ 'var(--danger)' if r.severity == 'severe' else '#f0ad4e' }};">
@@ -465,6 +475,11 @@
               <i class="bi bi-prescription2"></i> {{ t('visits.med_on_rx') }}</span>
             {% endif %}
             {% if info and info.generic_name %}<div style="color:var(--muted);font-size:.8rem;">{{ info.generic_name }}</div>{% endif %}
+            {% if info and info.allergy %}
+            <div style="color:var(--danger);font-size:.82rem;font-weight:700;">
+              <i class="bi bi-exclamation-octagon-fill"></i>
+              {{ t('allergy.line_' ~ info.allergy.level) }} «{{ info.allergy.allergy }}»</div>
+            {% endif %}
             {% if info and info.warnings %}
               {% for w in info.warnings %}
               <div style="color:var(--danger);font-size:.8rem;"><i class="bi bi-exclamation-triangle-fill"></i> {{ t('drugbook.warn_' ~ w) }}</div>
