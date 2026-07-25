@@ -134,8 +134,10 @@ from app.models.message import (
     SYSTEM_TEMPLATE_TYPES,
     TEMPLATE_DEFAULTS,
     TEMPLATE_VARIABLES,
+    DEFAULT_QUICK_REPLIES,
     MessageLog,
     MessageTemplate,
+    QuickReply,
 )
 from app.models.feedback import FEEDBACK_STATUSES, Feedback
 from app.models.store import (
@@ -281,8 +283,10 @@ __all__ = [
     "DRUG_FORMS",
     "INVESTIGATION_KINDS",
     "RX_PAGE_SIZES",
+    "DEFAULT_QUICK_REPLIES",
     "MessageLog",
     "MessageTemplate",
+    "QuickReply",
     "MESSAGE_STATUSES",
     "MESSAGE_DIRECTIONS",
     "OCCASION_TYPES",

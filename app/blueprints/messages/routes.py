@@ -191,9 +191,15 @@ def inbox_thread(key):
     # How long the family waited for each answer, shown beside the bubbles —
     # the only way anyone notices a two-day reply.
     waits, pending = _reply_waits(msgs)
+    from app.utils.service_desk import (ai_available, quick_replies,
+                                        render_reply)
+    lang = getattr(g, "lang", "ar")
+    canned = [{"title": q.title, "body": render_reply(q.body, patient, lang)}
+              for q in quick_replies()]
     return render_template(
         "messages/thread.html", msgs=msgs, key=key, patient=patient,
         phone=phone, waits=waits, pending=pending,
+        canned=canned, ai_ready=ai_available(),
         patients=(Patient.query.filter_by(is_active=True)
                   .order_by(Patient.full_name).limit(500).all()
                   if patient is None else []))
@@ -225,6 +231,107 @@ def wait_label(minutes):
     if minutes < 60 * 24:
         return t("inbox.in_hours", n=round(minutes / 60.0, 1))
     return t("inbox.in_days", n=round(minutes / 1440.0, 1))
+
+
+@messages_bp.route("/inbox/<key>/ai-suggest", methods=["POST"])
+@module_required(MODULE)
+def inbox_ai_suggest(key):
+    """Draft a reply with the clinic's configured AI — into the box, not out.
+
+    The suggestion lands in the reply field for a human to read, change and
+    send. A clinic answering a worried parent is not a place for a machine
+    with a send button."""
+    from app.utils.service_desk import draft_reply
+
+    msgs = _thread_query(key).order_by(MessageLog.created_at).all()
+    patient = next((m.patient for m in msgs if m.patient), None)
+    result = draft_reply(msgs, patient, getattr(g, "lang", "ar"))
+    if not result.get("ok"):
+        reason = result.get("error") or "failed"
+        known = {"not_configured", "nothing_to_answer", "disabled", "empty"}
+        return {"ok": False,
+                "error": t("inbox.ai_" + reason) if reason in known
+                else t("inbox.ai_failed"),
+                "detail": str(reason)[:200]}, 200
+    return {"ok": True, "text": result["text"]}
+
+
+@messages_bp.route("/quick-replies", methods=["GET", "POST"])
+@module_required(MODULE)
+def quick_replies():
+    """The canned answers, edited from inside the program."""
+    from app.models import QuickReply
+    from app.utils.service_desk import (DEFAULT_AWAY_BODY, hours_config,
+                                        seed_quick_replies)
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        body = (request.form.get("body") or "").strip()
+        if not title or not body:
+            flash(t("common.required"), "warning")
+            return redirect(url_for("messages.quick_replies"))
+        db.session.add(QuickReply(
+            title=title, body=body, is_active=True,
+            sort_order=request.form.get("sort_order", type=int) or 100))
+        db.session.commit()
+        flash(t("quick.added"), "success")
+        return redirect(url_for("messages.quick_replies"))
+
+    if seed_quick_replies():
+        db.session.commit()
+    return render_template(
+        "messages/quick_replies.html",
+        replies=QuickReply.query.order_by(QuickReply.sort_order,
+                                          QuickReply.id).all(),
+        hours=hours_config(), default_away=DEFAULT_AWAY_BODY,
+        weekdays=list(range(7)))
+
+
+@messages_bp.route("/quick-replies/<int:reply_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def quick_reply_edit(reply_id):
+    from app.models import QuickReply
+
+    row = db.get_or_404(QuickReply, reply_id)
+    row.title = (request.form.get("title") or row.title).strip()
+    row.body = (request.form.get("body") or row.body).strip()
+    row.sort_order = request.form.get("sort_order", type=int) or row.sort_order
+    row.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("quick.updated"), "success")
+    return redirect(url_for("messages.quick_replies"))
+
+
+@messages_bp.route("/quick-replies/<int:reply_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def quick_reply_delete(reply_id):
+    from app.models import QuickReply
+
+    db.session.delete(db.get_or_404(QuickReply, reply_id))
+    db.session.commit()
+    flash(t("quick.deleted"), "info")
+    return redirect(url_for("messages.quick_replies"))
+
+
+@messages_bp.route("/away-hours", methods=["POST"])
+@module_required(MODULE)
+def away_hours():
+    """When the clinic answers, and what it says when it doesn't."""
+    from app.utils.service_desk import (DEFAULT_OPEN_FROM, DEFAULT_OPEN_TO,
+                                        DEFAULT_AWAY_BODY)
+
+    days = [d for d in request.form.getlist("open_days") if d.isdigit()]
+    Setting.set("wa_away_enabled", "1" if request.form.get("wa_away_enabled") else "0")
+    Setting.set("wa_open_days", ",".join(days))
+    Setting.set("wa_open_from",
+                (request.form.get("open_from") or "").strip() or DEFAULT_OPEN_FROM)
+    Setting.set("wa_open_to",
+                (request.form.get("open_to") or "").strip() or DEFAULT_OPEN_TO)
+    Setting.set("wa_away_body",
+                (request.form.get("away_body") or "").strip() or DEFAULT_AWAY_BODY)
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("messages.quick_replies"))
 
 
 @messages_bp.route("/inbox/<key>/link", methods=["POST"])

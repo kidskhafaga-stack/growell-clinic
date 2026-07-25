@@ -13,6 +13,8 @@
   <div style="display:flex;gap:8px;">
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}">
       <i class="bi bi-graph-up"></i> {{ t('inbox.dashboard') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.quick_replies') }}">
+      <i class="bi bi-lightning-charge"></i> {{ t('quick.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}">
       <i class="bi bi-chat-square-text"></i> {{ t('crm.title') }}</a>
   </div>

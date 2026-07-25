@@ -175,3 +175,45 @@ class MessageLog(db.Model):
 
     def __repr__(self):
         return f"<MessageLog to={self.to_phone} {self.status}>"
+
+
+class QuickReply(db.Model):
+    """A canned answer the front desk sends with one tap.
+
+    Reception answers the same five questions all day — the address, the
+    working hours, what a visit costs, when the next vaccine is due. Typing
+    them out again each time is how replies get slow and inconsistent, and how
+    a wrong price reaches a parent. These are written once, edited from inside
+    the program, and inserted into the reply box (never sent behind the user's
+    back — the words are still theirs to change before they go).
+    """
+    __tablename__ = "quick_replies"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(80), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    # Same {patient} / {clinic} tokens as every other template.
+    sort_order = db.Column(db.Integer, default=100, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<QuickReply {self.title}>"
+
+
+# Suggested starting set — created once on install, then the clinic's own.
+DEFAULT_QUICK_REPLIES = [
+    ("مواعيد العيادة",
+     "أهلاً بحضرتك 👋\nمواعيد {clinic}: من السبت للخميس، ٤ م – ١٠ م.\nتحب نحجزلك إمتى؟", 10),
+    ("تأكيد الحجز",
+     "تمام، حجزنا لـ{patient} ✅\nلو حصل أي تغيير كلّمنا على نفس الرقم ده.", 20),
+    ("سعر الكشف",
+     "سعر الكشف في {clinic} هو … جنيه، والاستشارة خلال أسبوعين مجانية.\nتحب نحجزلك؟", 30),
+    ("عنوان العيادة",
+     "عنوان {clinic}: …\nلو تحب نبعتلك اللوكيشن على الخريطة قول لنا.", 40),
+    ("موعد التطعيم",
+     "تطعيم {patient} الجاي موعده …\nيُفضّل الحجز قبلها بيوم عشان نضمن التوفر.", 50),
+    ("تعليمات بعد الزيارة",
+     "سلامته يارب 🌿\nلو الحرارة زادت عن ٣٨٫٥ أو ظهر أي عرض جديد، كلّمنا فوراً.", 60),
+]
