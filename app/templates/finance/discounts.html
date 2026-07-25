@@ -33,6 +33,9 @@
       <div class="form-row" x-show="dt==='doctor'" x-cloak><label>{{ t('appointments.doctor') }}</label>
         <select class="select" name="doctor_id"><option value="">—</option>
           {% for d in doctors %}<option value="{{ d.id }}">{{ d.display_name(current_lang) }}</option>{% endfor %}</select></div>
+      <div class="form-row" x-show="dt==='sibling'" x-cloak><label>{{ t('discounts.min_siblings') }}</label>
+        <input class="input" type="number" min="2" name="min_siblings" value="2" dir="ltr">
+        <div class="hint">{{ t('discounts.sibling_hint') }}</div></div>
       <div class="form-row" x-show="dt==='payer'" x-cloak><label>{{ t('discounts.payer') }}</label>
         <select class="select" name="payer_id"><option value="">—</option>
           {% for p in payers %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>{% endfor %}</select>
@@ -60,6 +63,9 @@
         <td><span class="badge {{ 'badge--muted' if d.is_all_scope else 'badge--green' }}">{{ d.scope_label(current_lang) }}</span></td>
         <td>{% if d.dtype=='doctor' and d.doctor %}{{ d.doctor.display_name(current_lang) }}
             {% elif d.dtype=='category' and d.client_category %}{{ t('categories.' ~ d.client_category) }}
+            {% elif d.dtype=='sibling' %}
+              {{ t('discounts.min_siblings') }}: {{ d.min_siblings or 2 }}
+              <span class="badge badge--green">{{ t('discounts.auto') }}</span>
             {% elif d.dtype=='payer' and d.payer %}
               <a href="{{ url_for('finance.payer_members', payer_id=d.payer_id) }}">{{ d.payer.display_name(current_lang) }}</a>
               <span class="badge badge--green">{{ t('discounts.auto') }}</span>
