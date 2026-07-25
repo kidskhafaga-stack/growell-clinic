@@ -35,14 +35,15 @@ source .venv/bin/activate
 python -m pip install --upgrade pip >/dev/null 2>&1 || true
 pip install -r requirements.txt
 
-# 4) Initialise the database + demo data on first run
+# 4) Initialise the database on first run, then ALWAYS upgrade it. The upgrade
+#    step is what adds new columns/tables after an update, so it must run on
+#    every start - not only when a database already existed.
 if [ ! -f "instance/growell.db" ]; then
   echo "[3/4] Initialising database and seeding demo data..."
   flask --app run seed
-else
-  echo "[3/4] Database found - applying any safe upgrades..."
-  flask --app run upgrade-db
 fi
+echo "[3/4] Applying any safe database upgrades..."
+flask --app run upgrade-db
 
 # 5) Launch the app and open the browser
 echo "[4/4] Starting GROWELL CLINIC at http://localhost:5000"
