@@ -84,11 +84,15 @@
       <input class="input" type="number" min="0" max="23" name="backup_hour" value="{{ bset.hour }}">
     </div>
     <div class="form-row" style="margin:0;max-width:150px;">
+      <label class="check" style="display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" name="backup_include_files" value="1" {{ 'checked' if bset.include_files else '' }}>
+        {{ t('backups.include_files') }}</label>
       <label>{{ t('backups.keep') }}</label>
       <input class="input" type="number" min="1" max="365" name="backup_keep" value="{{ bset.keep }}">
     </div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
     <div class="hint" style="flex-basis:100%;margin:0;">{{ t('backups.auto_hint') }}</div>
+    <div class="hint" style="flex-basis:100%;margin:0;"><i class="bi bi-images"></i> {{ t('backups.include_files_hint') }}</div>
   </form>
   {% if backups %}
   <div style="overflow-x:auto;margin-top:12px;">
@@ -101,7 +105,9 @@
       <tbody>
         {% for b in backups %}
         <tr>
-          <td dir="ltr" style="font-family:monospace;font-size:.85rem;">{{ b.name }}</td>
+          <td dir="ltr" style="font-family:monospace;font-size:.85rem;">{{ b.name }}
+            {% if b.has_files %}<span class="badge badge--green" dir="auto"><i class="bi bi-images"></i> {{ b.has_files }}</span>
+            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.no_files_hint') }}">{{ t('backups.no_files') }}</span>{% endif %}</td>
           <td>{{ b.created.strftime('%Y-%m-%d %H:%M') }}</td>
           <td style="text-align:end;">{{ '%.1f'|format(b.size / 1048576) }} MB</td>
           <td style="text-align:end;white-space:nowrap;">

@@ -10,7 +10,8 @@
 
 <div class="card gc-scale-in" style="max-width:720px;animation-delay:0.1s;">
   <form method="post" enctype="multipart/form-data"
-        x-data="{ photo: null }">
+        x-data="{ photo: null, role: '{{ form.role or 'reception' }}',
+                  practitioner: {{ 'true' if form.is_practitioner else 'false' }} }">
     <!-- Photo (same avatar + interactive circular crop as the profile) -->
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
       <template x-if="photo"><img :src="photo" class="patient-avatar lg" alt=""></template>
@@ -43,7 +44,7 @@
       </div>
       <div class="form-row">
         <label for="role">{{ t('users.role') }} *</label>
-        <select class="select" id="role" name="role" required>
+        <select class="select" id="role" name="role" x-model="role" required>
           {% for role in roles %}
             <option value="{{ role.name }}" {{ 'selected' if form.role == role.name else '' }}>
               {{ role.label(current_lang) }}
@@ -82,7 +83,7 @@
       </div>
       <div class="form-row checkbox" style="align-self:end;">
         <input type="checkbox" id="is_practitioner" name="is_practitioner" value="1"
-               {{ 'checked' if form.is_practitioner else '' }}>
+               x-model="practitioner" {{ 'checked' if form.is_practitioner else '' }}>
         <label for="is_practitioner" style="margin:0;font-weight:400;">{{ t('users.is_practitioner') }}</label>
       </div>
       {% if current_user.is_owner %}
@@ -95,6 +96,70 @@
       {% endif %}
     </div>
     <p class="hint" style="margin:-4px 0 0;"><i class="bi bi-info-circle"></i> {{ t('users.is_practitioner_hint') }}</p>
+
+    <!-- Profile: filled in here so a new member of staff arrives complete,
+         instead of the clinic waiting for them to log in and do it. -->
+    <h2 class="section-title" style="margin-top:18px;">
+      <i class="bi bi-person-vcard"></i> {{ t('users.profile_section') }}</h2>
+    <p class="hint" style="margin:-6px 0 10px;">{{ t('users.profile_hint') }}</p>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="job_title">{{ t('profile.job_title') }}</label>
+        <input class="input" id="job_title" name="job_title" value="{{ form.job_title or '' }}">
+      </div>
+      <div class="form-row">
+        <label for="branch">{{ t('profile.branch') }}</label>
+        <input class="input" id="branch" name="branch" value="{{ form.branch or '' }}">
+      </div>
+    </div>
+
+    <template x-if="role === 'doctor' || practitioner">
+      <div>
+        <h2 class="section-title" style="margin-top:16px;">
+          <i class="bi bi-file-medical"></i> {{ t('users.rx_identity') }}</h2>
+        <p class="hint" style="margin:-6px 0 10px;">{{ t('users.rx_identity_hint') }}</p>
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="rx_display_name">{{ t('profile.rx_name') }}</label>
+            <input class="input" id="rx_display_name" name="rx_display_name" value="{{ form.rx_display_name or '' }}">
+          </div>
+          <div class="form-row">
+            <label for="professional_title">{{ t('profile.prof_title') }}</label>
+            <select class="select" id="professional_title" name="professional_title">
+              <option value="">—</option>
+              {% for ti in titles or [] %}
+              <option value="{{ ti }}" {{ 'selected' if form.professional_title == ti else '' }}>{{ ti }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="specialty">{{ t('profile.specialty') }}</label>
+            <input class="input" id="specialty" name="specialty" value="{{ form.specialty or '' }}">
+          </div>
+          <div class="form-row">
+            <label for="sub_specialties">{{ t('profile.sub_specialties') }}</label>
+            <input class="input" id="sub_specialties" name="sub_specialties" value="{{ form.sub_specialties or '' }}">
+          </div>
+          <div class="form-row">
+            <label for="license_no">{{ t('profile.license') }}</label>
+            <input class="input" id="license_no" name="license_no" value="{{ form.license_no or '' }}">
+          </div>
+        </div>
+        <div class="form-grid">
+          {% for f in ['signature_file', 'stamp_file', 'personal_logo'] %}
+          <div class="form-row">
+            <label for="{{ f }}">{{ t('profile.' ~ {'signature_file':'signature','stamp_file':'stamp','personal_logo':'personal_logo'}[f]) }}</label>
+            {% if editing and user[f] %}
+            <img src="{{ url_for('static', filename='uploads/users/' ~ user[f]) }}"
+                 alt="" style="max-height:52px;max-width:150px;object-fit:contain;margin-bottom:6px;">
+            {% endif %}
+            <input class="input" type="file" id="{{ f }}" name="{{ f }}" accept="image/*">
+          </div>
+          {% endfor %}
+        </div>
+        <p class="hint" style="margin:6px 0 0;"><i class="bi bi-images"></i> {{ t('users.rx_media_hint') }}</p>
+      </div>
+    </template>
     {% if current_user.is_owner %}
     <p class="hint" style="margin:4px 0 0;"><i class="bi bi-shield-lock"></i> {{ t('users.super_admin_hint') }}</p>
     {% endif %}

@@ -1,17 +1,38 @@
-"""Database backups (Phase 0 of the master plan — the safety net).
+"""Backups — the database *and* the files it points at.
 
 Snapshots are taken with SQLite's online backup API, so they are consistent
 even while the app is running (WAL included). Files live under
 ``instance/backups`` next to the database itself.
+
+**Photos used to be lost.** A backup was the ``.db`` file alone, but a photo is
+not in the database — the row only stores its filename, and the picture itself
+sits in ``static/uploads``. Restoring gave you every record back with a broken
+image beside it: patient photos, staff avatars, the clinic logo, doctors'
+signatures and stamps, prescriptions' letterheads, attached documents.
+
+So a backup is now a ``.zip`` holding the database and those files together.
+Older ``.db`` snapshots still restore exactly as before — they are simply
+missing the pictures they never contained.
 """
 import os
 import re
+import shutil
 import sqlite3
+import tempfile
+import zipfile
 from datetime import datetime
 
 from flask import current_app
 
-_NAME_RE = re.compile(r"^backup-\d{8}-\d{6}(-[a-z_]+)?\.db$")
+_NAME_RE = re.compile(r"^backup-\d{8}-\d{6}(-[a-z_]+)?\.(db|zip)$")
+
+# Where the database's filenames actually resolve to on disk. Everything a row
+# can point at lives under one of these.
+UPLOAD_DIRS = ["users", "patients", "clinic", "crm", "patient_docs",
+               "drug_media"]
+# The database's name inside the archive.
+DB_ENTRY = "database.db"
+FILES_PREFIX = "uploads/"
 
 
 def db_path():
@@ -31,21 +52,71 @@ def backup_dir():
     return d
 
 
-def create_backup(reason="manual"):
-    """Take a consistent snapshot; returns the created filename."""
+def uploads_root():
+    """The folder holding every uploaded file."""
+    return os.path.join(current_app.static_folder, "uploads")
+
+
+def _snapshot_db(dest):
+    """A consistent copy of the live database at ``dest``."""
     src = db_path()
     if not src or not os.path.isfile(src):
         raise RuntimeError("database file not found")
-    reason = re.sub(r"[^a-z_]", "", (reason or "manual").lower()) or "manual"
-    name = f"backup-{datetime.now():%Y%m%d-%H%M%S}-{reason}.db"
-    dest = os.path.join(backup_dir(), name)
     with sqlite3.connect(src) as source, sqlite3.connect(dest) as target:
         source.backup(target)
+
+
+def _include_files():
+    """Whether this clinic wants its pictures inside the snapshot."""
+    try:
+        from app.models import Setting
+        return Setting.get("backup_include_files", "1") != "0"
+    except Exception:  # noqa: BLE001 - before the settings table exists
+        return True
+
+
+def create_backup(reason="manual"):
+    """Take a consistent snapshot; returns the created filename.
+
+    The archive holds the database plus every uploaded file, so a restore puts
+    the photos back too — which is the whole point of having taken one.
+    """
+    reason = re.sub(r"[^a-z_]", "", (reason or "manual").lower()) or "manual"
+    name = f"backup-{datetime.now():%Y%m%d-%H%M%S}-{reason}.zip"
+    dest = os.path.join(backup_dir(), name)
+
+    tmp_db = os.path.join(tempfile.mkdtemp(prefix="gc-backup-"), DB_ENTRY)
+    try:
+        _snapshot_db(tmp_db)
+        with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(tmp_db, DB_ENTRY)
+            if _include_files():
+                for rel, path in _upload_files():
+                    zf.write(path, FILES_PREFIX + rel)
+    except Exception:
+        if os.path.isfile(dest):
+            os.remove(dest)
+        raise
+    finally:
+        shutil.rmtree(os.path.dirname(tmp_db), ignore_errors=True)
     return name
 
 
+def _upload_files():
+    """``(relative_path, absolute_path)`` for every uploaded file."""
+    root = uploads_root()
+    for folder in UPLOAD_DIRS:
+        base = os.path.join(root, folder)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, _dirs, files in os.walk(base):
+            for fn in files:
+                path = os.path.join(dirpath, fn)
+                yield os.path.relpath(path, root).replace(os.sep, "/"), path
+
+
 def list_backups():
-    """Existing backups, newest first: [{name, size, created}]."""
+    """Existing backups, newest first: ``[{name, size, created, has_files}]``."""
     out = []
     for fn in os.listdir(backup_dir()):
         if not _NAME_RE.match(fn):
@@ -53,9 +124,21 @@ def list_backups():
         path = os.path.join(backup_dir(), fn)
         st = os.stat(path)
         out.append({"name": fn, "size": st.st_size,
-                    "created": datetime.fromtimestamp(st.st_mtime)})
+                    "created": datetime.fromtimestamp(st.st_mtime),
+                    "has_files": _counts_files(path)})
     out.sort(key=lambda b: b["name"], reverse=True)
     return out
+
+
+def _counts_files(path):
+    """How many uploaded files this snapshot carries (0 for a bare ``.db``)."""
+    if not path.endswith(".zip"):
+        return 0
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return sum(1 for n in zf.namelist() if n.startswith(FILES_PREFIX))
+    except Exception:  # noqa: BLE001 - a damaged archive must not break the list
+        return 0
 
 
 def backup_path(name):
@@ -66,37 +149,67 @@ def backup_path(name):
     return path if os.path.isfile(path) else None
 
 
+def _check_sqlite(path):
+    """Raise unless ``path`` is a healthy database of *this* application."""
+    with open(path, "rb") as fh:
+        if fh.read(16) != b"SQLite format 3\x00":
+            raise ValueError("not_sqlite")
+    with sqlite3.connect(path) as conn:
+        ok = conn.execute("PRAGMA quick_check").fetchone()
+        if not ok or ok[0] != "ok":
+            raise ValueError("corrupt")
+        if not conn.execute("SELECT 1 FROM sqlite_master "
+                            "WHERE type='table' AND name='users'").fetchone():
+            raise ValueError("wrong_app")
+
+
 def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024):
     """Store a backup file uploaded from the admin's device.
 
-    The file must be a real SQLite database (header + quick_check) and must
-    look like one of ours (a ``users`` table exists) so a stray/wrong file
-    can't be restored over the clinic's data. Returns the stored filename.
+    Accepts either format: an archive from a newer install (database + files)
+    or a bare ``.db`` from an older one. Either way it must be a real SQLite
+    database of *this* application, so a stray file can't be restored over the
+    clinic's data. Returns the stored filename.
     """
-    header = file_storage.stream.read(16)
+    head = file_storage.stream.read(4)
     file_storage.stream.seek(0)
-    if header != b"SQLite format 3\x00":
+    is_zip = head[:2] == b"PK"
+    if not is_zip and head != b"SQLi":
         raise ValueError("not_sqlite")
 
-    name = f"backup-{datetime.now():%Y%m%d-%H%M%S}-uploaded.db"
+    suffix = "zip" if is_zip else "db"
+    name = f"backup-{datetime.now():%Y%m%d-%H%M%S}-uploaded.{suffix}"
     dest = os.path.join(backup_dir(), name)
     file_storage.save(dest)
+    tmp = None
     try:
         if os.path.getsize(dest) > max_bytes:
             raise ValueError("too_big")
-        with sqlite3.connect(dest) as conn:
-            ok = conn.execute("PRAGMA quick_check").fetchone()
-            if not ok or ok[0] != "ok":
-                raise ValueError("corrupt")
-            has_users = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'"
-            ).fetchone()
-            if not has_users:
-                raise ValueError("wrong_app")
+        if is_zip:
+            tmp = _extract_db(dest)
+            _check_sqlite(tmp)
+        else:
+            _check_sqlite(dest)
     except Exception:
         os.remove(dest)
         raise
+    finally:
+        if tmp:
+            shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
     return name
+
+
+def _extract_db(archive):
+    """Pull the database out of an archive into a temp dir; returns its path."""
+    with zipfile.ZipFile(archive) as zf:
+        names = zf.namelist()
+        entry = DB_ENTRY if DB_ENTRY in names else next(
+            (n for n in names if n.endswith(".db") and "/" not in n), None)
+        if entry is None:
+            raise ValueError("wrong_app")
+        out = tempfile.mkdtemp(prefix="gc-restore-")
+        zf.extract(entry, out)
+        return os.path.join(out, entry)
 
 
 def delete_backup(name):
@@ -115,7 +228,7 @@ def apply_retention(keep):
     except (TypeError, ValueError):
         keep = 14
     autos = [b for b in list_backups()
-             if not b["name"].endswith(("-manual.db", "-uploaded.db"))]
+             if not re.search(r"-(manual|uploaded)\.(db|zip)$", b["name"])]
     removed = 0
     for b in autos[keep:]:
         if delete_backup(b["name"]):
@@ -160,7 +273,7 @@ def auto_backup_if_due():
             return None
         # Due when `every` days have passed since the last auto snapshot.
         last = next((b for b in list_backups()
-                     if b["name"].endswith("-auto.db")), None)
+                     if re.search(r"-auto\.(db|zip)$", b["name"])), None)
         if last is not None:
             last_date = datetime.strptime(
                 last["name"].split("-")[1], "%Y%m%d").date()
@@ -174,13 +287,19 @@ def auto_backup_if_due():
 
 
 def restore_backup(name):
-    """Replace the live database with a backup's content.
+    """Replace the live database — and the uploaded files — with a backup's.
 
     A fresh snapshot of the current state is taken first (reason
     ``prerestore``) so a mistaken restore is itself reversible. SQLAlchemy's
     pool is disposed before copying so no pooled connection serves stale
-    pages; the copy runs through SQLite's backup API (backup file → live DB),
-    which is safe against readers and needs no app restart.
+    pages; the database copy runs through SQLite's backup API, which is safe
+    against readers and needs no app restart.
+
+    Files are written back *over* what is there rather than replacing the
+    folder wholesale: a snapshot restored onto a newer install must not delete
+    pictures taken since, and a bare ``.db`` from an older install carries no
+    files at all, so it must leave the ones on disk alone.
+
     Returns the pre-restore snapshot's filename.
     """
     src = backup_path(name)
@@ -196,6 +315,35 @@ def restore_backup(name):
     _db.session.remove()
     _db.engine.dispose()
 
-    with sqlite3.connect(src) as source, sqlite3.connect(live) as target:
-        source.backup(target)
+    if src.endswith(".zip"):
+        tmp = _extract_db(src)
+        try:
+            with sqlite3.connect(tmp) as source, sqlite3.connect(live) as target:
+                source.backup(target)
+            _restore_files(src)
+        finally:
+            shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
+    else:
+        with sqlite3.connect(src) as source, sqlite3.connect(live) as target:
+            source.backup(target)
     return pre
+
+
+def _restore_files(archive):
+    """Write the archive's uploaded files back under ``static/uploads``."""
+    root = uploads_root()
+    restored = 0
+    with zipfile.ZipFile(archive) as zf:
+        for entry in zf.namelist():
+            if not entry.startswith(FILES_PREFIX) or entry.endswith("/"):
+                continue
+            rel = entry[len(FILES_PREFIX):]
+            # Never let an archive write outside the uploads folder.
+            dest = os.path.normpath(os.path.join(root, rel))
+            if not dest.startswith(os.path.normpath(root) + os.sep):
+                continue
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with zf.open(entry) as fh, open(dest, "wb") as out:
+                shutil.copyfileobj(fh, out)
+            restored += 1
+    return restored

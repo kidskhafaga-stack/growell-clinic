@@ -366,6 +366,7 @@ def data_tools():
         "hour": Setting.get("backup_hour", "2"),
         "keep": Setting.get("backup_keep", "14"),
         "every": Setting.get("backup_every_days", "1"),
+        "include_files": Setting.get("backup_include_files", "1") != "0",
     }
     from app.utils.export import DATASETS, dataset_count
     exports = [{"kind": k, "count": dataset_count(k)} for k in DATASETS]
@@ -404,6 +405,10 @@ def backup_settings():
     Setting.set("backup_every_days", str(every))
     keep = request.form.get("backup_keep", type=int)
     Setting.set("backup_keep", str(min(max(keep if keep is not None else 14, 1), 365)))
+    # Photos live on disk, not in the database — without them a restore brings
+    # every record back with a broken picture beside it.
+    Setting.set("backup_include_files",
+                "1" if request.form.get("backup_include_files") else "0")
     db.session.commit()
     flash(t("settings.saved"), "success")
     return redirect(url_for("settings.data_tools"))
