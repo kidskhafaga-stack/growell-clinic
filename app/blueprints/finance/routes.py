@@ -47,6 +47,8 @@ from app.models import (
 )
 from app.utils.decorators import cashier_access, client_ip, module_required
 from app.utils.finance import generate_invoice_number
+from app.utils.money import format_money
+from app.utils.vaccine_settlement import apply_settlement, pending_settlements
 from app.utils.services import next_service_code
 from app.utils.pricing import (
     save_visit_type_service_map,
@@ -607,7 +609,6 @@ def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None):
 def _flash_change(change):
     """Tell the cashier, loudly, how much to hand back."""
     if change and change > 0:
-        from app.utils.money import format_money
         flash(t("cashier.change_flash").replace("{amount}", format_money(change)),
               "warning")
 
@@ -734,7 +735,68 @@ def cashier():
         payment_methods=PAYMENT_METHODS,
         open_shift=open_shift, recent_shifts=recent_shifts,
         uncollected=uncollected, shift_label_presets=_shift_label_presets(),
+        settlements=pending_settlements(),
     )
+
+
+@finance_bp.route("/vaccine-settlement/<int:settlement_id>", methods=["POST"])
+@cashier_access
+def vaccine_settle(settlement_id):
+    """Apply a vaccine settlement: rewrite the invoice line to what the doctor
+    actually did, then hand back the difference (or leave it to collect).
+
+    Refunds keep the clinic's approval policy: an admin returns the money now,
+    anyone else files a refund request for a manager to approve."""
+    from app.models import RefundRequest, VaccineSettlement
+
+    s = db.get_or_404(VaccineSettlement, settlement_id)
+    if s.status != "pending":
+        flash(t("vaccine_settle.already_done"), "warning")
+        return redirect(url_for("finance.cashier"))
+    lang = getattr(g, "lang", "ar")
+    invoice = apply_settlement(s, lang=lang, user_id=current_user.id)
+    if invoice is None:
+        flash(t("vaccine_settle.cannot_apply"), "danger")
+        db.session.rollback()
+        return redirect(url_for("finance.cashier"))
+
+    # Money out: the invoice is now worth less than what was collected.
+    refund = round(-invoice.balance, 2)
+    if refund > 0:
+        refund = min(refund, invoice.paid)
+        needs_approval = (Setting.get("refund_approval_required", "1") != "0"
+                          and not current_user.is_admin)
+        if needs_approval:
+            db.session.add(RefundRequest(
+                invoice_id=invoice.id, amount=refund, method="cash",
+                reason=t("vaccine_settle.reason_note"),
+                requested_by=current_user.id))
+            db.session.commit()
+            flash(t("refunds.request_sent"), "info")
+            return redirect(url_for("finance.cashier"))
+        pay = Payment(amount=refund, kind="refund", method="cash",
+                      received_by=current_user.id, shift_id=_current_shift_id(),
+                      notes=t("vaccine_settle.reason_note"))
+        invoice.payments.append(pay)
+        invoice.recalc_status()
+        ActivityLog.record("vaccine.settle_refund", user_id=current_user.id,
+                           entity="invoice", detail=f"{invoice.invoice_number}:-{refund}",
+                           ip_address=client_ip())
+        db.session.commit()
+        _post_journal_safe("payment", pay)
+        _flash_change(refund)
+        return redirect(url_for("finance.cashier"))
+
+    ActivityLog.record("vaccine.settle", user_id=current_user.id, entity="invoice",
+                       detail=f"{invoice.invoice_number}:{s.amount}",
+                       ip_address=client_ip())
+    db.session.commit()
+    if invoice.balance > 0:
+        flash(t("vaccine_settle.collect_now").replace(
+            "{amount}", format_money(invoice.balance)), "warning")
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    flash(t("vaccine_settle.settled"), "success")
+    return redirect(url_for("finance.cashier"))
 
 
 @finance_bp.route("/cashier/print")
@@ -1019,6 +1081,7 @@ def _vaccine_prefill_lines(patient_id, doctor, lang, has_vacc_base):
             "quantity": 1,
             "no_commission": "1",
             "dose_id": dose.id,
+            "brand_id": b.id,
         })
         if not admin_added and vac_svc is not None:
             fee = vac_svc.price_for(dose.doctor or doctor)
@@ -1262,9 +1325,48 @@ def _checkout_lines(appt, lang):
     # Uncharged vaccines → billed as the vaccination service (brand price +
     # per-doctor admin fee), not free text; the base above already is the fee
     # for a vaccination visit, so the helper won't add it twice.
-    lines.extend(_vaccine_prefill_lines(appt.patient_id, appt.doctor, lang,
-                                        has_vacc_base))
+    vac_lines = _vaccine_prefill_lines(appt.patient_id, appt.doctor, lang,
+                                       has_vacc_base)
+    lines.extend(vac_lines)
+    # Vaccine booked but not given yet: collect it now (the parent pays before
+    # seeing the doctor). If the doctor then refuses or swaps it, the clinical
+    # record raises a settlement and reception hands back the difference.
+    booked = _booked_vaccine_line(appt, lang, vac_lines)
+    if booked is not None:
+        lines.append(booked)
     return lines
+
+
+def _booked_vaccine_line(appt, lang, vaccine_lines):
+    """The vaccine chosen when the visit was booked, as a billable line."""
+    brand = appt.vaccine_brand
+    if brand is None or (brand.price or 0) <= 0:
+        return None
+    # Already covered by a recorded dose (or already invoiced today) → skip.
+    if any(ln.get("brand_id") == brand.id for ln in vaccine_lines):
+        return None
+    if any(d.brand_id == brand.id for d in _uncharged_vaccines(appt.patient_id)):
+        return None
+    inv_today = _todays_invoice(appt.patient_id)
+    if inv_today is not None and any(it.vaccine_brand_id == brand.id
+                                     for it in inv_today.items):
+        return None
+    given_today = PatientVaccine.query.filter_by(
+        patient_id=appt.patient_id, brand_id=brand.id,
+        given_date=appt.appt_date, event_type="given").first()
+    if given_today is not None:
+        return None
+    vac_svc = _vaccine_service()
+    name = (brand.vaccine.display_name(lang) if brand.vaccine
+            else brand.display_name(lang))
+    return {
+        "service_id": str(vac_svc.id) if vac_svc else "",
+        "description": f"{name} — {brand.display_name(lang)}",
+        "unit_price": brand.price or 0,
+        "quantity": 1,
+        "no_commission": "1",
+        "brand_id": brand.id,
+    }
 
 
 @finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
@@ -1297,6 +1399,7 @@ def checkout(appt_id):
         prices = request.form.getlist("line_price")
         qtys = request.form.getlist("line_qty")
         nocomms = request.form.getlist("line_no_commission")
+        brands = request.form.getlist("line_brand_id")
         for i, desc in enumerate(descs):
             desc = (desc or "").strip()
             try:
@@ -1317,6 +1420,13 @@ def checkout(appt_id):
                 sid = None
             item = InvoiceItem(service_id=sid, description=desc,
                                unit_price=round(price, 2), quantity=max(qty, 1))
+            # Remember which vaccine this line paid for, so a dose the doctor
+            # later refuses or swaps can be settled against it.
+            try:
+                item.vaccine_brand_id = (int(brands[i])
+                                         if i < len(brands) and brands[i] else None)
+            except (TypeError, ValueError):
+                item.vaccine_brand_id = None
             svc = db.session.get(Service, sid) if sid else None
             # Vaccine product lines carry no invoice commission (doctor share is
             # the brand's doctor_fee, tracked on the dose — never double-paid).

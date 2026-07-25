@@ -47,7 +47,8 @@
     "year_short": "y",
     "month_short": "m",
     "filter": "Filter",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "action": "Action"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -894,7 +895,8 @@
     "load_gov_set": "Government vaccines (national EPI programme)",
     "load_optional_set": "Optional vaccines",
     "load_now": "Load now",
-    "catalogue_loaded": "Catalogue loaded ({n} new vaccines)"
+    "catalogue_loaded": "Catalogue loaded ({n} new vaccines)",
+    "not_given": "not given"
   },
   "vstatus": {
     "done": "Done",
@@ -3219,5 +3221,22 @@
     "n_severity_needs_pred": "Grading severity needs predicted values (next phase)",
     "n_restrict_needs_pred": "Excluding restriction needs predicted values",
     "schematic_note": "Curves are schematic, computed from the entered values (not the device's raw signal) — clinical judgement prevails."
+  },
+  "vaccine_settle": {
+    "title": "Paid vaccine settlements",
+    "hint": "A vaccine paid at reception that the doctor refused or swapped in the room — apply the settlement to correct the invoice and give back (or collect) the difference.",
+    "what_happened": "What happened",
+    "amount": "Difference",
+    "refused": "Not given",
+    "swapped": "Swapped",
+    "refund_to": "Refund",
+    "collect_from": "Collect",
+    "apply": "Settle",
+    "settled": "Settled",
+    "already_done": "This settlement was already applied.",
+    "cannot_apply": "Could not apply the settlement — check the invoice.",
+    "collect_now": "Collect the vaccine difference: {amount}",
+    "reason_note": "Vaccine settlement (not given / swapped)",
+    "no_money": "No difference"
   }
 }

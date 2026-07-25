@@ -115,6 +115,10 @@ class InvoiceItem(db.Model):
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=True)
 
     description = db.Column(db.String(200), nullable=False)  # snapshot name
+    # Set on lines that charge a vaccine product, so a dose the doctor later
+    # refuses or swaps can be settled against the exact line that billed it.
+    vaccine_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
+                                 nullable=True, index=True)
     unit_price = db.Column(db.Float, default=0, nullable=False)
     quantity = db.Column(db.Integer, default=1, nullable=False)
     discount_value = db.Column(db.Float, default=0)          # raw input

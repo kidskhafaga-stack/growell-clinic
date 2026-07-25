@@ -161,7 +161,8 @@
       <div x-show="open" x-cloak style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
         {% for s in services %}
         <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:.88rem;">
-          <input type="checkbox" name="extra_services" value="{{ s.id }}">
+          <input type="checkbox" name="extra_services" value="{{ s.id }}"
+                 {% if vaccination_service_id and s.id == vaccination_service_id %}data-opens-vaccine="1"{% endif %}>
           {{ s.display_name(current_lang) }} <span class="muted" style="color:var(--muted);">({{ s.price }})</span>
         </label>
         {% endfor %}
@@ -380,13 +381,22 @@
     check();
   })();
 
-  // Show the vaccine picker only when booking a vaccination.
+  // Show the vaccine picker when booking a vaccination visit — or when the
+  // (free) "تطعيم" service is ticked as an extra on any other visit type: the
+  // service costs nothing, the vaccine the parent picks is what gets billed.
   (function () {
     var typeSel = document.getElementById('appt_type');
     var vrow = document.getElementById('vaccineRow');
     if (!typeSel || !vrow) return;
-    function toggle() { vrow.style.display = (typeSel.value === 'vaccination') ? '' : 'none'; }
+    var vaccBoxes = document.querySelectorAll('input[data-opens-vaccine="1"]');
+    function wanted() {
+      if (typeSel.value === 'vaccination') return true;
+      for (var i = 0; i < vaccBoxes.length; i++) if (vaccBoxes[i].checked) return true;
+      return false;
+    }
+    function toggle() { vrow.style.display = wanted() ? '' : 'none'; }
     typeSel.addEventListener('change', toggle);
+    vaccBoxes.forEach(function (b) { b.addEventListener('change', toggle); });
     toggle();
   })();
 </script>

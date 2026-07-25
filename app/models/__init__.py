@@ -50,6 +50,7 @@ from app.models.visit import (
 )
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
+    SETTLEMENT_REASONS,
     PatientVaccine,
     VACCINE_EVENT_TYPES,
     VACCINE_ROUTES,
@@ -59,6 +60,7 @@ from app.models.vaccine import (
     VaccineBrandDose,
     VaccineScheduleDose,
     VaccineScheduleTemplate,
+    VaccineSettlement,
 )
 from app.models.inventory import (
     LOW_STOCK_QTY,
@@ -207,6 +209,8 @@ __all__ = [
     "ICD_VERSIONS",
     "Vaccine",
     "VaccineBrand",
+    "VaccineSettlement",
+    "SETTLEMENT_REASONS",
     "VaccineBrandDose",
     "VaccineScheduleTemplate",
     "VaccineScheduleDose",

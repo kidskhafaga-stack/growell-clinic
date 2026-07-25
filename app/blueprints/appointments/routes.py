@@ -339,6 +339,7 @@ def create():
                 appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
                 doctor_options=_doctor_options(doctors),
                 services=_bookable_services(),
+                vaccination_service_id=_vaccination_service_id(),
             )
 
         appt = Appointment(
@@ -397,6 +398,7 @@ def create():
         appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
         doctor_options=_doctor_options(doctors),
         services=_bookable_services(),
+        vaccination_service_id=_vaccination_service_id(),
         booking_open=booking_open,
     )
 
@@ -412,6 +414,19 @@ def _bookable_services():
     from app.models import Service
 
     return Service.query.filter_by(is_active=True).order_by(Service.name).all()
+
+
+def _vaccination_service_id():
+    """The (free) vaccination service id, so ticking it at booking opens the
+    vaccine picker: the service itself costs nothing — the vaccine is what the
+    parent pays for."""
+    from app.blueprints.finance.routes import _vaccine_service
+
+    try:
+        svc = _vaccine_service()
+        return svc.id if svc is not None else None
+    except Exception:                                   # pragma: no cover
+        return None
 
 
 def _extra_services_arg():

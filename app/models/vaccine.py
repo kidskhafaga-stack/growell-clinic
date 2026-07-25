@@ -383,3 +383,65 @@ class PatientVaccine(db.Model):
 
     def __repr__(self):
         return f"<PatientVaccine p={self.patient_id} v={self.vaccine_id} #{self.dose_number}>"
+
+
+# Why the money and the clinic can disagree about a vaccine, and what to do
+# about it: the dose was paid for at reception, then the doctor refused it
+# (fever) or swapped the brand inside the room.
+SETTLEMENT_REASONS = ["refused", "swapped"]
+
+
+class VaccineSettlement(db.Model):
+    """A paid vaccine that didn't happen as billed — and the money it owes.
+
+    Reception collects the vaccine up front, so anything the doctor decides in
+    the room (refuse the dose, swap RotaRix for RotaTeq) leaves the invoice
+    describing something that never happened. Rather than let that drift, the
+    clinical record raises a settlement: the invoice line that billed the
+    vaccine, what actually happened, and the difference — negative to refund,
+    positive to collect. Reception applies it from the cashier screen, which
+    rewrites the line to reality and hands back (or takes) the difference.
+    """
+    __tablename__ = "vaccine_settlements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"),
+                           nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
+                        nullable=False, index=True)
+    billed_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
+                                nullable=False)
+    # NULL when the dose was refused outright (nothing replaced it).
+    actual_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
+                                nullable=True)
+    dose_id = db.Column(db.Integer, db.ForeignKey("patient_vaccines.id"),
+                        nullable=True)
+    reason = db.Column(db.String(12), default="refused", nullable=False)
+    # + = collect from the patient, − = refund to the patient.
+    amount = db.Column(db.Float, default=0, nullable=False)
+    status = db.Column(db.String(10), default="pending", nullable=False)  # pending|done|cancelled
+    notes = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    settled_at = db.Column(db.DateTime)
+    settled_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    patient = db.relationship("Patient")
+    invoice = db.relationship("Invoice")
+    item = db.relationship("InvoiceItem")
+    billed_brand = db.relationship("VaccineBrand", foreign_keys=[billed_brand_id])
+    actual_brand = db.relationship("VaccineBrand", foreign_keys=[actual_brand_id])
+    dose = db.relationship("PatientVaccine")
+    settler = db.relationship("User")
+
+    @property
+    def is_refund(self):
+        return (self.amount or 0) < 0
+
+    @property
+    def abs_amount(self):
+        return round(abs(self.amount or 0), 2)
+
+    def __repr__(self):
+        return f"<VaccineSettlement {self.reason} {self.amount}>"
