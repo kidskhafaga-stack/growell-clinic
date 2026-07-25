@@ -55,17 +55,29 @@ def interaction_warnings(drug_ids):
 @prescriptions_bp.route("/interactions/check")
 @module_required(MODULE)
 def interactions_check():
-    """JSON: live interaction warnings for a set of drug ids (rx builder)."""
+    """JSON: live safety for what is on the prescription right now — the
+    paediatric dose for *this* child per line, plus interactions between the
+    ingredients (with severity and the alternative to use instead)."""
+    from app.utils.rx_safety import as_json
+    from app.utils.rx_safety import check as rx_check
+
     raw = (request.args.get("ids") or "").split(",")
     ids = [int(x) for x in raw if x.strip().isdigit()]
+    names = [n for n in (request.args.get("names") or "").split("|") if n.strip()]
     lang = getattr(g, "lang", "ar")
-    warnings = [{
-        "a": w.drug_a.trade_name if w.drug_a else "",
-        "b": w.drug_b.trade_name if w.drug_b else "",
-        "severity": w.severity or "moderate",
-        "note": w.note or "",
-    } for w in interaction_warnings(ids)]
-    return jsonify({"warnings": warnings})
+    patient = (db.session.get(Patient, request.args.get("patient_id", type=int))
+               if request.args.get("patient_id", type=int) else None)
+    drugs = {d.id: d for d in Drug.query.filter(Drug.id.in_(ids)).all()} if ids else {}
+    items = [{"name": drugs[i].label(lang), "drug": drugs[i]}
+             for i in ids if i in drugs]
+    items += [{"name": n.strip()} for n in names]
+    result = rx_check(items, patient=patient,
+                      weight_kg=request.args.get("weight", type=float),
+                      age_months=request.args.get("age_months", type=int), lang=lang)
+    data = as_json(result, lang)
+    # Kept for the existing caller: the old shape listed interactions only.
+    data["warnings"] = data["interactions"]
+    return jsonify(data)
 
 
 @prescriptions_bp.route("/")
@@ -433,6 +445,21 @@ def new():
                 "name": vi.display_name(lang),
                 "notes": vi.request_notes or "",
             })
+    # Medicines the doctor already wrote in the visit carry over too, so what
+    # was decided in the room is what prints (same idea as the investigations).
+    prefill_meds = []
+    if visit_id:
+        from app.models import VisitMedication
+        for m in (VisitMedication.query.filter_by(visit_id=visit_id)
+                  .order_by(VisitMedication.id).all()):
+            prefill_meds.append({
+                "drug_id": m.drug_id or "",
+                "name": m.name,
+                "dose": m.dose or "",
+                "frequency": m.frequency or "",
+                "duration": m.duration or "",
+                "instructions": m.instructions or "",
+            })
     # Medication reconciliation: the patient's recent meds to review while
     # prescribing (continue / stop / modify).
     recent_meds = []
@@ -441,7 +468,8 @@ def new():
         recent_meds = recent_medications(patient.id)
     return render_template(
         "prescriptions/new.html", patient=patient, prefill=prefill,
-        prefill_invs=prefill_invs, recent_meds=recent_meds,
+        prefill_invs=prefill_invs, prefill_meds=prefill_meds,
+        recent_meds=recent_meds,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
         ai_ready=ai_utils.is_ready(),

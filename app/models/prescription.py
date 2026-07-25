@@ -146,17 +146,38 @@ class Investigation(db.Model):
 
 
 class DrugInteraction(db.Model):
-    """An editable drug-drug interaction warning (symmetric pair)."""
+    """An editable drug-drug interaction warning (symmetric pair).
+
+    Pairs may be given as brands (the legacy rows) or — better — as the two
+    **active ingredients**, so every brand of them is covered by one rule.
+    ``alternative`` is what to prescribe instead, which is the part a doctor
+    actually needs at the moment of the warning.
+    """
     __tablename__ = "drug_interactions"
 
     id = db.Column(db.Integer, primary_key=True)
-    drug_a_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=False, index=True)
-    drug_b_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=False, index=True)
+    drug_a_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=True, index=True)
+    drug_b_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=True, index=True)
+    generic_a_id = db.Column(db.Integer, db.ForeignKey("generic_drugs.id"),
+                             nullable=True, index=True)
+    generic_b_id = db.Column(db.Integer, db.ForeignKey("generic_drugs.id"),
+                             nullable=True, index=True)
     severity = db.Column(db.String(12), default="moderate")  # mild|moderate|severe
     note = db.Column(db.String(255))
+    alternative = db.Column(db.String(200))     # ما البديل الآمن
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     drug_a = db.relationship("Drug", foreign_keys=[drug_a_id])
     drug_b = db.relationship("Drug", foreign_keys=[drug_b_id])
+    generic_a = db.relationship("GenericDrug", foreign_keys=[generic_a_id])
+    generic_b = db.relationship("GenericDrug", foreign_keys=[generic_b_id])
+
+    def pair_names(self, lang="ar"):
+        a = (self.generic_a.display_name(lang) if self.generic_a
+             else (self.drug_a.trade_name if self.drug_a else ""))
+        b = (self.generic_b.display_name(lang) if self.generic_b
+             else (self.drug_b.trade_name if self.drug_b else ""))
+        return a, b
 
 
 class Prescription(db.Model):

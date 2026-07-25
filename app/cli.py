@@ -136,6 +136,10 @@ def register_commands(app):
             ("payments", "tendered", "FLOAT"),
             ("invoice_items", "vaccine_brand_id", "INTEGER"),
             ("drugs", "generic_id", "INTEGER"),
+            ("drug_interactions", "generic_a_id", "INTEGER"),
+            ("drug_interactions", "generic_b_id", "INTEGER"),
+            ("drug_interactions", "alternative", "VARCHAR(200)"),
+            ("drug_interactions", "is_active", "BOOLEAN DEFAULT 1"),
             ("drugs", "pack_size", "VARCHAR(60)"),
             ("drugs", "price", "FLOAT"),
             ("drugs", "barcode", "VARCHAR(60)"),
@@ -304,9 +308,12 @@ def register_commands(app):
             pass
         try:  # drug reference: classes/ingredients/brands on a fresh install,
               # and link hand-typed drugs to their ingredient afterwards
-            from app.utils.drugbook_seed import link_existing_drugs, seed_drugbook
+            from app.utils.drugbook_seed import (link_existing_drugs,
+                                                 seed_drugbook,
+                                                 seed_interactions)
             seed_drugbook()
             link_existing_drugs()
+            seed_interactions()
         except Exception:  # noqa: BLE001
             pass
         try:  # unify CRM templates into the registry (migrates legacy settings)
@@ -460,9 +467,11 @@ def _seed_drugs_safe():
     except Exception:  # noqa: BLE001
         pass
     try:  # the drug reference: classes → ingredients → trade names
-        from app.utils.drugbook_seed import link_existing_drugs, seed_drugbook
+        from app.utils.drugbook_seed import (link_existing_drugs, seed_drugbook,
+                                             seed_interactions)
         seed_drugbook()
         link_existing_drugs()
+        seed_interactions()
     except Exception:  # noqa: BLE001
         pass
     _seed_crm_templates_safe()

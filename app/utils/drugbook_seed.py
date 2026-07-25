@@ -443,4 +443,83 @@ def seed_drugbook(force=False):
         "generics": seed_generics(),
         "brands": seed_brands(),
         "linked": link_existing_drugs(),
+        "interactions": seed_interactions(),
     }
+
+
+# (generic_a, generic_b, severity, note, alternative) — pairs a paediatric
+# clinic actually runs into. Severity: mild | moderate | severe.
+INTERACTIONS = [
+    ("Azithromycin", "Domperidone", "severe",
+     "الاثنان يطيلان فترة QT — الجمع بينهما يرفع خطر اضطراب نظم القلب.",
+     "أوقف الدومبيريدون أو استخدم أموكسيسيللين بدل الأزيثروميسين."),
+    ("Clarithromycin", "Domperidone", "severe",
+     "إطالة QT مع تثبيط استقلاب الدومبيريدون — تركيزه يرتفع بشدة.",
+     "أوقف الدومبيريدون، أو استخدم أموكسيسيللين/سيفيكسيم بدل الكلاريثروميسين."),
+    ("Azithromycin", "Ondansetron", "moderate",
+     "كلاهما يطيل QT — حذر خاصة مع الجفاف أو نقص البوتاسيوم.",
+     "جرعة واحدة من الأوندانسيترون مع متابعة، أو مضاد حيوي غير ماكروليد."),
+    ("Clarithromycin", "Ondansetron", "moderate",
+     "إطالة QT مجتمعة.",
+     "استبدل الماكروليد، أو اكتفِ بجرعة أوندانسيترون واحدة."),
+    ("Ibuprofen", "Prednisolone", "moderate",
+     "الاثنان يهيّجان المعدة — خطر النزف والقرحة يزيد.",
+     "استخدم باراسيتامول لخفض الحرارة أثناء كورس الكورتيزون."),
+    ("Ibuprofen", "Dexamethasone", "moderate",
+     "تهيّج معدي مشترك مع الكورتيزون.",
+     "باراسيتامول بدل الإيبوبروفين."),
+    ("Elemental iron", "Omeprazole", "moderate",
+     "تقليل حموضة المعدة يقلل امتصاص الحديد.",
+     "باعد بينهما ساعتين على الأقل، وأعطِ الحديد مع فيتامين ج."),
+    ("Elemental iron", "Zinc sulfate", "mild",
+     "يتنافسان على الامتصاص عند إعطائهما معاً.",
+     "باعد بين الجرعتين ساعتين."),
+    ("Fluconazole", "Domperidone", "severe",
+     "الفلوكونازول يرفع تركيز الدومبيريدون (إطالة QT).",
+     "أوقف الدومبيريدون أثناء كورس الفلوكونازول."),
+    ("Fluconazole", "Clarithromycin", "moderate",
+     "إطالة QT وتداخل استقلابي.",
+     "استخدم مضاداً حيوياً غير ماكروليد أثناء الفلوكونازول."),
+    ("Metronidazole", "Fluconazole", "moderate",
+     "احتمال إطالة QT عند الجمع.",
+     "افصل الكورسين إن أمكن."),
+    ("Amoxicillin/Clavulanate", "Amoxicillin", "severe",
+     "ازدواج نفس المادة الفعالة — الجرعة تتضاعف بلا قصد.",
+     "اكتب أحدهما فقط."),
+    ("Paracetamol", "Ibuprofen", "mild",
+     "التبادل بينهما شائع ومقبول، لكن التوقيت يجب أن يكون واضحاً للأم حتى لا تتكرر الجرعة.",
+     "اكتب مواعيد كل دواء بوضوح، وتجنب المستحضرات المركّبة."),
+    ("Ceftriaxone", "Amoxicillin/Clavulanate", "mild",
+     "ازدواج تغطية بيتالاكتام بلا فائدة إضافية غالباً.",
+     "اكتفِ بواحد حسب شدة الحالة."),
+    ("Prednisolone", "Omeprazole", "mild",
+     "يُستخدمان معاً عمداً أحياناً لحماية المعدة — ليس تعارضاً بل تنبيه.",
+     "استمر إن كانت الوقاية مقصودة."),
+]
+
+
+def seed_interactions():
+    """Create the missing interaction rules (matched by ingredient pair)."""
+    from app.models import DrugInteraction
+
+    generics = {g.name_en: g for g in GenericDrug.query.all()}
+    existing = set()
+    for r in DrugInteraction.query.all():
+        if r.generic_a_id and r.generic_b_id:
+            existing.add(tuple(sorted((r.generic_a_id, r.generic_b_id))))
+    made = 0
+    for a_name, b_name, severity, note, alt in INTERACTIONS:
+        a, b = generics.get(a_name), generics.get(b_name)
+        if a is None or b is None or a.id == b.id:
+            continue
+        key = tuple(sorted((a.id, b.id)))
+        if key in existing:
+            continue
+        db.session.add(DrugInteraction(
+            generic_a_id=a.id, generic_b_id=b.id, severity=severity,
+            note=note, alternative=alt, is_active=True))
+        existing.add(key)
+        made += 1
+    if made:
+        db.session.flush()
+    return made

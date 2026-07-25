@@ -11,8 +11,8 @@
 
 {% set pf = prefill or {} %}
 <form method="post" action="{{ url_for('prescriptions.new') }}"
-      x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }})"
-      x-init="addLine()">
+      x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }}, {{ (prefill_meds or [])|tojson|forceescape }})"
+      x-init="if(!lines.length){ addLine(); } else { checkInteractions(); }">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}
   <div class="card gc-scale-in" style="border-inline-start:4px solid var(--green-600);background:var(--green-050);">
@@ -84,8 +84,26 @@
           <div style="display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #f6dede;">
             <span class="badge" x-bind:style="w.severity==='severe' ? 'background:#dc2626;color:#fff' : (w.severity==='moderate' ? 'background:#d97706;color:#fff' : 'background:#eab308;color:#fff')"
                   x-text="w.severity==='severe' ? '{{ t('rx.sev_severe') }}' : (w.severity==='moderate' ? '{{ t('rx.sev_moderate') }}' : '{{ t('rx.sev_mild') }}')"></span>
-            <strong x-text="w.a + ' + ' + w.b"></strong>
-            <span style="color:var(--muted);" x-text="'— ' + w.note"></span>
+            <div style="flex:1;">
+              <strong x-text="w.a + ' + ' + w.b"></strong>
+              <span style="color:var(--muted);" x-show="w.note" x-text="' — ' + w.note"></span>
+              <div x-show="w.alternative" style="color:var(--green-800);margin-top:2px;">
+                <i class="bi bi-arrow-right-circle"></i>
+                <span x-text="'{{ t('rx.alternative') }}: ' + w.alternative"></span></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+    <!-- Paediatric dose flags for this child (age limits, ceilings) -->
+    <template x-if="doseFlags.length">
+      <div style="margin-bottom:12px;border:1px solid #f0d08a;border-radius:10px;overflow:hidden;">
+        <div style="background:#fff8e6;color:#8a5a00;padding:8px 12px;font-weight:700;">
+          <i class="bi bi-shield-exclamation"></i> {{ t('rx.dose_flags_title') }}</div>
+        <template x-for="(f, fi) in doseFlags" :key="fi">
+          <div style="padding:8px 12px;border-top:1px solid #f6e7c2;">
+            <strong x-text="f.name"></strong>
+            <span style="color:var(--muted);" x-text="' — ' + f.text"></span>
           </div>
         </template>
       </div>
@@ -180,17 +198,42 @@
 
 <script>
 window.current_lang = "{{ current_lang }}";
-function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs){
+function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMeds){
   return {
-    lines: [],
+    lines: (prefillMeds || []).map(function(m){
+      return {drug_id:m.drug_id||'', name:m.name||'', dose:m.dose||'',
+              frequency:m.frequency||'', duration:m.duration||'',
+              instructions:m.instructions||'', max:'', suggestions:[], open:false,
+              dosePerKg:null, maxPerKg:null, conc:null, calc:'', aiBusy:false, aiNote:''};
+    }),
     interactions: [],
+    doseFlags: [],
+    warnLabels: {{ {
+      'min_age': t('drugbook.warn_min_age'),
+      'max_age': t('drugbook.warn_max_age'),
+      'min_weight': t('drugbook.warn_min_weight'),
+      'daily_cap': t('drugbook.warn_daily_cap'),
+      'adult_cap': t('drugbook.warn_adult_cap'),
+    } | tojson }},
     async checkInteractions(){
       const ids = this.lines.map(l => l.drug_id).filter(Boolean);
-      if(ids.length < 2){ this.interactions = []; return; }
+      const names = this.lines.filter(l => !l.drug_id && (l.name || '').trim())
+                              .map(l => l.name.trim());
+      if(!ids.length && !names.length){ this.interactions = []; this.doseFlags = []; return; }
+      let url = "{{ url_for('prescriptions.interactions_check') }}?ids=" + ids.join(',')
+              + "&names=" + encodeURIComponent(names.join('|'));
+      const pid = document.querySelector('[name="patient_id"]');
+      if(pid && pid.value) url += "&patient_id=" + pid.value;
+      if(this.weight) url += "&weight=" + this.weight;
       try{
-        const r = await fetch("{{ url_for('prescriptions.interactions_check') }}?ids=" + ids.join(','));
-        this.interactions = (await r.json()).warnings || [];
-      }catch(e){ this.interactions = []; }
+        const d = await (await fetch(url)).json();
+        this.interactions = d.interactions || [];
+        const flags = [];
+        (d.lines || []).forEach(l => (l.warnings || []).forEach(w => {
+          flags.push({name: l.name, text: this.warnLabels[w] || w});
+        }));
+        this.doseFlags = flags;
+      }catch(e){ this.interactions = []; this.doseFlags = []; }
     },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
