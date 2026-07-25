@@ -1,8 +1,9 @@
 """Inbound WhatsApp handling — provider-agnostic normalize + route.
 
 Normalizes Meta Cloud API and WaPilot v2 webhook payloads to one shape, matches
-the sender to a patient by guardian phone, logs the message, and — when it is a
-rating reply — fills the patient's open satisfaction survey. The result lands in
+the sender to a patient — a guardian's number, the patient's own, or a number
+reception linked by hand — logs the message, and, when it is a rating reply,
+fills the patient's open satisfaction survey. The result lands in
 the same ``Feedback`` model, so the existing stars/analytics keep working; only
 the collection *channel* differs.
 """
@@ -10,7 +11,7 @@ import re
 from datetime import datetime, timedelta
 
 from app.extensions import db
-from app.models import Feedback, MessageLog, Parent, Patient
+from app.models import Feedback, MessageLog
 from app.utils.whatsapp import normalize_phone
 
 
@@ -58,20 +59,17 @@ def normalize_wapilot(payload):
 
 # --- Matching + rating capture -----------------------------------------
 def _match_patients(phone):
-    """Patients whose guardian phone matches the inbound number (by family)."""
-    if not phone:
-        return []
-    target = normalize_phone(phone)
-    fam_ids = set()
-    for p in Parent.query.filter(Parent.phone.isnot(None)).all():
-        if (normalize_phone(p.phone) == target
-                or (p.phone_alt and normalize_phone(p.phone_alt) == target)):
-            if p.family_id:
-                fam_ids.add(p.family_id)
-    if not fam_ids:
-        return []
-    return (Patient.query.filter(Patient.family_id.in_(fam_ids))
-            .order_by(Patient.id).all())
+    """Who this number belongs to: a guardian's family, the patient's own
+    number, or whoever reception already said it was."""
+    from app.utils.inbox import known_patient_for_phone, match_patients
+
+    found = match_patients(phone)
+    if found:
+        return found
+    # Nothing on file matches, but a human may have linked this number to a
+    # patient before — that decision stands for every message after it.
+    known = known_patient_for_phone(normalize_phone(phone))
+    return [known] if known is not None else []
 
 
 _RATE_RE = re.compile(r"([0-9]{1,2})")

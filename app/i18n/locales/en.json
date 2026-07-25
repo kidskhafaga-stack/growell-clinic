@@ -2482,7 +2482,8 @@
     "birthdays": "{count} birthday(s) this week",
     "mark_all_read": "Mark all as read",
     "teens_no_phone": "{count} teen(s) (13+) with no personal phone — update their details",
-    "refund_requests": "{count} refund request(s) awaiting manager approval"
+    "refund_requests": "{count} refund request(s) awaiting manager approval",
+    "unread_messages": "{count} patient messages need a reply"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -2832,7 +2833,7 @@
   },
   "inbox": {
     "title": "WhatsApp inbox",
-    "subtitle": "All outbound and inbound messages grouped as per-patient conversations — open, read, and reply in place.",
+    "subtitle": "Every patient message — in and out — as conversations. When the last word was the patient's, someone is waiting.",
     "dashboard": "Send dashboard",
     "none": "No conversations yet",
     "empty_thread": "No messages in this conversation",
@@ -2840,7 +2841,28 @@
     "reply_ph": "Type a reply…",
     "send": "Send",
     "sent": "Sent",
-    "no_phone": "No phone on this conversation"
+    "no_phone": "No phone on this conversation",
+    "view_open": "Needs a reply",
+    "view_all": "All",
+    "needs_reply": "Waiting",
+    "awaiting_reply": "Not answered yet",
+    "none_open": "Nobody is waiting — every conversation has been answered. 👏",
+    "search_ph": "Search by patient name, phone number or message text…",
+    "unknown": "Unknown number",
+    "unknown_number": "This number isn't linked to any patient",
+    "link_hint": "Reception usually knows exactly who this is — a grandmother, a driver, a second family line. Name them once and the whole conversation moves onto that patient's file, along with everything that comes after.",
+    "link": "Link to a patient",
+    "link_pick": "Choose the patient",
+    "link_none": "No messages under this number",
+    "linked": "Conversation linked to {name} ({n} messages).",
+    "stat_open": "Conversations waiting",
+    "stat_asked": "Messages received (7 days)",
+    "stat_avg": "Average reply time",
+    "stat_unanswered": "Questions never answered",
+    "minutes": "min",
+    "in_minutes": "answered in {n} min",
+    "in_hours": "answered in {n} h",
+    "in_days": "answered in {n} d"
   },
   "journal": {
     "title": "Journal",

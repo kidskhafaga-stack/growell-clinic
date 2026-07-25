@@ -18,17 +18,55 @@
   </div>
 </div>
 
+<!-- How the clinic is answering: the numbers a service desk is actually judged on -->
+<div class="gc-scale-in" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+  <div class="card" style="padding:12px 14px;">
+    <div class="hint" style="margin:0;">{{ t('inbox.stat_open') }}</div>
+    <strong class="num" style="font-size:1.5rem;{{ 'color:var(--danger);' if open_count else '' }}">{{ open_count }}</strong>
+  </div>
+  <div class="card" style="padding:12px 14px;">
+    <div class="hint" style="margin:0;">{{ t('inbox.stat_asked') }}</div>
+    <strong class="num" style="font-size:1.5rem;">{{ stats.asked }}</strong>
+  </div>
+  <div class="card" style="padding:12px 14px;">
+    <div class="hint" style="margin:0;">{{ t('inbox.stat_avg') }}</div>
+    <strong class="num" style="font-size:1.5rem;">
+      {% if stats.avg_minutes is not none %}{{ stats.avg_minutes }} <span style="font-size:.8rem;font-weight:500;">{{ t('inbox.minutes') }}</span>{% else %}—{% endif %}</strong>
+  </div>
+  <div class="card" style="padding:12px 14px;">
+    <div class="hint" style="margin:0;">{{ t('inbox.stat_unanswered') }}</div>
+    <strong class="num" style="font-size:1.5rem;{{ 'color:var(--danger);' if stats.waiting else '' }}">{{ stats.waiting }}</strong>
+  </div>
+</div>
+
+<form method="get" class="card gc-scale-in" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+  <div class="btn-group" role="group" style="display:flex;gap:6px;">
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if view=='open' else 'btn-outline' }}"
+       href="{{ url_for('messages.inbox', view='open', q=search or None) }}">
+      <i class="bi bi-hourglass-split"></i> {{ t('inbox.view_open') }} ({{ open_count }})</a>
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if view=='all' else 'btn-outline' }}"
+       href="{{ url_for('messages.inbox', view='all', q=search or None) }}">
+      <i class="bi bi-collection"></i> {{ t('inbox.view_all') }} ({{ total }})</a>
+  </div>
+  <input type="hidden" name="view" value="{{ view }}">
+  <input class="input" name="q" value="{{ search }}" style="flex:1;min-width:200px;"
+         placeholder="{{ t('inbox.search_ph') }}">
+  <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-search"></i></button>
+  {% if search %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.inbox', view=view) }}"><i class="bi bi-x-lg"></i></a>{% endif %}
+</form>
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   {% if conversations %}
   <div style="display:flex;flex-direction:column;">
     {% for c in conversations %}
     <a href="{{ url_for('messages.inbox_thread', key=c.key) }}"
-       style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;">
+       style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;{{ 'border-inline-start:3px solid var(--danger);' if c.open else '' }}">
       {% if c.patient %}{{ patient_avatar(c.patient, 'sm') }}
       {% else %}<div class="patient-avatar sm"><i class="bi bi-telephone"></i></div>{% endif %}
       <div style="flex:1;min-width:0;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
-          <strong>{{ c.patient.display_name(current_lang) if c.patient else c.phone }}</strong>
+          <strong>{{ c.patient.display_name(current_lang) if c.patient else c.phone }}
+            {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}</strong>
           <span class="num" style="color:var(--muted);white-space:nowrap;">{{ c.last.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
         </div>
         <div style="display:flex;justify-content:space-between;gap:10px;">
@@ -36,6 +74,7 @@
             {% if c.last.direction == 'out' %}<i class="bi bi-arrow-up-left" style="color:var(--green-700);"></i>{% else %}<i class="bi bi-arrow-down-right" style="color:#2563eb;"></i>{% endif %}
             {{ c.last.body[:120] }}</span>
           <span style="display:flex;gap:6px;align-items:center;">
+            {% if c.open %}<span class="badge badge--danger">{{ t('inbox.needs_reply') }}</span>{% endif %}
             {% if c.unread %}<span class="badge" style="background:var(--primary,#198754);color:#fff;border-radius:999px;">{{ c.unread }}</span>{% endif %}
             <span class="num" style="color:var(--muted);">{{ c.count }}</span>
           </span>
@@ -45,7 +84,8 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty-state"><i class="bi bi-whatsapp"></i>{{ t('inbox.none') }}</div>
+  <div class="empty-state"><i class="bi bi-whatsapp"></i>
+    {% if view == 'open' and total %}{{ t('inbox.none_open') }}{% else %}{{ t('inbox.none') }}{% endif %}</div>
   {% endif %}
 </div>
 {% endblock %}

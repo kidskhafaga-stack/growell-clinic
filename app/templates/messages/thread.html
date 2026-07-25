@@ -19,10 +19,28 @@
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
         <i class="bi bi-folder2-open"></i> {{ t('inbox.open_patient') }}</a>
       {% endif %}
+      {% if pending %}<span class="badge badge--danger" style="align-self:center;"><i class="bi bi-hourglass-split"></i> {{ t('inbox.awaiting_reply') }}</span>{% endif %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.inbox') }}">
         <i class="bi bi-arrow-right"></i> {{ t('inbox.title') }}</a>
     </div>
   </div>
+
+  {% if not patient %}
+  <!-- An unmatched number: reception usually knows exactly who this is. -->
+  <div class="card gc-scale-in" style="margin-bottom:12px;border-inline-start:4px solid var(--warning,#f59e0b);">
+    <strong><i class="bi bi-person-badge"></i> {{ t('inbox.unknown_number') }}</strong>
+    <p class="hint" style="margin:6px 0 10px;">{{ t('inbox.link_hint') }}</p>
+    <form method="post" action="{{ url_for('messages.inbox_link', key=key) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <select class="select" name="patient_id" required style="max-width:340px;">
+        <option value="">{{ t('inbox.link_pick') }}</option>
+        {% for p in patients %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }} · {{ p.patient_number }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-link-45deg"></i> {{ t('inbox.link') }}</button>
+    </form>
+  </div>
+  {% endif %}
 
   <!-- Chat -->
   <div class="card gc-scale-in" id="chat"
@@ -36,6 +54,7 @@
         <div class="stamp">
           {{ m.created_at.strftime('%m-%d %H:%M') }}
           {% if m.direction == 'out' %} · {{ t('messages_mod.st_' ~ m.status) }}{% endif %}
+          {% if m.id in waits %} · <i class="bi bi-reply"></i> {{ waits[m.id] }}{% endif %}
         </div>
       </div>
     </div>

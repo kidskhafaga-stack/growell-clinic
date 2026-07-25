@@ -144,29 +144,30 @@ def index():
 @messages_bp.route("/inbox")
 @module_required(MODULE)
 def inbox():
-    """WhatsApp conversations: one row per patient/phone with the last message,
-    newest first — the smart in-app view over everything sent and received."""
-    logs = (MessageLog.query
-            .order_by(MessageLog.created_at.desc()).limit(600).all())
-    convs, order = {}, []
-    for m in logs:
-        key = f"p{m.patient_id}" if m.patient_id else (m.to_phone or "?")
-        if key not in convs:
-            convs[key] = {"key": key, "patient": m.patient, "phone": m.to_phone,
-                          "last": m, "count": 0, "unread": 0}
-            order.append(key)
-        convs[key]["count"] += 1
-        if m.direction == "in" and m.status != "read":
-            convs[key]["unread"] += 1
-    return render_template("messages/inbox.html",
-                           conversations=[convs[k] for k in order])
+    """WhatsApp conversations: one row per patient/phone with the last message.
+
+    Defaults to the ones still waiting for an answer — a customer-service
+    inbox that opens on "who is waiting" is the difference between a log and
+    a work list."""
+    from app.utils import inbox as ibx
+
+    search = (request.args.get("q") or "").strip()
+    view = request.args.get("view") or "open"
+    convs = ibx.conversations(search=search, only_open=(view == "open"))
+    # The counters must not depend on the filter the user is looking through.
+    every = ibx.conversations(search=search)
+    return render_template(
+        "messages/inbox.html", conversations=convs, search=search, view=view,
+        total=len(every), open_count=sum(1 for c in every if c["open"]),
+        stats=ibx.response_stats(),
+        patients=Patient.query.filter_by(is_active=True)
+        .order_by(Patient.full_name).limit(500).all())
 
 
 def _thread_query(key):
-    if key.startswith("p") and key[1:].isdigit():
-        return MessageLog.query.filter(MessageLog.patient_id == int(key[1:]))
-    return MessageLog.query.filter(MessageLog.patient_id.is_(None),
-                                   MessageLog.to_phone == key)
+    from app.utils.inbox import thread_query
+
+    return thread_query(key)
 
 
 @messages_bp.route("/inbox/<key>")
@@ -187,8 +188,68 @@ def inbox_thread(key):
         db.session.commit()
     patient = next((m.patient for m in msgs if m.patient), None)
     phone = next((m.to_phone for m in reversed(msgs) if m.to_phone), None)
-    return render_template("messages/thread.html", msgs=msgs, key=key,
-                           patient=patient, phone=phone)
+    # How long the family waited for each answer, shown beside the bubbles —
+    # the only way anyone notices a two-day reply.
+    waits, pending = _reply_waits(msgs)
+    return render_template(
+        "messages/thread.html", msgs=msgs, key=key, patient=patient,
+        phone=phone, waits=waits, pending=pending,
+        patients=(Patient.query.filter_by(is_active=True)
+                  .order_by(Patient.full_name).limit(500).all()
+                  if patient is None else []))
+
+
+def _reply_waits(msgs):
+    """``({inbound_id: "answered in …"}, unanswered)`` for one conversation."""
+    waits = {}
+    pending = False
+    for i, m in enumerate(msgs):
+        if m.direction != "in":
+            continue
+        reply = next((r for r in msgs[i + 1:] if r.direction == "out"), None)
+        if reply is None:
+            pending = True
+            continue
+        gap = (reply.created_at - m.created_at).total_seconds() / 60.0
+        waits[m.id] = wait_label(max(gap, 0))
+    return waits, pending
+
+
+def wait_label(minutes):
+    """A waiting time a human reads at a glance: minutes, hours, then days."""
+    if minutes is None:
+        return ""
+    minutes = int(minutes)
+    if minutes < 60:
+        return t("inbox.in_minutes", n=minutes)
+    if minutes < 60 * 24:
+        return t("inbox.in_hours", n=round(minutes / 60.0, 1))
+    return t("inbox.in_days", n=round(minutes / 1440.0, 1))
+
+
+@messages_bp.route("/inbox/<key>/link", methods=["POST"])
+@module_required(MODULE)
+def inbox_link(key):
+    """Say who an unknown number belongs to.
+
+    A number the system couldn't match is a person reception usually knows on
+    sight — a grandmother, a driver, a second line. Naming them once moves the
+    whole conversation onto the patient's file and keeps every later message
+    there too."""
+    from app.utils.inbox import link_phone_to_patient
+
+    patient = db.session.get(Patient, request.form.get("patient_id", type=int))
+    if patient is None:
+        flash(t("inbox.link_pick"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    moved = link_phone_to_patient(key, patient)
+    if not moved:
+        flash(t("inbox.link_none"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    db.session.commit()
+    flash(t("inbox.linked", name=patient.display_name(getattr(g, "lang", "ar")),
+            n=moved), "success")
+    return redirect(url_for("messages.inbox_thread", key=f"p{patient.id}"))
 
 
 @messages_bp.route("/inbox/<key>/send", methods=["POST"])

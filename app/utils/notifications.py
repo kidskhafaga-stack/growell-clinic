@@ -60,6 +60,19 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # A patient wrote to the clinic. Nothing else on this list is someone
+    # waiting for an answer, so it is the one alert that ages badly — it goes
+    # first, and it is loud.
+    try:
+        from app.utils.inbox import unread_count
+        n = unread_count()
+        if n:
+            items.append({"key": "unread_messages", "module": "messages",
+                          "icon": "chat-dots", "severity": "danger", "count": n,
+                          "endpoint": "messages.inbox", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     try:
         from app.models import StoreItem
         low = sum(1 for i in StoreItem.query.filter_by(is_active=True).all() if i.is_low)
