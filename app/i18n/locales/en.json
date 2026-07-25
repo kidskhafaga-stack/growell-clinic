@@ -1704,7 +1704,20 @@
     "pediatric_hint": "The patient is a minor — consent is given and signed by the guardian on their behalf.",
     "default_statement": "I, the child's guardian, confirm that I have been informed of the nature, risks and alternatives of the medical service, and I consent to it.",
     "guardian_signature": "Guardian signature",
-    "witness": "Witness / staff"
+    "witness": "Witness / staff",
+    "guardian_relation": "Relation",
+    "guardian_id_no": "Signer's ID number",
+    "visit_hint": "Consent is taken while the guardian is in front of you — this shows what the visit calls for and what is already signed.",
+    "why": "Why",
+    "signed": "signed",
+    "missing": "missing",
+    "on_file": "Consents on file",
+    "record_now": "Record consent now",
+    "print_hint": "Once recorded you can print the form for the guardian to sign and keep in the file.",
+    "reason_visit": "General consent to examination and treatment",
+    "reason_procedure": "A billed procedure or investigation was done",
+    "reason_study": "A device study was run",
+    "reason_vaccine": "A vaccine was given today"
   },
   "roles_mgmt": {
     "title": "Roles & permissions",

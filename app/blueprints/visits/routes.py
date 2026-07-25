@@ -234,6 +234,11 @@ def record(visit_id):
     # Medication reconciliation reference: the patient's recent meds.
     from app.utils.meds import recent_medications
     recent_meds = recent_medications(visit.patient_id)
+    # Informed consent, where it is actually needed: what this visit calls for
+    # (a procedure, a study, a vaccine) and what the file already has signed.
+    from app.utils.consent import default_guardian, visit_status
+    consent = visit_status(visit)
+    consent_guardian = default_guardian(visit.patient)
     # Devices the doctor can run in this visit, with what each one charges —
     # so "book an echo" and "the echo is on the bill" are the same action.
     from app.models import MedicalDevice
@@ -266,7 +271,8 @@ def record(visit_id):
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         med_safety=med_safety, prescribed_names=prescribed_names,
-        study_devices=study_devices,
+        study_devices=study_devices, consent=consent,
+        consent_guardian=consent_guardian,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services, recent_meds=recent_meds,
@@ -945,6 +951,33 @@ def view(visit_id):
 @module_required(MODULE)
 def icd():
     return jsonify({"results": search_icd(request.args.get("q", ""))})
+
+
+@visits_bp.route("/<int:visit_id>/consent", methods=["POST"])
+@module_required(MODULE)
+def add_visit_consent(visit_id):
+    """Record a consent from inside the visit — the room is where the guardian
+    is standing when the procedure is about to happen."""
+    from app.utils.consent import record
+
+    visit = db.get_or_404(Visit, visit_id)
+    guardian = (request.form.get("guardian_name") or "").strip()
+    if not guardian:
+        flash(t("common.required") + ": " + t("consent.guardian_name"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#consent")
+    row = record(
+        visit.patient, (request.form.get("consent_type") or "general").strip(),
+        guardian_name=guardian,
+        relation=(request.form.get("guardian_relation") or "").strip() or None,
+        id_no=(request.form.get("guardian_id_no") or "").strip() or None,
+        notes=(request.form.get("notes") or "").strip() or None,
+        user_id=current_user.id, on_date=visit.visit_date)
+    ActivityLog.record("consent.add", user_id=current_user.id, entity="patient",
+                       entity_id=visit.patient_id, detail=row.consent_type,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("consent.added"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#consent")
 
 
 def _charge_study(device, visit):
