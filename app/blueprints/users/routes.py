@@ -12,6 +12,12 @@ from app.models.permissions import MODULES
 from app.utils.decorators import admin_required, client_ip
 
 
+def _titles():
+    from app.blueprints.main.routes import PROFESSIONAL_TITLES
+
+    return PROFESSIONAL_TITLES
+
+
 def _roles():
     """Editable roles for dropdowns (ordered: system first, then custom)."""
     return Role.query.order_by(Role.is_system.desc(), Role.name).all()
@@ -197,9 +203,8 @@ def create():
         error = _validate(form, existing=None)
         if error:
             flash(error, "danger")
-            return render_template(
-                "users/form.html", roles=_roles(), user=None, form=form
-            )
+            return render_template("users/form.html", roles=_roles(),
+                                   user=None, form=form, titles=_titles())
 
         user = User(
             username=form["username"],
@@ -216,6 +221,7 @@ def create():
             language=form["language"] or ("en" if form["role"] == "doctor" else None),
         )
         user.set_password(form["password"])
+        _apply_profile(user, form)
         photo = _save_user_photo()
         if photo:
             user.photo = photo
@@ -229,7 +235,8 @@ def create():
         flash(t("users.created"), "success")
         return redirect(url_for("users.index"))
 
-    return render_template("users/form.html", roles=_roles(), user=None, form={})
+    return render_template("users/form.html", roles=_roles(), user=None,
+                           form={}, titles=_titles())
 
 
 @users_bp.route("/<int:user_id>/edit", methods=["GET", "POST"])
@@ -242,9 +249,8 @@ def edit(user_id):
         error = _validate(form, existing=user)
         if error:
             flash(error, "danger")
-            return render_template(
-                "users/form.html", roles=_roles(), user=user, form=form
-            )
+            return render_template("users/form.html", roles=_roles(),
+                                   user=user, form=form, titles=_titles())
 
         user.username = form["username"]
         user.full_name = form["full_name"]
@@ -264,6 +270,7 @@ def edit(user_id):
                 user.is_super_admin = new_owner
         if form["password"]:
             user.set_password(form["password"])
+        _apply_profile(user, form)
         photo = _save_user_photo()
         if photo:
             user.photo = photo
@@ -289,7 +296,10 @@ def edit(user_id):
         "language": user.language or "",
         "password": "",
     }
-    return render_template("users/form.html", roles=_roles(), user=user, form=form)
+    for field in PROFILE_FIELDS + PRACTITIONER_FIELDS:
+        form[field] = getattr(user, field, None) or ""
+    return render_template("users/form.html", roles=_roles(), user=user,
+                           form=form, titles=_titles())
 
 
 @users_bp.route("/<int:user_id>/delete", methods=["POST"])
@@ -419,7 +429,53 @@ def _read_form():
         "is_practitioner": bool(request.form.get("is_practitioner")),
         "is_super_admin": bool(request.form.get("is_super_admin")),
         "language": (request.form.get("language") or "").strip(),
+        # Profile fields. These used to exist only on the person's own profile
+        # page, so an admin could create a doctor and the clinic still knew
+        # nothing about them until that doctor logged in and filled it in
+        # themselves — which nobody does before their first shift.
+        "job_title": (request.form.get("job_title") or "").strip(),
+        "branch": (request.form.get("branch") or "").strip(),
+        "rx_display_name": (request.form.get("rx_display_name") or "").strip(),
+        "professional_title": (request.form.get("professional_title") or "").strip(),
+        "specialty": (request.form.get("specialty") or "").strip(),
+        "sub_specialties": (request.form.get("sub_specialties") or "").strip(),
+        "license_no": (request.form.get("license_no") or "").strip(),
     }
+
+
+# The profile fields an admin can now fill in from the user screen. Doctor
+# identity (what gets printed on a prescription) only applies to someone who
+# actually sees patients.
+PROFILE_FIELDS = ["job_title", "branch"]
+PRACTITIONER_FIELDS = ["rx_display_name", "professional_title", "specialty",
+                       "sub_specialties", "license_no"]
+
+
+# Signature, stamp and personal logo: the pictures a prescription prints. The
+# admin has them in hand when the doctor joins — waiting for the doctor to
+# upload their own stamp is how a clinic ends up printing without one.
+RX_IMAGE_FIELDS = ["signature_file", "stamp_file", "personal_logo"]
+
+
+def _apply_profile(user, form):
+    """Copy the profile part of the form onto the user."""
+    from app.blueprints.main.routes import PROFESSIONAL_TITLES, _save_image
+
+    for field in PROFILE_FIELDS:
+        setattr(user, field, form.get(field) or None)
+    sees_patients = user.role == "doctor" or user.is_practitioner
+    for field in PRACTITIONER_FIELDS:
+        if not sees_patients:
+            continue
+        value = form.get(field) or None
+        if field == "professional_title" and value not in PROFESSIONAL_TITLES:
+            value = None
+        setattr(user, field, value)
+    if sees_patients:
+        for field in RX_IMAGE_FIELDS:
+            saved = _save_image(field)
+            if saved:
+                setattr(user, field, saved)
 
 
 def _validate(form, existing):

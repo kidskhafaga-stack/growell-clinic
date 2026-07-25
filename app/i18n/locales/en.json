@@ -137,7 +137,12 @@
     "is_practitioner_hint": "Tick this for a non-doctor (e.g. an admin) who also examines patients, so they appear in the appointments doctor list. Doctors are always included.",
     "super_admin": "Institution owner (super-admin)",
     "super_admin_hint": "The owner controls institution settings (facility setup, opening doctors, data reset) — a plain admin runs everything else.",
-    "owner_badge": "Owner"
+    "owner_badge": "Owner",
+    "profile_section": "Profile details",
+    "profile_hint": "Fill these in while creating the account — rather than waiting for the person to log in and do it themselves.",
+    "rx_identity": "Prescription identity",
+    "rx_identity_hint": "What gets printed on a prescription. Shown when the role is doctor, or the account is marked as seeing patients.",
+    "rx_media_hint": "The signature and stamp are printed on prescriptions — upload them here instead of waiting for the doctor to do it from their own profile."
   },
   "patients": {
     "title": "Patients & Families",
@@ -2819,7 +2824,11 @@
     "upload_corrupt": "The file is corrupt — integrity check failed.",
     "upload_wrong_app": "The file is a database but does not belong to this program.",
     "upload_failed": "Could not upload the backup.",
-    "uploaded": "Uploaded: {name} — you can restore from it in the list."
+    "uploaded": "Uploaded: {name} — you can restore from it in the list.",
+    "include_files": "Include photos and files",
+    "include_files_hint": "Photos are not in the database — the file is on disk and the database only stores its name. Without this, a restore brings every record back with a broken picture: patient and staff photos, the clinic logo, doctors' signatures and stamps, attached documents.",
+    "no_files": "no photos",
+    "no_files_hint": "This snapshot was taken as the database alone, so it carries no pictures."
   },
   "reception_guide": {
     "title": "Reception guide — visit & collection cycle",
