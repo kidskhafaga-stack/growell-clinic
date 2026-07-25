@@ -335,6 +335,13 @@ def register_commands(app):
                 click.echo(f"  ~ phone numbers normalised in {moved} message(s)")
         except Exception:  # noqa: BLE001
             pass
+        try:  # the front desk's canned answers, on a fresh install only
+            from app.utils.service_desk import seed_quick_replies
+            made = seed_quick_replies()
+            if made:
+                click.echo(f"  + {made} quick replies")
+        except Exception:  # noqa: BLE001
+            pass
         try:  # drug reference: classes/ingredients/brands on a fresh install,
               # and link hand-typed drugs to their ingredient afterwards
             from app.utils.drugbook_seed import (link_existing_drugs,

@@ -1,0 +1,123 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('quick.title') }}{% endblock %}
+{% block page_heading %}{{ t('quick.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-lightning-charge"></i> {{ t('quick.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('quick.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.inbox') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('inbox.title') }}</a>
+</div>
+
+<!-- When we answer, and what we say when we don't -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title"><i class="bi bi-moon-stars"></i> {{ t('quick.away_title') }}</h2>
+  <p class="hint" style="margin:-6px 0 12px;">{{ t('quick.away_subtitle') }}</p>
+  <form method="post" action="{{ url_for('messages.away_hours') }}">
+    <label class="check" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <input type="checkbox" name="wa_away_enabled" value="1" {{ 'checked' if hours.enabled else '' }}>
+      <strong>{{ t('quick.away_enabled') }}</strong></label>
+
+    <div class="form-row" style="margin-bottom:10px;">
+      <label>{{ t('quick.open_days') }}</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        {% for d in weekdays %}
+        <label class="check" style="display:flex;align-items:center;gap:5px;">
+          <input type="checkbox" name="open_days" value="{{ d }}" {{ 'checked' if d in hours.days else '' }}>
+          {{ t('weekdays.' ~ d) }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('quick.open_from') }}</label>
+        <input class="input" type="time" name="open_from" value="{{ hours['from'] }}" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('quick.open_to') }}</label>
+        <input class="input" type="time" name="open_to" value="{{ hours['to'] }}" dir="ltr">
+        <div class="hint">{{ t('quick.overnight_hint') }}</div></div>
+    </div>
+
+    <div class="form-row" style="margin-top:10px;">
+      <label>{{ t('quick.away_body') }}</label>
+      <textarea class="input" name="away_body" rows="5" style="resize:vertical;">{{ hours.body }}</textarea>
+      <div class="hint">{{ t('quick.tokens') }} <code>{clinic}</code> <code>{patient}</code> <code>{hours}</code></div>
+      <div class="hint">{{ t('quick.away_once') }}</div>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  <p class="hint" style="margin:10px 0 0;"><i class="bi bi-info-circle"></i> {{ t('quick.away_manual_note') }}</p>
+</div>
+
+<!-- Canned answers -->
+<details class="card gc-scale-in" style="margin-bottom:16px;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('quick.add') }}</summary>
+  <form method="post" action="{{ url_for('messages.quick_replies') }}" style="margin-top:12px;">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('quick.reply_title') }} *</label>
+        <input class="input" name="title" required></div>
+      <div class="form-row"><label>{{ t('quick.order') }}</label>
+        <input class="input" type="number" name="sort_order" value="100" dir="ltr"></div>
+    </div>
+    <div class="form-row"><label>{{ t('quick.body') }} *</label>
+      <textarea class="input" name="body" rows="4" required style="resize:vertical;"></textarea>
+      <div class="hint">{{ t('quick.tokens') }} <code>{clinic}</code> <code>{patient}</code> <code>{hours}</code></div></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if replies %}
+  <table class="table">
+    <thead><tr>
+      <th style="width:34%;">{{ t('quick.reply_title') }}</th><th>{{ t('quick.body') }}</th>
+      <th style="width:70px;">{{ t('quick.order') }}</th><th style="text-align:end;"></th>
+    </tr></thead>
+    {% for q in replies %}
+    <tbody x-data="{ open: false }">
+      <tr style="{{ 'opacity:0.55;' if not q.is_active else '' }}">
+        <td><strong>{{ q.title }}</strong></td>
+        <td style="color:var(--muted);font-size:.86rem;white-space:pre-wrap;">{{ q.body[:120] }}</td>
+        <td class="num">{{ q.sort_order }}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <button class="btn btn-outline btn-sm gc-press" type="button" @click="open=!open">
+            <i class="bi bi-pencil"></i></button>
+          <form method="post" action="{{ url_for('messages.quick_reply_delete', reply_id=q.id) }}"
+                style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      <tr x-show="open" x-cloak>
+        <td colspan="4" style="background:var(--surface-2);">
+          <form method="post" action="{{ url_for('messages.quick_reply_edit', reply_id=q.id) }}">
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('quick.reply_title') }}</label>
+                <input class="input" name="title" value="{{ q.title }}"></div>
+              <div class="form-row"><label>{{ t('quick.order') }}</label>
+                <input class="input" type="number" name="sort_order" value="{{ q.sort_order }}" dir="ltr"></div>
+            </div>
+            <div class="form-row"><label>{{ t('quick.body') }}</label>
+              <textarea class="input" name="body" rows="4" style="resize:vertical;">{{ q.body }}</textarea></div>
+            <label class="check" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+              <input type="checkbox" name="is_active" value="1" {{ 'checked' if q.is_active else '' }}>
+              {{ t('common.active') }}</label>
+            <button class="btn btn-primary btn-sm gc-press" type="submit">
+              <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+            <button class="btn btn-outline btn-sm gc-press" type="button" @click="open=false">{{ t('common.cancel') }}</button>
+          </form>
+        </td>
+      </tr>
+    </tbody>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-lightning-charge"></i>{{ t('quick.none') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

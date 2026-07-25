@@ -2871,7 +2871,16 @@
     "minutes": "min",
     "in_minutes": "answered in {n} min",
     "in_hours": "answered in {n} h",
-    "in_days": "answered in {n} d"
+    "in_days": "answered in {n} d",
+    "ai_suggest": "Suggest a reply",
+    "ai_working": "Writing…",
+    "ai_hint": "The AI drafts into the reply box — you review it and send it.",
+    "ai_review": "This is a draft — read it and edit before sending. It won't go out on its own.",
+    "ai_not_configured": "AI isn't set up yet. Configure it in settings first.",
+    "ai_disabled": "AI is switched off in settings.",
+    "ai_nothing_to_answer": "The last message in this conversation is ours — there's no new question to answer.",
+    "ai_empty": "This conversation is empty.",
+    "ai_failed": "Couldn't get a suggestion right now."
   },
   "journal": {
     "title": "Journal",
@@ -3517,5 +3526,29 @@
     "reason_same_drug": "the same drug or the recorded trade name.",
     "reason_same_family": "the same drug family as the recorded allergy.",
     "reason_cross_family": "a related family — cross-reaction is possible, not certain."
+  },
+  "quick": {
+    "title": "Quick replies & answering hours",
+    "subtitle": "The answers that repeat all day — written once, edited here, and dropped into the reply box with one tap.",
+    "add": "Add a quick reply",
+    "reply_title": "Title",
+    "body": "Message",
+    "order": "Order",
+    "none": "No quick replies yet.",
+    "added": "Quick reply added",
+    "updated": "Quick reply updated",
+    "deleted": "Quick reply deleted",
+    "manage": "Manage quick replies",
+    "tokens": "Tokens:",
+    "away_title": "Out-of-hours reply",
+    "away_subtitle": "A parent writing at 1 a.m. shouldn't be left wondering whether the message arrived.",
+    "away_enabled": "Reply automatically outside working hours",
+    "open_days": "Working days",
+    "open_from": "From",
+    "open_to": "To",
+    "overnight_hint": "A closing time earlier than the opening one means the shift runs past midnight (16:00 → 02:00) — that's fine.",
+    "away_body": "Message text",
+    "away_once": "Sent at most once every 12 hours per conversation — so nobody gets a robot answering every message.",
+    "away_manual_note": "Only works when automatic sending is on. In manual mode every message becomes a link, and nobody is there to click it at 1 a.m."
   }
 }

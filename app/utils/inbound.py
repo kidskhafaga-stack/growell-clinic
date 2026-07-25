@@ -124,4 +124,12 @@ def handle_inbound(item, provider):
                      patient_id=(patients[0].id if patients else None))
     db.session.add(log)
     captured = _capture_rating(patients, item)
-    return {"matched": bool(patients), "captured": captured}
+    # Outside working hours, say so — a parent writing at 1 a.m. shouldn't be
+    # left wondering whether the message arrived at all. At most once a day
+    # per conversation, and never for a reply that just answered a survey.
+    away = None
+    if not captured:
+        from app.utils.service_desk import maybe_send_away_reply
+        away = maybe_send_away_reply(log)
+    return {"matched": bool(patients), "captured": captured,
+            "away": away is not None}

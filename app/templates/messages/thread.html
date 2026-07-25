@@ -61,14 +61,39 @@
     {% endfor %}
   </div>
 
-  <!-- Reply -->
-  <form method="post" action="{{ url_for('messages.inbox_send', key=key) }}"
-        class="card gc-scale-in" style="display:flex;gap:10px;align-items:end;margin-top:12px;">
-    <textarea class="input" name="body" rows="2" required style="flex:1;resize:vertical;"
-              placeholder="{{ t('inbox.reply_ph') }}"></textarea>
-    <button class="btn btn-primary gc-press gc-ripple" type="submit">
-      <i class="bi bi-send"></i> {{ t('inbox.send') }}</button>
-  </form>
+  <!-- Reply: canned answers, an AI draft, and the words the user sends -->
+  <div class="card gc-scale-in" style="margin-top:12px;"
+       x-data="replyBox({{ canned|tojson }})">
+    {% if canned %}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+      <template x-for="(q, i) in canned" :key="i">
+        <button type="button" class="btn btn-outline btn-sm gc-press"
+                @click="use(q.body)" x-text="q.title"></button>
+      </template>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.quick_replies') }}"
+         title="{{ t('quick.manage') }}"><i class="bi bi-gear"></i></a>
+    </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('messages.inbox_send', key=key) }}"
+          style="display:flex;gap:10px;align-items:end;">
+      <textarea class="input" name="body" rows="2" required style="flex:1;resize:vertical;"
+                x-ref="box" x-model="text" placeholder="{{ t('inbox.reply_ph') }}"></textarea>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        {% if ai_ready %}
+        <button type="button" class="btn btn-outline btn-sm gc-press" @click="suggest()"
+                :disabled="busy" title="{{ t('inbox.ai_hint') }}">
+          <i class="bi" :class="busy ? 'bi-hourglass-split' : 'bi-stars'"></i>
+          <span x-text="busy ? '{{ t('inbox.ai_working') }}' : '{{ t('inbox.ai_suggest') }}'"></span></button>
+        {% endif %}
+        <button class="btn btn-primary gc-press gc-ripple" type="submit">
+          <i class="bi bi-send"></i> {{ t('inbox.send') }}</button>
+      </div>
+    </form>
+    <p class="hint" style="margin:8px 0 0;" x-show="drafted" x-cloak>
+      <i class="bi bi-stars"></i> {{ t('inbox.ai_review') }}</p>
+    <p class="hint" style="margin:8px 0 0;color:var(--danger);" x-show="error" x-cloak
+       x-text="error"></p>
+  </div>
 </div>
 
 <style>
@@ -83,5 +108,26 @@
   // Open scrolled to the latest message.
   var chat = document.getElementById('chat');
   if (chat) chat.scrollTop = chat.scrollHeight;
+
+  function replyBox(canned) {
+    return {
+      canned: canned, text: '', busy: false, drafted: false, error: '',
+      use(body) { this.text = body; this.drafted = false; this.error = '';
+                  this.$refs.box.focus(); },
+      // The draft lands in the box. Nothing is sent until the user presses
+      // send — they own the words that reach the parent.
+      async suggest() {
+        this.busy = true; this.error = ''; this.drafted = false;
+        try {
+          const r = await fetch('{{ url_for('messages.inbox_ai_suggest', key=key) }}',
+                                {method: 'POST', headers: {'X-Requested-With': 'fetch'}});
+          const d = await r.json();
+          if (d.ok && d.text) { this.text = d.text; this.drafted = true; }
+          else { this.error = d.error || '{{ t('inbox.ai_failed') }}'; }
+        } catch (e) { this.error = '{{ t('inbox.ai_failed') }}'; }
+        this.busy = false;
+      }
+    };
+  }
 </script>
 {% endblock %}
