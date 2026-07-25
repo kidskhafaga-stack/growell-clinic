@@ -279,6 +279,10 @@ def register_commands(app):
             ("message_templates", "repeat_rule", "VARCHAR(10) DEFAULT 'once'"),
             ("message_templates", "last_enqueued_on", "DATE"),
             ("message_logs", "template_id", "INTEGER"),
+            ("named_discounts", "service_id", "INTEGER"),
+            ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
+            ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),
+            ("named_discounts", "auto_apply", "BOOLEAN DEFAULT 1"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -292,6 +296,13 @@ def register_commands(app):
                 )
                 applied += 1
                 click.echo(f"  + {table}.{column}")
+                if (table, column) == ("named_discounts", "auto_apply"):
+                    # A campaign a clinic already created was always chosen by
+                    # hand — turning it on for everybody is not an upgrade.
+                    # New campaigns default to automatic; existing ones don't.
+                    db.session.execute(text(
+                        "UPDATE named_discounts SET auto_apply = 0 "
+                        "WHERE dtype = 'campaign'"))
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_drugs_safe()
