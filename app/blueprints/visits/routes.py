@@ -239,10 +239,14 @@ def record(visit_id):
     from app.utils.rx_safety import check as rx_check
     med_safety = rx_check(visit.medications, patient=visit.patient,
                           lang=getattr(g, "lang", "ar"))
+    # Which of them already printed on a prescription for this visit — so the
+    # room list and the prescription read as one thing, not two parallel lists.
+    prescribed_names = {(" ".join((it.drug_name or "").split())).lower()
+                        for rx in visit.prescriptions for it in rx.items}
     from app.utils import ai
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
-        med_safety=med_safety,
+        med_safety=med_safety, prescribed_names=prescribed_names,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services, recent_meds=recent_meds,
@@ -576,7 +580,9 @@ def add_medication(visit_id):
     med = VisitMedication(
         visit_id=visit.id, patient_id=visit.patient_id,
         drug_id=drug.id if drug is not None else None,
-        generic_id=generic_id if db.session.get(GenericDrug, generic_id) else None,
+        generic_id=(generic_id
+                    if generic_id and db.session.get(GenericDrug, generic_id)
+                    else None),
         name=name,
         dose=(request.form.get("dose") or "").strip() or None,
         frequency=(request.form.get("frequency") or "").strip() or None,

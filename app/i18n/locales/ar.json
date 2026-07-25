@@ -672,7 +672,10 @@
     "add_medication": "أضف دواء",
     "med_added": "تمت إضافة الدواء للزيارة",
     "med_removed": "تم حذف الدواء",
-    "med_need_name": "اكتب اسم الدواء أولاً."
+    "med_need_name": "اكتب اسم الدواء أولاً.",
+    "med_on_rx": "في الروشتة",
+    "med_on_rx_hint": "الدواء ده اتكتب فعلاً في روشتة من الزيارة دي.",
+    "med_rx_exists": "الزيارة دي ليها روشتة:"
   },
   "diagnosis_types": {
     "working": "أولي",
@@ -2010,7 +2013,8 @@
     "sev_mild": "خفيف",
     "alternative": "البديل",
     "dose_flags_title": "تنبيهات الجرعة لهذا الطفل",
-    "interaction_line": "تعارض دوائي: {a} + {b}"
+    "interaction_line": "تعارض دوائي: {a} + {b}",
+    "visit_meds_all_prescribed": "كل أدوية الزيارة دي اتكتبت في روشتة بالفعل — الروشتة الجديدة فاضية علشان مايتكررش نفس الدواء."
   },
   "drug_forms": {
     "tablet": "أقراص",

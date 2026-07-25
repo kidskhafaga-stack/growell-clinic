@@ -672,7 +672,10 @@
     "add_medication": "Add medicine",
     "med_added": "Medicine added to the visit",
     "med_removed": "Medicine removed",
-    "med_need_name": "Type the medicine name first."
+    "med_need_name": "Type the medicine name first.",
+    "med_on_rx": "on the prescription",
+    "med_on_rx_hint": "This medicine is already on a prescription from this visit.",
+    "med_rx_exists": "This visit already has a prescription:"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -2010,7 +2013,8 @@
     "sev_mild": "Mild",
     "alternative": "Alternative",
     "dose_flags_title": "Dose flags for this child",
-    "interaction_line": "Interaction: {a} + {b}"
+    "interaction_line": "Interaction: {a} + {b}",
+    "visit_meds_all_prescribed": "Every medicine from this visit is already on a prescription — the new one starts empty so nothing is prescribed twice."
   },
   "drug_forms": {
     "tablet": "Tablet",
