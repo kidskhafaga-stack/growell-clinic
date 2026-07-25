@@ -135,6 +135,11 @@ def register_commands(app):
             ("payments", "kind", "VARCHAR(10) DEFAULT 'payment'"),
             ("payments", "tendered", "FLOAT"),
             ("invoice_items", "vaccine_brand_id", "INTEGER"),
+            ("drugs", "generic_id", "INTEGER"),
+            ("drugs", "pack_size", "VARCHAR(60)"),
+            ("drugs", "price", "FLOAT"),
+            ("drugs", "barcode", "VARCHAR(60)"),
+            ("drugs", "manufacturer", "VARCHAR(120)"),
             ("patient_vaccines", "inventory_id", "INTEGER"),
             ("invoices", "payer_id", "INTEGER"),
             ("invoices", "coverage_card", "VARCHAR(60)"),
@@ -297,6 +302,13 @@ def register_commands(app):
             backfill_item_codes()
         except Exception:  # noqa: BLE001
             pass
+        try:  # drug reference: classes/ingredients/brands on a fresh install,
+              # and link hand-typed drugs to their ingredient afterwards
+            from app.utils.drugbook_seed import link_existing_drugs, seed_drugbook
+            seed_drugbook()
+            link_existing_drugs()
+        except Exception:  # noqa: BLE001
+            pass
         try:  # unify CRM templates into the registry (migrates legacy settings)
             from app.utils.whatsapp import seed_system_templates
             seed_system_templates()
@@ -445,6 +457,12 @@ def _seed_drugs_safe():
     try:
         from app.utils.investigations import seed_investigations
         seed_investigations()
+    except Exception:  # noqa: BLE001
+        pass
+    try:  # the drug reference: classes → ingredients → trade names
+        from app.utils.drugbook_seed import link_existing_drugs, seed_drugbook
+        seed_drugbook()
+        link_existing_drugs()
     except Exception:  # noqa: BLE001
         pass
     _seed_crm_templates_safe()

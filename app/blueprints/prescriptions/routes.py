@@ -14,7 +14,9 @@ from app.models import (
     DRUG_FORMS,
     ActivityLog,
     Drug,
+    DrugClass,
     DrugInteraction,
+    GenericDrug,
     Investigation,
     Patient,
     Prescription,
@@ -76,6 +78,68 @@ def index():
     )
     return render_template("prescriptions/index.html", pagination=pagination,
                            prescriptions=pagination.items)
+
+
+# ================================================ drug reference (المرجع) ===
+@prescriptions_bp.route("/drugbook")
+@module_required(MODULE)
+def drugbook():
+    """The drug reference, browsed the way it is organised: class → active
+    ingredient → the trade names that carry it. Searching cuts across all
+    three, because a doctor types whichever name comes to mind first."""
+    q = (request.args.get("q") or "").strip()
+    class_id = request.args.get("class_id", type=int)
+    classes = (DrugClass.query.filter_by(is_active=True)
+               .order_by(DrugClass.sort_order, DrugClass.name_ar).all())
+    query = GenericDrug.query.filter_by(is_active=True)
+    if class_id:
+        query = query.filter(GenericDrug.class_id == class_id)
+    if q:
+        like = f"%{q}%"
+        query = query.outerjoin(Drug, Drug.generic_id == GenericDrug.id).filter(or_(
+            GenericDrug.name_ar.ilike(like), GenericDrug.name_en.ilike(like),
+            GenericDrug.atc_code.ilike(like), Drug.trade_name.ilike(like)))
+    generics = query.order_by(GenericDrug.name_en).distinct().limit(300).all()
+    counts = {}
+    for c in classes:
+        counts[c.id] = GenericDrug.query.filter_by(class_id=c.id,
+                                                   is_active=True).count()
+    return render_template("prescriptions/drugbook.html", classes=classes,
+                           generics=generics, counts=counts, q=q,
+                           class_id=class_id)
+
+
+@prescriptions_bp.route("/drugbook/<int:generic_id>")
+@module_required(MODULE)
+def drugbook_generic(generic_id):
+    """One active ingredient: dosing by weight and by age, the safety limits,
+    the brands that carry it — and a calculator wired to a real patient when
+    one is passed in (?patient_id=), so the weight and age are the child's."""
+    from app.utils.dosing import age_months_of, calculate, latest_weight
+
+    generic = db.get_or_404(GenericDrug, generic_id)
+    patient = (db.session.get(Patient, request.args.get("patient_id", type=int))
+               if request.args.get("patient_id", type=int) else None)
+    weight = request.args.get("weight", type=float)
+    age_months = request.args.get("age_months", type=int)
+    if patient is not None:
+        if weight is None:
+            weight = latest_weight(patient)
+        if age_months is None:
+            age_months = age_months_of(patient)
+    product = (db.session.get(Drug, request.args.get("product_id", type=int))
+               if request.args.get("product_id", type=int) else None)
+    result = (calculate(generic, weight_kg=weight, age_months=age_months,
+                        product=product)
+              if (weight is not None or age_months is not None) else None)
+    interactions = (DrugInteraction.query
+                    .join(Drug, or_(DrugInteraction.drug_a_id == Drug.id,
+                                    DrugInteraction.drug_b_id == Drug.id))
+                    .filter(Drug.generic_id == generic.id).distinct().all())
+    return render_template("prescriptions/drugbook_generic.html", generic=generic,
+                           patient=patient, weight=weight, age_months=age_months,
+                           product=product, result=result,
+                           interactions=interactions)
 
 
 # ----------------------------------------------------- drug catalogue ------

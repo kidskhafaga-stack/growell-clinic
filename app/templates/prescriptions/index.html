@@ -8,6 +8,9 @@
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <h1 class="page-title">{{ t('rx.title') }}</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {# The reference is for whoever prescribes, not only for admins — the
+       editable catalogue behind it stays admin-only. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook') }}"><i class="bi bi-book"></i> {{ t('drugbook.nav') }}</a>
     {% if current_user.can_access('settings') %}
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}"><i class="bi bi-capsule"></i> {{ t('rx.manage_drugs') }}</a>
     {% endif %}

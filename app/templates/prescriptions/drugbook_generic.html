@@ -1,0 +1,190 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ generic.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ generic.display_name(current_lang) }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ generic.full_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {% if generic.drug_class %}{{ generic.drug_class.display_name(current_lang) }} · {% endif %}
+      <span dir="ltr">{{ generic.routes or '' }}</span>
+      {% if generic.atc_code %} · <span dir="ltr">ATC {{ generic.atc_code }}</span>{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('drugbook.title') }}</a>
+</div>
+
+{% if generic.black_box %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:5px solid var(--danger);">
+  <h2 class="section-title" style="color:var(--danger);margin-top:0;">
+    <i class="bi bi-exclamation-octagon-fill"></i> {{ t('drugbook.black_box') }}</h2>
+  <p style="margin:0;">{{ generic.black_box }}</p>
+</div>
+{% endif %}
+
+<!-- Dose calculator -->
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title"><i class="bi bi-calculator"></i> {{ t('drugbook.calculator') }}</h2>
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    {% if patient %}<input type="hidden" name="patient_id" value="{{ patient.id }}">{% endif %}
+    <div class="form-row" style="margin:0;"><label>{{ t('drugbook.weight') }} (kg)</label>
+      <input class="input" type="number" step="0.1" min="0" name="weight" value="{{ weight or '' }}" style="width:120px;" dir="ltr"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('drugbook.age_months') }}</label>
+      <input class="input" type="number" min="0" name="age_months" value="{{ age_months if age_months is not none else '' }}" style="width:120px;" dir="ltr"></div>
+    <div class="form-row" style="margin:0;min-width:220px;"><label>{{ t('drugbook.product') }}</label>
+      <select class="select" name="product_id">
+        <option value="">— {{ t('drugbook.pick_product') }} —</option>
+        {% for b in generic.brands %}
+        <option value="{{ b.id }}" {{ 'selected' if product and product.id == b.id else '' }}>
+          {{ b.trade_name }} {{ b.strength or '' }}</option>
+        {% endfor %}
+      </select></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-calculator"></i> {{ t('drugbook.calculate') }}</button>
+  </form>
+  {% if patient %}<p class="hint" style="margin:8px 0 0;">{{ t('drugbook.from_patient').replace('{name}', patient.display_name(current_lang)) }}</p>{% endif %}
+
+  {% if result %}
+  <div style="margin-top:14px;">
+    {% for w in result.warnings %}
+    <div class="info-note" style="margin-bottom:8px;border-inline-start:4px solid var(--danger);color:var(--danger);">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ t('drugbook.warn_' ~ w) }}</div>
+    {% endfor %}
+    {% if result.dose_mg %}
+    <div class="stat-grid stat-grid--compact">
+      <div class="stat-card"><div class="value" dir="ltr">
+        {{ result.dose_mg }}{% if result.dose_mg_max %}–{{ result.dose_mg_max }}{% endif %} mg</div>
+        <div class="label">{{ t('drugbook.per_dose') }}</div></div>
+      {% if result.ml %}
+      <div class="stat-card"><div class="value" dir="ltr">
+        {{ result.ml }}{% if result.ml_max %}–{{ result.ml_max }}{% endif %} ml</div>
+        <div class="label">{{ t('drugbook.ml_of') }} {{ product.trade_name if product else '' }}</div></div>
+      {% endif %}
+      <div class="stat-card"><div class="value" dir="ltr">{{ result.doses_per_day or '—' }}</div>
+        <div class="label">{{ t('drugbook.times_daily') }}</div></div>
+      {% if result.daily_mg %}
+      <div class="stat-card"><div class="value" dir="ltr">{{ result.daily_mg }} mg</div>
+        <div class="label">{{ t('drugbook.per_day') }}</div></div>
+      {% endif %}
+    </div>
+    {% if result.capped %}
+    <p class="hint" style="color:var(--danger);margin-top:6px;">{{ t('drugbook.capped') }}</p>
+    {% endif %}
+    {% endif %}
+    {% if result.band %}
+    <div class="info-note" style="margin-top:10px;">
+      <strong>{{ result.band.age_label(current_lang) }}:</strong> {{ result.band.dose_text }}
+      {% if result.band.notes %} — {{ result.band.notes }}{% endif %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;">
+  <!-- Dosing rules -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-rulers"></i> {{ t('drugbook.dosing') }}</h2>
+    <table class="table"><tbody>
+      {% if generic.dose_range_label %}
+      <tr><td>{{ t('drugbook.by_weight') }}</td><td dir="ltr" style="font-weight:600;">{{ generic.dose_range_label }}</td></tr>
+      {% endif %}
+      {% if generic.max_per_kg_day %}
+      <tr><td>{{ t('drugbook.max_per_kg_day') }}</td><td dir="ltr">{{ generic.max_per_kg_day }} mg/kg/day</td></tr>
+      {% endif %}
+      {% if generic.max_single_dose_mg %}
+      <tr><td>{{ t('drugbook.max_single') }}</td><td dir="ltr">{{ generic.max_single_dose_mg }} mg</td></tr>
+      {% endif %}
+      {% if generic.max_daily_dose_mg %}
+      <tr><td>{{ t('drugbook.max_daily') }}</td><td dir="ltr">{{ generic.max_daily_dose_mg }} mg</td></tr>
+      {% endif %}
+      {% if generic.min_age_months %}
+      <tr><td>{{ t('drugbook.min_age') }}</td><td>{{ generic.min_age_months }} {{ t('drugbook.months') }}</td></tr>
+      {% endif %}
+      {% if generic.dose_note %}
+      <tr><td>{{ t('common.notes') }}</td><td>{{ generic.dose_note }}</td></tr>
+      {% endif %}
+    </tbody></table>
+    {% if generic.age_bands %}
+    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-calendar3"></i> {{ t('drugbook.by_age') }}</h3>
+    <table class="table">
+      <thead><tr><th>{{ t('drugbook.age') }}</th><th>{{ t('drugbook.dose') }}</th></tr></thead>
+      <tbody>
+        {% for b in generic.age_bands %}
+        <tr><td>{{ b.age_label(current_lang) }}</td><td>{{ b.dose_text }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- Safety -->
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-shield-exclamation"></i> {{ t('drugbook.safety') }}</h2>
+    <table class="table"><tbody>
+      {% if generic.indications %}<tr><td>{{ t('drugbook.indications') }}</td><td>{{ generic.indications }}</td></tr>{% endif %}
+      {% if generic.contraindications %}<tr><td style="color:var(--danger);">{{ t('drugbook.contraindications') }}</td><td>{{ generic.contraindications }}</td></tr>{% endif %}
+      {% if generic.precautions %}<tr><td>{{ t('drugbook.precautions') }}</td><td>{{ generic.precautions }}</td></tr>{% endif %}
+      {% if generic.side_effects %}<tr><td>{{ t('drugbook.side_effects') }}</td><td>{{ generic.side_effects }}</td></tr>{% endif %}
+      {% if generic.renal_adjustment %}<tr><td>{{ t('drugbook.renal') }}</td><td>{{ generic.renal_adjustment }}</td></tr>{% endif %}
+      {% if generic.hepatic_adjustment %}<tr><td>{{ t('drugbook.hepatic') }}</td><td>{{ generic.hepatic_adjustment }}</td></tr>{% endif %}
+      {% if generic.pregnancy_category or generic.pregnancy_note %}
+      <tr><td>{{ t('drugbook.pregnancy') }}</td><td>
+        {% if generic.pregnancy_category %}<span class="badge badge--role" dir="ltr">{{ generic.pregnancy_category }}</span> {% endif %}
+        {{ generic.pregnancy_note or '' }}</td></tr>{% endif %}
+      {% if generic.lactation_note %}<tr><td>{{ t('drugbook.lactation') }}</td><td>{{ generic.lactation_note }}</td></tr>{% endif %}
+      {% if generic.monitoring %}<tr><td>{{ t('drugbook.monitoring') }}</td><td>{{ generic.monitoring }}</td></tr>{% endif %}
+      {% if generic.reference %}<tr><td>{{ t('drugbook.reference') }}</td><td>
+        {% if generic.reference_url %}<a href="{{ generic.reference_url }}" target="_blank" rel="noopener">{{ generic.reference }}</a>
+        {% else %}{{ generic.reference }}{% endif %}</td></tr>{% endif %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Brands + strengths -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:14px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-box-seam"></i> {{ t('drugbook.brands') }}</h2>
+  {% if generic.brands %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('rx.trade_name') }}</th><th>{{ t('rx.form') }}</th><th>{{ t('rx.strength') }}</th>
+      <th>{{ t('drugbook.concentration') }}</th><th>{{ t('drugbook.manufacturer') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for b in generic.brands %}
+      <tr>
+        <td><strong>{{ b.trade_name }}</strong></td>
+        <td>{{ t('drug_forms.' ~ b.form) if b.form in ['syrup','tablet','capsule','drops','suppository','injection','cream','ointment','spray','inhaler','sachet'] else (b.form or '—') }}</td>
+        <td dir="ltr">{{ b.strength or '—' }}</td>
+        <td dir="ltr">{{ (b.conc_mg_per_ml ~ ' mg/ml') if b.conc_mg_per_ml else '—' }}</td>
+        <td style="color:var(--muted);">{{ b.manufacturer or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding:20px;">{{ t('drugbook.no_brands') }}</div>
+  {% endif %}
+</div>
+
+{% if interactions %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-top:14px;">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-diagram-3"></i> {{ t('drugbook.interactions') }}</h2>
+  <table class="table">
+    <thead><tr><th>{{ t('drugbook.with_drug') }}</th><th>{{ t('drugbook.severity') }}</th><th>{{ t('common.notes') }}</th></tr></thead>
+    <tbody>
+      {% for i in interactions %}
+      <tr>
+        <td>{{ i.drug_a.trade_name if i.drug_a else '' }} ↔ {{ i.drug_b.trade_name if i.drug_b else '' }}</td>
+        <td><span class="badge badge--role">{{ t('rx.sev_' ~ i.severity) if i.severity else '—' }}</span></td>
+        <td style="color:var(--muted);">{{ i.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('drugbook.disclaimer') }}</p>
+{% endblock %}

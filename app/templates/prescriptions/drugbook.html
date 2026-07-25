@@ -1,0 +1,73 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('drugbook.title') }}{% endblock %}
+{% block page_heading %}{{ t('drugbook.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('drugbook.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('drugbook.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
+</div>
+
+<form method="get" class="gc-animate" style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
+  <input class="input" name="q" value="{{ q }}" style="flex:1;min-width:240px;"
+         placeholder="{{ t('drugbook.search_ph') }}">
+  {% if class_id %}<input type="hidden" name="class_id" value="{{ class_id }}">{% endif %}
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
+  {% if q or class_id %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook') }}">{{ t('common.reset') }}</a>
+  {% endif %}
+</form>
+
+<!-- Level 1: the classes -->
+<div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+  {% for c in classes %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if c.id == class_id else 'btn-outline' }}"
+     href="{{ url_for('prescriptions.drugbook', class_id=c.id, q=q or None) }}">
+    <i class="bi {{ c.icon or 'bi-capsule' }}"></i> {{ c.display_name(current_lang) }}
+    <span class="badge badge--role">{{ counts.get(c.id, 0) }}</span></a>
+  {% endfor %}
+</div>
+
+<!-- Level 2: the active ingredients -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if generics %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('drugbook.generic') }}</th>
+      <th>{{ t('drugbook.class') }}</th>
+      <th>{{ t('drugbook.dose_rule') }}</th>
+      <th>{{ t('drugbook.min_age') }}</th>
+      <th>{{ t('drugbook.brands') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for gen in generics %}
+      <tr>
+        <td>
+          <a href="{{ url_for('prescriptions.drugbook_generic', generic_id=gen.id) }}">
+            <strong>{{ gen.display_name(current_lang) }}</strong></a>
+          {% if gen.black_box %}<i class="bi bi-exclamation-octagon-fill" style="color:var(--danger);"
+             title="{{ t('drugbook.black_box') }}"></i>{% endif %}
+          <div style="color:var(--muted);font-size:.8rem;" dir="ltr">{{ gen.name_en or '' }}</div>
+        </td>
+        <td style="color:var(--muted);">{{ gen.drug_class.display_name(current_lang) if gen.drug_class else '—' }}</td>
+        <td dir="ltr" style="font-size:.85rem;">{{ gen.dose_range_label or (t('drugbook.by_age') if gen.age_bands else '—') }}</td>
+        <td>{% if gen.min_age_months %}<span class="badge badge--role">{{ gen.min_age_months }} {{ t('drugbook.months') }}</span>{% else %}—{% endif %}</td>
+        <td style="color:var(--muted);font-size:.85rem;">
+          {{ gen.brands[:3]|map(attribute='trade_name')|join(' · ') if gen.brands else '—' }}
+          {% if gen.brands|length > 3 %} +{{ gen.brands|length - 3 }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding:26px;">{{ t('drugbook.empty') }}</div>
+  {% endif %}
+</div>
+
+<p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('drugbook.disclaimer') }}</p>
+{% endblock %}

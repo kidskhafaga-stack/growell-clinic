@@ -48,6 +48,13 @@ from app.models.visit import (
     VisitInvestigation,
     VisitService,
 )
+from app.models.drugbook import (
+    DOSE_BASES,
+    PREGNANCY_CATEGORIES,
+    DrugClass,
+    GenericDoseBand,
+    GenericDrug,
+)
 from app.models.vital_signs import VitalSigns
 from app.models.vaccine import (
     SETTLEMENT_REASONS,
@@ -208,6 +215,11 @@ __all__ = [
     "DIAGNOSIS_TYPES",
     "ICD_VERSIONS",
     "Vaccine",
+    "DrugClass",
+    "GenericDrug",
+    "GenericDoseBand",
+    "DOSE_BASES",
+    "PREGNANCY_CATEGORIES",
     "VaccineBrand",
     "VaccineSettlement",
     "SETTLEMENT_REASONS",
