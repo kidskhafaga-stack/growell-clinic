@@ -980,6 +980,26 @@ def shift_report(shift_id):
                            payment_methods=PAYMENT_METHODS)
 
 
+def _member_discount(patient, on_date=None):
+    """A club/company discount the patient qualifies for by membership.
+
+    A club that just gives its members a flat percentage doesn't need a
+    negotiated price list — it needs one named discount tied to the payer.
+    Members then get it automatically, without reception remembering to pick
+    it. Returns the best (largest percentage / amount) match, or None."""
+    from app.models import NamedDiscount
+
+    if patient is None:
+        return None
+    rows = (NamedDiscount.query
+            .filter(NamedDiscount.dtype == "payer",
+                    NamedDiscount.is_active.is_(True)).all())
+    eligible = [d for d in rows if d.applies_to(patient, None, on_date)]
+    if not eligible:
+        return None
+    return sorted(eligible, key=lambda d: (d.is_percent, d.value or 0))[-1]
+
+
 def _apply_cash_prices(invoice):
     """Reprice the lines from the clinic's cash price list (التسعيرة النقدية).
 
@@ -1044,6 +1064,14 @@ def _apply_coverage(invoice, patient):
             item.discount_is_percent = False
             if item.service is not None:
                 item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
+
+    # A club whose agreement is "members pay 15% less" carries no price list,
+    # so nothing above touched the invoice. Its member discount applies here —
+    # never on top of a line the coverage already reduced.
+    if invoice.discount_id is None:
+        member = _member_discount(patient, invoice.invoice_date)
+        if member is not None:
+            _apply_named_discount(invoice, member)
 
 
 def _uncharged_vaccines(patient_id, days=2):
@@ -1574,6 +1602,7 @@ def discounts():
             is_percent=(request.form.get("unit") or "percent") == "percent",
             doctor_id=request.form.get("doctor_id", type=int) or None,
             client_category=(request.form.get("client_category") or "").strip() or None,
+            payer_id=request.form.get("payer_id", type=int) or None,
             start_date=_parse_date_arg("start_date"),
             end_date=_parse_date_arg("end_date"),
         ))
@@ -1586,7 +1615,9 @@ def discounts():
         discounts=NamedDiscount.query.order_by(NamedDiscount.is_active.desc(),
                                                NamedDiscount.name).all(),
         types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES,
-        service_categories=SERVICE_CATEGORIES, doctors=_doctors_active())
+        service_categories=SERVICE_CATEGORIES, doctors=_doctors_active(),
+        payers=PayerEntity.query.filter_by(is_active=True)
+        .order_by(PayerEntity.name).all())
 
 
 @finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])
@@ -2000,6 +2031,34 @@ def payers():
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         cash_payer=cash_payer(),
     )
+
+
+@finance_bp.route("/payers/<int:payer_id>/members")
+@module_required(MODULE)
+def payer_members(payer_id):
+    """The club/company's members with their card data — who exactly gets the
+    agreement, and a printable list to hand to the club."""
+    from app.models import PatientCoverage
+
+    payer = db.get_or_404(PayerEntity, payer_id)
+    rows = (PatientCoverage.query.filter_by(payer_id=payer.id)
+            .order_by(PatientCoverage.is_active.desc(),
+                      PatientCoverage.expiry_date.is_(None),
+                      PatientCoverage.expiry_date.desc()).all())
+    from app.models import NamedDiscount
+    member_discounts = (NamedDiscount.query
+                        .filter_by(dtype="payer", payer_id=payer.id,
+                                   is_active=True).all())
+    if request.args.get("print"):
+        lang = request.args.get("lang")
+        if lang in ("ar", "en"):
+            from app.i18n import get_direction
+            g.lang = lang
+            g.direction = get_direction(lang)
+        return render_template("finance/members_print.html", payer=payer,
+                               rows=rows, today=date.today())
+    return render_template("finance/payer_members.html", payer=payer, rows=rows,
+                           member_discounts=member_discounts, today=date.today())
 
 
 @finance_bp.route("/payers/cash-list", methods=["POST"])

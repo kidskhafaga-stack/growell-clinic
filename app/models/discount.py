@@ -9,7 +9,7 @@ from datetime import date, datetime
 
 from app.extensions import db
 
-DISCOUNT_TYPES = ["campaign", "doctor", "category", "special"]
+DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "special"]
 
 
 class NamedDiscount(db.Model):
@@ -29,9 +29,14 @@ class NamedDiscount(db.Model):
     # discount reduces and it never bleeds onto unrelated lines.
     scope = db.Column(db.String(20), default="all", nullable=False)
 
-    # Eligibility: a doctor (doctor type) or a client category (category type).
+    # Eligibility: a doctor (doctor type), a client category (category type),
+    # or a payer's members (payer type) — the club/company/syndicate whose
+    # card the patient holds. The last one is how a club gets a flat member
+    # discount without negotiating a per-service price list.
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     client_category = db.Column(db.String(20))
+    payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"),
+                         nullable=True, index=True)
 
     # Optional validity window (used by campaigns; open-ended otherwise).
     start_date = db.Column(db.Date)
@@ -40,6 +45,7 @@ class NamedDiscount(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     doctor = db.relationship("User")
+    payer = db.relationship("PayerEntity")
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
@@ -81,6 +87,12 @@ class NamedDiscount(db.Model):
         if self.dtype == "category":
             cat = patient.client_category if patient else None
             return self.client_category is not None and self.client_category == cat
+        if self.dtype == "payer":
+            # Members only: the patient must hold a *valid* card for this payer.
+            if self.payer_id is None or patient is None:
+                return False
+            return any(c.payer_id == self.payer_id and c.is_valid
+                       for c in getattr(patient, "coverages", []))
         # campaign / special apply broadly.
         return True
 

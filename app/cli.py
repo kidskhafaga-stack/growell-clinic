@@ -135,6 +135,7 @@ def register_commands(app):
             ("payments", "kind", "VARCHAR(10) DEFAULT 'payment'"),
             ("payments", "tendered", "FLOAT"),
             ("invoice_items", "vaccine_brand_id", "INTEGER"),
+            ("named_discounts", "payer_id", "INTEGER"),
             ("drugs", "generic_id", "INTEGER"),
             ("drug_interactions", "generic_a_id", "INTEGER"),
             ("drug_interactions", "generic_b_id", "INTEGER"),

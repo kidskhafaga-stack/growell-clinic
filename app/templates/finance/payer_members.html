@@ -1,0 +1,79 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('members.title') }} — {{ payer.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('members.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ payer.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {{ t('payer_types.' ~ payer.entity_type) }} · {{ t('members.count') }}: {{ rows|length }}
+      {% if payer.active_contract() %} · <span class="badge badge--green">{{ t('contracts.current') }}</span>{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" target="_blank"
+       href="{{ url_for('finance.payer_members', payer_id=payer.id, print=1) }}">
+      <i class="bi bi-printer"></i> {{ t('reports.print') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.payers') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('claims.entities') }}</a>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-percent"></i> {{ t('members.how') }}</h2>
+  {% if member_discounts %}
+  <p class="hint" style="margin-top:-6px;">{{ t('members.discount_on') }}</p>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for d in member_discounts %}
+    <li><strong>{{ d.display_name(current_lang) }}</strong> — {{ d.value }}{{ '%' if d.is_percent else '' }}
+      · {{ t('discounts.on') }} {{ d.scope_label(current_lang) }}</li>
+    {% endfor %}
+  </ul>
+  {% elif payer.active_contract() %}
+  <p class="hint" style="margin-top:-6px;">{{ t('members.contract_on') }}</p>
+  <a class="btn btn-outline btn-sm gc-press"
+     href="{{ url_for('finance.contract_rates', contract_id=payer.active_contract().id) }}">
+    <i class="bi bi-currency-exchange"></i> {{ t('contracts.rates_btn') }}</a>
+  {% else %}
+  <p class="hint" style="margin-top:-6px;color:var(--danger);">{{ t('members.nothing_on') }}</p>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if rows %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('patients.file_number') }}</th>
+      <th>{{ t('coverage.membership_number') }}</th>
+      <th>{{ t('coverage.expiry') }}</th>
+      <th>{{ t('claims.phone') }}</th>
+      <th>{{ t('common.status') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for c in rows %}
+      <tr style="{{ 'opacity:.6;' if not c.is_valid else '' }}">
+        <td><a href="{{ url_for('patients.view', patient_id=c.patient_id) }}">
+          {{ c.patient.display_name(current_lang) if c.patient else '—' }}</a></td>
+        <td dir="ltr">{{ c.patient.patient_number if c.patient else '—' }}</td>
+        <td dir="ltr">{{ c.membership_number or '—' }}</td>
+        <td dir="ltr">{{ c.expiry_date or '—' }}</td>
+        <td dir="ltr">{{ c.patient.contact_phone if c.patient else '' }}</td>
+        <td>
+          {% if not c.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>
+          {% elif c.is_expired %}<span class="badge badge--danger">{{ t('coverage.expired') }}</span>
+          {% else %}<span class="badge badge--green">{{ t('common.active') }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding:26px;">{{ t('members.none') }}</div>
+  {% endif %}
+</div>
+
+<p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('members.add_hint') }}</p>
+{% endblock %}
