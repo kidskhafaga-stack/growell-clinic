@@ -96,10 +96,17 @@
         <button type="button" class="btn btn-outline btn-sm" @click="payFull()">{{ t('checkout.pay_full') }}</button>
         <button type="button" class="btn btn-outline btn-sm" @click="payments=[{amount:0,method:'cash'}]; recalc()">{{ t('checkout.pay_later') }}</button>
       </div>
+      <p class="hint" style="margin:6px 0 0;">{{ t('checkout.pay_later_hint') }}</p>
       <table class="table" style="margin-top:10px;"><tbody>
-        <tr><td>{{ t('checkout.paid') }}</td><td style="text-align:end;color:var(--green-700);"><span x-text="paid.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
-        <tr style="font-weight:700;"><td>{{ t('checkout.remaining') }}</td><td style="text-align:end;" :style="remaining>0.001?'color:var(--danger)':'color:var(--green-700)'" ><span x-text="remaining.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr><td>{{ t('checkout.tendered') }}</td><td style="text-align:end;color:var(--green-700);"><span x-text="tendered.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr><td>{{ t('checkout.paid') }}</td><td style="text-align:end;"><span x-text="paid.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr style="font-weight:700;" x-show="remaining>0.001"><td>{{ t('checkout.remaining') }}</td><td style="text-align:end;color:var(--danger);"><span x-text="remaining.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
+        <tr style="font-weight:800;background:var(--amber-50,#fff8e1);" x-show="change>0.001" x-cloak>
+          <td>{{ t('checkout.change_due') }}</td>
+          <td style="text-align:end;color:var(--danger);"><span x-text="change.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
       </tbody></table>
+      <p class="hint" style="margin:6px 0 0;color:var(--danger);" x-show="change>0.001" x-cloak>
+        {{ t('checkout.change_hint') }}</p>
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
@@ -115,7 +122,7 @@
       lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0'})),
       addId: '', discountId: '',
       payments: [{amount:0, method:'cash'}],
-      subtotal: 0, discountAmt: 0, total: 0, paid: 0, remaining: 0,
+      subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,
       addLine() {
         if (!this.addId) return;
         var opt = document.querySelector('option[value="'+this.addId+'"][data-name]');
@@ -131,8 +138,12 @@
         }
         this.discountAmt = Math.min(d, this.subtotal);
         this.total = Math.max(0, this.subtotal - this.discountAmt);
-        this.paid = this.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+        // What the patient put on the counter vs. what the invoice can take:
+        // the surplus is change the cashier must hand back, not "paid".
+        this.tendered = this.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+        this.paid = Math.min(this.tendered, this.total);
         this.remaining = Math.max(0, this.total - this.paid);
+        this.change = Math.max(0, this.tendered - this.total);
       },
       payFull() { this.payments=[{amount:0,method:this.payments[0]?this.payments[0].method:'cash'}]; this.recalc(); this.payments[0].amount=Number(this.total.toFixed(2)); this.recalc(); },
       init() { this.recalc(); }

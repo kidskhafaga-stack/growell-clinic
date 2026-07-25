@@ -59,9 +59,9 @@
           </a>
         {% endif %}
       {% endfor %}
-      {# Small-clinic mode: give reception (till operator, no full finance) a
-         direct link to the cashier without exposing the finance module. #}
-      {% if small_clinic_mode and current_user.can('cashier') and not current_user.can_access('finance') and module_enabled('finance') %}
+      {# Till operator (reception) without full finance access: a direct link to
+         the cashier, so collecting money never needs the whole finance module. #}
+      {% if current_user.can('cashier') and not current_user.can_access('finance') and module_enabled('finance') %}
       <a class="nav-item gc-press {{ 'active' if active_module == 'cashier' else '' }}"
          href="{{ url_for('finance.cashier') }}">
         <i class="bi bi-cash-coin"></i>

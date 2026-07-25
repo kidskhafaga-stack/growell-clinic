@@ -61,7 +61,14 @@
       <td class="r" dir="ltr">-{{ '%.2f'|format(invoice.discount_total) }}</td></tr>
     {% endif %}
     <tr class="b" style="font-size:13px;"><td>{{ t('invoices.total') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.total) }}</td></tr>
+    {% if invoice.change_given > 0 %}
+    <tr><td>{{ t('checkout.tendered') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.tendered) }}</td></tr>
+    {% endif %}
     <tr><td>{{ t('invoices.paid') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.paid) }}</td></tr>
+    {% if invoice.change_given > 0 %}
+    <tr class="b"><td>{{ t('checkout.change_due') }}</td>
+      <td class="r" dir="ltr">{{ '%.2f'|format(invoice.change_given) }}</td></tr>
+    {% endif %}
     {% if invoice.balance > 0 %}<tr class="b"><td>{{ t('invoices.balance') }}</td><td class="r" dir="ltr">{{ '%.2f'|format(invoice.balance) }}</td></tr>{% endif %}
   </table>
   <hr>

@@ -67,8 +67,13 @@
   <form method="post" action="{{ url_for('finance.shift_open') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
     <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('cashier.opening_float') }}</label>
       <input class="input" type="number" step="0.01" name="opening_float" value="0"></div>
-    <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('shifts.label') }}</label>
-      <input class="input" type="text" name="label" placeholder="{{ t('shifts.label_ph') }}"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('shifts.label') }}</label>
+      <input class="input" type="text" name="label" list="shift-label-presets" autocomplete="off"
+             placeholder="{{ t('shifts.label_ph') }}">
+      <datalist id="shift-label-presets">
+        {% for p in shift_label_presets %}<option value="{{ p }}">{% endfor %}
+      </datalist>
+      <span class="hint">{{ t('shifts.label_hint') }}</span></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-play-fill"></i> {{ t('shifts.open') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.shifts') }}"><i class="bi bi-clock-history"></i> {{ t('shifts.history') }}</a>
   </form>

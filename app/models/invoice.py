@@ -69,6 +69,19 @@ class Invoice(db.Model):
         return round(sum(p.amount or 0 for p in self.payments if p.kind == "refund"), 2)
 
     @property
+    def tendered(self):
+        """Cash actually handed over by the patient (≥ ``paid`` when they paid
+        with a bigger note). Used on the receipt so the review can see that the
+        patient gave 200 for a 127.50 bill."""
+        return round(sum(p.handed_over for p in self.payments
+                         if p.kind != "refund"), 2)
+
+    @property
+    def change_given(self):
+        """Change the cashier had to give back (tendered − applied)."""
+        return round(sum(p.change_due for p in self.payments), 2)
+
+    @property
     def balance(self):
         return round(self.total - self.paid, 2)
 
@@ -144,6 +157,24 @@ class Payment(db.Model):
     shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"), nullable=True, index=True)
     paid_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.String(200))
+    # What the patient actually handed over, when it is more than the amount
+    # applied to the invoice (a 200 note for a 127.50 bill). Only ``amount``
+    # enters the drawer/ledger; the difference is change given back on the
+    # spot. Null = the patient paid the exact amount.
+    tendered = db.Column(db.Float)
+
+    @property
+    def handed_over(self):
+        """Cash put on the counter for this payment (= amount when exact)."""
+        return round(self.tendered if self.tendered is not None
+                     else (self.amount or 0), 2)
+
+    @property
+    def change_due(self):
+        """Change the cashier owes the patient for this payment."""
+        if self.kind == "refund" or self.tendered is None:
+            return 0.0
+        return round(max(0.0, self.tendered - (self.amount or 0)), 2)
 
     @property
     def signed_amount(self):
