@@ -81,6 +81,10 @@
     <button type="button" class="vtab" :class="tab==='inv' && 'active'" x-on:click="go('inv')">
       <i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}
       {% if visit.investigations %}<span class="vtab-count">{{ visit.investigations|length }}</span>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='meds' && 'active'" x-on:click="go('meds')">
+      <i class="bi bi-capsule"></i> {{ t('visits.medications') }}
+      {% if visit.medications %}<span class="vtab-count">{{ visit.medications|length }}</span>{% endif %}
+      {% if med_safety and med_safety.has_warnings %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
       <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
       {% if visit.services %}<span class="vtab-count">{{ visit.services|length }}</span>{% endif %}</button>
@@ -407,6 +411,99 @@
   </div>
 
   <!-- Procedures: chargeable services performed in the visit (echo, nebuliser…) -->
+  <!-- Medicines written in the room: they carry over to the prescription -->
+  <div class="card gc-scale-in" id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
+    <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('visits.med_hint') }}</p>
+
+    {% if med_safety and (med_safety.weight or med_safety.age_months is not none) %}
+    <p class="hint" style="margin:0 0 10px;">
+      <i class="bi bi-person-badge"></i>
+      {{ t('drugbook.weight') }}: <strong dir="ltr">{{ med_safety.weight if med_safety.weight else '—' }}</strong> kg ·
+      {{ t('drugbook.age_months') }}: <strong dir="ltr">{{ med_safety.age_months if med_safety.age_months is not none else '—' }}</strong>
+      {% if not med_safety.weight %}<span style="color:var(--danger);"> — {{ t('drugbook.warn_no_weight') }}</span>{% endif %}
+    </p>
+    {% endif %}
+
+    {% if med_safety and med_safety.interactions %}
+    {% for r in med_safety.interactions %}
+    <div class="info-note" style="margin-bottom:8px;border-inline-start:4px solid {{ 'var(--danger)' if r.severity == 'severe' else '#f0ad4e' }};">
+      <strong><i class="bi bi-diagram-3"></i>
+        {{ r.pair_names(current_lang)[0] }} ↔ {{ r.pair_names(current_lang)[1] }}</strong>
+      <span class="badge badge--role">{{ t('rx.sev_' ~ (r.severity or 'moderate')) }}</span>
+      {% if r.note %}<div style="margin-top:4px;">{{ r.note }}</div>{% endif %}
+      {% if r.alternative %}<div style="margin-top:4px;color:var(--green-800);">
+        <i class="bi bi-arrow-right-circle"></i> {{ t('rx.alternative') }}: {{ r.alternative }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if visit.medications %}
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('rx.drug') }}</th><th>{{ t('rx.dose') }}</th><th>{{ t('rx.frequency') }}</th>
+        <th>{{ t('rx.duration') }}</th><th>{{ t('drugbook.calculator') }}</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for m in visit.medications %}
+        {% set info = (med_safety.lines | selectattr('name', 'equalto', m.name) | list | first) if med_safety else None %}
+        <tr>
+          <td><strong>{{ m.name }}</strong>
+            {% if info and info.generic_name %}<div style="color:var(--muted);font-size:.8rem;">{{ info.generic_name }}</div>{% endif %}
+            {% if info and info.warnings %}
+              {% for w in info.warnings %}
+              <div style="color:var(--danger);font-size:.8rem;"><i class="bi bi-exclamation-triangle-fill"></i> {{ t('drugbook.warn_' ~ w) }}</div>
+              {% endfor %}
+            {% endif %}</td>
+          <td>{{ m.dose or '—' }}</td>
+          <td>{{ m.frequency or '—' }}</td>
+          <td>{{ m.duration or '—' }}</td>
+          <td dir="ltr" style="font-size:.85rem;">
+            {% if info and info.result and info.result.dose_mg %}
+              {{ info.result.dose_mg }}{% if info.result.dose_mg_max %}–{{ info.result.dose_mg_max }}{% endif %} mg
+              {% if info.result.ml %}· {{ info.result.ml }}{% if info.result.ml_max %}–{{ info.result.ml_max }}{% endif %} ml{% endif %}
+              {% if info.result.doses_per_day %}× {{ info.result.doses_per_day }}{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td style="text-align:end;">
+            <form method="post" action="{{ url_for('visits.delete_medication', med_id=m.id) }}" style="display:inline;">
+              <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_meds') }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
+          x-data="medWriter('{{ url_for('visits.drug_search') }}')" style="margin-top:12px;">
+      <input type="hidden" name="drug_id" :value="drugId">
+      <input type="hidden" name="generic_id" :value="genericId">
+      <div class="form-grid">
+        <div class="form-row" style="position:relative;">
+          <label>{{ t('rx.drug') }} *</label>
+          <input class="input" name="name" x-model="name" x-on:input="onInput()" autocomplete="off"
+                 placeholder="{{ t('rx.search_drugs') }}">
+          <div class="patient-results" x-show="open" x-cloak style="position:absolute;top:100%;inset-inline-start:0;width:100%;z-index:20;">
+            <template x-for="s in suggestions" :key="s.name + s.strength">
+              <button type="button" class="patient-result gc-press" x-on:click="pick(s)">
+                <span x-text="s.name"></span>
+                <small style="color:var(--muted);" x-text="s.generic"></small>
+              </button>
+            </template>
+          </div>
+        </div>
+        <div class="form-row"><label>{{ t('rx.dose') }}</label><input class="input" name="dose" x-model="dose"></div>
+        <div class="form-row"><label>{{ t('rx.frequency') }}</label><input class="input" name="frequency" x-model="frequency"></div>
+        <div class="form-row"><label>{{ t('rx.duration') }}</label><input class="input" name="duration"></div>
+        <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="instructions" x-model="instructions"></div>
+      </div>
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.add_medication') }}</button>
+    </form>
+  </div>
+
   <div class="card gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
     <h2 class="section-title"><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.procedures_hint') }}</p>
@@ -884,6 +981,29 @@
       },
       // Manual edit overrides a previous pick (clear the bilingual snapshot).
       onTitleInput() { this.titleAr = ''; this.titleEn = ''; }
+    };
+  }
+
+  function medWriter(searchUrl) {
+    return {
+      searchUrl, name: '', dose: '', frequency: '', instructions: '',
+      drugId: '', genericId: '', suggestions: [], open: false,
+      async search() {
+        const q = (this.name || '').trim();
+        if (q.length < 1) { this.suggestions = []; this.open = false; return; }
+        try {
+          const r = await fetch(`${this.searchUrl}?q=${encodeURIComponent(q)}`);
+          this.suggestions = await r.json(); this.open = true;
+        } catch (e) { this.suggestions = []; this.open = false; }
+      },
+      pick(s) {
+        this.name = s.name; this.drugId = s.id || ''; this.genericId = s.generic_id || '';
+        if (s.dose) this.dose = s.dose;
+        if (s.frequency) this.frequency = s.frequency;
+        if (s.instructions) this.instructions = s.instructions;
+        this.open = false; this.suggestions = [];
+      },
+      onInput() { this.drugId = ''; this.genericId = ''; this.search(); }
     };
   }
 

@@ -59,6 +59,10 @@ class Visit(db.Model):
         "VisitService", back_populates="visit",
         cascade="all, delete-orphan", order_by="VisitService.id",
     )
+    medications = db.relationship(
+        "VisitMedication", back_populates="visit",
+        cascade="all, delete-orphan", order_by="VisitMedication.id",
+    )
 
     @property
     def is_completed(self):
@@ -164,3 +168,43 @@ class PatientAttachment(db.Model):
 
     def __repr__(self):
         return f"<PatientAttachment p={self.patient_id} {self.filename}>"
+
+
+class VisitMedication(db.Model):
+    """A medicine the doctor wrote **during the visit**.
+
+    Drugs used to exist only on a prescription, so a doctor who wrote them in
+    the room had to type them again to print. They now behave like the visit's
+    investigations: recorded in the exam, carried over to the prescription,
+    and checked for interactions and paediatric dosing on the spot.
+    """
+    __tablename__ = "visit_medications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
+    drug_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=True)
+    generic_id = db.Column(db.Integer, db.ForeignKey("generic_drugs.id"), nullable=True)
+
+    name = db.Column(db.String(200), nullable=False)     # snapshot as written
+    dose = db.Column(db.String(120))
+    frequency = db.Column(db.String(120))
+    duration = db.Column(db.String(120))
+    instructions = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    visit = db.relationship("Visit", back_populates="medications")
+    patient = db.relationship("Patient")
+    drug = db.relationship("Drug")
+    generic = db.relationship("GenericDrug")
+
+    def line(self):
+        """"Cetal 5 ml · كل 6 ساعات · 3 أيام" — one printable line."""
+        parts = [self.name]
+        for extra in (self.dose, self.frequency, self.duration):
+            if (extra or "").strip():
+                parts.append(extra.strip())
+        return " · ".join(parts)
+
+    def __repr__(self):
+        return f"<VisitMedication {self.name}>"

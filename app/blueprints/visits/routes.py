@@ -34,6 +34,7 @@ from app.models import (
     Setting,
     Visit,
     VisitInvestigation,
+    VisitMedication,
     VisitService,
     VitalSigns,
 )
@@ -233,9 +234,15 @@ def record(visit_id):
     # Medication reconciliation reference: the patient's recent meds.
     from app.utils.meds import recent_medications
     recent_meds = recent_medications(visit.patient_id)
+    # Medicines written in this visit + their safety check (dose for this
+    # child's weight/age, and interactions between what's on the list).
+    from app.utils.rx_safety import check as rx_check
+    med_safety = rx_check(visit.medications, patient=visit.patient,
+                          lang=getattr(g, "lang", "ar"))
     from app.utils import ai
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        med_safety=med_safety,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services, recent_meds=recent_meds,
@@ -507,6 +514,106 @@ def add_investigation(visit_id):
     db.session.commit()
     flash(t("visits.inv_added"), "success")
     return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
+
+
+# ------------------------------------------------ medicines in the visit ----
+@visits_bp.route("/drugs/search")
+@module_required(MODULE)
+def drug_search():
+    """Autocomplete for writing a medicine inside the visit (brand or
+    ingredient), carrying the dosing rule so the room can check it live."""
+    from app.models import Drug, GenericDrug
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 1:
+        return jsonify([])
+    like = f"%{q}%"
+    lang = getattr(g, "lang", "ar")
+    rows = (Drug.query.filter(Drug.is_active.is_(True))
+            .filter(or_(Drug.trade_name.ilike(like), Drug.generic_name.ilike(like)))
+            .order_by(Drug.trade_name).limit(12).all())
+    out = [{
+        "id": d.id, "generic_id": d.generic_id or "",
+        "name": d.label(lang),
+        "trade": d.trade_name,
+        "generic": (d.generic.display_name(lang) if d.generic else (d.generic_name or "")),
+        "strength": d.strength or "",
+        "dose": d.default_dose or "",
+        "frequency": d.default_frequency or "",
+        "instructions": d.default_instructions or "",
+    } for d in rows]
+    # Ingredients with no brand on file are still writable by name.
+    for gen in (GenericDrug.query.filter(GenericDrug.is_active.is_(True))
+                .filter(or_(GenericDrug.name_ar.ilike(like),
+                            GenericDrug.name_en.ilike(like)))
+                .order_by(GenericDrug.name_en).limit(6).all()):
+        if any(o["generic_id"] == gen.id for o in out):
+            continue
+        out.append({"id": "", "generic_id": gen.id, "name": gen.display_name(lang),
+                    "trade": "", "generic": gen.display_name(lang),
+                    "strength": "", "dose": "", "frequency": "", "instructions": ""})
+    return jsonify(out)
+
+
+@visits_bp.route("/<int:visit_id>/medications", methods=["POST"])
+@module_required(MODULE)
+def add_medication(visit_id):
+    """Write a medicine during the visit. It carries over to the prescription,
+    and its dose/interactions are checked against this child on the spot."""
+    from app.models import Drug, GenericDrug
+
+    visit = db.get_or_404(Visit, visit_id)
+    name = (request.form.get("name") or "").strip()
+    drug = db.session.get(Drug, request.form.get("drug_id", type=int)) \
+        if request.form.get("drug_id", type=int) else None
+    generic_id = request.form.get("generic_id", type=int) or (
+        drug.generic_id if drug is not None else None)
+    if not name and drug is not None:
+        name = drug.label(getattr(g, "lang", "ar"))
+    if not name:
+        flash(t("visits.med_need_name"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#meds")
+    med = VisitMedication(
+        visit_id=visit.id, patient_id=visit.patient_id,
+        drug_id=drug.id if drug is not None else None,
+        generic_id=generic_id if db.session.get(GenericDrug, generic_id) else None,
+        name=name,
+        dose=(request.form.get("dose") or "").strip() or None,
+        frequency=(request.form.get("frequency") or "").strip() or None,
+        duration=(request.form.get("duration") or "").strip() or None,
+        instructions=(request.form.get("instructions") or "").strip() or None,
+    )
+    db.session.add(med)
+    db.session.commit()
+    # Say it now, in the room: a dose flag or a clash with what's already written.
+    from app.utils.rx_safety import check as rx_check
+    result = rx_check(visit.medications, patient=visit.patient,
+                      lang=getattr(g, "lang", "ar"))
+    for line in result["lines"]:
+        if line["name"] == med.name:
+            for w in line["warnings"]:
+                flash(f"{med.name}: " + t("drugbook.warn_" + w), "warning")
+    for r in result["interactions"]:
+        a, b = r.pair_names(getattr(g, "lang", "ar"))
+        msg = t("rx.interaction_line").replace("{a}", a).replace("{b}", b)
+        if r.note:
+            msg += " — " + r.note
+        if r.alternative:
+            msg += " · " + t("rx.alternative") + ": " + r.alternative
+        flash(msg, "danger" if r.severity == "severe" else "warning")
+    flash(t("visits.med_added"), "success")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#meds")
+
+
+@visits_bp.route("/medications/<int:med_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def delete_medication(med_id):
+    med = db.get_or_404(VisitMedication, med_id)
+    visit_id = med.visit_id
+    db.session.delete(med)
+    db.session.commit()
+    flash(t("visits.med_removed"), "info")
+    return redirect(url_for("visits.record", visit_id=visit_id) + "#meds")
 
 
 @visits_bp.route("/<int:visit_id>/services", methods=["POST"])

@@ -665,7 +665,14 @@
     "ai_not_configured": "AI assistant is not configured.",
     "ai_configure": "Configure now",
     "ai_empty": "Not enough recorded in the visit to summarize.",
-    "ai_error": "Could not generate the summary."
+    "ai_error": "Could not generate the summary.",
+    "medications": "Medicines",
+    "med_hint": "Write the medicine here and it carries over to the prescription automatically, like the investigations — dosing is checked against this child's weight and age and interactions are flagged.",
+    "no_meds": "No medicines written in this visit yet.",
+    "add_medication": "Add medicine",
+    "med_added": "Medicine added to the visit",
+    "med_removed": "Medicine removed",
+    "med_need_name": "Type the medicine name first."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1996,7 +2003,10 @@
     "interactions_title": "Drug interaction warning",
     "sev_severe": "Severe",
     "sev_moderate": "Moderate",
-    "sev_mild": "Mild"
+    "sev_mild": "Mild",
+    "alternative": "Alternative",
+    "dose_flags_title": "Dose flags for this child",
+    "interaction_line": "Interaction: {a} + {b}"
   },
   "drug_forms": {
     "tablet": "Tablet",

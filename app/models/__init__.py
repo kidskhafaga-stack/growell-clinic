@@ -46,6 +46,7 @@ from app.models.visit import (
     PatientAttachment,
     Visit,
     VisitInvestigation,
+    VisitMedication,
     VisitService,
 )
 from app.models.drugbook import (
@@ -217,6 +218,7 @@ __all__ = [
     "DIAGNOSIS_TYPES",
     "ICD_VERSIONS",
     "Vaccine",
+    "VisitMedication",
     "AccountingPeriod",
     "PERIOD_STATUSES",
     "DrugClass",
