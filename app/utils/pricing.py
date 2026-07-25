@@ -45,3 +45,47 @@ def service_for_visit_type(appt_type):
     if not service_id:
         return None
     return db.session.get(Service, service_id)
+
+
+# --------------------------------------------------- cash price list -------
+_CASH_PAYER_KEY = "cash_price_payer_id"
+
+
+def cash_payer():
+    """The clinic's own **cash price list** (التسعيرة النقدية), if it has one.
+
+    A cash agreement is not a third party that pays: it is the clinic's list
+    of prices for the walk-in patient. So it must not need a membership card —
+    it applies to everyone who has no other payer. The entity is chosen in
+    settings; when the clinic has exactly one active ``cash`` entity that one
+    is used without any setting to fill in.
+    """
+    from app.models import PayerEntity
+
+    chosen = Setting.get(_CASH_PAYER_KEY)
+    if chosen:
+        try:
+            payer = PayerEntity.query.get(int(chosen))
+        except (TypeError, ValueError):
+            payer = None
+        if payer is not None and payer.is_active:
+            return payer
+        return None
+    cash = (PayerEntity.query
+            .filter_by(entity_type="cash", is_active=True).all())
+    return cash[0] if len(cash) == 1 else None
+
+
+def set_cash_payer(payer_id):
+    """Pick which entity holds the cash price list (empty clears it)."""
+    Setting.set(_CASH_PAYER_KEY, str(payer_id) if payer_id else "")
+
+
+def cash_tariff(service, on_date=None):
+    """The cash price for ``service`` on ``on_date`` — or None to keep the
+    catalogue price. Only a contract in force can move a price, so a list that
+    starts next month changes nothing today."""
+    payer = cash_payer()
+    if payer is None or service is None:
+        return None
+    return payer.tariff(service, on_date)

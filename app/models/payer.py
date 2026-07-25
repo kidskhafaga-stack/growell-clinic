@@ -161,6 +161,42 @@ class PayerContract(db.Model):
                 and (not self.start_date or self.start_date <= d)
                 and (not self.end_date or d <= self.end_date))
 
+    @property
+    def is_scheduled(self):
+        """Signed today, in force later — a price list that starts on a date."""
+        return bool(self.is_active and self.start_date
+                    and self.start_date > date.today())
+
+    @property
+    def status_key(self):
+        """``current`` | ``scheduled`` | ``expired`` | ``inactive``."""
+        if not self.is_active:
+            return "inactive"
+        if self.is_current:
+            return "current"
+        if self.is_scheduled:
+            return "scheduled"
+        return "expired"
+
+    def overlaps(self, other):
+        """Whether two contracts of the same payer share any day.
+
+        Overlapping is allowed on purpose — a renewal is signed while the old
+        one still runs, and one payer can hold several lists. On a shared day
+        the one with the **later start date** is the one that bills."""
+        if other is None or other.id == self.id or other.payer_id != self.payer_id:
+            return False
+        a_start = self.start_date or date.min
+        a_end = self.end_date or date.max
+        b_start = other.start_date or date.min
+        b_end = other.end_date or date.max
+        return a_start <= b_end and b_start <= a_end
+
+    def overlapping(self):
+        """Sibling contracts sharing days with this one (active ones only)."""
+        return [c for c in self.payer.contracts
+                if c.is_active and self.overlaps(c)] if self.payer else []
+
     def __repr__(self):
         return f"<PayerContract payer={self.payer_id} {self.start_date}..{self.end_date}>"
 

@@ -10,6 +10,36 @@
     <i class="bi bi-file-earmark-medical"></i> {{ t('claims.title') }}</a>
 </div>
 
+<!-- The clinic's own cash price list: applies to everyone, no card needed -->
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-cash-stack"></i> {{ t('contracts.cash_list') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('contracts.cash_list_hint') }}</p>
+  <form method="post" action="{{ url_for('finance.cash_price_list') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;">
+      <label>{{ t('contracts.cash_payer') }}</label>
+      <select class="select" name="payer_id">
+        <option value="">— {{ t('contracts.cash_none') }} —</option>
+        {% for p in payers %}
+        <option value="{{ p.id }}" {{ 'selected' if cash_payer and cash_payer.id == p.id else '' }}>
+          {{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+    {% if cash_payer %}
+    <span class="hint" style="align-self:center;">
+      {% if cash_payer.active_contract() %}
+        <span class="badge badge--green">{{ t('contracts.current') }}</span>
+        {{ t('contracts.cash_active') }}
+      {% else %}
+        <span class="badge badge--danger">{{ t('contracts.expired') }}</span>
+        {{ t('contracts.cash_inactive') }}
+      {% endif %}
+    </span>
+    {% endif %}
+  </form>
+</div>
+
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('claims.add_entity') }}</summary>
   <form method="post" style="margin-top:14px;">
@@ -92,6 +122,7 @@
               {% if p.active_contract() %}<span class="badge badge--green">{{ t('contracts.current') }}</span>{% elif p.contracts %}<span class="badge badge--danger">{{ t('contracts.expired') }}</span>{% endif %}
             </summary>
             <p class="hint" style="margin-top:8px;">{{ t('contracts.hint') }}</p>
+            <p class="hint" style="margin:0 0 8px;"><i class="bi bi-info-circle"></i> {{ t('contracts.period_hint') }}</p>
             <table class="table" style="background:#fff;">
               <thead><tr><th>{{ t('contracts.number') }}</th><th>{{ t('contracts.start') }}</th><th>{{ t('contracts.end') }}</th><th>{{ t('contracts.status') }}</th><th></th></tr></thead>
               <tbody>
@@ -100,9 +131,20 @@
                   <td dir="ltr">{{ c.number or '—' }}</td>
                   <td dir="ltr">{{ c.start_date or '—' }}</td>
                   <td dir="ltr">{{ c.end_date or '—' }}</td>
-                  <td>{% if c.is_current %}<span class="badge badge--green">{{ t('contracts.current') }}</span>
-                      {% elif not c.is_active %}<span class="badge badge--muted">{{ t('contracts.inactive') }}</span>
-                      {% else %}<span class="badge badge--danger">{{ t('contracts.expired') }}</span>{% endif %}</td>
+                  <td>
+                    {% set st = c.status_key %}
+                    {% if st == 'current' %}<span class="badge badge--green">{{ t('contracts.current') }}</span>
+                    {% elif st == 'scheduled' %}<span class="badge badge--role">{{ t('contracts.scheduled') }}</span>
+                    {% elif st == 'inactive' %}<span class="badge badge--muted">{{ t('contracts.inactive') }}</span>
+                    {% else %}<span class="badge badge--danger">{{ t('contracts.expired') }}</span>{% endif %}
+                    {% if p.active_contract() and p.active_contract().id == c.id and p.contracts|length > 1 %}
+                    <span class="badge badge--green" title="{{ t('contracts.bills_today_hint') }}">{{ t('contracts.bills_today') }}</span>
+                    {% endif %}
+                    {% if c.is_active and c.overlapping() %}
+                    <span class="badge badge--role" style="color:var(--danger);"
+                          title="{{ t('contracts.overlap_badge_hint') }}"><i class="bi bi-layers"></i> {{ t('contracts.overlap_badge') }}</span>
+                    {% endif %}
+                  </td>
                   <td style="text-align:end;white-space:nowrap;">
                     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.contract_rates', contract_id=c.id) }}"
                        title="{{ t('contracts.rates_title') }}"><i class="bi bi-currency-exchange"></i> {{ t('contracts.rates_btn') }}

@@ -963,6 +963,26 @@ def shift_report(shift_id):
                            payment_methods=PAYMENT_METHODS)
 
 
+def _apply_cash_prices(invoice):
+    """Reprice the lines from the clinic's cash price list (التسعيرة النقدية).
+
+    The cash agreement needs no membership card — it is what the walk-in
+    patient pays — so it is applied to every invoice with no payer. Lines the
+    user priced by hand (a manual discount) are left alone."""
+    from app.utils.pricing import cash_tariff
+
+    for item in invoice.items:
+        if not item.service_id or (item.discount_value or 0) > 0:
+            continue
+        price = cash_tariff(item.service, invoice.invoice_date)
+        if price is None or price == item.unit_price:
+            continue
+        item.unit_price = price
+        if item.service is not None:
+            item.commission_amount = item.service.doctor_share(item.net,
+                                                               invoice.doctor)
+
+
 def _apply_coverage(invoice, patient):
     """Auto-apply a member's per-service coverage to the invoice lines.
 
@@ -977,6 +997,10 @@ def _apply_coverage(invoice, patient):
         expired = [c for c in getattr(patient, "coverages", []) if not c.is_valid]
         if expired:
             flash(t("coverage.expired_warn"), "warning")
+        # No payer → the clinic's own cash price list applies, automatically.
+        # It is not a third party that pays, so no payer is stamped on the
+        # invoice and nothing becomes claimable — it only sets the price.
+        _apply_cash_prices(invoice)
         return
 
     payer = coverage.payer
@@ -1870,12 +1894,29 @@ def payers():
         flash(t("claims.entity_added"), "success")
         return redirect(url_for("finance.payers"))
 
+    from app.utils.pricing import cash_payer
+
     return render_template(
         "finance/payers.html",
         payers=PayerEntity.query.order_by(PayerEntity.name).all(),
         types=PAYER_TYPES, coverage_types=COVERAGE_TYPES,
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+        cash_payer=cash_payer(),
     )
+
+
+@finance_bp.route("/payers/cash-list", methods=["POST"])
+@module_required(MODULE)
+def cash_price_list():
+    """Choose which entity holds the clinic's cash price list. Its contract in
+    force then prices every invoice that has no payer — no card, no ticking a
+    box on each patient."""
+    from app.utils.pricing import set_cash_payer
+
+    set_cash_payer(request.form.get("payer_id", type=int))
+    db.session.commit()
+    flash(t("contracts.cash_saved"), "success")
+    return redirect(url_for("finance.payers"))
 
 
 @finance_bp.route("/payers/<int:payer_id>/rates", methods=["POST"])
@@ -1931,21 +1972,38 @@ def payer_delete(payer_id):
     return redirect(url_for("finance.payers"))
 
 
+def _warn_overlap(contract):
+    """Two contracts covering the same days is allowed (a renewal signed while
+    the old one still runs) — but the user must know which one will bill: the
+    one with the later start date. Say it out loud instead of leaving it to be
+    discovered on an invoice."""
+    others = contract.overlapping()
+    if not others:
+        return
+    winner = contract.payer.active_contract() if contract.payer else None
+    label = (winner.number or (winner.start_date.isoformat() if winner.start_date else "—")) \
+        if winner else "—"
+    flash(t("contracts.overlap_warn")
+          .replace("{n}", str(len(others))).replace("{winner}", label), "warning")
+
+
 @finance_bp.route("/payers/<int:payer_id>/contract/new", methods=["POST"])
 @module_required(MODULE)
 def contract_new(payer_id):
     from app.models import PayerContract
 
     payer = db.get_or_404(PayerEntity, payer_id)
-    db.session.add(PayerContract(
+    contract = PayerContract(
         payer_id=payer.id,
         number=(request.form.get("number") or "").strip() or None,
         start_date=_parse_date_arg2(request.form.get("start_date")),
         end_date=_parse_date_arg2(request.form.get("end_date")),
         is_active=True,
-    ))
+    )
+    db.session.add(contract)
     db.session.commit()
     flash(t("contracts.added"), "success")
+    _warn_overlap(contract)
     return redirect(url_for("finance.payers"))
 
 
@@ -1961,6 +2019,7 @@ def contract_edit(contract_id):
     c.is_active = bool(request.form.get("is_active"))
     db.session.commit()
     flash(t("contracts.updated"), "success")
+    _warn_overlap(c)
     return redirect(url_for("finance.payers"))
 
 
