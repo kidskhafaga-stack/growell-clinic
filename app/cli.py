@@ -73,17 +73,22 @@ def register_commands(app):
         db.create_all()
         _ensure_default_settings()
         _ensure_default_roles()
-        _seed_drugs_safe()
-        try:
-            from app.utils.services import seed_services
-            seed_services()
-        except Exception:  # noqa: BLE001
-            pass
         _seed_visit_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
+        _seed_crm_templates_safe()
+        # Every catalogue the clinic needs — and no patients, no demo users.
+        from app.utils.reference import reference_counts, seed_reference
+        seed_reference()
         db.session.commit()
+        counts = reference_counts()
         click.secho("Database initialised.", fg="green")
+        click.secho(
+            f"  catalogues: {counts['vaccines']} vaccines · "
+            f"{counts['services']} services · {counts['drugs']} drugs "
+            f"({counts['ingredients']} ingredients) · "
+            f"{counts['investigations']} investigations · "
+            f"{counts['store_items']} store items", fg="green")
 
     @app.cli.command("upgrade-db")
     def upgrade_db():
@@ -368,6 +373,37 @@ def register_commands(app):
         click.secho(f"Archived {n} inactive file(s) "
                     f"(> {inactive_years()} years).", fg="green")
 
+    @app.cli.command("seed-reference")
+    def seed_reference_cmd():
+        """Load the clinic's catalogues only: vaccines, services, drugs,
+        investigations, store items, message templates.
+
+        No users, no patients, no demo cases — this is the data a real clinic
+        starts from, and it is safe to re-run at any time."""
+        from app.utils.reference import reference_counts, seed_reference
+
+        db.create_all()
+        _ensure_default_settings()
+        _ensure_default_roles()
+        _seed_visit_types_safe()
+        _seed_devices_safe()
+        _seed_accounts_safe()
+        made = seed_reference()
+        db.session.commit()
+        for key, value in made.items():
+            if key == "errors":
+                for err in value:
+                    click.secho(f"  ! {err}", fg="yellow")
+            elif value:
+                click.secho(f"  + {key}: {value}", fg="green")
+        counts = reference_counts()
+        click.secho(
+            f"Reference ready: {counts['vaccines']} vaccines · "
+            f"{counts['services']} services · {counts['drugs']} drugs "
+            f"({counts['ingredients']} ingredients) · "
+            f"{counts['investigations']} investigations · "
+            f"{counts['store_items']} store items.", fg="green")
+
     @app.cli.command("seed-drugbook")
     def seed_drugbook_cmd():
         """(Re)load the drug reference: classes, ingredients, products.
@@ -418,14 +454,19 @@ def register_commands(app):
 
     @app.cli.command("seed")
     def seed():
-        """Create demo users, default settings and the vaccine catalogue."""
-        from app.utils.vaccines import seed_vaccine_schedules, seed_vaccines
+        """First-run setup: the clinic's catalogues + one login per role.
+
+        The catalogues come from ``seed-reference`` (no patients, no cases);
+        the only demo part here is the set of starter logins, which exist so
+        the first person can get in. Use ``seed-demo`` for sample cases."""
+        from app.utils.reference import seed_reference
         db.create_all()
         _ensure_default_settings()
         _ensure_default_roles()
-        _seed_drugs_safe()
-        seed_vaccines()
-        seed_vaccine_schedules()
+        _seed_visit_types_safe()
+        _seed_devices_safe()
+        _seed_accounts_safe()
+        seed_reference()
 
         created = 0
         for username, password, name_ar, name_en, role in DEMO_USERS:

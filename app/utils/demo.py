@@ -40,29 +40,33 @@ from app.utils.finance import generate_invoice_number
 from app.utils.patients import generate_patient_number
 
 def reset_all():
-    """Delete all operational data; keep users, roles, settings, catalogue.
+    """Delete the operational data; keep users, roles, settings and every
+    catalogue (services, store items, payers, templates, the drug reference).
 
     Child tables are deleted before their parents so no orphan rows survive
     (orphans would later crash page loads after a reset)."""
     from app.models import (
-        CashDrawerDay, Expense, MessageTemplate, PatientAttachment,
-        PayerContract, Prescription, PrescriptionInvestigation,
-        PrescriptionItem, PurchaseOrder, PurchaseOrderItem, ScheduleException,
-        StockMovement, StoreItem, Visit, VisitInvestigation, VisitService,
-        WaitlistEntry,
+        CashDrawerDay, Expense, PatientAttachment, Prescription,
+        PrescriptionInvestigation, PrescriptionItem, PurchaseOrder,
+        PurchaseOrderItem, ScheduleException, StockMovement, Visit,
+        VisitInvestigation, VisitService, VisitMedication, WaitlistEntry,
     )
 
+    # Operational data only. The catalogues (services, store items, payers,
+    # message templates, the drug reference) are the clinic's own reference
+    # data and survive a reset — clearing sample cases must never delete a
+    # real price list.
     order = [
-        MessageTemplate, MessageLog,
+        MessageLog,
         CashDrawerDay,
         EInvoiceDocument, Payment, InvoiceItem, Invoice,
         PrescriptionInvestigation, PrescriptionItem, Prescription,
         PurchaseOrderItem, PurchaseOrder,
-        StockMovement, StoreItem, Expense,
-        PatientCoverage, PayerContract, PayerServiceRate, PayerEntity,
-        DoctorServiceCommission, ServiceBundleItem, Service,
+        StockMovement, Expense,
+        PatientCoverage,
         # Visit/patient children first, then the parents.
-        PatientAttachment, VisitInvestigation, VisitService, PatientVaccine,
+        PatientAttachment, VisitInvestigation, VisitService, VisitMedication,
+        PatientVaccine,
         GrowthRecord, VitalSigns, Diagnosis, Visit,
         WaitlistEntry, Appointment, ScheduleException, DoctorSchedule,
         VaccineInventory, Supplier,
@@ -116,18 +120,40 @@ def seed_demo():
     today = datetime.utcnow().date()
 
     # --- Services -------------------------------------------------------
-    services = []
-    for name, code, price, ctype, cval, cat in [
-        ("كشف", "EG-1001", 250, "percent", 40, "consultation"),
-        ("استشارة", "EG-1002", 150, "percent", 50, "consultation"),
-        ("رسم تطعيم", "EG-2001", 100, "fixed", 20, "vaccination_fee"),
-        ("سونار", "EG-3001", 400, "percent", 30, "radiology"),
-        ("تحاليل", "EG-4001", 200, "none", 0, "lab"),
-    ]:
-        s = Service(name=name, code=code, price=price, category=cat,
-                    commission_type=ctype, commission_value=cval, is_active=True)
-        db.session.add(s)
-        services.append(s)
+    # Demo cases hang off the clinic's *real* catalogue (seeded by
+    # ``seed-reference``); only what's genuinely missing is added, so loading
+    # or clearing the demo never rewrites a clinic's price list.
+    from app.utils.reference import seed_reference
+    if Service.query.first() is None:
+        seed_reference()
+
+    used = set()
+
+    def _service(name, code, price, ctype, cval, cat):
+        """Reuse the clinic's own service — by name first, then by category —
+        and never hand back the same row twice (the demo needs five distinct
+        services, and two of them share a category)."""
+        row = Service.query.filter_by(name=name).first()
+        if row is None:
+            row = next((r for r in Service.query.filter_by(category=cat,
+                                                           is_active=True).all()
+                        if r.id not in used), None)
+        if row is None:
+            row = Service(name=name, code=code, price=price, category=cat,
+                          commission_type=ctype, commission_value=cval,
+                          is_active=True)
+            db.session.add(row)
+            db.session.flush()
+        used.add(row.id)
+        return row
+
+    services = [
+        _service("كشف", "EG-1001", 250, "percent", 40, "consultation"),
+        _service("استشارة", "EG-1002", 150, "percent", 50, "consultation"),
+        _service("رسم تطعيم", "EG-2001", 100, "fixed", 20, "vaccination_fee"),
+        _service("سونار", "EG-3001", 400, "percent", 30, "radiology"),
+        _service("تحاليل", "EG-4001", 200, "none", 0, "lab"),
+    ]
     db.session.flush()
 
     # --- Insurer with per-service coverage ------------------------------
@@ -382,16 +408,23 @@ def seed_demo():
         ))
 
     # General store items + movements (one kept below reorder level).
+    # Named to match the seeded consumables catalogue, so the demo only adds
+    # *movements* to the clinic's real items instead of lookalike rows.
     store_defs = [
-        ("قفازات طبية", "علبة", 30, 5, 40, 20, 6),
-        ("كمامات", "علبة", 20, 10, 50, 0, 5),
-        ("خافض حرارة (شراب)", "عبوة", 18, 15, 4, 2, 1),  # low
+        ("قفازات فحص", "قطعة", 30, 5, 40, 20, 6),
+        ("كمامات طبية", "قطعة", 20, 10, 50, 0, 5),
+        ("سرنجة 5 مل", "قطعة", 18, 15, 4, 2, 1),   # low on purpose
     ]
     for nm, unit, pp, reorder, opening, qin, qout in store_defs:
-        si = StoreItem(name=nm, unit=unit, category="مستلزمات", purchase_price=pp,
-                       sell_price=round(pp * 1.4, 2), reorder_level=reorder,
-                       opening_stock=opening, is_active=True)
-        db.session.add(si)
+        # Reuse the catalogue item when the clinic already stocks it, so the
+        # demo movements land on the real item instead of a lookalike.
+        si = StoreItem.query.filter_by(name=nm).first()
+        if si is None:
+            si = StoreItem(name=nm, unit=unit, category="مستلزمات",
+                           purchase_price=pp, sell_price=round(pp * 1.4, 2),
+                           reorder_level=reorder, opening_stock=opening,
+                           is_active=True)
+            db.session.add(si)
         db.session.flush()
         if qin:
             db.session.add(StockMovement(item_id=si.id, kind="in", qty=qin,
