@@ -56,6 +56,55 @@ def seed_reference():
         seed_interactions()
         return (made.get("generics", 0) or 0) + (made.get("brands", 0) or 0)
 
+    def _device_services():
+        """Give every device the service that bills it.
+
+        A study has to cost something: without a service behind the device,
+        running an echo charges nothing. Existing services are matched by
+        their device type first (the seeded «إيكو / سونار» covers both the echo
+        and the ultrasound), and only the genuinely missing ones are created —
+        priced 0 so the clinic sets its own price rather than inheriting a
+        made-up one."""
+        from app.models import MedicalDevice, Service
+        from app.utils.services import next_service_code
+
+        # device_type → (service name, category, and the words that identify an
+        # existing service for it)
+        wanted = {
+            "spirometry": ("وظائف تنفس", "procedure", ("تنفس", "spiro")),
+            "ecg": ("رسم قلب", "procedure", ("رسم قلب", "ecg")),
+            "echo": ("إيكو", "radiology", ("إيكو", "echo", "سونار")),
+            "ultrasound": ("موجات صوتية (سونار)", "radiology", ("سونار", "موجات", "ultrasound")),
+            "eeg": ("رسم مخ", "procedure", ("رسم مخ", "eeg")),
+            "audiometry": ("قياس سمع", "procedure", ("سمع", "audio")),
+            "tympanometry": ("قياس ضغط الأذن", "procedure", ("أذن", "tympan")),
+        }
+        made = 0
+        for dev in MedicalDevice.query.filter_by(is_active=True).all():
+            if any(sv.is_active for sv in dev.services):
+                continue
+            name, category, words = wanted.get(
+                dev.device_type, (dev.name, "procedure", ()))
+            match = None
+            for svc in Service.query.filter_by(is_active=True).all():
+                if svc.device_id is not None:
+                    continue
+                haystack = f"{svc.name} {svc.name_en or ''}".lower()
+                if any(w.lower() in haystack for w in words):
+                    match = svc
+                    break
+            if match is not None:
+                match.device_id = dev.id
+                continue
+            db.session.add(Service(code=next_service_code(), name=name,
+                                   price=0, category=category,
+                                   device_id=dev.id, needs_device=True,
+                                   commission_type="none", commission_value=0,
+                                   is_active=True))
+            made += 1
+        db.session.flush()
+        return made
+
     def _store():
         from app.utils.store_seed import seed_store_items_if_empty
         return seed_store_items_if_empty() or 0
@@ -69,6 +118,7 @@ def seed_reference():
     _try(_drugs, "drugs", out)
     _try(_investigations, "investigations", out)
     _try(_drugbook, "drug_reference", out)
+    _try(_device_services, "device_services", out)
     _try(_store, "store_items", out)
     _try(_templates, "message_templates", out)
     db.session.commit()

@@ -130,7 +130,7 @@ class DeviceStudy(db.Model):
 
     patient = db.relationship("Patient", backref="device_studies")
     device = db.relationship("MedicalDevice")
-    visit = db.relationship("Visit")
+    visit = db.relationship("Visit", back_populates="studies")
     performer = db.relationship("User")
     values = db.relationship("DeviceStudyValue", back_populates="study",
                              cascade="all, delete-orphan",

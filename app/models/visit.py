@@ -63,6 +63,12 @@ class Visit(db.Model):
         "VisitMedication", back_populates="visit",
         cascade="all, delete-orphan", order_by="VisitMedication.id",
     )
+    # Device studies performed in this visit (spirometry, echo, ultrasound…).
+    # Kept without cascade: a study is a clinical record of its own and must
+    # outlive the visit row it happened in.
+    studies = db.relationship(
+        "DeviceStudy", back_populates="visit", order_by="DeviceStudy.id",
+    )
 
     @property
     def is_completed(self):

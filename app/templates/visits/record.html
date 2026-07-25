@@ -85,6 +85,9 @@
       <i class="bi bi-capsule"></i> {{ t('visits.medications') }}
       {% if visit.medications %}<span class="vtab-count">{{ visit.medications|length }}</span>{% endif %}
       {% if med_safety and med_safety.has_warnings %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
+    <button type="button" class="vtab" :class="tab==='studies' && 'active'" x-on:click="go('studies')">
+      <i class="bi bi-activity"></i> {{ t('visits.studies') }}
+      {% if visit.studies %}<span class="vtab-count">{{ visit.studies|length }}</span>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
       <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
       {% if visit.services %}<span class="vtab-count">{{ visit.services|length }}</span>{% endif %}</button>
@@ -516,6 +519,56 @@
     </form>
   </div>
 
+  <!-- Device studies: run the device, enter the data, the family gets billed -->
+  <div class="card gc-scale-in" id="studies" x-show="tab==='studies'" style="animation-delay:0.255s;">
+    <h2 class="section-title"><i class="bi bi-activity"></i> {{ t('visits.studies') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('visits.studies_hint') }}</p>
+
+    {% if visit.studies %}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      {% for st in visit.studies %}
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <i class="bi bi-activity" style="color:var(--green-700);"></i>
+          <strong style="flex:1;">{{ st.device.display_name(current_lang) if st.device else '—' }}</strong>
+          <span class="badge badge--role" dir="ltr">{{ st.study_date }}</span>
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.study_view', study_id=st.id) }}">
+            <i class="bi bi-eye"></i> {{ t('study.view') }}</a>
+          <a class="btn btn-outline btn-sm gc-press" target="_blank"
+             href="{{ url_for('visits.study_print', study_id=st.id) }}">
+            <i class="bi bi-printer"></i> {{ t('reports.print') }}</a>
+        </div>
+        {% if st.values %}
+        <div style="margin-top:6px;color:var(--muted);font-size:.85rem;" dir="ltr">
+          {% for v in st.values[:6] %}{{ v.name }}: <strong>{{ v.value }}{{ ' ' ~ v.unit if v.unit else '' }}</strong>{% if not loop.last %} · {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+        {% if st.conclusion %}<div style="margin-top:4px;">{{ st.conclusion }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_studies') }}</p>
+    {% endif %}
+
+    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-plus-circle"></i> {{ t('visits.open_study') }}</h3>
+    {% if study_devices %}
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+      {% for d in study_devices %}
+      <a class="btn btn-outline gc-press"
+         href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=d.device.id, visit_id=visit.id) }}">
+        <i class="bi bi-activity"></i> {{ d.device.display_name(current_lang) }}
+        {% if d.price %}<span class="badge badge--role">{{ d.price|money }}</span>{% endif %}
+        {% if d.charged %}<span class="badge badge--green">{{ t('visits.study_charged') }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    <p class="hint" style="margin-top:8px;">{{ t('visits.study_charge_hint') }}</p>
+    {% else %}
+    <p style="color:var(--muted);">{{ t('visits.no_devices') }}</p>
+    {% endif %}
+  </div>
+
   <div class="card gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
     <h2 class="section-title"><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.procedures_hint') }}</p>
@@ -526,6 +579,11 @@
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
         <i class="bi bi-clipboard2-plus" style="color:var(--green-700);"></i>
         <strong style="flex:1;">{{ s.name }}{% if s.quantity and s.quantity > 1 %} ×{{ s.quantity }}{% endif %}{% if s.notes %} <span style="color:var(--muted);font-weight:400;">— {{ s.notes }}</span>{% endif %}</strong>
+        {% if s.service and s.service.device_id %}
+        <a class="btn btn-outline btn-sm gc-press"
+           href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=s.service.device_id, visit_id=visit.id) }}">
+          <i class="bi bi-activity"></i> {{ t('visits.enter_results') }}</a>
+        {% endif %}
         <form method="post" action="{{ url_for('visits.delete_service', vs_id=s.id) }}" style="display:inline;">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
       </div>

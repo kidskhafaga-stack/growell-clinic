@@ -675,7 +675,15 @@
     "med_need_name": "Type the medicine name first.",
     "med_on_rx": "on the prescription",
     "med_on_rx_hint": "This medicine is already on a prescription from this visit.",
-    "med_rx_exists": "This visit already has a prescription:"
+    "med_rx_exists": "This visit already has a prescription:",
+    "studies": "Device studies",
+    "studies_hint": "Run the device, enter the readings — the chart is drawn and read for you, and the service is billed automatically.",
+    "no_studies": "No studies in this visit.",
+    "open_study": "Open a study on a device",
+    "no_devices": "No active devices — add them in settings.",
+    "study_charged": "billed",
+    "study_charge_hint": "Saving the study adds the device's service to the visit's bill once, and the cashier collects it with everything else.",
+    "enter_results": "Enter results"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -3250,7 +3258,9 @@
     "out_of_range": "out of range",
     "no_values": "No values",
     "no_studies": "No device studies",
-    "no_template": "This device has no measurement template — define its fields first"
+    "no_template": "This device has no measurement template — define its fields first",
+    "view": "View",
+    "charged": "“{name}” was added to the visit's bill."
   },
   "spiro": {
     "curves": "Spirometry curves",

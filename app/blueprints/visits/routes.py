@@ -234,6 +234,19 @@ def record(visit_id):
     # Medication reconciliation reference: the patient's recent meds.
     from app.utils.meds import recent_medications
     recent_meds = recent_medications(visit.patient_id)
+    # Devices the doctor can run in this visit, with what each one charges —
+    # so "book an echo" and "the echo is on the bill" are the same action.
+    from app.models import MedicalDevice
+    study_devices = []
+    for dev in (MedicalDevice.query.filter_by(is_active=True)
+                .order_by(MedicalDevice.name).all()):
+        svc = next((sv for sv in dev.services if sv.is_active), None)
+        study_devices.append({
+            "device": dev, "service": svc,
+            "price": (svc.price_for(visit.doctor) if svc else None),
+            "charged": bool(svc and any(vs.service_id == svc.id
+                                        for vs in visit.services)),
+        })
     # Medicines written in this visit + their safety check (dose for this
     # child's weight/age, and interactions between what's on the list).
     from app.utils.rx_safety import check as rx_check
@@ -247,6 +260,7 @@ def record(visit_id):
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         med_safety=med_safety, prescribed_names=prescribed_names,
+        study_devices=study_devices,
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments,
         procedure_services=procedure_services, recent_meds=recent_meds,
@@ -919,6 +933,25 @@ def icd():
     return jsonify({"results": search_icd(request.args.get("q", ""))})
 
 
+def _charge_study(device, visit):
+    """Put the device's service on the visit so the study gets billed.
+
+    Returns the added ``VisitService`` (or None when there's nothing to charge
+    or it is already there — a study must never bill the family twice)."""
+    if visit is None or device is None:
+        return None
+    service = next((s for s in device.services if s.is_active), None)
+    if service is None:
+        return None
+    if any(vs.service_id == service.id for vs in visit.services):
+        return None
+    row = VisitService(
+        visit_id=visit.id, service_id=service.id,
+        name=service.display_name(getattr(g, "lang", "ar")), quantity=1)
+    db.session.add(row)
+    return row
+
+
 # ================================================= device studies (C.2) =====
 @visits_bp.route("/studies/new/<int:patient_id>", methods=["GET", "POST"])
 @module_required(MODULE)
@@ -942,9 +975,12 @@ def study_new(patient_id):
                                  "%Y-%m-%d").date()
         except ValueError:
             sdate = _dt.utcnow().date()
-        # Attach to the patient's open visit, if any.
-        open_visit = (Visit.query.filter_by(patient_id=patient.id, status="open")
-                      .order_by(Visit.created_at.desc()).first())
+        # Attach to the visit it was opened from, else the patient's open one.
+        visit_id = request.values.get("visit_id", type=int)
+        open_visit = db.session.get(Visit, visit_id) if visit_id else None
+        if open_visit is None or open_visit.patient_id != patient.id:
+            open_visit = (Visit.query.filter_by(patient_id=patient.id, status="open")
+                          .order_by(Visit.created_at.desc()).first())
         study = DeviceStudy(
             patient_id=patient.id, device_id=device.id,
             visit_id=open_visit.id if open_visit else None, study_date=sdate,
@@ -959,15 +995,22 @@ def study_new(patient_id):
                 measurement_id=m.id, name=m.name, unit=m.unit,
                 value=raw, flag=m.flag(raw)))
         db.session.add(study)
+        # Running a device costs money: the study charges its device's service
+        # on the visit (once), and the cashier collects it like any other
+        # procedure. Nothing is charged twice if the doctor already added it.
+        charged = _charge_study(device, open_visit)
         ActivityLog.record("study.create", user_id=current_user.id,
                            entity="device_study", detail=device.name,
                            ip_address=client_ip())
         db.session.commit()
         flash(t("study.saved"), "success")
+        if charged is not None:
+            flash(t("study.charged").replace("{name}", charged.name), "info")
         return redirect(url_for("visits.study_view", study_id=study.id))
 
     return render_template("visits/study_new.html", patient=patient,
                            devices=devices, device=device,
+                           visit_id=request.values.get("visit_id", type=int),
                            today=datetime.utcnow().date().isoformat())
 
 
