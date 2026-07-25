@@ -84,11 +84,27 @@ class RxPrintTemplate(db.Model):
         return f"<RxPrintTemplate {self.name}>"
 
 
+# A combination product is genuinely several substances. Hanging it off one
+# ``generic_id`` was enough for dosing — you dose Augmentin on its amoxicillin —
+# but not for safety: a child allergic to clavulanic acid would sail past the
+# allergy check, because the second ingredient was nowhere in the data.
+drug_ingredients = db.Table(
+    "drug_ingredients",
+    db.Column("drug_id", db.Integer, db.ForeignKey("drugs.id"),
+              primary_key=True),
+    db.Column("generic_id", db.Integer, db.ForeignKey("generic_drugs.id"),
+              primary_key=True),
+)
+
+
 class Drug(db.Model):
     __tablename__ = "drugs"
 
     id = db.Column(db.Integer, primary_key=True)
     trade_name = db.Column(db.String(160), nullable=False, index=True)
+    # The name printed on the box in Arabic — what a parent reads back to you
+    # over the phone, and what they search for.
+    trade_name_ar = db.Column(db.String(160), index=True)
     generic_name = db.Column(db.String(160), index=True)
     # Link to the drug reference (المرجع الدوائي): the active ingredient this
     # brand carries. Optional — a brand typed in a hurry still works, it just
@@ -96,6 +112,7 @@ class Drug(db.Model):
     generic_id = db.Column(db.Integer, db.ForeignKey("generic_drugs.id"),
                            nullable=True, index=True)
     form = db.Column(db.String(20))
+    route = db.Column(db.String(20))               # oral / topical / injection…
     strength = db.Column(db.String(60))            # e.g. "250 mg/5 ml"
     default_dose = db.Column(db.String(120))       # suggested dose text
     default_frequency = db.Column(db.String(80))   # e.g. "كل 8 ساعات"
@@ -121,12 +138,34 @@ class Drug(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     generic = db.relationship("GenericDrug", back_populates="brands")
+    # Every active ingredient, ``generic`` being the one dosing is read from.
+    ingredients = db.relationship("GenericDrug", secondary=drug_ingredients,
+                                  lazy="selectin")
 
     def label(self, lang="ar"):
         parts = [self.trade_name]
         if self.strength:
             parts.append(self.strength)
         return " ".join(parts)
+
+    def display_name(self, lang="ar"):
+        """The name to show: Arabic when we have it and Arabic is being read."""
+        if lang == "ar" and (self.trade_name_ar or "").strip():
+            return self.trade_name_ar
+        return self.trade_name
+
+    def all_ingredients(self):
+        """Every ingredient behind this product, primary first, deduplicated.
+
+        Falls back to ``generic`` alone for the products imported before the
+        combination link existed — a single-ingredient product is the same
+        answer either way."""
+        out, seen = [], set()
+        for gen in [self.generic] + list(self.ingredients or []):
+            if gen is not None and gen.id not in seen:
+                seen.add(gen.id)
+                out.append(gen)
+        return out
 
     @property
     def price_per_unit(self):

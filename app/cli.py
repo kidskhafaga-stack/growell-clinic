@@ -283,6 +283,8 @@ def register_commands(app):
             ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
             ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),
             ("named_discounts", "auto_apply", "BOOLEAN DEFAULT 1"),
+            ("drugs", "trade_name_ar", "VARCHAR(160)"),
+            ("drugs", "route", "VARCHAR(20)"),
         ]
         existing_tables = set(inspector.get_table_names())
         applied = 0
@@ -450,6 +452,48 @@ def register_commands(app):
             f"{GenericDrug.query.count()} ingredients, "
             f"{Drug.query.count()} products "
             f"(added {made['generics']} / {made['brands']} now).", fg="green")
+
+    @app.cli.command("import-drugs")
+    @click.argument("path", type=click.Path(exists=True, dir_okay=False))
+    @click.option("--dry-run", is_flag=True,
+                  help="Read and report, write nothing.")
+    @click.option("--create-classes", is_flag=True,
+                  help="Also create the file's own drug groupings (thousands, "
+                       "on a market register — usually not what you want).")
+    def import_drugs_cmd(path, dry_run, create_classes):
+        """Load a drug list (CSV or JSON) into the reference.
+
+        Built for the real thing: the published Egyptian register is 25,000
+        products, which is a long wait in a browser tab and a request that may
+        time out halfway. On the command line it runs to completion and says
+        what it did.
+        """
+        from app.utils.drugbook_import import import_rows, parse
+
+        db.create_all()
+        with open(path, "rb") as fh:
+            rows, errors = parse(fh.read())
+        for line in errors[:10]:
+            click.secho(f"  ! {line}", fg="yellow")
+        if len(errors) > 10:
+            click.secho(f"  ! …and {len(errors) - 10} more", fg="yellow")
+        if not rows:
+            click.secho("Nothing to import.", fg="red")
+            return
+        click.echo(f"Read {len(rows)} rows. Importing…")
+        made = import_rows(rows, dry_run=dry_run,
+                           create_classes=create_classes)
+        if not dry_run:
+            db.session.commit()
+        from app.models import Drug, GenericDrug
+        click.secho(
+            f"{'Would add' if dry_run else 'Added'} {made['brands']} products "
+            f"and {made['generics']} ingredients; {made['updated']} updated, "
+            f"{made['skipped']} unchanged, {made['links']} ingredient links.",
+            fg="green")
+        if not dry_run:
+            click.echo(f"Reference now holds {Drug.query.count()} products "
+                       f"and {GenericDrug.query.count()} ingredients.")
 
     @app.cli.command("seed-demo")
     def seed_demo_cmd():

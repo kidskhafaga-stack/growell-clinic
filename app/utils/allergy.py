@@ -112,11 +112,17 @@ def check_drug(patient, generic=None, drug=None, name=""):
         return None
 
     # Everything this line is known by: ingredient (both languages) + brand.
+    # For a combination product that means *every* ingredient — a child
+    # allergic to clavulanic acid must not be cleared for Augmentin because
+    # the check only looked at its amoxicillin.
     names = [name or ""]
     if generic is not None:
         names += [generic.name_ar or "", generic.name_en or ""]
     if drug is not None:
-        names += [drug.trade_name or "", drug.generic_name or ""]
+        names += [drug.trade_name or "", drug.trade_name_ar or "",
+                  drug.generic_name or ""]
+        for gen in drug.all_ingredients():
+            names += [gen.name_ar or "", gen.name_en or ""]
     names = [n for n in names if n and n.strip()]
     norm_names = [normalise(n) for n in names]
 

@@ -3478,7 +3478,11 @@
     "alternatives": "Alternatives with the same ingredient",
     "alternatives_hint": "Cheapest first — same active ingredient, with the saving shown.",
     "no_alternatives": "No other product carries this ingredient.",
-    "cheaper": "cheaper"
+    "cheaper": "cheaper",
+    "import_eda_hint": "Understands the open Egyptian register's own columns as they come (commercial_name_en / commercial_name_ar / scientific_name / manufacturer / drug_class / route / price_egp) — download it and upload it without renaming a thing.",
+    "import_big_hint": "A big file (25,000 items)? Run it from the command line: flask import-drugs data/egyptian-drugs.csv — faster, and it won't die halfway like a browser tab.",
+    "import_create_classes": "Create the drug groupings found in the file",
+    "import_create_classes_hint": "Market registers carry thousands of commercial groupings. Turning this on buries the clinic's own class tree under a list nobody can browse — leave it off unless you're sure."
   },
   "periods": {
     "title": "Accounting periods",

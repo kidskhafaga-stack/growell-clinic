@@ -163,7 +163,12 @@ def drugbook_import():
     A file is read one product per row — trade name + strength — naming its
     ingredient and class, and anything missing is created as it reads, so one
     file can build the whole tree. Preview first, then import: numbers before
-    a live catalogue changes."""
+    a live catalogue changes.
+
+    A published national register runs to tens of thousands of rows, which is a
+    long wait in a browser tab and a request that may time out halfway; for
+    those there is ``flask import-drugs <file>``, which does the same work and
+    says what it did."""
     from app.utils.drugbook_import import import_rows, parse
 
     summary = errors = None
@@ -177,7 +182,9 @@ def drugbook_import():
         if not rows:
             flash(t("drugbook.import_no_rows"), "warning")
         else:
-            summary = import_rows(rows, dry_run=preview)
+            summary = import_rows(
+                rows, dry_run=preview,
+                create_classes=bool(request.form.get("create_classes")))
             if preview:
                 flash(t("drugbook.import_preview_done"), "info")
             else:
@@ -268,6 +275,7 @@ def drugs():
     if q:
         like = f"%{q}%"
         query = query.filter(or_(Drug.trade_name.ilike(like),
+                                 Drug.trade_name_ar.ilike(like),
                                  Drug.generic_name.ilike(like)))
     drugs = query.order_by(Drug.trade_name).limit(500).all()
     return render_template("prescriptions/drugs.html", drugs=drugs,
@@ -340,11 +348,15 @@ def drug_search():
     like = f"%{q}%"
     drugs = (
         Drug.query.filter(Drug.is_active.is_(True))
-        .filter(or_(Drug.trade_name.ilike(like), Drug.generic_name.ilike(like)))
+        # The Arabic name is what the parent reads off the box and what the
+        # doctor types when they're repeating it back.
+        .filter(or_(Drug.trade_name.ilike(like), Drug.trade_name_ar.ilike(like),
+                    Drug.generic_name.ilike(like)))
         .order_by(Drug.trade_name).limit(15).all()
     )
     return jsonify([{
-        "id": d.id, "trade": d.trade_name, "generic": d.generic_name or "",
+        "id": d.id, "trade": d.trade_name, "trade_ar": d.trade_name_ar or "",
+        "generic": d.generic_name or "",
         "label": d.label(), "form": d.form or "",
         "dose": d.default_dose or "", "frequency": d.default_frequency or "",
         "instructions": d.default_instructions or "", "max": d.max_daily_dose or "",

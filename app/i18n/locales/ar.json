@@ -3478,7 +3478,11 @@
     "alternatives": "البدائل بنفس المادة الفعالة",
     "alternatives_hint": "مرتّبة من الأرخص — نفس المادة الفعالة، والفرق في السعر ظاهر.",
     "no_alternatives": "لا توجد أصناف أخرى بنفس المادة الفعالة.",
-    "cheaper": "أرخص"
+    "cheaper": "أرخص",
+    "import_eda_hint": "بيفهم أعمدة سجل الأدوية المصري المفتوح زي ما هي (commercial_name_en / commercial_name_ar / scientific_name / manufacturer / drug_class / route / price_egp) — نزّل الملف وارفعه من غير ما تعدّل أي عنوان.",
+    "import_big_hint": "ملف كبير (٢٥ ألف صنف)؟ شغّله من سطر الأوامر: flask import-drugs data/egyptian-drugs.csv — أسرع، وما بيقعش في نص الطريق زي صفحة المتصفح.",
+    "import_create_classes": "أنشئ المجموعات الدوائية اللي في الملف",
+    "import_create_classes_hint": "سجلات السوق فيها آلاف المجموعات التجارية. تشغيل ده هيدفن شجرة المجموعات بتاعت العيادة تحت قائمة محدش يقدر يتصفحها — سيبه مقفول إلا لو إنت متأكد."
   },
   "periods": {
     "title": "الفترات المحاسبية",
