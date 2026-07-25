@@ -43,13 +43,24 @@ call ".venv\Scripts\activate.bat"
 python -m pip install --upgrade pip >nul 2>nul
 pip install -r requirements.txt
 
-REM --- 4) Initialise the database + demo data on first run ---
+REM --- 4) Initialise the database on first run, then ALWAYS upgrade it ---
+REM The upgrade step is what adds new columns/tables after an update, so it
+REM must run on every start - not only when a database already existed.
 if not exist "instance\growell.db" (
   echo [3/4] Initialising database and seeding demo data...
   flask --app run seed
-) else (
-  echo [3/4] Database found - applying any safe upgrades...
-  flask --app run upgrade-db
+  if errorlevel 1 (
+    echo [ERROR] Database initialisation failed - see the message above.
+    pause
+    exit /b 1
+  )
+)
+echo [3/4] Applying any safe database upgrades...
+flask --app run upgrade-db
+if errorlevel 1 (
+  echo [ERROR] Database upgrade failed - do NOT use the app before fixing this.
+  pause
+  exit /b 1
 )
 
 REM --- 5) Launch the app and open the browser ---
