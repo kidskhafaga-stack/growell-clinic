@@ -504,10 +504,22 @@ def new():
     # Medicines the doctor already wrote in the visit carry over too, so what
     # was decided in the room is what prints (same idea as the investigations).
     prefill_meds = []
+    visit_rx = []
     if visit_id:
         from app.models import VisitMedication
+
+        # What this visit already printed. Carrying a medicine over twice is
+        # how a patient ends up with two prescriptions for the same drug, so
+        # anything already on a prescription for this visit is left out and
+        # the existing prescription is linked instead.
+        visit_rx = (Prescription.query.filter_by(visit_id=visit_id)
+                    .order_by(Prescription.id.desc()).all())
+        already = {(" ".join((it.drug_name or "").split())).lower()
+                   for rx in visit_rx for it in rx.items}
         for m in (VisitMedication.query.filter_by(visit_id=visit_id)
                   .order_by(VisitMedication.id).all()):
+            if (" ".join((m.name or "").split())).lower() in already:
+                continue
             prefill_meds.append({
                 "drug_id": m.drug_id or "",
                 "name": m.name,
@@ -516,6 +528,8 @@ def new():
                 "duration": m.duration or "",
                 "instructions": m.instructions or "",
             })
+        if visit_rx and not prefill_meds:
+            flash(t("rx.visit_meds_all_prescribed"), "info")
     # Medication reconciliation: the patient's recent meds to review while
     # prescribing (continue / stop / modify).
     recent_meds = []
@@ -525,7 +539,7 @@ def new():
     return render_template(
         "prescriptions/new.html", patient=patient, prefill=prefill,
         prefill_invs=prefill_invs, prefill_meds=prefill_meds,
-        recent_meds=recent_meds,
+        visit_rx=visit_rx, recent_meds=recent_meds,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
         ai_ready=ai_utils.is_ready(),

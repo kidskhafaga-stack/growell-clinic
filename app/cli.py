@@ -312,11 +312,18 @@ def register_commands(app):
             from app.utils.drugbook_seed import (link_existing_drugs,
                                                  seed_drugbook,
                                                  seed_interactions)
-            seed_drugbook()
-            link_existing_drugs()
-            seed_interactions()
-        except Exception:  # noqa: BLE001
-            pass
+            made = seed_drugbook()
+            made["linked"] = made.get("linked", 0) + link_existing_drugs()
+            made["interactions"] = made.get("interactions", 0) + seed_interactions()
+            if any(made.values()):
+                click.secho("  + drug reference: "
+                            f"{made['generics']} ingredient(s), "
+                            f"{made['brands']} product(s), "
+                            f"{made['interactions']} interaction(s)", fg="green")
+        except Exception as exc:  # noqa: BLE001
+            # Loud, not silent: a clinic that opens an empty drug reference
+            # needs to see why rather than assume the feature isn't there.
+            click.secho(f"  ! drug reference not seeded: {exc}", fg="yellow")
         try:  # unify CRM templates into the registry (migrates legacy settings)
             from app.utils.whatsapp import seed_system_templates
             seed_system_templates()
@@ -357,6 +364,26 @@ def register_commands(app):
         n = auto_archive()
         click.secho(f"Archived {n} inactive file(s) "
                     f"(> {inactive_years()} years).", fg="green")
+
+    @app.cli.command("seed-drugbook")
+    def seed_drugbook_cmd():
+        """(Re)load the drug reference: classes, ingredients, products.
+
+        Runs on install and on every upgrade too — this is for when a clinic
+        wants it back after clearing it, or after pulling a newer list."""
+        from app.utils.drugbook_seed import (link_existing_drugs, seed_drugbook,
+                                             seed_interactions)
+        db.create_all()
+        made = seed_drugbook()
+        made["linked"] = made.get("linked", 0) + link_existing_drugs()
+        made["interactions"] = made.get("interactions", 0) + seed_interactions()
+        db.session.commit()
+        from app.models import Drug, DrugClass, GenericDrug
+        click.secho(
+            f"Drug reference: {DrugClass.query.count()} classes, "
+            f"{GenericDrug.query.count()} ingredients, "
+            f"{Drug.query.count()} products "
+            f"(added {made['generics']} / {made['brands']} now).", fg="green")
 
     @app.cli.command("seed-demo")
     def seed_demo_cmd():

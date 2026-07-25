@@ -415,6 +415,14 @@
   <div class="card gc-scale-in" id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
     <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.med_hint') }}</p>
+    {% if visit.prescriptions %}
+    <p class="hint" style="margin:0 0 10px;color:var(--green-800);">
+      <i class="bi bi-info-circle"></i> {{ t('visits.med_rx_exists') }}
+      {% for rx in visit.prescriptions %}
+      <a href="{{ url_for('prescriptions.view', rx_id=rx.id) }}">#{{ rx.id }}</a>{% if not loop.last %} · {% endif %}
+      {% endfor %}
+    </p>
+    {% endif %}
 
     {% if med_safety and (med_safety.weight or med_safety.age_months is not none) %}
     <p class="hint" style="margin:0 0 10px;">
@@ -449,6 +457,10 @@
         {% set info = (med_safety.lines | selectattr('name', 'equalto', m.name) | list | first) if med_safety else None %}
         <tr>
           <td><strong>{{ m.name }}</strong>
+            {% if prescribed_names and (m.name|lower|trim) in prescribed_names %}
+            <span class="badge badge--green" title="{{ t('visits.med_on_rx_hint') }}">
+              <i class="bi bi-prescription2"></i> {{ t('visits.med_on_rx') }}</span>
+            {% endif %}
             {% if info and info.generic_name %}<div style="color:var(--muted);font-size:.8rem;">{{ info.generic_name }}</div>{% endif %}
             {% if info and info.warnings %}
               {% for w in info.warnings %}
