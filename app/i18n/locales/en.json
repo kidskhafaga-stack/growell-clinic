@@ -2163,7 +2163,9 @@
     "label_title": "Barcode label",
     "label_copies": "Copies",
     "print_label": "Print barcode",
-    "code": "Item code"
+    "code": "Item code",
+    "stocktake_wh_hint": "Pick the store you are counting in — the count and its corrections apply to that warehouse only.",
+    "all_warehouses": "All warehouses"
   },
   "purchases": {
     "title": "Purchase orders",
@@ -3238,5 +3240,15 @@
     "collect_now": "Collect the vaccine difference: {amount}",
     "reason_note": "Vaccine settlement (not given / swapped)",
     "no_money": "No difference"
+  },
+  "scan": {
+    "label": "Scan barcode",
+    "placeholder": "Scan with a reader or type the code…",
+    "go": "Find",
+    "camera": "Use camera",
+    "hint": "A USB/Bluetooth scanner types the code by itself — leave the cursor here and scan. On a phone, tap \"Use camera\".",
+    "stocktake_hint": "Scan the item while standing at the shelf — it jumps straight to that row so you can type the count.",
+    "not_found": "No item with the code ({code}).",
+    "no_camera": "Could not open the camera — allow camera access or use a reader."
   }
 }

@@ -12,6 +12,10 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-arrow-right"></i> {{ t('inventory.title') }}</a>
 </div>
 
+{% with scan_action = url_for('inventory.scan') %}
+  {% include "inventory/_scan.html" %}
+{% endwith %}
+
 <!-- Search + type filter -->
 <form method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
   <input class="input" type="search" name="q" value="{{ q or '' }}" style="flex:1;min-width:220px;"

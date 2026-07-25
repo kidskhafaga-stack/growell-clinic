@@ -12,19 +12,48 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('inventory.store') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('store.title') }}</a>
 </div>
 
+<!-- Which store are we standing in? The count only touches that warehouse. -->
+<form method="get" class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+  <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+    <label>{{ t('warehouses.title') }}</label>
+    <select class="select" name="warehouse_id" onchange="this.form.submit()">
+      {% for w in warehouses %}
+      <option value="{{ w.id }}" {{ 'selected' if w.id == warehouse.id else '' }}>
+        {{ w.display_name(current_lang) }} · {{ t('warehouses.kind_' ~ w.kind) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <p class="hint" style="margin:0;flex:2;min-width:220px;">{{ t('store.stocktake_wh_hint') }}</p>
+</form>
+
+{% with scan_action = url_for('inventory.stocktake'),
+        scan_extra = {'warehouse_id': warehouse.id},
+        scan_hint = t('scan.stocktake_hint') %}
+  {% include "inventory/_scan.html" %}
+{% endwith %}
+
 <form method="post">
+  <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
   <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
     <table class="table">
-      <thead><tr><th>{{ t('store.name') }}</th><th>{{ t('store.system') }}</th><th>{{ t('store.counted') }}</th></tr></thead>
+      <thead><tr>
+        <th>{{ t('store.name') }}</th>
+        <th>{{ t('store.system') }} — {{ warehouse.display_name(current_lang) }}</th>
+        <th>{{ t('store.all_warehouses') }}</th>
+        <th>{{ t('store.counted') }}</th>
+      </tr></thead>
       <tbody>
-        {% for i in items %}
-        <tr>
-          <td><strong>{{ i.display_name(current_lang) }}</strong>{% if i.unit %} <span style="color:var(--muted);">({{ i.unit }})</span>{% endif %}</td>
-          <td>{{ i.current_stock }}</td>
-          <td><input class="input" type="number" name="count_{{ i.id }}" placeholder="{{ i.current_stock }}" style="width:120px;"></td>
+        {% for r in rows %}
+        <tr {% if scanned_id and r.item.id == scanned_id %}id="scannedRow" style="background:var(--green-50,#eaf7ef);"{% endif %}>
+          <td><strong>{{ r.item.display_name(current_lang) }}</strong>{% if r.item.unit %} <span style="color:var(--muted);">({{ r.item.unit }})</span>{% endif %}
+            {% if r.item.item_code %}<div style="color:var(--muted);font-size:.78rem;" dir="ltr">{{ r.item.item_code }}</div>{% endif %}</td>
+          <td style="font-weight:600;">{{ r.system }}</td>
+          <td style="color:var(--muted);">{{ r.total }}</td>
+          <td><input class="input" type="number" name="count_{{ r.item.id }}" placeholder="{{ r.system }}" style="width:120px;"
+                     {% if scanned_id and r.item.id == scanned_id %}data-scanned="1"{% endif %}></td>
         </tr>
         {% else %}
-        <tr><td colspan="3" class="empty-state">{{ t('store.no_items') }}</td></tr>
+        <tr><td colspan="4" class="empty-state">{{ t('store.no_items') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -35,4 +64,16 @@
   </div>
   {% endif %}
 </form>
+
+{% if scanned_id %}
+<script>
+  // Scanned at the shelf: put the cursor in that item's count box.
+  (function () {
+    var row = document.getElementById('scannedRow');
+    var box = document.querySelector('input[data-scanned="1"]');
+    if (row) row.scrollIntoView({ block: 'center' });
+    if (box) box.focus();
+  })();
+</script>
+{% endif %}
 {% endblock %}
