@@ -1,0 +1,83 @@
+{# Barcode input that works with everything a clinic actually owns.
+
+   * A hardware/USB (or Bluetooth) scanner behaves like a keyboard: it types
+     the code and presses Enter — this box just has to be focused, so it is,
+     automatically, on load.
+   * A phone reads it with the camera through the browser's own BarcodeDetector
+     (no library, no CDN — the app must keep working offline). Where the
+     browser doesn't provide it (iOS Safari today), the camera button hides
+     itself and typing/scanning still works.
+
+   Params: `scan_action` (form target), `scan_hint` (optional text). #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-scan-box>
+  <form method="get" action="{{ scan_action }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    {% for k, v in (scan_extra or {}).items() %}
+    <input type="hidden" name="{{ k }}" value="{{ v }}">
+    {% endfor %}
+    <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+      <label><i class="bi bi-upc-scan"></i> {{ t('scan.label') }}</label>
+      <input class="input" type="search" name="code" autocomplete="off" autofocus
+             data-scan-input placeholder="{{ t('scan.placeholder') }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('scan.go') }}</button>
+    <button class="btn btn-outline gc-press" type="button" data-scan-camera hidden>
+      <i class="bi bi-camera"></i> {{ t('scan.camera') }}</button>
+  </form>
+  <p class="hint" style="margin:6px 0 0;">{{ scan_hint or t('scan.hint') }}</p>
+  <div data-scan-stage hidden style="margin-top:10px;">
+    <video data-scan-video playsinline muted
+           style="width:100%;max-width:420px;border-radius:12px;background:#000;"></video>
+    <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm gc-press" type="button" data-scan-stop>{{ t('common.cancel') }}</button>
+      <span class="hint" data-scan-status></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var box = document.querySelector('[data-scan-box]');
+  if (!box) return;
+  var input = box.querySelector('[data-scan-input]');
+  var camBtn = box.querySelector('[data-scan-camera]');
+  var stage = box.querySelector('[data-scan-stage]');
+  var video = box.querySelector('[data-scan-video]');
+  var stopBtn = box.querySelector('[data-scan-stop]');
+  var status = box.querySelector('[data-scan-status]');
+  var supported = ('BarcodeDetector' in window) && navigator.mediaDevices
+                  && navigator.mediaDevices.getUserMedia;
+  if (!supported) return;                 // keyboard/scanner path still works
+  camBtn.hidden = false;
+
+  var stream = null, timer = null;
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    stage.hidden = true;
+  }
+  stopBtn.addEventListener('click', stop);
+  window.addEventListener('pagehide', stop);
+
+  camBtn.addEventListener('click', function () {
+    var detector = new window.BarcodeDetector({
+      formats: ['code_39', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'itf']
+    });
+    status.textContent = '';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(function (s) {
+        stream = s; video.srcObject = s; stage.hidden = false; video.play();
+        timer = setInterval(function () {
+          detector.detect(video).then(function (codes) {
+            if (!codes || !codes.length) return;
+            var value = (codes[0].rawValue || '').trim();
+            if (!value) return;
+            stop();
+            input.value = value;
+            input.form.submit();
+          }).catch(function () { /* a frame that can't be read is normal */ });
+        }, 350);
+      })
+      .catch(function () { status.textContent = {{ t('scan.no_camera')|tojson }}; });
+  });
+})();
+</script>

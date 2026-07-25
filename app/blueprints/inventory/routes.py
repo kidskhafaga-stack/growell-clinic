@@ -634,11 +634,55 @@ def store_item(item_id):
                            purchase_units=store_purchase_units())
 
 
+@inventory_bp.route("/scan")
+@module_required(MODULE)
+def scan():
+    """Resolve a scanned (or typed) barcode to its item card.
+
+    One entry point for both ways a code arrives: a USB/Bluetooth scanner types
+    it and presses Enter, a phone reads it with the camera — either way it is
+    just a string looked up against the item code and the supplier barcode, for
+    store items and vaccine brands alike."""
+    code = (request.args.get("code") or "").strip()
+    if not code:
+        return redirect(url_for("inventory.items"))
+    item = (StoreItem.query.filter(db.or_(StoreItem.item_code == code,
+                                          StoreItem.barcode == code)).first())
+    if item is not None:
+        return redirect(url_for("inventory.store_item", item_id=item.id))
+    brand = (VaccineBrand.query.filter(db.or_(VaccineBrand.item_code == code,
+                                              VaccineBrand.barcode == code)).first())
+    if brand is not None:
+        return redirect(url_for("inventory.item_card", brand_id=brand.id))
+    flash(t("scan.not_found").replace("{code}", code), "warning")
+    return redirect(url_for("inventory.items", q=code))
+
+
+def _item_by_code(code):
+    """The store item a scanned code belongs to, if any."""
+    code = (code or "").strip()
+    if not code:
+        return None
+    return StoreItem.query.filter(db.or_(StoreItem.item_code == code,
+                                         StoreItem.barcode == code)).first()
+
+
 @inventory_bp.route("/store/stocktake", methods=["GET", "POST"])
 @module_required(MODULE)
 def stocktake():
+    """Count one warehouse at a time.
+
+    Counting the clinic-wide total is useless when the stock sits in several
+    places: you stand in *one* store with the shelf in front of you. The screen
+    therefore counts the selected warehouse — system quantity, counted quantity
+    and the correction all belong to it, and the adjustment movements are
+    tagged with it so the other warehouses are never touched."""
     from app.utils.store_docs import open_document
 
+    warehouses = _warehouses()
+    wh_id = request.values.get("warehouse_id", type=int)
+    warehouse = next((w for w in warehouses if w.id == wh_id), None) \
+        or Warehouse.default()
     items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
     if request.method == "POST":
         adjusted = 0
@@ -651,21 +695,34 @@ def stocktake():
                 counted = int(raw)
             except ValueError:
                 continue
-            diff = counted - item.current_stock
+            diff = counted - item.stock_in(warehouse)
             if diff != 0:
                 if doc is None:
                     doc = open_document("adjust", reference=t("store.stocktake"))
+                    doc.warehouse_id = warehouse.id
                 db.session.add(StockMovement(
                     item_id=item.id, kind="adjust", qty=diff, document_id=doc.id,
-                    reason=t("store.stocktake"), created_by=current_user.id,
+                    warehouse_id=warehouse.id,
+                    reason=f"{t('store.stocktake')} — {warehouse.name}",
+                    created_by=current_user.id,
                 ))
                 adjusted += 1
         ActivityLog.record("store.stocktake", user_id=current_user.id,
-                           entity="store", detail=str(adjusted), ip_address=client_ip())
+                           entity="store", detail=f"{warehouse.id}:{adjusted}",
+                           ip_address=client_ip())
         db.session.commit()
         flash(t("store.stocktake_done").replace("{n}", str(adjusted)), "success")
-        return redirect(url_for("inventory.store"))
-    return render_template("inventory/stocktake.html", items=items)
+        return redirect(url_for("inventory.stocktake", warehouse_id=warehouse.id))
+    rows = [{"item": i, "system": i.stock_in(warehouse), "total": i.current_stock}
+            for i in items]
+    # Scanned an item while standing at the shelf? Jump straight to its row.
+    code = (request.args.get("code") or "").strip()
+    scanned = _item_by_code(code)
+    if code and scanned is None:
+        flash(t("scan.not_found").replace("{code}", code), "warning")
+    return render_template("inventory/stocktake.html", items=items, rows=rows,
+                           warehouses=warehouses, warehouse=warehouse,
+                           scanned_id=scanned.id if scanned else None)
 
 
 # ===================================================== warehouses (W2) =====
