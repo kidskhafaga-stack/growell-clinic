@@ -20,6 +20,17 @@ DOC_PREFIXES = {"grn": "GRN", "issue": "ISS", "adjust": "ADJ", "waste": "WST",
 WAREHOUSE_KINDS = ["main", "sub", "fridge"]  # رئيسي / فرعي / ثلاجة تطعيمات
 
 
+# Which users may work in which warehouse (W2 permissions). A user with **no**
+# row here is unrestricted — that keeps every existing clinic working exactly
+# as before; a user with at least one row sees only those warehouses.
+warehouse_users = db.Table(
+    "warehouse_users",
+    db.Column("warehouse_id", db.Integer, db.ForeignKey("warehouses.id"),
+              primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+)
+
+
 class Warehouse(db.Model):
     """A physical stock location (W2): main store, a sub-store, or the vaccine
     fridge. Every movement/batch belongs to one; a default warehouse absorbs
@@ -36,8 +47,26 @@ class Warehouse(db.Model):
     notes = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # The store keepers allowed to work in this warehouse (empty = everyone).
+    keepers = db.relationship("User", secondary="warehouse_users",
+                              backref="warehouses")
+
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
+
+    def allows(self, user):
+        """Whether ``user`` may work in this warehouse.
+
+        Open by default: a warehouse with no keepers is everyone's, and a user
+        with no warehouse assigned anywhere is unrestricted. Restriction only
+        starts once someone is deliberately assigned."""
+        if user is None:
+            return False
+        if getattr(user, "is_admin", False):
+            return True
+        if not self.keepers:
+            return not getattr(user, "warehouses", [])
+        return any(k.id == user.id for k in self.keepers)
 
     @classmethod
     def default(cls):

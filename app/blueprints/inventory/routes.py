@@ -681,8 +681,14 @@ def stocktake():
 
     warehouses = _warehouses()
     wh_id = request.values.get("warehouse_id", type=int)
-    warehouse = next((w for w in warehouses if w.id == wh_id), None) \
-        or Warehouse.default()
+    warehouse = next((w for w in warehouses if w.id == wh_id), None)
+    if warehouse is None:
+        if wh_id:                       # asked for one they may not touch
+            if _warehouse_denied(db.session.get(Warehouse, wh_id)):
+                return redirect(url_for("inventory.store"))
+        warehouse = warehouses[0] if warehouses else Warehouse.default()
+    if _warehouse_denied(warehouse):
+        return redirect(url_for("inventory.store"))
     items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
     if request.method == "POST":
         adjusted = 0
@@ -726,11 +732,26 @@ def stocktake():
 
 
 # ===================================================== warehouses (W2) =====
-def _warehouses():
-    """Active warehouses, guaranteeing the default one exists."""
+def _warehouses(all_of_them=False):
+    """Active warehouses this user may work in (the default one is ensured).
+
+    A big organisation gives each store its own keeper: once a warehouse has
+    keepers, only they work in it, and a keeper only sees their own stores.
+    Clinics that never assign anyone keep seeing everything."""
     Warehouse.default()
     db.session.commit()
-    return Warehouse.query.filter_by(is_active=True).order_by(Warehouse.id).all()
+    rows = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.id).all()
+    if all_of_them:
+        return rows
+    return [w for w in rows if w.allows(current_user)]
+
+
+def _warehouse_denied(warehouse):
+    """Refuse a warehouse this user isn't a keeper of (and say so)."""
+    if warehouse is not None and warehouse.allows(current_user):
+        return False
+    flash(t("warehouses.no_access"), "danger")
+    return True
 
 
 @inventory_bp.route("/warehouses", methods=["GET", "POST"])
@@ -750,12 +771,38 @@ def warehouses():
         db.session.commit()
         flash(t("warehouses.added"), "success")
         return redirect(url_for("inventory.warehouses"))
-    whs = _warehouses()
+    whs = _warehouses(all_of_them=current_user.is_admin)
     items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
     # Per-warehouse stock snapshot for the overview table.
     stock = {w.id: sum(1 for i in items if i.stock_in(w) > 0) for w in whs}
+    from app.models import User
+    staff = (User.query.filter_by(is_active=True)
+             .order_by(User.full_name).all()) if current_user.is_admin else []
     return render_template("inventory/warehouses.html", warehouses=whs,
-                           warehouse_kinds=WAREHOUSE_KINDS, stock=stock)
+                           warehouse_kinds=WAREHOUSE_KINDS, stock=stock,
+                           staff=staff)
+
+
+@inventory_bp.route("/warehouses/<int:wh_id>/keepers", methods=["POST"])
+@module_required(MODULE)
+def warehouse_keepers(wh_id):
+    """Set who works in this warehouse. Empty = open to everyone (the default),
+    which is why an existing clinic notices nothing until it assigns someone."""
+    from app.models import User
+
+    if not current_user.is_admin:
+        from flask import abort
+        abort(403)
+    wh = db.get_or_404(Warehouse, wh_id)
+    ids = [i for i in request.form.getlist("user_ids") if str(i).isdigit()]
+    wh.keepers = User.query.filter(User.id.in_([int(i) for i in ids])).all() \
+        if ids else []
+    ActivityLog.record("warehouse.keepers", user_id=current_user.id,
+                       entity="warehouse", entity_id=wh.id,
+                       detail=str(len(wh.keepers)), ip_address=client_ip())
+    db.session.commit()
+    flash(t("warehouses.keepers_saved"), "success")
+    return redirect(url_for("inventory.warehouses"))
 
 
 @inventory_bp.route("/warehouses/<int:wh_id>/toggle", methods=["POST"])
@@ -790,6 +837,9 @@ def transfer_new():
         dst = db.session.get(Warehouse, request.form.get("to_id", type=int))
         if src is None or dst is None or src.id == dst.id:
             flash(t("warehouses.bad_pair"), "danger")
+            return redirect(url_for("inventory.transfer_new"))
+        # Stock may only leave a store its keeper is responsible for.
+        if _warehouse_denied(src):
             return redirect(url_for("inventory.transfer_new"))
 
         doc = None
