@@ -210,6 +210,55 @@ def drugbook_template():
         headers={"Content-Disposition": "attachment; filename=drugbook-template.csv"})
 
 
+@prescriptions_bp.route("/drugbook/product/<int:drug_id>", methods=["GET", "POST"])
+@module_required(MODULE)
+def drugbook_product(drug_id):
+    """One product: its package photo, its leaflet, its price — and the
+    cheaper alternatives carrying the same active ingredient.
+
+    The photo is what a parent recognises on the pharmacy shelf, the leaflet
+    is what the doctor checks before prescribing, and the price is the
+    question every family asks. Editing needs settings access; reading
+    doesn't — the doctor must be able to look, and to answer "is there a
+    cheaper one?" without leaving the screen."""
+    from datetime import datetime
+
+    from app.utils.uploads import remove_drug_media, save_drug_media
+
+    drug = db.get_or_404(Drug, drug_id)
+    if request.method == "POST":
+        if not current_user.can_access("settings"):
+            from flask import abort
+            abort(403)
+        action = (request.form.get("action") or "").strip()
+        if action == "price":
+            price = request.form.get("price", type=float)
+            drug.price = price if price and price > 0 else None
+            drug.price_updated_at = datetime.utcnow() if drug.price else None
+            drug.pack_size = (request.form.get("pack_size") or "").strip() or None
+            drug.barcode = (request.form.get("barcode") or "").strip() or None
+            drug.manufacturer = (request.form.get("manufacturer") or "").strip() or None
+            flash(t("drugbook.price_saved"), "success")
+        elif action in ("image", "leaflet"):
+            stored = save_drug_media(request.files.get("file"))
+            if stored is None:
+                flash(t("drugbook.bad_file"), "danger")
+            else:
+                remove_drug_media(getattr(drug, action))
+                setattr(drug, action, stored)
+                flash(t("drugbook.file_saved"), "success")
+        elif action in ("image_delete", "leaflet_delete"):
+            field = action.split("_")[0]
+            remove_drug_media(getattr(drug, field))
+            setattr(drug, field, None)
+            flash(t("drugbook.file_removed"), "info")
+        db.session.commit()
+        return redirect(url_for("prescriptions.drugbook_product", drug_id=drug.id))
+
+    return render_template("prescriptions/drugbook_product.html", drug=drug,
+                           alternatives=drug.alternatives())
+
+
 # ----------------------------------------------------- drug catalogue ------
 @prescriptions_bp.route("/drugs")
 @admin_required

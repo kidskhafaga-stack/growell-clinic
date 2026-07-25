@@ -45,3 +45,42 @@ def remove_document(filename):
             os.remove(path)
         except OSError:
             pass
+
+
+# ---------------------------------------------------- drug media -----------
+# Package photos and leaflets/SPC files for the drug reference. Kept apart from
+# patient documents: these are catalogue content, shared by every patient, and
+# they must survive a patient file being cleaned out.
+ALLOWED_DRUG_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "webp"}
+
+
+def drug_media_dir():
+    return os.path.join(current_app.static_folder, "uploads", "drug_media")
+
+
+def allowed_drug_file(filename):
+    return ("." in (filename or "")
+            and filename.rsplit(".", 1)[-1].lower() in ALLOWED_DRUG_EXTENSIONS)
+
+
+def save_drug_media(file_storage):
+    """Store a package photo / leaflet and return its filename, or None."""
+    if not file_storage or not file_storage.filename \
+            or not allowed_drug_file(file_storage.filename):
+        return None
+    ext = file_storage.filename.rsplit(".", 1)[-1].lower()
+    stored = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(drug_media_dir(), exist_ok=True)
+    file_storage.save(os.path.join(drug_media_dir(), secure_filename(stored)))
+    return stored
+
+
+def remove_drug_media(filename):
+    if not filename:
+        return
+    path = os.path.join(drug_media_dir(), filename)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass

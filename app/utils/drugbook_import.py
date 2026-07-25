@@ -12,6 +12,7 @@ twice. Nothing is ever deleted by an import.
 """
 import csv
 import io
+from datetime import datetime
 
 from app.extensions import db
 from app.models import Drug, DrugClass, GenericDrug
@@ -164,7 +165,8 @@ def import_rows(rows, dry_run=False):
         conc = _number(row.get("conc"))
         price = _number(row.get("price"))
         if drug is None:
-            drug = Drug(trade_name=row["trade_name"],
+            drug = Drug(price_updated_at=datetime.utcnow() if price else None,
+                        trade_name=row["trade_name"],
                         generic_name=(gen.name_en or gen.name_ar) if gen else None,
                         generic_id=(gen.id if gen is not None and not dry_run else None),
                         form=row.get("form") or None,
@@ -191,6 +193,8 @@ def import_rows(rows, dry_run=False):
                 continue
             if not dry_run:
                 setattr(drug, field, value)
+                if field == "price":
+                    drug.price_updated_at = datetime.utcnow()
             changed = True
         if gen is not None and drug.generic_id is None:
             if not dry_run:

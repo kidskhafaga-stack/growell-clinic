@@ -149,15 +149,23 @@
   <table class="table">
     <thead><tr>
       <th>{{ t('rx.trade_name') }}</th><th>{{ t('rx.form') }}</th><th>{{ t('rx.strength') }}</th>
-      <th>{{ t('drugbook.concentration') }}</th><th>{{ t('drugbook.manufacturer') }}</th>
+      <th>{{ t('drugbook.concentration') }}</th><th style="text-align:end;">{{ t('drugbook.price') }}</th>
+      <th>{{ t('drugbook.manufacturer') }}</th>
     </tr></thead>
     <tbody>
       {% for b in generic.brands %}
       <tr>
-        <td><strong>{{ b.trade_name }}</strong></td>
+        <td>
+          {% if b.image %}<img src="{{ url_for('static', filename='uploads/drug_media/' ~ b.image) }}"
+               alt="" style="width:32px;height:32px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-inline-end:6px;">{% endif %}
+          <a href="{{ url_for('prescriptions.drugbook_product', drug_id=b.id) }}"><strong>{{ b.trade_name }}</strong></a>
+          {% if b.leaflet %}<a href="{{ url_for('static', filename='uploads/drug_media/' ~ b.leaflet) }}"
+             target="_blank" rel="noopener" title="{{ t('drugbook.leaflet') }}"><i class="bi bi-file-earmark-pdf"></i></a>{% endif %}
+        </td>
         <td>{{ t('drug_forms.' ~ b.form) if b.form in ['syrup','tablet','capsule','drops','suppository','injection','cream','ointment','spray','inhaler','sachet'] else (b.form or '—') }}</td>
         <td dir="ltr">{{ b.strength or '—' }}</td>
         <td dir="ltr">{{ (b.conc_mg_per_ml ~ ' mg/ml') if b.conc_mg_per_ml else '—' }}</td>
+        <td style="text-align:end;font-weight:600;">{{ b.price|money if b.price else '—' }}</td>
         <td style="color:var(--muted);">{{ b.manufacturer or '—' }}</td>
       </tr>
       {% endfor %}
