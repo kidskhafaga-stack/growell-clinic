@@ -41,6 +41,7 @@ from app.models import (
 )
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import capability_required, client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.imports import (
     allowed_import_file,
     build_rows,
@@ -121,9 +122,7 @@ def index():
             Patient.date_of_birth <= own_phone_cutoff(),
             db.or_(Patient.own_phone.is_(None), Patient.own_phone == ""),
         )
-    pagination = query.order_by(Patient.created_at.desc()).paginate(
-        page=request.args.get("page", 1, type=int), per_page=25, error_out=False
-    )
+    pagination = paginate(query.order_by(Patient.created_at.desc()))
 
     stats = {
         "total": Patient.query.count(),

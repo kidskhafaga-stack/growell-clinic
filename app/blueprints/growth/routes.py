@@ -21,6 +21,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog, GrowthRecord, Patient
 from app.utils.decorators import client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.patients import apply_patient_search
 from app.utils import rcpch
 from app.utils.growth import (
@@ -78,8 +79,7 @@ def index():
     query = apply_patient_search(
         Patient.query.filter(Patient.id.in_(db.session.query(sub.c.patient_id))), q
     ).order_by(Patient.full_name)
-    pagination = query.paginate(
-        page=request.args.get("page", 1, type=int), per_page=25, error_out=False)
+    pagination = paginate(query)
     return render_template(
         "growth/index.html", patients=pagination.items, pagination=pagination, q=q
     )

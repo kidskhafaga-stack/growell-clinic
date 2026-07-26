@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'prescriptions' %}
 {% block title %}{{ t('rx.catalogue') }}{% endblock %}
 {% block page_heading %}{{ t('rx.catalogue') }}{% endblock %}
@@ -16,9 +17,12 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rx.title') }}</a>
 </div>
 
-<form method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;">
+{# Searching starts over from page 1 — carrying the old page number into a new
+   search lands on an empty screen that reads as "nothing found". #}
+<form method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
   <input class="input" name="q" value="{{ q }}" placeholder="{{ t('rx.search_drugs') }}" style="max-width:340px;">
   <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
+  {% if q %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">{{ t('common.reset') }}</a>{% endif %}
 </form>
 
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
@@ -81,6 +85,7 @@
   {% else %}
   <div class="empty-state"><i class="bi bi-capsule"></i>{{ t('rx.no_drugs') }}</div>
   {% endif %}
+  {{ render_pagination(pagination) }}
 </div>
 {% endblock %}
 

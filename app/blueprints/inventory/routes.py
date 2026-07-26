@@ -31,6 +31,7 @@ from app.models import (
 )
 from app.utils.costing import apply_purchase_cost, issue_unit_cost
 from app.utils.decorators import client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.periods import period_blocked
 
 MODULE = "inventory"
@@ -1061,9 +1062,7 @@ def documents():
     q = StoreDocument.query
     if kind in DOC_KINDS:
         q = q.filter(StoreDocument.kind == kind)
-    page = request.args.get("page", 1, type=int)
-    pagination = (q.order_by(StoreDocument.id.desc())
-                  .paginate(page=page, per_page=25, error_out=False))
+    pagination = paginate(q.order_by(StoreDocument.id.desc()))
     return render_template("inventory/documents.html", pagination=pagination,
                            documents=pagination.items, kind=kind,
                            doc_kinds=DOC_KINDS)

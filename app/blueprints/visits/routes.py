@@ -40,6 +40,7 @@ from app.models import (
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.icd import search_icd
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 
@@ -124,9 +125,7 @@ def index():
     if locked:
         query = query.filter(or_(Visit.doctor_id == locked,
                                  Visit.doctor_id.is_(None)))
-    pagination = query.order_by(Visit.created_at.desc()).paginate(
-        page=request.args.get("page", 1, type=int), per_page=25, error_out=False
-    )
+    pagination = paginate(query.order_by(Visit.created_at.desc()))
     return render_template(
         "visits/list.html", visits=pagination.items, pagination=pagination
     )

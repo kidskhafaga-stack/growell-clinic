@@ -50,7 +50,13 @@
     "refresh": "تحديث",
     "action": "إجراء",
     "reset": "إعادة تعيين",
-    "not_found": "غير موجود"
+    "not_found": "غير موجود",
+    "showing": "عرض",
+    "of": "من",
+    "per_page": "في الصفحة",
+    "previous": "السابق",
+    "next": "التالي",
+    "apply": "تطبيق"
   },
   "nav": {
     "dashboard": "لوحة التحكم",

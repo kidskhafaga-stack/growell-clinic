@@ -36,6 +36,7 @@ from app.models import (
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.dose_labels import dose_choices, dose_label, next_dose_text
 from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
@@ -58,8 +59,7 @@ def index():
     query = apply_patient_search(
         Patient.query.filter_by(is_active=True), q
     ).order_by(Patient.full_name)
-    pagination = query.paginate(
-        page=request.args.get("page", 1, type=int), per_page=25, error_out=False)
+    pagination = paginate(query)
     return render_template(
         "vaccinations/index.html", patients=pagination.items,
         pagination=pagination, q=q

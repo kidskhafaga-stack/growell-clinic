@@ -46,6 +46,7 @@ from app.models import (
     Visit,
 )
 from app.utils.decorators import cashier_access, client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.finance import generate_invoice_number
 from app.utils.money import format_money
 from app.utils.vaccine_settlement import apply_settlement, pending_settlements
@@ -524,8 +525,7 @@ def invoices():
     q = Invoice.query
     if status in ("unpaid", "partial", "paid"):
         q = q.filter_by(status=status)
-    page = request.args.get("page", 1, type=int)
-    pagination = q.order_by(Invoice.id.desc()).paginate(page=page, per_page=25, error_out=False)
+    pagination = paginate(q.order_by(Invoice.id.desc()))
     return render_template("finance/invoices.html", pagination=pagination,
                            invoices=pagination.items, status=status)
 
@@ -923,9 +923,7 @@ def shift_close(shift_id):
 @cashier_access
 def shifts():
     """History of till sessions (Z-reports)."""
-    page = request.args.get("page", 1, type=int)
-    pagination = (CashierShift.query.order_by(CashierShift.opened_at.desc())
-                  .paginate(page=page, per_page=25, error_out=False))
+    pagination = paginate(CashierShift.query.order_by(CashierShift.opened_at.desc()))
     return render_template("finance/shifts.html", pagination=pagination,
                            shifts=pagination.items,
                            open_shift=CashierShift.open_for(current_user.id))

@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ t('shifts.history') }}{% endblock %}
 {% block page_heading %}{{ t('shifts.history') }}{% endblock %}
@@ -55,11 +56,5 @@
   {% endif %}
 </div>
 
-{% if pagination and pagination.pages > 1 %}
-<div class="pagination" style="margin-top:16px;display:flex;gap:6px;justify-content:center;">
-  {% for p in range(1, pagination.pages + 1) %}
-  <a class="btn btn-sm {{ 'btn-primary' if p == pagination.page else 'btn-outline' }}" href="{{ url_for('finance.shifts', page=p) }}">{{ p }}</a>
-  {% endfor %}
-</div>
-{% endif %}
+{{ render_pagination(pagination) }}
 {% endblock %}

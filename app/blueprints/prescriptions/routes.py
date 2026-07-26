@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.utils.decorators import admin_required, client_ip, module_required
+from app.utils.paging import paginate
 from app.utils.rx_shorthand import FREQUENCIES, expand_line
 
 MODULE = "prescriptions"
@@ -85,11 +86,7 @@ def interactions_check():
 @prescriptions_bp.route("/")
 @module_required(MODULE)
 def index():
-    page = request.args.get("page", 1, type=int)
-    pagination = (
-        Prescription.query.order_by(Prescription.id.desc())
-        .paginate(page=page, per_page=25, error_out=False)
-    )
+    pagination = paginate(Prescription.query.order_by(Prescription.id.desc()))
     return render_template("prescriptions/index.html", pagination=pagination,
                            prescriptions=pagination.items)
 
@@ -113,14 +110,17 @@ def drugbook():
         query = query.outerjoin(Drug, Drug.generic_id == GenericDrug.id).filter(or_(
             GenericDrug.name_ar.ilike(like), GenericDrug.name_en.ilike(like),
             GenericDrug.atc_code.ilike(like), Drug.trade_name.ilike(like)))
-    generics = query.order_by(GenericDrug.name_en).distinct().limit(300).all()
+    # Paged rather than cut off at 300: the reference holds tens of thousands
+    # of ingredients, and a doctor who searches and finds nothing has no way
+    # to tell "not on file" from "past the limit".
+    pagination = paginate(query.order_by(GenericDrug.name_en).distinct())
     counts = {}
     for c in classes:
         counts[c.id] = GenericDrug.query.filter_by(class_id=c.id,
                                                    is_active=True).count()
     return render_template("prescriptions/drugbook.html", classes=classes,
-                           generics=generics, counts=counts, q=q,
-                           class_id=class_id)
+                           generics=pagination.items, pagination=pagination,
+                           counts=counts, q=q, class_id=class_id)
 
 
 @prescriptions_bp.route("/drugbook/<int:generic_id>")
@@ -552,9 +552,9 @@ def drugs():
         query = query.filter(or_(Drug.trade_name.ilike(like),
                                  Drug.trade_name_ar.ilike(like),
                                  Drug.generic_name.ilike(like)))
-    drugs = query.order_by(Drug.trade_name).limit(500).all()
-    return render_template("prescriptions/drugs.html", drugs=drugs,
-                           forms=DRUG_FORMS, q=q)
+    pagination = paginate(query.order_by(Drug.trade_name))
+    return render_template("prescriptions/drugs.html", drugs=pagination.items,
+                           pagination=pagination, forms=DRUG_FORMS, q=q)
 
 
 @prescriptions_bp.route("/drugs/new", methods=["POST"])

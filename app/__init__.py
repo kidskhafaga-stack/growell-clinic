@@ -128,6 +128,17 @@ def create_app(config_name="default"):
         }
 
     @app.context_processor
+    def inject_paging():
+        """The pager macro needs the offered page sizes and "showing 51–75"
+        arithmetic; both belong to the paging helper, not to Jinja."""
+        from app.utils.paging import (PER_PAGE_CHOICES, page_window, per_page)
+        return {
+            "per_page_choices": PER_PAGE_CHOICES,
+            "current_per_page": per_page,
+            "page_window": page_window,
+        }
+
+    @app.context_processor
     def inject_visit_types():
         """Expose the editable visit-type catalogue to templates: an active
         list for selects, plus label/colour resolvers for any stored key."""
