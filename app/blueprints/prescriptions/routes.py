@@ -1,8 +1,9 @@
 """Drugs & prescriptions (clinic): catalogue, writing, safety alerts, print."""
+import os
 from datetime import datetime, timedelta
 
 from flask import (
-    flash, g, jsonify, redirect, render_template, request, url_for,
+    current_app, flash, g, jsonify, redirect, render_template, request, url_for,
 )
 from flask_login import current_user
 from sqlalchemy import or_
@@ -179,7 +180,15 @@ def drugbook_import():
         if not file or not file.filename:
             flash(t("drugbook.import_need_file"), "danger")
             return redirect(url_for("prescriptions.drugbook_import"))
-        rows, errors = parse(file.read())
+        raw = file.read()
+        rows, errors = parse(raw)
+        if not rows and _mappable(file.filename):
+            # We don't recognise this file's headers. That is not a reason to
+            # refuse it — a pharmacy's own price list is still the clinic's
+            # data. Ask which column is which.
+            mapped = _offer_mapping(file, raw)
+            if mapped is not None:
+                return mapped
         if not rows:
             flash(t("drugbook.import_no_rows"), "warning")
         else:
@@ -265,6 +274,133 @@ def drugbook_product(drug_id):
 
     return render_template("prescriptions/drugbook_product.html", drug=drug,
                            alternatives=drug.alternatives())
+
+
+def _mappable(filename):
+    """Only a sheet can be mapped; a JSON payload names its own fields."""
+    return (filename or "").lower().rsplit(".", 1)[-1] in ("csv", "xlsx")
+
+
+# An upload that was never mapped is abandoned work, and a folder that only
+# ever grows is a slow leak on a clinic PC.
+STASH_HOURS = 6
+
+
+def _drug_import_tmp():
+    folder = os.path.join(current_app.instance_path, "drug_imports")
+    os.makedirs(folder, exist_ok=True)
+    _sweep_stashes(folder)
+    return folder
+
+
+def _sweep_stashes(folder, hours=STASH_HOURS):
+    import time
+
+    cutoff = time.time() - hours * 3600
+    for name in os.listdir(folder):
+        path = os.path.join(folder, name)
+        try:
+            if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                os.remove(path)
+        except OSError:
+            pass
+
+
+def _offer_mapping(file, raw):
+    """Show the column-mapping screen for a file we couldn't read blind."""
+    import io as _io
+    import json as _json
+    import uuid as _uuid
+
+    from werkzeug.datastructures import FileStorage
+
+    from app.utils.drugbook_import import FIELDS, guess_mapping
+    from app.utils.imports import read_matrix
+
+    headers, data_rows, error = read_matrix(
+        FileStorage(stream=_io.BytesIO(raw), filename=file.filename))
+    if error or not headers or not data_rows:
+        return None
+
+    token = _uuid.uuid4().hex
+    with open(os.path.join(_drug_import_tmp(), f"{token}.json"), "w",
+              encoding="utf-8") as fh:
+        _json.dump({"headers": headers, "rows": data_rows,
+                    "filename": file.filename}, fh, ensure_ascii=False,
+                   default=str)
+    return render_template(
+        "prescriptions/drugbook_map.html", token=token, headers=headers,
+        filename=file.filename, fields=FIELDS, guess=guess_mapping(headers),
+        sample=data_rows[:5], total=len(data_rows))
+
+
+@prescriptions_bp.route("/drugbook/import/map", methods=["POST"])
+@admin_required
+def drugbook_import_map():
+    """Read the file again through the columns the user just named."""
+    import json as _json
+
+    from app.utils.drugbook_import import (FIELDS, REQUIRED_FIELDS,
+                                           import_rows, rows_from_matrix)
+
+    token = (request.form.get("token") or "").strip()
+    if not token.isalnum():
+        flash(t("drugbook.import_expired"), "warning")
+        return redirect(url_for("prescriptions.drugbook_import"))
+    stash = os.path.join(_drug_import_tmp(), f"{token}.json")
+    if not os.path.isfile(stash):
+        flash(t("drugbook.import_expired"), "warning")
+        return redirect(url_for("prescriptions.drugbook_import"))
+    with open(stash, encoding="utf-8") as fh:
+        payload = _json.load(fh)
+
+    headers = payload["headers"]
+    mapping = {}
+    for key, _required, _sample in FIELDS:
+        rawval = (request.form.get(f"map_{key}") or "").strip()
+        if not rawval:
+            continue
+        try:
+            idx = int(rawval)
+        except ValueError:
+            continue
+        if 0 <= idx < len(headers):
+            mapping[key] = idx
+
+    missing = [k for k in REQUIRED_FIELDS if k not in mapping]
+    if missing:
+        flash(t("drugbook.import_map_required"), "danger")
+        return render_template(
+            "prescriptions/drugbook_map.html", token=token, headers=headers,
+            filename=payload.get("filename", ""), fields=FIELDS,
+            guess=mapping, sample=payload["rows"][:5],
+            total=len(payload["rows"]), missing=missing)
+
+    rows, errors = rows_from_matrix(headers, payload["rows"], mapping)
+    preview = request.form.get("mode") != "import"
+    summary = None
+    if rows:
+        summary = import_rows(
+            rows, dry_run=preview,
+            create_classes=bool(request.form.get("create_classes")))
+        if preview:
+            flash(t("drugbook.import_preview_done"), "info")
+        else:
+            db.session.commit()
+            os.remove(stash)
+            ActivityLog.record("drugbook.import", user_id=current_user.id,
+                               entity="drug", detail=str(summary["rows"]),
+                               ip_address=client_ip())
+            db.session.commit()
+            flash(t("drugbook.import_done")
+                  .replace("{n}", str(summary["brands"])), "success")
+    counts = {"classes": DrugClass.query.count(),
+              "generics": GenericDrug.query.count(),
+              "brands": Drug.query.count()}
+    return render_template("prescriptions/drugbook_import.html",
+                           summary=summary, errors=errors, preview=preview,
+                           counts=counts, mapped_token=(token if preview else None),
+                           mapping=mapping)
 
 
 # ------------------------------------------------- saved prescriptions -----

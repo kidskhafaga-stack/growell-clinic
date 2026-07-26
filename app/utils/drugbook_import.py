@@ -47,6 +47,57 @@ COLUMNS = {
     "price_egp": "price", "price egp": "price", "السعر بالجنيه": "price",
 }
 
+# The fields a mapping screen offers, in the order they are asked for.
+# (key, required, example)
+FIELDS = [
+    ("trade_name", True, "AUGMENTIN 1 GM 14 F.C. TABS."),
+    ("trade_name_ar", False, "أوجمنتين"),
+    ("generic_en", False, "AMOXICILLIN+CLAVULANIC ACID"),
+    ("generic_ar", False, "أموكسيسيللين"),
+    ("class", False, "المضادات الحيوية"),
+    ("form", False, "tablet"),
+    ("strength", False, "1 GM"),
+    ("conc", False, "25"),
+    ("route", False, "ORAL.SOLID"),
+    ("manufacturer", False, "GSK"),
+    ("price", False, "210"),
+    ("pack_size", False, "14 tabs"),
+    ("barcode", False, ""),
+]
+REQUIRED_FIELDS = [key for key, required, _ in FIELDS if required]
+
+
+def guess_mapping(headers):
+    """Which column looks like which field → ``{field: column index}``.
+
+    A file whose headers we already know is mapped without anyone being asked;
+    the screen exists for the files we don't know, and even those arrive with
+    most of the work done.
+    """
+    out = {}
+    for idx, raw in enumerate(headers or []):
+        field = COLUMNS.get(str(raw or "").strip().lower())
+        if field and field not in out:
+            out[field] = idx
+    return out
+
+
+def rows_from_matrix(headers, data_rows, mapping):
+    """Turn a raw sheet plus the user's column choices into row dicts."""
+    rows, errors = [], []
+    for i, raw in enumerate(data_rows or [], start=2):
+        row = {}
+        for field, idx in (mapping or {}).items():
+            if 0 <= idx < len(raw):
+                value = raw[idx]
+                row[field] = _clean("" if value is None else str(value))
+        if not row.get("trade_name"):
+            errors.append(f"line {i}: no trade name")
+            continue
+        rows.append(row)
+    return rows, errors
+
+
 TEMPLATE_HEADER = ["class", "generic_ar", "generic_en", "trade_name", "form",
                    "strength", "conc_mg_per_ml", "manufacturer", "price",
                    "barcode", "pack_size"]
