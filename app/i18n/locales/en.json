@@ -2367,7 +2367,8 @@
     "campaign_pending": "{n} queued",
     "enqueue_now": "Queue campaign now",
     "enqueue_confirm": "One message per family will be queued and sent gradually under the daily cap. Sure?",
-    "campaign_queued": "{n} messages queued — they will go out under the daily cap"
+    "campaign_queued": "{n} messages queued — they will go out under the daily cap",
+    "occ_away": "Out-of-hours reply"
   },
   "feedback": {
     "title": "Rate your visit",
@@ -2473,7 +2474,17 @@
     "delay_hours": "+ hours",
     "send_hour": "Send hour (0–23)",
     "schedule_hint": "e.g. feedback 1 day after the visit → days=1. Birthday at 10:00 → send hour=10. Leave blank = send as soon as due.",
-    "satisfaction": "Patient satisfaction"
+    "satisfaction": "Patient satisfaction",
+    "board_title": "Delivery board — last 30 days",
+    "board_hint": "\"12 failed\" tells you nothing to act on. \"Every vaccine reminder failed and nothing else did\" tells you exactly where to look.",
+    "board_type": "Type",
+    "board_total": "All",
+    "board_fail_rate": "Failure rate",
+    "board_other": "No type",
+    "board_none": "No outgoing messages in the last 30 days.",
+    "failures_title": "Messages that didn't go",
+    "failures_hint": "The reason beside each one — a wrong number, a provider that was down, or the daily cap.",
+    "failure_reason": "Reason"
   },
   "notif": {
     "title": "Notifications",
@@ -2884,7 +2895,19 @@
     "open_file": "Open file",
     "attachment": "Attachment",
     "filed_to_patient": "Saved to the patient's file",
-    "ai_suspicious": "Warning: this message contains text aimed at the AI itself (an attempt to change its instructions). Read the draft carefully before sending."
+    "ai_suspicious": "Warning: this message contains text aimed at the AI itself (an attempt to change its instructions). Read the draft carefully before sending.",
+    "assigned": "Conversation handed to {name}",
+    "unassigned": "Owner removed",
+    "assign": "Owner",
+    "assign_none": "— nobody —",
+    "assign_hint": "On a desk with three people, \"someone will answer it\" is exactly how a message goes unanswered for two days.",
+    "resolved": "Conversation closed",
+    "reopened": "Back on the list",
+    "resolve": "Answered",
+    "reopen": "Put back on the list",
+    "resolved_badge": "answered",
+    "resolve_hint": "Closed with a timestamp — the moment the patient writes again it comes back on its own.",
+    "view_mine": "Mine"
   },
   "journal": {
     "title": "Journal",

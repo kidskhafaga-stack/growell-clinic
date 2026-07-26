@@ -98,12 +98,14 @@ def _matches(conv, needle):
     return needle in haystack
 
 
-def conversations(search=None, only_open=False, limit=200):
+def conversations(search=None, only_open=False, limit=200, assignee=None):
     """One row per conversation, most recent first.
 
     Built from the log rather than a conversations table, so nothing has to be
     kept in sync — but grouped by a query over *all* messages, not a slice of
-    the newest few, so an old quiet thread never silently disappears.
+    the newest few, so an old quiet thread never silently disappears. The
+    conversation record on the side carries only what the messages can't say:
+    who owns it, and whether a human has declared it answered.
     """
     # One row per thread: the id of its newest message. Grouping in SQL keeps
     # this honest on a clinic with years of history behind it.
@@ -120,9 +122,18 @@ def conversations(search=None, only_open=False, limit=200):
 
     keys = [thread_key(m) for m in lasts]
     counts, unread = _thread_counts(keys)
+    records = conversation_records(keys)
     out = []
     for last in lasts:
         key = thread_key(last)
+        record = records.get(key)
+        # "The patient spoke last" is the only definition of waiting that can't
+        # drift — but a thread ending in "شكراً" would sit in the work list for
+        # ever, so a human can say it's answered. A message arriving after that
+        # moment re-opens it by itself.
+        waiting = last.direction == "in"
+        if waiting and record is not None and record.is_resolved_for(last.created_at):
+            waiting = False
         conv = {
             "key": key,
             "patient": last.patient,
@@ -130,16 +141,55 @@ def conversations(search=None, only_open=False, limit=200):
             "last": last,
             "count": counts.get(key, 1),
             "unread": unread.get(key, 0),
-            # The patient spoke last → the clinic owes an answer.
-            "open": last.direction == "in",
+            "open": waiting,
             "orphan": last.patient_id is None,
+            "record": record,
+            "assignee": record.assignee if record is not None else None,
+            "resolved": (record is not None
+                         and record.is_resolved_for(last.created_at)),
         }
         if only_open and not conv["open"]:
+            continue
+        if assignee is not None and (
+                record is None or record.assigned_to != assignee):
             continue
         if not _matches(conv, search):
             continue
         out.append(conv)
     return out
+
+
+def conversation_records(keys):
+    """The side-table rows for these threads, keyed by thread key."""
+    from app.models import Conversation
+
+    if not keys:
+        return {}
+    rows = Conversation.query.filter(Conversation.thread_key.in_(keys)).all()
+    return {r.thread_key: r for r in rows}
+
+
+def conversation_for(key, create=True):
+    """The conversation record for a thread, created on first use."""
+    from app.models import Conversation
+
+    row = Conversation.query.filter_by(thread_key=key).first()
+    if row is not None or not create:
+        return row
+    last = thread_query(key).order_by(MessageLog.created_at.desc()).first()
+    row = Conversation(thread_key=key,
+                       patient_id=(last.patient_id if last else None),
+                       phone=(last.to_phone if last else None))
+    db.session.add(row)
+    db.session.flush()
+    return row
+
+
+def last_inbound_at(key):
+    """When the patient last wrote in this thread."""
+    row = (thread_query(key).filter(MessageLog.direction == "in")
+           .order_by(MessageLog.created_at.desc()).first())
+    return row.created_at if row is not None else None
 
 
 def _thread_counts(keys):

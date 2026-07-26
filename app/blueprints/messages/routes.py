@@ -137,8 +137,53 @@ def index():
         "messages/index.html", pagination=pagination, logs=pagination.items,
         counts=counts, status=status, statuses=MESSAGE_STATUSES,
         sent_today=sent_today, due_now=due_now,
+        by_type=_delivery_by_type(), failures=_recent_failures(),
         daily_cap=Setting.get("wa_daily_cap", "") or "0",
     )
+
+
+# How far back the delivery board looks. Older than this is history, not a
+# problem anyone is going to act on this morning.
+BOARD_DAYS = 30
+
+
+def _delivery_by_type(days=BOARD_DAYS):
+    """Sent vs failed per notification type — the shape of the problem.
+
+    A single "12 failed" tells you nothing worth acting on. "Every vaccine
+    reminder failed and nothing else did" tells you exactly where to look.
+    """
+    from datetime import timedelta
+
+    since = datetime.utcnow() - timedelta(days=days)
+    rows = (db.session.query(MessageLog.template_type, MessageLog.status,
+                             db.func.count())
+            .filter(MessageLog.created_at >= since,
+                    MessageLog.direction == "out")
+            .group_by(MessageLog.template_type, MessageLog.status).all())
+    board = {}
+    for kind, status, count in rows:
+        entry = board.setdefault(kind or "other",
+                                 {"type": kind or "other", "total": 0,
+                                  "sent": 0, "failed": 0, "link": 0,
+                                  "scheduled": 0, "skipped": 0})
+        entry["total"] += count
+        if status in entry:
+            entry[status] += count
+    for entry in board.values():
+        done = entry["sent"] + entry["failed"]
+        entry["fail_rate"] = round(entry["failed"] * 100.0 / done, 1) if done else 0
+    return sorted(board.values(), key=lambda e: (-e["failed"], -e["total"]))
+
+
+def _recent_failures(limit=20, days=BOARD_DAYS):
+    """The ones that didn't go, with the reason — a list you can act on."""
+    from datetime import timedelta
+
+    since = datetime.utcnow() - timedelta(days=days)
+    return (MessageLog.query
+            .filter(MessageLog.status == "failed", MessageLog.created_at >= since)
+            .order_by(MessageLog.created_at.desc()).limit(limit).all())
 
 
 @messages_bp.route("/inbox")
@@ -153,15 +198,68 @@ def inbox():
 
     search = (request.args.get("q") or "").strip()
     view = request.args.get("view") or "open"
-    convs = ibx.conversations(search=search, only_open=(view == "open"))
+    mine = view == "mine"
+    convs = ibx.conversations(search=search, only_open=(view == "open"),
+                              assignee=current_user.id if mine else None)
     # The counters must not depend on the filter the user is looking through.
     every = ibx.conversations(search=search)
+    mine_count = sum(1 for c in every
+                     if c["record"] is not None
+                     and c["record"].assigned_to == current_user.id)
     return render_template(
         "messages/inbox.html", conversations=convs, search=search, view=view,
         total=len(every), open_count=sum(1 for c in every if c["open"]),
-        stats=ibx.response_stats(),
+        mine_count=mine_count, stats=ibx.response_stats(),
+        staff=_desk_staff(),
         patients=Patient.query.filter_by(is_active=True)
         .order_by(Patient.full_name).limit(500).all())
+
+
+def _desk_staff():
+    """Who can be handed a conversation: whoever can reach this module."""
+    rows = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+    return [u for u in rows if u.can_access(MODULE)]
+
+
+@messages_bp.route("/inbox/<key>/assign", methods=["POST"])
+@module_required(MODULE)
+def inbox_assign(key):
+    """Hand a conversation to someone by name.
+
+    On a desk with three people, "someone will answer it" is exactly how a
+    message goes unanswered for two days."""
+    from app.utils.inbox import conversation_for
+
+    record = conversation_for(key)
+    user_id = request.form.get("assigned_to", type=int)
+    user = db.session.get(User, user_id) if user_id else None
+    record.assigned_to = user.id if user is not None else None
+    record.assigned_at = datetime.utcnow() if user is not None else None
+    db.session.commit()
+    flash(t("inbox.assigned", name=user.display_name(getattr(g, "lang", "ar")))
+          if user is not None else t("inbox.unassigned"), "success")
+    return redirect(url_for("messages.inbox_thread", key=key))
+
+
+@messages_bp.route("/inbox/<key>/resolve", methods=["POST"])
+@module_required(MODULE)
+def inbox_resolve(key):
+    """Declare a conversation answered — or put it back on the list.
+
+    Stamped with the time rather than a flag, so the next message from the
+    patient re-opens it without anyone remembering to."""
+    from app.utils.inbox import conversation_for
+
+    record = conversation_for(key)
+    if request.form.get("reopen"):
+        record.resolved_at = record.resolved_by = None
+        flash(t("inbox.reopened"), "info")
+    else:
+        record.resolved_at = datetime.utcnow()
+        record.resolved_by = current_user.id
+        flash(t("inbox.resolved"), "success")
+    db.session.commit()
+    return redirect(url_for("messages.inbox_thread", key=key))
 
 
 def _thread_query(key):
@@ -196,9 +294,15 @@ def inbox_thread(key):
     lang = getattr(g, "lang", "ar")
     canned = [{"title": q.title, "body": render_reply(q.body, patient, lang)}
               for q in quick_replies()]
+    from app.utils.inbox import conversation_for, last_inbound_at
+    record = conversation_for(key, create=False)
+    resolved = (record is not None
+                and record.is_resolved_for(last_inbound_at(key)))
+    db.session.commit()
     return render_template(
         "messages/thread.html", msgs=msgs, key=key, patient=patient,
         phone=phone, waits=waits, pending=pending,
+        record=record, resolved=resolved, staff=_desk_staff(),
         canned=canned, ai_ready=ai_available(),
         patients=(Patient.query.filter_by(is_active=True)
                   .order_by(Patient.full_name).limit(500).all()

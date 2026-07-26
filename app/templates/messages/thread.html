@@ -19,10 +19,43 @@
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=patient.id) }}">
         <i class="bi bi-folder2-open"></i> {{ t('inbox.open_patient') }}</a>
       {% endif %}
-      {% if pending %}<span class="badge badge--danger" style="align-self:center;"><i class="bi bi-hourglass-split"></i> {{ t('inbox.awaiting_reply') }}</span>{% endif %}
+      {% if pending and not resolved %}<span class="badge badge--danger" style="align-self:center;"><i class="bi bi-hourglass-split"></i> {{ t('inbox.awaiting_reply') }}</span>{% endif %}
+      {% if resolved %}<span class="badge badge--green" style="align-self:center;"><i class="bi bi-check2-circle"></i> {{ t('inbox.resolved_badge') }}</span>{% endif %}
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.inbox') }}">
         <i class="bi bi-arrow-right"></i> {{ t('inbox.title') }}</a>
     </div>
+  </div>
+
+  <!-- Who owns this conversation, and whether it still needs an answer -->
+  <div class="card gc-scale-in" style="margin-bottom:12px;display:flex;gap:12px;
+              flex-wrap:wrap;align-items:end;justify-content:space-between;">
+    <form method="post" action="{{ url_for('messages.inbox_assign', key=key) }}"
+          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+      <div class="form-row" style="margin:0;">
+        <label>{{ t('inbox.assign') }}</label>
+        <select class="select" name="assigned_to" style="min-width:180px;">
+          <option value="">{{ t('inbox.assign_none') }}</option>
+          {% for u in staff %}
+          <option value="{{ u.id }}" {{ 'selected' if record and record.assigned_to == u.id else '' }}>{{ u.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-person-check"></i> {{ t('common.save') }}</button>
+    </form>
+    <form method="post" action="{{ url_for('messages.inbox_resolve', key=key) }}"
+          style="display:flex;gap:8px;align-items:center;">
+      {% if resolved %}
+      <input type="hidden" name="reopen" value="1">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-arrow-counterclockwise"></i> {{ t('inbox.reopen') }}</button>
+      {% else %}
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-check2-circle"></i> {{ t('inbox.resolve') }}</button>
+      {% endif %}
+    </form>
+    <div class="hint" style="flex-basis:100%;margin:0;">
+      {{ t('inbox.assign_hint') }} · {{ t('inbox.resolve_hint') }}</div>
   </div>
 
   {% if not patient %}

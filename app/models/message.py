@@ -217,3 +217,48 @@ DEFAULT_QUICK_REPLIES = [
     ("تعليمات بعد الزيارة",
      "سلامته يارب 🌿\nلو الحرارة زادت عن ٣٨٫٥ أو ظهر أي عرض جديد، كلّمنا فوراً.", 60),
 ]
+
+
+class Conversation(db.Model):
+    """Who owns a WhatsApp thread, and whether it still needs an answer.
+
+    "Waiting" is read from the messages themselves — the patient spoke last —
+    and that is right almost always. Almost: a thread whose last message is
+    "شكراً" would sit in the work list forever. So a conversation can be marked
+    done, with the time it was done, and a message arriving after that time
+    re-opens it on its own. Nobody has to remember to un-close anything.
+
+    Assignment is the other half: on a desk with three people, "someone will
+    answer it" is how a message goes unanswered for two days.
+    """
+    __tablename__ = "conversations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    # The same key the inbox groups by: "p<patient_id>", or the bare number.
+    thread_key = db.Column(db.String(40), nullable=False, unique=True, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=True)
+    phone = db.Column(db.String(30))
+
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True,
+                            index=True)
+    assigned_at = db.Column(db.DateTime)
+    # When the thread was last declared answered. Compared against the newest
+    # inbound message rather than cleared, so it re-opens by itself.
+    resolved_at = db.Column(db.DateTime, index=True)
+    resolved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    note = db.Column(db.String(255))
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient")
+    assignee = db.relationship("User", foreign_keys=[assigned_to])
+    resolver = db.relationship("User", foreign_keys=[resolved_by])
+
+    def is_resolved_for(self, last_inbound_at):
+        """Done, unless the patient has written since."""
+        if self.resolved_at is None:
+            return False
+        return last_inbound_at is None or self.resolved_at >= last_inbound_at
+
+    def __repr__(self):
+        return f"<Conversation {self.thread_key}>"
