@@ -22,10 +22,13 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-upload"></i> {{ t('drugbook.import_file') }}</h2>
   <p class="hint" style="margin-top:-6px;">{{ t('drugbook.import_hint') }}</p>
+  <p class="hint"><i class="bi bi-diagram-3"></i> {{ t('drugbook.import_eda_hint') }}</p>
+  <p class="hint"><i class="bi bi-terminal"></i> {{ t('drugbook.import_big_hint') }}</p>
   <form method="post" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
     <div class="form-row" style="margin:0;flex:1;min-width:240px;">
-      <label>{{ t('drugbook.import_file') }} (CSV)</label>
-      <input class="input" type="file" name="file" accept=".csv,text/csv" required>
+      <label>{{ t('drugbook.import_file') }} (CSV / JSON)</label>
+      <input class="input" type="file" name="file"
+             accept=".csv,.json,text/csv,application/json" required>
     </div>
     <button class="btn btn-outline gc-press" type="submit" name="mode" value="preview">
       <i class="bi bi-eye"></i> {{ t('drugbook.import_preview') }}</button>
@@ -34,6 +37,10 @@
       <i class="bi bi-download"></i> {{ t('drugbook.import_run') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook_template') }}">
       <i class="bi bi-file-earmark-arrow-down"></i> {{ t('drugbook.import_template') }}</a>
+    <label class="check" style="display:flex;align-items:center;gap:6px;flex-basis:100%;">
+      <input type="checkbox" name="create_classes" value="1">
+      {{ t('drugbook.import_create_classes') }}</label>
+    <div class="hint" style="flex-basis:100%;margin:0;">{{ t('drugbook.import_create_classes_hint') }}</div>
   </form>
 </div>
 

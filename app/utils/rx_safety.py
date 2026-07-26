@@ -110,9 +110,13 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
             "allergy": check_drug(patient, generic=generic, drug=it.get("drug"),
                                   name=it.get("name") or ""),
         }
+        product = it.get("drug")
+        # A combination product interacts through every ingredient it carries,
+        # not just the one its dose is read from.
+        if product is not None:
+            generic_ids += [g.id for g in product.all_ingredients()]
         if generic is not None:
             generic_ids.append(generic.id)
-            product = it.get("drug")
             res = calculate(generic, weight_kg=weight_kg, age_months=age_months,
                             product=product)
             entry["result"] = res

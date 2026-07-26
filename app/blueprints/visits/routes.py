@@ -560,12 +560,14 @@ def drug_search():
     like = f"%{q}%"
     lang = getattr(g, "lang", "ar")
     rows = (Drug.query.filter(Drug.is_active.is_(True))
-            .filter(or_(Drug.trade_name.ilike(like), Drug.generic_name.ilike(like)))
+            .filter(or_(Drug.trade_name.ilike(like),
+                        Drug.trade_name_ar.ilike(like),
+                        Drug.generic_name.ilike(like)))
             .order_by(Drug.trade_name).limit(12).all())
     out = [{
         "id": d.id, "generic_id": d.generic_id or "",
         "name": d.label(lang),
-        "trade": d.trade_name,
+        "trade": d.display_name(lang),
         "generic": (d.generic.display_name(lang) if d.generic else (d.generic_name or "")),
         "strength": d.strength or "",
         "dose": d.default_dose or "",
