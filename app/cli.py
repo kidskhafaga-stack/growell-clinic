@@ -275,6 +275,8 @@ def register_commands(app):
             ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
             ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),
             ("named_discounts", "auto_apply", "BOOLEAN DEFAULT 1"),
+            ("vaccine_brand_doses", "is_booster", "BOOLEAN DEFAULT 0"),
+            ("patient_vaccines", "outside_place", "VARCHAR(160)"),
             ("drugs", "trade_name_ar", "VARCHAR(160)"),
             ("drugs", "route", "VARCHAR(20)"),
         ]

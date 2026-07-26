@@ -563,7 +563,7 @@ def next_undone_dose_number(patient_id, vaccine, brand):
 
 def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id=None,
                     given_date=None, lot_number=None, given_outside=False,
-                    adverse_events=None, notes=None):
+                    adverse_events=None, notes=None, outside_place=None):
     """Record a *given* dose with first-expiry-first-out stock deduction.
 
     Shared by the vaccinations module and in-visit administration so the lock,
@@ -612,6 +612,9 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
         dose_number=dose_number, given_date=given_date or date.today(),
         doctor_id=doctor_id, lot_number=lot_number, event_type="given",
         given_outside=given_outside, adverse_events=adverse_events, notes=notes,
+        # Only meaningful for a dose given elsewhere; kept off a clinic dose so
+        # the record can't claim two places at once.
+        outside_place=(outside_place or None) if given_outside else None,
     )
     db.session.add(pv)
 
