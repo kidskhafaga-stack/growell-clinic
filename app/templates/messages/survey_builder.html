@@ -16,6 +16,7 @@
 <div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('survey.hint') }}</div>
 
 <form method="post" x-data="{ mode: '{{ values.get('survey_mode','link') or 'link' }}' }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <!-- How the survey reaches the patient -->
   <div class="card gc-scale-in" style="margin-bottom:14px;">
     <h2 style="margin-top:0;font-size:1.05rem;"><i class="bi bi-send"></i> {{ t('survey.delivery_title') }}</h2>

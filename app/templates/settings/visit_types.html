@@ -27,6 +27,7 @@
       {% for vt in types %}
       <tr>
         <form method="post" action="{{ url_for('settings.visit_types') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ vt.id }}">
         <td><span class="type-tag tt-{{ vt.color }}">{{ vt.key }}</span>
           {% if vt.is_system %}<span class="badge badge--muted">{{ t('visit_types.system') }}</span>{% endif %}</td>
@@ -42,6 +43,7 @@
         </form>
         {% if not vt.is_system %}
           <form method="post" action="{{ url_for('settings.visit_types') }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ vt.id }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
           </form>
@@ -56,6 +58,7 @@
 <div class="card gc-scale-in">
   <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('visit_types.add') }}</h2>
   <form method="post" action="{{ url_for('settings.visit_types') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="add">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('visit_types.key') }} *</label>

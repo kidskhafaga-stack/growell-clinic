@@ -79,6 +79,7 @@
         <p>{{ clinic }}{% if patient_name %} · {{ patient_name }}{% endif %}</p>
       </div>
       <form method="post" action="{{ url_for('feedback.submit', token=fb.token) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if survey.questions.doctor.show %}
         <div class="q">
           <label class="qlab">{{ survey.questions.doctor.label }}{% if doctor_name %} <span class="sub">— {{ doctor_name }}</span>{% endif %}</label>

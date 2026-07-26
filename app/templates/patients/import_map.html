@@ -39,6 +39,7 @@
 
 <!-- Mapping form -->
 <form method="post" action="{{ url_for('patients.import_map') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="token" value="{{ token }}">
   <div class="card gc-scale-in" style="animation-delay:0.14s;">
     <h2 class="section-title"><i class="bi bi-diagram-3"></i> {{ t('import.map_heading') }}</h2>

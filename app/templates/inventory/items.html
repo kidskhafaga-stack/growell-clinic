@@ -37,6 +37,7 @@
 <details class="card gc-scale-in" style="margin-bottom:16px;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('inventory.define_item') }}</summary>
   <form method="post" action="{{ url_for('inventory.item_new') }}" style="margin-top:10px;" x-data="{ kind: 'store' }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="max-width:360px;">
       <label>{{ t('inventory.item_kind') }} *</label>
       <select class="select" name="item_kind" x-model="kind">

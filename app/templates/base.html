@@ -8,6 +8,29 @@
       {% if _accent %}style="--accent:{{ _accent }};"{% endif %}>
 <head>
   <meta charset="utf-8">
+  {# Same token the forms carry, for the handful of POSTs made by script. #}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+    // Every same-origin POST/PUT/PATCH/DELETE made with fetch() carries the
+    // token, so a screen that posts by script doesn't have to remember to.
+    (function () {
+      var token = document.querySelector('meta[name="csrf-token"]');
+      if (!token || !window.fetch) return;
+      var original = window.fetch;
+      window.fetch = function (input, init) {
+        init = init || {};
+        var method = (init.method || (typeof input === 'object' && input.method) || 'GET').toUpperCase();
+        var url = typeof input === 'string' ? input : (input && input.url) || '';
+        var sameOrigin = !/^https?:\/\//i.test(url) || url.indexOf(window.location.origin) === 0;
+        if (sameOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) !== -1) {
+          var headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined) || {});
+          if (!headers.has('X-CSRFToken')) headers.set('X-CSRFToken', token.content);
+          init.headers = headers;
+        }
+        return original.call(this, input, init);
+      };
+    })();
+  </script>
   <!-- Resolve theme before paint (light / dark / follow-system) — no flash. -->
   <script>
     (function () {

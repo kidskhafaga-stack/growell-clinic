@@ -11,6 +11,7 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     {% if not invoice.is_tax %}
     <form method="post" action="{{ url_for('finance.invoice_mark_tax', invoice_id=invoice.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-receipt-cutoff"></i> {{ t('einvoice.mark_tax') }}</button></form>
     {% else %}
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.einvoice') }}" style="border-color:var(--green-600);color:var(--green-700);">
@@ -27,6 +28,7 @@
 <details class="card gc-scale-in no-print" id="editInvoiceBox">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-pencil-square"></i> {{ t('invoices.edit_invoice') }}</summary>
   <form method="post" action="{{ url_for('finance.invoice_edit', invoice_id=invoice.id) }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('invoices.patient') }}</label>
         <select class="select" name="patient_id">
@@ -75,6 +77,7 @@
           <details style="position:relative;display:inline-block;">
             <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
             <form method="post" action="{{ url_for('finance.invoice_item_edit', invoice_id=invoice.id, item_id=it.id) }}" class="popform" style="width:260px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-row"><label>{{ t('invoices.description') }}</label><input class="input" name="description" value="{{ it.description }}"></div>
               <div class="form-row"><label>{{ t('invoices.unit_price') }}</label><input class="input" type="number" step="0.01" name="unit_price" value="{{ it.unit_price }}"></div>
               <div class="form-row"><label>{{ t('invoices.quantity') }}</label><input class="input" type="number" min="1" name="quantity" value="{{ it.quantity }}"></div>
@@ -85,6 +88,7 @@
             </form>
           </details>
           <form method="post" action="{{ url_for('finance.invoice_item_delete', invoice_id=invoice.id, item_id=it.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
         </td>
       </tr>
@@ -131,6 +135,7 @@
 <details class="card gc-scale-in no-print" style="animation-delay:0.04s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-building"></i> {{ t('claims.payer') }}</summary>
   <form method="post" action="{{ url_for('finance.invoice_set_payer', invoice_id=invoice.id) }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row"><label>{{ t('claims.payer') }}</label>
       <select class="select" name="payer_id">
         <option value="">{{ t('claims.no_payer') }}</option>
@@ -147,6 +152,7 @@
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('invoices.add_item') }}</summary>
   <form method="post" action="{{ url_for('finance.invoice_item_add', invoice_id=invoice.id) }}" style="margin-top:12px;"
         x-data="{p:0}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('invoices.service') }}</label>
         <select class="select" name="service_id" x-on:change="p=$event.target.selectedOptions[0].dataset.price||0">
@@ -184,6 +190,7 @@
   {% if invoice.balance > 0 %}
   <form method="post" action="{{ url_for('finance.invoice_payment', invoice_id=invoice.id) }}" style="margin-top:10px;"
         x-data="splitPay({{ invoice.balance }})">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <template x-for="(row, i) in rows" :key="i">
       <div class="form-grid" style="align-items:end;margin-bottom:6px;">
         <div class="form-row"><label x-show="i===0">{{ t('invoices.amount') }} *</label>
@@ -216,6 +223,7 @@
   <details style="margin-top:12px;">
     <summary style="cursor:pointer;color:var(--danger);font-size:0.9rem;"><i class="bi bi-arrow-return-left"></i> {{ t('invoices.refund') }}</summary>
     <form method="post" action="{{ url_for('finance.invoice_refund', invoice_id=invoice.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <p class="hint">{{ t('invoices.refund_hint') }}</p>
       <div class="form-grid">
         <div class="form-row"><label>{{ t('invoices.amount') }} *</label><input class="input" type="number" step="0.01" name="amount" value="{{ invoice.paid if invoice.balance < 0 else '' }}" required></div>

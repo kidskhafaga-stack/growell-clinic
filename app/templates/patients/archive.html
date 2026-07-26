@@ -26,6 +26,7 @@
   <h2 style="margin-top:0;font-size:1.05rem;"><i class="bi bi-gear"></i> {{ t('archive.policy') }}</h2>
   <form method="post" action="{{ url_for('patients.archive_settings') }}"
         style="display:flex;gap:16px;flex-wrap:wrap;align-items:end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;">
       <label>{{ t('archive.years_label') }}</label>
       <input class="input" type="number" name="years" min="1" max="20" value="{{ years }}" style="width:120px;">
@@ -46,6 +47,7 @@
     {% if candidates %}
     <form method="post" action="{{ url_for('patients.archive_run') }}"
           onsubmit="return confirm('{{ t('archive.confirm_sweep', n=candidates|length) }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-danger gc-press gc-ripple" type="submit"><i class="bi bi-archive"></i> {{ t('archive.run_now') }}</button>
     </form>
     {% endif %}
@@ -64,6 +66,7 @@
         <td dir="ltr">{{ last }} <span style="color:var(--muted);">· {{ (today - last).days // 365 }}{{ t('common.year_short') }}</span></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('patients.archive_one', patient_id=p.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
           </form>
         </td>
@@ -95,6 +98,7 @@
         <td>{% if p.archive_reason %}<span class="badge {{ 'badge--role' if p.archive_reason == 'auto' else 'badge--muted' }}">{{ t('archive.reason_' ~ p.archive_reason) }}</span>{% else %}—{% endif %}</td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('patients.restore_one', patient_id=p.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ t('archive.restore_btn') }}</button>
           </form>
         </td>

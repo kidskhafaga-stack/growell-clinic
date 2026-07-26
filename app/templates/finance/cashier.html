@@ -55,6 +55,7 @@
   <form method="post" action="{{ url_for('finance.shift_close', shift_id=open_shift.id) }}"
         style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;"
         onsubmit="return confirm('{{ t('shifts.close_confirm') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label>{{ t('shifts.counted_cash') }}</label>
       <input class="input" type="number" step="0.01" name="counted_cash" placeholder="{{ open_shift.expected_cash }}"></div>
     <div class="form-row" style="margin:0;flex:2;min-width:180px;"><label>{{ t('common.notes') }}</label>
@@ -65,6 +66,7 @@
   <h2 class="section-title"><i class="bi bi-door-open"></i> {{ t('shifts.open_title') }}</h2>
   <p class="hint" style="margin-top:-6px;">{{ t('shifts.open_hint') }}</p>
   <form method="post" action="{{ url_for('finance.shift_open') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('cashier.opening_float') }}</label>
       <input class="input" type="number" step="0.01" name="opening_float" value="0"></div>
     <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('shifts.label') }}</label>
@@ -102,6 +104,7 @@
     <h2 class="section-title"><i class="bi bi-wallet2"></i> {{ t('cashier.set_float') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('cashier.float_hint') }}</p>
     <form method="post" action="{{ url_for('finance.cashier_float') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="date" value="{{ on_date }}">
       <div class="form-row" style="margin:0;flex:1;"><label>{{ t('cashier.opening_float') }}</label>
         <input class="input" type="number" step="0.01" name="opening_float" value="{{ opening_float }}"></div>
@@ -158,6 +161,7 @@
           {{ s.abs_amount|money }}</td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.vaccine_settle', settlement_id=s.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-primary btn-sm gc-press" type="submit">
               <i class="bi bi-check2-circle"></i> {{ t('vaccine_settle.apply') }}</button>
           </form>
@@ -220,6 +224,7 @@
         <td style="font-weight:700;color:var(--danger);">{{ inv.balance|money }}</td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.invoice_payment', invoice_id=inv.id) }}" style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="cashier">
             <input class="input" type="number" step="0.01" name="amount" value="{{ inv.balance }}" style="width:90px;">
             <select class="select" name="method" style="width:auto;">

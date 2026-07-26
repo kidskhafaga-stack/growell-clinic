@@ -12,6 +12,7 @@
   <form method="post" enctype="multipart/form-data"
         x-data="{ photo: null, role: '{{ form.role or 'reception' }}',
                   practitioner: {{ 'true' if form.is_practitioner else 'false' }} }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Photo (same avatar + interactive circular crop as the profile) -->
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
       <template x-if="photo"><img :src="photo" class="patient-avatar lg" alt=""></template>

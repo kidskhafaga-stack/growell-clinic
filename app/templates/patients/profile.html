@@ -89,17 +89,20 @@
       {% if patient.is_active %}
       <form method="post" action="{{ url_for('patients.archive_one', patient_id=patient.id) }}"
             onsubmit="return confirm('{{ t('archive.confirm_one') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-outline btn-sm gc-press" type="submit" style="width:100%;">
           <i class="bi bi-archive"></i> {{ t('archive.archive_btn') }}</button>
       </form>
       {% else %}
       <form method="post" action="{{ url_for('patients.restore_one', patient_id=patient.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-primary btn-sm gc-press" type="submit" style="width:100%;">
           <i class="bi bi-arrow-counterclockwise"></i> {{ t('archive.restore_btn') }}</button>
       </form>
       {% endif %}
       <form method="post" action="{{ url_for('patients.delete', patient_id=patient.id) }}"
             onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-danger btn-sm gc-press" type="submit" style="width:100%;">
           <i class="bi bi-trash"></i> {{ t('common.delete') }}
         </button>
@@ -185,9 +188,11 @@
             </div>
           </div>
           <form method="post" action="{{ url_for('patients.toggle_problem', problem_id=pr.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check2"></i> {{ t('problems.resolve') }}</button></form>
           <form method="post" action="{{ url_for('patients.delete_problem', problem_id=pr.id) }}" style="display:inline;"
                 onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-trash"></i></button></form>
         </div>
         {% endfor %}
@@ -205,6 +210,7 @@
             <span style="text-decoration:line-through;">{{ pr.display_title(current_lang) }}</span>
             {% if pr.resolved_date %}<span style="font-size:0.76rem;color:var(--muted);">· {{ t('problems.resolved_on') }} <span dir="ltr">{{ pr.resolved_date }}</span></span>{% endif %}
             <form method="post" action="{{ url_for('patients.toggle_problem', problem_id=pr.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('problems.reactivate') }}</button></form>
           </div>
           {% endfor %}
@@ -214,6 +220,7 @@
 
       <form method="post" action="{{ url_for('patients.add_problem', patient_id=patient.id) }}"
             style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
           <div class="form-row"><label>{{ t('problems.title') }} *</label>
             <input class="input" name="title" required></div>
@@ -244,6 +251,7 @@
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.print_consent', consent_id=cs.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
           <form method="post" action="{{ url_for('patients.delete_consent', consent_id=cs.id) }}" style="display:inline;"
                 onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-trash"></i></button></form>
         </div>
         {% endfor %}
@@ -255,6 +263,7 @@
       {% set g = patient.primary_guardian %}
       <form method="post" action="{{ url_for('patients.add_consent', patient_id=patient.id) }}"
             style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <p class="hint" style="margin-top:0;"><i class="bi bi-info-circle"></i> {{ t('consent.pediatric_hint') }}</p>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('consent.type') }}</label>
@@ -293,6 +302,7 @@
         </div>
         <form method="post" action="{{ url_for('patients.family_update', family_id=patient.family_id) }}"
               x-show="editFamily" x-cloak style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="patient_id" value="{{ patient.id }}">
           <div class="form-grid">
             <div class="form-row"><label>{{ t('patients.family_name') }} *</label>
@@ -339,6 +349,7 @@
             <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="edit=!edit"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</button>
             <form method="post" action="{{ url_for('patients.delete_parent', parent_id=parent.id) }}"
                   onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="patient_id" value="{{ patient.id }}">
               <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
             </form>
@@ -347,6 +358,7 @@
           <!-- Inline edit -->
           <form method="post" action="{{ url_for('patients.edit_parent', parent_id=parent.id) }}"
                 x-show="edit" x-cloak style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="patient_id" value="{{ patient.id }}">
             <div class="form-grid">
               <div class="form-row"><label>{{ t('patients.parent_name') }} *</label>
@@ -433,6 +445,7 @@
             </div>
           </div>
           <form method="post" action="{{ url_for('patients.delete_coverage', coverage_id=cov.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </div>
         {% endfor %}
@@ -445,6 +458,7 @@
       <details style="margin-top:12px;">
         <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-plus-lg"></i> {{ t('coverage.add') }}</summary>
         <form method="post" action="{{ url_for('patients.add_coverage', patient_id=patient.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-grid">
             <div class="form-row"><label>{{ t('coverage.entity') }} *</label>
               <select class="select" name="payer_id" required>
@@ -583,6 +597,7 @@
             <td dir="ltr">{{ a.created_at.strftime('%Y-%m-%d') }}</td>
             <td style="text-align:end;">
               <form method="post" action="{{ url_for('patients.delete_document', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
             </td>
           </tr>
@@ -595,6 +610,7 @@
 
       <h4 class="section-title" style="margin-top:18px;"><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</h4>
       <form method="post" action="{{ url_for('patients.upload_document', patient_id=patient.id) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="info-grid">
           <div class="form-row"><label>{{ t('visits.att_label') }}</label><input class="input" name="label" placeholder="{{ t('visits.att_label_ph') }}"></div>
           <div class="form-row"><label>{{ t('visits.att_kind') }}</label>
@@ -728,6 +744,7 @@
         <button class="btn btn-outline btn-sm gc-press" x-on:click="showParent=false"><i class="bi bi-x-lg"></i></button>
       </div>
       <form method="post" action="{{ url_for('patients.add_parent', patient_id=patient.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
           <div class="form-row">
             <label>{{ t('patients.parent_name') }} *</label>

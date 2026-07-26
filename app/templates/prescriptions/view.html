@@ -26,6 +26,7 @@
     {% endif %}
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('rx.print') }}</button>
     <form method="post" action="{{ url_for('prescriptions.delete', rx_id=rx.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
   </div>
 </div>

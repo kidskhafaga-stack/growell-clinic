@@ -18,6 +18,7 @@
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       {# Booking open / stop toggle #}
       <form method="post" action="{{ url_for('appointments.toggle_booking') }}" style="margin:0;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if booking_open %}
         <button class="btn btn-outline btn-sm gc-press" type="submit" title="{{ t('appointments.booking_pause') }}">
           <span class="dot-live" style="background:var(--green-600);"></span> {{ t('appointments.booking_on') }}</button>
@@ -59,6 +60,7 @@
     <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=home.current.patient_id, appointment_id=home.current.id) }}">
       <i class="bi bi-clipboard2-pulse"></i> {{ t('visits.record_visit') }}</a>
     <form method="post" action="{{ url_for('appointments.change_status', appt_id=home.current.id) }}" style="margin:0;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="status" value="completed">
       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('appointments.complete') }}</button>
     </form>
@@ -77,11 +79,13 @@
       </span>
       {% if a.status == 'scheduled' %}
       <form method="post" action="{{ url_for('appointments.change_status', appt_id=a.id) }}" style="margin:0;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="status" value="waiting">
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-megaphone"></i> {{ t('appointments.call_in') }}</button>
       </form>
       {% elif a.status == 'waiting' %}
       <form method="post" action="{{ url_for('appointments.change_status', appt_id=a.id) }}" style="margin:0;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="status" value="in_progress">
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-play-circle"></i> {{ t('appointments.start_exam') }}</button>
       </form>

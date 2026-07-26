@@ -61,6 +61,7 @@
           {% if user.id != current_user.id %}
           <form method="post" action="{{ url_for('users.delete', user_id=user.id) }}"
                 style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-danger btn-sm" type="submit">
               <i class="bi bi-trash"></i>
             </button>

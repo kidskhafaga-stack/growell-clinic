@@ -21,6 +21,7 @@
 <!-- Actions -->
 <div class="gc-animate" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
   <form method="post" action="{{ url_for('patients.import_confirm') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="token" value="{{ token }}">
     <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if valid == 0 else '' }}>
       <i class="bi bi-database-add"></i> {{ t('import.confirm_import') }} ({{ valid }})</button>

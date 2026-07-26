@@ -30,6 +30,7 @@
 <details class="card gc-scale-in">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('expenses.add') }}</summary>
   <form method="post" action="{{ url_for('finance.expense_new') }}" style="margin-top:12px;" x-data="{ rec:false }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="month" value="{{ month }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('expenses.category') }}</label><select class="select" name="category">{{ cat_options('other') }}</select></div>
@@ -70,6 +71,7 @@
         <td><strong>{{ e.amount|money }}</strong></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="month" value="{{ month }}">
             <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
         </td>
@@ -95,6 +97,7 @@
         <td><strong>{{ e.amount|money }}</strong></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('finance.expense_delete', expense_id=e.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="month" value="{{ month }}">
             <button class="btn-x" type="submit" style="border:none;background:none;cursor:pointer;color:var(--muted);"><i class="bi bi-x-lg"></i></button></form>
         </td>

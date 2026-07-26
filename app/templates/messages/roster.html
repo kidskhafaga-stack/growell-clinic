@@ -29,11 +29,13 @@
 
 <div class="gc-animate" style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;">
   <form method="post" action="{{ url_for('messages.roster_doctor') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="doctor_id" value="{{ doctor.id }}"><input type="hidden" name="date" value="{{ on_date }}">
     <button class="btn btn-primary gc-press gc-ripple" type="submit" style="background:#25D366;border-color:#25D366;">
       <i class="bi bi-whatsapp"></i> {{ t('messages_mod.send_to_doctor') }}</button>
   </form>
   <form method="post" action="{{ url_for('messages.roster_notify') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="doctor_id" value="{{ doctor.id }}"><input type="hidden" name="date" value="{{ on_date }}">
     <div class="form-row" style="margin:0;"><label style="font-size:.78rem;">{{ t('crm.schedule_at') }}</label>
       <input class="input" type="datetime-local" name="schedule_at" style="min-width:200px;"></div>

@@ -36,12 +36,14 @@
     {% endif %}
     {% if current_user.can_access('settings') %}
     <form method="post" enctype="multipart/form-data" style="margin-top:10px;display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="image">
       <input class="input" type="file" name="file" accept="image/*" required style="flex:1;min-width:180px;">
       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('common.save') }}</button>
     </form>
     {% if drug.image %}
     <form method="post" style="margin-top:6px;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="image_delete">
       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
     </form>
@@ -60,12 +62,14 @@
     {% endif %}
     {% if current_user.can_access('settings') %}
     <form method="post" enctype="multipart/form-data" style="margin-top:10px;display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="leaflet">
       <input class="input" type="file" name="file" accept=".pdf,image/*" required style="flex:1;min-width:180px;">
       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-upload"></i> {{ t('common.save') }}</button>
     </form>
     {% if drug.leaflet %}
     <form method="post" style="margin-top:6px;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="leaflet_delete">
       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
     </form>
@@ -90,6 +94,7 @@
   </div>
   {% if current_user.can_access('settings') %}
   <form method="post" style="margin-top:12px;display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="price">
     <div class="form-row" style="margin:0;"><label>{{ t('drugbook.price') }}</label>
       <input class="input" type="number" step="0.01" min="0" name="price" value="{{ drug.price or '' }}" style="width:130px;" dir="ltr"></div>

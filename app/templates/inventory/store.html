@@ -36,6 +36,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('store.add_item') }}</summary>
   <form method="post" action="{{ url_for('inventory.store_item_new') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('store.name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category" list="cat_list"></div>
@@ -62,6 +63,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.06s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-sliders"></i> {{ t('store.policy_title') }}</summary>
   <form method="post" action="{{ url_for('inventory.store_policy') }}" style="margin-top:12px;display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;"><label>{{ t('store.dispense_policy') }}</label>
       <select class="select" name="dispense_policy" style="min-width:220px;">
         <option value="fifo" {{ 'selected' if dispense_policy == 'fifo' else '' }}>{{ t('store.fifo') }}</option>
@@ -82,6 +84,7 @@
 <div class="card gc-scale-in" style="animation-delay:0.07s;text-align:center;padding:22px;">
   <p style="margin:0 0 10px;color:var(--muted);"><i class="bi bi-box-seam"></i> {{ t('store.empty_hint') }}</p>
   <form method="post" action="{{ url_for('inventory.store_load_defaults') }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-cloud-download"></i> {{ t('store.load_defaults') }}</button>
   </form>
 </div>

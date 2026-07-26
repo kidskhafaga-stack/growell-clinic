@@ -24,28 +24,33 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       {% if claim.status == 'draft' %}
       <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="submit">
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-send"></i> {{ t('claims.submit') }}</button>
       </form>
       <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:inline;"
             onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="delete">
         <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
       </form>
       {% elif claim.status == 'submitted' %}
       <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:flex;gap:6px;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="approve">
         <input class="input" type="number" step="0.01" name="approved_amount" value="{{ claim.total_amount }}"
                style="width:130px;" title="{{ t('claims.approved_amount') }}">
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('claims.approve') }}</button>
       </form>
       <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:flex;gap:6px;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="reject">
         <input class="input" type="text" name="notes" placeholder="{{ t('claims.reject_reason') }}" style="width:170px;">
         <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-lg"></i> {{ t('claims.reject') }}</button>
       </form>
       {% elif claim.status == 'approved' %}
       <form method="post" action="{{ url_for('finance.claim_action', claim_id=claim.id) }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="pay">
         <input class="input" type="number" step="0.01" name="paid_amount"
                value="{{ claim.approved_amount if claim.approved_amount is not none else claim.total_amount }}" style="width:130px;">

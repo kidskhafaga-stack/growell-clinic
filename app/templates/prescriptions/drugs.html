@@ -28,6 +28,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rx.add_drug') }}</summary>
   <form method="post" action="{{ url_for('prescriptions.drug_new') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('rx.trade_name') }} *</label><input class="input" name="trade_name" required></div>
       <div class="form-row"><label>{{ t('rx.generic_name') }}</label><input class="input" name="generic_name"></div>
@@ -61,6 +62,7 @@
           <details style="position:relative;">
             <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
             <form method="post" action="{{ url_for('prescriptions.drug_edit', drug_id=d.id) }}" class="popform" style="width:300px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-row"><label>{{ t('rx.trade_name') }}</label><input class="input" name="trade_name" value="{{ d.trade_name }}"></div>
               <div class="form-row"><label>{{ t('rx.generic_name') }}</label><input class="input" name="generic_name" value="{{ d.generic_name or '' }}"></div>
               <div class="form-row"><label>{{ t('rx.form') }}</label>{{ form_select('form', d.form or '') }}</div>
@@ -76,6 +78,7 @@
             </form>
           </details>
           <form method="post" action="{{ url_for('prescriptions.drug_delete', drug_id=d.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </td>
       </tr>

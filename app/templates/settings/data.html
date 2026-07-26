@@ -50,11 +50,13 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <form method="post" action="{{ url_for('settings.backup_create') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-primary gc-press gc-ripple" type="submit">
           <i class="bi bi-plus-lg"></i> {{ t('backups.create_btn') }}</button>
       </form>
       <form method="post" action="{{ url_for('settings.backup_upload') }}" enctype="multipart/form-data"
             style="display:flex;gap:8px;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="file" name="backup_file" accept=".db,.sqlite,.sqlite3" required
                style="max-width:230px;" class="input">
         <button class="btn btn-outline gc-press" type="submit">
@@ -66,6 +68,7 @@
   <!-- Auto-backup schedule + retention -->
   <form method="post" action="{{ url_for('settings.backup_settings') }}"
         style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row checkbox" style="margin:0;">
       <input type="checkbox" id="backup_auto_enabled" name="backup_auto_enabled" value="1"
              {{ 'checked' if bset.enabled else '' }}>
@@ -115,12 +118,14 @@
               <i class="bi bi-download"></i> {{ t('backups.download') }}</a>
             <form method="post" action="{{ url_for('settings.backup_restore', name=b.name) }}" style="display:inline;"
                   onsubmit="var v=prompt('{{ t('backups.restore_prompt') }}'); if(v!=='RESTORE'){return false;} this.confirm.value=v; return true;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="confirm" value="">
               <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);">
                 <i class="bi bi-arrow-counterclockwise"></i> {{ t('backups.restore') }}</button>
             </form>
             <form method="post" action="{{ url_for('settings.backup_delete', name=b.name) }}" style="display:inline;"
                   onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
             </form>
           </td>
@@ -139,6 +144,7 @@
   <h2 class="section-title"><i class="bi bi-stars"></i> {{ t('data_tools.demo_section') }}</h2>
   <p style="color:var(--muted);">{{ t('data_tools.demo_desc') }}</p>
   <form method="post" action="{{ url_for('settings.seed_demo_data') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if stats.seeded else '' }}>
       <i class="bi bi-download"></i> {{ t('data_tools.seed_btn') }}</button>
   </form>
@@ -151,6 +157,7 @@
   <p style="color:var(--muted);">{{ t('data_tools.reset_desc') }}</p>
   <form method="post" action="{{ url_for('settings.reset_data') }}"
         onsubmit="return confirm('{{ t('data_tools.reset_warn') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="max-width:280px;">
       <label style="color:var(--danger);font-weight:600;">{{ t('data_tools.confirm_label') }}</label>
       <input class="input" name="confirm" dir="ltr" placeholder="DELETE" autocomplete="off">

@@ -8,6 +8,7 @@
 
 <form method="post" action="{{ url_for('finance.invoice_new') }}"
       x-data="invoiceForm()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="visit_id" value="{{ visit_id or '' }}">
 
   <div class="card gc-scale-in">

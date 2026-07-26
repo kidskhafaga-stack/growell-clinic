@@ -25,6 +25,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('services.add_service') }}</summary>
   <form method="post" action="{{ url_for('finance.service_new') }}" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="se" value="1">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('services.name') }} *</label><input class="input" name="name" required></div>
@@ -69,6 +70,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.06s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-diagram-3"></i> {{ t('services.visit_type_services') }}</summary>
   <form method="post" action="{{ url_for('finance.visit_type_services') }}" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p class="hint">{{ t('services.visit_type_hint') }}</p>
     <div class="form-grid">
       {% for vt in visit_types %}
@@ -132,6 +134,7 @@
       <details style="position:relative;">
         <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
         <form method="post" action="{{ url_for('finance.service_edit', service_id=s.id) }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="se" value="1">
           <div class="form-row"><label>{{ t('services.name') }}</label><input class="input" name="name" value="{{ s.name }}"></div>
           <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ s.name_en or '' }}"></div>
@@ -169,6 +172,7 @@
         </form>
       </details>
       <form method="post" action="{{ url_for('finance.service_delete', service_id=s.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
       </form>
     </div>
@@ -179,6 +183,7 @@
   <details style="margin-top:12px;">
     <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-people"></i> {{ t('services.per_doctor') }}</summary>
     <form method="post" action="{{ url_for('finance.service_commissions', service_id=s.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <p class="hint">{{ t('services.override_hint') }} · {{ t('services.price_override_hint') }}</p>
       {% set overrides = {} %}
       {% for oc in s.doctor_commissions %}{% set _ = overrides.update({oc.doctor_id: oc}) %}{% endfor %}
@@ -208,6 +213,7 @@
   <details style="margin-top:10px;">
     <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-boxes"></i> {{ t('services.bundle') }}</summary>
     <form method="post" action="{{ url_for('finance.service_bundle', service_id=s.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% set included = s.bundle_items|map(attribute='component_id')|list %}
       <p class="hint">{{ t('services.bundle_components') }} · {{ t('services.bundle_sum') }}: <strong>{{ s.bundle_price }}</strong></p>
       <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;">
@@ -228,6 +234,7 @@
   <details style="margin-top:10px;" {{ 'open' if s.consumables else '' }}>
     <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-box-seam"></i> {{ t('services.consumables') }}{% if s.consumables %} ({{ s.consumables|length }}){% endif %}</summary>
     <form method="post" action="{{ url_for('finance.service_consumables', service_id=s.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <p class="hint">{{ t('services.consumables_hint') }}</p>
       {% set picked = {} %}
       {% for c in s.consumables %}{% set _ = picked.update({c.store_item_id: c.quantity}) %}{% endfor %}

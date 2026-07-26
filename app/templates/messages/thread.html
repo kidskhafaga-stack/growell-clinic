@@ -31,6 +31,7 @@
               flex-wrap:wrap;align-items:end;justify-content:space-between;">
     <form method="post" action="{{ url_for('messages.inbox_assign', key=key) }}"
           style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-row" style="margin:0;">
         <label>{{ t('inbox.assign') }}</label>
         <select class="select" name="assigned_to" style="min-width:180px;">
@@ -45,6 +46,7 @@
     </form>
     <form method="post" action="{{ url_for('messages.inbox_resolve', key=key) }}"
           style="display:flex;gap:8px;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if resolved %}
       <input type="hidden" name="reopen" value="1">
       <button class="btn btn-outline btn-sm gc-press" type="submit">
@@ -56,6 +58,7 @@
     </form>
     <form method="post" action="{{ url_for('messages.inbox_note', key=key) }}"
           style="display:flex;gap:8px;align-items:end;flex-basis:100%;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-row" style="margin:0;flex:1;">
         <label>{{ t('inbox.note') }}</label>
         <input class="input" name="note" maxlength="255"
@@ -76,6 +79,7 @@
     <p class="hint" style="margin:6px 0 10px;">{{ t('inbox.link_hint') }}</p>
     <form method="post" action="{{ url_for('messages.inbox_link', key=key) }}"
           style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <select class="select" name="patient_id" required style="max-width:340px;">
         <option value="">{{ t('inbox.link_pick') }}</option>
         {% for p in patients %}<option value="{{ p.id }}">{{ p.display_name(current_lang) }} · {{ p.patient_number }}</option>{% endfor %}
@@ -149,6 +153,7 @@
     {% endif %}
     <form method="post" action="{{ url_for('messages.inbox_send', key=key) }}"
           style="display:flex;gap:10px;align-items:end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <textarea class="input" name="body" rows="2" required style="flex:1;resize:vertical;"
                 x-ref="box" x-model="text" placeholder="{{ t('inbox.reply_ph') }}"></textarea>
       <div style="display:flex;flex-direction:column;gap:6px;">

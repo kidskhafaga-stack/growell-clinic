@@ -19,6 +19,7 @@
     {% endif %}
     {% if current_user.can_access('messages') %}
     <form method="post" action="{{ url_for('visits.send_survey', visit_id=visit.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline gc-press" type="submit" style="color:#25D366;border-color:#25D366;"><i class="bi bi-star"></i> {{ t('visits.send_survey') }}</button>
     </form>
     {% endif %}

@@ -26,6 +26,7 @@
 <h1 class="page-title gc-animate">{{ t('profile.my_profile') }}</h1>
 
 <form method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <!-- Account summary -->
   <div class="card gc-scale-in" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
     {% if current_user.photo %}

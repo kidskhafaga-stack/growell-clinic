@@ -52,6 +52,7 @@
 
 <form method="post" enctype="multipart/form-data"
       x-data="{ tab: (window.location.hash === '#ai' ? 'ai' : 'clinic') }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <!-- Tabs -->
   <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
     {% for tid, icon, label in [

@@ -125,6 +125,7 @@
   <div class="card gc-scale-in no-print" style="animation-delay:0.16s;">
     <h2 class="section-title"><i class="bi bi-plus-circle"></i> {{ t('growth.add_measurement') }}</h2>
     <form method="post" action="{{ url_for('growth.add', patient_id=patient.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('growth.record_date') }} *</label>
           <input class="input" type="date" name="record_date" value="{{ today }}" required></div>

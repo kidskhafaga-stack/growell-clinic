@@ -18,6 +18,7 @@
 <details class="card gc-scale-in" style="margin-bottom:18px;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-clipboard2-pulse"></i> {{ t('vaccinations.medical_info') }}</summary>
   <form method="post" action="{{ url_for('vaccinations.vaccine_medical', vaccine_id=vaccine.id) }}" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('vaccinations.diseases_covered') }}</label>
         <input class="input" name="diseases_covered" value="{{ vaccine.diseases_covered or '' }}"></div>
@@ -75,6 +76,7 @@
       {% if tpl.is_catch_up %}<span class="badge badge--muted">{{ t('vaccinations.catch_up') }}</span>{% endif %}
     </h3>
     <form method="post" action="{{ url_for('vaccinations.template_delete', template_id=tpl.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
     </form>
   </div>
@@ -95,6 +97,7 @@
         <td>{% if d.booster_required %}<i class="bi bi-check-lg" style="color:var(--green-600);"></i>{% else %}—{% endif %}</td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('vaccinations.template_dose_delete', dose_id=d.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
         </td>
       </tr>
@@ -106,6 +109,7 @@
 
   <form method="post" action="{{ url_for('vaccinations.template_dose_add', template_id=tpl.id) }}"
         style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.dose_no') }}</label><input class="input" type="number" name="dose_number" style="width:90px;" placeholder="auto"></div>
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.reco_age') }}</label><input class="input" type="number" name="recommended_age_months" style="width:110px;"></div>
     <div class="form-row" style="margin:0;"><label>{{ t('vaccinations.min_interval') }}</label><input class="input" type="number" name="min_interval_days" style="width:110px;"></div>
@@ -120,6 +124,7 @@
 <details class="card gc-scale-in">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('vaccinations.tpl_add') }}</summary>
   <form method="post" action="{{ url_for('vaccinations.template_new', vaccine_id=vaccine.id) }}" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('vaccinations.tpl_code') }} *</label><input class="input" name="code" dir="ltr" placeholder="A / B / C / D" required></div>
       <div class="form-row"><label>{{ t('vaccinations.tpl_source') }}</label>

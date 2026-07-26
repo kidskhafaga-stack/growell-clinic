@@ -8,10 +8,13 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('inventory.purchases') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('purchases.title') }}</a>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     {% if po.status == 'draft' %}
-    <form method="post" action="{{ url_for('inventory.purchase_approve', po_id=po.id) }}"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('purchases.approve') }}</button></form>
-    <form method="post" action="{{ url_for('inventory.purchase_delete', po_id=po.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');"><button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+    <form method="post" action="{{ url_for('inventory.purchase_approve', po_id=po.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('purchases.approve') }}</button></form>
+    <form method="post" action="{{ url_for('inventory.purchase_delete', po_id=po.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
     {% elif po.status != 'cancelled' and po.status != 'received' %}
-    <form method="post" action="{{ url_for('inventory.purchase_cancel', po_id=po.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');"><button class="btn btn-outline gc-press" type="submit"><i class="bi bi-x-circle"></i> {{ t('purchases.cancel') }}</button></form>
+    <form method="post" action="{{ url_for('inventory.purchase_cancel', po_id=po.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline gc-press" type="submit"><i class="bi bi-x-circle"></i> {{ t('purchases.cancel') }}</button></form>
     {% endif %}
     <button class="btn btn-outline gc-press" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
   </div>
@@ -34,6 +37,7 @@
 
   <!-- Receiving (GRN) -->
   <form method="post" action="{{ url_for('inventory.purchase_receive', po_id=po.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <table class="table">
     <thead><tr>
       <th>{{ t('purchases.description') }}</th><th>{{ t('purchases.qty') }}</th>

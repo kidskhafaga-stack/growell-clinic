@@ -17,6 +17,7 @@
 <div class="card gc-scale-in" style="max-width:760px;animation-delay:0.1s;"
      x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}', '{{ url_for('appointments.next_available_slot') }}', '{{ url_for('appointments.first_available') }}')">
   <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
     <div class="form-grid">
       <div class="form-row" style="position:relative;"

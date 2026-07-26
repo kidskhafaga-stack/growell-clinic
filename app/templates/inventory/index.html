@@ -130,6 +130,7 @@
         <td><span class="status-badge {{ 'st-no_show' if b.status in ['expired','out'] else ('st-waiting' if b.status in ['near_expiry','low'] else 'st-completed') }}">{{ t('instatus.' ~ (b.status if b.status != 'near_expiry' else 'near_expiry')) }}</span></td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('inventory.batch_delete', batch_id=b.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </td>
       </tr>

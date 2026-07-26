@@ -74,6 +74,7 @@
 <details class="card gc-scale-in" x-data="{ dt: 'campaign' }">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('discounts.add') }}</summary>
   <form method="post" action="{{ url_for('finance.discounts') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ discount_fields() }}
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
@@ -105,14 +106,17 @@
         <td style="text-align:end;white-space:nowrap;">
           <button class="btn btn-outline btn-sm gc-press" type="button" @click="open = !open" :title="'{{ t('common.edit') }}'"><i class="bi bi-pencil"></i></button>
           <form method="post" action="{{ url_for('finance.discount_toggle', discount_id=d.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-{{ 'pause' if d.is_active else 'play' }}"></i></button></form>
           <form method="post" action="{{ url_for('finance.discount_delete', discount_id=d.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </td>
       </tr>
       <tr x-show="open" x-cloak>
         <td colspan="8" style="background:var(--surface-2);">
           <form method="post" action="{{ url_for('finance.discount_edit', discount_id=d.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {{ discount_fields(d) }}
             <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
             <button class="btn btn-outline btn-sm gc-press" type="button" @click="open=false">{{ t('common.cancel') }}</button>

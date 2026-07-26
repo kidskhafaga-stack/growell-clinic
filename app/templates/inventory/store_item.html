@@ -23,6 +23,7 @@
   <div class="card gc-scale-in">
     <h2 class="section-title"><i class="bi bi-arrow-left-right"></i> {{ t('store.record_move') }}</h2>
     <form method="post" action="{{ url_for('inventory.store_move', item_id=item.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('store.kind') }}</label>
           <select class="select" name="kind">
@@ -42,6 +43,7 @@
     <details style="margin-top:14px;">
       <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</summary>
       <form method="post" action="{{ url_for('inventory.store_item_edit', item_id=item.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
           <div class="form-row"><label>{{ t('store.name') }}</label><input class="input" name="name" value="{{ item.name }}"></div>
           <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category" list="cat_list" value="{{ item.category or '' }}"></div>

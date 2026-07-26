@@ -62,6 +62,7 @@
           <details style="position:relative;display:inline-block;">
             <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
             <form method="post" action="{{ url_for('settings.devices') }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ d.id }}">
               {{ device_fields(d) }}
               <label class="checkbox" style="font-weight:400;display:block;margin:6px 0;"><input type="checkbox" name="is_active" value="1" {{ 'checked' if d.is_active else '' }}> {{ t('common.active') }}</label>
@@ -69,6 +70,7 @@
             </form>
           </details>
           <form method="post" action="{{ url_for('settings.devices') }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ d.id }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
           </form>
@@ -85,6 +87,7 @@
 <details class="card gc-scale-in">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('devices.add') }}</summary>
   <form method="post" action="{{ url_for('settings.devices') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="add">
     {{ device_fields() }}
     <button class="btn btn-primary gc-press" type="submit" style="margin-top:8px;"><i class="bi bi-plus-lg"></i> {{ t('devices.add') }}</button>

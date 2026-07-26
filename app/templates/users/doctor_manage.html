@@ -18,6 +18,7 @@
 <div class="card gc-scale-in" style="animation-delay:0.06s;">
   <h2 class="section-title"><i class="bi bi-person-badge"></i> {{ t('doctors.identity') }}</h2>
   <form method="post" action="{{ url_for('users.doctor_professional', user_id=doc.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('doctors.rx_display_name') }}</label>
         <input class="input" name="rx_display_name" value="{{ doc.rx_display_name or '' }}"></div>
@@ -51,6 +52,7 @@
   <p class="hint" style="margin-top:-6px;">{{ t('doctors.pricing_hint') }}</p>
   {% if services %}
   <form method="post" action="{{ url_for('users.doctor_pricing', user_id=doc.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="overflow-x:auto;">
       <table class="table" style="min-width:640px;">
         <thead><tr>
