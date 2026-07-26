@@ -923,7 +923,16 @@
     "load_optional_set": "Optional vaccines",
     "load_now": "Load now",
     "catalogue_loaded": "Catalogue loaded ({n} new vaccines)",
-    "not_given": "not given"
+    "not_given": "not given",
+    "which_dose": "Which dose",
+    "which_dose_hint": "This decides everything after it: what the parent is told, when the next reminder falls, and whether the course is finished.",
+    "already_given": "already given",
+    "outside_place": "Where was it given",
+    "outside_place_ph": "e.g. Haram health unit / Dr X's clinic / abroad",
+    "outside_hint": "Recorded so the schedule is right — but it does not deduct from stock, is not charged, and is not credited to a doctor.",
+    "dose_booster": "Booster dose",
+    "course_complete": "Course complete",
+    "next_season": "Next season"
   },
   "vstatus": {
     "done": "Done",

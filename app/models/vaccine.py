@@ -277,6 +277,9 @@ class VaccineBrandDose(db.Model):
     brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"), nullable=False, index=True)
     dose_number = db.Column(db.Integer, nullable=False)
     age_months = db.Column(db.Integer, nullable=False)
+    # A booster is not "one more dose": it is what the parent is told about,
+    # and what decides whether the course is finished after it.
+    is_booster = db.Column(db.Boolean, default=False, nullable=False)
 
     brand = db.relationship("VaccineBrand", back_populates="doses")
 
@@ -368,6 +371,9 @@ class PatientVaccine(db.Model):
     # Dose the doctor confirms was given elsewhere (gov. unit / another clinic):
     # informational only — no stock deduction, no charge, no doctor fee.
     given_outside = db.Column(db.Boolean, default=False, nullable=False)
+    # Where it was given — the government unit, another clinic, abroad. Asked
+    # for because "the first dose was somewhere else" is only half an answer.
+    outside_place = db.Column(db.String(160))
 
     # Clinical documentation (PDF): given / refused / delayed, plus details.
     event_type = db.Column(db.String(20), default="given", nullable=False)

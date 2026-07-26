@@ -4,9 +4,8 @@ Per-patient vaccination plan with brand selection (no mixing brands), the
 Egyptian schedule, visual due/done/upcoming states, next-due suggestion, dose
 recording (with lot number), and a printable vaccination certificate.
 """
-import calendar
 import io
-from datetime import date, datetime
+from datetime import datetime
 
 from flask import (
     current_app,
@@ -37,6 +36,7 @@ from app.models import (
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
+from app.utils.dose_labels import dose_choices, dose_label, next_dose_text
 from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
     administer_dose,
@@ -77,8 +77,23 @@ def view(patient_id):
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
+        # Which dose is which, per vaccine — so the doctor picks "the second
+        # dose" by name instead of typing a number and hoping.
+        dose_options=_dose_options(patient, plan, lang),
         today=datetime.utcnow().date().isoformat(),
     )
+
+
+def _dose_options(patient, plan, lang="ar"):
+    """``{vaccine_id: [{number, label, given, booster, ...}]}`` for the form."""
+    out = {}
+    for item in plan:
+        vaccine = item["vaccine"]
+        brand = item.get("brand") or vaccine.default_brand
+        given = {d["dose_number"] for d in item.get("doses", [])
+                 if d.get("given_date")}
+        out[vaccine.id] = dose_choices(vaccine, brand, given, lang)
+    return out
 
 
 def _settle_paid_vaccines(patient, on_date):
@@ -115,6 +130,7 @@ def record(patient_id):
         given_date=given_date,
         lot_number=(request.form.get("lot_number") or "").strip() or None,
         given_outside=bool(request.form.get("given_outside")),
+        outside_place=(request.form.get("outside_place") or "").strip() or None,
         adverse_events=(request.form.get("adverse_events") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
     )
@@ -143,8 +159,12 @@ def record(patient_id):
         body = wa.render(wa.template_body("vaccine_given"), {
             "patient": patient.display_name(lang),
             "vaccine": vaccine.display_name(lang),
-            "dose": _dose_label(dose_number, lang),
-            "next_date": _next_dose_date(patient, brand, dose_number) or "—",
+            "dose": dose_label(dose_number, lang, brand=brand, vaccine=vaccine,
+                               on_date=given_date),
+            # "—" told a parent nothing. Now it says the date, or that the
+            # course is finished, or that it comes back next season.
+            "next_date": next_dose_text(patient, vaccine, brand, dose_number,
+                                        lang, given_date),
             "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
         })
         log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
@@ -198,33 +218,6 @@ def record_event(patient_id):
     db.session.commit()
     flash(t("vaccinations.event_saved"), "success")
     return redirect(url_for("vaccinations.view", patient_id=patient.id))
-
-
-_DOSE_ORD = {1: "الأولى", 2: "الثانية", 3: "الثالثة", 4: "الرابعة", 5: "الخامسة"}
-
-
-def _dose_label(n, lang="ar"):
-    if lang == "en":
-        return f"dose {n}"
-    return "الجرعة " + _DOSE_ORD.get(n, f"رقم {n}")
-
-
-def _add_months(d, months):
-    m = d.month - 1 + int(months)
-    y = d.year + m // 12
-    m = m % 12 + 1
-    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
-
-
-def _next_dose_date(patient, brand, current_dose):
-    """Date of the next scheduled dose for this brand, or None if last."""
-    if not patient.date_of_birth or brand is None:
-        return None
-    nxt = next((d for d in sorted(brand.doses, key=lambda x: x.dose_number)
-                if d.dose_number > current_dose), None)
-    if nxt is None:
-        return None
-    return _add_months(patient.date_of_birth, nxt.age_months).isoformat()
 
 
 @vaccinations_bp.route("/dose/<int:pv_id>/delete", methods=["POST"])
@@ -687,7 +680,7 @@ def remind_due(patient_id):
     body = wa.render(wa.template_body("vaccine_due"), {
         "patient": patient.display_name(lang),
         "vaccine": due["vaccine"].display_name(lang),
-        "dose": _dose_label(due["dose_number"], lang),
+        "dose": dose_label(due["dose_number"], lang),
         "due_date": due["due_date"] or "—",
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
