@@ -38,20 +38,12 @@ DEFAULT_SETTINGS = {
     "wa_provider": "web",                   # "web" | "cloud_api" | "wapilot"
     "wa_country_code": "20",
     "queue_mode": "number",                 # "number" | "time"
-    "wa_tpl_appt_confirm": (
-        "مرحباً {patient}،\n"
-        "تم تأكيد موعدك في {clinic} يوم {date} الساعة {time} مع {doctor}.\n"
-        "دورك رقم: {queue}\n"
-        "نتمنى لكم الصحة والعافية."
-    ),
-    "wa_tpl_doctor_schedule": (
-        "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}"
-    ),
-    "wa_tpl_vaccine_given": (
-        "تم بحمد الله تطعيم {patient} — {vaccine} ({dose}).\n"
-        "الجرعة القادمة بتاريخ: {next_date}\n"
-        "مع تحيات {clinic}."
-    ),
+    # NOTE: message bodies are NOT settings any more. They live in the
+    # MessageTemplate registry, edited on one screen, seeded by
+    # ``seed_system_templates`` from ``TEMPLATE_DEFAULTS``. The old
+    # ``wa_tpl_*`` keys are still *read* as a fallback for clinics that edited
+    # them before the move, but writing them here would keep resurrecting a
+    # second place to edit the same text.
     # ETA e-invoicing (demo mode by default so it works without credentials).
     "eta_enabled": "0",
     "eta_mode": "demo",

@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('drugbook.map_title') }}{% endblock %}
+{% block page_heading %}{{ t('drugbook.map_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('drugbook.map_title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('drugbook.map_subtitle') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--primary,#198754);">
+  <strong dir="ltr" style="font-family:monospace;">{{ filename }}</strong>
+  <span style="color:var(--muted);"> · {{ total }} {{ t('drugbook.map_rows') }}</span>
+  <p class="hint" style="margin:6px 0 0;">{{ t('drugbook.map_hint') }}</p>
+  {% if missing %}
+  <p class="hint" style="margin:6px 0 0;color:var(--danger);font-weight:600;">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('drugbook.import_map_required') }}</p>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('prescriptions.drugbook_import_map') }}">
+  <input type="hidden" name="token" value="{{ token }}">
+
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 class="section-title" style="margin-top:0;"><i class="bi bi-arrow-left-right"></i> {{ t('drugbook.map_columns') }}</h2>
+    <div class="form-grid">
+      {% for key, required, example in fields %}
+      <div class="form-row">
+        <label>{{ t('drugbook.f_' ~ key) }}{% if required %} *{% endif %}</label>
+        <select class="select" name="map_{{ key }}"
+                style="{{ 'border-color:var(--danger);' if required and key in (missing or []) else '' }}">
+          <option value="">— {{ t('drugbook.map_skip') }} —</option>
+          {% for h in headers %}
+          <option value="{{ loop.index0 }}" {{ 'selected' if guess.get(key) == loop.index0 else '' }}>
+            {{ h or ('#' ~ loop.index) }}</option>
+          {% endfor %}
+        </select>
+        {% if example %}<div class="hint" dir="auto">{{ t('drugbook.map_eg') }} {{ example }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <label class="check" style="display:flex;align-items:center;gap:6px;margin-top:10px;">
+      <input type="checkbox" name="create_classes" value="1">
+      {{ t('drugbook.import_create_classes') }}</label>
+    <div class="hint">{{ t('drugbook.import_create_classes_hint') }}</div>
+  </div>
+
+  <!-- What the file actually holds, so a wrong choice is obvious now -->
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:14px;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+      <strong><i class="bi bi-table"></i> {{ t('drugbook.map_sample') }}</strong>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table">
+        <thead><tr>{% for h in headers %}<th dir="auto">{{ h or ('#' ~ loop.index) }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in sample %}
+          <tr>{% for cell in row %}<td dir="auto" style="font-size:.84rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ cell if cell is not none else '' }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-outline gc-press" type="submit" name="mode" value="preview">
+      <i class="bi bi-eye"></i> {{ t('drugbook.import_preview') }}</button>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" name="mode" value="import"
+            onclick="return confirm('{{ t('common.confirm') }}?');">
+      <i class="bi bi-download"></i> {{ t('drugbook.import_now') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugbook_import') }}">{{ t('common.cancel') }}</a>
+  </div>
+  <p class="hint" style="margin-top:10px;"><i class="bi bi-info-circle"></i> {{ t('drugbook.map_preview_first') }}</p>
+</form>
+{% endblock %}

@@ -264,3 +264,67 @@ def test_nonsense_never_becomes_a_row_a_doctor_can_find(clinic):
     assert split_ingredients(
         "CHLORPHENIRAMINE+PARACETAMOL(ACETAMINOPHEN)+PSEUDOEPHEDRINE") == [
             "Chlorpheniramine", "Paracetamol", "Pseudoephedrine"]
+
+
+# ------------------------------------------------------ column mapping ----
+def test_headers_we_know_need_no_mapping_at_all(clinic):
+    """The screen exists for files we don't recognise. A file we do recognise
+    must not make anyone answer questions about it."""
+    from app.utils.drugbook_import import guess_mapping
+
+    guess = guess_mapping(["commercial_name_en", "scientific_name",
+                           "manufacturer", "price_egp"])
+    assert guess == {"trade_name": 0, "generic_en": 1,
+                     "manufacturer": 2, "price": 3}
+
+
+def test_a_pharmacys_own_headers_are_not_a_reason_to_refuse_the_file(clinic):
+    """"Item Name / Active / Company / Cost" is somebody's real price list.
+    Rejecting it because we didn't invent those words would be our problem
+    made into theirs."""
+    from app.utils.drugbook_import import guess_mapping, parse, rows_from_matrix
+
+    csv = b"Item Name,Active,Company,Cost\nPanadol,PARACETAMOL,GSK,35\n"
+    with clinic["app"].app_context():
+        rows, errors = parse(csv)
+        assert rows == [] and errors        # blind reading can't do it…
+        assert guess_mapping(["Item Name", "Active", "Company", "Cost"]) == {}
+
+        # …but named columns can.
+        rows, errors = rows_from_matrix(
+            ["Item Name", "Active", "Company", "Cost"],
+            [["Panadol", "PARACETAMOL", "GSK", "35"]],
+            {"trade_name": 0, "generic_en": 1, "manufacturer": 2, "price": 3})
+        assert errors == []
+        assert rows[0]["trade_name"] == "Panadol"
+        assert rows[0]["price"] == "35"
+
+
+def test_a_mapped_file_imports_like_any_other(clinic):
+    from app.models import Drug
+    from app.utils.drugbook_import import import_rows, rows_from_matrix
+
+    with clinic["app"].app_context():
+        rows, _ = rows_from_matrix(
+            ["Name", "Ingredient", "Price"],
+            [["Panadol Extra 20 tabs", "PARACETAMOL+CAFFEINE", "35"]],
+            {"trade_name": 0, "generic_en": 1, "price": 2})
+        import_rows(rows)
+        clinic["db"].session.commit()
+        drug = Drug.query.filter(Drug.trade_name.like("Panadol%")).one()
+        assert drug.price == 35.0
+        # The mapped file gets the same treatment as a recognised one:
+        # combinations still carry both ingredients.
+        assert {g.name_en for g in drug.all_ingredients()} == {"Paracetamol",
+                                                               "Caffeine"}
+        assert drug.pack_size == "20 tabs"     # …and the name is still read
+
+
+def test_a_row_with_no_name_is_reported_not_guessed_at(clinic):
+    from app.utils.drugbook_import import rows_from_matrix
+
+    rows, errors = rows_from_matrix(
+        ["Name", "Price"], [["", "35"], ["Panadol", "20"]],
+        {"trade_name": 0, "price": 1})
+    assert len(rows) == 1
+    assert errors and "line 2" in errors[0]
