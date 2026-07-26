@@ -319,3 +319,62 @@ class PrescriptionInvestigation(db.Model):
         if lang == "en" and (self.name_en or "").strip():
             return self.name_en
         return self.name
+
+
+class RxPreset(db.Model):
+    """A prescription the doctor writes over and over, saved once.
+
+    Half a paediatric clinic's day is four or five familiar pictures — a cold,
+    a sore throat, gastroenteritis, a chest infection. The medicines barely
+    change; only the child does. Saving the set means writing it once and then
+    adjusting a dose, instead of retyping four lines every time.
+
+    A preset belongs to the doctor who made it unless they share it: two
+    doctors in one clinic rarely treat a cold identically, and one quietly
+    overwriting the other's habits is worse than a little duplication.
+    """
+    __tablename__ = "rx_presets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    note = db.Column(db.String(255))                # when to reach for it
+    doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True,
+                          index=True)
+    is_shared = db.Column(db.Boolean, default=False, nullable=False)
+    diagnosis = db.Column(db.String(200))           # pre-fills the visit's Dx
+    use_count = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    doctor = db.relationship("User")
+    items = db.relationship("RxPresetItem", back_populates="preset",
+                            cascade="all, delete-orphan",
+                            order_by="RxPresetItem.id")
+
+    def visible_to(self, user):
+        """Theirs, shared, or the clinic's (no owner)."""
+        if user is None:
+            return self.is_shared or self.doctor_id is None
+        return (self.is_shared or self.doctor_id is None
+                or self.doctor_id == user.id)
+
+    def __repr__(self):
+        return f"<RxPreset {self.name}>"
+
+
+class RxPresetItem(db.Model):
+    """One medicine inside a saved set — the same shape as a written line."""
+    __tablename__ = "rx_preset_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    preset_id = db.Column(db.Integer, db.ForeignKey("rx_presets.id"),
+                          nullable=False, index=True)
+    drug_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=True)
+    drug_name = db.Column(db.String(200), nullable=False)
+    dose = db.Column(db.String(120))
+    frequency = db.Column(db.String(120))
+    duration = db.Column(db.String(120))
+    instructions = db.Column(db.String(255))
+
+    preset = db.relationship("RxPreset", back_populates="items")
+    drug = db.relationship("Drug")

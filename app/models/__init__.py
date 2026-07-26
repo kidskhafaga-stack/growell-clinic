@@ -122,6 +122,8 @@ from app.models.prescription import (
     Prescription,
     PrescriptionInvestigation,
     PrescriptionItem,
+    RxPreset,
+    RxPresetItem,
     RxPrintTemplate,
 )
 from app.models.message import (
@@ -280,6 +282,8 @@ __all__ = [
     "Prescription",
     "PrescriptionItem",
     "PrescriptionInvestigation",
+    "RxPreset",
+    "RxPresetItem",
     "RxPrintTemplate",
     "DRUG_FORMS",
     "INVESTIGATION_KINDS",

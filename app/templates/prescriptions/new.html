@@ -144,9 +144,18 @@
             <i class="bi bi-calculator"></i> <span x-text="line.calc"></span></div>
         </div>
         <div class="form-grid">
-          <div class="form-row"><label>{{ t('rx.default_dose') }}</label><input class="input" name="item_dose" x-model="line.dose"></div>
-          <div class="form-row"><label>{{ t('rx.default_frequency') }}</label><input class="input" name="item_frequency" x-model="line.frequency"></div>
-          <div class="form-row"><label>{{ t('rx.duration') }}</label><input class="input" name="item_duration" x-model="line.duration"></div>
+          <div class="form-row"><label>{{ t('rx.default_dose') }}</label>
+            <input class="input" name="item_dose" x-model="line.dose"
+                   x-on:blur="line.dose = expandDose(line.dose)"
+                   placeholder="5ml"></div>
+          <div class="form-row"><label>{{ t('rx.default_frequency') }}</label>
+            <input class="input" name="item_frequency" x-model="line.frequency"
+                   list="rx-frequencies" x-on:blur="line.frequency = expandFreq(line.frequency)"
+                   placeholder="1x3"></div>
+          <div class="form-row"><label>{{ t('rx.duration') }}</label>
+            <input class="input" name="item_duration" x-model="line.duration"
+                   x-on:blur="line.duration = expandDuration(line.duration)"
+                   placeholder="5d"></div>
           <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
         </div>
         {% if ai_ready %}
@@ -159,7 +168,30 @@
       </div>
     </template>
     <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('rx.add_drug_line') }}</button>
+
+    <!-- The four or five familiar pictures a paediatric day is made of -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;
+                padding-top:12px;border-top:1px dashed var(--line);">
+      <strong style="font-size:.88rem;"><i class="bi bi-collection"></i> {{ t('presets.title') }}</strong>
+      {% for p in presets %}
+      <button type="button" class="btn btn-outline btn-sm gc-press"
+              title="{{ p.note or '' }}"
+              x-on:click="applyPreset({{ p.id }})">{{ p.name }}</button>
+      {% endfor %}
+      <button type="button" class="btn btn-outline btn-sm gc-press"
+              x-on:click="savePreset()" x-show="lines.some(l => l.name)">
+        <i class="bi bi-bookmark-plus"></i> {{ t('presets.save_current') }}</button>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.presets') }}">
+        <i class="bi bi-gear"></i></a>
+      {% if not presets %}<span class="hint" style="margin:0;">{{ t('presets.none_hint') }}</span>{% endif %}
+    </div>
+    <p class="hint" style="margin:8px 0 0;"><i class="bi bi-lightning"></i> {{ t('rx.shorthand_hint') }}</p>
   </div>
+
+  <datalist id="rx-frequencies">
+    {% for _per_day, label in frequencies %}<option value="{{ label }}">{% endfor %}
+    <option value="عند اللزوم"><option value="قبل النوم">
+  </datalist>
 
   <!-- Investigations: lab tests + imaging -->
   <div class="card gc-scale-in" style="animation-delay:0.08s;">
@@ -273,7 +305,8 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       }catch(e){ this.dxSug=[]; this.dxOpen=false; }
     },
     pickDx(s){ this.dx=(current_lang==='ar'?s.ar:s.en); this.dxCode=s.code; this.dxOpen=false; this.dxSug=[]; },
-    addLine(){ this.lines.push({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    blankLine(){ return {drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}; },
+    addLine(){ this.lines.push(this.blankLine()); },
     continueMed(m){ this.lines.push({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
     async aiDose(i){
       var l=this.lines[i]; if(!l.name || l.aiBusy) return;
@@ -332,7 +365,116 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       l.open=false; l.suggestions=[];
       this.checkInteractions();
     },
-    removeLine(i){ this.lines.splice(i,1); this.checkInteractions(); }
+    removeLine(i){ this.lines.splice(i,1); this.checkInteractions(); },
+    _pendingAmount: null,
+
+    // --- shorthand -------------------------------------------------------
+    // The same expansions the server does on save, run as the doctor leaves
+    // the field so they see the settled wording immediately. Anything that
+    // isn't shorthand is handed back untouched.
+    _ar(n){ return String(n).replace(/[0-9]/g, d => "٠١٢٣٤٥٦٧٨٩"[d]); },
+    _west(s){ return (s||'').replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)); },
+    _plural(n, one, two, few, many){
+      n = parseInt(n, 10);
+      if(n === 1) return one;
+      if(n === 2) return two;
+      if(n % 100 >= 3 && n % 100 <= 10) return this._ar(n)+" "+few;
+      return this._ar(n)+" "+many;
+    },
+    _amount(num, unit){
+      const map = {'':'قرص','t':'قرص','tab':'قرص','ق':'قرص','c':'كبسولة',
+                   'cap':'كبسولة','ك':'كبسولة','ml':'مل','مل':'مل','م':'مل',
+                   'sp':'معلقة','معلقة':'معلقة','d':'نقطة','نقطة':'نقطة'};
+      const name = map[(unit||'').toLowerCase()];
+      if(name === undefined) return null;
+      const two = {'قرص':'قرصين','كبسولة':'كبسولتين','معلقة':'معلقتين','نقطة':'نقطتين'}[name];
+      if(two) return Number.isInteger(parseFloat(num)) ? this._plural(num, name, two, name, name)
+                                                       : this._ar(num)+" "+name;
+      return this._ar(num)+" "+name;
+    },
+    expandFreq(text){
+      const raw = (text||'').trim(); if(!raw) return '';
+      const low = this._west(raw).toLowerCase().replace(/\.$/, '');
+      const phrases = {prn:'عند اللزوم', sos:'عند اللزوم', nocte:'قبل النوم',
+                       hs:'قبل النوم', mane:'صباحاً', stat:'جرعة واحدة فوراً'};
+      if(phrases[low]) return phrases[low];
+      const words = {od:1,qd:1,sid:1,daily:1,bd:2,bid:2,twice:2,tds:3,tid:3,
+                     thrice:3,qds:4,qid:4};
+      const perDay = {1:'مرة واحدة يومياً',2:'كل ١٢ ساعة',3:'كل ٨ ساعات',
+                      4:'كل ٦ ساعات',6:'كل ٤ ساعات'};
+      if(words[low]) return perDay[words[low]] || raw;
+      let m = low.match(/^q\s*(\d+)\s*h?$/) || this._west(raw).trim().match(/^كل\s*(\d+)\s*(?:ساعة|ساعات|س)?$/);
+      if(m){
+        const h = parseInt(m[1], 10);
+        if(h >= 24) return 'مرة واحدة يومياً';
+        return "كل "+this._plural(h, 'ساعة', 'ساعتين', 'ساعات', 'ساعة');
+      }
+      let body = low;
+      const trailing = body.match(/^(\d+)\s*[x*×]$/);
+      if(trailing) body = "x"+trailing[1];
+      m = body.match(/^(?:(\d+(?:\.\d+)?)\s*([a-z\u0600-\u06FF]*)\s*)?[x*×]\s*(\d+)$/);
+      if(m){
+        const times = parseInt(m[3], 10);
+        if(times < 1 || times > 12) return raw;
+        // "1x3" says the amount too — put it in the dose if that's still empty.
+        const amount = (m[1] || m[2] === '') ? this._amount(m[1] || 1, m[2]) : null;
+        if(amount) this._pendingAmount = amount;
+        return perDay[times] || this._ar(times)+" مرات يومياً";
+      }
+      return raw;
+    },
+    expandDuration(text){
+      const raw = (text||'').trim(); if(!raw) return '';
+      const m = this._west(raw).match(/^(\d+)\s*([a-z\u0600-\u06FF]*)$/i);
+      if(!m) return raw;
+      const n = parseInt(m[1], 10), u = (m[2]||'d').toLowerCase();
+      if(['w','wk','week','weeks','أ','اسبوع','أسبوع','أسابيع','اسابيع'].includes(u))
+        return this._plural(n, 'أسبوع', 'أسبوعين', 'أسابيع', 'أسبوع');
+      if(['m','mo','month','months','ش','شهر','شهور'].includes(u))
+        return this._plural(n, 'شهر', 'شهرين', 'شهور', 'شهر');
+      if(['d','day','days','ي','يوم','أيام','ايام',''].includes(u))
+        return this._plural(n, 'يوم واحد', 'يومين', 'أيام', 'يوم');
+      return raw;
+    },
+    expandDose(text){
+      const raw = (text||'').trim(); if(!raw) return '';
+      const m = this._west(raw).replace(',', '.').match(/^(\d+(?:\.\d+)?)\s*([a-z\u0600-\u06FF]*)$/i);
+      if(!m) return raw;
+      return this._amount(m[1], m[2]) || raw;
+    },
+
+    // --- saved sets ------------------------------------------------------
+    async applyPreset(id){
+      try{
+        const r = await fetch("{{ url_for('prescriptions.presets') }}/"+id+"/lines");
+        const d = await r.json();
+        if(!d.ok) return;
+        // Added to what is already written, never replacing it — a doctor who
+        // has typed one line and then reaches for a set means "and these too".
+        const blank = this.lines.length === 1 && !this.lines[0].name;
+        if(blank) this.lines = [];
+        d.lines.forEach(l => this.lines.push(Object.assign(this.blankLine(), l)));
+        if(d.diagnosis && !this.diagnosis) this.diagnosis = d.diagnosis;
+        this.recalc(); this.checkInteractions();
+      }catch(e){ /* a set that won't load must not break the writer */ }
+    },
+    savePreset(){
+      const name = window.prompt({{ t('presets.prompt_name') | tojson }});
+      if(!name) return;
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = "{{ url_for('prescriptions.preset_save') }}";
+      const add = (k, v) => { const i = document.createElement('input');
+                              i.type='hidden'; i.name=k; i.value=v||''; form.appendChild(i); };
+      add('name', name);
+      add('diagnosis', this.diagnosis);
+      this.lines.filter(l => l.name).forEach(l => {
+        add('item_name', l.name); add('item_drug_id', l.drug_id);
+        add('item_dose', l.dose); add('item_frequency', l.frequency);
+        add('item_duration', l.duration); add('item_instructions', l.instructions);
+      });
+      document.body.appendChild(form); form.submit();
+    }
   };
 }
 </script>
