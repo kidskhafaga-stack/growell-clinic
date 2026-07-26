@@ -10,6 +10,7 @@ from app.i18n import t
 from app.models import ActivityLog, Role, User
 from app.models.permissions import MODULES
 from app.utils.decorators import admin_required, client_ip
+from app.utils.paging import paginate
 
 
 def _titles():
@@ -74,8 +75,7 @@ def audit():
         q = q.filter(ActivityLog.action == action)
     if user_id:
         q = q.filter(ActivityLog.user_id == user_id)
-    pagination = q.order_by(ActivityLog.created_at.desc()).paginate(
-        page=request.args.get("page", 1, type=int), per_page=50, error_out=False)
+    pagination = paginate(q.order_by(ActivityLog.created_at.desc()), default=50)
     # Failed sign-ins in the last 24h — a quick brute-force signal.
     from datetime import datetime, timedelta
     since = datetime.utcnow() - timedelta(hours=24)

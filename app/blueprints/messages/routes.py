@@ -31,6 +31,7 @@ from app.models import (
 )
 from app.utils import whatsapp as wa
 from app.utils.decorators import admin_required, module_required
+from app.utils.paging import paginate
 
 MODULE = "messages"
 ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "gif"}
@@ -113,14 +114,12 @@ def _appt_confirm_body(appt, lang, queue=None):
 @module_required(MODULE)
 def index():
     """Send dashboard: delivery stats, status filter, scheduled queue, log."""
-    page = request.args.get("page", 1, type=int)
     status = (request.args.get("status") or "").strip()
 
     q = MessageLog.query
     if status in MESSAGE_STATUSES:
         q = q.filter(MessageLog.status == status)
-    pagination = (q.order_by(MessageLog.created_at.desc())
-                  .paginate(page=page, per_page=25, error_out=False))
+    pagination = paginate(q.order_by(MessageLog.created_at.desc()))
 
     counts = {s: 0 for s in MESSAGE_STATUSES}
     for st, n in (db.session.query(MessageLog.status, db.func.count())

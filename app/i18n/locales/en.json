@@ -50,7 +50,13 @@
     "refresh": "Refresh",
     "action": "Action",
     "reset": "Reset",
-    "not_found": "Not found"
+    "not_found": "Not found",
+    "showing": "showing",
+    "of": "of",
+    "per_page": "per page",
+    "previous": "previous",
+    "next": "next",
+    "apply": "apply"
   },
   "nav": {
     "dashboard": "Dashboard",

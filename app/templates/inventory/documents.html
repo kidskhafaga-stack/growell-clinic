@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'inventory' %}
 {% block title %}{{ t('storedocs.title') }}{% endblock %}
 {% block page_heading %}{{ t('storedocs.title') }}{% endblock %}
@@ -55,11 +56,5 @@
   {% endif %}
 </div>
 
-{% if pagination.pages > 1 %}
-<div style="display:flex;gap:6px;justify-content:center;margin-top:14px;">
-  {% if pagination.has_prev %}<a class="btn btn-outline btn-sm" href="{{ url_for('inventory.documents', kind=kind or None, page=pagination.prev_num) }}">‹</a>{% endif %}
-  <span class="hint" style="align-self:center;">{{ pagination.page }} / {{ pagination.pages }}</span>
-  {% if pagination.has_next %}<a class="btn btn-outline btn-sm" href="{{ url_for('inventory.documents', kind=kind or None, page=pagination.next_num) }}">›</a>{% endif %}
-</div>
-{% endif %}
+{{ render_pagination(pagination) }}
 {% endblock %}

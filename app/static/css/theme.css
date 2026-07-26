@@ -571,7 +571,21 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .pager-btn.active { background: var(--green-700); color: #fff; border-color: var(--green-700); font-weight: 600; }
 .pager-btn.disabled { opacity: 0.4; pointer-events: none; }
 .pager-gap { min-width: 24px; text-align: center; color: var(--muted); align-self: center; }
-.pager-info { text-align: center; color: var(--muted); font-size: 0.82rem; padding-bottom: 10px; }
+.pager-info { color: var(--muted); font-size: 0.82rem; }
+/* Count on one side, page size on the other, numbers in the middle — and on a
+   phone the three stack and centre instead of squeezing. */
+.pager-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; padding: 12px 14px;
+}
+.pager-bar .pager { padding: 0; flex: 1; }
+.pager-size { display: flex; align-items: center; gap: 6px; }
+.pager-size label { color: var(--muted); font-size: 0.82rem; margin: 0; white-space: nowrap; }
+.pager-size .select { height: 34px; padding: 0 8px; width: auto; min-width: 72px; font-size: 0.85rem; }
+@media (max-width: 720px) {
+  .pager-bar { justify-content: center; }
+  .pager-bar .pager { flex-basis: 100%; }
+}
 
 /* ---------- Responsive ---------- */
 @media (max-width: 980px) { .current-cols { grid-template-columns: 1fr; } }

@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'prescriptions' %}
 {% block title %}{{ t('drugbook.title') }}{% endblock %}
 {% block page_heading %}{{ t('drugbook.title') }}{% endblock %}
@@ -73,6 +74,7 @@
   {% else %}
   <div class="empty-state" style="padding:26px;">{{ t('drugbook.empty') }}</div>
   {% endif %}
+  {{ render_pagination(pagination) }}
 </div>
 
 <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('drugbook.disclaimer') }}</p>

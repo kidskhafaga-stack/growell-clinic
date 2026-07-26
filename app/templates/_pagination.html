@@ -1,33 +1,68 @@
-{# Reusable numbered pagination control. Works with Flask-SQLAlchemy's
-   Pagination object and preserves the current query string (search, filters). #}
+{# The bar under every long list: where you are, how many rows a page holds,
+   and how to get to the next one.
+
+   It renders as a whole whenever there is anything at all to show — the row
+   count and the page-size picker are useful on a single page of results too,
+   and a picker that appears only once a list is long enough is a picker
+   nobody finds. The numbered page buttons are the one part that genuinely
+   has nothing to say when there is only one page.
+
+   Every link and the picker carry the rest of the query string with them, so
+   changing the page size in the middle of a filtered search keeps the
+   search. #}
 {% macro render_pagination(pagination) %}
-{% if pagination and pagination.pages and pagination.pages > 1 %}
+{% if pagination and pagination.total %}
   {% set base = request.args.to_dict() %}
   {% set _ = base.pop('page', None) %}
-  <nav class="pager" aria-label="pagination">
-    {% if pagination.has_prev %}
-      <a class="pager-btn gc-press" href="{{ url_for(request.endpoint, page=pagination.prev_num, **base) }}"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></a>
-    {% else %}
-      <span class="pager-btn disabled"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></span>
-    {% endif %}
+  {% set window = page_window(pagination) %}
+  <div class="pager-bar">
+    <div class="pager-info">
+      {{ t('common.showing') }} <strong>{{ window[0] }}–{{ window[1] }}</strong>
+      {{ t('common.of') }} <strong>{{ pagination.total }}</strong>
+    </div>
 
-    {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
-      {% if p %}
-        <a class="pager-btn gc-press {{ 'active' if p == pagination.page else '' }}"
-           href="{{ url_for(request.endpoint, page=p, **base) }}">{{ p }}</a>
+    {% if pagination.pages and pagination.pages > 1 %}
+    <nav class="pager" aria-label="pagination">
+      {% if pagination.has_prev %}
+        <a class="pager-btn gc-press" aria-label="{{ t('common.previous') }}" href="{{ url_for(request.endpoint, page=pagination.prev_num, **base) }}"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></a>
       {% else %}
-        <span class="pager-gap">…</span>
+        <span class="pager-btn disabled"><i class="bi bi-chevron-{{ 'right' if direction=='rtl' else 'left' }}"></i></span>
       {% endif %}
-    {% endfor %}
 
-    {% if pagination.has_next %}
-      <a class="pager-btn gc-press" href="{{ url_for(request.endpoint, page=pagination.next_num, **base) }}"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></a>
-    {% else %}
-      <span class="pager-btn disabled"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></span>
+      {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+        {% if p %}
+          <a class="pager-btn gc-press {{ 'active' if p == pagination.page else '' }}"
+             {{ 'aria-current=page' if p == pagination.page else '' }}
+             href="{{ url_for(request.endpoint, page=p, **base) }}">{{ p }}</a>
+        {% else %}
+          <span class="pager-gap">…</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if pagination.has_next %}
+        <a class="pager-btn gc-press" aria-label="{{ t('common.next') }}" href="{{ url_for(request.endpoint, page=pagination.next_num, **base) }}"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></a>
+      {% else %}
+        <span class="pager-btn disabled"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></span>
+      {% endif %}
+    </nav>
     {% endif %}
-  </nav>
-  <div class="pager-info">
-    {{ t('common.page') }} {{ pagination.page }} / {{ pagination.pages }} · {{ t('common.total') }}: {{ pagination.total }}
+
+    {# Changing the size sends you back to page 1: page 7 of 25-row pages is
+       nowhere near page 7 of 200-row pages, and landing past the end of the
+       list is a blank screen that looks like lost data. #}
+    <form method="get" class="pager-size">
+      {% for key, value in base.items() %}
+        {% if key != 'per_page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}
+      {% endfor %}
+      <label for="pp_{{ request.endpoint|replace('.', '_') }}">{{ t('common.per_page') }}</label>
+      <select class="select" id="pp_{{ request.endpoint|replace('.', '_') }}"
+              name="per_page" onchange="this.form.submit()">
+        {% for size in per_page_choices %}
+        <option value="{{ size }}" {{ 'selected' if size == pagination.per_page else '' }}>{{ size }}</option>
+        {% endfor %}
+      </select>
+      <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('common.apply') }}</button></noscript>
+    </form>
   </div>
 {% endif %}
 {% endmacro %}
