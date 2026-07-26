@@ -31,6 +31,7 @@ from app.models import (
 )
 from app.utils.costing import apply_purchase_cost, issue_unit_cost
 from app.utils.decorators import client_ip, module_required
+from app.utils.periods import period_blocked
 
 MODULE = "inventory"
 
@@ -227,6 +228,13 @@ def batch_new():
     if reason not in RECEIPT_REASONS:
         reason = "opening"
 
+    # Stock is money on a shelf: receiving a box into January after January's
+    # books are signed changes January's closing stock value. The store obeys
+    # the same period lock the till does.
+    received_on = _parse_date("received_date") or datetime.utcnow().date()
+    if period_blocked(received_on):
+        return redirect(url_for("inventory.index"))
+
     from app.utils.store_docs import open_document
 
     grn = open_document("grn", reference=t(f"receipt_reasons.{reason}"),
@@ -271,6 +279,8 @@ def receipt_new():
             reason = "opening"
         supplier_id = request.form.get("supplier_id", type=int) or None
         received = _parse_date("received_date") or datetime.utcnow().date()
+        if period_blocked(received):
+            return redirect(url_for("inventory.receipt_new"))
         header_note = (request.form.get("notes") or "").strip() or None
 
         brand_ids = request.form.getlist("line_brand_id")
@@ -392,6 +402,8 @@ def vaccine_stocktake():
                .join(VaccineInventory.brand)
                .order_by(VaccineBrand.name, VaccineInventory.expiry_date).all())
     if request.method == "POST":
+        if period_blocked(datetime.utcnow().date()):
+            return redirect(url_for("inventory.vaccine_stocktake"))
         adjusted = 0
         for batch in batches:
             raw = request.form.get(f"count_{batch.id}")
@@ -420,6 +432,10 @@ def vaccine_stocktake():
 @module_required(MODULE)
 def batch_delete(batch_id):
     batch = db.get_or_404(VaccineInventory, batch_id)
+    # Deleting a batch received inside a signed month rewrites that month's
+    # closing stock — same rule as deleting one of its invoices.
+    if period_blocked(batch.received_date or datetime.utcnow().date()):
+        return redirect(url_for("inventory.index"))
     db.session.delete(batch)
     db.session.commit()
     flash(t("inventory.batch_deleted"), "info")
@@ -587,6 +603,8 @@ def store_move(item_id):
     if qty <= 0:
         flash(t("store.bad_qty"), "danger")
         return redirect(url_for("inventory.store"))
+    if period_blocked(datetime.utcnow().date()):
+        return redirect(url_for("inventory.store"))
     # Receipts add, issues/wastage subtract — each under a numbered document.
     from app.utils.store_docs import open_document
 
@@ -691,6 +709,9 @@ def stocktake():
         return redirect(url_for("inventory.store"))
     items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
     if request.method == "POST":
+        if period_blocked(datetime.utcnow().date()):
+            return redirect(url_for("inventory.stocktake",
+                                    warehouse_id=warehouse.id))
         adjusted = 0
         doc = None  # one adjustment document for the whole count
         for item in items:
@@ -841,6 +862,8 @@ def transfer_new():
         # Stock may only leave a store its keeper is responsible for.
         if _warehouse_denied(src):
             return redirect(url_for("inventory.transfer_new"))
+        if period_blocked(datetime.utcnow().date()):
+            return redirect(url_for("inventory.transfer_new"))
 
         doc = None
         moved = 0
@@ -946,6 +969,8 @@ def return_new():
                if b.qty_remaining > 0]
 
     if request.method == "POST":
+        if period_blocked(datetime.utcnow().date()):
+            return redirect(url_for("inventory.return_new"))
         src = db.session.get(Warehouse, request.form.get("from_id", type=int)) \
             or Warehouse.default()
         supplier_id = request.form.get("supplier_id", type=int) or None
@@ -1164,6 +1189,10 @@ def purchase_receive(po_id):
     po = db.get_or_404(PurchaseOrder, po_id)
     if po.status not in ("approved", "partial"):
         flash(t("purchases.cannot_receive"), "warning")
+        return redirect(url_for("inventory.purchase_view", po_id=po.id))
+    # A GRN is a purchase: it raises stock value and the supplier's balance.
+    # Neither belongs in a month that has already been signed off.
+    if period_blocked(datetime.utcnow().date()):
         return redirect(url_for("inventory.purchase_view", po_id=po.id))
 
     from app.utils.store_docs import open_document

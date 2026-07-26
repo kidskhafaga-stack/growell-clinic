@@ -3582,7 +3582,7 @@
     "closed_by": "Closed by",
     "admin_only": "Admin only",
     "none": "No periods for this year — create the months.",
-    "locked_warn": "{name} is closed for accounting — no money can be recorded or changed in it. Reopen the period first if a correction is genuinely needed.",
+    "locked_warn": "{name} is closed for accounting — no money and no stock movement can be recorded or changed in it. Reopen the period first if a correction is genuinely needed.",
     "lock_note": "A closed period blocks: creating or editing an invoice dated in it, collections, refunds, expenses and manual journal entries — so old reports stay as printed.",
     "nav": "Accounting periods"
   },
