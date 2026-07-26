@@ -47,6 +47,34 @@ def locked_period(on_date):
     return p if (p and p.is_closed) else None
 
 
+def period_blocked(on_date, flash_it=True):
+    """Whether ``on_date`` falls inside a closed accounting period.
+
+    A closed month is closed for **everything that carries a value**, not only
+    for invoices. Stock is money sitting on a shelf: receiving a box into
+    January after January's books are signed changes January's closing stock
+    value, and the report a clinic printed then no longer matches the one it
+    prints now. So the store obeys the same lock the till does.
+
+    Callers bail out instead of writing. ``flash_it`` says the reason on the
+    screen, which is the difference between a refusal and a bug.
+    """
+    from flask import flash
+
+    from app.i18n import t
+
+    period = locked_period(on_date)
+    if period is None:
+        return False
+    if flash_it:
+        try:
+            flash(t("periods.locked_warn").replace("{name}", period.name),
+                  "danger")
+        except Exception:  # noqa: BLE001 - outside a request, the answer stands
+            pass
+    return True
+
+
 def ensure_month(year, month):
     """Get (or create) the period for one calendar month."""
     start = date(year, month, 1)

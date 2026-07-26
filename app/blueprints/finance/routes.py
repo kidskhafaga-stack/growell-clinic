@@ -586,15 +586,11 @@ def _period_blocked(on_date, flash_it=True):
     """Whether ``on_date`` falls inside a closed accounting period.
 
     A closed month is closed for money: the January report a clinic printed
-    must still read the same in March. Callers bail out instead of writing."""
-    from app.utils.periods import locked_period
+    must still read the same in March. Callers bail out instead of writing.
+    The store obeys the same rule through the same helper."""
+    from app.utils.periods import period_blocked
 
-    period = locked_period(on_date)
-    if period is None:
-        return False
-    if flash_it:
-        flash(t("periods.locked_warn").replace("{name}", period.name), "danger")
-    return True
+    return period_blocked(on_date, flash_it)
 
 
 def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None):
