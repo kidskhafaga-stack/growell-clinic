@@ -49,7 +49,17 @@
     <div style="display:flex;{{ 'justify-content:flex-end;' if m.direction == 'out' else '' }}">
       <div class="bubble {{ 'out' if m.direction == 'out' else 'in' }}">
         {% if m.template_type %}<div class="hint" style="margin:0 0 3px;"><i class="bi bi-tag"></i> {{ m.template_type }}</div>{% endif %}
-        {% if m.image_url %}<div class="hint" style="margin:0 0 3px;"><i class="bi bi-image"></i></div>{% endif %}
+        {% if m.image_url %}
+          {% set href = url_for('static', filename=m.image_url.split('static/', 1)[1]) if 'static/' in m.image_url else m.image_url %}
+          {% if m.image_url.endswith('.pdf') %}
+          <a href="{{ href }}" target="_blank" class="btn btn-outline btn-sm gc-press" style="margin-bottom:6px;">
+            <i class="bi bi-file-earmark-pdf"></i> {{ t('inbox.open_file') }}</a>
+          {% else %}
+          <a href="{{ href }}" target="_blank">
+            <img src="{{ href }}" alt="{{ t('inbox.attachment') }}" loading="lazy"
+                 style="max-width:100%;max-height:220px;border-radius:8px;margin-bottom:6px;display:block;"></a>
+          {% endif %}
+        {% endif %}
         <div style="white-space:pre-wrap;">{{ m.body }}</div>
         <div class="stamp">
           {{ m.created_at.strftime('%m-%d %H:%M') }}
@@ -91,6 +101,8 @@
     </form>
     <p class="hint" style="margin:8px 0 0;" x-show="drafted" x-cloak>
       <i class="bi bi-stars"></i> {{ t('inbox.ai_review') }}</p>
+    <p class="hint" style="margin:8px 0 0;color:var(--danger);font-weight:600;"
+       x-show="warn" x-cloak><i class="bi bi-shield-exclamation"></i> <span x-text="warn"></span></p>
     <p class="hint" style="margin:8px 0 0;color:var(--danger);" x-show="error" x-cloak
        x-text="error"></p>
   </div>
@@ -111,18 +123,19 @@
 
   function replyBox(canned) {
     return {
-      canned: canned, text: '', busy: false, drafted: false, error: '',
+      canned: canned, text: '', busy: false, drafted: false, error: '', warn: '',
       use(body) { this.text = body; this.drafted = false; this.error = '';
-                  this.$refs.box.focus(); },
+                  this.warn = ''; this.$refs.box.focus(); },
       // The draft lands in the box. Nothing is sent until the user presses
       // send — they own the words that reach the parent.
       async suggest() {
-        this.busy = true; this.error = ''; this.drafted = false;
+        this.busy = true; this.error = ''; this.drafted = false; this.warn = '';
         try {
           const r = await fetch('{{ url_for('messages.inbox_ai_suggest', key=key) }}',
                                 {method: 'POST', headers: {'X-Requested-With': 'fetch'}});
           const d = await r.json();
-          if (d.ok && d.text) { this.text = d.text; this.drafted = true; }
+          if (d.ok && d.text) { this.text = d.text; this.drafted = true;
+                                this.warn = d.warn || ''; }
           else { this.error = d.error || '{{ t('inbox.ai_failed') }}'; }
         } catch (e) { this.error = '{{ t('inbox.ai_failed') }}'; }
         this.busy = false;

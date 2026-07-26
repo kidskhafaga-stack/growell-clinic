@@ -253,7 +253,12 @@ def inbox_ai_suggest(key):
                 "error": t("inbox.ai_" + reason) if reason in known
                 else t("inbox.ai_failed"),
                 "detail": str(reason)[:200]}, 200
-    return {"ok": True, "text": result["text"]}
+    return {"ok": True, "text": result["text"],
+            # The message asked the model to change its behaviour. The draft is
+            # still shown — the person about to press send is the control that
+            # actually holds — but they are told what they're looking at.
+            "warn": (t("inbox.ai_suspicious") if result.get("suspicious")
+                     else "")}
 
 
 @messages_bp.route("/quick-replies", methods=["GET", "POST"])
