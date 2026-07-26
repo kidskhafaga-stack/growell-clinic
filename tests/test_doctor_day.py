@@ -76,6 +76,31 @@ def _checkout_lines(client, clinic):
     return json.loads(match.group(1)) or []
 
 
+def _collect(client, clinic, drop=None):
+    """Bill the visit the way the browser does: submit the offered lines back.
+
+    Hand-building the POST would prove the route works on data the real form
+    never sends — the interesting cases here are exactly about which hidden
+    fields survive. ``drop`` removes lines whose description contains it,
+    which is the cashier deleting a row before collecting.
+    """
+    lines = [line for line in _checkout_lines(client, clinic)
+             if not (drop and drop in line["description"])]
+    data = {"patient_id": clinic["ids"]["child"],
+            "doctor_id": clinic["ids"]["doctor"],
+            "visit_id": clinic["ids"]["visit"],
+            "line_service_id": [str(ln.get("service_id") or "") for ln in lines],
+            "line_description": [ln["description"] for ln in lines],
+            "line_unit_price": [str(ln.get("unit_price") or 0) for ln in lines],
+            "line_quantity": [str(ln.get("quantity") or 1) for ln in lines],
+            "line_no_commission": [str(ln.get("no_commission") or "0")
+                                   for ln in lines],
+            "line_brand_id": [str(ln.get("brand_id") or "") for ln in lines],
+            "line_dose_id": [str(ln.get("dose_id") or "") for ln in lines],
+            "line_vs_id": [str(ln.get("vs_id") or "") for ln in lines]}
+    return client.post("/finance/invoices/new", data=data, follow_redirects=True)
+
+
 # ====================================================== the procedures ====
 def test_a_procedure_the_doctor_did_is_waiting_to_be_billed(clinic):
     from app.models import VisitService
@@ -114,12 +139,7 @@ def test_a_billed_procedure_is_not_billed_again(clinic):
                 follow_redirects=True)
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "visit_id": clinic["ids"]["visit"],
-        "line_service_id": [str(clinic["ids"]["nebul"])],
-        "line_description": ["جلسة تنفس"], "line_unit_price": ["150"],
-        "line_quantity": ["1"]}, follow_redirects=True)
+    _collect(desk, clinic)
 
     with clinic["app"].app_context():
         assert VisitService.query.one().invoice_id is not None
@@ -319,27 +339,63 @@ def test_a_billed_dose_is_marked_billed(clinic):
     _give(doctor, clinic)
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "visit_id": clinic["ids"]["visit"],
-        "line_service_id": [""], "line_description": ["المكورات — Prevenar"],
-        "line_unit_price": ["900"], "line_quantity": ["1"],
-    }, follow_redirects=True)
+    _collect(desk, clinic)
     assert _doses(clinic)[0]["invoice"] is not None
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Known gap: billing sweeps every recent unbilled dose onto the invoice "
-    "whether or not a line actually charges it. Remove the marker when the "
-    "sweep is narrowed to the doses the invoice really bills."))
 def test_a_dose_left_off_the_bill_is_not_marked_as_paid(clinic):
     """The cashier deletes the vaccine line and collects the exam only.
 
-    The dose is then stamped with that invoice's id — so it is treated as
-    paid for, drops off the "not billed yet" list, and 900 pounds leaves the
-    clinic with nothing recording that it was owed. Whatever the cashier
-    does with the line, a dose is only paid for if something charged for it.
+    The dose must not be stamped with that invoice. Stamping it treats it as
+    paid for, drops it off the "not billed yet" list, and 900 pounds leaves
+    the clinic with nothing anywhere recording that it was owed. A dose is
+    paid for when something charged for it, not because it happened today.
     """
+    doctor = clinic["sign_in"]("doc")
+    _give(doctor, clinic)
+
+    desk = clinic["sign_in"]("boss")
+    _collect(desk, clinic, drop="Prevenar")
+
+    assert _doses(clinic)[0]["invoice"] is None
+
+
+def test_a_dose_left_off_the_bill_is_still_owed_tomorrow(clinic):
+    """Not being marked paid is only half of it — it has to come back to the
+    desk, or the money is lost just as quietly."""
+    doctor = clinic["sign_in"]("doc")
+    _give(doctor, clinic)
+
+    desk = clinic["sign_in"]("boss")
+    _collect(desk, clinic, drop="Prevenar")
+
+    offered = _checkout_lines(desk, clinic)
+    assert any("Prevenar" in line["description"] for line in offered)
+
+
+def test_a_procedure_left_off_the_bill_is_not_marked_as_paid(clinic):
+    """The same rule for the doctor's work: taken off the bill means unbilled,
+    not free."""
+    from app.models import VisitService
+
+    doctor = clinic["sign_in"]("doc")
+    doctor.post(f"/visits/{clinic['ids']['visit']}/services",
+                data={"service_id": clinic["ids"]["nebul"], "quantity": "1"},
+                follow_redirects=True)
+
+    desk = clinic["sign_in"]("boss")
+    _collect(desk, clinic, drop="تنفس")
+
+    with clinic["app"].app_context():
+        assert VisitService.query.one().invoice_id is None
+    assert any("تنفس" in line["description"]
+               for line in _checkout_lines(desk, clinic))
+
+
+def test_a_hand_typed_vaccine_line_still_settles_the_dose(clinic):
+    """Reception bills the vaccine themselves rather than from the prefill.
+    The line names the brand, and that is enough to settle one dose of it —
+    otherwise the dose is charged for and then offered again tomorrow."""
     doctor = clinic["sign_in"]("doc")
     _give(doctor, clinic)
 
@@ -347,12 +403,31 @@ def test_a_dose_left_off_the_bill_is_not_marked_as_paid(clinic):
     desk.post("/finance/invoices/new", data={
         "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
         "visit_id": clinic["ids"]["visit"],
-        "line_service_id": [str(clinic["ids"]["exam"])],
-        "line_description": ["كشف"], "line_unit_price": ["200"],
-        "line_quantity": ["1"],
+        "line_service_id": [""], "line_description": ["Prevenar"],
+        "line_unit_price": ["900"], "line_quantity": ["1"],
+        "line_brand_id": [str(clinic["ids"]["brand"])],
     }, follow_redirects=True)
 
-    assert _doses(clinic)[0]["invoice"] is None
+    assert _doses(clinic)[0]["invoice"] is not None
+
+
+def test_one_line_settles_one_dose_not_every_dose(clinic):
+    """Two doses given, one paid for. The other is still owed."""
+    doctor = clinic["sign_in"]("doc")
+    _give(doctor, clinic)
+    _give(doctor, clinic)
+
+    desk = clinic["sign_in"]("boss")
+    desk.post("/finance/invoices/new", data={
+        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
+        "visit_id": clinic["ids"]["visit"],
+        "line_service_id": [""], "line_description": ["Prevenar"],
+        "line_unit_price": ["900"], "line_quantity": ["1"],
+        "line_brand_id": [str(clinic["ids"]["brand"])],
+    }, follow_redirects=True)
+
+    billed = [d["invoice"] for d in _doses(clinic)]
+    assert sum(1 for b in billed if b is not None) == 1
 
 
 def test_which_dose_it_was_is_on_the_record(clinic):

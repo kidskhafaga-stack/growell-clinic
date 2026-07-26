@@ -48,7 +48,9 @@
             <td><input class="input" type="text" :name="'line_desc'" x-model="l.description">
               <input type="hidden" :name="'line_service_id'" :value="l.service_id">
               <input type="hidden" :name="'line_no_commission'" :value="l.no_commission || '0'">
-              <input type="hidden" :name="'line_brand_id'" :value="l.brand_id || ''"></td>
+              <input type="hidden" :name="'line_brand_id'" :value="l.brand_id || ''">
+              <input type="hidden" :name="'line_dose_id'" :value="l.dose_id || ''">
+              <input type="hidden" :name="'line_vs_id'" :value="l.vs_id || ''"></td>
             <td><input class="input" type="number" step="0.01" min="0" :name="'line_price'" x-model.number="l.unit_price" @input="recalc()"></td>
             <td><input class="input" type="number" min="1" placeholder="1" :name="'line_qty'" x-model.number="l.quantity" @input="recalc()"></td>
             <td style="font-weight:600;" x-text="((l.unit_price||0)*(l.quantity||1)).toFixed(2)"></td>
@@ -126,7 +128,10 @@
 <script>
   function checkout(initLines, methods, autoAmt) {
     return {
-      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||''})),
+      // dose_id / vs_id say what a line is paying for. They must survive this
+      // mapping: dropped here, the line submits no claim and the dose it
+      // charges for is never marked billed.
+      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||''})),
       addId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,

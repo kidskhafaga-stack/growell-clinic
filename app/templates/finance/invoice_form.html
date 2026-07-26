@@ -75,6 +75,13 @@
                 </select>
                 <input type="text" class="input" name="line_description" x-model="line.description" placeholder="{{ t('invoices.description') }}" style="margin-top:4px;">
                 <input type="hidden" name="line_no_commission" :value="line.no_commission || '0'">
+                {# What this line is paying for. Emitted on every row (blank on
+                   hand-typed ones) so the lists stay index-aligned with the
+                   other line_* fields, and deleting a row takes its claim with
+                   it — a dose left off the bill stays unbilled. #}
+                <input type="hidden" name="line_brand_id" :value="line.brand_id || ''">
+                <input type="hidden" name="line_dose_id" :value="line.dose_id || ''">
+                <input type="hidden" name="line_vs_id" :value="line.vs_id || ''">
               </td>
               <td><input class="input" type="number" step="0.01" name="line_unit_price" x-model.number="line.unit_price" style="width:90px;"></td>
               <td><input class="input" type="number" min="1" name="line_quantity" x-model.number="line.quantity" style="width:64px;"></td>
