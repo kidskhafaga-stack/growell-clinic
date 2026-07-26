@@ -160,6 +160,7 @@ def capture(item, log):
         original_name=(caption[:120] or None),
         kind=kind,
         label=caption[:160] or None,
+        source="whatsapp",
         investigation_id=answered_order(log.patient_id, kind))
     db.session.add(att)
     return att

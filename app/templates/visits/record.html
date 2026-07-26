@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "visits/_investigation_files.html" as inv_files with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% set active_module = 'visits' %}
 {% block title %}{{ t('visits.record_title') }}{% endblock %}
@@ -138,20 +139,10 @@
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
             <strong style="flex:1;">{{ x.display_name(current_lang) }}</strong>
+            {{ inv_files.state_badge(x) }}
             <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ x.created_at.strftime('%Y-%m-%d') }}</span>
           </div>
-          {# The film the family sent, on the order it answers. Anywhere else
-             and the doctor has to remember it arrived. #}
-          {% if x.files %}
-          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <span class="badge badge--green"><i class="bi bi-check2-circle"></i> {{ t('visits.inv_file_arrived') }}</span>
-            {% for f in x.files %}
-            <a class="btn btn-outline btn-sm gc-press" target="_blank"
-               href="{{ url_for('static', filename='uploads/patient_docs/' ~ f.filename) }}">
-              <i class="bi bi-paperclip"></i> {{ f.label or f.original_name or t('visits.inv_file_open') }}</a>
-            {% endfor %}
-          </div>
-          {% endif %}
+          {{ inv_files.files_block(x, linkable_files) }}
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
             <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label><input class="input" name="result_text" dir="auto"></div>
@@ -372,10 +363,11 @@
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span class="badge {{ 'badge--role' if x.kind=='lab' else 'badge--muted' }}">{{ t('rx.inv_lab') if x.kind=='lab' else t('rx.inv_imaging') }}</span>
           <strong style="flex:1;">{{ x.display_name(current_lang) }}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
-          <span class="badge {{ 'badge--green' if x.status=='resulted' else 'badge--muted' }}">{{ t('visits.inv_' ~ x.status) }}</span>
+          {{ inv_files.state_badge(x) }}
           <form method="post" action="{{ url_for('visits.delete_investigation', inv_id=x.id) }}" style="display:inline;">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
         </div>
+        {{ inv_files.files_block(x, linkable_files) }}
         <details style="margin-top:8px;" {{ 'open' if x.has_result else '' }}>
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">

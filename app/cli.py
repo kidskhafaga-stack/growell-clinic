@@ -278,6 +278,9 @@ def register_commands(app):
             ("vaccine_brand_doses", "is_booster", "BOOLEAN DEFAULT 0"),
             ("patient_vaccines", "outside_place", "VARCHAR(160)"),
             ("patient_attachments", "investigation_id", "INTEGER"),
+            ("patient_attachments", "source", "VARCHAR(20) DEFAULT 'upload'"),
+            ("patient_attachments", "linked_by", "INTEGER"),
+            ("patient_attachments", "linked_at", "DATETIME"),
             ("drugs", "trade_name_ar", "VARCHAR(160)"),
             ("drugs", "route", "VARCHAR(20)"),
         ]

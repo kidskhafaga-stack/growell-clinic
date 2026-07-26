@@ -215,6 +215,15 @@ def record(visit_id):
             PatientAttachment.visit_id != visit.id,
         ).order_by(PatientAttachment.created_at.desc()).limit(5).all()
     )
+    # Files on this child's record answering nothing yet — what the doctor
+    # picks from when the matcher couldn't be sure (a report sent with no
+    # caption, a scan taken at the desk).
+    linkable_files = (
+        PatientAttachment.query.filter(
+            PatientAttachment.patient_id == visit.patient_id,
+            PatientAttachment.investigation_id.is_(None),
+        ).order_by(PatientAttachment.created_at.desc()).limit(20).all()
+    )
     procedure_services = (
         Service.query.filter(Service.is_active.is_(True),
                              Service.category.in_(("procedure", "lab", "radiology")))
@@ -273,7 +282,7 @@ def record(visit_id):
         study_devices=study_devices, consent=consent,
         consent_guardian=consent_guardian,
         pending_investigations=pending_investigations,
-        recent_attachments=recent_attachments,
+        recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
@@ -792,6 +801,58 @@ def result_investigation(inv_id):
     # Return to the page the result was entered from (e.g. the follow-up
     # consultation reviewing a previous visit's pending test).
     return redirect(request.referrer or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
+
+
+@visits_bp.route("/investigations/<int:inv_id>/attach", methods=["POST"])
+@module_required(MODULE)
+def attach_to_investigation(inv_id):
+    """Tie a file already on the child's record to the order it answers.
+
+    The matcher links what it is sure of and leaves the rest alone; this is
+    how a person settles the rest — the report sent with no caption, the film
+    the matcher gave to the wrong one of two outstanding orders, the scan
+    reception took at the desk. A link made here is signed, so the screen can
+    tell a doctor's decision apart from the program's guess.
+    """
+    inv = db.get_or_404(VisitInvestigation, inv_id)
+    att = db.session.get(PatientAttachment,
+                         request.form.get("attachment_id", type=int))
+    # Only this child's files: an order must never be able to reach across
+    # into another patient's record.
+    if att is None or att.patient_id != inv.patient_id:
+        flash(t("visits.inv_file_not_found"), "danger")
+        return redirect(url_for("visits.record", visit_id=inv.visit_id) + "#inv")
+    att.investigation_id = inv.id
+    att.linked_by = current_user.id
+    att.linked_at = datetime.utcnow()
+    ActivityLog.record("visit.link_result", user_id=current_user.id,
+                       entity="investigation", entity_id=inv.id,
+                       detail=str(att.id), ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.inv_file_linked"), "success")
+    return redirect(request.referrer
+                    or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
+
+
+@visits_bp.route("/attachments/<int:att_id>/unlink", methods=["POST"])
+@module_required(MODULE)
+def unlink_attachment(att_id):
+    """Take a file off an order — the match was wrong, or it answered another
+    question. The file stays on the child's record; only the link goes."""
+    att = db.get_or_404(PatientAttachment, att_id)
+    inv = att.investigation
+    att.investigation_id = None
+    att.linked_by = None
+    att.linked_at = None
+    ActivityLog.record("visit.unlink_result", user_id=current_user.id,
+                       entity="investigation",
+                       entity_id=inv.id if inv else None, detail=str(att.id),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.inv_file_unlinked"), "info")
+    fallback = (url_for("visits.record", visit_id=inv.visit_id) + "#inv"
+                if inv else url_for("patients.view", patient_id=att.patient_id))
+    return redirect(request.referrer or fallback)
 
 
 @visits_bp.route("/investigations/<int:inv_id>/delete", methods=["POST"])
