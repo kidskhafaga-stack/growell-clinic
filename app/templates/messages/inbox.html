@@ -80,7 +80,7 @@
             {{ c.last.body[:120] }}</span>
           <span style="display:flex;gap:6px;align-items:center;">
             {% if c.assignee %}<span class="badge badge--role"><i class="bi bi-person"></i> {{ c.assignee.display_name(current_lang) }}</span>{% endif %}
-            {% if c.open %}<span class="badge badge--danger">{{ t('inbox.needs_reply') }}</span>
+            {% if c.open %}<span class="badge badge--danger">{{ waiting_label(c.waiting_hours) }}</span>
             {% elif c.resolved %}<span class="badge badge--green">{{ t('inbox.resolved_badge') }}</span>{% endif %}
             {% if c.unread %}<span class="badge" style="background:var(--primary,#198754);color:#fff;border-radius:999px;">{{ c.unread }}</span>{% endif %}
             <span class="num" style="color:var(--muted);">{{ c.count }}</span>

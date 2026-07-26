@@ -54,8 +54,19 @@
         <i class="bi bi-check2-circle"></i> {{ t('inbox.resolve') }}</button>
       {% endif %}
     </form>
+    <form method="post" action="{{ url_for('messages.inbox_note', key=key) }}"
+          style="display:flex;gap:8px;align-items:end;flex-basis:100%;">
+      <div class="form-row" style="margin:0;flex:1;">
+        <label>{{ t('inbox.note') }}</label>
+        <input class="input" name="note" maxlength="255"
+               value="{{ record.note if record and record.note else '' }}"
+               placeholder="{{ t('inbox.note_ph') }}">
+      </div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-pin-angle"></i> {{ t('common.save') }}</button>
+    </form>
     <div class="hint" style="flex-basis:100%;margin:0;">
-      {{ t('inbox.assign_hint') }} · {{ t('inbox.resolve_hint') }}</div>
+      {{ t('inbox.assign_hint') }} · {{ t('inbox.resolve_hint') }} · {{ t('inbox.note_hint') }}</div>
   </div>
 
   {% if not patient %}
@@ -103,6 +114,25 @@
     </div>
     {% endfor %}
   </div>
+
+  {% if opted_out %}
+  <div class="card gc-scale-in" style="margin-top:12px;border-inline-start:4px solid var(--danger);">
+    <strong style="color:var(--danger);"><i class="bi bi-slash-circle"></i> {{ t('inbox.opted_out') }}</strong>
+    <p class="hint" style="margin:6px 0 0;">{{ t('inbox.opted_out_hint') }}</p>
+  </div>
+  {% endif %}
+
+  {% if window and not window.open %}
+  <div class="card gc-scale-in" style="margin-top:12px;border-inline-start:4px solid var(--warning,#f59e0b);">
+    <strong><i class="bi bi-clock-history"></i> {{ t('inbox.window_closed') }}</strong>
+    <p class="hint" style="margin:6px 0 0;">
+      {% if window.never_wrote %}{{ t('inbox.window_never') }}{% else %}{{ t('inbox.window_closed_hint') }}{% endif %}</p>
+  </div>
+  {% elif window and window.hours_left <= 3 %}
+  <p class="hint" style="margin-top:10px;color:var(--warning,#b45309);">
+    <i class="bi bi-hourglass-split"></i>
+    {{ t('inbox.window_soon').replace('{n}', window.hours_left|string) }}</p>
+  {% endif %}
 
   <!-- Reply: canned answers, an AI draft, and the words the user sends -->
   <div class="card gc-scale-in" style="margin-top:12px;"

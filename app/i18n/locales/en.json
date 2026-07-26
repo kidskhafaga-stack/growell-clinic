@@ -2907,7 +2907,22 @@
     "reopen": "Put back on the list",
     "resolved_badge": "answered",
     "resolve_hint": "Closed with a timestamp — the moment the patient writes again it comes back on its own.",
-    "view_mine": "Mine"
+    "view_mine": "My conversations",
+    "wait_minutes": "waiting {n} min",
+    "wait_hours": "waiting {n} h",
+    "wait_days": "waiting {n} d",
+    "opted_out": "This patient has opted out of WhatsApp",
+    "opted_out_hint": "Any reply will be logged as skipped and never reach them. If you need to reach them, call.",
+    "window_closed": "The free-reply window has closed",
+    "window_closed_hint": "WhatsApp allows free replies for only 24 hours after the patient's last message. After that nothing goes out except an approved template — call them, or wait until they write again.",
+    "window_never": "This patient has never written to us, so there is no open reply window. Only a template message or a phone call will reach them.",
+    "window_soon": "{n} hours left before the free-reply window closes.",
+    "note": "Internal note",
+    "note_ph": "e.g. called them, no answer",
+    "note_saved": "Note saved",
+    "note_hint": "The note is for staff only — it is never sent to the patient.",
+    "start": "Start a conversation",
+    "start_hint": "Open a WhatsApp conversation with this patient without waiting for them to write first."
   },
   "journal": {
     "title": "Journal",
