@@ -43,6 +43,70 @@
 </div>
 {% endif %}
 
+<!-- Delivery board: which kind of message is failing, and why -->
+<div class="card gc-scale-in" style="margin-bottom:14px;padding:0;overflow:hidden;">
+  <div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-clipboard-data"></i> {{ t('crm.board_title') }}</h2>
+    <p class="hint" style="margin:4px 0 0;">{{ t('crm.board_hint') }}</p>
+  </div>
+  {% if by_type %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('crm.board_type') }}</th><th style="text-align:end;">{{ t('crm.board_total') }}</th>
+        <th style="text-align:end;">{{ t('messages_mod.st_sent') }}</th>
+        <th style="text-align:end;">{{ t('messages_mod.st_failed') }}</th>
+        <th style="text-align:end;">{{ t('messages_mod.st_link') }}</th>
+        <th style="text-align:end;">{{ t('messages_mod.st_scheduled') }}</th>
+        <th style="text-align:end;">{{ t('crm.board_fail_rate') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in by_type %}
+        <tr>
+          <td>{% if row.type in ('other', None) %}{{ t('crm.board_other') }}
+              {% else %}{{ t('occasions.occ_' ~ row.type) }}{% endif %}</td>
+          <td class="num" style="text-align:end;">{{ row.total }}</td>
+          <td class="num" style="text-align:end;">{{ row.sent }}</td>
+          <td class="num" style="text-align:end;{{ 'color:var(--danger);font-weight:700;' if row.failed else '' }}">{{ row.failed }}</td>
+          <td class="num" style="text-align:end;color:var(--muted);">{{ row.link }}</td>
+          <td class="num" style="text-align:end;color:var(--muted);">{{ row.scheduled }}</td>
+          <td class="num" style="text-align:end;{{ 'color:var(--danger);' if row.fail_rate >= 20 else '' }}">{{ row.fail_rate }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding:20px;"><i class="bi bi-clipboard-data"></i>{{ t('crm.board_none') }}</div>
+  {% endif %}
+</div>
+
+{% if failures %}
+<details class="card gc-scale-in" style="margin-bottom:14px;">
+  <summary class="section-title" style="cursor:pointer;color:var(--danger);">
+    <i class="bi bi-exclamation-octagon"></i> {{ t('crm.failures_title') }} ({{ failures|length }})</summary>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('crm.failures_hint') }}</p>
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr><th>{{ t('messages_mod.date') }}</th><th>{{ t('messages_mod.patient') }}</th>
+        <th>{{ t('messages_mod.to') }}</th><th>{{ t('crm.board_type') }}</th>
+        <th>{{ t('crm.failure_reason') }}</th></tr></thead>
+      <tbody>
+        {% for f in failures %}
+        <tr>
+          <td class="num" dir="ltr">{{ f.created_at.strftime('%m-%d %H:%M') }}</td>
+          <td>{% if f.patient %}<a href="{{ url_for('patients.view', patient_id=f.patient_id) }}">{{ f.patient.display_name(current_lang) }}</a>{% else %}—{% endif %}</td>
+          <td class="num" dir="ltr">{{ f.to_phone or '—' }}</td>
+          <td>{{ t('occasions.occ_' ~ f.template_type) if f.template_type else '—' }}</td>
+          <td style="color:var(--danger);font-size:.85rem;">{{ f.error or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+
 <!-- Status filter -->
 <div class="no-print gc-animate" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
   <a class="btn btn-sm gc-press {{ 'btn-primary' if not status else 'btn-outline' }}" href="{{ url_for('messages.index') }}">{{ t('crm.all') }}</a>

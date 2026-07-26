@@ -46,6 +46,9 @@
     <a class="btn btn-sm gc-press {{ 'btn-primary' if view=='open' else 'btn-outline' }}"
        href="{{ url_for('messages.inbox', view='open', q=search or None) }}">
       <i class="bi bi-hourglass-split"></i> {{ t('inbox.view_open') }} ({{ open_count }})</a>
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if view=='mine' else 'btn-outline' }}"
+       href="{{ url_for('messages.inbox', view='mine', q=search or None) }}">
+      <i class="bi bi-person-check"></i> {{ t('inbox.view_mine') }} ({{ mine_count }})</a>
     <a class="btn btn-sm gc-press {{ 'btn-primary' if view=='all' else 'btn-outline' }}"
        href="{{ url_for('messages.inbox', view='all', q=search or None) }}">
       <i class="bi bi-collection"></i> {{ t('inbox.view_all') }} ({{ total }})</a>
@@ -76,7 +79,9 @@
             {% if c.last.direction == 'out' %}<i class="bi bi-arrow-up-left" style="color:var(--green-700);"></i>{% else %}<i class="bi bi-arrow-down-right" style="color:#2563eb;"></i>{% endif %}
             {{ c.last.body[:120] }}</span>
           <span style="display:flex;gap:6px;align-items:center;">
-            {% if c.open %}<span class="badge badge--danger">{{ t('inbox.needs_reply') }}</span>{% endif %}
+            {% if c.assignee %}<span class="badge badge--role"><i class="bi bi-person"></i> {{ c.assignee.display_name(current_lang) }}</span>{% endif %}
+            {% if c.open %}<span class="badge badge--danger">{{ t('inbox.needs_reply') }}</span>
+            {% elif c.resolved %}<span class="badge badge--green">{{ t('inbox.resolved_badge') }}</span>{% endif %}
             {% if c.unread %}<span class="badge" style="background:var(--primary,#198754);color:#fff;border-radius:999px;">{{ c.unread }}</span>{% endif %}
             <span class="num" style="color:var(--muted);">{{ c.count }}</span>
           </span>
