@@ -1303,6 +1303,60 @@ def _unbilled_patient_services(patient_id, days=7):
             .all())
 
 
+def _claimed_ids(field, kept_indexes):
+    """The ids the surviving invoice lines say they are paying for.
+
+    Each prefilled line carries the id of the thing it charges for — the dose,
+    the procedure. Only the lines that actually became invoice items count, so
+    a line the cashier deleted claims nothing.
+    """
+    values = request.form.getlist(field)
+    out = set()
+    for idx in kept_indexes:
+        raw = values[idx] if idx < len(values) else ""
+        if not raw:
+            continue
+        try:
+            out.add(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _mark_billed(invoice, doses, services, dose_ids, service_ids):
+    """Stamp only what this invoice actually charged for.
+
+    Both collection screens used to stamp *everything* recent and unbilled,
+    on the assumption that whatever was prefilled was also collected. Delete
+    the vaccine line and collect the exam only, and the dose was still marked
+    paid: it dropped off the "not billed yet" list, and a 900-pound vial left
+    the clinic with nothing anywhere recording that it was owed.
+
+    Now a dose or a procedure is billed when a line pays for it, not because
+    it happened this week. Anything else keeps showing up at the desk — which
+    is the safe direction to be wrong in: an extra prompt costs a second, a
+    silent write-off costs the price of the vial.
+    """
+    unclaimed = []
+    for dose in doses:
+        if dose.id in dose_ids:
+            dose.invoice_id = invoice.id
+        else:
+            unclaimed.append(dose)
+    # A line that named the brand but not the dose — typed by hand at the desk,
+    # or submitted by an older form — still pays for one dose of that brand.
+    for brand_id in [it.vaccine_brand_id for it in invoice.items
+                     if it.vaccine_brand_id]:
+        match = next((d for d in unclaimed if d.brand_id == brand_id), None)
+        if match is not None:
+            match.invoice_id = invoice.id
+            unclaimed.remove(match)
+
+    for vs in services:
+        if vs.id in service_ids:
+            vs.invoice_id = invoice.id
+
+
 @finance_bp.route("/invoices/new", methods=["GET", "POST"])
 @cashier_access
 def invoice_new():
@@ -1335,12 +1389,16 @@ def invoice_new():
             if invoice.visit_id is None:
                 invoice.visit_id = request.form.get("visit_id", type=int) or None
 
-        # Multiple line rows submitted as service_id[], etc.
+        # Multiple line rows submitted as service_id[], etc. The index of each
+        # line that survived is kept: it's how we know which prefilled dose or
+        # procedure was actually charged for, and which one the cashier removed.
         count = 0
+        kept = []
         for idx in range(len(request.form.getlist("line_service_id"))):
             item = _build_line(invoice, idx)
             if item:
                 invoice.items.append(item)
+                kept.append(idx)
                 count += 1
         if count == 0:
             db.session.rollback()
@@ -1354,15 +1412,14 @@ def invoice_new():
             _apply_named_discount(invoice, disc)
         _apply_coverage(invoice, patient, auto_discount=auto)
 
-        # Mark the patient's recently-given uncharged vaccines as billed here so
-        # they aren't charged twice (they were pre-filled as lines above).
-        for dose in _uncharged_vaccines(patient.id):
-            dose.invoice_id = invoice.id
-        # Same guard for doctor-added visit services. Not just the linked
-        # visit: any recent unbilled service of this patient was pre-filled
-        # below, so sweep them all (else they'd be charged again next time).
-        for vs in _unbilled_patient_services(patient.id):
-            vs.invoice_id = invoice.id
+        # Mark as billed exactly what these lines charged for — the doses and
+        # the doctor's procedures this invoice paid, and nothing else.
+        db.session.flush()
+        _mark_billed(invoice,
+                     _uncharged_vaccines(patient.id),
+                     _unbilled_patient_services(patient.id),
+                     _claimed_ids("line_dose_id", kept),
+                     _claimed_ids("line_vs_id", kept))
 
         invoice.recalc_status()
         ActivityLog.record("invoice.create" if created else "invoice.append",
@@ -1423,6 +1480,9 @@ def invoice_new():
                 "description": vs.name,
                 "unit_price": vs.service.price_for(doc) if vs.service else 0,
                 "quantity": vs.quantity or 1,
+                # Which procedure this line pays for, so deleting the line
+                # leaves it unbilled instead of silently written off.
+                "vs_id": vs.id,
             })
 
     # Any vaccines given to this patient that haven't been charged yet: billed as
@@ -1492,7 +1552,8 @@ def _checkout_lines(appt, lang):
     for vs in _unbilled_visit_services(appt):
         price = vs.service.price_for(appt.doctor) if vs.service else 0
         lines.append({"service_id": vs.service_id or "", "description": vs.name,
-                      "unit_price": price or 0, "quantity": vs.quantity or 1})
+                      "unit_price": price or 0, "quantity": vs.quantity or 1,
+                      "vs_id": vs.id})
     # Uncharged vaccines → billed as the vaccination service (brand price +
     # per-doctor admin fee), not free text; the base above already is the fee
     # for a vaccination visit, so the helper won't add it twice.
@@ -1572,6 +1633,7 @@ def checkout(appt_id):
         nocomms = request.form.getlist("line_no_commission")
         brands = request.form.getlist("line_brand_id")
         new_items = []          # only these burn consumables (see below)
+        kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
             desc = (desc or "").strip()
             try:
@@ -1607,6 +1669,7 @@ def checkout(appt_id):
                 item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
             invoice.items.append(item)
             new_items.append(item)
+            kept.append(i)
 
         # Consumables: a billed service burns store items (a spirometry burns a
         # mouthpiece and a filter). This used to happen only when a line was
@@ -1619,11 +1682,13 @@ def checkout(appt_id):
                 continue
             burned += _deduct_service_consumables(item, invoice)
 
-        # Mark any uncharged vaccines + visit services as billed here (never twice).
-        for dose in _uncharged_vaccines(appt.patient_id):
-            dose.invoice_id = invoice.id
-        for vs in _unbilled_visit_services(appt):
-            vs.invoice_id = invoice.id
+        # Mark as billed exactly what these lines charged for (never twice, and
+        # never something the cashier took off the bill).
+        _mark_billed(invoice,
+                     _uncharged_vaccines(appt.patient_id),
+                     _unbilled_visit_services(appt),
+                     _claimed_ids("line_dose_id", kept),
+                     _claimed_ids("line_vs_id", kept))
 
         if not invoice.items:
             db.session.rollback()
@@ -1843,6 +1908,7 @@ def _build_line(invoice, idx):
     discs = request.form.getlist("line_discount_value")
     dpcts = request.form.getlist("line_discount_is_percent")
     nocomm = request.form.getlist("line_no_commission")
+    brands = request.form.getlist("line_brand_id")
 
     def _num(lst, i, cast, default=None):
         try:
@@ -1868,6 +1934,10 @@ def _build_line(invoice, idx):
         discount_value=_num(discs, idx, float, 0) or 0,
         discount_is_percent=(idx < len(dpcts) and dpcts[idx] in ("1", "on", "true")),
     )
+    # Remember which vaccine this line paid for — the same snapshot the
+    # checkout path keeps, so a dose the doctor later refuses or swaps can be
+    # settled against the exact line that charged for it.
+    item.vaccine_brand_id = _num(brands, idx, int)
     # Vaccine product lines carry no invoice commission — the doctor's share is
     # the brand's doctor_fee, tracked on the dose (else it would be double-paid).
     no_commission = idx < len(nocomm) and nocomm[idx] in ("1", "on", "true")
