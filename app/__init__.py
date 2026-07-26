@@ -28,12 +28,41 @@ def _set_sqlite_pragmas(dbapi_connection, _record):
         cur.close()
 
 
+def _apply_environment(app):
+    """Let the environment override the config — read *now*, not at import.
+
+    The config classes evaluate ``os.environ`` while their class bodies run,
+    which is when ``config`` is first imported. ``run.py`` imports the app
+    (and therefore config) at the top of the file and only reads
+    ``clinic.env`` afterwards, so every value a clinic put in that file was
+    read too late and silently ignored — the database location and the
+    session key included, the two that matter most.
+
+    Reading them here, as the app is built, is what makes ``clinic.env`` mean
+    anything. An empty value is not an override: a blank ``SECRET_KEY=`` line
+    must not hand the clinic an empty key.
+    """
+    for key in ("SECRET_KEY", "CLINIC_NAME", "DEFAULT_LANGUAGE"):
+        value = (os.environ.get(key) or "").strip()
+        if value:
+            app.config[key] = value
+    database = (os.environ.get("DATABASE_URL") or "").strip()
+    if database:
+        app.config["SQLALCHEMY_DATABASE_URI"] = database
+    # Secure cookies are correct behind TLS and a lock-out without it.
+    if not app.config.get("DEBUG") and not app.config.get("TESTING"):
+        behind_tls = (os.environ.get("HTTPS") or "0").strip() == "1"
+        app.config["SESSION_COOKIE_SECURE"] = behind_tls
+        app.config["REMEMBER_COOKIE_SECURE"] = behind_tls
+
+
 def create_app(config_name="default"):
     app = Flask_app()
 
     # Resolve and apply configuration.
     cfg = config_map.get(config_name, config_map["default"])
     app.config.from_object(cfg)
+    _apply_environment(app)
 
     # Ensure the instance folder (for SQLite) exists.
     os.makedirs(app.instance_path, exist_ok=True)

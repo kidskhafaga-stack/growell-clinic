@@ -428,6 +428,16 @@ function tplEditor(id, occ){
       <div class="form-row"><label>{{ t('crm.meta_verify_token') }}</label>
         <input class="input" name="wa_meta_verify_token" dir="ltr" value="{{ values.get('wa_meta_verify_token','') }}" placeholder="my-verify-token">
         <div class="hint">{{ t('crm.meta_verify_hint') }}</div></div>
+      {# Without this, anything that reaches the URL is accepted as a real
+         WhatsApp message — so the endpoint refuses everything until it is set. #}
+      <div class="form-row"><label>{{ t('crm.meta_app_secret') }}</label>
+        <input class="input" name="wa_meta_app_secret" type="password" dir="ltr"
+               value="{{ values.get('wa_meta_app_secret','') }}" placeholder="••••••••">
+        <div class="hint">{{ t('crm.meta_app_secret_hint') }}</div>
+        {% if values.get('wa_inbound_enabled')=='1' and not values.get('wa_meta_app_secret') %}
+        <div class="hint" style="color:var(--danger);font-weight:600;">
+          <i class="bi bi-shield-exclamation"></i> {{ t('crm.meta_app_secret_missing') }}</div>
+        {% endif %}</div>
       <div class="form-row"><label>{{ t('crm.webhook_secret') }}</label>
         <input class="input" dir="ltr" value="{{ secret or '' }}" readonly style="background:var(--green-050);">
         <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:400;font-size:.82rem;">

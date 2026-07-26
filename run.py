@@ -1,4 +1,4 @@
-"""Development entry point for GROWELL CLINIC.
+"""Entry point for GROWELL CLINIC.
 
 Usage:
     python run.py                 (reads the port from clinic.env / PORT)
@@ -9,19 +9,30 @@ The port lives in ``clinic.env`` next to this file so a clinic can change it
 without editing a script. Port 5000 collides often — macOS AirPlay holds it,
 and so do a few Windows tools — and that is precisely the moment when a stack
 trace is the least useful thing to print.
+
+**This runs the clinic, not a demo.** It therefore defaults to the production
+configuration and serves with waitress. The debug configuration is a
+deliberate choice a developer makes (``FLASK_CONFIG=development``), never
+something a clinic ends up in by leaving a default alone — Flask's debugger
+puts a Python console on any error page, and this server listens on the whole
+network.
 """
 import os
 import socket
 import sys
 
 from app import create_app
-from app.settings_file import load_env
+from app.settings_file import ensure_secret, load_env
 
 # Read clinic.env before the app is built: it may carry DATABASE_URL and the
 # language default as well as the port.
 load_env()
+# …and make sure this clinic has its own session key before anything signs a
+# cookie with the one printed in the source.
+ensure_secret()
 
-app = create_app(os.environ.get("FLASK_CONFIG", "default"))
+# "production" unless somebody explicitly asks for the debugger.
+app = create_app(os.environ.get("FLASK_CONFIG", "production"))
 
 DEFAULT_PORT = 5000
 
@@ -51,6 +62,24 @@ def port_is_free(port, host="0.0.0.0"):
             return False
 
 
+def serve(application, port, host="0.0.0.0"):
+    """Serve with waitress when it is installed, Flask's server otherwise.
+
+    Werkzeug's server says so itself on every start: it is not meant for
+    production. Waitress is one pure-Python dependency, runs on Windows, and
+    is what a clinic PC should actually be answering on.
+    """
+    try:
+        from waitress import serve as waitress_serve
+    except ImportError:
+        print("    (waitress not installed — using the development server;\n"
+              "     run:  pip install -r requirements.txt)")
+        application.run(host=host, port=port)
+        return
+    waitress_serve(application, host=host, port=port, threads=8,
+                   ident="GROWELL CLINIC")
+
+
 if __name__ == "__main__":
     port = chosen_port()
     # The debug reloader runs this file again in a child process while the
@@ -67,4 +96,7 @@ if __name__ == "__main__":
         sys.exit(1)
     if not reloading:
         print(f" * GROWELL CLINIC  ->  http://localhost:{port}")
-    app.run(host="0.0.0.0", port=port)
+    if app.debug:
+        app.run(host="0.0.0.0", port=port)      # the developer asked for it
+    else:
+        serve(app, port)

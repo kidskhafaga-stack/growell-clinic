@@ -2516,7 +2516,10 @@
     "board_none": "No outgoing messages in the last 30 days.",
     "failures_title": "Messages that didn't go",
     "failures_hint": "The reason beside each one — a wrong number, a provider that was down, or the daily cap.",
-    "failure_reason": "Reason"
+    "failure_reason": "Reason",
+    "meta_app_secret": "Meta app secret",
+    "meta_app_secret_hint": "Meta for Developers → App settings → Basic. It proves a delivery really came from Meta.",
+    "meta_app_secret_missing": "Inbound is on without the app secret — Meta deliveries are refused entirely until it is set."
   },
   "notif": {
     "title": "Notifications",
