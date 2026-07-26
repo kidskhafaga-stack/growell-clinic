@@ -119,6 +119,29 @@ class VisitInvestigation(db.Model):
     def has_result(self):
         return bool((self.result_text or "").strip() or (self.result_comment or "").strip())
 
+    @property
+    def result_state(self):
+        """Where this order has got to — three states, not two.
+
+        ``requested``  nothing has come back yet;
+        ``arrived``    the family sent the film/report, nobody has read it;
+        ``resulted``   a doctor read it and wrote what it says.
+
+        The middle one is the one that used to be invisible. An order that
+        has been answered but not read is neither "waiting on the patient"
+        nor "done", and treating it as the first is how a film sits unread
+        while everyone assumes the family never went.
+        """
+        if self.has_result:
+            return "resulted"
+        return "arrived" if self.files else "requested"
+
+    @property
+    def arrived_at(self):
+        """When the first answer to this order reached the clinic."""
+        times = [f.created_at for f in (self.files or []) if f.created_at]
+        return min(times) if times else None
+
     def display_name(self, lang="ar"):
         if lang == "en" and (self.name_en or "").strip():
             return self.name_en
@@ -171,13 +194,31 @@ class PatientAttachment(db.Model):
     original_name = db.Column(db.String(255))              # name shown to users
     kind = db.Column(db.String(20), default="report")      # report | result | other
     label = db.Column(db.String(160))
+    # How it reached the clinic. "The mother sent it on WhatsApp on Tuesday"
+    # is a different fact from "somebody scanned it at the desk", and the
+    # doctor reading it wants to know which.
+    source = db.Column(db.String(20), default="upload")     # whatsapp | upload
     uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    # Who tied this file to an order. NULL while the link is only the
+    # program's guess — a guess a doctor should be able to see as a guess.
+    linked_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    linked_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     patient = db.relationship("Patient", backref="attachments")
     visit = db.relationship("Visit", back_populates="attachments")
     investigation = db.relationship("VisitInvestigation", backref="files")
-    uploader = db.relationship("User")
+    uploader = db.relationship("User", foreign_keys=[uploaded_by])
+    linker = db.relationship("User", foreign_keys=[linked_by])
+
+    @property
+    def arrived_by_whatsapp(self):
+        return self.source == "whatsapp"
+
+    @property
+    def link_is_a_guess(self):
+        """Linked by the matcher, not by a person who looked at it."""
+        return self.investigation_id is not None and self.linked_by is None
 
     def __repr__(self):
         return f"<PatientAttachment p={self.patient_id} {self.filename}>"

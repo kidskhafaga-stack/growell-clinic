@@ -1,0 +1,72 @@
+{# Where an order has got to, and the file that answers it.
+
+   An order is not two states but three: nothing back yet, an answer arrived
+   that nobody has read, and a result a doctor wrote. The middle one used to
+   be invisible — a film could sit on the record for a week while the screen
+   still read "waiting on the patient".
+
+   The link the matcher made is shown as what it is: a guess, until somebody
+   confirms it. Both are one click. #}
+
+{% macro state_badge(inv) %}
+  {% set state = inv.result_state %}
+  <span class="badge {{ {'resulted': 'badge--green', 'arrived': 'badge--role'}.get(state, 'badge--muted') }}">
+    <i class="bi {{ {'resulted': 'bi-check2-circle', 'arrived': 'bi-inbox-fill'}.get(state, 'bi-hourglass-split') }}"></i>
+    {{ t('visits.inv_state_' ~ state) }}
+  </span>
+{% endmacro %}
+
+{% macro files_block(inv, linkable_files) %}
+{% if inv.files %}
+<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+  {% for f in inv.files %}
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px;">
+    <i class="bi {{ 'bi-whatsapp' if f.arrived_by_whatsapp else 'bi-paperclip' }}"
+       style="color:{{ 'var(--green-600)' if f.arrived_by_whatsapp else 'var(--muted)' }};"></i>
+    <span style="flex:1;min-width:140px;">{{ f.label or f.original_name or t('visits.inv_file_open') }}</span>
+    <span style="color:var(--muted);font-size:0.8rem;">
+      {% if f.arrived_by_whatsapp %}{{ t('visits.inv_sent_on_whatsapp') }}{% else %}{{ t('visits.inv_added_by_clinic') }}{% endif %}
+      <span dir="ltr">· {{ f.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    </span>
+    {# A guess is labelled a guess until a person says otherwise. #}
+    {% if f.link_is_a_guess %}
+    <span class="badge badge--muted" title="{{ t('visits.inv_link_guess_hint') }}">
+      <i class="bi bi-question-circle"></i> {{ t('visits.inv_link_guess') }}</span>
+    <form method="post" action="{{ url_for('visits.attach_to_investigation', inv_id=inv.id) }}" style="display:inline;">
+      <input type="hidden" name="attachment_id" value="{{ f.id }}">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-check-lg"></i> {{ t('visits.inv_link_confirm') }}</button>
+    </form>
+    {% elif f.linker %}
+    <span class="badge badge--green" title="{{ f.linked_at.strftime('%Y-%m-%d %H:%M') if f.linked_at else '' }}">
+      <i class="bi bi-person-check"></i> {{ f.linker.full_name }}</span>
+    {% endif %}
+    <a class="btn btn-outline btn-sm gc-press" target="_blank"
+       href="{{ url_for('static', filename='uploads/patient_docs/' ~ f.filename) }}">
+      <i class="bi bi-eye"></i> {{ t('visits.inv_file_open') }}</a>
+    <form method="post" action="{{ url_for('visits.unlink_attachment', att_id=f.id) }}" style="display:inline;"
+          onsubmit="return confirm('{{ t('visits.inv_unlink_confirm') }}');">
+      <button class="btn-x" type="submit" title="{{ t('visits.inv_file_unlink') }}"><i class="bi bi-link-45deg"></i></button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if linkable_files %}
+<details style="margin-top:6px;">
+  <summary style="cursor:pointer;color:var(--green-800);font-size:0.85rem;">
+    <i class="bi bi-paperclip"></i> {{ t('visits.inv_link_existing') }}</summary>
+  <form method="post" action="{{ url_for('visits.attach_to_investigation', inv_id=inv.id) }}"
+        style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+    <select class="select" name="attachment_id" style="max-width:320px;">
+      {% for f in linkable_files %}
+      <option value="{{ f.id }}">{{ f.label or f.original_name or f.filename }} — {{ f.created_at.strftime('%Y-%m-%d') }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-link"></i> {{ t('visits.inv_link_do') }}</button>
+  </form>
+</details>
+{% endif %}
+{% endmacro %}

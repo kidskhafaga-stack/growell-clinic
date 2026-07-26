@@ -536,7 +536,8 @@ def test_the_film_shows_on_the_order_at_the_follow_up(journey):
 
     body = doctor.get(f"/visits/{follow_up_id}/record").get_data(as_text=True)
     assert "أشعة صدر" in body
-    assert "النتيجة وصلت من الأهل" in body
+    assert "النتيجة وصلت" in body                 # the state, not "still waiting"
+    assert "اتبعتت على واتساب" in body            # and how it got here
 
 
 def test_a_film_arriving_is_not_a_result_a_doctor_read(journey):
@@ -624,3 +625,167 @@ def test_a_report_pdf_is_filed_without_guessing_an_order(journey):
 
     assert _attachments(journey)[0]["kind"] == "report"
     assert _linked(journey) == [None]
+
+
+# ====================== 8. the order says where it has got to, and who says =
+def _state(journey, index=0):
+    from app.models import VisitInvestigation
+
+    with journey["app"].app_context():
+        rows = VisitInvestigation.query.order_by(VisitInvestigation.id).all()
+        return rows[index].result_state
+
+
+def _link_meta(journey):
+    from app.models import PatientAttachment
+
+    with journey["app"].app_context():
+        att = PatientAttachment.query.order_by(PatientAttachment.id).first()
+        return {"order": att.investigation_id, "source": att.source,
+                "guess": att.link_is_a_guess, "by": att.linked_by,
+                "at": att.linked_at, "id": att.id}
+
+
+def test_an_order_has_three_states_not_two(journey):
+    """"Waiting on the patient" and "the film is here, nobody has read it"
+    are different situations. Collapsing them is how a result sits unread for
+    a week while everyone assumes the family never went."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    assert _state(journey) == "requested"
+
+    _inbound(journey, "أشعة الصدر")
+    assert _state(journey) == "arrived"
+
+    order_id = _orders(journey)[0]["id"]
+    doctor.post(f"/visits/investigations/{order_id}/result",
+                data={"result_text": "التهاب شعبي"}, follow_redirects=True)
+    assert _state(journey) == "resulted"
+
+
+def test_the_order_remembers_when_the_answer_came_in(journey):
+    from app.models import VisitInvestigation
+
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+
+    with journey["app"].app_context():
+        order = VisitInvestigation.query.one()
+        assert order.arrived_at is not None
+        assert order.arrived_at == order.files[0].created_at
+
+
+def test_a_file_records_how_it_reached_the_clinic(journey):
+    """"The mother sent it on Tuesday" and "reception scanned it" are
+    different facts, and the doctor reading it wants to know which."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+    assert _link_meta(journey)["source"] == "whatsapp"
+
+
+def test_an_automatic_link_is_shown_as_a_guess_until_confirmed(journey):
+    """The matcher is usually right and occasionally not. A doctor should be
+    able to see which links a person actually looked at."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+
+    assert _link_meta(journey)["guess"] is True
+    body = doctor.get(f"/visits/{journey['ids']['visit']}/record").get_data(
+        as_text=True)
+    assert "ربط تلقائي" in body
+
+
+def test_confirming_the_link_signs_it(journey):
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+    order_id = _orders(journey)[0]["id"]
+
+    doctor.post(f"/visits/investigations/{order_id}/attach",
+                data={"attachment_id": _link_meta(journey)["id"]},
+                follow_redirects=True)
+
+    meta = _link_meta(journey)
+    assert meta["guess"] is False
+    assert meta["by"] == journey["ids"]["doctor"]
+    assert meta["at"] is not None
+
+
+def test_the_doctor_can_tie_an_unmatched_file_to_the_right_order(journey):
+    """The report came as a PDF with no useful caption, so the matcher left
+    it alone. A person settles it in one action."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "التقرير", mime="application/pdf", data=PDF)
+    assert _link_meta(journey)["order"] is None
+
+    order_id = _orders(journey)[0]["id"]
+    doctor.post(f"/visits/investigations/{order_id}/attach",
+                data={"attachment_id": _link_meta(journey)["id"]},
+                follow_redirects=True)
+
+    assert _link_meta(journey)["order"] == order_id
+    assert _state(journey) == "arrived"
+
+
+def test_a_wrong_match_can_be_moved_to_the_other_order(journey):
+    """Two films outstanding and the matcher picked the wrong one. Moving it
+    must not need anyone to delete and re-send anything."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _order(doctor, journey, "سونار على البطن", "imaging")
+    _inbound(journey, "أشعة")
+
+    orders = _orders(journey)
+    assert _link_meta(journey)["order"] == orders[-1]["id"]   # newest wins
+
+    doctor.post(f"/visits/investigations/{orders[0]['id']}/attach",
+                data={"attachment_id": _link_meta(journey)["id"]},
+                follow_redirects=True)
+    assert _link_meta(journey)["order"] == orders[0]["id"]
+
+
+def test_taking_the_link_off_keeps_the_file_on_the_record(journey):
+    """It answered another question. That's a reason to unlink it, never a
+    reason to lose it."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+
+    doctor.post(f"/visits/attachments/{_link_meta(journey)['id']}/unlink",
+                follow_redirects=True)
+
+    meta = _link_meta(journey)
+    assert meta["order"] is None and meta["guess"] is False
+    assert len(_attachments(journey)) == 1, "the file itself must survive"
+    assert _state(journey) == "requested", "and the order goes back to waiting"
+
+
+def test_an_order_cannot_reach_into_another_childs_record(journey):
+    """The picker only offers this child's files, but the id comes from a
+    form and a form can say anything."""
+    from app.models import Patient, PatientAttachment
+
+    with journey["app"].app_context():
+        other = Patient(patient_number="P9", full_name="طفل تاني",
+                        gender="female", date_of_birth=date(2024, 1, 1))
+        journey["db"].session.add(other)
+        journey["db"].session.flush()
+        stray = PatientAttachment(patient_id=other.id, filename="other.jpg",
+                                  kind="imaging", source="upload")
+        journey["db"].session.add(stray)
+        journey["db"].session.commit()
+        stray_id = stray.id
+
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    order_id = _orders(journey)[0]["id"]
+    doctor.post(f"/visits/investigations/{order_id}/attach",
+                data={"attachment_id": stray_id}, follow_redirects=True)
+
+    with journey["app"].app_context():
+        stray = journey["db"].session.get(PatientAttachment, stray_id)
+        assert stray.investigation_id is None
