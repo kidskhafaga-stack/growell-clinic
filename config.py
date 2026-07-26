@@ -40,7 +40,15 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
-    SESSION_COOKIE_SECURE = True
+    REMEMBER_COOKIE_HTTPONLY = True
+    # Cookies marked "secure" are only ever sent over HTTPS — which is right
+    # behind a certificate and a lock-out everywhere else. Most clinics run
+    # this on the practice LAN over plain HTTP, where marking the session
+    # cookie secure means the browser never sends it back and nobody can log
+    # in at all. So it follows the truth: set HTTPS=1 in clinic.env when the
+    # clinic really is behind TLS, and the cookies tighten with it.
+    SESSION_COOKIE_SECURE = os.environ.get("HTTPS", "0") == "1"
+    REMEMBER_COOKIE_SECURE = os.environ.get("HTTPS", "0") == "1"
 
 
 class TestingConfig(Config):

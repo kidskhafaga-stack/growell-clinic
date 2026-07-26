@@ -40,7 +40,7 @@ WA_CONFIG_KEYS = [
     "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_instance", "wa_wapilot_endpoint",
     "wa_public_base_url", "wa_send_from", "wa_send_to", "wa_daily_cap",
-    "wa_meta_verify_token",
+    "wa_meta_verify_token", "wa_meta_app_secret",
 ]
 WA_TOGGLE_KEYS = ["wa_inbound_enabled"]
 

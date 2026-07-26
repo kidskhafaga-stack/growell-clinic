@@ -32,8 +32,14 @@ DEFAULT_LANGUAGE=ar
 # Leave the rest alone unless you know what you are changing.
 # سيب اللي تحت ده زي ما هو إلا لو إنت عارف بتغيّر إيه.
 
-# A long random string. Changing it logs everybody out.
-# SECRET_KEY=
+# The key that signs everyone's login. The program writes a random one
+# here by itself the first time — don't share it, and don't change it
+# unless you mean to log the whole clinic out.
+# مفتاح توقيع تسجيل الدخول — البرنامج بيكتبه لوحده أول مرة. ما تشاركهوش،
+# وما تغيّرهوش إلا لو قاصد تخرّج كل الناس من البرنامج.
+
+# HTTPS=1  only when the clinic really is behind a certificate.
+# حطّها بـ 1 بس لو العيادة فعلاً ورا شهادة HTTPS.
 
 # Where the database lives. The default is instance/growell.db
 # DATABASE_URL=sqlite:///instance/growell.db
@@ -102,3 +108,53 @@ def ensure_file(root=None):
         return True
     except OSError:
         return False
+
+
+# The value the code falls back to when nothing is configured. It is printed
+# in the open source, so it is a password everybody already knows.
+DEFAULT_SECRET = "growell-clinic-dev-secret-change-me"
+
+
+def ensure_secret(root=None, environ=None):
+    """Give this clinic its own session key, once.
+
+    The key signs the session cookie: whoever knows it can mint a cookie for
+    any user and walk in as the administrator. Falling back to a constant
+    written in the source means every clinic that never set one shares a
+    password the whole internet can read.
+
+    So it is generated here — on first run, and on upgrade for the installs
+    that never had one — and written into ``clinic.env`` next to the port.
+    Written once and kept: regenerating it on every start would sign everyone
+    out every time the clinic opened.
+
+    Returns the key when it wrote one, otherwise None.
+    """
+    import secrets
+
+    environ = environ if environ is not None else os.environ
+    if (environ.get("SECRET_KEY") or "").strip() not in ("", DEFAULT_SECRET):
+        return None                      # somebody set a real one; leave it
+    target = path(root or default_root())
+    existing = {}
+    if os.path.isfile(target):
+        try:
+            with open(target, encoding="utf-8-sig") as fh:
+                existing = parse(fh.read())
+        except OSError:
+            return None
+        if (existing.get("SECRET_KEY") or "").strip():
+            environ["SECRET_KEY"] = existing["SECRET_KEY"]
+            return None
+
+    key = secrets.token_urlsafe(48)
+    line = f"\nSECRET_KEY={key}\n"
+    try:
+        # Append rather than rewrite: the file belongs to the clinic and may
+        # carry their own edits and comments.
+        with open(target, "a", encoding="utf-8") as fh:
+            fh.write(line)
+    except OSError:
+        return None
+    environ["SECRET_KEY"] = key
+    return key
