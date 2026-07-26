@@ -14,6 +14,9 @@ ENV/
 
 # Flask / instance
 instance/
+
+# Per-machine settings (port, database location) — the clinic's own
+clinic.env
 *.db
 *.sqlite
 *.sqlite3
