@@ -140,6 +140,18 @@
             <strong style="flex:1;">{{ x.display_name(current_lang) }}</strong>
             <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ x.created_at.strftime('%Y-%m-%d') }}</span>
           </div>
+          {# The film the family sent, on the order it answers. Anywhere else
+             and the doctor has to remember it arrived. #}
+          {% if x.files %}
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span class="badge badge--green"><i class="bi bi-check2-circle"></i> {{ t('visits.inv_file_arrived') }}</span>
+            {% for f in x.files %}
+            <a class="btn btn-outline btn-sm gc-press" target="_blank"
+               href="{{ url_for('static', filename='uploads/patient_docs/' ~ f.filename) }}">
+              <i class="bi bi-paperclip"></i> {{ f.label or f.original_name or t('visits.inv_file_open') }}</a>
+            {% endfor %}
+          </div>
+          {% endif %}
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
             <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label><input class="input" name="result_text" dir="auto"></div>

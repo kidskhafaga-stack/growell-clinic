@@ -497,24 +497,130 @@ def test_the_file_the_mother_sent_is_readable_from_the_childs_record(journey):
     assert stored in body
 
 
-# ------------------------------------------------------ a known weak join --
-@pytest.mark.xfail(strict=True, reason=(
-    "Known gap: an inbound result is filed on the patient but not linked to "
-    "the order it answers, so the X-ray can arrive while its order still "
-    "reads 'requested'. Remove the marker when capture() attaches to a "
-    "matching pending investigation."))
-def test_the_arriving_result_answers_the_order_that_asked_for_it(journey):
-    """The doctor asked for a chest X-ray; the mother sent one. Nothing joins
-    the two: the file sits in documents and the order stays pending, so the
-    follow-up screen still shows it as outstanding and somebody has to
-    remember. Filing the film against the order it answers is the whole point
-    of having ordered it in the program."""
+# ============================= 7. the result meets the order it answers ====
+def _linked(journey):
     from app.models import PatientAttachment
+
+    with journey["app"].app_context():
+        return [a.investigation_id
+                for a in PatientAttachment.query.order_by(PatientAttachment.id).all()]
+
+
+def test_the_arriving_result_answers_the_order_that_asked_for_it(journey):
+    """The doctor asked for a chest X-ray; the mother sent a chest X-ray.
+    Filed loose in the documents folder, the order still reads "requested" and
+    somebody has to remember the film exists."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+
+    assert _linked(journey) == [_orders(journey)[0]["id"]]
+
+
+def test_the_film_shows_on_the_order_at_the_follow_up(journey):
+    """Linked in the database and invisible on the screen is the same as not
+    linked at all."""
+    from app.models import Visit
 
     doctor = journey["sign_in"]("doc")
     _order(doctor, journey, "أشعة صدر", "imaging")
     _inbound(journey, "أشعة الصدر")
 
     with journey["app"].app_context():
-        attachment = PatientAttachment.query.one()
-        assert getattr(attachment, "investigation_id", None) is not None
+        follow_up = Visit(patient_id=journey["ids"]["child"],
+                          doctor_id=journey["ids"]["doctor"],
+                          visit_date=date.today())
+        journey["db"].session.add(follow_up)
+        journey["db"].session.commit()
+        follow_up_id = follow_up.id
+
+    body = doctor.get(f"/visits/{follow_up_id}/record").get_data(as_text=True)
+    assert "أشعة صدر" in body
+    assert "النتيجة وصلت من الأهل" in body
+
+
+def test_a_film_arriving_is_not_a_result_a_doctor_read(journey):
+    """The order stays outstanding until somebody reads the film and writes
+    what it says. Closing it on arrival would invent a medical finding."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة الصدر")
+
+    assert _orders(journey)[0]["status"] == "requested"
+    assert _orders(journey)[0]["result"] is None
+
+
+def test_a_blood_test_does_not_answer_a_request_for_a_film(journey):
+    """A wrong link is a doctor reading one answer against another question."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "تحليل الدم")
+
+    assert _linked(journey) == [None]
+
+
+def test_each_result_answers_its_own_order(journey):
+    """Both were asked for; both come back. Each has to find its own order."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _order(doctor, journey, "صورة دم كاملة", "lab")
+    _inbound(journey, "أشعة الصدر")
+    _inbound(journey, "تحليل الدم")
+
+    orders = {o["kind"]: o["id"] for o in _orders(journey)}
+    assert _linked(journey) == [orders["imaging"], orders["lab"]]
+
+
+def test_a_file_with_nothing_asked_for_attaches_to_no_order(journey):
+    """A parent sends a photo unprompted. It belongs on the record and on
+    nothing else."""
+    _inbound(journey, "أشعة قديمة من سنة")
+    assert _linked(journey) == [None]
+
+
+def test_an_answered_order_does_not_swallow_the_next_file(journey):
+    """The X-ray was ordered, sent and read. A second film that arrives later
+    is not an answer to a question already closed."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    order_id = _orders(journey)[0]["id"]
+    doctor.post(f"/visits/investigations/{order_id}/result",
+                data={"result_text": "صدر سليم"}, follow_redirects=True)
+
+    _inbound(journey, "أشعة تانية")
+    assert _linked(journey) == [None]
+
+
+def test_the_newest_order_of_that_kind_is_the_one_being_answered(journey):
+    """Two films outstanding: the one the parent was handed on the way out is
+    the one they went and had done."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _order(doctor, journey, "سونار على البطن", "imaging")
+    _inbound(journey, "السونار")
+
+    newest = _orders(journey)[-1]
+    assert newest["name"] == "سونار على البطن"
+    assert _linked(journey) == [newest["id"]]
+
+
+def test_a_stranger_s_file_is_matched_against_no_ones_order(journey):
+    """No patient, no order — the number was never recognised."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "أشعة", phone="01555555555")
+
+    assert _attachments(journey) == []
+    assert _orders(journey)[0]["status"] == "requested"
+
+
+def test_a_report_pdf_is_filed_without_guessing_an_order(journey):
+    """"تقرير" says nothing about which question it answers. Filed on the
+    record, linked to nothing — an unlinked file is a small annoyance, a
+    wrongly linked one is a clinical error."""
+    doctor = journey["sign_in"]("doc")
+    _order(doctor, journey, "أشعة صدر", "imaging")
+    _inbound(journey, "التقرير", mime="application/pdf", data=PDF)
+
+    assert _attachments(journey)[0]["kind"] == "report"
+    assert _linked(journey) == [None]

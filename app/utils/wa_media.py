@@ -154,10 +154,44 @@ def capture(item, log):
         # whose record it belongs on.
         return None
     caption = (item.get("text") or "").strip()
+    kind = kind_for(caption, mime)
     att = PatientAttachment(
         patient_id=log.patient_id, filename=stored,
         original_name=(caption[:120] or None),
-        kind=kind_for(caption, mime),
-        label=caption[:160] or None)
+        kind=kind,
+        label=caption[:160] or None,
+        investigation_id=answered_order(log.patient_id, kind))
     db.session.add(att)
     return att
+
+
+def answered_order(patient_id, kind):
+    """The outstanding order this arriving file answers, if one is obvious.
+
+    The doctor asked for a chest film; the mother sent a chest film. Left
+    unlinked, the picture sits in the documents folder while the order still
+    reads "requested" — so the follow-up screen shows it outstanding and
+    somebody has to remember, which is most of the point of having ordered it
+    in the program.
+
+    Matched only on a definite signal: the caption said أشعة or تحليل, and the
+    child has an order of exactly that kind still waiting. The newest such
+    order wins — it is the one the parent was handed on the way out. A report
+    with no such word attaches to nothing, because a wrong link is a doctor
+    reading one child's film against another child's question.
+
+    Linking does **not** mark the order answered. A picture arriving is not a
+    result; a doctor still has to read it and write what it says.
+    """
+    from app.models import VisitInvestigation
+
+    if kind not in ("imaging", "lab"):
+        return None
+    order = (VisitInvestigation.query
+             .filter(VisitInvestigation.patient_id == patient_id,
+                     VisitInvestigation.kind == kind,
+                     VisitInvestigation.status == "requested")
+             .order_by(VisitInvestigation.created_at.desc(),
+                       VisitInvestigation.id.desc())
+             .first())
+    return order.id if order else None
