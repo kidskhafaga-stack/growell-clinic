@@ -160,6 +160,12 @@ class PatientAttachment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True, index=True)
+    # The order this file answers, when it answers one. A chest film that
+    # arrives on WhatsApp belongs *to* the chest film the doctor asked for —
+    # filed loose in the documents folder, somebody has to remember it exists.
+    investigation_id = db.Column(db.Integer,
+                                 db.ForeignKey("visit_investigations.id"),
+                                 nullable=True, index=True)
 
     filename = db.Column(db.String(255), nullable=False)   # stored name on disk
     original_name = db.Column(db.String(255))              # name shown to users
@@ -170,6 +176,7 @@ class PatientAttachment(db.Model):
 
     patient = db.relationship("Patient", backref="attachments")
     visit = db.relationship("Visit", back_populates="attachments")
+    investigation = db.relationship("VisitInvestigation", backref="files")
     uploader = db.relationship("User")
 
     def __repr__(self):
