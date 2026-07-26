@@ -2880,7 +2880,11 @@
     "ai_disabled": "AI is switched off in settings.",
     "ai_nothing_to_answer": "The last message in this conversation is ours — there's no new question to answer.",
     "ai_empty": "This conversation is empty.",
-    "ai_failed": "Couldn't get a suggestion right now."
+    "ai_failed": "Couldn't get a suggestion right now.",
+    "open_file": "Open file",
+    "attachment": "Attachment",
+    "filed_to_patient": "Saved to the patient's file",
+    "ai_suspicious": "Warning: this message contains text aimed at the AI itself (an attempt to change its instructions). Read the draft carefully before sending."
   },
   "journal": {
     "title": "Journal",

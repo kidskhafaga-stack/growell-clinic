@@ -2,8 +2,9 @@
 
 Normalizes Meta Cloud API and WaPilot v2 webhook payloads to one shape, matches
 the sender to a patient — a guardian's number, the patient's own, or a number
-reception linked by hand — logs the message, and, when it is a rating reply,
-fills the patient's open satisfaction survey. The result lands in
+reception linked by hand — logs the message, saves any file it carries onto
+the patient's record, and, when it is a rating reply, fills the patient's open
+satisfaction survey. The result lands in
 the same ``Feedback`` model, so the existing stars/analytics keep working; only
 the collection *channel* differs.
 """
@@ -123,6 +124,14 @@ def handle_inbound(item, provider):
                      body=body or "", status="received",
                      patient_id=(patients[0].id if patients else None))
     db.session.add(log)
+    # A file is usually the X-ray or the lab report the doctor asked for.
+    # Download it and file it on the child's record — noticing that a file
+    # existed and then throwing it away is worse than not supporting files.
+    attachment = None
+    if item.get("media"):
+        from app.utils.wa_media import capture
+        db.session.flush()
+        attachment = capture(item, log)
     captured = _capture_rating(patients, item)
     # Outside working hours, say so — a parent writing at 1 a.m. shouldn't be
     # left wondering whether the message arrived at all. At most once a day
@@ -132,4 +141,4 @@ def handle_inbound(item, provider):
         from app.utils.service_desk import maybe_send_away_reply
         away = maybe_send_away_reply(log)
     return {"matched": bool(patients), "captured": captured,
-            "away": away is not None}
+            "away": away is not None, "attachment": attachment is not None}
