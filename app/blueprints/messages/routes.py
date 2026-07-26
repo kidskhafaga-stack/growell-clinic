@@ -210,9 +210,22 @@ def inbox():
         "messages/inbox.html", conversations=convs, search=search, view=view,
         total=len(every), open_count=sum(1 for c in every if c["open"]),
         mine_count=mine_count, stats=ibx.response_stats(),
-        staff=_desk_staff(),
+        staff=_desk_staff(), waiting_label=waiting_label,
         patients=Patient.query.filter_by(is_active=True)
         .order_by(Patient.full_name).limit(500).all())
+
+
+def waiting_label(hours):
+    """How long they've been waiting, in words a person reads at a glance.
+
+    "waiting" is a state; "waiting since Tuesday" is a problem — and only the
+    second one gets anybody to open the thread."""
+    hours = hours or 0
+    if hours < 1:
+        return t("inbox.wait_minutes", n=max(int(hours * 60), 1))
+    if hours < 24:
+        return t("inbox.wait_hours", n=int(hours))
+    return t("inbox.wait_days", n=int(hours // 24))
 
 
 def _desk_staff():
@@ -238,6 +251,23 @@ def inbox_assign(key):
     db.session.commit()
     flash(t("inbox.assigned", name=user.display_name(getattr(g, "lang", "ar")))
           if user is not None else t("inbox.unassigned"), "success")
+    return redirect(url_for("messages.inbox_thread", key=key))
+
+
+@messages_bp.route("/inbox/<key>/note", methods=["POST"])
+@module_required(MODULE)
+def inbox_note(key):
+    """A line for the next person who opens this thread.
+
+    "اتصلت بيهم وما ردوش" belongs with the conversation, not in someone's
+    head — and it must never be sent to the patient by accident, so it lives
+    on the record and not in the message box."""
+    from app.utils.inbox import conversation_for
+
+    record = conversation_for(key)
+    record.note = (request.form.get("note") or "").strip()[:255] or None
+    db.session.commit()
+    flash(t("inbox.note_saved"), "success")
     return redirect(url_for("messages.inbox_thread", key=key))
 
 
@@ -294,7 +324,8 @@ def inbox_thread(key):
     lang = getattr(g, "lang", "ar")
     canned = [{"title": q.title, "body": render_reply(q.body, patient, lang)}
               for q in quick_replies()]
-    from app.utils.inbox import conversation_for, last_inbound_at
+    from app.utils.inbox import (conversation_for, last_inbound_at,
+                                 session_window)
     record = conversation_for(key, create=False)
     resolved = (record is not None
                 and record.is_resolved_for(last_inbound_at(key)))
@@ -303,6 +334,8 @@ def inbox_thread(key):
         "messages/thread.html", msgs=msgs, key=key, patient=patient,
         phone=phone, waits=waits, pending=pending,
         record=record, resolved=resolved, staff=_desk_staff(),
+        window=session_window(key),
+        opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
         patients=(Patient.query.filter_by(is_active=True)
                   .order_by(Patient.full_name).limit(500).all()
@@ -476,19 +509,72 @@ def inbox_send(key):
     if not body:
         return redirect(url_for("messages.inbox_thread", key=key))
     last = _thread_query(key).order_by(MessageLog.created_at.desc()).first()
+    patient = None
     if last is None:
-        return redirect(url_for("messages.inbox"))
-    phone = last.to_phone or (last.patient.contact_phone if last.patient else None)
+        # A conversation the clinic is starting: no messages yet, so the
+        # number comes from the patient's own file.
+        if not (key.startswith("p") and key[1:].isdigit()):
+            return redirect(url_for("messages.inbox"))
+        patient = db.session.get(Patient, int(key[1:]))
+        if patient is None:
+            return redirect(url_for("messages.inbox"))
+    phone = (last.to_phone if last is not None else None) or (
+        (last.patient.contact_phone if last is not None and last.patient
+         else (patient.contact_phone if patient else None)))
     if not phone:
         flash(t("inbox.no_phone"), "danger")
         return redirect(url_for("messages.inbox_thread", key=key))
-    log = wa.send(body, phone, patient_id=last.patient_id,
+    log = wa.send(body, phone,
+                  patient_id=(last.patient_id if last is not None
+                              else patient.id),
                   user_id=current_user.id)
     db.session.commit()
     if log.link:  # web provider: open the wa.me link for the user to hit send
         return redirect(log.link)
     flash(t("inbox.sent"), "success")
     return redirect(url_for("messages.inbox_thread", key=key))
+
+
+@messages_bp.route("/inbox/start/<int:patient_id>")
+@module_required(MODULE)
+def inbox_start(patient_id):
+    """Open a conversation with a patient who hasn't written to us.
+
+    The inbox could only ever show threads the patient started, so reaching a
+    family first meant leaving the program. This opens their thread — empty if
+    they've never written — with the reply box ready."""
+    patient = db.get_or_404(Patient, patient_id)
+    key = f"p{patient.id}"
+    if _thread_query(key).first() is not None:
+        return redirect(url_for("messages.inbox_thread", key=key))
+    if not patient.contact_phone:
+        flash(t("inbox.no_phone"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient.id))
+    from app.utils.inbox import conversation_for, session_window
+    conversation_for(key)
+    db.session.commit()
+    return render_template(
+        "messages/thread.html", msgs=[], key=key, patient=patient,
+        phone=patient.contact_phone, waits={}, pending=False,
+        record=None, resolved=False, staff=_desk_staff(),
+        # They have never written, so there is no open reply window — say so
+        # before someone types a paragraph that can't be delivered.
+        window=session_window(key), opted_out=bool(patient.wa_opt_out),
+        canned=[{"title": q.title,
+                 "body": _render_canned(q.body, patient)} for q in _canned()],
+        ai_ready=False)
+
+
+def _canned():
+    from app.utils.service_desk import quick_replies
+
+    return quick_replies()
+
+
+def _render_canned(body, patient):
+    from app.utils.service_desk import render_reply
+
+    return render_reply(body, patient, getattr(g, "lang", "ar"))
 
 
 @messages_bp.route("/satisfaction")

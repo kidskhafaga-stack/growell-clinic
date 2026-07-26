@@ -81,6 +81,11 @@
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
         <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
       {% endif %}
+      {% if current_user.can_access('messages') and patient.contact_phone %}
+      <a class="btn btn-outline btn-sm gc-press" title="{{ t('inbox.start_hint') }}"
+         href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">
+        <i class="bi bi-whatsapp"></i> {{ t('inbox.start') }}</a>
+      {% endif %}
       {% if patient.is_active %}
       <form method="post" action="{{ url_for('patients.archive_one', patient_id=patient.id) }}"
             onsubmit="return confirm('{{ t('archive.confirm_one') }}');">

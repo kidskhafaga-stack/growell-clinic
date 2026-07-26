@@ -155,7 +155,12 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
             continue
         if not _matches(conv, search):
             continue
+        conv["waiting_hours"] = waiting_since(conv)
         out.append(conv)
+    # Whoever has waited longest comes first — a work list ordered by "newest"
+    # puts the person who has been ignored for three days at the bottom.
+    out.sort(key=lambda c: (not c["open"], -c["waiting_hours"],
+                            -c["last"].created_at.timestamp()))
     return out
 
 
@@ -190,6 +195,48 @@ def last_inbound_at(key):
     row = (thread_query(key).filter(MessageLog.direction == "in")
            .order_by(MessageLog.created_at.desc()).first())
     return row.created_at if row is not None else None
+
+
+# WhatsApp's own rule, and the one that surprises every clinic that switches
+# to the Business API: you may only write freely for 24 hours after the
+# patient's last message. Afterwards nothing goes out except a pre-approved
+# template. A reply box that doesn't say so lets a receptionist type a careful
+# answer, press send, and never learn it was refused.
+SESSION_HOURS = 24
+
+
+def session_window(key, provider=None):
+    """How long the clinic may still reply freely → dict, or None.
+
+    Returns None when the rule doesn't apply: click-to-send links open the
+    staff member's own WhatsApp, which is an ordinary conversation with no
+    window at all.
+    """
+    from app.utils import whatsapp as wa
+
+    provider = provider or wa.resolve_provider(wa.get_config())
+    if provider == "web":
+        return None
+    last = last_inbound_at(key)
+    if last is None:
+        return {"open": False, "hours_left": 0, "expires_at": None,
+                "never_wrote": True}
+    expires = last + timedelta(hours=SESSION_HOURS)
+    left = (expires - datetime.utcnow()).total_seconds() / 3600.0
+    return {"open": left > 0, "hours_left": max(round(left, 1), 0),
+            "expires_at": expires, "never_wrote": False}
+
+
+def waiting_since(conv):
+    """How long this conversation has been waiting, in hours (0 if it isn't).
+
+    A thread waiting five minutes and one waiting three days look identical on
+    a screen that only prints a timestamp.
+    """
+    if not conv.get("open"):
+        return 0
+    last = conv["last"].created_at
+    return max((datetime.utcnow() - last).total_seconds() / 3600.0, 0)
 
 
 def _thread_counts(keys):

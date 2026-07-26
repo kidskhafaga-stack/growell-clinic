@@ -200,3 +200,100 @@ def test_the_failure_list_says_why(clinic):
         rows = _recent_failures()
         assert len(rows) == 1
         assert rows[0].error == "missing_phone"
+
+
+# ------------------------------------------------------ the 24-hour window --
+def test_the_free_reply_window_closes_24h_after_the_patient_wrote(clinic):
+    """WhatsApp's own rule, and the one that surprises every clinic that
+    switches to the Business API. A reply box that doesn't say so lets a
+    receptionist type a careful answer, press send, and never learn it was
+    refused."""
+    from app.models import Setting
+    from app.utils.inbox import session_window
+
+    with clinic["app"].app_context():
+        Setting.set("crm_mode", "automatic")
+        Setting.set("wa_provider", "wapilot")
+        _msg(clinic, "in", "سؤال", minutes_ago=60)
+        clinic["db"].session.commit()
+
+        window = session_window(_key(clinic))
+        assert window["open"] is True
+        assert 22 < window["hours_left"] <= 23
+
+
+def test_the_window_is_shut_once_a_day_has_passed(clinic):
+    from app.models import Setting
+    from app.utils.inbox import session_window
+
+    with clinic["app"].app_context():
+        Setting.set("crm_mode", "automatic")
+        Setting.set("wa_provider", "wapilot")
+        _msg(clinic, "in", "سؤال من امبارح", minutes_ago=60 * 30)
+        clinic["db"].session.commit()
+        window = session_window(_key(clinic))
+        assert window["open"] is False
+        assert window["hours_left"] == 0
+
+
+def test_a_patient_who_never_wrote_has_no_window_at_all(clinic):
+    from app.models import Setting
+    from app.utils.inbox import session_window
+
+    with clinic["app"].app_context():
+        Setting.set("crm_mode", "automatic")
+        Setting.set("wa_provider", "wapilot")
+        _msg(clinic, "out", "تأكيد موعد", minutes_ago=10)
+        clinic["db"].session.commit()
+        window = session_window(_key(clinic))
+        assert window["open"] is False
+        assert window["never_wrote"] is True
+
+
+def test_click_to_send_links_have_no_window(clinic):
+    """A wa.me link opens the staff member's own WhatsApp — an ordinary
+    conversation, with no 24-hour rule to warn about."""
+    from app.models import Setting
+    from app.utils.inbox import session_window
+
+    with clinic["app"].app_context():
+        Setting.set("crm_mode", "manual")
+        clinic["db"].session.commit()
+        _msg(clinic, "in", "سؤال", minutes_ago=60 * 48)
+        assert session_window(_key(clinic)) is None
+
+
+# -------------------------------------------------------------- the queue --
+def test_the_longest_wait_is_at_the_top(clinic):
+    """A work list ordered by "newest" puts the person who has been ignored
+    for three days at the bottom of the screen."""
+    from app.models import Patient
+    from app.utils.inbox import conversations
+
+    with clinic["app"].app_context():
+        older = Patient(patient_number="D2", full_name="طفل تاني",
+                        gender="female", date_of_birth=date(2020, 1, 1))
+        clinic["db"].session.add(older)
+        clinic["db"].session.flush()
+        from app.models import MessageLog
+        clinic["db"].session.add(MessageLog(
+            direction="in", body="من ٣ أيام", to_phone="201000000002",
+            patient_id=older.id, status="received",
+            created_at=datetime.utcnow() - timedelta(days=3)))
+        _msg(clinic, "in", "من ٥ دقايق", minutes_ago=5)
+        clinic["db"].session.commit()
+
+        rows = conversations(only_open=True)
+        assert rows[0]["patient"].patient_number == "D2"
+        assert rows[0]["waiting_hours"] > 70
+        assert rows[1]["waiting_hours"] < 1
+
+
+def test_a_thread_that_is_not_waiting_has_no_age(clinic):
+    from app.utils.inbox import conversations
+
+    with clinic["app"].app_context():
+        _msg(clinic, "in", "سؤال", minutes_ago=120)
+        _msg(clinic, "out", "رد", minutes_ago=60)
+        clinic["db"].session.commit()
+        assert conversations()[0]["waiting_hours"] == 0
