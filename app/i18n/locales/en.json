@@ -2060,7 +2060,8 @@
     "alternative": "Alternative",
     "dose_flags_title": "Dose flags for this child",
     "interaction_line": "Interaction: {a} + {b}",
-    "visit_meds_all_prescribed": "Every medicine from this visit is already on a prescription — the new one starts empty so nothing is prescribed twice."
+    "visit_meds_all_prescribed": "Every medicine from this visit is already on a prescription — the new one starts empty so nothing is prescribed twice.",
+    "shorthand_hint": "Shorthand: 1x3 → one tablet every 8 hours · 5ml*2 → 5 ml every 12 hours · q8h · tds · 5d → 5 days · 1w → a week"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -3596,5 +3597,30 @@
     "away_body": "Message text",
     "away_once": "Sent at most once every 12 hours per conversation — so nobody gets a robot answering every message.",
     "away_manual_note": "Only works when automatic sending is on. In manual mode every message becomes a link, and nobody is there to click it at 1 a.m."
+  },
+  "presets": {
+    "title": "Ready-made prescriptions",
+    "subtitle": "The cases that repeat every day — a cold, a sore throat, gastroenteritis — written once and applied with one tap.",
+    "name": "Name",
+    "note": "When to use it",
+    "note_ph": "e.g. viral cold, over two years old",
+    "diagnosis": "Diagnosis",
+    "medicines": "Medicines",
+    "owner": "Belongs to",
+    "clinic_wide": "The whole clinic",
+    "used": "Used",
+    "shared": "Shared",
+    "share": "Share with the other doctors",
+    "save_current": "Save this as a set",
+    "prompt_name": "Name for this set? (e.g. common cold)",
+    "saved": "«{name}» saved",
+    "updated": "Updated",
+    "deleted": "Deleted",
+    "need_items": "Write at least one medicine before saving",
+    "not_yours": "This set isn't yours — only its author can change it",
+    "none": "No ready-made prescriptions yet.",
+    "none_hint": "Write a prescription, then save it as a set.",
+    "how": "A set is added to what is already written, never replacing it — adjust the dose afterwards as usual.",
+    "edit_lines_hint": "To change the medicines themselves: apply the set in the writer, edit it, and save it again."
   }
 }

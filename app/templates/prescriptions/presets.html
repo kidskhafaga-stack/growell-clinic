@@ -1,0 +1,82 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('presets.title') }}{% endblock %}
+{% block page_heading %}{{ t('presets.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-collection"></i> {{ t('presets.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('presets.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.new') }}">
+    <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if presets %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('presets.name') }}</th><th>{{ t('presets.medicines') }}</th>
+      <th>{{ t('presets.owner') }}</th><th style="width:80px;">{{ t('presets.used') }}</th>
+      <th style="text-align:end;"></th>
+    </tr></thead>
+    {% for p in presets %}
+    <tbody x-data="{ open: false }">
+      <tr style="{{ 'opacity:0.55;' if not p.is_active else '' }}">
+        <td>
+          <strong>{{ p.name }}</strong>
+          {% if p.is_shared %}<span class="badge badge--green">{{ t('presets.shared') }}</span>{% endif %}
+          {% if p.note %}<div class="hint" style="margin:2px 0 0;">{{ p.note }}</div>{% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:.86rem;">
+          {% for it in p.items %}{{ it.drug_name }}{% if it.dose %} · {{ it.dose }}{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}
+        </td>
+        <td style="font-size:.86rem;">
+          {% if p.doctor %}{{ p.doctor.display_name(current_lang) }}
+          {% else %}<span style="color:var(--muted);">{{ t('presets.clinic_wide') }}</span>{% endif %}
+        </td>
+        <td class="num">{{ p.use_count }}</td>
+        <td style="text-align:end;white-space:nowrap;">
+          <button class="btn btn-outline btn-sm gc-press" type="button" @click="open = !open">
+            <i class="bi bi-pencil"></i></button>
+          <form method="post" action="{{ url_for('prescriptions.preset_delete', preset_id=p.id) }}"
+                style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      <tr x-show="open" x-cloak>
+        <td colspan="5" style="background:var(--surface-2);">
+          <form method="post" action="{{ url_for('prescriptions.preset_edit', preset_id=p.id) }}">
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('presets.name') }}</label>
+                <input class="input" name="name" value="{{ p.name }}"></div>
+              <div class="form-row"><label>{{ t('presets.diagnosis') }}</label>
+                <input class="input" name="diagnosis" value="{{ p.diagnosis or '' }}"></div>
+            </div>
+            <div class="form-row"><label>{{ t('presets.note') }}</label>
+              <input class="input" name="note" value="{{ p.note or '' }}"
+                     placeholder="{{ t('presets.note_ph') }}"></div>
+            <label class="check" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <input type="checkbox" name="is_shared" value="1" {{ 'checked' if p.is_shared else '' }}>
+              {{ t('presets.share') }}</label>
+            <label class="check" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+              <input type="checkbox" name="is_active" value="1" {{ 'checked' if p.is_active else '' }}>
+              {{ t('common.active') }}</label>
+            <div class="hint" style="margin-bottom:10px;">{{ t('presets.edit_lines_hint') }}</div>
+            <button class="btn btn-primary btn-sm gc-press" type="submit">
+              <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+            <button class="btn btn-outline btn-sm gc-press" type="button" @click="open=false">{{ t('common.cancel') }}</button>
+          </form>
+        </td>
+      </tr>
+    </tbody>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-collection"></i>{{ t('presets.none') }}</div>
+  {% endif %}
+</div>
+<p class="hint" style="margin-top:10px;"><i class="bi bi-info-circle"></i> {{ t('presets.how') }}</p>
+{% endblock %}

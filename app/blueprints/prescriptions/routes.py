@@ -26,6 +26,7 @@ from app.models import (
     User,
 )
 from app.utils.decorators import admin_required, client_ip, module_required
+from app.utils.rx_shorthand import FREQUENCIES, expand_line
 
 MODULE = "prescriptions"
 
@@ -266,6 +267,144 @@ def drugbook_product(drug_id):
                            alternatives=drug.alternatives())
 
 
+# ------------------------------------------------- saved prescriptions -----
+def visible_presets(user=None):
+    """The saved sets this doctor may use: theirs, shared, and the clinic's."""
+    from app.models import RxPreset
+
+    user = user or current_user
+    rows = (RxPreset.query.filter(RxPreset.is_active.is_(True))
+            .order_by(RxPreset.use_count.desc(), RxPreset.name).all())
+    return [p for p in rows if p.visible_to(user)]
+
+
+@prescriptions_bp.route("/presets")
+@module_required(MODULE)
+def presets():
+    """Manage the sets — rename, edit the lines, share or delete."""
+    return render_template("prescriptions/presets.html",
+                           presets=visible_presets())
+
+
+@prescriptions_bp.route("/presets/save", methods=["POST"])
+@module_required(MODULE)
+def preset_save():
+    """Save the lines currently on the writer as a reusable set."""
+    from app.models import RxPreset, RxPresetItem
+
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("presets.name"), "danger")
+        return redirect(request.referrer or url_for("prescriptions.presets"))
+
+    preset = RxPreset(name=name,
+                      note=(request.form.get("note") or "").strip() or None,
+                      diagnosis=(request.form.get("diagnosis") or "").strip() or None,
+                      doctor_id=current_user.id,
+                      is_shared=bool(request.form.get("is_shared")),
+                      is_active=True)
+    db.session.add(preset)
+    db.session.flush()
+
+    names = request.form.getlist("item_name")
+    drug_ids = request.form.getlist("item_drug_id")
+    doses = request.form.getlist("item_dose")
+    freqs = request.form.getlist("item_frequency")
+    durs = request.form.getlist("item_duration")
+    instrs = request.form.getlist("item_instructions")
+    for i, raw in enumerate(names):
+        drug_name = (raw or "").strip()
+        if not drug_name:
+            continue
+        try:
+            did = int(drug_ids[i]) if i < len(drug_ids) and drug_ids[i] else None
+        except (ValueError, TypeError):
+            did = None
+        written = expand_line({
+            "dose": (doses[i].strip() if i < len(doses) else ""),
+            "frequency": (freqs[i].strip() if i < len(freqs) else ""),
+            "duration": (durs[i].strip() if i < len(durs) else ""),
+        })
+        preset.items.append(RxPresetItem(
+            drug_id=did, drug_name=drug_name,
+            dose=written["dose"] or None,
+            frequency=written["frequency"] or None,
+            duration=written["duration"] or None,
+            instructions=(instrs[i].strip() if i < len(instrs) else "") or None))
+    if not preset.items:
+        db.session.rollback()
+        flash(t("presets.need_items"), "warning")
+        return redirect(request.referrer or url_for("prescriptions.presets"))
+    db.session.commit()
+    flash(t("presets.saved", name=preset.name), "success")
+    return redirect(request.referrer or url_for("prescriptions.presets"))
+
+
+@prescriptions_bp.route("/presets/<int:preset_id>/lines")
+@module_required(MODULE)
+def preset_lines(preset_id):
+    """The set's medicines, shaped like the writer's own lines."""
+    from app.models import RxPreset
+
+    preset = db.get_or_404(RxPreset, preset_id)
+    if not preset.visible_to(current_user):
+        return jsonify({"ok": False}), 403
+    # Applying it is the only use worth counting: opening the list isn't use.
+    preset.use_count = (preset.use_count or 0) + 1
+    db.session.commit()
+    return jsonify({
+        "ok": True, "name": preset.name, "diagnosis": preset.diagnosis or "",
+        "lines": [{
+            "drug_id": it.drug_id or "", "name": it.drug_name,
+            "dose": it.dose or "", "frequency": it.frequency or "",
+            "duration": it.duration or "",
+            "instructions": it.instructions or "",
+        } for it in preset.items],
+    })
+
+
+@prescriptions_bp.route("/presets/<int:preset_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def preset_edit(preset_id):
+    from app.models import RxPreset
+
+    preset = db.get_or_404(RxPreset, preset_id)
+    if not _may_edit_preset(preset):
+        flash(t("presets.not_yours"), "warning")
+        return redirect(url_for("prescriptions.presets"))
+    preset.name = (request.form.get("name") or preset.name).strip()
+    preset.note = (request.form.get("note") or "").strip() or None
+    preset.diagnosis = (request.form.get("diagnosis") or "").strip() or None
+    preset.is_shared = bool(request.form.get("is_shared"))
+    preset.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("presets.updated"), "success")
+    return redirect(url_for("prescriptions.presets"))
+
+
+@prescriptions_bp.route("/presets/<int:preset_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def preset_delete(preset_id):
+    from app.models import RxPreset
+
+    preset = db.get_or_404(RxPreset, preset_id)
+    if not _may_edit_preset(preset):
+        flash(t("presets.not_yours"), "warning")
+        return redirect(url_for("prescriptions.presets"))
+    db.session.delete(preset)
+    db.session.commit()
+    flash(t("presets.deleted"), "info")
+    return redirect(url_for("prescriptions.presets"))
+
+
+def _may_edit_preset(preset):
+    """Its owner, or an admin. A shared set is still its author's to change —
+    two doctors rarely treat a cold identically, and one quietly overwriting
+    the other's habits is worse than a little duplication."""
+    return (preset.doctor_id in (None, current_user.id)
+            or current_user.role == "admin" or current_user.is_super_admin)
+
+
 # ----------------------------------------------------- drug catalogue ------
 @prescriptions_bp.route("/drugs")
 @admin_required
@@ -485,11 +624,19 @@ def new():
                 did = int(drug_ids[i]) if i < len(drug_ids) and drug_ids[i] else None
             except (ValueError, TypeError):
                 did = None
+            # Shorthand is expanded here as well as in the browser, so a
+            # prescription reads the same however it was written — including
+            # from a screen that never ran the JavaScript.
+            written = expand_line({
+                "dose": (doses[i].strip() if i < len(doses) else ""),
+                "frequency": (freqs[i].strip() if i < len(freqs) else ""),
+                "duration": (durs[i].strip() if i < len(durs) else ""),
+            })
             rx.items.append(PrescriptionItem(
                 drug_id=did, drug_name=name,
-                dose=(doses[i].strip() if i < len(doses) else "") or None,
-                frequency=(freqs[i].strip() if i < len(freqs) else "") or None,
-                duration=(durs[i].strip() if i < len(durs) else "") or None,
+                dose=written["dose"] or None,
+                frequency=written["frequency"] or None,
+                duration=written["duration"] or None,
                 instructions=(instrs[i].strip() if i < len(instrs) else "") or None,
             ))
             used_ids.append(did)
@@ -601,6 +748,7 @@ def new():
         "prescriptions/new.html", patient=patient, prefill=prefill,
         prefill_invs=prefill_invs, prefill_meds=prefill_meds,
         visit_rx=visit_rx, recent_meds=recent_meds,
+        presets=visible_presets(), frequencies=FREQUENCIES,
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
         doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
         ai_ready=ai_utils.is_ready(),
