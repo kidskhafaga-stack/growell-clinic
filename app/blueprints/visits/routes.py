@@ -809,6 +809,32 @@ def result_investigation(inv_id):
     return redirect(request.referrer or (url_for("visits.record", visit_id=inv.visit_id) + "#inv"))
 
 
+@visits_bp.route("/results")
+@module_required(MODULE)
+def results():
+    """The results that came back and nobody has read.
+
+    Everything needed to deal with one is on its row: what was asked for, the
+    file itself, how long it has been sitting there — and the family's
+    conversation, because the answer to "the film is here" is usually
+    something the doctor has to say to them, not a note to themselves.
+    """
+    from app.utils.privacy import doctor_locked_id
+    from app.utils.results_inbox import arrived_unread
+
+    mine = request.args.get("scope", "mine") != "all"
+    doctor_id = doctor_locked_id() or (current_user.id if mine else None)
+    # An admin or a receptionist has no films of their own to read; showing
+    # them an empty list would look broken rather than scoped.
+    if not current_user.is_practitioner and not doctor_locked_id():
+        doctor_id = None
+        mine = False
+    rows = arrived_unread(doctor_id=doctor_id)
+    return render_template("visits/results.html", rows=rows, mine=mine,
+                           can_scope=bool(doctor_locked_id() is None
+                                          and current_user.is_practitioner))
+
+
 @visits_bp.route("/investigations/<int:inv_id>/attach", methods=["POST"])
 @module_required(MODULE)
 def attach_to_investigation(inv_id):

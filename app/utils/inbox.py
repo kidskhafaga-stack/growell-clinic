@@ -156,10 +156,20 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
         if not _matches(conv, search):
             continue
         conv["waiting_hours"] = waiting_since(conv)
+        window = session_window(conv["key"])
+        # How long the clinic may still answer for free. A thread with forty
+        # minutes left is more urgent than one that has waited longer but has
+        # a day in hand — after the window shuts, the reply costs money and
+        # can only go out as an approved template.
+        conv["hours_left"] = (window or {}).get("hours_left")
+        conv["closing"] = bool(window and window["open"]
+                               and window["hours_left"] <= CLOSING_SOON_HOURS)
         out.append(conv)
-    # Whoever has waited longest comes first — a work list ordered by "newest"
-    # puts the person who has been ignored for three days at the bottom.
-    out.sort(key=lambda c: (not c["open"], -c["waiting_hours"],
+    # Closing windows first, then whoever has waited longest — a work list
+    # ordered by "newest" puts the person ignored for three days at the bottom.
+    out.sort(key=lambda c: (not c["open"], not c["closing"],
+                            c["hours_left"] if c["closing"] else 0,
+                            -c["waiting_hours"],
                             -c["last"].created_at.timestamp()))
     return out
 
@@ -203,6 +213,8 @@ def last_inbound_at(key):
 # template. A reply box that doesn't say so lets a receptionist type a careful
 # answer, press send, and never learn it was refused.
 SESSION_HOURS = 24
+# How near the end of that window counts as "answer this one now".
+CLOSING_SOON_HOURS = 2
 
 
 def session_window(key, provider=None):
