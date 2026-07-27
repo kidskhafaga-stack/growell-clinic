@@ -3736,5 +3736,29 @@
     "saved": "Topic saved.",
     "guess_hint": "A guess from what the family wrote — confirm or change it inside the conversation.",
     "closing_hint": "Time left to reply for free."
+  },
+  "service": {
+    "title": "service measurement",
+    "subtitle": "How fast the clinic answers, and who gets no answer.",
+    "median": "first reply — median",
+    "median_hint": "What the ordinary family actually waits.",
+    "mean": "mean",
+    "mean_hint": "One conversation answered after three days ruins it — the median is honest.",
+    "answered": "answer rate",
+    "missed": "past the window, unanswered",
+    "missed_hint": "After 24 hours a reply costs money and needs an approved template.",
+    "speed": "speed",
+    "within_hour": "answered within an hour",
+    "still_waiting": "still waiting (in time)",
+    "speed_hint": "Computed from the message log itself — so it covers past months rather than starting today.",
+    "by_assignee": "open work, by person",
+    "no_assignees": "No conversations assigned to anyone.",
+    "by_topic": "what people write in about",
+    "by_topic_hint": "The commonest topic is the thing to fix, not the thing to answer faster.",
+    "no_topics": "No topics set yet.",
+    "minutes": "min",
+    "hours": "h",
+    "days": "d",
+    "nav": "service board"
   }
 }
