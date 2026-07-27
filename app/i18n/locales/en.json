@@ -3723,5 +3723,18 @@
     "msg_continue": "The result has been reviewed. Please carry on with the same treatment.",
     "msg_change": "The result has been reviewed and the treatment changes:",
     "msg_investigate": "The result has been reviewed, and one more test is needed:"
+  },
+  "triage": {
+    "topic": "topic",
+    "topic_none": "— not set —",
+    "topic_urgent": "urgent",
+    "topic_result": "result",
+    "topic_appointment": "appointment",
+    "topic_price": "price",
+    "topic_complaint": "complaint",
+    "topic_other": "something else",
+    "saved": "Topic saved.",
+    "guess_hint": "A guess from what the family wrote — confirm or change it inside the conversation.",
+    "closing_hint": "Time left to reply for free."
   }
 }

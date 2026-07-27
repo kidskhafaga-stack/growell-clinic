@@ -284,6 +284,7 @@ def register_commands(app):
             ("visits", "channel", "VARCHAR(12) DEFAULT 'clinic'"),
             ("visits", "decision", "VARCHAR(16)"),
             ("visits", "based_on_id", "INTEGER"),
+            ("conversations", "topic", "VARCHAR(16)"),
             ("drugs", "trade_name_ar", "VARCHAR(160)"),
             ("drugs", "route", "VARCHAR(20)"),
         ]

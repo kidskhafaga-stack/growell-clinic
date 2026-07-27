@@ -44,6 +44,25 @@
       <button class="btn btn-outline btn-sm gc-press" type="submit">
         <i class="bi bi-person-check"></i> {{ t('common.save') }}</button>
     </form>
+    {# Saying what it is about — and whether it can wait. Marking a thread
+       urgent puts it above everything in the list, however long anybody
+       else has been waiting. #}
+    <form method="post" action="{{ url_for('messages.inbox_topic', key=key) }}"
+          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;">
+        <label>{{ t('triage.topic') }}</label>
+        <select class="select" name="topic" style="min-width:150px;"
+                onchange="this.form.submit()">
+          <option value="">{{ t('triage.topic_none') }}</option>
+          {% for key_ in topics %}
+          <option value="{{ key_ }}" {{ 'selected' if record and record.topic == key_ else '' }}>
+            {{ t('triage.topic_' ~ key_) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <noscript><button class="btn btn-outline btn-sm" type="submit">{{ t('common.save') }}</button></noscript>
+    </form>
     <form method="post" action="{{ url_for('messages.inbox_resolve', key=key) }}"
           style="display:flex;gap:8px;align-items:center;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -71,7 +71,24 @@
       <div style="flex:1;min-width:0;">
         <div style="display:flex;justify-content:space-between;gap:10px;">
           <strong>{{ c.patient.display_name(current_lang) if c.patient else c.phone }}
-            {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}</strong>
+            {% if c.orphan %}<span class="badge badge--muted" style="font-weight:500;">{{ t('inbox.unknown') }}</span>{% endif %}
+            {# What it is about. A guess is drawn as a guess — dashed, with a
+               question mark — because the program has not read the message,
+               it has matched some words in it. #}
+            {% if c.topic %}
+            <span class="badge {{ 'badge--danger' if c.topic == 'urgent' else 'badge--role' }}" style="font-weight:500;">
+              {% if c.topic == 'urgent' %}<i class="bi bi-exclamation-triangle-fill"></i> {% endif %}
+              {{ t('triage.topic_' ~ c.topic) }}</span>
+            {% elif c.suggested_topic %}
+            <span class="badge {{ 'badge--danger' if c.suggested_topic == 'urgent' else 'badge--muted' }}"
+                  style="font-weight:500;border-style:dashed;"
+                  title="{{ t('triage.guess_hint') }}">
+              {% if c.suggested_topic == 'urgent' %}<i class="bi bi-exclamation-triangle-fill"></i> {% endif %}
+              {{ t('triage.topic_' ~ c.suggested_topic) }}؟</span>
+            {% endif %}
+            {% if c.closing %}<span class="badge badge--muted" style="font-weight:500;"
+               title="{{ t('triage.closing_hint') }}"><i class="bi bi-hourglass-bottom"></i>
+              {{ (c.hours_left or 0)|round(1) }}h</span>{% endif %}</strong>
           <span class="num" style="color:var(--muted);white-space:nowrap;">{{ c.last.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
         </div>
         <div style="display:flex;justify-content:space-between;gap:10px;">

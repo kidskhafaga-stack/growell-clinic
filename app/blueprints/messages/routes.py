@@ -32,6 +32,7 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import admin_required, module_required
 from app.utils.paging import paginate
+from app.utils.triage import TOPICS as TRIAGE_TOPICS
 
 MODULE = "messages"
 ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "gif"}
@@ -253,6 +254,26 @@ def inbox_assign(key):
     return redirect(url_for("messages.inbox_thread", key=key))
 
 
+@messages_bp.route("/inbox/<key>/topic", methods=["POST"])
+@module_required(MODULE)
+def inbox_topic(key):
+    """Say what a conversation is about — and whether it cannot wait.
+
+    The program guesses from what the family wrote, and shows the guess as a
+    guess. This is a person disagreeing, or confirming, in one click; from
+    then on the guess stops being made for this thread.
+    """
+    from app.utils.inbox import conversation_for
+    from app.utils.triage import TOPICS
+
+    record = conversation_for(key)
+    topic = (request.form.get("topic") or "").strip()
+    record.topic = topic if topic in TOPICS else None
+    db.session.commit()
+    flash(t("triage.saved"), "success")
+    return redirect(request.referrer or url_for("messages.inbox_thread", key=key))
+
+
 @messages_bp.route("/inbox/<key>/note", methods=["POST"])
 @module_required(MODULE)
 def inbox_note(key):
@@ -336,6 +357,7 @@ def inbox_thread(key):
         window=session_window(key),
         opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
+        topics=TRIAGE_TOPICS,
         patients=(Patient.query.filter_by(is_active=True)
                   .order_by(Patient.full_name).limit(500).all()
                   if patient is None else []))
