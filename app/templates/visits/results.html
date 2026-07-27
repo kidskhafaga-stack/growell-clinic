@@ -1,0 +1,88 @@
+{% extends "shell.html" %}
+{% import "visits/_investigation_files.html" as inv_files with context %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('results.title') }}{% endblock %}
+{% block page_heading %}{{ t('results.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-medical"></i> {{ t('results.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('results.subtitle') }}</p>
+  </div>
+  {% if can_scope %}
+  <div style="display:flex;gap:6px;">
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if mine else 'btn-outline' }}"
+       href="{{ url_for('visits.results', scope='mine') }}">{{ t('results.mine') }}</a>
+    <a class="btn btn-sm gc-press {{ 'btn-outline' if mine else 'btn-primary' }}"
+       href="{{ url_for('visits.results', scope='all') }}">{{ t('results.all') }}</a>
+  </div>
+  {% endif %}
+</div>
+
+{% if rows %}
+<div style="display:flex;flex-direction:column;gap:12px;">
+  {% for row in rows %}
+  {% set inv = row.order %}
+  <div class="card gc-scale-in" style="border-inline-start:4px solid var(--green-600);">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="badge {{ 'badge--role' if inv.kind=='lab' else 'badge--muted' }}">
+        {{ t('rx.inv_lab') if inv.kind=='lab' else t('rx.inv_imaging') }}</span>
+      <strong style="flex:1;min-width:180px;">{{ inv.display_name(current_lang) }}</strong>
+      {# How long it has been sitting there: the number that decides what to
+         open first, and the one a timestamp alone never tells you. #}
+      <span class="badge {{ 'badge--danger' if row.waiting_hours >= 24 else 'badge--muted' }}">
+        <i class="bi bi-hourglass-split"></i>
+        {% if row.waiting_hours >= 24 %}
+          {{ t('results.waiting_days').replace('{n}', (row.waiting_hours // 24)|int|string) }}
+        {% else %}
+          {{ t('results.waiting_hours').replace('{n}', row.waiting_hours|round(0)|int|string) }}
+        {% endif %}
+      </span>
+    </div>
+
+    <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <a href="{{ url_for('patients.view', patient_id=row.patient.id) }}"
+         style="font-weight:600;">{{ row.patient.display_name(current_lang) }}</a>
+      <span style="color:var(--muted);font-size:.85rem;">
+        {{ t('results.asked_on') }} <span dir="ltr">{{ inv.created_at.strftime('%Y-%m-%d') }}</span></span>
+    </div>
+
+    {{ inv_files.files_block(inv, none) }}
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      {# The reply usually belongs to the family, not to a note. One click. #}
+      <a class="btn btn-primary btn-sm gc-press"
+         href="{{ url_for('messages.inbox_thread', key='p' ~ row.patient.id) }}">
+        <i class="bi bi-whatsapp"></i> {{ t('results.open_chat') }}</a>
+      <a class="btn btn-outline btn-sm gc-press"
+         href="{{ url_for('visits.record', visit_id=inv.visit_id) }}#inv">
+        <i class="bi bi-journal-medical"></i> {{ t('results.open_visit') }}</a>
+    </div>
+
+    <form method="post" action="{{ url_for('visits.result_investigation', inv_id=inv.id) }}"
+          style="margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label>
+          <input class="input" name="result_text" dir="auto"
+                 placeholder="{{ t('results.result_placeholder') }}"></div>
+        <div class="form-row"><label>{{ t('visits.inv_comment') }}</label>
+          <input class="input" name="result_comment" dir="auto"></div>
+      </div>
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-check-lg"></i> {{ t('results.record_and_clear') }}</button>
+      <div class="hint" style="margin-top:4px;">{{ t('results.record_hint') }}</div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  <div class="empty-state" style="padding:30px;">
+    <i class="bi bi-check2-circle" style="color:var(--green-600);"></i>
+    {{ t('results.empty') }}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

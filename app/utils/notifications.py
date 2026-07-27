@@ -73,6 +73,32 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # A result the clinic asked for came back and nobody has read it. The
+    # doctor otherwise meets it only by opening that child's visit — and the
+    # child is not coming in today, which was the point of ordering it here.
+    try:
+        from app.utils.results_inbox import arrived_count
+        n = arrived_count()
+        if n:
+            items.append({"key": "results_arrived", "module": "visits",
+                          "icon": "file-earmark-medical", "severity": "danger",
+                          "count": n, "endpoint": "visits.results", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
+    # The free-reply window shuts 24 hours after the family last wrote. Nobody
+    # is watching the inbox at eleven at night, which is when it closes.
+    try:
+        from app.utils.results_inbox import closing_windows
+        n = len(closing_windows())
+        if n:
+            items.append({"key": "window_closing", "module": "messages",
+                          "icon": "hourglass-bottom", "severity": "warning",
+                          "count": n, "endpoint": "messages.inbox",
+                          "kwargs": {"view": "open"}})
+    except Exception:  # noqa: BLE001
+        pass
+
     try:
         from app.models import StoreItem
         low = sum(1 for i in StoreItem.query.filter_by(is_active=True).all() if i.is_low)

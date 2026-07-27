@@ -6,8 +6,18 @@
 {% block page_heading %}{{ t('visits.title') }}{% endblock %}
 
 {% block content %}
-<h1 class="page-title gc-animate">{{ t('visits.recent_visits') }}</h1>
-<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('visits.list') }}</p>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;">
+  <div>
+    <h1 class="page-title">{{ t('visits.recent_visits') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('visits.list') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.station') }}">
+      <i class="bi bi-heart-pulse"></i> {{ t('visits.station_title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.results') }}">
+      <i class="bi bi-file-earmark-medical"></i> {{ t('results.title') }}</a>
+  </div>
+</div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if visits %}

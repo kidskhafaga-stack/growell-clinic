@@ -2534,7 +2534,9 @@
     "mark_all_read": "Mark all as read",
     "teens_no_phone": "{count} teen(s) (13+) with no personal phone — update their details",
     "refund_requests": "{count} refund request(s) awaiting manager approval",
-    "unread_messages": "{count} patient messages need a reply"
+    "unread_messages": "{count} patient messages need a reply",
+    "results_arrived": "{count} results in, nobody has read them",
+    "window_closing": "{count} conversations whose reply window is closing"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -3681,5 +3683,20 @@
     "none_hint": "Write a prescription, then save it as a set.",
     "how": "A set is added to what is already written, never replacing it — adjust the dose afterwards as usual.",
     "edit_lines_hint": "To change the medicines themselves: apply the set in the writer, edit it, and save it again."
+  },
+  "results": {
+    "title": "results in — waiting to be read",
+    "subtitle": "What the family sent and nobody has read yet. Longest waiting first.",
+    "mine": "mine",
+    "all": "whole clinic",
+    "waiting_hours": "waiting {n}h",
+    "waiting_days": "waiting {n}d",
+    "asked_on": "asked on",
+    "open_chat": "open the family's chat",
+    "open_visit": "open the visit",
+    "result_placeholder": "what the result says…",
+    "record_and_clear": "record the result",
+    "record_hint": "Once recorded it leaves this list and closes on the child's file.",
+    "empty": "Nothing waiting to be read."
   }
 }
