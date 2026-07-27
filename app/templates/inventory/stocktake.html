@@ -33,6 +33,7 @@
 {% endwith %}
 
 <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
   <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
     <table class="table">

@@ -33,6 +33,7 @@
   </div>
 
   <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Services / charges -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">
       <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('checkout.services') }}</h2>

@@ -25,6 +25,7 @@
   <p class="hint"><i class="bi bi-diagram-3"></i> {{ t('drugbook.import_eda_hint') }}</p>
   <p class="hint"><i class="bi bi-terminal"></i> {{ t('drugbook.import_big_hint') }}</p>
   <form method="post" enctype="multipart/form-data" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;flex:1;min-width:240px;">
       <label>{{ t('drugbook.import_file') }} (CSV / JSON)</label>
       <input class="input" type="file" name="file"

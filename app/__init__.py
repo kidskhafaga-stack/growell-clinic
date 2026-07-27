@@ -28,6 +28,26 @@ def _set_sqlite_pragmas(dbapi_connection, _record):
         cur.close()
 
 
+def _protect_forms(app):
+    """Refuse a POST that didn't come from one of our own screens.
+
+    Without this, any page anywhere can make a logged-in member of staff's
+    browser submit a form here — their session goes along automatically. A
+    refund, a deleted patient, a permission change: the member of staff sees
+    nothing, and the audit log records *them* doing it.
+
+    Every form carries the token, and ``base.html`` adds it to POSTs made by
+    script. The public webhooks are exempt: a provider cannot know a token,
+    and they prove themselves by signature instead (``webhook_auth``).
+    """
+    from flask_wtf.csrf import CSRFProtect
+
+    csrf = CSRFProtect()
+    csrf.init_app(app)
+    app.extensions["csrf"] = csrf
+    return csrf
+
+
 def _apply_environment(app):
     """Let the environment override the config — read *now*, not at import.
 
@@ -70,6 +90,7 @@ def create_app(config_name="default"):
     # Extensions.
     db.init_app(app)
     login_manager.init_app(app)
+    csrf = _protect_forms(app)
     i18n.init_app(app)
     from app.utils import money as _money
     _money.init_app(app)
@@ -114,6 +135,9 @@ def create_app(config_name="default"):
     app.register_blueprint(ai_bp)
     app.register_blueprint(feedback_bp)
     app.register_blueprint(webhooks_bp)
+    # The providers post from their own servers and cannot carry a token of
+    # ours; they prove themselves by signature instead (see webhook_auth).
+    csrf.exempt(webhooks_bp)
 
     # Template globals for navigation rendering.
     from app.models.permissions import MODULE_ICONS, MODULES

@@ -6,6 +6,7 @@
 
 {% macro status_form(appt, status, label, icon, cls) %}
   <form method="post" action="{{ url_for('appointments.change_status', appt_id=appt.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="status" value="{{ status }}">
     <button class="btn {{ cls }} btn-sm gc-press" type="submit"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
   </form>
@@ -304,6 +305,7 @@
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=current.patient_id, appointment_id=current.id) }}"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.record_visit') }}</a>
     {% endif %}
     <form method="post" action="{{ url_for('appointments.change_status', appt_id=current.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="status" value="completed">
       <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('appointments.complete') }}</button>
     </form>
@@ -394,6 +396,7 @@
         <td style="text-align:end;white-space:nowrap;">
           <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('appointments.waitlist_book', entry_id=w.id) }}"><i class="bi bi-calendar-plus"></i> {{ t('appointments.waitlist_book') }}</a>
           <form method="post" action="{{ url_for('appointments.waitlist_cancel', entry_id=w.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-circle"></i></button>
           </form>
         </td>

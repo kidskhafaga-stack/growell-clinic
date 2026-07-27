@@ -44,6 +44,7 @@
               <i class="bi bi-people"></i> {{ t('warehouses.set_keepers') }}</summary>
             <form method="post" action="{{ url_for('inventory.warehouse_keepers', wh_id=w.id) }}"
                   style="margin-top:8px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div style="display:flex;flex-wrap:wrap;gap:6px;max-width:420px;">
                 {% for u in staff %}
                 <label style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:5px 9px;font-size:.85rem;cursor:pointer;">
@@ -64,6 +65,7 @@
         <td style="text-align:end;">
           {% if not w.is_default %}
           <form method="post" action="{{ url_for('inventory.warehouse_toggle', wh_id=w.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit">
               {{ t('common.disable') if w.is_active else t('common.enable') }}</button>
           </form>
@@ -78,6 +80,7 @@
 <div class="card gc-scale-in">
   <h2 class="section-title"><i class="bi bi-plus-lg"></i> {{ t('warehouses.add_title') }}</h2>
   <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('warehouses.name') }} *</label>
         <input class="input" name="name" required></div>

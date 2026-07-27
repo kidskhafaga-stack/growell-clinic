@@ -21,6 +21,7 @@
       </select></div>
   </form>
   <form method="post" style="display:flex;gap:8px;align-items:end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="action" value="generate">
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-calendar-plus"></i> {{ t('periods.generate') }}</button>
@@ -62,6 +63,7 @@
           {% if current_user.is_admin %}
           <form method="post" style="display:inline;"
                 onsubmit="return confirm('{{ t('periods.close_confirm') if not p.is_closed else t('periods.reopen_confirm') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="year" value="{{ year }}">
             <input type="hidden" name="period_id" value="{{ p.id }}">
             <input type="hidden" name="action" value="{{ 'reopen' if p.is_closed else 'close' }}">

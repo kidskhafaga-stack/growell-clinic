@@ -24,6 +24,7 @@
 {% set v = r.vitals %}
 <div class="card gc-scale-in" style="margin-bottom:12px;">
   <form method="post" action="{{ url_for('visits.station_vitals', appointment_id=r.appt.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
       <div>
         <strong style="font-size:1.05rem;">{{ p.display_name(current_lang) if p else '—' }}</strong>

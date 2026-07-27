@@ -109,6 +109,7 @@ rxPreview({
 <details class="card gc-scale-in">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rxtpl.add') }}</summary>
   <form method="post" action="{{ url_for('prescriptions.template_new') }}" style="margin-top:12px;" x-data="{{ rxinit(none) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ fields(none) }}
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
@@ -117,6 +118,7 @@ rxPreview({
 {% for tp in templates %}
 <div class="card gc-scale-in">
   <form method="post" action="{{ url_for('prescriptions.template_edit', tpl_id=tp.id) }}" x-data="{{ rxinit(tp) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <h3 style="margin:0;">{{ tp.name }}
         <span class="badge badge--muted">{{ t('rxtpl.' ~ tp.mode) }}</span>

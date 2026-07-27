@@ -144,6 +144,7 @@
           </div>
           {{ inv_files.files_block(x, linkable_files) }}
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label><input class="input" name="result_text" dir="auto"></div>
               <div class="form-row"><label>{{ t('visits.inv_comment') }}</label><input class="input" name="result_comment" dir="auto"></div>
@@ -172,6 +173,7 @@
 
   <!-- Vitals + clinical (single form) -->
   <form method="post" id="visitForm" x-show="tab==='case'">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card gc-scale-in" style="animation-delay:0.08s;">
       <h2 class="section-title"><i class="bi bi-activity"></i> {{ t('visits.vitals') }}</h2>
       <div class="vitals-grid">
@@ -304,6 +306,7 @@
         <span style="flex:1;">{{ dx.display_title(current_lang) }}</span>
         <span class="badge badge--{{ 'green' if dx.dx_type == 'final' else 'muted' }}">{{ t('diagnosis_types.' ~ dx.dx_type) }}</span>
         <form method="post" action="{{ url_for('visits.delete_diagnosis', dx_id=dx.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button>
         </form>
       </div>
@@ -315,6 +318,7 @@
 
     <!-- Add diagnosis with ICD search -->
     <form method="post" action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="icd-search" style="position:relative;">
         <label>{{ t('visits.search_icd') }}</label>
         <input class="input" type="text" autocomplete="off" placeholder="{{ t('visits.search_icd_placeholder') }}"
@@ -365,12 +369,14 @@
           <strong style="flex:1;">{{ x.display_name(current_lang) }}{% if x.request_notes %} <span style="color:var(--muted);font-weight:400;">— {{ x.request_notes }}</span>{% endif %}</strong>
           {{ inv_files.state_badge(x) }}
           <form method="post" action="{{ url_for('visits.delete_investigation', inv_id=x.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
         </div>
         {{ inv_files.files_block(x, linkable_files) }}
         <details style="margin-top:8px;" {{ 'open' if x.has_result else '' }}>
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label>
               <textarea class="input" name="result_text" rows="2" dir="auto">{{ x.result_text or '' }}</textarea></div>
             <div class="form-row"><label>{{ t('visits.inv_comment') }}</label>
@@ -388,6 +394,7 @@
     <!-- Order a new investigation -->
     <form method="post" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="investigation_id" :value="invId">
       <input type="hidden" name="name_ar" :value="nameAr">
       <input type="hidden" name="name_en" :value="nameEn">
@@ -504,6 +511,7 @@
           </td>
           <td style="text-align:end;">
             <form method="post" action="{{ url_for('visits.delete_medication', med_id=m.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
           </td>
         </tr>
@@ -516,6 +524,7 @@
 
     <form method="post" action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
           x-data="medWriter('{{ url_for('visits.drug_search') }}')" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="drug_id" :value="drugId">
       <input type="hidden" name="generic_id" :value="genericId">
       <div class="form-grid">
@@ -591,6 +600,7 @@
 
     <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-pen"></i> {{ t('consent.record_now') }}</h3>
     <form method="post" action="{{ url_for('visits.add_visit_consent', visit_id=visit.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('consent.type') }}</label>
           <select class="select" name="consent_type">
@@ -692,6 +702,7 @@
           <i class="bi bi-activity"></i> {{ t('visits.enter_results') }}</a>
         {% endif %}
         <form method="post" action="{{ url_for('visits.delete_service', vs_id=s.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
       </div>
       {% endfor %}
@@ -702,6 +713,7 @@
 
     {% if procedure_services %}
     <form method="post" action="{{ url_for('visits.add_service', visit_id=visit.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.procedure') }} *</label>
           <select class="select" name="service_id" required>
@@ -772,6 +784,7 @@
             {% if d.planned %}<span class="badge badge--role" title="{{ t('visits.vac_planned_hint') }}"><i class="bi bi-person-check"></i></span>{% endif %}</span>
           <form method="post" action="{{ url_for('visits.plan_dose', visit_id=visit.id) }}"
                 style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="vaccine_id" value="{{ r.vaccine.id }}">
             <input type="hidden" name="dose_number" value="{{ d.dose_number }}">
             <span class="dd" style="margin:0;"><i class="bi bi-calendar-event"></i> {{ t('visits.vac_expected') }}</span>
@@ -807,6 +820,7 @@
     {% if vac_panel.give_now %}
     {% for e in vac_panel.give_now %}
     <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}" class="vac-card gc-lift">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="vaccine_id" value="{{ e.vaccine.id }}">
       <input type="hidden" name="dose_number" value="{{ e.dose.dose_number }}">
       <div class="vac-head">
@@ -886,6 +900,7 @@
       <p class="hint" style="margin:6px 0 8px;">{{ t('visits.vac_add_mandatory_hint') }}</p>
       <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}"
             style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="vaccine_id" class="select" required style="max-width:260px;">
           <option value="" disabled selected>{{ t('visits.vac_choose_vaccine') }}</option>
           {% for mv in mandatory_vaccines %}
@@ -914,6 +929,7 @@
         <span class="badge badge--muted">{{ t('visits.att_' ~ a.kind) if a.kind in ['lab','imaging','report','other'] else a.kind }}</span>
         <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ a.created_at.strftime('%Y-%m-%d') }}</span>
         <form method="post" action="{{ url_for('visits.delete_attachment', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
       </div>
       {% endfor %}
@@ -923,6 +939,7 @@
     {% endif %}
 
     <form method="post" action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.att_label') }}</label>
           <input class="input" name="label" placeholder="{{ t('visits.att_label_ph') }}"></div>
@@ -956,6 +973,7 @@
       {% endif %}
       {% if not visit.is_completed %}
       <form method="post" action="{{ url_for('visits.complete', visit_id=visit.id) }}" style="margin-inline-start:auto;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-success gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('visits.complete') }}</button>
       </form>
       {% endif %}

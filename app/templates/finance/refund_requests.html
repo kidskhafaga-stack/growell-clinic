@@ -37,10 +37,12 @@
             {% if current_user.is_admin %}
             <form method="post" action="{{ url_for('finance.refund_request_decide', req_id=r.id) }}" style="display:inline;"
                   onsubmit="return confirm('{{ t('refunds.approve_confirm') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="decision" value="approve">
               <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('refunds.approve') }}</button>
             </form>
             <form method="post" action="{{ url_for('finance.refund_request_decide', req_id=r.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="decision" value="reject">
               <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-x-lg"></i> {{ t('refunds.reject') }}</button>
             </form>

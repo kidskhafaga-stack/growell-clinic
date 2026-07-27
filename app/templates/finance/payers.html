@@ -15,6 +15,7 @@
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-cash-stack"></i> {{ t('contracts.cash_list') }}</h2>
   <p class="hint" style="margin-top:-6px;">{{ t('contracts.cash_list_hint') }}</p>
   <form method="post" action="{{ url_for('finance.cash_price_list') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;flex:1;min-width:220px;">
       <label>{{ t('contracts.cash_payer') }}</label>
       <select class="select" name="payer_id">
@@ -43,6 +44,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('claims.add_entity') }}</summary>
   <form method="post" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('claims.entity_name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('claims.entity_type') }}</label>
@@ -74,6 +76,7 @@
           <details style="position:relative;">
             <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
             <form method="post" action="{{ url_for('finance.payer_edit', payer_id=p.id) }}" class="popform" style="width:290px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-row"><label>{{ t('claims.entity_name') }}</label><input class="input" name="name" value="{{ p.name }}"></div>
               <div class="form-row"><label>{{ t('claims.entity_type') }}</label>
                 <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty }}" {{ 'selected' if p.entity_type==ty else '' }}>{{ t('payer_types.' ~ ty) }}</option>{% endfor %}</select></div>
@@ -85,6 +88,7 @@
             </form>
           </details>
           <form method="post" action="{{ url_for('finance.payer_delete', payer_id=p.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </td>
       </tr>
@@ -93,6 +97,7 @@
           <details>
             <summary style="cursor:pointer;color:var(--green-800);font-weight:600;"><i class="bi bi-table"></i> {{ t('coverage.benefits') }}</summary>
             <form method="post" action="{{ url_for('finance.payer_rates', payer_id=p.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <p class="hint">{{ t('coverage.benefits_hint') }}</p>
               {% set rates = {} %}
               {% for r in p.service_rates %}{% set _ = rates.update({r.service_id: r}) %}{% endfor %}
@@ -157,6 +162,7 @@
                       <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;" title="{{ t('contracts.copy_btn') }}"><i class="bi bi-files"></i></summary>
                       <form method="post" action="{{ url_for('finance.contract_copy', contract_id=c.id) }}"
                             style="position:absolute;z-index:30;inset-inline-end:0;margin-top:6px;width:250px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px;text-align:start;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <p class="hint" style="margin:0 0 8px;">{{ t('contracts.copy_hint') }}</p>
                         <div class="form-row"><label>{{ t('contracts.number') }}</label><input class="input" name="number" dir="ltr"></div>
                         <div class="form-row"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
@@ -165,6 +171,7 @@
                       </form>
                     </details>
                     <form method="post" action="{{ url_for('finance.contract_delete', contract_id=c.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
                   </td>
                 </tr>
@@ -172,6 +179,7 @@
               </tbody>
             </table>
             <form method="post" action="{{ url_for('finance.contract_new', payer_id=p.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="form-row" style="margin:0;"><label>{{ t('contracts.number') }}</label><input class="input" name="number" dir="ltr" style="width:130px;"></div>
               <div class="form-row" style="margin:0;"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
               <div class="form-row" style="margin:0;"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date"></div>

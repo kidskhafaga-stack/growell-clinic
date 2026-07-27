@@ -34,6 +34,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('roles_mgmt.add_role') }}</summary>
   <form method="post" action="{{ url_for('users.role_new') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('roles_mgmt.name') }} *</label><input class="input" name="name" dir="ltr" placeholder="nurse" required><div class="hint">{{ t('roles_mgmt.name_hint') }}</div></div>
       <div class="form-row"><label>{{ t('roles_mgmt.label_ar') }} *</label><input class="input" name="label_ar" required></div>
@@ -48,6 +49,7 @@
 {% for role in roles %}
 <div class="card gc-scale-in" style="animation-delay:0.08s;">
   <form method="post" action="{{ url_for('users.role_edit', role_id=role.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
       <div>
         <h3 style="margin:0;">{{ role.label(current_lang) }}

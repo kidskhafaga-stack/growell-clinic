@@ -33,6 +33,7 @@
     <span class="badge badge--muted" title="{{ t('visits.inv_link_guess_hint') }}">
       <i class="bi bi-question-circle"></i> {{ t('visits.inv_link_guess') }}</span>
     <form method="post" action="{{ url_for('visits.attach_to_investigation', inv_id=inv.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="attachment_id" value="{{ f.id }}">
       <button class="btn btn-outline btn-sm gc-press" type="submit">
         <i class="bi bi-check-lg"></i> {{ t('visits.inv_link_confirm') }}</button>
@@ -46,6 +47,7 @@
       <i class="bi bi-eye"></i> {{ t('visits.inv_file_open') }}</a>
     <form method="post" action="{{ url_for('visits.unlink_attachment', att_id=f.id) }}" style="display:inline;"
           onsubmit="return confirm('{{ t('visits.inv_unlink_confirm') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn-x" type="submit" title="{{ t('visits.inv_file_unlink') }}"><i class="bi bi-link-45deg"></i></button>
     </form>
   </div>
@@ -59,6 +61,7 @@
     <i class="bi bi-paperclip"></i> {{ t('visits.inv_link_existing') }}</summary>
   <form method="post" action="{{ url_for('visits.attach_to_investigation', inv_id=inv.id) }}"
         style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <select class="select" name="attachment_id" style="max-width:320px;">
       {% for f in linkable_files %}
       <option value="{{ f.id }}">{{ f.label or f.original_name or f.filename }} — {{ f.created_at.strftime('%Y-%m-%d') }}</option>

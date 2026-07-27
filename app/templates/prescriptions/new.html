@@ -13,6 +13,7 @@
 <form method="post" action="{{ url_for('prescriptions.new') }}"
       x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }}, {{ (prefill_meds or [])|tojson|forceescape }})"
       x-init="if(!lines.length){ addLine(); } else { checkInteractions(); }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}
   <div class="card gc-scale-in" style="border-inline-start:4px solid var(--green-600);background:var(--green-050);">

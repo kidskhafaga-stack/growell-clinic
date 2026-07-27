@@ -1,6 +1,8 @@
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
+# CSRF protection for every form in the clinic
+Flask-WTF==1.2.1
 Werkzeug==3.0.3
 python-dotenv==1.0.1
 # Serves the clinic instead of Werkzeug's development server

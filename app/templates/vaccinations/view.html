@@ -108,6 +108,7 @@
         <button class="btn btn-outline btn-sm gc-press" x-on:click="modal=false"><i class="bi bi-x-lg"></i></button>
       </div>
       <form method="post" action="{{ url_for('vaccinations.record', patient_id=patient.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="vaccine_id" x-bind:value="vId">
         <!-- Brand: a selectable list unless locked -->
         <div class="form-row" x-show="!locked">
@@ -175,6 +176,7 @@
         <button class="btn btn-outline btn-sm gc-press" x-on:click="eventModal=false"><i class="bi bi-x-lg"></i></button>
       </div>
       <form method="post" action="{{ url_for('vaccinations.record_event', patient_id=patient.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="vaccine_id" :value="evVid">
         <div class="form-grid">
           <div class="form-row"><label>{{ t('vaccinations.dose') }} *</label>

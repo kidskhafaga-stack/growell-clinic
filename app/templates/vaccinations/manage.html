@@ -36,6 +36,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('vaccinations.add_vaccine') }}</summary>
   <form method="post" action="{{ url_for('vaccinations.vaccine_new') }}" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('vaccinations.vaccine_name_ar') }} *</label><input class="input" name="name_ar" required></div>
       <div class="form-row"><label>{{ t('vaccinations.vaccine_name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
@@ -66,6 +67,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.055s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-cloud-download"></i> {{ t('vaccinations.catalogue_settings') }}</summary>
   <form method="post" action="{{ url_for('vaccinations.catalogue_settings') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p class="hint" style="margin-top:0;">{{ t('vaccinations.catalogue_hint') }}</p>
     <div class="form-row checkbox"><input type="checkbox" id="load_gov" name="load_gov" value="1" {{ 'checked' if load_gov else '' }}>
       <label for="load_gov" style="margin:0;font-weight:400;"><i class="bi bi-shield-fill-check"></i> {{ t('vaccinations.load_gov_set') }}</label></div>
@@ -115,6 +117,7 @@
       <details style="position:relative;">
         <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
         <form method="post" action="{{ url_for('vaccinations.vaccine_edit', vaccine_id=vaccine.id) }}" class="popform">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-row"><label>{{ t('vaccinations.vaccine_name_ar') }}</label><input class="input" name="name_ar" value="{{ vaccine.name_ar }}"></div>
           <div class="form-row"><label>{{ t('vaccinations.vaccine_name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ vaccine.name_en or '' }}"></div>
           <div class="form-row"><label>{{ t('vaccinations.category') }}</label>
@@ -141,6 +144,7 @@
         </form>
       </details>
       <form method="post" action="{{ url_for('vaccinations.vaccine_delete', vaccine_id=vaccine.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
       </form>
     </div>
@@ -187,12 +191,14 @@
         <span class="btn-x" title="{{ t('vaccinations.brand_preferred') }}" style="cursor:default;"><i class="bi bi-star-fill" style="color:#f0ad4e;"></i></span>
         {% else %}
         <form method="post" action="{{ url_for('vaccinations.brand_prefer', brand_id=brand.id) }}" title="{{ t('vaccinations.brand_prefer') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-star"></i></button>
         </form>
         {% endif %}
         <details style="position:relative;">
           <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
           <form method="post" action="{{ url_for('vaccinations.brand_edit', brand_id=brand.id) }}" class="popform">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-row"><label>{{ t('vaccinations.brand_name') }}</label><input class="input" name="name" value="{{ brand.name }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer" value="{{ brand.manufacturer or '' }}"></div>
             <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
@@ -214,6 +220,7 @@
           </form>
         </details>
         <form method="post" action="{{ url_for('vaccinations.brand_delete', brand_id=brand.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button>
         </form>
       </span>
@@ -228,6 +235,7 @@
     <details>
       <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-plus-lg"></i> {{ t('vaccinations.add_brand') }}</summary>
       <form method="post" action="{{ url_for('vaccinations.brand_new', vaccine_id=vaccine.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {{ brand_fields() }}
         <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
       </form>

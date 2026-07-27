@@ -13,6 +13,7 @@
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('inventory.add_supplier') }}</summary>
   <form method="post" style="margin-top:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('inventory.supplier_name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('inventory.contact_person') }}</label><input class="input" name="contact_person"></div>
@@ -40,6 +41,7 @@
         <td>{% if s.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>{% else %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</td>
         <td style="text-align:end;">
           <form method="post" action="{{ url_for('inventory.supplier_delete', supplier_id=s.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </td>
       </tr>

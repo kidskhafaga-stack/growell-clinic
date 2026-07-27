@@ -180,9 +180,18 @@ def test_a_clinic_can_still_sign_in_with_the_production_settings(tmp_path,
         db.session.add(user)
         db.session.commit()
 
+    # Signed in the way a browser does — through the rendered form, carrying
+    # its token. Production now has CSRF on, so this is the real path.
+    import re
+
     client = app.test_client()
+    page = client.get("/login").get_data(as_text=True)
+    token = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', page)
+    assert token, "the login form renders no token"
+
     signed_in = client.post("/login", data={"username": "boss",
-                                            "password": "secret"},
+                                            "password": "secret",
+                                            "csrf_token": token.group(1)},
                             follow_redirects=True)
     assert signed_in.status_code == 200
     assert client.get("/patients/").status_code == 200, "the session was dropped"

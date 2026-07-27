@@ -10,6 +10,7 @@
 </div>
 
 <form method="post" action="{{ url_for('inventory.receipt_new') }}" x-data="receiptForm()" x-init="addLine()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <!-- Shared header: one reason / supplier / date for the whole receipt -->
   <div class="card gc-scale-in">
     <div class="form-grid">

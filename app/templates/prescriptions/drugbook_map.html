@@ -20,6 +20,7 @@
 </div>
 
 <form method="post" action="{{ url_for('prescriptions.drugbook_import_map') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="token" value="{{ token }}">
 
   <div class="card gc-scale-in" style="margin-bottom:14px;">

@@ -7,6 +7,7 @@
 <h1 class="page-title gc-animate">{{ t('purchases.new') }}</h1>
 
 <form method="post" action="{{ url_for('inventory.purchase_new') }}" x-data="poForm()" x-init="addLine()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card gc-scale-in">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('purchases.supplier') }}</label>

@@ -8,6 +8,7 @@
 <p class="page-sub gc-animate">{{ t('warehouses.transfer_hint') }}</p>
 
 <form method="post" class="card gc-scale-in" style="max-width:860px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="form-grid">
     <div class="form-row"><label>{{ t('warehouses.from') }} *</label>
       <select class="select" name="from_id" required>

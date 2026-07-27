@@ -13,6 +13,7 @@
     <h2 class="section-title"><i class="bi bi-cloud-upload"></i> {{ t('import.choose_file') }}</h2>
     <form method="post" enctype="multipart/form-data"
           x-data="{ name:'' }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label class="dropzone gc-press"
              x-on:dragover.prevent x-on:drop.prevent="$refs.file.files=$event.dataTransfer.files; name=$refs.file.files[0]?.name||''">
         <input type="file" name="file" x-ref="file" accept=".xlsx,.csv" hidden

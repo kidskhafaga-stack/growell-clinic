@@ -132,6 +132,7 @@ function tplEditor(id, occ){
       {% for tp in system_templates %}
       <div x-show="sel==={{ tp.id }}" x-cloak>
         <form method="post" action="{{ url_for('messages.system_template_save', tpl_id=tp.id) }}" enctype="multipart/form-data" x-data="tplEditor({{ tp.id }})">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
             <h3 style="margin:0;font-size:1.05rem;">{{ t('occasions.occ_' ~ tp.occasion) }}</h3>
             <span class="badge {{ 'badge--green' if tp.send_mode=='auto' else 'badge--muted' }}">{{ t('crm.auto') if tp.send_mode=='auto' else t('crm.manual') }}</span>
@@ -237,6 +238,7 @@ function tplEditor(id, occ){
 <details class="card gc-scale-in" id="custom" style="animation-delay:0.14s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('occasions.add_template') }}</summary>
   <form method="post" action="{{ url_for('messages.occasion_template_new') }}" enctype="multipart/form-data" style="margin-top:12px;" x-data="tplEditor(0, 'greeting')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="crm-editor">
       <div>
         <div class="form-grid">
@@ -303,6 +305,7 @@ function tplEditor(id, occ){
         <span style="color:var(--muted);font-size:0.82rem;">{{ (tp.body[:50] ~ '…') if tp.body|length > 50 else tp.body }}</span>
       </summary>
       <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" enctype="multipart/form-data" style="margin-top:10px;" x-data="tplEditor({{ tp.id }}, '{{ tp.occasion }}')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="crm-editor">
           <div>
             <div class="form-grid">
@@ -364,6 +367,7 @@ function tplEditor(id, occ){
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-whatsapp"></i> {{ t('crm.connection_title') }}</summary>
   <p class="hint" style="margin-top:4px;">{{ t('crm.connection_hint') }}</p>
   <form method="post" action="{{ url_for('messages.connection_save') }}" style="margin-top:10px;" x-data="{ mode: '{{ values.get('crm_mode','manual') }}', provider: '{{ values.get('wa_provider','web') }}' }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('settings.crm_mode') }}</label>
         <select class="select" name="crm_mode" x-model="mode">

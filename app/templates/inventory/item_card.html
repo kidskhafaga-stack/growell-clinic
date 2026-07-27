@@ -41,6 +41,7 @@
      x-data="pricing({{ brand.purchase_price or 0 }}, {{ brand.price or 0 }}, {{ brand.doctor_fee or 0 }})">
   <h2 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('inventory.pricing_units') }}</h2>
   <form method="post" action="{{ url_for('inventory.item_pricing', brand_id=brand.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('inventory.purchase_price') }}</label>
         <input class="input" type="number" step="0.01" min="0" name="purchase_price"
@@ -127,6 +128,7 @@
   <p class="hint" style="margin-top:6px;">{{ t('inventory.goods_receipt_hint') }}</p>
   <form method="post" action="{{ url_for('inventory.batch_new') }}" style="margin-top:8px;"
         x-data="{ dpv: {{ brand.doses_per_vial or 1 }}, vials: 0 }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="brand_id" value="{{ brand.id }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('inventory.receipt_reason') }} *</label>

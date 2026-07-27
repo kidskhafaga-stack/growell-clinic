@@ -36,6 +36,7 @@
           <details style="position:relative;display:inline-block;">
             <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
             <form method="post" class="popform" style="width:320px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ m.id }}">
               <div class="form-row"><label>{{ t('measure.name') }} *</label><input class="input" name="name" value="{{ m.name }}" required></div>
               <div class="form-row"><label>{{ t('measure.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ m.name_en or '' }}"></div>
@@ -49,6 +50,7 @@
             </form>
           </details>
           <form method="post" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ m.id }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
           </form>
@@ -66,6 +68,7 @@
 <div class="card gc-scale-in">
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i> {{ t('measure.add') }}</h2>
   <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="add">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('measure.name') }} *</label><input class="input" name="name" required></div>

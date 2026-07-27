@@ -38,6 +38,7 @@
   <div style="flex:1;min-width:200px;"><strong>{{ t('crm.due_now').replace('{n}', due_now|string) }}</strong>
     <div class="hint" style="margin:0;">{{ t('crm.due_now_hint') }}</div></div>
   <form method="post" action="{{ url_for('messages.send_due') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-send"></i> {{ t('crm.send_due_now') }}</button>
   </form>
 </div>
@@ -138,6 +139,7 @@
           {% if m.link %}<a class="btn btn-outline btn-sm gc-press" href="{{ m.link }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i></a>{% endif %}
           {% if m.patient %}
           <form method="post" action="{{ url_for('messages.opt_toggle', patient_id=m.patient.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline btn-sm gc-press" type="submit" title="{{ t('crm.opt_in') if m.patient.wa_opt_out else t('crm.opt_out') }}"><i class="bi bi-{{ 'bell' if m.patient.wa_opt_out else 'bell-slash' }}"></i></button>
           </form>{% endif %}
         </td>

@@ -13,6 +13,7 @@
 </div>
 
 <form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
     {% if batches %}
     <table class="table">
