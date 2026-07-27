@@ -368,6 +368,10 @@ def data_tools():
         "every": Setting.get("backup_every_days", "1"),
         "include_files": Setting.get("backup_include_files", "1") != "0",
     }
+    from app.utils.backups import backup_password
+    # Whether a passphrase is set — never the passphrase itself. A screen that
+    # prints it back has undone the point of keeping it out of the database.
+    bset["encrypted"] = bool(backup_password())
     from app.utils.export import DATASETS, dataset_count
     exports = [{"kind": k, "count": dataset_count(k)} for k in DATASETS]
     return render_template("settings/data.html", stats=stats,
@@ -414,6 +418,45 @@ def backup_settings():
     return redirect(url_for("settings.data_tools"))
 
 
+MIN_BACKUP_PASSWORD = 8
+
+
+@settings_bp.route("/data/backup-password", methods=["POST"])
+@admin_required
+def backup_password_set():
+    """Set (or clear) the passphrase new backups are encrypted with.
+
+    Written to ``clinic.env`` and not to the settings table. A key kept beside
+    the thing it locks is decoration: anyone who took the database would have
+    taken the passphrase in the same file.
+
+    Only *new* snapshots are affected. Re-encrypting the existing ones would
+    mean decrypting every archive on disk with a passphrase the admin may have
+    typed wrong, and a backup folder is not a place to be clever.
+    """
+    from app import settings_file
+
+    value = (request.form.get("backup_password") or "").strip()
+    if value and len(value) < MIN_BACKUP_PASSWORD:
+        flash(t("backups.pwd_too_short").replace(
+            "{n}", str(MIN_BACKUP_PASSWORD)), "danger")
+        return redirect(url_for("settings.data_tools"))
+    if value and value != (request.form.get("backup_password_confirm") or "").strip():
+        flash(t("backups.pwd_mismatch"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    if not settings_file.set_value("BACKUP_PASSWORD", value):
+        flash(t("backups.pwd_failed"), "danger")
+        return redirect(url_for("settings.data_tools"))
+    current_app.config["BACKUP_PASSWORD"] = value
+    # The value never goes near the audit log — only that it changed.
+    ActivityLog.record("backup.password", user_id=current_user.id,
+                       entity="system", detail="set" if value else "cleared",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("backups.pwd_set" if value else "backups.pwd_cleared"), "success")
+    return redirect(url_for("settings.data_tools"))
+
+
 @settings_bp.route("/data/backup", methods=["POST"])
 @admin_required
 def backup_create():
@@ -444,10 +487,12 @@ def backup_upload():
         flash(t("backups.upload_need_file"), "danger")
         return redirect(url_for("settings.data_tools"))
     try:
-        name = save_uploaded_backup(file)
+        name = save_uploaded_backup(
+            file, password=(request.form.get("password") or "").strip() or None)
     except ValueError as exc:
         key = {"not_sqlite": "upload_not_sqlite", "too_big": "upload_too_big",
-               "corrupt": "upload_corrupt", "wrong_app": "upload_wrong_app"}.get(
+               "corrupt": "upload_corrupt", "wrong_app": "upload_wrong_app",
+               "bad_password": "bad_password"}.get(
             str(exc), "upload_failed")
         flash(t(f"backups.{key}"), "danger")
         return redirect(url_for("settings.data_tools"))
@@ -483,7 +528,15 @@ def backup_restore(name):
         flash(t("backups.bad_confirm"), "danger")
         return redirect(url_for("settings.data_tools"))
     try:
-        pre = restore_backup(name)
+        pre = restore_backup(
+            name, password=(request.form.get("password") or "").strip() or None)
+    except ValueError as exc:
+        # The one failure worth naming: a snapshot taken under a passphrase
+        # the clinic has since changed. "Restore failed" would send them
+        # looking for a corrupt file that isn't corrupt.
+        flash(t("backups.bad_password" if str(exc) == "bad_password"
+                else "backups.restore_failed"), "danger")
+        return redirect(url_for("settings.data_tools"))
     except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
         flash(t("backups.restore_failed"), "danger")
         return redirect(url_for("settings.data_tools"))

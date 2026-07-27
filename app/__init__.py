@@ -85,7 +85,8 @@ def _apply_environment(app):
     anything. An empty value is not an override: a blank ``SECRET_KEY=`` line
     must not hand the clinic an empty key.
     """
-    for key in ("SECRET_KEY", "CLINIC_NAME", "DEFAULT_LANGUAGE"):
+    for key in ("SECRET_KEY", "CLINIC_NAME", "DEFAULT_LANGUAGE",
+                "BACKUP_PASSWORD"):
         value = (os.environ.get(key) or "").strip()
         if value:
             app.config[key] = value

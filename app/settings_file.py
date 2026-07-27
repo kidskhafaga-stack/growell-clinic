@@ -41,6 +41,14 @@ DEFAULT_LANGUAGE=ar
 # HTTPS=1  only when the clinic really is behind a certificate.
 # حطّها بـ 1 بس لو العيادة فعلاً ورا شهادة HTTPS.
 
+# The passphrase backups are encrypted with. Set it from
+# Settings → Data, not here — and keep a copy somewhere safe:
+# there is no way to recover it, and without it an encrypted
+# backup cannot be restored by anyone, us included.
+# كلمة سر تشفير النسخة الاحتياطية — حطّها من الإعدادات ← البيانات،
+# واحتفظ بنسخة منها في مكان أمان: مافيش أي طريقة لاسترجاعها.
+# BACKUP_PASSWORD=
+
 # Where the database lives. The default is instance/growell.db
 # DATABASE_URL=sqlite:///instance/growell.db
 """
@@ -158,3 +166,42 @@ def ensure_secret(root=None, environ=None):
         return None
     environ["SECRET_KEY"] = key
     return key
+
+
+def set_value(key, value, root=None, environ=None):
+    """Write ``KEY=value`` into ``clinic.env``, replacing any existing line.
+
+    Rewrites in place rather than appending, because appending a second
+    ``BACKUP_PASSWORD=`` line would leave the old one above it and ``parse``
+    takes the last — so the file would say one thing and the program mean
+    another. Every other line, including the clinic's own comments, is kept
+    exactly where it was.
+
+    An empty value removes the setting. Returns True when the file was
+    written.
+    """
+    environ = environ if environ is not None else os.environ
+    target = path(root or default_root())
+    value = (value or "").strip()
+    lines = []
+    if os.path.isfile(target):
+        try:
+            with open(target, encoding="utf-8-sig") as fh:
+                lines = fh.read().splitlines()
+        except OSError:
+            return False
+    kept = [ln for ln in lines
+            if not (ln.strip().startswith(key + "=")
+                    or ln.strip().startswith(key + " ="))]
+    if value:
+        kept.append(f"{key}={value}")
+    try:
+        with open(target, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(kept).rstrip("\n") + "\n")
+    except OSError:
+        return False
+    if value:
+        environ[key] = value
+    else:
+        environ.pop(key, None)
+    return True

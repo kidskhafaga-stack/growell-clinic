@@ -13,6 +13,28 @@ signatures and stamps, prescriptions' letterheads, attached documents.
 So a backup is now a ``.zip`` holding the database and those files together.
 Older ``.db`` snapshots still restore exactly as before — they are simply
 missing the pictures they never contained.
+
+**And that archive is every patient the clinic has ever seen.** Names, phone
+numbers, diagnoses, prescriptions, the photographs. A backup's whole job is to
+leave the building — onto a flash drive, into a cloud folder, sent to whoever
+keeps the spare copy — and until it was encrypted, any of those journeys
+handed the lot to whoever picked it up.
+
+So when a passphrase is set, the archive is written as **AES-256 (WinZip)**,
+which 7-Zip and every other archiver can open. That matters more than a
+neater format of our own: a backup you can only restore by having this
+program working is a backup that fails you on the day the computer doesn't.
+
+Two things this does *not* do, said plainly:
+
+* **The file names inside stay readable.** WinZip AES encrypts contents, not
+  the directory. Someone with the archive learns that it holds a database and
+  some upload paths — the paths are random ids, so this is close to nothing,
+  but it is not nothing.
+* **It does not protect the clinic's own computer.** The passphrase lives in
+  ``clinic.env`` on that machine, because unattended nightly backups cannot
+  stop and ask for it. Anyone with the PC has both. What it protects is the
+  copy that left — which is the way this data actually escapes.
 """
 import os
 import re
@@ -22,6 +44,7 @@ import tempfile
 import zipfile
 from datetime import datetime
 
+import pyzipper
 from flask import current_app
 
 _NAME_RE = re.compile(r"^backup-\d{8}-\d{6}(-[a-z_]+)?\.(db|zip)$")
@@ -57,6 +80,49 @@ def uploads_root():
     return os.path.join(current_app.static_folder, "uploads")
 
 
+def backup_password():
+    """The passphrase this install writes backups with, or None.
+
+    Kept out of the database on purpose. A key stored beside the thing it
+    locks is decoration — anyone who took the database would have taken the
+    passphrase with it.
+    """
+    try:
+        configured = (current_app.config.get("BACKUP_PASSWORD") or "").strip()
+    except RuntimeError:      # outside an app context
+        configured = ""
+    return configured or (os.environ.get("BACKUP_PASSWORD") or "").strip() or None
+
+
+def is_encrypted(path):
+    """Whether an archive's contents need a passphrase."""
+    if not path or not path.endswith(".zip"):
+        return False
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return any(info.flag_bits & 0x1 for info in zf.infolist())
+    except Exception:  # noqa: BLE001 - a damaged archive is not "encrypted"
+        return False
+
+
+def _zip_writer(dest, password):
+    if not password:
+        return zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED)
+    zf = pyzipper.AESZipFile(dest, "w", compression=pyzipper.ZIP_DEFLATED,
+                             encryption=pyzipper.WZ_AES)
+    zf.setpassword(password.encode("utf-8"))
+    return zf
+
+
+def _zip_reader(path, password=None):
+    """Open an archive, encrypted or not. ``AESZipFile`` reads plain zips too,
+    so there is one reader rather than two paths that can drift apart."""
+    zf = pyzipper.AESZipFile(path)
+    if password:
+        zf.setpassword(password.encode("utf-8"))
+    return zf
+
+
 def _snapshot_db(dest):
     """A consistent copy of the live database at ``dest``."""
     src = db_path()
@@ -88,7 +154,7 @@ def create_backup(reason="manual"):
     tmp_db = os.path.join(tempfile.mkdtemp(prefix="gc-backup-"), DB_ENTRY)
     try:
         _snapshot_db(tmp_db)
-        with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        with _zip_writer(dest, backup_password()) as zf:
             zf.write(tmp_db, DB_ENTRY)
             if _include_files():
                 for rel, path in _upload_files():
@@ -116,7 +182,13 @@ def _upload_files():
 
 
 def list_backups():
-    """Existing backups, newest first: ``[{name, size, created, has_files}]``."""
+    """Existing backups, newest first.
+
+    ``[{name, size, created, has_files, encrypted}]`` — the lock is read from
+    each archive rather than from its name, because a name can be changed by
+    anyone who can rename a file and a clinic must not be told a snapshot is
+    protected when it isn't.
+    """
     out = []
     for fn in os.listdir(backup_dir()):
         if not _NAME_RE.match(fn):
@@ -125,7 +197,8 @@ def list_backups():
         st = os.stat(path)
         out.append({"name": fn, "size": st.st_size,
                     "created": datetime.fromtimestamp(st.st_mtime),
-                    "has_files": _counts_files(path)})
+                    "has_files": _counts_files(path),
+                    "encrypted": is_encrypted(path)})
     out.sort(key=lambda b: b["name"], reverse=True)
     return out
 
@@ -163,13 +236,20 @@ def _check_sqlite(path):
             raise ValueError("wrong_app")
 
 
-def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024):
+def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024,
+                         password=None):
     """Store a backup file uploaded from the admin's device.
 
     Accepts either format: an archive from a newer install (database + files)
     or a bare ``.db`` from an older one. Either way it must be a real SQLite
     database of *this* application, so a stray file can't be restored over the
     clinic's data. Returns the stored filename.
+
+    An encrypted archive is proved the same way as any other, which means it
+    has to be opened — so a file this install cannot decrypt is refused
+    (``bad_password``) rather than stored unverified. Keeping something we
+    could not read, next to a restore button, is how a stray file gets written
+    over a clinic's records.
     """
     head = file_storage.stream.read(4)
     file_storage.stream.seek(0)
@@ -186,7 +266,7 @@ def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024):
         if os.path.getsize(dest) > max_bytes:
             raise ValueError("too_big")
         if is_zip:
-            tmp = _extract_db(dest)
+            tmp = _extract_db(dest, password)
             _check_sqlite(tmp)
         else:
             _check_sqlite(dest)
@@ -199,16 +279,26 @@ def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024):
     return name
 
 
-def _extract_db(archive):
-    """Pull the database out of an archive into a temp dir; returns its path."""
-    with zipfile.ZipFile(archive) as zf:
+def _extract_db(archive, password=None):
+    """Pull the database out of an archive into a temp dir; returns its path.
+
+    ``password`` overrides the configured one, which is what makes an archive
+    from before a passphrase change restorable at all: the clinic types the
+    old words once instead of losing every snapshot taken under them.
+    """
+    password = password or backup_password()
+    with _zip_reader(archive, password) as zf:
         names = zf.namelist()
         entry = DB_ENTRY if DB_ENTRY in names else next(
             (n for n in names if n.endswith(".db") and "/" not in n), None)
         if entry is None:
             raise ValueError("wrong_app")
         out = tempfile.mkdtemp(prefix="gc-restore-")
-        zf.extract(entry, out)
+        try:
+            zf.extract(entry, out)
+        except (RuntimeError, ValueError) as exc:
+            shutil.rmtree(out, ignore_errors=True)
+            raise ValueError("bad_password") from exc
         return os.path.join(out, entry)
 
 
@@ -286,7 +376,7 @@ def auto_backup_if_due():
         return None
 
 
-def restore_backup(name):
+def restore_backup(name, password=None):
     """Replace the live database — and the uploaded files — with a backup's.
 
     A fresh snapshot of the current state is taken first (reason
@@ -309,18 +399,22 @@ def restore_backup(name):
     if not live or not os.path.isfile(live):
         raise RuntimeError("database file not found")
 
+    # Opened before anything is replaced. A wrong passphrase discovered after
+    # the live database had been overwritten would be the worst possible
+    # moment to find out.
+    tmp = _extract_db(src, password) if src.endswith(".zip") else None
+
     pre = create_backup("prerestore")
 
     from app.extensions import db as _db
     _db.session.remove()
     _db.engine.dispose()
 
-    if src.endswith(".zip"):
-        tmp = _extract_db(src)
+    if tmp is not None:
         try:
             with sqlite3.connect(tmp) as source, sqlite3.connect(live) as target:
                 source.backup(target)
-            _restore_files(src)
+            _restore_files(src, password)
         finally:
             shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
     else:
@@ -329,11 +423,11 @@ def restore_backup(name):
     return pre
 
 
-def _restore_files(archive):
+def _restore_files(archive, password=None):
     """Write the archive's uploaded files back under ``static/uploads``."""
     root = uploads_root()
     restored = 0
-    with zipfile.ZipFile(archive) as zf:
+    with _zip_reader(archive, password or backup_password()) as zf:
         for entry in zf.namelist():
             if not entry.startswith(FILES_PREFIX) or entry.endswith("/"):
                 continue

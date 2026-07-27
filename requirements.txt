@@ -7,6 +7,11 @@ Werkzeug==3.0.3
 python-dotenv==1.0.1
 # Serves the clinic instead of Werkzeug's development server
 waitress==3.0.0
+# AES-256 ZIP for encrypted backups — the archive is every patient the clinic
+# has seen, and its whole job is to leave the building. WinZip-AES so 7-Zip can
+# open it: a backup only this program can restore fails you on the day the
+# computer doesn't.
+pyzipper==0.4.0
 openpyxl==3.1.5
 requests==2.32.3
 segno==1.6.1
