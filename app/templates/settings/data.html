@@ -57,7 +57,10 @@
       <form method="post" action="{{ url_for('settings.backup_upload') }}" enctype="multipart/form-data"
             style="display:flex;gap:8px;align-items:center;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="file" name="backup_file" accept=".db,.sqlite,.sqlite3" required
+        <input class="input" type="password" name="password" dir="ltr"
+               autocomplete="off" placeholder="{{ t('backups.pwd_upload_ph') }}"
+               style="max-width:200px;">
+        <input type="file" name="backup_file" accept=".db,.zip,.sqlite,.sqlite3" required
                style="max-width:230px;" class="input">
         <button class="btn btn-outline gc-press" type="submit">
           <i class="bi bi-upload"></i> {{ t('backups.upload_btn') }}</button>
@@ -97,6 +100,44 @@
     <div class="hint" style="flex-basis:100%;margin:0;">{{ t('backups.auto_hint') }}</div>
     <div class="hint" style="flex-basis:100%;margin:0;"><i class="bi bi-images"></i> {{ t('backups.include_files_hint') }}</div>
   </form>
+
+  {# The archive is every patient the clinic has ever seen, and its whole job
+     is to leave the building. #}
+  <div style="margin-top:14px;padding:12px;border-radius:10px;
+              border-inline-start:4px solid {{ 'var(--green-600)' if bset.encrypted else 'var(--danger)' }};
+              background:var(--card);">
+    <strong>
+      <i class="bi bi-{{ 'shield-lock-fill' if bset.encrypted else 'shield-exclamation' }}"
+         style="color:{{ 'var(--green-600)' if bset.encrypted else 'var(--danger)' }};"></i>
+      {{ t('backups.pwd_title') }} —
+      {{ t('backups.pwd_on') if bset.encrypted else t('backups.pwd_off') }}
+    </strong>
+    <p class="hint" style="margin:6px 0 10px;">
+      {{ t('backups.pwd_hint') if bset.encrypted else t('backups.pwd_warn') }}</p>
+
+    <form method="post" action="{{ url_for('settings.backup_password_set') }}"
+          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:170px;">
+        <label style="font-size:.85rem;">{{ t('backups.pwd_new') }}</label>
+        <input class="input" type="password" name="backup_password" dir="ltr"
+               autocomplete="new-password" placeholder="••••••••">
+      </div>
+      <div class="form-row" style="margin:0;flex:1;min-width:170px;">
+        <label style="font-size:.85rem;">{{ t('backups.pwd_confirm') }}</label>
+        <input class="input" type="password" name="backup_password_confirm"
+               dir="ltr" autocomplete="new-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-key"></i> {{ t('common.save') }}</button>
+    </form>
+    {# Said where it cannot be missed: there is no recovery, by design. A
+       passphrase we could recover would be a passphrase an intruder could. #}
+    <p class="hint" style="margin:8px 0 0;color:var(--danger);font-weight:600;">
+      <i class="bi bi-exclamation-triangle"></i> {{ t('backups.pwd_lost') }}</p>
+    <p class="hint" style="margin:4px 0 0;">{{ t('backups.pwd_scope') }}</p>
+  </div>
+
   {% if backups %}
   <div style="overflow-x:auto;margin-top:12px;">
     <table class="table" style="min-width:480px;">
@@ -110,16 +151,20 @@
         <tr>
           <td dir="ltr" style="font-family:monospace;font-size:.85rem;">{{ b.name }}
             {% if b.has_files %}<span class="badge badge--green" dir="auto"><i class="bi bi-images"></i> {{ b.has_files }}</span>
-            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.no_files_hint') }}">{{ t('backups.no_files') }}</span>{% endif %}</td>
+            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.no_files_hint') }}">{{ t('backups.no_files') }}</span>{% endif %}
+            {% if b.encrypted %}<span class="badge badge--green" dir="auto" title="{{ t('backups.pwd_on') }}"><i class="bi bi-lock-fill"></i></span>
+            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.pwd_off') }}"><i class="bi bi-unlock"></i></span>{% endif %}</td>
           <td>{{ b.created.strftime('%Y-%m-%d %H:%M') }}</td>
           <td style="text-align:end;">{{ '%.1f'|format(b.size / 1048576) }} MB</td>
           <td style="text-align:end;white-space:nowrap;">
             <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.backup_download', name=b.name) }}">
               <i class="bi bi-download"></i> {{ t('backups.download') }}</a>
             <form method="post" action="{{ url_for('settings.backup_restore', name=b.name) }}" style="display:inline;"
-                  onsubmit="var v=prompt('{{ t('backups.restore_prompt') }}'); if(v!=='RESTORE'){return false;} this.confirm.value=v; return true;">
+                  onsubmit="var v=prompt('{{ t('backups.restore_prompt') }}'); if(v!=='RESTORE'){return false;} this.confirm.value=v;
+                            {% if b.encrypted %}this.password.value = prompt('{{ t('backups.pwd_ask') }}') || '';{% endif %} return true;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="confirm" value="">
+              {% if b.encrypted %}<input type="hidden" name="password" value="">{% endif %}
               <button class="btn btn-outline btn-sm gc-press" type="submit" style="color:var(--danger);">
                 <i class="bi bi-arrow-counterclockwise"></i> {{ t('backups.restore') }}</button>
             </form>
