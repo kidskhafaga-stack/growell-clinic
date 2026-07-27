@@ -1,0 +1,93 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('service.title') }}{% endblock %}
+{% block page_heading %}{{ t('service.title') }}{% endblock %}
+
+{% macro hours(value) %}
+  {%- if value is none -%}—
+  {%- elif value < 1 -%}{{ (value * 60)|round(0)|int }} {{ t('service.minutes') }}
+  {%- elif value < 24 -%}{{ value|round(1) }} {{ t('service.hours') }}
+  {%- else -%}{{ (value / 24)|round(1) }} {{ t('service.days') }}
+  {%- endif -%}
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-speedometer2"></i> {{ t('service.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('service.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:6px;">
+    {% for d in [7, 30, 90] %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if days == d else 'btn-outline' }}"
+       href="{{ url_for('messages.service_board', days=d) }}">{{ d }} {{ t('service.days') }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{# The four numbers, in the order somebody running a clinic asks them. #}
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card">
+    <div class="label">{{ t('service.median') }}</div>
+    <div class="value">{{ hours(stats.median_hours) }}</div>
+    <div class="hint" style="margin:0;">{{ t('service.median_hint') }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">{{ t('service.mean') }}</div>
+    <div class="value" style="color:var(--muted);">{{ hours(stats.mean_hours) }}</div>
+    <div class="hint" style="margin:0;">{{ t('service.mean_hint') }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">{{ t('service.answered') }}</div>
+    <div class="value">{{ stats.answer_rate if stats.answer_rate is not none else '—' }}%</div>
+    <div class="hint" style="margin:0;">{{ stats.answered }} / {{ stats.asked }}</div>
+  </div>
+  {# The one that costs money. Unanswered *and* past the window: after that
+     the reply is no longer free and can only go as an approved template. #}
+  <div class="stat-card" style="{{ 'border-inline-start-color:var(--danger);' if stats.missed else '' }}">
+    <div class="label">{{ t('service.missed') }}</div>
+    <div class="value" style="{{ 'color:var(--danger);' if stats.missed }}">{{ stats.missed }}</div>
+    <div class="hint" style="margin:0;">{{ t('service.missed_hint') }}</div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title"><i class="bi bi-stopwatch"></i> {{ t('service.speed') }}</h2>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;">
+    <div><strong style="font-size:1.3rem;">{{ stats.within_hour }}</strong>
+      <span style="color:var(--muted);"> {{ t('service.within_hour') }}</span></div>
+    <div><strong style="font-size:1.3rem;">{{ stats.waiting }}</strong>
+      <span style="color:var(--muted);"> {{ t('service.still_waiting') }}</span></div>
+  </div>
+  <p class="hint" style="margin:8px 0 0;">{{ t('service.speed_hint') }}</p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-people"></i> {{ t('service.by_assignee') }}</h2>
+    {% if stats.by_assignee %}
+    <table class="table"><tbody>
+      {% for row in stats.by_assignee %}
+      <tr><td>{{ row.user.display_name(current_lang) if row.user else '—' }}</td>
+        <td style="text-align:end;font-weight:600;">{{ row.count }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}<p class="hint">{{ t('service.no_assignees') }}</p>{% endif %}
+  </div>
+
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-tags"></i> {{ t('service.by_topic') }}</h2>
+    {% if stats.by_topic %}
+    <table class="table"><tbody>
+      {% for row in stats.by_topic %}
+      <tr>
+        <td><span class="badge {{ 'badge--danger' if row.topic == 'urgent' else 'badge--role' }}">
+          {{ t('triage.topic_' ~ row.topic) }}</span></td>
+        <td style="text-align:end;font-weight:600;">{{ row.count }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    <p class="hint" style="margin:6px 0 0;">{{ t('service.by_topic_hint') }}</p>
+    {% else %}<p class="hint">{{ t('service.no_topics') }}</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

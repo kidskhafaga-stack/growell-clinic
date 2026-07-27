@@ -186,6 +186,23 @@ def _recent_failures(limit=20, days=BOARD_DAYS):
             .order_by(MessageLog.created_at.desc()).limit(limit).all())
 
 
+@messages_bp.route("/service")
+@module_required(MODULE)
+def service_board():
+    """Whether this clinic answers people, and how fast.
+
+    The send screen counts messages by status, which says how the *provider*
+    is doing. This says how the clinic is doing — which is the question
+    somebody running one actually has.
+    """
+    from app.utils.service_stats import summary
+
+    days = request.args.get("days", 30, type=int)
+    days = days if days in (7, 30, 90) else 30
+    return render_template("messages/service.html",
+                           stats=summary(days=days), days=days)
+
+
 @messages_bp.route("/inbox")
 @module_required(MODULE)
 def inbox():

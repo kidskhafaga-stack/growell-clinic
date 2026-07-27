@@ -11,6 +11,8 @@
     <p class="page-sub" style="margin:0;">{{ t('inbox.subtitle') }}</p>
   </div>
   <div style="display:flex;gap:8px;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.service_board') }}">
+      <i class="bi bi-speedometer2"></i> {{ t('service.nav') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}">
       <i class="bi bi-graph-up"></i> {{ t('inbox.dashboard') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.quick_replies') }}">
