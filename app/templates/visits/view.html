@@ -36,6 +36,22 @@
     <div class="info-item"><div class="k">{{ t('appointments.patient') }}</div><div class="v">{{ visit.patient.display_name(current_lang) }} — {{ visit.patient.patient_number }}</div></div>
     <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(visit.patient) }} · {{ t('genders.' ~ visit.patient.gender) }}</div></div>
     <div class="info-item"><div class="k">{{ t('visits.by_doctor') }}</div><div class="v">{{ visit.doctor.display_name(current_lang) }}</div></div>
+    {# The printed page is what somebody reads a year later. It has to say
+       the child was not in the room, what was decided, and on what — or the
+       file reads as an ordinary examination that never happened. #}
+    {% if visit.channel == 'whatsapp' %}
+    <div class="info-item"><div class="k">{{ t('visits.channel') }}</div>
+      <div class="v"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</div></div>
+    {% if visit.decision %}
+    <div class="info-item"><div class="k">{{ t('teleconsult.what_now') }}</div>
+      <div class="v">{{ t('teleconsult.decision_' ~ visit.decision) }}</div></div>
+    {% endif %}
+    {% if visit.based_on %}
+    <div class="info-item"><div class="k">{{ t('teleconsult.based_on') }}</div>
+      <div class="v">{{ visit.based_on.display_name(current_lang) }}
+        {% if visit.based_on.result_text %}— {{ visit.based_on.result_text }}{% endif %}</div></div>
+    {% endif %}
+    {% endif %}
   </div>
 
   <!-- Vitals -->

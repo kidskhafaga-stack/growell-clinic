@@ -495,6 +495,9 @@
         <a class="card gc-lift" href="{{ url_for('visits.view', visit_id=v.id) }}"
            style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <span class="badge badge--role"><i class="bi bi-calendar3"></i> {{ v.visit_date.strftime('%Y-%m-%d') }}</span>
+          {# A decision taken over WhatsApp is a real consultation — but the
+             file must never read as though the child was seen in the room. #}
+          {% if v.channel == 'whatsapp' %}<span class="badge badge--green" title="{{ t('teleconsult.decision_' ~ v.decision) if v.decision else '' }}"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</span>{% endif %}
           <span style="flex:1;">
             {% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">{{ v.chief_complaint or '—' }}</span>{% endfor %}
           </span>
