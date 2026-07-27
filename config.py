@@ -29,6 +29,18 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 12  # 12 hours
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    # "Remember me" issues a *second* cookie that signs you in without the
+    # session — it is the longer-lived of the two and the more valuable to
+    # steal, so it gets the same protection, and it gets it in the base class.
+    # These used to live in ProductionConfig alone, which meant a clinic
+    # running on the default config had a remember-cookie readable by any
+    # script on the page.
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+
+    # A ceiling on how fast one caller can hit the login form, the webhooks
+    # and the survey. See app/utils/rate_limit.py.
+    RATELIMIT_ENABLED = True
 
     # Clinic defaults (overridable via the settings table later).
     CLINIC_NAME = os.environ.get("CLINIC_NAME", "GROWELL CLINIC")
@@ -40,7 +52,6 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
-    REMEMBER_COOKIE_HTTPONLY = True
     # Cookies marked "secure" are only ever sent over HTTPS — which is right
     # behind a certificate and a lock-out everywhere else. Most clinics run
     # this on the practice LAN over plain HTTP, where marking the session
@@ -55,6 +66,9 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     WTF_CSRF_ENABLED = False
+    # A suite that signs in forty times is not an attack. The tests that are
+    # about the limiter switch it back on for themselves.
+    RATELIMIT_ENABLED = False
 
 
 config = {

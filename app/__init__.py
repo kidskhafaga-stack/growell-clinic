@@ -48,6 +48,29 @@ def _protect_forms(app):
     return csrf
 
 
+def _harden_responses(app):
+    """Headers that stop a stored file from becoming a page.
+
+    Patient documents are served from the clinic's own origin, which means a
+    file the browser decides to treat as HTML runs with the session of whoever
+    opened it. ``save_document`` already refuses anything whose bytes aren't an
+    image or a PDF; ``nosniff`` is the other half — it stops the browser
+    second-guessing the type we sent and re-interpreting an X-ray as markup.
+
+    The frame header is for the login form: a clinic reachable on the practice
+    network should not be loadable inside somebody else's page.
+    """
+    @app.after_request
+    def _headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy",
+                                    "strict-origin-when-cross-origin")
+        return response
+
+    return app
+
+
 def _apply_environment(app):
     """Let the environment override the config — read *now*, not at import.
 
@@ -91,6 +114,7 @@ def create_app(config_name="default"):
     db.init_app(app)
     login_manager.init_app(app)
     csrf = _protect_forms(app)
+    _harden_responses(app)
     i18n.init_app(app)
     from app.utils import money as _money
     _money.init_app(app)
