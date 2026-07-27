@@ -9,6 +9,27 @@
 
 {% macro img_url(path) %}{{ url_for('static', filename=path.split('static/', 1)[1]) if path and 'static/' in path else path }}{% endmacro %}
 
+{#- One number, before fifty. The preview shows the wording; this shows what
+    actually arrives — the line breaks, the image, the provider. Sends the body
+    from the editor (`:value="body"`), not the saved one, because testing the
+    version you already replaced is the mistake worth preventing. -#}
+{% macro test_send(action) %}
+<div class="window-pill" style="margin-top:12px;padding:10px 12px;border-radius:10px;">
+  <form method="post" action="{{ action }}"
+        style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="body" :value="body">
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;">
+      <label style="font-size:.85rem;"><i class="bi bi-phone"></i> {{ t('crm.test_title') }}</label>
+      <input class="input" name="phone" dir="ltr" placeholder="01xxxxxxxxx">
+    </div>
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-send-check"></i> {{ t('crm.test_send') }}</button>
+  </form>
+  <div class="hint" style="margin:6px 0 0;">{{ t('crm.test_hint') }}</div>
+</div>
+{% endmacro %}
+
 {% block content %}
 <style>
   .crm-md { display:grid; grid-template-columns:250px 1fr; gap:16px; }
@@ -58,20 +79,15 @@
 
 <script>
 const TPL_VARS = {{ template_variables | tojson }};
-const CLINIC_NAME = {{ (values.get('clinic_name_ar') or values.get('clinic_name') or 'العيادة') | tojson }};
 const TPL_INIT = {
   0: { body:'', img:'' },
 {% for tp in system_templates %}  {{ tp.id }}: { body: {{ tp.body | tojson }}, img: {{ (img_url(tp.image_url) if tp.image_url else '') | tojson }} },
 {% endfor %}{% for tp in custom_templates %}  {{ tp.id }}: { body: {{ tp.body | tojson }}, img: {{ (img_url(tp.image_url) if tp.image_url else '') | tojson }} },
 {% endfor %}};
-const WA_SAMPLES = {
-  patient:'محمد أحمد', clinic:CLINIC_NAME, date:'2026-07-10', time:'10:30 ص',
-  doctor:'د. سارة', queue:'3', vaccine:'الروتا', dose:'الجرعة الأولى',
-  next_date:'2026-08-10', due_date:'2026-07-15', year:'2026',
-  old_vaccine:'التطعيم السابق', new_vaccine:'التطعيم البديل',
-  count:'8', list:'1) 10:00 - محمد\n2) 10:30 - سارة\n3) 11:00 - يوسف',
-  link:'https://clinic.example.com/f/aXbY'
-};
+// Straight from the server, so the preview here and the test send there fill
+// from the same values. Two copies drift, and a preview that shows something
+// other than what gets sent is worse than none.
+const WA_SAMPLES = {{ wa_samples | tojson }};
 function waFill(text){ return (text||'').replace(/\{(\w+)\}/g, (m,k)=> WA_SAMPLES[k]!==undefined ? WA_SAMPLES[k] : m); }
 function tplEditor(id, occ){
   const seed = (typeof TPL_INIT !== 'undefined' && TPL_INIT[id]) || {body:'',img:''};
@@ -130,8 +146,8 @@ function tplEditor(id, occ){
     <!-- right: editor + preview for the selected type -->
     <div>
       {% for tp in system_templates %}
-      <div x-show="sel==={{ tp.id }}" x-cloak>
-        <form method="post" action="{{ url_for('messages.system_template_save', tpl_id=tp.id) }}" enctype="multipart/form-data" x-data="tplEditor({{ tp.id }})">
+      <div x-show="sel==={{ tp.id }}" x-cloak x-data="tplEditor({{ tp.id }})">
+        <form method="post" action="{{ url_for('messages.system_template_save', tpl_id=tp.id) }}" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
             <h3 style="margin:0;font-size:1.05rem;">{{ t('occasions.occ_' ~ tp.occasion) }}</h3>
@@ -203,6 +219,8 @@ function tplEditor(id, occ){
             </div>
           </div>
         </form>
+
+        {{ test_send(url_for('messages.template_test_send', tpl_id=tp.id)) }}
       </div>
       {% endfor %}
     </div>
@@ -286,7 +304,11 @@ function tplEditor(id, occ){
   {% if custom_templates %}
   <div style="display:flex;flex-direction:column;gap:8px;">
     {% for tp in custom_templates %}
-    <details class="window-pill" style="display:block;border-radius:10px;padding:10px 12px;">
+    {# The editor scope sits on the wrapper, not on the form, so the test-send
+       form beside it can read the body being edited rather than the saved
+       one — testing yesterday's wording is the mistake it exists to catch. #}
+    <details class="window-pill" style="display:block;border-radius:10px;padding:10px 12px;"
+             x-data="tplEditor({{ tp.id }}, '{{ tp.occasion }}')">
       <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <span><strong>{{ tp.name }}</strong> <span class="badge badge--role">{{ t('occasions.occ_' ~ tp.occasion) }}</span>
           {% if tp.image_url %}<i class="bi bi-image" style="color:var(--green-600);"></i>{% endif %}
@@ -304,7 +326,7 @@ function tplEditor(id, occ){
           {% if not tp.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</span>
         <span style="color:var(--muted);font-size:0.82rem;">{{ (tp.body[:50] ~ '…') if tp.body|length > 50 else tp.body }}</span>
       </summary>
-      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" enctype="multipart/form-data" style="margin-top:10px;" x-data="tplEditor({{ tp.id }}, '{{ tp.occasion }}')">
+      <form method="post" action="{{ url_for('messages.occasion_template_edit', tpl_id=tp.id) }}" enctype="multipart/form-data" style="margin-top:10px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="crm-editor">
           <div>
@@ -355,6 +377,8 @@ function tplEditor(id, occ){
           </div>
         </div>
       </form>
+
+      {{ test_send(url_for('messages.template_test_send', tpl_id=tp.id)) }}
     </details>
     {% endfor %}
   </div>
@@ -419,6 +443,32 @@ function tplEditor(id, occ){
     <div class="form-row" x-show="mode==='automatic'" x-cloak><label>{{ t('crm.public_base') }}</label>
       <input class="input" name="wa_public_base_url" dir="ltr" value="{{ values.get('wa_public_base_url','') }}" placeholder="https://clinic.example.com">
       <div class="hint">{{ t('crm.public_base_hint') }}</div></div>
+
+    {# After 24 hours Meta delivers nothing but a template it approved in
+       advance. Without these names an old conversation is a dead end. #}
+    <div x-show="mode==='automatic' && provider==='cloud_api'" x-cloak style="margin-top:8px;">
+      <h3 style="font-size:0.95rem;margin:16px 0 6px;"><i class="bi bi-file-earmark-check"></i> {{ t('crm.approved_title') }}</h3>
+      <p class="hint" style="margin-top:0;">{{ t('crm.approved_hint') }}</p>
+      <div class="form-row">
+        <textarea class="input" name="wa_approved_templates" rows="4" dir="ltr"
+                  style="font-family:monospace;font-size:.82rem;"
+                  placeholder="result_ready | ar | نتيجة {{ '{{1}}' }} جاهزة، تقدر تعدّي العيادة">{{ values.get('wa_approved_templates','') }}</textarea>
+        <div class="hint">{{ t('crm.approved_format') }}</div>
+      </div>
+      {# Read back what parsed, so a mistyped line visibly disappears here
+         rather than on the night somebody needs it. #}
+      {% if approved_templates %}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        {% for tp in approved_templates %}
+        <span class="badge badge--role" dir="ltr">{{ tp.name }} · {{ tp.lang }}
+          {%- if tp.params %} · {{ tp.params }}{% endif %}</span>
+        {% endfor %}
+      </div>
+      {% elif values.get('wa_approved_templates','')|trim %}
+      <div class="hint" style="color:var(--danger);font-weight:600;">
+        <i class="bi bi-exclamation-triangle"></i> {{ t('crm.approved_none_parsed') }}</div>
+      {% endif %}
+    </div>
 
     <!-- Inbound receiving (webhooks) -->
     {% set base = values.get('wa_public_base_url','')|trim %}

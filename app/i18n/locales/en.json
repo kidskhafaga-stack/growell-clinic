@@ -2520,7 +2520,17 @@
     "failure_reason": "Reason",
     "meta_app_secret": "Meta app secret",
     "meta_app_secret_hint": "Meta for Developers → App settings → Basic. It proves a delivery really came from Meta.",
-    "meta_app_secret_missing": "Inbound is on without the app secret — Meta deliveries are refused entirely until it is set."
+    "meta_app_secret_missing": "Inbound is on without the app secret — Meta deliveries are refused entirely until it is set.",
+    "test_title": "Test send to one number",
+    "test_send": "Send test",
+    "test_hint": "Sends the body currently in the editor (not the saved one) with sample values, so you see the real message before it goes to everybody.",
+    "test_no_phone": "Enter a phone number for the test send.",
+    "test_sent": "Test message sent to {phone}.",
+    "test_failed": "Test send failed: {err}",
+    "approved_title": "Meta-approved templates",
+    "approved_hint": "24 hours after the family's last message WhatsApp refuses free text — only an approved template goes out. Register the names Meta approved so the conversation can offer them once the window shuts.",
+    "approved_format": "One per line: name | language | approved body (parameters as {{1}}). Names are lowercase letters, digits and _ only.",
+    "approved_none_parsed": "No line here parsed — check the format."
   },
   "notif": {
     "title": "Notifications",
@@ -2960,7 +2970,16 @@
     "note_saved": "Note saved",
     "note_hint": "The note is for staff only — it is never sent to the patient.",
     "start": "Start a conversation",
-    "start_hint": "Open a WhatsApp conversation with this patient without waiting for them to write first."
+    "start_hint": "Open a WhatsApp conversation with this patient without waiting for them to write first.",
+    "tpl_pick": "Pick an approved template",
+    "tpl_param": "Parameter",
+    "tpl_send": "Send template",
+    "tpl_hint": "This is what WhatsApp allows once the window has closed. The moment the family replies, the window reopens and you can write freely again.",
+    "tpl_none": "No approved templates registered — add them in the connection settings.",
+    "tpl_unknown": "That template is not registered.",
+    "tpl_missing_param": "Fill every parameter — Meta rejects a template with a blank in it.",
+    "tpl_sent": "Sent as an approved template.",
+    "tpl_failed": "Template send failed: {err}"
   },
   "journal": {
     "title": "Journal",

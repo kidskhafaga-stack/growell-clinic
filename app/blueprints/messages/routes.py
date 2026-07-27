@@ -42,6 +42,7 @@ WA_CONFIG_KEYS = [
     "wa_wapilot_key", "wa_wapilot_instance", "wa_wapilot_endpoint",
     "wa_public_base_url", "wa_send_from", "wa_send_to", "wa_daily_cap",
     "wa_meta_verify_token", "wa_meta_app_secret",
+    "wa_approved_templates",
 ]
 WA_TOGGLE_KEYS = ["wa_inbound_enabled"]
 
@@ -367,17 +368,36 @@ def inbox_thread(key):
     resolved = (record is not None
                 and record.is_resolved_for(last_inbound_at(key)))
     db.session.commit()
+    window = session_window(key)
     return render_template(
         "messages/thread.html", msgs=msgs, key=key, patient=patient,
         phone=phone, waits=waits, pending=pending,
         record=record, resolved=resolved, staff=_desk_staff(),
-        window=session_window(key),
+        window=window, approved=_approved_for(window),
         opted_out=bool(patient is not None and patient.wa_opt_out),
         canned=canned, ai_ready=ai_available(),
         topics=TRIAGE_TOPICS,
         patients=(Patient.query.filter_by(is_active=True)
                   .order_by(Patient.full_name).limit(500).all()
                   if patient is None else []))
+
+
+def _approved_for(window):
+    """``{available, list}`` — the approved templates to offer, if any.
+
+    Only when the free window has actually shut. While it is open, free text is
+    what the family should get: a template is stiffer, costs money, and
+    offering both invites sending the wrong one.
+
+    ``available`` and an empty list are different situations and the screen
+    says so — the clinic is on the Cloud API and has registered nothing, which
+    is a settings link, not a shrug.
+    """
+    from app.utils import wa_templates
+
+    if window is None or window.get("open") or not wa_templates.available():
+        return {"available": False, "list": []}
+    return {"available": True, "list": wa_templates.approved()}
 
 
 def _reply_waits(msgs):
@@ -546,30 +566,68 @@ def inbox_send(key):
     body = (request.form.get("body") or "").strip()
     if not body:
         return redirect(url_for("messages.inbox_thread", key=key))
-    last = _thread_query(key).order_by(MessageLog.created_at.desc()).first()
-    patient = None
-    if last is None:
-        # A conversation the clinic is starting: no messages yet, so the
-        # number comes from the patient's own file.
-        if not (key.startswith("p") and key[1:].isdigit()):
-            return redirect(url_for("messages.inbox"))
-        patient = db.session.get(Patient, int(key[1:]))
-        if patient is None:
-            return redirect(url_for("messages.inbox"))
-    phone = (last.to_phone if last is not None else None) or (
-        (last.patient.contact_phone if last is not None and last.patient
-         else (patient.contact_phone if patient else None)))
+    phone, patient_id = _thread_phone(key)
     if not phone:
         flash(t("inbox.no_phone"), "danger")
         return redirect(url_for("messages.inbox_thread", key=key))
-    log = wa.send(body, phone,
-                  patient_id=(last.patient_id if last is not None
-                              else patient.id),
-                  user_id=current_user.id)
+    log = wa.send(body, phone, patient_id=patient_id, user_id=current_user.id)
     db.session.commit()
     if log.link:  # web provider: open the wa.me link for the user to hit send
         return redirect(log.link)
     flash(t("inbox.sent"), "success")
+    return redirect(url_for("messages.inbox_thread", key=key))
+
+
+def _thread_phone(key):
+    """The number this conversation reaches, and the patient it belongs to."""
+    last = _thread_query(key).order_by(MessageLog.created_at.desc()).first()
+    if last is not None:
+        return (last.to_phone or (last.patient.contact_phone if last.patient
+                                  else None)), last.patient_id
+    # A conversation the clinic is starting: no messages yet, so the number
+    # comes from the patient's own file.
+    if key.startswith("p") and key[1:].isdigit():
+        patient = db.session.get(Patient, int(key[1:]))
+        if patient is not None:
+            return patient.contact_phone, patient.id
+    return None, None
+
+
+@messages_bp.route("/inbox/<key>/template-send", methods=["POST"])
+@module_required(MODULE)
+def inbox_template_send(key):
+    """Reply with a Meta-approved template once the free window has shut.
+
+    After 24 hours WhatsApp refuses free text. Before this, an old conversation
+    was a dead end — the result is ready, the mother wrote two days ago, and
+    the program had nothing to offer but a warning.
+    """
+    from app.utils import wa_templates
+
+    tpl = wa_templates.find((request.form.get("name") or "").strip().lower())
+    if tpl is None:
+        flash(t("inbox.tpl_unknown"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    values = [(request.form.get(f"p{i}") or "").strip()
+              for i in range(1, tpl["params"] + 1)]
+    # Meta rejects a template with a blank parameter, and a family reading
+    # "نتيجة  جاهزة" would be worse than the rejection. Catch it here, where
+    # there is still a form to fix it in.
+    if any(not v for v in values):
+        flash(t("inbox.tpl_missing_param"), "warning")
+        return redirect(url_for("messages.inbox_thread", key=key))
+
+    phone, patient_id = _thread_phone(key)
+    if not phone:
+        flash(t("inbox.no_phone"), "danger")
+        return redirect(url_for("messages.inbox_thread", key=key))
+    log = wa.send_approved(tpl, values, phone, patient_id=patient_id,
+                           user_id=current_user.id)
+    db.session.commit()
+    if log.status == "sent":
+        flash(t("inbox.tpl_sent"), "success")
+    else:
+        flash(t("inbox.tpl_failed").replace("{err}", log.error or "—"), "danger")
     return redirect(url_for("messages.inbox_thread", key=key))
 
 
@@ -591,13 +649,15 @@ def inbox_start(patient_id):
     from app.utils.inbox import conversation_for, session_window
     conversation_for(key)
     db.session.commit()
+    window = session_window(key)
     return render_template(
         "messages/thread.html", msgs=[], key=key, patient=patient,
         phone=patient.contact_phone, waits={}, pending=False,
         record=None, resolved=False, staff=_desk_staff(),
         # They have never written, so there is no open reply window — say so
         # before someone types a paragraph that can't be delivered.
-        window=session_window(key), opted_out=bool(patient.wa_opt_out),
+        window=window, opted_out=bool(patient.wa_opt_out),
+        approved=_approved_for(window),
         canned=[{"title": q.title,
                  "body": _render_canned(q.body, patient)} for q in _canned()],
         ai_ready=False)
@@ -880,8 +940,13 @@ def occasions():
     from app.utils.occasions import campaign_report
     campaigns = {tpl.id: campaign_report(tpl)
                  for tpl in custom_templates if tpl.occasion_date or tpl.last_enqueued_on}
+    from app.utils import wa_preview, wa_templates
+    clinic = values.get("clinic_name_ar") or values.get("clinic_name") or ""
     return render_template(
         "messages/occasions.html",
+        wa_samples=wa_preview.samples(clinic),
+        approved_templates=wa_templates.parse(
+            values.get("wa_approved_templates", "")),
         birthdays=_upcoming_birthdays(),
         system_templates=system_templates,
         custom_templates=custom_templates,
@@ -952,6 +1017,52 @@ def system_template_save(tpl_id):
 
     db.session.commit()
     flash(t("crm.type_saved"), "success")
+    return redirect(url_for("messages.occasions") + "#types")
+
+
+@messages_bp.route("/type/<int:tpl_id>/test-send", methods=["POST"])
+@module_required(MODULE)
+def template_test_send(tpl_id):
+    """Send this template to one number before it goes to everybody.
+
+    The automatic replies go out unread — a template with a mistake in it
+    reaches fifty families before anyone notices, and every one of those is a
+    message the clinic cannot take back. One send to the receptionist's own
+    phone catches it while it still costs nothing.
+
+    What is sent is the body **as it stands in the editor**, not the saved one:
+    testing the previous version and then saving a different one is exactly the
+    mistake this is meant to prevent. The image, though, is the saved one — an
+    unpicked file has never left the browser.
+    """
+    from app.utils import wa_preview
+
+    tpl = db.get_or_404(MessageTemplate, tpl_id)
+    phone = (request.form.get("phone") or "").strip()
+    if not phone:
+        flash(t("crm.test_no_phone"), "warning")
+        return redirect(url_for("messages.occasions") + "#types")
+
+    body = (request.form.get("body") or "").strip() or tpl.body
+    clinic = Setting.get("clinic_name_ar") or Setting.get("clinic_name") or ""
+    filled = wa_preview.fill(body, wa_preview.samples(clinic))
+    # Tagged "test" rather than with the type's own name, which does two
+    # things: the delivery report doesn't count it as a birthday greeting that
+    # reached a family, and the send goes by whatever the clinic has actually
+    # configured instead of the type's auto/manual preference. A test that
+    # quietly becomes a link because the type is set to manual has tested
+    # nothing.
+    log = wa.send(filled, phone, user_id=current_user.id,
+                  image_url=tpl.image_url, template_type="test",
+                  ignore_window=True)
+    db.session.commit()
+    if log.link:  # click-to-send: hand the staff member the ready message
+        return redirect(log.link)
+    if log.status == "sent":
+        flash(t("crm.test_sent").replace("{phone}", log.to_phone or phone),
+              "success")
+    else:
+        flash(t("crm.test_failed").replace("{err}", log.error or "—"), "danger")
     return redirect(url_for("messages.occasions") + "#types")
 
 
