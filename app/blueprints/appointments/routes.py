@@ -80,7 +80,14 @@ def index():
     if doctor_id is None and current_user.role == "doctor":
         doctor_id = current_user.id
 
-    query = Appointment.query.filter(Appointment.appt_date == on_date)
+    # The board shows each child's name and their guardian's phone, so the
+    # patient (and their family) come along rather than one query per row.
+    from sqlalchemy.orm import selectinload
+
+    query = (Appointment.query
+             .options(selectinload(Appointment.patient)
+                      .selectinload(Patient.family))
+             .filter(Appointment.appt_date == on_date))
     if doctor_id:
         query = query.filter(Appointment.doctor_id == doctor_id)
     appointments = query.order_by(Appointment.appt_time).all()
@@ -144,10 +151,16 @@ def index():
 def _finance_summary(doctor_id, on_date):
     """Collection + doctor share for a doctor (or the whole clinic) — today and
     month-to-date. Invoice-date based, matching the doctor statement screen."""
+    from sqlalchemy.orm import selectinload
+
     from app.models import Invoice
 
     month_start = on_date.replace(day=1)
-    base = Invoice.query
+    # The totals below are summed in Python from the lines and the payments,
+    # so without loading them up front this is two queries per invoice — and
+    # month-to-date on a working clinic is thousands of invoices.
+    base = Invoice.query.options(selectinload(Invoice.items),
+                                 selectinload(Invoice.payments))
     if doctor_id:
         base = base.filter(Invoice.doctor_id == doctor_id)
 
@@ -242,8 +255,12 @@ def _payment_status(appointments, on_date):
     # Today's invoices, plus any still-outstanding balance from any date — so a
     # charge the doctor added after the patient paid (or a lingering due) shows
     # up for the cashier instead of silently disappearing.
+    from sqlalchemy.orm import selectinload
+
     invoices = (
-        Invoice.query.filter(
+        Invoice.query
+        .options(selectinload(Invoice.items), selectinload(Invoice.payments))
+        .filter(
             Invoice.patient_id.in_(patient_ids),
             db.or_(Invoice.invoice_date == on_date,
                    Invoice.status.in_(["unpaid", "partial"])),
@@ -440,22 +457,17 @@ def _extra_services_arg():
 def poll():
     """Cheap change fingerprint for the board's live refresh.
 
-    One indexed query over the day's appointments (id/status/time); the page
-    reloads only when the fingerprint changes, so idle polling costs almost
-    nothing and the screen stays current without the user refreshing.
+    Covers what the board actually shows: the queue, whether each patient has
+    been billed, and what has been collected. Column-only queries over
+    indexed columns; the page reloads only when the answer differs, so idle
+    polling costs almost nothing and the screen stays current by itself.
     """
-    import hashlib
+    from app.utils.live import board_fingerprint
+    from app.utils.privacy import doctor_locked_id
 
     on_date = parse_date_arg(request.args.get("date"))
-    from app.utils.privacy import doctor_locked_id
     doctor_id = doctor_locked_id() or request.args.get("doctor_id", type=int)
-
-    q = (db.session.query(Appointment.id, Appointment.status, Appointment.appt_time)
-         .filter(Appointment.appt_date == on_date))
-    if doctor_id:
-        q = q.filter(Appointment.doctor_id == doctor_id)
-    fp = hashlib.md5(repr(sorted(q.all())).encode()).hexdigest()
-    return jsonify({"fp": fp})
+    return jsonify({"fp": board_fingerprint(on_date, doctor_id)})
 
 
 @appointments_bp.route("/consult-check")

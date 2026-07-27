@@ -75,12 +75,22 @@ class User(UserMixin, db.Model):
 
     # --- Permissions -------------------------------------------------------
     def _role_record(self):
-        """Look up the editable Role row, or None (pre-seed / DB not ready)."""
-        try:
-            from app.models.role import Role
-            return Role.query.filter_by(name=self.role).first()
-        except Exception:  # noqa: BLE001 - DB not ready / outside app context
-            return None
+        """Look up the editable Role row, or None (pre-seed / DB not ready).
+
+        Read once per request: every permission check on every row of every
+        list asks for it, so an appointment board was fetching one role row a
+        hundred and forty times to draw one page.
+        """
+        from app.utils.request_cache import remember
+
+        def load():
+            try:
+                from app.models.role import Role
+                return Role.query.filter_by(name=self.role).first()
+            except Exception:  # noqa: BLE001 - DB not ready / outside context
+                return None
+
+        return remember(f"role:{self.role}", load)
 
     @property
     def is_admin(self):

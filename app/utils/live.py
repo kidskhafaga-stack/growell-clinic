@@ -1,0 +1,74 @@
+"""What "the screen is current" means, in one place.
+
+The clinic's screens stay fresh by asking, every few seconds, whether anything
+they show has changed — a short fingerprint of the day, compared against the
+last one. Cheap: column-only queries over indexed columns, and the page
+reloads only when the answer differs. Idle polling costs almost nothing.
+
+The catch is that a fingerprint is only as honest as what it covers. The
+doctor's board covered the appointments and nothing else, while the board
+itself also shows **who has paid** — so reception could raise the bill and
+take the money and the doctor's screen went on saying "not billed" until
+somebody pressed refresh. The screen looked live, which is worse than a
+screen that plainly isn't: nobody refreshes a screen they believe.
+
+So the rule here: whatever a screen *shows*, its fingerprint *covers*.
+"""
+import hashlib
+from datetime import datetime
+
+
+def _digest(parts):
+    return hashlib.md5(repr(parts).encode()).hexdigest()
+
+
+def day_bounds(on_date):
+    """The datetime range covering one clinic day."""
+    return (datetime.combine(on_date, datetime.min.time()),
+            datetime.combine(on_date, datetime.max.time()))
+
+
+def board_fingerprint(on_date, doctor_id=None):
+    """Everything the doctor's board and the appointment board show.
+
+    Three things, because the board shows three things:
+
+    * the queue — who is booked, and where each of them has got to;
+    * the billing — whether a charge exists for them at all;
+    * the money — what has actually been collected against it.
+
+    The last two are why this exists. An invoice raised at the desk does not
+    touch any appointment row, and a payment against an already-partial
+    invoice does not even change the invoice's status — so neither was
+    visible to a fingerprint built from appointments, or from invoice status
+    alone. The payment ids are in here for exactly that case.
+    """
+    from app.extensions import db
+    from app.models import Appointment, Invoice, Payment
+
+    appts = (db.session.query(Appointment.id, Appointment.status,
+                              Appointment.appt_time,
+                              Appointment.patient_id)
+             .filter(Appointment.appt_date == on_date))
+    if doctor_id:
+        appts = appts.filter(Appointment.doctor_id == doctor_id)
+    queue = sorted(appts.all())
+
+    # Only the patients on this board: a busy clinic's other invoices are none
+    # of this screen's business, and scanning them would make the cheap poll
+    # expensive.
+    patient_ids = {row[3] for row in queue}
+    bills, paid = [], []
+    if patient_ids:
+        bills = sorted(
+            db.session.query(Invoice.id, Invoice.status)
+            .filter(Invoice.patient_id.in_(patient_ids),
+                    Invoice.invoice_date == on_date).all())
+        start, end = day_bounds(on_date)
+        paid = sorted(
+            db.session.query(Payment.id)
+            .join(Invoice, Payment.invoice_id == Invoice.id)
+            .filter(Invoice.patient_id.in_(patient_ids),
+                    Payment.paid_at >= start, Payment.paid_at <= end).all())
+
+    return _digest((queue, bills, paid))
