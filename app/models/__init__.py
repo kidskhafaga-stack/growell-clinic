@@ -112,6 +112,7 @@ from app.models.payer import (
 )
 from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
 from app.models.cash_account import ACCOUNT_KINDS, CashAccount
+from app.models.cash_movement import CASH_MOVEMENT_KINDS, CashMovement
 from app.models.expense import EXPENSE_CATEGORIES, Expense
 from app.models.prescription import (
     DRUG_FORMS,
@@ -263,6 +264,8 @@ __all__ = [
     "CashierShift",
     "CashAccount",
     "ACCOUNT_KINDS",
+    "CashMovement",
+    "CASH_MOVEMENT_KINDS",
     "INVOICE_STATUSES",
     "PAYMENT_METHODS",
     "PayerEntity",

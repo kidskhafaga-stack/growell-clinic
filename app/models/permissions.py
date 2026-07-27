@@ -88,13 +88,23 @@ CAPABILITIES = [
     "patient_medical",   # view the full clinical file (visits, dx, rx, growth…)
     "cashier",           # collect payments + print receipts
     "finance_manage",    # full finance (P&L, expenses, payers, discounts)
+    # Moving the clinic's own money between its tills, or in and out. Split
+    # from "cashier" on purpose: taking money from patients and moving the
+    # clinic's money are different jobs, and the person who does the first is
+    # not automatically trusted with the second.
+    "treasury_move",
+    # Writing off a counting difference. Deliberately the narrowest of them
+    # all, and admin-only below: an adjustment line is exactly how a shortage
+    # disappears, so whoever counts the drawer must not be the one who erases
+    # what they were short.
+    "treasury_adjust",
 ]
 
 ROLE_CAPABILITIES = {
     "admin": list(CAPABILITIES),
     "doctor": ["patient_medical"],
     "reception": ["cashier"],
-    "accountant": ["cashier", "finance_manage"],
+    "accountant": ["cashier", "finance_manage", "treasury_move"],
     "pharmacy": [],
 }
 

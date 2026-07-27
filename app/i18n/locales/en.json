@@ -3249,7 +3249,9 @@
   "cap": {
     "patient_medical": "View full medical file",
     "cashier": "Collect payments",
-    "finance_manage": "Full finance management"
+    "finance_manage": "Full finance management",
+    "treasury_move": "Move money between tills",
+    "treasury_adjust": "Write off counting differences"
   },
   "survey": {
     "title": "Survey builder",
@@ -3832,6 +3834,33 @@
     "mv_supplier": "Supplier payment",
     "landed_in": "{method}: this money landed in \\u201c{till}\\u201d, not in the cash drawer.",
     "choose": "Till",
-    "default_for_method": "Default for the method"
+    "default_for_method": "Default for the method",
+    "move_title": "Move money between tills",
+    "move_hint": "Bank the drawer · draw out · transfer · settle the card account.",
+    "move_kind": "Movement",
+    "from_till": "From",
+    "to_till": "To",
+    "amount": "Amount",
+    "fee": "Fee",
+    "moved_on": "Date",
+    "reference": "Reference",
+    "mv_deposit": "Deposit",
+    "mv_withdraw": "Withdrawal",
+    "mv_transfer": "Transfer",
+    "mv_settle": "Settlement",
+    "moved": "Movement recorded.",
+    "pending_title": "Money that has not arrived",
+    "pending_hint": "Balances under collection: card not yet in the bank, cheques not collected, insurance unpaid.",
+    "no_target": "no settlement till — this can never clear",
+    "err_bad_kind": "Unknown movement type.",
+    "err_no_account": "Choose a till.",
+    "err_bad_amount": "The amount must be more than zero.",
+    "err_bad_fee": "Bad fee — it must be less than the amount.",
+    "err_no_target": "A transfer needs a destination till.",
+    "err_same_till": "A till cannot transfer to itself.",
+    "err_cross_currency": "Those tills hold different currencies — cross-currency transfers are not built yet.",
+    "err_fee_needs_transfer": "A fee only applies to transfers and settlements.",
+    "err_not_clearing": "Only an under-collection till settles.",
+    "err_insufficient": "That till does not hold this much."
   }
 }

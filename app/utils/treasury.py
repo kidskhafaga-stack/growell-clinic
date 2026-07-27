@@ -70,7 +70,8 @@ def movements(account, since=None, upto=None, limit=None):
     line knows an amount and a memo, and "which patient was this?" is the first
     question anybody asks of a till statement.
     """
-    from app.models import Expense, Payment, SupplierPayment
+    from app.extensions import db
+    from app.models import CashMovement, Expense, Payment, SupplierPayment
 
     rows = []
     for payment in _scoped(Payment.query.filter(Payment.account_id == account.id),
@@ -109,6 +110,27 @@ def movements(account, since=None, upto=None, limit=None):
             "label": sp.reference or "",
             "who": sp.supplier.name if sp.supplier else "",
             "id": sp.id,
+        })
+
+    # Deliberate movements: banking a drawer, topping up change, a card
+    # settlement landing. One row serves both tills — the sign comes from
+    # which side this account is on.
+    deliberate = CashMovement.query.filter(
+        db.or_(CashMovement.account_id == account.id,
+               CashMovement.to_account_id == account.id))
+    for mv in _scoped(deliberate, CashMovement.moved_on, since, upto).all():
+        effect = mv.effect_on(account.id)
+        if not effect:
+            continue
+        other = mv.to_account if mv.account_id == account.id else mv.account
+        rows.append({
+            "at": _as_datetime(mv.moved_on),
+            "kind": f"mv_{mv.kind}",
+            "amount": effect,
+            "method": None,
+            "label": mv.reference or "",
+            "who": other.name if other is not None else "",
+            "id": mv.id,
         })
 
     rows.sort(key=lambda r: r["at"] or datetime.min)
@@ -165,3 +187,131 @@ def total_by_kind():
         kind = row["account"].kind
         totals[kind] = round(totals.get(kind, 0) + row["balance"], 2)
     return totals
+
+
+# --------------------------------------------------------- moving money ----
+class MovementError(ValueError):
+    """A movement that must not be recorded, with a key the screen can name."""
+
+
+def record_movement(kind, account, amount, to_account=None, fee=0,
+                    moved_on=None, reference=None, notes=None, user_id=None):
+    """Bank a drawer, draw from a till, transfer, or settle a clearing account.
+
+    Refuses rather than guesses. Every one of these is somebody deliberately
+    moving the clinic's money, and a movement that quietly did something other
+    than what was asked would be worse than one that did nothing.
+    """
+    from datetime import date
+
+    from app.extensions import db
+    from app.models import CASH_MOVEMENT_KINDS, CashMovement
+    from app.models.cash_movement import NEEDS_TARGET
+
+    if kind not in CASH_MOVEMENT_KINDS:
+        raise MovementError("bad_kind")
+    if account is None:
+        raise MovementError("no_account")
+    amount = round(float(amount or 0), 2)
+    if amount <= 0:
+        raise MovementError("bad_amount")
+    fee = round(float(fee or 0), 2)
+    if fee < 0 or fee >= amount:
+        # A fee that swallows the whole transfer means the numbers are wrong,
+        # not that the clinic moved nothing.
+        raise MovementError("bad_fee")
+
+    if kind in NEEDS_TARGET:
+        if to_account is None:
+            raise MovementError("no_target")
+        if to_account.id == account.id:
+            raise MovementError("same_till")
+        # Two currencies need rates, revaluation and an FX difference account.
+        # None of that exists yet, so this is refused rather than computed
+        # wrongly — a clear refusal beats a wrong number.
+        if (account.currency or "") != (to_account.currency or ""):
+            raise MovementError("cross_currency")
+    else:
+        to_account = None
+        if fee:
+            raise MovementError("fee_needs_transfer")
+
+    if kind == "settle" and account.kind != "clearing":
+        raise MovementError("not_clearing")
+    # Money cannot leave a till that does not have it. A deposit is the one
+    # kind that adds, so it is exempt.
+    if kind != "deposit" and amount > account_balance(account):
+        raise MovementError("insufficient")
+
+    movement = CashMovement(
+        kind=kind, account_id=account.id,
+        to_account_id=to_account.id if to_account else None,
+        amount=amount, fee=fee, moved_on=moved_on or date.today(),
+        reference=reference or None, notes=notes or None, created_by=user_id)
+    db.session.add(movement)
+    db.session.commit()
+    _post_movement(movement)
+    return movement
+
+
+def _post_movement(movement):
+    """Journal one movement. Never lets a bookkeeping hiccup lose the record.
+
+    The movement itself is already committed by the time this runs: a ledger
+    that refused to balance must not cost the clinic the fact that the money
+    moved, which they can see in the drawer.
+    """
+    from app.extensions import db
+    from app.utils.accounting import post_entry
+
+    src = movement.account
+    dst = movement.to_account
+    memo = _movement_memo(movement)
+    try:
+        if movement.kind == "deposit":
+            lines = [(src.code, movement.amount, 0, memo),
+                     ("3010", 0, movement.amount, memo)]
+        elif movement.kind == "withdraw":
+            lines = [("3010", movement.amount, 0, memo),
+                     (src.code, 0, movement.amount, memo)]
+        else:                                   # transfer / settle
+            lines = [(dst.code, movement.received, 0, memo)]
+            if movement.fee:
+                # The processor's cut is a cost, not money that vanished.
+                lines.append(("5010", movement.fee, 0, memo))
+            lines.append((src.code, 0, movement.amount, memo))
+        return post_entry("cash_movement", movement.id, memo, lines,
+                          entry_date=movement.moved_on,
+                          user_id=movement.created_by, replace=True)
+    except Exception:  # noqa: BLE001 - the movement stands either way
+        db.session.rollback()
+        return None
+
+
+def _movement_memo(movement):
+    src = movement.account.name if movement.account else ""
+    if movement.to_account is not None:
+        return f"تحويل خزنة — {src} ← {movement.to_account.name}"
+    return f"{'إيداع' if movement.kind == 'deposit' else 'سحب'} — {src}"
+
+
+def pending_settlements():
+    """Clearing tills holding money, and where each is meant to go.
+
+    The follow-up list: card takings that have not reached the bank, cheques
+    not collected, insurance not paid. A clearing till with a balance and
+    nowhere to settle is called out — it can never be cleared to zero.
+    """
+    from app.models import CashAccount
+
+    out = []
+    for account in CashAccount.active():
+        if account.kind != "clearing":
+            continue
+        balance = account_balance(account)
+        if not balance:
+            continue
+        out.append({"account": account, "balance": balance,
+                    "target": account.settles_into,
+                    "orphan": account.settles_into is None})
+    return out

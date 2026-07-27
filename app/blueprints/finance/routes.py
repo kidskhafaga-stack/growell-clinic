@@ -45,7 +45,8 @@ from app.models import (
     User,
     Visit,
 )
-from app.utils.decorators import cashier_access, client_ip, module_required
+from app.utils.decorators import (capability_required, cashier_access,
+                                   client_ip, module_required)
 from app.utils.paging import paginate
 from app.utils.finance import generate_invoice_number
 from app.utils.money import format_money
@@ -3118,11 +3119,16 @@ def tills():
     40,000" means something different when 30,000 of it is card takings that
     have not landed yet.
     """
+    from app.models import CASH_MOVEMENT_KINDS
     from app.utils import treasury
 
     return render_template("finance/tills.html",
                            rows=treasury.overview(),
-                           totals=treasury.total_by_kind())
+                           totals=treasury.total_by_kind(),
+                           pending=treasury.pending_settlements(),
+                           kinds=CASH_MOVEMENT_KINDS,
+                           can_move=current_user.can("treasury_move"),
+                           today=date.today())
 
 
 @finance_bp.route("/tills/<int:account_id>")
@@ -3143,6 +3149,44 @@ def till_statement(account_id):
     rows.reverse()                       # newest first on screen
     return render_template("finance/till_statement.html", account=account,
                            rows=rows, balance=running)
+
+
+@finance_bp.route("/tills/move", methods=["POST"])
+@capability_required("treasury_move")
+def till_move():
+    """Bank a drawer, draw from a till, transfer, or settle a card account.
+
+    Behind its own capability: taking money from patients and moving the
+    clinic's own money are different jobs, and whoever does the first is not
+    automatically trusted with the second.
+    """
+    from app.models import CashAccount
+    from app.utils import treasury
+
+    kind = (request.form.get("kind") or "").strip()
+    src = db.session.get(CashAccount, request.form.get("account_id", type=int))
+    dst = db.session.get(CashAccount, request.form.get("to_account_id", type=int))
+    moved_on = parse_date_or_today(request.form.get("moved_on"))
+    if _period_blocked(moved_on):
+        return redirect(url_for("finance.tills"))
+    try:
+        treasury.record_movement(
+            kind, src, request.form.get("amount", type=float),
+            to_account=dst, fee=request.form.get("fee", type=float) or 0,
+            moved_on=moved_on,
+            reference=(request.form.get("reference") or "").strip() or None,
+            notes=(request.form.get("notes") or "").strip() or None,
+            user_id=current_user.id)
+    except treasury.MovementError as exc:
+        flash(t(f"tills.err_{exc}"), "danger")
+        return redirect(url_for("finance.tills"))
+    ActivityLog.record("till.move", user_id=current_user.id, entity="till",
+                       entity_id=src.id if src else None,
+                       detail=f"{kind}:{request.form.get('amount')}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("tills.moved"), "success")
+    return redirect(url_for("finance.tills"))
 
 
 @finance_bp.route("/payables")

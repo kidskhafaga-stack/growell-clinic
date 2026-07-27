@@ -26,6 +26,69 @@
   {% endfor %}
 </div>
 
+{# Money that has not arrived. A card till holding a balance is not money the
+   clinic has — it is money it is owed, and this is the follow-up list. #}
+{% if pending %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:4px solid var(--warning,#f59e0b);">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-hourglass-split"></i> {{ t('tills.pending_title') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('tills.pending_hint') }}</p>
+  {% for p in pending %}
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line);">
+    <span>{{ p.account.display_name(current_lang) }}
+      {% if p.target %}<i class="bi bi-arrow-{{ 'left' if direction=='rtl' else 'right' }}"></i>
+        {{ p.target.display_name(current_lang) }}
+      {% else %}<span class="badge badge--danger">{{ t('tills.no_target') }}</span>{% endif %}</span>
+    <strong>{{ '%.2f'|format(p.balance) }}</strong>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if can_move and rows %}
+{# Deposit, withdraw, transfer, settle — one form, because they are one act
+   with a sign and a direction. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;"
+     x-data="{ kind: 'transfer', get needsTarget() { return this.kind === 'transfer' || this.kind === 'settle'; } }">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-arrow-left-right"></i> {{ t('tills.move_title') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('tills.move_hint') }}</p>
+  <form method="post" action="{{ url_for('finance.till_move') }}"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:130px;">
+      <label>{{ t('tills.move_kind') }}</label>
+      <select class="select" name="kind" x-model="kind">
+        {% for k in kinds %}<option value="{{ k }}">{{ t('tills.mv_' ~ k) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;min-width:150px;">
+      <label>{{ t('tills.from_till') }}</label>
+      <select class="select" name="account_id" required>
+        {% for r in rows %}<option value="{{ r.account.id }}">{{ r.account.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;min-width:150px;" x-show="needsTarget" x-cloak>
+      <label>{{ t('tills.to_till') }}</label>
+      <select class="select" name="to_account_id">
+        {% for r in rows %}<option value="{{ r.account.id }}">{{ r.account.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;max-width:120px;">
+      <label>{{ t('tills.amount') }}</label>
+      <input class="input" type="number" step="0.01" min="0.01" name="amount" required></div>
+    {# The processor's cut: 1,000 leaves the card account and 975 reaches the
+       bank. The 25 is a cost, not money that vanished. #}
+    <div class="form-row" style="margin:0;max-width:110px;" x-show="needsTarget" x-cloak>
+      <label>{{ t('tills.fee') }}</label>
+      <input class="input" type="number" step="0.01" min="0" name="fee" value="0"></div>
+    <div class="form-row" style="margin:0;max-width:150px;">
+      <label>{{ t('tills.moved_on') }}</label>
+      <input class="input" type="date" name="moved_on" value="{{ today }}"></div>
+    <div class="form-row" style="margin:0;min-width:140px;">
+      <label>{{ t('tills.reference') }}</label>
+      <input class="input" name="reference" dir="auto"></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+{% endif %}
+
 {% if rows %}
 <div class="card gc-scale-in" style="overflow-x:auto;">
   <table class="table" style="min-width:620px;">
