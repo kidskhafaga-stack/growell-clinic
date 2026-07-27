@@ -1,0 +1,59 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ account.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ account.display_name(current_lang) }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ account.display_name(current_lang) }}
+      <span class="badge badge--muted" dir="ltr">{{ account.code }}</span></h1>
+    <p class="page-sub" style="margin:0;">
+      {{ t('tills.kind_' ~ account.kind) }} · {{ t('tills.check_' ~ account.kind) }}</p>
+  </div>
+  <div style="text-align:end;">
+    <div class="hint" style="margin:0;">{{ t('tills.balance') }}</div>
+    <div style="font-size:1.6rem;font-weight:700;">{{ '%.2f'|format(balance) }}</div>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.tills') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('tills.title') }}</a>
+  </div>
+</div>
+
+{% if rows %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;">
+    <thead><tr>
+      <th>{{ t('tills.when') }}</th>
+      <th>{{ t('tills.what') }}</th>
+      <th>{{ t('tills.who') }}</th>
+      <th style="text-align:end;">{{ t('tills.in') }}</th>
+      <th style="text-align:end;">{{ t('tills.out') }}</th>
+      <th style="text-align:end;">{{ t('tills.after') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ row.at.strftime('%Y-%m-%d %H:%M') if row.at }}</td>
+        <td>
+          <span class="badge {{ 'badge--green' if row.amount > 0 else 'badge--muted' }}">
+            {{ t('tills.mv_' ~ row.kind) }}</span>
+          {% if row.label %}<span dir="auto">{{ row.label }}</span>{% endif %}
+        </td>
+        <td dir="auto">{{ row.who or '—' }}</td>
+        <td style="text-align:end;color:var(--green-700);">
+          {{ '%.2f'|format(row.amount) if row.amount > 0 else '' }}</td>
+        <td style="text-align:end;color:var(--danger);">
+          {{ '%.2f'|format(-row.amount) if row.amount < 0 else '' }}</td>
+        <td style="text-align:end;font-weight:600;">{{ '%.2f'|format(row.running) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint" style="margin-top:10px;">
+  {{ t('tills.opening') }}: {{ '%.2f'|format(account.opening_balance or 0) }} ·
+  {{ t('tills.computed_hint') }}</p>
+{% else %}
+<div class="empty-state">{{ t('tills.no_moves') }}</div>
+{% endif %}
+{% endblock %}

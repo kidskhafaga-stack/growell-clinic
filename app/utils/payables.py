@@ -178,7 +178,8 @@ def generate_schedule(doc, count, start_date, every_days=30):
     return out
 
 
-def pay_installment(inst, method="cash", paid_at=None, user_id=None):
+def pay_installment(inst, method="cash", paid_at=None, user_id=None,
+                    account_id=None):
     """Settle one instalment: record a supplier payment for its amount and mark
     it paid (linked to that payment)."""
     from datetime import date
@@ -188,7 +189,7 @@ def pay_installment(inst, method="cash", paid_at=None, user_id=None):
     payment = record_payment(
         inst.document.supplier_id, inst.amount, method=method,
         paid_at=paid_at or date.today(), document_id=inst.document_id,
-        notes=f"قسط #{inst.seq}", user_id=user_id)
+        notes=f"قسط #{inst.seq}", user_id=user_id, account_id=account_id)
     inst.status = "paid"
     inst.paid_at = paid_at or date.today()
     inst.payment_id = payment.id
@@ -214,7 +215,8 @@ def upcoming_installments(within_days=30, today=None):
 
 
 def record_payment(supplier_id, amount, method="cash", paid_at=None,
-                   reference=None, notes=None, document_id=None, user_id=None):
+                   reference=None, notes=None, document_id=None, user_id=None,
+                   account_id=None):
     """Create a supplier payment and post its journal. Returns the payment."""
     from app.models import SupplierPayment
     from app.utils.accounting import post_supplier_payment
@@ -223,7 +225,7 @@ def record_payment(supplier_id, amount, method="cash", paid_at=None,
         supplier_id=supplier_id, amount=round(float(amount or 0), 2),
         method=method, paid_at=paid_at or date.today(),
         reference=(reference or None), notes=(notes or None),
-        document_id=document_id, created_by=user_id)
+        document_id=document_id, account_id=account_id, created_by=user_id)
     db.session.add(payment)
     db.session.commit()
     try:

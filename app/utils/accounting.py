@@ -20,6 +20,9 @@ from app.models.accounting import Account, JournalEntry, JournalLine
 CHART = [
     ("1000", "الأصول", "Assets", "asset", None),
     ("1010", "الخزنة", "Cash drawer", "asset", "1000"),
+    ("1011", "إنستاباي", "InstaPay", "asset", "1000"),
+    ("1012", "المحفظة الإلكترونية", "Mobile wallet", "asset", "1000"),
+    ("1013", "الفيزا — تحت التحصيل", "Card — under collection", "asset", "1000"),
     ("1020", "البنك", "Bank", "asset", "1000"),
     ("1030", "العملاء — مرضى", "Patients (AR)", "asset", "1000"),
     ("1040", "المخزون", "Inventory", "asset", "1000"),
@@ -38,19 +41,27 @@ CHART = [
 
 
 def ensure_seeded():
-    """Create the core chart of accounts once (idempotent, safe pre-table)."""
+    """Create any missing core account (idempotent, safe pre-table).
+
+    Tops up rather than bailing out on the first existing row: the chart grows
+    — the till accounts were added to it long after the first clinics
+    installed — and "some accounts exist, so skip" would leave every one of
+    those installs unable to post to the new ones.
+    """
     try:
-        if Account.query.first() is not None:
-            return False
-        by_code = {}
+        by_code = {a.code: a for a in Account.query.all()}
+        made = 0
         for code, name, name_en, typ, parent in CHART:
+            if code in by_code:
+                continue
             acc = Account(code=code, name=name, name_en=name_en, type=typ,
-                          is_system=True,
-                          parent=by_code.get(parent))
+                          is_system=True, parent=by_code.get(parent))
             by_code[code] = acc
             db.session.add(acc)
-        db.session.commit()
-        return True
+            made += 1
+        if made:
+            db.session.commit()
+        return made > 0
     except Exception:  # noqa: BLE001 - tables not ready yet
         db.session.rollback()
         return False
@@ -157,17 +168,32 @@ def post_invoice(invoice, user_id=None):
                       replace=True)
 
 
+def till_code(movement, fallback="1010"):
+    """The ledger account a movement's money sits in.
+
+    Every posting of money in or out goes through here, so "which account?" is
+    answered in one place. A row taken before tills existed — or one whose till
+    was deleted — falls back to the main drawer, which is where its journal
+    entry was already posted; the alternative is a half-posted entry.
+    """
+    account = getattr(movement, "account", None)
+    if account is not None and account.code:
+        return account.code
+    return fallback
+
+
 def post_payment(payment, user_id=None):
     """Payment on an invoice: Dr Cash / Cr Patients AR (refund = reversed)."""
     if not payment or (payment.amount or 0) <= 0:
         return None
     number = payment.invoice.invoice_number if payment.invoice else ""
+    code = till_code(payment)
     if getattr(payment, "kind", "payment") == "refund":
         lines = [("1030", payment.amount, 0, number),
-                 ("1010", 0, payment.amount, number)]
+                 (code, 0, payment.amount, number)]
         memo = f"استرداد — {number}"
     else:
-        lines = [("1010", payment.amount, 0, number),
+        lines = [(code, payment.amount, 0, number),
                  ("1030", 0, payment.amount, number)]
         memo = f"سداد — {number}"
     return post_entry("payment", payment.id, memo, lines, user_id=user_id)
@@ -179,7 +205,7 @@ def post_expense(expense, user_id=None):
         return None
     memo = expense.description or "مصروف"
     lines = [("5010", expense.amount, 0, memo),
-             ("1010", 0, expense.amount, memo)]
+             (till_code(expense), 0, expense.amount, memo)]
     return post_entry("expense", expense.id, memo, lines,
                       entry_date=expense.expense_date, user_id=user_id)
 
@@ -249,7 +275,8 @@ def post_supplier_payment(payment, user_id=None):
     the goods-receipt raised."""
     if payment is None or (payment.amount or 0) <= 0:
         return None
-    cash_code = "1020" if (payment.method or "") in ("bank", "transfer") else "1010"
+    guess = "1020" if (payment.method or "") in ("bank", "transfer") else "1010"
+    cash_code = till_code(payment, fallback=guess)
     name = payment.supplier.name if payment.supplier else "مورد"
     memo = f"سداد مورد — {name}"
     lines = [("2010", payment.amount, 0, memo),

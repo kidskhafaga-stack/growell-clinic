@@ -68,6 +68,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
+        _seed_tills_safe()
         _seed_crm_templates_safe()
         # Every catalogue the clinic needs — and no patients, no demo users.
         from app.utils.reference import reference_counts, seed_reference
@@ -130,6 +131,10 @@ def register_commands(app):
             ("visit_investigations", "name_en", "VARCHAR(200)"),
             ("prescription_investigations", "name_en", "VARCHAR(200)"),
             ("payments", "kind", "VARCHAR(10) DEFAULT 'payment'"),
+            ("payments", "account_id", "INTEGER"),
+            ("expenses", "account_id", "INTEGER"),
+            ("supplier_payments", "account_id", "INTEGER"),
+            ("cashier_shifts", "account_id", "INTEGER"),
             ("payments", "tendered", "FLOAT"),
             ("invoice_items", "vaccine_brand_id", "INTEGER"),
             ("named_discounts", "payer_id", "INTEGER"),
@@ -377,6 +382,7 @@ def register_commands(app):
             pass
         _seed_devices_safe()
         _seed_accounts_safe()
+        _seed_tills_safe()
         _ensure_owner_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
@@ -419,6 +425,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
+        _seed_tills_safe()
         made = seed_reference()
         db.session.commit()
         for key, value in made.items():
@@ -539,6 +546,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
+        _seed_tills_safe()
         seed_reference()
 
         created = 0
@@ -629,6 +637,34 @@ _CRM_TPL_NAMES = {
     "vaccine_given": "إشعار تطعيم",
     "birthday": "تهنئة عيد ميلاد",
 }
+
+
+def _seed_tills_safe():
+    """The cash tills, and the one-off move of history into them.
+
+    Both are idempotent and both stay quiet on failure — an install that can't
+    seed a till must still finish upgrading, and the screen says plainly when
+    no till exists.
+    """
+    try:
+        from app.utils.treasury import seed_accounts
+        made = seed_accounts()
+        if made:
+            click.secho(f"  + {made} cash till(s)", fg="green")
+    except Exception as exc:  # noqa: BLE001
+        click.secho(f"  ! cash tills not seeded: {exc}", fg="yellow")
+        return
+    try:
+        from app.utils.treasury_migrate import migrate_history
+        moved = migrate_history()
+        if moved.get("tagged"):
+            click.secho(f"  ~ {moved['tagged']} money movement(s) tagged with "
+                        f"a till", fg="green")
+        if moved.get("entries"):
+            click.secho(f"  ~ {moved['entries']} correction entr(ies) posted "
+                        f"to move history out of the main drawer", fg="green")
+    except Exception as exc:  # noqa: BLE001
+        click.secho(f"  ! till history not migrated: {exc}", fg="yellow")
 
 
 def _seed_visit_types_safe():

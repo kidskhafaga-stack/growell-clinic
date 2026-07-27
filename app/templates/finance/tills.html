@@ -1,0 +1,87 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('tills.title') }}{% endblock %}
+{% block page_heading %}{{ t('tills.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-safe2"></i> {{ t('tills.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('tills.subtitle') }}</p>
+  </div>
+</div>
+
+{# Grouped by how each would be checked, because "we hold 40,000" means
+   something different when 30,000 of it is card takings that have not
+   landed yet. #}
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  {% for kind in ['cash', 'bank', 'wallet', 'clearing'] %}
+  {% if kind in totals %}
+  <div class="stat-card">
+    <div class="label">{{ t('tills.kind_' ~ kind) }}</div>
+    <div class="value">{{ '%.2f'|format(totals[kind]) }}</div>
+    <div class="hint" style="margin:0;">{{ t('tills.check_' ~ kind) }}</div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{% if rows %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:620px;">
+    <thead><tr>
+      <th>{{ t('tills.name') }}</th>
+      <th>{{ t('tills.kind') }}</th>
+      <th>{{ t('tills.methods') }}</th>
+      <th style="text-align:end;">{{ t('tills.balance') }}</th>
+      <th style="text-align:end;">{{ t('common.actions') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          <strong>{{ row.account.display_name(current_lang) }}</strong>
+          <span class="badge badge--muted" dir="ltr">{{ row.account.code }}</span>
+          {% if row.account.branch %}<span class="badge badge--muted">{{ row.account.branch }}</span>{% endif %}
+          {% if row.account.owner %}
+          <div class="hint" style="margin:2px 0 0;"><i class="bi bi-person"></i>
+            {{ row.account.owner.display_name(current_lang) }}</div>
+          {% endif %}
+          {# A clearing till is money you are owed, not money you hold — and
+             where it settles is the answer to "how does this clear to zero?" #}
+          {% if row.account.settles_into %}
+          <div class="hint" style="margin:2px 0 0;"><i class="bi bi-arrow-{{ 'left' if direction=='rtl' else 'right' }}-circle"></i>
+            {{ t('tills.settles_into') }}: {{ row.account.settles_into.display_name(current_lang) }}</div>
+          {% endif %}
+        </td>
+        <td><span class="badge {{ 'badge--green' if row.account.kind == 'cash' else 'badge--role' }}">
+          {{ t('tills.kind_' ~ row.account.kind) }}</span></td>
+        <td>
+          {% for m in row.account.methods %}
+          <span class="badge badge--muted">{{ t('payment_methods.' ~ m) }}</span>
+          {% else %}<span class="hint">—</span>{% endfor %}
+        </td>
+        <td style="text-align:end;font-weight:600;{{ 'color:var(--danger);' if row.over or row.under }}">
+          {{ '%.2f'|format(row.balance) }}
+          {# The maximum is the limit that protects money: too much cash in a
+             reception drawer is a theft risk, and this says "bank it". #}
+          {% if row.over %}<div class="hint" style="margin:0;color:var(--danger);">
+            <i class="bi bi-exclamation-triangle"></i> {{ t('tills.over_max') }}</div>{% endif %}
+          {% if row.under %}<div class="hint" style="margin:0;color:var(--warning,#b45309);">
+            <i class="bi bi-coin"></i> {{ t('tills.under_min') }}</div>{% endif %}
+        </td>
+        <td style="text-align:end;white-space:nowrap;">
+          <a class="btn btn-outline btn-sm gc-press"
+             href="{{ url_for('finance.till_statement', account_id=row.account.id) }}">
+            <i class="bi bi-list-ul"></i> {{ t('tills.statement') }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint" style="margin-top:10px;">{{ t('tills.computed_hint') }}</p>
+{% else %}
+<div class="empty-state">{{ t('tills.none') }}</div>
+{% endif %}
+{% endblock %}

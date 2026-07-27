@@ -578,13 +578,44 @@ def _shift_label_presets():
     return out
 
 
-def _shift_gate_blocked():
-    """Whether collecting money must be refused right now: the policy
-    ``require_shift_to_collect`` (default ON) says every collection belongs
-    to an open shift — no shift, no money in the drawer."""
+def _shift_gate_blocked(methods=None):
+    """Whether collecting must be refused right now.
+
+    The policy ``require_shift_to_collect`` (default ON) says money going into
+    the **drawer** belongs to an open shift. It applies to cash only: refusing
+    an InstaPay payment because the cash drawer is shut is refusing money for
+    no reason — that money never touches the drawer, and the shift's count
+    would be identical either way.
+
+    ``methods=None`` means "some cash may be involved", which is what the
+    screens that guard before reading the form pass.
+    """
     if Setting.get("require_shift_to_collect", "1") == "0":
         return False
+    if methods is not None and not any(
+            (m or "cash") == "cash" for m in methods):
+        return False
     return _current_shift_id() is None
+
+
+def _till_notice(methods):
+    """Say where the money just went, when it did not go in the drawer.
+
+    Not a refusal — a notice. The cashier needs to know the 500 landed in
+    InstaPay rather than the drawer, and then get on with their day.
+    """
+    from app.models import CashAccount
+
+    seen = []
+    for method in methods:
+        if (method or "cash") == "cash" or method in seen:
+            continue
+        seen.append(method)
+        till = CashAccount.for_method(method)
+        if till is not None:
+            flash(t("tills.landed_in").replace(
+                "{method}", t("payment_methods." + method)).replace(
+                "{till}", till.display_name(getattr(g, "lang", "ar"))), "info")
 
 
 def _period_blocked(on_date, flash_it=True):
@@ -598,7 +629,58 @@ def _period_blocked(on_date, flash_it=True):
     return period_blocked(on_date, flash_it)
 
 
-def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None):
+def _till_choices():
+    """Tills a collection may be sent to, for the picker beside the method.
+
+    Only the ones money can *arrive* in: a bank account is where a transfer
+    lands, and reception may need to put this particular cash in the emergency
+    drawer instead of their own.
+    """
+    from app.models import CashAccount
+
+    lang = getattr(g, "lang", "ar")
+    return [{"id": a.id, "name": a.display_name(lang), "methods": a.methods}
+            for a in CashAccount.active()]
+
+
+def _out_of_till(requested_id, method):
+    """The till money is paid out of: what was chosen, else the method's
+    default. Supplier methods (bank/cheque) do not all map to a patient
+    payment method, so an unmatched one falls back to the main drawer — which
+    is where the ledger was already posting it."""
+    from app.models import CashAccount
+
+    till = _till_for({"bank": "transfer"}.get(method, method), requested_id)
+    if till is not None:
+        return till.id
+    main = CashAccount.query.filter_by(code="1010").first()
+    return main.id if main else None
+
+
+def _int_at(values, index):
+    """The nth value of a form list as an int, or None — the till column is
+    optional, so a short list must not shift every payment's till by one."""
+    try:
+        return int(values[index]) or None
+    except (IndexError, TypeError, ValueError):
+        return None
+
+
+def _till_for(method, requested_id=None):
+    """The till this payment lands in: what the cashier chose, else the
+    method's default. Returns None when no till is configured at all, which
+    the ledger falls back on rather than refusing the money."""
+    from app.models import CashAccount
+
+    if requested_id:
+        chosen = db.session.get(CashAccount, requested_id)
+        if chosen is not None and chosen.is_active:
+            return chosen
+    return CashAccount.for_method(method)
+
+
+def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None,
+                  account_id=None):
     """Record one collection line and work out the change.
 
     The cashier types what the patient actually handed over — a 200 note for a
@@ -616,10 +698,13 @@ def _take_payment(invoice, amt_raw, method, remaining, shift_id, notes=None):
         return None, remaining, 0.0
     applied = round(min(given, remaining), 2)
     change = round(given - applied, 2)
+    method = method if method in PAYMENT_METHODS else "cash"
+    till = _till_for(method, account_id)
     pay = Payment(
-        amount=applied, method=method if method in PAYMENT_METHODS else "cash",
+        amount=applied, method=method,
         tendered=given if change > 0 else None, notes=notes,
-        received_by=current_user.id, shift_id=shift_id)
+        received_by=current_user.id, shift_id=shift_id,
+        account_id=till.id if till else None)
     invoice.payments.append(pay)
     return pay, round(remaining - applied, 2), change
 
@@ -1725,19 +1810,24 @@ def checkout(appt_id):
         # never be overpaid (no more negative balances from double submits).
         amounts = request.form.getlist("amount")
         methods = request.form.getlist("method")
-        # Shift gate: collecting now needs an open shift ("pay later" doesn't).
-        if any((a or "").strip() not in ("", "0", "0.0") for a in amounts) \
-                and _shift_gate_blocked():
+        tills = request.form.getlist("account_id")
+        # Shift gate: cash going into the drawer needs an open shift ("pay
+        # later" doesn't, and neither does money that never touches it).
+        paying = [m for a, m in zip(amounts, methods)
+                  if (a or "").strip() not in ("", "0", "0.0")]
+        if paying and _shift_gate_blocked(paying):
             db.session.rollback()
             flash(t("shifts.gate_blocked"), "warning")
             return redirect(url_for("finance.cashier"))
         shift_id = _current_shift_id()
         remaining = invoice.balance
         change_total = 0.0
-        for amt_raw, m in zip(amounts, methods):
-            _, remaining, change = _take_payment(invoice, amt_raw, m,
-                                                 remaining, shift_id)
+        for i, (amt_raw, m) in enumerate(zip(amounts, methods)):
+            _, remaining, change = _take_payment(
+                invoice, amt_raw, m, remaining, shift_id,
+                account_id=_int_at(tills, i))
             change_total = round(change_total + change, 2)
+        _till_notice(paying)
         invoice.recalc_status()
         ActivityLog.record("invoice.checkout", user_id=current_user.id, entity="invoice",
                            detail=invoice.invoice_number, ip_address=client_ip())
@@ -1970,6 +2060,7 @@ def invoice_view(invoice_id):
     invoice = db.get_or_404(Invoice, invoice_id)
     return render_template(
         "finance/invoice_view.html", invoice=invoice, methods=PAYMENT_METHODS,
+        tills=_till_choices(),
         services_active=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         doctors=_doctors_active(),
@@ -2006,12 +2097,16 @@ def invoice_payment(invoice_id):
     # is checked first — the cashier gets the real reason, not "open a shift".
     if _period_blocked(invoice.invoice_date):
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
-    # Shift gate: money only enters the drawer inside an open shift.
-    if _shift_gate_blocked():
-        flash(t("shifts.gate_blocked"), "warning")
-        return redirect(url_for("finance.cashier"))
     amounts = request.form.getlist("amount")
     methods = request.form.getlist("method")
+    tills = request.form.getlist("account_id")
+    # Shift gate: cash only enters the drawer inside an open shift. Other
+    # methods never touch it, so refusing them here would be refusing money
+    # for no reason.
+    if _shift_gate_blocked([m for a, m in zip(amounts, methods)
+                            if (a or "").strip() not in ("", "0", "0.0")]):
+        flash(t("shifts.gate_blocked"), "warning")
+        return redirect(url_for("finance.cashier"))
     notes = (request.form.get("notes") or "").strip() or None
     added = 0.0
     new_payments = []
@@ -2025,9 +2120,10 @@ def invoice_payment(invoice_id):
                         if (request.form.get("next") or "") == "cashier"
                         else url_for("finance.invoice_view", invoice_id=invoice.id))
     change_total = 0.0
-    for amt_raw, m in zip(amounts, methods):
-        pay, remaining, change = _take_payment(invoice, amt_raw, m, remaining,
-                                               shift_id, notes=notes)
+    for i, (amt_raw, m) in enumerate(zip(amounts, methods)):
+        pay, remaining, change = _take_payment(
+            invoice, amt_raw, m, remaining, shift_id, notes=notes,
+            account_id=_int_at(tills, i))
         change_total = round(change_total + change, 2)
         if pay is not None:
             new_payments.append(pay)
@@ -2043,6 +2139,7 @@ def invoice_payment(invoice_id):
     for pay in new_payments:
         _post_journal_safe("payment", pay)
     flash(t("invoices.payment_added"), "success")
+    _till_notice([p.method for p in new_payments])
     _flash_change(change_total)
     if (request.form.get("next") or "") == "cashier":
         return redirect(url_for("finance.cashier"))
@@ -2912,6 +3009,10 @@ def _read_expense(form):
         "vendor": (form.get("vendor") or "").strip() or None,
         "payment_method": (form.get("payment_method") or "").strip() or None,
         "notes": (form.get("notes") or "").strip() or None,
+        # Money leaves a *particular* till. "Cash" in the abstract is what
+        # made the drawer impossible to reconcile in the first place.
+        "account_id": _out_of_till(form.get("account_id", type=int),
+                                   form.get("payment_method")),
     }
 
 
@@ -3007,6 +3108,43 @@ def pnl():
 
 
 # ============================================================ PAYABLES (AP) ==
+@finance_bp.route("/tills")
+@module_required(MODULE)
+def tills():
+    """Where the clinic's money is, right now.
+
+    One row per till with its balance — the number somebody opens this screen
+    for. Grouped underneath by how each would be verified, because "we hold
+    40,000" means something different when 30,000 of it is card takings that
+    have not landed yet.
+    """
+    from app.utils import treasury
+
+    return render_template("finance/tills.html",
+                           rows=treasury.overview(),
+                           totals=treasury.total_by_kind())
+
+
+@finance_bp.route("/tills/<int:account_id>")
+@module_required(MODULE)
+def till_statement(account_id):
+    """One till's movements — what went in and out, and what it left behind."""
+    from app.models import CashAccount
+    from app.utils import treasury
+
+    account = db.get_or_404(CashAccount, account_id)
+    rows = treasury.movements(account)
+    # Running balance, computed forwards from the opening figure so each line
+    # shows what the till held after it.
+    running = account.opening_balance or 0
+    for row in rows:
+        running = round(running + row["amount"], 2)
+        row["running"] = running
+    rows.reverse()                       # newest first on screen
+    return render_template("finance/till_statement.html", account=account,
+                           rows=rows, balance=running)
+
+
 @finance_bp.route("/payables")
 @module_required(MODULE)
 def payables():
@@ -3065,6 +3203,7 @@ def supplier_pay(supplier_id):
     doc_id = request.form.get("document_id", type=int) or None
     ap.record_payment(
         supplier.id, amount, method=method,
+        account_id=_out_of_till(request.form.get("account_id", type=int), method),
         paid_at=parse_date_or_today(request.form.get("paid_at")),
         reference=(request.form.get("reference") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
