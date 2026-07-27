@@ -247,6 +247,9 @@ class Conversation(db.Model):
     resolved_at = db.Column(db.DateTime, index=True)
     resolved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     note = db.Column(db.String(255))
+    # What the thread is about, when somebody has said so. "urgent" is the
+    # one that changes the order of the list rather than only labelling it.
+    topic = db.Column(db.String(16), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow,
                            onupdate=datetime.utcnow, nullable=False)
 

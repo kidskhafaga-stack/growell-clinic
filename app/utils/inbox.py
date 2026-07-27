@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import MessageLog, Parent, Patient
+from app.utils.triage import rank, suggest_topic
 from app.utils.whatsapp import normalize_phone
 
 # A conversation older than this stops counting towards "waiting" — a message
@@ -164,13 +165,18 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
         conv["hours_left"] = (window or {}).get("hours_left")
         conv["closing"] = bool(window and window["open"]
                                and window["hours_left"] <= CLOSING_SOON_HOURS)
+        record = records.get(conv["key"])
+        conv["topic"] = record.topic if record is not None else None
+        # Only guess when nobody has said. A person's answer is not a thing
+        # to keep second-guessing on every page load.
+        conv["suggested_topic"] = (None if conv["topic"]
+                                   else suggest_topic(conv["last"].body))
         out.append(conv)
-    # Closing windows first, then whoever has waited longest — a work list
-    # ordered by "newest" puts the person ignored for three days at the bottom.
-    out.sort(key=lambda c: (not c["open"], not c["closing"],
-                            c["hours_left"] if c["closing"] else 0,
-                            -c["waiting_hours"],
-                            -c["last"].created_at.timestamp()))
+    # Emergencies first, then closing windows, then whoever has waited
+    # longest — a work list ordered by "newest" puts the person ignored for
+    # three days at the bottom, and one ordered only by waiting time puts a
+    # feverish child behind eleven questions about prices.
+    out.sort(key=rank)
     return out
 
 
