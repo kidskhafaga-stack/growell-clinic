@@ -44,11 +44,47 @@
 </div>
 {% endif %}
 
+{# Differences nobody has explained. A till short every week and always
+   written off by whoever counted it is what this makes visible. #}
+{% if differences %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:4px solid var(--danger);">
+  <h2 class="section-title" style="margin:0;color:var(--danger);">
+    <i class="bi bi-exclamation-octagon"></i> {{ t('tills.diffs_title') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('tills.diffs_hint') }}</p>
+  {% for c in differences %}
+  <div style="padding:8px 0;border-top:1px solid var(--line);">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span>{{ c.account.display_name(current_lang) }} · <span dir="ltr">{{ c.counted_on }}</span>
+        {% if c.counter %}<span class="hint">· {{ c.counter.display_name(current_lang) }}</span>{% endif %}</span>
+      <strong style="color:{{ 'var(--danger)' if c.is_short else 'var(--green-700)' }};">
+        {{ '%+.2f'|format(c.difference) }}</strong>
+    </div>
+    {% if can_adjust %}
+    {# Behind the narrowest permission there is: whoever counted the drawer
+       must not be the one who erases what they were short. #}
+    <form method="post" action="{{ url_for('finance.till_count_explain', count_id=c.id) }}"
+          style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+        <input class="input" name="reason" required dir="auto"
+               placeholder="{{ t('tills.reason_ph') }}"></div>
+      <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;">
+        <input type="checkbox" name="write_off" value="1" checked> {{ t('tills.write_off') }}</label>
+      <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('tills.explain') }}</button>
+    </form>
+    {% else %}
+    <p class="hint" style="margin:4px 0 0;">{{ t('tills.needs_admin') }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if can_move and rows %}
 {# Deposit, withdraw, transfer, settle — one form, because they are one act
    with a sign and a direction. #}
 <div class="card gc-scale-in" style="margin-bottom:16px;"
-     x-data="{ kind: 'transfer', get needsTarget() { return this.kind === 'transfer' || this.kind === 'settle'; } }">
+     x-data="moveBox({{ tills|tojson }})">
   <h2 class="section-title" style="margin:0;"><i class="bi bi-arrow-left-right"></i> {{ t('tills.move_title') }}</h2>
   <p class="hint" style="margin:6px 0 10px;">{{ t('tills.move_hint') }}</p>
   <form method="post" action="{{ url_for('finance.till_move') }}"
@@ -61,7 +97,7 @@
       </select></div>
     <div class="form-row" style="margin:0;min-width:150px;">
       <label>{{ t('tills.from_till') }}</label>
-      <select class="select" name="account_id" required>
+      <select class="select" name="account_id" x-model.number="from" required>
         {% for r in rows %}<option value="{{ r.account.id }}">{{ r.account.display_name(current_lang) }}</option>{% endfor %}
       </select></div>
     <div class="form-row" style="margin:0;min-width:150px;" x-show="needsTarget" x-cloak>
@@ -71,12 +107,19 @@
       </select></div>
     <div class="form-row" style="margin:0;max-width:120px;">
       <label>{{ t('tills.amount') }}</label>
-      <input class="input" type="number" step="0.01" min="0.01" name="amount" required></div>
+      <input class="input" type="number" step="0.01" min="0.01" name="amount"
+             x-model.number="amount" required></div>
     {# The processor's cut: 1,000 leaves the card account and 975 reaches the
        bank. The 25 is a cost, not money that vanished. #}
-    <div class="form-row" style="margin:0;max-width:110px;" x-show="needsTarget" x-cloak>
+    <div class="form-row" style="margin:0;max-width:130px;" x-show="needsTarget" x-cloak>
       <label>{{ t('tills.fee') }}</label>
-      <input class="input" type="number" step="0.01" min="0" name="fee" value="0"></div>
+      <input class="input" type="number" step="0.01" min="0" name="fee"
+             :placeholder="suggestedFee">
+      {# The rate belongs to the till — one bank's machine takes 2.5%, another
+         1.9%. This only suggests; the settlement statement is the authority
+         and whatever is typed wins. #}
+      <div class="hint" style="margin:2px 0 0;" x-show="rate" x-cloak
+           x-text="'{{ t('tills.fee_rate') }} ' + rate + '%'"></div></div>
     <div class="form-row" style="margin:0;max-width:150px;">
       <label>{{ t('tills.moved_on') }}</label>
       <input class="input" type="date" name="moved_on" value="{{ today }}"></div>
@@ -148,3 +191,22 @@
 <div class="empty-state">{{ t('tills.none') }}</div>
 {% endif %}
 {% endblock %}
+
+<script>
+  function moveBox(tills) {
+    return {
+      tills: tills, kind: 'transfer', from: null, amount: 0,
+      get needsTarget() { return this.kind === 'transfer' || this.kind === 'settle'; },
+      get till() { return this.tills.find(t => t.id === this.from) || null; },
+      // Only settlements carry a rate: an ordinary transfer between the
+      // clinic's own tills loses nothing on the way.
+      get rate() {
+        return (this.kind === 'settle' && this.till) ? (this.till.fee_percent || 0) : 0;
+      },
+      get suggestedFee() {
+        if (!this.rate || !this.amount) return '0';
+        return (this.amount * this.rate / 100).toFixed(2);
+      }
+    };
+  }
+</script>

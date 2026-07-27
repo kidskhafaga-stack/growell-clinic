@@ -45,8 +45,8 @@ from app.models import (
     User,
     Visit,
 )
-from app.utils.decorators import (capability_required, cashier_access,
-                                   client_ip, module_required)
+from app.utils.decorators import (admin_required, capability_required,
+                                   cashier_access, client_ip, module_required)
 from app.utils.paging import paginate
 from app.utils.finance import generate_invoice_number
 from app.utils.money import format_money
@@ -640,7 +640,9 @@ def _till_choices():
     from app.models import CashAccount
 
     lang = getattr(g, "lang", "ar")
-    return [{"id": a.id, "name": a.display_name(lang), "methods": a.methods}
+    return [{"id": a.id, "name": a.display_name(lang), "methods": a.methods,
+             "kind": a.kind, "fee_percent": a.fee_percent or 0,
+             "settles_into": a.settles_into_id}
             for a in CashAccount.active()]
 
 
@@ -3014,6 +3016,11 @@ def _read_expense(form):
         # made the drawer impossible to reconcile in the first place.
         "account_id": _out_of_till(form.get("account_id", type=int),
                                    form.get("payment_method")),
+        # Only cash comes out of a drawer. A bank transfer leaves the shift's
+        # count exactly where it was.
+        "shift_id": (_current_shift_id()
+                     if (form.get("payment_method") or "cash") == "cash"
+                     else None),
     }
 
 
@@ -3110,7 +3117,7 @@ def pnl():
 
 # ============================================================ PAYABLES (AP) ==
 @finance_bp.route("/tills")
-@module_required(MODULE)
+@cashier_access
 def tills():
     """Where the clinic's money is, right now.
 
@@ -3126,13 +3133,16 @@ def tills():
                            rows=treasury.overview(),
                            totals=treasury.total_by_kind(),
                            pending=treasury.pending_settlements(),
+                           tills=_till_choices(),
+                           differences=treasury.open_differences(),
+                           can_adjust=current_user.can("treasury_adjust"),
                            kinds=CASH_MOVEMENT_KINDS,
                            can_move=current_user.can("treasury_move"),
                            today=date.today())
 
 
 @finance_bp.route("/tills/<int:account_id>")
-@module_required(MODULE)
+@cashier_access
 def till_statement(account_id):
     """One till's movements — what went in and out, and what it left behind."""
     from app.models import CashAccount
@@ -3147,8 +3157,119 @@ def till_statement(account_id):
         running = round(running + row["amount"], 2)
         row["running"] = running
     rows.reverse()                       # newest first on screen
-    return render_template("finance/till_statement.html", account=account,
-                           rows=rows, balance=running)
+    from app.models import ACCOUNT_KINDS, CashAccount, CashCount
+    return render_template(
+        "finance/till_statement.html", account=account, rows=rows,
+        balance=running, kinds=ACCOUNT_KINDS, methods=PAYMENT_METHODS,
+        others=[a for a in CashAccount.active() if a.id != account.id],
+        counts=CashCount.query.filter_by(account_id=account.id)
+                        .order_by(CashCount.counted_on.desc()).limit(10).all(),
+        staff=User.query.filter_by(is_active=True)
+                        .order_by(User.full_name).all(),
+        can_edit=current_user.role == "admin")
+
+
+@finance_bp.route("/tills/<int:account_id>/save", methods=["POST"])
+@admin_required
+def till_save(account_id):
+    """Edit one till: its name, limits, and what its processor keeps.
+
+    Admin-only. The fee rate and the maximum are both money controls — one
+    decides what the books say a settlement cost, the other decides when
+    somebody is told to bank the drawer.
+    """
+    from app.models import ACCOUNT_KINDS, CashAccount
+
+    till = db.get_or_404(CashAccount, account_id)
+    till.name = (request.form.get("name") or "").strip() or till.name
+    till.name_en = (request.form.get("name_en") or "").strip() or None
+    kind = (request.form.get("kind") or "").strip()
+    till.kind = kind if kind in ACCOUNT_KINDS else till.kind
+    till.branch = (request.form.get("branch") or "").strip() or None
+    till.owner_id = request.form.get("owner_id", type=int) or None
+    till.opening_balance = request.form.get("opening_balance", type=float) or 0
+    till.min_balance = request.form.get("min_balance", type=float)
+    till.max_balance = request.form.get("max_balance", type=float)
+    # A percentage, not a fraction: 2.5 means 2.5%. Clamped because a rate
+    # over 100 would make every settlement a "fee swallows the amount" error
+    # nobody could explain from the form they filled in.
+    rate = request.form.get("fee_percent", type=float)
+    till.fee_percent = min(max(rate, 0), 100) if rate is not None else None
+    till.is_active = bool(request.form.get("is_active"))
+    target = request.form.get("settles_into_id", type=int)
+    till.settles_into_id = target if target and target != till.id else None
+    methods = [m.strip() for m in request.form.getlist("methods") if m.strip()]
+    till.default_methods = ",".join(methods) or None
+
+    db.session.commit()
+    ActivityLog.record("till.save", user_id=current_user.id, entity="till",
+                       entity_id=till.id, detail=till.name,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("finance.till_statement", account_id=till.id))
+
+
+@finance_bp.route("/tills/<int:account_id>/count", methods=["POST"])
+@cashier_access
+def till_count(account_id):
+    """Record a stocktake: what was counted against what the program expected.
+
+    Open to whoever can work the till, on purpose: the person holding the
+    drawer is reception, and a till they cannot open is a till they cannot
+    count. Explaining a difference is a different act behind a much narrower
+    permission.
+    """
+    from app.models import CashAccount
+    from app.utils import treasury
+
+    account = db.get_or_404(CashAccount, account_id)
+    try:
+        count = treasury.record_count(
+            account, request.form.get("counted", type=float),
+            note=(request.form.get("note") or "").strip() or None,
+            user_id=current_user.id,
+            counted_on=parse_date_or_today(request.form.get("counted_on")))
+    except treasury.MovementError as exc:
+        flash(t(f"tills.err_{exc}"), "danger")
+        return redirect(url_for("finance.till_statement", account_id=account_id))
+    ActivityLog.record("till.count", user_id=current_user.id, entity="till",
+                       entity_id=account.id, detail=f"{count.difference:+.2f}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("tills.counted_ok" if count.difference == 0 else "tills.counted_diff")
+          .replace("{diff}", f"{count.difference:+.2f}"),
+          "success" if count.difference == 0 else "warning")
+    return redirect(url_for("finance.till_statement", account_id=account_id))
+
+
+@finance_bp.route("/tills/count/<int:count_id>/explain", methods=["POST"])
+@capability_required("treasury_adjust")
+def till_count_explain(count_id):
+    """Close out a counting difference — with a reason, by somebody allowed to.
+
+    Behind the narrowest permission in the program. An adjustment line is
+    exactly how a shortage disappears, so whoever counted the drawer must not
+    be the one who erases what they were short.
+    """
+    from app.models import CashCount
+    from app.utils import treasury
+
+    count = db.get_or_404(CashCount, count_id)
+    try:
+        treasury.explain_count(
+            count, request.form.get("reason"), user_id=current_user.id,
+            write_off=bool(request.form.get("write_off")))
+    except treasury.MovementError as exc:
+        flash(t(f"tills.err_{exc}"), "danger")
+        return redirect(url_for("finance.tills"))
+    ActivityLog.record("till.explain", user_id=current_user.id, entity="till",
+                       entity_id=count.account_id,
+                       detail=f"{count.difference:+.2f} {count.status}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("tills.explained"), "success")
+    return redirect(url_for("finance.tills"))
 
 
 @finance_bp.route("/tills/move", methods=["POST"])
@@ -3172,7 +3293,7 @@ def till_move():
     try:
         treasury.record_movement(
             kind, src, request.form.get("amount", type=float),
-            to_account=dst, fee=request.form.get("fee", type=float) or 0,
+            to_account=dst, fee=request.form.get("fee", type=float),
             moved_on=moved_on,
             reference=(request.form.get("reference") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None,
@@ -3248,6 +3369,7 @@ def supplier_pay(supplier_id):
     ap.record_payment(
         supplier.id, amount, method=method,
         account_id=_out_of_till(request.form.get("account_id", type=int), method),
+        shift_id=_current_shift_id() if method == "cash" else None,
         paid_at=parse_date_or_today(request.form.get("paid_at")),
         reference=(request.form.get("reference") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,

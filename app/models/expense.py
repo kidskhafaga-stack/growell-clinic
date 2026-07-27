@@ -49,6 +49,10 @@ class Expense(db.Model):
     # The till it was paid out of.
     account_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
                            nullable=True, index=True)
+    # The open shift this cash left, so the drawer's expected count drops by
+    # it. Null when it was not cash, or when no shift was open.
+    shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"),
+                         nullable=True, index=True)
     notes = db.Column(db.Text)
 
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)

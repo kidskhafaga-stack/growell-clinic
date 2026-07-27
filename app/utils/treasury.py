@@ -194,7 +194,7 @@ class MovementError(ValueError):
     """A movement that must not be recorded, with a key the screen can name."""
 
 
-def record_movement(kind, account, amount, to_account=None, fee=0,
+def record_movement(kind, account, amount, to_account=None, fee=None,
                     moved_on=None, reference=None, notes=None, user_id=None):
     """Bank a drawer, draw from a till, transfer, or settle a clearing account.
 
@@ -215,6 +215,12 @@ def record_movement(kind, account, amount, to_account=None, fee=0,
     amount = round(float(amount or 0), 2)
     if amount <= 0:
         raise MovementError("bad_amount")
+    # A blank fee on a settlement means "whatever this machine usually takes",
+    # not zero: the rate belongs to the till because it is a property of which
+    # bank's machine this is. An explicit 0 is still 0 — the settlement
+    # statement is the authority and the typed figure always wins.
+    if fee is None and kind == "settle":
+        fee = account.expected_fee(amount)
     fee = round(float(fee or 0), 2)
     if fee < 0 or fee >= amount:
         # A fee that swallows the whole transfer means the numbers are wrong,
@@ -315,3 +321,96 @@ def pending_settlements():
                     "target": account.settles_into,
                     "orphan": account.settles_into is None})
     return out
+
+
+# ------------------------------------------------------------ counting ----
+def record_count(account, counted, note=None, user_id=None, counted_on=None):
+    """Record a stocktake: what was counted against what the program expected.
+
+    The expected figure is **frozen onto the row**, not recomputed later.
+    A stocktake whose "expected" moves after the fact is not a stocktake — it
+    would quietly rewrite what the count found the next time a back-dated
+    movement landed.
+
+    Never resolves the difference. Counting and writing off are two acts by
+    two people (see ``explain_count``).
+    """
+    from datetime import date
+
+    from app.extensions import db
+    from app.models import CashCount
+
+    if account is None:
+        raise MovementError("no_account")
+    try:
+        counted = round(float(counted), 2)
+    except (TypeError, ValueError):
+        raise MovementError("bad_amount") from None
+
+    count = CashCount(
+        account_id=account.id, counted=counted,
+        expected=account_balance(account),
+        counted_on=counted_on or date.today(),
+        note=(note or None), counted_by=user_id,
+        status="open")
+    db.session.add(count)
+    db.session.commit()
+    return count
+
+
+def explain_count(count, reason, user_id=None, write_off=True):
+    """Close out a counting difference — with a reason, by somebody allowed to.
+
+    ``write_off=True`` posts the difference so the till's balance and the
+    count agree from here on; ``False`` accepts the count as explained without
+    moving money (a miscount, a note found in the wrong drawer).
+
+    A reason is required either way. "Adjusted" with no words next to it is
+    the audit trail failing at the one moment it exists for.
+    """
+    from datetime import datetime
+
+    from app.extensions import db
+    from app.models import CashMovement
+
+    if count is None:
+        raise MovementError("no_count")
+    if count.status != "open":
+        raise MovementError("already_resolved")
+    reason = (reason or "").strip()
+    if not reason:
+        raise MovementError("need_reason")
+
+    diff = count.difference
+    if write_off and diff:
+        # A shortage leaves the till; an overage arrives in it. Recorded as an
+        # ordinary movement so it shows on the statement like everything else
+        # — a write-off that hid itself would defeat the point.
+        movement = CashMovement(
+            kind="withdraw" if diff < 0 else "deposit",
+            account_id=count.account_id, amount=abs(diff),
+            moved_on=count.counted_on, reference=f"جرد #{count.id}",
+            notes=reason[:255], created_by=user_id)
+        db.session.add(movement)
+        db.session.commit()
+        _post_movement(movement)
+
+    count.status = "adjusted" if (write_off and diff) else "accepted"
+    count.reason = reason[:255]
+    count.resolved_by = user_id
+    count.resolved_at = datetime.utcnow()
+    db.session.commit()
+    return count
+
+
+def open_differences():
+    """Counting differences nobody has explained yet.
+
+    The list worth looking at: a till that is short every week and always
+    written off by whoever counted it is exactly what this makes visible.
+    """
+    from app.models import CashCount
+
+    rows = (CashCount.query.filter_by(status="open")
+            .order_by(CashCount.counted_on.desc()).all())
+    return [c for c in rows if c.difference != 0]

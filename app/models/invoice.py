@@ -329,9 +329,31 @@ class CashierShift(db.Model):
         return round(sum(p.signed_amount for p in self.payments if p.method == "cash"), 2)
 
     @property
+    def cash_paid_out(self):
+        """Cash that left this drawer during the shift.
+
+        The cashier pays a supplier 175 out of the till. Until this existed
+        the shift still expected those 175 to be there, so the count came up
+        short and the variance landed on the cashier — for doing their job.
+
+        Matched by ``shift_id`` rather than by a date window, because an
+        expense carries a date and a shift carries a time: two shifts on the
+        same day would each have been charged the other's payments.
+        """
+        from app.models.expense import Expense
+        from app.models.payable import SupplierPayment
+
+        out = sum(e.amount or 0 for e in
+                  Expense.query.filter_by(shift_id=self.id).all())
+        out += sum(p.amount or 0 for p in
+                   SupplierPayment.query.filter_by(shift_id=self.id).all())
+        return round(out, 2)
+
+    @property
     def expected_cash(self):
-        """What the drawer should hold: float + net cash taken in."""
-        return round((self.opening_float or 0) + self.cash_collected, 2)
+        """What the drawer should hold: float + cash in − cash out."""
+        return round((self.opening_float or 0) + self.cash_collected
+                     - self.cash_paid_out, 2)
 
     @property
     def variance(self):

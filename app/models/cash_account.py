@@ -76,6 +76,13 @@ class CashAccount(db.Model):
     # nobody can clear it to zero.
     settles_into_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
                                 nullable=True)
+    # What the processor keeps, as a percentage. It belongs to the till and
+    # not to the code, because it is a property of *which bank's* machine
+    # this is: one gives 2.5%, another 1.9% with a higher ceiling, and a
+    # clinic with two POS accounts has both. Only a default — the settlement
+    # statement is the authority, so the typed figure always wins.
+    fee_percent = db.Column(db.Float)
+
     # Payment methods that default to this till, comma-separated. A method
     # belongs to exactly one till by default; the cashier may override it per
     # payment.
@@ -96,6 +103,17 @@ class CashAccount(db.Model):
     @property
     def methods(self):
         return [m for m in (self.default_methods or "").split(",") if m]
+
+    def expected_fee(self, amount):
+        """What this till's processor would keep on ``amount``.
+
+        A suggestion for the settlement form, rounded to piastres. Returns 0
+        when no rate is configured rather than guessing an industry average —
+        a wrong fee silently applied is worse than a blank the user fills in.
+        """
+        if not self.fee_percent or not amount:
+            return 0.0
+        return round(float(amount) * float(self.fee_percent) / 100.0, 2)
 
     @property
     def counts_by_hand(self):
