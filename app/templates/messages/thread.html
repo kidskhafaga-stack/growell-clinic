@@ -150,6 +150,42 @@
     <strong><i class="bi bi-clock-history"></i> {{ t('inbox.window_closed') }}</strong>
     <p class="hint" style="margin:6px 0 0;">
       {% if window.never_wrote %}{{ t('inbox.window_never') }}{% else %}{{ t('inbox.window_closed_hint') }}{% endif %}</p>
+
+    {# The way out of the dead end: an approved template is the one thing Meta
+       still delivers. Offered only here, only when the window has shut. #}
+    {% if approved.list %}
+    <div style="margin-top:12px;" x-data="approvedBox({{ approved.list|tojson }})">
+      <div class="form-row" style="margin-bottom:8px;">
+        <label>{{ t('inbox.tpl_pick') }}</label>
+        <select class="select" x-model="name">
+          <option value="">— {{ t('inbox.tpl_pick') }} —</option>
+          <template x-for="tpl in list" :key="tpl.name">
+            <option :value="tpl.name" x-text="tpl.name"></option>
+          </template>
+        </select>
+      </div>
+      <form method="post" x-show="chosen" x-cloak
+            action="{{ url_for('messages.inbox_template_send', key=key) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="name" :value="name">
+        <template x-for="i in (chosen ? chosen.params : 0)" :key="i">
+          <div class="form-row" style="margin-bottom:6px;">
+            <label x-text="'{{ t('inbox.tpl_param') }} ' + i"></label>
+            <input class="input" :name="'p' + i" x-model="values[i - 1]" required>
+          </div>
+        </template>
+        <div class="wa-preview" x-text="preview" x-show="chosen && chosen.body"
+             style="white-space:pre-wrap;background:var(--card);border:1px solid var(--line);
+                    border-radius:10px;padding:9px 13px;font-size:.9rem;margin:8px 0;"></div>
+        <button class="btn btn-primary btn-sm gc-press" type="submit">
+          <i class="bi bi-send"></i> {{ t('inbox.tpl_send') }}</button>
+        <p class="hint" style="margin:6px 0 0;">{{ t('inbox.tpl_hint') }}</p>
+      </form>
+    </div>
+    {% elif approved.available %}
+    <p class="hint" style="margin:8px 0 0;">
+      <a href="{{ url_for('messages.occasions') }}#connection">{{ t('inbox.tpl_none') }}</a></p>
+    {% endif %}
   </div>
   {% elif window and window.hours_left <= 3 %}
   <p class="hint" style="margin-top:10px;color:var(--warning,#b45309);">
@@ -207,6 +243,23 @@
   // Open scrolled to the latest message.
   var chat = document.getElementById('chat');
   if (chat) chat.scrollTop = chat.scrollHeight;
+
+  // An approved template, filled in front of whoever is sending it. The
+  // preview matters more here than anywhere else in the program: the sender
+  // cannot edit the words, only the blanks, and a blank in the wrong slot
+  // produces a sentence nobody proof-read.
+  function approvedBox(list) {
+    return {
+      list: list, name: '', values: [],
+      get chosen() { return this.list.find(t => t.name === this.name) || null; },
+      get preview() {
+        const t = this.chosen;
+        if (!t) return '';
+        return (t.body || '').replace(/\{\{\s*(\d+)\s*\}\}/g,
+          (m, n) => this.values[n - 1] || m);
+      }
+    };
+  }
 
   function replyBox(canned) {
     return {

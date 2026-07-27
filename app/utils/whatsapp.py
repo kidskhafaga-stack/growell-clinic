@@ -281,12 +281,18 @@ def _dispatch(log, cfg):
 
 
 def send(body, to_phone, patient_id=None, appointment_id=None, user_id=None,
-         cfg=None, image_url=None, template_type=None, scheduled_at=None):
+         cfg=None, image_url=None, template_type=None, scheduled_at=None,
+         ignore_window=False):
     """Prepare/deliver a WhatsApp message and log it. Returns the MessageLog.
 
     Honours the patient opt-out, an explicit future ``scheduled_at``, and — for
     API auto-sends — the daily send window and cap (deferring to the next slot
     when outside them). ``web`` links are always produced immediately.
+
+    ``ignore_window`` is for the messages a person is standing there waiting
+    for — a test send, a reply to somebody specific. The window and the cap
+    exist to stop the clinic messaging families at 2 a.m. in bulk; holding back
+    a test the receptionist just asked for would only look broken.
     """
     cfg = cfg or get_config()
     phone = normalize_phone(to_phone, cfg["country_code"])
@@ -312,13 +318,71 @@ def send(body, to_phone, patient_id=None, appointment_id=None, user_id=None,
         return log
 
     # API auto-sends respect the window + daily cap; links go out anytime.
-    if provider in ("cloud_api", "wapilot") and (
+    if not ignore_window and provider in ("cloud_api", "wapilot") and (
             not _in_window(cfg, now) or _cap_reached(cfg, now)):
         log.status = "scheduled"
         log.scheduled_at = _next_slot(cfg, now)
         return log
 
     return _dispatch(log, cfg)
+
+
+def send_approved(tpl, values, to_phone, patient_id=None, user_id=None,
+                  cfg=None):
+    """Send a Meta-approved template — what goes out once the window shuts.
+
+    Logged with the *filled* body so the conversation shows the family the
+    same sentence they read, even though the wire format carries a name and a
+    list of parameters. Sent immediately: this is somebody answering a specific
+    person who is waiting, not a campaign, so the daily cap and the send window
+    do not hold it back.
+    """
+    from app.utils.wa_templates import fill
+
+    cfg = cfg or get_config()
+    phone = normalize_phone(to_phone, cfg["country_code"])
+    body = fill(tpl.get("body"), values) or tpl.get("name")
+    log = MessageLog(patient_id=patient_id, to_phone=phone, body=body,
+                     provider=resolve_provider(cfg),
+                     template_type="approved", created_by=user_id,
+                     status="queued")
+    db.session.add(log)
+    if _opted_out(patient_id):
+        log.status, log.error = "skipped", "opted_out"
+        return log
+    if not phone:
+        log.status, log.error = "failed", "missing_phone"
+        return log
+    if log.provider != "cloud_api":
+        log.status, log.error = "failed", "templates_need_cloud_api"
+        return log
+    ok, err = _send_cloud_template(cfg, phone, tpl, values)
+    log.status, log.error = ("sent", None) if ok else ("failed", err)
+    log.sent_at = datetime.utcnow()
+    return log
+
+
+def _send_cloud_template(cfg, phone, tpl, values):
+    token, phone_id = cfg.get("cloud_token"), cfg.get("cloud_phone_id")
+    if not token or not phone_id:
+        return False, "cloud_not_configured"
+    url = f"https://graph.facebook.com/{GRAPH_VERSION}/{phone_id}/messages"
+    template = {"name": tpl.get("name"),
+                "language": {"code": tpl.get("lang") or "ar"}}
+    if values:
+        template["components"] = [{
+            "type": "body",
+            "parameters": [{"type": "text", "text": str(v)} for v in values],
+        }]
+    payload = {"messaging_product": "whatsapp", "to": phone,
+               "type": "template", "template": template}
+    headers = {"Authorization": f"Bearer {token}",
+               "Content-Type": "application/json"}
+    try:
+        status, _ = _post_json(url, payload, headers)
+        return (200 <= status < 300), (None if 200 <= status < 300 else f"http_{status}")
+    except Exception as exc:  # noqa: BLE001 - network/credential failure
+        return False, str(exc)[:180]
 
 
 def dispatch_due(cfg=None, limit=500):
