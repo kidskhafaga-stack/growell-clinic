@@ -33,7 +33,8 @@
         <td><div class="patient-row">{{ patient_avatar(v.patient, 'sm') }}
           <div><div class="name">{{ v.patient.display_name(current_lang) }}</div>
             <div class="num">{{ v.patient.patient_number }}</div></div></div></td>
-        <td>{{ v.visit_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ v.visit_date.strftime('%Y-%m-%d') }}
+          {% if v.channel == 'whatsapp' %}<span class="badge badge--green" title="{{ t('teleconsult.decision_' ~ v.decision) if v.decision else '' }}"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</span>{% endif %}</td>
         <td>{{ v.doctor.display_name(current_lang) }}</td>
         <td>{% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">—</span>{% endfor %}</td>
         <td><span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span></td>

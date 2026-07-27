@@ -712,7 +712,8 @@
     "inv_unlink_confirm": "Remove this file from the order? It stays on the child's record.",
     "inv_file_linked": "the file was linked to the order",
     "inv_file_unlinked": "link removed — the file is still on the record",
-    "inv_file_not_found": "that file is not on this child's record"
+    "inv_file_not_found": "that file is not on this child's record",
+    "channel": "consultation channel"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -3698,5 +3699,29 @@
     "record_and_clear": "record the result",
     "record_hint": "Once recorded it leaves this list and closes on the child's file.",
     "empty": "Nothing waiting to be read."
+  },
+  "teleconsult": {
+    "what_now": "What did the doctor decide?",
+    "decision_continue": "carry on with the same treatment",
+    "decision_change": "change the treatment",
+    "decision_investigate": "order another test",
+    "note": "The detail that goes in the file",
+    "note_ph": "e.g. stop the syrup, start the tablets 5ml twice daily",
+    "new_test": "What to have done",
+    "new_test_ph": "e.g. full blood count",
+    "message": "The message to the family",
+    "message_ph": "Leave it empty and the program drafts one you can edit.",
+    "message_hint": "Sent from the clinic's number, so the conversation and the record stay in one place.",
+    "record_and_send": "record the decision and tell the family",
+    "record_hint": "It goes into the child's file as a remote consultation — who decided, when, and on what result. A WhatsApp message on its own is not a medical record.",
+    "recorded": "Recorded in the file, and the family has been told.",
+    "recorded_no_send": "Recorded in the file — but the message did not go (no number, or the provider is off).",
+    "bad_decision": "Choose what the doctor decided.",
+    "not_found": "That order no longer exists.",
+    "channel_whatsapp": "remote consultation (WhatsApp)",
+    "based_on": "on the result of",
+    "msg_continue": "The result has been reviewed. Please carry on with the same treatment.",
+    "msg_change": "The result has been reviewed and the treatment changes:",
+    "msg_investigate": "The result has been reviewed, and one more test is needed:"
   }
 }

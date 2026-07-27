@@ -60,8 +60,12 @@
         <i class="bi bi-journal-medical"></i> {{ t('results.open_visit') }}</a>
     </div>
 
-    <form method="post" action="{{ url_for('visits.result_investigation', inv_id=inv.id) }}"
-          style="margin-top:10px;">
+    {# Read it, decide, and tell the family — one action, because it is one
+       thought. Split, the three halves can disagree: an order marked read
+       with no decision, a message sent with nothing recorded, a note in the
+       file the family never heard. #}
+    <form method="post" action="{{ url_for('visits.decide_on_result', inv_id=inv.id) }}"
+          style="margin-top:10px;" x-data="{ decision: '' }">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label>
@@ -70,9 +74,51 @@
         <div class="form-row"><label>{{ t('visits.inv_comment') }}</label>
           <input class="input" name="result_comment" dir="auto"></div>
       </div>
-      <button class="btn btn-outline btn-sm gc-press" type="submit">
-        <i class="bi bi-check-lg"></i> {{ t('results.record_and_clear') }}</button>
-      <div class="hint" style="margin-top:4px;">{{ t('results.record_hint') }}</div>
+
+      <label style="display:block;margin:10px 0 4px;font-weight:600;">
+        {{ t('teleconsult.what_now') }}</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% for key, icon in [('continue','check2-circle'), ('change','arrow-repeat'),
+                             ('investigate','clipboard-plus')] %}
+        <label class="btn btn-sm gc-press"
+               :class="decision === '{{ key }}' ? 'btn-primary' : 'btn-outline'"
+               style="cursor:pointer;">
+          <input type="radio" name="decision" value="{{ key }}" x-model="decision"
+                 style="display:none;" required>
+          <i class="bi bi-{{ icon }}"></i> {{ t('teleconsult.decision_' ~ key) }}
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="form-row" style="margin-top:8px;" x-show="decision" x-cloak>
+        <label>{{ t('teleconsult.note') }}</label>
+        <input class="input" name="note" dir="auto"
+               placeholder="{{ t('teleconsult.note_ph') }}"></div>
+
+      {# "Have one more test done" is a decision only if the test exists
+         afterwards — otherwise it is a sentence in a message. #}
+      <div x-show="decision === 'investigate'" x-cloak
+           style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+        <div class="form-row" style="flex:1;min-width:180px;margin:0;">
+          <label>{{ t('teleconsult.new_test') }}</label>
+          <input class="input" name="test_name" dir="auto"
+                 placeholder="{{ t('teleconsult.new_test_ph') }}"></div>
+        <select class="select" name="test_kind" style="width:auto;">
+          <option value="lab">{{ t('rx.inv_lab') }}</option>
+          <option value="imaging">{{ t('rx.inv_imaging') }}</option>
+        </select>
+      </div>
+
+      <div class="form-row" style="margin-top:8px;" x-show="decision" x-cloak>
+        <label>{{ t('teleconsult.message') }}</label>
+        <textarea class="input" name="message" rows="2" dir="auto"
+                  placeholder="{{ t('teleconsult.message_ph') }}"></textarea>
+        <div class="hint">{{ t('teleconsult.message_hint') }}</div></div>
+
+      <button class="btn btn-primary btn-sm gc-press gc-ripple" type="submit"
+              style="margin-top:8px;">
+        <i class="bi bi-send-check"></i> {{ t('teleconsult.record_and_send') }}</button>
+      <div class="hint" style="margin-top:4px;">{{ t('teleconsult.record_hint') }}</div>
     </form>
   </div>
   {% endfor %}

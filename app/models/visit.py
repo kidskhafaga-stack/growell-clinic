@@ -32,12 +32,28 @@ class Visit(db.Model):
     notes = db.Column(db.Text)
 
     status = db.Column(db.String(20), default="open", nullable=False, index=True)
+    # Where the encounter happened. A decision taken over WhatsApp is a real
+    # consultation and belongs in the child's history like any other — but
+    # *which* it was is part of the record, not a detail: a year later,
+    # whoever reads the file has to understand why the medicine changed on a
+    # day the child never came in.
+    channel = db.Column(db.String(12), default="clinic", nullable=False,
+                        index=True)              # clinic | whatsapp
+    # What the doctor decided, when this visit is a remote follow-up.
+    decision = db.Column(db.String(16))          # continue | change | investigate
+    # The result it was decided on — so the answer, the decision and the
+    # question it came from are one chain rather than three loose rows.
+    based_on_id = db.Column(db.Integer,
+                            db.ForeignKey("visit_investigations.id"),
+                            nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
 
     patient = db.relationship("Patient", backref="visits")
     doctor = db.relationship("User", backref="visits")
+    based_on = db.relationship("VisitInvestigation",
+                               foreign_keys=[based_on_id])
     appointment = db.relationship("Appointment", backref="visit", uselist=False)
     vitals = db.relationship(
         "VitalSigns", back_populates="visit", uselist=False,
@@ -47,8 +63,12 @@ class Visit(db.Model):
         "Diagnosis", back_populates="visit", cascade="all, delete-orphan",
         order_by="Diagnosis.id",
     )
+    # Two foreign keys now run between these tables — the orders raised *in*
+    # this visit, and (on a remote follow-up) the one result it was decided
+    # *on*. Each relationship has to say which key it means.
     investigations = db.relationship(
         "VisitInvestigation", back_populates="visit",
+        foreign_keys="VisitInvestigation.visit_id",
         cascade="all, delete-orphan", order_by="VisitInvestigation.id",
     )
     attachments = db.relationship(
@@ -111,7 +131,8 @@ class VisitInvestigation(db.Model):
     resulted_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    visit = db.relationship("Visit", back_populates="investigations")
+    visit = db.relationship("Visit", back_populates="investigations",
+                            foreign_keys=[visit_id])
     patient = db.relationship("Patient")
     investigation = db.relationship("Investigation")
 

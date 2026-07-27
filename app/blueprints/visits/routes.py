@@ -835,6 +835,57 @@ def results():
                                           and current_user.is_practitioner))
 
 
+@visits_bp.route("/investigations/<int:inv_id>/decide", methods=["POST"])
+@module_required(MODULE)
+def decide_on_result(inv_id):
+    """Read the result, decide, tell the family — and write it in the file.
+
+    One action because it is one thought. Splitting it would leave the three
+    halves able to disagree: an order marked read with no decision, a message
+    sent with nothing recorded, a note in the file the family never heard.
+    """
+    from app.utils.teleconsult import message_for, record_decision
+
+    order = db.get_or_404(VisitInvestigation, inv_id)
+    decision = (request.form.get("decision") or "").strip()
+    note = (request.form.get("note") or "").strip() or None
+    new_test = {"name": request.form.get("test_name"),
+                "kind": request.form.get("test_kind"),
+                "notes": request.form.get("test_notes")}
+
+    visit, error = record_decision(
+        order, current_user, decision, note=note, new_test=new_test,
+        result_text=request.form.get("result_text"),
+        result_comment=request.form.get("result_comment"))
+    if visit is None:
+        flash(t(f"teleconsult.{error}"), "danger")
+        return redirect(url_for("visits.results"))
+
+    # Tell the family, from the clinic's number. Best-effort: the record of
+    # the decision is the part that must not be lost, and a provider outage
+    # must never cost it.
+    lang = getattr(g, "lang", "ar")
+    body = (request.form.get("message") or "").strip() \
+        or message_for(order, decision, note, lang)
+    phone = order.patient.contact_phone if order.patient else None
+    sent = False
+    if body and phone:
+        try:
+            wa.send(body, phone, patient_id=order.patient_id,
+                    user_id=current_user.id)
+            sent = True
+        except Exception:  # noqa: BLE001 - never lose the record over a send
+            pass
+
+    ActivityLog.record("visit.teleconsult", user_id=current_user.id,
+                       entity="visit", entity_id=visit.id,
+                       detail=f"{decision}:{order.id}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("teleconsult.recorded" if sent else "teleconsult.recorded_no_send"),
+          "success" if sent else "warning")
+    return redirect(url_for("visits.results"))
+
+
 @visits_bp.route("/investigations/<int:inv_id>/attach", methods=["POST"])
 @module_required(MODULE)
 def attach_to_investigation(inv_id):
