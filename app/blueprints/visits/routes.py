@@ -125,7 +125,13 @@ def index():
     if locked:
         query = query.filter(or_(Visit.doctor_id == locked,
                                  Visit.doctor_id.is_(None)))
-    pagination = paginate(query.order_by(Visit.created_at.desc()))
+    # The list prints each visit's patient and its diagnoses.
+    from sqlalchemy.orm import selectinload
+
+    pagination = paginate(
+        query.options(selectinload(Visit.patient),
+                      selectinload(Visit.diagnoses))
+        .order_by(Visit.created_at.desc()))
     return render_template(
         "visits/list.html", visits=pagination.items, pagination=pagination
     )

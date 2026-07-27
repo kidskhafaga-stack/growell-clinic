@@ -525,7 +525,12 @@ def invoices():
     q = Invoice.query
     if status in ("unpaid", "partial", "paid"):
         q = q.filter_by(status=status)
-    pagination = paginate(q.order_by(Invoice.id.desc()))
+    from sqlalchemy.orm import selectinload
+
+    pagination = paginate(
+        q.options(selectinload(Invoice.items), selectinload(Invoice.payments),
+                  selectinload(Invoice.patient))
+        .order_by(Invoice.id.desc()))
     return render_template("finance/invoices.html", pagination=pagination,
                            invoices=pagination.items, status=status)
 
@@ -697,7 +702,14 @@ def _drawer_summary(on_date):
     drawer = CashDrawerDay.query.filter_by(drawer_date=on_date).first()
     opening_float = drawer.opening_float if drawer else 0
     cash_collected = round(cash_in - cash_out, 2)
-    todays = Invoice.query.filter(Invoice.invoice_date == on_date).all()
+    # Only the day's total is wanted from these, and that total is summed in
+    # Python from each invoice's lines — so the lines come along rather than
+    # one query per invoice raised today.
+    from sqlalchemy.orm import selectinload
+
+    todays = (Invoice.query
+              .options(selectinload(Invoice.items))
+              .filter(Invoice.invoice_date == on_date).all())
     day_shifts = (CashierShift.query
                   .filter(CashierShift.opened_at >= start,
                           CashierShift.opened_at <= end)
@@ -730,7 +742,13 @@ def cashier():
     cash_collected = day["cash_collected"]
     expected_cash = day["expected_cash"]
     billed_today = day["billed_today"]
-    outstanding = (Invoice.query.filter(Invoice.status.in_(["unpaid", "partial"]))
+    from sqlalchemy.orm import selectinload
+
+    outstanding = (Invoice.query
+                   .options(selectinload(Invoice.items),
+                            selectinload(Invoice.payments),
+                            selectinload(Invoice.patient))
+                   .filter(Invoice.status.in_(["unpaid", "partial"]))
                    .order_by(Invoice.id.desc()).limit(100).all())
     outstanding_total = round(sum(i.balance for i in outstanding), 2)
 

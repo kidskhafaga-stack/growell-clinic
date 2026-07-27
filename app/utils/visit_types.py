@@ -52,10 +52,21 @@ def all_types():
 
 
 def get(key):
-    try:
-        return VisitType.query.filter_by(key=key).first()
-    except Exception:  # noqa: BLE001
-        return None
+    """One visit type by key, read once per request.
+
+    Every row of the appointment board asks for its type's label and colour,
+    so this was one query per row per attribute — a hundred and twenty
+    lookups of a table with a handful of rows in it.
+    """
+    from app.utils.request_cache import remember
+
+    def load():
+        try:
+            return VisitType.query.filter_by(key=key).first()
+        except Exception:  # noqa: BLE001
+            return None
+
+    return remember(f"visit_type:{key}", load)
 
 
 def valid_key(key):
