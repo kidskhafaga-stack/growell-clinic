@@ -12,6 +12,7 @@ from flask import g, redirect, render_template, request, url_for
 from app.blueprints.feedback import feedback_bp
 from app.extensions import db
 from app.models import Feedback, Setting
+from app.utils.rate_limit import SURVEY_PER_MINUTE, limit
 
 
 def _clinic_name(lang):
@@ -29,6 +30,10 @@ def _clamp(value, lo, hi):
 
 
 @feedback_bp.route("/<token>", methods=["GET"])
+# The one public page with a guessable-shaped URL. The token is random
+# and long, so this is not what stops it being guessed — it is what stops
+# the guessing being cheap.
+@limit("survey", SURVEY_PER_MINUTE, methods=("GET",))
 def rate(token):
     fb = Feedback.query.filter_by(token=token).first()
     lang = getattr(g, "lang", "ar")
@@ -45,6 +50,7 @@ def rate(token):
 
 
 @feedback_bp.route("/<token>", methods=["POST"])
+@limit("survey", SURVEY_PER_MINUTE)
 def submit(token):
     fb = Feedback.query.filter_by(token=token).first()
     if fb is None:

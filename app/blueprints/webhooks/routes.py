@@ -20,6 +20,7 @@ from app.blueprints.webhooks import webhooks_bp
 from app.extensions import db
 from app.models import Setting
 from app.utils import inbound
+from app.utils.rate_limit import WEBHOOK_PER_MINUTE, limit
 from app.utils.webhook_auth import (meta_signature_ok, path_secret_ok,
                                     verify_token_ok)
 
@@ -29,6 +30,7 @@ def _enabled():
 
 
 @webhooks_bp.route("/meta", methods=["GET"])
+@limit("webhook", WEBHOOK_PER_MINUTE, methods=("GET",))
 def meta_verify():
     """Meta webhook verification handshake."""
     challenge = request.args.get("hub.challenge")
@@ -40,6 +42,7 @@ def meta_verify():
 
 
 @webhooks_bp.route("/meta", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
 def meta_receive():
     # Proved first, read second. The signature covers the raw bytes, so it has
     # to be checked before anything parses or re-serialises them.
@@ -57,6 +60,7 @@ def meta_receive():
 
 
 @webhooks_bp.route("/wapilot/<secret>", methods=["POST"])
+@limit("webhook", WEBHOOK_PER_MINUTE)
 def wapilot_receive(secret):
     if not path_secret_ok(secret, Setting.get("wa_webhook_secret", "")):
         abort(403)

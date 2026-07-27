@@ -17,6 +17,7 @@ from app.extensions import db
 from app.i18n import set_locale, t
 from app.models import ActivityLog, Setting, User
 from app.utils.decorators import client_ip
+from app.utils.rate_limit import LOGIN_PER_MINUTE, limit
 
 
 def _is_safe_next(target):
@@ -45,6 +46,10 @@ def _recent_failures(username, minutes):
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+# The lockout below counts failures per *username*, which does nothing about
+# one machine trying a thousand different names — every one of them is on its
+# first attempt. This counts the caller instead.
+@limit("login", LOGIN_PER_MINUTE)
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("main.dashboard"))
