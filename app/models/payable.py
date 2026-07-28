@@ -30,11 +30,19 @@ class SupplierPayment(db.Model):
     paid_at = db.Column(db.Date, default=lambda: datetime.utcnow().date(),
                         nullable=False, index=True)
     notes = db.Column(db.String(255))
+    # The till the money left. Paying a supplier out of the reception drawer
+    # has to take it out of that drawer, not out of "cash" in the abstract.
+    account_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
+                           nullable=True, index=True)
+    # See Expense.shift_id — cash out of the drawer has to come off its count.
+    shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"),
+                         nullable=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     supplier = db.relationship("Supplier")
     document = db.relationship("StoreDocument")
+    account = db.relationship("CashAccount")
 
     def __repr__(self):
         return f"<SupplierPayment {self.amount} supplier={self.supplier_id}>"

@@ -46,12 +46,20 @@ class Expense(db.Model):
 
     vendor = db.Column(db.String(120))
     payment_method = db.Column(db.String(20))
+    # The till it was paid out of.
+    account_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
+                           nullable=True, index=True)
+    # The open shift this cash left, so the drawer's expected count drops by
+    # it. Null when it was not cash, or when no shift was open.
+    shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"),
+                         nullable=True, index=True)
     notes = db.Column(db.Text)
 
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     creator = db.relationship("User")
+    account = db.relationship("CashAccount")
 
     def __repr__(self):
         return f"<Expense {self.category} {self.amount}>"

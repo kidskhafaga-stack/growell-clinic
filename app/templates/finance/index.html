@@ -57,6 +57,12 @@
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('expenses.subtitle') }}</p>
   </a>
 
+  <a class="card gc-lift" href="{{ url_for('finance.tills') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-green"><i class="bi bi-safe2"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('tills.title') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('tills.subtitle') }}</p>
+  </a>
+
   <a class="card gc-lift" href="{{ url_for('finance.payables') }}" style="text-decoration:none;">
     <div class="hub-ico edge-yellow"><i class="bi bi-truck"></i></div>
     <h3 style="margin:10px 0 4px;">{{ t('payables.title') }}</h3>

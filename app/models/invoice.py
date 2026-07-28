@@ -159,6 +159,11 @@ class Payment(db.Model):
     # The cashier shift (وردية) this money was taken in, so each till session
     # reconciles independently. Null for payments recorded outside any shift.
     shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"), nullable=True, index=True)
+    # Which till this money landed in. The method says how the family paid;
+    # this says where it came to rest — two different facts, and a clinic with
+    # reception on two floors has both of them taking cash.
+    account_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
+                           nullable=True, index=True)
     paid_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.String(200))
     # What the patient actually handed over, when it is more than the amount
@@ -166,6 +171,8 @@ class Payment(db.Model):
     # enters the drawer/ledger; the difference is change given back on the
     # spot. Null = the patient paid the exact amount.
     tendered = db.Column(db.Float)
+
+    account = db.relationship("CashAccount")
 
     @property
     def handed_over(self):
@@ -237,11 +244,17 @@ class CashDrawerDay(db.Model):
     opened_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     # Close-of-day reconciliation (optional).
+    # The till this shift is a session on. One shift = one person + one
+    # drawer + a window of time; two cash drawers open at once are two shifts,
+    # because two people are each short on their own.
+    account_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
+                           nullable=True, index=True)
     counted_cash = db.Column(db.Float)
     closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     closed_at = db.Column(db.DateTime)
     notes = db.Column(db.String(255))
 
+    account = db.relationship("CashAccount")
     opener = db.relationship("User", foreign_keys=[opened_by])
     closer = db.relationship("User", foreign_keys=[closed_by])
 
@@ -267,11 +280,17 @@ class CashierShift(db.Model):
     opened_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     # Close-of-shift reconciliation.
+    # The till this shift is a session on. One shift = one person + one
+    # drawer + a window of time; two cash drawers open at once are two shifts,
+    # because two people are each short on their own.
+    account_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
+                           nullable=True, index=True)
     counted_cash = db.Column(db.Float)
     closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     closed_at = db.Column(db.DateTime)
     notes = db.Column(db.String(255))
 
+    account = db.relationship("CashAccount")
     opener = db.relationship("User", foreign_keys=[opened_by])
     closer = db.relationship("User", foreign_keys=[closed_by])
     payments = db.relationship("Payment", back_populates="shift")
@@ -310,9 +329,31 @@ class CashierShift(db.Model):
         return round(sum(p.signed_amount for p in self.payments if p.method == "cash"), 2)
 
     @property
+    def cash_paid_out(self):
+        """Cash that left this drawer during the shift.
+
+        The cashier pays a supplier 175 out of the till. Until this existed
+        the shift still expected those 175 to be there, so the count came up
+        short and the variance landed on the cashier — for doing their job.
+
+        Matched by ``shift_id`` rather than by a date window, because an
+        expense carries a date and a shift carries a time: two shifts on the
+        same day would each have been charged the other's payments.
+        """
+        from app.models.expense import Expense
+        from app.models.payable import SupplierPayment
+
+        out = sum(e.amount or 0 for e in
+                  Expense.query.filter_by(shift_id=self.id).all())
+        out += sum(p.amount or 0 for p in
+                   SupplierPayment.query.filter_by(shift_id=self.id).all())
+        return round(out, 2)
+
+    @property
     def expected_cash(self):
-        """What the drawer should hold: float + net cash taken in."""
-        return round((self.opening_float or 0) + self.cash_collected, 2)
+        """What the drawer should hold: float + cash in − cash out."""
+        return round((self.opening_float or 0) + self.cash_collected
+                     - self.cash_paid_out, 2)
 
     @property
     def variance(self):

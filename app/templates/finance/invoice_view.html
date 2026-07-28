@@ -199,12 +199,22 @@
           <select class="select" name="method" x-model="row.method">
             {% for m in methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}
           </select></div>
+        {# The method says how they paid; this says where it landed. Left
+           blank it follows the method's default — two reception desks both
+           take cash, and that is not two payment methods. #}
+        {% if tills %}
+        <div class="form-row"><label x-show="i===0">{{ t('tills.choose') }}</label>
+          <select class="select" name="account_id" x-model="row.account_id">
+            <option value="">{{ t('tills.default_for_method') }}</option>
+            {% for till in tills %}<option value="{{ till.id }}">{{ till.name }}</option>{% endfor %}
+          </select></div>
+        {% endif %}
         <div class="form-row" style="max-width:46px;justify-content:end;">
           <button type="button" class="btn btn-outline btn-sm gc-press" x-show="rows.length>1" x-on:click="rows.splice(i,1)" title="{{ t('common.delete') }}"><i class="bi bi-x-lg"></i></button></div>
       </div>
     </template>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 10px;">
-      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="rows.push({method:'cash', amount:remaining()})"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_method') }}</button>
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="rows.push({method:'cash', amount:remaining(), account_id:''})"><i class="bi bi-plus-lg"></i> {{ t('invoices.add_method') }}</button>
       <span class="hint" style="margin:0;">{{ t('invoices.total') }}: <strong x-text="total().toFixed(2)"></strong>
         · {{ t('invoices.balance') }}: <strong x-text="(balance - total()).toFixed(2)"></strong></span>
     </div>
@@ -212,7 +222,7 @@
   </form>
   <script>
     function splitPay(balance){
-      return { balance: balance, rows: [{ method: 'cash', amount: balance }],
+      return { balance: balance, rows: [{ method: 'cash', amount: balance, account_id: '' }],
         total(){ return this.rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0); },
         remaining(){ return Math.max(0, +(this.balance - this.total()).toFixed(2)); } };
     }

@@ -1,0 +1,190 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ account.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ account.display_name(current_lang) }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ account.display_name(current_lang) }}
+      <span class="badge badge--muted" dir="ltr">{{ account.code }}</span></h1>
+    <p class="page-sub" style="margin:0;">
+      {{ t('tills.kind_' ~ account.kind) }} · {{ t('tills.check_' ~ account.kind) }}</p>
+  </div>
+  <div style="text-align:end;">
+    <div class="hint" style="margin:0;">{{ t('tills.balance') }}</div>
+    <div style="font-size:1.6rem;font-weight:700;">{{ '%.2f'|format(balance) }}</div>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.tills') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('tills.title') }}</a>
+  </div>
+</div>
+
+{% if can_edit %}
+<details class="card gc-scale-in" style="margin-bottom:16px;">
+  <summary class="section-title" style="cursor:pointer;margin:0;">
+    <i class="bi bi-sliders"></i> {{ t('tills.settings') }}</summary>
+  <form method="post" action="{{ url_for('finance.till_save', account_id=account.id) }}"
+        style="margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('tills.name') }}</label>
+        <input class="input" name="name" value="{{ account.name }}" dir="auto"></div>
+      <div class="form-row"><label>{{ t('tills.name') }} (EN)</label>
+        <input class="input" name="name_en" value="{{ account.name_en or '' }}" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('tills.kind') }}</label>
+        <select class="select" name="kind">
+          {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if account.kind == k else '' }}>
+            {{ t('tills.kind_' ~ k) }} — {{ t('tills.check_' ~ k) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('tills.branch') }}</label>
+        <input class="input" name="branch" value="{{ account.branch or '' }}" dir="auto">
+        <div class="hint">{{ t('tills.branch_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('tills.owner') }}</label>
+        <select class="select" name="owner_id">
+          <option value="">—</option>
+          {% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if account.owner_id == u.id else '' }}>
+            {{ u.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('tills.opening') }}</label>
+        <input class="input" type="number" step="0.01" name="opening_balance"
+               value="{{ account.opening_balance or 0 }}"></div>
+    </div>
+
+    <div class="form-grid">
+      {# The minimum is about making change; the maximum is what protects
+         money sitting in a drawer. #}
+      <div class="form-row"><label>{{ t('tills.min') }}</label>
+        <input class="input" type="number" step="0.01" name="min_balance"
+               value="{{ account.min_balance if account.min_balance is not none else '' }}">
+        <div class="hint">{{ t('tills.min_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('tills.max') }}</label>
+        <input class="input" type="number" step="0.01" name="max_balance"
+               value="{{ account.max_balance if account.max_balance is not none else '' }}">
+        <div class="hint">{{ t('tills.max_hint') }}</div></div>
+      {# One bank's machine takes 2.5%, another 1.9%. It belongs to the till,
+         not to the code. #}
+      <div class="form-row"><label>{{ t('tills.fee_percent') }}</label>
+        <input class="input" type="number" step="0.01" min="0" max="100" name="fee_percent"
+               value="{{ account.fee_percent if account.fee_percent is not none else '' }}"
+               placeholder="2.5">
+        <div class="hint">{{ t('tills.fee_percent_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('tills.settles_into') }}</label>
+        <select class="select" name="settles_into_id">
+          <option value="">—</option>
+          {% for o in others %}<option value="{{ o.id }}" {{ 'selected' if account.settles_into_id == o.id else '' }}>
+            {{ o.display_name(current_lang) }}</option>{% endfor %}
+        </select>
+        <div class="hint">{{ t('tills.settles_hint') }}</div></div>
+    </div>
+
+    <div class="form-row"><label>{{ t('tills.methods') }}</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        {% for m in methods %}
+        <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;">
+          <input type="checkbox" name="methods" value="{{ m }}"
+                 {{ 'checked' if m in account.methods else '' }}>
+          {{ t('payment_methods.' ~ m) }}</label>
+        {% endfor %}
+      </div>
+      <div class="hint">{{ t('tills.methods_hint') }}</div></div>
+
+    <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin:10px 0;font-weight:400;">
+      <input type="checkbox" name="is_active" value="1" {{ 'checked' if account.is_active else '' }}>
+      {{ t('tills.is_active') }}</label>
+
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+{% endif %}
+
+{# Counting the till. The program's balance is a claim; this is somebody
+   checking it against the world. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-clipboard-check"></i> {{ t('tills.count_title') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('tills.count_hint_' ~ account.kind) }}</p>
+  <form method="post" action="{{ url_for('finance.till_count', account_id=account.id) }}"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;max-width:150px;">
+      <label>{{ t('tills.counted') }}</label>
+      <input class="input" type="number" step="0.01" name="counted" required></div>
+    <div class="form-row" style="margin:0;max-width:150px;">
+      <label>{{ t('tills.when') }}</label>
+      <input class="input" type="date" name="counted_on"></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:160px;">
+      <label>{{ t('tills.note') }}</label>
+      <input class="input" name="note" dir="auto"></div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-check2-square"></i> {{ t('tills.count_btn') }}</button>
+  </form>
+  <p class="hint" style="margin:8px 0 0;">
+    {{ t('tills.expected_now') }}: <strong>{{ '%.2f'|format(balance) }}</strong></p>
+
+  {% if counts %}
+  <table class="table" style="margin-top:12px;">
+    <thead><tr>
+      <th>{{ t('tills.when') }}</th><th style="text-align:end;">{{ t('tills.counted') }}</th>
+      <th style="text-align:end;">{{ t('tills.expected') }}</th>
+      <th style="text-align:end;">{{ t('tills.difference') }}</th>
+      <th>{{ t('tills.who') }}</th><th>{{ t('common.status') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for c in counts %}
+      <tr>
+        <td dir="ltr">{{ c.counted_on }}</td>
+        <td style="text-align:end;">{{ '%.2f'|format(c.counted) }}</td>
+        <td style="text-align:end;color:var(--muted);">{{ '%.2f'|format(c.expected) }}</td>
+        <td style="text-align:end;font-weight:600;{{ 'color:var(--danger);' if c.difference < 0 else ('color:var(--green-700);' if c.difference > 0) }}">
+          {{ '%+.2f'|format(c.difference) }}</td>
+        <td>{{ c.counter.display_name(current_lang) if c.counter else '—' }}</td>
+        <td>
+          {% if c.needs_explaining %}<span class="badge badge--danger">{{ t('tills.open_diff') }}</span>
+          {% elif c.status == 'adjusted' %}<span class="badge badge--muted" title="{{ c.reason }}">{{ t('tills.adjusted') }}</span>
+          {% else %}<span class="badge badge--green" title="{{ c.reason or '' }}">{{ t('tills.matched') }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+{% if rows %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:640px;">
+    <thead><tr>
+      <th>{{ t('tills.when') }}</th>
+      <th>{{ t('tills.what') }}</th>
+      <th>{{ t('tills.who') }}</th>
+      <th style="text-align:end;">{{ t('tills.in') }}</th>
+      <th style="text-align:end;">{{ t('tills.out') }}</th>
+      <th style="text-align:end;">{{ t('tills.after') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ row.at.strftime('%Y-%m-%d %H:%M') if row.at }}</td>
+        <td>
+          <span class="badge {{ 'badge--green' if row.amount > 0 else 'badge--muted' }}">
+            {{ t('tills.mv_' ~ row.kind) }}</span>
+          {% if row.label %}<span dir="auto">{{ row.label }}</span>{% endif %}
+        </td>
+        <td dir="auto">{{ row.who or '—' }}</td>
+        <td style="text-align:end;color:var(--green-700);">
+          {{ '%.2f'|format(row.amount) if row.amount > 0 else '' }}</td>
+        <td style="text-align:end;color:var(--danger);">
+          {{ '%.2f'|format(-row.amount) if row.amount < 0 else '' }}</td>
+        <td style="text-align:end;font-weight:600;">{{ '%.2f'|format(row.running) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint" style="margin-top:10px;">
+  {{ t('tills.opening') }}: {{ '%.2f'|format(account.opening_balance or 0) }} ·
+  {{ t('tills.computed_hint') }}</p>
+{% else %}
+<div class="empty-state">{{ t('tills.no_moves') }}</div>
+{% endif %}
+{% endblock %}
