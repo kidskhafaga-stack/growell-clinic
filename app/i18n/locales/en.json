@@ -2631,7 +2631,10 @@
     "label_hint": "Pick one or type your own name.",
     "preset_morning": "Morning",
     "preset_evening": "Evening",
-    "preset_night": "Night"
+    "preset_night": "Night",
+    "stale": "Shift {n} has been open for {h} hours — count the drawer and close it if it is finished.",
+    "last_close": "last close",
+    "count_it": "count the drawer and confirm"
   },
   "wizard": {
     "title": "Facility setup",

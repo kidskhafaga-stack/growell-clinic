@@ -414,3 +414,65 @@ def open_differences():
     rows = (CashCount.query.filter_by(status="open")
             .order_by(CashCount.counted_on.desc()).all())
     return [c for c in rows if c.difference != 0]
+
+
+# ------------------------------------------------------------- shifts -----
+# A shift left open overnight is almost always forgotten rather than genuine.
+STALE_SHIFT_HOURS = 18
+
+
+def shift_till(requested_id=None):
+    """The cash till a shift is being opened on.
+
+    Cash only: a shift is somebody taking responsibility for money they are
+    holding, and nobody holds an InstaPay balance. Falls back to the default
+    cash till, then to any cash till, then to nothing — a clinic that has not
+    configured tills must still be able to open a shift.
+    """
+    from app.extensions import db
+    from app.models import CashAccount
+
+    if requested_id:
+        chosen = db.session.get(CashAccount, requested_id)
+        if chosen is not None and chosen.is_active and chosen.counts_by_hand:
+            return chosen
+    default = CashAccount.for_method("cash")
+    if default is not None and default.counts_by_hand:
+        return default
+    return next((a for a in CashAccount.active() if a.counts_by_hand), None)
+
+
+def suggested_float(account_id=None, user_id=None):
+    """What the last shift on this till was counted at when it closed.
+
+    Offered in the box, **never applied on its own**: the float is what the
+    cashier counted this morning, and a number the program filled in for them
+    makes the closing variance a measurement against something nobody saw.
+    """
+    from app.models import CashierShift
+
+    query = CashierShift.query.filter(CashierShift.status == "closed",
+                                      CashierShift.counted_cash.isnot(None))
+    if account_id:
+        query = query.filter(CashierShift.account_id == account_id)
+    last = query.order_by(CashierShift.closed_at.desc()).first()
+    return round(last.counted_cash, 2) if last else None
+
+
+def stale_shifts(hours=STALE_SHIFT_HOURS, now=None):
+    """Shifts still open long past any real shift — forgotten, not running.
+
+    A warning, never an automatic close: closing one would write a
+    ``counted_cash`` nobody counted, which is not a shift closing, it is the
+    program inventing the one number the whole exercise depends on.
+    """
+    from datetime import datetime, timedelta
+
+    from app.models import CashierShift
+
+    now = now or datetime.utcnow()
+    cutoff = now - timedelta(hours=hours)
+    return (CashierShift.query
+            .filter(CashierShift.status == "open",
+                    CashierShift.opened_at <= cutoff)
+            .order_by(CashierShift.opened_at).all())

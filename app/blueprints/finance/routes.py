@@ -564,6 +564,18 @@ def _current_shift_id():
     return shift.id if shift else None
 
 
+def _warn_stale_shifts(shifts):
+    """Say a shift has been open since yesterday. Never close it.
+
+    Closing it would write a ``counted_cash`` nobody counted — the program
+    inventing the one number the whole exercise depends on.
+    """
+    for shift in shifts:
+        hours = int((datetime.utcnow() - shift.opened_at).total_seconds() // 3600)
+        flash(t("shifts.stale").replace("{n}", str(shift.shift_number or shift.id))
+              .replace("{h}", str(hours)), "warning")
+
+
 def _shift_label_presets():
     """Ready-made shift names (صباحي/مسائي/ليلي) plus any label already used —
     offered as a pick list on a free-text field, so a clinic that names its
@@ -840,7 +852,10 @@ def cashier():
                    .order_by(Invoice.id.desc()).limit(100).all())
     outstanding_total = round(sum(i.balance for i in outstanding), 2)
 
+    from app.models import CashAccount
+    from app.utils import treasury
     open_shift = CashierShift.open_for(current_user.id) or CashierShift.any_open()
+    _warn_stale_shifts(treasury.stale_shifts())
     recent_shifts = (CashierShift.query.order_by(CashierShift.opened_at.desc())
                      .limit(8).all())
     uncollected = _uncollected_by_patient()
@@ -855,6 +870,8 @@ def cashier():
         open_shift=open_shift, recent_shifts=recent_shifts,
         uncollected=uncollected, shift_label_presets=_shift_label_presets(),
         settlements=pending_settlements(),
+        suggested_float=treasury.suggested_float(),
+        cash_tills=[a for a in CashAccount.active() if a.counts_by_hand],
     )
 
 
@@ -990,10 +1007,17 @@ def shift_open():
     if CashierShift.open_for(current_user.id):
         flash(t("shifts.already_open"), "warning")
         return redirect(url_for("finance.cashier"))
+    from app.utils import treasury
+
+    # The drawer this session is on. One shift = one person + one till + a
+    # window of time, so two desks open at once are two shifts — each person
+    # short on their own drawer, not on a shared abstraction.
+    till = treasury.shift_till(request.form.get("account_id", type=int))
     shift = CashierShift(
         shift_number=_shift_number(),
         opening_float=round(request.form.get("opening_float", type=float) or 0, 2),
         label=(request.form.get("label") or "").strip() or None,
+        account_id=till.id if till else None,
         opened_by=current_user.id,
     )
     db.session.add(shift)
