@@ -114,6 +114,7 @@ from app.models.einvoice import EINVOICE_STATUSES, EInvoiceDocument
 from app.models.cash_account import ACCOUNT_KINDS, CashAccount
 from app.models.cash_count import COUNT_STATUSES, CashCount
 from app.models.cash_movement import CASH_MOVEMENT_KINDS, CashMovement
+from app.models.bank_line import BANK_LINE_STATUSES, BankLine
 from app.models.expense import EXPENSE_CATEGORIES, Expense
 from app.models.prescription import (
     DRUG_FORMS,
@@ -268,6 +269,8 @@ __all__ = [
     "CashMovement",
     "CASH_MOVEMENT_KINDS",
     "CashCount",
+    "BankLine",
+    "BANK_LINE_STATUSES",
     "COUNT_STATUSES",
     "INVOICE_STATUSES",
     "PAYMENT_METHODS",

@@ -23,6 +23,13 @@
     <div style="font-size:1.6rem;font-weight:700;">{{ '%.2f'|format(balance) }}</div>
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.tills') }}">
       <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('tills.title') }}</a>
+    {% if can_reconcile %}
+    {# Cash is missing from here on purpose: a drawer has no statement, it has
+       a count, and the count form is already on this page. #}
+    <a class="btn btn-outline btn-sm gc-press"
+       href="{{ url_for('finance.till_reconcile', account_id=account.id) }}">
+      <i class="bi bi-bank"></i> {{ t('recon.open_screen') }}</a>
+    {% endif %}
   </div>
 </div>
 
