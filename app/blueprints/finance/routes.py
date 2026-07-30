@@ -7,7 +7,7 @@ phases build invoices, doctor statements and discount claims on top.
 import calendar
 from datetime import date, datetime
 
-from flask import flash, g, redirect, render_template, request, url_for
+from flask import abort, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.blueprints.finance import finance_bp
@@ -647,7 +647,8 @@ def _till_choices():
 
     Only the ones money can *arrive* in: a bank account is where a transfer
     lands, and reception may need to put this particular cash in the emergency
-    drawer instead of their own.
+    drawer instead of their own. Narrowed to the tills this user is allowed to
+    work — a drawer they cannot be short on is not a drawer they may fill.
     """
     from app.models import CashAccount
 
@@ -655,7 +656,33 @@ def _till_choices():
     return [{"id": a.id, "name": a.display_name(lang), "methods": a.methods,
              "kind": a.kind, "fee_percent": a.fee_percent or 0,
              "settles_into": a.settles_into_id}
-            for a in CashAccount.active()]
+            for a in CashAccount.usable_by(current_user)]
+
+
+def _sees_all_tills():
+    """Whether this user's tills screen shows the clinic's whole treasury.
+
+    Finance is a reporting job: an accountant who could only see the drawer
+    they happen to be assigned to could not reconcile anything, and the whole
+    point of the screen is the total. Reception is not that job — they see the
+    tills they work, which is also the shortest list they can act on.
+    """
+    return current_user.can_access("finance")
+
+
+def _my_till_or_403(account_id):
+    """A till this user is allowed to act on, or 403.
+
+    Acting is counting it, moving money out of it, opening a shift on it. Note
+    what this is *not*: it does not decide whether the user may do those things
+    at all — the capabilities still do that. It only answers "which drawer".
+    """
+    from app.models import CashAccount
+
+    account = db.get_or_404(CashAccount, account_id)
+    if not account.may_be_used_by(current_user):
+        abort(403, description=t("tills.not_your_till"))
+    return account
 
 
 def _out_of_till(requested_id, method):
@@ -689,7 +716,12 @@ def _till_for(method, requested_id=None):
 
     if requested_id:
         chosen = db.session.get(CashAccount, requested_id)
-        if chosen is not None and chosen.is_active:
+        # A till this user may not work is treated as "not chosen", never as a
+        # refusal: the patient is standing there and the money is real. It
+        # lands in the method's configured default instead, which is where it
+        # would have gone if nobody had touched the picker.
+        if chosen is not None and chosen.is_active \
+                and chosen.may_be_used_by(current_user):
             return chosen
     return CashAccount.for_method(method)
 
@@ -871,7 +903,8 @@ def cashier():
         uncollected=uncollected, shift_label_presets=_shift_label_presets(),
         settlements=pending_settlements(),
         suggested_float=treasury.suggested_float(),
-        cash_tills=[a for a in CashAccount.active() if a.counts_by_hand],
+        cash_tills=[a for a in CashAccount.usable_by(current_user)
+                    if a.counts_by_hand],
     )
 
 
@@ -1012,7 +1045,8 @@ def shift_open():
     # The drawer this session is on. One shift = one person + one till + a
     # window of time, so two desks open at once are two shifts — each person
     # short on their own drawer, not on a shared abstraction.
-    till = treasury.shift_till(request.form.get("account_id", type=int))
+    till = treasury.shift_till(request.form.get("account_id", type=int),
+                               user=current_user)
     shift = CashierShift(
         shift_number=_shift_number(),
         opening_float=round(request.form.get("opening_float", type=float) or 0, 2),
@@ -3149,16 +3183,26 @@ def tills():
     for. Grouped underneath by how each would be verified, because "we hold
     40,000" means something different when 30,000 of it is card takings that
     have not landed yet.
+
+    An accountant sees the whole treasury; reception sees the tills they work.
     """
     from app.models import CASH_MOVEMENT_KINDS
     from app.utils import treasury
 
+    rows = treasury.overview()
+    pending = treasury.pending_settlements()
+    differences = treasury.open_differences()
+    if not _sees_all_tills():
+        rows = [r for r in rows if r["account"].may_be_used_by(current_user)]
+        pending = [p for p in pending
+                   if p["account"].may_be_used_by(current_user)]
+        differences = [c for c in differences if c.account is not None
+                       and c.account.may_be_used_by(current_user)]
     return render_template("finance/tills.html",
-                           rows=treasury.overview(),
-                           totals=treasury.total_by_kind(),
-                           pending=treasury.pending_settlements(),
+                           rows=rows, totals=treasury.total_by_kind(rows),
+                           pending=pending,
                            tills=_till_choices(),
-                           differences=treasury.open_differences(),
+                           differences=differences,
                            can_adjust=current_user.can("treasury_adjust"),
                            kinds=CASH_MOVEMENT_KINDS,
                            can_move=current_user.can("treasury_move"),
@@ -3173,6 +3217,8 @@ def till_statement(account_id):
     from app.utils import treasury
 
     account = db.get_or_404(CashAccount, account_id)
+    if not (_sees_all_tills() or account.may_be_used_by(current_user)):
+        abort(403, description=t("tills.not_your_till"))
     rows = treasury.movements(account)
     # Running balance, computed forwards from the opening figure so each line
     # shows what the till held after it.
@@ -3190,6 +3236,9 @@ def till_statement(account_id):
                         .order_by(CashCount.counted_on.desc()).limit(10).all(),
         staff=User.query.filter_by(is_active=True)
                         .order_by(User.full_name).all(),
+        assigned={u.id for u in account.users},
+        waiting=treasury.settlement_age(account)
+        if account.kind == "clearing" else None,
         can_edit=current_user.role == "admin")
 
 
@@ -3224,6 +3273,17 @@ def till_save(account_id):
     till.settles_into_id = target if target and target != till.id else None
     methods = [m.strip() for m in request.form.getlist("methods") if m.strip()]
     till.default_methods = ",".join(methods) or None
+    # How long this machine's money normally takes to land. A window, not a
+    # schedule: it decides when the screen says "late", never when the program
+    # posts a settlement.
+    window = request.form.get("settle_after_days", type=int)
+    till.settle_after_days = window if window and window > 0 else None
+
+    # Who may work this drawer. An empty list is meaningful — it means the till
+    # is shared, which is what every till in an existing clinic already is.
+    wanted = {i for i in request.form.getlist("users", type=int) if i}
+    till.users = (User.query.filter(User.id.in_(wanted)).all()
+                  if wanted else [])
 
     db.session.commit()
     ActivityLog.record("till.save", user_id=current_user.id, entity="till",
@@ -3244,10 +3304,9 @@ def till_count(account_id):
     count. Explaining a difference is a different act behind a much narrower
     permission.
     """
-    from app.models import CashAccount
     from app.utils import treasury
 
-    account = db.get_or_404(CashAccount, account_id)
+    account = _my_till_or_403(account_id)
     try:
         count = treasury.record_count(
             account, request.form.get("counted", type=float),
@@ -3308,9 +3367,20 @@ def till_move():
     from app.models import CashAccount
     from app.utils import treasury
 
+    def picked(field):
+        # A deposit has no target, so the field is genuinely absent — asking
+        # the session for row `None` is a different question from "no target".
+        chosen = request.form.get(field, type=int)
+        return db.session.get(CashAccount, chosen) if chosen else None
+
     kind = (request.form.get("kind") or "").strip()
-    src = db.session.get(CashAccount, request.form.get("account_id", type=int))
-    dst = db.session.get(CashAccount, request.form.get("to_account_id", type=int))
+    src = picked("account_id")
+    dst = picked("to_account_id")
+    # Only the source is checked. Money *arriving* somewhere you cannot work is
+    # the normal case — banking your own drawer into a safe you have no access
+    # to is exactly what the control is for.
+    if src is not None and not src.may_be_used_by(current_user):
+        abort(403, description=t("tills.not_your_till"))
     moved_on = parse_date_or_today(request.form.get("moved_on"))
     if _period_blocked(moved_on):
         return redirect(url_for("finance.tills"))
