@@ -338,7 +338,16 @@ def patient_plan(patient, lang="ar"):
         # after the previous dose. We chain forward from each dose's effective
         # date (actual date if given, else its projected due date) so a child who
         # started late gets correctly-spaced due dates — not the raw age dates.
-        min_iv = vaccine.min_interval_days
+        #
+        # The fallback is load-bearing, not tidiness. `min_interval_days` is
+        # NULL on nearly every vaccine — it is only filled in when the source
+        # schedule happened to state it — so a guard that required it meant the
+        # chaining below **never ran at all**: a child whose first dose came a
+        # year late got a second dose "due" months before the first one
+        # happened, and the whole schedule read as overdue. 28 days is the same
+        # floor the catch-up seeder already uses, so the program was carrying
+        # the number and not applying it where it mattered most.
+        min_iv = vaccine.min_interval_days or _CATCH_UP_MIN_INTERVAL
         # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
         # the child already got (can't co-administer with a past dose anymore).
         earliest_live = None
@@ -357,7 +366,7 @@ def patient_plan(patient, lang="ar"):
             if pv is not None:
                 effective = pv.given_date
             else:
-                if due and prev_date and min_iv:
+                if due and prev_date:
                     earliest = prev_date + timedelta(days=min_iv)
                     if earliest > due:
                         due = earliest
