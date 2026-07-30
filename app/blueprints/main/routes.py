@@ -94,10 +94,15 @@ def dashboard():
     from app.models import Setting
 
     ctx = {"greeting": _greeting_key(_dt.now().hour)}
+    # Whether bookings are paused is read for **everyone**, not only the doctor
+    # who can flip it. It used to be set inside the doctor-home branch, so the
+    # banner lived inside a card reception never sees: the doctor paused
+    # booking, watched their own screen say so, and reception carried on with no
+    # idea. The person the pause is aimed at was the one person not told.
+    ctx["booking_open"] = Setting.get("clinic_booking_open", "1") != "0"
     # Doctors (and practitioners standing in as one) get a live home panel.
     if current_user.role == "doctor" or getattr(current_user, "is_practitioner", False):
         ctx["home"] = _doctor_home(current_user)
-        ctx["booking_open"] = Setting.get("clinic_booking_open", "1") != "0"
     return render_template("main/dashboard.html", **ctx)
 
 

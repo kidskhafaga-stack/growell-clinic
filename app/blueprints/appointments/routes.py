@@ -306,6 +306,30 @@ def _current_summary(patient):
 
 
 # -------------------------------------------------------- booking ----------
+def booking_open():
+    """Whether the clinic is accepting new bookings right now."""
+    return Setting.get("clinic_booking_open", "1") != "0"
+
+
+def _booking_blocked():
+    """Whether *this* user may not create an appointment right now.
+
+    One helper because the gate has to hold on **every** way in. It used to be
+    written inline in ``create`` and nowhere else, so a paused clinic still took
+    walk-ins: the doctor saw "booking paused" on their screen, reception carried
+    on registering patients, and the setting was decoration. A guard that covers
+    one of two doors is worse than none — it tells the person who flipped it
+    that something is being enforced.
+
+    An admin still gets through: the emergency in front of reception is real
+    whatever the setting says, and the override is logged.
+    """
+    if booking_open() or current_user.is_admin:
+        return False
+    flash(t("appointments.booking_closed_msg"), "warning")
+    return True
+
+
 @appointments_bp.route("/toggle-booking", methods=["POST"])
 @module_required(MODULE)
 def toggle_booking():
@@ -314,7 +338,7 @@ def toggle_booking():
     A simple clinic-wide gate the doctor flips when the day is full or they're
     stepping out; reception sees a clear banner and can't create appointments
     while it's paused (an admin can still override in an emergency)."""
-    now_open = Setting.get("clinic_booking_open", "1") != "0"
+    now_open = booking_open()
     Setting.set("clinic_booking_open", "0" if now_open else "1")
     ActivityLog.record(
         "appointment.booking_toggle", user_id=current_user.id,
@@ -331,13 +355,10 @@ def toggle_booking():
 @module_required(MODULE)
 def create():
     doctors = list_doctors()
-    booking_open = Setting.get("clinic_booking_open", "1") != "0"
+    is_open = booking_open()
 
     if request.method == "POST":
-        # Booking gate: when a doctor has paused clinic bookings, only an admin
-        # may still push one through (emergency add); everyone else is stopped.
-        if not booking_open and not current_user.is_admin:
-            flash(t("appointments.booking_closed_msg"), "warning")
+        if _booking_blocked():
             return redirect(url_for("appointments.create"))
         patient_id = request.form.get("patient_id", type=int)
         doctor_id = request.form.get("doctor_id", type=int)
@@ -416,7 +437,7 @@ def create():
         doctor_options=_doctor_options(doctors),
         services=_bookable_services(),
         vaccination_service_id=_vaccination_service_id(),
-        booking_open=booking_open,
+        booking_open=is_open,
     )
 
 
@@ -563,6 +584,10 @@ def reschedule(appt_id):
 @module_required(MODULE)
 def walk_in():
     """Register a walk-in: book the next free slot today (overbook if full)."""
+    # A walk-in is a new appointment, so the pause applies to it. This is the
+    # door the gate was missing, and the one reception actually uses.
+    if _booking_blocked():
+        return redirect(url_for("appointments.index"))
     patient_id = request.form.get("patient_id", type=int)
     doctor_id = request.form.get("doctor_id", type=int)
     reason = (request.form.get("reason") or "").strip()
