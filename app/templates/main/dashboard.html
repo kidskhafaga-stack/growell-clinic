@@ -4,10 +4,28 @@
 {% block page_heading %}{{ t('dashboard.title') }}{% endblock %}
 
 {% block content %}
-<h1 class="page-title gc-animate">{{ t('dashboard.greet_' ~ greeting) }}، {{ current_user.doctor_print_name(current_lang) if (current_user.role == 'doctor' or current_user.is_practitioner) else current_user.display_name(current_lang) }} 👋</h1>
+{# The greeting's icon is a Bootstrap Icon, not an emoji. Every other icon in
+   the program is one, and an emoji sits wrong beside them for reasons that are
+   not a matter of taste: it renders from the OS font rather than the icon set,
+   so it ignores the theme colour, changes shape between Windows, Android and
+   iOS, and does not scale with the text the way `bi` glyphs do.
+   And since it follows the time of day, it may as well say something. #}
+{% set greet_icon = {'morning': 'sunrise', 'afternoon': 'brightness-high',
+                     'evening': 'moon-stars'}.get(greeting, 'brightness-high') %}
+<h1 class="page-title gc-animate">
+  <i class="bi bi-{{ greet_icon }}" style="color:var(--green-600);"></i>
+  {{ t('dashboard.greet_' ~ greeting) }}، {{ current_user.doctor_print_name(current_lang) if (current_user.role == 'doctor' or current_user.is_practitioner) else current_user.display_name(current_lang) }}</h1>
 <p class="page-sub gc-animate" style="animation-delay:0.06s;">
   {{ t('common.welcome') }} · {{ t('dashboard.your_role') }}: <span class="badge badge--role">{{ t('roles.' ~ current_user.role) }}</span>
 </p>
+
+{# The pause, for whoever it stops. The toggle stays with the doctor, but the
+   notice belongs to reception: the banner used to sit inside the doctor-home
+   card, so the one person the pause is aimed at never saw it. #}
+{% if home is not defined and not booking_open and current_user.can_access('appointments') %}
+<div class="info-note gc-animate" style="margin-bottom:16px;border-color:var(--danger);color:var(--danger);">
+  <i class="bi bi-pause-circle"></i> {{ t('appointments.booking_closed_banner') }}</div>
+{% endif %}
 
 {% if home is defined %}
 {# ---------------- Doctor home: live queue + booking control ---------------- #}
