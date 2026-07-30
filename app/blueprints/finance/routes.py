@@ -3214,7 +3214,7 @@ def tills():
 def till_statement(account_id):
     """One till's movements — what went in and out, and what it left behind."""
     from app.models import CashAccount
-    from app.utils import treasury
+    from app.utils import bank_import, treasury
 
     account = db.get_or_404(CashAccount, account_id)
     if not (_sees_all_tills() or account.may_be_used_by(current_user)):
@@ -3239,6 +3239,8 @@ def till_statement(account_id):
         assigned={u.id for u in account.users},
         waiting=treasury.settlement_age(account)
         if account.kind == "clearing" else None,
+        can_reconcile=(account.kind in bank_import.RECONCILABLE_KINDS
+                       and current_user.can("treasury_move")),
         can_edit=current_user.role == "admin")
 
 
@@ -3402,6 +3404,131 @@ def till_move():
     db.session.commit()
     flash(t("tills.moved"), "success")
     return redirect(url_for("finance.tills"))
+
+
+# ------------------------------------------------ bank reconciliation ------
+def _reconcilable_or_404(account_id):
+    """A till there is an external record to check against.
+
+    Behind ``treasury_move`` at the route, and narrowed here to the tills a
+    statement can exist for. A cash drawer is excluded on purpose: it has a
+    count, which is a different screen and a different act — somebody's hand in
+    the drawer, not a file from a bank.
+    """
+    from app.models import CashAccount
+    from app.utils.bank_import import RECONCILABLE_KINDS
+
+    account = db.get_or_404(CashAccount, account_id)
+    if account.kind not in RECONCILABLE_KINDS:
+        abort(404)
+    if not (_sees_all_tills() or account.may_be_used_by(current_user)):
+        abort(403, description=t("tills.not_your_till"))
+    return account
+
+
+@finance_bp.route("/tills/<int:account_id>/reconcile")
+@capability_required("treasury_move")
+def till_reconcile(account_id):
+    """The bank's version of this till against the program's.
+
+    The screen exists for the lines that do *not* match. A statement line with
+    no movement is money the bank knows about that the clinic never recorded; a
+    movement with no statement line is money the clinic recorded that never
+    arrived, which is the more alarming of the two.
+    """
+    from app.utils import bank_import
+
+    account = _reconcilable_or_404(account_id)
+    return render_template(
+        "finance/till_reconcile.html", account=account,
+        window=bank_import.DEFAULT_WINDOW_DAYS,
+        **bank_import.reconciliation(account))
+
+
+@finance_bp.route("/tills/<int:account_id>/reconcile/import", methods=["POST"])
+@capability_required("treasury_move")
+def till_statement_import(account_id):
+    """Read an uploaded statement into stored lines.
+
+    The statement is kept, not just read: an importer that matched what it
+    could and dropped the rest would answer "did these balance?" and lose the
+    only interesting question, which is which lines did not.
+    """
+    from app.utils import bank_import
+
+    account = _reconcilable_or_404(account_id)
+    upload = request.files.get("statement")
+    if upload is None or not (upload.filename or "").strip():
+        flash(t("recon.err_no_file"), "danger")
+        return redirect(url_for("finance.till_reconcile", account_id=account.id))
+    try:
+        added, skipped, repeats = bank_import.import_lines(
+            account, upload, user_id=current_user.id)
+    except bank_import.StatementError as exc:
+        flash(t(f"recon.err_{exc}"), "danger")
+        return redirect(url_for("finance.till_reconcile", account_id=account.id))
+
+    ActivityLog.record("bank.import", user_id=current_user.id, entity="till",
+                       entity_id=account.id,
+                       detail=f"+{added} ~{repeats} !{skipped}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("recon.imported").replace("{added}", str(added))
+          .replace("{repeats}", str(repeats))
+          .replace("{skipped}", str(skipped)), "success")
+    return redirect(url_for("finance.till_reconcile", account_id=account.id))
+
+
+@finance_bp.route("/tills/<int:account_id>/reconcile/auto", methods=["POST"])
+@capability_required("treasury_move")
+def till_statement_auto(account_id):
+    """Match every line that has exactly one possible answer, and stop there."""
+    from app.utils import bank_import
+
+    account = _reconcilable_or_404(account_id)
+    matched = bank_import.auto_match(account, user_id=current_user.id)
+    ActivityLog.record("bank.auto_match", user_id=current_user.id,
+                       entity="till", entity_id=account.id,
+                       detail=str(matched), ip_address=client_ip())
+    db.session.commit()
+    flash(t("recon.auto_done").replace("{n}", str(matched)),
+          "success" if matched else "info")
+    return redirect(url_for("finance.till_reconcile", account_id=account.id))
+
+
+@finance_bp.route("/bank-line/<int:line_id>/<action>", methods=["POST"])
+@capability_required("treasury_move")
+def bank_line_action(line_id, action):
+    """Match a statement line, undo a match, or set the line aside with a reason."""
+    from app.models import BankLine
+    from app.utils import bank_import
+
+    line = db.get_or_404(BankLine, line_id)
+    _reconcilable_or_404(line.account_id)
+    try:
+        if action == "match":
+            movement = (request.form.get("movement") or "").strip()
+            kind, _, raw_id = movement.partition(":")
+            bank_import.match(line, kind, int(raw_id) if raw_id.isdigit()
+                              else None, user_id=current_user.id)
+        elif action == "unmatch":
+            bank_import.unmatch(line, user_id=current_user.id)
+        elif action == "ignore":
+            bank_import.ignore(line, request.form.get("note"),
+                               user_id=current_user.id)
+        else:
+            abort(404)
+    except bank_import.StatementError as exc:
+        flash(t(f"recon.err_{exc}"), "danger")
+        return redirect(url_for("finance.till_reconcile",
+                                account_id=line.account_id))
+    ActivityLog.record(f"bank.{action}", user_id=current_user.id,
+                       entity="bank_line", entity_id=line.id,
+                       detail=f"{line.amount:+.2f}", ip_address=client_ip())
+    db.session.commit()
+    flash(t(f"recon.{action}ed"), "success")
+    return redirect(url_for("finance.till_reconcile",
+                            account_id=line.account_id))
 
 
 @finance_bp.route("/payables")

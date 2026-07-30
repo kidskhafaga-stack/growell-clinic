@@ -1,0 +1,205 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('recon.title') }} — {{ account.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('recon.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bank"></i> {{ t('recon.title') }}
+      <span class="badge badge--muted">{{ account.display_name(current_lang) }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ t('recon.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline btn-sm gc-press"
+     href="{{ url_for('finance.till_statement', account_id=account.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i>
+    {{ t('tills.statement') }}</a>
+</div>
+
+{# The three numbers. They are allowed to differ — the difference is the point,
+   and a screen that hid it would be reconciling with itself. #}
+<div class="stat-grid gc-stagger" style="margin-bottom:18px;">
+  <div class="stat-card">
+    <div class="label">{{ t('recon.statement_total') }}</div>
+    <div class="value">{{ '%.2f'|format(statement_total) }}</div>
+    <div class="hint" style="margin:0;">{{ t('recon.statement_total_hint') }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">{{ t('recon.program_total') }}</div>
+    <div class="value">{{ '%.2f'|format(program_total) }}</div>
+    <div class="hint" style="margin:0;">{{ t('recon.program_total_hint') }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">{{ t('recon.open_items') }}</div>
+    <div class="value" style="{{ 'color:var(--danger);' if unmatched or missing }}">
+      {{ unmatched|length + missing|length }}</div>
+    <div class="hint" style="margin:0;">{{ t('recon.open_items_hint') }}</div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin:0;">
+    <i class="bi bi-upload"></i> {{ t('recon.import_title') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('recon.import_hint') }}</p>
+  <form method="post" enctype="multipart/form-data"
+        action="{{ url_for('finance.till_statement_import', account_id=account.id) }}"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;">
+      <label>{{ t('recon.file') }}</label>
+      <input class="input" type="file" name="statement" accept=".csv,.xlsx" required>
+      <div class="hint">{{ t('recon.columns_hint') }}</div></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-file-earmark-arrow-up"></i> {{ t('recon.import_btn') }}</button>
+  </form>
+  {% if lines %}
+  <form method="post" style="margin-top:10px;"
+        action="{{ url_for('finance.till_statement_auto', account_id=account.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-magic"></i> {{ t('recon.auto_btn') }}</button>
+    <span class="hint">{{ t('recon.auto_hint').replace('{days}', window|string) }}</span>
+  </form>
+  {% endif %}
+</div>
+
+{# Statement lines nobody has explained. The list this screen exists for. #}
+{% if unmatched %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:4px solid var(--warning,#f59e0b);">
+  <h2 class="section-title" style="margin:0;">
+    <i class="bi bi-question-circle"></i> {{ t('recon.unmatched_title') }}
+    <span class="badge badge--muted">{{ unmatched|length }}</span></h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('recon.unmatched_hint') }}</p>
+  {% for line in unmatched %}
+  <div style="padding:8px 0;border-top:1px solid var(--line);">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span><span dir="ltr">{{ line.line_date }}</span>
+        {% if line.description %}· <span dir="auto">{{ line.description }}</span>{% endif %}
+        {% if line.reference %}<span class="badge badge--muted" dir="ltr">{{ line.reference }}</span>{% endif %}</span>
+      <strong style="color:{{ 'var(--green-700)' if line.received else 'var(--danger)' }};">
+        {{ '%+.2f'|format(line.amount) }}</strong>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      {% if line.options %}
+      {# One candidate is a match; two is a question. The picker asks it. #}
+      <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;flex:1;"
+            action="{{ url_for('finance.bank_line_action', line_id=line.id, action='match') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row" style="margin:0;flex:1;min-width:240px;">
+          <select class="select" name="movement">
+            {% for o in line.options %}
+            <option value="{{ o.kind }}:{{ o.id }}">
+              {{ t('tills.mv_' ~ o.kind) }} · {{ '%.2f'|format(o.amount) }}
+              · {{ o.at.strftime('%Y-%m-%d') if o.at }}
+              {% if o.who %}· {{ o.who }}{% endif %}
+              {% if o.label %}({{ o.label }}){% endif %}
+            </option>
+            {% endfor %}
+          </select></div>
+        <button class="btn btn-outline btn-sm gc-press" type="submit">
+          <i class="bi bi-link-45deg"></i> {{ t('recon.match_btn') }}</button>
+      </form>
+      {% else %}
+      <span class="badge badge--danger">{{ t('recon.no_candidate') }}</span>
+      <span class="hint" style="margin:0;">{{ t('recon.no_candidate_hint') }}</span>
+      {% endif %}
+    </div>
+    {# Set aside, with words. "Ignored" on its own tells the next person
+       nothing, and the honest use is a line that belongs to something outside
+       this program — a loan instalment, interest, an owner's own transfer. #}
+    <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:6px;"
+          action="{{ url_for('finance.bank_line_action', line_id=line.id, action='ignore') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+        <input class="input" name="note" required dir="auto"
+               placeholder="{{ t('recon.ignore_ph') }}"></div>
+      <button class="btn btn-ghost btn-sm gc-press" type="submit">
+        {{ t('recon.ignore_btn') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# The more alarming side: the clinic recorded money that never arrived. #}
+{% if missing %}
+<div class="card gc-scale-in" style="margin-bottom:16px;border-inline-start:4px solid var(--danger);">
+  <h2 class="section-title" style="margin:0;color:var(--danger);">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('recon.missing_title') }}
+    <span class="badge badge--muted">{{ missing|length }}</span></h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('recon.missing_hint') }}</p>
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:520px;">
+    <thead><tr>
+      <th>{{ t('tills.when') }}</th><th>{{ t('tills.what') }}</th>
+      <th>{{ t('tills.who') }}</th>
+      <th style="text-align:end;">{{ t('tills.amount') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in missing %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ row.at.strftime('%Y-%m-%d') if row.at }}</td>
+        <td><span class="badge badge--muted">{{ t('tills.mv_' ~ row.kind) }}</span>
+          {% if row.label %}<span dir="auto">{{ row.label }}</span>{% endif %}</td>
+        <td dir="auto">{{ row.who or '—' }}</td>
+        <td style="text-align:end;font-weight:600;color:{{ 'var(--green-700)' if row.amount > 0 else 'var(--danger)' }};">
+          {{ '%+.2f'|format(row.amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{% if lines %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <h2 class="section-title" style="margin:0 0 10px;">
+    <i class="bi bi-list-check"></i> {{ t('recon.all_lines') }}</h2>
+  <table class="table" style="min-width:640px;">
+    <thead><tr>
+      <th>{{ t('tills.when') }}</th><th>{{ t('recon.statement_line') }}</th>
+      <th style="text-align:end;">{{ t('tills.amount') }}</th>
+      <th style="text-align:end;">{{ t('recon.balance') }}</th>
+      <th>{{ t('common.status') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ line.line_date }}</td>
+        <td dir="auto">{{ line.description or '—' }}
+          {% if line.reference %}<span class="badge badge--muted" dir="ltr">{{ line.reference }}</span>{% endif %}</td>
+        <td style="text-align:end;font-weight:600;color:{{ 'var(--green-700)' if line.received else 'var(--danger)' }};">
+          {{ '%+.2f'|format(line.amount) }}</td>
+        <td style="text-align:end;color:var(--muted);">
+          {{ '%.2f'|format(line.balance) if line.balance is not none else '' }}</td>
+        <td>
+          {% if line.status == 'matched' %}
+            <span class="badge badge--green">{{ t('recon.matched') }}</span>
+            <span class="hint">{{ t('tills.mv_' ~ line.matched_kind) }}</span>
+          {% elif line.status == 'ignored' %}
+            <span class="badge badge--muted" title="{{ line.note }}">{{ t('recon.ignored') }}</span>
+          {% else %}<span class="badge badge--danger">{{ t('recon.unmatched') }}</span>{% endif %}
+        </td>
+        <td>
+          {% if line.status != 'unmatched' %}
+          {# Always undoable: a wrong match that could not be undone would be a
+             permanent lie about which payment reached the bank. #}
+          <form method="post"
+                action="{{ url_for('finance.bank_line_action', line_id=line.id, action='unmatch') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-ghost btn-sm gc-press" type="submit"
+                    title="{{ t('recon.unmatch_btn') }}">
+              <i class="bi bi-x-lg"></i></button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">{{ t('recon.no_lines') }}</div>
+{% endif %}
+{% endblock %}
