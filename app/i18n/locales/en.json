@@ -3904,6 +3904,15 @@
     "explained": "Closed, with the reason recorded.",
     "err_no_count": "No such count.",
     "err_already_resolved": "That difference was already closed.",
-    "err_need_reason": "Write the reason — \\u201cadjusted\\u201d with nothing beside it is the audit trail failing at the one moment it exists for."
+    "err_need_reason": "Write the reason — \\u201cadjusted\\u201d with nothing beside it is the audit trail failing at the one moment it exists for.",
+    "not_your_till": "This till is not assigned to you.",
+    "assigned": "Who works this till",
+    "assigned_hint": "Leave empty = a shared till anyone with the permission may work. Name people = the till is theirs alone (its owner always included).",
+    "settle_after": "Days to reach the bank",
+    "settle_after_hint": "How long this machine's money normally takes to land. It decides when the screen says \"late\" — the program never posts a settlement on its own.",
+    "settle_late": "Settlement overdue",
+    "waiting_days": "waiting {days} days",
+    "settle_now": "Settle",
+    "settle_suggest_hint": "These figures are a filled-in suggestion. Check them against the bank statement before recording — the statement is the authority on what arrived and what the machine kept."
   }
 }

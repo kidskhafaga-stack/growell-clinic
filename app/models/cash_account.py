@@ -24,6 +24,22 @@ no way to tell which one is lying.
 """
 from app.extensions import db
 
+# Who may work a till. Deliberately *not* a capability: "may move money" is a
+# job, "may open the second-floor drawer" is an assignment, and squeezing the
+# second into the first means a new capability every time a clinic adds a desk.
+#
+# An empty assignment means the till is open to anyone holding the permission
+# for what they are doing. That is the only safe default for the tills that
+# already exist: naming nobody must not lock everybody out of the drawer they
+# were using yesterday.
+till_users = db.Table(
+    "cash_account_users",
+    db.Column("account_id", db.Integer, db.ForeignKey("cash_accounts.id"),
+              primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"),
+              primary_key=True),
+)
+
 # How a till is checked against reality. Four, not ten: petty cash, the safe
 # and a reception drawer are all counted by hand with the same code — the
 # difference between them is policy and a name, not behaviour, and making them
@@ -88,11 +104,20 @@ class CashAccount(db.Model):
     # payment.
     default_methods = db.Column(db.String(120))
 
+    # How many days card takings normally take to reach the bank. Used to say
+    # "this settlement is late", never to post one: the bank statement is the
+    # authority on what actually arrived and what the processor kept, and a
+    # program that journals a settlement on a timer is writing down money it
+    # has not seen.
+    settle_after_days = db.Column(db.Integer)
+
     sort_order = db.Column(db.Integer, default=0, nullable=False)
     notes = db.Column(db.String(255))
 
-    owner = db.relationship("User")
+    owner = db.relationship("User", foreign_keys=[owner_id])
     settles_into = db.relationship("CashAccount", remote_side=[id])
+    # Who is allowed to work this till. Empty = anyone with the permission.
+    users = db.relationship("User", secondary=till_users, lazy="selectin")
 
     # --- naming --------------------------------------------------------
     def display_name(self, lang="ar"):
@@ -123,6 +148,34 @@ class CashAccount(db.Model):
         evening — it sits there until it is swept to the bank.
         """
         return self.kind == "cash"
+
+    # --- who may work it -----------------------------------------------
+    def may_be_used_by(self, user):
+        """Whether ``user`` may act on this till — collect into it, count it,
+        open a shift on it, move money out of it.
+
+        This is about *which* drawer, not about *what* may be done to one: the
+        capabilities still decide whether somebody may move money or explain a
+        difference at all. A till nobody is named on stays open to everyone,
+        because that is what every till in an existing clinic looks like and
+        locking them all would break the drawer people used yesterday.
+        """
+        if user is None or not getattr(user, "is_authenticated", True):
+            return False
+        if getattr(user, "role", None) == "admin":
+            return True
+        # The person whose name is on the drawer is never locked out of it,
+        # even if the assignment list was filled in without them.
+        if self.owner_id and self.owner_id == user.id:
+            return True
+        if not self.users:
+            return True
+        return any(u.id == user.id for u in self.users)
+
+    @classmethod
+    def usable_by(cls, user):
+        """Active tills ``user`` may act on, in screen order."""
+        return [a for a in cls.active() if a.may_be_used_by(user)]
 
     # --- money ---------------------------------------------------------
     def balance(self, upto=None):

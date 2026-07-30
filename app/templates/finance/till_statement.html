@@ -10,6 +10,13 @@
       <span class="badge badge--muted" dir="ltr">{{ account.code }}</span></h1>
     <p class="page-sub" style="margin:0;">
       {{ t('tills.kind_' ~ account.kind) }} · {{ t('tills.check_' ~ account.kind) }}</p>
+    {% if waiting is not none %}
+    <p class="hint" style="margin:4px 0 0;">
+      {% if account.settle_after_days and waiting >= account.settle_after_days %}
+      <span class="badge badge--danger">{{ t('tills.settle_late') }}</span>
+      {% endif %}
+      {{ t('tills.waiting_days').replace('{days}', waiting|string) }}</p>
+    {% endif %}
   </div>
   <div style="text-align:end;">
     <div class="hint" style="margin:0;">{{ t('tills.balance') }}</div>
@@ -75,7 +82,26 @@
             {{ o.display_name(current_lang) }}</option>{% endfor %}
         </select>
         <div class="hint">{{ t('tills.settles_hint') }}</div></div>
+      {# A window, not a schedule: it decides when the screen says "late",
+         never when the program posts a settlement. #}
+      <div class="form-row"><label>{{ t('tills.settle_after') }}</label>
+        <input class="input" type="number" min="1" step="1" name="settle_after_days"
+               value="{{ account.settle_after_days or '' }}" placeholder="2">
+        <div class="hint">{{ t('tills.settle_after_hint') }}</div></div>
     </div>
+
+    {# Who may work this drawer. Empty means shared — which is what every till
+       in an existing clinic already is, so an empty list must stay legal. #}
+    <div class="form-row"><label>{{ t('tills.assigned') }}</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        {% for u in staff %}
+        <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:400;">
+          <input type="checkbox" name="users" value="{{ u.id }}"
+                 {{ 'checked' if u.id in assigned else '' }}>
+          {{ u.display_name(current_lang) }}</label>
+        {% endfor %}
+      </div>
+      <div class="hint">{{ t('tills.assigned_hint') }}</div></div>
 
     <div class="form-row"><label>{{ t('tills.methods') }}</label>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">

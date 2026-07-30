@@ -137,6 +137,7 @@ def register_commands(app):
             ("cashier_shifts", "account_id", "INTEGER"),
             ("cash_accounts", "settles_into_id", "INTEGER"),
             ("cash_accounts", "fee_percent", "FLOAT"),
+            ("cash_accounts", "settle_after_days", "INTEGER"),
             ("expenses", "shift_id", "INTEGER"),
             ("supplier_payments", "shift_id", "INTEGER"),
             ("payments", "tendered", "FLOAT"),

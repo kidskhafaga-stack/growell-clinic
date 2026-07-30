@@ -10,7 +10,10 @@ is lying. Opening balance plus movements has exactly one answer.
 If this is ever too slow to read, the fix is a cache with a rebuild command —
 added as an optimisation, never promoted to the source of truth.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# A back-dated movement must not read as "waiting a negative number of days".
+_ZERO = timedelta(0)
 
 # The tills a fresh install starts with. Generic on purpose: a clinic renames
 # them to what is on the wall ("خزنة استقبال الدور الأرضي") and adds its own.
@@ -180,10 +183,15 @@ def overview():
     return out
 
 
-def total_by_kind():
-    """Money on hand, grouped by how it would be verified."""
+def total_by_kind(rows=None):
+    """Money on hand, grouped by how it would be verified.
+
+    Totals whichever rows it is given, so a screen showing one person's tills
+    totals those and not the clinic's — a heading that adds up drawers the rows
+    underneath it do not mention is worse than no heading.
+    """
     totals = {}
-    for row in overview():
+    for row in (overview() if rows is None else rows):
         kind = row["account"].kind
         totals[kind] = round(totals.get(kind, 0) + row["balance"], 2)
     return totals
@@ -301,12 +309,41 @@ def _movement_memo(movement):
     return f"{'إيداع' if movement.kind == 'deposit' else 'سحب'} — {src}"
 
 
-def pending_settlements():
+def settlement_age(account, today=None):
+    """How many days the oldest unsettled money in a till has been waiting.
+
+    Measured forward from the **last settlement**, because that is the moment
+    the till was last brought down: anything that arrived before it has already
+    gone to the bank. Returns None when there is nothing waiting.
+    """
+    from datetime import date
+
+    rows = movements(account)
+    last_settle = max((r["at"] for r in rows
+                       if r["kind"] == "mv_settle" and r["at"]), default=None)
+    oldest = None
+    for row in rows:
+        if row["amount"] <= 0 or not row["at"]:
+            continue
+        if last_settle is not None and row["at"] <= last_settle:
+            continue
+        if oldest is None or row["at"] < oldest:
+            oldest = row["at"]
+    if oldest is None:
+        return None
+    return max((today or date.today()) - oldest.date(), _ZERO).days
+
+
+def pending_settlements(today=None):
     """Clearing tills holding money, and where each is meant to go.
 
     The follow-up list: card takings that have not reached the bank, cheques
     not collected, insurance not paid. A clearing till with a balance and
     nowhere to settle is called out — it can never be cleared to zero.
+
+    Each row carries how long the money has waited and whether that is past
+    the till's own window, so "the visa money is four days late" is a fact on
+    the screen rather than something somebody has to remember to check.
     """
     from app.models import CashAccount
 
@@ -317,10 +354,28 @@ def pending_settlements():
         balance = account_balance(account)
         if not balance:
             continue
+        days = settlement_age(account, today=today)
+        window = account.settle_after_days
         out.append({"account": account, "balance": balance,
                     "target": account.settles_into,
-                    "orphan": account.settles_into is None})
+                    "orphan": account.settles_into is None,
+                    "days": days, "window": window,
+                    "fee": account.expected_fee(balance),
+                    "due": bool(window and days is not None
+                                and days >= window)})
     return out
+
+
+def due_settlements(today=None):
+    """Clearing tills whose money is past the window it should have cleared in.
+
+    **Suggests, never posts.** A settlement is the bank telling you what
+    arrived and what the processor kept; a program that journals one on a timer
+    is writing down money it has not seen, and the first time the bank sends a
+    different figure the books and the statement disagree with nothing to say
+    which is wrong. So this fills the form in and waits for a human.
+    """
+    return [row for row in pending_settlements(today=today) if row["due"]]
 
 
 # ------------------------------------------------------------ counting ----
@@ -421,25 +476,33 @@ def open_differences():
 STALE_SHIFT_HOURS = 18
 
 
-def shift_till(requested_id=None):
+def shift_till(requested_id=None, user=None):
     """The cash till a shift is being opened on.
 
     Cash only: a shift is somebody taking responsibility for money they are
     holding, and nobody holds an InstaPay balance. Falls back to the default
     cash till, then to any cash till, then to nothing — a clinic that has not
     configured tills must still be able to open a shift.
+
+    When ``user`` is given, only tills they are allowed to work are considered:
+    somebody assigned to the second-floor drawer opens their shift on it rather
+    than on whichever till the clinic happens to have marked as the default.
     """
     from app.extensions import db
     from app.models import CashAccount
 
+    def allowed(account):
+        return account.counts_by_hand and (
+            user is None or account.may_be_used_by(user))
+
     if requested_id:
         chosen = db.session.get(CashAccount, requested_id)
-        if chosen is not None and chosen.is_active and chosen.counts_by_hand:
+        if chosen is not None and chosen.is_active and allowed(chosen):
             return chosen
     default = CashAccount.for_method("cash")
-    if default is not None and default.counts_by_hand:
+    if default is not None and allowed(default):
         return default
-    return next((a for a in CashAccount.active() if a.counts_by_hand), None)
+    return next((a for a in CashAccount.active() if allowed(a)), None)
 
 
 def suggested_float(account_id=None, user_id=None):
