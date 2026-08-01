@@ -17,7 +17,7 @@
 {% endwith %}
 
 <!-- Search + type filter -->
-<form method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+<form data-live-search="#gc-results" method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
   <input class="input" type="search" name="q" value="{{ q or '' }}" style="flex:1;min-width:220px;"
          placeholder="{{ t('inventory.items_search_ph') }}">
   <input type="hidden" name="kind" value="{{ kind }}">
@@ -73,7 +73,7 @@
 </details>
 
 <!-- Unified item list -->
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+<div id="gc-results" class="card gc-scale-in" style="padding:0;overflow:hidden;">
   <div style="overflow-x:auto;">
     <table class="table" style="min-width:640px;">
       <thead><tr>

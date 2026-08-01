@@ -21,14 +21,14 @@
   </div>
 </div>
 
-<form method="get" class="gc-animate" style="margin-bottom:16px;animation-delay:0.06s;">
+<form data-live-search="#gc-results" method="get" class="gc-animate" style="margin-bottom:16px;animation-delay:0.06s;">
   <div class="search-box">
     <i class="bi bi-search"></i>
     <input type="text" name="q" value="{{ q }}" placeholder="{{ t('patients.search_placeholder') }}" autocomplete="off">
   </div>
 </form>
 
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+<div id="gc-results" class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if patients %}
   <table class="table">
     <thead><tr>

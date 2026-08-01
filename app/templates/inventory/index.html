@@ -32,7 +32,7 @@
 </div>
 
 <!-- Item search (scientific / trade / manufacturer / barcode / code) -->
-<form method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+<form data-live-search="#gc-results" method="get" class="gc-animate" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
   <input class="input" type="search" name="q" value="{{ q or '' }}" style="flex:1;min-width:220px;"
          placeholder="{{ t('inventory.search_ph') }}">
   <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
@@ -50,7 +50,7 @@
 </div>
 
 <!-- Alerts -->
-<div class="card gc-scale-in" style="animation-delay:0.06s;">
+<div id="gc-results" class="card gc-scale-in" style="animation-delay:0.06s;">
   <h2 class="section-title"><i class="bi bi-bell"></i> {{ t('inventory.alerts') }}</h2>
   {% set any_alert = alerts.expired or alerts.near_expiry or alerts.low or alerts.out %}
   {% if any_alert %}

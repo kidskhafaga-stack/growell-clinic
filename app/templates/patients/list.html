@@ -59,7 +59,7 @@
 </div>
 
 <!-- Search -->
-<form method="get" class="gc-animate" style="margin-bottom:16px;animation-delay:0.08s;">
+<form data-live-search="#gc-results" method="get" class="gc-animate" style="margin-bottom:16px;animation-delay:0.08s;">
   <div class="search-box">
     <i class="bi bi-search"></i>
     <input type="text" name="q" value="{{ q }}" placeholder="{{ t('patients.search_placeholder') }}"
@@ -67,7 +67,7 @@
   </div>
 </form>
 
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.12s;">
+<div id="gc-results" class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.12s;">
   {% if patients %}
   <table class="table">
     <thead>

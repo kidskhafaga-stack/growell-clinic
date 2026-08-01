@@ -20,7 +20,7 @@
   </div>
 </div>
 
-<form method="get" class="gc-animate" style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
+<form data-live-search="#gc-results" method="get" class="gc-animate" style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
   <input class="input" name="q" value="{{ q }}" style="flex:1;min-width:240px;"
          placeholder="{{ t('drugbook.search_ph') }}">
   {% if class_id %}<input type="hidden" name="class_id" value="{{ class_id }}">{% endif %}
@@ -41,7 +41,7 @@
 </div>
 
 <!-- Level 2: the active ingredients -->
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+<div id="gc-results" class="card gc-scale-in" style="padding:0;overflow:hidden;">
   {% if generics %}
   <table class="table">
     <thead><tr>

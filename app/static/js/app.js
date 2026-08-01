@@ -299,3 +299,84 @@ window.gcLiveNotify = function (url, opts) {
       .catch(function () {});
   }, every);
 };
+
+// Live search: results follow the typing, with no Enter.
+//
+// Deliberately *not* a JSON API per screen. Every one of these lists is
+// already rendered correctly on the server — translated, paginated, permission
+// checked — and rebuilding that in JavaScript would be a second version of
+// each list to keep in step with the first. So this fetches the same URL the
+// form would have submitted and swaps in the results block from the reply.
+// One rendering path, and the screen keeps working with JavaScript off,
+// because the form and its button are still there underneath.
+//
+// The important part is the sequence number. Type "ah" then "ahmed": if the
+// first reply is slower, it arrives last and paints Ahmed's search with a list
+// of every name containing "ah". A search that shows the wrong results
+// *silently* is worse than a slow one, so a reply that is not the newest is
+// dropped, and any in-flight request is aborted the moment the next keystroke
+// makes it irrelevant.
+window.gcLiveSearch = function (form) {
+  var target = document.querySelector(form.dataset.liveSearch);
+  var input = form.querySelector('input[name="q"]');
+  if (!target || !input) return;
+
+  var wait = parseInt(form.dataset.liveDelay, 10) || 250;
+  var timer = null;
+  var seq = 0;
+  var inflight = null;
+
+  // Screen readers need to be told the list underneath changed; sighted users
+  // get the busy class.
+  target.setAttribute("aria-live", "polite");
+  target.setAttribute("aria-busy", "false");
+
+  function run() {
+    var mine = ++seq;
+    var url = form.action.split("?")[0] + "?" +
+      new URLSearchParams(new FormData(form)).toString();
+
+    if (inflight) inflight.abort();
+    inflight = ("AbortController" in window) ? new AbortController() : null;
+
+    target.setAttribute("aria-busy", "true");
+    fetch(url, {
+      headers: { "X-Requested-With": "fetch" },
+      signal: inflight ? inflight.signal : undefined
+    })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        if (mine !== seq) return;              // a newer keystroke won
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var fresh = doc.querySelector(form.dataset.liveSearch);
+        if (fresh) target.innerHTML = fresh.innerHTML;
+        target.setAttribute("aria-busy", "false");
+        // replaceState, not pushState: every keystroke in the back button
+        // would make the back button useless.
+        try { window.history.replaceState({}, "", url); } catch (e) {}
+      })
+      .catch(function () {
+        if (mine === seq) target.setAttribute("aria-busy", "false");
+      });
+  }
+
+  input.addEventListener("input", function () {
+    clearTimeout(timer);
+    timer = setTimeout(run, wait);
+  });
+  // Changing a filter beside the box should search too, and without waiting.
+  form.querySelectorAll("select, input[type=checkbox], input[type=radio]")
+    .forEach(function (el) {
+      el.addEventListener("change", function () { clearTimeout(timer); run(); });
+    });
+  // Enter still works, and must not also submit the page underneath.
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    clearTimeout(timer);
+    run();
+  });
+};
+
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("form[data-live-search]").forEach(window.gcLiveSearch);
+});
