@@ -640,6 +640,50 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
     return pv, brand
 
 
+def interval_warning(patient_id, vaccine, given_date=None):
+    """A previous dose of *this same vaccine* given too recently.
+
+    Reported: *"I tried it from inside the visit and added two doses in the
+    same visit — shouldn't a warning come up? It has a schedule it can
+    understand."* It does, and it wasn't reading it here.
+    :func:`administer_dose` refused a repeat of the same dose **number** and
+    nothing else, so dose 1 and then dose 2 on the same day passed every check
+    it had: different number, not yet given, stock available. Two doses of one
+    antigen minutes apart, recorded without a word.
+
+    The minimum interval was already in the program — the catch-up scheduler
+    reads it to work out when a dose *falls due*. It was simply never consulted
+    at the moment somebody was about to give one.
+
+    Deliberately a warning and not a block, in the same spirit as the
+    brand-mix flag above it: a dose given elsewhere and entered late, or a
+    correction to a mis-typed record, are both legitimate and the person
+    entering them is the one who knows. What is not acceptable is silence.
+
+    Returns ``None`` when there is nothing to say. Two *different* vaccines in
+    one visit is normal practice and never warns.
+    """
+    on = given_date or date.today()
+    last = (PatientVaccine.query
+            .filter_by(patient_id=patient_id, vaccine_id=vaccine.id,
+                       event_type="given")
+            .filter(PatientVaccine.given_date.isnot(None))
+            .order_by(PatientVaccine.given_date.desc()).first())
+    if last is None:
+        return None
+    gap = (on - last.given_date).days
+    # A dose being entered *before* one already on file is a different problem
+    # (an out-of-order backfill), and guessing at it here would cry wolf on
+    # every history a clinic types in from a parent's card.
+    if gap < 0:
+        return None
+    minimum = vaccine.min_interval_days or _CATCH_UP_MIN_INTERVAL
+    if gap >= minimum:
+        return None
+    return {"previous_date": last.given_date, "previous_dose": last.dose_number,
+            "days": gap, "minimum": minimum}
+
+
 def plan_dose(patient, vaccine, dose_number, on_date):
     """Record the doctor's chosen appointment for a not-yet-given dose.
 

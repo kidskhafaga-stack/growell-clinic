@@ -680,6 +680,15 @@ def delete_service(vs_id):
     return redirect(url_for("visits.record", visit_id=visit_id) + "#proc")
 
 
+def _interval_message(vaccine, warn):
+    """The warning in words, with the dates in it — "too soon" on its own
+    leaves the doctor to go and look up when the last one was."""
+    return t("vaccinations.interval_warn",
+             vaccine=vaccine.display_name(getattr(g, "lang", "ar")),
+             dose=warn["previous_dose"], days=warn["days"],
+             date=warn["previous_date"].isoformat(), min=warn["minimum"])
+
+
 @visits_bp.route("/<int:visit_id>/give-vaccine", methods=["POST"])
 @module_required(MODULE)
 def give_vaccine(visit_id):
@@ -688,7 +697,8 @@ def give_vaccine(visit_id):
     recently-given uncharged doses — so we never bill here (no double charge).
     """
     from app.models import Vaccine
-    from app.utils.vaccines import administer_dose, chosen_brand
+    from app.utils.vaccines import (administer_dose, chosen_brand,
+                                    interval_warning)
 
     visit = db.get_or_404(Visit, visit_id)
     vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
@@ -704,6 +714,10 @@ def give_vaccine(visit_id):
         lang = getattr(g, "lang", "ar")
         flash(t("vaccinations.brand_mixed_warn", old=locked.display_name(lang),
                 new=req_brand.display_name(lang)), "warning")
+    # Too soon after the last dose of this same vaccine — the thing that let
+    # two doses go into one visit without a word. Read before the record is
+    # written, because afterwards "the last dose" is the one being given.
+    too_soon = interval_warning(visit.patient_id, vaccine)
     pv, result = administer_dose(
         visit.patient, vaccine, brand=req_brand,
         dose_number=request.form.get("dose_number", type=int),
@@ -715,6 +729,8 @@ def give_vaccine(visit_id):
               {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
         return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
+    if too_soon:
+        flash(_interval_message(vaccine, too_soon), "warning")
     ActivityLog.record("visit.give_vaccine", user_id=current_user.id, entity="visit",
                        entity_id=visit.id, detail=f"{vaccine.code}#{pv.dose_number}",
                        ip_address=client_ip())

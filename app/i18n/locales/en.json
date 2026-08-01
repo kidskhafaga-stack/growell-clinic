@@ -955,7 +955,8 @@
     "outside_hint": "Recorded so the schedule is right — but it does not deduct from stock, is not charged, and is not credited to a doctor.",
     "dose_booster": "Booster dose",
     "course_complete": "Course complete",
-    "next_season": "Next season"
+    "next_season": "Next season",
+    "interval_warn": "⚠️ This child had a dose of {vaccine} (dose {dose}) on {date} — only {days} day(s) ago, and the minimum interval is {min} days. The dose was recorded; please review it."
   },
   "vstatus": {
     "done": "Done",
@@ -2804,7 +2805,12 @@
     "deleted": "Deleted",
     "deactivated": "Device deactivated (linked to services)",
     "none": "No devices yet.",
-    "template_seeded": "Default measurement fields were added — review and adjust them."
+    "template_seeded": "Default measurement fields were added — review and adjust them.",
+    "search_ph": "Search by device name, maker, model or serial…",
+    "all_types": "All types",
+    "all_connections": "All connections",
+    "all_statuses": "All",
+    "no_matches": "No device matches this search"
   },
   "device_types": {
     "spirometry": "Spirometry",

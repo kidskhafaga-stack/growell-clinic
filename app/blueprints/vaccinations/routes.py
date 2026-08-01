@@ -41,6 +41,7 @@ from app.utils.dose_labels import dose_choices, dose_label, next_dose_text
 from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
     administer_dose,
+    interval_warning,
     chosen_brand,
     immunization_compliance,
     next_due_dose,
@@ -123,6 +124,10 @@ def record(patient_id):
     except ValueError:
         given_date = datetime.utcnow().date()
 
+    # Same guard as the visit room: a dose of this vaccine given too recently.
+    # Read before the record is written — afterwards the newest dose is the one
+    # being added, and every check would compare it against itself.
+    too_soon = interval_warning(patient.id, vaccine, given_date)
     pv, result = administer_dose(
         patient, vaccine, brand=req_brand,
         dose_number=request.form.get("dose_number", type=int),
@@ -138,6 +143,12 @@ def record(patient_id):
         flash(t(f"vaccinations.{result}"),
               {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
         return redirect(url_for("vaccinations.view", patient_id=patient.id))
+    if too_soon:
+        flash(t("vaccinations.interval_warn",
+                vaccine=vaccine.display_name(getattr(g, "lang", "ar")),
+                dose=too_soon["previous_dose"], days=too_soon["days"],
+                date=too_soon["previous_date"].isoformat(),
+                min=too_soon["minimum"]), "warning")
     brand = result            # the resolved brand (for the next-dose reminder)
     dose_number = pv.dose_number
 
