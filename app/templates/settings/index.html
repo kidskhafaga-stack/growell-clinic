@@ -413,7 +413,11 @@
   <div class="card gc-scale-in" x-show="tab==='ai'" x-cloak id="ai"
        x-data="{
          provider: '{{ values.get('ai_provider','claude') }}',
-         model: {{ values.get('ai_model','')|tojson }},
+         {# `forceescape` is load-bearing: `tojson` emits a *double-quoted*
+            JSON string, and this attribute is double-quoted, so without it the
+            value closed the attribute and the rest of this block rendered on
+            the page as visible text. #}
+         model: {{ values.get('ai_model','')|tojson|forceescape }},
          modelPick: '',
          list() { return AI_MODELS[this.provider] || []; },
          syncPick() {

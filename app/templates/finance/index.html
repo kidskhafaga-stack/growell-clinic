@@ -39,6 +39,14 @@
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('periods.subtitle') }}</p>
   </a>
 
+  {# The contracts screen existed and had no way in from here, so the pricing
+     it holds could not be found without knowing the URL. #}
+  <a class="card gc-lift" href="{{ url_for('finance.payers') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-blue"><i class="bi bi-file-earmark-ruled"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('claims.hub_payers') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('claims.hub_payers_sub') }}</p>
+  </a>
+
   <a class="card gc-lift" href="{{ url_for('finance.claims') }}" style="text-decoration:none;">
     <div class="hub-ico edge-green"><i class="bi bi-file-earmark-medical"></i></div>
     <h3 style="margin:10px 0 4px;">{{ t('services.hub_claims') }}</h3>

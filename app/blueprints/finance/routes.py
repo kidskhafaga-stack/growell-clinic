@@ -1190,7 +1190,7 @@ def _line_discount_amount(item, disc):
     discount: nothing is ever stacked on top of an existing reduction."""
     if (item.discount_value or 0) > 0:
         return 0
-    if not disc.applies_to_line(item.service):
+    if not disc.applies_to_line(item):
         return 0
     amount = disc.amount_for(item.gross)
     service = item.service
@@ -1408,7 +1408,13 @@ def _vaccine_prefill_lines(patient_id, doctor, lang, has_vacc_base):
         name = (b.vaccine.display_name(lang) if b.vaccine
                 else dose.vaccine.display_name(lang))
         lines.append({
-            "service_id": sid,
+            # **Not the fee's service.** The vial and the act of giving it are
+            # two charges, and they used to share one service id — so a
+            # discount aimed at "رسم تطعيم" reduced the vaccine's price too,
+            # and somebody could discount the fee while collecting the vial in
+            # full. The vial is identified by its brand, which is what it
+            # actually is.
+            "service_id": "",
             "description": name + " — " + b.display_name(lang),
             "unit_price": b.price or 0,
             "quantity": 1,

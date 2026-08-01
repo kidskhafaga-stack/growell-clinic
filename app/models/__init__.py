@@ -163,7 +163,8 @@ from app.models.payable import (
     SupplierInstallment,
     SupplierPayment,
 )
-from app.models.discount import DISCOUNT_TYPES, NamedDiscount
+from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
+                                 NamedDiscount)
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -330,6 +331,7 @@ __all__ = [
     "PO_STATUSES",
     "NamedDiscount",
     "DISCOUNT_TYPES",
+    "VACCINE_SCOPE",
     "Feedback",
     "FEEDBACK_STATUSES",
     "MedicalDevice",

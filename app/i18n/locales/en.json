@@ -1510,7 +1510,8 @@
     "auto_mode": "Automatic — the biggest discount",
     "best_hint": "Biggest discount due: {name} — {amount}. You can change it.",
     "no_stack_hint": "One discount per line: a patient entitled to several gets the biggest, never both.",
-    "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due."
+    "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due.",
+    "scope_vaccine": "The vaccine's own price (not the fee)"
   },
   "payment_methods": {
     "cash": "Cash",
@@ -1604,7 +1605,9 @@
     "done_reject": "Rejection recorded — its invoices are claimable again.",
     "done_pay": "Collection recorded and journalled.",
     "sig_clinic": "For the clinic",
-    "sig_payer": "For the payer"
+    "sig_payer": "For the payer",
+    "hub_payers": "Payers & contracts",
+    "hub_payers_sub": "Insurance, companies and clubs — and each service's price in the contract."
   },
   "payer_types": {
     "club": "Club",

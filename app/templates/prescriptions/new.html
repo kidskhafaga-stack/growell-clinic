@@ -162,7 +162,7 @@
         {% if ai_ready %}
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="aiDose(i)" :disabled="line.aiBusy || !line.name">
-            <i class="bi bi-robot"></i> <span x-text="line.aiBusy ? {{ t('ai.thinking') | tojson }} : {{ t('rx.ai_suggest') | tojson }}"></span></button>
+            <i class="bi bi-robot"></i> <span x-text="line.aiBusy ? {{ t('ai.thinking')|tojson|forceescape }} : {{ t('rx.ai_suggest')|tojson|forceescape }}"></span></button>
           <span class="hint" x-show="line.aiNote" x-cloak x-text="line.aiNote" style="color:var(--green-700);"></span>
         </div>
         {% endif %}

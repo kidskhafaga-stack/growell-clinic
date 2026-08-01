@@ -25,6 +25,9 @@
     <select class="select" name="scope">
       <option value="all">{{ t('discounts.scope_all') }}</option>
       {% for c in service_categories %}<option value="{{ c }}" {{ 'selected' if d and d.scope==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
+      {# The vial is priced by its brand, not by a service, so it is aimed at
+         separately from the fee for giving it. #}
+      <option value="vaccine" {{ 'selected' if d and d.scope=='vaccine' else '' }}>{{ t('discounts.scope_vaccine') }}</option>
     </select><div class="hint">{{ t('discounts.on_hint') }}</div></div>
   <div class="form-row"><label>{{ t('discounts.service') }}</label>
     <select class="select" name="service_id">

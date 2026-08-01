@@ -154,7 +154,7 @@
     {# The way out of the dead end: an approved template is the one thing Meta
        still delivers. Offered only here, only when the window has shut. #}
     {% if approved.list %}
-    <div style="margin-top:12px;" x-data="approvedBox({{ approved.list|tojson }})">
+    <div style="margin-top:12px;" x-data="approvedBox({{ approved.list|tojson|forceescape }})">
       <div class="form-row" style="margin-bottom:8px;">
         <label>{{ t('inbox.tpl_pick') }}</label>
         <select class="select" x-model="name">
@@ -195,7 +195,7 @@
 
   <!-- Reply: canned answers, an AI draft, and the words the user sends -->
   <div class="card gc-scale-in" style="margin-top:12px;"
-       x-data="replyBox({{ canned|tojson }})">
+       x-data="replyBox({{ canned|tojson|forceescape }})">
     {% if canned %}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
       <template x-for="(q, i) in canned" :key="i">
