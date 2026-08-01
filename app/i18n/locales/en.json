@@ -2776,7 +2776,8 @@
     "saved": "Saved",
     "deleted": "Deleted",
     "deactivated": "Device deactivated (linked to services)",
-    "none": "No devices yet."
+    "none": "No devices yet.",
+    "template_seeded": "Default measurement fields were added — review and adjust them."
   },
   "device_types": {
     "spirometry": "Spirometry",
@@ -3969,5 +3970,13 @@
     "err_no_movement": "Choose the movement.",
     "err_movement_taken": "That movement is already linked to another line.",
     "err_need_note": "Write the reason — “set aside” with nothing beside it tells the next person nothing."
+  },
+  "studies": {
+    "title_list": "Device studies",
+    "date": "Date",
+    "device": "Device",
+    "conclusion": "Conclusion",
+    "by": "Performed by",
+    "none": "No studies recorded for this child yet."
   }
 }

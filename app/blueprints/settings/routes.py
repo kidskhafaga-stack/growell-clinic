@@ -293,6 +293,13 @@ def devices():
         ActivityLog.record(f"settings.device_{action or 'add'}", user_id=current_user.id,
                            entity="medical_device", detail=name, ip_address=client_ip())
         db.session.commit()
+        # A device with no fields cannot have a study recorded on it, so a new
+        # one arrives with the ones its type normally captures. Only ever fills
+        # an empty device, so editing one never resurrects deleted fields.
+        from app.utils.device_templates import seed_device_measurements
+
+        if seed_device_measurements(dev):
+            flash(t("devices.template_seeded"), "info")
         flash(t("devices.saved"), "success")
         return redirect(url_for("settings.devices"))
 

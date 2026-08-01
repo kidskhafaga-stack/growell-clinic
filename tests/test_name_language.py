@@ -125,12 +125,49 @@ def test_no_language_asked_for_uses_the_pages_own(guarded):
         assert default_guardian(child)["name"] == "Mohamed Kandil"
 
 
-# There is no end-to-end test against the visit screen here, and that is a
-# deliberate limit rather than an oversight: the consent block only renders when
-# the visit actually calls for consent (a procedure, a study, a vaccine), so
-# asserting on a plain visit's HTML would pass while proving nothing. The
-# reported mismatch is pinned above at the function both screens read from,
-# including the request-language default the template relies on.
+# ------------------------------------------------- on the screen itself ----
+# A correction to an earlier note in this file, which claimed the consent block
+# only renders when a visit "calls for consent" and that an end-to-end test
+# could not prove anything. Both halves were wrong: `needed_for_visit` always
+# returns at least a general consent, and the block is hidden with Alpine's
+# `x-show`, which is CSS — the HTML is rendered either way. The real reason the
+# first attempt found nothing is duller: `/visits/<id>` renders `view.html`,
+# and the consent form lives in `record.html`, behind `/visits/<id>/record`.
+def _record_page(guarded, lang="ar"):
+    doc = guarded["sign_in"]("doc")
+    if lang != "ar":
+        doc.get(f"/lang/{lang}", follow_redirects=True)
+    return doc.get(f"/visits/{guarded['ids']['visit']}/record").get_data(
+        as_text=True)
+
+
+def test_the_visit_screen_shows_the_arabic_name_in_arabic(guarded):
+    assert 'value="محمد قنديل"' in _record_page(guarded, "ar")
+
+
+def test_the_visit_screen_shows_the_english_name_in_english(guarded):
+    """The reported bug, on the reported screen. Before the fix this box held
+    the Arabic name while the patient file beside it held the English one."""
+    assert 'value="Mohamed Kandil"' in _record_page(guarded, "en")
+
+
+def test_the_two_screens_agree_in_english(guarded):
+    """The actual complaint was not either name on its own — it was that the
+    two screens disagreed. So assert on the pair."""
+    from app.models import Patient
+
+    with guarded["app"].app_context():
+        child = guarded["db"].session.get(Patient, guarded["ids"]["child"])
+        expected = child.primary_guardian.display_name("en")
+
+    doc = guarded["sign_in"]("doc")
+    doc.get("/lang/en", follow_redirects=True)
+    visit = doc.get(f"/visits/{guarded['ids']['visit']}/record").get_data(
+        as_text=True)
+    profile = doc.get(f"/patients/{guarded['ids']['child']}").get_data(
+        as_text=True)
+    assert f'value="{expected}"' in visit
+    assert expected in profile
 
 
 # --------------------------------------------------- the class of bug ------

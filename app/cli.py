@@ -705,6 +705,12 @@ def _seed_devices_safe():
                     name=name, name_en=name_en, manufacturer=manuf, model=model,
                     device_type=dtype, software=sw, connection_type="usb",
                     import_mode="manual", is_active=True, is_system=True))
+        db.session.flush()
+        # …and the fields each one records, or the device arrives seeded,
+        # priced and unusable.
+        from app.utils.device_templates import seed_device_measurements
+
+        seed_device_measurements()
     except Exception:  # noqa: BLE001
         pass
 

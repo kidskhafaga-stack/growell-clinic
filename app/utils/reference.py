@@ -82,6 +82,16 @@ def seed_reference():
         db.session.flush()
         return made
 
+    def _device_measurements():
+        """Give every seeded device the fields its report captures.
+
+        Without this a device arrives configured, priced and unusable: opening
+        a study says "this device has no measurement template".
+        """
+        from app.utils.device_templates import seed_device_measurements
+
+        return seed_device_measurements()
+
     def _device_services():
         """Give every device the service that bills it.
 
@@ -179,6 +189,7 @@ def seed_reference():
     _try(_investigations, "investigations", out)
     _try(_drugbook, "drug_reference", out)
     _try(_devices, "devices", out)
+    _try(_device_measurements, "device_measurements", out)
     _try(_device_services, "device_services", out)
     _try(_store, "store_items", out)
     _try(_device_consumables, "device_consumables", out)
