@@ -1910,7 +1910,9 @@
     "cash_none": "None (plain service prices)",
     "cash_active": "The list is pricing cash invoices.",
     "cash_inactive": "No contract in force — invoices use the plain service prices.",
-    "cash_saved": "Cash price list saved."
+    "cash_saved": "Cash price list saved.",
+    "cash_renewed": "The cash price list was renewed automatically for next year: {from} to {to}. Review the prices before it starts.",
+    "year_hint": "Leave empty for a year from the start date. The number is generated."
   },
   "reports": {
     "title": "Reports",

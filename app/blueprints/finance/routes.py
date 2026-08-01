@@ -2460,7 +2460,13 @@ def payers():
         flash(t("claims.entity_added"), "success")
         return redirect(url_for("finance.payers"))
 
-    from app.utils.pricing import cash_payer
+    from app.utils.pricing import cash_payer, ensure_cash_contract
+
+    renewed = ensure_cash_contract()
+    if renewed is not None:
+        flash(t("contracts.cash_renewed")
+              .replace("{from}", str(renewed.start_date))
+              .replace("{to}", str(renewed.end_date)), "info")
 
     return render_template(
         "finance/payers.html",
@@ -2586,12 +2592,23 @@ def _warn_overlap(contract):
 def contract_new(payer_id):
     from app.models import PayerContract
 
+    from app.utils.pricing import next_contract_number, year_window
+
     payer = db.get_or_404(PayerEntity, payer_id)
+    start = _parse_date_arg2(request.form.get("start_date")) or date.today()
+    end = _parse_date_arg2(request.form.get("end_date"))
+    if end is None:
+        # A year, unless somebody says otherwise. A contract with no end never
+        # prompts a renewal and never lets prices be revised — and the cash
+        # list in particular is meant to be looked at once a year.
+        _, end = year_window(start)
     contract = PayerContract(
         payer_id=payer.id,
-        number=(request.form.get("number") or "").strip() or None,
-        start_date=_parse_date_arg2(request.form.get("start_date")),
-        end_date=_parse_date_arg2(request.form.get("end_date")),
+        # Generated, not typed: two contracts sharing a number is a data
+        # problem with no clean fix afterwards.
+        number=next_contract_number(payer),
+        start_date=start,
+        end_date=end,
         is_active=True,
     )
     db.session.add(contract)

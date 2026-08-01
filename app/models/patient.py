@@ -175,12 +175,38 @@ class Patient(db.Model):
 
     @property
     def client_category(self):
-        """Client category from the primary guardian (normal/friend/relative/employee)."""
+        """The primary guardian's category — for showing, not for pricing.
+
+        Kept because a screen has to print *one* thing next to the child's name.
+        Discount eligibility must use :attr:`client_categories` instead: a
+        family has more than one parent and they need not agree.
+        """
         if not self.family or not self.family.parents:
             return "normal"
         parents = sorted(self.family.parents,
                          key=lambda p: (0 if p.is_primary_contact else 1))
         return parents[0].client_category if parents else "normal"
+
+    @property
+    def client_categories(self):
+        """Every category the child is entitled through — **all** the parents.
+
+        The single-category version read the primary contact and stopped, so a
+        child whose father is staff and whose mother is a friend and happens to
+        be the contact was priced as a friend: the father's entitlement was
+        thrown away by a field that only decides who to phone.
+
+        Note what this deliberately does **not** do: it does not rank the
+        categories. Whether "staff" is worth more than "friend" is the clinic's
+        pricing decision, written in the discounts themselves — inventing an
+        order here would quietly overrule it. The billing side already prices
+        every rule the child qualifies for against the real invoice and applies
+        the largest; widening eligibility is all this has to do.
+        """
+        if not self.family or not self.family.parents:
+            return {"normal"}
+        found = {(p.client_category or "normal") for p in self.family.parents}
+        return found or {"normal"}
 
     @property
     def siblings(self):

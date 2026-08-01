@@ -144,8 +144,13 @@ class NamedDiscount(db.Model):
         if self.dtype == "doctor":
             return self.doctor_id is not None and self.doctor_id == doctor_id
         if self.dtype == "category":
-            cat = patient.client_category if patient else None
-            return self.client_category is not None and self.client_category == cat
+            # Every parent's category, not just the contact's. A child with a
+            # staff father and a friend mother is entitled through both, and
+            # which of the two is worth more is decided by pricing each rule
+            # against the actual bill — not here.
+            if patient is None or self.client_category is None:
+                return False
+            return self.client_category in patient.client_categories
         if self.dtype == "sibling":
             # Needs the day's context (who else from the family was seen), so
             # the caller decides — here we only confirm the rule is live.
