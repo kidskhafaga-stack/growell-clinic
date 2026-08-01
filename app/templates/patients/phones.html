@@ -1,0 +1,131 @@
+{% extends "shell.html" %}
+{% from "patients/_macros.html" import age_label with context %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('phones.title') }}{% endblock %}
+{% block page_heading %}{{ t('phones.title') }}{% endblock %}
+
+{# One row of the work list. `hard` says whether the clinic has no way of
+   reaching this family at all, which is a different problem from a teenager
+   who has not given a number of their own — so the two are never mixed into
+   one count. #}
+{% macro row(r, hard) %}
+<tr>
+  <td>
+    <a href="{{ url_for('patients.view', patient_id=r.patient.id) }}"><strong>{{ r.patient.display_name(current_lang) }}</strong></a>
+    <div class="num" dir="ltr" style="color:var(--muted);font-size:.78rem;">{{ r.patient.patient_number }}</div>
+  </td>
+  <td>{{ age_label(r.patient) }}</td>
+  <td>
+    {% if r.guardian_name %}{{ r.guardian_name }}
+    {% else %}<span class="badge badge--danger">{{ t('phones.no_guardian') }}</span>{% endif %}
+  </td>
+  <td>
+    {# Something to ring from. A list telling reception to phone somebody
+       without giving the number is a list worked with the file open in a
+       second tab. #}
+    {% if r.phone %}
+      <a class="btn btn-outline btn-sm gc-press" href="tel:{{ r.phone }}" dir="ltr">
+        <i class="bi bi-telephone"></i> {{ r.phone }}</a>
+      <a class="btn btn-outline btn-sm gc-press" target="_blank" rel="noopener"
+         href="https://wa.me/{{ r.phone }}" title="WhatsApp"><i class="bi bi-whatsapp"></i></a>
+    {% else %}
+      <span class="badge badge--danger"><i class="bi bi-telephone-x"></i> {{ t('phones.nothing_to_call') }}</span>
+    {% endif %}
+  </td>
+  <td>
+    <form method="post" action="{{ url_for('patients.phones_save') }}"
+          style="display:flex;gap:6px;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="patient_id" value="{{ r.patient.id }}">
+      <input type="hidden" name="target" value="{{ r.target }}">
+      {% if r.guardian_id %}<input type="hidden" name="guardian_id" value="{{ r.guardian_id }}">{% endif %}
+      <input class="input" name="phone" dir="ltr" inputmode="tel" required
+             style="max-width:170px;"
+             placeholder="{{ t('phones.target_own') if r.target == 'own' else t('phones.target_guardian') }}">
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-check-lg"></i></button>
+    </form>
+    <div class="hint" style="margin:2px 0 0;">
+      {{ t('phones.writes_own') if r.target == 'own' else t('phones.writes_guardian') }}</div>
+  </td>
+</tr>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('phones.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('phones.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('patients.title') }}</a>
+</div>
+
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-red gc-lift"><i class="bi bi-telephone-x ico"></i>
+    <div class="value">{{ counts.unreachable }}</div>
+    <div class="label">{{ t('phones.stat_unreachable') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-telephone-plus ico"></i>
+    <div class="value">{{ counts.teens }}</div>
+    <div class="label">{{ t('phones.stat_teens') }}</div></div>
+</div>
+
+{% if not counts.total %}
+<div class="card gc-scale-in">
+  <div class="empty-state"><i class="bi bi-telephone-fill"></i>{{ t('phones.all_clear') }}</div>
+</div>
+{% endif %}
+
+{% if unreachable %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <div class="phone-head phone-head--hard">
+    <i class="bi bi-telephone-x"></i> <strong>{{ t('phones.group_unreachable') }}</strong>
+    <span class="badge badge--danger">{{ counts.unreachable }}</span>
+    <div class="hint" style="width:100%;margin:4px 0 0;">{{ t('phones.group_unreachable_hint') }}</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:760px;">
+      <thead><tr>
+        <th>{{ t('appointments.patient') }}</th><th>{{ t('patients.age') }}</th>
+        <th>{{ t('consent.guardian_name') }}</th><th>{{ t('phones.call') }}</th>
+        <th style="width:280px;">{{ t('phones.add_number') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in unreachable %}{{ row(r, true) }}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if teens %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <div class="phone-head">
+    <i class="bi bi-telephone-plus"></i> <strong>{{ t('phones.group_teens') }}</strong>
+    <span class="badge badge--muted">{{ counts.teens }}</span>
+    <div class="hint" style="width:100%;margin:4px 0 0;">{{ t('phones.group_teens_hint') }}</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:760px;">
+      <thead><tr>
+        <th>{{ t('appointments.patient') }}</th><th>{{ t('patients.age') }}</th>
+        <th>{{ t('consent.guardian_name') }}</th><th>{{ t('phones.call') }}</th>
+        <th style="width:280px;">{{ t('phones.add_number') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in teens %}{{ row(r, false) }}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+  .phone-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 14px; background:var(--surface-2, rgba(0,0,0,.03));
+    border-bottom:1px solid var(--line); }
+  .phone-head--hard { border-inline-start:4px solid var(--danger); }
+</style>
+{% endblock %}

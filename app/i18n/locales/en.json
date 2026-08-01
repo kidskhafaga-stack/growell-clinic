@@ -2604,7 +2604,8 @@
     "refund_requests": "{count} refund request(s) awaiting manager approval",
     "unread_messages": "{count} patient messages need a reply",
     "results_arrived": "{count} results in, nobody has read them",
-    "window_closing": "{count} conversations whose reply window is closing"
+    "window_closing": "{count} conversations whose reply window is closing",
+    "no_contact": "{count} patient(s) with no contact number at all — not theirs, not a guardian's"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -4051,5 +4052,26 @@
   "live": {
     "changed": "This page has changed — somebody recorded something new.",
     "refresh": "Refresh"
+  },
+  "phones": {
+    "title": "Missing phone numbers",
+    "subtitle": "Who the clinic cannot reach — add the number from here.",
+    "stat_unreachable": "No number at all",
+    "stat_teens": "Teen with no own number",
+    "group_unreachable": "No way to reach them",
+    "group_unreachable_hint": "No number of theirs and none for a guardian — no appointment reminder, no call about a result, no way to say the clinic is closed. These come first.",
+    "group_teens": "Teens with no personal number",
+    "group_teens_hint": "The family is reachable; the young person is not.",
+    "call": "Call",
+    "add_number": "Add a number",
+    "nothing_to_call": "No number to ring",
+    "no_guardian": "No guardian on file",
+    "writes_own": "Saved as their own number",
+    "writes_guardian": "Saved as the guardian's number",
+    "target_own": "Patient's number",
+    "target_guardian": "Guardian's number",
+    "saved": "Number saved",
+    "bad_number": "That has no digits in it — please type it again",
+    "all_clear": "Every active patient has a contact number ✅"
   }
 }

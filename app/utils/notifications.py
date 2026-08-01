@@ -135,10 +135,25 @@ def _compute():
                      _or(Patient.own_phone.is_(None), Patient.own_phone == ""))
              .count())
         if n:
+            # Points at the work list, not at a filtered patient list: the
+            # complaint about this notification was that its only action was
+            # reading the number off it.
             items.append({"key": "teens_no_phone", "module": "patients",
                           "icon": "telephone-plus", "severity": "info", "count": n,
-                          "endpoint": "patients.index",
-                          "kwargs": {"flag": "teen_no_phone"}})
+                          "endpoint": "patients.phones", "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        # Nobody on the file has a number at all. Worse than the one above and
+        # it had no notification of its own — so a family the clinic simply
+        # cannot contact was invisible until somebody needed to contact them.
+        from app.utils.phonebook import unreachable
+        n = len(unreachable())
+        if n:
+            items.append({"key": "no_contact", "module": "patients",
+                          "icon": "telephone-x", "severity": "warning", "count": n,
+                          "endpoint": "patients.phones", "kwargs": {}})
     except Exception:  # noqa: BLE001
         pass
 

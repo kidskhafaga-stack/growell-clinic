@@ -136,6 +136,44 @@ def index():
     )
 
 
+# ------------------------------------------------------- phone worklist ----
+@patients_bp.route("/phones")
+@module_required(MODULE)
+def phones():
+    """The reception task list: who the clinic cannot reach, and a box to fix
+    it from. It replaces a notification whose only action was a count."""
+    from app.utils.phonebook import worklist
+
+    return render_template("patients/phones.html",
+                           **worklist(getattr(g, "lang", "ar")))
+
+
+@patients_bp.route("/phones/save", methods=["POST"])
+@module_required(MODULE)
+def phones_save():
+    """Save one number and come straight back to the list.
+
+    Back to the list, not into the patient's file: the whole point is working
+    through thirteen of these without leaving the screen.
+    """
+    from app.utils.phonebook import save_number
+
+    patient = db.get_or_404(Patient, request.form.get("patient_id", type=int))
+    ok, number = save_number(
+        patient, request.form.get("phone"),
+        (request.form.get("target") or "own").strip(),
+        request.form.get("guardian_id", type=int))
+    if not ok:
+        flash(t("phones.bad_number"), "danger")
+    else:
+        ActivityLog.record("patient.phone_add", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           detail=number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("phones.saved"), "success")
+    return redirect(url_for("patients.phones"))
+
+
 # ------------------------------------------------------------ analytics ----
 @patients_bp.route("/analytics")
 @module_required(MODULE)
