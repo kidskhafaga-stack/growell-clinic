@@ -23,7 +23,10 @@
   </div>
 
   <div style="border:1px solid var(--line);border-radius:10px;padding:16px 18px;line-height:2;min-height:110px;margin-bottom:22px;">
-    {{ c.statement or t('consent.default_statement') }}
+    {# The stored wording is what was signed. The fallback is only for rows
+       written before consents had a text of their own, and even then it is
+       that kind's wording rather than the one generic sentence. #}
+    {{ c.statement or statement_for(c.consent_type) }}
     {% if c.notes %}<div style="margin-top:10px;color:var(--muted);">{{ c.notes }}</div>{% endif %}
   </div>
 

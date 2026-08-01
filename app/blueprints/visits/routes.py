@@ -250,7 +250,8 @@ def record(visit_id):
     recent_meds = recent_medications(visit.patient_id)
     # Informed consent, where it is actually needed: what this visit calls for
     # (a procedure, a study, a vaccine) and what the file already has signed.
-    from app.utils.consent import default_guardian, visit_status
+    from app.utils.consent import (all_statements as consent_statements,
+                                   default_guardian, visit_status)
     consent = visit_status(visit)
     consent_guardian = default_guardian(visit.patient)
     # Devices the doctor can run in this visit, with what each one charges —
@@ -287,6 +288,7 @@ def record(visit_id):
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,
         consent_guardian=consent_guardian,
+        consent_statements=consent_statements(),
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,

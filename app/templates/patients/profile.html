@@ -304,12 +304,13 @@
 
       {% set g = patient.primary_guardian %}
       <form method="post" action="{{ url_for('patients.add_consent', patient_id=patient.id) }}"
-            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;"
+            x-data="{ kind: 'general', texts: {{ consent_statements|tojson|forceescape }} }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <p class="hint" style="margin-top:0;"><i class="bi bi-info-circle"></i> {{ t('consent.pediatric_hint') }}</p>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('consent.type') }}</label>
-            <select class="select" name="consent_type">
+            <select class="select" name="consent_type" x-model="kind">
               {% for ct in consent_types %}<option value="{{ ct }}">{{ t('consent.types.' ~ ct) }}</option>{% endfor %}
             </select></div>
           <div class="form-row"><label>{{ t('consent.guardian_name') }} *</label>
@@ -324,7 +325,13 @@
           <div class="form-row"><label>{{ t('consent.date') }}</label>
             <input class="input" type="date" name="signed_date"></div>
           <div class="form-row" style="grid-column:1/-1;"><label>{{ t('consent.statement') }}</label>
-            <textarea class="input" name="statement" rows="2"></textarea></div>
+            <!-- Shown, not blank. Nobody types a consent statement into an
+                 empty box in a clinic, so an empty box meant every consent was
+                 signed under the one generic sentence. -->
+            <textarea class="input" name="statement" rows="4"
+                      x-init="$el.value = texts[kind] || ''"
+                      x-effect="$el.value = texts[kind] || ''"></textarea>
+            <span class="hint">{{ t('consent.statement_hint') }}</span></div>
         </div>
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('consent.add') }}</button>
       </form>

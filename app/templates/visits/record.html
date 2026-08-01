@@ -624,11 +624,12 @@
     {% endif %}
 
     <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-pen"></i> {{ t('consent.record_now') }}</h3>
-    <form method="post" action="{{ url_for('visits.add_visit_consent', visit_id=visit.id) }}">
+    <form method="post" action="{{ url_for('visits.add_visit_consent', visit_id=visit.id) }}"
+          x-data="{ kind: 'general', texts: {{ consent_statements|tojson|forceescape }} }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('consent.type') }}</label>
-          <select class="select" name="consent_type">
+          <select class="select" name="consent_type" x-model="kind">
             {% for n in (consent.missing if consent and consent.missing else consent.needed) %}
             <option value="{{ n.kind }}">{{ t('consent.types.' ~ n.kind) }}</option>
             {% endfor %}
@@ -647,6 +648,13 @@
                  value="{{ consent_guardian.id_no if consent_guardian else '' }}"></div>
         <div class="form-row"><label>{{ t('common.notes') }}</label>
           <input class="input" name="notes"></div>
+        <!-- The words the guardian is about to sign, in the room, before they
+             sign them. Read them out; add to them if the case needs it. -->
+        <div class="form-row" style="grid-column:1/-1;"><label>{{ t('consent.statement') }}</label>
+          <textarea class="input" name="statement" rows="4"
+                    x-init="$el.value = texts[kind] || ''"
+                    x-effect="$el.value = texts[kind] || ''"></textarea>
+          <span class="hint">{{ t('consent.statement_hint') }}</span></div>
       </div>
       <button class="btn btn-outline gc-press" type="submit">
         <i class="bi bi-check-lg"></i> {{ t('consent.record_now') }}</button>

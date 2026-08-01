@@ -1813,7 +1813,17 @@
     "reason_visit": "General consent to examination and treatment",
     "reason_procedure": "A billed procedure or investigation was done",
     "reason_study": "A device study was run",
-    "reason_vaccine": "A vaccine was given today"
+    "reason_vaccine": "A vaccine was given today",
+    "statements": {
+      "general": "I, the undersigned, as the child's guardian, consent to the doctor examining and treating the child and carrying out the tests they need at this clinic. I may ask the doctor about any procedure before it is carried out, and I may withdraw this consent at any time without it affecting the child's right to receive care.",
+      "examination": "I consent to the doctor examining the child clinically, including physical examination and measurement of vital signs. It has been explained to me that the examination may require uncovering parts of the child's body, and that this is done in my presence.",
+      "procedure": "The doctor has explained to me the nature of the procedure proposed for the child and its purpose, what is expected of it, the possible risks, the available alternatives, and what may follow from not carrying it out. I have had the opportunity to ask questions and they were answered, and I consent to it being performed.",
+      "vaccination": "I have been told the name of the vaccine and the dose to be given to the child and its benefits, the common effects after it (a mild fever or soreness at the injection site), and the symptoms that mean returning to the clinic. I have had the chance to ask, and I consent to the vaccine being given.",
+      "anesthesia": "It has been explained to me what type of anaesthesia is planned for the child, its purpose and its possible risks, and I have told the doctor of any allergy the child has, any medicines they take, and any previous experience of anaesthesia. I consent to the anaesthesia and to the measures needed to keep the child safe during it.",
+      "data_privacy": "I consent to the clinic keeping the child's medical data in their file and using it to follow up their treatment and to issue the reports and invoices required. This data is not shared with any outside party except with my consent or where the law requires it. I have the right to see the file and to ask for anything in it to be corrected.",
+      "photography": "I consent to the child's condition being photographed or filmed for the medical purpose explained to me, and to it being kept in the child's file. It is not used for teaching or publication except with separate written consent and after removing anything identifying the child. I may withdraw this consent at any time, and that applies to anything not yet published."
+    },
+    "statement_hint": "This is the text that will be signed — read it to the guardian; you can add to it if the case needs it."
   },
   "roles_mgmt": {
     "title": "Roles & permissions",

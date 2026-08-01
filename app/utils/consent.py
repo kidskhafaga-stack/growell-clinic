@@ -110,18 +110,58 @@ def default_guardian(patient, lang=None):
     }
 
 
-def record(patient, kind, guardian_name, relation=None, id_no=None,
-           statement=None, notes=None, user_id=None, on_date=None):
-    """Write one consent for the patient (caller commits)."""
+def statement_for(kind):
+    """The wording for one kind of consent, in the language in use.
+
+    Reported: *"the wording of the consents — its own text for each kind,
+    clear in Arabic and in English according to the language in use."* There
+    was one sentence for all seven: a photography consent and an anaesthesia
+    consent were signed under identical words about "the nature of the medical
+    service, its risks and alternatives". That sentence is true of both and
+    says what is being agreed to in neither — and a consent form's entire job
+    is to say what is being agreed to.
+
+    The language is the one being read at the moment of signing, which is the
+    right one: it is the language the guardian was shown the words in.
+
+    Falls back to the general wording for a kind with no text of its own, so a
+    new consent type is never signed under a blank.
+    """
+    from app.i18n import t
+
+    key = f"consent.statements.{kind}"
+    text = t(key)
+    return t("consent.default_statement") if text == key else text
+
+
+def all_statements():
+    """``{kind: text}`` for the form, so the screen can show the words that
+    will be signed the moment the kind is picked."""
     from app.models import CONSENT_TYPES
 
+    return {kind: statement_for(kind) for kind in CONSENT_TYPES}
+
+
+def record(patient, kind, guardian_name, relation=None, id_no=None,
+           statement=None, notes=None, user_id=None, on_date=None):
+    """Write one consent for the patient (caller commits).
+
+    The wording is **stored on the row**, not looked up when the form is
+    printed. Printing it live meant the paper showed today's text and today's
+    language — so re-printing a consent after the wording was edited, or from
+    an English session, produced a document stating that somebody agreed to
+    words they had never been shown. What was signed is a fact about that day.
+    """
+    from app.models import CONSENT_TYPES
+
+    kind = kind if kind in CONSENT_TYPES else "general"
     row = Consent(
         patient_id=patient.id,
-        consent_type=kind if kind in CONSENT_TYPES else "general",
+        consent_type=kind,
         guardian_name=guardian_name,
         guardian_relation=relation or None,
         guardian_id_no=id_no or None,
-        statement=statement or None,
+        statement=(statement or "").strip() or statement_for(kind),
         notes=notes or None,
         signed_date=on_date or date.today(),
         obtained_by=user_id,

@@ -353,11 +353,14 @@ def view(patient_id):
         "paid": round(sum(i.paid for i in invoices), 2),
         "balance": round(sum(i.balance for i in invoices), 2),
     }
+    from app.utils.consent import all_statements
+
     return render_template(
         "patients/profile.html",
         patient=patient,
         relations=PARENT_RELATIONS,
         consent_types=CONSENT_TYPES,
+        consent_statements=all_statements(),
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient,
@@ -738,17 +741,21 @@ def add_consent(patient_id):
     if not guardian:
         flash(t("common.required") + ": " + t("consent.guardian_name"), "danger")
         return redirect(url_for("patients.view", patient_id=patient.id) + "#consent")
-    db.session.add(Consent(
-        patient_id=patient.id,
-        consent_type=ctype if ctype in CONSENT_TYPES else "general",
-        guardian_name=guardian,
-        guardian_relation=(request.form.get("guardian_relation") or "").strip() or None,
-        guardian_id_no=(request.form.get("guardian_id_no") or "").strip() or None,
+    # Through the one writer, not a second hand-built row: this screen and the
+    # visit room were both creating consents, and only one of them would have
+    # got the per-kind wording — leaving whichever was used that day to decide
+    # what a guardian appears to have agreed to.
+    from app.utils.consent import record as record_consent
+
+    record_consent(
+        patient, ctype, guardian,
+        relation=(request.form.get("guardian_relation") or "").strip() or None,
+        id_no=(request.form.get("guardian_id_no") or "").strip() or None,
         statement=(request.form.get("statement") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
-        signed_date=_parse_date("signed_date") or date.today(),
-        obtained_by=current_user.id,
-    ))
+        user_id=current_user.id,
+        on_date=_parse_date("signed_date") or date.today(),
+    )
     ActivityLog.record("consent.add", user_id=current_user.id, entity="patient",
                        entity_id=patient.id, detail=ctype, ip_address=client_ip())
     db.session.commit()
@@ -770,8 +777,11 @@ def delete_consent(consent_id):
 @patients_bp.route("/consents/<int:consent_id>/print")
 @module_required(MODULE)
 def print_consent(consent_id):
+    from app.utils.consent import statement_for
+
     c = db.get_or_404(Consent, consent_id)
-    return render_template("patients/consent_print.html", c=c, patient=c.patient)
+    return render_template("patients/consent_print.html", c=c, patient=c.patient,
+                           statement_for=statement_for)
 
 
 # ----------------------------------------------------------- families ------
