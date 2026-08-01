@@ -3978,5 +3978,9 @@
     "conclusion": "Conclusion",
     "by": "Performed by",
     "none": "No studies recorded for this child yet."
+  },
+  "live": {
+    "changed": "This page has changed — somebody recorded something new.",
+    "refresh": "Refresh"
   }
 }

@@ -52,14 +52,32 @@ def desk(clinic):
     return clinic
 
 
+# Bookings in this file are made for **tomorrow**, not today, and that is not
+# arbitrary. `available_slots` drops slots that have already passed when the
+# date is today, so a test booking into a 09:00–17:00 schedule passes in the
+# morning and fails every evening — which is exactly what happened, in the full
+# suite, at 16:55. A test whose result depends on the clock is worse than no
+# test: it teaches whoever sees it red to shrug. None of this file is about
+# today in particular; the gate does not care which day is being booked.
+TOMORROW_OFFSET = 1
+
+
 def _free_slot(desk, when=None):
     """A slot the server agrees is open, so a refusal can only be the gate."""
     from app.utils.appointments import available_slots
 
+    on_date = when or _bookable_day()
     with desk["app"].app_context():
-        slots = available_slots(desk["ids"]["doctor"], when or date.today())
-    assert slots, "the fixture's doctor has no free slots"
+        slots = available_slots(desk["ids"]["doctor"], on_date)
+    assert slots, f"the fixture's doctor has no free slots on {on_date}"
     return slots[0]
+
+
+def _bookable_day():
+    """A day whose slots cannot have gone past while the suite was running."""
+    from datetime import timedelta
+
+    return date.today() + timedelta(days=TOMORROW_OFFSET)
 
 
 def _open_booking(desk):
@@ -85,7 +103,7 @@ def _walk_in(client, desk):
 
 
 def _book(client, desk, when=None):
-    on_date = when or date.today()
+    on_date = when or _bookable_day()
     return client.post("/appointments/new", data={
         "patient_id": str(desk["ids"]["child"]),
         "doctor_id": str(desk["ids"]["doctor"]),

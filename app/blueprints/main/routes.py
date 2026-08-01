@@ -106,6 +106,30 @@ def dashboard():
     return render_template("main/dashboard.html", **ctx)
 
 
+@main_bp.route("/live/<kind>/<int:ident>")
+@login_required
+def live_fingerprint(kind, ident):
+    """A short answer to "has this screen's data changed since I loaded it?".
+
+    One endpoint for every screen that wants to know, because the alternative
+    is a poll route per blueprint and a fingerprint that drifts out of step
+    with what its screen actually shows.
+
+    The kinds come from a fixed map, not from the URL: a name arriving here is
+    looked up, never called. And it is behind the ordinary login — the answer
+    is a hash, but *whether it changed* still tells you something about a
+    patient, so it is not public.
+    """
+    from flask import abort, jsonify
+
+    from app.utils.live import FINGERPRINTS
+
+    build = FINGERPRINTS.get(kind)
+    if build is None:
+        abort(404)
+    return jsonify({"fp": build(ident)})
+
+
 @main_bp.route("/guide")
 @login_required
 def guide():

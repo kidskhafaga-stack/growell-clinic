@@ -250,3 +250,52 @@ document.addEventListener("submit", function (e) {
   f.__gcBusy = true;
   setTimeout(function () { f.__gcBusy = false; }, 4000);
 }, true);
+
+// Live *notice*: same fingerprint poll as gcLivePoll, but it never reloads —
+// it raises a bar offering to.
+//
+// The difference is not a preference. gcLivePoll suits a board: read-only, so
+// throwing the page away costs nothing. The patient file and the visit record
+// carry eighteen forms each, and a doctor who has typed half a page and
+// clicked away would lose it — the focus check only pauses while the caret is
+// actually in a field.
+//
+// And reloading was never what was asked for. The complaint was "the admin
+// didn't see it until they refreshed", which is a complaint about not being
+// *told*. Being told is the whole fix; when to refresh is the reader's call,
+// because only they know whether they are mid-sentence.
+window.gcLiveNotify = function (url, opts) {
+  var o = opts || {};
+  var every = o.everyMs || 15000;
+  var last = null;
+  var shown = false;
+
+  function bar() {
+    if (shown) return;
+    shown = true;
+    var el = document.createElement("div");
+    el.className = "gc-live-note";
+    el.setAttribute("role", "status");
+    el.innerHTML =
+      '<span>' + (o.text || "This page has changed.") + "</span>" +
+      '<button type="button">' + (o.action || "Refresh") + "</button>";
+    el.querySelector("button").addEventListener("click", function () {
+      window.location.reload();
+    });
+    document.body.appendChild(el);
+  }
+
+  setInterval(function () {
+    if (document.hidden) return;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.fp) return;
+        if (last === null) { last = j.fp; return; }
+        // Deliberately not updating `last` after showing the bar: further
+        // edits should not make it flicker away and back.
+        if (j.fp !== last) bar();
+      })
+      .catch(function () {});
+  }, every);
+};

@@ -1223,4 +1223,12 @@
     };
   }
 </script>
+{# Told, not reloaded: this screen carries forms, and throwing the page away
+   would take a half-written note with it. #}
+<script>
+  if (window.gcLiveNotify)
+    window.gcLiveNotify("{{ url_for('main.live_fingerprint', kind='visit', ident=visit.id) }}",
+      { text: {{ t('live.changed')|tojson|forceescape }},
+        action: {{ t('live.refresh')|tojson|forceescape }} });
+</script>
 {% endblock %}
