@@ -380,3 +380,87 @@ window.gcLiveSearch = function (form) {
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll("form[data-live-search]").forEach(window.gcLiveSearch);
 });
+
+// ---------------------------------------------------------------------------
+// gcPicker — the one autocomplete, for drugs and everything else that asks
+// "which one did you mean".
+//
+// Reported: *"the drug search looks odd and it's hard to choose."* There were
+// three hand-written copies of this control and they had drifted into three
+// different behaviours, none of them keyboard-operable:
+//
+//   * no arrow keys and no Enter — a doctor with a hand on the keyboard had to
+//     reach for the mouse for every line of a prescription;
+//   * an empty list when nothing matched, which looks the same as still
+//     loading and the same as broken;
+//   * `background = '#fff'` written straight onto the row by the hover
+//     handler, so in dark mode it turned white under white text;
+//   * and no guard against a slow reply landing last — the same fault fixed in
+//     gcLiveSearch, and worse here, because the wrong list is one you then
+//     *click*: what you picked is not what you read.
+//
+// **It holds no caller state and writes to nothing.** Closing over the
+// caller's object would mean writing to the raw object rather than Alpine's
+// proxy, and a write that misses the proxy renders nothing — the drug would be
+// chosen and the field would sit there empty. So the picker owns the list and
+// the highlight, and the screen does its own filling in, from template scope
+// where everything is reactive.
+//
+// Usage (Alpine): x-data="{ picker: gcPicker({ url }) }"
+//   input   x-on:keydown.enter="onEnter($event)"
+//   option  x-on:click="take(s)"
+window.gcPicker = function (config) {
+  var cfg = config || {};
+  return {
+    q: cfg.value || "",
+    items: [],
+    open: false,
+    searched: false,   // false until a reply lands: "nothing found" is a fact
+    active: -1,
+    _seq: 0,
+    _abort: null,
+
+    async search() {
+      var text = (this.q || "").trim();
+      if (text.length < (cfg.minChars || 1)) {
+        this.items = []; this.open = false; this.searched = false; return;
+      }
+      var mine = ++this._seq;
+      if (this._abort) this._abort.abort();
+      var ctl = new AbortController();
+      this._abort = ctl;
+      try {
+        var url = cfg.url + (cfg.url.indexOf("?") < 0 ? "?" : "&") +
+          "q=" + encodeURIComponent(text) + (cfg.extra ? "&" + cfg.extra() : "");
+        var reply = await fetch(url, { signal: ctl.signal });
+        var data = await reply.json();
+        // Not the newest question any more, so its answer is not an answer.
+        if (mine !== this._seq) return;
+        this.items = Array.isArray(data) ? data : [];
+        this.active = this.items.length ? 0 : -1;
+        this.searched = true;
+        this.open = true;
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+        if (mine !== this._seq) return;
+        this.items = []; this.active = -1; this.searched = true; this.open = true;
+      }
+    },
+
+    move(step) {
+      if (!this.open || !this.items.length) return;
+      this.active = (this.active + step + this.items.length) % this.items.length;
+    },
+
+    // The highlighted row, or null when there is nothing to take. Returning it
+    // rather than acting on it is what keeps the caller's writes reactive.
+    take() {
+      if (!this.open || this.active < 0 || !this.items[this.active]) return null;
+      var chosen = this.items[this.active];
+      this.close();
+      return chosen;
+    },
+
+    close() { this.open = false; this.items = []; this.active = -1; },
+  };
+};

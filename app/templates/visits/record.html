@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% from "_picker.html" import drug_list with context %}
 {% import "visits/_investigation_files.html" as inv_files with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% set active_module = 'visits' %}
@@ -322,14 +323,26 @@
       <div class="icd-search" style="position:relative;">
         <label>{{ t('visits.search_icd') }}</label>
         <input class="input" type="text" autocomplete="off" placeholder="{{ t('visits.search_icd_placeholder') }}"
-               x-model="q" x-on:input.debounce.250ms="searchIcd()" x-on:focus="searchIcd()">
-        <div class="icd-dropdown" x-show="results.length" x-cloak x-on:click.outside="results=[]">
-          <template x-for="r in results" :key="r.code">
-            <button type="button" class="icd-item" x-on:click="pick(r)">
+               x-model="q" role="combobox" aria-autocomplete="list"
+               :aria-expanded="icd.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="askIcd()"
+               x-on:keydown.arrow-down.prevent="icd.move(1)"
+               x-on:keydown.arrow-up.prevent="icd.move(-1)"
+               x-on:keydown.enter="onIcdEnter($event)"
+               x-on:keydown.escape="icd.close()"
+               x-on:blur="setTimeout(() => icd.close(), 150)">
+        <div class="gc-picker" x-show="icd.open" x-cloak role="listbox">
+          <template x-for="(r, idx) in icd.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === icd.active ? 'true' : 'false'"
+                    x-on:mouseenter="icd.active = idx"
+                    x-on:click="icd.close(); applyIcd(r)">
               <span class="badge badge--role" x-text="r.code"></span>
               <span x-text="(current_lang==='ar' ? r.ar : r.en)"></span>
             </button>
           </template>
+          <div class="gc-picker-empty" x-show="icd.searched && !icd.items.length">
+            {{ t('rx.no_dx_match') }}</div>
         </div>
       </div>
       <div class="form-grid" style="margin-top:12px;">
@@ -407,15 +420,26 @@
         <div class="form-row" style="position:relative;"><label>{{ t('rx.inv_name') }} *</label>
           <input class="input" name="name" x-model="name" autocomplete="off" required
                  placeholder="{{ t('rx.inv_search_ph') }}"
-                 x-on:input.debounce.250ms="onNameInput()" x-on:focus="search()">
-          <div x-show="open && suggestions.length" x-cloak
-               style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
-            <template x-for="s in suggestions" :key="s.id">
-              <div x-on:click="pick(s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
-                   x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
-                <strong x-text="current_lang==='ar' ? s.name_ar : (s.name_en || s.name_ar)"></strong> <span style="color:var(--muted);font-size:0.8rem;" x-text="s.category"></span>
-              </div>
+                 role="combobox" aria-autocomplete="list"
+                 :aria-expanded="picker.open ? 'true' : 'false'"
+                 x-on:input.debounce.250ms="onNameInput()"
+                 x-on:keydown.arrow-down.prevent="picker.move(1)"
+                 x-on:keydown.arrow-up.prevent="picker.move(-1)"
+                 x-on:keydown.enter="onEnter($event)"
+                 x-on:keydown.escape="picker.close()"
+                 x-on:blur="setTimeout(() => picker.close(), 150)">
+          <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+            <template x-for="(s, idx) in picker.items" :key="idx">
+              <button type="button" class="gc-picker-item" role="option"
+                      :aria-selected="idx === picker.active ? 'true' : 'false'"
+                      x-on:mouseenter="picker.active = idx"
+                      x-on:click="picker.close(); applyInv(s)">
+                <strong x-text="current_lang==='ar' ? s.name_ar : (s.name_en || s.name_ar)"></strong>
+                <span class="gc-picker-sub" x-text="s.category"></span>
+              </button>
             </template>
+            <div class="gc-picker-empty" x-show="picker.searched && !picker.items.length">
+              {{ t('rx.no_inv_match') }}</div>
           </div>
         </div>
         <div class="form-row"><label>{{ t('visits.inv_request_notes') }}</label>
@@ -530,16 +554,17 @@
       <div class="form-grid">
         <div class="form-row" style="position:relative;">
           <label>{{ t('rx.drug') }} *</label>
-          <input class="input" name="name" x-model="name" x-on:input="onInput()" autocomplete="off"
-                 placeholder="{{ t('rx.search_drugs') }}">
-          <div class="patient-results" x-show="open" x-cloak style="position:absolute;top:100%;inset-inline-start:0;width:100%;z-index:20;">
-            <template x-for="s in suggestions" :key="s.name + s.strength">
-              <button type="button" class="patient-result gc-press" x-on:click="pick(s)">
-                <span x-text="s.name"></span>
-                <small style="color:var(--muted);" x-text="s.generic"></small>
-              </button>
-            </template>
-          </div>
+          <input class="input" name="name" x-model="name" autocomplete="off"
+                 placeholder="{{ t('rx.search_drugs') }}"
+                 role="combobox" aria-autocomplete="list"
+                 :aria-expanded="picker.open ? 'true' : 'false'"
+                 x-on:input.debounce.250ms="onInput()"
+                 x-on:keydown.arrow-down.prevent="picker.move(1)"
+                 x-on:keydown.arrow-up.prevent="picker.move(-1)"
+                 x-on:keydown.enter="onEnter($event)"
+                 x-on:keydown.escape="picker.close()"
+                 x-on:blur="setTimeout(() => picker.close(), 150)">
+          {{ drug_list('picker.', 'applyDrug(s)') }}
         </div>
         <div class="form-row"><label>{{ t('rx.dose') }}</label><input class="input" name="dose" x-model="dose"></div>
         <div class="form-row"><label>{{ t('rx.frequency') }}</label><input class="input" name="frequency" x-model="frequency"></div>
@@ -994,11 +1019,6 @@
   .dx-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; }
   .btn-x { border:none; background:none; cursor:pointer; color:var(--muted); padding:0 4px; }
   .btn-x:hover { color:var(--danger); }
-  .icd-dropdown { position:absolute; top:100%; inset-inline-start:0; right:0; left:0; background:#fff;
-    border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); z-index:20; max-height:280px; overflow-y:auto; margin-top:4px; }
-  .icd-item { display:flex; align-items:center; gap:10px; width:100%; text-align:start; padding:10px 12px;
-    border:none; background:none; cursor:pointer; font-family:inherit; font-size:0.9rem; border-bottom:1px solid var(--line); }
-  .icd-item:hover { background:var(--green-050); }
   [x-cloak]{ display:none !important; }
   /* Workflow tabs */
   .visit-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:14px 0; }
@@ -1083,7 +1103,7 @@
     try { cfg = JSON.parse(document.getElementById('visitCfg').textContent || '{}'); }
     catch (e) { cfg = {}; }
     return {
-      icdUrl, weight: w || '', height: h || '',
+      icdUrl, icd: window.gcPicker({ url: icdUrl }), weight: w || '', height: h || '',
       ageMonths: Math.floor((cfg.age_days || 0) / 30.44),
       // Live vitals: bound so the border colours by pediatric age ranges.
       vTemp: '{{ visit.vitals.temperature_c if visit.vitals and visit.vitals.temperature_c is not none else '' }}',
@@ -1114,7 +1134,7 @@
         if (v >= r[2] && v <= r[3]) return 'vt-warn';
         return 'vt-bad';
       },
-      q: '', results: [], code: '', title: '', titleAr: '', titleEn: '', version: '10',
+      q: '', code: '', title: '', titleAr: '', titleEn: '', version: '10',
       // "Write less" helpers: clinical fields are Alpine-bound so smart phrases
       // and carry-forward can fill them with one click.
       cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
@@ -1161,18 +1181,16 @@
         if (wv > 0 && hv > 0) { const m = hv/100; return (wv/(m*m)).toFixed(1); }
         return '';
       },
-      async searchIcd() {
-        if (!this.q || this.q.length < 1) { this.results = []; return; }
-        try {
-          const res = await fetch(`${this.icdUrl}?q=${encodeURIComponent(this.q)}`);
-          this.results = (await res.json()).results || [];
-        } catch (e) { this.results = []; }
-      },
-      pick(r) {
+      askIcd() { this.icd.q = this.q; this.icd.search(); },
+      applyIcd(r) {
         // Keep both languages: title is the Arabic primary, title_en the English.
         this.code = r.code; this.titleAr = r.ar; this.titleEn = r.en;
         this.title = (current_lang === 'ar' ? r.ar : r.en);
-        this.version = '10'; this.results = []; this.q = '';
+        this.version = '10'; this.q = '';
+      },
+      onIcdEnter(ev) {
+        const r = this.icd.take();
+        if (r) { ev.preventDefault(); this.applyIcd(r); }
       },
       // Manual edit overrides a previous pick (clear the bilingual snapshot).
       onTitleInput() { this.titleAr = ''; this.titleEn = ''; }
@@ -1181,45 +1199,54 @@
 
   function medWriter(searchUrl) {
     return {
-      searchUrl, name: '', dose: '', frequency: '', instructions: '',
-      drugId: '', genericId: '', suggestions: [], open: false,
-      async search() {
-        const q = (this.name || '').trim();
-        if (q.length < 1) { this.suggestions = []; this.open = false; return; }
-        try {
-          const r = await fetch(`${this.searchUrl}?q=${encodeURIComponent(q)}`);
-          this.suggestions = await r.json(); this.open = true;
-        } catch (e) { this.suggestions = []; this.open = false; }
+      name: '', dose: '', frequency: '', instructions: '',
+      drugId: '', genericId: '',
+      picker: window.gcPicker({ url: searchUrl }),
+      onInput() {
+        // Typing past a chosen drug drops the link to it: otherwise the
+        // medicine is filed against a product whose name is no longer there.
+        this.drugId = ''; this.genericId = '';
+        this.picker.q = this.name; this.picker.search();
       },
-      pick(s) {
+      // `this` is the component here, so these writes go through Alpine's
+      // proxy and the fields actually fill in.
+      applyDrug(s) {
         this.name = s.name; this.drugId = s.id || ''; this.genericId = s.generic_id || '';
         if (s.dose) this.dose = s.dose;
         if (s.frequency) this.frequency = s.frequency;
         if (s.instructions) this.instructions = s.instructions;
-        this.open = false; this.suggestions = [];
       },
-      onInput() { this.drugId = ''; this.genericId = ''; this.search(); }
+      onEnter(ev) {
+        const s = this.picker.take();
+        if (s) { ev.preventDefault(); this.applyDrug(s); }
+      },
     };
   }
 
   function invOrder(searchUrl) {
+    const state = { kind: 'lab' };
     return {
-      searchUrl, kind: 'lab', name: '', nameAr: '', nameEn: '', invId: '', suggestions: [], open: false,
-      async search() {
-        const q = (this.name || '').trim();
-        if (q.length < 1) { this.suggestions = []; this.open = false; return; }
-        try {
-          const r = await fetch(`${this.searchUrl}?kind=${this.kind}&q=${encodeURIComponent(q)}`);
-          this.suggestions = await r.json(); this.open = true;
-        } catch (e) { this.suggestions = []; this.open = false; }
+      kind: 'lab', name: '', nameAr: '', nameEn: '', invId: '',
+      // `extra` is read at request time, so switching lab↔imaging changes what
+      // the next keystroke searches rather than what the last one did.
+      picker: window.gcPicker({
+        url: searchUrl,
+        extra() { return "kind=" + encodeURIComponent(state.kind || 'lab'); },
+      }),
+      onNameInput() {
+        this.nameAr = ''; this.nameEn = ''; this.invId = '';
+        state.kind = this.kind;
+        this.picker.q = this.name; this.picker.search();
       },
-      pick(s) {
+      applyInv(s) {
         this.invId = s.id; this.kind = s.kind;
         this.nameAr = s.name_ar; this.nameEn = s.name_en;
         this.name = (current_lang === 'ar' ? s.name_ar : (s.name_en || s.name_ar));
-        this.open = false; this.suggestions = [];
       },
-      onNameInput() { this.nameAr = ''; this.nameEn = ''; this.invId = ''; this.search(); }
+      onEnter(ev) {
+        const s = this.picker.take();
+        if (s) { ev.preventDefault(); this.applyInv(s); }
+      },
     };
   }
 </script>

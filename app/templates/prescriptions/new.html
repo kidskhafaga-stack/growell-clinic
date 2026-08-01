@@ -3,6 +3,8 @@
 {% block title %}{{ t('rx.new') }}{% endblock %}
 {% block page_heading %}{{ t('rx.new') }}{% endblock %}
 
+{% from "_picker.html" import drug_list with context %}
+
 {% block content %}
 <h1 class="page-title gc-animate">{{ t('rx.new') }}</h1>
 
@@ -12,7 +14,8 @@
 {% set pf = prefill or {} %}
 <form method="post" action="{{ url_for('prescriptions.new') }}"
       x-data="rxForm({{ (pf.weight or '')|tojson|forceescape }}, {{ (pf.diagnosis or '')|tojson|forceescape }}, {{ (pf.diagnosis_code or '')|tojson|forceescape }}, {{ (prefill_invs or [])|tojson|forceescape }}, {{ (prefill_meds or [])|tojson|forceescape }})"
-      x-init="if(!lines.length){ addLine(); } else { checkInteractions(); }">
+      x-init="lines.forEach(l => withPicker(l)); invs.forEach(v => withInvPicker(v));
+              if(!lines.length){ addLine(); } else { checkInteractions(); }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if pf.visit_id %}<input type="hidden" name="visit_id" value="{{ pf.visit_id }}">{% endif %}
   {% if pf.visit_id %}
@@ -37,16 +40,26 @@
         <input type="hidden" name="diagnosis_code" x-model="dxCode">
         <input class="input" name="diagnosis" x-model="dx" autocomplete="off"
                placeholder="{{ t('rx.diagnosis_search_ph') }}"
-               x-on:input.debounce.250ms="searchDx()" x-on:focus="searchDx()">
-        <div x-show="dxOpen && dxSug.length" x-cloak
-             style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
-          <template x-for="s in dxSug" :key="s.code">
-            <div x-on:click="pickDx(s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
-                 x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
+               role="combobox" aria-autocomplete="list"
+               :aria-expanded="dxPicker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="askDx()" x-on:focus="askDx()"
+               x-on:keydown.arrow-down.prevent="dxPicker.move(1)"
+               x-on:keydown.arrow-up.prevent="dxPicker.move(-1)"
+               x-on:keydown.enter="enterDx($event)"
+               x-on:keydown.escape="dxPicker.close()"
+               x-on:blur="setTimeout(() => dxPicker.close(), 150)">
+        <div class="gc-picker" x-show="dxPicker.open" x-cloak role="listbox">
+          <template x-for="(s, idx) in dxPicker.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === dxPicker.active ? 'true' : 'false'"
+                    x-on:mouseenter="dxPicker.active = idx"
+                    x-on:click="dxPicker.close(); applyDx(s)">
               <span class="badge badge--role" x-text="s.code"></span>
               <span x-text="current_lang==='ar' ? s.ar : s.en"></span>
-            </div>
+            </button>
           </template>
+          <div class="gc-picker-empty" x-show="dxPicker.searched && !dxPicker.items.length">
+            {{ t('rx.no_dx_match') }}</div>
         </div>
         <div class="hint" x-show="dxCode" x-cloak>ICD-10: <span x-text="dxCode"></span></div>
       </div>
@@ -130,16 +143,15 @@
           <label>{{ t('rx.drug') }}</label>
           <input class="input" name="item_name" x-model="line.name" autocomplete="off"
                  placeholder="{{ t('rx.search_placeholder') }}"
-                 x-on:input.debounce.250ms="search(i)" x-on:focus="search(i)">
-          <div x-show="line.open && line.suggestions.length" x-cloak
-               style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
-            <template x-for="s in line.suggestions" :key="s.id">
-              <div x-on:click="pick(i,s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
-                   x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
-                <strong x-text="s.trade"></strong> <span style="color:var(--muted);font-size:0.82rem;" x-text="s.strength||s.form? '('+(s.strength||'')+') '+(s.generic||'') : s.generic"></span>
-              </div>
-            </template>
-          </div>
+                 role="combobox" aria-autocomplete="list"
+                 :aria-expanded="line.picker.open ? 'true' : 'false'"
+                 x-on:input.debounce.250ms="askDrug(line)" x-on:focus="askDrug(line)"
+                 x-on:keydown.arrow-down.prevent="line.picker.move(1)"
+                 x-on:keydown.arrow-up.prevent="line.picker.move(-1)"
+                 x-on:keydown.enter="enterDrug(line, $event)"
+                 x-on:keydown.escape="line.picker.close()"
+                 x-on:blur="setTimeout(() => line.picker.close(), 150)">
+          {{ drug_list('line.picker.', 'applyDrug(line, s)') }}
           <div class="hint" x-show="line.max" x-cloak>{{ t('rx.max_hint') }}: <span x-text="line.max"></span></div>
           <div class="hint" x-show="line.calc" x-cloak style="color:var(--green-700);">
             <i class="bi bi-calculator"></i> <span x-text="line.calc"></span></div>
@@ -211,15 +223,26 @@
             <label>{{ t('rx.inv_name') }}</label>
             <input class="input" name="inv_name" x-model="inv.name" autocomplete="off"
                    placeholder="{{ t('rx.inv_search_ph') }}"
-                   x-on:input.debounce.250ms="searchInv(i)" x-on:focus="searchInv(i)">
-            <div x-show="inv.open && inv.suggestions.length" x-cloak
-                 style="position:absolute;z-index:40;inset-inline:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:230px;overflow:auto;">
-              <template x-for="s in inv.suggestions" :key="s.id">
-                <div x-on:click="pickInv(i,s)" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--green-050);"
-                     x-on:mouseover="$el.style.background='var(--green-050)'" x-on:mouseout="$el.style.background='#fff'">
-                  <strong x-text="s.name"></strong> <span style="color:var(--muted);font-size:0.8rem;" x-text="s.category"></span>
-                </div>
+                   role="combobox" aria-autocomplete="list"
+                   :aria-expanded="inv.picker.open ? 'true' : 'false'"
+                   x-on:input.debounce.250ms="askInv(inv)" x-on:focus="askInv(inv)"
+                   x-on:keydown.arrow-down.prevent="inv.picker.move(1)"
+                   x-on:keydown.arrow-up.prevent="inv.picker.move(-1)"
+                   x-on:keydown.enter="enterInv(inv, $event)"
+                   x-on:keydown.escape="inv.picker.close()"
+                   x-on:blur="setTimeout(() => inv.picker.close(), 150)">
+            <div class="gc-picker" x-show="inv.picker.open" x-cloak role="listbox">
+              <template x-for="(s, idx) in inv.picker.items" :key="idx">
+                <button type="button" class="gc-picker-item" role="option"
+                        :aria-selected="idx === inv.picker.active ? 'true' : 'false'"
+                        x-on:mouseenter="inv.picker.active = idx"
+                        x-on:click="inv.picker.close(); applyInv(inv, s)">
+                  <strong x-text="s.name"></strong>
+                  <span class="gc-picker-sub" x-text="s.category"></span>
+                </button>
               </template>
+              <div class="gc-picker-empty" x-show="inv.picker.searched && !inv.picker.items.length">
+                {{ t('rx.no_inv_match') }}</div>
             </div>
           </div>
           <div class="form-row"><label>{{ t('rx.inv_notes') }}</label><input class="input" name="inv_notes" x-model="inv.notes"></div>
@@ -249,7 +272,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     lines: (prefillMeds || []).map(function(m){
       return {drug_id:m.drug_id||'', name:m.name||'', dose:m.dose||'',
               frequency:m.frequency||'', duration:m.duration||'',
-              instructions:m.instructions||'', max:'', suggestions:[], open:false,
+              instructions:m.instructions||'', max:'',
               dosePerKg:null, maxPerKg:null, conc:null, calc:'', aiBusy:false, aiNote:''};
     }),
     interactions: [],
@@ -295,20 +318,37 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
-              notes: x.notes || '', suggestions: [], open: false};
+              notes: x.notes || ''};
     }),
     weight: prefillWeight || '',
-    dx: prefillDx || '', dxCode: prefillDxCode || '', dxSug: [], dxOpen: false,
-    async searchDx(){
-      var q=(this.dx||'').trim(); if(q.length<1){ this.dxSug=[]; this.dxOpen=false; this.dxCode=''; return; }
-      try{ var r=await fetch("{{ url_for('prescriptions.icd_search') }}?q="+encodeURIComponent(q));
-        this.dxSug=await r.json(); this.dxOpen=true;
-      }catch(e){ this.dxSug=[]; this.dxOpen=false; }
+    dx: prefillDx || '', dxCode: prefillDxCode || '',
+    dxPicker: window.gcPicker({ url: "{{ url_for('prescriptions.icd_search') }}" }),
+    askDx(){
+      // Typing past a chosen diagnosis clears its code — otherwise the
+      // prescription carries an ICD-10 code for wording nobody chose.
+      this.dxCode=''; this.dxPicker.q=this.dx; this.dxPicker.search();
     },
-    pickDx(s){ this.dx=(current_lang==='ar'?s.ar:s.en); this.dxCode=s.code; this.dxOpen=false; this.dxSug=[]; },
-    blankLine(){ return {drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}; },
+    applyDx(s){ this.dx = (current_lang==='ar' ? s.ar : s.en); this.dxCode = s.code; },
+    enterDx(ev){
+      const s = this.dxPicker.take();
+      if (s) { ev.preventDefault(); this.applyDx(s); }
+    },
+    // Each line owns its picker, so two half-typed lines cannot answer each
+    // other's search — which is what a single shared list would do.
+    withPicker(line){
+      line.picker = window.gcPicker({
+        url: "{{ url_for('prescriptions.drug_search') }}" });
+      return line;
+    },
+    // Enter takes the highlighted row. The picker hands it back rather than
+    // applying it, so the write happens here — on the reactive line object.
+    enterDrug(line, ev){
+      const s = line.picker.take();
+      if (s) { ev.preventDefault(); this.applyDrug(line, s); }
+    },
+    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
     addLine(){ this.lines.push(this.blankLine()); },
-    continueMed(m){ this.lines.push({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',max:'',suggestions:[],open:false,dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''})); },
     async aiDose(i){
       var l=this.lines[i]; if(!l.name || l.aiBusy) return;
       l.aiBusy=true; l.aiNote='';
@@ -335,27 +375,27 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       if(fillDose){ l.dose = mg + " mg" + (l.conc ? " ("+(Math.round((mg/l.conc)*10)/10)+" ml)" : ""); }
     },
     recalc(){ this.lines.forEach(l => this.computeLine(l, true)); },
-    addInv(kind){ this.invs.push({id:'',kind:kind,name:'',notes:'',suggestions:[],open:false}); },
-    async searchInv(i){
-      const v=this.invs[i]; const q=(v.name||'').trim();
-      if(q.length<1){ v.suggestions=[]; v.open=false; return; }
-      try{
-        const r=await fetch("{{ url_for('prescriptions.investigation_search') }}?kind="+v.kind+"&q="+encodeURIComponent(q));
-        v.suggestions=await r.json(); v.open=true;
-      }catch(e){ v.suggestions=[]; v.open=false; }
+    withInvPicker(v){
+      v.picker = window.gcPicker({
+        url: "{{ url_for('prescriptions.investigation_search') }}",
+        // The kind is read at request time, not at wiring time: switching
+        // lab↔imaging has to change what the next keystroke searches.
+        extra(){ return "kind=" + encodeURIComponent(v.kind || 'lab'); },
+      });
+      return v;
     },
-    pickInv(i,s){ const v=this.invs[i]; v.id=s.id; v.name=s.name; v.kind=s.kind; v.open=false; v.suggestions=[]; },
-    async search(i){
-      const l=this.lines[i]; const q=(l.name||'').trim();
-      if(q.length<1){ l.suggestions=[]; l.open=false; return; }
-      try{
-        const r=await fetch("{{ url_for('prescriptions.drug_search') }}?q="+encodeURIComponent(q));
-        l.suggestions=await r.json(); l.open=true;
-      }catch(e){ l.suggestions=[]; l.open=false; }
+    addInv(kind){ this.invs.push(this.withInvPicker({id:'',kind:kind,name:'',notes:''})); },
+    askInv(v){ v.picker.q = v.name; v.picker.search(); },
+    applyInv(v, s){ v.id=s.id; v.name=s.name; v.kind=s.kind; },
+    enterInv(v, ev){
+      const s = v.picker.take();
+      if (s) { ev.preventDefault(); this.applyInv(v, s); }
     },
-    pick(i,s){
-      const l=this.lines[i];
-      l.drug_id=s.id; l.name=s.trade + (s.strength? ' '+s.strength:'');
+    askDrug(l){ l.picker.q = l.name; l.picker.search(); },
+    applyDrug(l, s){
+      // `name` already carries the strength: "Brufen" on its own is not a
+      // prescription, and it is what tells two rows of the same brand apart.
+      l.drug_id=s.id; l.name=s.name || s.trade;
       if(!l.frequency) l.frequency=s.frequency;
       if(!l.instructions) l.instructions=s.instructions; l.max=s.max;
       l.dosePerKg=s.dose_per_kg; l.maxPerKg=s.max_per_kg; l.conc=s.conc;
@@ -363,7 +403,6 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       const w=parseFloat(this.weight);
       if(w>0 && l.dosePerKg){ this.computeLine(l, true); }
       else if(!l.dose){ l.dose=s.dose; }
-      l.open=false; l.suggestions=[];
       this.checkInteractions();
     },
     removeLine(i){ this.lines.splice(i,1); this.checkInteractions(); },

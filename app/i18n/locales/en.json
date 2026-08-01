@@ -2121,7 +2121,11 @@
     "dose_flags_title": "Dose flags for this child",
     "interaction_line": "Interaction: {a} + {b}",
     "visit_meds_all_prescribed": "Every medicine from this visit is already on a prescription — the new one starts empty so nothing is prescribed twice.",
-    "shorthand_hint": "Shorthand: 1x3 → one tablet every 8 hours · 5ml*2 → 5 ml every 12 hours · q8h · tds · 5d → 5 days · 1w → a week"
+    "shorthand_hint": "Shorthand: 1x3 → one tablet every 8 hours · 5ml*2 → 5 ml every 12 hours · q8h · tds · 5d → 5 days · 1w → a week",
+    "ingredient": "Ingredient",
+    "no_drug_match": "No drug by that name — you can still type it",
+    "no_inv_match": "No investigation by that name — you can still type it",
+    "no_dx_match": "No diagnosis by that name — you can still type it"
   },
   "drug_forms": {
     "tablet": "Tablet",

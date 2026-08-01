@@ -565,40 +565,15 @@ def add_investigation(visit_id):
 @module_required(MODULE)
 def drug_search():
     """Autocomplete for writing a medicine inside the visit (brand or
-    ingredient), carrying the dosing rule so the room can check it live."""
-    from app.models import Drug, GenericDrug
+    ingredient), carrying the dosing rule so the room can check it live.
 
-    q = (request.args.get("q") or "").strip()
-    if len(q) < 1:
-        return jsonify([])
-    like = f"%{q}%"
-    lang = getattr(g, "lang", "ar")
-    rows = (Drug.query.filter(Drug.is_active.is_(True))
-            .filter(or_(Drug.trade_name.ilike(like),
-                        Drug.trade_name_ar.ilike(like),
-                        Drug.generic_name.ilike(like)))
-            .order_by(Drug.trade_name).limit(12).all())
-    out = [{
-        "id": d.id, "generic_id": d.generic_id or "",
-        "name": d.label(lang),
-        "trade": d.display_name(lang),
-        "generic": (d.generic.display_name(lang) if d.generic else (d.generic_name or "")),
-        "strength": d.strength or "",
-        "dose": d.default_dose or "",
-        "frequency": d.default_frequency or "",
-        "instructions": d.default_instructions or "",
-    } for d in rows]
-    # Ingredients with no brand on file are still writable by name.
-    for gen in (GenericDrug.query.filter(GenericDrug.is_active.is_(True))
-                .filter(or_(GenericDrug.name_ar.ilike(like),
-                            GenericDrug.name_en.ilike(like)))
-                .order_by(GenericDrug.name_en).limit(6).all()):
-        if any(o["generic_id"] == gen.id for o in out):
-            continue
-        out.append({"id": "", "generic_id": gen.id, "name": gen.display_name(lang),
-                    "trade": "", "generic": gen.display_name(lang),
-                    "strength": "", "dose": "", "frequency": "", "instructions": ""})
-    return jsonify(out)
+    Same search the prescription writer uses — see
+    :mod:`app.utils.drug_search` for why there is only one of them now.
+    """
+    from app.utils.drug_search import search_drugs
+
+    return jsonify(search_drugs(request.args.get("q"),
+                                lang=getattr(g, "lang", "ar"), limit=12))
 
 
 @visits_bp.route("/<int:visit_id>/medications", methods=["POST"])
@@ -1095,7 +1070,10 @@ def view(visit_id):
 @visits_bp.route("/icd")
 @module_required(MODULE)
 def icd():
-    return jsonify({"results": search_icd(request.args.get("q", ""))})
+    # A bare list, like ``prescriptions.icd_search``. One question asked from
+    # two screens was answered in two shapes, which is the same drift that put
+    # a missing ``strength`` in the drug list.
+    return jsonify(search_icd(request.args.get("q", "")))
 
 
 @visits_bp.route("/<int:visit_id>/consent", methods=["POST"])
