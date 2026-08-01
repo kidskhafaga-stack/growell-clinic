@@ -956,7 +956,21 @@
     "dose_booster": "الجرعة المنشّطة",
     "course_complete": "اكتمل التطعيم",
     "next_season": "الموسم الجاي",
-    "interval_warn": "⚠️ الطفل أخد جرعة من {vaccine} (جرعة {dose}) بتاريخ {date} — من {days} يوم بس، وأقل فاصل مسموح بيه {min} يوم. الجرعة اتسجّلت، راجعها."
+    "interval_warn": "⚠️ الطفل أخد جرعة من {vaccine} (جرعة {dose}) بتاريخ {date} — من {days} يوم بس، وأقل فاصل مسموح بيه {min} يوم. الجرعة اتسجّلت، راجعها.",
+    "group_started": "كورسات بدأت ولسه ناقصة",
+    "group_started_hint": "دول اللي الطفل واخد منهم جرعة وناقصه الباقي — الجرعة الجاية مستحقة عليهم.",
+    "group_ready": "عمرها ما بدأت — ومناسبة لعمره دلوقتي",
+    "group_ready_hint": "كورسات ماتبدتش خالص والطفل بقى في السن اللي تبدأ فيه.",
+    "group_complete": "كورسات كاملة",
+    "group_complete_hint": "كل جرعاتها اتاخدت. متسيبة هنا عشان سؤال «هو أخده ولا لأ» بيتسأل.",
+    "group_later": "لسه بدري عليها",
+    "group_later_hint": "ماتبدتش، والسن اللي تبدأ فيه لسه ماجاش.",
+    "cert_total_doses": "جرعة",
+    "cert_total_vaccines": "تطعيم",
+    "cert_total_years": "سنة",
+    "cert_span": "السجل من {from} لـ{to}",
+    "cert_doctor_col": "الطبيب",
+    "given_elsewhere": "اتاخدت برّه"
   },
   "vstatus": {
     "done": "تم",

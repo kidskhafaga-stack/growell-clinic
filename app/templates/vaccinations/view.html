@@ -50,10 +50,20 @@
     {% endif %}
   </div>
 
-  <!-- Per-vaccine schedule -->
-  <div class="card gc-scale-in" style="animation-delay:0.1s;">
-    <h2 class="section-title"><i class="bi bi-shield-plus"></i> {{ t('vaccinations.schedule') }}</h2>
-    {% for item in plan %}
+  <!-- Per-vaccine schedule, on four shelves. Same plan, same rule — only the
+       heading each vaccine sits under is new. A wall of identical cards reads
+       as fifteen equally urgent things, and the courses this child is already
+       in the middle of end up next to one due in four years. -->
+  {% for key, items in groups %}
+  <details class="card gc-scale-in vac-group" style="animation-delay:0.1s;"
+           {{ 'open' if key in open_groups else '' }}>
+    <summary class="section-title" style="cursor:pointer;">
+      <i class="bi bi-{{ {'started':'hourglass-split','ready':'shield-plus','complete':'check2-circle','later':'calendar3'}[key] }}"></i>
+      {{ t('vaccinations.group_' ~ key) }}
+      <span class="badge badge--muted">{{ items|length }}</span>
+      <div class="hint" style="margin:4px 0 0;font-weight:400;">{{ t('vaccinations.group_' ~ key ~ '_hint') }}</div>
+    </summary>
+    {% for item in items %}
     {% set v = item.vaccine %}
     <div class="vac-card gc-lift">
       <div class="vac-head">
@@ -95,10 +105,13 @@
         {% endfor %}
       </div>
     </div>
-    {% else %}
-    <div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('common.no_data') }}</div>
     {% endfor %}
+  </details>
+  {% else %}
+  <div class="card gc-scale-in">
+    <div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('common.no_data') }}</div>
   </div>
+  {% endfor %}
 
   <!-- Record dose modal -->
   <div class="gc-overlay" x-show="modal" x-cloak x-transition.opacity x-on:click.self="modal=false">

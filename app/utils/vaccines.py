@@ -385,6 +385,13 @@ def patient_plan(patient, lang="ar"):
                 "due_date": due.isoformat() if due else None,
                 "given_date": pv.given_date.isoformat() if pv else None,
                 "lot_number": pv.lot_number if pv else None,
+                # Who gave it, and whether it was given here at all — a
+                # certificate row saying only "given" leaves the family to
+                # remember which clinic, which is what the paper is for.
+                "doctor": (pv.doctor.display_name(lang)
+                           if pv is not None and pv.doctor else None),
+                "outside": bool(pv.given_outside) if pv is not None else False,
+                "outside_place": (pv.outside_place if pv is not None else None),
                 "status": _status(due, pv is not None, today),
                 "planned": planned is not None,
                 "event_type": (ev.event_type if (ev and not pv
@@ -399,6 +406,113 @@ def patient_plan(patient, lang="ar"):
             "total": len(doses),
         })
     return plan
+
+
+# The four shelves a vaccination plan actually falls onto, in the order a
+# doctor works through them. Order matters: it is the whole feature.
+PLAN_GROUPS = ("started", "ready", "complete", "later")
+
+
+def group_plan(plan, today=None):
+    """Sort a plan onto four shelves without changing a thing in it.
+
+    Reported: *"the ordering of the vaccine suggestions — courses that have
+    started in one list and ones that never started in another"*, with the
+    explicit note that this is **not a change to the rule**. So this takes the
+    plan :func:`patient_plan` already built and only decides which heading each
+    vaccine sits under. Nothing here computes a due date, a status or an
+    interval; every one of those is read, never derived.
+
+    That restraint is the point. A fifteen-vaccine wall of identical cards is
+    unreadable not because any card is wrong but because they all look equally
+    urgent, and the one thing a doctor needs first — *the courses this child is
+    already in the middle of* — is somewhere down the page next to a vaccine
+    due in four years.
+
+      * ``started``  — began and not finished. The next dose is owed.
+      * ``ready``    — never began and the child is old enough now.
+      * ``complete`` — every dose given. Kept, because "did they have it?" is
+                       a question, but collapsed: it is history, not a task.
+      * ``later``    — never began and not yet due. Also collapsed, for the
+                       same reason in the other direction.
+
+    Returns ``[(key, items), …]`` in :data:`PLAN_GROUPS` order, skipping empty
+    shelves so a headed section is never a heading over nothing.
+    """
+    today = today or date.today()
+    shelves = {key: [] for key in PLAN_GROUPS}
+    for item in plan:
+        doses = item.get("doses") or []
+        given = [d for d in doses if d["status"] == "done"]
+        if given:
+            shelves["started" if len(given) < len(doses) else "complete"].append(item)
+        elif any(d["status"] in ("due", "overdue") for d in doses):
+            shelves["ready"].append(item)
+        else:
+            shelves["later"].append(item)
+    return [(key, shelves[key]) for key in PLAN_GROUPS if shelves[key]]
+
+
+# Which shelves open on arrival. History and not-yet-due are both true and
+# both noise at the moment somebody is deciding what to give today.
+OPEN_GROUPS = {"started", "ready"}
+
+
+def certificate_cards(plan):
+    """The certificate as a card per vaccine, not one long list of doses.
+
+    Reported for the certificate: *"a card per vaccine, dose rows with the date
+    and the doctor and the record, a progress bar (1/2, 4/4), and counters at
+    the top — years, types, total."*
+
+    The flat table it replaced was correct and unreadable: forty rows in date
+    order, so the three doses of one vaccine sat pages apart and the only way
+    to answer "has this child finished the pneumococcal course?" was to read
+    the whole page and count. The card carries its own ``2/3``, which is the
+    entire question in two characters.
+
+    Only vaccines with at least one given dose appear — a certificate lists
+    what a child *had*. What they are due is the optional schedule table, and
+    conflating the two is how a certificate comes to imply a child was given
+    something they were not.
+    """
+    cards = []
+    for item in plan:
+        given = [d for d in item["doses"] if d["status"] == "done"]
+        if not given:
+            continue
+        cards.append({
+            "vaccine": item["vaccine"], "brand": item["brand"],
+            "doses": given, "given": len(given), "total": item["total"],
+            "complete": len(given) >= item["total"],
+        })
+    return cards
+
+
+def certificate_totals(cards):
+    """The three counters over the certificate: doses, vaccines, years covered.
+
+    "Years" is the span the record itself covers — first dose to last — and it
+    is deliberately the *record's* span rather than the child's age. A
+    certificate that says "5 years" for a five-year-old with one dose in it
+    would be describing the child while appearing to describe the record.
+    """
+    dates = sorted(d["given_date"] for card in cards for d in card["doses"]
+                   if d["given_date"])
+    years = 0
+    if dates:
+        first, last = date.fromisoformat(dates[0]), date.fromisoformat(dates[-1])
+        # Inclusive: a record beginning and ending in the same year covers one
+        # year, not none.
+        years = last.year - first.year + 1
+    return {
+        "doses": sum(card["given"] for card in cards),
+        "vaccines": len(cards),
+        "years": years,
+        "first": dates[0] if dates else None,
+        "last": dates[-1] if dates else None,
+        "complete": sum(1 for card in cards if card["complete"]),
+    }
 
 
 def plan_summary(plan):

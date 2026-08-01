@@ -956,7 +956,21 @@
     "dose_booster": "Booster dose",
     "course_complete": "Course complete",
     "next_season": "Next season",
-    "interval_warn": "⚠️ This child had a dose of {vaccine} (dose {dose}) on {date} — only {days} day(s) ago, and the minimum interval is {min} days. The dose was recorded; please review it."
+    "interval_warn": "⚠️ This child had a dose of {vaccine} (dose {dose}) on {date} — only {days} day(s) ago, and the minimum interval is {min} days. The dose was recorded; please review it.",
+    "group_started": "Courses started and not finished",
+    "group_started_hint": "The child has had a dose of these; the next one is owed.",
+    "group_ready": "Never started — and due at this age",
+    "group_ready_hint": "Courses that never began, and the child is now old enough.",
+    "group_complete": "Completed courses",
+    "group_complete_hint": "Every dose given. Kept here because \"did they have it?\" is a real question.",
+    "group_later": "Not due yet",
+    "group_later_hint": "Not begun, and the age they start at has not arrived.",
+    "cert_total_doses": "Doses",
+    "cert_total_vaccines": "Vaccines",
+    "cert_total_years": "Years",
+    "cert_span": "Record from {from} to {to}",
+    "cert_doctor_col": "Doctor",
+    "given_elsewhere": "Given elsewhere"
   },
   "vstatus": {
     "done": "Done",
