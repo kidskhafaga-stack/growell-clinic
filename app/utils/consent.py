@@ -84,13 +84,27 @@ def visit_status(visit):
     return {"needed": needed, "missing": missing, "signed": have}
 
 
-def default_guardian(patient):
-    """Who signs on the child's behalf: the primary guardian, if we know one."""
+def default_guardian(patient, lang=None):
+    """Who signs on the child's behalf: the primary guardian, if we know one.
+
+    The name comes from ``display_name(lang)`` and not from ``full_name``.
+    Reading the column directly always gives the Arabic name, while the patient
+    file next to it uses the language-aware version — so the same guardian
+    appeared under two different names on two screens, and one of them ends up
+    on a signed consent. A consent is a document with somebody's name on it;
+    which name it carries is not a formatting detail.
+
+    ``lang`` defaults to the request's language, so callers that have no
+    opinion get the same answer as the rest of the page.
+    """
+    from flask import g
+
     guardian = getattr(patient, "primary_guardian", None) if patient else None
     if guardian is None:
         return {"name": "", "relation": "", "id_no": ""}
+    lang = lang or getattr(g, "lang", "ar")
     return {
-        "name": guardian.full_name or "",
+        "name": guardian.display_name(lang) or "",
         "relation": guardian.relation or "",
         "id_no": getattr(guardian, "national_id", "") or "",
     }
