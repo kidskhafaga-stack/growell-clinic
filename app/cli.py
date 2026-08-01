@@ -68,6 +68,7 @@ def register_commands(app):
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_visit_types_safe()
+        _seed_service_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
         _seed_tills_safe()
@@ -167,6 +168,7 @@ def register_commands(app):
         except Exception:  # noqa: BLE001
             pass
         _seed_visit_types_safe()
+        _seed_service_types_safe()
         _backfill_service_types_safe()
         try:  # every service carries a code (auto-generate for older rows)
             from app.utils.services import backfill_service_codes
@@ -244,6 +246,7 @@ def register_commands(app):
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_visit_types_safe()
+        _seed_service_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
         _seed_tills_safe()
@@ -365,6 +368,7 @@ def register_commands(app):
         _ensure_default_settings()
         _ensure_default_roles()
         _seed_visit_types_safe()
+        _seed_service_types_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
         _seed_tills_safe()
@@ -493,6 +497,16 @@ def _seed_visit_types_safe():
     (idempotent, best-effort)."""
     try:
         from app.utils.visit_types import ensure_seeded
+        ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _seed_service_types_safe():
+    """Seed the editable service-type catalogue from the built-in list
+    (idempotent, best-effort)."""
+    try:
+        from app.utils.service_types import ensure_seeded
         ensure_seeded()
     except Exception:  # noqa: BLE001
         pass

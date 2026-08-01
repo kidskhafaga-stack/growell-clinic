@@ -24,6 +24,19 @@ SERVICE_TYPES = [
     "diagnostic", "session", "product", "other",
 ]
 
+# Icon per built-in type, so a long list stays scannable by shape rather than
+# by reading every row.
+SERVICE_TYPE_ICONS = {
+    "consultation": "bi-clipboard2-pulse",
+    "followup": "bi-arrow-repeat",
+    "procedure": "bi-activity",
+    "vaccination": "bi-shield-plus",
+    "diagnostic": "bi-search-heart",
+    "session": "bi-hourglass-split",
+    "product": "bi-box-seam",
+    "other": "bi-three-dots",
+}
+
 # Map the legacy accounting category to a sensible default service type
 # (used to backfill existing rows).
 _CATEGORY_TO_TYPE = {
@@ -35,6 +48,48 @@ _CATEGORY_TO_TYPE = {
 
 def service_type_for_category(category):
     return _CATEGORY_TO_TYPE.get(category, "other")
+
+
+class ServiceType(db.Model):
+    """Admin-editable catalogue of service types (كشف / إجراء / تطعيم / …).
+
+    Replaces the hardcoded :data:`SERVICE_TYPES` list, which was the literal
+    reason the services screen had "nowhere to add a type". Built-ins are
+    seeded as ``is_system`` rows and their ``key`` never changes, because code
+    reads some of them by name — ``vaccination`` decides which half of an
+    invoice is posted to vaccination revenue in
+    :func:`app.utils.accounting._vaccine_split`. A clinic can rename any of
+    them and add its own.
+
+    Note the deliberate asymmetry with :data:`SERVICE_CATEGORIES`, which stays
+    a fixed list: the *category* carries accounting and billing meaning
+    (``vaccination_fee`` drives the cashier's vaccine lines, and discount
+    scopes match on it), so a clinic inventing one would be inventing a rule
+    nothing implements. The *type* is descriptive and operational, so it is
+    safe to open up.
+    """
+    __tablename__ = "service_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(60))
+    name_en = db.Column(db.String(60))
+    icon = db.Column(db.String(40))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+
+    def display_name(self, lang="ar"):
+        name = self.name_en if lang == "en" else self.name_ar
+        if name:
+            return name
+        # System types fall back to their i18n label; custom types to the key.
+        from app.i18n import t
+        label = t("service_types." + self.key)
+        return label if label != "service_types." + self.key else self.key
+
+    def __repr__(self):
+        return f"<ServiceType {self.key}>"
 
 
 class Service(db.Model):

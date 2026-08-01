@@ -263,9 +263,9 @@ def _apply_service_engine_fields(svc):
     """Read the Service Engine fields (type / cost / duration / flags) off the
     form onto ``svc``. Flags are only applied when the form marks itself as
     Service-Engine-aware (``se=1``) so the simple edit popover doesn't wipe them."""
-    from app.models import SERVICE_TYPES
+    from app.utils.service_types import valid_key
     stype = (request.form.get("service_type") or "").strip()
-    if stype in SERVICE_TYPES:
+    if valid_key(stype):
         svc.service_type = stype
     svc.cost = request.form.get("cost", type=float)
     svc.duration_minutes = request.form.get("duration_minutes", type=int)
@@ -282,6 +282,16 @@ def index():
     return render_template("finance/index.html", services=services)
 
 
+def _service_matches(svc, needle, lang):
+    """Does this service answer the typed text? Name in either language, and
+    the code — which is what somebody reads off a price list."""
+    if not needle:
+        return True
+    haystack = " ".join(filter(None, [
+        svc.name, svc.name_en, svc.code, svc.display_name(lang)])).lower()
+    return all(word in haystack for word in needle.lower().split())
+
+
 @finance_bp.route("/services")
 @module_required(MODULE)
 def services():
@@ -291,19 +301,123 @@ def services():
     if seed_services():
         db.session.commit()
         flash(t("services.auto_seeded"), "info")
-    services = Service.query.order_by(Service.sort_order, Service.name).all()
-    from app.models import ETA_ITEM_TYPES, SERVICE_TYPES, MedicalDevice, StoreItem
+    from app.models import ETA_ITEM_TYPES, MedicalDevice, StoreItem
+    from app.utils import service_types as st
+    st.ensure_seeded()
+
+    every = Service.query.order_by(Service.sort_order, Service.name).all()
+    lang = getattr(g, "lang", "ar")
+    q = (request.args.get("q") or "").strip()
+    f_type = (request.args.get("type") or "").strip()
+    f_cat = (request.args.get("cat") or "").strip()
+    f_status = (request.args.get("status") or "").strip()
+
+    rows = [s for s in every if _service_matches(s, q, lang)]
+    if f_type:
+        rows = [s for s in rows if s.kind == f_type]
+    if f_cat:
+        rows = [s for s in rows if s.category == f_cat]
+    if f_status == "active":
+        rows = [s for s in rows if s.is_active]
+    elif f_status == "inactive":
+        rows = [s for s in rows if not s.is_active]
+
+    # Grouped by type, because a flat list of eighty services is the complaint.
+    order = {row.key: i for i, row in enumerate(st.all_types())}
+    groups = {}
+    for s in rows:
+        groups.setdefault(s.kind, []).append(s)
+    grouped = [(key, st.label(key, lang), st.icon(key), items)
+               for key, items in sorted(groups.items(),
+                                        key=lambda kv: order.get(kv[0], 999))]
+
     devices = (MedicalDevice.query.filter_by(is_active=True)
                .order_by(MedicalDevice.name).all())
     store_items = (StoreItem.query.filter_by(is_active=True)
                    .order_by(StoreItem.name).all())
     return render_template(
-        "finance/services.html", services=services,
+        "finance/services.html", services=every, rows=rows, grouped=grouped,
+        q=q, f_type=f_type, f_cat=f_cat, f_status=f_status,
         categories=SERVICE_CATEGORIES, commission_types=COMMISSION_TYPES,
-        item_types=ETA_ITEM_TYPES, service_types=SERVICE_TYPES, devices=devices,
+        item_types=ETA_ITEM_TYPES, devices=devices,
+        type_rows=st.all_types(), type_choices=st.active_types(),
+        type_usage=st.usage_counts(), type_label=st.label, type_icon=st.icon,
+        type_choices_for=st.choices_for,
         store_items=store_items, doctors=_doctors(),
         appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
     )
+
+
+# ---------------------------------------------------------------- types ----
+def _type_redirect():
+    """Back to the screen with the filters the user was looking at."""
+    return redirect(url_for(
+        "finance.services", q=request.form.get("q") or None,
+        type=request.form.get("type") or None,
+        cat=request.form.get("cat") or None,
+        status=request.form.get("status") or None))
+
+
+@finance_bp.route("/services/types/new", methods=["POST"])
+@module_required(MODULE)
+def service_type_new():
+    """Add a service type — the thing the screen had no room for."""
+    from app.models import ServiceType
+    from app.utils.service_types import ensure_seeded, make_key
+    ensure_seeded()
+
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("services.type_name"), "danger")
+        return _type_redirect()
+    name_en = (request.form.get("name_en") or "").strip() or None
+    key = make_key(name, name_en)
+    last = (db.session.query(db.func.max(ServiceType.sort_order)).scalar() or 0)
+    db.session.add(ServiceType(
+        key=key, name_ar=name, name_en=name_en,
+        icon=(request.form.get("icon") or "").strip() or "bi-tag",
+        sort_order=last + 1, is_active=True, is_system=False))
+    db.session.commit()
+    flash(t("services.type_added"), "success")
+    return _type_redirect()
+
+
+@finance_bp.route("/services/types/save", methods=["POST"])
+@module_required(MODULE)
+def service_types_save():
+    """Rename / re-order / hide the existing types. Keys are never touched —
+    ``vaccination`` is read by the ledger to split vaccination revenue."""
+    from app.models import ServiceType
+    for row in ServiceType.query.all():
+        name = (request.form.get(f"name_{row.id}") or "").strip()
+        row.name_ar = name or None
+        row.name_en = (request.form.get(f"name_en_{row.id}") or "").strip() or None
+        row.icon = (request.form.get(f"icon_{row.id}") or "").strip() or row.icon
+        row.sort_order = request.form.get(f"order_{row.id}", type=int) or 0
+        row.is_active = bool(request.form.get(f"active_{row.id}"))
+    db.session.commit()
+    flash(t("services.types_saved"), "success")
+    return _type_redirect()
+
+
+@finance_bp.route("/services/types/<int:type_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def service_type_delete(type_id):
+    from app.models import ServiceType
+    row = db.get_or_404(ServiceType, type_id)
+    if row.is_system:
+        flash(t("services.type_system"), "warning")
+        return _type_redirect()
+    used = Service.query.filter_by(service_type=row.key).count()
+    if used:
+        # Reassigning silently would move services somewhere nobody chose, and
+        # the person deleting is the one who knows where they belong.
+        flash(t("services.type_in_use").replace("{n}", str(used)), "danger")
+        return _type_redirect()
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("services.type_deleted"), "info")
+    return _type_redirect()
 
 
 @finance_bp.route("/services/visit-types", methods=["POST"])

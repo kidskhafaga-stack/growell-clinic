@@ -11,6 +11,12 @@
   </select>
 {% endmacro %}
 
+{% macro commission_text(s) %}
+  {%- if s.commission_type == 'percent' -%}{{ s.commission_value }}%
+  {%- elif s.commission_type == 'fixed' -%}{{ s.commission_value }}
+  {%- else -%}—{%- endif -%}
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
@@ -21,6 +27,34 @@
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
 </div>
 
+<!-- Search + filters. Typing narrows the list without pressing anything. -->
+<form data-live-search="#gc-results" method="get" class="gc-animate svc-filters">
+  <input class="input" type="search" name="q" value="{{ q or '' }}"
+         placeholder="{{ t('services.search_ph') }}" style="flex:2;min-width:200px;">
+  <select class="select" name="type" style="flex:1;min-width:140px;">
+    <option value="">{{ t('services.all_types') }}</option>
+    {% for row in type_rows %}
+    <option value="{{ row.key }}" {{ 'selected' if f_type == row.key else '' }}>{{ row.display_name(current_lang) }}</option>
+    {% endfor %}
+  </select>
+  <select class="select" name="cat" style="flex:1;min-width:140px;">
+    <option value="">{{ t('services.all_categories') }}</option>
+    {% for c in categories %}
+    <option value="{{ c }}" {{ 'selected' if f_cat == c else '' }}>{{ t('service_categories.' ~ c) }}</option>
+    {% endfor %}
+  </select>
+  <select class="select" name="status" style="flex:1;min-width:120px;">
+    <option value="">{{ t('services.all_statuses') }}</option>
+    <option value="active" {{ 'selected' if f_status == 'active' else '' }}>{{ t('services.only_active') }}</option>
+    <option value="inactive" {{ 'selected' if f_status == 'inactive' else '' }}>{{ t('common.inactive') }}</option>
+  </select>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i></button>
+  {% if q or f_type or f_cat or f_status %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.services') }}">{{ t('services.clear_filters') }}</a>
+  {% endif %}
+</form>
+
+<div class="svc-panels">
 <!-- Add service -->
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('services.add_service') }}</summary>
@@ -30,10 +64,10 @@
     <div class="form-grid">
       <div class="form-row"><label>{{ t('services.name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr"></div>
-      <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" placeholder="EGS / GS1"></div>
+      <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" placeholder="{{ t('services.code_auto') }}"></div>
       <div class="form-row"><label>{{ t('services.service_type') }}</label>
         <select class="select" name="service_type">
-          {% for st in service_types %}<option value="{{ st }}">{{ t('service_types.' ~ st) }}</option>{% endfor %}
+          {% for row in type_choices %}<option value="{{ row.key }}">{{ row.display_name(current_lang) }}</option>{% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('services.category') }}</label>
         <select class="select" name="category">
@@ -66,6 +100,68 @@
   </form>
 </details>
 
+<!-- Service types: the catalogue that used to be eight strings in the code -->
+<details class="card gc-scale-in" style="animation-delay:0.055s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-tags"></i> {{ t('services.manage_types') }}
+    <span class="badge badge--muted">{{ type_rows|length }}</span></summary>
+  <p class="hint" style="margin-top:10px;">{{ t('services.types_hint') }}</p>
+
+  <form method="post" action="{{ url_for('finance.service_types_save') }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <input type="hidden" name="type" value="{{ f_type or '' }}">
+    <input type="hidden" name="cat" value="{{ f_cat or '' }}">
+    <input type="hidden" name="status" value="{{ f_status or '' }}">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:620px;">
+        <thead><tr>
+          <th style="width:70px;">{{ t('services.type_order') }}</th>
+          <th>{{ t('services.type_name') }}</th>
+          <th>{{ t('services.name_en') }}</th>
+          <th style="width:130px;">{{ t('services.type_icon') }}</th>
+          <th style="width:90px;">{{ t('services.type_used') }}</th>
+          <th style="width:90px;">{{ t('services.is_active') }}</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {% for row in type_rows %}
+          <tr>
+            <td><input class="input" type="number" name="order_{{ row.id }}" value="{{ row.sort_order }}" style="width:64px;"></td>
+            <td><input class="input" name="name_{{ row.id }}" value="{{ row.name_ar or row.display_name('ar') }}">
+              {% if row.is_system %}<span class="badge badge--muted" title="{{ t('services.type_system_hint') }}"><i class="bi bi-lock"></i> {{ row.key }}</span>{% endif %}</td>
+            <td><input class="input" name="name_en_{{ row.id }}" dir="ltr" value="{{ row.name_en or '' }}"></td>
+            <td><input class="input" name="icon_{{ row.id }}" dir="ltr" value="{{ row.icon or '' }}" placeholder="bi-tag" style="width:120px;"></td>
+            <td style="text-align:center;">{{ type_usage.get(row.key, 0) }}</td>
+            <td style="text-align:center;"><input type="checkbox" name="active_{{ row.id }}" value="1" {{ 'checked' if row.is_active else '' }}></td>
+            <td style="text-align:end;">
+              {% if not row.is_system %}
+              <button class="btn btn-danger btn-sm gc-press" type="submit" formnovalidate
+                      formaction="{{ url_for('finance.service_type_delete', type_id=row.id) }}"
+                      onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+              {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+
+  <form method="post" action="{{ url_for('finance.service_type_new') }}"
+        style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('services.type_name') }} *</label>
+      <input class="input" name="name" required></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('services.name_en') }}</label>
+      <input class="input" name="name_en" dir="ltr"></div>
+    <div class="form-row" style="margin:0;width:150px;"><label>{{ t('services.type_icon') }}</label>
+      <input class="input" name="icon" dir="ltr" placeholder="bi-tag"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('services.add_type') }}</button>
+  </form>
+</details>
+
 <!-- Visit type -> base-charge service -->
 <details class="card gc-scale-in" style="animation-delay:0.06s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-diagram-3"></i> {{ t('services.visit_type_services') }}</summary>
@@ -88,177 +184,221 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
+</div>
 
-{% if not services %}
-<div class="card"><div class="empty-state"><i class="bi bi-cash-stack"></i>{{ t('services.no_services') }}</div></div>
-{% endif %}
-
-{% for s in services %}
-<div class="card gc-scale-in" style="animation-delay:0.08s;">
-  <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
-    <div>
-      <h3 style="margin:0;">{{ s.display_name(current_lang) }}
-        {% if s.code %}<span class="badge badge--role">{{ s.code }}</span>{% endif %}
-        <span class="badge badge--role">{{ t('service_types.' ~ s.kind) }}</span>
-        <span class="badge badge--muted">{{ t('service_categories.' ~ s.category) }}</span>
-        {% if s.is_bundle %}<span class="badge badge--green"><i class="bi bi-boxes"></i> Bundle</span>{% endif %}
-        {% if not s.is_active %}<span class="badge badge--danger">{{ t('common.inactive') }}</span>{% endif %}
-      </h3>
-      <div style="color:var(--muted);font-size:0.9rem;margin-top:4px;">
-        {{ t('services.price') }}: <strong>{{ s.price }}</strong>
-        {% if s.cost is not none %}· {{ t('services.cost') }}: {{ s.cost }}{% endif %}
-        {% if s.max_discount %}· {{ t('services.max_discount') }}: {{ s.max_discount }}{% endif %}
-        · {{ t('services.commission') }}:
-        {% if s.commission_type == 'none' %}—
-        {% elif s.commission_type == 'percent' %}{{ s.commission_value }}%
-        {% else %}{{ s.commission_value }}{% endif %}
-        {% if s.duration_minutes %}· {{ s.duration_minutes }} {{ t('shifts.minutes') }}{% endif %}
-      </div>
-      <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">
-        {% for f in ['needs_device','needs_report','needs_consumables','needs_booking','needs_approval'] %}
-          {% if s[f] %}<span class="badge badge--muted"><i class="bi bi-dot"></i>{{ t('services.f_' ~ f) }}</span>{% endif %}
-        {% endfor %}
-        {% if not s.can_standalone %}<span class="badge badge--muted">{{ t('services.needs_visit') }}</span>{% endif %}
-        {% if s.device %}<span class="badge badge--role"><i class="bi bi-hdd-stack"></i> {{ s.device.display_name(current_lang) }}</span>{% endif %}
-      </div>
-      <!-- Worked example on the current price -->
-      <div style="margin-top:6px;font-size:0.82rem;">
-        <span class="badge badge--green">{{ t('services.doctor_share') }}: {{ s.doctor_share(s.price) }}</span>
-        <span class="badge badge--role">{{ t('services.clinic_share') }}: {{ s.clinic_share(s.price) }}</span>
-        {% if s.cost is not none %}<span class="badge {{ 'badge--green' if s.profit >= 0 else 'badge--danger' }}">{{ t('services.profit') }}: {{ s.profit }}{% if s.profit_margin is not none %} ({{ s.profit_margin }}%){% endif %}</span>{% endif %}
-        <span style="color:var(--muted);">({{ t('services.example_calc') }})</span>
-      </div>
-    </div>
-    <div style="display:flex;gap:6px;">
-      <!-- Edit -->
-      <details style="position:relative;">
-        <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
-        <form method="post" action="{{ url_for('finance.service_edit', service_id=s.id) }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="se" value="1">
-          <div class="form-row"><label>{{ t('services.name') }}</label><input class="input" name="name" value="{{ s.name }}"></div>
-          <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ s.name_en or '' }}"></div>
-          <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" value="{{ s.code or '' }}" placeholder="EGS / GS1"></div>
-          <div class="form-row"><label>{{ t('services.service_type') }}</label>
-            <select class="select" name="service_type">
-              {% for st in service_types %}<option value="{{ st }}" {{ 'selected' if s.kind==st else '' }}>{{ t('service_types.' ~ st) }}</option>{% endfor %}
-            </select></div>
-          <div class="form-row"><label>{{ t('services.category') }}</label>
-            <select class="select" name="category">
-              {% for c in categories %}<option value="{{ c }}" {{ 'selected' if s.category==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
-            </select></div>
-          <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
-            <select class="select" name="eta_item_type">
-              {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
-            </select></div>
-          <div class="form-row"><label>{{ t('services.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ s.price }}"></div>
-          <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost" value="{{ s.cost if s.cost is not none else '' }}"></div>
-          <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}"></div>
-          <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ s.max_discount or '' }}"></div>
-          <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type', s.commission_type) }}</div>
-          <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value" value="{{ s.commission_value or '' }}"></div>
-          <div class="form-row"><label>{{ t('services.device') }}</label>
-            <select class="select" name="device_id">
-              <option value="">—</option>
-              {% for dv in devices %}<option value="{{ dv.id }}" {{ 'selected' if s.device_id==dv.id else '' }}>{{ dv.display_name(current_lang) }}</option>{% endfor %}
-            </select></div>
-          <div style="font-weight:600;color:var(--muted);font-size:.78rem;margin:6px 0 3px;">{{ t('services.workflow') }}</div>
-          {% for f in ['needs_doctor','needs_device','needs_report','needs_consumables','needs_booking','needs_approval','can_standalone','can_add_during_visit'] %}
-          <label class="checkbox" style="font-weight:400;display:block;"><input type="checkbox" name="{{ f }}" value="1" {{ 'checked' if s[f] else '' }}> {{ t('services.f_' ~ f) }}</label>
-          {% endfor %}
-          <div class="form-row checkbox" style="margin-top:6px;"><input type="checkbox" id="active_{{ s.id }}" name="is_active" value="1" {{ 'checked' if s.is_active else '' }}>
-            <label for="active_{{ s.id }}" style="margin:0;font-weight:400;">{{ t('services.is_active') }}</label></div>
-          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-        </form>
-      </details>
-      <form method="post" action="{{ url_for('finance.service_delete', service_id=s.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
-      </form>
-    </div>
+<div id="gc-results">
+  <div class="gc-animate" style="color:var(--muted);font-size:.85rem;margin-bottom:8px;">
+    {{ t('services.showing').replace('{n}', rows|length|string).replace('{total}', services|length|string) }}
   </div>
 
-  <!-- Per-doctor commission overrides -->
-  {% if doctors %}
-  <details style="margin-top:12px;">
-    <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-people"></i> {{ t('services.per_doctor') }}</summary>
-    <form method="post" action="{{ url_for('finance.service_commissions', service_id=s.id) }}" style="margin-top:10px;">
+  {% if not rows %}
+  <div class="card"><div class="empty-state"><i class="bi bi-cash-stack"></i>
+    {{ t('services.no_matches') if services else t('services.no_services') }}</div></div>
+  {% endif %}
+
+  {% for key, label, icon, items in grouped %}
+  <div class="card gc-scale-in svc-group" style="padding:0;overflow:hidden;">
+    <div class="svc-group-head">
+      <i class="bi {{ icon }}"></i> <strong>{{ label }}</strong>
+      <span class="badge badge--muted">{{ items|length }}</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table svc-table" style="min-width:760px;">
+        <thead><tr>
+          <th>{{ t('services.name') }}</th>
+          <th>{{ t('services.category') }}</th>
+          <th style="text-align:end;">{{ t('services.price') }}</th>
+          <th style="text-align:end;">{{ t('services.cost') }}</th>
+          <th style="text-align:end;">{{ t('services.commission') }}</th>
+          <th style="text-align:end;">{{ t('services.profit') }}</th>
+          <th>{{ t('services.workflow') }}</th>
+          <th style="width:96px;"></th>
+        </tr></thead>
+        {% for s in items %}
+        <tbody x-data="{ open: false }">
+          <tr {% if not s.is_active %}style="opacity:.55;"{% endif %}>
+            <td>
+              <strong>{{ s.display_name(current_lang) }}</strong>
+              {% if s.is_bundle %}<i class="bi bi-boxes" title="{{ t('services.is_bundle') }}"></i>{% endif %}
+              {% if not s.is_active %}<span class="badge badge--danger">{{ t('common.inactive') }}</span>{% endif %}
+              {% if s.code %}<div class="num" dir="ltr" style="color:var(--muted);font-size:.78rem;">{{ s.code }}</div>{% endif %}
+            </td>
+            <td><span class="badge badge--muted">{{ t('service_categories.' ~ s.category) }}</span></td>
+            <td style="text-align:end;font-weight:600;">{{ s.price }}</td>
+            <td style="text-align:end;color:var(--muted);">{{ s.cost if s.cost is not none else '—' }}</td>
+            <td style="text-align:end;">{{ commission_text(s) }}</td>
+            <td style="text-align:end;">
+              {% if s.cost is not none %}
+                <span style="color:{{ 'var(--danger)' if s.profit < 0 else 'inherit' }};">{{ s.profit }}</span>
+                {% if s.profit_margin is not none %}<span style="color:var(--muted);font-size:.78rem;"> ({{ s.profit_margin }}%)</span>{% endif %}
+              {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+            </td>
+            <td>
+              {% for f in ['needs_device','needs_report','needs_consumables','needs_booking','needs_approval'] %}
+                {% if s[f] %}<span class="badge badge--muted">{{ t('services.f_' ~ f) }}</span>{% endif %}
+              {% endfor %}
+              {% if not s.can_standalone %}<span class="badge badge--muted">{{ t('services.needs_visit') }}</span>{% endif %}
+              {% if s.device %}<span class="badge badge--role"><i class="bi bi-hdd-stack"></i> {{ s.device.display_name(current_lang) }}</span>{% endif %}
+              {% if s.duration_minutes %}<span class="badge badge--muted">{{ s.duration_minutes }} {{ t('shifts.minutes') }}</span>{% endif %}
+            </td>
+            <td style="text-align:end;white-space:nowrap;">
+              <button type="button" class="btn btn-outline btn-sm gc-press" @click="open = !open"
+                      :aria-expanded="open ? 'true' : 'false'" title="{{ t('common.edit') }}">
+                <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-pencil'"></i></button>
+              <form method="post" action="{{ url_for('finance.service_delete', service_id=s.id) }}"
+                    style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <p class="hint">{{ t('services.override_hint') }} · {{ t('services.price_override_hint') }}</p>
-      {% set overrides = {} %}
-      {% for oc in s.doctor_commissions %}{% set _ = overrides.update({oc.doctor_id: oc}) %}{% endfor %}
-      <table class="table">
-        <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('services.price') }}</th><th>{{ t('services.commission_type') }}</th><th>{{ t('services.commission_value') }}</th></tr></thead>
-        <tbody>
-          {% for d in doctors %}
-          {% set oc = overrides.get(d.id) %}
-          <tr>
-            <td>{{ d.display_name(current_lang) }}</td>
-            <td><input class="input" type="number" step="0.01" name="price_{{ d.id }}"
-                       value="{{ oc.price_override if oc and oc.price_override is not none else '' }}"
-                       placeholder="{{ s.price }}"></td>
-            <td>{{ commission_select('type_' ~ d.id, oc.commission_type if oc else 'none') }}</td>
-            <td><input class="input" type="number" step="0.01" name="value_{{ d.id }}" value="{{ oc.commission_value if oc and oc.commission_value else '' }}"></td>
+                <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
           </tr>
-          {% endfor %}
+
+          <!-- The editor, opened in place: full width instead of a popover
+               that a scrolling table would clip. -->
+          <tr x-show="open" x-cloak>
+            <td colspan="8" class="svc-editor">
+              <form method="post" action="{{ url_for('finance.service_edit', service_id=s.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="se" value="1">
+                <div class="form-grid">
+                  <div class="form-row"><label>{{ t('services.name') }}</label><input class="input" name="name" value="{{ s.name }}"></div>
+                  <div class="form-row"><label>{{ t('services.name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ s.name_en or '' }}"></div>
+                  <div class="form-row"><label>{{ t('services.code') }}</label><input class="input" name="code" dir="ltr" value="{{ s.code or '' }}"></div>
+                  <div class="form-row"><label>{{ t('services.service_type') }}</label>
+                    <select class="select" name="service_type">
+                      {% for row in type_choices_for(s) %}<option value="{{ row.key }}" {{ 'selected' if s.kind == row.key else '' }}>{{ row.display_name(current_lang) }}</option>{% endfor %}
+                    </select></div>
+                  <div class="form-row"><label>{{ t('services.category') }}</label>
+                    <select class="select" name="category">
+                      {% for c in categories %}<option value="{{ c }}" {{ 'selected' if s.category==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
+                    </select>
+                    <span class="hint">{{ t('services.category_hint') }}</span></div>
+                  <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
+                    <select class="select" name="eta_item_type">
+                      {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
+                    </select></div>
+                  <div class="form-row"><label>{{ t('services.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ s.price }}"></div>
+                  <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost" value="{{ s.cost if s.cost is not none else '' }}"></div>
+                  <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}"></div>
+                  <div class="form-row"><label>{{ t('services.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ s.max_discount or '' }}"></div>
+                  <div class="form-row"><label>{{ t('services.commission_type') }}</label>{{ commission_select('commission_type', s.commission_type) }}</div>
+                  <div class="form-row"><label>{{ t('services.commission_value') }}</label><input class="input" type="number" step="0.01" name="commission_value" value="{{ s.commission_value or '' }}"></div>
+                  <div class="form-row"><label>{{ t('services.device') }}</label>
+                    <select class="select" name="device_id">
+                      <option value="">—</option>
+                      {% for dv in devices %}<option value="{{ dv.id }}" {{ 'selected' if s.device_id==dv.id else '' }}>{{ dv.display_name(current_lang) }}</option>{% endfor %}
+                    </select></div>
+                </div>
+                <div style="font-weight:600;color:var(--muted);font-size:.78rem;margin:8px 0 4px;">{{ t('services.workflow') }}</div>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                  {% for f in ['needs_doctor','needs_device','needs_report','needs_consumables','needs_booking','needs_approval','can_standalone','can_add_during_visit'] %}
+                  <label class="checkbox" style="font-weight:400;"><input type="checkbox" name="{{ f }}" value="1" {{ 'checked' if s[f] else '' }}> {{ t('services.f_' ~ f) }}</label>
+                  {% endfor %}
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;">
+                  <label class="checkbox" style="font-weight:400;margin:0;"><input type="checkbox" name="is_active" value="1" {{ 'checked' if s.is_active else '' }}> {{ t('services.is_active') }}</label>
+                  <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+                  <span style="color:var(--muted);font-size:.8rem;">
+                    {{ t('services.doctor_share') }}: {{ s.doctor_share(s.price) }} ·
+                    {{ t('services.clinic_share') }}: {{ s.clinic_share(s.price) }}
+                    ({{ t('services.example_calc') }})</span>
+                </div>
+              </form>
+
+              <!-- Per-doctor commission overrides -->
+              {% if doctors %}
+              <details style="margin-top:12px;">
+                <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-people"></i> {{ t('services.per_doctor') }}</summary>
+                <form method="post" action="{{ url_for('finance.service_commissions', service_id=s.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <p class="hint">{{ t('services.override_hint') }} · {{ t('services.price_override_hint') }}</p>
+                  {% set overrides = {} %}
+                  {% for oc in s.doctor_commissions %}{% set _ = overrides.update({oc.doctor_id: oc}) %}{% endfor %}
+                  <table class="table">
+                    <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('services.price') }}</th><th>{{ t('services.commission_type') }}</th><th>{{ t('services.commission_value') }}</th></tr></thead>
+                    <tbody>
+                      {% for d in doctors %}
+                      {% set oc = overrides.get(d.id) %}
+                      <tr>
+                        <td>{{ d.display_name(current_lang) }}</td>
+                        <td><input class="input" type="number" step="0.01" name="price_{{ d.id }}"
+                                   value="{{ oc.price_override if oc and oc.price_override is not none else '' }}"
+                                   placeholder="{{ s.price }}"></td>
+                        <td>{{ commission_select('type_' ~ d.id, oc.commission_type if oc else 'none') }}</td>
+                        <td><input class="input" type="number" step="0.01" name="value_{{ d.id }}" value="{{ oc.commission_value if oc and oc.commission_value else '' }}"></td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+                </form>
+              </details>
+              {% endif %}
+
+              <!-- Bundle builder -->
+              {% if s.is_bundle %}
+              <details style="margin-top:10px;">
+                <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-boxes"></i> {{ t('services.bundle') }}</summary>
+                <form method="post" action="{{ url_for('finance.service_bundle', service_id=s.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% set included = s.bundle_items|map(attribute='component_id')|list %}
+                  <p class="hint">{{ t('services.bundle_components') }} · {{ t('services.bundle_sum') }}: <strong>{{ s.bundle_price }}</strong></p>
+                  <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;">
+                    {% for other in services if other.id != s.id and not other.is_bundle %}
+                    <label class="form-row checkbox" style="margin:0;">
+                      <input type="checkbox" name="component_id" value="{{ other.id }}" {{ 'checked' if other.id in included else '' }}>
+                      <span style="font-weight:400;">{{ other.display_name(current_lang) }} <span style="color:var(--muted);">({{ other.price }})</span></span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;">{{ t('common.save') }}</button>
+                </form>
+              </details>
+              {% endif %}
+
+              <!-- Consumables (auto-deducted on delivery) -->
+              {% if store_items %}
+              <details style="margin-top:10px;">
+                <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-box-seam"></i> {{ t('services.consumables') }}{% if s.consumables %} ({{ s.consumables|length }}){% endif %}</summary>
+                <form method="post" action="{{ url_for('finance.service_consumables', service_id=s.id) }}" style="margin-top:10px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <p class="hint">{{ t('services.consumables_hint') }}</p>
+                  {% set picked = {} %}
+                  {% for c in s.consumables %}{% set _ = picked.update({c.store_item_id: c.quantity}) %}{% endfor %}
+                  <div style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto;">
+                    {% for it in store_items %}
+                    <label class="form-row" style="margin:0;display:flex;align-items:center;gap:8px;">
+                      <input type="checkbox" name="item_id" value="{{ it.id }}" {{ 'checked' if it.id in picked else '' }}>
+                      <span style="flex:1;font-weight:400;">{{ it.display_name(current_lang) }} <span style="color:var(--muted);">({{ t('inventory.stock') }}: {{ it.current_stock }}{% if it.unit %} {{ it.unit }}{% endif %})</span></span>
+                      <input class="input" type="number" min="1" name="qty_{{ it.id }}" value="{{ picked.get(it.id, 1) }}" style="width:70px;" title="{{ t('services.qty_per_service') }}">
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;">{{ t('common.save') }}</button>
+                </form>
+              </details>
+              {% endif %}
+            </td>
+          </tr>
         </tbody>
+        {% endfor %}
       </table>
-      <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-    </form>
-  </details>
-  {% endif %}
-
-  <!-- Bundle builder -->
-  {% if s.is_bundle %}
-  <details style="margin-top:10px;">
-    <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-boxes"></i> {{ t('services.bundle') }}</summary>
-    <form method="post" action="{{ url_for('finance.service_bundle', service_id=s.id) }}" style="margin-top:10px;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% set included = s.bundle_items|map(attribute='component_id')|list %}
-      <p class="hint">{{ t('services.bundle_components') }} · {{ t('services.bundle_sum') }}: <strong>{{ s.bundle_price }}</strong></p>
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;">
-        {% for other in services if other.id != s.id and not other.is_bundle %}
-        <label class="form-row checkbox" style="margin:0;">
-          <input type="checkbox" name="component_id" value="{{ other.id }}" {{ 'checked' if other.id in included else '' }}>
-          <span style="font-weight:400;">{{ other.display_name(current_lang) }} <span style="color:var(--muted);">({{ other.price }})</span></span>
-        </label>
-        {% endfor %}
-      </div>
-      <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;">{{ t('common.save') }}</button>
-    </form>
-  </details>
-  {% endif %}
-
-  <!-- Consumables (auto-deducted on delivery) -->
-  {% if store_items %}
-  <details style="margin-top:10px;" {{ 'open' if s.consumables else '' }}>
-    <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;align-self:flex-start;"><i class="bi bi-box-seam"></i> {{ t('services.consumables') }}{% if s.consumables %} ({{ s.consumables|length }}){% endif %}</summary>
-    <form method="post" action="{{ url_for('finance.service_consumables', service_id=s.id) }}" style="margin-top:10px;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <p class="hint">{{ t('services.consumables_hint') }}</p>
-      {% set picked = {} %}
-      {% for c in s.consumables %}{% set _ = picked.update({c.store_item_id: c.quantity}) %}{% endfor %}
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto;">
-        {% for it in store_items %}
-        <label class="form-row" style="margin:0;display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" name="item_id" value="{{ it.id }}" {{ 'checked' if it.id in picked else '' }}>
-          <span style="flex:1;font-weight:400;">{{ it.display_name(current_lang) }} <span style="color:var(--muted);">({{ t('inventory.stock') }}: {{ it.current_stock }}{% if it.unit %} {{ it.unit }}{% endif %})</span></span>
-          <input class="input" type="number" min="1" name="qty_{{ it.id }}" value="{{ picked.get(it.id, 1) }}" style="width:70px;" title="{{ t('services.qty_per_service') }}">
-        </label>
-        {% endfor %}
-      </div>
-      <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;">{{ t('common.save') }}</button>
-    </form>
-  </details>
-  {% endif %}
+    </div>
+  </div>
+  {% endfor %}
 </div>
-{% endfor %}
 {% endblock %}
 
 {% block head %}
 <style>
+  [x-cloak] { display: none !important; }
   details > summary { margin-bottom: 4px; }
-  .popform { position:absolute; z-index:30; inset-inline-end:0; margin-top:6px;
-    background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; }
+  .svc-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .svc-panels > details { margin-bottom: 12px; }
+  .svc-group { margin-bottom: 14px; }
+  .svc-group-head { display:flex; align-items:center; gap:8px; padding:10px 14px;
+    background:var(--surface-2, rgba(0,0,0,.03)); border-bottom:1px solid var(--line); }
+  .svc-table td, .svc-table th { vertical-align: middle; }
+  .svc-editor { background: var(--surface-2, rgba(0,0,0,.03)); padding: 14px !important; }
 </style>
 {% endblock %}
