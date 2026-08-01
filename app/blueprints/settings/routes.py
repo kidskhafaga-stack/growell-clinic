@@ -409,10 +409,14 @@ def data_tools():
     # Whether a passphrase is set — never the passphrase itself. A screen that
     # prints it back has undone the point of keeping it out of the database.
     bset["encrypted"] = bool(backup_password())
-    from app.utils.export import DATASETS, dataset_count
-    exports = [{"kind": k, "count": dataset_count(k)} for k in DATASETS]
+    from app.utils.export import datasets_for, parse_date
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
     return render_template("settings/data.html", stats=stats,
-                           backups=list_backups(), bset=bset, exports=exports)
+                           backups=list_backups(), bset=bset,
+                           exports=datasets_for(start, end),
+                           ex_from=request.args.get("from", ""),
+                           ex_to=request.args.get("to", ""))
 
 
 @settings_bp.route("/data/export/<kind>")
@@ -423,12 +427,20 @@ def data_export(kind):
     from app.models import ActivityLog
     from app.utils.export import export_response
 
-    resp = export_response(kind, (request.args.get("fmt") or "csv").lower())
+    from app.utils.export import parse_date
+
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    resp = export_response(kind, (request.args.get("fmt") or "csv").lower(),
+                           start=start, end=end)
     if resp is None:
         flash(t("common.not_found"), "warning")
         return redirect(url_for("settings.data_tools"))
+    # The range goes in the audit line too: "somebody exported the invoices" and
+    # "somebody exported March" are different events to be reading about later.
+    span = f"{start or '-'}..{end or '-'}"
     ActivityLog.record("data.export", user_id=current_user.id, entity="export",
-                       detail=kind, ip_address=client_ip())
+                       detail=f"{kind} {span}", ip_address=client_ip())
     db.session.commit()
     return resp
 

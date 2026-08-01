@@ -3329,7 +3329,19 @@
     "kind_patients": "المرضى",
     "kind_invoices": "الفواتير",
     "kind_appointments": "المواعيد",
-    "kind_vaccinations": "التطعيمات"
+    "kind_vaccinations": "التطعيمات",
+    "from": "من تاريخ",
+    "to": "إلى تاريخ",
+    "apply": "طبّق",
+    "whole_history": "كل السجل",
+    "dataset": "البيانات",
+    "date_column": "التاريخ المعتمد",
+    "rows": "عدد الصفوف",
+    "range_note": "الأعداد والملفات دي للمدة المختارة بس، واليوم الأخير محسوب.",
+    "no_range_note": "من غير مدة بيتصدّر السجل كله — حدّد مدة لو عايز شهر معيّن.",
+    "kind_visits": "الزيارات",
+    "kind_payments": "التحصيل والمرتجع",
+    "kind_expenses": "المصروفات"
   },
   "trial": {
     "title": "ميزان المراجعة",

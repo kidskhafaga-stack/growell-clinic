@@ -24,20 +24,54 @@
 <!-- Data export (raw records → CSV / Excel) -->
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin:0;"><i class="bi bi-filetype-csv"></i> {{ t('data_export.title') }}</h2>
-  <p class="hint" style="margin:6px 0 14px;">{{ t('data_export.hint') }}</p>
-  <div class="grid grid--cards">
-    {% for ex in exports %}
-    <div class="window-pill" style="justify-content:space-between;width:100%;border-radius:12px;padding:12px 14px;">
-      <span><strong>{{ t('data_export.kind_' ~ ex.kind) }}</strong>
-        <span class="badge badge--muted">{{ ex.count }}</span></span>
-      <span style="display:flex;gap:6px;">
-        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.data_export', kind=ex.kind, fmt='csv') }}">
-          <i class="bi bi-filetype-csv"></i> CSV</a>
-        <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.data_export', kind=ex.kind, fmt='xlsx') }}">
-          <i class="bi bi-filetype-xlsx"></i> Excel</a>
-      </span>
-    </div>
-    {% endfor %}
+  <p class="hint" style="margin:6px 0 12px;">{{ t('data_export.hint') }}</p>
+
+  <!-- The range. Without it the only export on offer is everything ever. -->
+  <form method="get" class="gc-animate exp-range">
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('data_export.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ ex_from }}"></div>
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('data_export.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ ex_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-funnel"></i> {{ t('data_export.apply') }}</button>
+    {% if ex_from or ex_to %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
+      {{ t('data_export.whole_history') }}</a>
+    {% endif %}
+    <span class="hint" style="margin:0;">
+      {{ t('data_export.range_note') if (ex_from or ex_to) else t('data_export.no_range_note') }}</span>
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr>
+        <th>{{ t('data_export.dataset') }}</th>
+        <th>{{ t('data_export.date_column') }}</th>
+        <th style="text-align:end;">{{ t('data_export.rows') }}</th>
+        <th style="width:190px;"></th>
+      </tr></thead>
+      <tbody>
+        {% for ex in exports %}
+        <tr>
+          <td><strong>{{ t('data_export.kind_' ~ ex.kind) }}</strong></td>
+          <td class="num" dir="ltr" style="color:var(--muted);font-size:.82rem;">{{ ex.date_field }}</td>
+          <td style="text-align:end;">
+            {% if ex.count %}<strong>{{ ex.count }}</strong>
+            {% else %}<span style="color:var(--muted);">0</span>{% endif %}</td>
+          <td style="text-align:end;white-space:nowrap;">
+            <a class="btn btn-outline btn-sm gc-press {{ 'is-disabled' if not ex.count }}"
+               href="{{ url_for('settings.data_export', kind=ex.kind, fmt='csv', **{'from': ex_from, 'to': ex_to}) }}">
+              <i class="bi bi-filetype-csv"></i> CSV</a>
+            <a class="btn btn-outline btn-sm gc-press {{ 'is-disabled' if not ex.count }}"
+               href="{{ url_for('settings.data_export', kind=ex.kind, fmt='xlsx', **{'from': ex_from, 'to': ex_to}) }}">
+              <i class="bi bi-filetype-xlsx"></i> Excel</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -211,4 +245,11 @@
   </form>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+  .exp-range { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:14px; }
+  .is-disabled { opacity:.45; pointer-events:none; }
+</style>
 {% endblock %}

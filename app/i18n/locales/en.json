@@ -3329,7 +3329,19 @@
     "kind_patients": "Patients",
     "kind_invoices": "Invoices",
     "kind_appointments": "Appointments",
-    "kind_vaccinations": "Vaccinations"
+    "kind_vaccinations": "Vaccinations",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "whole_history": "Whole history",
+    "dataset": "Dataset",
+    "date_column": "Date used",
+    "rows": "Rows",
+    "range_note": "These counts and files cover the chosen range only; the last day is included.",
+    "no_range_note": "With no range the whole history is exported — set one for a single month.",
+    "kind_visits": "Visits",
+    "kind_payments": "Payments and refunds",
+    "kind_expenses": "Expenses"
   },
   "trial": {
     "title": "Trial balance",
