@@ -16,15 +16,19 @@ echo    GROWELL CLINIC  ^|  PediaPro
 echo ============================================================
 echo.
 
-REM --- 0) Pull the latest version if online (safe to skip offline) ---
-where git >nul 2>nul
-if not errorlevel 1 (
-  if exist ".git" (
-    echo [0/5] Checking for updates...
-    git pull --ff-only
-    if errorlevel 1 echo      ^(skipped update - offline or local changes; continuing^)
-  )
-)
+REM --- 0) Updates are NOT applied here, on purpose ---
+REM
+REM This used to run "git pull --ff-only" on every launch, which made every
+REM start of the program an unplanned update: no snapshot taken first, no
+REM schema upgrade after, and landing in the middle of a working day. If the
+REM new code needed a column the database did not have yet, the clinic found
+REM out with patients in the waiting room.
+REM
+REM Updating is now a decision somebody makes, with a backup before it and a
+REM schema upgrade after it:
+REM
+REM     update.bat
+REM
 
 REM --- 1) Ensure Python is available ---
 where python >nul 2>nul
