@@ -2,7 +2,8 @@
 import os
 import uuid
 
-from flask import current_app, flash, redirect, render_template, request, url_for
+from flask import (current_app, flash, g, redirect, render_template, request,
+                   url_for)
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 
@@ -236,6 +237,17 @@ def visit_types():
                            colors=VISIT_TYPE_COLORS)
 
 
+def _device_matches(dev, needle, lang):
+    """Name in either language, plus the maker, model and serial — a device is
+    usually looked for by the label on its side, not by what we called it."""
+    if not needle:
+        return True
+    haystack = " ".join(filter(None, [
+        dev.name, dev.name_en, dev.manufacturer, dev.model, dev.serial_number,
+        dev.display_name(lang)])).lower()
+    return all(word in haystack for word in needle.lower().split())
+
+
 @settings_bp.route("/devices", methods=["GET", "POST"])
 @admin_required
 def devices():
@@ -303,9 +315,27 @@ def devices():
         flash(t("devices.saved"), "success")
         return redirect(url_for("settings.devices"))
 
+    every = (MedicalDevice.query
+             .order_by(MedicalDevice.device_type, MedicalDevice.name).all())
+    lang = getattr(g, "lang", "ar")
+    q = (request.args.get("q") or "").strip()
+    f_type = (request.args.get("type") or "").strip()
+    f_conn = (request.args.get("conn") or "").strip()
+    f_status = (request.args.get("status") or "").strip()
+
+    rows = [d for d in every if _device_matches(d, q, lang)]
+    if f_type:
+        rows = [d for d in rows if d.device_type == f_type]
+    if f_conn:
+        rows = [d for d in rows if d.connection_type == f_conn]
+    if f_status == "active":
+        rows = [d for d in rows if d.is_active]
+    elif f_status == "inactive":
+        rows = [d for d in rows if not d.is_active]
+
     return render_template(
-        "settings/devices.html",
-        devices=MedicalDevice.query.order_by(MedicalDevice.device_type, MedicalDevice.name).all(),
+        "settings/devices.html", devices=every, rows=rows,
+        q=q, f_type=f_type, f_conn=f_conn, f_status=f_status,
         device_types=DEVICE_TYPES, connection_types=CONNECTION_TYPES,
         import_modes=IMPORT_MODES)
 
