@@ -26,6 +26,7 @@
 </div>
 
 <!-- Shift (وردية) — the natural collection session -->
+<span id="shift"></span>
 <div class="card gc-scale-in no-print" style="margin-bottom:16px;border-inline-start:4px solid var(--primary,#2563eb);">
   {% if open_shift %}
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
@@ -205,8 +206,11 @@
         <td style="color:var(--muted);">{{ e['items']|join(' · ') }}</td>
         <td style="text-align:end;font-weight:700;color:var(--danger);">{{ e.total|money }}</td>
         <td style="text-align:end;">
-          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('finance.invoice_new', patient_id=e.patient.id) }}">
-            <i class="bi bi-receipt"></i> {{ t('cashier.collect_now') }}</a>
+          {# The checkout, not the invoice builder. This used to open a screen
+             with a patient dropdown to pick from and no payment section at
+             all — with the family standing at the desk. #}
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('finance.collect', patient_id=e.patient.id) }}">
+            <i class="bi bi-cash-coin"></i> {{ t('cashier.collect_now') }}</a>
         </td>
       </tr>
       {% endfor %}

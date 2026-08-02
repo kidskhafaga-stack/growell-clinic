@@ -2899,7 +2899,8 @@
     "tendered": "Cash received",
     "change_due": "Change due",
     "change_hint": "Give the change back before the patient leaves — it does not stay in the drawer.",
-    "pay_later_hint": "\"Collect later\" = credit: the invoice stays open with a balance the cashier settles later."
+    "pay_later_hint": "\"Collect later\" = credit: the invoice stays open with a balance the cashier settles later.",
+    "shift_needed_hint": "The form works — but collecting cash needs an open shift, and it is better to open it now than after filling this in."
   },
   "report": {
     "title": "Comprehensive medical report",
