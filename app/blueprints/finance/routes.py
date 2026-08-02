@@ -669,18 +669,203 @@ def _deduct_service_consumables(item, invoice):
 @finance_bp.route("/invoices")
 @cashier_access
 def invoices():
-    status = (request.args.get("status") or "").strip()
-    q = Invoice.query
-    if status in ("unpaid", "partial", "paid"):
-        q = q.filter_by(status=status)
+    """Every invoice, findable.
+
+    It was a status filter and a page number — so finding one bill meant
+    knowing roughly how long ago it was and paging back to it. An accountant
+    reviewing a month, or reception looking up "the Sharif family, some time
+    last week", had nothing to type into.
+    """
     from sqlalchemy.orm import selectinload
 
     pagination = paginate(
-        q.options(selectinload(Invoice.items), selectinload(Invoice.payments),
-                  selectinload(Invoice.patient))
+        _filtered_invoices()
+        .options(selectinload(Invoice.items), selectinload(Invoice.payments),
+                 selectinload(Invoice.patient))
         .order_by(Invoice.id.desc()))
-    return render_template("finance/invoices.html", pagination=pagination,
-                           invoices=pagination.items, status=status)
+    rows = pagination.items
+    return render_template(
+        "finance/invoices.html", pagination=pagination, invoices=rows,
+        status=(request.args.get("status") or "").strip(),
+        doctors=_doctors_active(),
+        f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
+        f_q=(request.args.get("q") or "").strip(),
+        f_doctor=request.args.get("doctor_id", type=int),
+        # What the filtered set adds up to. A list of money whose total you
+        # have to add up yourself is a list you cannot check a handover with.
+        sums={"billed": round(sum(i.total for i in rows), 2),
+              "collected": round(sum(i.paid for i in rows), 2),
+              "outstanding": round(sum(i.balance for i in rows), 2)})
+
+
+def _line_state(item):
+    """A one-line description of a charge, for comparing before with after."""
+    disc = ""
+    if (item.discount_value or 0) > 0:
+        disc = f" −{item.discount_value}{'%' if item.discount_is_percent else ''}"
+    return f"{item.description} × {item.quantity} @ {item.unit_price}{disc}"
+
+
+def _log_invoice_change(invoice, what, detail):
+    """Record who changed a bill, when, and to what.
+
+    An invoice can be corrected while its period is open — that is deliberate,
+    because the alternative is a clinic that cannot fix a typo without
+    reopening the books. What makes it safe rather than merely convenient is
+    that the correction is not silent: the accountant reviewing the month can
+    see that this bill was 350 and is now 300, who did it and when, and go and
+    ask. Without the record, "editable while open" is just an unlogged way to
+    change money after the fact.
+
+    The invoice number is in the detail as well as the id, because ids mean
+    nothing on a printed audit list.
+    """
+    ActivityLog.record(f"invoice.{what}", user_id=current_user.id,
+                       entity="invoice", entity_id=invoice.id,
+                       detail=f"{invoice.invoice_number}: {detail}"[:400],
+                       ip_address=client_ip())
+
+
+def invoice_history(invoice_id):
+    """Everything that has been done to this bill, newest first."""
+    from app.models import ActivityLog as _Log
+
+    return (_Log.query
+            .filter(_Log.entity == "invoice", _Log.entity_id == invoice_id)
+            .order_by(_Log.id.desc()).limit(50).all())
+
+
+def _filtered_invoices():
+    """The invoice query the screen's filters describe.
+
+    One function, so the list and its export cannot drift into disagreeing
+    about what "this month, unpaid, Dr Sara" means. An export with its own idea
+    of the range is an export nobody can reconcile against the screen they were
+    looking at when they pressed the button.
+    """
+    from app.utils.export import parse_date
+
+    query = Invoice.query
+    status = (request.args.get("status") or "").strip()
+    if status in ("unpaid", "partial", "paid"):
+        query = query.filter(Invoice.status == status)
+
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    if start:
+        query = query.filter(Invoice.invoice_date >= start)
+    if end:
+        query = query.filter(Invoice.invoice_date <= end)
+
+    doctor_id = request.args.get("doctor_id", type=int)
+    if doctor_id:
+        query = query.filter(Invoice.doctor_id == doctor_id)
+
+    # One box for the three things somebody actually remembers: the invoice
+    # number, the patient's name, or their file number.
+    needle = (request.args.get("q") or "").strip()
+    if needle:
+        like = f"%{needle}%"
+        query = (query.outerjoin(Patient, Invoice.patient_id == Patient.id)
+                 .filter(db.or_(Invoice.invoice_number.ilike(like),
+                                Patient.full_name.ilike(like),
+                                Patient.full_name_en.ilike(like),
+                                Patient.patient_number.ilike(like))))
+    return query
+
+
+TAX_EXPORT_HEADERS = [
+    "invoice_no", "date", "patient", "patient_no", "tax_id", "doctor",
+    "gross", "discount", "net", "paid", "balance", "status", "issued_by",
+]
+
+
+def _tax_rows(invoices):
+    """One row per invoice, shaped for the tax-invoice queue.
+
+    Gross, discount and net are separate columns rather than one total: a tax
+    filing wants the discount stated, and an export that has already subtracted
+    it cannot be checked against the paper the family was given.
+    """
+    for inv in invoices:
+        patient = inv.patient
+        gross = round(sum(i.gross for i in inv.items), 2)
+        net = round(inv.total, 2)
+        yield {
+            "invoice_no": inv.invoice_number,
+            "date": inv.invoice_date.isoformat() if inv.invoice_date else "",
+            "patient": patient.full_name if patient else "",
+            "patient_no": patient.patient_number if patient else "",
+            "tax_id": (getattr(patient, "national_id", "") or "") if patient else "",
+            "doctor": inv.doctor.full_name if inv.doctor else "",
+            "gross": gross,
+            "discount": round(gross - net, 2),
+            "net": net,
+            "paid": round(inv.paid, 2),
+            "balance": round(inv.balance, 2),
+            "status": inv.status,
+            "issued_by": inv.creator.full_name if inv.creator else "",
+        }
+
+
+@finance_bp.route("/invoices/export")
+@module_required(MODULE)
+def invoices_export():
+    """Download the invoices *currently filtered on screen*.
+
+    Built from the same query the list runs, so what the accountant hands over
+    is what they just checked. An export with its own idea of the range is an
+    export nobody can reconcile against the screen they were looking at.
+    """
+    import csv
+    import io
+
+    from flask import Response
+
+    invoices = _filtered_invoices().order_by(Invoice.id).all()
+    rows = list(_tax_rows(invoices))
+    stamp = date.today().isoformat()
+
+    if (request.args.get("fmt") or "csv").lower() == "xlsx":
+        try:
+            from openpyxl import Workbook
+        except ImportError:
+            pass
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "invoices"
+            ws.append(TAX_EXPORT_HEADERS)
+            for r in rows:
+                ws.append([r.get(h, "") for h in TAX_EXPORT_HEADERS])
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            ActivityLog.record("invoice.export", user_id=current_user.id,
+                               entity="invoice", detail=f"{len(rows)} xlsx",
+                               ip_address=client_ip())
+            db.session.commit()
+            return Response(
+                buf.read(),
+                mimetype="application/vnd.openxmlformats-officedocument."
+                         "spreadsheetml.sheet",
+                headers={"Content-Disposition":
+                         f"attachment; filename=tax_invoices_{stamp}.xlsx"})
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=TAX_EXPORT_HEADERS)
+    writer.writeheader()
+    writer.writerows(rows)
+    # Who took the clinic's billing register out of the building, and when.
+    ActivityLog.record("invoice.export", user_id=current_user.id,
+                       entity="invoice", detail=f"{len(rows)} csv",
+                       ip_address=client_ip())
+    db.session.commit()
+    # The BOM is what makes Excel open Arabic names as Arabic names.
+    return Response(
+        "﻿" + buf.getvalue(), mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition":
+                 f"attachment; filename=tax_invoices_{stamp}.csv"})
 
 
 def _cashier_date():
@@ -2256,6 +2441,10 @@ def invoice_view(invoice_id):
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         doctors=_doctors_active(),
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
+        # What has been done to this bill, so an accountant reviewing the month
+        # can see a correction rather than only its result.
+        history=invoice_history(invoice.id),
+        period_open=not _period_blocked(invoice.invoice_date, flash_it=False),
     )
 
 
@@ -2434,6 +2623,9 @@ def invoice_item_add(invoice_id):
         invoice.recalc_status()
         db.session.flush()
         deducted = _deduct_service_consumables(item, invoice)
+        _log_invoice_change(invoice, "item_add",
+                            f"+ {item.description} × {item.quantity} "
+                            f"@ {item.unit_price}")
         db.session.commit()
         flash(t("invoices.item_added"), "success")
         if deducted:
@@ -2449,6 +2641,11 @@ def invoice_item_delete(invoice_id, item_id):
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
     item = db.session.get(InvoiceItem, item_id)
     if item and item.invoice_id == invoice.id:
+        # Said before the row is gone: afterwards there is nothing left to
+        # describe, and "a line was removed" is not a reviewable statement.
+        _log_invoice_change(invoice, "item_delete",
+                            f"- {item.description} × {item.quantity} "
+                            f"@ {item.unit_price}")
         db.session.delete(item)
         db.session.flush()
         invoice.recalc_status()
@@ -2467,6 +2664,7 @@ def invoice_item_edit(invoice_id, item_id):
     if not item or item.invoice_id != invoice.id:
         return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
+    before = _line_state(item)
     desc = (request.form.get("description") or "").strip()
     price = request.form.get("unit_price", type=float)
     if desc:
@@ -2476,6 +2674,11 @@ def invoice_item_edit(invoice_id, item_id):
     item.quantity = request.form.get("quantity", type=int) or 1
     item.discount_value = request.form.get("discount_value", type=float) or 0
     item.discount_is_percent = bool(request.form.get("discount_is_percent"))
+    # Both sides of the change. "The price was edited" tells an accountant
+    # nothing; "200 → 150" is the thing they are checking.
+    after = _line_state(item)
+    if after != before:
+        _log_invoice_change(invoice, "item_edit", f"{before} → {after}")
     # Refresh the doctor-commission snapshot for the new net.
     if item.service is not None:
         item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)

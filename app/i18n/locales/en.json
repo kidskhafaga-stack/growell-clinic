@@ -56,7 +56,9 @@
     "per_page": "per page",
     "previous": "previous",
     "next": "next",
-    "apply": "apply"
+    "apply": "apply",
+    "when": "When",
+    "who": "User"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1459,7 +1461,13 @@
     "add_vaccine_hint": "Pick the vaccine, then the trade name, then the dose. If the child has had doses before, the next one is selected for you.",
     "add_to_bill": "Add to the bill",
     "next_dose_is": "Next dose:",
-    "fee_once_hint": "The administration fee is charged once however many vaccines are given — it is one administration."
+    "fee_once_hint": "The administration fee is charged once however many vaccines are given — it is one administration.",
+    "search_ph": "Invoice number, patient name or file number…",
+    "export_tax": "Export for tax invoices",
+    "history": "Change history",
+    "history_hint": "The accounting period is still open, so this invoice can be corrected — and every correction is recorded here with who made it and when, for the accountant to review.",
+    "history_locked": "The accounting period is closed, so this invoice can no longer be edited. The record below is for review.",
+    "history_none": "This invoice has not been changed."
   },
   "expenses": {
     "title": "Expenses",
