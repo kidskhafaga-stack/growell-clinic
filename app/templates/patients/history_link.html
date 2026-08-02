@@ -1,0 +1,68 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('history_import.link_title') }}{% endblock %}
+{% block page_heading %}{{ t('history_import.link_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('history_import.link_title') }}</h1>
+  <p class="page-sub" style="margin:6px 0 0;">
+    <span dir="ltr">{{ filename }}</span> — {{ names|length }} {{ t('history_import.distinct_names') }}</p>
+</div>
+
+{# 9,908 rows carry 27 distinct names, so this screen is 27 rows. Nothing is
+   matched into the records automatically: the case a wrong guess produces is a
+   child recorded as having had a vaccine they did not. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('history_import.link_hint') }}</p>
+</div>
+
+<form method="post" action="{{ url_for('patients.history_import_link') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="confirm" value="1">
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:680px;">
+        <thead><tr>
+          <th>{{ t('history_import.name_in_file') }}</th>
+          <th style="text-align:end;">{{ t('history_import.rows') }}</th>
+          <th>{{ t('history_import.matched_to') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for row in names %}
+          {% set found = suggestions.get(row.value) or [] %}
+          {% set best = found[0] if found else None %}
+          {% set chosen = saved.get(row.value) %}
+          <tr>
+            <td dir="auto">{{ row.value }}
+              {% if best %}
+              <span class="badge {{ 'badge--green' if best.confidence == 'high' else ('badge--role' if best.confidence == 'medium' else 'badge--muted') }}">
+                {{ t('history_import.conf_' ~ best.confidence) }}</span>
+              {% endif %}
+            </td>
+            <td style="text-align:end;" dir="ltr">{{ row.rows }}</td>
+            <td>
+              <select class="select" name="link_{{ loop.index0 }}">
+                {# "A plain service" is the default when nothing was proposed —
+                   كشف and إستشارة are 7,476 of this file's rows. #}
+                <option value=""{{ ' selected' if not best and not chosen else '' }}>{{ t('history_import.plain_service') }}</option>
+                {% for b in brands %}
+                {% set pick = (chosen == 'brand:' ~ b[0]) or (not chosen and best and best.brand_id == b[0]) %}
+                <option value="brand:{{ b[0] }}"{{ ' selected' if pick else '' }}>{{ b[1] }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;margin:14px 0 40px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-eye"></i> {{ t('history_import.preview') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

@@ -21,7 +21,7 @@
 </div>
 {% endif %}
 
-<form method="post" action="{{ url_for('patients.history_import_map') }}">
+<form method="post" action="{{ url_for('patients.history_import_link') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="token" value="{{ token }}">
   <div class="card gc-scale-in">

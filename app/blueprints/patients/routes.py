@@ -1338,20 +1338,10 @@ def history_import_map():
         flash(t("import.session_expired"), "warning")
         return redirect(url_for("patients.history_import"))
 
-    # The mapping is submitted the first time through and stored; coming back
-    # to change the date range reuses it instead of asking again.
-    mapping = {}
-    for key in request.form:
-        if not key.startswith("col_"):
-            continue
-        value = (request.form.get(key) or "").strip()
-        if value != "":
-            mapping[key[4:]] = int(value)
+    # Submitted the first time through and stored; coming back to change the
+    # date range reuses it instead of asking again.
+    mapping = _submitted_mapping(payload)
     if not mapping:
-        mapping = {k: int(v) for k, v in (payload.get("mapping") or {}).items()}
-    missing = [k for k in ("service_date", "patient_code", "service_name")
-               if k not in mapping]
-    if missing:
         flash(t("history_import.need_columns"), "danger")
         return redirect(url_for("patients.history_import"))
 
@@ -1361,6 +1351,7 @@ def history_import_map():
     # everything, and making it say so is a step that exists only to be got
     # wrong.
     span = date_span(records)
+    links = payload.get("links") or {}
     start = parse_date(request.form.get("from"))
     end = parse_date(request.form.get("to"))
     records, counts = classify(records, start=start, end=end)
@@ -1375,7 +1366,8 @@ def history_import_map():
         rows=[r for r in records
               if r["_state"] != "out_of_range"][:MAX_PREVIEW_ROWS],
         span=span, f_from=request.form.get("from", ""),
-        f_to=request.form.get("to", ""),
+        f_to=request.form.get("to", ""), links=links,
+        linked=sum(1 for v in links.values() if str(v).startswith("brand:")),
         missing_patients=missing_patient_codes(records),
         services=distinct_values(records, "service_name"),
         categories=distinct_values(records, "client_category"),
@@ -1386,6 +1378,7 @@ def history_import_map():
 @module_required(MODULE)
 def history_import_commit():
     from app.models import ImportBatch, ImportedService
+    from app.utils.dose_infer import number_doses
     from app.utils.history_import import build_rows
     from app.utils.history_match import CHANGED, NEW, classify
 
@@ -1413,6 +1406,12 @@ def history_import_commit():
     # here costs a round trip each — and on SQLite, committing per row costs a
     # disk sync each, which is the difference between a second and an hour.
     update_changed = request.form.get("update_changed") == "1"
+
+    # What the clinic confirmed on the linking screen: "this name is that
+    # brand". Resolved once into {name: (brand_id, vaccine_id)} rather than
+    # per row — 9,908 rows carry 27 names.
+    links = _resolved_links(payload.get("links") or {})
+
     pending = []
     for record in records:
         if record["_state"] != NEW and not (update_changed
@@ -1420,7 +1419,9 @@ def history_import_commit():
             continue
         if record["_state"] == CHANGED:
             ImportedService.query.filter_by(source_key=record["_key"]).delete()
+        brand_id, vaccine_id = links.get(record["service_name"], (None, None))
         pending.append({
+            "brand_id": brand_id, "vaccine_id": vaccine_id,
             "batch_id": batch.id, "patient_id": record["_patient_id"],
             "service_date": record["service_date"],
             "service_time": record["service_time"],
@@ -1433,6 +1434,17 @@ def history_import_commit():
             "source_key": record["_key"], "source_row": record["source_row"][:40],
             "notes": record["notes"] or None,
         })
+
+    # Dose numbers last, over the whole set at once — the number depends on the
+    # patient's other doses of the *same vaccine*, so it cannot be worked out a
+    # row at a time. Numbering per brand instead would restart the course every
+    # time a clinic switched product, and the schedule would then chase a child
+    # for doses they have already had.
+    number_doses(pending)
+    for row in pending:
+        row["vaccine_brand_id"] = row.pop("brand_id")
+        row.pop("vaccine_id", None)
+
     if pending:
         db.session.bulk_insert_mappings(ImportedService, pending)
 
@@ -1492,3 +1504,126 @@ def history_import_template():
         buf,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True, download_name="history_template.xlsx")
+
+
+@patients_bp.route("/import/history/link", methods=["POST"])
+@module_required(MODULE)
+def history_import_link():
+    """Confirm what each of the file's service names actually is.
+
+    The step that makes the vaccinations real. 9,908 rows carry 27 distinct
+    names, so this screen is 27 rows: each with the catalogue's best guess and
+    a confidence, and the clinic changes what it disagrees with.
+
+    Nothing is matched automatically into the records. A matcher that wrote its
+    own guesses into ten years of vaccination history would be one nobody could
+    trust, and the case it gets wrong is a child recorded as having had a
+    vaccine they did not.
+    """
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import distinct_values
+    from app.utils.vaccine_match import suggest_all
+
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    if payload is None:
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    # The column mapping arrives here the first time through, from the mapping
+    # screen, and is stored — coming back to change a link must not send
+    # somebody through the columns again.
+    mapping = _submitted_mapping(payload)
+    if not mapping:
+        flash(t("history_import.need_columns"), "danger")
+        return redirect(url_for("patients.history_import"))
+    if mapping != (payload.get("mapping") or {}):
+        payload["mapping"] = mapping
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, default=_history_cell)
+
+    records = build_rows(payload["rows"], mapping)
+    names = distinct_values(records, "service_name")
+
+    # Saving the screen: store what the clinic chose and go on to the preview.
+    if request.form.get("confirm") == "1":
+        links = {}
+        for index, row in enumerate(names):
+            choice = (request.form.get(f"link_{index}") or "").strip()
+            if choice:
+                links[row["value"]] = choice
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump({**payload, "links": links}, fh, ensure_ascii=False,
+                      default=_history_cell)
+        return history_import_map()
+
+    suggestions = suggest_all([row["value"] for row in names])
+    saved = payload.get("links") or {}
+    return render_template(
+        "patients/history_link.html", token=token, names=names,
+        suggestions=suggestions, saved=saved,
+        filename=payload.get("filename"),
+        # Every brand, for the rows the matcher could not place. Loaded once —
+        # a select per row, not a query per row.
+        brands=_brand_choices())
+
+
+def _submitted_mapping(payload):
+    """The column mapping for this upload: from the form, else what was stored.
+
+    Required columns are checked here rather than in each step, so a wizard
+    entered halfway — somebody re-posting to change one link — cannot proceed
+    on a mapping that never existed.
+    """
+    mapping = {}
+    for key in request.form:
+        if not key.startswith("col_"):
+            continue
+        value = (request.form.get(key) or "").strip()
+        if value != "":
+            mapping[key[4:]] = int(value)
+    if not mapping:
+        mapping = {k: int(v) for k, v in (payload.get("mapping") or {}).items()}
+    if any(k not in mapping
+           for k in ("service_date", "patient_code", "service_name")):
+        return {}
+    return mapping
+
+
+def _brand_choices():
+    """``[(brand_id, label)]`` for the "which vaccine is this?" dropdown."""
+    from app.models import Vaccine, VaccineBrand
+
+    vaccines = {v.id: v for v in Vaccine.query.all()}
+    out = []
+    for brand in VaccineBrand.query.order_by(VaccineBrand.name).all():
+        vaccine = vaccines.get(brand.vaccine_id)
+        label = f"{vaccine.name_ar} — {brand.name}" if vaccine else brand.name
+        out.append((brand.id, label))
+    return sorted(out, key=lambda row: row[1])
+
+
+def _resolved_links(links):
+    """``{service name: (brand_id, vaccine_id)}`` from the confirmed choices.
+
+    The vaccine comes from the brand rather than being stored beside it,
+    because the dose number is counted per *vaccine* and a brand that was
+    re-filed under a different vaccine must not leave old links pointing at
+    the wrong course.
+    """
+    from app.models import VaccineBrand
+
+    wanted = {}
+    for name, choice in links.items():
+        if not str(choice).startswith("brand:"):
+            continue
+        try:
+            wanted[name] = int(str(choice).split(":", 1)[1])
+        except ValueError:
+            continue
+    if not wanted:
+        return {}
+    brands = {b.id: b.vaccine_id for b in VaccineBrand.query.filter(
+        VaccineBrand.id.in_(set(wanted.values()))).all()}
+    return {name: (brand_id, brands.get(brand_id))
+            for name, brand_id in wanted.items() if brand_id in brands}

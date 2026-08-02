@@ -84,7 +84,8 @@ def _upload(boss, buf, name="export.xlsx"):
                      content_type="multipart/form-data")
 
 
-def _map_and_preview(boss, token, mapping=None):
+def _map_and_preview(boss, token, mapping=None, links=None):
+    """Walk the wizard: map the columns, confirm the names, land on preview."""
     data = {"token": token}
     default = {"source_row": 0, "service_date": 1, "service_time": 2,
                "patient_code": 3, "patient_name": 4, "doctor_name": 6,
@@ -92,7 +93,10 @@ def _map_and_preview(boss, token, mapping=None):
                "price": 16, "paid_company": 17, "paid_cash": 18}
     for key, index in (mapping or default).items():
         data[f"col_{key}"] = str(index)
-    return boss.post("/patients/import/history/map", data=data)
+    linking = boss.post("/patients/import/history/link", data=data)
+    confirm = {"token": token, "confirm": "1"}
+    confirm.update(links or {})
+    return boss.post("/patients/import/history/link", data=confirm)
 
 
 def _token(body):
@@ -705,3 +709,213 @@ def _read_template(*parts):
     root = os.path.join(os.path.dirname(__file__), "..", "app", "templates")
     with open(os.path.join(root, *parts), encoding="utf-8") as fh:
         return fh.read()
+
+
+# ============================== the names become vaccines, and doses get numbers
+@pytest.fixture()
+def with_catalogue(old_patients):
+    """The clinic's real vaccine catalogue, so names have something to hit."""
+    from app.utils.vaccines import seed_vaccines
+
+    with old_patients["app"].app_context():
+        seed_vaccines()
+        old_patients["db"].session.commit()
+    return old_patients
+
+
+def _brand(clinic, needle):
+    from app.models import VaccineBrand
+
+    with clinic["app"].app_context():
+        return VaccineBrand.query.filter(VaccineBrand.name.ilike(f"%{needle}%")).first().id
+
+
+def _link_index(boss, token, name):
+    """Which link_N field on the screen belongs to ``name``."""
+    import re
+
+    body = boss.post("/patients/import/history/link",
+                     data={"token": token}).get_data(as_text=True)
+    for match in re.finditer(r'name="link_(\d+)"', body):
+        pass
+    return body
+
+
+def test_the_linking_screen_lists_each_name_once(with_catalogue, boss):
+    """Thousands of rows, few distinct names — that is what makes confirming
+    them by hand possible at all."""
+    rows = [_row(i, "1001", date(2024, 3, 1), "كشف") for i in range(5)]
+    rows += [_row(10 + i, "1001", date(2024, 4, 1),
+                  "Synflorix - مكورات رئوية - PCV 10") for i in range(3)]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+
+    data = {"token": token, "col_source_row": "0", "col_service_date": "1",
+            "col_service_time": "2", "col_patient_code": "3",
+            "col_service_name": "7", "col_price": "16"}
+    body = boss.post("/patients/import/history/link", data=data).get_data(as_text=True)
+    assert body.count('name="link_') == 2, "one row per distinct name"
+    assert "Synflorix" in body
+
+
+def test_the_screen_proposes_the_catalogue_match(with_catalogue, boss, clinic):
+    rows = [_row(1, "1001", date(2024, 3, 1), "Varivax-جديرى مائى")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    data = {"token": token, "col_service_date": "1", "col_patient_code": "3",
+            "col_service_name": "7", "col_price": "16"}
+    body = boss.post("/patients/import/history/link", data=data).get_data(as_text=True)
+
+    with clinic["app"].test_request_context("/"):
+        from app.i18n import t
+        assert t("history_import.conf_high") in body
+    assert f'value="brand:{_brand(clinic, "Varivax")}" selected' in body
+
+
+def test_a_confirmed_name_becomes_a_real_vaccine_on_the_record(with_catalogue,
+                                                               boss, clinic):
+    """The point of the screen. Without it the row is a piece of text with a
+    price on it."""
+    from app.models import ImportedService
+
+    brand_id = _brand(clinic, "Varivax")
+    rows = [_row(1, "1001", date(2024, 3, 1), "Varivax-جديرى مائى", price=400)]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={"link_0": f"brand:{brand_id}"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        row = ImportedService.query.one()
+        assert row.vaccine_brand_id == brand_id
+        assert row.dose_number == 1
+
+
+def test_a_name_left_as_a_plain_service_stays_one(with_catalogue, boss, clinic):
+    """كشف and إستشارة are most of the file. Nothing should attach a vaccine
+    to them."""
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={"link_0": ""})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        row = ImportedService.query.one()
+        assert row.vaccine_brand_id is None
+        assert row.dose_number is None
+
+
+def test_nothing_is_matched_without_the_clinic_confirming(with_catalogue, boss,
+                                                          clinic):
+    """A matcher that wrote its own guesses into ten years of vaccination
+    records is one nobody could trust, and the case it gets wrong is a child
+    recorded as having had a vaccine they did not."""
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "Varivax-جديرى مائى")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={"link_0": ""})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert ImportedService.query.one().vaccine_brand_id is None
+
+
+def test_the_doses_are_numbered_across_the_whole_import(with_catalogue, boss,
+                                                        clinic):
+    from app.models import ImportedService
+
+    brand_id = _brand(clinic, "Varivax")
+    rows = [_row(1, "1001", date(2024, 6, 1), "Varivax-جديرى مائى"),
+            _row(2, "1001", date(2023, 3, 1), "Varivax-جديرى مائى"),
+            _row(3, "1001", date(2023, 9, 1), "Varivax-جديرى مائى")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={"link_0": f"brand:{brand_id}"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        by_date = {r.service_date: r.dose_number
+                   for r in ImportedService.query.all()}
+    assert by_date == {date(2023, 3, 1): 1, date(2023, 9, 1): 2,
+                       date(2024, 6, 1): 3}
+
+
+def test_two_brands_of_one_vaccine_continue_the_same_course(with_catalogue,
+                                                            boss, clinic):
+    """Patient 1080 in the real export: Synflorix (PCV 10) three times, then
+    Prevenar (PCV 13). Numbered per brand that fourth dose is "dose 1", and the
+    schedule then chases the child for doses they have already had."""
+    from app.models import ImportedService
+
+    synflorix = _brand(clinic, "Synflorix")
+    prevenar = _brand(clinic, "Prevenar 13")
+    rows = [_row(1, "1001", date(2023, 3, 20), "Synflorix - مكورات رئوية - PCV 10"),
+            _row(2, "1001", date(2023, 5, 27), "Synflorix - مكورات رئوية - PCV 10"),
+            _row(3, "1001", date(2023, 7, 22), "Synflorix - مكورات رئوية - PCV 10"),
+            _row(4, "1001", date(2024, 2, 21), "Prevenar - مكورات رؤية - PCV 13")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={
+        "link_0": f"brand:{synflorix}", "link_1": f"brand:{prevenar}"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        row = ImportedService.query.filter_by(
+            vaccine_brand_id=prevenar).one()
+        assert row.dose_number == 4, "the course restarted at the brand change"
+
+
+def test_two_patients_do_not_share_a_course_through_the_import(with_catalogue,
+                                                               boss, clinic):
+    from app.models import ImportedService
+
+    brand_id = _brand(clinic, "Varivax")
+    rows = [_row(1, "1001", date(2023, 3, 1), "Varivax-جديرى مائى"),
+            _row(2, "1002", date(2023, 9, 1), "Varivax-جديرى مائى")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={"link_0": f"brand:{brand_id}"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert sorted(r.dose_number for r in ImportedService.query.all()) == [1, 1]
+
+
+def test_the_link_choices_survive_a_change_of_date_range(with_catalogue, boss,
+                                                         clinic):
+    """Narrowing the range must not silently drop what was just confirmed."""
+    from app.models import ImportedService
+
+    brand_id = _brand(clinic, "Varivax")
+    rows = [_row(1, "1001", date(2016, 4, 11), "Varivax-جديرى مائى"),
+            _row(2, "1001", date(2024, 6, 1), "Varivax-جديرى مائى")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    _map_and_preview(boss, token, links={"link_0": f"brand:{brand_id}"})
+
+    narrowed = boss.post("/patients/import/history/map",
+                         data={"token": token, "from": "2020-01-01"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(narrowed.get_data(as_text=True)),
+                    "from": "2020-01-01"}, follow_redirects=True)
+
+    with clinic["app"].app_context():
+        row = ImportedService.query.one()
+        assert row.vaccine_brand_id == brand_id

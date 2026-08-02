@@ -4192,6 +4192,15 @@
     "apply_range": "Apply range",
     "range_on": "Showing the range you chose",
     "st_out_of_range": "Outside the range",
-    "span_hint": "The whole file is imported by default. To take part of it, set the dates — rows outside the range are set aside, not rejected."
+    "span_hint": "The whole file is imported by default. To take part of it, set the dates — rows outside the range are set aside, not rejected.",
+    "link_title": "Link the service names",
+    "distinct_names": "distinct names",
+    "name_in_file": "Name in your file",
+    "matched_to": "Links to",
+    "plain_service": "A plain service (not a vaccine)",
+    "conf_high": "Clear match",
+    "conf_medium": "Check this",
+    "conf_low": "Unsure — look carefully",
+    "link_hint": "Your file has thousands of rows but few distinct names, so you confirm this once. The program proposes and you decide: no vaccine is recorded for a child without your confirmation. Anything that is not a vaccine stays a plain service."
   }
 }
