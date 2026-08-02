@@ -73,7 +73,9 @@
     "messages": "Patient Care",
     "users": "Users",
     "settings": "Settings",
-    "cashier": "Cashier"
+    "cashier": "Cashier",
+    "collapse": "Collapse the menu",
+    "menu": "Menu"
   },
   "auth": {
     "login": "Login",
@@ -4074,5 +4076,12 @@
     "saved": "Number saved",
     "bad_number": "That has no digits in it — please type it again",
     "all_clear": "Every active patient has a contact number ✅"
+  },
+  "about": {
+    "title": "About",
+    "subtitle": "Version, licence and credits.",
+    "version": "Version",
+    "clinic": "Clinic",
+    "licence": "Licence and terms"
   }
 }

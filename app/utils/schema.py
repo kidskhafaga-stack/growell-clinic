@@ -106,6 +106,7 @@ ADDITIONS = [
     ("users", "accent_color", "VARCHAR(20)"),
     ("users", "rx_template_id", "INTEGER"),
     ("users", "theme", "VARCHAR(10)"),
+    ("users", "sidebar", "VARCHAR(10)"),
     ("users", "font_scale", "VARCHAR(4)"),
     ("users", "default_landing", "VARCHAR(30)"),
     ("users", "is_practitioner", "BOOLEAN DEFAULT 0"),

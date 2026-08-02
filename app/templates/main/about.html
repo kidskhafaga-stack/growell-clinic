@@ -1,0 +1,46 @@
+{% extends "shell.html" %}
+{% block title %}{{ t('about.title') }}{% endblock %}
+{% block page_heading %}{{ t('about.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('about.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('about.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('main.dashboard') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.dashboard') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+    <div style="width:52px;height:52px;border-radius:14px;display:grid;place-items:center;
+                background:var(--green-050);color:var(--green-700);font-size:26px;">
+      <i class="bi bi-heart-pulse"></i></div>
+    <div>
+      <h2 style="margin:0;">{{ product_name }}</h2>
+      <div style="color:var(--muted);">{{ t('about.version') }} <span dir="ltr">{{ app_version }}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title"><i class="bi bi-building"></i> {{ t('about.clinic') }}</h2>
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('settings.clinic_name_ar') if current_lang == 'ar' else t('settings.clinic_name_en') }}</div>
+      <div class="v">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div></div>
+    {% if clinic.tagline %}
+    <div class="info-item"><div class="k">{{ t('settings.clinic_tagline') }}</div>
+      <div class="v">{{ clinic.tagline }}</div></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-file-earmark-text"></i> {{ t('about.licence') }}</h2>
+  {# The full notice, at a size somebody can actually read it at. It used to be
+     set at 0.64rem down the side of every screen, where it took the space
+     permanently and was read by nobody. #}
+  <p dir="auto" style="line-height:1.9;margin:0;">{{ copyright_notice }}</p>
+</div>
+{% endblock %}

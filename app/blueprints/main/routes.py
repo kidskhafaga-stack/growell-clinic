@@ -149,6 +149,24 @@ def set_theme():
     return {"theme": theme}
 
 
+@main_bp.route("/about")
+@login_required
+def about():
+    """Version, licence and credits — the detail that used to be printed in
+    0.64rem type down the side of every screen."""
+    return render_template("main/about.html")
+
+
+@main_bp.route("/set-sidebar", methods=["POST"])
+@login_required
+def set_sidebar():
+    """Persist whether the sidebar is full-width or an icon rail."""
+    mode = (request.form.get("sidebar") or "").strip()
+    current_user.sidebar = "rail" if mode == "rail" else "full"
+    db.session.commit()
+    return {"sidebar": current_user.sidebar}
+
+
 @main_bp.route("/notifications/dismiss", methods=["POST"])
 @login_required
 def notif_dismiss():

@@ -56,6 +56,9 @@ class User(UserMixin, db.Model):
 
     # UI personalization (per user).
     theme = db.Column(db.String(10))                # light | dark
+    # Sidebar width preference. A collapse that comes back open on the next
+    # page is worse than no collapse: you re-do it all day and it never sticks.
+    sidebar = db.Column(db.String(10))              # full | rail
     font_scale = db.Column(db.String(4))            # sm | md | lg
     default_landing = db.Column(db.String(30))      # module key after login
 

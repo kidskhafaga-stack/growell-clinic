@@ -35,8 +35,18 @@
     .print-footer__logo { height:11px; width:auto; object-fit:contain; }
   }
 </style>
-<div class="layout">
-  <aside class="sidebar">
+{# Three states, not two: full, an icon rail, and — on a phone — off screen
+   entirely with a way back. Until now the phone case had no way back at all:
+   under 880px the sidebar was translated off the edge and nothing brought it
+   in, so the whole program had no navigation on a phone. #}
+<div class="layout" data-sidebar="{{ current_user.sidebar or 'full' }}"
+     x-data="{ drawer: false }">
+  <div class="sidebar__scrim" x-show="drawer" x-cloak x-on:click="drawer = false"></div>
+  <aside class="sidebar" :class="drawer ? 'is-open' : ''">
+    <button type="button" class="sidebar__toggle" onclick="toggleSidebar()"
+            title="{{ t('nav.collapse') }}" aria-label="{{ t('nav.collapse') }}">
+      <i class="bi bi-chevron-{{ 'right' if direction == 'rtl' else 'left' }}"></i>
+    </button>
     <div class="sidebar__brand">
       {% if clinic.logo_url %}
       <img class="logo" src="{{ clinic.logo_url }}" alt="" style="object-fit:contain;background:#fff;">
@@ -56,6 +66,7 @@
              {% if not endpoint %}title="{{ t('common.coming_soon') }}"{% endif %}>
             <i class="bi bi-{{ MODULE_ICONS.get(module, 'dot') }}"></i>
             <span>{{ t('nav.' ~ module) }}</span>
+            <span class="nav-tip">{{ t('nav.' ~ module) }}</span>
           </a>
         {% endif %}
       {% endfor %}
@@ -66,27 +77,38 @@
          href="{{ url_for('finance.cashier') }}">
         <i class="bi bi-cash-coin"></i>
         <span>{{ t('nav.cashier') }}</span>
+        <span class="nav-tip">{{ t('nav.cashier') }}</span>
       </a>
       {% endif %}
       <a class="nav-item gc-press {{ 'active' if active_module == 'guide' else '' }}"
          href="{{ url_for('main.guide') }}">
         <i class="bi bi-life-preserver"></i>
         <span>{{ t('guide.nav') }}</span>
+        <span class="nav-tip">{{ t('guide.nav') }}</span>
       </a>
     </nav>
 
-    <div class="sidebar__footer">
-      <div class="sidebar__brandline">
+    {# One line, and the rest on the About page. It was four lines of small
+       print down the side of every screen — a paragraph of licence terms set
+       at 0.64rem is a paragraph nobody has read, and it was costing the space
+       permanently. #}
+    <a class="sidebar__footer" href="{{ url_for('main.about') }}"
+       title="{{ product_name }} v{{ app_version }} — {{ t('about.title') }}">
+      <span class="sidebar__footer-line">
         <span class="sidebar__product">{{ product_name }}</span>
-        <span class="sidebar__ver">v0.1</span>
-      </div>
-      <div class="sidebar__role">{{ current_user.role_label(current_lang) }}</div>
-      <div class="copyright" dir="auto">{{ copyright_notice }}</div>
-    </div>
+        <span class="sidebar__ver">v{{ app_version }}</span>
+        <span class="copyright" dir="auto">{{ copyright_short }}</span>
+      </span>
+      {# On the rail it becomes one icon. Clipping the line instead would leave
+         a sentence cut off mid-word, which reads as broken, not collapsed. #}
+      <span class="sidebar__footer-ico"><i class="bi bi-info-circle"></i></span>
+    </a>
   </aside>
 
   <div class="main">
     <header class="topbar">
+      <button type="button" class="topbar__menu" x-on:click="drawer = !drawer"
+              aria-label="{{ t('nav.menu') }}"><i class="bi bi-list"></i></button>
       <div class="topbar__title">{% block page_heading %}{{ t('dashboard.title') }}{% endblock %}</div>
       <div class="topbar__actions">
         <div class="topbar-date"><i class="bi bi-calendar3"></i>
@@ -203,5 +225,31 @@
     }).catch(function () {});
   }
   _markThemeActive(document.documentElement.getAttribute('data-theme-mode') || 'light');
+
+  // Full width or an icon rail. Applied to the DOM first and saved after, so
+  // the click feels instant and a failed save costs nothing but the memory.
+  function toggleSidebar() {
+    var layout = document.querySelector('.layout');
+    if (!layout) return;
+    var next = layout.getAttribute('data-sidebar') === 'rail' ? 'full' : 'rail';
+    layout.setAttribute('data-sidebar', next);
+    fetch("{{ url_for('main.set_sidebar') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'sidebar=' + next
+    }).catch(function () {});
+  }
+  // `[` for the doctor who does this fifty times a day and should not have to
+  // find the mouse each time. Ignored while typing, or the shortcut would eat
+  // a bracket out of a prescription.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== '[' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var el = document.activeElement;
+    var tag = el && el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        (el && el.isContentEditable)) return;
+    e.preventDefault();
+    toggleSidebar();
+  });
 </script>
 {% endblock %}
