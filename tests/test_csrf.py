@@ -167,7 +167,7 @@ def test_the_login_page_carries_a_token(guarded):
 @pytest.mark.parametrize("path", [
     "/patients/new",
     "/finance/services",
-    "/finance/invoices/new",
+    "/finance/collect/1",   # the checkout — the invoice builder it replaced
     "/prescriptions/drugs",
     "/settings/",
 ])

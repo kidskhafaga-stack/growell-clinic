@@ -1834,6 +1834,36 @@ def collect(patient_id):
     return _checkout_screen(None, db.get_or_404(Patient, patient_id))
 
 
+def _screen_doctor(appt, patient_id):
+    """Whose work is being collected for — and the doctor the share is owed to.
+
+    Three sources, in the order they are trustworthy: the appointment, the form
+    (the screen resolved it on the way in and carries it back), and finally the
+    patient's own unbilled work.
+
+    The form matters more than it looks. Without it the POST re-derives the
+    doctor from what is *still* unbilled — and by then the very dose or
+    procedure that named them is being billed by this request, so the answer
+    can come back ``None`` and the invoice is saved with no doctor and no
+    commission. The screen showed a name and the record kept nobody.
+
+    The last source is what the retired invoice builder did on its way in, and
+    dropping it would have quietly stopped paying doctors for work reception
+    collects without an appointment.
+    """
+    if appt:
+        return appt.doctor_id
+    from_form = request.form.get("doctor_id", type=int)
+    if from_form:
+        return from_form
+    doctor_id = _vaccine_doctor(patient_id)
+    if doctor_id is None:
+        for vs in _unbilled_patient_services(patient_id):
+            if vs.visit and vs.visit.doctor_id:
+                return vs.visit.doctor_id
+    return doctor_id
+
+
 def _checkout_screen(appt, patient):
     """Reception checkout: show the charges with editable prices, let the user
     add services, pick a named discount, and collect with one or several
@@ -1843,7 +1873,7 @@ def _checkout_screen(appt, patient):
     if patient is None:
         abort(404)
     patient_id = patient.id
-    doctor_id = appt.doctor_id if appt else _vaccine_doctor(patient_id)
+    doctor_id = _screen_doctor(appt, patient_id)
     lang = getattr(g, "lang", "ar")
 
     if request.method == "POST":

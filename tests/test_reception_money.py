@@ -23,13 +23,23 @@ def _open_shift(client, float_amount="100"):
 
 
 def _bill(client, ids, price="200", service=None, quantity="1", **extra):
-    """Reception raises an invoice for the child."""
+    """Reception raises an invoice for the child.
+
+    Through the collection screen, which is now the only one — the invoice
+    builder these tests were written against is gone. Raising the bill without
+    paying it (no ``amount``) is deliberate: most of what follows is about what
+    happens to a bill *after* it exists, so the payment has to be a separate
+    step the test can vary.
+    """
     data = {"patient_id": ids["child"], "doctor_id": ids["doctor"],
             "line_service_id": [str(service or ids["exam"])],
-            "line_description": ["كشف"], "line_unit_price": [price],
-            "line_quantity": [quantity]}
+            "line_desc": ["كشف"], "line_price": [price],
+            "line_qty": [quantity], "line_no_commission": ["0"],
+            "line_brand_id": [""], "line_dose_id": [""], "line_vs_id": [""],
+            "line_dose_number": [""], "discount_id": "none"}
     data.update(extra)
-    return client.post("/finance/invoices/new", data=data, follow_redirects=True)
+    return client.post(f"/finance/collect/{ids['child']}", data=data,
+                       follow_redirects=True)
 
 
 def _the_invoice(clinic):
@@ -76,8 +86,8 @@ def test_a_bill_with_no_lines_is_not_a_bill(clinic):
     from app.models import Invoice
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new",
-              data={"patient_id": clinic["ids"]["child"]}, follow_redirects=True)
+    desk.post(f"/finance/collect/{clinic['ids']['child']}",
+              data={"discount_id": "none"}, follow_redirects=True)
     with clinic["app"].app_context():
         assert Invoice.query.count() == 0
 

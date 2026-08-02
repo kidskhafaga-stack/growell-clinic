@@ -51,13 +51,16 @@ def _fingerprint(board):
     return resp.get_json()["fp"]
 
 
-def _bill(board, price="200"):
-    return board["desk"].post("/finance/invoices/new", data={
-        "patient_id": board["ids"]["child"],
-        "doctor_id": board["ids"]["doctor"],
+def _bill(board, price="200", patient_id=None):
+    """Raise a bill on the collection screen — the only one there is now."""
+    pid = patient_id or board["ids"]["child"]
+    return board["desk"].post(f"/finance/collect/{pid}", data={
+        "doctor_id": board["ids"]["doctor"], "discount_id": "none",
         "line_service_id": [str(board["ids"]["exam"])],
-        "line_description": ["كشف"], "line_unit_price": [price],
-        "line_quantity": ["1"]}, follow_redirects=True)
+        "line_desc": ["كشف"], "line_price": [price], "line_qty": ["1"],
+        "line_no_commission": ["0"], "line_brand_id": [""],
+        "line_dose_id": [""], "line_dose_number": [""], "line_vs_id": [""],
+    }, follow_redirects=True)
 
 
 def _invoice_id(board):
@@ -163,11 +166,7 @@ def test_another_patients_bill_does_not_disturb_this_board(board):
         other_id = other.id
 
     before = _fingerprint(board)
-    board["desk"].post("/finance/invoices/new", data={
-        "patient_id": other_id, "doctor_id": board["ids"]["doctor"],
-        "line_service_id": [str(board["ids"]["exam"])],
-        "line_description": ["كشف"], "line_unit_price": ["200"],
-        "line_quantity": ["1"]}, follow_redirects=True)
+    _bill(board, patient_id=other_id)
     assert _fingerprint(board) == before
 
 

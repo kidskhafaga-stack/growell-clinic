@@ -59,6 +59,11 @@
 
   <form method="post" action="{{ post_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# The doctor this screen resolved on the way in, carried back with the
+       submission. Re-deriving it on POST asks "whose work is still unbilled?"
+       *while billing it* — the answer comes back empty and the invoice is
+       saved with no doctor and no commission. #}
+    {% if doctor %}<input type="hidden" name="doctor_id" value="{{ doctor.id }}">{% endif %}
     <!-- Services / charges -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">
       <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('checkout.services') }}</h2>
