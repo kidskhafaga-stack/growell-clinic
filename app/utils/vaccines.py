@@ -41,6 +41,7 @@ _VACCINE_TYPE = {
     "PENTAXIM": "combination", "MMRV": "live", "MENACWY": "conjugate",
     "MENB": "recombinant", "HPV": "recombinant", "TYPHOID": "conjugate",
     "RABIES": "inactivated", "YELLOWFEVER": "live", "CHOLERA": "inactivated",
+    "DT": "toxoid",
 }
 
 

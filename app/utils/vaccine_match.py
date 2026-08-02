@@ -45,6 +45,17 @@ def pieces(name):
     return out
 
 
+def _bare(text):
+    """Drop a leading Arabic definite article.
+
+    The catalogue writes "الخماسي"; the file writes "خماسى خلوى". Without this
+    they miss each other entirely, and 'خماسى خلوى-(Quinvaxem (DTwP-HBV-Hib'
+    was matched to hepatitis B instead — because the only piece that *did* hit
+    anything was the "HBV" buried in its ingredient list.
+    """
+    return text[2:] if text.startswith("ال") and len(text) > 4 else text
+
+
 def _score(needle, hay):
     """How well one piece matches one catalogue name: 0, 1 or 2.
 
@@ -55,6 +66,9 @@ def _score(needle, hay):
     """
     if not needle or not hay:
         return 0
+    if needle == hay:
+        return 2
+    needle, hay = _bare(needle), _bare(hay)
     if needle == hay:
         return 2
     # Containment both ways: the file says "روتا" where the catalogue says
@@ -72,6 +86,24 @@ def _brand_names(brand):
     # hyphen is also a separator — so the pieces are compared against the
     # de-hyphenated form as well.
     yield normalise_arabic((brand.name or "").replace("-", ""))
+
+
+def _words(text):
+    """A catalogue name and each of its words.
+
+    Catalogue names are phrases — "الخماسي (الثلاثي + كبدي ب + هيموفيلس)" —
+    and the file's names are phrases too, so comparing them whole almost never
+    fires. Indexing the words as well is what lets "خماسى خلوى" find the
+    pentavalent; without it the only piece of
+    'خماسى خلوى-(Quinvaxem (DTwP-HBV-Hib' that hit anything was the "HBV"
+    buried in its own ingredient list, which pulled it to hepatitis B.
+    """
+    out = {text}
+    for word in re.split(r"[\s+]+", text):
+        word = word.strip("()[]،,.")
+        if len(word) >= 4:
+            out.add(word)
+    return out
 
 
 def catalogue():
@@ -92,7 +124,7 @@ def catalogue():
             for value in (vaccine.name_ar, vaccine.name_en, vaccine.code):
                 key = normalise_arabic(value)
                 if key:
-                    keys.add(key)
+                    keys |= _words(key)
         entries.append({
             "brand_id": brand.id,
             "vaccine_id": brand.vaccine_id,
@@ -134,29 +166,35 @@ def suggest(name, entries=None, limit=3):
     scored.sort(key=lambda e: -e["score"])
     top = scored[:limit]
     best = top[0]["score"] if top else 0
+    runner_up = top[1]["score"] if len(top) > 1 else 0
     for entry in top:
-        # Confidence is relative to the best candidate and to how much of the
-        # name was explained. Shown as a hint on the screen, never used to skip
-        # asking — see the module docstring.
-        entry["confidence"] = _confidence(entry["score"], best, len(parts),
-                                          len(top))
+        # Confidence is relative to the *runner-up*, not to how many candidates
+        # exist at all. Indexing the catalogue word by word means many entries
+        # score something, so "more than one candidate" stopped telling anyone
+        # anything — everything came back medium, and a confidence that is
+        # always the same is not a confidence.
+        entry["confidence"] = _confidence(entry["score"], best, runner_up,
+                                          len(parts))
     return [{k: v for k, v in e.items() if k not in ("keys", "brand_keys")}
             for e in top]
 
 
-def _confidence(score, best, parts, candidates):
+def _confidence(score, best, runner_up, parts):
     """``high`` / ``medium`` / ``low`` for one candidate.
 
-    High means the pieces landed squarely *and* nothing else came close. Two
-    candidates tying is the case that most needs a human, so it is never high
-    however well they both scored — 'Mencevax - الحمى الشوكية' and
-    'Mencevax - الحمى الشوكية - 10' are two rows in the same file.
+    High means the pieces landed squarely **and** the next candidate is not
+    close behind. A near-tie is the case that most needs a person to look, so
+    it is never high however well both scored: 'Mencevax - الحمى الشوكية' and
+    'Mencevax - الحمى الشوكية - 10' are two rows of the same file, and picking
+    between two products for a child is not a decision to take on a margin of
+    one point.
     """
     if score < best:
         return "low"
-    if candidates > 1:
-        return "medium"
-    return "high" if score >= parts * 2 else "medium"
+    if score < parts:                    # barely anything was explained
+        return "low"
+    clear = score >= runner_up + 2       # the runner-up is not breathing on it
+    return "high" if (clear and score >= parts * 2) else "medium"
 
 
 def suggest_all(names):

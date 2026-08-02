@@ -181,7 +181,54 @@ def test_the_real_file_is_mostly_recognised(catalogue):
     with catalogue["app"].app_context():
         found = suggest_all(vaccines)
     matched = sum(1 for name in vaccines if found[name])
-    assert matched >= 18, f"only {matched} of {len(vaccines)} were recognised"
+    assert matched == len(vaccines), (
+        f"only {matched} of {len(vaccines)} were recognised")
+
+
+def test_the_confidence_still_tells_the_clinic_something(catalogue):
+    """Indexing the catalogue word by word made many more entries score
+    *something*, and the first version of the confidence — "more than one
+    candidate means medium" — collapsed to medium for almost every name. A
+    confidence that is always the same is not a confidence.
+    """
+    from app.utils.vaccine_match import suggest_all
+
+    vaccines = [n for n in REAL_NAMES if n not in ("كشف", "إستشارة", "تطعيم")]
+    with catalogue["app"].app_context():
+        found = suggest_all(vaccines)
+    levels = {name: rows[0]["confidence"] for name, rows in found.items() if rows}
+    assert len(set(levels.values())) > 1, "every name came back the same"
+    assert sum(1 for v in levels.values() if v == "high") >= 12
+
+
+def test_the_messiest_name_in_the_file_finds_the_right_vaccine(catalogue):
+    """'خماسى خلوى-(Quinvaxem (DTwP-HBV-Hib' is a brand, a description and an
+    ingredient list in one field. Comparing whole phrases, the only piece that
+    hit anything was the "HBV" buried in the ingredients — so it was matched to
+    hepatitis B. Its words are indexed now."""
+    found = _suggest(catalogue, "خماسى خلوى-(Quinvaxem (DTwP-HBV-Hib")
+    assert found and "خماسي" in found[0]["label"]
+
+
+def test_the_two_that_were_missing_are_in_the_catalogue_now(catalogue):
+    """Mencevax and DT were in the clinic's ten years of history and in nobody
+    else's list. Mencevax is a *brand* of the meningococcal ACWY vaccine rather
+    than a vaccine of its own, so a child who had Mencevax and later Menactra
+    is one course — which is what per-vaccine dose numbering depends on."""
+    mencevax = _suggest(catalogue, "Mencevax - الحمى الشوكية")
+    menactra = _suggest(catalogue, "Menactra - الالتهاب السحائى")
+    assert mencevax and menactra
+    assert mencevax[0]["vaccine_id"] == menactra[0]["vaccine_id"], "same course"
+    assert mencevax[0]["brand_id"] != menactra[0]["brand_id"], "different product"
+
+    assert _suggest(catalogue, "DT - ثنائي")
+
+
+def test_the_definite_article_does_not_hide_a_match(catalogue):
+    """The catalogue writes "الخماسي"; the file writes "خماسى خلوى"."""
+    from app.utils.vaccine_match import _score
+
+    assert _score("خماسي", "الخماسي") == 2
 
 
 def test_the_catalogue_is_built_once_for_a_whole_file(clinic):
