@@ -1,0 +1,71 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('checkout.pick_title') }}{% endblock %}
+{% block page_heading %}{{ t('checkout.pick_title') }}{% endblock %}
+
+{% block content %}
+{# The one door into collection that does not already know who it is for.
+   Everything else — the appointment board, the visit, the cashier's list —
+   goes straight to the patient's checkout. This asks the question and nothing
+   else: the screen it replaced also asked for doctor, payer, notes and a set
+   of blank lines, with a family standing at the desk. #}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('checkout.pick_title') }}</h1>
+  <p class="hint" style="margin:6px 0 0;">{{ t('checkout.pick_hint') }}</p>
+</div>
+
+{% if owing %}
+{# Whoever already owes money is almost always who reception is looking for,
+   so they are on the screen before anybody types anything. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title"><i class="bi bi-exclamation-circle"></i> {{ t('checkout.pick_owing') }}</h2>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    {% for e in owing %}
+    <a class="btn btn-outline gc-press" style="justify-content:space-between;text-align:start;"
+       href="{{ url_for('finance.collect', patient_id=e.patient.id) }}">
+      <span>{{ e.patient.display_name(current_lang) }}
+        <span class="hint" style="display:block;">{{ e['items']|join('، ') }}</span></span>
+      <strong dir="ltr">{{ '%.2f'|format(e.total) }} {{ currency_symbol() }}</strong>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# `|forceescape` is not decoration: a patient name carrying a quote would
+   close this attribute at that quote and hand the rest to the parser. #}
+<div class="card gc-scale-in" x-data="collectPick({{ rows|tojson|forceescape }})">
+  <div class="form-row" style="margin:0 0 10px;">
+    <input class="input" type="search" x-model="q" autofocus
+           placeholder="{{ t('checkout.pick_search') }}">
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow-y:auto;">
+    <template x-for="p in shown()" :key="p.id">
+      <a class="btn btn-outline btn-sm gc-press" :href="p.url"
+         style="justify-content:flex-start;text-align:start;">
+        <span x-text="p.name"></span>
+        <span class="hint" style="margin-inline-start:8px;" dir="ltr" x-text="p.number"></span>
+      </a>
+    </template>
+  </div>
+  {# Only when the search really found nothing — a "no results" line sitting
+     under a list of results is worse than no line at all. #}
+  <p class="hint" x-show="q && !shown().length" x-cloak style="margin:8px 0 0;">
+    {{ t('checkout.pick_none') }}</p>
+</div>
+
+<script>
+  function collectPick(rows) {
+    return {
+      q: '', rows: rows,
+      // Matched on the three things a parent actually says at the desk: the
+      // name, the file number, and the phone they were reached on.
+      shown() {
+        const q = this.q.trim().toLowerCase();
+        if (!q) return this.rows;
+        return this.rows.filter(p => p.hay.includes(q));
+      },
+    };
+  }
+</script>
+{% endblock %}

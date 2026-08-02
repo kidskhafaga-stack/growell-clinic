@@ -59,6 +59,11 @@
 
   <form method="post" action="{{ post_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# The doctor this screen resolved on the way in, carried back with the
+       submission. Re-deriving it on POST asks "whose work is still unbilled?"
+       *while billing it* — the answer comes back empty and the invoice is
+       saved with no doctor and no commission. #}
+    {% if doctor %}<input type="hidden" name="doctor_id" value="{{ doctor.id }}">{% endif %}
     <!-- Services / charges -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">
       <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('checkout.services') }}</h2>
@@ -67,7 +72,9 @@
       {% endif %}
       <table class="table"><thead><tr>
         <th>{{ t('invoices.description') }}</th><th style="width:110px;">{{ t('services.price') }}</th>
-        <th style="width:70px;">{{ t('invoices.quantity') }}</th><th style="width:100px;">{{ t('invoices.total') }}</th><th></th>
+        {# 70px left no room for the digits once the browser drew its own
+           up/down arrows inside the box: the number itself was invisible. #}
+        <th style="width:110px;">{{ t('invoices.quantity') }}</th><th style="width:100px;">{{ t('invoices.total') }}</th><th></th>
       </tr></thead><tbody>
         <template x-for="(l, i) in lines" :key="i">
           <tr>
@@ -79,7 +86,9 @@
               <input type="hidden" :name="'line_dose_number'" :value="l.dose_number || ''">
               <input type="hidden" :name="'line_vs_id'" :value="l.vs_id || ''"></td>
             <td><input class="input" type="number" step="0.01" min="0" :name="'line_price'" x-model.number="l.unit_price" @input="recalc()"></td>
-            <td><input class="input" type="number" min="1" placeholder="1" :name="'line_qty'" x-model.number="l.quantity" @input="recalc()"></td>
+            <td><input class="input" type="number" min="1" placeholder="1" :name="'line_qty'"
+                       style="min-width:84px;text-align:center;font-weight:600;"
+                       x-model.number="l.quantity" @input="recalc()"></td>
             <td style="font-weight:600;" x-text="((l.unit_price||0)*(l.quantity||1)).toFixed(2)"></td>
             <td><button type="button" class="btn btn-outline btn-sm" @click="lines.splice(i,1); recalc()"><i class="bi bi-x-lg"></i></button></td>
           </tr>
@@ -188,6 +197,61 @@
       <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
     </div>
   </form>
+
+  {# Money out, on the screen money came in on. Refunding lived only on the
+     invoice view, which reception reaches by knowing an invoice number — so
+     the one thing a family asks for at the desk sent the cashier hunting
+     through a list. Outside the collection form on purpose: a nested form is
+     invalid HTML and the browser would drop one of them. #}
+  {% if refundable %}
+  <details class="card gc-scale-in" style="margin-bottom:40px;">
+    <summary class="section-title" style="cursor:pointer;color:var(--danger);">
+      <i class="bi bi-arrow-return-left"></i> {{ t('invoices.refund') }}</summary>
+    <p class="hint" style="margin-top:8px;">{{ t('invoices.refund_hint') }}</p>
+    {% if refund_needs_approval %}
+    {# Said before the form, not after the click: a cashier who types an amount
+       and expects cash to come out should know a manager has to say yes. #}
+    <p class="hint" style="color:var(--danger);"><i class="bi bi-shield-lock"></i>
+      {{ t('checkout.refund_approval') }}</p>
+    {% endif %}
+    {% for inv in refundable %}
+    <form method="post" action="{{ url_for('finance.invoice_refund', invoice_id=inv.id) }}"
+          style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="collect">
+      <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+        <div style="min-width:190px;">
+          <div dir="ltr" style="font-family:monospace;font-size:.85rem;">{{ inv.invoice_number }}</div>
+          <div class="hint" style="margin:2px 0 0;">
+            {{ inv.invoice_date.strftime('%Y-%m-%d') }} ·
+            {{ t('checkout.paid') }} {{ '%.2f'|format(inv.paid) }} {{ currency_symbol() }}</div>
+        </div>
+        <div class="form-row" style="margin:0;max-width:130px;">
+          <label style="font-size:.85rem;">{{ t('invoices.amount') }} *</label>
+          {# Capped at what was actually collected, so the field cannot ask for
+             money that never came in. The route clamps it too — a max attribute
+             is a courtesy, not a control. #}
+          <input class="input" type="number" step="0.01" min="0.01"
+                 max="{{ '%.2f'|format(inv.paid) }}" name="amount" required>
+        </div>
+        <div class="form-row" style="margin:0;max-width:150px;">
+          <label style="font-size:.85rem;">{{ t('invoices.method') }}</label>
+          <select class="select" name="method">
+            {% for m in payment_methods %}<option value="{{ m }}">{{ t('payment_methods.' ~ m) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-row" style="margin:0;flex:1;min-width:160px;">
+          <label style="font-size:.85rem;">{{ t('invoices.refund_reason') }}</label>
+          <input class="input" name="notes">
+        </div>
+        <button class="btn btn-outline btn-sm gc-press" type="submit"
+                style="color:var(--danger);border-color:var(--danger);">
+          <i class="bi bi-arrow-return-left"></i> {{ t('invoices.refund') }}</button>
+      </div>
+    </form>
+    {% endfor %}
+  </details>
+  {% endif %}
 </div>
 
 <script>

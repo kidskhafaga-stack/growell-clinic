@@ -328,10 +328,9 @@ def test_a_zero_fee_still_appears_on_the_bill(shelf):
 
 
 # ==================================================== the till screen ======
-def test_the_picker_is_on_the_invoice_screen(shelf, desk):
-    body = desk.get("/finance/invoices/new",
-                    query_string={"patient_id": shelf["ids"]["child"]}
-                    ).get_data(as_text=True)
+def test_the_picker_is_on_the_collection_screen(shelf, desk):
+    body = desk.get(
+        f"/finance/collect/{shelf['ids']['child']}").get_data(as_text=True)
     with shelf["app"].test_request_context("/"):
         from app.i18n import t
         assert t("invoices.add_vaccine") in body
@@ -342,9 +341,8 @@ def test_the_screen_is_given_the_doses_not_just_the_vaccines(shelf, desk):
     """The dose list has to arrive with the page: fetching it after the
     patient is picked would leave the desk waiting with a family in front of
     them."""
-    body = desk.get("/finance/invoices/new",
-                    query_string={"patient_id": shelf["ids"]["child"]}
-                    ).get_data(as_text=True)
+    body = desk.get(
+        f"/finance/collect/{shelf['ids']['child']}").get_data(as_text=True)
     assert '"doses"' in body and '"next"' in body
 
 
@@ -363,11 +361,27 @@ def test_the_offers_carry_no_model_objects(shelf):
 
 def test_a_patient_with_nothing_to_sell_gets_no_panel(clinic, desk):
     """An empty picker is a control that does nothing, next to a family
-    waiting."""
-    body = desk.get("/finance/invoices/new").get_data(as_text=True)
-    with clinic["app"].test_request_context("/"):
-        from app.i18n import t
-        assert t("invoices.add_vaccine") not in body
+    waiting.
+
+    Checked on the payload, not on the heading. The collection screen keeps the
+    panel inside an ``x-if``, so its markup is in the page either way and only
+    the data decides whether anything is drawn — asserting on the heading would
+    pass on a screen showing an empty dropdown.
+
+    "Nothing to sell" used to mean "no patient chosen yet", because the screen
+    this replaced opened with an empty patient dropdown. There is no such state
+    any more, so the case is the real one: an empty fridge.
+    """
+    from app.models import VaccineInventory
+
+    with clinic["app"].app_context():
+        for lot in VaccineInventory.query.all():
+            clinic["db"].session.delete(lot)
+        clinic["db"].session.commit()
+
+    body = desk.get(
+        f"/finance/collect/{clinic['ids']['child']}").get_data(as_text=True)
+    assert '"brands"' not in body, "there is something in the picker to draw"
 
 
 def test_the_dose_number_is_stored_on_the_invoice_line(shelf, desk):
@@ -375,11 +389,10 @@ def test_the_dose_number_is_stored_on_the_invoice_line(shelf, desk):
     from app.models import Invoice, InvoiceItem
 
     ids = shelf["ids"]
-    desk.post("/finance/invoices/new", data={
-        "patient_id": ids["child"],
-        "line_service_id": "", "line_description": "المكورات — Prevenar",
-        "line_unit_price": "900", "line_quantity": "1",
-        "line_discount_value": "0", "line_discount_is_percent": "0",
+    desk.post(f"/finance/collect/{ids['child']}", data={
+        "discount_id": "none",
+        "line_service_id": "", "line_desc": "المكورات — Prevenar",
+        "line_price": "900", "line_qty": "1",
         "line_no_commission": "1", "line_brand_id": str(ids["brand"]),
         "line_dose_id": "", "line_vs_id": "", "line_dose_number": "2",
     }, follow_redirects=True)
@@ -394,7 +407,9 @@ def test_the_dose_number_is_stored_on_the_invoice_line(shelf, desk):
 
 
 def test_the_screen_still_opens_without_a_patient(clinic, desk):
-    assert desk.get("/finance/invoices/new").status_code == 200
+    """The invoice builder opened with nobody chosen — that was the complaint.
+    What answers "who?" now is the chooser, and it still has to open."""
+    assert desk.get("/finance/collect").status_code == 200
 
 
 # ================================ paid once, given once =====================

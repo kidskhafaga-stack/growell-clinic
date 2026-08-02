@@ -61,19 +61,23 @@ def _records(clinic):
 def _checkout_lines(client, clinic):
     """The lines reception is actually offered when billing the visit.
 
-    Read from the form's prefill payload, not from the page text: every
-    service in the clinic appears in the dropdown, so searching the HTML for a
-    name proves only that the service exists.
+    Read from the screen's own payload, not from the page text: every service
+    in the clinic appears in the "add a service" dropdown, so searching the
+    HTML for a name proves only that the service exists.
+
+    The invoice builder these tests were written against is gone — there is one
+    collection screen now, and it hands its opening lines to Alpine in the
+    same shape.
     """
+    import html
     import json
     import re
 
     body = client.get(
-        f"/finance/invoices/new?visit_id={clinic['ids']['visit']}"
-    ).get_data(as_text=True)
-    match = re.search(r"const prefill = (.*?);\n", body, re.S)
-    assert match, "the billing form stopped emitting its prefill"
-    return json.loads(match.group(1)) or []
+        f"/finance/collect/{clinic['ids']['child']}").get_data(as_text=True)
+    match = re.search(r"x-data='checkout\((\[.*?\]), \[", body, re.S)
+    assert match, "the collection screen stopped emitting its lines"
+    return json.loads(html.unescape(match.group(1))) or []
 
 
 def _collect(client, clinic, drop=None):
@@ -86,19 +90,60 @@ def _collect(client, clinic, drop=None):
     """
     lines = [line for line in _checkout_lines(client, clinic)
              if not (drop and drop in line["description"])]
-    data = {"patient_id": clinic["ids"]["child"],
-            "doctor_id": clinic["ids"]["doctor"],
-            "visit_id": clinic["ids"]["visit"],
+    data = {"doctor_id": clinic["ids"]["doctor"], "discount_id": "none",
             "line_service_id": [str(ln.get("service_id") or "") for ln in lines],
-            "line_description": [ln["description"] for ln in lines],
-            "line_unit_price": [str(ln.get("unit_price") or 0) for ln in lines],
-            "line_quantity": [str(ln.get("quantity") or 1) for ln in lines],
+            "line_desc": [ln["description"] for ln in lines],
+            "line_price": [str(ln.get("unit_price") or 0) for ln in lines],
+            "line_qty": [str(ln.get("quantity") or 1) for ln in lines],
             "line_no_commission": [str(ln.get("no_commission") or "0")
                                    for ln in lines],
             "line_brand_id": [str(ln.get("brand_id") or "") for ln in lines],
             "line_dose_id": [str(ln.get("dose_id") or "") for ln in lines],
+            "line_dose_number": [str(ln.get("dose_number") or "") for ln in lines],
             "line_vs_id": [str(ln.get("vs_id") or "") for ln in lines]}
-    return client.post("/finance/invoices/new", data=data, follow_redirects=True)
+    return client.post(f"/finance/collect/{clinic['ids']['child']}", data=data,
+                       follow_redirects=True)
+
+
+def _raise(client, clinic, lines, brand_ids=None):
+    """Raise a bill for the child on the collection screen — the only one.
+
+    ``lines`` is ``(service_id_or_None, description, price)``. Nothing is paid:
+    these tests are about what the bill *says*, and a payment would only add a
+    second thing that could go wrong.
+    """
+    return client.post(f"/finance/collect/{clinic['ids']['child']}", data={
+        "doctor_id": clinic["ids"]["doctor"], "discount_id": "none",
+        "line_service_id": [str(sid or "") for sid, _d, _p in lines],
+        "line_desc": [d for _s, d, _p in lines],
+        "line_price": [p for _s, _d, p in lines],
+        "line_qty": ["1"] * len(lines),
+        "line_no_commission": ["0"] * len(lines),
+        "line_brand_id": brand_ids or [""] * len(lines),
+        "line_dose_id": [""] * len(lines),
+        "line_dose_number": [""] * len(lines),
+        "line_vs_id": [""] * len(lines),
+    }, follow_redirects=True)
+
+
+def _discount(client, clinic, value, percent=False):
+    """Discount the bill's only line.
+
+    Per-line discounts were typed into the invoice builder as it was created.
+    That screen is gone — the collection screen carries named discounts and
+    insurance coverage instead — so a hand-set line discount now happens where
+    it always could: editing the line on the invoice itself.
+    """
+    from app.models import Invoice
+
+    with clinic["app"].app_context():
+        invoice = Invoice.query.one()
+        ids = (invoice.id, invoice.items[0].id)
+    data = {"discount_value": value}
+    if percent:
+        data["discount_is_percent"] = "1"
+    return client.post(f"/finance/invoices/{ids[0]}/item/{ids[1]}/edit",
+                       data=data, follow_redirects=True)
 
 
 # ====================================================== the procedures ====
@@ -154,13 +199,8 @@ def test_the_doctors_cut_follows_the_procedures_own_rate(clinic):
     from app.models import Invoice
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "line_service_id": [str(clinic["ids"]["exam"]),
-                            str(clinic["ids"]["nebul"])],
-        "line_description": ["كشف", "جلسة تنفس"],
-        "line_unit_price": ["200", "150"], "line_quantity": ["1", "1"],
-    }, follow_redirects=True)
+    _raise(desk, clinic, [(clinic["ids"]["exam"], "كشف", "200"),
+                          (clinic["ids"]["nebul"], "جلسة تنفس", "150")])
     with clinic["app"].app_context():
         invoice = Invoice.query.one()
         assert invoice.total == 350.0
@@ -174,12 +214,8 @@ def test_a_discount_shrinks_the_doctors_cut_with_it(clinic):
     from app.models import Invoice
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "line_service_id": [str(clinic["ids"]["exam"])],
-        "line_description": ["كشف"], "line_unit_price": ["200"],
-        "line_quantity": ["1"], "line_discount_value": ["50"],
-    }, follow_redirects=True)
+    _raise(desk, clinic, [(clinic["ids"]["exam"], "كشف", "200")])
+    _discount(desk, clinic, "50")
     with clinic["app"].app_context():
         invoice = Invoice.query.one()
         assert invoice.total == 150.0
@@ -190,13 +226,8 @@ def test_a_percentage_discount_is_a_percentage(clinic):
     from app.models import Invoice
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "line_service_id": [str(clinic["ids"]["exam"])],
-        "line_description": ["كشف"], "line_unit_price": ["200"],
-        "line_quantity": ["1"], "line_discount_value": ["25"],
-        "line_discount_is_percent": ["1"],
-    }, follow_redirects=True)
+    _raise(desk, clinic, [(clinic["ids"]["exam"], "كشف", "200")])
+    _discount(desk, clinic, "25", percent=True)
     with clinic["app"].app_context():
         assert Invoice.query.one().total == 150.0
 
@@ -206,12 +237,8 @@ def test_a_discount_cannot_exceed_the_line(clinic):
     from app.models import Invoice
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "line_service_id": [str(clinic["ids"]["exam"])],
-        "line_description": ["كشف"], "line_unit_price": ["200"],
-        "line_quantity": ["1"], "line_discount_value": ["500"],
-    }, follow_redirects=True)
+    _raise(desk, clinic, [(clinic["ids"]["exam"], "كشف", "200")])
+    _discount(desk, clinic, "500")
     with clinic["app"].app_context():
         assert Invoice.query.one().total == 0.0
 
@@ -400,13 +427,8 @@ def test_a_hand_typed_vaccine_line_still_settles_the_dose(clinic):
     _give(doctor, clinic)
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "visit_id": clinic["ids"]["visit"],
-        "line_service_id": [""], "line_description": ["Prevenar"],
-        "line_unit_price": ["900"], "line_quantity": ["1"],
-        "line_brand_id": [str(clinic["ids"]["brand"])],
-    }, follow_redirects=True)
+    _raise(desk, clinic, [(None, "Prevenar", "900")],
+           brand_ids=[str(clinic["ids"]["brand"])])
 
     assert _doses(clinic)[0]["invoice"] is not None
 
@@ -418,13 +440,8 @@ def test_one_line_settles_one_dose_not_every_dose(clinic):
     _give(doctor, clinic)
 
     desk = clinic["sign_in"]("boss")
-    desk.post("/finance/invoices/new", data={
-        "patient_id": clinic["ids"]["child"], "doctor_id": clinic["ids"]["doctor"],
-        "visit_id": clinic["ids"]["visit"],
-        "line_service_id": [""], "line_description": ["Prevenar"],
-        "line_unit_price": ["900"], "line_quantity": ["1"],
-        "line_brand_id": [str(clinic["ids"]["brand"])],
-    }, follow_redirects=True)
+    _raise(desk, clinic, [(None, "Prevenar", "900")],
+           brand_ids=[str(clinic["ids"]["brand"])])
 
     billed = [d["invoice"] for d in _doses(clinic)]
     assert sum(1 for b in billed if b is not None) == 1

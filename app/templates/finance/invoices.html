@@ -10,8 +10,10 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.journal') }}">
       <i class="bi bi-journal-text"></i> {{ t('journal.title') }}</a>
-    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('finance.invoice_new') }}">
-      <i class="bi bi-plus-lg"></i> {{ t('invoices.new') }}</a>
+    {# Was the invoice builder. Collection happens on one screen now, and this
+       is the only door that still has to ask who it is for. #}
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('finance.collect_pick') }}">
+      <i class="bi bi-cash-coin"></i> {{ t('checkout.collect') }}</a>
   </div>
 </div>
 

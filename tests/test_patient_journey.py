@@ -460,17 +460,18 @@ def test_one_child_from_the_door_to_the_till(journey):
     # --- the till collects, and the procedure is on the bill
     desk.post("/finance/shift/open", data={"opening_float": "0"},
               follow_redirects=True)
-    body = desk.get(f"/finance/invoices/new?visit_id={visit_id}").get_data(
-        as_text=True)
+    collect = f"/finance/collect/{journey['ids']['child']}"
+    body = desk.get(collect).get_data(as_text=True)
     assert "تنفس" in body
 
-    desk.post("/finance/invoices/new", data={
-        "patient_id": journey["ids"]["child"],
-        "doctor_id": journey["ids"]["doctor"], "visit_id": visit_id,
+    desk.post(collect, data={
+        "doctor_id": journey["ids"]["doctor"], "discount_id": "none",
         "line_service_id": [str(journey["ids"]["exam"]),
                             str(journey["ids"]["nebul"])],
-        "line_description": ["كشف", "جلسة تنفس"],
-        "line_unit_price": ["200", "150"], "line_quantity": ["1", "1"],
+        "line_desc": ["كشف", "جلسة تنفس"],
+        "line_price": ["200", "150"], "line_qty": ["1", "1"],
+        "line_no_commission": ["0", "0"], "line_brand_id": ["", ""],
+        "line_dose_id": ["", ""], "line_dose_number": ["", ""],
         "line_vs_id": ["", ""]}, follow_redirects=True)
     with journey["app"].app_context():
         invoice = Invoice.query.one()
