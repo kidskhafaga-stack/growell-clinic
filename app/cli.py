@@ -86,6 +86,31 @@ def register_commands(app):
             f"{counts['investigations']} investigations · "
             f"{counts['store_items']} store items", fg="green")
 
+    @app.cli.command("sync-db")
+    def sync_db():
+        """Bring the database's *shape* up to the code's. Nothing else.
+
+        This is what every launch needs and all it needs: the schema has to
+        match the code that is about to read it. It is additive and idempotent,
+        so on an already-current database it does nothing and says so.
+
+        ``start.bat`` used to run the full ``upgrade-db`` on every start, which
+        also re-ran every seeder and — worse — took a **pre-upgrade backup each
+        time**. That archive holds the database *and every uploaded file*, so a
+        clinic with a few gigabytes of photos wrote a few gigabytes on every
+        launch, and nothing pruned them until the next scheduled backup
+        happened to come round. Opening the program five times in a morning
+        cost five full copies of the clinic. Disks fill quietly, and a full
+        disk is what stops a clinic.
+        """
+        from app.utils.schema import apply_schema
+
+        applied = apply_schema(report=click.echo)
+        if applied:
+            click.secho(f"Database shape updated ({applied} change(s)).", fg="green")
+        else:
+            click.secho("Database shape already current.", fg="green")
+
     @app.cli.command("upgrade-db")
     def upgrade_db():
         """Safely apply additive schema changes to an existing database.
@@ -95,9 +120,16 @@ def register_commands(app):
         """
         # Safety net: snapshot the DB before touching the schema (skipped
         # silently when there is no database file yet, e.g. first init).
+        #
+        # Trimmed straight afterwards, like every other automatic snapshot.
+        # Retention only ever ran from the *scheduled* backup, so these piled
+        # up until that happened to come round — and each one carries every
+        # uploaded file in the clinic.
         try:
-            from app.utils.backups import create_backup
+            from app.utils.backups import apply_retention, create_backup
             click.echo("  ~ pre-upgrade backup: " + create_backup("preupgrade"))
+            from app.models import Setting as _Setting
+            apply_retention(_Setting.get("backup_keep", "14"))
         except Exception:  # noqa: BLE001
             pass
 

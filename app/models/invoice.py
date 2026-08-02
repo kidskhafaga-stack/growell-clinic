@@ -119,6 +119,12 @@ class InvoiceItem(db.Model):
     # refuses or swaps can be settled against the exact line that billed it.
     vaccine_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
                                  nullable=True, index=True)
+    # Which dose of that course was paid for. Set when a vaccine is sold
+    # *forward* — the family pays at reception and the nurse gives it after —
+    # so the choice made on the till screen is a fact the record can be
+    # settled against. Without it, "which dose" would be asked, answered, and
+    # thrown away, which is worse than not asking.
+    vaccine_dose_number = db.Column(db.Integer)
     unit_price = db.Column(db.Float, default=0, nullable=False)
     quantity = db.Column(db.Integer, default=1, nullable=False)
     discount_value = db.Column(db.Float, default=0)          # raw input

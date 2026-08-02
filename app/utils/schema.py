@@ -63,6 +63,7 @@ ADDITIONS = [
     ("supplier_payments", "shift_id", "INTEGER"),
     ("payments", "tendered", "FLOAT"),
     ("invoice_items", "vaccine_brand_id", "INTEGER"),
+    ("invoice_items", "vaccine_dose_number", "INTEGER"),
     ("named_discounts", "payer_id", "INTEGER"),
     ("named_discounts", "min_siblings", "INTEGER DEFAULT 2"),
     ("drugs", "generic_id", "INTEGER"),

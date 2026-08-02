@@ -1781,11 +1781,21 @@ def invoice_new():
         prefill_lines.extend(
             _vaccine_prefill_lines(patient.id, doc, lang, has_vacc_base))
 
+    # Vaccines that can be sold *forward* — the family pays at reception and
+    # the nurse gives it afterwards, which is how a vaccination visit actually
+    # runs. Everything above bills doses already given; this is the other
+    # direction, and there was no way to do it.
+    from app.utils.vaccine_sale import as_json, sellable
+    vaccine_offers = sellable(patient, lang) if patient is not None else []
+
     suggested, suggested_amount = _discount_preview(patient, doctor_id,
                                                     prefill_lines)
     return render_template(
         "finance/invoice_form.html", patient=patient,
         suggested=suggested, suggested_amount=suggested_amount,
+        vaccine_offers=vaccine_offers,
+        vaccine_offers_json=as_json(vaccine_offers),
+        vaccine_fee=_vaccine_service(),
         doctors=_doctors_active(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
@@ -1921,6 +1931,7 @@ def checkout(appt_id):
         qtys = request.form.getlist("line_qty")
         nocomms = request.form.getlist("line_no_commission")
         brands = request.form.getlist("line_brand_id")
+        dose_numbers = request.form.getlist("line_dose_number")
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -1950,6 +1961,12 @@ def checkout(appt_id):
                                          if i < len(brands) and brands[i] else None)
             except (TypeError, ValueError):
                 item.vaccine_brand_id = None
+            try:
+                item.vaccine_dose_number = (
+                    int(dose_numbers[i])
+                    if i < len(dose_numbers) and dose_numbers[i] else None)
+            except (TypeError, ValueError):
+                item.vaccine_dose_number = None
             svc = db.session.get(Service, sid) if sid else None
             # Vaccine product lines carry no invoice commission (doctor share is
             # the brand's doctor_fee, tracked on the dose — never double-paid).
@@ -2203,6 +2220,7 @@ def _build_line(invoice, idx):
     dpcts = request.form.getlist("line_discount_is_percent")
     nocomm = request.form.getlist("line_no_commission")
     brands = request.form.getlist("line_brand_id")
+    dose_numbers = request.form.getlist("line_dose_number")
 
     def _num(lst, i, cast, default=None):
         try:
@@ -2232,6 +2250,10 @@ def _build_line(invoice, idx):
     # checkout path keeps, so a dose the doctor later refuses or swaps can be
     # settled against the exact line that charged for it.
     item.vaccine_brand_id = _num(brands, idx, int)
+    # And which dose of that course was paid for, when the vaccine was sold
+    # forward from the till. Asking "which dose" and then dropping the answer
+    # would make the question theatre.
+    item.vaccine_dose_number = _num(dose_numbers, idx, int)
     # Vaccine product lines carry no invoice commission — the doctor's share is
     # the brand's doctor_fee, tracked on the dose (else it would be double-paid).
     no_commission = idx < len(nocomm) and nocomm[idx] in ("1", "on", "true")

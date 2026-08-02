@@ -57,6 +57,53 @@
   </div>
 
   <!-- Line items -->
+  {# Selling a vaccine forward: the family pays at reception and the nurse
+     gives it after. Everything else on this screen bills what has already
+     happened; this is the other direction, and there was no way to do it.
+
+     Three choices in order — vaccine, trade name, which dose — because that is
+     the order the question is asked in at the desk. #}
+  {% if vaccine_offers %}
+  <details class="card gc-scale-in" style="animation-delay:0.05s;">
+    <summary class="section-title" style="cursor:pointer;">
+      <i class="bi bi-shield-plus"></i> {{ t('invoices.add_vaccine') }}</summary>
+    <p class="hint" style="margin-top:8px;">{{ t('invoices.add_vaccine_hint') }}</p>
+    <div class="form-grid" style="margin-top:6px;">
+      <div class="form-row"><label>{{ t('vaccinations.cert_vaccine') }}</label>
+        <select class="select" x-model="vac.vaccineId" x-on:change="onVaccine()">
+          <option value="">—</option>
+          <template x-for="v in offers" :key="v.id">
+            <option :value="v.id" x-text="v.name"></option>
+          </template>
+        </select></div>
+      <div class="form-row"><label>{{ t('vaccinations.brand') }}</label>
+        <select class="select" x-model="vac.brandId" x-on:change="onBrand()"
+                :disabled="!vac.vaccineId">
+          <option value="">—</option>
+          <template x-for="b in brands()" :key="b.id">
+            <option :value="b.id"
+                    x-text="b.name + ' — ' + b.price + ' · ' + '{{ t('vaccinations.stock_available') }}: ' + b.stock"></option>
+          </template>
+        </select></div>
+      <div class="form-row"><label>{{ t('vaccinations.dose') }}</label>
+        <select class="select" x-model.number="vac.dose" :disabled="!vac.brandId">
+          <template x-for="d in doses()" :key="d.number">
+            {# Doses already had stay on the list, marked. "The first was at a
+               government unit" is a real thing somebody needs to say. #}
+            <option :value="d.number" :disabled="d.given"
+                    x-text="d.label + (d.given ? ' — {{ t('vaccinations.already_given') }}' : '')"></option>
+          </template>
+        </select>
+        <span class="hint" x-show="nextLabel()" x-cloak
+              x-text="'{{ t('invoices.next_dose_is') }} ' + nextLabel()"></span></div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm gc-press"
+            x-on:click="addVaccine()" :disabled="!vac.brandId || !vac.dose">
+      <i class="bi bi-plus-lg"></i> {{ t('invoices.add_to_bill') }}</button>
+    <p class="hint" style="margin-top:8px;">{{ t('invoices.fee_once_hint') }}</p>
+  </details>
+  {% endif %}
+
   <div class="card gc-scale-in" style="animation-delay:0.06s;">
     <h2 class="section-title"><i class="bi bi-card-list"></i> {{ t('invoices.items') }}</h2>
     <div style="overflow-x:auto;">
@@ -82,6 +129,7 @@
                    it — a dose left off the bill stays unbilled. #}
                 <input type="hidden" name="line_brand_id" :value="line.brand_id || ''">
                 <input type="hidden" name="line_dose_id" :value="line.dose_id || ''">
+                <input type="hidden" name="line_dose_number" :value="line.dose_number || ''">
                 <input type="hidden" name="line_vs_id" :value="line.vs_id || ''">
               </td>
               <td><input class="input" type="number" step="0.01" name="line_unit_price" x-model.number="line.unit_price" style="width:90px;"></td>
@@ -118,16 +166,79 @@ function invoiceForm(){
   const prices = { {% for s in services %}'{{ s.id }}': {{ s.price or 0 }},{% endfor %} };
   const names  = { {% for s in services %}'{{ s.id }}': {{ s.display_name(current_lang)|tojson }},{% endfor %} };
   const prefill = {{ prefill_lines|tojson if prefill_lines else 'null' }};
+  // What can be sold to this child, and which dose each one would be.
+  const offers = {{ (vaccine_offers_json or [])|tojson }};
+  const feeService = {{ ({'id': vaccine_fee.id,
+                          'name': vaccine_fee.display_name(current_lang),
+                          'price': vaccine_fee.price or 0} if vaccine_fee else None)|tojson }};
   return {
     lines: [],
-    prices, names,
+    prices, names, offers, feeService,
+    vac: { vaccineId: '', brandId: '', dose: '' },
+    // --- the vaccine picker -------------------------------------------
+    brands(){
+      const v = this.offers.find(o => String(o.id) === String(this.vac.vaccineId));
+      return v ? v.brands : [];
+    },
+    brand(){
+      return this.brands().find(b => String(b.id) === String(this.vac.brandId)) || null;
+    },
+    doses(){ const b = this.brand(); return b ? b.doses : []; },
+    nextLabel(){ const b = this.brand(); return b ? (b.next_label || '') : ''; },
+    onVaccine(){
+      this.vac.brandId = '';
+      this.vac.dose = '';
+      // One brand and there is nothing to choose: choosing for somebody is
+      // only rude when they had an alternative.
+      const list = this.brands();
+      if (list.length === 1) { this.vac.brandId = String(list[0].id); this.onBrand(); }
+    },
+    onBrand(){
+      const b = this.brand();
+      // Land on the next undone dose. Offering dose 1 to a child three doses
+      // in is the mistake this picker exists to prevent, and it is not a
+      // display problem: whichever dose is billed is the one the record will
+      // say was given.
+      this.vac.dose = b && b.next ? b.next : '';
+    },
+    addVaccine(){
+      const b = this.brand();
+      if (!b || !this.vac.dose) return;
+      const v = this.offers.find(o => String(o.id) === String(this.vac.vaccineId));
+      const dose = b.doses.find(d => String(d.number) === String(this.vac.dose));
+      this.lines.push(this.blankLine({
+        description: (v ? v.name + ' — ' : '') + b.name +
+                     (dose ? ' (' + dose.label + ')' : ''),
+        unit_price: b.price, quantity: 1,
+        // The vial is not the fee's service. They shared one service id once,
+        // and a discount aimed at the fee came off the vial with it.
+        no_commission: '1', brand_id: b.id, dose_number: this.vac.dose,
+      }));
+      // The fee goes on once however many vaccines are given: two in one visit
+      // is ordinary, and it is one administration.
+      if (this.feeService && !this.hasFee()) {
+        this.lines.push(this.blankLine({
+          service_id: String(this.feeService.id),
+          description: this.feeService.name,
+          // Zero is a decision, not an absence. A clinic that gives the
+          // vaccine at cost still wants the line visible at nothing, because
+          // "not charged" and "not written down" read the same on a bill.
+          unit_price: this.feeService.price, quantity: 1,
+        }));
+      }
+      this.vac = { vaccineId: '', brandId: '', dose: '' };
+    },
+    hasFee(){
+      return this.feeService && this.lines.some(
+        l => String(l.service_id) === String(this.feeService.id));
+    },
     init(){
       // Seed the visit lines (base visit-type charge + procedures) at the
       // doctor's price when billing a visit; otherwise start with one blank row.
       if (prefill && prefill.length) { prefill.forEach(l => this.lines.push(this.blankLine(l))); }
       else { this.addLine(); }
     },
-    blankLine(extra){ return Object.assign({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0',no_commission:'0'}, extra||{}); },
+    blankLine(extra){ return Object.assign({service_id:'',description:'',unit_price:0,quantity:1,discount_value:0,discount_is_percent:'0',no_commission:'0',dose_number:''}, extra||{}); },
     addLine(){ this.lines.push(this.blankLine()); },
     onService(i){ const l=this.lines[i]; if(l.service_id){ l.unit_price=this.prices[l.service_id]||0; if(!l.description) l.description=this.names[l.service_id]||''; } },
     isPct(l){ return l.discount_is_percent === '1' || l.discount_is_percent === true; },

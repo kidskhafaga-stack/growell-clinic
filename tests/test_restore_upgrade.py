@@ -240,3 +240,74 @@ def test_the_update_checks_the_program_still_starts():
     shows if somebody looks."""
     body = _read("update.bat")
     assert "create_app" in body and body.index("upgrade-db") < body.index("create_app")
+
+
+# ------------------------------------------- what every launch should cost --
+def test_starting_the_program_matches_the_schema_without_backing_up(clinic_db):
+    """Reported as a question: *"why isn't upgrade-db in start.bat so it runs
+    automatically?"* It was — and that was the problem.
+
+    ``upgrade-db`` takes a **pre-upgrade backup first**, and that archive holds
+    the database *and every uploaded file*. Running it on every launch meant a
+    clinic with a few gigabytes of photos wrote a few gigabytes every time
+    somebody opened the program, and nothing trimmed those copies until the
+    next scheduled backup happened to come round. Five launches in a morning,
+    five full copies of the clinic. Disks fill quietly, and a full disk is what
+    stops a clinic.
+
+    What a launch actually needs is for the database's *shape* to match the
+    code about to read it. That is additive, idempotent and free.
+    """
+    body = _read("start.bat")
+    live = [ln for ln in body.splitlines()
+            if not ln.strip().upper().startswith("REM")]
+    joined = "\n".join(live)
+    assert "sync-db" in joined
+    assert "upgrade-db" not in joined, "every start still costs a full backup"
+
+
+def test_the_deliberate_update_still_does_the_full_job(clinic_db):
+    """Splitting them must not have left `update.bat` doing only the shape:
+    the seeding and backfills are what a new version brings with it."""
+    body = _read("update.bat")
+    live = [ln for ln in body.splitlines()
+            if not ln.strip().upper().startswith("REM")]
+    assert "upgrade-db" in "\n".join(live)
+
+
+def test_the_shape_command_takes_no_backup(clinic_db):
+    """A snapshot per launch is the cost this split exists to remove."""
+    import inspect
+
+    from app import cli
+
+    source = inspect.getsource(cli.register_commands)
+    start = source.index('@app.cli.command("sync-db")')
+    end = source.index('@app.cli.command("upgrade-db")')
+    assert "create_backup" not in source[start:end]
+
+
+def test_the_automatic_snapshots_are_trimmed_like_every_other(clinic_db):
+    """Retention only ever ran from the *scheduled* backup, so pre-upgrade
+    archives piled up until that came round — and each carries every uploaded
+    file in the clinic."""
+    import inspect
+
+    from app import cli
+
+    source = inspect.getsource(cli.register_commands)
+    # Anchored on the call, not on the words: the first draft of this test
+    # matched the phrase inside the docstring that *explains* the problem and
+    # passed without looking at any code.
+    block = source[source.index('create_backup("preupgrade")'):]
+    assert "apply_retention" in block[:400]
+
+
+def test_the_shape_command_is_idempotent(clinic_db):
+    """It runs on every launch, so doing nothing on an up-to-date database is
+    not an optimisation — it is the requirement."""
+    from app.utils.schema import apply_schema
+
+    with clinic_db["app"].app_context():
+        apply_schema()
+        assert apply_schema() == 0

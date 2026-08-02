@@ -741,6 +741,15 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
     )
     db.session.add(pv)
 
+    # Already paid for at the desk? Link the dose to that line now. Without
+    # this the sell-forward path double-charges: the biller looks for doses
+    # with no invoice, finds this one, and bills it a second time.
+    try:
+        from app.utils.vaccine_sale import claim_prepaid
+        claim_prepaid(pv)
+    except Exception:  # noqa: BLE001 - billing must never block a dose
+        pass
+
     # Deduct one patient-dose from the soonest-expiry batch for clinic-provided
     # (optional) vaccines. Doses given elsewhere never touch stock.
     if not vaccine.is_mandatory and not given_outside:
