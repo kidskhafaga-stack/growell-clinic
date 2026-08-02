@@ -58,9 +58,21 @@ if not exist "clinic.env" (
   python -c "from app.settings_file import ensure_file; ensure_file()"
 )
 
-REM --- 5) Initialise the database on first run, then ALWAYS upgrade it ---
-REM The upgrade step is what adds new columns/tables after an update, so it
-REM must run on every start - not only when a database already existed.
+REM --- 5) Initialise on first run, then match the database shape to the code ---
+REM
+REM Every launch needs the database's SHAPE to match the code about to read it,
+REM so this runs every time. It is additive and idempotent: on an up-to-date
+REM database it does nothing.
+REM
+REM It used to run the full "upgrade-db", which also re-ran every seeder and
+REM took a PRE-UPGRADE BACKUP on every single start. That archive holds the
+REM database and every uploaded file, and nothing trimmed those copies until
+REM the next scheduled backup came round - so opening the program five times
+REM in a morning wrote five full copies of the clinic's photos. Disks fill
+REM quietly, and a full disk is what stops a clinic.
+REM
+REM The heavy version (seeding, backfills, a snapshot before it) belongs to
+REM update.bat, where somebody decided to update.
 if not exist "instance\growell.db" (
   echo [4/5] Initialising database and seeding the clinic catalogues...
   flask --app run seed
@@ -70,8 +82,8 @@ if not exist "instance\growell.db" (
     exit /b 1
   )
 )
-echo [4/5] Applying any safe database upgrades...
-flask --app run upgrade-db
+echo [4/5] Matching the database shape to this version...
+flask --app run sync-db
 if errorlevel 1 (
   echo [ERROR] Database upgrade failed - do NOT use the app before fixing this.
   echo         Your data is untouched. Run tools.bat and choose "Restore a backup"
