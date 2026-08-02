@@ -221,6 +221,10 @@ ADDITIONS = [
     ("conversations", "topic", "VARCHAR(16)"),
     ("drugs", "trade_name_ar", "VARCHAR(160)"),
     ("drugs", "route", "VARCHAR(20)"),
+    # Which granularity a period is. Existing rows are months, and the default
+    # says so — a clinic that already closed January must not find it
+    # unlabelled after an upgrade.
+    ("accounting_periods", "kind", "VARCHAR(10) DEFAULT 'month'"),
 ]
 
 def apply_schema(report=None):

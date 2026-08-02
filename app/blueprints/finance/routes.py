@@ -238,7 +238,18 @@ def _post_journal_safe(kind, obj):
 
 
 def _doctors():
-    return User.query.filter_by(role="doctor").order_by(User.full_name).all()
+    """Every doctor a per-service commission can be set for, active or not.
+
+    Inactive ones stay in: a rate that vanished when somebody was deactivated
+    would silently stop being the rate their historical invoices were priced
+    at. Same "who is a doctor" rule as everywhere else — role-typed *or*
+    flagged as a practitioner — otherwise the commission screen would offer a
+    different set of people from the one collecting the money.
+    """
+    return (User.query
+            .filter(db.or_(User.role == "doctor",
+                           User.is_practitioner.is_(True)))
+            .order_by(User.full_name).all())
 
 
 def _clean_commission():
@@ -574,7 +585,23 @@ def service_consumables(service_id):
 # Invoices & payments
 # =======================================================================
 def _doctors_active():
-    return User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all()
+    """Who can be picked as the doctor on money screens.
+
+    Reported as *"the doctor always shows a dash"* — an empty dropdown with
+    only its placeholder in it. The cause: this asked for ``role == "doctor"``
+    and nothing else, while the rest of the program has long counted a
+    practitioner as somebody who *sees patients* — ``role == "doctor"`` **or**
+    the ``is_practitioner`` flag, which is how a clinic marks an owner-admin
+    who also runs a clinic day. In a clinic whose doctor is flagged that way
+    rather than role-typed, the appointment board listed them and every finance
+    screen showed a dash.
+
+    One definition now, shared with the board — so the two cannot drift again
+    and leave the money screens disagreeing about who the doctors are.
+    """
+    from app.utils.appointments import list_doctors
+
+    return list_doctors()
 
 
 def _add_item_from_form(invoice, prefix=""):
@@ -2503,20 +2530,26 @@ def invoice_edit(invoice_id):
 @finance_bp.route("/periods", methods=["GET", "POST"])
 @module_required(MODULE)
 def periods():
-    """The books, month by month: which periods are open and which are closed.
+    """The books: which periods are open and which are closed.
 
-    Closing a month is an admin's decision and it is what makes a printed
-    report permanent — money can no longer be written into a closed month."""
+    Four granularities, because clinics hand over at different rhythms — the
+    month, the quarter, the half, the full year. Closing any of them is an
+    admin's decision and it is what makes a printed report permanent: money can
+    no longer be written inside it."""
     from flask import abort
 
     from app.models import AccountingPeriod
-    from app.utils.periods import close_period, generate_months, reopen_period
+    from app.utils.periods import (KINDS, close_period, generate_periods,
+                                   reopen_period, selectable_years)
 
     year = request.values.get("year", type=int) or date.today().year
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
         if action == "generate":
-            made = generate_months(year)
+            kind = (request.form.get("kind") or "month").strip()
+            if kind not in KINDS:
+                kind = "month"
+            made = generate_periods(year, kind, getattr(g, "lang", "ar"))
             db.session.commit()
             flash(t("periods.generated").replace("{n}", str(made)), "success")
             return redirect(url_for("finance.periods", year=year))
@@ -2542,9 +2575,22 @@ def periods():
         db.session.commit()
         return redirect(url_for("finance.periods", year=year))
 
-    rows = (AccountingPeriod.query
-            .filter(db.extract("year", AccountingPeriod.start_date) == year)
-            .order_by(AccountingPeriod.start_date).all())
+    query = (AccountingPeriod.query
+             .filter(db.extract("year", AccountingPeriod.start_date) == year))
+    # Filters, because a year now holds up to nineteen periods across four
+    # granularities and an accountant looking for "the closed quarters" should
+    # not be reading a wall.
+    kind = (request.args.get("kind") or "").strip()
+    if kind in KINDS:
+        query = query.filter(AccountingPeriod.kind == kind)
+    status = (request.args.get("status") or "").strip()
+    if status in ("open", "closed"):
+        query = query.filter(AccountingPeriod.status == status)
+    needle = (request.args.get("q") or "").strip()
+    if needle:
+        query = query.filter(AccountingPeriod.name.ilike(f"%{needle}%"))
+    rows = query.order_by(AccountingPeriod.start_date,
+                          AccountingPeriod.end_date).all()
     totals = {}
     for p in rows:
         invoices = Invoice.query.filter(
@@ -2555,11 +2601,9 @@ def periods():
             "collected": round(sum(i.paid for i in invoices), 2),
             "count": len(invoices),
         }
-    years = sorted({y for (y,) in db.session.query(
-        db.extract("year", AccountingPeriod.start_date)).distinct().all() if y}
-        | {date.today().year})
     return render_template("finance/periods.html", periods=rows, year=year,
-                           years=[int(y) for y in years], totals=totals)
+                           years=selectable_years(), totals=totals, kinds=KINDS,
+                           f_kind=kind, f_status=status, f_q=needle)
 
 
 @finance_bp.route("/payers", methods=["GET", "POST"])

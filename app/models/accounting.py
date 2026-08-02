@@ -114,6 +114,10 @@ class AccountingPeriod(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(60), nullable=False)      # يناير 2026
+    # month | quarter | half | year. A clinic reviews at whichever granularity
+    # it actually hands over at, and closing any of them refuses money inside
+    # it — the wider ones are not decoration.
+    kind = db.Column(db.String(10), default="month", nullable=False, index=True)
     start_date = db.Column(db.Date, nullable=False, index=True)
     end_date = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.String(10), default="open", nullable=False, index=True)
