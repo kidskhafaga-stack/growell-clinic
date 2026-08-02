@@ -7,6 +7,7 @@ import json
 import os
 import uuid
 from datetime import date, datetime
+from datetime import time as dtime
 
 from flask import (
     Response,
@@ -1242,3 +1243,230 @@ def _process_import(rows):
             created += 1
 
     return {"created": created, "errors": errors, "total": len(rows)}
+
+
+# ==================================================== history import ========
+# Bringing a clinic's old case history across from the program it used before.
+# Same wizard as the patient import above — upload, map, preview, commit — so
+# somebody who has done one recognises the other. The differences are all
+# consequences of scale and of what the file cannot say:
+#
+#   * it attaches to patients that must already exist (an old services export
+#     carries no date of birth, gender or phone, so it cannot create anybody);
+#   * every lookup is done in bulk, because ten thousand rows resolved one at a
+#     time is ten thousand round trips;
+#   * and a second upload is *compared*, not appended.
+def _history_cell(value):
+    """JSON-safe cell that keeps the time of day.
+
+    The patient import's serialiser formats dates as ``%Y-%m-%d``, which is
+    right there and wrong here: the time is part of what tells two services on
+    the same day apart, and dropping it makes 80 rows of a real export look
+    like duplicates of each other.
+    """
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dtime):
+        return value.strftime("%H:%M:%S")
+    return str(value)
+
+
+def _history_ready():
+    """Whether there are any patients for the history to attach to."""
+    return Patient.query.limit(1).count() > 0
+
+
+@patients_bp.route("/import/history", methods=["GET", "POST"])
+@module_required(MODULE)
+def history_import():
+    from app.utils.history_import import guess_mapping, summary_columns
+    from app.utils.history_import import fields as history_fields
+
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or not file.filename:
+            flash(t("import.no_file"), "danger")
+            return redirect(url_for("patients.history_import"))
+        if not allowed_import_file(file.filename):
+            flash(t("import.bad_format"), "danger")
+            return redirect(url_for("patients.history_import"))
+
+        headers, data_rows, error = read_matrix(file)
+        if error == "unreadable":
+            flash(t("import.unreadable"), "danger")
+            return redirect(url_for("patients.history_import"))
+        if error or not data_rows:
+            flash(t("import.empty"), "warning")
+            return redirect(url_for("patients.history_import"))
+
+        # Parsed once and stashed: the mapping screen, the preview and the
+        # commit all read this instead of re-reading the workbook three times.
+        token = uuid.uuid4().hex
+        with open(os.path.join(_import_tmp_dir(), f"{token}.json"), "w",
+                  encoding="utf-8") as fh:
+            json.dump({"headers": headers, "rows": data_rows,
+                       "filename": file.filename},
+                      fh, ensure_ascii=False, default=_history_cell)
+
+        return render_template(
+            "patients/history_map.html", token=token, headers=headers,
+            filename=file.filename, fields=history_fields(),
+            guess=guess_mapping(headers), sample=data_rows[:5],
+            total=len(data_rows),
+            # Trailing columns that are a summary block rather than data — the
+            # real export ends with "من تاريخ / إلى تاريخ / عدد الخدمات" laid
+            # out like columns inside the same sheet.
+            summary=sorted(summary_columns(headers, data_rows)))
+
+    return render_template("patients/history_import.html",
+                           ready=_history_ready())
+
+
+@patients_bp.route("/import/history/map", methods=["POST"])
+@module_required(MODULE)
+def history_import_map():
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import (classify, distinct_values,
+                                         missing_patient_codes)
+
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    if payload is None:
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    mapping = {}
+    for key in request.form:
+        if not key.startswith("col_"):
+            continue
+        value = (request.form.get(key) or "").strip()
+        if value != "":
+            mapping[key[4:]] = int(value)
+    missing = [k for k in ("service_date", "patient_code", "service_name")
+               if k not in mapping]
+    if missing:
+        flash(t("history_import.need_columns"), "danger")
+        return redirect(url_for("patients.history_import"))
+
+    records = build_rows(payload["rows"], mapping)
+    records, counts = classify(records)
+
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump({**payload, "mapping": mapping}, fh, ensure_ascii=False,
+                  default=_history_cell)
+
+    return render_template(
+        "patients/history_preview.html", token=token, counts=counts,
+        total=len(records), filename=payload.get("filename"),
+        rows=records[:MAX_PREVIEW_ROWS],
+        missing_patients=missing_patient_codes(records),
+        services=distinct_values(records, "service_name"),
+        categories=distinct_values(records, "client_category"),
+        doctors=distinct_values(records, "doctor_name"))
+
+
+@patients_bp.route("/import/history/commit", methods=["POST"])
+@module_required(MODULE)
+def history_import_commit():
+    from app.models import ImportBatch, ImportedService
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import CHANGED, NEW, classify
+
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    if payload is None or not payload.get("mapping"):
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    records = build_rows(payload["rows"], payload["mapping"])
+    records, counts = classify(records)
+
+    batch = ImportBatch(kind="history", filename=payload.get("filename"),
+                        created_by=current_user.id, rows_total=len(records))
+    db.session.add(batch)
+    db.session.flush()
+
+    # Written with one bulk insert and one commit. Adding rows one at a time
+    # here costs a round trip each — and on SQLite, committing per row costs a
+    # disk sync each, which is the difference between a second and an hour.
+    update_changed = request.form.get("update_changed") == "1"
+    pending = []
+    for record in records:
+        if record["_state"] != NEW and not (update_changed
+                                            and record["_state"] == CHANGED):
+            continue
+        if record["_state"] == CHANGED:
+            ImportedService.query.filter_by(source_key=record["_key"]).delete()
+        pending.append({
+            "batch_id": batch.id, "patient_id": record["_patient_id"],
+            "service_date": record["service_date"],
+            "service_time": record["service_time"],
+            "source_name": record["service_name"][:255],
+            "quantity": record["quantity"], "price": record["price"],
+            "doctor_share": record["doctor_share"],
+            "paid_cash": record["paid_cash"],
+            "paid_company": record["paid_company"],
+            "client_category": (record["client_category"] or "")[:30] or None,
+            "source_key": record["_key"], "source_row": record["source_row"][:40],
+            "notes": record["notes"] or None,
+        })
+    if pending:
+        db.session.bulk_insert_mappings(ImportedService, pending)
+
+    batch.rows_added = len(pending)
+    batch.rows_skipped = counts["same"] + (0 if update_changed else counts["changed"])
+    batch.rows_rejected = counts["rejected"]
+    ActivityLog.record("history.import", user_id=current_user.id,
+                       entity="import_batch", entity_id=batch.id,
+                       detail=f"{len(pending)} rows from {payload.get('filename')}",
+                       ip_address=client_ip())
+    db.session.commit()
+
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
+
+    flash(t("history_import.done").replace("{n}", str(len(pending))), "success")
+    return redirect(url_for("patients.history_import"))
+
+
+@patients_bp.route("/import/history/template")
+@module_required(MODULE)
+def history_import_template():
+    """A template with the expected columns and a sample row.
+
+    A convenience, not a requirement: the real export this was built against
+    maps 16 of its 17 columns with nobody renaming anything, and that has to
+    stay the normal case. The template is for a clinic whose program exports
+    something unrecognisable, or one typing its history in by hand.
+    """
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    from app.utils.history_import import fields as history_fields
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "history"
+    columns = history_fields()
+    ws.append([label for _k, _r, label in columns])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DDEEDD")
+    ws.append(["1", "2024-03-15", "10:30", "1043", "أحمد محمد", "1",
+               "د. سارة أحمد", "كشف", "", "الكشف", "نقدي", "200", "80",
+               "200", "0", "1", ""])
+    for index, _col in enumerate(columns, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=index).column_letter].width = 22
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name="history_template.xlsx")

@@ -1,0 +1,119 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('history_import.preview_title') }}{% endblock %}
+{% block page_heading %}{{ t('history_import.preview_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('history_import.preview_title') }}</h1>
+  <p class="page-sub" style="margin:6px 0 0;">
+    <span dir="ltr">{{ filename }}</span> — {{ total }} {{ t('history_import.rows') }}</p>
+</div>
+
+{# Four buckets, because they deserve different treatment. The third is what
+   separates an import that compares from one that duplicates. #}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  {% for key, colour, icon in [('new','var(--green-600)','plus-circle'),
+                               ('same','var(--muted)','check2'),
+                               ('changed','var(--amber-600,#d97706)','pencil'),
+                               ('rejected','var(--danger)','x-circle')] %}
+  <div class="card gc-scale-in" style="flex:1;min-width:150px;border-inline-start:4px solid {{ colour }};">
+    <div style="font-size:1.6rem;font-weight:700;" dir="ltr">{{ counts[key] }}</div>
+    <div class="hint" style="margin:0;"><i class="bi bi-{{ icon }}"></i> {{ t('history_import.st_' ~ key) }}</div>
+  </div>
+  {% endfor %}
+</div>
+<p class="hint" style="margin:-6px 0 14px;">{{ t('history_import.states_hint') }}</p>
+
+{% if missing_patients %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);">
+  <strong><i class="bi bi-person-x"></i> {{ t('history_import.missing_patients') }}</strong>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('history_import.missing_hint') }}</p>
+  <div style="overflow-x:auto;max-height:240px;">
+    <table class="table" style="min-width:360px;">
+      <thead><tr><th>{{ t('history_import.code') }}</th><th>{{ t('invoices.patient') }}</th><th>{{ t('history_import.rows') }}</th></tr></thead>
+      <tbody>
+        {% for m in missing_patients %}
+        <tr><td dir="ltr">{{ m.code }}</td><td dir="auto">{{ m.name }}</td><td dir="ltr">{{ m.rows }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <a class="btn btn-outline gc-press" style="margin-top:10px;" href="{{ url_for('patients.bulk_import') }}">
+    <i class="bi bi-people"></i> {{ t('history_import.go_patients') }}</a>
+</div>
+{% endif %}
+
+{# What the file actually contains, collapsed. 9,908 rows carry 27 service
+   names and 3 categories — so a clinic checks 30 things, not ten thousand. #}
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  {% for title, rows_ in [(t('history_import.services_found'), services),
+                          (t('history_import.categories_found'), categories),
+                          (t('history_import.doctors_found'), doctors)] %}
+  {% if rows_ %}
+  <details class="card gc-scale-in" style="flex:1;min-width:230px;">
+    <summary style="cursor:pointer;font-weight:600;">{{ title }} ({{ rows_|length }})</summary>
+    <div style="max-height:220px;overflow-y:auto;margin-top:8px;">
+      {% for r in rows_ %}
+      <div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
+        <span dir="auto">{{ r.value }}</span><span class="hint" dir="ltr">{{ r.rows }}</span></div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:14px;">
+  <div style="overflow-x:auto;max-height:420px;">
+    <table class="table" style="min-width:680px;">
+      <thead><tr>
+        <th>{{ t('common.status') }}</th><th>{{ t('history_import.code') }}</th>
+        <th>{{ t('invoices.date') }}</th><th>{{ t('invoices.description') }}</th>
+        <th style="text-align:end;">{{ t('services.price') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            {% if r._state == 'new' %}<span class="badge badge--green">{{ t('history_import.st_new') }}</span>
+            {% elif r._state == 'same' %}<span class="badge badge--muted">{{ t('history_import.st_same') }}</span>
+            {% elif r._state == 'changed' %}<span class="badge badge--role">{{ t('history_import.st_changed') }}</span>
+            {% else %}<span class="badge" style="background:#fee;color:var(--danger);">{{ t('history_import.rj_' ~ r._reason) }}</span>{% endif %}
+          </td>
+          <td dir="ltr">{{ r.patient_code }}</td>
+          <td dir="ltr">{{ r.service_date or '—' }}</td>
+          <td dir="auto">{{ r.service_name }}
+            {% if r._state == 'changed' %}
+            {# Both sides, because "changed" without the difference is a
+               question the clinic cannot answer. #}
+            <div class="hint" style="color:var(--amber-700,#b45309);">
+              {{ r._was.name }} · <span dir="ltr">{{ '%.2f'|format(r._was.price or 0) }}</span>
+              → {{ r.service_name }} · <span dir="ltr">{{ '%.2f'|format(r.price or 0) }}</span></div>
+            {% endif %}
+          </td>
+          <td style="text-align:end;" dir="ltr">{{ '%.2f'|format(r.price or 0) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total > rows|length %}
+  <p class="hint" style="padding:10px;margin:0;">{{ t('history_import.showing_first').replace('{n}', rows|length|string) }}</p>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('patients.history_import_commit') }}"
+      style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:40px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  {% if counts.changed %}
+  <label class="check" style="display:flex;align-items:center;gap:6px;">
+    <input type="checkbox" name="update_changed" value="1">
+    {{ t('history_import.update_changed').replace('{n}', counts.changed|string) }}</label>
+  {% endif %}
+  <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if not counts.new and not counts.changed else '' }}>
+    <i class="bi bi-database-add"></i> {{ t('history_import.commit') }}</button>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">{{ t('common.cancel') }}</a>
+</form>
+{% endblock %}

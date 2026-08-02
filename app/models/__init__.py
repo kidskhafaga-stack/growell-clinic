@@ -28,6 +28,7 @@ from app.models.parent import (
     ClientCategory,
     Parent,
 )
+from app.models.history_import import ImportBatch, ImportedService
 from app.models.patient import (
     BLOOD_TYPES,
     CONSENT_TYPES,
@@ -216,6 +217,8 @@ __all__ = [
     "PARENT_RELATIONS",
     "CLIENT_CATEGORIES",
     "ClientCategory",
+    "ImportBatch",
+    "ImportedService",
     "GENDERS",
     "BLOOD_TYPES",
     "APPOINTMENT_STATUSES",

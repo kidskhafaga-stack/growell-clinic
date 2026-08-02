@@ -1,0 +1,64 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('history_import.map_title') }}{% endblock %}
+{% block page_heading %}{{ t('history_import.map_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('history_import.map_title') }}</h1>
+  <p class="page-sub" style="margin:6px 0 0;">
+    <span dir="ltr">{{ filename }}</span> — {{ total }} {{ t('history_import.rows') }}</p>
+</div>
+
+{% if summary %}
+{# The real export ends with "من تاريخ / إلى تاريخ / عدد الخدمات" laid out like
+   columns inside the data sheet. They read like columns to anything that
+   trusts the header row. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--amber-600,#d97706);">
+  <strong><i class="bi bi-info-circle"></i> {{ t('history_import.summary_found') }}</strong>
+  <p class="hint" style="margin:6px 0 0;">{{ t('history_import.summary_hint') }}
+    {% for i in summary %}<span class="badge badge--muted" dir="auto">{{ headers[i] or '—' }}</span>{% endfor %}</p>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('patients.history_import_map') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <div class="card gc-scale-in">
+    <p class="hint" style="margin:0 0 12px;">{{ t('history_import.map_hint') }}</p>
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:560px;">
+        <thead><tr>
+          <th>{{ t('history_import.field') }}</th>
+          <th>{{ t('history_import.column') }}</th>
+          <th>{{ t('history_import.sample') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for key, required, label in fields %}
+          <tr>
+            <td>{{ label }}{% if required %} <span style="color:var(--danger);">*</span>{% endif %}</td>
+            <td>
+              <select class="select" name="col_{{ key }}">
+                <option value="">—</option>
+                {% for h in headers %}
+                <option value="{{ loop.index0 }}" {{ 'selected' if guess.get(key) == loop.index0 else '' }}>
+                  {{ h or ('#' ~ loop.index) }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="hint" dir="auto">
+              {% if guess.get(key) not in (none, '') and sample %}{{ sample[0][guess.get(key)] if guess.get(key) < sample[0]|length else '' }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn btn-primary gc-press gc-ripple" type="submit">
+        <i class="bi bi-eye"></i> {{ t('history_import.preview') }}</button>
+      <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">{{ t('common.cancel') }}</a>
+    </div>
+  </div>
+</form>
+{% endblock %}
