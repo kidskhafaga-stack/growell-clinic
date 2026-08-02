@@ -2982,7 +2982,11 @@
     "pwd_too_short": "Too short — at least {n} characters.",
     "pwd_mismatch": "The two entries do not match.",
     "pwd_failed": "Could not write to clinic.env — check the file is not read-only.",
-    "bad_password": "Wrong passphrase — this backup was made with a different one."
+    "bad_password": "Wrong passphrase — this backup was made with a different one.",
+    "newer_refused": "This backup was taken by a newer version of the program than the one installed here, so it was not restored. Update first (update.bat), then restore it.",
+    "upgraded_from": "The backup was from version {version} — the database shape was brought forward after restoring.",
+    "from_version": "Version",
+    "unlabelled": "no version label"
   },
   "reception_guide": {
     "title": "Reception guide — visit & collection cycle",

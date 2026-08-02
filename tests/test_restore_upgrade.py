@@ -311,3 +311,160 @@ def test_the_shape_command_is_idempotent(clinic_db):
     with clinic_db["app"].app_context():
         apply_schema()
         assert apply_schema() == 0
+
+
+# ------------------------------------- every backup says where it came from -
+def test_a_new_backup_carries_a_manifest(clinic_db):
+    """UPGRADE_PLAN steps 3 and 4, which are really one thing. A backup that
+    does not say where it came from is a backup you restore by guessing — and
+    that guessing is the gap behind the reported "I restored a backup and got
+    a load of problems": the restore was fine, the schema behind it was a
+    version old, and nothing on the archive said so."""
+    from app.utils.backups import create_backup, read_manifest
+
+    with clinic_db["app"].app_context():
+        name = create_backup("test")
+        info = read_manifest(name)
+    assert info.get("app_version")
+    assert isinstance(info.get("schema_generation"), int)
+    assert info.get("schema_version")
+
+
+def test_the_schema_version_is_derived_not_typed(clinic_db):
+    """A number somebody has to remember to bump is a number that will be
+    wrong exactly when it matters — the release where a column was added and
+    the version was not."""
+    import inspect
+
+    from app.utils import version
+
+    source = inspect.getsource(version.schema_version)
+    assert "ADDITIONS" in source
+    assert "return \"" not in source, "the version is hard-coded"
+
+
+def test_adding_a_column_changes_the_fingerprint(clinic_db):
+    from app.utils import schema
+    from app.utils.version import schema_generation, schema_version
+
+    before, count = schema_version(), schema_generation()
+    schema.ADDITIONS.append(("patients", "made_up_column", "INTEGER"))
+    try:
+        assert schema_version() != before
+        assert schema_generation() == count + 1
+    finally:
+        schema.ADDITIONS.pop()
+
+
+# ------------------------------------------------ the two directions --------
+def test_an_older_backup_restores_and_is_brought_forward(clinic_db):
+    """Already true; the manifest only means we can now *say* it is happening,
+    and silence is what made the original problem hard to place."""
+    from app.utils.backups import create_backup, restore_backup, restore_check
+
+    with clinic_db["app"].app_context():
+        name = create_backup("test")
+        # Pretend this build has since learned a column.
+        from app.utils import schema
+        schema.ADDITIONS.append(("patients", "made_up_column", "INTEGER"))
+        try:
+            ok, reason, info = restore_check(name)
+            assert ok and reason == "older"
+            assert info.get("app_version")
+            restore_backup(name)
+        finally:
+            schema.ADDITIONS.pop()
+
+
+def test_a_backup_from_a_newer_build_is_refused(clinic_db):
+    """The one with teeth. Older code reading newer data does not crash — it
+    **misreads**, which is the damage somebody finds weeks later in a number
+    they cannot explain. Moving a backup from an updated computer onto one
+    that was never updated is the ordinary way this happens."""
+    import pytest as _pytest
+
+    from app.utils.backups import create_backup, restore_backup, restore_check
+
+    with clinic_db["app"].app_context():
+        from app.utils import schema
+        schema.ADDITIONS.append(("patients", "made_up_column", "INTEGER"))
+        try:
+            name = create_backup("test")      # written by the "newer" build
+        finally:
+            schema.ADDITIONS.pop()            # and now we are the older one
+
+        ok, reason, _ = restore_check(name)
+        assert not ok and reason == "newer"
+        with _pytest.raises(ValueError) as caught:
+            restore_backup(name)
+        assert str(caught.value) == "backup_newer"
+
+
+def test_a_refused_restore_touches_nothing(clinic_db):
+    """Refusing after overwriting the live database would be the worst of both
+    answers."""
+    import pytest as _pytest
+
+    from app.models import Patient
+    from app.utils.backups import create_backup, restore_backup
+
+    with clinic_db["app"].app_context():
+        from app.utils import schema
+        schema.ADDITIONS.append(("patients", "made_up_column", "INTEGER"))
+        try:
+            name = create_backup("test")
+        finally:
+            schema.ADDITIONS.pop()
+
+        clinic_db["db"].session.add(Patient(
+            patient_number="P-LIVE", full_name="طفل حالي", gender="male",
+            date_of_birth=__import__("datetime").date(2025, 1, 1),
+            is_active=True))
+        clinic_db["db"].session.commit()
+
+        with _pytest.raises(ValueError):
+            restore_backup(name)
+        clinic_db["db"].session.expire_all()
+        assert Patient.query.filter_by(patient_number="P-LIVE").count() == 1
+
+
+def test_a_backup_with_no_manifest_is_still_allowed(clinic_db):
+    """Most of the backups a clinic already has have no manifest. Refusing
+    them would make this feature cost people the very archives it exists to
+    protect."""
+    from app.utils.backups import read_manifest, restore_check
+
+    with clinic_db["app"].app_context():
+        assert read_manifest("backup-20240101-000000-manual.zip") == {}
+        ok, reason, _ = restore_check("backup-20240101-000000-manual.zip")
+        assert ok and reason == "unknown"
+
+
+def test_the_same_version_says_so(clinic_db):
+    from app.utils.backups import create_backup, restore_check
+
+    with clinic_db["app"].app_context():
+        name = create_backup("test")
+        ok, reason, _ = restore_check(name)
+        assert ok and reason == "same"
+
+
+def test_the_version_shows_in_the_list_before_restoring(clinic_db):
+    """The only moment it is any use is before somebody clicks."""
+    from app.utils.backups import create_backup, list_backups
+
+    with clinic_db["app"].app_context():
+        create_backup("test")
+        rows = list_backups()
+    assert rows and rows[0]["app_version"]
+
+
+def test_a_backup_never_fails_over_its_own_label(clinic_db):
+    """The manifest is a nicety; the database is not. Anything that goes wrong
+    labelling the archive must not cost the clinic the snapshot."""
+    import inspect
+
+    from app.utils import backups
+
+    source = inspect.getsource(backups._manifest_for)
+    assert "except Exception" in source

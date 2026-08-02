@@ -187,7 +187,14 @@
             {% if b.has_files %}<span class="badge badge--green" dir="auto"><i class="bi bi-images"></i> {{ b.has_files }}</span>
             {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.no_files_hint') }}">{{ t('backups.no_files') }}</span>{% endif %}
             {% if b.encrypted %}<span class="badge badge--green" dir="auto" title="{{ t('backups.pwd_on') }}"><i class="bi bi-lock-fill"></i></span>
-            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.pwd_off') }}"><i class="bi bi-unlock"></i></span>{% endif %}</td>
+            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.pwd_off') }}"><i class="bi bi-unlock"></i></span>{% endif %}
+            {# Which version wrote it. Visible *before* clicking restore, which
+               is the only moment it is any use. #}
+            {% if b.app_version %}
+            <span class="badge badge--role" dir="auto"><i class="bi bi-tag"></i> {{ t('backups.from_version') }} {{ b.app_version }}</span>
+            {% else %}
+            <span class="badge badge--muted" dir="auto">{{ t('backups.unlabelled') }}</span>
+            {% endif %}</td>
           <td>{{ b.created.strftime('%Y-%m-%d %H:%M') }}</td>
           <td style="text-align:end;">{{ '%.1f'|format(b.size / 1048576) }} MB</td>
           <td style="text-align:end;white-space:nowrap;">

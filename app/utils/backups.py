@@ -36,6 +36,7 @@ Two things this does *not* do, said plainly:
   stop and ask for it. Anyone with the PC has both. What it protects is the
   copy that left — which is the way this data actually escapes.
 """
+import json
 import os
 import re
 import shutil
@@ -56,6 +57,10 @@ UPLOAD_DIRS = ["users", "patients", "clinic", "crm", "patient_docs",
 # The database's name inside the archive.
 DB_ENTRY = "database.db"
 FILES_PREFIX = "uploads/"
+# What this archive is, written beside the database. A backup that does not
+# say where it came from is a backup you restore by guessing — which is the
+# gap behind "I restored a backup and got a load of problems".
+MANIFEST_ENTRY = "manifest.json"
 
 
 def db_path():
@@ -156,6 +161,7 @@ def create_backup(reason="manual"):
         _snapshot_db(tmp_db)
         with _zip_writer(dest, backup_password()) as zf:
             zf.write(tmp_db, DB_ENTRY)
+            zf.writestr(MANIFEST_ENTRY, json.dumps(_manifest_for(), indent=2))
             if _include_files():
                 for rel, path in _upload_files():
                     zf.write(path, FILES_PREFIX + rel)
@@ -195,10 +201,16 @@ def list_backups():
             continue
         path = os.path.join(backup_dir(), fn)
         st = os.stat(path)
+        # The version is read from inside, not guessed from the filename: it
+        # is what tells somebody, before they click restore, that this one is
+        # from before the change they are trying to undo.
+        info = read_manifest(fn)
         out.append({"name": fn, "size": st.st_size,
                     "created": datetime.fromtimestamp(st.st_mtime),
                     "has_files": _counts_files(path),
-                    "encrypted": is_encrypted(path)})
+                    "encrypted": is_encrypted(path),
+                    "app_version": info.get("app_version"),
+                    "generation": info.get("schema_generation")})
     out.sort(key=lambda b: b["name"], reverse=True)
     return out
 
@@ -277,6 +289,66 @@ def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024,
         if tmp:
             shutil.rmtree(os.path.dirname(tmp), ignore_errors=True)
     return name
+
+
+def _manifest_for():
+    """The manifest written into a new archive (best-effort)."""
+    try:
+        from app.utils.version import manifest
+        return manifest()
+    except Exception:  # noqa: BLE001 - never fail a backup over its label
+        return {}
+
+
+def read_manifest(name, password=None):
+    """What an archive says about itself, or ``{}``.
+
+    Empty for a snapshot taken before manifests existed, and for a bare
+    ``.db``. Those are not errors — they are most of the backups a clinic
+    already has, and refusing them would make this feature cost people the
+    archives it is meant to protect.
+    """
+    path = backup_path(name)
+    if not path or not path.endswith(".zip"):
+        return {}
+    try:
+        with _zip_reader(path, password or backup_password()) as zf:
+            if MANIFEST_ENTRY not in zf.namelist():
+                return {}
+            data = json.loads(zf.read(MANIFEST_ENTRY).decode("utf-8"))
+    except Exception:  # noqa: BLE001 - an unreadable label is no label
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def restore_check(name, password=None):
+    """Whether this archive may be restored onto this build.
+
+    Returns ``(ok, reason, info)``. Three cases, and the third is the one with
+    teeth:
+
+    * **older** — restore it, then bring the schema forward. This already
+      happens; the manifest only means we can now *say* it is happening.
+    * **same** — nothing to say.
+    * **newer** — refused. The archive was written by a build that knows
+      columns this one does not, so this code would read that data through an
+      older understanding of it: not a crash, a **misreading**, which is the
+      kind of damage that gets noticed weeks later in a number nobody can
+      explain. Somebody moving a backup from an updated computer onto one that
+      was never updated is the ordinary way this happens.
+
+    An archive with no manifest is allowed through — see :func:`read_manifest`.
+    """
+    from app.utils.version import schema_generation
+
+    info = read_manifest(name, password)
+    theirs = info.get("schema_generation")
+    if not isinstance(theirs, int):
+        return True, "unknown", info
+    mine = schema_generation()
+    if theirs > mine:
+        return False, "newer", info
+    return True, ("older" if theirs < mine else "same"), info
 
 
 def _extract_db(archive, password=None):
@@ -395,6 +467,13 @@ def restore_backup(name, password=None):
     src = backup_path(name)
     if not src:
         raise RuntimeError("backup not found")
+    # A backup from a *newer* build is refused before anything is touched.
+    # Older code reading newer data does not crash — it misreads, and that is
+    # the kind of damage somebody finds weeks later in a number they cannot
+    # explain.
+    allowed, reason, _info = restore_check(name, password)
+    if not allowed:
+        raise ValueError("backup_newer")
     live = db_path()
     if not live or not os.path.isfile(live):
         raise RuntimeError("database file not found")

@@ -576,15 +576,17 @@ def backup_restore(name):
     if (request.form.get("confirm") or "").strip() != "RESTORE":
         flash(t("backups.bad_confirm"), "danger")
         return redirect(url_for("settings.data_tools"))
+    password = (request.form.get("password") or "").strip() or None
     try:
-        pre = restore_backup(
-            name, password=(request.form.get("password") or "").strip() or None)
+        pre = restore_backup(name, password=password)
     except ValueError as exc:
-        # The one failure worth naming: a snapshot taken under a passphrase
-        # the clinic has since changed. "Restore failed" would send them
-        # looking for a corrupt file that isn't corrupt.
-        flash(t("backups.bad_password" if str(exc) == "bad_password"
-                else "backups.restore_failed"), "danger")
+        # Two failures worth naming rather than calling both "restore failed",
+        # which sends somebody looking for a corrupt file that isn't corrupt:
+        # a snapshot taken under a passphrase since changed, and one written
+        # by a newer version of the program.
+        keys = {"bad_password": "backups.bad_password",
+                "backup_newer": "backups.newer_refused"}
+        flash(t(keys.get(str(exc), "backups.restore_failed")), "danger")
         return redirect(url_for("settings.data_tools"))
     except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
         flash(t("backups.restore_failed"), "danger")
@@ -594,6 +596,13 @@ def backup_restore(name):
                        ip_address=client_ip())
     db.session.commit()
     flash(t("backups.restored", pre=pre), "success")
+    # Say when the shape was brought forward. It already happened silently, and
+    # silence is what made the original problem so hard to place.
+    from app.utils.backups import restore_check
+    _ok, reason, info = restore_check(name, password)
+    if reason == "older":
+        flash(t("backups.upgraded_from").replace(
+            "{version}", str(info.get("app_version") or "—")), "info")
     return redirect(url_for("settings.data_tools"))
 
 
