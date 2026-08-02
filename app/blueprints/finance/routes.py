@@ -402,11 +402,11 @@ def service_type_new():
         return _type_redirect()
     name_en = (request.form.get("name_en") or "").strip() or None
     key = make_key(name, name_en)
-    last = (db.session.query(db.func.max(ServiceType.sort_order)).scalar() or 0)
+    from app.utils.ordering import append_order
     db.session.add(ServiceType(
         key=key, name_ar=name, name_en=name_en,
         icon=(request.form.get("icon") or "").strip() or "bi-tag",
-        sort_order=last + 1, is_active=True, is_system=False))
+        sort_order=append_order(ServiceType), is_active=True, is_system=False))
     db.session.commit()
     flash(t("services.type_added"), "success")
     return _type_redirect()
@@ -423,8 +423,10 @@ def service_types_save():
         row.name_ar = name or None
         row.name_en = (request.form.get(f"name_en_{row.id}") or "").strip() or None
         row.icon = (request.form.get(f"icon_{row.id}") or "").strip() or row.icon
-        row.sort_order = request.form.get(f"order_{row.id}", type=int) or 0
         row.is_active = bool(request.form.get(f"active_{row.id}"))
+    # Same as the client categories: the order is moved with buttons, not typed.
+    from app.utils.ordering import ordered, renumber
+    renumber(ordered(ServiceType))
     db.session.commit()
     flash(t("services.types_saved"), "success")
     return _type_redirect()
@@ -2387,10 +2389,11 @@ def client_category_new():
         flash(t("common.required") + ": " + t("categories.name"), "danger")
         return redirect(url_for("finance.discounts"))
     name_en = (request.form.get("name_en") or "").strip() or None
-    last = db.session.query(db.func.max(ClientCategory.sort_order)).scalar() or 0
+    from app.utils.ordering import append_order
     db.session.add(ClientCategory(
         key=make_key(name, name_en), name_ar=name, name_en=name_en,
-        sort_order=last + 1, is_active=True, is_system=False))
+        sort_order=append_order(ClientCategory), is_active=True,
+        is_system=False))
     db.session.commit()
     flash(t("categories.added"), "success")
     return redirect(url_for("finance.discounts"))
@@ -2413,13 +2416,46 @@ def client_categories_save():
         if name:
             row.name_ar = name
         row.name_en = (request.form.get(f"name_en_{row.id}") or "").strip() or None
-        order = request.form.get(f"order_{row.id}", type=int)
-        if order is not None:
-            row.sort_order = order
         row.is_active = bool(request.form.get(f"active_{row.id}"))
+    # The order is the program's business — see app/utils/ordering. Compacting
+    # it here as well keeps a list that was numbered by hand before this change
+    # from staying full of gaps and ties.
+    from app.utils.ordering import ordered, renumber
+    renumber(ordered(ClientCategory))
     db.session.commit()
     flash(t("settings.saved"), "success")
     return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/client-categories/<int:cat_id>/move", methods=["POST"])
+@module_required(MODULE)
+def client_category_move(cat_id):
+    """Move one category up or down. Nobody types a sort number.
+
+    See :mod:`app.utils.ordering` for why: typed numbers collide, so two rows
+    both numbered 3 sort by their ids and the list refuses to move for a reason
+    the person cannot see.
+    """
+    from app.models import ClientCategory
+    from app.utils.ordering import move
+
+    row = db.get_or_404(ClientCategory, cat_id)
+    if move(ClientCategory, row, 1 if request.form.get("dir") == "down" else -1):
+        db.session.commit()
+    return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/services/types/<int:type_id>/move", methods=["POST"])
+@module_required(MODULE)
+def service_type_move(type_id):
+    """Move one service type up or down — same rule as the categories."""
+    from app.models import ServiceType
+    from app.utils.ordering import move
+
+    row = db.get_or_404(ServiceType, type_id)
+    if move(ServiceType, row, 1 if request.form.get("dir") == "down" else -1):
+        db.session.commit()
+    return _type_redirect()
 
 
 @finance_bp.route("/client-categories/<int:cat_id>/delete", methods=["POST"])

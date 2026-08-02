@@ -60,7 +60,9 @@
     "when": "التاريخ",
     "who": "المستخدم",
     "order": "الترتيب",
-    "confirm_delete": "متأكد من الحذف؟"
+    "confirm_delete": "متأكد من الحذف؟",
+    "move_up": "لفوق",
+    "move_down": "لتحت"
   },
   "nav": {
     "dashboard": "لوحة التحكم",

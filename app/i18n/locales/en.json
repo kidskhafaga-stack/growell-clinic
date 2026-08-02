@@ -60,7 +60,9 @@
     "when": "When",
     "who": "User",
     "order": "Order",
-    "confirm_delete": "Delete this?"
+    "confirm_delete": "Delete this?",
+    "move_up": "Move up",
+    "move_down": "Move down"
   },
   "nav": {
     "dashboard": "Dashboard",

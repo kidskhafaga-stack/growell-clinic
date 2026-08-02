@@ -327,3 +327,129 @@ def test_both_languages_carry_the_new_words(clinic):
         for key in ("manage", "manage_hint", "name", "name_en", "families",
                     "added", "deleted", "is_system", "in_use", "has_discount"):
             assert data["categories"].get(key), f"{lang}.categories.{key}"
+
+
+# ============================================== the order nobody types =====
+def _order(clinic):
+    from app.utils.client_categories import all_categories
+
+    with clinic["app"].app_context():
+        return [c.key for c in all_categories()]
+
+
+def test_a_new_category_lands_at_the_end(seeded, boss, clinic):
+    _add(boss, "أطباء", "Doctors")
+    assert _order(clinic)[-1] == "doctors"
+
+
+def test_a_category_can_be_moved_up(seeded, boss, clinic):
+    """Nobody wants row number 6; they want this row above that one."""
+    from app.models import ClientCategory
+
+    with clinic["app"].app_context():
+        row_id = ClientCategory.query.filter_by(key="relative").one().id
+    boss.post(f"/finance/client-categories/{row_id}/move", data={"dir": "up"},
+              follow_redirects=True)
+    assert _order(clinic) == ["normal", "relative", "friend", "employee"]
+
+
+def test_a_category_can_be_moved_down(seeded, boss, clinic):
+    from app.models import ClientCategory
+
+    with clinic["app"].app_context():
+        row_id = ClientCategory.query.filter_by(key="normal").one().id
+    boss.post(f"/finance/client-categories/{row_id}/move", data={"dir": "down"},
+              follow_redirects=True)
+    assert _order(clinic) == ["friend", "normal", "relative", "employee"]
+
+
+def test_moving_the_first_one_up_does_nothing(seeded, boss, clinic):
+    """Pressing a button at the end of a list is not an error."""
+    from app.models import ClientCategory
+
+    before = _order(clinic)
+    with clinic["app"].app_context():
+        row_id = ClientCategory.query.filter_by(key="normal").one().id
+    reply = boss.post(f"/finance/client-categories/{row_id}/move",
+                      data={"dir": "up"}, follow_redirects=True)
+    assert reply.status_code == 200
+    assert _order(clinic) == before
+
+
+def test_moving_the_last_one_down_does_nothing(seeded, boss, clinic):
+    from app.models import ClientCategory
+
+    before = _order(clinic)
+    with clinic["app"].app_context():
+        row_id = ClientCategory.query.filter_by(key="employee").one().id
+    boss.post(f"/finance/client-categories/{row_id}/move", data={"dir": "down"},
+              follow_redirects=True)
+    assert _order(clinic) == before
+
+
+def test_the_numbers_are_compacted_not_swapped(seeded, boss, clinic):
+    """A swap preserves whatever ties and gaps were already there, and the next
+    move then misbehaves for a reason nobody can see."""
+    from app.models import ClientCategory
+
+    with clinic["app"].app_context():
+        rows = ClientCategory.query.all()
+        for row in rows:            # everything tied on 5, as typed numbers do
+            row.sort_order = 5
+        clinic["db"].session.commit()
+        row_id = ClientCategory.query.filter_by(key="employee").one().id
+
+    boss.post(f"/finance/client-categories/{row_id}/move", data={"dir": "up"},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        orders = sorted(c.sort_order for c in ClientCategory.query.all())
+    assert orders == [0, 1, 2, 3], "the ties survived the move"
+
+
+def test_saving_the_names_also_tidies_the_order(seeded, boss, clinic):
+    """A clinic that numbered its list by hand before this change should not be
+    left with the gaps forever."""
+    from app.models import ClientCategory
+
+    with clinic["app"].app_context():
+        for i, row in enumerate(ClientCategory.query.all()):
+            row.sort_order = i * 7
+        clinic["db"].session.commit()
+
+    boss.post("/finance/client-categories/save", data={}, follow_redirects=True)
+
+    with clinic["app"].app_context():
+        orders = sorted(c.sort_order for c in ClientCategory.query.all())
+    assert orders == [0, 1, 2, 3]
+
+
+def test_the_screen_has_no_number_to_type(seeded, boss):
+    body = boss.get("/finance/discounts").get_data(as_text=True)
+    assert 'name="order_' not in body
+
+
+def test_the_service_types_moved_the_same_way(seeded, boss, clinic):
+    """Two managers doing the same job must not behave differently."""
+    from app.models import ServiceType
+    from app.utils.service_types import ensure_seeded
+
+    with clinic["app"].app_context():
+        ensure_seeded()
+        rows = ServiceType.query.order_by(ServiceType.sort_order,
+                                          ServiceType.id).all()
+        second = rows[1].key
+        row_id = rows[1].id
+
+    boss.post(f"/finance/services/types/{row_id}/move", data={"dir": "up"},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        first = ServiceType.query.order_by(ServiceType.sort_order,
+                                           ServiceType.id).first()
+        assert first.key == second
+
+
+def test_the_services_screen_has_no_number_to_type_either(seeded, boss):
+    body = boss.get("/finance/services").get_data(as_text=True)
+    assert 'name="order_' not in body

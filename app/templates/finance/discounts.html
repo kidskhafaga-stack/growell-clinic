@@ -152,7 +152,7 @@
     <div style="overflow-x:auto;">
       <table class="table" style="min-width:640px;">
         <thead><tr>
-          <th style="width:80px;">{{ t('common.order') }}</th>
+          <th style="width:90px;">{{ t('common.order') }}</th>
           <th>{{ t('categories.name') }}</th>
           <th>{{ t('categories.name_en') }}</th>
           <th>{{ t('categories.families') }}</th>
@@ -163,7 +163,18 @@
         <tbody>
           {% for c in all_client_categories %}
           <tr>
-            <td><input class="input" type="number" name="order_{{ c.id }}" value="{{ c.sort_order }}" style="width:70px;"></td>
+            {# Up and down, not a number to type. A typed sort number ties with
+               another row and the list simply refuses to move. #}
+            <td style="white-space:nowrap;">
+              {% if c.id %}
+              <button class="btn-x" type="submit" formnovalidate name="dir" value="up"
+                      title="{{ t('common.move_up') }}"
+                      formaction="{{ url_for('finance.client_category_move', cat_id=c.id) }}"><i class="bi bi-arrow-up"></i></button>
+              <button class="btn-x" type="submit" formnovalidate name="dir" value="down"
+                      title="{{ t('common.move_down') }}"
+                      formaction="{{ url_for('finance.client_category_move', cat_id=c.id) }}"><i class="bi bi-arrow-down"></i></button>
+              {% endif %}
+            </td>
             <td><input class="input" name="name_{{ c.id }}" value="{{ c.name_ar or c.display_name('ar') }}">
               <span class="hint" dir="ltr" style="font-family:monospace;font-size:.75rem;">{{ c.key }}</span></td>
             <td><input class="input" name="name_en_{{ c.id }}" value="{{ c.name_en or '' }}" dir="ltr"></td>
@@ -178,7 +189,8 @@
               {% if c.is_system %}
               <span class="badge badge--muted" title="{{ t('categories.is_system') }}"><i class="bi bi-lock"></i></span>
               {% elif c.id %}
-              <button class="btn-x" type="submit" form="delcat{{ c.id }}"
+              <button class="btn-x" type="submit" formnovalidate
+                      formaction="{{ url_for('finance.client_category_delete', cat_id=c.id) }}"
                       onclick="return confirm('{{ t('common.confirm_delete') }}')"><i class="bi bi-trash"></i></button>
               {% endif %}
             </td>
@@ -189,15 +201,6 @@
     </div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
-
-  {# Outside the save form: a form inside a form is invalid HTML. #}
-  {% for c in all_client_categories %}
-    {% if c.id and not c.is_system %}
-    <form id="delcat{{ c.id }}" method="post" style="display:none;"
-          action="{{ url_for('finance.client_category_delete', cat_id=c.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
-    {% endif %}
-  {% endfor %}
 
   <form method="post" action="{{ url_for('finance.client_category_new') }}"
         style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
