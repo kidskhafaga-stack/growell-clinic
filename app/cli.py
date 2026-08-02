@@ -126,10 +126,9 @@ def register_commands(app):
         # up until that happened to come round — and each one carries every
         # uploaded file in the clinic.
         try:
-            from app.utils.backups import apply_retention, create_backup
+            from app.utils.backups import _retain, create_backup
             click.echo("  ~ pre-upgrade backup: " + create_backup("preupgrade"))
-            from app.models import Setting as _Setting
-            apply_retention(_Setting.get("backup_keep", "14"))
+            _retain()
         except Exception:  # noqa: BLE001
             pass
 

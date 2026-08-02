@@ -300,7 +300,7 @@ def test_the_automatic_snapshots_are_trimmed_like_every_other(clinic_db):
     # matched the phrase inside the docstring that *explains* the problem and
     # passed without looking at any code.
     block = source[source.index('create_backup("preupgrade")'):]
-    assert "apply_retention" in block[:400]
+    assert "_retain()" in block[:400]
 
 
 def test_the_shape_command_is_idempotent(clinic_db):

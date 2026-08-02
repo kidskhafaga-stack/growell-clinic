@@ -146,13 +146,30 @@ def _include_files():
         return True
 
 
-def create_backup(reason="manual"):
+def create_backup(reason="manual", kind=None):
     """Take a consistent snapshot; returns the created filename.
 
-    The archive holds the database plus every uploaded file, so a restore puts
-    the photos back too — which is the whole point of having taken one.
+    ``kind`` is ``"full"`` (database + every uploaded file) or ``"db"``
+    (database only). Default: whatever ``backup_include_files`` says, so
+    existing callers keep behaving exactly as before.
+
+    **Why there are two.** The two halves have different natures. The database
+    is megabytes and changes every minute — every patient, every payment, every
+    dose. The uploads are gigabytes and are effectively append-only: a photo
+    taken today is never edited again. Putting them in one archive means
+    copying gigabytes daily to capture megabytes of change, which does not just
+    cost time — it makes the daily backup expensive, so people take it less
+    often, and the daily backup is the one that saves you.
+
+    **And the trap that comes with splitting them.** A database from Tuesday
+    and a files archive from Friday are not a matched pair, and worse, a clinic
+    taking only the quick one can believe it is covered for months. That is why
+    :func:`last_full_backup` exists and the screen shows its age: a database
+    restored beside pictures that were never backed up is the *original*
+    failure this module was written to fix, arriving by a new road.
     """
     reason = re.sub(r"[^a-z_]", "", (reason or "manual").lower()) or "manual"
+    with_files = _include_files() if kind is None else (kind == "full")
     name = f"backup-{datetime.now():%Y%m%d-%H%M%S}-{reason}.zip"
     dest = os.path.join(backup_dir(), name)
 
@@ -161,8 +178,9 @@ def create_backup(reason="manual"):
         _snapshot_db(tmp_db)
         with _zip_writer(dest, backup_password()) as zf:
             zf.write(tmp_db, DB_ENTRY)
-            zf.writestr(MANIFEST_ENTRY, json.dumps(_manifest_for(), indent=2))
-            if _include_files():
+            zf.writestr(MANIFEST_ENTRY, json.dumps(
+                _manifest_for("full" if with_files else "db"), indent=2))
+            if with_files:
                 for rel, path in _upload_files():
                     zf.write(path, FILES_PREFIX + rel)
     except Exception:
@@ -190,9 +208,9 @@ def _upload_files():
 def list_backups():
     """Existing backups, newest first.
 
-    ``[{name, size, created, has_files, encrypted}]`` — the lock is read from
-    each archive rather than from its name, because a name can be changed by
-    anyone who can rename a file and a clinic must not be told a snapshot is
+    ``[{name, size, created, has_files, kind, encrypted}]`` — the lock is read
+    from each archive rather than from its name, because a name can be changed
+    by anyone who can rename a file and a clinic must not be told a snapshot is
     protected when it isn't.
     """
     out = []
@@ -205,9 +223,11 @@ def list_backups():
         # is what tells somebody, before they click restore, that this one is
         # from before the change they are trying to undo.
         info = read_manifest(fn)
+        files = _counts_files(path)
         out.append({"name": fn, "size": st.st_size,
                     "created": datetime.fromtimestamp(st.st_mtime),
-                    "has_files": _counts_files(path),
+                    "has_files": files,
+                    "kind": _kind_from(info, files),
                     "encrypted": is_encrypted(path),
                     "app_version": info.get("app_version"),
                     "generation": info.get("schema_generation")})
@@ -291,13 +311,15 @@ def save_uploaded_backup(file_storage, max_bytes=500 * 1024 * 1024,
     return name
 
 
-def _manifest_for():
+def _manifest_for(kind="full"):
     """The manifest written into a new archive (best-effort)."""
     try:
         from app.utils.version import manifest
-        return manifest()
+        info = manifest()
+        info["kind"] = kind
+        return info
     except Exception:  # noqa: BLE001 - never fail a backup over its label
-        return {}
+        return {"kind": kind}
 
 
 def read_manifest(name, password=None):
@@ -382,20 +404,56 @@ def delete_backup(name):
     return False
 
 
-def apply_retention(keep):
-    """Trim *automatic* snapshots (auto/prerestore/preupgrade) to the newest
-    ``keep``. Manual backups are the admin's — never deleted automatically."""
+def _count(value, fallback):
     try:
-        keep = max(int(keep), 1)
+        return max(int(value), 1)
     except (TypeError, ValueError):
-        keep = 14
-    autos = [b for b in list_backups()
-             if not re.search(r"-(manual|uploaded)\.(db|zip)$", b["name"])]
+        return fallback
+
+
+def apply_retention(keep, full_keep=None):
+    """Trim *automatic* snapshots (auto/prerestore/preupgrade) to the newest
+    ``keep`` **of each kind**. Manual backups are the admin's — never deleted
+    automatically.
+
+    Counting the two kinds separately is the whole point. One shared quota
+    means the cheap nightly database snapshots, which are taken far more often,
+    steadily push the large full archives off the end — so the clinic ends up
+    with a fortnight of databases and not one copy of the photographs, which is
+    precisely the failure the split exists to avoid. Each kind now keeps its
+    own count, so a daily database rhythm cannot evict the weekly full one.
+
+    ``full_keep`` defaults to ``keep`` so the older single-argument callers
+    behave as they always did.
+
+    One honest caveat: ``prerestore`` and ``preupgrade`` snapshots are full
+    archives and count against the full quota. Several restores in a row can
+    therefore age the scheduled full copies out faster than the schedule alone
+    would — which is the correct trade, since those snapshots are the ones
+    protecting the work being undone right now.
+    """
+    keep = _count(keep, 14)
+    full_keep = keep if full_keep is None else _count(full_keep, keep)
+    limits = {"db": keep, "full": full_keep}
+    seen = {}
     removed = 0
-    for b in autos[keep:]:
-        if delete_backup(b["name"]):
-            removed += 1
+    for b in list_backups():
+        if re.search(r"-(manual|uploaded)\.(db|zip)$", b["name"]):
+            continue
+        kind = backup_kind(b)
+        seen[kind] = seen.get(kind, 0) + 1
+        if seen[kind] > limits.get(kind, max(keep, full_keep)):
+            if delete_backup(b["name"]):
+                removed += 1
     return removed
+
+
+def _retain():
+    """Apply both configured limits (used by the scheduler)."""
+    from app.models import Setting
+
+    return apply_retention(Setting.get("backup_keep", "14"),
+                           Setting.get("backup_full_keep", "4"))
 
 
 # Throttle so the due-check costs nothing on normal requests.
@@ -403,13 +461,120 @@ _AUTO = {"checked_at": 0.0}
 _AUTO_CHECK_EVERY = 300  # seconds
 
 
+def _days_since_auto(kind=None):
+    """Days since the last automatic snapshot of ``kind`` (any kind if None).
+
+    A very large number when there has never been one, so "never taken" and
+    "long overdue" take the same branch — which is what they deserve.
+    """
+    for entry in list_backups():
+        if not re.search(r"-auto\.(db|zip)$", entry["name"]):
+            continue
+        if kind is not None and backup_kind(entry) != kind:
+            continue
+        return (datetime.now().date() - entry["created"].date()).days
+    return 10 ** 6
+
+
+def _kind_from(info, has_files):
+    """What an archive holds, from its manifest or from what is in it.
+
+    The manifest is believed first; falling back on the contents is what keeps
+    every backup a clinic already owns honestly labelled, because those were
+    written before manifests existed and there is no going back to stamp them.
+    """
+    kind = info.get("kind")
+    if kind in ("full", "db"):
+        return kind
+    return "full" if has_files else "db"
+
+
+def backup_kind(entry):
+    """What an archive holds: ``"full"``, ``"db"``, or ``"unknown"``.
+
+    Takes a row from :func:`list_backups` — which already carries the answer,
+    so this costs nothing there — or a bare name, which is read from disk.
+    """
+    if isinstance(entry, dict) and entry.get("kind") in ("full", "db"):
+        return entry["kind"]
+    name = entry["name"] if isinstance(entry, dict) else entry
+    info = read_manifest(name)
+    if isinstance(entry, dict) and entry.get("has_files") is not None:
+        return _kind_from(info, entry["has_files"])
+    path = backup_path(name)
+    if not path:
+        return "unknown"
+    return _kind_from(info, _counts_files(path))
+
+
+def last_full_backup():
+    """The newest archive that actually contains the pictures, or ``None``.
+
+    The number the split makes necessary. A clinic taking the quick database
+    snapshot nightly can go months believing it is covered, and find out on the
+    day the disk dies that every photograph, signature and scanned document is
+    gone. Records restored beside missing pictures is the failure this module
+    was written to fix; splitting the backup lets it back in through a
+    different door, and this is the door's alarm.
+    """
+    for entry in list_backups():
+        if backup_kind(entry) == "full":
+            return entry
+    return None
+
+
+def full_backup_age_days():
+    """Days since the last archive containing files, or ``None`` if never."""
+    last = last_full_backup()
+    if last is None:
+        return None
+    return (datetime.now() - last["created"]).days
+
+
+def full_backup_overdue(age=None, every=None):
+    """Whether the full copy is old enough that somebody should be told.
+
+    Never taken counts as overdue — that is the state a clinic can sit in for
+    a year without noticing, and the one with the most to lose.
+
+    The threshold is **twice** the configured interval rather than one, because
+    a weekly archive is normally a day or two late and a banner that lights up
+    every Monday is furniture nobody reads by the second week. Twice over means
+    a schedule that has actually stopped running, which is worth interrupting
+    somebody for.
+    """
+    if age is None:
+        age = full_backup_age_days()
+        if age is None:
+            return True
+    if every is None:
+        try:
+            from app.models import Setting
+            every = Setting.get("backup_full_every_days", "7")
+        except Exception:  # noqa: BLE001 - before the settings table exists
+            every = 7
+    return age > _count(every, 7) * 2
+
+
 def auto_backup_if_due():
     """Opportunistic scheduled backup (poor-man's cron for a single clinic PC).
 
-    On the first request after the configured hour, once every N days
-    (``backup_every_days``: 1 = daily, 2 = every other day, 7 = weekly,
-    counted from the last automatic snapshot), take a backup and apply
-    retention. Throttled to one cheap check every few minutes; never raises.
+    On the first request after the configured hour, take whichever kind is due
+    and trim both shelves. Throttled to one cheap check every few minutes;
+    never raises — a failed backup must not cost somebody the page they asked
+    for.
+
+    Each kind carries its own pair of numbers, set by the admin:
+
+    * ``backup_every_days`` / ``backup_keep`` — the quick database snapshot.
+    * ``backup_full_every_days`` / ``backup_full_keep`` — the archive with the
+      uploaded files in it.
+
+    The intervals are counted from the last *automatic* snapshot — a manual
+    copy does not quietly cancel tonight's. The full one counts only full
+    archives, since a database snapshot never held the pictures. The quick one
+    counts **either**, because a full archive contains the database too and
+    taking a second copy of it hours later would be work for nothing.
     """
     import time as _time
 
@@ -430,20 +595,32 @@ def auto_backup_if_due():
             every = max(int(Setting.get("backup_every_days", "1")), 1)
         except (TypeError, ValueError):
             every = 1
+        try:
+            full_every = max(int(Setting.get("backup_full_every_days", "7")), 1)
+        except (TypeError, ValueError):
+            full_every = 7
         today = datetime.now()
         if today.hour < hour:
             return None
-        # Due when `every` days have passed since the last auto snapshot.
-        last = next((b for b in list_backups()
-                     if re.search(r"-auto\.(db|zip)$", b["name"])), None)
-        if last is not None:
-            last_date = datetime.strptime(
-                last["name"].split("-")[1], "%Y%m%d").date()
-            if (today.date() - last_date).days < every:
-                return None
-        name = create_backup("auto")
-        apply_retention(Setting.get("backup_keep", "14"))
-        return name
+
+        # Two rhythms, because the halves have different natures: the database
+        # changes every minute and is small; the pictures barely change and are
+        # large. One schedule for both means copying gigabytes nightly to catch
+        # megabytes of change — which makes the nightly backup expensive, so it
+        # gets taken less often, and the nightly one is the one that saves you.
+        #
+        # The full one is checked first. When both fall due on the same day the
+        # full archive covers the quick one, and taking two would be writing
+        # the database twice for no reason.
+        if _days_since_auto("full") >= full_every:
+            name = create_backup("auto", kind="full")
+            _retain()
+            return name
+        if _days_since_auto(None) >= every:
+            name = create_backup("auto", kind="db")
+            _retain()
+            return name
+        return None
     except Exception:  # noqa: BLE001 - a failed backup must never break a request
         return None
 

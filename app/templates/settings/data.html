@@ -83,10 +83,20 @@
       <p class="hint" style="margin:6px 0 0;">{{ t('backups.hint') }}</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      {# Two buttons, because the two halves have different natures: the
+         database is small and changes every minute, the pictures are large and
+         barely change. One archive means copying gigabytes to catch megabytes. #}
       <form method="post" action="{{ url_for('settings.backup_create') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="db">
+        <button class="btn btn-outline gc-press" type="submit">
+          <i class="bi bi-database"></i> {{ t('backups.create_db_btn') }}</button>
+      </form>
+      <form method="post" action="{{ url_for('settings.backup_create') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="full">
         <button class="btn btn-primary gc-press gc-ripple" type="submit">
-          <i class="bi bi-plus-lg"></i> {{ t('backups.create_btn') }}</button>
+          <i class="bi bi-archive"></i> {{ t('backups.create_full_btn') }}</button>
       </form>
       <form method="post" action="{{ url_for('settings.backup_upload') }}" enctype="multipart/form-data"
             style="display:flex;gap:8px;align-items:center;">
@@ -102,37 +112,92 @@
     </div>
   </div>
   <p class="hint" style="margin:8px 0 0;">{{ t('backups.upload_hint') }}</p>
-  <!-- Auto-backup schedule + retention -->
+
+  {# The alarm the split makes necessary. A clinic taking only the quick
+     database snapshot can believe it is covered for months and find out on the
+     day the disk dies that every photograph, signature and scanned document is
+     gone — records restored beside missing pictures, by a new road. #}
+  <div style="margin-top:12px;padding:10px 12px;border-radius:10px;
+              border-inline-start:4px solid {{ 'var(--danger)' if bset.full_overdue else 'var(--green-600)' }};
+              background:var(--card);">
+    <i class="bi bi-{{ 'exclamation-triangle-fill' if bset.full_overdue else 'shield-check' }}"
+       style="color:{{ 'var(--danger)' if bset.full_overdue else 'var(--green-600)' }};"></i>
+    <strong>
+      {% if bset.full_age is none %}{{ t('backups.full_never') }}
+      {% else %}{{ t('backups.full_age').replace('{days}', bset.full_age|string) }}{% endif %}
+    </strong>
+    {% if bset.full_overdue %}
+    <span class="hint" style="display:block;margin:4px 0 0;">{{ t('backups.full_stale_hint') }}</span>
+    {% endif %}
+  </div>
+
+  <!-- Auto-backup schedule + retention, one set per kind -->
   <form method="post" action="{{ url_for('settings.backup_settings') }}"
-        style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+        style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row checkbox" style="margin:0;">
-      <input type="checkbox" id="backup_auto_enabled" name="backup_auto_enabled" value="1"
-             {{ 'checked' if bset.enabled else '' }}>
-      <label for="backup_auto_enabled" style="margin:0;font-weight:400;">{{ t('backups.auto_enabled') }}</label>
+    <div style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
+      <div class="form-row checkbox" style="margin:0;">
+        <input type="checkbox" id="backup_auto_enabled" name="backup_auto_enabled" value="1"
+               {{ 'checked' if bset.enabled else '' }}>
+        <label for="backup_auto_enabled" style="margin:0;font-weight:400;">{{ t('backups.auto_enabled') }}</label>
+      </div>
+      <div class="form-row" style="margin:0;max-width:130px;">
+        <label>{{ t('backups.auto_hour') }}</label>
+        <input class="input" type="number" min="0" max="23" name="backup_hour" value="{{ bset.hour }}">
+      </div>
     </div>
-    <div class="form-row" style="margin:0;max-width:160px;">
-      <label>{{ t('backups.every') }}</label>
-      <select class="select" name="backup_every_days">
-        <option value="1" {{ 'selected' if bset.every == '1' else '' }}>{{ t('backups.every_day') }}</option>
-        <option value="2" {{ 'selected' if bset.every == '2' else '' }}>{{ t('backups.every_2days') }}</option>
-        <option value="7" {{ 'selected' if bset.every == '7' else '' }}>{{ t('backups.every_week') }}</option>
-      </select>
+
+    {# Each kind sets its own rhythm and its own count. A shared count would let
+       the nightly database snapshots push the weekly full archives off the end. #}
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">
+      <div style="flex:1;min-width:250px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;">
+        <strong><i class="bi bi-database"></i> {{ t('backups.kind_db') }}</strong>
+        <p class="hint" style="margin:4px 0 8px;">{{ t('backups.kind_db_hint') }}</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+          <div class="form-row" style="margin:0;max-width:160px;">
+            <label>{{ t('backups.every') }}</label>
+            <select class="select" name="backup_every_days">
+              <option value="1" {{ 'selected' if bset.every == '1' else '' }}>{{ t('backups.every_day') }}</option>
+              <option value="2" {{ 'selected' if bset.every == '2' else '' }}>{{ t('backups.every_2days') }}</option>
+              <option value="7" {{ 'selected' if bset.every == '7' else '' }}>{{ t('backups.every_week') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin:0;max-width:130px;">
+            <label>{{ t('backups.keep') }}</label>
+            <input class="input" type="number" min="1" max="365" name="backup_keep" value="{{ bset.keep }}">
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:250px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;">
+        <strong><i class="bi bi-archive"></i> {{ t('backups.kind_full') }}</strong>
+        <p class="hint" style="margin:4px 0 8px;">{{ t('backups.kind_full_hint') }}</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+          <div class="form-row" style="margin:0;max-width:160px;">
+            <label>{{ t('backups.every') }}</label>
+            <select class="select" name="backup_full_every_days">
+              <option value="1" {{ 'selected' if bset.full_every == '1' else '' }}>{{ t('backups.every_day') }}</option>
+              <option value="7" {{ 'selected' if bset.full_every == '7' else '' }}>{{ t('backups.every_week') }}</option>
+              <option value="14" {{ 'selected' if bset.full_every == '14' else '' }}>{{ t('backups.every_2weeks') }}</option>
+              <option value="30" {{ 'selected' if bset.full_every == '30' else '' }}>{{ t('backups.every_month') }}</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin:0;max-width:130px;">
+            <label>{{ t('backups.keep') }}</label>
+            <input class="input" type="number" min="1" max="365" name="backup_full_keep" value="{{ bset.full_keep }}">
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="form-row" style="margin:0;max-width:130px;">
-      <label>{{ t('backups.auto_hour') }}</label>
-      <input class="input" type="number" min="0" max="23" name="backup_hour" value="{{ bset.hour }}">
-    </div>
-    <div class="form-row" style="margin:0;max-width:150px;">
-      <label class="check" style="display:flex;align-items:center;gap:6px;">
+
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+      <label class="check" style="display:flex;align-items:center;gap:6px;margin:0;">
         <input type="checkbox" name="backup_include_files" value="1" {{ 'checked' if bset.include_files else '' }}>
         {{ t('backups.include_files') }}</label>
-      <label>{{ t('backups.keep') }}</label>
-      <input class="input" type="number" min="1" max="365" name="backup_keep" value="{{ bset.keep }}">
+      <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
     </div>
-    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
-    <div class="hint" style="flex-basis:100%;margin:0;">{{ t('backups.auto_hint') }}</div>
-    <div class="hint" style="flex-basis:100%;margin:0;"><i class="bi bi-images"></i> {{ t('backups.include_files_hint') }}</div>
+    <div class="hint" style="margin:8px 0 0;">{{ t('backups.auto_hint') }}</div>
+    <div class="hint" style="margin:4px 0 0;"><i class="bi bi-images"></i> {{ t('backups.include_files_hint') }}</div>
   </form>
 
   {# The archive is every patient the clinic has ever seen, and its whole job
@@ -184,8 +249,10 @@
         {% for b in backups %}
         <tr>
           <td dir="ltr" style="font-family:monospace;font-size:.85rem;">{{ b.name }}
-            {% if b.has_files %}<span class="badge badge--green" dir="auto"><i class="bi bi-images"></i> {{ b.has_files }}</span>
-            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.no_files_hint') }}">{{ t('backups.no_files') }}</span>{% endif %}
+            {# What is actually inside, read from the archive — not guessed from
+               its name, which anybody who can rename a file can change. #}
+            {% if b.kind == 'full' %}<span class="badge badge--green" dir="auto"><i class="bi bi-archive"></i> {{ t('backups.kind_full') }} · {{ b.has_files }}</span>
+            {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.no_files_hint') }}"><i class="bi bi-database"></i> {{ t('backups.kind_db') }}</span>{% endif %}
             {% if b.encrypted %}<span class="badge badge--green" dir="auto" title="{{ t('backups.pwd_on') }}"><i class="bi bi-lock-fill"></i></span>
             {% else %}<span class="badge badge--muted" dir="auto" title="{{ t('backups.pwd_off') }}"><i class="bi bi-unlock"></i></span>{% endif %}
             {# Which version wrote it. Visible *before* clicking restore, which
