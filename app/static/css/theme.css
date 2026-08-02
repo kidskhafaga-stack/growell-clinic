@@ -694,3 +694,13 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
     z-index: 29;
   }
 }
+
+/* Device studies in the patient file, grouped by device. */
+.study-group { overflow: hidden; }
+.study-group__head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 14px; cursor: pointer;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  border-bottom: 1px solid var(--line);
+}
+.study-group[open] .study-group__head { border-bottom: 1px solid var(--line); }

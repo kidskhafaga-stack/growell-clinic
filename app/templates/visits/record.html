@@ -90,12 +90,10 @@
     <button type="button" class="vtab" :class="tab==='consent' && 'active'" x-on:click="go('consent')">
       <i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}
       {% if consent and consent.missing %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='studies' && 'active'" x-on:click="go('studies')">
-      <i class="bi bi-activity"></i> {{ t('visits.studies') }}
-      {% if visit.studies %}<span class="vtab-count">{{ visit.studies|length }}</span>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
       <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
-      {% if visit.services %}<span class="vtab-count">{{ visit.services|length }}</span>{% endif %}</button>
+      {% set proc_n = (visit.services|length) + (visit.studies|length) %}
+      {% if proc_n %}<span class="vtab-count">{{ proc_n }}</span>{% endif %}</button>
     <button type="button" class="vtab" :class="tab==='vac' && 'active'" x-on:click="go('vac')">
       <i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}
       {% if vac_panel.give_now %}<span class="vtab-count">{{ vac_panel.give_now|length }}</span>{% endif %}</button>
@@ -662,14 +660,67 @@
     </form>
   </div>
 
-  <!-- Device studies: run the device, enter the data, the family gets billed -->
-  <div class="card gc-scale-in" id="studies" x-show="tab==='studies'" style="animation-delay:0.255s;">
-    <h2 class="section-title"><i class="bi bi-activity"></i> {{ t('visits.studies') }}</h2>
-    <p class="hint" style="margin-top:-6px;">{{ t('visits.studies_hint') }}</p>
+  {# Procedures, and the studies that are procedures.
 
-    {% if visit.studies %}
+     They were two tabs. A doctor decides "what am I doing for this child" — a
+     dressing, an injection, an echo — and does not first decide whether the
+     thing they are doing involves a machine. Splitting on that made one
+     decision take two tabs to carry out, and made "was the echo done?" a
+     question you had to look in two places to answer. #}
+  <div class="card gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('visits.procedures_hint') }}</p>
+
+    {% if visit.services %}
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-      {% for st in visit.studies %}
+      {% for s in visit.services %}
+      {# The study for this procedure, where it has been run. Under the
+         procedure rather than in a list of its own, so the row answers "was it
+         done, and what did it say" without going anywhere. #}
+      {% set st = (visit.studies | selectattr('device_id', 'equalto', s.service.device_id) | first)
+                  if (s.service and s.service.device_id) else None %}
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <i class="bi bi-clipboard2-plus" style="color:var(--green-700);"></i>
+          <strong style="flex:1;">{{ s.name }}{% if s.quantity and s.quantity > 1 %} ×{{ s.quantity }}{% endif %}{% if s.notes %} <span style="color:var(--muted);font-weight:400;">— {{ s.notes }}</span>{% endif %}</strong>
+          {% if st %}
+          <span class="badge badge--green"><i class="bi bi-check2"></i> {{ t('visits.study_done') }}</span>
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.study_view', study_id=st.id) }}">
+            <i class="bi bi-eye"></i> {{ t('study.view') }}</a>
+          <a class="btn btn-outline btn-sm gc-press" target="_blank"
+             href="{{ url_for('visits.study_print', study_id=st.id) }}">
+            <i class="bi bi-printer"></i> {{ t('reports.print') }}</a>
+          {% elif s.service and s.service.device_id %}
+          <a class="btn btn-primary btn-sm gc-press"
+             href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=s.service.device_id, visit_id=visit.id) }}">
+            <i class="bi bi-activity"></i> {{ t('visits.enter_results') }}</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('visits.delete_service', vs_id=s.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
+        </div>
+        {% if st and st.values %}
+        <div style="margin-top:6px;color:var(--muted);font-size:.85rem;" dir="ltr">
+          {% for v in st.values[:6] %}{{ v.name }}: <strong>{{ v.value }}{{ ' ' ~ v.unit if v.unit else '' }}</strong>{% if not loop.last %} · {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+        {% if st and st.conclusion %}<div style="margin-top:4px;">{{ st.conclusion }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_procedures') }}</p>
+    {% endif %}
+
+    {# A study run with no matching procedure line — the device was used
+       directly. It still belongs to the visit, and dropping it because nobody
+       added a service row would lose the result. #}
+    {% set charged_devices = visit.services | selectattr('service') | map(attribute='service')
+                             | map(attribute='device_id') | select | list %}
+    {% set loose = visit.studies | rejectattr('device_id', 'in', charged_devices) | list %}
+    {% if loose %}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      {% for st in loose %}
       <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <i class="bi bi-activity" style="color:var(--green-700);"></i>
@@ -690,58 +741,6 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}
-    <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_studies') }}</p>
-    {% endif %}
-
-    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-plus-circle"></i> {{ t('visits.open_study') }}</h3>
-    {% if study_devices %}
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      {% for d in study_devices %}
-      <a class="btn btn-outline gc-press" style="flex-direction:column;align-items:flex-start;gap:4px;"
-         href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=d.device.id, visit_id=visit.id) }}">
-        <span><i class="bi bi-activity"></i> {{ d.device.display_name(current_lang) }}
-          {% if d.price %}<span class="badge badge--role">{{ d.price|money }}</span>{% endif %}
-          {% if d.invoiced %}<span class="badge badge--green">{{ t('visits.study_invoiced') }}</span>
-          {% elif d.charged %}<span class="badge badge--green">{{ t('visits.study_charged') }}</span>{% endif %}
-        </span>
-        {% if d.consumables %}
-        <span class="hint" style="font-size:.76rem;"><i class="bi bi-box-seam"></i>
-          {% for name, qty in d.consumables %}{{ name }} ×{{ qty }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
-        {% endif %}
-      </a>
-      {% endfor %}
-    </div>
-    <p class="hint" style="margin-top:8px;">{{ t('visits.study_charge_hint') }}</p>
-    <p class="hint" style="margin-top:4px;"><i class="bi bi-box-seam"></i> {{ t('visits.study_stock_hint') }}</p>
-    {% else %}
-    <p style="color:var(--muted);">{{ t('visits.no_devices') }}</p>
-    {% endif %}
-  </div>
-
-  <div class="card gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
-    <h2 class="section-title"><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2>
-    <p class="hint" style="margin-top:-6px;">{{ t('visits.procedures_hint') }}</p>
-
-    {% if visit.services %}
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-      {% for s in visit.services %}
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
-        <i class="bi bi-clipboard2-plus" style="color:var(--green-700);"></i>
-        <strong style="flex:1;">{{ s.name }}{% if s.quantity and s.quantity > 1 %} ×{{ s.quantity }}{% endif %}{% if s.notes %} <span style="color:var(--muted);font-weight:400;">— {{ s.notes }}</span>{% endif %}</strong>
-        {% if s.service and s.service.device_id %}
-        <a class="btn btn-outline btn-sm gc-press"
-           href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=s.service.device_id, visit_id=visit.id) }}">
-          <i class="bi bi-activity"></i> {{ t('visits.enter_results') }}</a>
-        {% endif %}
-        <form method="post" action="{{ url_for('visits.delete_service', vs_id=s.id) }}" style="display:inline;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_procedures') }}</p>
     {% endif %}
 
     {% if procedure_services %}
@@ -765,6 +764,36 @@
     {% else %}
     <p class="hint">{{ t('visits.no_procedure_catalog') }}</p>
     {% endif %}
+
+    {# Reaching straight for a device, without adding a procedure line first.
+       Kept because a doctor picking up the spirometer is not thinking about a
+       billing row, and the charge follows from the device's own service. #}
+    <details style="margin-top:16px;">
+      <summary class="section-title" style="cursor:pointer;font-size:.95rem;">
+        <i class="bi bi-activity"></i> {{ t('visits.open_study') }}</summary>
+      {% if study_devices %}
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
+        {% for d in study_devices %}
+        <a class="btn btn-outline gc-press" style="flex-direction:column;align-items:flex-start;gap:4px;"
+           href="{{ url_for('visits.study_new', patient_id=visit.patient_id, device_id=d.device.id, visit_id=visit.id) }}">
+          <span><i class="bi bi-activity"></i> {{ d.device.display_name(current_lang) }}
+            {% if d.price %}<span class="badge badge--role">{{ d.price|money }}</span>{% endif %}
+            {% if d.invoiced %}<span class="badge badge--green">{{ t('visits.study_invoiced') }}</span>
+            {% elif d.charged %}<span class="badge badge--green">{{ t('visits.study_charged') }}</span>{% endif %}
+          </span>
+          {% if d.consumables %}
+          <span class="hint" style="font-size:.76rem;"><i class="bi bi-box-seam"></i>
+            {% for name, qty in d.consumables %}{{ name }} ×{{ qty }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+          {% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      <p class="hint" style="margin-top:8px;">{{ t('visits.study_charge_hint') }}</p>
+      <p class="hint" style="margin-top:4px;"><i class="bi bi-box-seam"></i> {{ t('visits.study_stock_hint') }}</p>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('visits.no_devices') }}</p>
+      {% endif %}
+    </details>
   </div>
 
   <!-- Vaccinations: optional, age-appropriate vaccines the doctor can give now -->
