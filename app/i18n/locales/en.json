@@ -255,7 +255,8 @@
     "ask_own_phone": "This patient is 13+ — ask whether they have their own phone and update their details.",
     "update_now": "Update now",
     "file_no": "File #",
-    "name": "Name"
+    "name": "Name",
+    "tab_studies": "Studies"
   },
   "import": {
     "title": "Import patient data",
@@ -715,7 +716,8 @@
     "inv_file_linked": "the file was linked to the order",
     "inv_file_unlinked": "link removed — the file is still on the record",
     "inv_file_not_found": "that file is not on this child's record",
-    "channel": "consultation channel"
+    "channel": "consultation channel",
+    "study_done": "Result recorded"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -3533,7 +3535,13 @@
     "no_studies": "No device studies",
     "no_template": "This device has no measurement template — define its fields first",
     "view": "View",
-    "charged": "“{name}” was added to the visit's bill."
+    "charged": "“{name}” was added to the visit's bill.",
+    "stat_total": "Studies",
+    "stat_devices": "Devices",
+    "stat_flagged": "With out-of-range values",
+    "with_flags": "out of range",
+    "values": "Values",
+    "from_visit": "The visit it was done in"
   },
   "spiro": {
     "curves": "Spirometry curves",

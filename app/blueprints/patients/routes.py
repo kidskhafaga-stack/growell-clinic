@@ -378,23 +378,21 @@ def view(patient_id):
                      .order_by(Prescription.rx_date.desc(), Prescription.id.desc()).all())
     invoices = (Invoice.query.filter_by(patient_id=patient.id)
                 .order_by(Invoice.invoice_date.desc(), Invoice.id.desc()).all())
-    # Device studies — echo, audiometry, ECG, spirometry. They belong in the
-    # file for the same reason the visits do: it is where somebody looks to
-    # answer "what has been done for this child".
-    from app.models import DeviceStudy
-
-    studies = (DeviceStudy.query.filter_by(patient_id=patient.id)
-               .order_by(DeviceStudy.study_date.desc(),
-                         DeviceStudy.id.desc()).all())
     fin = {
         "total": round(sum(i.total for i in invoices), 2),
         "paid": round(sum(i.paid for i in invoices), 2),
         "balance": round(sum(i.balance for i in invoices), 2),
     }
     from app.utils.consent import all_statements
+    # Device studies — echo, audiometry, ECG, spirometry. They were in three
+    # places on this screen: a table on the overview, a second list at the
+    # bottom of the visits tab, and nowhere they could be read per device.
+    # Three copies of one list is three chances to disagree.
+    from app.utils.studies import patient_studies
 
     return render_template(
         "patients/profile.html",
+        studies=patient_studies(patient, getattr(g, "lang", "ar")),
         patient=patient,
         relations=PARENT_RELATIONS,
         consent_types=CONSENT_TYPES,
@@ -403,7 +401,6 @@ def view(patient_id):
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
-        studies=studies,
         growth_alert=_growth_concern(patient),
     )
 
