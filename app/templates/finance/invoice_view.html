@@ -246,6 +246,40 @@
   </details>
   {% endif %}
 </div>
+
+{# What has been done to this bill. A bill can be corrected while its period is
+   open, which is deliberate — a clinic must be able to fix a typo without
+   reopening its books. What makes that safe rather than merely convenient is
+   that the correction is not silent: the accountant reviewing the month sees
+   that this invoice was 350 and is now 300, who did it and when. #}
+<div class="card gc-scale-in no-print" style="margin-top:14px;">
+  <h2 class="section-title"><i class="bi bi-clock-history"></i> {{ t('invoices.history') }}</h2>
+  <p class="hint" style="margin:-4px 0 10px;">
+    {{ t('invoices.history_hint') if period_open else t('invoices.history_locked') }}</p>
+  {% if history %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr>
+        <th>{{ t('common.when') }}</th><th>{{ t('common.who') }}</th>
+        <th>{{ t('common.action') if t('common.action') != 'common.action' else t('common.actions') }}</th>
+        <th>{{ t('invoices.description') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in history %}
+        <tr>
+          <td dir="ltr" style="white-space:nowrap;">{{ row.created_at.strftime('%Y-%m-%d %H:%M') if row.created_at else '—' }}</td>
+          <td>{{ row.user.display_name(current_lang) if row.user else '—' }}</td>
+          <td><span class="badge badge--muted" dir="ltr">{{ row.action }}</span></td>
+          <td dir="auto">{{ row.detail or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('invoices.history_none') }}</p>
+  {% endif %}
+</div>
 {% endblock %}
 
 {% block head %}

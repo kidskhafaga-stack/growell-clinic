@@ -18,11 +18,47 @@
 </div>
 
 <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+  {# The status chips keep whatever else is being filtered on — losing the date
+     range every time you switch from "all" to "unpaid" is how a filter bar
+     becomes something people stop using. #}
   {% for s in ['', 'unpaid', 'partial', 'paid'] %}
   <a class="btn btn-sm {{ 'btn-primary' if status == s else 'btn-outline' }} gc-press"
-     href="{{ url_for('finance.invoices', status=s) }}">
+     href="{{ url_for('finance.invoices', status=s, from=f_from, to=f_to, q=f_q, doctor_id=f_doctor) }}">
     {{ t('invoices.all') if s == '' else t('invoices.st_' ~ s) }}</a>
   {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="status" value="{{ status }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;">
+      <label>{{ t('common.search') }}</label>
+      {# One box for the three things somebody actually remembers. #}
+      <input class="input" type="search" name="q" value="{{ f_q }}"
+             placeholder="{{ t('invoices.search_ph') }}"></div>
+    <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('data_export.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ f_from }}"></div>
+    <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('data_export.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ f_to }}"></div>
+    <div class="form-row" style="margin:0;max-width:190px;"><label>{{ t('invoices.doctor') }}</label>
+      <select class="select" name="doctor_id">
+        <option value="">{{ t('common.all') }}</option>
+        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if f_doctor == d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">{{ t('common.reset') }}</a>
+    {# Exported from exactly what is on screen, so what the accountant hands
+       over is what they just checked. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices_export', **request.args) }}">
+      <i class="bi bi-file-earmark-spreadsheet"></i> {{ t('invoices.export_tax') }}</a>
+  </form>
+  {% if invoices %}
+  <div class="hint" style="margin:10px 0 0;display:flex;gap:16px;flex-wrap:wrap;">
+    <span>{{ t('cashier.billed_today') }}: <strong dir="ltr">{{ '%.2f'|format(sums.billed) }}</strong></span>
+    <span>{{ t('invoices.paid') }}: <strong dir="ltr">{{ '%.2f'|format(sums.collected) }}</strong></span>
+    <span>{{ t('invoices.balance') }}: <strong dir="ltr">{{ '%.2f'|format(sums.outstanding) }}</strong></span>
+  </div>
+  {% endif %}
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">

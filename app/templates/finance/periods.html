@@ -13,20 +13,46 @@
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.finance') }}</a>
 </div>
 
-<div class="card gc-scale-in" style="margin-bottom:14px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
-  <form method="get" style="display:flex;gap:8px;align-items:end;">
-    <div class="form-row" style="margin:0;"><label>{{ t('periods.year') }}</label>
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  {# The year list used to hold only years that already had periods — so there
+     was no way to reach 2027 in order to create it, and the dropdown showed a
+     single option forever. #}
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;max-width:120px;"><label>{{ t('periods.year') }}</label>
       <select class="select" name="year" onchange="this.form.submit()" dir="ltr">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == year else '' }}>{{ y }}</option>{% endfor %}
       </select></div>
+    <div class="form-row" style="margin:0;max-width:150px;"><label>{{ t('periods.kind') }}</label>
+      <select class="select" name="kind" onchange="this.form.submit()">
+        <option value="">{{ t('common.all') }}</option>
+        {% for k in kinds %}<option value="{{ k }}" {{ 'selected' if f_kind == k else '' }}>{{ t('periods.kind_' ~ k) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;max-width:150px;"><label>{{ t('common.status') }}</label>
+      <select class="select" name="status" onchange="this.form.submit()">
+        <option value="">{{ t('common.all') }}</option>
+        <option value="open" {{ 'selected' if f_status == 'open' else '' }}>{{ t('periods.open') }}</option>
+        <option value="closed" {{ 'selected' if f_status == 'closed' else '' }}>{{ t('periods.closed') }}</option>
+      </select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:160px;"><label>{{ t('common.search') }}</label>
+      <input class="input" type="search" name="q" value="{{ f_q }}"
+             placeholder="{{ t('periods.search_ph') }}"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
   </form>
-  <form method="post" style="display:flex;gap:8px;align-items:end;">
+
+  {# Four granularities, because clinics hand over at different rhythms. They
+     coexist: closing whichever one you actually review refuses money inside
+     it, and the others simply sit there open. #}
+  <form method="post" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="action" value="generate">
+    <div class="form-row" style="margin:0;max-width:170px;"><label>{{ t('periods.generate_kind') }}</label>
+      <select class="select" name="kind">
+        {% for k in kinds %}<option value="{{ k }}">{{ t('periods.kind_' ~ k) }}</option>{% endfor %}
+      </select></div>
     <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-calendar-plus"></i> {{ t('periods.generate') }}</button>
+    <p class="hint" style="margin:0;flex:1;min-width:240px;">{{ t('periods.hint') }}</p>
   </form>
-  <p class="hint" style="margin:0;flex:1;min-width:240px;">{{ t('periods.hint') }}</p>
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
@@ -45,6 +71,7 @@
       {% for p in periods %}
       <tr>
         <td><strong>{{ p.name }}</strong>
+          <span class="badge badge--muted" dir="auto">{{ t('periods.kind_' ~ (p.kind or 'month')) }}</span>
           {% if p.is_closed and p.closer %}
           <div style="color:var(--muted);font-size:.78rem;">
             {{ t('periods.closed_by') }} {{ p.closer.display_name(current_lang) }}
