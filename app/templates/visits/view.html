@@ -14,7 +14,7 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.record', visit_id=visit.id) }}"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</a>
     {% endif %}
     {% if current_user.can_access('finance') %}
-    <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoice_new', patient_id=visit.patient_id, visit_id=visit.id, doctor_id=visit.doctor_id) }}">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.collect', patient_id=visit.patient_id) }}">
       <i class="bi bi-receipt"></i> {{ t('invoices.create_for_visit') }}</a>
     {% endif %}
     {% if current_user.can_access('messages') %}

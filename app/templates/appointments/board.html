@@ -33,9 +33,9 @@
         <a class="btn btn-outline btn-sm gc-press" style="display:inline-flex;color:#0e7490;border-color:#0e7490;"
            href="{{ url_for('finance.checkout', appt_id=appt.id) }}"
            title="{{ t('appointments.collect_print_hint') }}"><i class="bi bi-cash-coin"></i> {{ t('appointments.collect_print') }}</a>
-        <a class="btn btn-outline btn-sm gc-press" style="display:inline-flex;color:var(--muted);border-color:var(--line);"
-           href="{{ url_for('finance.invoice_new', patient_id=appt.patient_id, doctor_id=appt.doctor_id) }}"
-           title="{{ t('appointments.bill') }}"><i class="bi bi-receipt"></i></a>
+        {# The second button here opened the invoice builder — the same
+           collection, on a screen that made you pick the patient who is
+           already named on this row. One door. #}
       </span>
     {% endif %}
   {% endif %}

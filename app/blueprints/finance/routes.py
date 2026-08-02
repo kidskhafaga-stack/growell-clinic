@@ -5,7 +5,7 @@ commission (default + per-doctor overrides) and service bundles. Later
 phases build invoices, doctor statements and discount claims on top.
 """
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import abort, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -888,8 +888,6 @@ def _uncollected_by_patient(days=7):
     priced) but never invoiced + doctor-added visit services with no invoice —
     typically because the visit was collected *before* the doctor added them.
     Grouped per patient so the cashier can chase each one with one click."""
-    from datetime import timedelta
-
     from app.models import VisitService
 
     since = date.today() - timedelta(days=days)
@@ -1646,165 +1644,13 @@ def _mark_billed(invoice, doses, services, dose_ids, service_ids):
             vs.invoice_id = invoice.id
 
 
-@finance_bp.route("/invoices/new", methods=["GET", "POST"])
-@cashier_access
-def invoice_new():
-    if request.method == "POST":
-        patient = db.session.get(Patient, request.form.get("patient_id", type=int))
-        if patient is None:
-            flash(t("invoices.need_patient"), "danger")
-            return redirect(url_for("finance.invoice_new"))
-
-        # One invoice per visit-day: extend today's invoice when it exists
-        # (e.g. collecting a vaccine given after the exam was already paid)
-        # instead of raising a second invoice for the same patient's day.
-        invoice = _todays_invoice(patient.id)
-        created = invoice is None
-        if created:
-            invoice = Invoice(
-                invoice_number=generate_invoice_number(),
-                patient_id=patient.id,
-                doctor_id=request.form.get("doctor_id", type=int) or None,
-                visit_id=request.form.get("visit_id", type=int) or None,
-                payer_id=request.form.get("payer_id", type=int) or None,
-                created_by=current_user.id,
-                notes=(request.form.get("notes") or "").strip() or None,
-            )
-            db.session.add(invoice)
-            db.session.flush()
-        else:
-            if invoice.doctor_id is None:
-                invoice.doctor_id = request.form.get("doctor_id", type=int) or None
-            if invoice.visit_id is None:
-                invoice.visit_id = request.form.get("visit_id", type=int) or None
-
-        # Multiple line rows submitted as service_id[], etc. The index of each
-        # line that survived is kept: it's how we know which prefilled dose or
-        # procedure was actually charged for, and which one the cashier removed.
-        count = 0
-        kept = []
-        for idx in range(len(request.form.getlist("line_service_id"))):
-            item = _build_line(invoice, idx)
-            if item:
-                invoice.items.append(item)
-                kept.append(idx)
-                count += 1
-        if count == 0:
-            db.session.rollback()
-            flash(t("invoices.need_item"), "warning")
-            return redirect(url_for("finance.invoice_new", patient_id=patient.id))
-
-        # Apply a chosen named discount first (campaign/doctor/category/special),
-        # then insurance coverage fills any remaining undiscounted lines.
-        disc, auto = _chosen_discount()
-        if disc is not None:
-            _apply_named_discount(invoice, disc)
-        _apply_coverage(invoice, patient, auto_discount=auto)
-
-        # Mark as billed exactly what these lines charged for — the doses and
-        # the doctor's procedures this invoice paid, and nothing else.
-        db.session.flush()
-        _mark_billed(invoice,
-                     _uncharged_vaccines(patient.id),
-                     _unbilled_patient_services(patient.id),
-                     _claimed_ids("line_dose_id", kept),
-                     _claimed_ids("line_vs_id", kept))
-
-        invoice.recalc_status()
-        ActivityLog.record("invoice.create" if created else "invoice.append",
-                           user_id=current_user.id, entity="invoice",
-                           detail=invoice.invoice_number, ip_address=client_ip())
-        db.session.commit()
-        _post_journal_safe("invoice", invoice)
-        flash(t("invoices.created") if created
-              else t("invoices.appended_today", number=invoice.invoice_number),
-              "success")
-        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
-
-    pid = request.args.get("patient_id", type=int)
-    patient = db.session.get(Patient, pid) if pid else None
-    visit_id = request.args.get("visit_id", type=int)
-    doctor_id = request.args.get("doctor_id", type=int)
-
-    # Coming from a visit: default the patient + doctor and pre-fill the lines —
-    # the base visit-type charge plus every procedure the doctor added — each at
-    # this doctor's price. The cashier then just collects.
-    prefill_lines = []
-    lang = getattr(g, "lang", "ar")
-    has_vacc_base = False
-    visit = db.session.get(Visit, visit_id) if visit_id else None
-    if visit is not None:
-        patient = patient or visit.patient
-        if doctor_id is None:
-            doctor_id = visit.doctor_id
-        appt_type = visit.appointment.appt_type if visit.appointment else None
-        base = service_for_visit_type(appt_type) if appt_type else None
-        if base is not None:
-            has_vacc_base = base.category == "vaccination_fee"
-            prefill_lines.append({
-                "service_id": str(base.id),
-                "description": base.display_name(lang),
-                "unit_price": base.price_for(visit.doctor),
-            })
-    # Collecting a vaccine given after checkout (from the cashier's "not billed"
-    # list, no visit context): preselect the doctor who gave it so the doctor's
-    # per-service pricing/commission is right and the cashier needn't guess.
-    if doctor_id is None and patient is not None:
-        doctor_id = _vaccine_doctor(patient.id)
-        if doctor_id is None:
-            for vs in _unbilled_patient_services(patient.id):
-                if vs.visit and vs.visit.doctor_id:
-                    doctor_id = vs.visit.doctor_id
-                    break
-
-    # Doctor-added services still unbilled — the linked visit's ones plus any
-    # recent leftovers from other visits of this patient (added after their
-    # checkout was already collected), so nothing falls through the till.
-    if patient is not None:
-        for vs in _unbilled_patient_services(patient.id):
-            v = vs.visit
-            doc = v.doctor if v else None
-            prefill_lines.append({
-                "service_id": str(vs.service_id) if vs.service_id else "",
-                "description": vs.name,
-                "unit_price": vs.service.price_for(doc) if vs.service else 0,
-                "quantity": vs.quantity or 1,
-                # Which procedure this line pays for, so deleting the line
-                # leaves it unbilled instead of silently written off.
-                "vs_id": vs.id,
-            })
-
-    # Any vaccines given to this patient that haven't been charged yet: billed as
-    # the vaccination service (brand price + per-doctor admin fee), not free text.
-    if patient is not None:
-        doc = db.session.get(User, doctor_id) if doctor_id else None
-        prefill_lines.extend(
-            _vaccine_prefill_lines(patient.id, doc, lang, has_vacc_base))
-
-    # Vaccines that can be sold *forward* — the family pays at reception and
-    # the nurse gives it afterwards, which is how a vaccination visit actually
-    # runs. Everything above bills doses already given; this is the other
-    # direction, and there was no way to do it.
-    from app.utils.vaccine_sale import as_json, sellable
-    vaccine_offers = sellable(patient, lang) if patient is not None else []
-
-    suggested, suggested_amount = _discount_preview(patient, doctor_id,
-                                                    prefill_lines)
-    return render_template(
-        "finance/invoice_form.html", patient=patient,
-        suggested=suggested, suggested_amount=suggested_amount,
-        vaccine_offers=vaccine_offers,
-        vaccine_offers_json=as_json(vaccine_offers),
-        vaccine_fee=_vaccine_service(),
-        doctors=_doctors_active(),
-        services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
-        patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
-        payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
-        discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
-        visit_id=visit_id, doctor_id=doctor_id, prefill_lines=prefill_lines or None,
-    )
-
-
+# The invoice *builder* is gone. It was a second collection screen with a
+# patient dropdown, a doctor dropdown and blank lines — reported as "it
+# shouldn't be chosen from scratch with the patient standing there" — and it
+# had no payment section at all: you saved an invoice, opened it, and paid from
+# a third screen. finance.checkout / finance.collect is the single path, and
+# finance.collect_pick is the only door that still has to ask who it is for.
+#
 # NOTE: the legacy one-click "collect_appointment" route (silent full payment,
 # no visible prices) was removed — finance.checkout is the single reception
 # collection path, so pricing/billing logic lives in exactly one place.
@@ -1938,6 +1784,36 @@ def checkout(appt_id):
     from app.models import Appointment
 
     return _checkout_screen(db.get_or_404(Appointment, appt_id), None)
+
+
+@finance_bp.route("/collect")
+@cashier_access
+def collect_pick():
+    """"Who is this for?" — asked only when nothing else has answered it.
+
+    The invoice builder used to be the door with no patient on it, and it asked
+    this question *plus* doctor, payer, notes and a set of blank lines, with a
+    family standing at the desk. Every door that knows the patient — the
+    appointment board, the visit, the cashier's list — now goes straight to
+    their checkout. This one is what is left: a search, and nothing else.
+    """
+    lang = getattr(g, "lang", "ar")
+    patients = (Patient.query.filter_by(is_active=True)
+                .order_by(Patient.full_name).limit(500).all())
+    # The haystack is built once here rather than matched in the template, so
+    # the search covers what a parent actually says at the desk — the name in
+    # either language, the file number, the paper reference, the phone.
+    rows = [{
+        "id": p.id,
+        "url": url_for("finance.collect", patient_id=p.id),
+        "name": p.display_name(lang),
+        "number": p.patient_number,
+        "hay": " ".join(filter(None, [
+            p.full_name, p.full_name_en, p.patient_number,
+            p.reference_number, p.contact_phone])).lower(),
+    } for p in patients]
+    return render_template("finance/collect_pick.html",
+                           owing=_uncollected_by_patient(), rows=rows)
 
 
 @finance_bp.route("/collect/<int:patient_id>", methods=["GET", "POST"])
@@ -2123,11 +1999,36 @@ def _checkout_screen(appt, patient):
         # Said before the work, not after it: the gate used to fire on submit,
         # throw the whole form away and redirect — with a family at the desk.
         shift_needed=_shift_gate_blocked(),
+        # Money can come back out on the same screen it went in on. It used to
+        # live only on the invoice view, which reception reaches by knowing an
+        # invoice number.
+        refundable=_refundable(patient_id),
+        refund_needs_approval=(Setting.get("refund_approval_required", "1") != "0"
+                               and not current_user.is_admin),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
         suggested=suggested, suggested_amount=suggested_amount,
         payment_methods=PAYMENT_METHODS,
     )
+
+
+def _refundable(patient_id, days=30):
+    """This patient's recent invoices that money can actually come back out of.
+
+    Refunding lived only on the invoice *view* screen, which reception reaches
+    by knowing an invoice number — so the one thing a family asks for at the
+    desk ("we paid for a vaccine we're not taking") sent the cashier hunting
+    through a list. It belongs where the money was taken.
+
+    Only invoices with something collected on them are offered: refunding an
+    unpaid invoice is not a refund, it is a discount, and it has its own way in.
+    """
+    since = date.today() - timedelta(days=days)
+    recent = (Invoice.query
+              .filter(Invoice.patient_id == patient_id,
+                      Invoice.invoice_date >= since)
+              .order_by(Invoice.id.desc()).limit(20).all())
+    return [inv for inv in recent if inv.paid > 0][:5]
 
 
 def _discount_preview(patient, doctor_id, lines):
@@ -2287,57 +2188,6 @@ def _parse_date_arg(name):
         return None
 
 
-def _build_line(invoice, idx):
-    services = request.form.getlist("line_service_id")
-    descs = request.form.getlist("line_description")
-    prices = request.form.getlist("line_unit_price")
-    qtys = request.form.getlist("line_quantity")
-    discs = request.form.getlist("line_discount_value")
-    dpcts = request.form.getlist("line_discount_is_percent")
-    nocomm = request.form.getlist("line_no_commission")
-    brands = request.form.getlist("line_brand_id")
-    dose_numbers = request.form.getlist("line_dose_number")
-
-    def _num(lst, i, cast, default=None):
-        try:
-            return cast(lst[i]) if i < len(lst) and lst[i] != "" else default
-        except (ValueError, TypeError):
-            return default
-
-    sid = _num(services, idx, int)
-    service = db.session.get(Service, sid) if sid else None
-    desc = (descs[idx].strip() if idx < len(descs) else "")
-    if service and not desc:
-        desc = service.name
-    price = _num(prices, idx, float)
-    if service and price is None:
-        price = service.price
-    if not desc or price is None:
-        return None
-
-    item = InvoiceItem(
-        service_id=service.id if service else None,
-        description=desc, unit_price=price,
-        quantity=_num(qtys, idx, int, 1) or 1,
-        discount_value=_num(discs, idx, float, 0) or 0,
-        discount_is_percent=(idx < len(dpcts) and dpcts[idx] in ("1", "on", "true")),
-    )
-    # Remember which vaccine this line paid for — the same snapshot the
-    # checkout path keeps, so a dose the doctor later refuses or swaps can be
-    # settled against the exact line that charged for it.
-    item.vaccine_brand_id = _num(brands, idx, int)
-    # And which dose of that course was paid for, when the vaccine was sold
-    # forward from the till. Asking "which dose" and then dropping the answer
-    # would make the question theatre.
-    item.vaccine_dose_number = _num(dose_numbers, idx, int)
-    # Vaccine product lines carry no invoice commission — the doctor's share is
-    # the brand's doctor_fee, tracked on the dose (else it would be double-paid).
-    no_commission = idx < len(nocomm) and nocomm[idx] in ("1", "on", "true")
-    if service is not None and not no_commission:
-        item.commission_amount = service.doctor_share(item.net, invoice.doctor)
-    return item
-
-
 @finance_bp.route("/invoices/<int:invoice_id>")
 @cashier_access
 def invoice_view(invoice_id):
@@ -2430,20 +2280,52 @@ def invoice_payment(invoice_id):
     return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
 
 
+def _after_refund(invoice):
+    """Where a refund puts you back: the screen you started it from.
+
+    A refund taken at the desk used to land on the invoice view, which is a
+    different screen from the one the cashier was working on — with the family
+    still standing there. Whoever asked for the refund says where they were.
+    """
+    where = (request.form.get("next") or "").strip()
+    if where == "cashier":
+        return url_for("finance.cashier")
+    if where == "collect" and invoice.patient_id:
+        return url_for("finance.collect", patient_id=invoice.patient_id)
+    return url_for("finance.invoice_view", invoice_id=invoice.id)
+
+
 @finance_bp.route("/invoices/<int:invoice_id>/refund", methods=["POST"])
-@module_required(MODULE)
+@cashier_access
 def invoice_refund(invoice_id):
     """Return money to the patient (e.g. an exam re-billed as a consultation)
-    and reconcile the cashier drawer."""
+    and reconcile the cashier drawer.
+
+    Reached by anyone who works the till, not only the finance module. It was
+    ``module_required("finance")``, which reception does not have — they hold
+    the ``cashier`` capability — so the whole approval workflow below was
+    unreachable for the only people a family ever asks for their money back.
+    They could not even *file* a request.
+
+    The gate that matters is untouched and is two lines down: unless the clinic
+    has explicitly turned ``refund_approval_required`` off, a non-admin's
+    refund becomes a request a manager must approve, and no cash moves. A
+    clinic that turns that setting off has said cashiers may refund, and now
+    they can — that is the one behaviour this widens, and it is the behaviour
+    the setting is named after.
+    """
     from app.models import RefundRequest, Setting
 
     invoice = db.get_or_404(Invoice, invoice_id)
     amount = request.form.get("amount", type=float)
+    # The refusals go back the same way as the success. A cashier told "bad
+    # amount" and then dumped on a screen they did not open has lost the family
+    # they were serving as well as the typo.
     if not amount or amount <= 0:
         flash(t("invoices.bad_amount"), "danger")
-        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+        return redirect(_after_refund(invoice))
     if _period_blocked(invoice.invoice_date):
-        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+        return redirect(_after_refund(invoice))
 
     # F4 approval workflow: unless the setting is off, only admins refund
     # directly — everyone else files a request a manager must approve.
@@ -2461,9 +2343,7 @@ def invoice_refund(invoice_id):
                            ip_address=client_ip())
         db.session.commit()
         flash(t("refunds.request_sent"), "info")
-        if (request.form.get("next") or "") == "cashier":
-            return redirect(url_for("finance.cashier"))
-        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+        return redirect(_after_refund(invoice))
     if amount > invoice.paid:  # can't refund more than was actually collected
         amount = invoice.paid
     method = (request.form.get("method") or "cash").strip()
@@ -2480,9 +2360,7 @@ def invoice_refund(invoice_id):
     db.session.commit()
     _post_journal_safe("payment", refund_pay)
     flash(t("invoices.refund_added"), "success")
-    if (request.form.get("next") or "") == "cashier":
-        return redirect(url_for("finance.cashier"))
-    return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    return redirect(_after_refund(invoice))
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/item/add", methods=["POST"])
