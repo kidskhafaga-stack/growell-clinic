@@ -195,8 +195,15 @@ a:hover { color: var(--green-900); }
 .nav-item .bi { font-size: 1.1rem; }
 
 .sidebar__footer {
-  padding: 14px 16px 16px;
+  padding: 11px 16px 13px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: block;
+  color: inherit;
+}
+.sidebar__footer:hover { background: rgba(255, 255, 255, 0.08); color: inherit; }
+.sidebar__footer-line {
+  display: flex; align-items: center; gap: 7px; flex-wrap: nowrap;
+  overflow: hidden; white-space: nowrap;
 }
 .sidebar__brandline { display: flex; align-items: center; gap: 8px; }
 .sidebar__product { font-weight: 700; font-size: 0.92rem; color: #fff; letter-spacing: 0.2px; }
@@ -457,9 +464,9 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .patient-row.gm { border-inline-start: 3px solid #3b82f6; padding-inline-start: 9px; }
 .patient-row.gf { border-inline-start: 3px solid #ec4899; padding-inline-start: 9px; }
 .copyright {
-  font-size: 0.64rem; line-height: 1.5; margin-top: 10px; padding-top: 9px;
-  color: rgba(255, 255, 255, 0.4);
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.66rem;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ---------- Profile header ---------- */
@@ -594,4 +601,96 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   body[dir="rtl"] .sidebar { transform: translateX(100%); }
   .main { margin-inline-start: 0; }
   .form-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Sidebar: full, rail, drawer ----------
+   Three states rather than two. The rail keeps the icons so navigation is one
+   click away instead of two, and the phone gets the sidebar *over* the content
+   with a scrim — a 64px rail on a 360px screen takes space without giving
+   information back.
+
+   Everything below is `inline-start` and never `left`: the program flips whole
+   with `dir`, and a collapse that always went left would slide out of the
+   screen in Arabic. */
+.layout[data-sidebar="rail"] { --sidebar-w: 68px; }
+.sidebar { transition: width 0.18s ease; }
+
+.sidebar__toggle {
+  position: absolute;
+  top: 26px;
+  inset-inline-end: -13px;
+  width: 26px; height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card, #fff);
+  color: var(--green-700);
+  cursor: pointer;
+  display: grid; place-items: center;
+  font-size: 0.7rem;
+  z-index: 32;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+}
+.sidebar__toggle:hover { background: var(--green-050); }
+/* The arrow turns round with the state, so the button says which way it goes
+   rather than only that it does something. */
+.layout[data-sidebar="rail"] .sidebar__toggle i { transform: rotate(180deg); }
+
+/* --- what the rail hides ------------------------------------------------ */
+.layout[data-sidebar="rail"] .sidebar__brand { padding: 22px 12px; justify-content: center; }
+.layout[data-sidebar="rail"] .sidebar__brand > div,
+.layout[data-sidebar="rail"] .nav-item > span:not(.nav-tip),
+.layout[data-sidebar="rail"] .sidebar__footer-line { display: none; }
+.layout[data-sidebar="rail"] .sidebar__nav { padding: 14px 8px; }
+.layout[data-sidebar="rail"] .nav-item { justify-content: center; padding: 11px 0; }
+.layout[data-sidebar="rail"] .sidebar__footer { text-align: center; padding: 12px 8px; }
+.layout[data-sidebar="rail"] .sidebar__footer-ico { display: inline-block; }
+.sidebar__footer-ico { display: none; color: rgba(255, 255, 255, 0.7); }
+
+/* --- the name, on hover, when the name is hidden ------------------------ */
+.nav-tip { display: none; }
+.layout[data-sidebar="rail"] .nav-item { position: relative; }
+.layout[data-sidebar="rail"] .nav-item:hover .nav-tip,
+.layout[data-sidebar="rail"] .nav-item:focus-visible .nav-tip {
+  display: block;
+  position: absolute;
+  inset-inline-start: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  z-index: 40;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 22%);
+}
+
+/* --- the phone ---------------------------------------------------------- */
+.topbar__menu {
+  display: none;
+  border: 0; background: none; cursor: pointer;
+  font-size: 1.35rem; color: var(--ink);
+  padding: 0 6px; margin-inline-end: 4px;
+}
+.sidebar__scrim { display: none; }
+
+@media (max-width: 880px) {
+  .topbar__menu { display: inline-flex; }
+  /* The rail is a desktop idea; on a phone the sidebar is either over the
+     content or not there. */
+  .layout[data-sidebar="rail"] { --sidebar-w: 264px; }
+  .sidebar { transition: transform 0.2s ease; }
+  .sidebar__toggle { display: none; }
+  .layout[data-sidebar="rail"] .sidebar__brand > div,
+  .layout[data-sidebar="rail"] .nav-item > span:not(.nav-tip),
+  .layout[data-sidebar="rail"] .sidebar__footer-line { display: flex; }
+  .layout[data-sidebar="rail"] .nav-item { justify-content: flex-start; padding: 11px 14px; }
+  .sidebar.is-open { transform: none; }
+  .sidebar__scrim {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgb(0 0 0 / 45%);
+    z-index: 29;
+  }
 }

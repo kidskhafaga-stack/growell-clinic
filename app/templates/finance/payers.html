@@ -180,9 +180,11 @@
             </table>
             <form method="post" action="{{ url_for('finance.contract_new', payer_id=p.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="form-row" style="margin:0;"><label>{{ t('contracts.number') }}</label><input class="input" name="number" dir="ltr" style="width:130px;"></div>
+              {# The number is generated, and the dates default to a year from
+                 today — so "add a contract" needs nothing typed at all. #}
               <div class="form-row" style="margin:0;"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
-              <div class="form-row" style="margin:0;"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date"></div>
+              <div class="form-row" style="margin:0;"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date">
+                <div class="hint">{{ t('contracts.year_hint') }}</div></div>
               <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('contracts.add') }}</button>
             </form>
           </details>

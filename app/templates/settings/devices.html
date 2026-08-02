@@ -37,17 +37,49 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}"><i class="bi bi-arrow-right"></i> {{ t('settings.title') }}</a>
 </div>
 
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
-  {% if devices %}
-  <table class="table">
+<!-- Search + filters. Same wiring as every other search screen. -->
+<form data-live-search="#gc-results" method="get" class="gc-animate dev-filters">
+  <input class="input" type="search" name="q" value="{{ q or '' }}"
+         placeholder="{{ t('devices.search_ph') }}" style="flex:2;min-width:200px;">
+  <select class="select" name="type" style="flex:1;min-width:140px;">
+    <option value="">{{ t('devices.all_types') }}</option>
+    {% for dt in device_types %}
+    <option value="{{ dt }}" {{ 'selected' if f_type == dt else '' }}>{{ t('device_types.' ~ dt) }}</option>
+    {% endfor %}
+  </select>
+  <select class="select" name="conn" style="flex:1;min-width:140px;">
+    <option value="">{{ t('devices.all_connections') }}</option>
+    {% for c in connection_types %}
+    <option value="{{ c }}" {{ 'selected' if f_conn == c else '' }}>{{ t('connection_types.' ~ c) }}</option>
+    {% endfor %}
+  </select>
+  <select class="select" name="status" style="flex:1;min-width:120px;">
+    <option value="">{{ t('devices.all_statuses') }}</option>
+    <option value="active" {{ 'selected' if f_status == 'active' else '' }}>{{ t('common.active') }}</option>
+    <option value="inactive" {{ 'selected' if f_status == 'inactive' else '' }}>{{ t('common.inactive') }}</option>
+  </select>
+  <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i></button>
+  {% if q or f_type or f_conn or f_status %}
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.devices') }}">{{ t('services.clear_filters') }}</a>
+  {% endif %}
+</form>
+
+<div id="gc-results">
+  <div class="gc-animate" style="color:var(--muted);font-size:.85rem;margin-bottom:8px;">
+    {{ t('services.showing').replace('{n}', rows|length|string).replace('{total}', devices|length|string) }}
+  </div>
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table" style="min-width:760px;">
     <thead><tr>
       <th>{{ t('devices.device') }}</th><th>{{ t('devices.device_type') }}</th>
       <th>{{ t('devices.connection') }}</th><th>{{ t('devices.import_mode') }}</th>
-      <th>{{ t('devices.warranty_until') }}</th><th>{{ t('common.status') }}</th><th></th>
+      <th>{{ t('devices.warranty_until') }}</th><th>{{ t('common.status') }}</th><th style="width:120px;"></th>
     </tr></thead>
-    <tbody>
-      {% for d in devices %}
-      <tr>
+      {% for d in rows %}
+      <tbody x-data="{ open: false }">
+      <tr {% if not d.is_active %}style="opacity:.55;"{% endif %}>
         <td><strong>{{ d.display_name(current_lang) }}</strong>
           {% if d.manufacturer or d.model %}<div class="num" style="color:var(--muted);">{{ d.manufacturer or '' }} {{ d.model or '' }}</div>{% endif %}</td>
         <td><span class="badge badge--role">{{ t('device_types.' ~ d.device_type) }}</span></td>
@@ -59,16 +91,9 @@
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.device_measurements', device_id=d.id) }}"
              title="{{ t('measure.title') }}"><i class="bi bi-rulers"></i>
             {% if d.measurements %}<span class="badge badge--muted">{{ d.measurements|length }}</span>{% endif %}</a>
-          <details style="position:relative;display:inline-block;">
-            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
-            <form method="post" action="{{ url_for('settings.devices') }}" class="popform" style="width:340px;max-height:70vh;overflow:auto;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ d.id }}">
-              {{ device_fields(d) }}
-              <label class="checkbox" style="font-weight:400;display:block;margin:6px 0;"><input type="checkbox" name="is_active" value="1" {{ 'checked' if d.is_active else '' }}> {{ t('common.active') }}</label>
-              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-            </form>
-          </details>
+          <button type="button" class="btn btn-outline btn-sm gc-press" @click="open = !open"
+                  :aria-expanded="open ? 'true' : 'false'" title="{{ t('common.edit') }}">
+            <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-pencil'"></i></button>
           <form method="post" action="{{ url_for('settings.devices') }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ d.id }}">
@@ -76,12 +101,32 @@
           </form>
         </td>
       </tr>
+      <!-- The editor, opened in place. It was a 340px popover in a cell of a
+           table that scrolls sideways, which clips it the moment it does. -->
+      <tr x-show="open" x-cloak>
+        <td colspan="7" class="dev-editor">
+          <form method="post" action="{{ url_for('settings.devices') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ d.id }}">
+            {{ device_fields(d) }}
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;">
+              <label class="checkbox" style="font-weight:400;margin:0;"><input type="checkbox" name="is_active" value="1" {{ 'checked' if d.is_active else '' }}> {{ t('common.active') }}</label>
+              <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+              <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('settings.device_measurements', device_id=d.id) }}">
+                <i class="bi bi-rulers"></i> {{ t('measure.title') }}</a>
+            </div>
+          </form>
+        </td>
+      </tr>
+      </tbody>
       {% endfor %}
-    </tbody>
   </table>
+  </div>
   {% else %}
-  <div class="empty-state"><i class="bi bi-hdd-stack"></i>{{ t('devices.none') }}</div>
+  <div class="empty-state"><i class="bi bi-hdd-stack"></i>
+    {{ t('devices.no_matches') if devices else t('devices.none') }}</div>
   {% endif %}
+  </div>
 </div>
 
 <details class="card gc-scale-in">
@@ -94,5 +139,9 @@
   </form>
 </details>
 
-<style>.popform{position:absolute;z-index:30;inset-inline-end:0;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.12);}</style>
+<style>
+  [x-cloak] { display: none !important; }
+  .dev-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .dev-editor { background: var(--surface-2, rgba(0,0,0,.03)); padding: 14px !important; }
+</style>
 {% endblock %}

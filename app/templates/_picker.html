@@ -1,0 +1,36 @@
+{# The autocomplete list, written once and included by every screen that asks
+   "which drug did you mean".
+
+   It was three copies before, in three states of repair — one printing an
+   empty pair of brackets on every row because it read a field its endpoint did
+   not send, another using class names whose CSS lived in a third template and
+   so rendering with no background at all. A macro cannot drift from itself.
+
+   `p` is the picker's scope prefix (e.g. "line.picker."), `on_pick` is the
+   expression run with `s` bound to the chosen row — the caller does its own
+   writing, because writing from inside the picker would write to the raw
+   object instead of Alpine's proxy and render nothing. #}
+
+{% macro drug_list(p, on_pick) %}
+<div class="gc-picker" x-show="{{ p }}open" x-cloak role="listbox">
+  <template x-for="(s, idx) in {{ p }}items" :key="idx">
+    <button type="button" class="gc-picker-item"
+            role="option" :aria-selected="idx === {{ p }}active ? 'true' : 'false'"
+            x-on:mouseenter="{{ p }}active = idx"
+            x-on:click="{{ p }}close(); {{ on_pick }}">
+      <span class="gc-picker-line">
+        <strong x-text="s.trade || s.name"></strong>
+        <span class="gc-picker-chip" x-show="s.strength" x-text="s.strength"></span>
+        <span class="gc-picker-chip" x-show="s.form" x-text="s.form"></span>
+        <span class="gc-picker-chip" x-show="s.is_ingredient">{{ t('rx.ingredient') }}</span>
+      </span>
+      {# The ingredient, and the other spelling of the brand — a name read off
+         a box in Arabic has to be recognisable next to its Latin one. #}
+      <span class="gc-picker-sub"
+            x-text="[s.generic, s.alt].filter(Boolean).join(' · ')"></span>
+    </button>
+  </template>
+  <div class="gc-picker-empty" x-show="{{ p }}searched && !{{ p }}items.length">
+    {{ t('rx.no_drug_match') }}</div>
+</div>
+{% endmacro %}

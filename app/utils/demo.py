@@ -445,7 +445,6 @@ def seed_demo():
 
     # --- Billing + vaccine workflow demo (per-doctor pricing, cashier, …) ---
     from app.models import CashDrawerDay
-    from app.utils.pricing import save_visit_type_service_map
 
     # A second doctor so per-doctor pricing is visible (one free consult, one paid).
     doc2 = User.query.filter(User.role == "doctor", User.id != doc.id).first()
@@ -469,7 +468,7 @@ def seed_demo():
             commission_type=ctype, commission_value=cval))
 
     # Visit type -> base-charge service (vaccination billed separately).
-    save_visit_type_service_map({"new": kashf.id, "consultation": esh.id})
+    kashf.visit_type, esh.visit_type = "new", "consultation"
 
     # Vaccine economics: a doctor fee on every priced brand (P&L + doctor share).
     for b in VaccineBrand.query.all():

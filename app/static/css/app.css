@@ -1,0 +1,104 @@
+
+/* The "this page has changed" bar. Bottom-centre, above everything, and it
+   never covers the page it is talking about. */
+.gc-live-note {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 18px;
+  margin-inline: auto;
+  width: max-content;
+  max-width: min(92vw, 520px);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e5e7eb);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font-size: 0.9rem;
+  animation: gcLiveNoteIn 0.25s ease-out;
+}
+.gc-live-note button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--green-600, #16a34a);
+}
+@keyframes gcLiveNoteIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   gcPicker — the autocomplete list.
+
+   These rules used to live inside appointments/form.html, while
+   visits/record.html used the same class names. So the drug list in the
+   consulting room rendered with no background, no border and no shadow: bare
+   buttons floating over whatever was underneath. That is most of "the drug
+   search looks odd", and it was invisible to anyone reading either file alone.
+
+   Everything here is a variable, so the list follows the theme instead of
+   being painted white by a hover handler. */
+.gc-picker {
+  position: absolute;
+  z-index: 60;
+  inset-inline: 0;
+  top: 100%;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e3e8ee);
+  border-radius: 12px;
+  box-shadow: var(--shadow, 0 8px 24px rgb(0 0 0 / 12%));
+}
+.gc-picker-item {
+  display: block;
+  width: 100%;
+  text-align: start;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line, #e3e8ee);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gc-picker-item:last-child { border-bottom: 0; }
+/* Hover and keyboard land on the same highlight, so the row the mouse is over
+   and the row Enter would take can never look different. */
+.gc-picker-item:hover,
+.gc-picker-item[aria-selected="true"] { background: var(--green-050, #eafaf3); }
+.gc-picker-item strong { font-weight: 600; }
+.gc-picker-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.gc-picker-sub {
+  color: var(--muted, #6c7a89);
+  font-size: 0.8rem;
+}
+/* The strength is what tells two rows of the same brand apart, so it is a chip
+   rather than more grey text at the end of a line nobody reads to the end. */
+.gc-picker-chip {
+  border: 1px solid var(--line, #e3e8ee);
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 0.72rem;
+  color: var(--muted, #6c7a89);
+  white-space: nowrap;
+}
+.gc-picker-empty {
+  padding: 10px 12px;
+  color: var(--muted, #6c7a89);
+  font-size: 0.85rem;
+}

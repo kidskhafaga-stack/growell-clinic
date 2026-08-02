@@ -236,6 +236,48 @@
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('problems.add') }}</button>
       </form>
 
+      <!-- Device studies: echo, audiometry, ECG, spirometry…
+           These were recorded in a visit and visible only there, so anyone
+           opening the file six months later had to remember which visit it
+           happened in. That is not recall, it is a search — and the file is
+           supposed to be the answer to "what was done for this child". -->
+      <h3 class="section-title" style="margin-top:24px;" id="studies">
+        <i class="bi bi-activity"></i> {{ t('studies.title_list') }}</h3>
+      {% if studies %}
+      <div style="overflow-x:auto;">
+      <table class="table" style="min-width:560px;">
+        <thead><tr>
+          <th>{{ t('studies.date') }}</th>
+          <th>{{ t('studies.device') }}</th>
+          <th>{{ t('studies.conclusion') }}</th>
+          <th>{{ t('studies.by') }}</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {% for s in studies %}
+          <tr>
+            <td dir="ltr" style="white-space:nowrap;">{{ s.study_date }}</td>
+            <td>{{ s.device.display_name(current_lang) if s.device else '—' }}
+              {% if s.values %}<span class="badge badge--muted">{{ s.values|length }}</span>{% endif %}</td>
+            <td dir="auto">{{ (s.conclusion or '')[:90] or '—' }}</td>
+            <td dir="auto">{{ s.performer.display_name(current_lang) if s.performer else '—' }}</td>
+            <td style="text-align:end;white-space:nowrap;">
+              <a class="btn btn-outline btn-sm gc-press"
+                 href="{{ url_for('visits.study_view', study_id=s.id) }}">
+                <i class="bi bi-eye"></i></a>
+              <a class="btn btn-outline btn-sm gc-press" target="_blank"
+                 href="{{ url_for('visits.study_print', study_id=s.id) }}">
+                <i class="bi bi-printer"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <p style="color:var(--muted);">{{ t('studies.none') }}</p>
+      {% endif %}
+
       <!-- Consent (GAHAR): guardian-signed documented consents -->
       <h3 class="section-title" style="margin-top:24px;" id="consent"><i class="bi bi-file-earmark-check"></i> {{ t('consent.title_list') }}</h3>
       {% if patient.consents %}
@@ -262,12 +304,13 @@
 
       {% set g = patient.primary_guardian %}
       <form method="post" action="{{ url_for('patients.add_consent', patient_id=patient.id) }}"
-            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;"
+            x-data="{ kind: 'general', texts: {{ consent_statements|tojson|forceescape }} }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <p class="hint" style="margin-top:0;"><i class="bi bi-info-circle"></i> {{ t('consent.pediatric_hint') }}</p>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('consent.type') }}</label>
-            <select class="select" name="consent_type">
+            <select class="select" name="consent_type" x-model="kind">
               {% for ct in consent_types %}<option value="{{ ct }}">{{ t('consent.types.' ~ ct) }}</option>{% endfor %}
             </select></div>
           <div class="form-row"><label>{{ t('consent.guardian_name') }} *</label>
@@ -282,7 +325,13 @@
           <div class="form-row"><label>{{ t('consent.date') }}</label>
             <input class="input" type="date" name="signed_date"></div>
           <div class="form-row" style="grid-column:1/-1;"><label>{{ t('consent.statement') }}</label>
-            <textarea class="input" name="statement" rows="2"></textarea></div>
+            <!-- Shown, not blank. Nobody types a consent statement into an
+                 empty box in a clinic, so an empty box meant every consent was
+                 signed under the one generic sentence. -->
+            <textarea class="input" name="statement" rows="4"
+                      x-init="$el.value = texts[kind] || ''"
+                      x-effect="$el.value = texts[kind] || ''"></textarea>
+            <span class="hint">{{ t('consent.statement_hint') }}</span></div>
         </div>
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('consent.add') }}</button>
       </form>
@@ -806,4 +855,15 @@
 
 {% block head %}
 <style>[x-cloak]{ display:none !important; }</style>
+{% endblock %}
+
+{% block scripts %}{{ super() }}
+{# Told, not reloaded: this screen carries forms, and throwing the page away
+   would take a half-written note with it. #}
+<script>
+  if (window.gcLiveNotify)
+    window.gcLiveNotify("{{ url_for('main.live_fingerprint', kind='patient', ident=patient.id) }}",
+      { text: {{ t('live.changed')|tojson|forceescape }},
+        action: {{ t('live.refresh')|tojson|forceescape }} });
+</script>
 {% endblock %}

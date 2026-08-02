@@ -40,7 +40,7 @@
     </form>
     {% elif f.linker %}
     <span class="badge badge--green" title="{{ f.linked_at.strftime('%Y-%m-%d %H:%M') if f.linked_at else '' }}">
-      <i class="bi bi-person-check"></i> {{ f.linker.full_name }}</span>
+      <i class="bi bi-person-check"></i> {{ f.linker.display_name(current_lang) }}</span>
     {% endif %}
     <a class="btn btn-outline btn-sm gc-press" target="_blank"
        href="{{ url_for('static', filename='uploads/patient_docs/' ~ f.filename) }}">

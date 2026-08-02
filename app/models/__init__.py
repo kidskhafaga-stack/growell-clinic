@@ -81,11 +81,13 @@ from app.models.service import (
     COMMISSION_TYPES,
     ETA_ITEM_TYPES,
     SERVICE_CATEGORIES,
+    SERVICE_TYPE_ICONS,
     SERVICE_TYPES,
     DoctorServiceCommission,
     Service,
     ServiceBundleItem,
     ServiceConsumable,
+    ServiceType,
     service_type_for_category,
 )
 from app.models.invoice import (
@@ -163,7 +165,8 @@ from app.models.payable import (
     SupplierInstallment,
     SupplierPayment,
 )
-from app.models.discount import DISCOUNT_TYPES, NamedDiscount
+from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
+                                 NamedDiscount)
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -253,9 +256,11 @@ __all__ = [
     "Service",
     "ServiceBundleItem",
     "ServiceConsumable",
+    "ServiceType",
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
     "SERVICE_TYPES",
+    "SERVICE_TYPE_ICONS",
     "service_type_for_category",
     "COMMISSION_TYPES",
     "ETA_ITEM_TYPES",
@@ -330,6 +335,7 @@ __all__ = [
     "PO_STATUSES",
     "NamedDiscount",
     "DISCOUNT_TYPES",
+    "VACCINE_SCOPE",
     "Feedback",
     "FEEDBACK_STATUSES",
     "MedicalDevice",

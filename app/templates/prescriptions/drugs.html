@@ -19,7 +19,7 @@
 
 {# Searching starts over from page 1 — carrying the old page number into a new
    search lands on an empty screen that reads as "nothing found". #}
-<form method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+<form data-live-search="#gc-results" method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
   <input class="input" name="q" value="{{ q }}" placeholder="{{ t('rx.search_drugs') }}" style="max-width:340px;">
   <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
   {% if q %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">{{ t('common.reset') }}</a>{% endif %}
@@ -46,7 +46,7 @@
   </form>
 </details>
 
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
+<div id="gc-results" class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.1s;">
   {% if drugs %}
   <table class="table">
     <thead><tr><th>{{ t('rx.trade_name') }}</th><th>{{ t('rx.generic_name') }}</th><th>{{ t('rx.form') }}</th><th>{{ t('rx.strength') }}</th><th>{{ t('common.status') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th></tr></thead>

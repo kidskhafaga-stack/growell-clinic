@@ -117,7 +117,7 @@
 {# Deposit, withdraw, transfer, settle — one form, because they are one act
    with a sign and a direction. #}
 <div class="card gc-scale-in" style="margin-bottom:16px;"
-     x-data="moveBox({{ tills|tojson }})">
+     x-data="moveBox({{ tills|tojson|forceescape }})">
   <h2 class="section-title" style="margin:0;"><i class="bi bi-arrow-left-right"></i> {{ t('tills.move_title') }}</h2>
   <p class="hint" style="margin:6px 0 10px;">{{ t('tills.move_hint') }}</p>
   <form method="post" action="{{ url_for('finance.till_move') }}"

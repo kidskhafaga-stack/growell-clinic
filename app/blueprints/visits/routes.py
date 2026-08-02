@@ -250,7 +250,8 @@ def record(visit_id):
     recent_meds = recent_medications(visit.patient_id)
     # Informed consent, where it is actually needed: what this visit calls for
     # (a procedure, a study, a vaccine) and what the file already has signed.
-    from app.utils.consent import default_guardian, visit_status
+    from app.utils.consent import (all_statements as consent_statements,
+                                   default_guardian, visit_status)
     consent = visit_status(visit)
     consent_guardian = default_guardian(visit.patient)
     # Devices the doctor can run in this visit, with what each one charges —
@@ -287,6 +288,7 @@ def record(visit_id):
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,
         consent_guardian=consent_guardian,
+        consent_statements=consent_statements(),
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
@@ -565,40 +567,15 @@ def add_investigation(visit_id):
 @module_required(MODULE)
 def drug_search():
     """Autocomplete for writing a medicine inside the visit (brand or
-    ingredient), carrying the dosing rule so the room can check it live."""
-    from app.models import Drug, GenericDrug
+    ingredient), carrying the dosing rule so the room can check it live.
 
-    q = (request.args.get("q") or "").strip()
-    if len(q) < 1:
-        return jsonify([])
-    like = f"%{q}%"
-    lang = getattr(g, "lang", "ar")
-    rows = (Drug.query.filter(Drug.is_active.is_(True))
-            .filter(or_(Drug.trade_name.ilike(like),
-                        Drug.trade_name_ar.ilike(like),
-                        Drug.generic_name.ilike(like)))
-            .order_by(Drug.trade_name).limit(12).all())
-    out = [{
-        "id": d.id, "generic_id": d.generic_id or "",
-        "name": d.label(lang),
-        "trade": d.display_name(lang),
-        "generic": (d.generic.display_name(lang) if d.generic else (d.generic_name or "")),
-        "strength": d.strength or "",
-        "dose": d.default_dose or "",
-        "frequency": d.default_frequency or "",
-        "instructions": d.default_instructions or "",
-    } for d in rows]
-    # Ingredients with no brand on file are still writable by name.
-    for gen in (GenericDrug.query.filter(GenericDrug.is_active.is_(True))
-                .filter(or_(GenericDrug.name_ar.ilike(like),
-                            GenericDrug.name_en.ilike(like)))
-                .order_by(GenericDrug.name_en).limit(6).all()):
-        if any(o["generic_id"] == gen.id for o in out):
-            continue
-        out.append({"id": "", "generic_id": gen.id, "name": gen.display_name(lang),
-                    "trade": "", "generic": gen.display_name(lang),
-                    "strength": "", "dose": "", "frequency": "", "instructions": ""})
-    return jsonify(out)
+    Same search the prescription writer uses — see
+    :mod:`app.utils.drug_search` for why there is only one of them now.
+    """
+    from app.utils.drug_search import search_drugs
+
+    return jsonify(search_drugs(request.args.get("q"),
+                                lang=getattr(g, "lang", "ar"), limit=12))
 
 
 @visits_bp.route("/<int:visit_id>/medications", methods=["POST"])
@@ -705,6 +682,15 @@ def delete_service(vs_id):
     return redirect(url_for("visits.record", visit_id=visit_id) + "#proc")
 
 
+def _interval_message(vaccine, warn):
+    """The warning in words, with the dates in it — "too soon" on its own
+    leaves the doctor to go and look up when the last one was."""
+    return t("vaccinations.interval_warn",
+             vaccine=vaccine.display_name(getattr(g, "lang", "ar")),
+             dose=warn["previous_dose"], days=warn["days"],
+             date=warn["previous_date"].isoformat(), min=warn["minimum"])
+
+
 @visits_bp.route("/<int:visit_id>/give-vaccine", methods=["POST"])
 @module_required(MODULE)
 def give_vaccine(visit_id):
@@ -713,7 +699,8 @@ def give_vaccine(visit_id):
     recently-given uncharged doses — so we never bill here (no double charge).
     """
     from app.models import Vaccine
-    from app.utils.vaccines import administer_dose, chosen_brand
+    from app.utils.vaccines import (administer_dose, chosen_brand,
+                                    interval_warning)
 
     visit = db.get_or_404(Visit, visit_id)
     vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
@@ -729,6 +716,10 @@ def give_vaccine(visit_id):
         lang = getattr(g, "lang", "ar")
         flash(t("vaccinations.brand_mixed_warn", old=locked.display_name(lang),
                 new=req_brand.display_name(lang)), "warning")
+    # Too soon after the last dose of this same vaccine — the thing that let
+    # two doses go into one visit without a word. Read before the record is
+    # written, because afterwards "the last dose" is the one being given.
+    too_soon = interval_warning(visit.patient_id, vaccine)
     pv, result = administer_dose(
         visit.patient, vaccine, brand=req_brand,
         dose_number=request.form.get("dose_number", type=int),
@@ -740,6 +731,8 @@ def give_vaccine(visit_id):
               {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
         return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
+    if too_soon:
+        flash(_interval_message(vaccine, too_soon), "warning")
     ActivityLog.record("visit.give_vaccine", user_id=current_user.id, entity="visit",
                        entity_id=visit.id, detail=f"{vaccine.code}#{pv.dose_number}",
                        ip_address=client_ip())
@@ -1095,7 +1088,10 @@ def view(visit_id):
 @visits_bp.route("/icd")
 @module_required(MODULE)
 def icd():
-    return jsonify({"results": search_icd(request.args.get("q", ""))})
+    # A bare list, like ``prescriptions.icd_search``. One question asked from
+    # two screens was answered in two shapes, which is the same drift that put
+    # a missing ``strength`` in the drug list.
+    return jsonify(search_icd(request.args.get("q", "")))
 
 
 @visits_bp.route("/<int:visit_id>/consent", methods=["POST"])

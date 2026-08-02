@@ -106,6 +106,30 @@ def dashboard():
     return render_template("main/dashboard.html", **ctx)
 
 
+@main_bp.route("/live/<kind>/<int:ident>")
+@login_required
+def live_fingerprint(kind, ident):
+    """A short answer to "has this screen's data changed since I loaded it?".
+
+    One endpoint for every screen that wants to know, because the alternative
+    is a poll route per blueprint and a fingerprint that drifts out of step
+    with what its screen actually shows.
+
+    The kinds come from a fixed map, not from the URL: a name arriving here is
+    looked up, never called. And it is behind the ordinary login — the answer
+    is a hash, but *whether it changed* still tells you something about a
+    patient, so it is not public.
+    """
+    from flask import abort, jsonify
+
+    from app.utils.live import FINGERPRINTS
+
+    build = FINGERPRINTS.get(kind)
+    if build is None:
+        abort(404)
+    return jsonify({"fp": build(ident)})
+
+
 @main_bp.route("/guide")
 @login_required
 def guide():
@@ -123,6 +147,24 @@ def set_theme():
     current_user.theme = theme
     db.session.commit()
     return {"theme": theme}
+
+
+@main_bp.route("/about")
+@login_required
+def about():
+    """Version, licence and credits — the detail that used to be printed in
+    0.64rem type down the side of every screen."""
+    return render_template("main/about.html")
+
+
+@main_bp.route("/set-sidebar", methods=["POST"])
+@login_required
+def set_sidebar():
+    """Persist whether the sidebar is full-width or an icon rail."""
+    mode = (request.form.get("sidebar") or "").strip()
+    current_user.sidebar = "rail" if mode == "rail" else "full"
+    db.session.commit()
+    return {"sidebar": current_user.sidebar}
 
 
 @main_bp.route("/notifications/dismiss", methods=["POST"])

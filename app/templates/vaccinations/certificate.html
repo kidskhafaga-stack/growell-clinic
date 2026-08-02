@@ -35,24 +35,63 @@
     <div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ patient.gender) }}</div></div>
   </div>
 
-  {% if given %}
-  <table class="table">
-    <thead><tr>
-      <th>{{ t('vaccinations.cert_vaccine') }}</th><th>{{ t('vaccinations.brand') }}</th>
-      <th>{{ t('vaccinations.dose') }}</th><th>{{ t('vaccinations.given_date') }}</th><th>{{ t('vaccinations.lot_number') }}</th>
-    </tr></thead>
-    <tbody>
-      {% for g in given %}
-      <tr>
-        <td>{{ g.vaccine.display_name(current_lang) }}</td>
-        <td>{{ g.brand.display_name(current_lang) }}</td>
-        <td>{{ g.dose_number }}</td>
-        <td>{{ g.given_date.strftime('%Y-%m-%d') }}</td>
-        <td>{{ g.lot_number or '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- Three counters, then a card per vaccine. -->
+  <div class="cert-totals">
+    <div class="cert-total"><div class="n">{{ totals.doses }}</div>
+      <div class="k">{{ t('vaccinations.cert_total_doses') }}</div></div>
+    <div class="cert-total"><div class="n">{{ totals.vaccines }}</div>
+      <div class="k">{{ t('vaccinations.cert_total_vaccines') }}</div></div>
+    <div class="cert-total"><div class="n">{{ totals.years }}</div>
+      <div class="k">{{ t('vaccinations.cert_total_years') }}</div></div>
+  </div>
+  {% if totals.first %}
+  <p class="hint" style="margin:-6px 0 16px;">
+    {{ t('vaccinations.cert_span').replace('{from}', totals.first).replace('{to}', totals.last) }}</p>
+  {% endif %}
+
+  {% if cards %}
+  <div class="cert-cards">
+    {% for c in cards %}
+    <div class="cert-card">
+      <div class="cert-card-head">
+        <div>
+          <strong>{{ c.vaccine.display_name(current_lang) }}</strong>
+          <span class="cert-brand">{{ c.brand.display_name(current_lang) }}</span>
+        </div>
+        <div class="cert-progress-wrap">
+          <span class="cert-count {{ 'is-complete' if c.complete else '' }}">{{ c.given }}/{{ c.total }}</span>
+          <div class="cert-bar" role="img"
+               aria-label="{{ c.given }}/{{ c.total }}">
+            <span style="width:{{ (100 * c.given / c.total)|round(0, 'floor') }}%;"></span>
+          </div>
+        </div>
+      </div>
+      <table class="table cert-doses">
+        <thead><tr>
+          <th style="width:70px;">{{ t('vaccinations.dose') }}</th>
+          <th>{{ t('vaccinations.given_date') }}</th>
+          <th>{{ t('vaccinations.cert_doctor_col') }}</th>
+          <th>{{ t('vaccinations.lot_number') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for d in c.doses %}
+          <tr>
+            <td>{{ d.dose_number }}</td>
+            <td dir="ltr">{{ d.given_date }}</td>
+            <td>
+              {%- if d.outside -%}
+                <span class="badge badge--muted">{{ t('vaccinations.given_elsewhere') }}</span>
+                {% if d.outside_place %}<span style="color:var(--muted);"> {{ d.outside_place }}</span>{% endif %}
+              {%- else -%}{{ d.doctor or '—' }}{%- endif -%}
+            </td>
+            <td class="num" dir="ltr">{{ d.lot_number or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
   {% else %}
   <p style="color:var(--muted);">{{ t('vaccinations.no_given') }}</p>
   {% endif %}
@@ -104,7 +143,33 @@
 
 {% block head %}
 <style>
+  .cert-totals { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
+  .cert-total { flex:1; min-width:120px; border:1px solid var(--line); border-radius:12px;
+    padding:10px 14px; text-align:center; }
+  .cert-total .n { font-size:1.5rem; font-weight:800; color:var(--green-800); line-height:1.1; }
+  .cert-total .k { font-size:.78rem; color:var(--muted); }
+  .cert-cards { display:flex; flex-direction:column; gap:12px; }
+  .cert-card { border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    /* Never split a course across a page: half a course on page two reads as
+       a different, shorter course. */
+    break-inside:avoid; page-break-inside:avoid; }
+  .cert-card-head { display:flex; justify-content:space-between; align-items:center;
+    gap:12px; flex-wrap:wrap; padding:9px 14px; background:var(--surface-2, rgba(0,0,0,.03));
+    border-bottom:1px solid var(--line); }
+  .cert-brand { color:var(--muted); font-size:.82rem; margin-inline-start:8px; }
+  .cert-progress-wrap { display:flex; align-items:center; gap:8px; }
+  .cert-count { font-weight:700; font-size:.85rem; color:var(--muted); }
+  .cert-count.is-complete { color:var(--green-700); }
+  .cert-bar { width:96px; height:7px; border-radius:999px; background:var(--line);
+    overflow:hidden; }
+  .cert-bar > span { display:block; height:100%; background:var(--green-600); }
+  .cert-doses { margin:0; }
+  .cert-doses th, .cert-doses td { padding:6px 14px; font-size:.86rem; }
   @media print {
+    /* The bar is colour on paper that is usually printed in black, so the
+       "3/3" beside it is the copy that has to survive a mono printer. */
+    .cert-bar { border:1px solid #999; }
+    .cert-bar > span { background:#555; }
     .sidebar, .topbar, .no-print, .flashes { display:none !important; }
     .main { margin:0 !important; } .content { padding:0 !important; }
     .card { box-shadow:none !important; border:none !important; }

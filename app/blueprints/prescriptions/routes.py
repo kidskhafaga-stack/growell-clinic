@@ -616,28 +616,17 @@ def drug_delete(drug_id):
 @prescriptions_bp.route("/drugs/search")
 @module_required(MODULE)
 def drug_search():
-    """Autocomplete for the prescription writer (trade + generic)."""
-    q = (request.args.get("q") or "").strip()
-    if len(q) < 1:
-        return jsonify([])
-    like = f"%{q}%"
-    drugs = (
-        Drug.query.filter(Drug.is_active.is_(True))
-        # The Arabic name is what the parent reads off the box and what the
-        # doctor types when they're repeating it back.
-        .filter(or_(Drug.trade_name.ilike(like), Drug.trade_name_ar.ilike(like),
-                    Drug.generic_name.ilike(like)))
-        .order_by(Drug.trade_name).limit(15).all()
-    )
-    return jsonify([{
-        "id": d.id, "trade": d.trade_name, "trade_ar": d.trade_name_ar or "",
-        "generic": d.generic_name or "",
-        "label": d.label(), "form": d.form or "",
-        "dose": d.default_dose or "", "frequency": d.default_frequency or "",
-        "instructions": d.default_instructions or "", "max": d.max_daily_dose or "",
-        "dose_per_kg": d.dose_per_kg, "max_per_kg": d.max_per_kg,
-        "conc": d.conc_mg_per_ml,
-    } for d in drugs])
+    """Autocomplete for the prescription writer (trade + generic).
+
+    Shares :func:`app.utils.drug_search.search_drugs` with the visit room.
+    They used to be two hand-written queries with two different payloads, and
+    this one was missing ``strength`` — which the template printed anyway, so
+    every row read "() paracetamol".
+    """
+    from app.utils.drug_search import search_drugs
+
+    return jsonify(search_drugs(request.args.get("q"),
+                                lang=getattr(g, "lang", "ar")))
 
 
 @prescriptions_bp.route("/ai-dose", methods=["POST"])

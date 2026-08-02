@@ -41,6 +41,7 @@ from app.utils.dose_labels import dose_choices, dose_label, next_dose_text
 from app.utils.patients import apply_patient_search
 from app.utils.vaccines import (
     administer_dose,
+    interval_warning,
     chosen_brand,
     immunization_compliance,
     next_due_dose,
@@ -74,9 +75,11 @@ def view(patient_id):
     plan = patient_plan(patient, lang)
     summary = plan_summary(plan)
     nxt = next_due_dose(plan)
+    from app.utils.vaccines import OPEN_GROUPS, group_plan
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
+        groups=group_plan(plan), open_groups=OPEN_GROUPS,
         # Which dose is which, per vaccine — so the doctor picks "the second
         # dose" by name instead of typing a number and hoping.
         dose_options=_dose_options(patient, plan, lang),
@@ -123,6 +126,10 @@ def record(patient_id):
     except ValueError:
         given_date = datetime.utcnow().date()
 
+    # Same guard as the visit room: a dose of this vaccine given too recently.
+    # Read before the record is written — afterwards the newest dose is the one
+    # being added, and every check would compare it against itself.
+    too_soon = interval_warning(patient.id, vaccine, given_date)
     pv, result = administer_dose(
         patient, vaccine, brand=req_brand,
         dose_number=request.form.get("dose_number", type=int),
@@ -138,6 +145,12 @@ def record(patient_id):
         flash(t(f"vaccinations.{result}"),
               {"dose_exists": "warning", "all_done": "info"}.get(result, "danger"))
         return redirect(url_for("vaccinations.view", patient_id=patient.id))
+    if too_soon:
+        flash(t("vaccinations.interval_warn",
+                vaccine=vaccine.display_name(getattr(g, "lang", "ar")),
+                dose=too_soon["previous_dose"], days=too_soon["days"],
+                date=too_soon["previous_date"].isoformat(),
+                min=too_soon["minimum"]), "warning")
     brand = result            # the resolved brand (for the next-dose reminder)
     dose_number = pv.dose_number
 
@@ -587,19 +600,22 @@ def _apply_print_lang():
 @module_required(MODULE)
 def certificate(patient_id):
     _apply_print_lang()
+    from app.utils.vaccines import certificate_cards, certificate_totals
+
     patient = db.get_or_404(Patient, patient_id)
-    given = (
-        PatientVaccine.query.filter_by(patient_id=patient.id)
-        .filter(PatientVaccine.event_type == "given")
-        .order_by(PatientVaccine.given_date)
-        .all()
-    )
+    lang = getattr(g, "lang", "ar")
+    plan = patient_plan(patient, lang)
+    # A card per vaccine rather than one date-ordered list of every dose: the
+    # three doses of one course used to sit pages apart, so "did they finish
+    # it?" could only be answered by reading the whole page and counting.
+    cards = certificate_cards(plan)
+    totals = certificate_totals(cards)
     # Optional upcoming-plan table (?schedule=1): every not-yet-given dose
     # with its expected date — doctor-planned dates included — so the family
     # leaves knowing exactly what is next and when.
     upcoming = []
     if request.args.get("schedule") == "1":
-        for v in patient_plan(patient, getattr(g, "lang", "ar")):
+        for v in plan:
             for d in v["doses"]:
                 if d["status"] == "done":
                     continue
@@ -614,7 +630,8 @@ def certificate(patient_id):
     db.session.commit()
     verify_url = url_for("vaccinations.verify", token=patient.qr_token, _external=True)
     return render_template(
-        "vaccinations/certificate.html", patient=patient, given=given,
+        "vaccinations/certificate.html", patient=patient,
+        cards=cards, totals=totals,
         upcoming=upcoming, with_schedule=request.args.get("schedule") == "1",
         now_date=datetime.utcnow().date().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,

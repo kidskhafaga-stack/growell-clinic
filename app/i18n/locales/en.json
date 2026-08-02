@@ -73,7 +73,9 @@
     "messages": "Patient Care",
     "users": "Users",
     "settings": "Settings",
-    "cashier": "Cashier"
+    "cashier": "Cashier",
+    "collapse": "Collapse the menu",
+    "menu": "Menu"
   },
   "auth": {
     "login": "Login",
@@ -955,7 +957,22 @@
     "outside_hint": "Recorded so the schedule is right — but it does not deduct from stock, is not charged, and is not credited to a doctor.",
     "dose_booster": "Booster dose",
     "course_complete": "Course complete",
-    "next_season": "Next season"
+    "next_season": "Next season",
+    "interval_warn": "⚠️ This child had a dose of {vaccine} (dose {dose}) on {date} — only {days} day(s) ago, and the minimum interval is {min} days. The dose was recorded; please review it.",
+    "group_started": "Courses started and not finished",
+    "group_started_hint": "The child has had a dose of these; the next one is owed.",
+    "group_ready": "Never started — and due at this age",
+    "group_ready_hint": "Courses that never began, and the child is now old enough.",
+    "group_complete": "Completed courses",
+    "group_complete_hint": "Every dose given. Kept here because \"did they have it?\" is a real question.",
+    "group_later": "Not due yet",
+    "group_later_hint": "Not begun, and the age they start at has not arrived.",
+    "cert_total_doses": "Doses",
+    "cert_total_vaccines": "Vaccines",
+    "cert_total_years": "Years",
+    "cert_span": "Record from {from} to {to}",
+    "cert_doctor_col": "Doctor",
+    "given_elsewhere": "Given elsewhere"
   },
   "vstatus": {
     "done": "Done",
@@ -1306,7 +1323,7 @@
     "eta_item_type": "ETA item type",
     "price_override_hint": "Price: blank = default, 0 = free for this doctor.",
     "visit_type_services": "Visit type pricing",
-    "visit_type_hint": "Map each visit type to the service that sets its base charge (per-doctor price applies). Leave blank for no base charge (e.g. vaccination — billed separately).",
+    "visit_type_hint": "This service is charged when a visit of that type is opened. One service per type — choosing it here takes it off whichever service had it.",
     "no_charge": "No base charge",
     "visit_types_saved": "Visit type pricing saved",
     "service_type": "Service type",
@@ -1330,7 +1347,31 @@
     "consumables_deducted": "Deducted {n} item(s) from stock",
     "consumed_by": "Consumed by: {svc}",
     "qty_per_service": "Qty per service",
-    "auto_seeded": "Base clinic services were auto-created with their codes — adjust prices as needed"
+    "auto_seeded": "Base clinic services were auto-created with their codes — adjust prices as needed",
+    "search_ph": "Search by service name or code…",
+    "all_types": "All types",
+    "all_categories": "All categories",
+    "all_statuses": "All",
+    "only_active": "Active only",
+    "clear_filters": "Clear filters",
+    "showing": "Showing {n} of {total} services",
+    "no_matches": "No service matches this search",
+    "code_auto": "Generated automatically",
+    "manage_types": "Service types",
+    "types_hint": "Add a service type, or rename and reorder the existing ones. Built-in types can be renamed but keep their key, because the ledger reads it.",
+    "type_name": "Type name",
+    "type_order": "Order",
+    "type_icon": "Icon",
+    "type_used": "Used by",
+    "type_system_hint": "Built-in type — the label is editable, the key is not",
+    "add_type": "Add type",
+    "type_added": "Type added",
+    "types_saved": "Types saved",
+    "type_deleted": "Type deleted",
+    "type_system": "A built-in type cannot be deleted — hide it instead",
+    "type_in_use": "{n} service(s) are on this type — move them first",
+    "category_hint": "The category drives the accounting (vaccination fee, discount scope) so it is fixed — the type is the one you add.",
+    "visit_type_charge": "Base charge for a visit type"
   },
   "commission_types": {
     "none": "None",
@@ -1510,7 +1551,8 @@
     "auto_mode": "Automatic — the biggest discount",
     "best_hint": "Biggest discount due: {name} — {amount}. You can change it.",
     "no_stack_hint": "One discount per line: a patient entitled to several gets the biggest, never both.",
-    "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due."
+    "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due.",
+    "scope_vaccine": "The vaccine's own price (not the fee)"
   },
   "payment_methods": {
     "cash": "Cash",
@@ -1604,7 +1646,9 @@
     "done_reject": "Rejection recorded — its invoices are claimable again.",
     "done_pay": "Collection recorded and journalled.",
     "sig_clinic": "For the clinic",
-    "sig_payer": "For the payer"
+    "sig_payer": "For the payer",
+    "hub_payers": "Payers & contracts",
+    "hub_payers_sub": "Insurance, companies and clubs — and each service's price in the contract."
   },
   "payer_types": {
     "club": "Club",
@@ -1772,7 +1816,17 @@
     "reason_visit": "General consent to examination and treatment",
     "reason_procedure": "A billed procedure or investigation was done",
     "reason_study": "A device study was run",
-    "reason_vaccine": "A vaccine was given today"
+    "reason_vaccine": "A vaccine was given today",
+    "statements": {
+      "general": "I, the undersigned, as the child's guardian, consent to the doctor examining and treating the child and carrying out the tests they need at this clinic. I may ask the doctor about any procedure before it is carried out, and I may withdraw this consent at any time without it affecting the child's right to receive care.",
+      "examination": "I consent to the doctor examining the child clinically, including physical examination and measurement of vital signs. It has been explained to me that the examination may require uncovering parts of the child's body, and that this is done in my presence.",
+      "procedure": "The doctor has explained to me the nature of the procedure proposed for the child and its purpose, what is expected of it, the possible risks, the available alternatives, and what may follow from not carrying it out. I have had the opportunity to ask questions and they were answered, and I consent to it being performed.",
+      "vaccination": "I have been told the name of the vaccine and the dose to be given to the child and its benefits, the common effects after it (a mild fever or soreness at the injection site), and the symptoms that mean returning to the clinic. I have had the chance to ask, and I consent to the vaccine being given.",
+      "anesthesia": "It has been explained to me what type of anaesthesia is planned for the child, its purpose and its possible risks, and I have told the doctor of any allergy the child has, any medicines they take, and any previous experience of anaesthesia. I consent to the anaesthesia and to the measures needed to keep the child safe during it.",
+      "data_privacy": "I consent to the clinic keeping the child's medical data in their file and using it to follow up their treatment and to issue the reports and invoices required. This data is not shared with any outside party except with my consent or where the law requires it. I have the right to see the file and to ask for anything in it to be corrected.",
+      "photography": "I consent to the child's condition being photographed or filmed for the medical purpose explained to me, and to it being kept in the child's file. It is not used for teaching or publication except with separate written consent and after removing anything identifying the child. I may withdraw this consent at any time, and that applies to anything not yet published."
+    },
+    "statement_hint": "This is the text that will be signed — read it to the guardian; you can add to it if the case needs it."
   },
   "roles_mgmt": {
     "title": "Roles & permissions",
@@ -1907,7 +1961,9 @@
     "cash_none": "None (plain service prices)",
     "cash_active": "The list is pricing cash invoices.",
     "cash_inactive": "No contract in force — invoices use the plain service prices.",
-    "cash_saved": "Cash price list saved."
+    "cash_saved": "Cash price list saved.",
+    "cash_renewed": "The cash price list was renewed automatically for next year: {from} to {to}. Review the prices before it starts.",
+    "year_hint": "Leave empty for a year from the start date. The number is generated."
   },
   "reports": {
     "title": "Reports",
@@ -2093,7 +2149,11 @@
     "dose_flags_title": "Dose flags for this child",
     "interaction_line": "Interaction: {a} + {b}",
     "visit_meds_all_prescribed": "Every medicine from this visit is already on a prescription — the new one starts empty so nothing is prescribed twice.",
-    "shorthand_hint": "Shorthand: 1x3 → one tablet every 8 hours · 5ml*2 → 5 ml every 12 hours · q8h · tds · 5d → 5 days · 1w → a week"
+    "shorthand_hint": "Shorthand: 1x3 → one tablet every 8 hours · 5ml*2 → 5 ml every 12 hours · q8h · tds · 5d → 5 days · 1w → a week",
+    "ingredient": "Ingredient",
+    "no_drug_match": "No drug by that name — you can still type it",
+    "no_inv_match": "No investigation by that name — you can still type it",
+    "no_dx_match": "No diagnosis by that name — you can still type it"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -2547,7 +2607,8 @@
     "refund_requests": "{count} refund request(s) awaiting manager approval",
     "unread_messages": "{count} patient messages need a reply",
     "results_arrived": "{count} results in, nobody has read them",
-    "window_closing": "{count} conversations whose reply window is closing"
+    "window_closing": "{count} conversations whose reply window is closing",
+    "no_contact": "{count} patient(s) with no contact number at all — not theirs, not a guardian's"
   },
   "analytics": {
     "title": "Patient analytics",
@@ -2771,7 +2832,13 @@
     "saved": "Saved",
     "deleted": "Deleted",
     "deactivated": "Device deactivated (linked to services)",
-    "none": "No devices yet."
+    "none": "No devices yet.",
+    "template_seeded": "Default measurement fields were added — review and adjust them.",
+    "search_ph": "Search by device name, maker, model or serial…",
+    "all_types": "All types",
+    "all_connections": "All connections",
+    "all_statuses": "All",
+    "no_matches": "No device matches this search"
   },
   "device_types": {
     "spirometry": "Spirometry",
@@ -3290,7 +3357,19 @@
     "kind_patients": "Patients",
     "kind_invoices": "Invoices",
     "kind_appointments": "Appointments",
-    "kind_vaccinations": "Vaccinations"
+    "kind_vaccinations": "Vaccinations",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply",
+    "whole_history": "Whole history",
+    "dataset": "Dataset",
+    "date_column": "Date used",
+    "rows": "Rows",
+    "range_note": "These counts and files cover the chosen range only; the last day is included.",
+    "no_range_note": "With no range the whole history is exported — set one for a single month.",
+    "kind_visits": "Visits",
+    "kind_payments": "Payments and refunds",
+    "kind_expenses": "Expenses"
   },
   "trial": {
     "title": "Trial balance",
@@ -3964,5 +4043,45 @@
     "err_no_movement": "Choose the movement.",
     "err_movement_taken": "That movement is already linked to another line.",
     "err_need_note": "Write the reason — “set aside” with nothing beside it tells the next person nothing."
+  },
+  "studies": {
+    "title_list": "Device studies",
+    "date": "Date",
+    "device": "Device",
+    "conclusion": "Conclusion",
+    "by": "Performed by",
+    "none": "No studies recorded for this child yet."
+  },
+  "live": {
+    "changed": "This page has changed — somebody recorded something new.",
+    "refresh": "Refresh"
+  },
+  "phones": {
+    "title": "Missing phone numbers",
+    "subtitle": "Who the clinic cannot reach — add the number from here.",
+    "stat_unreachable": "No number at all",
+    "stat_teens": "Teen with no own number",
+    "group_unreachable": "No way to reach them",
+    "group_unreachable_hint": "No number of theirs and none for a guardian — no appointment reminder, no call about a result, no way to say the clinic is closed. These come first.",
+    "group_teens": "Teens with no personal number",
+    "group_teens_hint": "The family is reachable; the young person is not.",
+    "call": "Call",
+    "add_number": "Add a number",
+    "nothing_to_call": "No number to ring",
+    "no_guardian": "No guardian on file",
+    "writes_own": "Saved as their own number",
+    "writes_guardian": "Saved as the guardian's number",
+    "target_own": "Patient's number",
+    "target_guardian": "Guardian's number",
+    "saved": "Number saved",
+    "bad_number": "That has no digits in it — please type it again",
+    "all_clear": "Every active patient has a contact number ✅"
+  },
+  "about": {
+    "title": "About",
+    "subtitle": "Version, licence and credits.",
+    "version": "Version",
+    "clinic": "Clinic",
+    "licence": "Licence and terms"
   }
 }

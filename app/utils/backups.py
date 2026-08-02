@@ -420,7 +420,35 @@ def restore_backup(name, password=None):
     else:
         with sqlite3.connect(src) as source, sqlite3.connect(live) as target:
             source.backup(target)
+
+    _upgrade_restored_schema()
     return pre
+
+
+def _upgrade_restored_schema():
+    """Bring the restored database's shape up to the running code's.
+
+    Without this, restoring last month's backup onto a version that has since
+    gained a column leaves the program reading a column that database has never
+    had. The symptoms scatter — one screen fine, the next raising ``no such
+    column`` — so it reads as a corrupt backup rather than a schema a version
+    behind, and the reasonable response to a corrupt backup is to abandon it and
+    re-enter everything by hand. That is a restore that appeared to work and
+    cost somebody their afternoon.
+
+    Additive and idempotent, so restoring a backup that is already current does
+    nothing. It runs **after** the copy and never before: the shape has to be
+    brought forward on the database that is now live, not on the one being
+    replaced.
+
+    A failure here is reported through the caller rather than swallowed. The
+    data is already back; what has not happened is the upgrade, and telling
+    somebody "restored, but run upgrade-db" is far better than letting them
+    discover it one screen at a time.
+    """
+    from app.utils.schema import apply_schema
+
+    return apply_schema()
 
 
 def _restore_files(archive, password=None):

@@ -43,7 +43,7 @@
   </div>
 </div>
 
-<form method="get" class="card gc-scale-in" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+<form data-live-search="#gc-results" method="get" class="card gc-scale-in" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
   <div class="btn-group" role="group" style="display:flex;gap:6px;">
     <a class="btn btn-sm gc-press {{ 'btn-primary' if view=='open' else 'btn-outline' }}"
        href="{{ url_for('messages.inbox', view='open', q=search or None) }}">
@@ -62,7 +62,7 @@
   {% if search %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.inbox', view=view) }}"><i class="bi bi-x-lg"></i></a>{% endif %}
 </form>
 
-<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+<div id="gc-results" class="card gc-scale-in" style="padding:0;overflow:hidden;">
   {% if conversations %}
   <div style="display:flex;flex-direction:column;">
     {% for c in conversations %}

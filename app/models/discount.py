@@ -18,6 +18,13 @@ from app.extensions import db
 DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "sibling",
                   "special"]
 
+# A scope that is not a service category, because a vaccine vial is not a
+# service: it is priced by its brand and billed by it. It needs its own name
+# here so the vial and the fee for giving it can be aimed at separately — they
+# used to share the fee's service, which made a discount on "رسم تطعيم" reduce
+# the price of the vaccine as well.
+VACCINE_SCOPE = "vaccine"
+
 
 class NamedDiscount(db.Model):
     __tablename__ = "named_discounts"
@@ -91,19 +98,36 @@ class NamedDiscount(db.Model):
             return self.service.display_name(lang)
         if self.is_all_scope:
             return t("discounts.scope_all")
+        if self.scope == VACCINE_SCOPE:
+            return t("discounts.scope_vaccine")
         return t("service_categories." + self.scope)
 
-    def applies_to_line(self, service):
-        """Whether this discount may reduce a line billed for ``service``.
+    def applies_to_line(self, item):
+        """Whether this discount may reduce one invoice line.
+
+        Takes the **line**, not just its service, because not every charge is a
+        service. A vaccine vial is priced by its brand and carries no service at
+        all: it used to borrow the vaccination-fee service's id, which made the
+        fee and the vial indistinguishable to this method — so a discount aimed
+        at "رسم تطعيم" quietly reduced the price of the vaccine as well, and the
+        fee could be discounted while the vial was collected in full.
 
         A discount aimed at one service hits only that service; an "all"
-        discount hits every line; a scoped discount only hits lines whose
-        service category matches — free-text lines (no service) are only
-        touched by an "all" discount."""
+        discount hits every line; the ``vaccine`` scope hits vial lines; and any
+        other scope matches a service category. A free-text line with no service
+        and no brand is reached only by an "all" discount, because there is
+        nothing narrower to aim at.
+        """
+        service = getattr(item, "service", None)
+        is_vial = bool(getattr(item, "vaccine_brand_id", None))
         if self.service_id:
             return service is not None and service.id == self.service_id
         if self.is_all_scope:
             return True
+        if self.scope == VACCINE_SCOPE:
+            return is_vial
+        # A vial is never caught by a service-category scope: it has no service,
+        # and the fee's category must not reach it.
         if service is None:
             return False
         return service.category == self.scope
@@ -120,8 +144,13 @@ class NamedDiscount(db.Model):
         if self.dtype == "doctor":
             return self.doctor_id is not None and self.doctor_id == doctor_id
         if self.dtype == "category":
-            cat = patient.client_category if patient else None
-            return self.client_category is not None and self.client_category == cat
+            # Every parent's category, not just the contact's. A child with a
+            # staff father and a friend mother is entitled through both, and
+            # which of the two is worth more is decided by pricing each rule
+            # against the actual bill — not here.
+            if patient is None or self.client_category is None:
+                return False
+            return self.client_category in patient.client_categories
         if self.dtype == "sibling":
             # Needs the day's context (who else from the family was seen), so
             # the caller decides — here we only confirm the rule is live.

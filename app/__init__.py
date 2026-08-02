@@ -199,10 +199,16 @@ def create_app(config_name="default"):
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
             "now_date": datetime.utcnow().date().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),
+            # Two forms, because the sidebar and the About page are asking
+            # different questions. The short one is a credit line; the long one
+            # is the licence terms, and terms squeezed into a 250px column at
+            # 0.64rem are terms nobody has read.
+            "copyright_short": "© Eng. Mohamed Khafaga",
             "copyright_notice": (
                 "© Eng. Mohamed Khafaga — All rights reserved · "
                 "يُحظر نسخه أو تعديله أو إعادة استخدامه بدون إذن صريح"
             ),
+            "app_version": "0.1",
         }
 
     @app.context_processor

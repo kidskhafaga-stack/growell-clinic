@@ -72,3 +72,68 @@ def board_fingerprint(on_date, doctor_id=None):
                     Payment.paid_at >= start, Payment.paid_at <= end).all())
 
     return _digest((queue, bills, paid))
+
+
+def patient_fingerprint(patient_id):
+    """Everything the patient's file shows that somebody else can change.
+
+    The complaint this exists for: the doctor records a visit, and the admin
+    with the same file open sees nothing until they press refresh. Nobody
+    presses refresh on a screen that has never been stale before.
+
+    Covers the file's sections rather than one table, for the reason at the top
+    of this module — a fingerprint narrower than the screen is how a screen
+    comes to look live while lying. Ids and timestamps only: no joins, no
+    scanning of anything the screen does not display.
+    """
+    from app.extensions import db
+    from app.models import (Consent, DeviceStudy, Invoice, Patient,
+                            Prescription, Visit)
+
+    parts = []
+    for model, column in ((Visit, Visit.patient_id),
+                          (Prescription, Prescription.patient_id),
+                          (DeviceStudy, DeviceStudy.patient_id),
+                          (Consent, Consent.patient_id),
+                          (Invoice, Invoice.patient_id)):
+        rows = (db.session.query(model.id, model.updated_at)
+                if hasattr(model, "updated_at")
+                else db.session.query(model.id))
+        parts.append(sorted(rows.filter(column == patient_id).all()))
+    # The child's own row: a corrected birth date or a new guardian changes
+    # what the top of the file says.
+    parts.append(db.session.query(Patient.id, Patient.updated_at)
+                 .filter(Patient.id == patient_id).all())
+    return _digest(parts)
+
+
+def visit_fingerprint(visit_id):
+    """What one visit's record shows: its own row and everything hung off it.
+
+    A doctor and an admin can be in the same visit at once — one recording,
+    one watching — and the second needs to know the first has written
+    something.
+    """
+    from app.extensions import db
+    from app.models import (DeviceStudy, Prescription, Visit,
+                            VisitInvestigation, VisitMedication, VisitService)
+
+    parts = [db.session.query(Visit.id, Visit.status, Visit.updated_at)
+             .filter(Visit.id == visit_id).all()]
+    for model, column in ((VisitService, VisitService.visit_id),
+                          (VisitMedication, VisitMedication.visit_id),
+                          (VisitInvestigation, VisitInvestigation.visit_id),
+                          (DeviceStudy, DeviceStudy.visit_id),
+                          (Prescription, Prescription.visit_id)):
+        parts.append(sorted(db.session.query(model.id)
+                            .filter(column == visit_id).all()))
+    return _digest(parts)
+
+
+# The screens a fingerprint can be asked for, and how to build it. Kept as a
+# map so the endpoint serving them cannot be talked into running something
+# else by a crafted URL.
+FINGERPRINTS = {
+    "patient": patient_fingerprint,
+    "visit": visit_fingerprint,
+}

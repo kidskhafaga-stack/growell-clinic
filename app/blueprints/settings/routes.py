@@ -2,7 +2,8 @@
 import os
 import uuid
 
-from flask import current_app, flash, redirect, render_template, request, url_for
+from flask import (current_app, flash, g, redirect, render_template, request,
+                   url_for)
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 
@@ -236,6 +237,17 @@ def visit_types():
                            colors=VISIT_TYPE_COLORS)
 
 
+def _device_matches(dev, needle, lang):
+    """Name in either language, plus the maker, model and serial — a device is
+    usually looked for by the label on its side, not by what we called it."""
+    if not needle:
+        return True
+    haystack = " ".join(filter(None, [
+        dev.name, dev.name_en, dev.manufacturer, dev.model, dev.serial_number,
+        dev.display_name(lang)])).lower()
+    return all(word in haystack for word in needle.lower().split())
+
+
 @settings_bp.route("/devices", methods=["GET", "POST"])
 @admin_required
 def devices():
@@ -293,12 +305,37 @@ def devices():
         ActivityLog.record(f"settings.device_{action or 'add'}", user_id=current_user.id,
                            entity="medical_device", detail=name, ip_address=client_ip())
         db.session.commit()
+        # A device with no fields cannot have a study recorded on it, so a new
+        # one arrives with the ones its type normally captures. Only ever fills
+        # an empty device, so editing one never resurrects deleted fields.
+        from app.utils.device_templates import seed_device_measurements
+
+        if seed_device_measurements(dev):
+            flash(t("devices.template_seeded"), "info")
         flash(t("devices.saved"), "success")
         return redirect(url_for("settings.devices"))
 
+    every = (MedicalDevice.query
+             .order_by(MedicalDevice.device_type, MedicalDevice.name).all())
+    lang = getattr(g, "lang", "ar")
+    q = (request.args.get("q") or "").strip()
+    f_type = (request.args.get("type") or "").strip()
+    f_conn = (request.args.get("conn") or "").strip()
+    f_status = (request.args.get("status") or "").strip()
+
+    rows = [d for d in every if _device_matches(d, q, lang)]
+    if f_type:
+        rows = [d for d in rows if d.device_type == f_type]
+    if f_conn:
+        rows = [d for d in rows if d.connection_type == f_conn]
+    if f_status == "active":
+        rows = [d for d in rows if d.is_active]
+    elif f_status == "inactive":
+        rows = [d for d in rows if not d.is_active]
+
     return render_template(
-        "settings/devices.html",
-        devices=MedicalDevice.query.order_by(MedicalDevice.device_type, MedicalDevice.name).all(),
+        "settings/devices.html", devices=every, rows=rows,
+        q=q, f_type=f_type, f_conn=f_conn, f_status=f_status,
         device_types=DEVICE_TYPES, connection_types=CONNECTION_TYPES,
         import_modes=IMPORT_MODES)
 
@@ -372,10 +409,14 @@ def data_tools():
     # Whether a passphrase is set — never the passphrase itself. A screen that
     # prints it back has undone the point of keeping it out of the database.
     bset["encrypted"] = bool(backup_password())
-    from app.utils.export import DATASETS, dataset_count
-    exports = [{"kind": k, "count": dataset_count(k)} for k in DATASETS]
+    from app.utils.export import datasets_for, parse_date
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
     return render_template("settings/data.html", stats=stats,
-                           backups=list_backups(), bset=bset, exports=exports)
+                           backups=list_backups(), bset=bset,
+                           exports=datasets_for(start, end),
+                           ex_from=request.args.get("from", ""),
+                           ex_to=request.args.get("to", ""))
 
 
 @settings_bp.route("/data/export/<kind>")
@@ -386,12 +427,20 @@ def data_export(kind):
     from app.models import ActivityLog
     from app.utils.export import export_response
 
-    resp = export_response(kind, (request.args.get("fmt") or "csv").lower())
+    from app.utils.export import parse_date
+
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    resp = export_response(kind, (request.args.get("fmt") or "csv").lower(),
+                           start=start, end=end)
     if resp is None:
         flash(t("common.not_found"), "warning")
         return redirect(url_for("settings.data_tools"))
+    # The range goes in the audit line too: "somebody exported the invoices" and
+    # "somebody exported March" are different events to be reading about later.
+    span = f"{start or '-'}..{end or '-'}"
     ActivityLog.record("data.export", user_id=current_user.id, entity="export",
-                       detail=kind, ip_address=client_ip())
+                       detail=f"{kind} {span}", ip_address=client_ip())
     db.session.commit()
     return resp
 
