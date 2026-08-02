@@ -162,28 +162,6 @@
   </form>
 </details>
 
-<!-- Visit type -> base-charge service -->
-<details class="card gc-scale-in" style="animation-delay:0.06s;">
-  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-diagram-3"></i> {{ t('services.visit_type_services') }}</summary>
-  <form method="post" action="{{ url_for('finance.visit_type_services') }}" style="margin-top:14px;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p class="hint">{{ t('services.visit_type_hint') }}</p>
-    <div class="form-grid">
-      {% for vt in visit_types %}
-      <div class="form-row">
-        <label>{{ vt.display_name(current_lang) }}</label>
-        <select class="select" name="vt_{{ vt.key }}">
-          <option value="">— {{ t('services.no_charge') }} —</option>
-          {% for s in services %}
-          <option value="{{ s.id }}" {{ 'selected' if visit_type_map.get(vt.key) == s.id else '' }}>{{ s.display_name(current_lang) }} ({{ s.price }})</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endfor %}
-    </div>
-    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
-  </form>
-</details>
 </div>
 
 <div id="gc-results">
@@ -223,7 +201,9 @@
               {% if not s.is_active %}<span class="badge badge--danger">{{ t('common.inactive') }}</span>{% endif %}
               {% if s.code %}<div class="num" dir="ltr" style="color:var(--muted);font-size:.78rem;">{{ s.code }}</div>{% endif %}
             </td>
-            <td><span class="badge badge--muted">{{ t('service_categories.' ~ s.category) }}</span></td>
+            <td><span class="badge badge--muted">{{ t('service_categories.' ~ s.category) }}</span>
+              {% if s.visit_type %}<span class="badge badge--green" title="{{ t('services.visit_type_charge') }}">
+                <i class="bi bi-calendar-check"></i> {{ visit_type_label(s.visit_type) }}</span>{% endif %}</td>
             <td style="text-align:end;font-weight:600;">{{ s.price }}</td>
             <td style="text-align:end;color:var(--muted);">{{ s.cost if s.cost is not none else '—' }}</td>
             <td style="text-align:end;">{{ commission_text(s) }}</td>
@@ -288,6 +268,18 @@
                       <option value="">—</option>
                       {% for dv in devices %}<option value="{{ dv.id }}" {{ 'selected' if s.device_id==dv.id else '' }}>{{ dv.display_name(current_lang) }}</option>{% endfor %}
                     </select></div>
+                  <!-- The base charge for a visit type, on the service that
+                       charges it. It used to be a separate panel of dropdowns
+                       above, so the price and the thing priced were two
+                       screens apart. -->
+                  <div class="form-row"><label>{{ t('services.visit_type_charge') }}</label>
+                    <select class="select" name="visit_type">
+                      <option value="">— {{ t('services.no_charge') }} —</option>
+                      {% for vt in visit_types %}
+                      <option value="{{ vt.key }}" {{ 'selected' if s.visit_type == vt.key else '' }}>{{ vt.display_name(current_lang) }}</option>
+                      {% endfor %}
+                    </select>
+                    <span class="hint">{{ t('services.visit_type_hint') }}</span></div>
                 </div>
                 <div style="font-weight:600;color:var(--muted);font-size:.78rem;margin:8px 0 4px;">{{ t('services.workflow') }}</div>
                 <div style="display:flex;gap:14px;flex-wrap:wrap;">

@@ -170,6 +170,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_service_types_safe()
         _backfill_service_types_safe()
+        _migrate_visit_type_map_safe()
         try:  # every service carries a code (auto-generate for older rows)
             from app.utils.services import backfill_service_codes
             backfill_service_codes()
@@ -569,6 +570,19 @@ def _ensure_owner_safe():
                 promoted += 1
         if promoted:
             click.echo(f"  + {promoted} admin(s) promoted to owner")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _migrate_visit_type_map_safe():
+    """Move the visit-type→service map out of settings and onto the services
+    (idempotent, best-effort). The pricing of a visit now lives with the thing
+    being priced."""
+    try:
+        from app.utils.pricing import migrate_visit_type_map
+        moved = migrate_visit_type_map()
+        if moved:
+            click.echo(f"  ~ {moved} visit-type charge(s) moved onto their service")
     except Exception:  # noqa: BLE001
         pass
 

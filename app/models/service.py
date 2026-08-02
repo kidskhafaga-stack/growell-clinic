@@ -126,6 +126,13 @@ class Service(db.Model):
     commission_type = db.Column(db.String(10), default="none", nullable=False)
     commission_value = db.Column(db.Float, default=0)
 
+    # This service is the base charge for that visit type (كشف / متابعة / …).
+    # It used to be a ``{type: service_id}`` blob in settings, edited on its
+    # own panel — so the price of a visit and the thing being priced lived on
+    # two screens, and deleting a service left an id in the blob pointing at
+    # nothing. One base charge per type: assigning it moves it.
+    visit_type = db.Column(db.String(30), index=True)
+
     is_bundle = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     sort_order = db.Column(db.Integer, default=0)

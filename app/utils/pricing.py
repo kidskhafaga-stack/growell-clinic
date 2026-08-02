@@ -38,13 +38,78 @@ def save_visit_type_service_map(mapping):
 
 
 def service_for_visit_type(appt_type):
-    """The base-charge :class:`Service` for a visit type, or ``None``."""
+    """The base-charge :class:`Service` for a visit type, or ``None``.
+
+    Read off the service itself. The mapping used to be a ``{type: id}`` blob
+    in settings edited on its own panel, so the price of a visit and the thing
+    being priced lived on two screens — and deleting a service left an id in
+    the blob pointing at nothing, which reads on the till as a visit type with
+    no charge rather than as a broken reference.
+
+    The blob is still consulted as a fallback, because a clinic that has not
+    run the upgrade yet still has its pricing there and must keep billing.
+    """
     from app.extensions import db
 
+    if not appt_type:
+        return None
+    svc = (Service.query.filter_by(visit_type=appt_type, is_active=True)
+           .order_by(Service.id).first())
+    if svc is not None:
+        return svc
     service_id = visit_type_service_map().get(appt_type)
     if not service_id:
         return None
     return db.session.get(Service, service_id)
+
+
+def set_visit_type_service(appt_type, service):
+    """Make ``service`` the base charge for ``appt_type``, and only it.
+
+    One base charge per type: two services both claiming "كشف" is a question
+    the till would have to answer by picking, so assigning it **moves** it.
+    """
+    from app.extensions import db
+
+    if not appt_type:
+        return
+    from app.models import Setting
+    from app.utils.services import VT_SEEDED_KEY
+
+    for other in Service.query.filter_by(visit_type=appt_type).all():
+        if service is None or other.id != service.id:
+            other.visit_type = None
+    if service is not None:
+        service.visit_type = appt_type
+    # A human has now expressed an opinion, so the first-run self-heal stops.
+    # Without this, clearing the last base charge and reopening the services
+    # screen put one straight back — "no base charge for this visit type" was
+    # a state the program refused to let anybody be in.
+    Setting.set(VT_SEEDED_KEY, "1")
+    db.session.flush()
+
+
+def migrate_visit_type_map():
+    """Move an existing settings blob onto the services (idempotent).
+
+    Runs on upgrade. Only ever fills a service whose ``visit_type`` is empty,
+    so a clinic that has already set one on the new screen keeps it.
+    """
+    from app.extensions import db
+
+    mapping = visit_type_service_map()
+    if not mapping:
+        return 0
+    moved = 0
+    for key, service_id in mapping.items():
+        svc = db.session.get(Service, service_id)
+        if svc is None or svc.visit_type:
+            continue
+        if Service.query.filter_by(visit_type=key).first() is not None:
+            continue
+        svc.visit_type = key
+        moved += 1
+    return moved
 
 
 # --------------------------------------------------- cash price list -------

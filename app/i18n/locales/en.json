@@ -1321,7 +1321,7 @@
     "eta_item_type": "ETA item type",
     "price_override_hint": "Price: blank = default, 0 = free for this doctor.",
     "visit_type_services": "Visit type pricing",
-    "visit_type_hint": "Map each visit type to the service that sets its base charge (per-doctor price applies). Leave blank for no base charge (e.g. vaccination — billed separately).",
+    "visit_type_hint": "This service is charged when a visit of that type is opened. One service per type — choosing it here takes it off whichever service had it.",
     "no_charge": "No base charge",
     "visit_types_saved": "Visit type pricing saved",
     "service_type": "Service type",
@@ -1368,7 +1368,8 @@
     "type_deleted": "Type deleted",
     "type_system": "A built-in type cannot be deleted — hide it instead",
     "type_in_use": "{n} service(s) are on this type — move them first",
-    "category_hint": "The category drives the accounting (vaccination fee, discount scope) so it is fixed — the type is the one you add."
+    "category_hint": "The category drives the accounting (vaccination fee, discount scope) so it is fixed — the type is the one you add.",
+    "visit_type_charge": "Base charge for a visit type"
   },
   "commission_types": {
     "none": "None",

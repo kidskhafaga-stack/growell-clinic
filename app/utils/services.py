@@ -119,38 +119,64 @@ def seed_services():
     return seed_services_for_caps(caps)
 
 
+# Set once the visit-type base charges have been filled in, so the self-heal
+# never runs again and cannot argue with a clinic that cleared one on purpose.
+VT_SEEDED_KEY = "visit_type_charges_seeded"
+
+
 def _ensure_visit_type_map():
     """Point each appointment type at a real base-charge service, if unset.
 
     Prefers the canonical code; otherwise the first active service of a fitting
     category (so it works even with a clinic's own custom services).
-    """
-    from app.utils.pricing import save_visit_type_service_map, visit_type_service_map
 
+    The charge lives on the service now rather than in a settings blob, so this
+    fills ``Service.visit_type`` — and never over a slot a clinic has already
+    claimed, on the new screen or the old map.
+    """
+    from app.models import Setting
+    from app.utils.pricing import visit_type_service_map
+
+    # Once, and recorded. This runs on every visit to the services screen, and
+    # without the stamp it re-claimed a slot the moment a clinic *deliberately*
+    # cleared the last one — so "this visit type has no base charge" was a
+    # state the program would not let anybody be in. Refilling an empty choice
+    # is the self-heal arguing with the person it is meant to help.
+    if Setting.get(VT_SEEDED_KEY) == "1":
+        return
     if visit_type_service_map():
-        return  # respect a clinic-defined map
+        Setting.set(VT_SEEDED_KEY, "1")
+        return  # respect a clinic-defined map (migrated on upgrade)
+    if Service.query.filter(Service.visit_type.isnot(None)).first() is not None:
+        Setting.set(VT_SEEDED_KEY, "1")
+        return  # already assigned on the services screen
 
     by_code = {s.code: s for s in Service.query.all()}
 
     def pick(code, *categories):
         if code in by_code:
-            return by_code[code].id
-        svc = (Service.query.filter(Service.is_active.is_(True),
-                                    Service.category.in_(categories))
-               .order_by(Service.id).first())
-        return svc.id if svc else None
+            return by_code[code]
+        return (Service.query.filter(Service.is_active.is_(True),
+                                     Service.category.in_(categories))
+                .order_by(Service.id).first())
 
-    mapping = {
-        "new":          pick("SVC-KASHF", "consultation"),
-        "urgent":       pick("SVC-KASHF", "consultation"),
-        "consultation": pick("SVC-ESHARA", "consultation"),
-        "followup":     pick("SVC-MOTABAA", "consultation"),
-        "vaccination":  pick("SVC-VACFEE", "vaccination_fee"),
-        "procedure":    pick("SVC-NEB", "procedure", "radiology"),
-    }
-    mapping = {k: v for k, v in mapping.items() if v}
-    if mapping:
-        save_visit_type_service_map(mapping)
+    wanted = [
+        ("new",          pick("SVC-KASHF", "consultation")),
+        ("consultation", pick("SVC-ESHARA", "consultation")),
+        ("followup",     pick("SVC-MOTABAA", "consultation")),
+        ("vaccination",  pick("SVC-VACFEE", "vaccination_fee")),
+        ("procedure",    pick("SVC-NEB", "procedure", "radiology")),
+    ]
+    # One base charge per service: "urgent" and "new" both wanting the same
+    # consultation would have the second quietly steal it from the first.
+    taken = set()
+    for key, svc in wanted:
+        if svc is None or svc.id in taken or svc.visit_type:
+            continue
+        svc.visit_type = key
+        taken.add(svc.id)
+    from app.models import Setting
+    Setting.set(VT_SEEDED_KEY, "1")
 
 
 def next_service_code():

@@ -53,9 +53,7 @@ from app.utils.money import format_money
 from app.utils.vaccine_settlement import apply_settlement, pending_settlements
 from app.utils.services import next_service_code
 from app.utils.pricing import (
-    save_visit_type_service_map,
     service_for_visit_type,
-    visit_type_service_map,
 )
 from app.utils import einvoice as eta
 
@@ -259,6 +257,25 @@ _SERVICE_FLAGS = [
 ]
 
 
+def _apply_visit_type_charge(svc):
+    """Assign (or clear) the visit type this service is the base charge for.
+
+    Only when the form actually carries the field, so the smaller edit forms
+    elsewhere cannot clear it by not mentioning it — the way the workflow flags
+    are guarded above, and for the same reason.
+    """
+    if "visit_type" not in request.form:
+        return
+    from app.utils.pricing import set_visit_type_service
+    from app.utils.visit_types import valid_key
+
+    key = (request.form.get("visit_type") or "").strip()
+    if key and valid_key(key):
+        set_visit_type_service(key, svc)
+    elif not key and svc.visit_type:
+        set_visit_type_service(svc.visit_type, None)
+
+
 def _apply_service_engine_fields(svc):
     """Read the Service Engine fields (type / cost / duration / flags) off the
     form onto ``svc``. Flags are only applied when the form marks itself as
@@ -303,6 +320,7 @@ def services():
         flash(t("services.auto_seeded"), "info")
     from app.models import ETA_ITEM_TYPES, MedicalDevice, StoreItem
     from app.utils import service_types as st
+    from app.utils.visit_types import label as vt_label
     st.ensure_seeded()
 
     every = Service.query.order_by(Service.sort_order, Service.name).all()
@@ -344,7 +362,8 @@ def services():
         type_usage=st.usage_counts(), type_label=st.label, type_icon=st.icon,
         type_choices_for=st.choices_for,
         store_items=store_items, doctors=_doctors(),
-        appt_types=list(APPOINTMENT_TYPES), visit_type_map=visit_type_service_map(),
+        appt_types=list(APPOINTMENT_TYPES),
+        visit_type_label=lambda key: vt_label(key, lang),
     )
 
 
@@ -420,22 +439,6 @@ def service_type_delete(type_id):
     return _type_redirect()
 
 
-@finance_bp.route("/services/visit-types", methods=["POST"])
-@module_required(MODULE)
-def visit_type_services():
-    """Map each visit type (كشف / استشارة / …) to its base-charge service."""
-    from app.utils.visit_types import active_types
-    mapping = {}
-    for vt in active_types():
-        sid = request.form.get(f"vt_{vt.key}", type=int)
-        if sid:
-            mapping[vt.key] = sid
-    save_visit_type_service_map(mapping)
-    db.session.commit()
-    flash(t("services.visit_types_saved"), "success")
-    return redirect(url_for("finance.services"))
-
-
 @finance_bp.route("/services/new", methods=["POST"])
 @module_required(MODULE)
 def service_new():
@@ -460,6 +463,8 @@ def service_new():
     )
     _apply_service_engine_fields(svc)
     db.session.add(svc)
+    db.session.flush()
+    _apply_visit_type_charge(svc)
     ActivityLog.record("service.add", user_id=current_user.id, entity="service",
                        detail=name, ip_address=client_ip())
     db.session.commit()
@@ -482,6 +487,7 @@ def service_edit(service_id):
     svc.commission_type, svc.commission_value = _clean_commission()
     svc.is_active = bool(request.form.get("is_active"))
     _apply_service_engine_fields(svc)
+    _apply_visit_type_charge(svc)
     db.session.commit()
     flash(t("services.updated"), "success")
     return redirect(url_for("finance.services"))
@@ -1485,11 +1491,10 @@ def _vaccine_service():
                       commission_value=0, is_active=True)
         db.session.add(svc)
         db.session.flush()
-        # Point the vaccination visit type at it too, if that map slot is empty.
-        vt_map = visit_type_service_map()
-        if "vaccination" not in vt_map:
-            vt_map["vaccination"] = svc.id
-            save_visit_type_service_map(vt_map)
+        # Make it the vaccination visit type's base charge, unless a service
+        # already claims that slot.
+        if Service.query.filter_by(visit_type="vaccination").first() is None:
+            svc.visit_type = "vaccination"
     return svc
 
 

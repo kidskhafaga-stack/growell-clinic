@@ -165,6 +165,7 @@ ADDITIONS = [
     ("vaccine_inventory", "receipt_reason", "VARCHAR(20) DEFAULT 'opening'"),
     ("purchase_order_items", "vaccine_brand_id", "INTEGER"),
     ("services", "service_type", "VARCHAR(20) DEFAULT 'other'"),
+    ("services", "visit_type", "VARCHAR(30)"),
     ("services", "duration_minutes", "INTEGER"),
     ("services", "cost", "FLOAT"),
     ("services", "needs_doctor", "BOOLEAN DEFAULT 1"),
