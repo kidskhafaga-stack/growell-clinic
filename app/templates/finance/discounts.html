@@ -52,7 +52,8 @@
     <div class="hint">{{ t('discounts.family_wide_hint') }}</div></div>
   <div class="form-row" x-show="dt==='category'" x-cloak><label>{{ t('discounts.category') }}</label>
     <select class="select" name="client_category"><option value="">—</option>
-      {% for c in categories %}<option value="{{ c }}" {{ 'selected' if d and d.client_category==c else '' }}>{{ t('categories.' ~ c) }}</option>{% endfor %}</select></div>
+      {# The clinic's own list now, not four names fixed in the code. #}
+      {% for c in categories %}<option value="{{ c.key }}" {{ 'selected' if d and d.client_category==c.key else '' }}>{{ c.display_name(current_lang) }}</option>{% endfor %}</select></div>
   <div class="form-row" x-show="dt==='campaign'" x-cloak><label>{{ t('discounts.start') }}</label>
     <input class="input" type="date" name="start_date" value="{{ d.start_date or '' if d else '' }}"></div>
   <div class="form-row" x-show="dt==='campaign'" x-cloak><label>{{ t('discounts.end') }}</label>
@@ -95,7 +96,7 @@
         <td>{{ d.value }}{{ '%' if d.is_percent else '' }}</td>
         <td><span class="badge {{ 'badge--muted' if d.is_all_scope and not d.service_id else 'badge--green' }}">{{ d.scope_label(current_lang) }}</span></td>
         <td>{% if d.dtype=='doctor' and d.doctor %}{{ d.doctor.display_name(current_lang) }}
-            {% elif d.dtype=='category' and d.client_category %}{{ t('categories.' ~ d.client_category) }}
+            {% elif d.dtype=='category' and d.client_category %}{{ category_label(d.client_category) }}
             {% elif d.dtype=='sibling' %}
               {{ t('discounts.min_siblings') }}: {{ d.min_siblings or 2 }}
               {% if d.same_doctor %}<span class="badge badge--muted">{{ t('discounts.same_doctor') }}</span>{% endif %}
@@ -135,4 +136,77 @@
 </div>
 <p class="hint" style="margin-top:10px;"><i class="bi bi-info-circle"></i> {{ t('discounts.apply_hint') }}</p>
 <p class="hint"><i class="bi bi-1-circle"></i> {{ t('discounts.no_stack_hint') }}</p>
+
+{# The categories a discount can be aimed at. Managed here because this is
+   where one earns its keep: a clinic adds "أعضاء نادي سبورتنج" precisely so a
+   discount can point at it. The list used to be four names fixed in the code —
+   normal / friend / relative / employee — and a real clinic's turned out to be
+   نقدي, عاملين, أطباء and أعضاء نادي سبورتنج. #}
+<details class="card gc-scale-in" style="margin-top:16px;">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-people"></i> {{ t('categories.manage') }}</summary>
+  <p class="hint" style="margin:8px 0 12px;">{{ t('categories.manage_hint') }}</p>
+
+  <form method="post" action="{{ url_for('finance.client_categories_save') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:640px;">
+        <thead><tr>
+          <th style="width:80px;">{{ t('common.order') }}</th>
+          <th>{{ t('categories.name') }}</th>
+          <th>{{ t('categories.name_en') }}</th>
+          <th>{{ t('categories.families') }}</th>
+          <th>{{ t('discounts.title') }}</th>
+          <th style="width:90px;">{{ t('common.active') }}</th>
+          <th style="text-align:end;"></th>
+        </tr></thead>
+        <tbody>
+          {% for c in all_client_categories %}
+          <tr>
+            <td><input class="input" type="number" name="order_{{ c.id }}" value="{{ c.sort_order }}" style="width:70px;"></td>
+            <td><input class="input" name="name_{{ c.id }}" value="{{ c.name_ar or c.display_name('ar') }}">
+              <span class="hint" dir="ltr" style="font-family:monospace;font-size:.75rem;">{{ c.key }}</span></td>
+            <td><input class="input" name="name_en_{{ c.id }}" value="{{ c.name_en or '' }}" dir="ltr"></td>
+            <td>{{ category_usage.get(c.key, 0) }}</td>
+            <td>
+              {% set n = category_discounts.get(c.key, 0) %}
+              {% if n %}<span class="badge badge--green">{{ n }}</span>
+              {% else %}<span class="hint">—</span>{% endif %}
+            </td>
+            <td><label class="check"><input type="checkbox" name="active_{{ c.id }}" value="1" {{ 'checked' if c.is_active else '' }}></label></td>
+            <td style="text-align:end;">
+              {% if c.is_system %}
+              <span class="badge badge--muted" title="{{ t('categories.is_system') }}"><i class="bi bi-lock"></i></span>
+              {% elif c.id %}
+              <button class="btn-x" type="submit" form="delcat{{ c.id }}"
+                      onclick="return confirm('{{ t('common.confirm_delete') }}')"><i class="bi bi-trash"></i></button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+
+  {# Outside the save form: a form inside a form is invalid HTML. #}
+  {% for c in all_client_categories %}
+    {% if c.id and not c.is_system %}
+    <form id="delcat{{ c.id }}" method="post" style="display:none;"
+          action="{{ url_for('finance.client_category_delete', cat_id=c.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+    {% endif %}
+  {% endfor %}
+
+  <form method="post" action="{{ url_for('finance.client_category_new') }}"
+        style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:180px;"><label>{{ t('categories.name') }}</label>
+      <input class="input" name="name" placeholder="{{ t('categories.name_ph') }}" required></div>
+    <div class="form-row" style="margin:0;min-width:160px;"><label>{{ t('categories.name_en') }}</label>
+      <input class="input" name="name_en" dir="ltr"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</details>
 {% endblock %}

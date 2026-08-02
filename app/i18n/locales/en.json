@@ -58,7 +58,9 @@
     "next": "next",
     "apply": "apply",
     "when": "When",
-    "who": "User"
+    "who": "User",
+    "order": "Order",
+    "confirm_delete": "Delete this?"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1008,7 +1010,18 @@
     "normal": "Normal",
     "friend": "Friend",
     "relative": "Relative",
-    "employee": "Employee"
+    "employee": "Employee",
+    "manage": "Client categories",
+    "name": "Category name",
+    "name_en": "English name",
+    "name_ph": "Sporting Club members",
+    "families": "Families",
+    "added": "Category added",
+    "deleted": "Category deleted",
+    "is_system": "Built-in category — you can rename it but not delete it",
+    "in_use": "{n} families are on this category — move them first",
+    "has_discount": "{n} discount(s) aim at this category — change or remove them first",
+    "manage_hint": "A category is what a discount aims at. The list used to be four names fixed in the code — add the ones your clinic actually uses. Renaming one affects neither the families nor the discounts, because the internal key does not change."
   },
   "inventory": {
     "title": "Vaccine inventory & suppliers",

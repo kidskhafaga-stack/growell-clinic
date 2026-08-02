@@ -2352,16 +2352,100 @@ def discounts():
         flash(t("discounts.added"), "success")
         return redirect(url_for("finance.discounts"))
 
+    from app.utils.client_categories import (active_categories, all_categories,
+                                             discount_counts, ensure_seeded,
+                                             usage_counts)
+    ensure_seeded()
     return render_template(
         "finance/discounts.html",
         discounts=NamedDiscount.query.order_by(NamedDiscount.is_active.desc(),
                                                NamedDiscount.name).all(),
-        types=DISCOUNT_TYPES, categories=CLIENT_CATEGORIES,
+        # The catalogue is managed on this screen because this is where a
+        # category earns its keep: "أعضاء نادي سبورتنج" exists so a discount
+        # can be aimed at it.
+        all_client_categories=all_categories(),
+        category_usage=usage_counts(), category_discounts=discount_counts(),
+        types=DISCOUNT_TYPES, categories=active_categories(),
         service_categories=SERVICE_CATEGORIES, doctors=_doctors_active(),
         services=Service.query.filter_by(is_active=True)
         .order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True)
         .order_by(PayerEntity.name).all())
+
+
+# ======================================= client categories (نقدي / عاملين / …)
+@finance_bp.route("/client-categories/new", methods=["POST"])
+@module_required(MODULE)
+def client_category_new():
+    """Add a client category — the thing the four fixed names had no room for."""
+    from app.models import ClientCategory
+    from app.utils.client_categories import ensure_seeded, make_key
+
+    ensure_seeded()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("categories.name"), "danger")
+        return redirect(url_for("finance.discounts"))
+    name_en = (request.form.get("name_en") or "").strip() or None
+    last = db.session.query(db.func.max(ClientCategory.sort_order)).scalar() or 0
+    db.session.add(ClientCategory(
+        key=make_key(name, name_en), name_ar=name, name_en=name_en,
+        sort_order=last + 1, is_active=True, is_system=False))
+    db.session.commit()
+    flash(t("categories.added"), "success")
+    return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/client-categories/save", methods=["POST"])
+@module_required(MODULE)
+def client_categories_save():
+    """Rename / reorder / hide the categories in one submit.
+
+    The key is never touched — every parent row and every discount stores it,
+    so renaming "عادي" to "نقدي" must move the label and nothing else.
+    """
+    from app.models import ClientCategory
+    from app.utils.client_categories import ensure_seeded
+
+    ensure_seeded()
+    for row in ClientCategory.query.all():
+        name = (request.form.get(f"name_{row.id}") or "").strip()
+        if name:
+            row.name_ar = name
+        row.name_en = (request.form.get(f"name_en_{row.id}") or "").strip() or None
+        order = request.form.get(f"order_{row.id}", type=int)
+        if order is not None:
+            row.sort_order = order
+        row.is_active = bool(request.form.get(f"active_{row.id}"))
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/client-categories/<int:cat_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def client_category_delete(cat_id):
+    from app.models import ClientCategory
+    from app.utils.client_categories import discount_counts, usage_counts
+
+    row = db.get_or_404(ClientCategory, cat_id)
+    if row.is_system:
+        flash(t("categories.is_system"), "warning")
+        return redirect(url_for("finance.discounts"))
+    # Reassigning silently would move families somewhere nobody chose — and
+    # take their discount with them. The person deleting knows where they go.
+    used = usage_counts().get(row.key, 0)
+    if used:
+        flash(t("categories.in_use").replace("{n}", str(used)), "danger")
+        return redirect(url_for("finance.discounts"))
+    aimed = discount_counts().get(row.key, 0)
+    if aimed:
+        flash(t("categories.has_discount").replace("{n}", str(aimed)), "danger")
+        return redirect(url_for("finance.discounts"))
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("categories.deleted"), "info")
+    return redirect(url_for("finance.discounts"))
 
 
 def _fill_discount(row):

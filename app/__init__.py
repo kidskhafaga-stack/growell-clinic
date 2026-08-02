@@ -250,6 +250,32 @@ def create_app(config_name="default"):
         return {"my_open_shift": None}
 
     @app.context_processor
+    def inject_category_label():
+        """``category_label(key)`` — a client category's name for this clinic.
+
+        Templates used to print ``t('categories.' ~ key)``, which only worked
+        for the four built-in keys. A clinic-added category has no dictionary
+        entry, so that printed the raw key at the user.
+        """
+        from flask import g
+
+        def category_label(key):
+            from app.utils.client_categories import label
+
+            return label(key, getattr(g, "lang", "ar"))
+
+        def client_categories_for(current=None):
+            """The categories a dropdown should offer — the active ones, plus
+            whichever this family is already on even if it was hidden, so
+            saving their profile doesn't quietly move them."""
+            from app.utils.client_categories import choices_for
+
+            return choices_for(current)
+
+        return {"category_label": category_label,
+                "client_categories_for": client_categories_for}
+
+    @app.context_processor
     def inject_notifications():
         """Topbar bell: live alerts filtered to the current user's modules."""
         from flask_login import current_user

@@ -25,6 +25,7 @@ from app.models.growth_record import GrowthRecord
 from app.models.parent import (
     CLIENT_CATEGORIES,
     PARENT_RELATIONS,
+    ClientCategory,
     Parent,
 )
 from app.models.patient import (
@@ -214,6 +215,7 @@ __all__ = [
     "ROLE_PERMISSIONS",
     "PARENT_RELATIONS",
     "CLIENT_CATEGORIES",
+    "ClientCategory",
     "GENDERS",
     "BLOOD_TYPES",
     "APPOINTMENT_STATUSES",

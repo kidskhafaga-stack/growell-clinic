@@ -344,7 +344,7 @@
               </div>
               <div style="font-size:0.82rem;color:var(--muted);">{{ t('relations.' ~ parent.relation) }}</div>
             </div>
-            <span class="badge badge--green">{{ t('categories.' ~ parent.client_category) }}</span>
+            <span class="badge badge--green">{{ category_label(parent.client_category) }}</span>
           </div>
           <div class="meta-row" style="margin-top:8px;">
             {% if parent.phone %}<span><i class="bi bi-telephone"></i> <span dir="ltr">{{ parent.phone }}</span></span>{% endif %}
@@ -379,7 +379,10 @@
                 </select></div>
               <div class="form-row"><label>{{ t('patients.client_category') }}</label>
                 <select class="select" name="client_category">
-                  {% for cat in ['normal','friend','relative','employee'] %}<option value="{{ cat }}" {{ 'selected' if parent.client_category==cat else '' }}>{{ t('categories.' ~ cat) }}</option>{% endfor %}
+                  {# The clinic's own list. It was four names fixed in the code,
+                     so a clinic with "أعضاء نادي سبورتنج" had nowhere to put
+                     them — and the discount aimed at that category with them. #}
+                  {% for cat in client_categories_for(parent.client_category) %}<option value="{{ cat.key }}" {{ 'selected' if parent.client_category==cat.key else '' }}>{{ cat.display_name(current_lang) }}</option>{% endfor %}
                 </select></div>
               <div class="form-row"><label>{{ t('patients.phone') }}</label>
                 <input class="input" name="phone" dir="ltr" value="{{ parent.phone or '' }}"></div>
@@ -842,7 +845,7 @@
           <div class="form-row">
             <label>{{ t('patients.client_category') }}</label>
             <select class="select" name="client_category">
-              {% for c in categories %}<option value="{{ c }}">{{ t('categories.' ~ c) }}</option>{% endfor %}
+              {% for c in client_categories_for() %}<option value="{{ c.key }}">{{ c.display_name(current_lang) }}</option>{% endfor %}
             </select>
           </div>
           <div class="form-row">
