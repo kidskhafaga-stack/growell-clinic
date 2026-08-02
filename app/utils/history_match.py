@@ -27,6 +27,7 @@ NEW = "new"
 SAME = "same"
 CHANGED = "changed"
 REJECTED = "rejected"
+OUT_OF_RANGE = "out_of_range"
 
 
 def patient_index():
@@ -93,7 +94,27 @@ def _differs(record, existing):
             != normalise_arabic(record.get("service_name")))
 
 
-def classify(records, patients=None, seen=None):
+def date_span(records):
+    """What the file actually covers: first date, last date, rows per year.
+
+    Read off the file rather than asked for. A clinic uploading ten years of
+    history does not know its own export's first date to the day, and being
+    made to type one before seeing anything is how somebody picks a range that
+    quietly excludes 2016.
+    """
+    dates = [r["service_date"] for r in records if r.get("service_date")]
+    if not dates:
+        return {"first": None, "last": None, "years": []}
+    per_year = {}
+    for value in dates:
+        per_year[value.year] = per_year.get(value.year, 0) + 1
+    return {
+        "first": min(dates), "last": max(dates),
+        "years": [{"year": y, "rows": n} for y, n in sorted(per_year.items())],
+    }
+
+
+def classify(records, patients=None, seen=None, start=None, end=None):
     """Sort every parsed row into new / same / changed / rejected.
 
     Returns ``(records, counts)`` — each record gains ``_state``, ``_patient_id``
@@ -101,13 +122,20 @@ def classify(records, patients=None, seen=None):
     than split, so the preview can show them in file order: an accountant
     checking a row against their old program is reading down the page.
 
+    ``start`` and ``end`` narrow the import to part of the file. Both default to
+    the whole of it, which is the case that needs no thought: a clinic moving
+    off its old program wants everything, and having to state that is a step
+    that only exists to be got wrong. A row outside the range is set aside
+    rather than rejected — nothing is wrong with it, it simply was not asked
+    for, and calling that an error would bury the rows that really are broken.
+
     ``patients`` and ``seen`` are injectable so the preview and the import can
     share one pair of queries instead of running four.
     """
     patients = patient_index() if patients is None else patients
     seen = existing_keys() if seen is None else seen
 
-    counts = {NEW: 0, SAME: 0, CHANGED: 0, REJECTED: 0}
+    counts = {NEW: 0, SAME: 0, CHANGED: 0, REJECTED: 0, OUT_OF_RANGE: 0}
     # Keys met earlier *in this same file*, so a file that repeats a row does
     # not import it twice on its very first upload.
     in_file = set()
@@ -128,6 +156,15 @@ def classify(records, patients=None, seen=None):
             record["_state"] = REJECTED
             record["_reason"] = reason
             counts[REJECTED] += 1
+            continue
+
+        # Checked after the row is known to be sound, so a row that is both
+        # broken and outside the range is reported as broken — that is the
+        # thing the clinic has to act on.
+        when = record["service_date"]
+        if (start and when < start) or (end and when > end):
+            record["_state"] = OUT_OF_RANGE
+            counts[OUT_OF_RANGE] += 1
             continue
 
         key = source_key(record)

@@ -4187,6 +4187,11 @@
     "update_changed": "Update the {n} changed rows",
     "commit": "Start the import",
     "done": "{n} rows imported",
-    "need_columns": "You must map at least: service date, patient code and service"
+    "need_columns": "You must map at least: service date, patient code and service",
+    "span": "The file covers",
+    "apply_range": "Apply range",
+    "range_on": "Showing the range you chose",
+    "st_out_of_range": "Outside the range",
+    "span_hint": "The whole file is imported by default. To take part of it, set the dates — rows outside the range are set aside, not rejected."
   }
 }

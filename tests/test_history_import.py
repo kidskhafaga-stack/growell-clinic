@@ -543,3 +543,165 @@ def test_both_languages_carry_the_new_words(clinic):
                     "st_new", "st_same", "st_changed", "st_rejected",
                     "missing_patients", "commit", "done", "need_columns"):
             assert data["history_import"].get(key), f"{lang}.history_import.{key}"
+
+
+# ================================================= the range, read off the file
+def _span(clinic, rows):
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import date_span
+
+    mapping = {"source_row": 0, "service_date": 1, "service_time": 2,
+               "patient_code": 3, "service_name": 7, "price": 16}
+    with clinic["app"].app_context():
+        return date_span(build_rows(rows, mapping))
+
+
+def test_the_file_says_what_it_covers(clinic):
+    """Read off the file rather than asked for. A clinic uploading ten years
+    does not know its own export's first date to the day."""
+    rows = [_row(1, "1001", date(2016, 4, 11), "كشف"),
+            _row(2, "1001", date(2021, 6, 1), "كشف"),
+            _row(3, "1001", date(2026, 7, 27), "كشف")]
+    span = _span(clinic, rows)
+    assert span["first"] == date(2016, 4, 11)
+    assert span["last"] == date(2026, 7, 27)
+
+
+def test_the_file_says_how_much_is_in_each_year(clinic):
+    """Somebody choosing a range wants to see where the weight is."""
+    rows = ([_row(i, "1001", date(2016, 4, 11), "كشف") for i in range(3)]
+            + [_row(9 + i, "1001", date(2024, 4, 11), "كشف") for i in range(5)])
+    years = {y["year"]: y["rows"] for y in _span(clinic, rows)["years"]}
+    assert years == {2016: 3, 2024: 5}
+
+
+def test_an_empty_file_has_no_span_rather_than_crashing(clinic):
+    assert _span(clinic, [])["first"] is None
+
+
+def test_everything_is_imported_when_no_range_is_given(old_patients, boss,
+                                                       clinic):
+    """The case that needs no thought: a clinic leaving its old program wants
+    everything, and making it say so is a step that exists to be got wrong."""
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2016, 4, 11), "كشف"),
+            _row(2, "1001", date(2024, 6, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    preview = _map_and_preview(boss, _token(reply.get_data(as_text=True)))
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert ImportedService.query.count() == 2
+
+
+def test_a_range_keeps_only_what_falls_inside_it(old_patients, boss, clinic):
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2016, 4, 11), "قديم"),
+            _row(2, "1001", date(2024, 6, 1), "جديد")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token)
+    boss.post("/patients/import/history/commit", data={
+        "token": _token(preview.get_data(as_text=True)),
+        "from": "2020-01-01"}, follow_redirects=True)
+
+    with clinic["app"].app_context():
+        names = [r.source_name for r in ImportedService.query.all()]
+    assert names == ["جديد"]
+
+
+def test_both_ends_of_the_range_are_honoured(old_patients, boss, clinic):
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2016, 4, 11), "قديم"),
+            _row(2, "1001", date(2021, 6, 1), "وسط"),
+            _row(3, "1001", date(2026, 7, 27), "حديث")]
+    reply = _upload(boss, _sheet(rows))
+    preview = _map_and_preview(boss, _token(reply.get_data(as_text=True)))
+    boss.post("/patients/import/history/commit", data={
+        "token": _token(preview.get_data(as_text=True)),
+        "from": "2020-01-01", "to": "2022-12-31"}, follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert [r.source_name for r in ImportedService.query.all()] == ["وسط"]
+
+
+def test_a_row_outside_the_range_is_set_aside_not_rejected(clinic, old_patients):
+    """Nothing is wrong with it — it simply was not asked for. Calling that an
+    error would bury the rows that really are broken."""
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import classify
+
+    rows = [_row(1, "1001", date(2016, 4, 11), "قديم"),
+            _row(2, "1001", date(2024, 6, 1), "جديد")]
+    mapping = {"source_row": 0, "service_date": 1, "service_time": 2,
+               "patient_code": 3, "service_name": 7, "price": 16}
+    with clinic["app"].app_context():
+        _records, counts = classify(build_rows(rows, mapping),
+                                    start=date(2020, 1, 1))
+    assert counts["out_of_range"] == 1
+    assert counts["rejected"] == 0
+    assert counts["new"] == 1
+
+
+def test_a_broken_row_outside_the_range_still_reads_as_broken(clinic,
+                                                              old_patients):
+    """That is the thing the clinic has to act on."""
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import classify
+
+    rows = [_row(1, "9999", date(2016, 4, 11), "كشف")]     # unknown patient
+    mapping = {"source_row": 0, "service_date": 1, "service_time": 2,
+               "patient_code": 3, "service_name": 7, "price": 16}
+    with clinic["app"].app_context():
+        _records, counts = classify(build_rows(rows, mapping),
+                                    start=date(2020, 1, 1))
+    assert counts["rejected"] == 1 and counts["out_of_range"] == 0
+
+
+def test_the_preview_shows_the_span_and_the_years(old_patients, boss, clinic):
+    rows = [_row(1, "1001", date(2016, 4, 11), "كشف"),
+            _row(2, "1001", date(2024, 6, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    body = _map_and_preview(boss, _token(reply.get_data(as_text=True))).get_data(as_text=True)
+    with clinic["app"].test_request_context("/"):
+        from app.i18n import t
+        assert t("history_import.span") in body
+    assert "2016-04-11" in body and "2024-06-01" in body
+    assert "2016" in body and "2024" in body
+
+
+def test_the_range_survives_from_the_preview_to_the_import(old_patients, boss,
+                                                           clinic):
+    """Without it somebody narrows to one year, sees 400 rows, and imports ten
+    thousand."""
+    page = _read_template("patients", "history_preview.html")
+    assert 'name="from" value="{{ f_from }}"' in page
+    assert 'name="to" value="{{ f_to }}"' in page
+
+
+def test_changing_the_range_does_not_ask_for_the_mapping_again(old_patients,
+                                                               boss, clinic):
+    """The mapping was submitted once and stored — coming back to narrow the
+    dates must not send somebody through the column screen a second time."""
+    rows = [_row(1, "1001", date(2016, 4, 11), "قديم"),
+            _row(2, "1001", date(2024, 6, 1), "جديد")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    _map_and_preview(boss, token)
+
+    again = boss.post("/patients/import/history/map",
+                      data={"token": token, "from": "2020-01-01"})
+    assert again.status_code == 200
+    body = again.get_data(as_text=True)
+    assert "جديد" in body
+
+
+def _read_template(*parts):
+    root = os.path.join(os.path.dirname(__file__), "..", "app", "templates")
+    with open(os.path.join(root, *parts), encoding="utf-8") as fh:
+        return fh.read()

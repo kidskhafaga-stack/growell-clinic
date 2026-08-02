@@ -10,13 +10,51 @@
     <span dir="ltr">{{ filename }}</span> — {{ total }} {{ t('history_import.rows') }}</p>
 </div>
 
+{# What the file actually covers, read off the file. A clinic uploading ten
+   years does not know its own export's first date to the day, and being made
+   to type one before seeing anything is how somebody quietly excludes 2016. #}
+{% if span.first %}
+<form method="post" action="{{ url_for('patients.history_import_map') }}"
+      class="card gc-scale-in" style="margin-bottom:14px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <strong><i class="bi bi-calendar-range"></i>
+    {{ t('history_import.span') }}
+    <span dir="ltr">{{ span.first }} → {{ span.last }}</span></strong>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('history_import.span_hint') }}</p>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    {% for y in span.years %}
+    <span class="badge badge--muted" dir="ltr">{{ y.year }} · {{ y.rows }}</span>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;max-width:170px;">
+      <label>{{ t('data_export.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ f_from }}"
+             min="{{ span.first }}" max="{{ span.last }}"></div>
+    <div class="form-row" style="margin:0;max-width:170px;">
+      <label>{{ t('data_export.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ f_to }}"
+             min="{{ span.first }}" max="{{ span.last }}"></div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-funnel"></i> {{ t('history_import.apply_range') }}</button>
+    {% if f_from or f_to %}
+    <span class="hint">{{ t('history_import.range_on') }}</span>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+
 {# Four buckets, because they deserve different treatment. The third is what
    separates an import that compares from one that duplicates. #}
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
   {% for key, colour, icon in [('new','var(--green-600)','plus-circle'),
                                ('same','var(--muted)','check2'),
                                ('changed','var(--amber-600,#d97706)','pencil'),
-                               ('rejected','var(--danger)','x-circle')] %}
+                               ('rejected','var(--danger)','x-circle')]
+                              + ([('out_of_range','var(--muted)','calendar-x')] if counts.out_of_range else []) %}
   <div class="card gc-scale-in" style="flex:1;min-width:150px;border-inline-start:4px solid {{ colour }};">
     <div style="font-size:1.6rem;font-weight:700;" dir="ltr">{{ counts[key] }}</div>
     <div class="hint" style="margin:0;"><i class="bi bi-{{ icon }}"></i> {{ t('history_import.st_' ~ key) }}</div>
@@ -107,6 +145,10 @@
       style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:40px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="token" value="{{ token }}">
+  {# The same range the preview was shown for. Without it somebody narrows to
+     one year, sees 400 rows, and imports ten thousand. #}
+  <input type="hidden" name="from" value="{{ f_from }}">
+  <input type="hidden" name="to" value="{{ f_to }}">
   {% if counts.changed %}
   <label class="check" style="display:flex;align-items:center;gap:6px;">
     <input type="checkbox" name="update_changed" value="1">

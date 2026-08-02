@@ -1327,8 +1327,9 @@ def history_import():
 @patients_bp.route("/import/history/map", methods=["POST"])
 @module_required(MODULE)
 def history_import_map():
+    from app.utils.export import parse_date
     from app.utils.history_import import build_rows
-    from app.utils.history_match import (classify, distinct_values,
+    from app.utils.history_match import (classify, date_span, distinct_values,
                                          missing_patient_codes)
 
     token = (request.form.get("token") or "").strip()
@@ -1337,6 +1338,8 @@ def history_import_map():
         flash(t("import.session_expired"), "warning")
         return redirect(url_for("patients.history_import"))
 
+    # The mapping is submitted the first time through and stored; coming back
+    # to change the date range reuses it instead of asking again.
     mapping = {}
     for key in request.form:
         if not key.startswith("col_"):
@@ -1344,6 +1347,8 @@ def history_import_map():
         value = (request.form.get(key) or "").strip()
         if value != "":
             mapping[key[4:]] = int(value)
+    if not mapping:
+        mapping = {k: int(v) for k, v in (payload.get("mapping") or {}).items()}
     missing = [k for k in ("service_date", "patient_code", "service_name")
                if k not in mapping]
     if missing:
@@ -1351,7 +1356,14 @@ def history_import_map():
         return redirect(url_for("patients.history_import"))
 
     records = build_rows(payload["rows"], mapping)
-    records, counts = classify(records)
+    # What the file covers is read off the file. Defaulting to all of it is the
+    # case that needs no thought — a clinic leaving its old program wants
+    # everything, and making it say so is a step that exists only to be got
+    # wrong.
+    span = date_span(records)
+    start = parse_date(request.form.get("from"))
+    end = parse_date(request.form.get("to"))
+    records, counts = classify(records, start=start, end=end)
 
     with open(tmp_path, "w", encoding="utf-8") as fh:
         json.dump({**payload, "mapping": mapping}, fh, ensure_ascii=False,
@@ -1360,7 +1372,10 @@ def history_import_map():
     return render_template(
         "patients/history_preview.html", token=token, counts=counts,
         total=len(records), filename=payload.get("filename"),
-        rows=records[:MAX_PREVIEW_ROWS],
+        rows=[r for r in records
+              if r["_state"] != "out_of_range"][:MAX_PREVIEW_ROWS],
+        span=span, f_from=request.form.get("from", ""),
+        f_to=request.form.get("to", ""),
         missing_patients=missing_patient_codes(records),
         services=distinct_values(records, "service_name"),
         categories=distinct_values(records, "client_category"),
@@ -1380,8 +1395,14 @@ def history_import_commit():
         flash(t("import.session_expired"), "warning")
         return redirect(url_for("patients.history_import"))
 
+    from app.utils.export import parse_date
+
+    start = parse_date(request.form.get("from"))
+    end = parse_date(request.form.get("to"))
     records = build_rows(payload["rows"], payload["mapping"])
-    records, counts = classify(records)
+    # The same range the preview was shown for, carried on the form — otherwise
+    # somebody narrows the range, sees 400 rows, and imports ten thousand.
+    records, counts = classify(records, start=start, end=end)
 
     batch = ImportBatch(kind="history", filename=payload.get("filename"),
                         created_by=current_user.id, rows_total=len(records))
@@ -1416,7 +1437,8 @@ def history_import_commit():
         db.session.bulk_insert_mappings(ImportedService, pending)
 
     batch.rows_added = len(pending)
-    batch.rows_skipped = counts["same"] + (0 if update_changed else counts["changed"])
+    batch.rows_skipped = (counts["same"] + counts["out_of_range"]
+                          + (0 if update_changed else counts["changed"]))
     batch.rows_rejected = counts["rejected"]
     ActivityLog.record("history.import", user_id=current_user.id,
                        entity="import_batch", entity_id=batch.id,
