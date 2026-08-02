@@ -409,6 +409,18 @@ def data_tools():
     # Whether a passphrase is set — never the passphrase itself. A screen that
     # prints it back has undone the point of keeping it out of the database.
     bset["encrypted"] = bool(backup_password())
+    # Each kind carries its own rhythm and its own count. A shared quota would
+    # let the nightly database snapshots push the weekly full archives off the
+    # end — a fortnight of databases and not one copy of the photographs.
+    bset["full_every"] = Setting.get("backup_full_every_days", "7")
+    bset["full_keep"] = Setting.get("backup_full_keep", "4")
+    # The number the split makes necessary: a clinic taking only the quick
+    # snapshot can believe it is covered for months, and find out on the day
+    # the disk dies that every photograph is gone.
+    from app.utils.backups import full_backup_age_days, full_backup_overdue
+    bset["full_age"] = full_backup_age_days()
+    bset["full_overdue"] = full_backup_overdue(bset["full_age"],
+                                               bset["full_every"])
     from app.utils.export import datasets_for, parse_date
     start = parse_date(request.args.get("from"))
     end = parse_date(request.args.get("to"))
@@ -456,8 +468,22 @@ def backup_settings():
     if every not in (1, 2, 7):
         every = 1
     Setting.set("backup_every_days", str(every))
+    # How often the *full* archive (with the pictures) is taken. Separate from
+    # the quick one because the halves have different natures: the database is
+    # small and changes constantly, the uploads are large and barely change.
+    full_every = request.form.get("backup_full_every_days", type=int)
+    if full_every not in (1, 7, 14, 30):
+        full_every = 7
+    Setting.set("backup_full_every_days", str(full_every))
     keep = request.form.get("backup_keep", type=int)
     Setting.set("backup_keep", str(min(max(keep if keep is not None else 14, 1), 365)))
+    # And its own count. Sharing one quota would let the nightly database
+    # snapshots evict the weekly full archives, leaving a clinic with a
+    # fortnight of databases and no copy of the photographs at all — the exact
+    # loss the full archive exists to prevent.
+    full_keep = request.form.get("backup_full_keep", type=int)
+    Setting.set("backup_full_keep",
+                str(min(max(full_keep if full_keep is not None else 4, 1), 365)))
     # Photos live on disk, not in the database — without them a restore brings
     # every record back with a broken picture beside it.
     Setting.set("backup_include_files",
@@ -511,8 +537,12 @@ def backup_password_set():
 def backup_create():
     from app.utils.backups import create_backup
 
+    # "db" is the quick one: the database without the pictures. Anything else
+    # means the full archive, which is what an unqualified "take a backup" has
+    # always meant and must keep meaning.
+    kind = "db" if (request.form.get("kind") or "").strip() == "db" else "full"
     try:
-        name = create_backup("manual")
+        name = create_backup("manual", kind=kind)
     except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
         flash(t("backups.failed"), "danger")
         return redirect(url_for("settings.data_tools"))
@@ -576,15 +606,17 @@ def backup_restore(name):
     if (request.form.get("confirm") or "").strip() != "RESTORE":
         flash(t("backups.bad_confirm"), "danger")
         return redirect(url_for("settings.data_tools"))
+    password = (request.form.get("password") or "").strip() or None
     try:
-        pre = restore_backup(
-            name, password=(request.form.get("password") or "").strip() or None)
+        pre = restore_backup(name, password=password)
     except ValueError as exc:
-        # The one failure worth naming: a snapshot taken under a passphrase
-        # the clinic has since changed. "Restore failed" would send them
-        # looking for a corrupt file that isn't corrupt.
-        flash(t("backups.bad_password" if str(exc) == "bad_password"
-                else "backups.restore_failed"), "danger")
+        # Two failures worth naming rather than calling both "restore failed",
+        # which sends somebody looking for a corrupt file that isn't corrupt:
+        # a snapshot taken under a passphrase since changed, and one written
+        # by a newer version of the program.
+        keys = {"bad_password": "backups.bad_password",
+                "backup_newer": "backups.newer_refused"}
+        flash(t(keys.get(str(exc), "backups.restore_failed")), "danger")
         return redirect(url_for("settings.data_tools"))
     except Exception:  # noqa: BLE001 - surfaced to the admin as a flash
         flash(t("backups.restore_failed"), "danger")
@@ -594,6 +626,13 @@ def backup_restore(name):
                        ip_address=client_ip())
     db.session.commit()
     flash(t("backups.restored", pre=pre), "success")
+    # Say when the shape was brought forward. It already happened silently, and
+    # silence is what made the original problem so hard to place.
+    from app.utils.backups import restore_check
+    _ok, reason, info = restore_check(name, password)
+    if reason == "older":
+        flash(t("backups.upgraded_from").replace(
+            "{version}", str(info.get("app_version") or "—")), "info")
     return redirect(url_for("settings.data_tools"))
 
 
