@@ -5,16 +5,24 @@
 
 {% block content %}
 <div class="gc-animate" style="max-width:760px;margin:0 auto;"
-     x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }}, {{ suggested_amount or 0 }})'>
+     x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }}, {{ suggested_amount or 0 }}, {{ (vaccine_offers_json or [])|tojson }}, {{ ({"id": vaccine_fee.id, "name": vaccine_fee.display_name(current_lang), "price": vaccine_fee.price or 0} if vaccine_fee else None)|tojson }})'>
   <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
     <div>
       <h1 class="page-title"><i class="bi bi-cash-coin"></i> {{ t('checkout.title') }}</h1>
+      {# Who this is for, in words, at the top. Reception's "collect now" used
+         to open the invoice builder, where the patient was a dropdown you had
+         to pick from with the family standing at the desk. #}
       <p class="page-sub" style="margin:0;">
-        {{ appt.patient.display_name(current_lang) if appt.patient }}
-        {% if appt.doctor %} · {{ appt.doctor.display_name(current_lang) }}{% endif %}
-        · {{ appt.appt_date }} {{ appt.time_label }}</p>
+        <strong>{{ patient.display_name(current_lang) }}</strong>
+        <span class="num" dir="ltr" style="color:var(--muted);">{{ patient.patient_number }}</span>
+        {% if doctor %} · {{ doctor.display_name(current_lang) }}{% endif %}
+        {% if appt %} · {{ appt.appt_date }} {{ appt.time_label }}{% endif %}</p>
     </div>
-    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) }}"><i class="bi bi-arrow-right"></i> {{ t('appointments.title') }}</a>
+    {% if appt %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('appointments.title') }}</a>
+    {% else %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.cashier') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('cashier.title') }}</a>
+    {% endif %}
   </div>
 
   <!-- Reception instructions: one path, four steps -->
@@ -32,7 +40,24 @@
     <p class="hint" style="margin:8px 0 0;"><i class="bi bi-exclamation-triangle"></i> {{ t('checkout.one_path_warn') }}</p>
   </div>
 
-  <form method="post">
+  {# The shift gate, said before the work rather than after it. It used to
+     fire on submit: the cashier filled the whole form with a family at the
+     desk, pressed collect, and got the form thrown away and a redirect. #}
+  {% if shift_needed %}
+  <div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--warning,#f0ad4e);">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <i class="bi bi-exclamation-triangle" style="font-size:1.4rem;color:var(--warning,#f0ad4e);"></i>
+      <div style="flex:1;min-width:220px;">
+        <strong>{{ t('shifts.gate_blocked') }}</strong>
+        <div class="hint" style="margin:2px 0 0;">{{ t('checkout.shift_needed_hint') }}</div>
+      </div>
+      <a class="btn btn-primary gc-press" href="{{ url_for('finance.cashier') }}#shift">
+        <i class="bi bi-play-circle"></i> {{ t('shifts.open') }}</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" action="{{ post_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Services / charges -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">
@@ -51,6 +76,7 @@
               <input type="hidden" :name="'line_no_commission'" :value="l.no_commission || '0'">
               <input type="hidden" :name="'line_brand_id'" :value="l.brand_id || ''">
               <input type="hidden" :name="'line_dose_id'" :value="l.dose_id || ''">
+              <input type="hidden" :name="'line_dose_number'" :value="l.dose_number || ''">
               <input type="hidden" :name="'line_vs_id'" :value="l.vs_id || ''"></td>
             <td><input class="input" type="number" step="0.01" min="0" :name="'line_price'" x-model.number="l.unit_price" @input="recalc()"></td>
             <td><input class="input" type="number" min="1" placeholder="1" :name="'line_qty'" x-model.number="l.quantity" @input="recalc()"></td>
@@ -67,6 +93,44 @@
         <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
       </div>
     </div>
+
+    {# Selling a vaccine forward, on reception's own screen. It went onto the
+       invoice builder first — which is the screen this change exists to keep
+       them off. #}
+    <template x-if="offers.length">
+      <details class="card gc-scale-in" style="margin-bottom:14px;">
+        <summary class="section-title" style="cursor:pointer;">
+          <i class="bi bi-shield-plus"></i> {{ t('invoices.add_vaccine') }}</summary>
+        <p class="hint" style="margin-top:8px;">{{ t('invoices.add_vaccine_hint') }}</p>
+        <div class="form-grid" style="margin-top:6px;">
+          <div class="form-row"><label>{{ t('vaccinations.cert_vaccine') }}</label>
+            <select class="select" x-model="vac.vaccineId" x-on:change="onVaccine()">
+              <option value="">—</option>
+              <template x-for="v in offers" :key="v.id">
+                <option :value="v.id" x-text="v.name"></option>
+              </template>
+            </select></div>
+          <div class="form-row"><label>{{ t('vaccinations.brand') }}</label>
+            <select class="select" x-model="vac.brandId" x-on:change="onBrand()" :disabled="!vac.vaccineId">
+              <option value="">—</option>
+              <template x-for="b in brands()" :key="b.id">
+                <option :value="b.id" x-text="b.name + ' — ' + b.price + ' · ' + '{{ t('vaccinations.stock_available') }}: ' + b.stock"></option>
+              </template>
+            </select></div>
+          <div class="form-row"><label>{{ t('vaccinations.dose') }}</label>
+            <select class="select" x-model.number="vac.dose" :disabled="!vac.brandId">
+              <template x-for="d in doses()" :key="d.number">
+                <option :value="d.number" :disabled="d.given"
+                        x-text="d.label + (d.given ? ' — {{ t('vaccinations.already_given') }}' : '')"></option>
+              </template>
+            </select></div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm gc-press"
+                @click="addVaccine()" :disabled="!vac.brandId || !vac.dose">
+          <i class="bi bi-plus-lg"></i> {{ t('invoices.add_to_bill') }}</button>
+        <p class="hint" style="margin-top:8px;">{{ t('invoices.fee_once_hint') }}</p>
+      </details>
+    </template>
 
     <!-- Discount + totals -->
     <div class="card gc-scale-in" style="margin-bottom:14px;">
@@ -120,26 +184,68 @@
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
-      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) }}">{{ t('common.cancel') }}</a>
+      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) if appt else url_for('finance.cashier') }}">{{ t('common.cancel') }}</a>
       <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
     </div>
   </form>
 </div>
 
 <script>
-  function checkout(initLines, methods, autoAmt) {
+  function checkout(initLines, methods, autoAmt, offers, feeService) {
     return {
+      offers: offers || [], feeService: feeService,
+      vac: { vaccineId: '', brandId: '', dose: '' },
+      brands(){
+        const v = this.offers.find(o => String(o.id) === String(this.vac.vaccineId));
+        return v ? v.brands : [];
+      },
+      brand(){
+        return this.brands().find(b => String(b.id) === String(this.vac.brandId)) || null;
+      },
+      doses(){ const b = this.brand(); return b ? b.doses : []; },
+      onVaccine(){
+        this.vac.brandId = ''; this.vac.dose = '';
+        const list = this.brands();
+        if (list.length === 1) { this.vac.brandId = String(list[0].id); this.onBrand(); }
+      },
+      // Land on the next undone dose. Offering dose 1 to a child three doses
+      // in is not a display problem: whichever dose is billed is the one the
+      // record gets settled against.
+      onBrand(){ const b = this.brand(); this.vac.dose = b && b.next ? b.next : ''; },
+      hasFee(){
+        return this.feeService && this.lines.some(
+          l => String(l.service_id) === String(this.feeService.id));
+      },
+      addVaccine(){
+        const b = this.brand();
+        if (!b || !this.vac.dose) return;
+        const v = this.offers.find(o => String(o.id) === String(this.vac.vaccineId));
+        const dose = b.doses.find(d => String(d.number) === String(this.vac.dose));
+        this.lines.push({service_id:'',
+          description:(v ? v.name + ' — ' : '') + b.name + (dose ? ' (' + dose.label + ')' : ''),
+          unit_price:b.price, quantity:1, no_commission:'1',
+          brand_id:b.id, dose_id:'', vs_id:'', dose_number:this.vac.dose});
+        // Once, however many vaccines: two in one visit is one administration.
+        if (this.feeService && !this.hasFee()) {
+          this.lines.push({service_id:String(this.feeService.id),
+            description:this.feeService.name, unit_price:this.feeService.price,
+            quantity:1, no_commission:'0', brand_id:'', dose_id:'', vs_id:'',
+            dose_number:''});
+        }
+        this.vac = { vaccineId: '', brandId: '', dose: '' };
+        this.recalc();
+      },
       // dose_id / vs_id say what a line is paying for. They must survive this
       // mapping: dropped here, the line submits no claim and the dose it
       // charges for is never marked billed.
-      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||''})),
+      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||'', dose_number:l.dose_number||''})),
       addId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,
       addLine() {
         if (!this.addId) return;
         var opt = document.querySelector('option[value="'+this.addId+'"][data-name]');
-        if (opt) this.lines.push({service_id:this.addId, description:opt.dataset.name, unit_price:Number(opt.dataset.price)||0, quantity:1, no_commission:'0'});
+        if (opt) this.lines.push({service_id:this.addId, description:opt.dataset.name, unit_price:Number(opt.dataset.price)||0, quantity:1, no_commission:'0', dose_number:''});
         this.addId=''; this.recalc();
       },
       recalc() {

@@ -1821,6 +1821,37 @@ def _unbilled_visit_services(appt):
             .all())
 
 
+def _checkout_url(appt, patient_id):
+    """Back to whichever door this checkout came in by."""
+    if appt is not None:
+        return url_for("finance.checkout", appt_id=appt.id)
+    return url_for("finance.collect", patient_id=patient_id)
+
+
+def _patient_checkout_lines(patient, doctor_id, lang):
+    """The billable lines for a patient with no appointment to bill against.
+
+    Everything the appointment version resolves except the base visit charge —
+    there is no visit type to take one from. What is left is what somebody owes
+    for: procedures the doctor added and doses already given, each only while
+    still unbilled.
+    """
+    lines = []
+    doctor = db.session.get(User, doctor_id) if doctor_id else None
+    for vs in _unbilled_patient_services(patient.id):
+        visit_doctor = vs.visit.doctor if vs.visit else doctor
+        lines.append({
+            "service_id": vs.service_id or "",
+            "description": vs.name,
+            "unit_price": (vs.service.price_for(visit_doctor)
+                           if vs.service else 0) or 0,
+            "quantity": vs.quantity or 1,
+            "vs_id": vs.id,
+        })
+    lines.extend(_vaccine_prefill_lines(patient.id, doctor, lang, False))
+    return lines
+
+
 def _checkout_lines(appt, lang):
     """Resolve the billable lines for an appointment: the base visit-type
     charge (at the doctor's price) + any services the doctor added during the
@@ -1903,27 +1934,55 @@ def _booked_vaccine_line(appt, lang, vaccine_lines):
 @finance_bp.route("/checkout/<int:appt_id>", methods=["GET", "POST"])
 @cashier_access
 def checkout(appt_id):
-    """Reception checkout: show the appointment's charges with editable prices,
-    let the user add services, pick a named discount, and collect with one or
-    several payment methods — then print. Replaces the silent one-click collect
-    so the amount is always visible before payment."""
+    """Reception checkout for a booked appointment."""
     from app.models import Appointment
-    appt = db.get_or_404(Appointment, appt_id)
+
+    return _checkout_screen(db.get_or_404(Appointment, appt_id), None)
+
+
+@finance_bp.route("/collect/<int:patient_id>", methods=["GET", "POST"])
+@cashier_access
+def collect(patient_id):
+    """The same checkout, for a patient who has no appointment to collect on.
+
+    Reception's "collect now" used to open the **invoice builder**: a patient
+    dropdown to pick from, a doctor dropdown, and blank lines — with the family
+    standing at the desk. Reported as *"it shouldn't be chosen from scratch
+    with the patient standing there"*, and *"the multi-payment screen should be
+    the one that shows"*, which the builder has no payment section on at all:
+    you saved an invoice, opened it, and paid from a third screen.
+
+    Same screen either way now. The only difference between the two doors is
+    whether an appointment supplied the base visit charge.
+    """
+    return _checkout_screen(None, db.get_or_404(Patient, patient_id))
+
+
+def _checkout_screen(appt, patient):
+    """Reception checkout: show the charges with editable prices, let the user
+    add services, pick a named discount, and collect with one or several
+    payment methods — then print. Replaces the silent one-click collect so the
+    amount is always visible before payment."""
+    patient = patient or (appt.patient if appt else None)
+    if patient is None:
+        abort(404)
+    patient_id = patient.id
+    doctor_id = appt.doctor_id if appt else _vaccine_doctor(patient_id)
     lang = getattr(g, "lang", "ar")
 
     if request.method == "POST":
         # One invoice per visit-day: append to today's invoice when it exists
         # (exam collected first, then a procedure/vaccine added later) instead
         # of raising a new invoice for every collection step.
-        invoice = _todays_invoice(appt.patient_id)
+        invoice = _todays_invoice(patient_id)
         if invoice is None:
             invoice = Invoice(invoice_number=generate_invoice_number(),
-                              patient_id=appt.patient_id, doctor_id=appt.doctor_id,
+                              patient_id=patient_id, doctor_id=doctor_id,
                               created_by=current_user.id)
             db.session.add(invoice)
             db.session.flush()
         elif invoice.doctor_id is None:
-            invoice.doctor_id = appt.doctor_id
+            invoice.doctor_id = doctor_id
 
         descs = request.form.getlist("line_desc")
         sids = request.form.getlist("line_service_id")
@@ -1990,21 +2049,27 @@ def checkout(appt_id):
 
         # Mark as billed exactly what these lines charged for (never twice, and
         # never something the cashier took off the bill).
+        # Which unbilled procedures this checkout could have charged for:
+        # the appointment's visit when there is one, otherwise everything of
+        # this patient's that is still unbilled — the same set the screen was
+        # filled from, or a line the cashier kept would never be marked.
+        billable = (_unbilled_visit_services(appt) if appt
+                    else _unbilled_patient_services(patient_id))
         _mark_billed(invoice,
-                     _uncharged_vaccines(appt.patient_id),
-                     _unbilled_visit_services(appt),
+                     _uncharged_vaccines(patient_id),
+                     billable,
                      _claimed_ids("line_dose_id", kept),
                      _claimed_ids("line_vs_id", kept))
 
         if not invoice.items:
             db.session.rollback()
             flash(t("cashier.nothing_to_collect"), "warning")
-            return redirect(url_for("finance.checkout", appt_id=appt.id))
+            return redirect(_checkout_url(appt, patient_id))
 
         disc, auto = _chosen_discount()
         if disc is not None:
             _apply_named_discount(invoice, disc)
-        _apply_coverage(invoice, appt.patient, auto_discount=auto)
+        _apply_coverage(invoice, patient, auto_discount=auto)
         invoice.recalc_status()
 
         # Split payment: parallel amount[]/method[] (collect now); may be empty
@@ -2042,11 +2107,22 @@ def checkout(appt_id):
         _flash_change(change_total)
         return redirect(url_for("finance.invoice_receipt", invoice_id=invoice.id, auto=1))
 
-    lines = _checkout_lines(appt, lang)
-    suggested, suggested_amount = _discount_preview(appt.patient,
-                                                    appt.doctor_id, lines)
+    lines = (_checkout_lines(appt, lang) if appt
+             else _patient_checkout_lines(patient, doctor_id, lang))
+    suggested, suggested_amount = _discount_preview(patient, doctor_id, lines)
+    from app.utils.vaccine_sale import as_json, sellable
     return render_template(
-        "finance/checkout.html", appt=appt, lines=lines,
+        "finance/checkout.html", appt=appt, patient=patient, lines=lines,
+        post_url=_checkout_url(appt, patient_id),
+        doctor=db.session.get(User, doctor_id) if doctor_id else None,
+        # The picker belongs here, on the path reception actually walks. It
+        # went onto the invoice builder first, which is the screen this change
+        # exists to keep them off.
+        vaccine_offers_json=as_json(sellable(patient, lang)),
+        vaccine_fee=_vaccine_service(),
+        # Said before the work, not after it: the gate used to fire on submit,
+        # throw the whole form away and redirect — with a family at the desk.
+        shift_needed=_shift_gate_blocked(),
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
         suggested=suggested, suggested_amount=suggested_amount,
