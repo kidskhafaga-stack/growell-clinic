@@ -3235,7 +3235,9 @@
     "request_sent": "Refund request sent to the manager for approval",
     "already_decided": "This request was already decided",
     "approved": "Approved — refund paid out",
-    "rejected": "Request rejected"
+    "rejected": "Request rejected",
+    "requests_title": "Refund requests",
+    "requests_subtitle": "Refunds waiting for a manager's approval, and recent decisions."
   },
   "storedocs": {
     "title": "Warehouse documents",

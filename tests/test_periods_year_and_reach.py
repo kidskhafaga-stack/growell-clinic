@@ -170,3 +170,68 @@ def test_both_languages_carry_the_new_words(clinic):
         assert data["periods"].get("already_there"), lang
         assert data["data_tools"].get("import_title"), lang
         assert data["data_tools"].get("import_hint"), lang
+
+
+# ===================================== no screen without a way in, ever =====
+def test_the_refund_queue_has_a_way_in(boss, clinic):
+    """The third screen found with no link — after the contracts and the
+    history import. This one holds refunds waiting for a manager, so a clinic
+    without a link here has money sitting in a queue nobody can see."""
+    body = boss.get("/finance/").get_data(as_text=True)
+    assert "/finance/refund-requests" in body
+
+
+def test_the_discount_members_screen_has_a_way_in(boss, clinic):
+    from app.models import NamedDiscount
+
+    with clinic["app"].app_context():
+        row = NamedDiscount(name="خصم", dtype="special", value=10,
+                            is_active=True)
+        clinic["db"].session.add(row)
+        clinic["db"].session.commit()
+        rid = row.id
+    body = boss.get("/finance/discounts").get_data(as_text=True)
+    assert f"/finance/discounts/{rid}/members" in body
+
+
+def test_no_page_is_left_without_a_link(boss, clinic):
+    """The rule this file exists to keep. Three screens have now been built
+    and lost — the contracts, the history import, the refund queue — so it is
+    checked rather than remembered.
+
+    The allowances are endpoints that are genuinely not navigated to: token
+    links sent to a family, and fragments fetched by another screen's script.
+    """
+    import os
+    import re
+
+    linked = set()
+    for root, _dirs, files in os.walk("app/templates"):
+        for name in files:
+            if not name.endswith(".html"):
+                continue
+            text = open(os.path.join(root, name), encoding="utf-8").read()
+            # Any quoted "blueprint.endpoint" — not only url_for(), because
+            # the reports hub builds its cards from a list of endpoint names
+            # and passes them to url_for a line later.
+            linked |= set(re.findall(r"""['"]([a-z_]+\.[a-z_0-9]+)['"]""",
+                                     text))
+    # The sidebar builds its links from a map in the app factory.
+    import app as app_pkg
+
+    source = open(os.path.join(os.path.dirname(app_pkg.__file__), "__init__.py"),
+                  encoding="utf-8").read()
+    linked |= set(re.findall(r"""['"]([a-z_]+\.index)['"]""", source))
+
+    skip = ("search", "slots", "export", "print", "download", "healthz",
+            "webhook", "verify", "qr", "logout", "static", "api", "_json",
+            "preset_lines", "feedback.rate")
+    missing = []
+    for rule in clinic["app"].url_map.iter_rules():
+        endpoint = rule.endpoint
+        if "GET" not in rule.methods or endpoint == "static":
+            continue
+        if endpoint in linked or any(s in endpoint for s in skip):
+            continue
+        missing.append(endpoint)
+    assert not missing, f"screens with no way in: {sorted(missing)}"
