@@ -77,8 +77,25 @@
       </tbody>
     </table>
   </div>
-  <a class="btn btn-outline gc-press" style="margin-top:10px;" href="{{ url_for('patients.bulk_import') }}">
-    <i class="bi bi-people"></i> {{ t('history_import.go_patients') }}</a>
+  {# "Import those patients first" was a sentence, not a path. This is the
+     file to fill in: their code and name already in it, and the columns only
+     the clinic can supply left blank. The date of birth is one of those on
+     purpose — it drives every vaccination due date and growth centile, so a
+     guessed one is a wrong dose date for a real child. #}
+  <p class="hint" style="margin:10px 0 6px;">{{ t('history_import.missing_kept') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {# Its own form: this card sits outside the map/commit forms, so a
+       `formaction` here would have nothing to submit. #}
+    <form method="post" action="{{ url_for('patients.history_missing_patients') }}"
+          style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="token" value="{{ token }}">
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-file-earmark-arrow-down"></i> {{ t('history_import.missing_download') }}</button>
+    </form>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.bulk_import') }}">
+      <i class="bi bi-people"></i> {{ t('history_import.go_patients') }}</a>
+  </div>
 </div>
 {% endif %}
 

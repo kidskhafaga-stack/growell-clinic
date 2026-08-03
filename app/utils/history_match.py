@@ -233,6 +233,10 @@ def missing_patient_codes(records, limit=200):
 
     Listed rather than counted: "412 rows rejected" tells a clinic nothing, and
     the fix — import those patients first — needs to know *which*.
+
+    ``limit=None`` returns all of them, which is what the download uses: a
+    screen is right to show the worst 200, and a file the clinic is going to
+    fill in and upload has to be complete or it quietly loses the rest.
     """
     out = {}
     for record in records:
@@ -245,7 +249,8 @@ def missing_patient_codes(records, limit=200):
         entry["rows"] += 1
         if not entry["name"]:
             entry["name"] = record.get("patient_name") or ""
-    return sorted(out.values(), key=lambda e: -e["rows"])[:limit]
+    rows = sorted(out.values(), key=lambda e: -e["rows"])
+    return rows if limit is None else rows[:limit]
 
 
 def distinct_values(records, key, limit=300):

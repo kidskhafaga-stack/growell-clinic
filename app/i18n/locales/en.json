@@ -4252,6 +4252,12 @@
     "group_vaccines": "Vaccines",
     "make_user": "Create an inactive user with this name",
     "will_create_users": "Users that will be created",
-    "will_create_hint": "These are doctors in your file with no user here, and you asked for them. The account is created inactive — it cannot sign in — so their past work is attached to a person in the commission reports and the tax export. If the doctor still works with you, activating them is one click on the users screen. Nothing is created until you press import."
+    "will_create_hint": "These are doctors in your file with no user here, and you asked for them. The account is created inactive — it cannot sign in — so their past work is attached to a person in the commission reports and the tax export. If the doctor still works with you, activating them is one click on the users screen. Nothing is created until you press import.",
+    "missing_kept": "Their history is not lost. Nothing is imported for them and nothing is thrown away either — the rows stay in your file, and re-uploading it once the patients exist picks them up, because a second upload compares instead of appending.",
+    "missing_download": "Download the missing patients as an import sheet",
+    "no_missing": "No missing patients in this file — every code found a patient here.",
+    "missing_sheet_1": "This file holds the patients your services export names that do not exist here yet — their code and name are already filled in from your file.",
+    "missing_sheet_2": "Fill in date_of_birth and gender — both are required, and a services export carries neither. The date of birth in particular drives every vaccination due date and growth centile, so a guessed one is a wrong dose date for a real child.",
+    "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before."
   }
 }
