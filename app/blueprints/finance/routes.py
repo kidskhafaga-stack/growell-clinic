@@ -2862,19 +2862,33 @@ def periods():
     from flask import abort
 
     from app.models import AccountingPeriod
-    from app.utils.periods import (KINDS, close_period, generate_periods,
-                                   reopen_period, selectable_years)
+    from app.utils.periods import (KINDS, close_period, count_periods,
+                                   generate_periods, reopen_period,
+                                   selectable_years, valid_year)
 
-    year = request.values.get("year", type=int) or date.today().year
+    # Typed, not picked from a closed list. The suggestions cover the years a
+    # clinic wants nine times out of ten; a clinic entering 2019's books, or
+    # opening 2030, was previously told no by a dropdown with nothing on the
+    # screen explaining why.
+    year = valid_year(request.values.get("year"))
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
         if action == "generate":
             kind = (request.form.get("kind") or "month").strip()
             if kind not in KINDS:
                 kind = "month"
+            before = count_periods(year, kind)
             made = generate_periods(year, kind, getattr(g, "lang", "ar"))
             db.session.commit()
-            flash(t("periods.generated").replace("{n}", str(made)), "success")
+            if made:
+                flash(t("periods.generated").replace("{n}", str(made)), "success")
+            else:
+                # Creating is idempotent, so pressing twice is harmless — but
+                # "0 created" reported as success reads as a failure nobody can
+                # explain. Say which year and which kind already exist.
+                flash(t("periods.already_there")
+                      .replace("{n}", str(before))
+                      .replace("{y}", str(year)), "warning")
             return redirect(url_for("finance.periods", year=year))
         if not current_user.is_admin:
             abort(403)          # closing/reopening the books is admin-only

@@ -1964,7 +1964,9 @@
     "patients_count": "Patients",
     "invoices_count": "Invoices",
     "status_seeded": "Demo data loaded",
-    "status_clean": "Clean"
+    "status_clean": "Clean",
+    "import_title": "Bringing data in",
+    "import_hint": "A clinic that ran on another program: import the patients first, then their service and vaccination history."
   },
   "guide": {
     "nav": "User guide",
@@ -3824,7 +3826,8 @@
     "kind_quarter": "Quarterly",
     "kind_half": "Half-yearly",
     "kind_year": "Yearly",
-    "search_ph": "Period name…"
+    "search_ph": "Period name…",
+    "already_there": "This year already has {n} period(s) of that kind — nothing new was created. For a different kind (months / quarters / halves / full year) pick it from the list."
   },
   "members": {
     "title": "Entity members",

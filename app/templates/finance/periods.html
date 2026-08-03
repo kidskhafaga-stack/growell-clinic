@@ -18,10 +18,16 @@
      was no way to reach 2027 in order to create it, and the dropdown showed a
      single option forever. #}
   <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    {# Typed, with the usual years suggested. A closed dropdown told a clinic
+       entering 2019's books, or opening 2030, "no" — with nothing on the
+       screen to explain why those years did not exist. #}
     <div class="form-row" style="margin:0;max-width:120px;"><label>{{ t('periods.year') }}</label>
-      <select class="select" name="year" onchange="this.form.submit()" dir="ltr">
-        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == year else '' }}>{{ y }}</option>{% endfor %}
-      </select></div>
+      <input class="input" name="year" type="number" dir="ltr" list="period-years"
+             min="1900" max="2200" step="1" value="{{ year }}"
+             onchange="this.form.submit()">
+      <datalist id="period-years">
+        {% for y in years %}<option value="{{ y }}"></option>{% endfor %}
+      </datalist></div>
     <div class="form-row" style="margin:0;max-width:150px;"><label>{{ t('periods.kind') }}</label>
       <select class="select" name="kind" onchange="this.form.submit()">
         <option value="">{{ t('common.all') }}</option>

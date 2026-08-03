@@ -21,6 +21,20 @@
     <div class="value" style="font-size:1rem;">{{ t('data_tools.status_seeded') if stats.seeded else t('data_tools.status_clean') }}</div><div class="label">{{ t('data_tools.current') }}</div></div>
 </div>
 
+<!-- Bringing data IN. This screen is called "data tools" and had only the
+     ways out of the program; a clinic moving off another one looked here
+     first and found nothing. -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-box-arrow-in-down"></i> {{ t('data_tools.import_title') }}</h2>
+  <p class="hint" style="margin:6px 0 12px;">{{ t('data_tools.import_hint') }}</p>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.bulk_import') }}">
+    <i class="bi bi-people"></i> {{ t('patients.import_patients') }}</a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">
+    <i class="bi bi-database-down"></i> {{ t('history_import.title') }}</a>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_batches') }}">
+    <i class="bi bi-clock-history"></i> {{ t('history_import.batches_title') }}</a>
+</div>
+
 <!-- Data export (raw records → CSV / Excel) -->
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin:0;"><i class="bi bi-filetype-csv"></i> {{ t('data_export.title') }}</h2>
