@@ -105,8 +105,14 @@
               {{ t('discounts.min_siblings') }}: {{ d.min_siblings or 2 }}
               {% if d.same_doctor %}<span class="badge badge--muted">{{ t('discounts.same_doctor') }}</span>{% endif %}
             {% elif d.dtype=='payer' and d.payer_ids %}
+              {# The club is not the answer to "who gets this". Each name
+                 carries how many cards are valid today and is a link to the
+                 names — the question somebody opens this screen to ask. #}
               {% for p in payers if p.id in d.payer_ids %}
-              <a href="{{ url_for('finance.payer_members', payer_id=p.id) }}">{{ p.display_name(current_lang) }}</a>{{ '' if loop.last else ' · ' }}
+              <a href="{{ url_for('finance.payer_members', payer_id=p.id) }}">{{ p.display_name(current_lang) }}</a><span
+                 class="badge {{ 'badge--green' if member_counts.get(p.id) else 'badge--muted' }}"
+                 title="{{ t('discounts.members_hint') }}"
+                 dir="ltr">{{ member_counts.get(p.id, 0) }}</span>{{ '' if loop.last else ' · ' }}
               {% endfor %}
               {% if d.family_wide %}<span class="badge badge--muted">{{ t('discounts.family_wide') }}</span>{% endif %}
             {% else %}—{% endif %}

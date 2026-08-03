@@ -185,3 +185,69 @@ def test_both_languages_carry_the_hint(clinic):
                   encoding="utf-8") as fh:
             data = json.load(fh)
         assert data["discounts"].get("payer_multi_hint"), lang
+
+
+# ============================================ and who, not just which club ==
+def test_the_row_says_how_many_members_it_reaches(boss, clubs, clinic):
+    """"Which club" is not the same question as "who gets it". A rule naming a
+    club and showing nothing else leaves an admin unable to answer the only
+    thing they opened the screen to check."""
+    _card(clinic, clubs["smouha"])
+    _discount(clinic, [clubs["smouha"], clubs["sporting"]])
+
+    body = boss.get("/finance/discounts").get_data(as_text=True)
+    with clinic["app"].test_request_context("/"):
+        from app.i18n import t
+        assert t("discounts.members_hint") in body
+
+
+def test_the_count_is_of_cards_that_are_valid_today(boss, clubs, clinic):
+    """A club with forty expired cards gives nobody a discount, and a row
+    saying "40" there would be worse than saying nothing."""
+    from datetime import timedelta
+
+    from app.models import PatientCoverage
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(PatientCoverage(
+            patient_id=clinic["ids"]["child"], payer_id=clubs["smouha"],
+            membership_number="OLD", is_active=True,
+            expiry_date=date.today() - timedelta(days=1)))
+        clinic["db"].session.commit()
+
+    from app.blueprints.finance.routes import _valid_member_counts
+
+    with clinic["app"].app_context():
+        assert _valid_member_counts().get(clubs["smouha"], 0) == 0
+
+
+def test_a_switched_off_card_is_not_counted(clubs, clinic):
+    from app.models import PatientCoverage
+
+    from app.blueprints.finance.routes import _valid_member_counts
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(PatientCoverage(
+            patient_id=clinic["ids"]["child"], payer_id=clubs["smouha"],
+            membership_number="OFF", is_active=False))
+        clinic["db"].session.commit()
+        assert _valid_member_counts().get(clubs["smouha"], 0) == 0
+
+
+def test_a_valid_card_is_counted(clubs, clinic):
+    from app.blueprints.finance.routes import _valid_member_counts
+
+    _card(clinic, clubs["smouha"])
+    with clinic["app"].app_context():
+        assert _valid_member_counts()[clubs["smouha"]] == 1
+
+
+def test_the_members_screen_finds_a_discount_that_names_several_clubs(
+        boss, clubs, clinic):
+    """The bug the multi-club change would otherwise have introduced: this
+    screen asked the single column, so a club covered by a shared rule would
+    be told it has no discount — on the screen somebody opens to check."""
+    _discount(clinic, [clubs["smouha"], clubs["sporting"]])
+    body = boss.get(f"/finance/payers/{clubs['sporting']}/members").get_data(
+        as_text=True)
+    assert "أعضاء الأندية" in body

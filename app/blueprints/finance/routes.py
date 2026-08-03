@@ -2372,7 +2372,12 @@ def discounts():
         services=Service.query.filter_by(is_active=True)
         .order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True)
-        .order_by(PayerEntity.name).all())
+        .order_by(PayerEntity.name).all(),
+        # "Which club" is not the same question as "who gets it". A rule that
+        # names a club and shows nothing else leaves an admin unable to answer
+        # the only thing they came to check — so the count of valid cards is
+        # on the row, and it is a link to the names.
+        member_counts=_valid_member_counts())
 
 
 # ======================================= client categories (نقدي / عاملين / …)
@@ -2482,6 +2487,27 @@ def client_category_delete(cat_id):
     db.session.commit()
     flash(t("categories.deleted"), "info")
     return redirect(url_for("finance.discounts"))
+
+
+def _valid_member_counts():
+    """``{payer_id: how many patients hold a card that is good today}``.
+
+    Counted in one query for the whole screen rather than per row — and
+    counting only the *valid* ones, because a club with forty expired cards
+    and none current gives nobody a discount, and a row saying "40" there
+    would be worse than saying nothing.
+    """
+    from app.models import PatientCoverage
+
+    today = date.today()
+    counts = {}
+    for payer_id, active, expiry in db.session.query(
+            PatientCoverage.payer_id, PatientCoverage.is_active,
+            PatientCoverage.expiry_date).all():
+        if not active or (expiry and expiry < today):
+            continue
+        counts[payer_id] = counts.get(payer_id, 0) + 1
+    return counts
 
 
 def _fill_discount(row):
@@ -3008,9 +3034,13 @@ def payer_members(payer_id):
                       PatientCoverage.expiry_date.is_(None),
                       PatientCoverage.expiry_date.desc()).all())
     from app.models import NamedDiscount
-    member_discounts = (NamedDiscount.query
-                        .filter_by(dtype="payer", payer_id=payer.id,
-                                   is_active=True).all())
+    # Both shapes: the single column an older rule was saved with, and the
+    # list a rule covering several clubs uses. Asking only the column would
+    # make this screen say "no discount" for a club that has one — on the very
+    # screen somebody opens to check.
+    member_discounts = [d for d in NamedDiscount.query
+                        .filter_by(dtype="payer", is_active=True).all()
+                        if payer.id in d.payer_ids]
     if request.args.get("print"):
         lang = request.args.get("lang")
         if lang in ("ar", "en"):
