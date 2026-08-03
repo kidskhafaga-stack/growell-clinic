@@ -402,10 +402,17 @@ def view(patient_id):
                 .order_by(ImportedService.service_date.desc(),
                           ImportedService.id.desc()).all())
 
+    # Brothers and sisters who are already patients here. "Add sibling" only
+    # ever led to a blank new-patient form, which in a clinic that has been
+    # open a while is the wrong half of the problem: the sibling usually
+    # exists already, and creating him again makes two files for one child.
+    from app.utils.siblings import suggest_siblings
+
     return render_template(
         "patients/profile.html",
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
         imported=imported,
+        sibling_hints=suggest_siblings(patient),
         patient=patient,
         relations=PARENT_RELATIONS,
         consent_types=CONSENT_TYPES,
@@ -2100,6 +2107,97 @@ def _doctors_to_create(payload):
     return [names.get(key) or key
             for key, choice in (payload.get("doctor_links") or {}).items()
             if str(choice) == CREATE_DOCTOR]
+
+
+@patients_bp.route("/<int:patient_id>/siblings/link", methods=["POST"])
+@module_required(MODULE)
+def sibling_link(patient_id):
+    """Attach an existing patient to this child's family.
+
+    The action that was missing. Creating a second file for a child who
+    already has one is the expensive mistake here — it splits a vaccination
+    history in half, and the half the next receptionist finds is the empty one.
+
+    A child who is already filed with **another** family is refused rather
+    than moved: that is a merge, and a merge is not a one-click button on a
+    list of suggestions.
+    """
+    from app.models import Family
+
+    patient = db.get_or_404(Patient, patient_id)
+    other = db.session.get(Patient, request.form.get("sibling_id", type=int))
+    if other is None or other.id == patient.id:
+        flash(t("common.not_found"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+    if other.family_id and other.family_id != patient.family_id:
+        flash(t("siblings.already_in_family").replace(
+            "{name}", other.display_name(getattr(g, "lang", "ar"))), "warning")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+
+    # This child may have no family row yet — the commonest case of all, since
+    # a family is created the first time somebody records a parent.
+    if not patient.family_id:
+        family = Family(family_name=patient.full_name)
+        db.session.add(family)
+        db.session.flush()
+        patient.family_id = family.id
+
+    other.family_id = patient.family_id
+    ActivityLog.record("patient.sibling.link", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=f"{other.patient_number} → family {patient.family_id}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("siblings.linked").replace(
+        "{name}", other.display_name(getattr(g, "lang", "ar"))), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+
+
+@patients_bp.route("/<int:patient_id>/siblings/unlink", methods=["POST"])
+@module_required(MODULE)
+def sibling_unlink(patient_id):
+    """Take a child back out of the family — because linking the wrong one is
+    a thing that happens, and an action with no way back is one people avoid
+    using at all."""
+    patient = db.get_or_404(Patient, patient_id)
+    other = db.session.get(Patient, request.form.get("sibling_id", type=int))
+    if other is None or other.family_id != patient.family_id:
+        flash(t("common.not_found"), "danger")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+
+    other.family_id = None
+    ActivityLog.record("patient.sibling.unlink", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=other.patient_number, ip_address=client_ip())
+    db.session.commit()
+    flash(t("siblings.unlinked"), "info")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+
+
+@patients_bp.route("/<int:patient_id>/siblings/search")
+@module_required(MODULE)
+def sibling_search(patient_id):
+    """JSON: patients who could be linked as a sibling of this one."""
+    from flask import jsonify
+
+    from app.utils.patients import apply_patient_search
+
+    patient = db.get_or_404(Patient, patient_id)
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"patients": []})
+    rows = (apply_patient_search(
+        Patient.query.filter(Patient.is_active.is_(True),
+                             Patient.id != patient.id), q)
+        .order_by(Patient.full_name).limit(15).all())
+    lang = getattr(g, "lang", "ar")
+    return jsonify({"patients": [
+        {"id": p.id, "full_name": p.display_name(lang),
+         "patient_number": p.patient_number,
+         # Said on the row rather than found out after pressing: a child in
+         # another family cannot be linked, and the reason is not obvious.
+         "in_family": bool(p.family_id and p.family_id != patient.family_id)}
+        for p in rows]})
 
 
 def _resolved_doctors(links):
