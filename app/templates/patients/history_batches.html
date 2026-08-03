@@ -1,0 +1,61 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('history_import.batches_title') }}{% endblock %}
+{% block page_heading %}{{ t('history_import.batches_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('history_import.batches_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('history_import.batches_hint') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">
+    <i class="bi bi-upload"></i> {{ t('history_import.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if batches %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:640px;">
+      <thead><tr>
+        <th>{{ t('common.when') }}</th><th>{{ t('common.who') }}</th>
+        <th>{{ t('import.file') if t('import.file') != 'import.file' else t('import.choose_file') }}</th>
+        <th style="text-align:end;">{{ t('history_import.st_new') }}</th>
+        <th style="text-align:end;">{{ t('history_import.st_rejected') }}</th>
+        <th style="text-align:end;"></th>
+      </tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td dir="ltr" style="white-space:nowrap;">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ b.creator.display_name(current_lang) if b.creator else '—' }}</td>
+          <td dir="ltr">{{ b.filename or '—' }}</td>
+          <td style="text-align:end;" dir="ltr">{{ b.rows_added }}</td>
+          <td style="text-align:end;" dir="ltr">{{ b.rows_rejected }}</td>
+          <td style="text-align:end;">
+            {% if b.notes == 'undone' %}
+            <span class="badge badge--muted">{{ t('history_import.undone_badge') }}</span>
+            {% else %}
+            {# Exact, not approximate: every row this import created carries its
+               batch, so this removes what it added and leaves what the clinic
+               has entered since. #}
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('patients.history_batch_undo', batch_id=b.id) }}"
+                  onsubmit="return confirm('{{ t('history_import.undo_confirm') }}')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"
+                      style="color:var(--danger);border-color:var(--danger);">
+                <i class="bi bi-arrow-counterclockwise"></i> {{ t('history_import.undo') }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-database"></i>{{ t('history_import.no_batches') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -262,7 +262,8 @@
     "update_now": "Update now",
     "file_no": "File #",
     "name": "Name",
-    "tab_studies": "Studies"
+    "tab_studies": "Studies",
+    "tab_history": "Old history"
   },
   "import": {
     "title": "Import patient data",
@@ -4212,6 +4213,18 @@
     "conf_high": "Clear match",
     "conf_medium": "Check this",
     "conf_low": "Unsure — look carefully",
-    "link_hint": "Your file has thousands of rows but few distinct names, so you confirm this once. The program proposes and you decide: no vaccine is recorded for a child without your confirmation. Anything that is not a vaccine stays a plain service."
+    "link_hint": "Your file has thousands of rows but few distinct names, so you confirm this once. The program proposes and you decide: no vaccine is recorded for a child without your confirmation. Anything that is not a vaccine stays a plain service.",
+    "batches_title": "Imports",
+    "batches_hint": "Every import that has been run, by whom and when — and any of them can be taken back.",
+    "undo": "Undo",
+    "undone_badge": "Undone",
+    "no_batches": "No import has been run yet",
+    "undo_confirm": "This removes everything this import added. Anything the clinic corrected or recorded itself is kept. Continue?",
+    "undone": "{n} rows removed",
+    "already_undone": "This import has already been undone",
+    "in_file": "History from the old program",
+    "in_file_hint": "Services brought across from the program this clinic used before. The vaccinations among them became real vaccination records and appear on the vaccinations tab. These amounts are history only — they do not enter the till or the financial reports.",
+    "row_saved": "Row saved",
+    "row_removed": "Row removed"
   }
 }

@@ -39,6 +39,8 @@
       <i class="bi bi-arrow-{{ 'left' if direction=='rtl' else 'right' }}"></i> {{ t('history_import.preview') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import_template') }}">
       <i class="bi bi-file-earmark-arrow-down"></i> {{ t('history_import.template') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_batches') }}">
+      <i class="bi bi-clock-history"></i> {{ t('history_import.batches_title') }}</a>
   </form>
   <p class="hint" style="margin:10px 0 0;"><i class="bi bi-info-circle"></i> {{ t('history_import.template_hint') }}</p>
 </div>

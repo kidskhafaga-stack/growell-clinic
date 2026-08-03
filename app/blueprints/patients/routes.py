@@ -391,9 +391,21 @@ def view(patient_id):
     # Three copies of one list is three chances to disagree.
     from app.utils.studies import patient_studies
 
+    # Case history brought across from the program the clinic used before. The
+    # vaccinations among it became real vaccination records, so they show on
+    # that tab; the plain services — كشف, إستشارة, most of a real export — had
+    # nowhere to appear at all, which made "the clinic does not lose its
+    # history" only half true.
+    from app.models import ImportedService
+    imported = (ImportedService.query
+                .filter_by(patient_id=patient.id)
+                .order_by(ImportedService.service_date.desc(),
+                          ImportedService.id.desc()).all())
+
     return render_template(
         "patients/profile.html",
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
+        imported=imported,
         patient=patient,
         relations=PARENT_RELATIONS,
         consent_types=CONSENT_TYPES,
@@ -1696,3 +1708,129 @@ def _record_imported_doses(rows, batch_id):
     if doses:
         db.session.bulk_insert_mappings(PatientVaccine, doses)
     return len(doses)
+
+
+@patients_bp.route("/import/history/batches")
+@module_required(MODULE)
+def history_batches():
+    """Every history import this clinic has run, newest first."""
+    from app.models import ImportBatch
+
+    return render_template(
+        "patients/history_batches.html",
+        batches=(ImportBatch.query.filter_by(kind="history")
+                 .order_by(ImportBatch.id.desc()).limit(50).all()))
+
+
+@patients_bp.route("/import/history/batches/<int:batch_id>/undo",
+                   methods=["POST"])
+@module_required(MODULE)
+def history_batch_undo(batch_id):
+    """Take back one import — and nothing else.
+
+    Ten thousand rows written against real data needs a way back, and the only
+    kind worth having is one that is *exact*. Every row this import created
+    carries its batch, so undoing removes what it added and leaves untouched
+    everything the clinic has entered or corrected since.
+
+    Two things are deliberately kept:
+
+    * **A dose the clinic has since corrected.** If a doctor changed the number,
+      the date, or marked it given elsewhere, that is their record now — not the
+      import's — and deleting it would throw away the review the whole import
+      was built to invite.
+    * **The batch row itself.** "This import was undone, by whom, when" is part
+      of the history of the file, and a clinic asking six months later why a
+      decade of vaccinations is missing deserves an answer.
+    """
+    from app.models import ImportBatch, ImportedService, PatientVaccine
+
+    batch = db.get_or_404(ImportBatch, batch_id)
+    if batch.rows_added == 0 and batch.notes == "undone":
+        flash(t("history_import.already_undone"), "info")
+        return redirect(url_for("patients.history_batches"))
+
+    # Doses the clinic has corrected since are theirs, not the import's.
+    kept = 0
+    doses = PatientVaccine.query.filter_by(import_batch_id=batch.id).all()
+    for dose in doses:
+        if dose.given_outside or dose.outside_place or dose.lot_number:
+            dose.import_batch_id = None
+            kept += 1
+        else:
+            db.session.delete(dose)
+
+    removed = ImportedService.query.filter_by(batch_id=batch.id).delete(
+        synchronize_session=False)
+
+    batch.rows_added = 0
+    batch.notes = "undone"
+    ActivityLog.record("history.import.undo", user_id=current_user.id,
+                       entity="import_batch", entity_id=batch.id,
+                       detail=f"-{removed} rows, {len(doses) - kept} doses, "
+                              f"{kept} kept",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("history_import.undone").replace("{n}", str(removed)), "success")
+    return redirect(url_for("patients.history_batches"))
+
+
+@patients_bp.route("/imported/<int:row_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def imported_service_edit(row_id):
+    """Correct one line of imported history.
+
+    Asked for as "add these services to the patient files and edit them there
+    one at a time". Ten years of somebody else's data will have wrong dates,
+    wrong prices and names that mean nothing here, and a clinic that cannot fix
+    a line in its own file does not trust the file.
+    """
+    from app.models import ImportedService
+
+    row = db.get_or_404(ImportedService, row_id)
+    name = (request.form.get("source_name") or "").strip()
+    if name:
+        row.source_name = name[:255]
+    when = (request.form.get("service_date") or "").strip()
+    if when:
+        try:
+            row.service_date = datetime.strptime(when, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    price = request.form.get("price", type=float)
+    if price is not None and price >= 0:
+        row.price = price
+    row.notes = (request.form.get("notes") or "").strip() or None
+
+    ActivityLog.record("history.row.edit", user_id=current_user.id,
+                       entity="patient", entity_id=row.patient_id,
+                       detail=f"{row.source_name} {row.service_date}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("history_import.row_saved"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#history")
+
+
+@patients_bp.route("/imported/<int:row_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def imported_service_delete(row_id):
+    """Remove one line of imported history.
+
+    Deleting the whole import is a different button on a different screen. This
+    is for the single row that should never have been there — a duplicate in
+    the old program, a service billed to the wrong child years ago.
+    """
+    from app.models import ImportedService
+
+    row = db.get_or_404(ImportedService, row_id)
+    patient_id = row.patient_id
+    ActivityLog.record("history.row.delete", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=f"{row.source_name} {row.service_date}",
+                       ip_address=client_ip())
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("history_import.row_removed"), "info")
+    return redirect(url_for("patients.view", patient_id=patient_id)
+                    + "#history")

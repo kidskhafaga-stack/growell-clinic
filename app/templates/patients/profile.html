@@ -126,6 +126,11 @@
           ('prescriptions','tab_prescriptions','capsule'),
           ('documents','tab_documents','folder')
         ] %}
+        {% if imported %}
+        {# Only when there is something in it: an empty tab labelled "history"
+           on every file is furniture. #}
+        {% set ns.tabs = ns.tabs + [('history','tab_history','database-down')] %}
+        {% endif %}
       {% endif %}
       {% if current_user.can('cashier') or current_user.can_access('finance') %}
         {% set ns.tabs = ns.tabs + [('finance','tab_finance','cash-coin')] %}
@@ -137,6 +142,61 @@
       </button>
       {% endfor %}
     </div>
+
+    {# Case history from the program this clinic used before. The vaccinations
+       among it became real vaccination records and show on that tab; these are
+       the plain services — كشف, إستشارة — which are most of a real export and
+       previously had nowhere to appear at all. #}
+    {% if imported %}
+    <div class="gc-tab-panel" x-show="tab==='history'" x-cloak>
+      <div class="card gc-scale-in">
+        <h2 class="section-title"><i class="bi bi-database-down"></i> {{ t('history_import.in_file') }}</h2>
+        <p class="hint" style="margin:-4px 0 12px;">{{ t('history_import.in_file_hint') }}</p>
+        <div style="overflow-x:auto;">
+          <table class="table" style="min-width:600px;">
+            <thead><tr>
+              <th>{{ t('invoices.date') }}</th><th>{{ t('invoices.description') }}</th>
+              <th style="text-align:end;">{{ t('services.price') }}</th>
+              <th style="text-align:end;">{{ t('common.actions') }}</th>
+            </tr></thead>
+            <tbody>
+              {% for row in imported %}
+              <tr>
+                <td dir="ltr" style="white-space:nowrap;">{{ row.service_date }}</td>
+                <td dir="auto">{{ row.source_name }}
+                  {% if row.vaccine_brand_id %}<span class="badge badge--green">{{ t('vaccinations.dose') }} {{ row.dose_number or '—' }}</span>{% endif %}
+                  {% if row.notes %}<div class="hint">{{ row.notes }}</div>{% endif %}</td>
+                <td style="text-align:end;" dir="ltr">{{ '%.2f'|format(row.price or 0) }}</td>
+                <td style="text-align:end;white-space:nowrap;">
+                  <details style="display:inline-block;text-align:start;">
+                    <summary class="hint" style="cursor:pointer;"><i class="bi bi-pencil"></i></summary>
+                    <form method="post" action="{{ url_for('patients.imported_service_edit', row_id=row.id) }}"
+                          style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <div class="form-row" style="margin:0;max-width:140px;">
+                        <label style="font-size:.75rem;">{{ t('invoices.date') }}</label>
+                        <input class="input" type="date" name="service_date" value="{{ row.service_date }}"></div>
+                      <div class="form-row" style="margin:0;min-width:150px;">
+                        <label style="font-size:.75rem;">{{ t('invoices.description') }}</label>
+                        <input class="input" name="source_name" value="{{ row.source_name }}"></div>
+                      <div class="form-row" style="margin:0;max-width:110px;">
+                        <label style="font-size:.75rem;">{{ t('services.price') }}</label>
+                        <input class="input" type="number" step="0.01" min="0" name="price" value="{{ row.price or 0 }}"></div>
+                      <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i></button>
+                      <button class="btn-x" type="submit" formnovalidate
+                              formaction="{{ url_for('patients.imported_service_delete', row_id=row.id) }}"
+                              onclick="return confirm('{{ t('common.confirm_delete') }}')"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </details>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- Overview -->
     <div class="gc-tab-panel" x-show="tab==='overview'" x-cloak>
