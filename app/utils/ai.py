@@ -122,6 +122,7 @@ AI_PROVIDERS = {
 
 DEFAULT_PROVIDER = "claude"
 REQUEST_TIMEOUT = 60
+ANTHROPIC_VERSION = "2023-06-01"
 
 
 def get_config():
@@ -350,7 +351,7 @@ def _chat_anthropic(requests, cfg, messages, system_prompt):
         cfg["base_url"],
         headers={
             "x-api-key": cfg["api_key"],
-            "anthropic-version": "2023-06-01",
+            "anthropic-version": ANTHROPIC_VERSION,
             "Content-Type": "application/json",
         },
         json=body,
@@ -387,6 +388,104 @@ def _chat_gemini(requests, cfg, messages, system_prompt):
     data = resp.json()
     parts = data["candidates"][0]["content"]["parts"]
     return {"ok": True, "text": "".join(p.get("text", "") for p in parts)}
+
+
+def list_models(config=None):
+    """Ask the provider which models **this key** may actually use.
+
+    Added because the bundled list went stale in the way bundled lists always
+    do: a clinic pressed "use the free setup", pasted a fresh key, and got
+    ``HTTP 404: this model is no longer available to new users``. The id was
+    right when it was written and wrong by the time somebody set the program
+    up — and a list of suggestions that 404s is worse than no list, because
+    the person has no way to know which of the two is out of date.
+
+    Vendors retire models on their own schedule; nobody is going to ship a
+    release of this program every time Google does. So the truth is fetched
+    from the account that will be billed for it, and the bundled names are
+    only what fills the box before anyone has a key.
+
+    Returns ``{"ok": True, "models": [...]}`` or ``{"ok": False, "error": ...}``.
+    """
+    cfg = config or get_config()
+    if not cfg["base_url"]:
+        return {"ok": False, "error": "not_configured"}
+    if not cfg["api_key"] and not cfg["local"]:
+        return {"ok": False, "error": "no_key"}
+
+    try:
+        import requests
+    except ImportError:  # pragma: no cover - requests is in requirements
+        return {"ok": False, "error": "requests library not installed"}
+
+    api = AI_PROVIDERS[cfg["provider"]]["api"]
+    try:
+        if api == "gemini":
+            return _models_gemini(requests, cfg)
+        if api == "anthropic":
+            return _models_anthropic(requests, cfg)
+        return _models_openai(requests, cfg)
+    except requests.exceptions.RequestException as exc:
+        return {"ok": False, "error": f"network: {exc}"}
+    except (KeyError, ValueError, IndexError, TypeError) as exc:
+        return {"ok": False, "error": f"bad response: {exc}"}
+
+
+def _models_gemini(requests, cfg):
+    # base_url already points at ".../v1beta/models" — the same collection the
+    # chat call posts into, so one setting stays one setting.
+    resp = requests.get(cfg["base_url"].rstrip("/"),
+                        params={"key": cfg["api_key"]},
+                        timeout=REQUEST_TIMEOUT)
+    if not resp.ok:
+        return {"ok": False, "error": _http_error(resp)}
+    out = []
+    for row in resp.json().get("models") or []:
+        name = (row.get("name") or "").split("/")[-1]
+        # Only the ones that can answer a chat. The same endpoint lists
+        # embedding models, and offering one as an assistant is a support call.
+        methods = row.get("supportedGenerationMethods") or []
+        if name and (not methods or "generateContent" in methods):
+            out.append(name)
+    return {"ok": True, "models": sorted(set(out))}
+
+
+def _models_openai(requests, cfg):
+    url = _sibling_url(cfg["base_url"], "models")
+    headers = {}
+    if cfg["api_key"]:
+        headers["Authorization"] = f"Bearer {cfg['api_key']}"
+    resp = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+    if not resp.ok:
+        return {"ok": False, "error": _http_error(resp)}
+    data = resp.json()
+    rows = data.get("data") if isinstance(data, dict) else data
+    out = [r.get("id") for r in (rows or []) if isinstance(r, dict) and r.get("id")]
+    return {"ok": True, "models": sorted(set(out))}
+
+
+def _models_anthropic(requests, cfg):
+    url = _sibling_url(cfg["base_url"], "models")
+    resp = requests.get(url, timeout=REQUEST_TIMEOUT, headers={
+        "x-api-key": cfg["api_key"], "anthropic-version": ANTHROPIC_VERSION})
+    if not resp.ok:
+        return {"ok": False, "error": _http_error(resp)}
+    out = [r.get("id") for r in (resp.json().get("data") or []) if r.get("id")]
+    return {"ok": True, "models": sorted(set(out))}
+
+
+def _sibling_url(base_url, leaf):
+    """``https://host/v1/chat/completions`` → ``https://host/v1/models``.
+
+    The clinic configures one URL — the chat endpoint — and this derives the
+    listing one from it, so a custom or self-hosted server needs no second
+    setting to fill in wrongly.
+    """
+    trimmed = base_url.rstrip("/")
+    for suffix in ("/chat/completions", "/messages", "/completions"):
+        if trimmed.endswith(suffix):
+            return trimmed[: -len(suffix)] + "/" + leaf
+    return trimmed + "/" + leaf
 
 
 def _http_error(resp):

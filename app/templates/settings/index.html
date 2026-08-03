@@ -419,17 +419,54 @@
             the page as visible text. #}
          model: {{ values.get('ai_model','')|tojson|forceescape }},
          modelPick: '',
-         list() { return AI_MODELS[this.provider] || []; },
+         fetched: {},          // provider → the ids the key can really use
+         loading: false,
+         fetchNote: '',
+         // What the key says it can do wins over what this program shipped
+         // believing. The bundled names are only what fills the box before
+         // anybody has a key.
+         list() { return this.fetched[this.provider] || AI_MODELS[this.provider] || []; },
          syncPick() {
            const l = this.list();
            this.modelPick = l.includes(this.model) ? this.model
                             : (this.model ? '__custom__' : (l[0] || '__custom__'));
          },
+         async loadModels() {
+           this.loading = true; this.fetchNote = '';
+           const form = this.$el.closest('form');
+           const body = new FormData(form);
+           try {
+             const r = await fetch('{{ url_for('settings.ai_models') }}',
+                                   {method: 'POST', body: body});
+             const d = await r.json();
+             if (d.ok && d.models && d.models.length) {
+               this.fetched[this.provider] = d.models;
+               // Whatever was in the box is only kept if the key really has it.
+               if (!d.models.includes(this.model)) { this.model = d.models[0]; }
+               this.syncPick();
+               this.fetchNote = d.models.length + ' ✓';
+             } else {
+               this.fetchNote = d.error || '—';
+             }
+           } catch (e) { this.fetchNote = String(e); }
+           this.loading = false;
+         },
          init() {
            this.syncPick();
            this.$watch('provider', () => {
              // New provider → offer its own models, defaulting to the first.
-             this.modelPick = this.list()[0] || '__custom__';
+             // Guarded by `model`: the free-setup button sets the provider AND
+             // the model in one click, and this watcher fires *after* it —
+             // unguarded it threw that model away and left the box on
+             // "type one manually", which is exactly what it was meant to spare
+             // somebody.
+             const l = this.list();
+             if (!l.includes(this.model)) {
+               this.model = l[0] || '';
+               this.modelPick = l[0] || '__custom__';
+             } else {
+               this.modelPick = this.model;
+             }
            });
          },
        }">
@@ -497,7 +534,20 @@
                placeholder="{{ t('settings.ai_model_custom_ph') }}">
         <input type="hidden" name="ai_model"
                :value="modelPick==='__custom__' ? model : modelPick">
-        <div class="hint">{{ t('settings.ai_model_hint') }}</div></div>
+        {# Ask the key which models it may actually use. The bundled list goes
+           stale the way bundled lists do — a fresh key was answered with
+           "this model is no longer available to new users" — and nobody is
+           going to ship a release of this program every time Google retires
+           one. #}
+        <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm gc-press"
+                  x-on:click="loadModels()" :disabled="loading">
+            <i class="bi bi-arrow-repeat"></i>
+            <span x-text="loading ? '…' : '{{ t('settings.ai_fetch_models') }}'">{{ t('settings.ai_fetch_models') }}</span></button>
+          <span class="hint" dir="ltr" x-text="fetchNote" x-show="fetchNote" x-cloak></span>
+        </div>
+        <div class="hint">{{ t('settings.ai_model_hint') }}</div>
+        <div class="hint">{{ t('settings.ai_fetch_hint') }}</div></div>
 
       <div class="form-row"><label>{{ t('settings.ai_api_key') }}</label>
         <input class="input" name="ai_api_key" type="password" dir="ltr" autocomplete="off"

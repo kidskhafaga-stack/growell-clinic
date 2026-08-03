@@ -189,3 +189,98 @@ def test_both_languages_carry_the_words(clinic):
                     "ai_free_key", "ai_free_badge", "ai_test",
                     "ai_test_hint", "ai_test_ok", "ai_test_failed"):
             assert data["settings"].get(key), f"{lang}.settings.{key}"
+
+
+# ================================== and the list that ages, asked of the key ==
+def test_the_models_come_from_the_key_not_from_this_program(clinic):
+    """The bug this fixes was real and immediate: a clinic pressed "use the
+    free setup", pasted a brand-new key, and got back *"this model is no
+    longer available to new users"*. The id was right when it was written and
+    wrong by the time somebody installed the program — and vendors retire
+    models on their own schedule, so no shipped list survives contact."""
+    import app.utils.ai as ai
+
+    class _Reply:
+        ok = True
+
+        @staticmethod
+        def json():
+            return {"models": [{"name": "models/gemini-flash-latest",
+                                "supportedGenerationMethods": ["generateContent"]}]}
+
+    class _Requests:
+        @staticmethod
+        def get(*a, **k):
+            return _Reply()
+
+    out = ai._models_gemini(_Requests, {"base_url": "https://x/models",
+                                        "api_key": "k"})
+    assert out["ok"] and out["models"] == ["gemini-flash-latest"]
+    # And the shipped suggestion is not what the screen ends up trusting.
+    assert "gemini-flash-latest" not in ai.AI_PROVIDERS["gemini"]["models"]
+
+
+def test_an_embedding_model_is_not_offered_as_an_assistant(clinic):
+    """The same endpoint lists embedding models. Offering one as the clinic's
+    assistant is a support call nobody can diagnose from the screen."""
+    import app.utils.ai as ai
+
+    class _Reply:
+        ok = True
+
+        @staticmethod
+        def json():
+            return {"models": [
+                {"name": "models/chatty", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/embedder", "supportedGenerationMethods": ["embedContent"]},
+            ]}
+
+    class _Requests:
+        @staticmethod
+        def get(*a, **k):
+            return _Reply()
+
+    out = ai._models_gemini(_Requests, {"base_url": "https://x/models",
+                                        "api_key": "k"})
+    assert out["models"] == ["chatty"]
+
+
+def test_the_listing_url_is_derived_from_the_chat_url(clinic):
+    """One setting stays one setting: a self-hosted or custom endpoint must
+    not need a second URL box to fill in wrongly."""
+    from app.utils.ai import _sibling_url
+
+    assert _sibling_url("https://h/v1/chat/completions", "models") == "https://h/v1/models"
+    assert _sibling_url("https://api.anthropic.com/v1/messages", "models") \
+        == "https://api.anthropic.com/v1/models"
+    assert _sibling_url("http://localhost:11434/v1", "models") \
+        == "http://localhost:11434/v1/models"
+
+
+def test_listing_without_a_key_says_which_thing_is_missing(clinic):
+    from app.utils.ai import list_models
+
+    assert list_models({"provider": "gemini", "base_url": "", "api_key": "",
+                        "local": False})["error"] == "not_configured"
+    assert list_models({"provider": "gemini", "base_url": "https://x/",
+                        "api_key": "", "local": False})["error"] == "no_key"
+
+
+def test_the_route_answers_with_json(boss, clinic):
+    reply = boss.post("/settings/ai/models", data={
+        "ai_provider": "ollama", "ai_base_url": "http://127.0.0.1:1/v1/chat/completions"})
+    assert reply.status_code == 200
+    assert reply.get_json()["ok"] is False       # nothing listening — but JSON
+
+
+def test_only_an_admin_can_list_models(clinic):
+    desk = clinic["sign_in"]("desk")
+    assert desk.post("/settings/ai/models", data={}).status_code in (302, 403)
+
+
+def test_the_screen_offers_the_fetch_button(boss, clinic):
+    body = boss.get("/settings/").get_data(as_text=True)
+    assert "/settings/ai/models" in body
+    with clinic["app"].test_request_context("/"):
+        from app.i18n import t
+        assert t("settings.ai_fetch_models") in body

@@ -60,6 +60,56 @@ def _logo_dir():
     return os.path.join(current_app.static_folder, "uploads", "clinic")
 
 
+def _ai_form_config():
+    """The AI settings as the form has them right now, over what was saved.
+
+    Both the test and the model list work on the *unsaved* form, because
+    pasting a key and finding out whether it works before committing it is the
+    order a person actually works in.
+    """
+    from app.utils.ai import AI_PROVIDERS, get_config
+
+    cfg = get_config()
+    provider = (request.form.get("ai_provider") or "").strip()
+    if provider not in AI_PROVIDERS:
+        return cfg
+    meta = AI_PROVIDERS[provider]
+    cfg = dict(
+        cfg, provider=provider, provider_label=meta["label"],
+        local=bool(meta.get("local")),
+        model=(request.form.get("ai_model") or "").strip() or meta["default_model"],
+        base_url=(request.form.get("ai_base_url") or "").strip() or meta["base_url"],
+    )
+    # An empty key box means "use the saved one" rather than "no key": the
+    # field renders blank on a saved password, and treating that as a deletion
+    # would report a working setup as broken.
+    typed = (request.form.get("ai_api_key") or "").strip()
+    if typed:
+        cfg["api_key"] = typed
+    return cfg
+
+
+@settings_bp.route("/ai/models", methods=["POST"])
+@admin_required
+def ai_models():
+    """Which models this key may actually use, asked of the provider.
+
+    The bundled suggestions went stale in the way bundled lists always do: a
+    clinic pressed "use the free setup", pasted a fresh key, and got *"this
+    model is no longer available to new users"*. The id was right when it was
+    written and wrong by the time somebody installed the program.
+
+    Vendors retire models on their own schedule and nobody is going to ship a
+    release of this program every time one does — so the list comes from the
+    account that will be billed for it.
+    """
+    from flask import jsonify
+
+    from app.utils.ai import list_models
+
+    return jsonify(list_models(_ai_form_config()))
+
+
 @settings_bp.route("/ai/test", methods=["POST"])
 @admin_required
 def ai_test():
@@ -74,28 +124,9 @@ def ai_test():
     pressed "suggest a dose" mid-consultation and nothing happened, with no
     way to tell a wrong key from a wrong model from a blocked firewall.
     """
-    from app.utils.ai import AI_PROVIDERS, get_config, test_connection
+    from app.utils.ai import test_connection
 
-    cfg = get_config()
-    provider = (request.form.get("ai_provider") or "").strip()
-    if provider in AI_PROVIDERS:
-        meta = AI_PROVIDERS[provider]
-        cfg = dict(
-            cfg, provider=provider, provider_label=meta["label"],
-            local=bool(meta.get("local")),
-            model=(request.form.get("ai_model") or "").strip()
-            or meta["default_model"],
-            base_url=(request.form.get("ai_base_url") or "").strip()
-            or meta["base_url"],
-        )
-        # An empty key box means "use the saved one" rather than "no key":
-        # the field renders blank on a saved password, and treating that as a
-        # deletion would report a working setup as broken.
-        typed = (request.form.get("ai_api_key") or "").strip()
-        if typed:
-            cfg["api_key"] = typed
-
-    result = test_connection(cfg)
+    result = test_connection(_ai_form_config())
     if result.get("ok"):
         flash(t("settings.ai_test_ok").replace("{p}", result["provider"])
               .replace("{m}", result["model"]), "success")
