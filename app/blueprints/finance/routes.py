@@ -1470,26 +1470,107 @@ def shift_report(shift_id):
                            payment_methods=PAYMENT_METHODS)
 
 
-def _siblings_seen_today(patient, on_date=None, doctor_id=None):
-    """How many children of this family the clinic saw on ``on_date``.
+def _paid_service(service):
+    """A service that actually costs something.
 
-    "Seen" is deliberately generous: a sibling counts once they have an
-    appointment that wasn't cancelled, a visit, or an invoice that day — the
-    discount is about the family's trip to the clinic, not about who happened
-    to be invoiced first.
+    The line the whole rule turns on. A consultation the clinic gives free —
+    the follow-up inside the exam's window — is not a second paid visit, and
+    two children whose "visit" is worth nothing between them are not a pair
+    the family is owed a discount on. A *paid* consultation is a real visit
+    and counts like any other.
+    """
+    return service is not None and (service.price or 0) > 0
+
+
+def _counts_for_sibling_rule(disc, patient_id, day, doctor_id=None):
+    """Whether this child had a chargeable, in-scope visit on ``day``.
+
+    Two ways to know, in order, because the answer is needed **before** the
+    second child is billed:
+
+    **A billed line.** What was actually charged, gross above zero, and within
+    whatever the discount is aimed at.
+
+    **Otherwise the booking.** The first child of the day is priced while the
+    second is still in the waiting room, so an appointment or a visit counts
+    when its type maps to a service that is in scope and is not free. Without
+    this the rule could only ever fire on the last child billed, and reception
+    would be told there is no sibling discount while the siblings are visibly
+    in the room.
+    """
+    from app.models import Appointment, InvoiceItem
+    from app.utils.pricing import service_for_visit_type
+
+    lines = (InvoiceItem.query.join(Invoice)
+             .filter(Invoice.patient_id == patient_id,
+                     Invoice.invoice_date == day))
+    if doctor_id:
+        lines = lines.filter(Invoice.doctor_id == doctor_id)
+    for item in lines.all():
+        if (item.gross or 0) > 0 and disc.applies_to_line(item):
+            return True
+
+    appts = Appointment.query.filter(
+        Appointment.patient_id == patient_id, Appointment.appt_date == day,
+        Appointment.status.notin_(("cancelled", "no_show")))
+    visits = Visit.query.filter(Visit.patient_id == patient_id,
+                                Visit.visit_date == day)
+    if doctor_id:
+        appts = appts.filter(Appointment.doctor_id == doctor_id)
+        visits = visits.filter(Visit.doctor_id == doctor_id)
+    for row in list(appts.all()) + list(visits.all()):
+        kind = getattr(row, "appt_type", None) or getattr(row, "visit_type", None)
+        service = service_for_visit_type(kind)
+        if service is None:
+            # The visit type is not mapped to a priced service, so the program
+            # cannot tell an exam from a free consultation here — and "unknown"
+            # must not be read as "free". Treating it as free would switch the
+            # sibling discount off, silently, in every clinic that has not
+            # mapped its visit types yet. The rule engages the moment they do,
+            # which they must anyway for the visit to be priced at all.
+            return True
+        if not _paid_service(service):
+            continue
+
+        class _Line:                      # what the scope check reads
+            def __init__(self, svc):
+                self.service = svc
+                self.vaccine_brand_id = None
+
+        if disc.applies_to_line(_Line(service)):
+            return True
+    return False
+
+
+def _siblings_seen_today(patient, on_date=None, doctor_id=None, disc=None):
+    """How many children of this family had a **chargeable** visit on ``on_date``.
+
+    It used to count any appointment, visit or invoice at all, which made a
+    child who came for a free consultation — or for anything outside what the
+    discount covers — into half of a qualifying pair. The clinic was explicit:
+    the rule is two exams together, not an exam and a free consultation, and a
+    consultation that *is* charged counts like any other visit.
 
     Pass ``doctor_id`` to count only the children that doctor saw: "الأخوين
     سوا" is one doctor's offer on their own list, so two children who saw two
     different doctors on the same day are two separate visits, not a pair."""
-    from app.models import Appointment
-
     if patient is None or not patient.family_id:
         return 0
     day = on_date or date.today()
     ids = {p.id for p in Patient.query.filter_by(family_id=patient.family_id).all()}
     if not ids:
         return 0
-    seen = {patient.id}
+    if disc is None:                      # no rule in hand: the old, loose count
+        return _any_siblings_seen(ids, day, doctor_id, patient.id)
+    return sum(1 for pid in ids
+               if _counts_for_sibling_rule(disc, pid, day, doctor_id))
+
+
+def _any_siblings_seen(ids, day, doctor_id, self_id):
+    """The old generous count, kept for callers with no discount in hand."""
+    from app.models import Appointment
+
+    seen = {self_id}
     appts = Appointment.query.filter(
         Appointment.patient_id.in_(ids), Appointment.appt_date == day,
         Appointment.status.notin_(("cancelled", "no_show")))
@@ -1511,7 +1592,8 @@ def _sibling_rule_met(disc, patient, on_date=None, doctor_id=None):
     if patient is None or not patient.family_id:
         return False
     count = _siblings_seen_today(patient, on_date,
-                                 doctor_id if disc.same_doctor else None)
+                                 doctor_id if disc.same_doctor else None,
+                                 disc=disc)
     return count >= max(disc.min_siblings or 2, 2)
 
 
