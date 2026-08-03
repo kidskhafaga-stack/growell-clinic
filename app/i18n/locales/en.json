@@ -987,7 +987,11 @@
     "order_needed": "Needed",
     "order_stock": "In stock",
     "order_buy": "To order",
-    "order_hint": "Totalled from exactly the list in front of you - change the filter and this changes with it. “To order” is what is missing, not what is needed: nine on the shelf and eleven children due means buy two."
+    "order_hint": "Totalled from exactly the list in front of you - change the filter and this changes with it. “To order” is what is missing, not what is needed: nine on the shelf and eleven children due means buy two.",
+    "correct": "Correct this dose",
+    "imported": "Imported",
+    "imported_hint": "This dose came from the old program's history, and its number was worked out from the order of the dates rather than recorded. If the child had a dose somewhere else, that order is missing one — correct it here.",
+    "dose_corrected": "Dose corrected"
   },
   "vstatus": {
     "done": "Done",

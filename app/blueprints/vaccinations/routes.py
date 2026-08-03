@@ -745,3 +745,63 @@ def verify(token):
         "vaccinations/verify.html", patient=patient, given=given,
         clinic=clinic, now_date=datetime.utcnow().date().isoformat(),
     )
+
+
+@vaccinations_bp.route("/dose/<int:pv_id>/correct", methods=["POST"])
+@module_required(MODULE)
+def correct_dose(pv_id):
+    """Correct a recorded dose: its number, its date, or where it was given.
+
+    This exists because of what an imported history cannot know. The old
+    program's file holds what happened **at this clinic**, and the dose numbers
+    were inferred from the order of those dates — so a child who had two doses
+    here, one somewhere else, and the booster here comes out numbered 1, 2, 3
+    when they are really 1, 3, 4. Nothing in the data can see the gap.
+
+    Reported exactly that way: *"the doctor sees he had 2 with me and one
+    outside and the booster with me"*. So the inference is a starting point the
+    doctor overrides, not a fact. Without this screen the imported history is a
+    wall a doctor cannot fix, and a clinic that cannot fix it goes back to its
+    old program.
+    """
+    dose = db.get_or_404(PatientVaccine, pv_id)
+    patient_id = dose.patient_id
+
+    number = request.form.get("dose_number", type=int)
+    if number and number > 0:
+        # A second record of the same dose number would make the course read as
+        # complete when it is not.
+        clash = PatientVaccine.query.filter(
+            PatientVaccine.patient_id == patient_id,
+            PatientVaccine.vaccine_id == dose.vaccine_id,
+            PatientVaccine.dose_number == number,
+            PatientVaccine.event_type == "given",
+            PatientVaccine.id != dose.id).first()
+        if clash is not None:
+            flash(t("vaccinations.dose_exists"), "warning")
+            return redirect(url_for("vaccinations.view", patient_id=patient_id))
+        dose.dose_number = number
+
+    given = (request.form.get("given_date") or "").strip()
+    if given:
+        try:
+            dose.given_date = datetime.strptime(given, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    # "Given outside" is the whole point: it keeps the dose in the child's
+    # record — so the course is not restarted — while saying this clinic did
+    # not give it, which is what the stock and the money must not assume.
+    outside = bool(request.form.get("given_outside"))
+    dose.given_outside = outside
+    dose.outside_place = ((request.form.get("outside_place") or "").strip()[:160]
+                          or None) if outside else None
+
+    ActivityLog.record("vaccine.correct", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=f"dose {dose.id} -> #{dose.dose_number}"
+                              f"{' outside' if outside else ''}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.dose_corrected"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=patient_id))

@@ -393,6 +393,12 @@ def patient_plan(patient, lang="ar"):
                            if pv is not None and pv.doctor else None),
                 "outside": bool(pv.given_outside) if pv is not None else False,
                 "outside_place": (pv.outside_place if pv is not None else None),
+                # The record itself, so the file can offer to correct it — and
+                # whether its number was *inferred* from an import rather than
+                # observed, which is the set most likely to need correcting.
+                "pv_id": pv.id if pv is not None else None,
+                "imported": bool(getattr(pv, "import_batch_id", None))
+                if pv is not None else False,
                 "status": _status(due, pv is not None, today),
                 "planned": planned is not None,
                 "event_type": (ev.event_type if (ev and not pv

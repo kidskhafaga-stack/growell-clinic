@@ -1448,7 +1448,14 @@ def history_import_commit():
     if pending:
         db.session.bulk_insert_mappings(ImportedService, pending)
 
+    # And the vaccinations become real vaccination records. Without this the
+    # import is a wall of text beside the file that already ignores it: the
+    # schedule counts PatientVaccine rows, so a child whose whole course was
+    # imported would be chased by the reminder screen for doses they have had.
+    made = _record_imported_doses(pending, batch.id)
+
     batch.rows_added = len(pending)
+    batch.notes = f"vaccinations: {made}" if made else None
     batch.rows_skipped = (counts["same"] + counts["out_of_range"]
                           + (0 if update_changed else counts["changed"]))
     batch.rows_rejected = counts["rejected"]
@@ -1627,3 +1634,65 @@ def _resolved_links(links):
         VaccineBrand.id.in_(set(wanted.values()))).all()}
     return {name: (brand_id, brands.get(brand_id))
             for name, brand_id in wanted.items() if brand_id in brands}
+
+
+def _record_imported_doses(rows, batch_id):
+    """Turn the linked import rows into real vaccination records.
+
+    The schedule, the reminders and the certificate all read ``PatientVaccine``.
+    An imported dose that stays outside that table is history the program can
+    show and cannot *use* — the reminder screen would still chase the child for
+    a dose they had in 2023.
+
+    Three things this deliberately does not do:
+
+    * **It does not touch the fridge.** ``inventory_id`` stays empty: the vial
+      was used years ago at another program, and deducting it now would invent
+      a stock movement that never happened here.
+    * **It does not overwrite what the clinic already recorded.** A dose the
+      nurse entered by hand outranks one inferred from dates, so an existing
+      record for the same patient, vaccine and dose number is left alone.
+    * **It does not hide where it came from.** ``import_batch_id`` marks these
+      as the doses whose numbering was *inferred* rather than observed — which
+      is exactly the set a doctor may need to correct, and what makes an import
+      undoable without touching anything typed since.
+    """
+    from app.models import PatientVaccine
+
+    wanted = [r for r in rows if r.get("vaccine_brand_id") and r.get("dose_number")]
+    if not wanted:
+        return 0
+
+    # One query for everything already on file, rather than one per dose.
+    patient_ids = {r["patient_id"] for r in wanted}
+    existing = {
+        (pid, vid, dose) for pid, vid, dose in
+        db.session.query(PatientVaccine.patient_id, PatientVaccine.vaccine_id,
+                         PatientVaccine.dose_number)
+        .filter(PatientVaccine.patient_id.in_(patient_ids),
+                PatientVaccine.event_type == "given").all()}
+
+    from app.models import VaccineBrand
+    brand_vaccine = {
+        b.id: b.vaccine_id for b in VaccineBrand.query.filter(
+            VaccineBrand.id.in_({r["vaccine_brand_id"] for r in wanted})).all()}
+
+    doses = []
+    for row in wanted:
+        vaccine_id = brand_vaccine.get(row["vaccine_brand_id"])
+        if not vaccine_id:
+            continue
+        key = (row["patient_id"], vaccine_id, row["dose_number"])
+        if key in existing:
+            continue
+        existing.add(key)
+        doses.append({
+            "patient_id": row["patient_id"], "vaccine_id": vaccine_id,
+            "brand_id": row["vaccine_brand_id"],
+            "dose_number": row["dose_number"],
+            "given_date": row["service_date"], "event_type": "given",
+            "given_outside": False, "import_batch_id": batch_id,
+        })
+    if doses:
+        db.session.bulk_insert_mappings(PatientVaccine, doses)
+    return len(doses)

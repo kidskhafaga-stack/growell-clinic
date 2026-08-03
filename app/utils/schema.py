@@ -225,6 +225,9 @@ ADDITIONS = [
     # says so — a clinic that already closed January must not find it
     # unlabelled after an upgrade.
     ("accounting_periods", "kind", "VARCHAR(10) DEFAULT 'month'"),
+    # Which import created this vaccination record, so an import can be undone
+    # exactly and a doctor can see which doses came from the old program.
+    ("patient_vaccines", "import_batch_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):
