@@ -980,7 +980,14 @@
     "cert_total_years": "Years",
     "cert_span": "Record from {from} to {to}",
     "cert_doctor_col": "Doctor",
-    "given_elsewhere": "Given elsewhere"
+    "given_elsewhere": "Given elsewhere",
+    "due_patients": "patients due",
+    "book_dose": "Book an appointment for this dose",
+    "order_title": "Purchase order from what is due",
+    "order_needed": "Needed",
+    "order_stock": "In stock",
+    "order_buy": "To order",
+    "order_hint": "Totalled from exactly the list in front of you - change the filter and this changes with it. “To order” is what is missing, not what is needed: nine on the shelf and eleven children due means buy two."
   },
   "vstatus": {
     "done": "Done",

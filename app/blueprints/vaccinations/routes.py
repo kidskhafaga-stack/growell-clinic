@@ -654,29 +654,47 @@ def compliance():
 @vaccinations_bp.route("/reminders")
 @module_required(MODULE)
 def reminders():
-    """Patients with a late/due dose of a course they started here.
+    """Who is due a dose — and, from the same list, what to order for them.
 
-    Only patients who already have a dose recorded with us are considered — we
-    never chase a vaccine we never gave (it may have been taken elsewhere) — which
+    Only patients who already have a dose recorded with us are considered: a
+    clinic never chases a vaccine it never gave, because the child may be
+    getting it somewhere else and the call would only annoy the family. That
     also keeps this cheap with thousands of patients on the books.
+
+    The filters are what make one screen do two jobs. "Who do I call this week"
+    and "what will I need next month" are the same data over different windows,
+    and the purchase order is built from **whatever the filter is currently
+    showing** — the same rule as the invoice export: what you take away is what
+    you were looking at.
     """
-    started_ids = [r[0] for r in (
-        PatientVaccine.query.filter(PatientVaccine.event_type == "given")
-        .with_entities(PatientVaccine.patient_id).distinct().all())]
+    from app.utils.export import parse_date
+    from app.utils.vaccine_due import due_list, order_suggestion, summarise
+
     lang = getattr(g, "lang", "ar")
-    rows = []
-    for patient in (Patient.query.filter(Patient.is_active.is_(True),
-                                         Patient.id.in_(started_ids)).all()
-                    if started_ids else []):
-        for due in patient_due_reminders(patient, lang):
-            rows.append({
-                "patient": patient, "vaccine": due["vaccine"], "brand": due["brand"],
-                "dose_number": due["dose_number"], "due_date": due["due_date"],
-                "status": due["status"], "phone": patient.contact_phone,
-            })
-    rows.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
-    return render_template("vaccinations/reminders.html", rows=rows,
-                           now_date=datetime.utcnow().date().isoformat())
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    vaccine_id = request.args.get("vaccine_id", type=int)
+    brand_id = request.args.get("brand_id", type=int)
+    status = (request.args.get("status") or "").strip()
+    if status not in ("overdue", "due", "seasonal"):
+        status = ""
+
+    found = due_list(start=start, end=end, vaccine_id=vaccine_id,
+                     brand_id=brand_id, status=status or None, lang=lang)
+    rows = [{"patient": r["patient"], "vaccine": r["vaccine"],
+             "brand": r["brand"], "dose_number": r["dose_number"],
+             "due_date": r["due_date"], "status": r["status"],
+             "phone": r["patient"].contact_phone} for r in found]
+
+    from app.models import Vaccine, VaccineBrand
+    return render_template(
+        "vaccinations/reminders.html", rows=rows,
+        counts=summarise(found), order=order_suggestion(found),
+        vaccines=Vaccine.query.order_by(Vaccine.sort_order, Vaccine.id).all(),
+        brands=VaccineBrand.query.order_by(VaccineBrand.name).all(),
+        f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
+        f_vaccine=vaccine_id, f_brand=brand_id, f_status=status,
+        now_date=datetime.utcnow().date().isoformat())
 
 
 @vaccinations_bp.route("/<int:patient_id>/remind-due")
