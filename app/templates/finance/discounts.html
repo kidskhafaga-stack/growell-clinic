@@ -21,19 +21,25 @@
       <option value="percent" {{ 'selected' if d and d.is_percent else '' }}>%</option>
       <option value="fixed" {{ 'selected' if d and not d.is_percent else '' }}>{{ t('discounts.fixed') }}</option>
     </select></div>
-  <div class="form-row"><label>{{ t('discounts.on_label') }}</label>
-    <select class="select" name="scope">
+  {# These two are not additive and the screen never said so: a named service
+     *overrides* the scope entirely — set "vaccinations" above and "كشف" here
+     and the discount lands on the exam, silently ignoring what was picked.
+     The row dims itself when it has been overridden. #}
+  <div class="form-row" x-bind:style="svc ? 'opacity:.55;' : ''"><label>{{ t('discounts.on_label') }}</label>
+    <select class="select" name="scope" x-bind:disabled="!!svc">
       <option value="all">{{ t('discounts.scope_all') }}</option>
       {% for c in service_categories %}<option value="{{ c }}" {{ 'selected' if d and d.scope==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
       {# The vial is priced by its brand, not by a service, so it is aimed at
          separately from the fee for giving it. #}
       <option value="vaccine" {{ 'selected' if d and d.scope=='vaccine' else '' }}>{{ t('discounts.scope_vaccine') }}</option>
-    </select><div class="hint">{{ t('discounts.on_hint') }}</div></div>
+    </select><div class="hint">{{ t('discounts.on_hint') }}</div>
+    <div class="hint" x-show="svc" x-cloak><i class="bi bi-info-circle"></i> {{ t('discounts.scope_overridden') }}</div></div>
   <div class="form-row"><label>{{ t('discounts.service') }}</label>
-    <select class="select" name="service_id">
+    <select class="select" name="service_id" x-model="svc">
       <option value="">— {{ t('discounts.service_any') }} —</option>
       {% for s in services %}<option value="{{ s.id }}" {{ 'selected' if d and d.service_id==s.id else '' }}>{{ s.display_name(current_lang) }}</option>{% endfor %}
-    </select><div class="hint">{{ t('discounts.service_hint') }}</div></div>
+    </select><div class="hint">{{ t('discounts.service_hint') }}</div>
+    <div class="hint" x-show="svc" x-cloak><strong>{{ t('discounts.service_only') }}</strong></div></div>
   <div class="form-row" x-show="dt==='doctor'" x-cloak><label>{{ t('appointments.doctor') }}</label>
     <select class="select" name="doctor_id"><option value="">—</option>
       {% for doc in doctors %}<option value="{{ doc.id }}" {{ 'selected' if d and d.doctor_id==doc.id else '' }}>{{ doc.display_name(current_lang) }}</option>{% endfor %}</select></div>
@@ -79,7 +85,7 @@
 </div>
 
 <!-- Add -->
-<details class="card gc-scale-in" x-data="{ dt: 'campaign' }">
+<details class="card gc-scale-in" x-data="{ dt: 'campaign', svc: '' }">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('discounts.add') }}</summary>
   <form method="post" action="{{ url_for('finance.discounts') }}" style="margin-top:12px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -93,7 +99,7 @@
   <table class="table">
     <thead><tr><th>{{ t('discounts.name') }}</th><th>{{ t('discounts.dtype') }}</th><th>{{ t('discounts.value') }}</th><th>{{ t('discounts.on_label') }}</th><th>{{ t('discounts.eligibility') }}</th><th>{{ t('discounts.window') }}</th><th>{{ t('common.status') }}</th><th style="text-align:end;"></th></tr></thead>
     {% for d in discounts %}
-    <tbody x-data="{ open: false, dt: '{{ d.dtype }}' }">
+    <tbody x-data="{ open: false, dt: '{{ d.dtype }}', svc: '{{ d.service_id or '' }}' }">
       <tr style="{{ 'opacity:0.55;' if not d.is_active else '' }}">
         <td><strong>{{ d.display_name(current_lang) }}</strong></td>
         <td><span class="badge badge--role">{{ t('discounts.t_' ~ d.dtype) }}</span></td>

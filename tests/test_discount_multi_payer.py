@@ -251,3 +251,56 @@ def test_the_members_screen_finds_a_discount_that_names_several_clubs(
     body = boss.get(f"/finance/payers/{clubs['sporting']}/members").get_data(
         as_text=True)
     assert "أعضاء الأندية" in body
+
+
+# ================================ the two fields that were not additive =====
+def test_a_named_service_overrides_the_scope_entirely(clinic):
+    """Asked directly, and the answer was yes — a discount with a specific
+    service applies to that service and nothing else, whatever the scope above
+    it says. Worth a test because the screen used to show both as if they
+    combined: pick "vaccinations" and then "كشف" and the discount silently
+    lands on the exam."""
+    from app.models import NamedDiscount, Service
+
+    with clinic["app"].app_context():
+        exam = clinic["db"].session.get(Service, clinic["ids"]["exam"])
+        nebul = clinic["db"].session.get(Service, clinic["ids"]["nebul"])
+        rule = NamedDiscount(name="كشف بس", dtype="special", value=70,
+                             is_percent=False, scope="vaccination_fee",
+                             service_id=exam.id, is_active=True)
+
+        class _Line:
+            def __init__(self, service):
+                self.service = service
+                self.vaccine_brand_id = None
+
+        assert rule.applies_to_line(_Line(exam)) is True
+        # …and the scope it contradicts changes nothing.
+        assert rule.applies_to_line(_Line(nebul)) is False
+
+
+def test_without_a_named_service_the_scope_is_what_decides(clinic):
+    from app.models import NamedDiscount, Service
+
+    with clinic["app"].app_context():
+        exam = clinic["db"].session.get(Service, clinic["ids"]["exam"])
+        nebul = clinic["db"].session.get(Service, clinic["ids"]["nebul"])
+        rule = NamedDiscount(name="الكشوفات", dtype="special", value=10,
+                             scope="consultation", is_active=True)
+
+        class _Line:
+            def __init__(self, service):
+                self.service = service
+                self.vaccine_brand_id = None
+
+        assert rule.applies_to_line(_Line(exam)) is True      # consultation
+        assert rule.applies_to_line(_Line(nebul)) is False    # procedure
+
+
+def test_the_screen_says_the_scope_is_being_overridden(boss, clinic):
+    """It used to show two fields as though they combined."""
+    body = boss.get("/finance/discounts").get_data(as_text=True)
+    with clinic["app"].test_request_context("/"):
+        from app.i18n import t
+        assert t("discounts.scope_overridden") in body
+        assert t("discounts.service_only") in body

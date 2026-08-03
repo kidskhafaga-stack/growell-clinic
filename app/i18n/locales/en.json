@@ -1611,7 +1611,9 @@
     "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due.",
     "scope_vaccine": "The vaccine's own price (not the fee)",
     "payer_multi_hint": "Pick more than one (Ctrl or Shift) — the same discount honours the cards of every entity you select, instead of one rule per club.",
-    "members_hint": "How many cards are valid today — these are the people the discount will actually reach. Click the entity's name to see them and add or edit cards."
+    "members_hint": "How many cards are valid today — these are the people the discount will actually reach. Click the entity's name to see them and add or edit cards.",
+    "scope_overridden": "Ignored right now — a specific service is chosen below, and it wins.",
+    "service_only": "The discount applies to this one service only — nothing else."
   },
   "payment_methods": {
     "cash": "Cash",
