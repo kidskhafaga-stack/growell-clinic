@@ -272,8 +272,17 @@ def create_app(config_name="default"):
 
             return choices_for(current)
 
+        def payer_type_label(key):
+            """A payer kind's name — same fix, same reason: the screens printed
+            ``t('payer_types.' ~ key)``, which shows the raw key for anything
+            a clinic added."""
+            from app.utils.payer_types import label
+
+            return label(key, getattr(g, "lang", "ar"))
+
         return {"category_label": category_label,
-                "client_categories_for": client_categories_for}
+                "client_categories_for": client_categories_for,
+                "payer_type_label": payer_type_label}
 
     @app.context_processor
     def inject_notifications():

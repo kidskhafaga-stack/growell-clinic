@@ -43,7 +43,7 @@
         {{ t('members.title') }}<br><span dir="ltr">{{ today }}</span></div>
     </div>
     <h1>{{ payer.display_name(current_lang) }} — {{ t('members.title') }}</h1>
-    <div class="meta">{{ t('payer_types.' ~ payer.entity_type) }} · {{ t('members.count') }}: {{ rows|length }}</div>
+    <div class="meta">{{ payer_type_label(payer.entity_type) }} · {{ t('members.count') }}: {{ rows|length }}</div>
 
     <table>
       <thead><tr>

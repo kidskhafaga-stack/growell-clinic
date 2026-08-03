@@ -1609,7 +1609,11 @@
     "best_hint": "Biggest discount due: {name} — {amount}. You can change it.",
     "no_stack_hint": "One discount per line: a patient entitled to several gets the biggest, never both.",
     "auto_applied": "«{name}» applied automatically — the biggest discount this patient is due.",
-    "scope_vaccine": "The vaccine's own price (not the fee)"
+    "scope_vaccine": "The vaccine's own price (not the fee)",
+    "payer_multi_hint": "Pick more than one (Ctrl or Shift) — the same discount honours the cards of every entity you select, instead of one rule per club.",
+    "members_hint": "How many cards are valid today — these are the people the discount will actually reach. Click the entity's name to see them and add or edit cards.",
+    "scope_overridden": "Ignored right now — a specific service is chosen below, and it wins.",
+    "service_only": "The discount applies to this one service only — nothing else."
   },
   "payment_methods": {
     "cash": "Cash",
@@ -1964,7 +1968,9 @@
     "patients_count": "Patients",
     "invoices_count": "Invoices",
     "status_seeded": "Demo data loaded",
-    "status_clean": "Clean"
+    "status_clean": "Clean",
+    "import_title": "Bringing data in",
+    "import_hint": "A clinic that ran on another program: import the patients first, then their service and vaccination history."
   },
   "guide": {
     "nav": "User guide",
@@ -3229,7 +3235,9 @@
     "request_sent": "Refund request sent to the manager for approval",
     "already_decided": "This request was already decided",
     "approved": "Approved — refund paid out",
-    "rejected": "Request rejected"
+    "rejected": "Request rejected",
+    "requests_title": "Refund requests",
+    "requests_subtitle": "Refunds waiting for a manager's approval, and recent decisions."
   },
   "storedocs": {
     "title": "Warehouse documents",
@@ -3824,7 +3832,8 @@
     "kind_quarter": "Quarterly",
     "kind_half": "Half-yearly",
     "kind_year": "Yearly",
-    "search_ph": "Period name…"
+    "search_ph": "Period name…",
+    "already_there": "This year already has {n} period(s) of that kind — nothing new was created. For a different kind (months / quarters / halves / full year) pick it from the list."
   },
   "members": {
     "title": "Entity members",
@@ -4249,6 +4258,48 @@
     "group_vaccines": "Vaccines",
     "make_user": "Create an inactive user with this name",
     "will_create_users": "Users that will be created",
-    "will_create_hint": "These are doctors in your file with no user here, and you asked for them. The account is created inactive — it cannot sign in — so their past work is attached to a person in the commission reports and the tax export. If the doctor still works with you, activating them is one click on the users screen. Nothing is created until you press import."
+    "will_create_hint": "These are doctors in your file with no user here, and you asked for them. The account is created inactive — it cannot sign in — so their past work is attached to a person in the commission reports and the tax export. If the doctor still works with you, activating them is one click on the users screen. Nothing is created until you press import.",
+    "missing_kept": "Their history is not lost. Nothing is imported for them and nothing is thrown away either — the rows stay in your file, and re-uploading it once the patients exist picks them up, because a second upload compares instead of appending.",
+    "missing_download": "Download the missing patients as an import sheet",
+    "no_missing": "No missing patients in this file — every code found a patient here.",
+    "missing_sheet_1": "This file holds the patients your services export names that do not exist here yet — their code and name are already filled in from your file.",
+    "missing_sheet_2": "Fill in date_of_birth and gender — both are required, and a services export carries neither. The date of birth in particular drives every vaccination due date and growth centile, so a guessed one is a wrong dose date for a real child.",
+    "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before."
+  },
+  "payer_types_admin": {
+    "title": "Entity kinds",
+    "hint": "These are yours to rename and extend. The key beside each name never changes — every entity stores it, and “cash” in particular is how the program recognises your own price list. A kind in use cannot be deleted; hide it instead.",
+    "key_fixed": "The key is fixed — every entity stores it; only the name changes.",
+    "new_ar": "New kind (Arabic)",
+    "new_en": "In English (optional)",
+    "added": "Kind added.",
+    "updated": "Saved.",
+    "deleted": "Kind deleted.",
+    "system_kept": "This is a built-in kind — you can rename or hide it, but not delete it.",
+    "in_use": "{n} entities are filed under this kind. Hide it instead of deleting, so they stay as they are."
+  },
+  "discount_members": {
+    "title": "Discount members",
+    "add": "Add somebody to this discount",
+    "find_patient": "Find the patient",
+    "find_hint": "Type a name or file number…",
+    "mode": "Kind",
+    "note": "Note",
+    "included": "Named",
+    "excluded": "Excluded",
+    "rule_reach": "The rule alone covers",
+    "col_file": "File no",
+    "col_name": "Name",
+    "col_mode": "Kind",
+    "col_note": "Note",
+    "none": "Nobody is named on this discount yet.",
+    "added": "Saved.",
+    "removed": "Removed from the discount.",
+    "export": "Download the list",
+    "members_only": "Only the people named here",
+    "members_only_hint": "Off: the list tops the rule up — everyone the rule covers gets it, plus whoever you name. On: only the named people, and the rule is ignored.",
+    "only_on": "This discount is for the people named here only — the rule is ignored.",
+    "only_off": "This list tops the rule up: everyone the rule covers gets the discount, plus whoever is named here.",
+    "exclusion_wins": "An excluded person never gets the discount, whatever the rule says — taking somebody off here really takes them off."
   }
 }

@@ -1515,6 +1515,92 @@ def history_import_commit():
     return redirect(url_for("patients.history_import"))
 
 
+@patients_bp.route("/import/history/missing", methods=["POST"])
+@module_required(MODULE)
+def history_missing_patients():
+    """The unknown patients in the file, as a patient-import sheet to fill in.
+
+    The honest answer to "what happens to a child in the file who is not in the
+    program yet" has two halves, and only the first was built.
+
+    **Their history is not lost.** Nothing is imported for them, and nothing is
+    thrown away either: the rows stay in the file, and a re-upload after the
+    patients exist picks them up, because a second upload compares instead of
+    appending. So the fix is always available and never urgent.
+
+    **But "import those patients first" was a sentence, not a path.** A
+    services export has no date of birth, gender or phone — so the patients
+    cannot be created from it, and telling somebody to go and type eighty-seven
+    children by hand is how a clinic decides to skip its own history.
+
+    This meets it halfway: the file the clinic uploads to the *patient* import,
+    already carrying the code and the name from their own export, with the
+    columns only they can fill left blank. **The date of birth is deliberately
+    one of those.** It drives every vaccination due date and every growth
+    centile, so a guessed one would be a wrong dose date for a real child —
+    the one thing worth more than the convenience.
+    """
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import classify, missing_patient_codes
+    from app.utils.imports import IMPORT_COLUMNS
+
+    token = (request.form.get("token") or "").strip()
+    _tmp_path, payload = _load_import_tmp(token)
+    if payload is None or not payload.get("mapping"):
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    records, _counts = classify(build_rows(payload["rows"], payload["mapping"]))
+    missing = missing_patient_codes(records, limit=None)
+    if not missing:
+        flash(t("history_import.no_missing"), "info")
+        return redirect(url_for("patients.history_import"))
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Patients"
+    headers = [c[0] for c in IMPORT_COLUMNS]
+    ws.append(headers)
+    fill = PatternFill("solid", fgColor="198754")
+    font = Font(color="FFFFFF", bold=True)
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.fill, cell.font = fill, font
+        cell.alignment = Alignment(horizontal="center")
+        ws.column_dimensions[cell.column_letter].width = 22
+
+    # The old program's code goes in `reference_number`, which is the column
+    # the history import matches on afterwards. Putting it anywhere else would
+    # produce patients the second upload still cannot find.
+    ref_at = headers.index("reference_number")
+    name_at = headers.index("full_name")
+    for entry in missing:
+        row = [""] * len(headers)
+        row[ref_at] = entry["code"]
+        row[name_at] = entry["name"]
+        ws.append(row)
+
+    info = wb.create_sheet("تعليمات")
+    for line in (t("history_import.missing_sheet_1"),
+                 t("history_import.missing_sheet_2"),
+                 t("history_import.missing_sheet_3")):
+        info.append([line])
+    info.column_dimensions["A"].width = 110
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name="missing_patients.xlsx")
+
+
 @patients_bp.route("/import/history/template")
 @module_required(MODULE)
 def history_import_template():

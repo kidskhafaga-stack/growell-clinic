@@ -21,19 +21,25 @@
       <option value="percent" {{ 'selected' if d and d.is_percent else '' }}>%</option>
       <option value="fixed" {{ 'selected' if d and not d.is_percent else '' }}>{{ t('discounts.fixed') }}</option>
     </select></div>
-  <div class="form-row"><label>{{ t('discounts.on_label') }}</label>
-    <select class="select" name="scope">
+  {# These two are not additive and the screen never said so: a named service
+     *overrides* the scope entirely — set "vaccinations" above and "كشف" here
+     and the discount lands on the exam, silently ignoring what was picked.
+     The row dims itself when it has been overridden. #}
+  <div class="form-row" x-bind:style="svc ? 'opacity:.55;' : ''"><label>{{ t('discounts.on_label') }}</label>
+    <select class="select" name="scope" x-bind:disabled="!!svc">
       <option value="all">{{ t('discounts.scope_all') }}</option>
       {% for c in service_categories %}<option value="{{ c }}" {{ 'selected' if d and d.scope==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
       {# The vial is priced by its brand, not by a service, so it is aimed at
          separately from the fee for giving it. #}
       <option value="vaccine" {{ 'selected' if d and d.scope=='vaccine' else '' }}>{{ t('discounts.scope_vaccine') }}</option>
-    </select><div class="hint">{{ t('discounts.on_hint') }}</div></div>
+    </select><div class="hint">{{ t('discounts.on_hint') }}</div>
+    <div class="hint" x-show="svc" x-cloak><i class="bi bi-info-circle"></i> {{ t('discounts.scope_overridden') }}</div></div>
   <div class="form-row"><label>{{ t('discounts.service') }}</label>
-    <select class="select" name="service_id">
+    <select class="select" name="service_id" x-model="svc">
       <option value="">— {{ t('discounts.service_any') }} —</option>
       {% for s in services %}<option value="{{ s.id }}" {{ 'selected' if d and d.service_id==s.id else '' }}>{{ s.display_name(current_lang) }}</option>{% endfor %}
-    </select><div class="hint">{{ t('discounts.service_hint') }}</div></div>
+    </select><div class="hint">{{ t('discounts.service_hint') }}</div>
+    <div class="hint" x-show="svc" x-cloak><strong>{{ t('discounts.service_only') }}</strong></div></div>
   <div class="form-row" x-show="dt==='doctor'" x-cloak><label>{{ t('appointments.doctor') }}</label>
     <select class="select" name="doctor_id"><option value="">—</option>
       {% for doc in doctors %}<option value="{{ doc.id }}" {{ 'selected' if d and d.doctor_id==doc.id else '' }}>{{ doc.display_name(current_lang) }}</option>{% endfor %}</select></div>
@@ -43,10 +49,14 @@
   <div class="form-row" x-show="dt==='sibling'" x-cloak><label>&nbsp;</label>
     <label class="check"><input type="checkbox" name="same_doctor" value="1" {{ 'checked' if (d.same_doctor if d else True) else '' }}> {{ t('discounts.same_doctor') }}</label>
     <div class="hint">{{ t('discounts.same_doctor_hint') }}</div></div>
+  {# Several clubs, one offer. The same terms across four clubs used to mean
+     four identical rules — and four places to forget when the terms change. #}
   <div class="form-row" x-show="dt==='payer'" x-cloak><label>{{ t('discounts.payer') }}</label>
-    <select class="select" name="payer_id"><option value="">—</option>
-      {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if d and d.payer_id==p.id else '' }}>{{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>{% endfor %}</select>
-    <div class="hint">{{ t('discounts.payer_hint') }}</div></div>
+    {% set picked = (d.payer_ids if d else []) %}
+    <select class="select" name="payer_ids" multiple size="5">
+      {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if p.id in picked else '' }}>{{ p.display_name(current_lang) }} ({{ payer_type_label(p.entity_type) }})</option>{% endfor %}</select>
+    <div class="hint">{{ t('discounts.payer_hint') }}</div>
+    <div class="hint">{{ t('discounts.payer_multi_hint') }}</div></div>
   <div class="form-row" x-show="dt==='payer'" x-cloak><label>&nbsp;</label>
     <label class="check"><input type="checkbox" name="family_wide" value="1" {{ 'checked' if (d.family_wide if d else True) else '' }}> {{ t('discounts.family_wide') }}</label>
     <div class="hint">{{ t('discounts.family_wide_hint') }}</div></div>
@@ -58,6 +68,13 @@
     <input class="input" type="date" name="start_date" value="{{ d.start_date or '' if d else '' }}"></div>
   <div class="form-row" x-show="dt==='campaign'" x-cloak><label>{{ t('discounts.end') }}</label>
     <input class="input" type="date" name="end_date" value="{{ d.end_date or '' if d else '' }}"></div>
+  {# Off by default, and that default is the safety of the whole feature: an
+     existing discount gains a members list without anybody's eligibility
+     changing. On, only the named people get it. #}
+  <div class="form-row"><label>&nbsp;</label>
+    <label class="check"><input type="checkbox" name="members_only" value="1"
+      {{ 'checked' if (d.members_only if d else False) else '' }}> {{ t('discount_members.members_only') }}</label>
+    <div class="hint">{{ t('discount_members.members_only_hint') }}</div></div>
   <div class="form-row" x-show="dt!=='special'" x-cloak><label>&nbsp;</label>
     <label class="check"><input type="checkbox" name="auto_apply" value="1"
       {{ 'checked' if (d.auto_apply if d else True) else '' }}> {{ t('discounts.auto_apply') }}</label>
@@ -75,7 +92,7 @@
 </div>
 
 <!-- Add -->
-<details class="card gc-scale-in" x-data="{ dt: 'campaign' }">
+<details class="card gc-scale-in" x-data="{ dt: 'campaign', svc: '' }">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('discounts.add') }}</summary>
   <form method="post" action="{{ url_for('finance.discounts') }}" style="margin-top:12px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -89,7 +106,7 @@
   <table class="table">
     <thead><tr><th>{{ t('discounts.name') }}</th><th>{{ t('discounts.dtype') }}</th><th>{{ t('discounts.value') }}</th><th>{{ t('discounts.on_label') }}</th><th>{{ t('discounts.eligibility') }}</th><th>{{ t('discounts.window') }}</th><th>{{ t('common.status') }}</th><th style="text-align:end;"></th></tr></thead>
     {% for d in discounts %}
-    <tbody x-data="{ open: false, dt: '{{ d.dtype }}' }">
+    <tbody x-data="{ open: false, dt: '{{ d.dtype }}', svc: '{{ d.service_id or '' }}' }">
       <tr style="{{ 'opacity:0.55;' if not d.is_active else '' }}">
         <td><strong>{{ d.display_name(current_lang) }}</strong></td>
         <td><span class="badge badge--role">{{ t('discounts.t_' ~ d.dtype) }}</span></td>
@@ -100,14 +117,28 @@
             {% elif d.dtype=='sibling' %}
               {{ t('discounts.min_siblings') }}: {{ d.min_siblings or 2 }}
               {% if d.same_doctor %}<span class="badge badge--muted">{{ t('discounts.same_doctor') }}</span>{% endif %}
-            {% elif d.dtype=='payer' and d.payer %}
-              <a href="{{ url_for('finance.payer_members', payer_id=d.payer_id) }}">{{ d.payer.display_name(current_lang) }}</a>
+            {% elif d.dtype=='payer' and d.payer_ids %}
+              {# The club is not the answer to "who gets this". Each name
+                 carries how many cards are valid today and is a link to the
+                 names — the question somebody opens this screen to ask. #}
+              {% for p in payers if p.id in d.payer_ids %}
+              <a href="{{ url_for('finance.payer_members', payer_id=p.id) }}">{{ p.display_name(current_lang) }}</a><span
+                 class="badge {{ 'badge--green' if member_counts.get(p.id) else 'badge--muted' }}"
+                 title="{{ t('discounts.members_hint') }}"
+                 dir="ltr">{{ member_counts.get(p.id, 0) }}</span>{{ '' if loop.last else ' · ' }}
+              {% endfor %}
               {% if d.family_wide %}<span class="badge badge--muted">{{ t('discounts.family_wide') }}</span>{% endif %}
             {% else %}—{% endif %}
             {% if d.auto_apply %}<span class="badge badge--green">{{ t('discounts.auto') }}</span>{% endif %}</td>
         <td dir="ltr" style="color:var(--muted);font-size:0.85rem;">{{ d.start_date or '…' }} → {{ d.end_date or '…' }}</td>
         <td><span class="badge {{ 'badge--green' if d.is_active else 'badge--muted' }}">{{ t('common.active') if d.is_active else t('common.inactive') }}</span></td>
         <td style="text-align:end;white-space:nowrap;">
+          {# Every kind of discount, not just the clubs: "these families by
+             name" and "everyone except him" are lists whatever the rule is. #}
+          <a class="btn btn-outline btn-sm gc-press" title="{{ t('discount_members.title') }}"
+             href="{{ url_for('finance.discount_members', discount_id=d.id) }}">
+            <i class="bi bi-people"></i>
+            {% if d.members %}<span class="badge badge--role" dir="ltr">{{ d.members|length }}</span>{% endif %}</a>
           <button class="btn btn-outline btn-sm gc-press" type="button" @click="open = !open" :title="'{{ t('common.edit') }}'"><i class="bi bi-pencil"></i></button>
           <form method="post" action="{{ url_for('finance.discount_toggle', discount_id=d.id) }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

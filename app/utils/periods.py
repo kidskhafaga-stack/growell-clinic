@@ -189,17 +189,50 @@ def generate_months(year):
 
 
 def selectable_years(back=5, forward=2):
-    """Years the screen offers.
+    """Years the screen **suggests**. Any year can still be typed.
 
-    Only years that already had periods were listed, plus this one — so there
-    was no way to *reach* 2027 in order to create it, and the year dropdown
-    showed a single option forever. A clinic opening its books for next year,
-    or entering last year's figures, could not.
+    This started as a closed list and that was the mistake: the suggestions are
+    a convenience for the years a clinic actually wants nine times out of ten,
+    and turning them into the only reachable years meant a clinic entering
+    2019's books — or opening 2030 — was told no by a dropdown, with nothing on
+    the screen explaining why.
     """
     this_year = date.today().year
     years = {y for y in range(this_year - back, this_year + forward + 1)}
     years |= {p.start_date.year for p in AccountingPeriod.query.all()}
     return sorted(years)
+
+
+# The books are not a time machine. Outside this, a "year" is a typo — a
+# stray keystroke turning 2026 into 22026 would otherwise create twelve
+# periods twenty thousand years out and leave somebody hunting for them.
+YEAR_MIN = 1900
+YEAR_MAX = 2200
+
+
+def valid_year(value, fallback=None):
+    """``value`` as a usable year, else ``fallback`` (today's year by default).
+
+    Typed years are the point, so this is deliberately permissive about which
+    year and strict only about it being one.
+    """
+    try:
+        year = int(str(value).strip())
+    except (TypeError, ValueError, AttributeError):
+        return fallback if fallback is not None else date.today().year
+    if YEAR_MIN <= year <= YEAR_MAX:
+        return year
+    return fallback if fallback is not None else date.today().year
+
+
+def count_periods(year, kind=None):
+    """How many periods this year already has — for "you did this already"."""
+    query = AccountingPeriod.query.filter(
+        AccountingPeriod.start_date >= date(year, 1, 1),
+        AccountingPeriod.start_date <= date(year, 12, 31))
+    if kind:
+        query = query.filter(AccountingPeriod.kind == kind)
+    return query.count()
 
 
 def close_period(period, user_id=None):

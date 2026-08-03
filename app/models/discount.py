@@ -26,6 +26,63 @@ DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "sibling",
 VACCINE_SCOPE = "vaccine"
 
 
+# Which clubs, companies or syndicates one discount covers.
+#
+# It started as a single ``payer_id``, which forced a clinic offering the same
+# terms to four clubs to keep four identical rules — and four places to forget
+# when the terms change. The offer is one thing; the list of cards it honours
+# is a list.
+named_discount_payers = db.Table(
+    "named_discount_payers",
+    db.Column("discount_id", db.Integer, db.ForeignKey("named_discounts.id"),
+              primary_key=True),
+    db.Column("payer_id", db.Integer, db.ForeignKey("payer_entities.id"),
+              primary_key=True),
+)
+
+
+class DiscountMember(db.Model):
+    """One person named on a discount by hand — or taken off it by hand.
+
+    Eligibility here has always been *computed*: a club discount looks for a
+    card, a category discount looks at the parents' category, a doctor's
+    discount looks at who is seeing the child. That is right for the common
+    case and useless for the two a clinic actually runs into.
+
+    **"These people, by name."** The list the clinic keeps in its head — the
+    doctors' children, the four families from the old practice — with nothing
+    on file that a rule could match on.
+
+    **"Everyone except him."** A member whose discount the clinic has stopped,
+    without deleting the rule that covers the other three hundred.
+
+    ``mode`` says which. An exclusion always wins: taking somebody off a
+    discount is an instruction, and an instruction that a rule can override is
+    not one.
+    """
+    __tablename__ = "discount_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    discount_id = db.Column(db.Integer, db.ForeignKey("named_discounts.id"),
+                            nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    mode = db.Column(db.String(10), default="include", nullable=False)
+    note = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    patient = db.relationship("Patient")
+    discount = db.relationship("NamedDiscount", back_populates="members")
+
+    @property
+    def is_exclusion(self):
+        return self.mode == "exclude"
+
+    def __repr__(self):
+        return f"<DiscountMember d={self.discount_id} p={self.patient_id} {self.mode}>"
+
+
 class NamedDiscount(db.Model):
     __tablename__ = "named_discounts"
 
@@ -53,8 +110,25 @@ class NamedDiscount(db.Model):
     # discount without negotiating a per-service price list.
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     client_category = db.Column(db.String(20))
+    # Kept for the rules written before a discount could name several: it is
+    # still read, so nothing an existing clinic saved stops working, and it is
+    # still written when exactly one is chosen.
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"),
                          nullable=True, index=True)
+    payers = db.relationship("PayerEntity", secondary=named_discount_payers,
+                             lazy="selectin")
+
+    # People named on this discount by hand — see :class:`DiscountMember`.
+    members = db.relationship("DiscountMember", back_populates="discount",
+                              cascade="all, delete-orphan", lazy="selectin")
+    # Whether the named list *replaces* the rule or adds to it.
+    #
+    # Off by default, and that default is the whole safety of this feature: an
+    # existing discount gains a members list without anybody's eligibility
+    # changing. Switched on, only the named people get it — which is what a
+    # clinic means by "the discount is for these families" and would be a
+    # catastrophe to assume.
+    members_only = db.Column(db.Boolean, default=False, nullable=False)
     # Sibling discount: how many children of the same family have to be seen
     # on the same day before it applies (2 = "two brothers together").
     min_siblings = db.Column(db.Integer, default=2)
@@ -141,6 +215,23 @@ class NamedDiscount(db.Model):
         """Eligibility check for an invoice context."""
         if not self.is_active or not self.in_window(on_date):
             return False
+
+        # What a person put on the list, before what a rule works out.
+        #
+        # An exclusion wins over everything: taking somebody off a discount is
+        # an instruction, and one a rule can override is not an instruction.
+        # An inclusion wins over the rule the other way — that is the point of
+        # naming somebody who has nothing on file to match on.
+        if patient is not None and self.members:
+            named = {m.patient_id: m for m in self.members}
+            hit = named.get(patient.id)
+            if hit is not None:
+                return not hit.is_exclusion
+            if self.members_only:
+                return False
+        elif self.members_only:
+            return False        # a list-only discount with nobody on the list
+
         if self.dtype == "doctor":
             return self.doctor_id is not None and self.doctor_id == doctor_id
         if self.dtype == "category":
@@ -156,9 +247,9 @@ class NamedDiscount(db.Model):
             # the caller decides — here we only confirm the rule is live.
             return patient is not None and patient.family_id is not None
         if self.dtype == "payer":
-            # Members only: the patient must hold a *valid* card for this payer
-            # — or, for a family card, one of their siblings must.
-            if self.payer_id is None or patient is None:
+            # Members only: the patient must hold a *valid* card for one of the
+            # named payers — or, for a family card, one of their siblings must.
+            if not self.payer_ids or patient is None:
                 return False
             if self._has_card(patient):
                 return True
@@ -169,9 +260,23 @@ class NamedDiscount(db.Model):
         # campaign / special apply broadly.
         return True
 
+    @property
+    def payer_ids(self):
+        """Every payer this discount honours, old single column included.
+
+        One offer can cover several clubs. Reading both shapes here is what
+        lets the new list arrive without rewriting the rules a clinic already
+        saved — and a rule saved with one club keeps working untouched.
+        """
+        ids = {p.id for p in (self.payers or [])}
+        if self.payer_id:
+            ids.add(self.payer_id)
+        return ids
+
     def _has_card(self, patient):
-        """A valid membership card of this payer, on this patient's file."""
-        return any(c.payer_id == self.payer_id and c.is_valid
+        """A valid membership card of any of these payers, on this file."""
+        wanted = self.payer_ids
+        return any(c.payer_id in wanted and c.is_valid
                    for c in (getattr(patient, "coverages", None) or []))
 
     def amount_for(self, gross):

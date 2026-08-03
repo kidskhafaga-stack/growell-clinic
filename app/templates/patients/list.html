@@ -35,6 +35,13 @@
     <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.bulk_import') }}">
       <i class="bi bi-upload"></i> {{ t('patients.import_patients') }}
     </a>
+    {# Next to the patient import, because that is the order they are done in
+       and the history screen refuses to be useful before it. It had no link
+       anywhere at all — reachable only by typing the URL, which is the same
+       way the contracts screen was lost. #}
+    <a class="btn btn-outline gc-press gc-ripple" href="{{ url_for('patients.history_import') }}">
+      <i class="bi bi-database-down"></i> {{ t('history_import.title') }}
+    </a>
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('patients.create') }}">
       <i class="bi bi-person-plus"></i> {{ t('patients.add_patient') }}
     </a>

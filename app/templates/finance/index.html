@@ -88,6 +88,16 @@
     <h3 style="margin:10px 0 4px;">{{ t('discounts.title') }}</h3>
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('discounts.subtitle') }}</p>
   </a>
+
+  {# The third screen found with no way in — after the contracts and the
+     history import. This one holds refunds waiting for a manager to approve
+     them, so a clinic with no link here has money sitting in a queue nobody
+     can see. #}
+  <a class="card gc-lift" href="{{ url_for('finance.refund_requests') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-red"><i class="bi bi-arrow-counterclockwise"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('refunds.requests_title') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('refunds.requests_subtitle') }}</p>
+  </a>
 </div>
 {% endblock %}
 

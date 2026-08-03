@@ -110,6 +110,7 @@ from app.models.payer import (
     ClaimItem,
     PatientCoverage,
     PayerContract,
+    PayerType,
     PayerContractRate,
     PayerEntity,
     PayerServiceRate,
@@ -168,7 +169,7 @@ from app.models.payable import (
     SupplierPayment,
 )
 from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
-                                 NamedDiscount)
+                                 DiscountMember, NamedDiscount)
 from app.models.accounting import (
     ACCOUNT_TYPES,
     PERIOD_STATUSES,
@@ -290,6 +291,7 @@ __all__ = [
     "CLAIM_STATUSES",
     "PayerServiceRate",
     "PayerContract",
+    "PayerType",
     "PayerContractRate",
     "PatientCoverage",
     "PAYER_TYPES",
@@ -339,6 +341,7 @@ __all__ = [
     "SUPPLIER_PAYMENT_METHODS",
     "PO_STATUSES",
     "NamedDiscount",
+    "DiscountMember",
     "DISCOUNT_TYPES",
     "VACCINE_SCOPE",
     "Feedback",

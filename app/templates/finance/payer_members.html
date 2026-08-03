@@ -8,7 +8,7 @@
   <div>
     <h1 class="page-title">{{ payer.display_name(current_lang) }}</h1>
     <p class="page-sub" style="margin:0;">
-      {{ t('payer_types.' ~ payer.entity_type) }} · {{ t('members.count') }}: {{ rows|length }}
+      {{ payer_type_label(payer.entity_type) }} · {{ t('members.count') }}: {{ rows|length }}
       {% if payer.active_contract() %} · <span class="badge badge--green">{{ t('contracts.current') }}</span>{% endif %}
     </p>
   </div>

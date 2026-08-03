@@ -1470,26 +1470,107 @@ def shift_report(shift_id):
                            payment_methods=PAYMENT_METHODS)
 
 
-def _siblings_seen_today(patient, on_date=None, doctor_id=None):
-    """How many children of this family the clinic saw on ``on_date``.
+def _paid_service(service):
+    """A service that actually costs something.
 
-    "Seen" is deliberately generous: a sibling counts once they have an
-    appointment that wasn't cancelled, a visit, or an invoice that day — the
-    discount is about the family's trip to the clinic, not about who happened
-    to be invoiced first.
+    The line the whole rule turns on. A consultation the clinic gives free —
+    the follow-up inside the exam's window — is not a second paid visit, and
+    two children whose "visit" is worth nothing between them are not a pair
+    the family is owed a discount on. A *paid* consultation is a real visit
+    and counts like any other.
+    """
+    return service is not None and (service.price or 0) > 0
+
+
+def _counts_for_sibling_rule(disc, patient_id, day, doctor_id=None):
+    """Whether this child had a chargeable, in-scope visit on ``day``.
+
+    Two ways to know, in order, because the answer is needed **before** the
+    second child is billed:
+
+    **A billed line.** What was actually charged, gross above zero, and within
+    whatever the discount is aimed at.
+
+    **Otherwise the booking.** The first child of the day is priced while the
+    second is still in the waiting room, so an appointment or a visit counts
+    when its type maps to a service that is in scope and is not free. Without
+    this the rule could only ever fire on the last child billed, and reception
+    would be told there is no sibling discount while the siblings are visibly
+    in the room.
+    """
+    from app.models import Appointment, InvoiceItem
+    from app.utils.pricing import service_for_visit_type
+
+    lines = (InvoiceItem.query.join(Invoice)
+             .filter(Invoice.patient_id == patient_id,
+                     Invoice.invoice_date == day))
+    if doctor_id:
+        lines = lines.filter(Invoice.doctor_id == doctor_id)
+    for item in lines.all():
+        if (item.gross or 0) > 0 and disc.applies_to_line(item):
+            return True
+
+    appts = Appointment.query.filter(
+        Appointment.patient_id == patient_id, Appointment.appt_date == day,
+        Appointment.status.notin_(("cancelled", "no_show")))
+    visits = Visit.query.filter(Visit.patient_id == patient_id,
+                                Visit.visit_date == day)
+    if doctor_id:
+        appts = appts.filter(Appointment.doctor_id == doctor_id)
+        visits = visits.filter(Visit.doctor_id == doctor_id)
+    for row in list(appts.all()) + list(visits.all()):
+        kind = getattr(row, "appt_type", None) or getattr(row, "visit_type", None)
+        service = service_for_visit_type(kind)
+        if service is None:
+            # The visit type is not mapped to a priced service, so the program
+            # cannot tell an exam from a free consultation here — and "unknown"
+            # must not be read as "free". Treating it as free would switch the
+            # sibling discount off, silently, in every clinic that has not
+            # mapped its visit types yet. The rule engages the moment they do,
+            # which they must anyway for the visit to be priced at all.
+            return True
+        if not _paid_service(service):
+            continue
+
+        class _Line:                      # what the scope check reads
+            def __init__(self, svc):
+                self.service = svc
+                self.vaccine_brand_id = None
+
+        if disc.applies_to_line(_Line(service)):
+            return True
+    return False
+
+
+def _siblings_seen_today(patient, on_date=None, doctor_id=None, disc=None):
+    """How many children of this family had a **chargeable** visit on ``on_date``.
+
+    It used to count any appointment, visit or invoice at all, which made a
+    child who came for a free consultation — or for anything outside what the
+    discount covers — into half of a qualifying pair. The clinic was explicit:
+    the rule is two exams together, not an exam and a free consultation, and a
+    consultation that *is* charged counts like any other visit.
 
     Pass ``doctor_id`` to count only the children that doctor saw: "الأخوين
     سوا" is one doctor's offer on their own list, so two children who saw two
     different doctors on the same day are two separate visits, not a pair."""
-    from app.models import Appointment
-
     if patient is None or not patient.family_id:
         return 0
     day = on_date or date.today()
     ids = {p.id for p in Patient.query.filter_by(family_id=patient.family_id).all()}
     if not ids:
         return 0
-    seen = {patient.id}
+    if disc is None:                      # no rule in hand: the old, loose count
+        return _any_siblings_seen(ids, day, doctor_id, patient.id)
+    return sum(1 for pid in ids
+               if _counts_for_sibling_rule(disc, pid, day, doctor_id))
+
+
+def _any_siblings_seen(ids, day, doctor_id, self_id):
+    """The old generous count, kept for callers with no discount in hand."""
+    from app.models import Appointment
+
+    seen = {self_id}
     appts = Appointment.query.filter(
         Appointment.patient_id.in_(ids), Appointment.appt_date == day,
         Appointment.status.notin_(("cancelled", "no_show")))
@@ -1511,7 +1592,8 @@ def _sibling_rule_met(disc, patient, on_date=None, doctor_id=None):
     if patient is None or not patient.family_id:
         return False
     count = _siblings_seen_today(patient, on_date,
-                                 doctor_id if disc.same_doctor else None)
+                                 doctor_id if disc.same_doctor else None,
+                                 disc=disc)
     return count >= max(disc.min_siblings or 2, 2)
 
 
@@ -2372,7 +2454,12 @@ def discounts():
         services=Service.query.filter_by(is_active=True)
         .order_by(Service.name).all(),
         payers=PayerEntity.query.filter_by(is_active=True)
-        .order_by(PayerEntity.name).all())
+        .order_by(PayerEntity.name).all(),
+        # "Which club" is not the same question as "who gets it". A rule that
+        # names a club and shows nothing else leaves an admin unable to answer
+        # the only thing they came to check — so the count of valid cards is
+        # on the row, and it is a link to the names.
+        member_counts=_valid_member_counts())
 
 
 # ======================================= client categories (نقدي / عاملين / …)
@@ -2484,6 +2571,27 @@ def client_category_delete(cat_id):
     return redirect(url_for("finance.discounts"))
 
 
+def _valid_member_counts():
+    """``{payer_id: how many patients hold a card that is good today}``.
+
+    Counted in one query for the whole screen rather than per row — and
+    counting only the *valid* ones, because a club with forty expired cards
+    and none current gives nobody a discount, and a row saying "40" there
+    would be worse than saying nothing.
+    """
+    from app.models import PatientCoverage
+
+    today = date.today()
+    counts = {}
+    for payer_id, active, expiry in db.session.query(
+            PatientCoverage.payer_id, PatientCoverage.is_active,
+            PatientCoverage.expiry_date).all():
+        if not active or (expiry and expiry < today):
+            continue
+        counts[payer_id] = counts.get(payer_id, 0) + 1
+    return counts
+
+
 def _fill_discount(row):
     """Read one discount's fields off the submitted form (add and edit share it)."""
     name = (request.form.get("name") or "").strip()
@@ -2499,11 +2607,24 @@ def _fill_discount(row):
     row.is_percent = (request.form.get("unit") or "percent") == "percent"
     row.doctor_id = request.form.get("doctor_id", type=int) or None
     row.client_category = (request.form.get("client_category") or "").strip() or None
-    row.payer_id = request.form.get("payer_id", type=int) or None
+    # One offer, however many clubs honour it. Four clubs on the same terms
+    # used to mean four identical rules — and four places to forget when the
+    # terms change. The single column is still written when exactly one is
+    # chosen, so a rule saved today reads the same to older code.
+    from app.models import PayerEntity
+
+    wanted = {int(v) for v in request.form.getlist("payer_ids") if str(v).isdigit()}
+    single = request.form.get("payer_id", type=int)
+    if single:
+        wanted.add(single)
+    row.payers = (PayerEntity.query.filter(PayerEntity.id.in_(wanted)).all()
+                  if wanted else [])
+    row.payer_id = next(iter(wanted)) if len(wanted) == 1 else None
     row.min_siblings = max(request.form.get("min_siblings", type=int) or 2, 2)
     row.same_doctor = bool(request.form.get("same_doctor"))
     row.family_wide = bool(request.form.get("family_wide"))
     row.auto_apply = bool(request.form.get("auto_apply"))
+    row.members_only = bool(request.form.get("members_only"))
     row.start_date = _parse_date_arg("start_date")
     row.end_date = _parse_date_arg("end_date")
     return row
@@ -2519,6 +2640,146 @@ def discount_edit(discount_id):
     db.session.commit()
     flash(t("discounts.updated"), "success")
     return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/discounts/<int:discount_id>/members")
+@module_required(MODULE)
+def discount_members(discount_id):
+    """Who is on this discount, by name — the contract's members screen, for
+    a discount.
+
+    Eligibility here has always been *computed*, which is right for the common
+    case and useless for the two a clinic actually runs into: "these families,
+    by name", and "everyone except him". Both are lists, and a list needs a
+    screen somebody can read, search, correct and hand to an accountant.
+    """
+    from app.models import DiscountMember
+
+    row = db.get_or_404(NamedDiscount, discount_id)
+    members = (DiscountMember.query.filter_by(discount_id=row.id)
+               .join(Patient).order_by(DiscountMember.mode, Patient.full_name)
+               .all())
+    return render_template("finance/discount_members.html", discount=row,
+                           members=members,
+                           # What the rule alone would reach, so the screen can
+                           # say what the list is adding to or taking from.
+                           rule_reach=_discount_rule_reach(row))
+
+
+def _discount_rule_reach(disc):
+    """How many patients the computed rule covers, ignoring the named list.
+
+    Shown so "12 named" can be read against "and the rule covers 340" — the
+    difference between a list that tops a rule up and one that replaces it is
+    the single thing somebody misreads on this screen.
+    """
+    from app.models import PatientCoverage
+
+    if disc.dtype == "payer":
+        ids = disc.payer_ids
+        if not ids:
+            return 0
+        today = date.today()
+        seen = set()
+        for pid, patient_id, active, expiry in db.session.query(
+                PatientCoverage.payer_id, PatientCoverage.patient_id,
+                PatientCoverage.is_active, PatientCoverage.expiry_date).all():
+            if pid in ids and active and not (expiry and expiry < today):
+                seen.add(patient_id)
+        return len(seen)
+    if disc.dtype == "category" and disc.client_category:
+        return sum(1 for p in Patient.query.filter_by(is_active=True).all()
+                   if disc.client_category in p.client_categories)
+    return None                 # not a countable rule (doctor / sibling / …)
+
+
+@finance_bp.route("/discounts/<int:discount_id>/members/add", methods=["POST"])
+@module_required(MODULE)
+def discount_member_add(discount_id):
+    from app.models import DiscountMember
+
+    row = db.get_or_404(NamedDiscount, discount_id)
+    patient_id = request.form.get("patient_id", type=int)
+    patient = db.session.get(Patient, patient_id) if patient_id else None
+    if patient is None:
+        flash(t("common.not_found"), "danger")
+        return redirect(url_for("finance.discount_members", discount_id=row.id))
+
+    mode = "exclude" if request.form.get("mode") == "exclude" else "include"
+    existing = DiscountMember.query.filter_by(discount_id=row.id,
+                                              patient_id=patient.id).first()
+    if existing is not None:
+        # Adding somebody who is already there is a correction, not an error:
+        # the usual reason is switching them between named and excluded.
+        existing.mode = mode
+        existing.note = (request.form.get("note") or "").strip() or None
+    else:
+        db.session.add(DiscountMember(
+            discount_id=row.id, patient_id=patient.id, mode=mode,
+            note=(request.form.get("note") or "").strip() or None,
+            created_by=current_user.id))
+    ActivityLog.record("discount.member.add", user_id=current_user.id,
+                       entity="named_discount", entity_id=row.id,
+                       detail=f"{mode}: {patient.full_name}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("discount_members.added"), "success")
+    return redirect(url_for("finance.discount_members", discount_id=row.id))
+
+
+@finance_bp.route("/discounts/members/<int:member_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def discount_member_delete(member_id):
+    from app.models import DiscountMember
+
+    row = db.get_or_404(DiscountMember, member_id)
+    discount_id = row.discount_id
+    ActivityLog.record("discount.member.remove", user_id=current_user.id,
+                       entity="named_discount", entity_id=discount_id,
+                       detail=str(row.patient_id), ip_address=client_ip())
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("discount_members.removed"), "info")
+    return redirect(url_for("finance.discount_members", discount_id=discount_id))
+
+
+@finance_bp.route("/discounts/<int:discount_id>/members/export")
+@module_required(MODULE)
+def discount_members_export(discount_id):
+    """The list as a spreadsheet — for the accountant, or for the club."""
+    from io import BytesIO
+
+    from flask import send_file
+    from openpyxl import Workbook
+
+    row = db.get_or_404(NamedDiscount, discount_id)
+    from app.models import DiscountMember
+
+    members = (DiscountMember.query.filter_by(discount_id=row.id)
+               .join(Patient).order_by(DiscountMember.mode,
+                                       Patient.full_name).all())
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Members"
+    ws.append([t("discount_members.col_file"), t("discount_members.col_name"),
+               t("discount_members.col_mode"), t("discount_members.col_note")])
+    for m in members:
+        lang = getattr(g, "lang", "ar")
+        ws.append([m.patient.patient_number if m.patient else "",
+                   m.patient.display_name(lang) if m.patient else "",
+                   t("discount_members.excluded") if m.is_exclusion
+                   else t("discount_members.included"),
+                   m.note or ""])
+    for col in "ABCD":
+        ws.column_dimensions[col].width = 26
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name=f"discount_{row.id}_members.xlsx")
 
 
 @finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])
@@ -2862,19 +3123,33 @@ def periods():
     from flask import abort
 
     from app.models import AccountingPeriod
-    from app.utils.periods import (KINDS, close_period, generate_periods,
-                                   reopen_period, selectable_years)
+    from app.utils.periods import (KINDS, close_period, count_periods,
+                                   generate_periods, reopen_period,
+                                   selectable_years, valid_year)
 
-    year = request.values.get("year", type=int) or date.today().year
+    # Typed, not picked from a closed list. The suggestions cover the years a
+    # clinic wants nine times out of ten; a clinic entering 2019's books, or
+    # opening 2030, was previously told no by a dropdown with nothing on the
+    # screen explaining why.
+    year = valid_year(request.values.get("year"))
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
         if action == "generate":
             kind = (request.form.get("kind") or "month").strip()
             if kind not in KINDS:
                 kind = "month"
+            before = count_periods(year, kind)
             made = generate_periods(year, kind, getattr(g, "lang", "ar"))
             db.session.commit()
-            flash(t("periods.generated").replace("{n}", str(made)), "success")
+            if made:
+                flash(t("periods.generated").replace("{n}", str(made)), "success")
+            else:
+                # Creating is idempotent, so pressing twice is harmless — but
+                # "0 created" reported as success reads as a failure nobody can
+                # explain. Say which year and which kind already exist.
+                flash(t("periods.already_there")
+                      .replace("{n}", str(before))
+                      .replace("{y}", str(year)), "warning")
             return redirect(url_for("finance.periods", year=year))
         if not current_user.is_admin:
             abort(403)          # closing/reopening the books is admin-only
@@ -2937,11 +3212,14 @@ def payers():
         if not name:
             flash(t("common.required") + ": " + t("claims.entity_name"), "danger")
             return redirect(url_for("finance.payers"))
+        from app.utils.payer_types import ensure_seeded, valid_key
+
+        ensure_seeded()
         etype = (request.form.get("entity_type") or "club").strip()
         db.session.add(PayerEntity(
             name=name,
             name_en=(request.form.get("name_en") or "").strip() or None,
-            entity_type=etype if etype in PAYER_TYPES else "club",
+            entity_type=etype if valid_key(etype) else "club",
             discount_percent=request.form.get("discount_percent", type=float) or 0,
             contact_person=(request.form.get("contact_person") or "").strip() or None,
             phone=(request.form.get("phone") or "").strip() or None,
@@ -2952,8 +3230,10 @@ def payers():
         flash(t("claims.entity_added"), "success")
         return redirect(url_for("finance.payers"))
 
+    from app.utils.payer_types import active_types, ensure_seeded, usage_counts
     from app.utils.pricing import cash_payer, ensure_cash_contract
 
+    ensure_seeded()
     renewed = ensure_cash_contract()
     if renewed is not None:
         flash(t("contracts.cash_renewed")
@@ -2963,10 +3243,99 @@ def payers():
     return render_template(
         "finance/payers.html",
         payers=PayerEntity.query.order_by(PayerEntity.name).all(),
-        types=PAYER_TYPES, coverage_types=COVERAGE_TYPES,
+        # The clinic's own list now, not six names fixed in the code.
+        types=active_types(), all_types=_all_payer_types(),
+        type_usage=usage_counts(),
+        coverage_types=COVERAGE_TYPES,
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         cash_payer=cash_payer(),
     )
+
+
+def _all_payer_types():
+    from app.utils.payer_types import all_types
+
+    return all_types()
+
+
+# ============================================ payer types (نادي / نقابة / …)
+@finance_bp.route("/payer-types/new", methods=["POST"])
+@module_required(MODULE)
+def payer_type_new():
+    """Add a kind of payer — what the fixed six had no room for."""
+    from app.models import PayerType
+    from app.utils.ordering import append_order
+    from app.utils.payer_types import ensure_seeded, make_key
+
+    ensure_seeded()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("claims.entity_type"), "danger")
+        return redirect(url_for("finance.payers"))
+    name_en = (request.form.get("name_en") or "").strip() or None
+    db.session.add(PayerType(key=make_key(name, name_en), name_ar=name,
+                             name_en=name_en, is_active=True, is_system=False,
+                             sort_order=append_order(PayerType)))
+    db.session.commit()
+    flash(t("payer_types_admin.added"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payer-types/<int:type_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def payer_type_edit(type_id):
+    """Rename a kind. The **key never changes** — every payer stores one, and
+    ``cash`` is read by name to find the clinic's own price list."""
+    from app.models import PayerType
+
+    row = db.get_or_404(PayerType, type_id)
+    name = (request.form.get("name") or "").strip()
+    if name:
+        row.name_ar = name
+    row.name_en = (request.form.get("name_en") or "").strip() or None
+    row.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("payer_types_admin.updated"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payer-types/<int:type_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def payer_type_delete(type_id):
+    """Refused with a reason when anything depends on it.
+
+    Deleting a kind that payers are filed under would leave them pointing at
+    something that no longer exists — a report that quietly drops rows rather
+    than an error somebody sees. Hiding it is the answer, and that is one
+    checkbox away.
+    """
+    from app.models import PayerType
+    from app.utils.payer_types import usage_counts
+
+    row = db.get_or_404(PayerType, type_id)
+    if row.is_system:
+        flash(t("payer_types_admin.system_kept"), "warning")
+        return redirect(url_for("finance.payers"))
+    used = usage_counts().get(row.key, 0)
+    if used:
+        flash(t("payer_types_admin.in_use").replace("{n}", str(used)), "warning")
+        return redirect(url_for("finance.payers"))
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("payer_types_admin.deleted"), "info")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payer-types/<int:type_id>/move", methods=["POST"])
+@module_required(MODULE)
+def payer_type_move(type_id):
+    from app.models import PayerType
+    from app.utils.ordering import move
+
+    row = db.get_or_404(PayerType, type_id)
+    if move(PayerType, row, 1 if request.form.get("dir") == "down" else -1):
+        db.session.commit()
+    return redirect(url_for("finance.payers"))
 
 
 @finance_bp.route("/payers/<int:payer_id>/members")
@@ -2982,9 +3351,13 @@ def payer_members(payer_id):
                       PatientCoverage.expiry_date.is_(None),
                       PatientCoverage.expiry_date.desc()).all())
     from app.models import NamedDiscount
-    member_discounts = (NamedDiscount.query
-                        .filter_by(dtype="payer", payer_id=payer.id,
-                                   is_active=True).all())
+    # Both shapes: the single column an older rule was saved with, and the
+    # list a rule covering several clubs uses. Asking only the column would
+    # make this screen say "no discount" for a club that has one — on the very
+    # screen somebody opens to check.
+    member_discounts = [d for d in NamedDiscount.query
+                        .filter_by(dtype="payer", is_active=True).all()
+                        if payer.id in d.payer_ids]
     if request.args.get("print"):
         lang = request.args.get("lang")
         if lang in ("ar", "en"):
@@ -3040,8 +3413,13 @@ def payer_edit(payer_id):
     p = db.get_or_404(PayerEntity, payer_id)
     p.name = (request.form.get("name") or p.name).strip()
     p.name_en = (request.form.get("name_en") or "").strip() or None
+    from app.utils.payer_types import valid_key
+
     etype = (request.form.get("entity_type") or p.entity_type).strip()
-    p.entity_type = etype if etype in PAYER_TYPES else p.entity_type
+    # An inactive kind is still valid for a payer already filed under it —
+    # rejecting it here would silently reset them to "club" the next time
+    # somebody saved an unrelated field on the same form.
+    p.entity_type = etype if valid_key(etype) else p.entity_type
     p.discount_percent = request.form.get("discount_percent", type=float) or 0
     p.contact_person = (request.form.get("contact_person") or "").strip() or None
     p.phone = (request.form.get("phone") or "").strip() or None
