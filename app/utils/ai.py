@@ -49,6 +49,11 @@ AI_PROVIDERS = {
         "models": ["gemini-2.5-flash", "gemini-2.5-pro",
                    "gemini-2.5-flash-lite", "gemini-2.0-flash"],
         "keys_url": "https://aistudio.google.com/app/apikey",
+        # A key from Google AI Studio costs nothing to create, which is what
+        # makes this the one to point a clinic at when it wants to *try* the
+        # assistant before deciding anything. The quota is Google's and it
+        # changes; nothing here quotes a number it would go stale on.
+        "free": True,
     },
     "deepseek": {
         "label": "DeepSeek",
@@ -93,6 +98,7 @@ AI_PROVIDERS = {
         "models": ["llama3.1", "qwen2.5", "mistral", "gemma2", "phi3"],
         "keys_url": "",
         "local": True,   # runs on the clinic machine — data never leaves
+        "free": True,
     },
     "lmstudio": {
         "label": "Local — LM Studio (offline, private)",
@@ -102,6 +108,7 @@ AI_PROVIDERS = {
         "models": [],
         "keys_url": "",
         "local": True,
+        "free": True,
     },
     "custom": {
         "label": "Custom (OpenAI-compatible)",
@@ -148,6 +155,62 @@ def is_ready():
     if not (cfg["enabled"] and cfg["base_url"] and cfg["model"]):
         return False
     return cfg["local"] or bool(cfg["api_key"])
+
+
+# The provider a clinic is pointed at when it wants to try the assistant
+# without buying anything first. Gemini rather than a local model because
+# "install Ollama" is a different afternoon.
+TRIAL_PROVIDER = "gemini"
+
+
+def free_providers():
+    """The ids whose key costs nothing — for the badge on the settings screen.
+
+    Said as a fact about the *key*, not about a quota. Free tiers move, and a
+    screen that quotes "60 requests a minute" is a screen that is wrong later
+    and blamed for it.
+    """
+    return [pid for pid, meta in AI_PROVIDERS.items() if meta.get("free")]
+
+
+def trial_defaults():
+    """Provider, model and URL for "just let me try it" — everything but the key.
+
+    Every clinic brings **its own** free key. That is what makes this a
+    feature rather than a service: no shared account to meter, no per-clinic
+    budget to police, and nobody else's patients on the same quota.
+    """
+    meta = AI_PROVIDERS[TRIAL_PROVIDER]
+    return {"provider": TRIAL_PROVIDER, "model": meta["default_model"],
+            "base_url": meta["base_url"], "keys_url": meta["keys_url"]}
+
+
+def test_connection(config=None):
+    """Ask the provider one trivial question and report exactly what came back.
+
+    The gap this closes is not cosmetic. Until now a clinic saved its settings
+    and found out whether they worked when a doctor pressed "suggest a dose"
+    mid-consultation and nothing happened — with no way to tell a wrong key
+    from a wrong model from a firewall. Somebody setting this up alone, in
+    another clinic, needs the answer at the moment they type it.
+    """
+    cfg = config or get_config()
+    if not cfg["base_url"] or not cfg["model"]:
+        return {"ok": False, "error": "not_configured"}
+    if not cfg["api_key"] and not cfg["local"]:
+        return {"ok": False, "error": "no_key"}
+
+    # Enabled is a separate decision from working: somebody testing before
+    # switching it on is the normal order, and refusing them would make the
+    # button useless exactly when it is wanted.
+    probe = dict(cfg, enabled=True)
+    reply = chat([{"role": "user", "content": "Reply with the single word: ok"}],
+                 system="You are a connection test. Answer in one word.",
+                 config=probe)
+    if reply.get("ok"):
+        return {"ok": True, "text": (reply.get("text") or "").strip()[:200],
+                "provider": cfg["provider_label"], "model": cfg["model"]}
+    return {"ok": False, "error": reply.get("error") or "unknown"}
 
 
 def patient_context_enabled():
