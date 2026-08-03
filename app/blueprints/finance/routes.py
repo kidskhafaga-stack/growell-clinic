@@ -2624,6 +2624,7 @@ def _fill_discount(row):
     row.same_doctor = bool(request.form.get("same_doctor"))
     row.family_wide = bool(request.form.get("family_wide"))
     row.auto_apply = bool(request.form.get("auto_apply"))
+    row.members_only = bool(request.form.get("members_only"))
     row.start_date = _parse_date_arg("start_date")
     row.end_date = _parse_date_arg("end_date")
     return row
@@ -2639,6 +2640,145 @@ def discount_edit(discount_id):
     db.session.commit()
     flash(t("discounts.updated"), "success")
     return redirect(url_for("finance.discounts"))
+
+
+@finance_bp.route("/discounts/<int:discount_id>/members")
+@module_required(MODULE)
+def discount_members(discount_id):
+    """Who is on this discount, by name — the contract's members screen, for
+    a discount.
+
+    Eligibility here has always been *computed*, which is right for the common
+    case and useless for the two a clinic actually runs into: "these families,
+    by name", and "everyone except him". Both are lists, and a list needs a
+    screen somebody can read, search, correct and hand to an accountant.
+    """
+    from app.models import DiscountMember
+
+    row = db.get_or_404(NamedDiscount, discount_id)
+    members = (DiscountMember.query.filter_by(discount_id=row.id)
+               .join(Patient).order_by(DiscountMember.mode, Patient.full_name)
+               .all())
+    return render_template("finance/discount_members.html", discount=row,
+                           members=members,
+                           # What the rule alone would reach, so the screen can
+                           # say what the list is adding to or taking from.
+                           rule_reach=_discount_rule_reach(row))
+
+
+def _discount_rule_reach(disc):
+    """How many patients the computed rule covers, ignoring the named list.
+
+    Shown so "12 named" can be read against "and the rule covers 340" — the
+    difference between a list that tops a rule up and one that replaces it is
+    the single thing somebody misreads on this screen.
+    """
+    from app.models import PatientCoverage
+
+    if disc.dtype == "payer":
+        ids = disc.payer_ids
+        if not ids:
+            return 0
+        today = date.today()
+        seen = set()
+        for pid, patient_id, active, expiry in db.session.query(
+                PatientCoverage.payer_id, PatientCoverage.patient_id,
+                PatientCoverage.is_active, PatientCoverage.expiry_date).all():
+            if pid in ids and active and not (expiry and expiry < today):
+                seen.add(patient_id)
+        return len(seen)
+    if disc.dtype == "category" and disc.client_category:
+        return sum(1 for p in Patient.query.filter_by(is_active=True).all()
+                   if disc.client_category in p.client_categories)
+    return None                 # not a countable rule (doctor / sibling / …)
+
+
+@finance_bp.route("/discounts/<int:discount_id>/members/add", methods=["POST"])
+@module_required(MODULE)
+def discount_member_add(discount_id):
+    from app.models import DiscountMember
+
+    row = db.get_or_404(NamedDiscount, discount_id)
+    patient_id = request.form.get("patient_id", type=int)
+    patient = db.session.get(Patient, patient_id) if patient_id else None
+    if patient is None:
+        flash(t("common.not_found"), "danger")
+        return redirect(url_for("finance.discount_members", discount_id=row.id))
+
+    mode = "exclude" if request.form.get("mode") == "exclude" else "include"
+    existing = DiscountMember.query.filter_by(discount_id=row.id,
+                                              patient_id=patient.id).first()
+    if existing is not None:
+        # Adding somebody who is already there is a correction, not an error:
+        # the usual reason is switching them between named and excluded.
+        existing.mode = mode
+        existing.note = (request.form.get("note") or "").strip() or None
+    else:
+        db.session.add(DiscountMember(
+            discount_id=row.id, patient_id=patient.id, mode=mode,
+            note=(request.form.get("note") or "").strip() or None,
+            created_by=current_user.id))
+    ActivityLog.record("discount.member.add", user_id=current_user.id,
+                       entity="named_discount", entity_id=row.id,
+                       detail=f"{mode}: {patient.full_name}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("discount_members.added"), "success")
+    return redirect(url_for("finance.discount_members", discount_id=row.id))
+
+
+@finance_bp.route("/discounts/members/<int:member_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def discount_member_delete(member_id):
+    from app.models import DiscountMember
+
+    row = db.get_or_404(DiscountMember, member_id)
+    discount_id = row.discount_id
+    ActivityLog.record("discount.member.remove", user_id=current_user.id,
+                       entity="named_discount", entity_id=discount_id,
+                       detail=str(row.patient_id), ip_address=client_ip())
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("discount_members.removed"), "info")
+    return redirect(url_for("finance.discount_members", discount_id=discount_id))
+
+
+@finance_bp.route("/discounts/<int:discount_id>/members/export")
+@module_required(MODULE)
+def discount_members_export(discount_id):
+    """The list as a spreadsheet — for the accountant, or for the club."""
+    from io import BytesIO
+
+    from flask import send_file
+    from openpyxl import Workbook
+
+    row = db.get_or_404(NamedDiscount, discount_id)
+    from app.models import DiscountMember
+
+    members = (DiscountMember.query.filter_by(discount_id=row.id)
+               .join(Patient).order_by(DiscountMember.mode,
+                                       Patient.full_name).all())
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Members"
+    ws.append([t("discount_members.col_file"), t("discount_members.col_name"),
+               t("discount_members.col_mode"), t("discount_members.col_note")])
+    for m in members:
+        ws.append([m.patient.patient_number if m.patient else "",
+                   m.patient.full_name if m.patient else "",
+                   t("discount_members.excluded") if m.is_exclusion
+                   else t("discount_members.included"),
+                   m.note or ""])
+    for col in "ABCD":
+        ws.column_dimensions[col].width = 26
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name=f"discount_{row.id}_members.xlsx")
 
 
 @finance_bp.route("/discounts/<int:discount_id>/toggle", methods=["POST"])

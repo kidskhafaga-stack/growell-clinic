@@ -68,6 +68,13 @@
     <input class="input" type="date" name="start_date" value="{{ d.start_date or '' if d else '' }}"></div>
   <div class="form-row" x-show="dt==='campaign'" x-cloak><label>{{ t('discounts.end') }}</label>
     <input class="input" type="date" name="end_date" value="{{ d.end_date or '' if d else '' }}"></div>
+  {# Off by default, and that default is the safety of the whole feature: an
+     existing discount gains a members list without anybody's eligibility
+     changing. On, only the named people get it. #}
+  <div class="form-row"><label>&nbsp;</label>
+    <label class="check"><input type="checkbox" name="members_only" value="1"
+      {{ 'checked' if (d.members_only if d else False) else '' }}> {{ t('discount_members.members_only') }}</label>
+    <div class="hint">{{ t('discount_members.members_only_hint') }}</div></div>
   <div class="form-row" x-show="dt!=='special'" x-cloak><label>&nbsp;</label>
     <label class="check"><input type="checkbox" name="auto_apply" value="1"
       {{ 'checked' if (d.auto_apply if d else True) else '' }}> {{ t('discounts.auto_apply') }}</label>
@@ -126,6 +133,12 @@
         <td dir="ltr" style="color:var(--muted);font-size:0.85rem;">{{ d.start_date or '…' }} → {{ d.end_date or '…' }}</td>
         <td><span class="badge {{ 'badge--green' if d.is_active else 'badge--muted' }}">{{ t('common.active') if d.is_active else t('common.inactive') }}</span></td>
         <td style="text-align:end;white-space:nowrap;">
+          {# Every kind of discount, not just the clubs: "these families by
+             name" and "everyone except him" are lists whatever the rule is. #}
+          <a class="btn btn-outline btn-sm gc-press" title="{{ t('discount_members.title') }}"
+             href="{{ url_for('finance.discount_members', discount_id=d.id) }}">
+            <i class="bi bi-people"></i>
+            {% if d.members %}<span class="badge badge--role" dir="ltr">{{ d.members|length }}</span>{% endif %}</a>
           <button class="btn btn-outline btn-sm gc-press" type="button" @click="open = !open" :title="'{{ t('common.edit') }}'"><i class="bi bi-pencil"></i></button>
           <form method="post" action="{{ url_for('finance.discount_toggle', discount_id=d.id) }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

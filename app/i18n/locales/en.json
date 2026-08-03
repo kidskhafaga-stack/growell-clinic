@@ -4275,5 +4275,29 @@
     "deleted": "Kind deleted.",
     "system_kept": "This is a built-in kind — you can rename or hide it, but not delete it.",
     "in_use": "{n} entities are filed under this kind. Hide it instead of deleting, so they stay as they are."
+  },
+  "discount_members": {
+    "title": "Discount members",
+    "add": "Add somebody to this discount",
+    "find_patient": "Find the patient",
+    "find_hint": "Type a name or file number…",
+    "mode": "Kind",
+    "note": "Note",
+    "included": "Named",
+    "excluded": "Excluded",
+    "rule_reach": "The rule alone covers",
+    "col_file": "File no",
+    "col_name": "Name",
+    "col_mode": "Kind",
+    "col_note": "Note",
+    "none": "Nobody is named on this discount yet.",
+    "added": "Saved.",
+    "removed": "Removed from the discount.",
+    "export": "Download the list",
+    "members_only": "Only the people named here",
+    "members_only_hint": "Off: the list tops the rule up — everyone the rule covers gets it, plus whoever you name. On: only the named people, and the rule is ignored.",
+    "only_on": "This discount is for the people named here only — the rule is ignored.",
+    "only_off": "This list tops the rule up: everyone the rule covers gets the discount, plus whoever is named here.",
+    "exclusion_wins": "An excluded person never gets the discount, whatever the rule says — taking somebody off here really takes them off."
   }
 }

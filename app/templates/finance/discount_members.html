@@ -1,0 +1,128 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('discount_members.title') }}{% endblock %}
+{% block page_heading %}{{ t('discount_members.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ discount.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      <span class="badge badge--role">{{ t('discounts.t_' ~ discount.dtype) }}</span>
+      {{ discount.value }}{{ '%' if discount.is_percent else '' }}
+      · <span class="badge {{ 'badge--muted' if discount.is_all_scope and not discount.service_id else 'badge--green' }}">{{ discount.scope_label(current_lang) }}</span>
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.discount_members_export', discount_id=discount.id) }}">
+      <i class="bi bi-file-earmark-spreadsheet"></i> {{ t('discount_members.export') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.discounts') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('discounts.title') }}</a>
+  </div>
+</div>
+
+{# The one thing somebody misreads on this screen: whether the named list adds
+   to the rule or replaces it. So both numbers are shown together. #}
+<div class="stat-grid gc-stagger" style="margin-bottom:16px;">
+  <div class="stat-card edge-green gc-lift"><i class="bi bi-person-check ico"></i>
+    <div class="value">{{ members|selectattr('is_exclusion', 'equalto', false)|list|length }}</div>
+    <div class="label">{{ t('discount_members.included') }}</div></div>
+  <div class="stat-card edge-yellow gc-lift"><i class="bi bi-person-dash ico"></i>
+    <div class="value">{{ members|selectattr('is_exclusion')|list|length }}</div>
+    <div class="label">{{ t('discount_members.excluded') }}</div></div>
+  {% if rule_reach is not none %}
+  <div class="stat-card edge-blue gc-lift"><i class="bi bi-people ico"></i>
+    <div class="value">{{ rule_reach }}</div>
+    <div class="label">{{ t('discount_members.rule_reach') }}</div></div>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0 0 8px;">
+    {% if discount.members_only %}{{ t('discount_members.only_on') }}{% else %}{{ t('discount_members.only_off') }}{% endif %}
+  </p>
+  <p class="hint" style="margin:0;"><i class="bi bi-info-circle"></i> {{ t('discount_members.exclusion_wins') }}</p>
+</div>
+
+<!-- Add somebody -->
+<div class="card gc-scale-in" style="margin-bottom:14px;"
+     x-data="{ q: '', rows: [], picked: null, pickedName: '',
+               async find() {
+                 if (this.q.length < 2) { this.rows = []; return; }
+                 const r = await fetch('{{ url_for('appointments.patient_search') }}?q=' + encodeURIComponent(this.q));
+                 const d = await r.json();
+                 this.rows = d.patients || [];
+               } }">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-person-plus"></i> {{ t('discount_members.add') }}</h2>
+  <form method="post" action="{{ url_for('finance.discount_member_add', discount_id=discount.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="patient_id" :value="picked">
+    <div class="form-row" style="margin:0;flex:1;min-width:240px;position:relative;">
+      <label>{{ t('discount_members.find_patient') }}</label>
+      <input class="input" x-model="q" x-on:input.debounce.250ms="find()"
+             :placeholder="pickedName || '{{ t('discount_members.find_hint') }}'"
+             autocomplete="off">
+      <div x-show="rows.length" x-cloak
+           style="position:absolute;z-index:30;top:100%;inset-inline-start:0;width:100%;max-height:220px;overflow-y:auto;background:var(--card,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);">
+        <template x-for="p in rows" :key="p.id">
+          <button type="button" class="btn btn-outline btn-sm"
+                  style="display:block;width:100%;text-align:start;border:0;border-radius:0;"
+                  x-on:click="picked = p.id; pickedName = p.full_name; q = p.full_name; rows = [];">
+            <span x-text="p.full_name"></span>
+            <span class="hint" dir="ltr" x-text="p.patient_number"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+    <div class="form-row" style="margin:0;max-width:190px;">
+      <label>{{ t('discount_members.mode') }}</label>
+      <select class="select" name="mode">
+        <option value="include">{{ t('discount_members.included') }}</option>
+        <option value="exclude">{{ t('discount_members.excluded') }}</option>
+      </select></div>
+    <div class="form-row" style="margin:0;max-width:220px;">
+      <label>{{ t('discount_members.note') }}</label>
+      <input class="input" name="note"></div>
+    <button class="btn btn-primary gc-press" type="submit" :disabled="!picked">
+      <i class="bi bi-check-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if members %}
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:560px;">
+      <thead><tr>
+        <th>{{ t('discount_members.col_file') }}</th><th>{{ t('discount_members.col_name') }}</th>
+        <th>{{ t('discount_members.col_mode') }}</th><th>{{ t('discount_members.col_note') }}</th>
+        <th style="text-align:end;">{{ t('common.actions') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td dir="ltr">{{ m.patient.patient_number if m.patient else '—' }}</td>
+          <td dir="auto">
+            {% if m.patient %}
+            <a href="{{ url_for('patients.view', patient_id=m.patient.id) }}">{{ m.patient.full_name }}</a>
+            {% else %}—{% endif %}</td>
+          <td><span class="badge {{ 'badge--danger' if m.is_exclusion else 'badge--green' }}">
+            {{ t('discount_members.excluded') if m.is_exclusion else t('discount_members.included') }}</span></td>
+          <td dir="auto">{{ m.note or '—' }}</td>
+          <td style="text-align:end;">
+            <form method="post" action="{{ url_for('finance.discount_member_delete', member_id=m.id) }}"
+                  onsubmit="return confirm('{{ t('common.confirm') }}?');" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-people"></i>{{ t('discount_members.none') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
