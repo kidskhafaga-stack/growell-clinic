@@ -1,0 +1,142 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('history_import.link_title') }}{% endblock %}
+{% block page_heading %}{{ t('history_import.link_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('history_import.link_title') }}</h1>
+  <p class="page-sub" style="margin:6px 0 0;">
+    <span dir="ltr">{{ filename }}</span> — {{ names|length }} {{ t('history_import.distinct_names') }}</p>
+</div>
+
+{# 9,908 rows carry 27 distinct names, so this screen is 27 rows. Nothing is
+   matched into the records automatically: the case a wrong guess produces is a
+   child recorded as having had a vaccine they did not. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('history_import.link_hint') }}</p>
+</div>
+
+<form method="post" action="{{ url_for('patients.history_import_link') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="confirm" value="1">
+  <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:680px;">
+        <thead><tr>
+          <th>{{ t('history_import.name_in_file') }}</th>
+          <th style="text-align:end;">{{ t('history_import.rows') }}</th>
+          <th>{{ t('history_import.matched_to') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for row in names %}
+          {% set best = best_link.get(row.value) %}
+          {% set guess = best[0] if best else None %}
+          {% set chosen = saved.get(row.value) or guess %}
+          <tr>
+            <td dir="auto">{{ row.value }}
+              {% if best %}
+              <span class="badge {{ 'badge--green' if best[1] == 'high' else ('badge--role' if best[1] == 'medium' else 'badge--muted') }}">
+                {{ t('history_import.conf_' ~ best[1]) }}</span>
+              {% endif %}
+            </td>
+            <td style="text-align:end;" dir="ltr">{{ row.rows }}</td>
+            <td>
+              {# Both catalogues, because the file holds both. كشف and إستشارة
+                 are 7,476 of this file's rows and the clinic already has them
+                 priced — offering only "a plain service" threw that away. #}
+              <select class="select" name="link_{{ loop.index0 }}">
+                <option value=""{{ ' selected' if not chosen else '' }}>{{ t('history_import.plain_service') }}</option>
+                <optgroup label="{{ t('history_import.group_services') }}">
+                  {% for s in services %}
+                  {% set pick = chosen == 'service:' ~ s[0] %}
+                  <option value="service:{{ s[0] }}"{{ ' selected' if pick else '' }}>{{ s[1] }}</option>
+                  {% endfor %}
+                </optgroup>
+                <optgroup label="{{ t('history_import.group_vaccines') }}">
+                  {% for b in brands %}
+                  {% set pick = chosen == 'brand:' ~ b[0] %}
+                  <option value="brand:{{ b[0] }}"{{ ' selected' if pick else '' }}>{{ b[1] }}</option>
+                  {% endfor %}
+                </optgroup>
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {# The doctors and the client categories, matched onto what exists first —
+     the same rule as the vaccine names. Stored as bare text they were invisible
+     to every report: an imported doctor's decade of work sat outside the
+     commission statements, and the file's "التعاقد" never reached the client
+     categories that exist to carry its discount. #}
+  {% if doctors %}
+  <div class="card gc-scale-in" style="margin-top:14px;">
+    <h2 class="section-title"><i class="bi bi-person-badge"></i> {{ t('history_import.doctors_found') }}</h2>
+    <p class="hint" style="margin:-4px 0 10px;">{{ t('history_import.doctors_hint') }}</p>
+    {% for row in doctors %}
+    {# Similar name, not the same name: the clinic's user is "محمد الخفاجى"
+       and the file says "د/ محمد الخفاجي". An exact match found neither. #}
+    {% set found = doctor_hits.get(row.value) or [] %}
+    {% set best = found[0] if found else None %}
+    {% set chosen = saved_doctors.get(row.key) or (best.user_id|string if best else '') %}
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;">
+      <span dir="auto" style="min-width:180px;">{{ row.value }}
+        <span class="hint" dir="ltr">{{ row.rows }}</span>
+        {% if best %}
+        <span class="badge {{ 'badge--green' if best.confidence == 'high' else ('badge--role' if best.confidence == 'medium' else 'badge--muted') }}">
+          {{ t('history_import.conf_' ~ best.confidence) }}</span>
+        {% endif %}
+        {# The other spellings the file used for this same code — shown so the
+           clinic can see why three lines became one row. #}
+        {% if row.names|length > 1 %}
+        <div class="hint" dir="auto">{{ row.names[1:]|join(' · ') }}</div>
+        {% endif %}
+      </span>
+      <select class="select" name="doc_{{ loop.index0 }}" style="max-width:260px;">
+        <option value=""{{ ' selected' if not chosen else '' }}>{{ t('history_import.no_doctor') }}</option>
+        {% for d in doctor_choices %}
+        {% set pick = chosen == d[0]|string %}
+        <option value="{{ d[0] }}"{{ ' selected' if pick else '' }}>{{ d[1] }}</option>
+        {% endfor %}
+        {# Last, and never the default: matching an existing user comes first,
+           and nothing is created until the preview has named who. #}
+        <option value="{{ create_doctor_choice }}"{{ ' selected' if chosen == create_doctor_choice else '' }}>{{ t('history_import.make_user') }}</option>
+      </select>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if categories %}
+  <div class="card gc-scale-in" style="margin-top:14px;">
+    <h2 class="section-title"><i class="bi bi-people"></i> {{ t('history_import.categories_found') }}</h2>
+    <p class="hint" style="margin:-4px 0 10px;">{{ t('history_import.categories_hint') }}</p>
+    {% for row in categories %}
+    {% set guess = category_guess.get(row.value) %}
+    {% set chosen = saved_categories.get(row.value) %}
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;">
+      <span dir="auto" style="min-width:180px;">{{ row.value }}
+        <span class="hint" dir="ltr">{{ row.rows }}</span></span>
+      <select class="select" name="cat_{{ loop.index0 }}" style="max-width:260px;">
+        <option value="">{{ t('history_import.keep_as_text') }}</option>
+        {% for c in category_choices %}
+        {% set pick = (chosen == c.key) or (not chosen and guess == c.key) %}
+        <option value="{{ c.key }}"{{ ' selected' if pick else '' }}>{{ c.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="display:flex;gap:10px;margin:14px 0 40px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-eye"></i> {{ t('history_import.preview') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}

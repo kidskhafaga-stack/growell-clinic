@@ -164,7 +164,10 @@
                             style="position:absolute;z-index:30;inset-inline-end:0;margin-top:6px;width:250px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px;text-align:start;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <p class="hint" style="margin:0 0 8px;">{{ t('contracts.copy_hint') }}</p>
-                        <div class="form-row"><label>{{ t('contracts.number') }}</label><input class="input" name="number" dir="ltr"></div>
+                        {# The number is generated. It used to be typed here,
+                           right beside last year's on the same screen — which
+                           is the surest way to end up with two contracts
+                           carrying the same one. #}
                         <div class="form-row"><label>{{ t('contracts.start') }}</label><input class="input" type="date" name="start_date"></div>
                         <div class="form-row"><label>{{ t('contracts.end') }}</label><input class="input" type="date" name="end_date"></div>
                         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-files"></i> {{ t('contracts.copy_btn') }}</button>

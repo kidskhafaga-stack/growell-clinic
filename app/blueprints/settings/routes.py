@@ -60,6 +60,51 @@ def _logo_dir():
     return os.path.join(current_app.static_folder, "uploads", "clinic")
 
 
+@settings_bp.route("/ai/test", methods=["POST"])
+@admin_required
+def ai_test():
+    """Ask the provider one trivial question and say exactly what came back.
+
+    Tested from the *unsaved* form when the form sends one, so somebody can
+    paste a key and find out before committing it to the settings — which is
+    the order a person actually works in.
+
+    This is what makes the assistant something another clinic can set up
+    alone. Until now they saved and found out whether it worked when a doctor
+    pressed "suggest a dose" mid-consultation and nothing happened, with no
+    way to tell a wrong key from a wrong model from a blocked firewall.
+    """
+    from app.utils.ai import AI_PROVIDERS, get_config, test_connection
+
+    cfg = get_config()
+    provider = (request.form.get("ai_provider") or "").strip()
+    if provider in AI_PROVIDERS:
+        meta = AI_PROVIDERS[provider]
+        cfg = dict(
+            cfg, provider=provider, provider_label=meta["label"],
+            local=bool(meta.get("local")),
+            model=(request.form.get("ai_model") or "").strip()
+            or meta["default_model"],
+            base_url=(request.form.get("ai_base_url") or "").strip()
+            or meta["base_url"],
+        )
+        # An empty key box means "use the saved one" rather than "no key":
+        # the field renders blank on a saved password, and treating that as a
+        # deletion would report a working setup as broken.
+        typed = (request.form.get("ai_api_key") or "").strip()
+        if typed:
+            cfg["api_key"] = typed
+
+    result = test_connection(cfg)
+    if result.get("ok"):
+        flash(t("settings.ai_test_ok").replace("{p}", result["provider"])
+              .replace("{m}", result["model"]), "success")
+    else:
+        flash(t("settings.ai_test_failed").replace("{e}", str(result.get("error"))),
+              "danger")
+    return redirect(url_for("settings.index") + "#ai")
+
+
 @settings_bp.route("/", methods=["GET", "POST"])
 @admin_required
 def index():
@@ -101,7 +146,7 @@ def index():
         flash(t("settings.saved"), "success")
         return redirect(url_for("settings.index"))
 
-    from app.utils.ai import AI_PROVIDERS
+    from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
     from app.blueprints.visits.routes import (
         DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS, _visit_chips,
     )
@@ -111,6 +156,7 @@ def index():
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        free_ai=free_providers(), trial_ai=trial_defaults(),
         currencies=CURRENCIES,
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),

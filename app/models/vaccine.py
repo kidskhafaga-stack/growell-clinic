@@ -377,6 +377,12 @@ class PatientVaccine(db.Model):
 
     # Clinical documentation (PDF): given / refused / delayed, plus details.
     event_type = db.Column(db.String(20), default="given", nullable=False)
+    # Set when this dose came from a history import rather than from a nurse
+    # recording it here. It marks the doses whose numbering was *inferred* from
+    # dates rather than observed, which is exactly the set a doctor may need to
+    # correct — and it is what lets an import be undone without touching what
+    # the clinic has entered since.
+    import_batch_id = db.Column(db.Integer, nullable=True, index=True)
     adverse_events = db.Column(db.Text)        # ملاحظات الأعراض الجانبية بعد الجرعة
     refusal_reason = db.Column(db.String(200))  # سبب الرفض / التأجيل
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

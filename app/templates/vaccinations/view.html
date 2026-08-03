@@ -79,6 +79,25 @@
           {% endif %}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
+          {# The course said out loud. "اكتمل" and "فاضل المنشطة" are different
+             answers — one needs nothing, the other needs a date next year —
+             and a fraction says neither of them. #}
+          {% set c = item.course %}
+          {% if c and c.state != 'not_started' %}
+          <span class="badge {{ 'badge--green' if c.state == 'complete' else ('badge--role' if c.state == 'booster_left' else 'badge--muted') }}">
+            {% if c.state == 'complete' %}{{ t('vaccinations.course_complete') }}
+            {% elif c.state == 'booster_left' %}{{ t('vaccinations.course_booster_left') }}
+            {% else %}{{ t('vaccinations.course_left').replace('{n}', c.left|string) }}{% endif %}
+          </span>
+          {% if c.inferred %}
+          {# Numbered from the order of the imported dates, not observed here.
+             Three doses of a four-dose course may be the first three, or a
+             child who started elsewhere and had doses two, three and four —
+             nothing in the data separates those, so it is the doctor's call. #}
+          <span class="badge badge--muted" title="{{ t('vaccinations.course_inferred_hint') }}">
+            <i class="bi bi-question-circle"></i> {{ t('vaccinations.course_inferred') }}</span>
+          {% endif %}
+          {% endif %}
           <span style="font-size:0.8rem;color:var(--muted);">{{ item.done }}/{{ item.total }}</span>
           <button class="btn btn-outline btn-sm gc-press"
                   x-on:click="vId={{ v.id }}; vName='{{ v.display_name(current_lang)|e }}'; locked={{ 'true' if item.locked else 'false' }};
@@ -101,6 +120,34 @@
           <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date %} · {{ d.due_date }}{% endif %}</span>
           {% if d.event_reason %}<span class="dd" style="color:var(--muted);">{{ d.event_reason }}</span>{% endif %}
           {% if d.lot_number %}<span class="dd">Lot: {{ d.lot_number }}</span>{% endif %}
+          {% if d.outside %}<span class="badge badge--muted"><i class="bi bi-box-arrow-up-right"></i> {{ t('vaccinations.given_outside') }}{% if d.outside_place %} — {{ d.outside_place }}{% endif %}</span>{% endif %}
+          {% if d.imported %}<span class="badge badge--role" title="{{ t('vaccinations.imported_hint') }}"><i class="bi bi-database-down"></i> {{ t('vaccinations.imported') }}</span>{% endif %}
+          {% if d.pv_id %}
+          {# The correction the imported history depends on. Its number was
+             inferred from the order of dates, and a dose given somewhere else
+             leaves a gap nothing in the data can see — so the doctor overrides
+             it here. #}
+          <details style="margin-top:6px;">
+            <summary class="hint" style="cursor:pointer;"><i class="bi bi-pencil"></i> {{ t('vaccinations.correct') }}</summary>
+            <form method="post" action="{{ url_for('vaccinations.correct_dose', pv_id=d.pv_id) }}"
+                  style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-top:6px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="form-row" style="margin:0;max-width:90px;">
+                <label style="font-size:.75rem;">{{ t('vaccinations.dose_no') }}</label>
+                <input class="input" type="number" min="1" name="dose_number" value="{{ d.dose_number }}"></div>
+              <div class="form-row" style="margin:0;max-width:140px;">
+                <label style="font-size:.75rem;">{{ t('vaccinations.given_date') }}</label>
+                <input class="input" type="date" name="given_date" value="{{ d.given_date or '' }}"></div>
+              <div class="form-row" style="margin:0;max-width:150px;">
+                <label class="check" style="display:flex;align-items:center;gap:6px;font-size:.75rem;">
+                  <input type="checkbox" name="given_outside" value="1" {{ 'checked' if d.outside else '' }}>
+                  {{ t('vaccinations.given_outside') }}</label>
+                <input class="input" name="outside_place" placeholder="{{ t('vaccinations.outside_place') }}"
+                       value="{{ d.outside_place or '' }}"></div>
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i></button>
+            </form>
+          </details>
+          {% endif %}
         </div>
         {% endfor %}
       </div>

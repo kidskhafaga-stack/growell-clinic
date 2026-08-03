@@ -14,6 +14,76 @@
     <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('vaccinations.back_to_patients') }}</a>
 </div>
 
+{# One screen, two jobs. "Who do I call this week" and "what will I need next
+   month" are the same data over different windows — so the window is a filter
+   rather than a second screen. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('data_export.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ f_from }}"></div>
+    <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('data_export.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ f_to }}"></div>
+    <div class="form-row" style="margin:0;max-width:200px;"><label>{{ t('vaccinations.cert_vaccine') }}</label>
+      <select class="select" name="vaccine_id">
+        <option value="">{{ t('common.all') }}</option>
+        {% for v in vaccines %}<option value="{{ v.id }}"{{ ' selected' if f_vaccine == v.id else '' }}>{{ v.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;max-width:200px;"><label>{{ t('vaccinations.brand') }}</label>
+      <select class="select" name="brand_id">
+        <option value="">{{ t('common.all') }}</option>
+        {% for b in brands %}<option value="{{ b.id }}"{{ ' selected' if f_brand == b.id else '' }}>{{ b.name }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('appointments.status') }}</label>
+      <select class="select" name="status">
+        <option value="">{{ t('common.all') }}</option>
+        <option value="overdue"{{ ' selected' if f_status == 'overdue' else '' }}>{{ t('vstatus.overdue') }}</option>
+        <option value="due"{{ ' selected' if f_status == 'due' else '' }}>{{ t('vstatus.due') }}</option>
+        <option value="seasonal"{{ ' selected' if f_status == 'seasonal' else '' }}>{{ t('vaccinations.seasonal') }}</option>
+      </select></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-funnel"></i> {{ t('common.search') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.reminders') }}">{{ t('common.reset') }}</a>
+  </form>
+  <div class="hint" style="margin:10px 0 0;display:flex;gap:16px;flex-wrap:wrap;">
+    <span><strong dir="ltr">{{ counts.patients }}</strong> {{ t('vaccinations.due_patients') }}</span>
+    <span style="color:var(--danger);"><strong dir="ltr">{{ counts.overdue }}</strong> {{ t('vstatus.overdue') }}</span>
+    <span><strong dir="ltr">{{ counts.due }}</strong> {{ t('vstatus.due') }}</span>
+    {% if counts.seasonal %}<span><strong dir="ltr">{{ counts.seasonal }}</strong> {{ t('vaccinations.seasonal') }}</span>{% endif %}
+  </div>
+</div>
+
+{% if order %}
+{# The same list totalled by brand is a purchase order. "to order" is what is
+   missing rather than what is needed: a clinic with nine on the shelf and
+   eleven children due should be told to buy two, not eleven. #}
+<details class="card gc-scale-in" style="margin-bottom:14px;">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-cart-plus"></i> {{ t('vaccinations.order_title') }}</summary>
+  <p class="hint" style="margin:8px 0 10px;">{{ t('vaccinations.order_hint') }}</p>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:520px;">
+      <thead><tr>
+        <th>{{ t('vaccinations.brand') }}</th>
+        <th style="text-align:end;">{{ t('vaccinations.order_needed') }}</th>
+        <th style="text-align:end;">{{ t('vaccinations.order_stock') }}</th>
+        <th style="text-align:end;">{{ t('vaccinations.order_buy') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for o in order %}
+        <tr>
+          <td>{{ o.vaccine.display_name(current_lang) }} — <strong>{{ o.brand.name }}</strong></td>
+          <td style="text-align:end;" dir="ltr">{{ o.needed }}</td>
+          <td style="text-align:end;" dir="ltr">{{ o.in_stock }}</td>
+          <td style="text-align:end;" dir="ltr">
+            {% if o.to_order %}<strong style="color:var(--danger);">{{ o.to_order }}</strong>
+            {% else %}<span class="hint">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
   {% if rows %}
   <table class="table">
@@ -39,6 +109,13 @@
           {% else %}<span class="badge badge--role">{{ t('vstatus.due') }}</span>{% endif %}
         </td>
         <td style="text-align:end;white-space:nowrap;">
+          {# Booking from here rather than from the calendar: the person reading
+             this row already knows who and roughly when, and making them go and
+             search for the patient again is how a reminder list stops being
+             acted on. #}
+          <a class="btn btn-outline btn-sm gc-press"
+             href="{{ url_for('appointments.create', patient_id=r.patient.id, appt_type='vaccination', date=r.due_date or now_date) }}"
+             title="{{ t('vaccinations.book_dose') }}"><i class="bi bi-calendar-plus"></i></a>
           {% if r.phone %}
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.remind_due', patient_id=r.patient.id) }}"
              style="color:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> {{ t('vaccinations.send_reminder') }}</a>

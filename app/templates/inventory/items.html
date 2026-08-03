@@ -62,7 +62,10 @@
         <label x-text="kind === 'vaccine' ? '{{ t('inventory.doses_per_vial') }}' : '{{ t('store.units_per_purchase') }}'">{{ t('store.units_per_purchase') }}</label>
         <input class="input" type="number" min="1" x-bind:name="kind === 'vaccine' ? 'doses_per_vial' : 'units_per_purchase'" value="1"></div>
       <div class="form-row"><label>{{ t('inventory.barcode') }}</label><input class="input" name="barcode" dir="ltr"></div>
-      <div class="form-row" x-show="kind === 'vaccine'" x-cloak><label>{{ t('inventory.item_code') }}</label><input class="input" name="item_code" dir="ltr"></div>
+      {# The internal code is generated, the same as a store item's. Asking for
+         it was the last creation form that did, and a code somebody types is a
+         code that gets typed twice. The supplier's own number is the barcode
+         field above. #}
       <div class="form-row"><label>{{ t('inventory.purchase_price') }}</label><input class="input" type="number" step="0.01" min="0" name="purchase_price"></div>
       <div class="form-row"><label>{{ t('inventory.sell_price') }}</label><input class="input" type="number" step="0.01" min="0" name="price"></div>
       <div class="form-row"><label>{{ t('inventory.reorder_level') }}</label><input class="input" type="number" min="0" name="min_stock"></div>

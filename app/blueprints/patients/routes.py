@@ -7,6 +7,7 @@ import json
 import os
 import uuid
 from datetime import date, datetime
+from datetime import time as dtime
 
 from flask import (
     Response,
@@ -390,9 +391,21 @@ def view(patient_id):
     # Three copies of one list is three chances to disagree.
     from app.utils.studies import patient_studies
 
+    # Case history brought across from the program the clinic used before. The
+    # vaccinations among it became real vaccination records, so they show on
+    # that tab; the plain services — كشف, إستشارة, most of a real export — had
+    # nowhere to appear at all, which made "the clinic does not lose its
+    # history" only half true.
+    from app.models import ImportedService
+    imported = (ImportedService.query
+                .filter_by(patient_id=patient.id)
+                .order_by(ImportedService.service_date.desc(),
+                          ImportedService.id.desc()).all())
+
     return render_template(
         "patients/profile.html",
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
+        imported=imported,
         patient=patient,
         relations=PARENT_RELATIONS,
         consent_types=CONSENT_TYPES,
@@ -931,6 +944,11 @@ def _resolve_family(form):
 # ------------------------------------------------------- bulk import -------
 MAX_PREVIEW_ROWS = 200
 
+# The one value in the doctor dropdown that is not a user id. Deliberately not
+# a number, so it can never be confused with one, and deliberately checked
+# against a constant in both places rather than spelt out twice.
+CREATE_DOCTOR = "new"
+
 
 def _import_tmp_dir():
     path = os.path.join(current_app.instance_path, "import_tmp")
@@ -1242,3 +1260,780 @@ def _process_import(rows):
             created += 1
 
     return {"created": created, "errors": errors, "total": len(rows)}
+
+
+# ==================================================== history import ========
+# Bringing a clinic's old case history across from the program it used before.
+# Same wizard as the patient import above — upload, map, preview, commit — so
+# somebody who has done one recognises the other. The differences are all
+# consequences of scale and of what the file cannot say:
+#
+#   * it attaches to patients that must already exist (an old services export
+#     carries no date of birth, gender or phone, so it cannot create anybody);
+#   * every lookup is done in bulk, because ten thousand rows resolved one at a
+#     time is ten thousand round trips;
+#   * and a second upload is *compared*, not appended.
+def _history_cell(value):
+    """JSON-safe cell that keeps the time of day.
+
+    The patient import's serialiser formats dates as ``%Y-%m-%d``, which is
+    right there and wrong here: the time is part of what tells two services on
+    the same day apart, and dropping it makes 80 rows of a real export look
+    like duplicates of each other.
+    """
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dtime):
+        return value.strftime("%H:%M:%S")
+    return str(value)
+
+
+def _history_ready():
+    """Whether there are any patients for the history to attach to."""
+    return Patient.query.limit(1).count() > 0
+
+
+@patients_bp.route("/import/history", methods=["GET", "POST"])
+@module_required(MODULE)
+def history_import():
+    from app.utils.history_import import guess_mapping, summary_columns
+    from app.utils.history_import import fields as history_fields
+
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or not file.filename:
+            flash(t("import.no_file"), "danger")
+            return redirect(url_for("patients.history_import"))
+        if not allowed_import_file(file.filename):
+            flash(t("import.bad_format"), "danger")
+            return redirect(url_for("patients.history_import"))
+
+        headers, data_rows, error = read_matrix(file)
+        if error == "unreadable":
+            flash(t("import.unreadable"), "danger")
+            return redirect(url_for("patients.history_import"))
+        if error or not data_rows:
+            flash(t("import.empty"), "warning")
+            return redirect(url_for("patients.history_import"))
+
+        # Parsed once and stashed: the mapping screen, the preview and the
+        # commit all read this instead of re-reading the workbook three times.
+        token = uuid.uuid4().hex
+        with open(os.path.join(_import_tmp_dir(), f"{token}.json"), "w",
+                  encoding="utf-8") as fh:
+            json.dump({"headers": headers, "rows": data_rows,
+                       "filename": file.filename},
+                      fh, ensure_ascii=False, default=_history_cell)
+
+        return render_template(
+            "patients/history_map.html", token=token, headers=headers,
+            filename=file.filename, fields=history_fields(),
+            guess=guess_mapping(headers), sample=data_rows[:5],
+            total=len(data_rows),
+            # Trailing columns that are a summary block rather than data — the
+            # real export ends with "من تاريخ / إلى تاريخ / عدد الخدمات" laid
+            # out like columns inside the same sheet.
+            summary=sorted(summary_columns(headers, data_rows)))
+
+    return render_template("patients/history_import.html",
+                           ready=_history_ready())
+
+
+@patients_bp.route("/import/history/map", methods=["POST"])
+@module_required(MODULE)
+def history_import_map():
+    from app.utils.export import parse_date
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import (classify, date_span, distinct_values,
+                                         missing_patient_codes)
+
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    if payload is None:
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    # Submitted the first time through and stored; coming back to change the
+    # date range reuses it instead of asking again.
+    mapping = _submitted_mapping(payload)
+    if not mapping:
+        flash(t("history_import.need_columns"), "danger")
+        return redirect(url_for("patients.history_import"))
+
+    records = build_rows(payload["rows"], mapping)
+    # What the file covers is read off the file. Defaulting to all of it is the
+    # case that needs no thought — a clinic leaving its old program wants
+    # everything, and making it say so is a step that exists only to be got
+    # wrong.
+    span = date_span(records)
+    links = payload.get("links") or {}
+    start = parse_date(request.form.get("from"))
+    end = parse_date(request.form.get("to"))
+    records, counts = classify(records, start=start, end=end)
+
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump({**payload, "mapping": mapping}, fh, ensure_ascii=False,
+                  default=_history_cell)
+
+    return render_template(
+        "patients/history_preview.html", token=token, counts=counts,
+        total=len(records), filename=payload.get("filename"),
+        rows=[r for r in records
+              if r["_state"] != "out_of_range"][:MAX_PREVIEW_ROWS],
+        span=span, f_from=request.form.get("from", ""),
+        f_to=request.form.get("to", ""), links=links,
+        linked=sum(1 for v in links.values() if str(v).startswith("brand:")),
+        missing_patients=missing_patient_codes(records),
+        services=distinct_values(records, "service_name"),
+        categories=distinct_values(records, "client_category"),
+        doctors=distinct_values(records, "doctor_name"),
+        # Named before anything is written. Creating users is the one part of
+        # this import that adds people to the clinic rather than history, so it
+        # is the part that must not happen quietly.
+        new_doctors=_doctors_to_create(payload))
+
+
+@patients_bp.route("/import/history/commit", methods=["POST"])
+@module_required(MODULE)
+def history_import_commit():
+    from app.models import ImportBatch, ImportedService
+    from app.utils.dose_infer import number_doses
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import CHANGED, NEW, classify, doctor_key
+
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    if payload is None or not payload.get("mapping"):
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    from app.utils.export import parse_date
+
+    start = parse_date(request.form.get("from"))
+    end = parse_date(request.form.get("to"))
+    records = build_rows(payload["rows"], payload["mapping"])
+    # The same range the preview was shown for, carried on the form — otherwise
+    # somebody narrows the range, sees 400 rows, and imports ten thousand.
+    records, counts = classify(records, start=start, end=end)
+
+    batch = ImportBatch(kind="history", filename=payload.get("filename"),
+                        created_by=current_user.id, rows_total=len(records))
+    db.session.add(batch)
+    db.session.flush()
+
+    # Written with one bulk insert and one commit. Adding rows one at a time
+    # here costs a round trip each — and on SQLite, committing per row costs a
+    # disk sync each, which is the difference between a second and an hour.
+    update_changed = request.form.get("update_changed") == "1"
+
+    # What the clinic confirmed on the linking screen: "this name is that
+    # brand". Resolved once into {name: (brand_id, vaccine_id)} rather than
+    # per row — 9,908 rows carry 27 names.
+    links = _resolved_links(payload.get("links") or {})
+    # The same screen also links the rows that are not vaccines at all — كشف
+    # and إستشارة are 7,476 of the real file — onto the services the clinic
+    # already has, so imported history lands in the same catalogue as today's.
+    service_links = _resolved_services(payload.get("links") or {})
+    # The same "map onto what exists" rule, for the two columns that were
+    # previously stored as text and therefore invisible to every report.
+    doctor_links = _resolved_doctors(payload.get("doctor_links") or {})
+    # And the doctors the file names that this clinic has no user for. Created
+    # here rather than on the linking screen, so backing out at the preview
+    # leaves nothing behind: users appear only alongside the history that
+    # needed them.
+    doctor_links.update(_created_doctors(payload))
+    category_links = payload.get("category_links") or {}
+
+    pending = []
+    for record in records:
+        if record["_state"] != NEW and not (update_changed
+                                            and record["_state"] == CHANGED):
+            continue
+        if record["_state"] == CHANGED:
+            ImportedService.query.filter_by(source_key=record["_key"]).delete()
+        brand_id, vaccine_id = links.get(record["service_name"], (None, None))
+        pending.append({
+            "brand_id": brand_id, "vaccine_id": vaccine_id,
+            "service_id": service_links.get(record["service_name"]),
+            # Without this a decade of a doctor's work sits outside the
+            # commission reports, the doctor filter and the statements — every
+            # one of which joins on doctor_id.
+            "doctor_id": doctor_links.get(doctor_key(record)),
+            "batch_id": batch.id, "patient_id": record["_patient_id"],
+            "service_date": record["service_date"],
+            "service_time": record["service_time"],
+            "source_name": record["service_name"][:255],
+            "quantity": record["quantity"], "price": record["price"],
+            "doctor_share": record["doctor_share"],
+            "paid_cash": record["paid_cash"],
+            "paid_company": record["paid_company"],
+            "client_category": (category_links.get(record["client_category"])
+                                or (record["client_category"] or "")[:30]
+                                or None),
+            "source_key": record["_key"], "source_row": record["source_row"][:40],
+            "notes": record["notes"] or None,
+        })
+
+    # Dose numbers last, over the whole set at once — the number depends on the
+    # patient's other doses of the *same vaccine*, so it cannot be worked out a
+    # row at a time. Numbering per brand instead would restart the course every
+    # time a clinic switched product, and the schedule would then chase a child
+    # for doses they have already had.
+    number_doses(pending)
+    for row in pending:
+        row["vaccine_brand_id"] = row.pop("brand_id")
+        row.pop("vaccine_id", None)
+
+    if pending:
+        db.session.bulk_insert_mappings(ImportedService, pending)
+
+    # And the vaccinations become real vaccination records. Without this the
+    # import is a wall of text beside the file that already ignores it: the
+    # schedule counts PatientVaccine rows, so a child whose whole course was
+    # imported would be chased by the reminder screen for doses they have had.
+    made = _record_imported_doses(pending, batch.id)
+
+    batch.rows_added = len(pending)
+    batch.notes = f"vaccinations: {made}" if made else None
+    batch.rows_skipped = (counts["same"] + counts["out_of_range"]
+                          + (0 if update_changed else counts["changed"]))
+    batch.rows_rejected = counts["rejected"]
+    ActivityLog.record("history.import", user_id=current_user.id,
+                       entity="import_batch", entity_id=batch.id,
+                       detail=f"{len(pending)} rows from {payload.get('filename')}",
+                       ip_address=client_ip())
+    db.session.commit()
+
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
+
+    flash(t("history_import.done").replace("{n}", str(len(pending))), "success")
+    return redirect(url_for("patients.history_import"))
+
+
+@patients_bp.route("/import/history/template")
+@module_required(MODULE)
+def history_import_template():
+    """A template with the expected columns and a sample row.
+
+    A convenience, not a requirement: the real export this was built against
+    maps 16 of its 17 columns with nobody renaming anything, and that has to
+    stay the normal case. The template is for a clinic whose program exports
+    something unrecognisable, or one typing its history in by hand.
+    """
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    from app.utils.history_import import fields as history_fields
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "history"
+    columns = history_fields()
+    ws.append([label for _k, _r, label in columns])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DDEEDD")
+    ws.append(["1", "2024-03-15", "10:30", "1043", "أحمد محمد", "1",
+               "د. سارة أحمد", "كشف", "", "الكشف", "نقدي", "200", "80",
+               "200", "0", "1", ""])
+    for index, _col in enumerate(columns, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=index).column_letter].width = 22
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True, download_name="history_template.xlsx")
+
+
+@patients_bp.route("/import/history/link", methods=["POST"])
+@module_required(MODULE)
+def history_import_link():
+    """Confirm what each of the file's service names actually is.
+
+    The step that makes the vaccinations real. 9,908 rows carry 27 distinct
+    names, so this screen is 27 rows: each with the catalogue's best guess and
+    a confidence, and the clinic changes what it disagrees with.
+
+    Nothing is matched automatically into the records. A matcher that wrote its
+    own guesses into ten years of vaccination history would be one nobody could
+    trust, and the case it gets wrong is a child recorded as having had a
+    vaccine they did not.
+    """
+    from app.utils.history_import import build_rows
+    from app.utils.history_match import distinct_values, doctor_entries
+    from app.utils.vaccine_match import suggest_all
+
+    token = (request.form.get("token") or "").strip()
+    tmp_path, payload = _load_import_tmp(token)
+    if payload is None:
+        flash(t("import.session_expired"), "warning")
+        return redirect(url_for("patients.history_import"))
+
+    # The column mapping arrives here the first time through, from the mapping
+    # screen, and is stored — coming back to change a link must not send
+    # somebody through the columns again.
+    mapping = _submitted_mapping(payload)
+    if not mapping:
+        flash(t("history_import.need_columns"), "danger")
+        return redirect(url_for("patients.history_import"))
+    if mapping != (payload.get("mapping") or {}):
+        payload["mapping"] = mapping
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, default=_history_cell)
+
+    records = build_rows(payload["rows"], mapping)
+    names = distinct_values(records, "service_name")
+    # Grouped by the source's own doctor code where the file has one: a name is
+    # typed several ways across ten years, and one row per spelling would offer
+    # the clinic the same person three times — then create three users.
+    doctors = doctor_entries(records)
+    categories = distinct_values(records, "client_category")
+
+    # Saving the screen: store what the clinic chose and go on to the preview.
+    if request.form.get("confirm") == "1":
+        links = {}
+        for index, row in enumerate(names):
+            choice = (request.form.get(f"link_{index}") or "").strip()
+            if choice:
+                links[row["value"]] = choice
+        doctor_links = {}
+        # Keyed by the doctor's *key* — the code when the file has one — and
+        # the name is stored beside it so the preview can say who is about to
+        # be created without re-reading the file.
+        doctor_names = {}
+        for index, row in enumerate(doctors):
+            choice = (request.form.get(f"doc_{index}") or "").strip()
+            if choice:
+                doctor_links[row["key"]] = choice
+                doctor_names[row["key"]] = row["value"]
+        category_links = {}
+        for index, row in enumerate(categories):
+            choice = (request.form.get(f"cat_{index}") or "").strip()
+            if choice:
+                category_links[row["value"]] = choice
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump({**payload, "links": links,
+                       "doctor_links": doctor_links,
+                       "doctor_names": doctor_names,
+                       "category_links": category_links},
+                      fh, ensure_ascii=False, default=_history_cell)
+        return history_import_map()
+
+    # Every column that points at something in the program is matched against
+    # what exists first — the file's doctor and its "التعاقد" as much as its
+    # vaccine names. Creating is never the default.
+    from app.utils.history_match import normalise_arabic
+    from app.utils.name_match import suggest_doctors, suggest_services
+    from app.utils.client_categories import active_categories, ensure_seeded
+
+    ensure_seeded()
+    category_rows = active_categories()
+    by_category = {normalise_arabic(c.display_name("ar")): c.key
+                   for c in category_rows}
+    by_category.update({normalise_arabic(c.key): c.key for c in category_rows})
+
+    # Two catalogues per name, not one. 7,476 of the real file's rows are كشف
+    # and إستشارة — services the clinic already has, priced and commissioned —
+    # and offering only "a plain service" threw that away: the row kept its
+    # text and pointed at nothing, so it never reached a revenue report.
+    name_values = [row["value"] for row in names]
+    vaccine_hits = suggest_all(name_values)
+    service_hits = suggest_services(name_values)
+
+    return render_template(
+        "patients/history_link.html", token=token, names=names,
+        suggestions=vaccine_hits, service_suggestions=service_hits,
+        best_link=_best_link(name_values, vaccine_hits, service_hits),
+        saved=payload.get("links") or {},
+        filename=payload.get("filename"),
+        # Every brand and every service, for the rows the matcher could not
+        # place. Loaded once — a select per row, not a query per row.
+        brands=_brand_choices(), services=_service_choices(),
+        doctors=doctors, doctor_choices=_doctor_choices(),
+        doctor_hits=suggest_doctors([row["value"] for row in doctors]),
+        saved_doctors=payload.get("doctor_links") or {},
+        # "Create an inactive user" is the last option, never the default —
+        # matching what exists comes first, and nothing is written until the
+        # preview has named who is about to be created.
+        create_doctor_choice=CREATE_DOCTOR,
+        categories=categories, category_choices=category_rows,
+        category_guess={row["value"]: by_category.get(
+            normalise_arabic(row["value"])) for row in categories},
+        saved_categories=payload.get("category_links") or {})
+
+
+def _best_link(values, vaccine_hits, service_hits):
+    """``{name: (choice, confidence)}`` — the one proposal per row.
+
+    A name is scored against both catalogues, and the higher score wins. The
+    tie goes to the **vaccine**, because a vaccination row carries a dose
+    number and a course: linking it to the "vaccination fee" service instead
+    would price it correctly and still leave the child's schedule unaware the
+    dose happened.
+    """
+    out = {}
+    for value in values:
+        vaccine = (vaccine_hits.get(value) or [None])[0]
+        service = (service_hits.get(value) or [None])[0]
+        if vaccine and (not service or vaccine["score"] >= service["score"]):
+            out[value] = (f"brand:{vaccine['brand_id']}", vaccine["confidence"])
+        elif service:
+            out[value] = (f"service:{service['service_id']}",
+                          service["confidence"])
+    return out
+
+
+def _service_choices():
+    """``[(service_id, name)]`` for the "which service is this?" dropdown."""
+    from app.models import Service
+
+    lang = getattr(g, "lang", "ar")
+    rows = Service.query.filter(Service.is_active.is_(True)).all()
+    return sorted(((s.id, s.display_name(lang)) for s in rows),
+                  key=lambda row: row[1])
+
+
+def _doctor_choices():
+    """``[(user_id, name)]`` for the "who is this doctor?" dropdown."""
+    from app.utils.appointments import list_doctors
+
+    lang = getattr(g, "lang", "ar")
+    return [(u.id, u.display_name(lang)) for u in list_doctors()]
+
+
+def _submitted_mapping(payload):
+    """The column mapping for this upload: from the form, else what was stored.
+
+    Required columns are checked here rather than in each step, so a wizard
+    entered halfway — somebody re-posting to change one link — cannot proceed
+    on a mapping that never existed.
+    """
+    mapping = {}
+    for key in request.form:
+        if not key.startswith("col_"):
+            continue
+        value = (request.form.get(key) or "").strip()
+        if value != "":
+            mapping[key[4:]] = int(value)
+    if not mapping:
+        mapping = {k: int(v) for k, v in (payload.get("mapping") or {}).items()}
+    if any(k not in mapping
+           for k in ("service_date", "patient_code", "service_name")):
+        return {}
+    return mapping
+
+
+def _brand_choices():
+    """``[(brand_id, label)]`` for the "which vaccine is this?" dropdown."""
+    from app.models import Vaccine, VaccineBrand
+
+    vaccines = {v.id: v for v in Vaccine.query.all()}
+    out = []
+    for brand in VaccineBrand.query.order_by(VaccineBrand.name).all():
+        vaccine = vaccines.get(brand.vaccine_id)
+        label = f"{vaccine.name_ar} — {brand.name}" if vaccine else brand.name
+        out.append((brand.id, label))
+    return sorted(out, key=lambda row: row[1])
+
+
+def _resolved_services(links):
+    """``{service name in the file: service id}`` from the confirmed choices.
+
+    Only ids that still exist are kept, for the same reason as the doctors: a
+    mapping saved against a service somebody has since deleted would write a
+    dangling reference into ten years of history.
+    """
+    from app.models import Service
+
+    wanted = {}
+    for name, choice in links.items():
+        choice = str(choice or "")
+        if not choice.startswith("service:"):
+            continue
+        try:
+            wanted[name] = int(choice.split(":", 1)[1])
+        except ValueError:
+            continue
+    if not wanted:
+        return {}
+    real = {s.id for s in Service.query.filter(
+        Service.id.in_(set(wanted.values()))).all()}
+    return {name: sid for name, sid in wanted.items() if sid in real}
+
+
+def _resolved_links(links):
+    """``{service name: (brand_id, vaccine_id)}`` from the confirmed choices.
+
+    The vaccine comes from the brand rather than being stored beside it,
+    because the dose number is counted per *vaccine* and a brand that was
+    re-filed under a different vaccine must not leave old links pointing at
+    the wrong course.
+    """
+    from app.models import VaccineBrand
+
+    wanted = {}
+    for name, choice in links.items():
+        if not str(choice).startswith("brand:"):
+            continue
+        try:
+            wanted[name] = int(str(choice).split(":", 1)[1])
+        except ValueError:
+            continue
+    if not wanted:
+        return {}
+    brands = {b.id: b.vaccine_id for b in VaccineBrand.query.filter(
+        VaccineBrand.id.in_(set(wanted.values()))).all()}
+    return {name: (brand_id, brands.get(brand_id))
+            for name, brand_id in wanted.items() if brand_id in brands}
+
+
+def _record_imported_doses(rows, batch_id):
+    """Turn the linked import rows into real vaccination records.
+
+    The schedule, the reminders and the certificate all read ``PatientVaccine``.
+    An imported dose that stays outside that table is history the program can
+    show and cannot *use* — the reminder screen would still chase the child for
+    a dose they had in 2023.
+
+    Three things this deliberately does not do:
+
+    * **It does not touch the fridge.** ``inventory_id`` stays empty: the vial
+      was used years ago at another program, and deducting it now would invent
+      a stock movement that never happened here.
+    * **It does not overwrite what the clinic already recorded.** A dose the
+      nurse entered by hand outranks one inferred from dates, so an existing
+      record for the same patient, vaccine and dose number is left alone.
+    * **It does not hide where it came from.** ``import_batch_id`` marks these
+      as the doses whose numbering was *inferred* rather than observed — which
+      is exactly the set a doctor may need to correct, and what makes an import
+      undoable without touching anything typed since.
+    """
+    from app.models import PatientVaccine
+
+    wanted = [r for r in rows if r.get("vaccine_brand_id") and r.get("dose_number")]
+    if not wanted:
+        return 0
+
+    # One query for everything already on file, rather than one per dose.
+    patient_ids = {r["patient_id"] for r in wanted}
+    existing = {
+        (pid, vid, dose) for pid, vid, dose in
+        db.session.query(PatientVaccine.patient_id, PatientVaccine.vaccine_id,
+                         PatientVaccine.dose_number)
+        .filter(PatientVaccine.patient_id.in_(patient_ids),
+                PatientVaccine.event_type == "given").all()}
+
+    from app.models import VaccineBrand
+    brand_vaccine = {
+        b.id: b.vaccine_id for b in VaccineBrand.query.filter(
+            VaccineBrand.id.in_({r["vaccine_brand_id"] for r in wanted})).all()}
+
+    doses = []
+    for row in wanted:
+        vaccine_id = brand_vaccine.get(row["vaccine_brand_id"])
+        if not vaccine_id:
+            continue
+        key = (row["patient_id"], vaccine_id, row["dose_number"])
+        if key in existing:
+            continue
+        existing.add(key)
+        doses.append({
+            "patient_id": row["patient_id"], "vaccine_id": vaccine_id,
+            "brand_id": row["vaccine_brand_id"],
+            "dose_number": row["dose_number"],
+            "given_date": row["service_date"], "event_type": "given",
+            "given_outside": False, "import_batch_id": batch_id,
+        })
+    if doses:
+        db.session.bulk_insert_mappings(PatientVaccine, doses)
+    return len(doses)
+
+
+@patients_bp.route("/import/history/batches")
+@module_required(MODULE)
+def history_batches():
+    """Every history import this clinic has run, newest first."""
+    from app.models import ImportBatch
+
+    return render_template(
+        "patients/history_batches.html",
+        batches=(ImportBatch.query.filter_by(kind="history")
+                 .order_by(ImportBatch.id.desc()).limit(50).all()))
+
+
+@patients_bp.route("/import/history/batches/<int:batch_id>/undo",
+                   methods=["POST"])
+@module_required(MODULE)
+def history_batch_undo(batch_id):
+    """Take back one import — and nothing else.
+
+    Ten thousand rows written against real data needs a way back, and the only
+    kind worth having is one that is *exact*. Every row this import created
+    carries its batch, so undoing removes what it added and leaves untouched
+    everything the clinic has entered or corrected since.
+
+    Two things are deliberately kept:
+
+    * **A dose the clinic has since corrected.** If a doctor changed the number,
+      the date, or marked it given elsewhere, that is their record now — not the
+      import's — and deleting it would throw away the review the whole import
+      was built to invite.
+    * **The batch row itself.** "This import was undone, by whom, when" is part
+      of the history of the file, and a clinic asking six months later why a
+      decade of vaccinations is missing deserves an answer.
+    """
+    from app.models import ImportBatch, ImportedService, PatientVaccine
+
+    batch = db.get_or_404(ImportBatch, batch_id)
+    if batch.rows_added == 0 and batch.notes == "undone":
+        flash(t("history_import.already_undone"), "info")
+        return redirect(url_for("patients.history_batches"))
+
+    # Doses the clinic has corrected since are theirs, not the import's.
+    kept = 0
+    doses = PatientVaccine.query.filter_by(import_batch_id=batch.id).all()
+    for dose in doses:
+        if dose.given_outside or dose.outside_place or dose.lot_number:
+            dose.import_batch_id = None
+            kept += 1
+        else:
+            db.session.delete(dose)
+
+    removed = ImportedService.query.filter_by(batch_id=batch.id).delete(
+        synchronize_session=False)
+
+    batch.rows_added = 0
+    batch.notes = "undone"
+    ActivityLog.record("history.import.undo", user_id=current_user.id,
+                       entity="import_batch", entity_id=batch.id,
+                       detail=f"-{removed} rows, {len(doses) - kept} doses, "
+                              f"{kept} kept",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("history_import.undone").replace("{n}", str(removed)), "success")
+    return redirect(url_for("patients.history_batches"))
+
+
+@patients_bp.route("/imported/<int:row_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def imported_service_edit(row_id):
+    """Correct one line of imported history.
+
+    Asked for as "add these services to the patient files and edit them there
+    one at a time". Ten years of somebody else's data will have wrong dates,
+    wrong prices and names that mean nothing here, and a clinic that cannot fix
+    a line in its own file does not trust the file.
+    """
+    from app.models import ImportedService
+
+    row = db.get_or_404(ImportedService, row_id)
+    name = (request.form.get("source_name") or "").strip()
+    if name:
+        row.source_name = name[:255]
+    when = (request.form.get("service_date") or "").strip()
+    if when:
+        try:
+            row.service_date = datetime.strptime(when, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    price = request.form.get("price", type=float)
+    if price is not None and price >= 0:
+        row.price = price
+    row.notes = (request.form.get("notes") or "").strip() or None
+
+    ActivityLog.record("history.row.edit", user_id=current_user.id,
+                       entity="patient", entity_id=row.patient_id,
+                       detail=f"{row.source_name} {row.service_date}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("history_import.row_saved"), "success")
+    return redirect(url_for("patients.view", patient_id=row.patient_id)
+                    + "#history")
+
+
+@patients_bp.route("/imported/<int:row_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def imported_service_delete(row_id):
+    """Remove one line of imported history.
+
+    Deleting the whole import is a different button on a different screen. This
+    is for the single row that should never have been there — a duplicate in
+    the old program, a service billed to the wrong child years ago.
+    """
+    from app.models import ImportedService
+
+    row = db.get_or_404(ImportedService, row_id)
+    patient_id = row.patient_id
+    ActivityLog.record("history.row.delete", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=f"{row.source_name} {row.service_date}",
+                       ip_address=client_ip())
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("history_import.row_removed"), "info")
+    return redirect(url_for("patients.view", patient_id=patient_id)
+                    + "#history")
+
+
+def _created_doctors(payload):
+    """Make the users the clinic asked for, and return ``{key: user id}``.
+
+    Written into the same transaction as the rows, so a clinic that abandons
+    the import does not leave a list of half-created doctors behind.
+    """
+    from app.utils.import_doctors import create_all
+
+    names = payload.get("doctor_names") or {}
+    wanted = {key: (names.get(key) or "").strip()
+              for key, choice in (payload.get("doctor_links") or {}).items()
+              if str(choice) == CREATE_DOCTOR}
+    wanted = {k: v for k, v in wanted.items() if v}
+    if not wanted:
+        return {}
+
+    made = create_all(sorted(set(wanted.values())))
+    for name, user in made.items():
+        ActivityLog.record("history.doctor.create", user_id=current_user.id,
+                           entity="user", entity_id=user.id,
+                           detail=name, ip_address=client_ip())
+    return {key: made[name].id for key, name in wanted.items() if name in made}
+
+
+def _doctors_to_create(payload):
+    """The names the clinic asked to be made into users, in file order."""
+    names = payload.get("doctor_names") or {}
+    return [names.get(key) or key
+            for key, choice in (payload.get("doctor_links") or {}).items()
+            if str(choice) == CREATE_DOCTOR]
+
+
+def _resolved_doctors(links):
+    """``{name in the file: user id}`` from the confirmed choices.
+
+    Only ids that still exist are kept: a mapping saved against a user who has
+    since been deleted would write a dangling reference into ten years of
+    history, and a dangling doctor is worse than none — the reports would count
+    the work and be unable to say whose it was.
+    """
+    from app.models import User
+
+    wanted = {}
+    for name, choice in links.items():
+        choice = str(choice or "").strip()
+        if not choice.isdigit():
+            continue
+        wanted[name] = int(choice)
+    if not wanted:
+        return {}
+    real = {u.id for u in User.query.filter(
+        User.id.in_(set(wanted.values()))).all()}
+    return {name: uid for name, uid in wanted.items() if uid in real}

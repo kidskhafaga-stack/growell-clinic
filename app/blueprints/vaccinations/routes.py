@@ -75,7 +75,13 @@ def view(patient_id):
     plan = patient_plan(patient, lang)
     summary = plan_summary(plan)
     nxt = next_due_dose(plan)
+    from app.utils.course_state import annotate
     from app.utils.vaccines import OPEN_GROUPS, group_plan
+
+    # Said, not counted. "3/4" leaves the reader to work out whether the one
+    # missing is a primary dose the child is behind on or the booster that
+    # falls due next year — a phone call and a diary note, not the same job.
+    annotate(plan)
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
@@ -654,29 +660,47 @@ def compliance():
 @vaccinations_bp.route("/reminders")
 @module_required(MODULE)
 def reminders():
-    """Patients with a late/due dose of a course they started here.
+    """Who is due a dose — and, from the same list, what to order for them.
 
-    Only patients who already have a dose recorded with us are considered — we
-    never chase a vaccine we never gave (it may have been taken elsewhere) — which
+    Only patients who already have a dose recorded with us are considered: a
+    clinic never chases a vaccine it never gave, because the child may be
+    getting it somewhere else and the call would only annoy the family. That
     also keeps this cheap with thousands of patients on the books.
+
+    The filters are what make one screen do two jobs. "Who do I call this week"
+    and "what will I need next month" are the same data over different windows,
+    and the purchase order is built from **whatever the filter is currently
+    showing** — the same rule as the invoice export: what you take away is what
+    you were looking at.
     """
-    started_ids = [r[0] for r in (
-        PatientVaccine.query.filter(PatientVaccine.event_type == "given")
-        .with_entities(PatientVaccine.patient_id).distinct().all())]
+    from app.utils.export import parse_date
+    from app.utils.vaccine_due import due_list, order_suggestion, summarise
+
     lang = getattr(g, "lang", "ar")
-    rows = []
-    for patient in (Patient.query.filter(Patient.is_active.is_(True),
-                                         Patient.id.in_(started_ids)).all()
-                    if started_ids else []):
-        for due in patient_due_reminders(patient, lang):
-            rows.append({
-                "patient": patient, "vaccine": due["vaccine"], "brand": due["brand"],
-                "dose_number": due["dose_number"], "due_date": due["due_date"],
-                "status": due["status"], "phone": patient.contact_phone,
-            })
-    rows.sort(key=lambda r: (0 if r["status"] == "overdue" else 1, r["due_date"] or ""))
-    return render_template("vaccinations/reminders.html", rows=rows,
-                           now_date=datetime.utcnow().date().isoformat())
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    vaccine_id = request.args.get("vaccine_id", type=int)
+    brand_id = request.args.get("brand_id", type=int)
+    status = (request.args.get("status") or "").strip()
+    if status not in ("overdue", "due", "seasonal"):
+        status = ""
+
+    found = due_list(start=start, end=end, vaccine_id=vaccine_id,
+                     brand_id=brand_id, status=status or None, lang=lang)
+    rows = [{"patient": r["patient"], "vaccine": r["vaccine"],
+             "brand": r["brand"], "dose_number": r["dose_number"],
+             "due_date": r["due_date"], "status": r["status"],
+             "phone": r["patient"].contact_phone} for r in found]
+
+    from app.models import Vaccine, VaccineBrand
+    return render_template(
+        "vaccinations/reminders.html", rows=rows,
+        counts=summarise(found), order=order_suggestion(found),
+        vaccines=Vaccine.query.order_by(Vaccine.sort_order, Vaccine.id).all(),
+        brands=VaccineBrand.query.order_by(VaccineBrand.name).all(),
+        f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
+        f_vaccine=vaccine_id, f_brand=brand_id, f_status=status,
+        now_date=datetime.utcnow().date().isoformat())
 
 
 @vaccinations_bp.route("/<int:patient_id>/remind-due")
@@ -727,3 +751,63 @@ def verify(token):
         "vaccinations/verify.html", patient=patient, given=given,
         clinic=clinic, now_date=datetime.utcnow().date().isoformat(),
     )
+
+
+@vaccinations_bp.route("/dose/<int:pv_id>/correct", methods=["POST"])
+@module_required(MODULE)
+def correct_dose(pv_id):
+    """Correct a recorded dose: its number, its date, or where it was given.
+
+    This exists because of what an imported history cannot know. The old
+    program's file holds what happened **at this clinic**, and the dose numbers
+    were inferred from the order of those dates — so a child who had two doses
+    here, one somewhere else, and the booster here comes out numbered 1, 2, 3
+    when they are really 1, 3, 4. Nothing in the data can see the gap.
+
+    Reported exactly that way: *"the doctor sees he had 2 with me and one
+    outside and the booster with me"*. So the inference is a starting point the
+    doctor overrides, not a fact. Without this screen the imported history is a
+    wall a doctor cannot fix, and a clinic that cannot fix it goes back to its
+    old program.
+    """
+    dose = db.get_or_404(PatientVaccine, pv_id)
+    patient_id = dose.patient_id
+
+    number = request.form.get("dose_number", type=int)
+    if number and number > 0:
+        # A second record of the same dose number would make the course read as
+        # complete when it is not.
+        clash = PatientVaccine.query.filter(
+            PatientVaccine.patient_id == patient_id,
+            PatientVaccine.vaccine_id == dose.vaccine_id,
+            PatientVaccine.dose_number == number,
+            PatientVaccine.event_type == "given",
+            PatientVaccine.id != dose.id).first()
+        if clash is not None:
+            flash(t("vaccinations.dose_exists"), "warning")
+            return redirect(url_for("vaccinations.view", patient_id=patient_id))
+        dose.dose_number = number
+
+    given = (request.form.get("given_date") or "").strip()
+    if given:
+        try:
+            dose.given_date = datetime.strptime(given, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    # "Given outside" is the whole point: it keeps the dose in the child's
+    # record — so the course is not restarted — while saying this clinic did
+    # not give it, which is what the stock and the money must not assume.
+    outside = bool(request.form.get("given_outside"))
+    dose.given_outside = outside
+    dose.outside_place = ((request.form.get("outside_place") or "").strip()[:160]
+                          or None) if outside else None
+
+    ActivityLog.record("vaccine.correct", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=f"dose {dose.id} -> #{dose.dose_number}"
+                              f"{' outside' if outside else ''}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.dose_corrected"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=patient_id))

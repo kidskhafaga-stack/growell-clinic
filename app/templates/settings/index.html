@@ -436,6 +436,20 @@
     <h2 class="section-title"><i class="bi bi-robot"></i> {{ t('settings.ai_title') }}</h2>
     <p class="page-sub" style="margin:-4px 0 12px;">{{ t('settings.ai_subtitle') }}</p>
 
+    {# "Just let me try it" — one button, and the clinic brings its own free
+       key. That is what keeps this a feature rather than a service: no shared
+       account to meter, no per-clinic budget to police, and nobody else's
+       patients sharing a quota. #}
+    <div class="card" style="background:var(--soft,#f6f8fb);margin:0 0 14px;padding:12px;">
+      <strong><i class="bi bi-gift"></i> {{ t('settings.ai_free_title') }}</strong>
+      <p class="hint" style="margin:6px 0 10px;">{{ t('settings.ai_free_hint') }}</p>
+      <button type="button" class="btn btn-outline btn-sm gc-press"
+              x-on:click="provider='{{ trial_ai.provider }}'; modelPick='{{ trial_ai.model }}'; model='{{ trial_ai.model }}';">
+        <i class="bi bi-magic"></i> {{ t('settings.ai_free_use') }}</button>
+      <a class="btn btn-outline btn-sm gc-press" href="{{ trial_ai.keys_url }}"
+         target="_blank" rel="noopener"><i class="bi bi-key"></i> {{ t('settings.ai_free_key') }}</a>
+    </div>
+
     <div class="form-row checkbox">
       <input type="checkbox" id="ai_enabled" name="ai_enabled" value="1" {{ 'checked' if values.get('ai_enabled')=='1' else '' }}>
       <label for="ai_enabled" style="margin:0;font-weight:400;">{{ t('settings.ai_enabled') }}</label>
@@ -455,11 +469,19 @@
           // only ever offers the selected provider's models.
           const AI_MODELS = { {% for pid, meta in ai_providers.items() %}'{{ pid }}': {{ meta.models | tojson }},{% endfor %} };
         </script>
+        <script>
+          // Which providers cost nothing to get a key for. A fact about the
+          // KEY, not about a quota — free tiers move, and a screen quoting
+          // "60 requests a minute" is a screen that is wrong later.
+          const AI_FREE = {{ free_ai | tojson }};
+        </script>
         <div style="margin-top:6px;">
           <span class="badge badge--green" x-show="AI_LOCAL.includes(provider)" x-cloak>
             <i class="bi bi-hdd-network"></i> {{ t('settings.ai_local_badge') }}</span>
           <span class="badge badge--muted" x-show="!AI_LOCAL.includes(provider)">
             <i class="bi bi-cloud"></i> {{ t('settings.ai_cloud_badge') }}</span>
+          <span class="badge badge--green" x-show="AI_FREE.includes(provider)" x-cloak>
+            <i class="bi bi-gift"></i> {{ t('settings.ai_free_badge') }}</span>
         </div>
       </div>
 
@@ -498,6 +520,17 @@
       <textarea class="input" name="ai_system_prompt" rows="3" dir="auto"
                 placeholder="{{ t('settings.ai_system_prompt_ph') }}">{{ values.get('ai_system_prompt','') }}</textarea>
       <div class="hint">{{ t('settings.ai_system_prompt_hint') }}</div></div>
+
+    {# Find out now, not mid-consultation. `formaction` posts this same form to
+       the test route, so what gets tested is what is on screen — somebody can
+       paste a key and check it before saving it, which is the order a person
+       actually works in. (A nested form would be invalid HTML.) #}
+    <div style="margin-top:12px;">
+      <button class="btn btn-outline btn-sm gc-press" type="submit"
+              formaction="{{ url_for('settings.ai_test') }}">
+        <i class="bi bi-plug"></i> {{ t('settings.ai_test') }}</button>
+      <span class="hint">{{ t('settings.ai_test_hint') }}</span>
+    </div>
 
     <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-person-vcard"></i> {{ t('settings.ai_patient_section') }}</h3>
     <div class="form-row checkbox">

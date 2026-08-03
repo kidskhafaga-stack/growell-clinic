@@ -69,6 +69,7 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
         _seed_tills_safe()
@@ -200,6 +201,7 @@ def register_commands(app):
             pass
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_client_categories_safe()
         _backfill_service_types_safe()
         _migrate_visit_type_map_safe()
         try:  # every service carries a code (auto-generate for older rows)
@@ -279,6 +281,7 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
         _seed_tills_safe()
@@ -401,6 +404,7 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
         _seed_tills_safe()
@@ -539,6 +543,16 @@ def _seed_service_types_safe():
     (idempotent, best-effort)."""
     try:
         from app.utils.service_types import ensure_seeded
+        ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _seed_client_categories_safe():
+    """Seed the editable client-category catalogue from the built-in list
+    (idempotent, best-effort)."""
+    try:
+        from app.utils.client_categories import ensure_seeded
         ensure_seeded()
     except Exception:  # noqa: BLE001
         pass

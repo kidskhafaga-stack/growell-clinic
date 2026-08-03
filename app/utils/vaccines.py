@@ -18,6 +18,7 @@ from app.models import (
     VaccineScheduleDose,
     VaccineScheduleTemplate,
 )
+from app.utils.dose_labels import is_booster
 
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "egypt_vaccines.json")
 
@@ -41,6 +42,7 @@ _VACCINE_TYPE = {
     "PENTAXIM": "combination", "MMRV": "live", "MENACWY": "conjugate",
     "MENB": "recombinant", "HPV": "recombinant", "TYPHOID": "conjugate",
     "RABIES": "inactivated", "YELLOWFEVER": "live", "CHOLERA": "inactivated",
+    "DT": "toxoid",
 }
 
 
@@ -146,6 +148,14 @@ def seed_vaccines():
                 vaccine.max_age_months = v["max_age_months"]
             if v.get("booster") and not vaccine.booster_required:
                 vaccine.booster_required = True
+        # Which dose of this course is the booster rather than a primary dose.
+        # Stated in the catalogue rather than guessed, because the guess is
+        # wrong where it matters: PCV's fourth dose falls six months after the
+        # third, and the "a year later, so it is a booster" rule — right for
+        # the 18-month OPV — misses it. "3+1" is what the schedule says, and a
+        # course that is one *booster* short is a diary note, not a child who
+        # is behind.
+        booster_from = v.get("booster_from_dose")
         for b in v["brands"]:
             existing = next((br for br in vaccine.brands if br.name == b["name"]), None)
             if existing is not None:
@@ -153,6 +163,10 @@ def seed_vaccines():
                 # only when the clinic hasn't set one (never clobber edits).
                 if b.get("catch_up_ar") and not existing.catch_up_notes:
                     existing.catch_up_notes = b["catch_up_ar"]
+                if booster_from:
+                    for row in existing.doses:
+                        if row.dose_number >= booster_from and not row.is_booster:
+                            row.is_booster = True
                 continue
             brand = VaccineBrand(
                 vaccine_id=vaccine.id, name=b["name"], name_en=b.get("name_en"),
@@ -163,7 +177,9 @@ def seed_vaccines():
             db.session.add(brand)
             db.session.flush()
             for i, age in enumerate(b["doses_age_months"], start=1):
-                db.session.add(VaccineBrandDose(brand_id=brand.id, dose_number=i, age_months=age))
+                db.session.add(VaccineBrandDose(
+                    brand_id=brand.id, dose_number=i, age_months=age,
+                    is_booster=bool(booster_from and i >= booster_from)))
     db.session.commit()
     return created
 
@@ -382,6 +398,10 @@ def patient_plan(patient, lang="ar"):
                 "dose_number": d.dose_number,
                 "age_months": d.age_months,
                 "age_label": age_label(d.age_months, lang),
+                # Carried so the card can say "the booster is what is left"
+                # rather than "3/4" and leave the reader to work out which of
+                # the two very different jobs that is.
+                "booster": is_booster(brand, d.dose_number),
                 "due_date": due.isoformat() if due else None,
                 "given_date": pv.given_date.isoformat() if pv else None,
                 "lot_number": pv.lot_number if pv else None,
@@ -392,6 +412,12 @@ def patient_plan(patient, lang="ar"):
                            if pv is not None and pv.doctor else None),
                 "outside": bool(pv.given_outside) if pv is not None else False,
                 "outside_place": (pv.outside_place if pv is not None else None),
+                # The record itself, so the file can offer to correct it — and
+                # whether its number was *inferred* from an import rather than
+                # observed, which is the set most likely to need correcting.
+                "pv_id": pv.id if pv is not None else None,
+                "imported": bool(getattr(pv, "import_batch_id", None))
+                if pv is not None else False,
                 "status": _status(due, pv is not None, today),
                 "planned": planned is not None,
                 "event_type": (ev.event_type if (ev and not pv

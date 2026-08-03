@@ -126,7 +126,17 @@
         <tbody>
           {% for row in type_rows %}
           <tr>
-            <td><input class="input" type="number" name="order_{{ row.id }}" value="{{ row.sort_order }}" style="width:64px;"></td>
+            {# Up and down, not a number to type. Two rows given the same sort
+               number tie, and the list then refuses to move for a reason the
+               person pressing save cannot see. #}
+            <td style="white-space:nowrap;">
+              <button class="btn-x" type="submit" formnovalidate name="dir" value="up"
+                      title="{{ t('common.move_up') }}"
+                      formaction="{{ url_for('finance.service_type_move', type_id=row.id) }}"><i class="bi bi-arrow-up"></i></button>
+              <button class="btn-x" type="submit" formnovalidate name="dir" value="down"
+                      title="{{ t('common.move_down') }}"
+                      formaction="{{ url_for('finance.service_type_move', type_id=row.id) }}"><i class="bi bi-arrow-down"></i></button>
+            </td>
             <td><input class="input" name="name_{{ row.id }}" value="{{ row.name_ar or row.display_name('ar') }}">
               {% if row.is_system %}<span class="badge badge--muted" title="{{ t('services.type_system_hint') }}"><i class="bi bi-lock"></i> {{ row.key }}</span>{% endif %}</td>
             <td><input class="input" name="name_en_{{ row.id }}" dir="ltr" value="{{ row.name_en or '' }}"></td>

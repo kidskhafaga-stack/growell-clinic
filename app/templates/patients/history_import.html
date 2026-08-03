@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% set active_module = 'patients' %}
+{% block title %}{{ t('history_import.title') }}{% endblock %}
+{% block page_heading %}{{ t('history_import.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:14px;">
+  <h1 class="page-title">{{ t('history_import.title') }}</h1>
+  <p class="page-sub" style="margin:6px 0 0;">{{ t('history_import.subtitle') }}</p>
+</div>
+
+{# Said before the upload, not after it. This file cannot create patients — an
+   old services export carries no date of birth, gender or phone — so a clinic
+   that has not imported its patients yet would upload ten thousand rows and be
+   told every one of them was rejected. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;
+     border-inline-start:4px solid {{ 'var(--green-600)' if ready else 'var(--danger)' }};">
+  <strong>
+    <i class="bi bi-{{ 'check-circle' if ready else 'exclamation-triangle-fill' }}"
+       style="color:{{ 'var(--green-600)' if ready else 'var(--danger)' }};"></i>
+    {{ t('history_import.patients_first') }}
+  </strong>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('history_import.patients_first_hint') }}</p>
+  <a class="btn btn-{{ 'outline' if ready else 'primary' }} gc-press"
+     href="{{ url_for('patients.bulk_import') }}">
+    <i class="bi bi-people"></i> {{ t('history_import.go_patients') }}</a>
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-upload"></i> {{ t('history_import.upload') }}</h2>
+  <p class="hint" style="margin:-4px 0 12px;">{{ t('history_import.upload_hint') }}</p>
+  <form method="post" enctype="multipart/form-data"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:220px;">
+      <label>{{ t('import.choose_file') }}</label>
+      <input class="input" type="file" name="file" accept=".xlsx,.csv" required></div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-arrow-{{ 'left' if direction=='rtl' else 'right' }}"></i> {{ t('history_import.preview') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import_template') }}">
+      <i class="bi bi-file-earmark-arrow-down"></i> {{ t('history_import.template') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_batches') }}">
+      <i class="bi bi-clock-history"></i> {{ t('history_import.batches_title') }}</a>
+  </form>
+  <p class="hint" style="margin:10px 0 0;"><i class="bi bi-info-circle"></i> {{ t('history_import.template_hint') }}</p>
+</div>
+{% endblock %}

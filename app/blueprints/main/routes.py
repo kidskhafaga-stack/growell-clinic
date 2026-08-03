@@ -26,6 +26,36 @@ def index():
     return redirect(url_for("auth.login"))
 
 
+@main_bp.route("/healthz")
+def healthz():
+    """Is this program actually answering? — for the watchdog on the server.
+
+    Restarting a crashed process is the easy half. A program that is *running*
+    and not answering — a locked database, a thread pool with nothing left —
+    looks identical to a healthy one from outside, and it is the half a clinic
+    actually meets: the server is up, the icon is there, and nobody can book a
+    patient.
+
+    So this touches the database. A route that only proves Python is alive
+    would answer happily through exactly the failure it exists to catch.
+
+    Deliberately open, and deliberately dull: a status, a version, and nothing
+    that names the clinic or counts its patients. A watchdog cannot log in,
+    and a health check that needs a session is one that reports "unhealthy"
+    every time somebody's cookie expires.
+    """
+    from flask import jsonify
+
+    from app.utils.version import APP_VERSION
+
+    try:
+        db.session.execute(db.text("SELECT 1")).scalar()
+    except Exception as exc:  # noqa: BLE001 — any failure here is the answer
+        current_app.logger.warning("health check failed: %s", exc)
+        return jsonify({"status": "error", "database": False}), 503
+    return jsonify({"status": "ok", "database": True, "version": APP_VERSION})
+
+
 # Age groups (upper bound in days, 365-day years) — see clinical reference.
 AGE_GROUPS = [
     ("newborn", 30),       # 1st month of life: 0–30 days
