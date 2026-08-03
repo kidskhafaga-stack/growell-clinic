@@ -209,6 +209,10 @@ ADDITIONS = [
     ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
     ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),
     ("named_discounts", "auto_apply", "BOOLEAN DEFAULT 1"),
+    # Whether a discount's named member list replaces its rule or tops it up.
+    # 0 is the safe default and the same one the model carries: an existing
+    # clinic's discounts keep reaching exactly who they reached before.
+    ("named_discounts", "members_only", "BOOLEAN DEFAULT 0"),
     ("vaccine_brand_doses", "is_booster", "BOOLEAN DEFAULT 0"),
     ("patient_vaccines", "outside_place", "VARCHAR(160)"),
     ("patient_attachments", "investigation_id", "INTEGER"),
