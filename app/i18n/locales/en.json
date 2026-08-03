@@ -4209,11 +4209,11 @@
     "distinct_names": "distinct names",
     "name_in_file": "Name in your file",
     "matched_to": "Links to",
-    "plain_service": "A plain service (not a vaccine)",
+    "plain_service": "No link — keep the text",
     "conf_high": "Clear match",
     "conf_medium": "Check this",
     "conf_low": "Unsure — look carefully",
-    "link_hint": "Your file has thousands of rows but few distinct names, so you confirm this once. The program proposes and you decide: no vaccine is recorded for a child without your confirmation. Anything that is not a vaccine stays a plain service.",
+    "link_hint": "Your file has thousands of rows but only a handful of distinct names, so you confirm this once. The program proposes from your own services and from the vaccine catalogue, and you decide — nothing is linked to a child until you confirm it. A name with no counterpart here is left unlinked and keeps its text.",
     "batches_title": "Imports",
     "batches_hint": "Every import that has been run, by whom and when — and any of them can be taken back.",
     "undo": "Undo",
@@ -4229,6 +4229,8 @@
     "doctors_hint": "The doctors in your file are matched to users you already have. Without this, a doctor's past work stays outside the commission reports and the doctor statements.",
     "categories_hint": "Your file's “contract” column is matched to your client categories. Left as text it never reaches the discount aimed at that category.",
     "no_doctor": "No doctor",
-    "keep_as_text": "Keep as text"
+    "keep_as_text": "Keep as text",
+    "group_services": "Clinic services",
+    "group_vaccines": "Vaccines"
   }
 }

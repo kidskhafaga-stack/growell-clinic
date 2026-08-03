@@ -165,6 +165,10 @@
                 <td dir="ltr" style="white-space:nowrap;">{{ row.service_date }}</td>
                 <td dir="auto">{{ row.source_name }}
                   {% if row.vaccine_brand_id %}<span class="badge badge--green">{{ t('vaccinations.dose') }} {{ row.dose_number or '—' }}</span>{% endif %}
+                  {# What the file's wording was linked to. Shown because the
+                     link is what makes the row usable — a name on its own is
+                     history the reports cannot count. #}
+                  {% if row.service %}<span class="badge badge--role">{{ row.service.display_name(current_lang) }}</span>{% endif %}
                   {% if row.notes %}<div class="hint">{{ row.notes }}</div>{% endif %}</td>
                 <td style="text-align:end;" dir="ltr">{{ '%.2f'|format(row.price or 0) }}</td>
                 <td style="text-align:end;white-space:nowrap;">

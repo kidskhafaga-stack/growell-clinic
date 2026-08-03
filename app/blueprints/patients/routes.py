@@ -1423,6 +1423,10 @@ def history_import_commit():
     # brand". Resolved once into {name: (brand_id, vaccine_id)} rather than
     # per row — 9,908 rows carry 27 names.
     links = _resolved_links(payload.get("links") or {})
+    # The same screen also links the rows that are not vaccines at all — كشف
+    # and إستشارة are 7,476 of the real file — onto the services the clinic
+    # already has, so imported history lands in the same catalogue as today's.
+    service_links = _resolved_services(payload.get("links") or {})
     # The same "map onto what exists" rule, for the two columns that were
     # previously stored as text and therefore invisible to every report.
     doctor_links = _resolved_doctors(payload.get("doctor_links") or {})
@@ -1438,6 +1442,7 @@ def history_import_commit():
         brand_id, vaccine_id = links.get(record["service_name"], (None, None))
         pending.append({
             "brand_id": brand_id, "vaccine_id": vaccine_id,
+            "service_id": service_links.get(record["service_name"]),
             # Without this a decade of a doctor's work sits outside the
             # commission reports, the doctor filter and the statements — every
             # one of which joins on doctor_id.
@@ -1603,32 +1608,71 @@ def history_import_link():
     # Every column that points at something in the program is matched against
     # what exists first — the file's doctor and its "التعاقد" as much as its
     # vaccine names. Creating is never the default.
-    from app.utils.history_match import doctor_index, normalise_arabic
+    from app.utils.history_match import normalise_arabic
+    from app.utils.name_match import suggest_doctors, suggest_services
     from app.utils.client_categories import active_categories, ensure_seeded
 
     ensure_seeded()
-    known_doctors = doctor_index()
     category_rows = active_categories()
     by_category = {normalise_arabic(c.display_name("ar")): c.key
                    for c in category_rows}
     by_category.update({normalise_arabic(c.key): c.key for c in category_rows})
 
+    # Two catalogues per name, not one. 7,476 of the real file's rows are كشف
+    # and إستشارة — services the clinic already has, priced and commissioned —
+    # and offering only "a plain service" threw that away: the row kept its
+    # text and pointed at nothing, so it never reached a revenue report.
+    name_values = [row["value"] for row in names]
+    vaccine_hits = suggest_all(name_values)
+    service_hits = suggest_services(name_values)
+
     return render_template(
         "patients/history_link.html", token=token, names=names,
-        suggestions=suggest_all([row["value"] for row in names]),
+        suggestions=vaccine_hits, service_suggestions=service_hits,
+        best_link=_best_link(name_values, vaccine_hits, service_hits),
         saved=payload.get("links") or {},
         filename=payload.get("filename"),
-        # Every brand, for the rows the matcher could not place. Loaded once —
-        # a select per row, not a query per row.
-        brands=_brand_choices(),
+        # Every brand and every service, for the rows the matcher could not
+        # place. Loaded once — a select per row, not a query per row.
+        brands=_brand_choices(), services=_service_choices(),
         doctors=doctors, doctor_choices=_doctor_choices(),
-        doctor_guess={row["value"]: known_doctors.get(
-            normalise_arabic(row["value"])) for row in doctors},
+        doctor_hits=suggest_doctors([row["value"] for row in doctors]),
         saved_doctors=payload.get("doctor_links") or {},
         categories=categories, category_choices=category_rows,
         category_guess={row["value"]: by_category.get(
             normalise_arabic(row["value"])) for row in categories},
         saved_categories=payload.get("category_links") or {})
+
+
+def _best_link(values, vaccine_hits, service_hits):
+    """``{name: (choice, confidence)}`` — the one proposal per row.
+
+    A name is scored against both catalogues, and the higher score wins. The
+    tie goes to the **vaccine**, because a vaccination row carries a dose
+    number and a course: linking it to the "vaccination fee" service instead
+    would price it correctly and still leave the child's schedule unaware the
+    dose happened.
+    """
+    out = {}
+    for value in values:
+        vaccine = (vaccine_hits.get(value) or [None])[0]
+        service = (service_hits.get(value) or [None])[0]
+        if vaccine and (not service or vaccine["score"] >= service["score"]):
+            out[value] = (f"brand:{vaccine['brand_id']}", vaccine["confidence"])
+        elif service:
+            out[value] = (f"service:{service['service_id']}",
+                          service["confidence"])
+    return out
+
+
+def _service_choices():
+    """``[(service_id, name)]`` for the "which service is this?" dropdown."""
+    from app.models import Service
+
+    lang = getattr(g, "lang", "ar")
+    rows = Service.query.filter(Service.is_active.is_(True)).all()
+    return sorted(((s.id, s.display_name(lang)) for s in rows),
+                  key=lambda row: row[1])
 
 
 def _doctor_choices():
@@ -1672,6 +1716,31 @@ def _brand_choices():
         label = f"{vaccine.name_ar} — {brand.name}" if vaccine else brand.name
         out.append((brand.id, label))
     return sorted(out, key=lambda row: row[1])
+
+
+def _resolved_services(links):
+    """``{service name in the file: service id}`` from the confirmed choices.
+
+    Only ids that still exist are kept, for the same reason as the doctors: a
+    mapping saved against a service somebody has since deleted would write a
+    dangling reference into ten years of history.
+    """
+    from app.models import Service
+
+    wanted = {}
+    for name, choice in links.items():
+        choice = str(choice or "")
+        if not choice.startswith("service:"):
+            continue
+        try:
+            wanted[name] = int(choice.split(":", 1)[1])
+        except ValueError:
+            continue
+    if not wanted:
+        return {}
+    real = {s.id for s in Service.query.filter(
+        Service.id.in_(set(wanted.values()))).all()}
+    return {name: sid for name, sid in wanted.items() if sid in real}
 
 
 def _resolved_links(links):
