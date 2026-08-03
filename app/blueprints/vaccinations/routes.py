@@ -75,7 +75,13 @@ def view(patient_id):
     plan = patient_plan(patient, lang)
     summary = plan_summary(plan)
     nxt = next_due_dose(plan)
+    from app.utils.course_state import annotate
     from app.utils.vaccines import OPEN_GROUPS, group_plan
+
+    # Said, not counted. "3/4" leaves the reader to work out whether the one
+    # missing is a primary dose the child is behind on or the booster that
+    # falls due next year — a phone call and a diary note, not the same job.
+    annotate(plan)
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,

@@ -82,13 +82,18 @@
        and the file says "د/ محمد الخفاجي". An exact match found neither. #}
     {% set found = doctor_hits.get(row.value) or [] %}
     {% set best = found[0] if found else None %}
-    {% set chosen = saved_doctors.get(row.value) or (best.user_id|string if best else '') %}
+    {% set chosen = saved_doctors.get(row.key) or (best.user_id|string if best else '') %}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;">
       <span dir="auto" style="min-width:180px;">{{ row.value }}
         <span class="hint" dir="ltr">{{ row.rows }}</span>
         {% if best %}
         <span class="badge {{ 'badge--green' if best.confidence == 'high' else ('badge--role' if best.confidence == 'medium' else 'badge--muted') }}">
           {{ t('history_import.conf_' ~ best.confidence) }}</span>
+        {% endif %}
+        {# The other spellings the file used for this same code — shown so the
+           clinic can see why three lines became one row. #}
+        {% if row.names|length > 1 %}
+        <div class="hint" dir="auto">{{ row.names[1:]|join(' · ') }}</div>
         {% endif %}
       </span>
       <select class="select" name="doc_{{ loop.index0 }}" style="max-width:260px;">
@@ -97,6 +102,9 @@
         {% set pick = chosen == d[0]|string %}
         <option value="{{ d[0] }}"{{ ' selected' if pick else '' }}>{{ d[1] }}</option>
         {% endfor %}
+        {# Last, and never the default: matching an existing user comes first,
+           and nothing is created until the preview has named who. #}
+        <option value="{{ create_doctor_choice }}"{{ ' selected' if chosen == create_doctor_choice else '' }}>{{ t('history_import.make_user') }}</option>
       </select>
     </div>
     {% endfor %}

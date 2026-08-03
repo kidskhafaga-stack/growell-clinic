@@ -66,6 +66,45 @@ def doctor_index():
     return index
 
 
+def doctor_key(record):
+    """Which doctor one row belongs to — by the source's own code when it has one.
+
+    The plan called this out and the sample proves it: a name is typed several
+    ways across ten years ("احمد جمال" / "أحمد جمال قنديل"), and grouping by the
+    text would offer the clinic the same person three times and then create
+    three users out of them. The code is one value per person.
+    """
+    code = (record.get("doctor_code") or "").strip()
+    if code:
+        return f"c:{normalise_arabic(code)}"
+    name = (record.get("doctor_name") or "").strip()
+    return f"n:{normalise_arabic(name)}" if name else ""
+
+
+def doctor_entries(records, limit=300):
+    """One row per doctor in the file, with every spelling it used.
+
+    ``[{key, code, value, names, rows}]``, commonest first. ``value`` is the
+    longest spelling met — the full name is the one worth showing and the one
+    worth creating a user from.
+    """
+    out = {}
+    for record in records:
+        key = doctor_key(record)
+        if not key:
+            continue
+        name = (record.get("doctor_name") or "").strip()
+        entry = out.setdefault(key, {
+            "key": key, "code": (record.get("doctor_code") or "").strip(),
+            "value": name, "names": [], "rows": 0})
+        entry["rows"] += 1
+        if name and name not in entry["names"]:
+            entry["names"].append(name)
+        if len(name) > len(entry["value"]):
+            entry["value"] = name
+    return sorted(out.values(), key=lambda e: -e["rows"])[:limit]
+
+
 def existing_keys():
     """``{source key: row}`` for everything already imported, in one query.
 

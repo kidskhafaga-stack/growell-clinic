@@ -965,7 +965,7 @@
     "outside_place_ph": "e.g. Haram health unit / Dr X's clinic / abroad",
     "outside_hint": "Recorded so the schedule is right — but it does not deduct from stock, is not charged, and is not credited to a doctor.",
     "dose_booster": "Booster dose",
-    "course_complete": "Course complete",
+    "course_complete": "Complete",
     "next_season": "Next season",
     "interval_warn": "⚠️ This child had a dose of {vaccine} (dose {dose}) on {date} — only {days} day(s) ago, and the minimum interval is {min} days. The dose was recorded; please review it.",
     "group_started": "Courses started and not finished",
@@ -992,7 +992,11 @@
     "correct": "Correct this dose",
     "imported": "Imported",
     "imported_hint": "This dose came from the old program's history, and its number was worked out from the order of the dates rather than recorded. If the child had a dose somewhere else, that order is missing one — correct it here.",
-    "dose_corrected": "Dose corrected"
+    "dose_corrected": "Dose corrected",
+    "course_booster_left": "Booster outstanding",
+    "course_left": "{n} left",
+    "course_inferred": "Inferred",
+    "course_inferred_hint": "These dose numbers were worked out from the order of the imported dates, not recorded here. The child may have had the first three doses, or started elsewhere and had the second, third and fourth — the file does not separate those. Check it and correct the dose number with the “correct” button below."
   },
   "vstatus": {
     "done": "Done",
@@ -4231,6 +4235,9 @@
     "no_doctor": "No doctor",
     "keep_as_text": "Keep as text",
     "group_services": "Clinic services",
-    "group_vaccines": "Vaccines"
+    "group_vaccines": "Vaccines",
+    "make_user": "Create an inactive user with this name",
+    "will_create_users": "Users that will be created",
+    "will_create_hint": "These are doctors in your file with no user here, and you asked for them. The account is created inactive — it cannot sign in — so their past work is attached to a person in the commission reports and the tax export. If the doctor still works with you, activating them is one click on the users screen. Nothing is created until you press import."
   }
 }

@@ -82,6 +82,21 @@
 </div>
 {% endif %}
 
+{# Creating users is the one part of this import that adds *people* to the
+   clinic rather than history, so it is named before it happens rather than
+   reported after. The accounts are inactive — nothing can sign in to them. #}
+{% if new_doctors %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--warning, #d98324);">
+  <strong><i class="bi bi-person-plus"></i> {{ t('history_import.will_create_users') }}</strong>
+  <p class="hint" style="margin:6px 0 8px;">{{ t('history_import.will_create_hint') }}</p>
+  <div dir="auto">
+    {% for name in new_doctors %}
+    <span class="badge badge--role" style="margin-inline-end:6px;">{{ name }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {# What the file actually contains, collapsed. 9,908 rows carry 27 service
    names and 3 categories — so a clinic checks 30 things, not ten thousand. #}
 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">

@@ -944,6 +944,11 @@ def _resolve_family(form):
 # ------------------------------------------------------- bulk import -------
 MAX_PREVIEW_ROWS = 200
 
+# The one value in the doctor dropdown that is not a user id. Deliberately not
+# a number, so it can never be confused with one, and deliberately checked
+# against a constant in both places rather than spelt out twice.
+CREATE_DOCTOR = "new"
+
 
 def _import_tmp_dir():
     path = os.path.join(current_app.instance_path, "import_tmp")
@@ -1383,7 +1388,11 @@ def history_import_map():
         missing_patients=missing_patient_codes(records),
         services=distinct_values(records, "service_name"),
         categories=distinct_values(records, "client_category"),
-        doctors=distinct_values(records, "doctor_name"))
+        doctors=distinct_values(records, "doctor_name"),
+        # Named before anything is written. Creating users is the one part of
+        # this import that adds people to the clinic rather than history, so it
+        # is the part that must not happen quietly.
+        new_doctors=_doctors_to_create(payload))
 
 
 @patients_bp.route("/import/history/commit", methods=["POST"])
@@ -1392,7 +1401,7 @@ def history_import_commit():
     from app.models import ImportBatch, ImportedService
     from app.utils.dose_infer import number_doses
     from app.utils.history_import import build_rows
-    from app.utils.history_match import CHANGED, NEW, classify
+    from app.utils.history_match import CHANGED, NEW, classify, doctor_key
 
     token = (request.form.get("token") or "").strip()
     tmp_path, payload = _load_import_tmp(token)
@@ -1430,6 +1439,11 @@ def history_import_commit():
     # The same "map onto what exists" rule, for the two columns that were
     # previously stored as text and therefore invisible to every report.
     doctor_links = _resolved_doctors(payload.get("doctor_links") or {})
+    # And the doctors the file names that this clinic has no user for. Created
+    # here rather than on the linking screen, so backing out at the preview
+    # leaves nothing behind: users appear only alongside the history that
+    # needed them.
+    doctor_links.update(_created_doctors(payload))
     category_links = payload.get("category_links") or {}
 
     pending = []
@@ -1446,7 +1460,7 @@ def history_import_commit():
             # Without this a decade of a doctor's work sits outside the
             # commission reports, the doctor filter and the statements — every
             # one of which joins on doctor_id.
-            "doctor_id": doctor_links.get(record["doctor_name"]),
+            "doctor_id": doctor_links.get(doctor_key(record)),
             "batch_id": batch.id, "patient_id": record["_patient_id"],
             "service_date": record["service_date"],
             "service_time": record["service_time"],
@@ -1555,7 +1569,7 @@ def history_import_link():
     vaccine they did not.
     """
     from app.utils.history_import import build_rows
-    from app.utils.history_match import distinct_values
+    from app.utils.history_match import distinct_values, doctor_entries
     from app.utils.vaccine_match import suggest_all
 
     token = (request.form.get("token") or "").strip()
@@ -1578,7 +1592,10 @@ def history_import_link():
 
     records = build_rows(payload["rows"], mapping)
     names = distinct_values(records, "service_name")
-    doctors = distinct_values(records, "doctor_name")
+    # Grouped by the source's own doctor code where the file has one: a name is
+    # typed several ways across ten years, and one row per spelling would offer
+    # the clinic the same person three times — then create three users.
+    doctors = doctor_entries(records)
     categories = distinct_values(records, "client_category")
 
     # Saving the screen: store what the clinic chose and go on to the preview.
@@ -1589,10 +1606,15 @@ def history_import_link():
             if choice:
                 links[row["value"]] = choice
         doctor_links = {}
+        # Keyed by the doctor's *key* — the code when the file has one — and
+        # the name is stored beside it so the preview can say who is about to
+        # be created without re-reading the file.
+        doctor_names = {}
         for index, row in enumerate(doctors):
             choice = (request.form.get(f"doc_{index}") or "").strip()
             if choice:
-                doctor_links[row["value"]] = choice
+                doctor_links[row["key"]] = choice
+                doctor_names[row["key"]] = row["value"]
         category_links = {}
         for index, row in enumerate(categories):
             choice = (request.form.get(f"cat_{index}") or "").strip()
@@ -1601,6 +1623,7 @@ def history_import_link():
         with open(tmp_path, "w", encoding="utf-8") as fh:
             json.dump({**payload, "links": links,
                        "doctor_links": doctor_links,
+                       "doctor_names": doctor_names,
                        "category_links": category_links},
                       fh, ensure_ascii=False, default=_history_cell)
         return history_import_map()
@@ -1638,6 +1661,10 @@ def history_import_link():
         doctors=doctors, doctor_choices=_doctor_choices(),
         doctor_hits=suggest_doctors([row["value"] for row in doctors]),
         saved_doctors=payload.get("doctor_links") or {},
+        # "Create an inactive user" is the last option, never the default —
+        # matching what exists comes first, and nothing is written until the
+        # preview has named who is about to be created.
+        create_doctor_choice=CREATE_DOCTOR,
         categories=categories, category_choices=category_rows,
         category_guess={row["value"]: by_category.get(
             normalise_arabic(row["value"])) for row in categories},
@@ -1955,6 +1982,38 @@ def imported_service_delete(row_id):
     flash(t("history_import.row_removed"), "info")
     return redirect(url_for("patients.view", patient_id=patient_id)
                     + "#history")
+
+
+def _created_doctors(payload):
+    """Make the users the clinic asked for, and return ``{key: user id}``.
+
+    Written into the same transaction as the rows, so a clinic that abandons
+    the import does not leave a list of half-created doctors behind.
+    """
+    from app.utils.import_doctors import create_all
+
+    names = payload.get("doctor_names") or {}
+    wanted = {key: (names.get(key) or "").strip()
+              for key, choice in (payload.get("doctor_links") or {}).items()
+              if str(choice) == CREATE_DOCTOR}
+    wanted = {k: v for k, v in wanted.items() if v}
+    if not wanted:
+        return {}
+
+    made = create_all(sorted(set(wanted.values())))
+    for name, user in made.items():
+        ActivityLog.record("history.doctor.create", user_id=current_user.id,
+                           entity="user", entity_id=user.id,
+                           detail=name, ip_address=client_ip())
+    return {key: made[name].id for key, name in wanted.items() if name in made}
+
+
+def _doctors_to_create(payload):
+    """The names the clinic asked to be made into users, in file order."""
+    names = payload.get("doctor_names") or {}
+    return [names.get(key) or key
+            for key, choice in (payload.get("doctor_links") or {}).items()
+            if str(choice) == CREATE_DOCTOR]
 
 
 def _resolved_doctors(links):
