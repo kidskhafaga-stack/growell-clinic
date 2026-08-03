@@ -2499,7 +2499,19 @@ def _fill_discount(row):
     row.is_percent = (request.form.get("unit") or "percent") == "percent"
     row.doctor_id = request.form.get("doctor_id", type=int) or None
     row.client_category = (request.form.get("client_category") or "").strip() or None
-    row.payer_id = request.form.get("payer_id", type=int) or None
+    # One offer, however many clubs honour it. Four clubs on the same terms
+    # used to mean four identical rules — and four places to forget when the
+    # terms change. The single column is still written when exactly one is
+    # chosen, so a rule saved today reads the same to older code.
+    from app.models import PayerEntity
+
+    wanted = {int(v) for v in request.form.getlist("payer_ids") if str(v).isdigit()}
+    single = request.form.get("payer_id", type=int)
+    if single:
+        wanted.add(single)
+    row.payers = (PayerEntity.query.filter(PayerEntity.id.in_(wanted)).all()
+                  if wanted else [])
+    row.payer_id = next(iter(wanted)) if len(wanted) == 1 else None
     row.min_siblings = max(request.form.get("min_siblings", type=int) or 2, 2)
     row.same_doctor = bool(request.form.get("same_doctor"))
     row.family_wide = bool(request.form.get("family_wide"))

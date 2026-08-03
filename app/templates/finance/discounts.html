@@ -43,10 +43,14 @@
   <div class="form-row" x-show="dt==='sibling'" x-cloak><label>&nbsp;</label>
     <label class="check"><input type="checkbox" name="same_doctor" value="1" {{ 'checked' if (d.same_doctor if d else True) else '' }}> {{ t('discounts.same_doctor') }}</label>
     <div class="hint">{{ t('discounts.same_doctor_hint') }}</div></div>
+  {# Several clubs, one offer. The same terms across four clubs used to mean
+     four identical rules — and four places to forget when the terms change. #}
   <div class="form-row" x-show="dt==='payer'" x-cloak><label>{{ t('discounts.payer') }}</label>
-    <select class="select" name="payer_id"><option value="">—</option>
-      {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if d and d.payer_id==p.id else '' }}>{{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>{% endfor %}</select>
-    <div class="hint">{{ t('discounts.payer_hint') }}</div></div>
+    {% set picked = (d.payer_ids if d else []) %}
+    <select class="select" name="payer_ids" multiple size="5">
+      {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if p.id in picked else '' }}>{{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>{% endfor %}</select>
+    <div class="hint">{{ t('discounts.payer_hint') }}</div>
+    <div class="hint">{{ t('discounts.payer_multi_hint') }}</div></div>
   <div class="form-row" x-show="dt==='payer'" x-cloak><label>&nbsp;</label>
     <label class="check"><input type="checkbox" name="family_wide" value="1" {{ 'checked' if (d.family_wide if d else True) else '' }}> {{ t('discounts.family_wide') }}</label>
     <div class="hint">{{ t('discounts.family_wide_hint') }}</div></div>
@@ -100,8 +104,10 @@
             {% elif d.dtype=='sibling' %}
               {{ t('discounts.min_siblings') }}: {{ d.min_siblings or 2 }}
               {% if d.same_doctor %}<span class="badge badge--muted">{{ t('discounts.same_doctor') }}</span>{% endif %}
-            {% elif d.dtype=='payer' and d.payer %}
-              <a href="{{ url_for('finance.payer_members', payer_id=d.payer_id) }}">{{ d.payer.display_name(current_lang) }}</a>
+            {% elif d.dtype=='payer' and d.payer_ids %}
+              {% for p in payers if p.id in d.payer_ids %}
+              <a href="{{ url_for('finance.payer_members', payer_id=p.id) }}">{{ p.display_name(current_lang) }}</a>{{ '' if loop.last else ' · ' }}
+              {% endfor %}
               {% if d.family_wide %}<span class="badge badge--muted">{{ t('discounts.family_wide') }}</span>{% endif %}
             {% else %}—{% endif %}
             {% if d.auto_apply %}<span class="badge badge--green">{{ t('discounts.auto') }}</span>{% endif %}</td>

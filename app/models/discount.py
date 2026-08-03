@@ -26,6 +26,21 @@ DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "sibling",
 VACCINE_SCOPE = "vaccine"
 
 
+# Which clubs, companies or syndicates one discount covers.
+#
+# It started as a single ``payer_id``, which forced a clinic offering the same
+# terms to four clubs to keep four identical rules — and four places to forget
+# when the terms change. The offer is one thing; the list of cards it honours
+# is a list.
+named_discount_payers = db.Table(
+    "named_discount_payers",
+    db.Column("discount_id", db.Integer, db.ForeignKey("named_discounts.id"),
+              primary_key=True),
+    db.Column("payer_id", db.Integer, db.ForeignKey("payer_entities.id"),
+              primary_key=True),
+)
+
+
 class NamedDiscount(db.Model):
     __tablename__ = "named_discounts"
 
@@ -53,8 +68,13 @@ class NamedDiscount(db.Model):
     # discount without negotiating a per-service price list.
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     client_category = db.Column(db.String(20))
+    # Kept for the rules written before a discount could name several: it is
+    # still read, so nothing an existing clinic saved stops working, and it is
+    # still written when exactly one is chosen.
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"),
                          nullable=True, index=True)
+    payers = db.relationship("PayerEntity", secondary=named_discount_payers,
+                             lazy="selectin")
     # Sibling discount: how many children of the same family have to be seen
     # on the same day before it applies (2 = "two brothers together").
     min_siblings = db.Column(db.Integer, default=2)
@@ -156,9 +176,9 @@ class NamedDiscount(db.Model):
             # the caller decides — here we only confirm the rule is live.
             return patient is not None and patient.family_id is not None
         if self.dtype == "payer":
-            # Members only: the patient must hold a *valid* card for this payer
-            # — or, for a family card, one of their siblings must.
-            if self.payer_id is None or patient is None:
+            # Members only: the patient must hold a *valid* card for one of the
+            # named payers — or, for a family card, one of their siblings must.
+            if not self.payer_ids or patient is None:
                 return False
             if self._has_card(patient):
                 return True
@@ -169,9 +189,23 @@ class NamedDiscount(db.Model):
         # campaign / special apply broadly.
         return True
 
+    @property
+    def payer_ids(self):
+        """Every payer this discount honours, old single column included.
+
+        One offer can cover several clubs. Reading both shapes here is what
+        lets the new list arrive without rewriting the rules a clinic already
+        saved — and a rule saved with one club keeps working untouched.
+        """
+        ids = {p.id for p in (self.payers or [])}
+        if self.payer_id:
+            ids.add(self.payer_id)
+        return ids
+
     def _has_card(self, patient):
-        """A valid membership card of this payer, on this patient's file."""
-        return any(c.payer_id == self.payer_id and c.is_valid
+        """A valid membership card of any of these payers, on this file."""
+        wanted = self.payer_ids
+        return any(c.payer_id in wanted and c.is_valid
                    for c in (getattr(patient, "coverages", None) or []))
 
     def amount_for(self, gross):
