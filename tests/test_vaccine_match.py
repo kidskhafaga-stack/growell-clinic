@@ -224,6 +224,54 @@ def test_the_two_that_were_missing_are_in_the_catalogue_now(catalogue):
     assert _suggest(catalogue, "DT - ثنائي")
 
 
+def test_the_double_is_a_vaccine_the_clinic_buys(clinic):
+    """DT sits in the *optional* catalogue, and that is not a filing decision.
+
+    The clinic said why it has one at all: a child who cannot have the
+    pertussis component — an allergy, an earlier reaction — takes the double
+    instead of the triple or the pentavalent, and a private clinic buys it in
+    for them. That is the definition of a clinic-supplied vaccine, and
+    ``is_mandatory`` is what decides whether a dose comes out of the clinic's
+    own fridge: a government-flagged one never touches stock, so a clinic that
+    paid for a vial would give it and watch the count stay where it was.
+    """
+    from app.models import Vaccine
+    from app.utils.vaccines import seed_vaccines
+
+    with clinic["app"].app_context():
+        seed_vaccines()
+        dt = Vaccine.query.filter_by(code="DT").first()
+        assert dt is not None
+        assert dt.is_mandatory is False
+        # And not "government", which was the contradiction: a brand nobody
+        # can price or stock, on a vaccine the clinic pays for.
+        assert [b.name for b in dt.brands] == ["DT"]
+        # Given at the schedule's ages, not only on indication — the double is
+        # a substitute for the triple, so it is due when the triple would be.
+        assert dt.on_demand is False
+
+
+def test_a_two_letter_name_does_not_swallow_every_abbreviation(catalogue):
+    """"DT" is inside "DTwP", "DTaP" and "Tdap" — and every one of those is the
+    *triple*, not the double.
+
+    This is not hypothetical: giving the DT brand a real name instead of
+    "حكومي" was enough to pull 'خماسى خلوى-(Quinvaxem (DTwP-HBV-Hib' off the
+    pentavalent and onto the double, because a brand hit counts twice. A child
+    recorded as having had a vaccine they did not is the one mistake the
+    matcher exists to avoid, so containment now needs three characters on both
+    sides — while an exact "DT" still matches exactly.
+    """
+    from app.utils.vaccine_match import _score
+
+    assert _score("dtwp", "dt") == 0
+    assert _score("dt", "dt") == 2
+    # And the two real containments this rule has to keep: a short service name
+    # inside a padded one, and a brand written with a hyphen in it.
+    assert _score("كشف عياده", "كشف") == 1
+    assert _score("rota", "rotarix") == 1
+
+
 def test_the_definite_article_does_not_hide_a_match(catalogue):
     """The catalogue writes "الخماسي"; the file writes "خماسى خلوى"."""
     from app.utils.vaccine_match import _score

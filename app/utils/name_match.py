@@ -70,7 +70,19 @@ def score(needle, hay):
         return 2
     # Containment both ways: the file says "روتا" where the catalogue says
     # "فيروس الروتا", and "Rota-rix" where the catalogue brand is "Rotarix".
-    if len(needle) >= 3 and (needle in hay or hay in needle):
+    #
+    # **Both sides** need a floor, not just the needle. A two-letter catalogue
+    # name is inside half the abbreviations in a vaccine field: "DT" sits in
+    # "DTwP", "DTaP" and "Tdap", every one of which is the *triple* and not the
+    # double. Naming the DT brand "DT" instead of "حكومي" was enough to pull
+    # 'خماسى خلوى-(Quinvaxem (DTwP-HBV-Hib' off the pentavalent and onto it —
+    # and a child recorded as having had a vaccine they did not is the one
+    # mistake this matcher exists to avoid.
+    #
+    # Three, not four: "كشف" is a real service name and has to keep matching
+    # "كشف عيادة". And an exact match is decided above, so "DT - ثنائي" still
+    # finds the double however short its name is.
+    if len(needle) >= 3 and len(hay) >= 3 and (needle in hay or hay in needle):
         return 1
     return 0
 
