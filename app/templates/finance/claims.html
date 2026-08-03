@@ -30,7 +30,7 @@
       {% for r in rows %}
       <tr>
         <td><strong>{{ r.entity.display_name(current_lang) }}</strong></td>
-        <td>{{ t('payer_types.' ~ r.entity.entity_type) }}</td>
+        <td>{{ payer_type_label(r.entity.entity_type) }}</td>
         <td>{{ r.count }}</td>
         <td><strong style="color:var(--green-700);">{{ r.claim|money }}</strong></td>
         <td style="text-align:end;">

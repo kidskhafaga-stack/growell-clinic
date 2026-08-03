@@ -18,6 +18,39 @@ PAYER_TYPES = ["club", "syndicate", "insurance", "company", "cash", "other"]
 COVERAGE_TYPES = ["percent", "fixed"]
 
 
+class PayerType(db.Model):
+    """The clinic's own list of what kinds of entity it deals with.
+
+    The third list to be opened up, after the service types and the client
+    categories, and for the same reason each time: a fixed six was somebody
+    else's guess at how a clinic is organised. "جمعية" and "بنك" and "مدرسة"
+    are real payers, and forcing them into "other" makes every report that
+    groups by type say nothing.
+
+    ``cash`` is the one key code reads by name — it is how the clinic's own
+    price list is recognised (:func:`app.utils.pricing.cash_payer`) — so keys
+    never change once made, and the built-in rows cannot be deleted. A clinic
+    can rename any of them and add its own.
+    """
+    __tablename__ = "payer_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(60))
+    name_en = db.Column(db.String(60))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+
+    def display_name(self, lang="ar"):
+        if lang == "en":
+            return self.name_en or self.name_ar or self.key
+        return self.name_ar or self.name_en or self.key
+
+    def __repr__(self):
+        return f"<PayerType {self.key}>"
+
+
 class PayerEntity(db.Model):
     __tablename__ = "payer_entities"
 

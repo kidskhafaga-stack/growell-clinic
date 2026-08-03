@@ -22,7 +22,7 @@
         <option value="">— {{ t('contracts.cash_none') }} —</option>
         {% for p in payers %}
         <option value="{{ p.id }}" {{ 'selected' if cash_payer and cash_payer.id == p.id else '' }}>
-          {{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>
+          {{ p.display_name(current_lang) }} ({{ payer_type_label(p.entity_type) }})</option>
         {% endfor %}
       </select>
     </div>
@@ -48,12 +48,70 @@
     <div class="form-grid">
       <div class="form-row"><label>{{ t('claims.entity_name') }} *</label><input class="input" name="name" required></div>
       <div class="form-row"><label>{{ t('claims.entity_type') }}</label>
-        <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty }}">{{ t('payer_types.' ~ ty) }}</option>{% endfor %}</select></div>
+        <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty.key }}">{{ ty.display_name(current_lang) }}</option>{% endfor %}</select></div>
       <div class="form-row"><label>{{ t('claims.discount_percent') }}</label><input class="input" type="number" step="0.01" name="discount_percent"></div>
       <div class="form-row"><label>{{ t('claims.contact_person') }}</label><input class="input" name="contact_person"></div>
       <div class="form-row"><label>{{ t('claims.phone') }}</label><input class="input" name="phone" dir="ltr"></div>
     </div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+{# The kinds themselves, managed here — the third fixed list to be opened up,
+   after the service types and the client categories. Six names chosen by
+   somebody who has never seen this clinic's books is how "جمعية" and "مدرسة"
+   both end up filed as "other", and every report that groups by type stops
+   saying anything. #}
+<details class="card gc-scale-in" style="margin-bottom:14px;animation-delay:0.07s;">
+  <summary class="section-title" style="cursor:pointer;"><i class="bi bi-tags"></i> {{ t('payer_types_admin.title') }}</summary>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('payer_types_admin.hint') }}</p>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:420px;">
+      <tbody>
+        {% for ty in all_types %}
+        <tr>
+          <td style="width:1%;white-space:nowrap;">
+            <form method="post" action="{{ url_for('finance.payer_type_move', type_id=ty.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="up">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-arrow-up"></i></button></form>
+            <form method="post" action="{{ url_for('finance.payer_type_move', type_id=ty.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="dir" value="down">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-arrow-down"></i></button></form>
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('finance.payer_type_edit', type_id=ty.id) }}"
+                  style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="input" name="name" value="{{ ty.name_ar or '' }}" style="max-width:180px;">
+              <input class="input" name="name_en" dir="ltr" value="{{ ty.name_en or '' }}" style="max-width:180px;">
+              {# The key is shown and never editable: every payer stores it,
+                 and `cash` is read by name to find the clinic's price list. #}
+              <span class="badge badge--muted" dir="ltr" title="{{ t('payer_types_admin.key_fixed') }}">{{ ty.key }}</span>
+              <label class="check"><input type="checkbox" name="is_active" value="1" {{ 'checked' if ty.is_active else '' }}> {{ t('common.active') }}</label>
+              {% if type_usage.get(ty.key) %}<span class="badge badge--role" dir="ltr">{{ type_usage.get(ty.key) }}</span>{% endif %}
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i></button>
+            </form>
+          </td>
+          <td style="text-align:end;width:1%;">
+            {% if not ty.is_system and not type_usage.get(ty.key) %}
+            <form method="post" action="{{ url_for('finance.payer_type_delete', type_id=ty.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form method="post" action="{{ url_for('finance.payer_type_new') }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;max-width:200px;"><label>{{ t('payer_types_admin.new_ar') }}</label>
+      <input class="input" name="name" required></div>
+    <div class="form-row" style="margin:0;max-width:200px;"><label>{{ t('payer_types_admin.new_en') }}</label>
+      <input class="input" name="name_en" dir="ltr"></div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
   </form>
 </details>
 
@@ -64,32 +122,45 @@
       <th>{{ t('claims.entity_name') }}</th><th>{{ t('claims.entity_type') }}</th><th>{{ t('claims.discount_percent') }}</th>
       <th>{{ t('claims.phone') }}</th><th>{{ t('common.status') }}</th><th style="text-align:end;">{{ t('common.actions') }}</th>
     </tr></thead>
-    <tbody>
-      {% for p in payers %}
+    {# Edited in place, full width — the same pattern as the services screen.
+       It was a 250px popover positioned absolutely inside a scrolling table,
+       so it was clipped at the edge and its fields were squeezed into a
+       column: unreadable exactly when somebody is changing a discount rate.
+       One <tbody> per payer, which is what lets each row carry its own
+       open/closed state without a wrapper element a table cannot hold. #}
+    {% for p in payers %}
+    <tbody x-data="{ open: false }">
       <tr>
         <td><strong>{{ p.display_name(current_lang) }}</strong></td>
-        <td>{{ t('payer_types.' ~ p.entity_type) }}</td>
+        <td>{{ payer_type_label(p.entity_type) }}</td>
         <td>{{ p.discount_percent }}%</td>
         <td dir="ltr">{{ p.phone or '—' }}</td>
         <td>{% if p.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>{% else %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}</td>
         <td style="text-align:end;display:flex;gap:6px;justify-content:flex-end;">
-          <details style="position:relative;">
-            <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
-            <form method="post" action="{{ url_for('finance.payer_edit', payer_id=p.id) }}" class="popform" style="width:290px;">
+          <button type="button" class="btn btn-outline btn-sm gc-press"
+                  x-on:click="open = !open" :aria-expanded="open">
+            <i class="bi bi-pencil"></i></button>
+          <form method="post" action="{{ url_for('finance.payer_delete', payer_id=p.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+        </td>
+      </tr>
+      <tr x-show="open" x-cloak>
+        <td colspan="6" style="background:var(--soft,#f6f8fb);">
+          <form method="post" action="{{ url_for('finance.payer_edit', payer_id=p.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-grid">
               <div class="form-row"><label>{{ t('claims.entity_name') }}</label><input class="input" name="name" value="{{ p.name }}"></div>
               <div class="form-row"><label>{{ t('claims.entity_type') }}</label>
-                <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty }}" {{ 'selected' if p.entity_type==ty else '' }}>{{ t('payer_types.' ~ ty) }}</option>{% endfor %}</select></div>
+                <select class="select" name="entity_type">{% for ty in types %}<option value="{{ ty.key }}" {{ 'selected' if p.entity_type==ty.key else '' }}>{{ ty.display_name(current_lang) }}</option>{% endfor %}</select></div>
               <div class="form-row"><label>{{ t('claims.discount_percent') }}</label><input class="input" type="number" step="0.01" name="discount_percent" value="{{ p.discount_percent }}"></div>
               <div class="form-row"><label>{{ t('claims.phone') }}</label><input class="input" name="phone" dir="ltr" value="{{ p.phone or '' }}"></div>
               <div class="form-row checkbox"><input type="checkbox" id="pa_{{ p.id }}" name="is_active" value="1" {{ 'checked' if p.is_active else '' }}>
                 <label for="pa_{{ p.id }}" style="margin:0;font-weight:400;">{{ t('common.active') }}</label></div>
-              <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-            </form>
-          </details>
-          <form method="post" action="{{ url_for('finance.payer_delete', payer_id=p.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+            </div>
+            <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+            <button class="btn btn-outline btn-sm gc-press" type="button" x-on:click="open=false">{{ t('common.cancel') }}</button>
+          </form>
         </td>
       </tr>
       <tr>
@@ -193,8 +264,8 @@
           </details>
         </td>
       </tr>
-      {% endfor %}
     </tbody>
+    {% endfor %}
   </table>
   {% else %}
   <div class="empty-state"><i class="bi bi-building"></i>{{ t('claims.no_entities') }}</div>

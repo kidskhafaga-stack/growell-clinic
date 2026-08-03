@@ -4263,5 +4263,17 @@
     "missing_sheet_1": "This file holds the patients your services export names that do not exist here yet — their code and name are already filled in from your file.",
     "missing_sheet_2": "Fill in date_of_birth and gender — both are required, and a services export carries neither. The date of birth in particular drives every vaccination due date and growth centile, so a guessed one is a wrong dose date for a real child.",
     "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before."
+  },
+  "payer_types_admin": {
+    "title": "Entity kinds",
+    "hint": "These are yours to rename and extend. The key beside each name never changes — every entity stores it, and “cash” in particular is how the program recognises your own price list. A kind in use cannot be deleted; hide it instead.",
+    "key_fixed": "The key is fixed — every entity stores it; only the name changes.",
+    "new_ar": "New kind (Arabic)",
+    "new_en": "In English (optional)",
+    "added": "Kind added.",
+    "updated": "Saved.",
+    "deleted": "Kind deleted.",
+    "system_kept": "This is a built-in kind — you can rename or hide it, but not delete it.",
+    "in_use": "{n} entities are filed under this kind. Hide it instead of deleting, so they stay as they are."
   }
 }

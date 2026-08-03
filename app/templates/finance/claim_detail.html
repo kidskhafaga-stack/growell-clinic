@@ -28,7 +28,7 @@
        t('claims.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}
 
   <div class="info-grid" style="margin-bottom:16px;">
-    <div class="info-item"><div class="k">{{ t('claims.entity') }}</div><div class="v">{{ entity.display_name(current_lang) }} <span class="badge badge--muted">{{ t('payer_types.' ~ entity.entity_type) }}</span></div></div>
+    <div class="info-item"><div class="k">{{ t('claims.entity') }}</div><div class="v">{{ entity.display_name(current_lang) }} <span class="badge badge--muted">{{ payer_type_label(entity.entity_type) }}</span></div></div>
     <div class="info-item"><div class="k">{{ t('claims.agreed_discount') }}</div><div class="v">{{ entity.discount_percent }}%</div></div>
     <div class="info-item"><div class="k">{{ t('claims.invoices_count') }}</div><div class="v">{{ invoices|length }}</div></div>
   </div>

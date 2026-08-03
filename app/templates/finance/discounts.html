@@ -54,7 +54,7 @@
   <div class="form-row" x-show="dt==='payer'" x-cloak><label>{{ t('discounts.payer') }}</label>
     {% set picked = (d.payer_ids if d else []) %}
     <select class="select" name="payer_ids" multiple size="5">
-      {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if p.id in picked else '' }}>{{ p.display_name(current_lang) }} ({{ t('payer_types.' ~ p.entity_type) }})</option>{% endfor %}</select>
+      {% for p in payers %}<option value="{{ p.id }}" {{ 'selected' if p.id in picked else '' }}>{{ p.display_name(current_lang) }} ({{ payer_type_label(p.entity_type) }})</option>{% endfor %}</select>
     <div class="hint">{{ t('discounts.payer_hint') }}</div>
     <div class="hint">{{ t('discounts.payer_multi_hint') }}</div></div>
   <div class="form-row" x-show="dt==='payer'" x-cloak><label>&nbsp;</label>

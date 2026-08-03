@@ -2989,11 +2989,14 @@ def payers():
         if not name:
             flash(t("common.required") + ": " + t("claims.entity_name"), "danger")
             return redirect(url_for("finance.payers"))
+        from app.utils.payer_types import ensure_seeded, valid_key
+
+        ensure_seeded()
         etype = (request.form.get("entity_type") or "club").strip()
         db.session.add(PayerEntity(
             name=name,
             name_en=(request.form.get("name_en") or "").strip() or None,
-            entity_type=etype if etype in PAYER_TYPES else "club",
+            entity_type=etype if valid_key(etype) else "club",
             discount_percent=request.form.get("discount_percent", type=float) or 0,
             contact_person=(request.form.get("contact_person") or "").strip() or None,
             phone=(request.form.get("phone") or "").strip() or None,
@@ -3004,8 +3007,10 @@ def payers():
         flash(t("claims.entity_added"), "success")
         return redirect(url_for("finance.payers"))
 
+    from app.utils.payer_types import active_types, ensure_seeded, usage_counts
     from app.utils.pricing import cash_payer, ensure_cash_contract
 
+    ensure_seeded()
     renewed = ensure_cash_contract()
     if renewed is not None:
         flash(t("contracts.cash_renewed")
@@ -3015,10 +3020,99 @@ def payers():
     return render_template(
         "finance/payers.html",
         payers=PayerEntity.query.order_by(PayerEntity.name).all(),
-        types=PAYER_TYPES, coverage_types=COVERAGE_TYPES,
+        # The clinic's own list now, not six names fixed in the code.
+        types=active_types(), all_types=_all_payer_types(),
+        type_usage=usage_counts(),
+        coverage_types=COVERAGE_TYPES,
         services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
         cash_payer=cash_payer(),
     )
+
+
+def _all_payer_types():
+    from app.utils.payer_types import all_types
+
+    return all_types()
+
+
+# ============================================ payer types (نادي / نقابة / …)
+@finance_bp.route("/payer-types/new", methods=["POST"])
+@module_required(MODULE)
+def payer_type_new():
+    """Add a kind of payer — what the fixed six had no room for."""
+    from app.models import PayerType
+    from app.utils.ordering import append_order
+    from app.utils.payer_types import ensure_seeded, make_key
+
+    ensure_seeded()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("claims.entity_type"), "danger")
+        return redirect(url_for("finance.payers"))
+    name_en = (request.form.get("name_en") or "").strip() or None
+    db.session.add(PayerType(key=make_key(name, name_en), name_ar=name,
+                             name_en=name_en, is_active=True, is_system=False,
+                             sort_order=append_order(PayerType)))
+    db.session.commit()
+    flash(t("payer_types_admin.added"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payer-types/<int:type_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def payer_type_edit(type_id):
+    """Rename a kind. The **key never changes** — every payer stores one, and
+    ``cash`` is read by name to find the clinic's own price list."""
+    from app.models import PayerType
+
+    row = db.get_or_404(PayerType, type_id)
+    name = (request.form.get("name") or "").strip()
+    if name:
+        row.name_ar = name
+    row.name_en = (request.form.get("name_en") or "").strip() or None
+    row.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("payer_types_admin.updated"), "success")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payer-types/<int:type_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def payer_type_delete(type_id):
+    """Refused with a reason when anything depends on it.
+
+    Deleting a kind that payers are filed under would leave them pointing at
+    something that no longer exists — a report that quietly drops rows rather
+    than an error somebody sees. Hiding it is the answer, and that is one
+    checkbox away.
+    """
+    from app.models import PayerType
+    from app.utils.payer_types import usage_counts
+
+    row = db.get_or_404(PayerType, type_id)
+    if row.is_system:
+        flash(t("payer_types_admin.system_kept"), "warning")
+        return redirect(url_for("finance.payers"))
+    used = usage_counts().get(row.key, 0)
+    if used:
+        flash(t("payer_types_admin.in_use").replace("{n}", str(used)), "warning")
+        return redirect(url_for("finance.payers"))
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("payer_types_admin.deleted"), "info")
+    return redirect(url_for("finance.payers"))
+
+
+@finance_bp.route("/payer-types/<int:type_id>/move", methods=["POST"])
+@module_required(MODULE)
+def payer_type_move(type_id):
+    from app.models import PayerType
+    from app.utils.ordering import move
+
+    row = db.get_or_404(PayerType, type_id)
+    if move(PayerType, row, 1 if request.form.get("dir") == "down" else -1):
+        db.session.commit()
+    return redirect(url_for("finance.payers"))
 
 
 @finance_bp.route("/payers/<int:payer_id>/members")
@@ -3096,8 +3190,13 @@ def payer_edit(payer_id):
     p = db.get_or_404(PayerEntity, payer_id)
     p.name = (request.form.get("name") or p.name).strip()
     p.name_en = (request.form.get("name_en") or "").strip() or None
+    from app.utils.payer_types import valid_key
+
     etype = (request.form.get("entity_type") or p.entity_type).strip()
-    p.entity_type = etype if etype in PAYER_TYPES else p.entity_type
+    # An inactive kind is still valid for a payer already filed under it —
+    # rejecting it here would silently reset them to "club" the next time
+    # somebody saved an unrelated field on the same form.
+    p.entity_type = etype if valid_key(etype) else p.entity_type
     p.discount_percent = request.form.get("discount_percent", type=float) or 0
     p.contact_person = (request.form.get("contact_person") or "").strip() or None
     p.phone = (request.form.get("phone") or "").strip() or None
