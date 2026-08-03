@@ -104,7 +104,7 @@
           <td dir="ltr">{{ m.patient.patient_number if m.patient else '—' }}</td>
           <td dir="auto">
             {% if m.patient %}
-            <a href="{{ url_for('patients.view', patient_id=m.patient.id) }}">{{ m.patient.full_name }}</a>
+            <a href="{{ url_for('patients.view', patient_id=m.patient.id) }}">{{ m.patient.display_name(current_lang) }}</a>
             {% else %}—{% endif %}</td>
           <td><span class="badge {{ 'badge--danger' if m.is_exclusion else 'badge--green' }}">
             {{ t('discount_members.excluded') if m.is_exclusion else t('discount_members.included') }}</span></td>

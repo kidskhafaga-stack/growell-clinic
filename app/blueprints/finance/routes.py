@@ -2764,8 +2764,9 @@ def discount_members_export(discount_id):
     ws.append([t("discount_members.col_file"), t("discount_members.col_name"),
                t("discount_members.col_mode"), t("discount_members.col_note")])
     for m in members:
+        lang = getattr(g, "lang", "ar")
         ws.append([m.patient.patient_number if m.patient else "",
-                   m.patient.full_name if m.patient else "",
+                   m.patient.display_name(lang) if m.patient else "",
                    t("discount_members.excluded") if m.is_exclusion
                    else t("discount_members.included"),
                    m.note or ""])
