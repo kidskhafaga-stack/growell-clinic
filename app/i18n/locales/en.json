@@ -1310,14 +1310,16 @@
     "ai_model_custom": "— Type a model id manually —",
     "ai_model_custom_ph": "Type the exact model id as the provider names it",
     "ai_free_title": "Try it without paying anything",
-    "ai_free_hint": "A Google Gemini key from AI Studio is free and takes a minute. Press “Use the free setup” below, then “Get a free key”, create one on your own account, and paste it into the key box. The key is your clinic's own — not shared with anyone.",
+    "ai_free_hint": "A Google Gemini key from AI Studio is free and takes a minute. Press “Use the free setup”, then “Get a free key” and paste one in, then “Fetch the available models” to pick one your key really has, then “Test the connection”.",
     "ai_free_use": "Use the free setup",
     "ai_free_key": "Get a free key",
     "ai_free_badge": "Free key",
     "ai_test": "Test the connection",
     "ai_test_hint": "Tests what is on screen right now — you can check a key before saving it.",
     "ai_test_ok": "Connection works — {p} · {m}",
-    "ai_test_failed": "Connection failed: {e}"
+    "ai_test_failed": "Connection failed: {e}",
+    "ai_fetch_models": "Fetch the available models",
+    "ai_fetch_hint": "Paste the key first, then press this — the program asks the provider which models your key can actually use, instead of a list written into the program that ages."
   },
   "errors": {
     "403_title": "Forbidden",
