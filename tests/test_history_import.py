@@ -919,3 +919,117 @@ def test_the_link_choices_survive_a_change_of_date_range(with_catalogue, boss,
     with clinic["app"].app_context():
         row = ImportedService.query.one()
         assert row.vaccine_brand_id == brand_id
+
+
+# ============================ the other two columns that pointed at something
+def test_the_screen_matches_a_doctor_by_name(with_catalogue, boss, clinic):
+    """The same "map onto what exists" rule as the vaccine names. Stored as
+    bare text a doctor's decade of work sits outside every report that joins on
+    doctor_id — the commission statements, the doctor filter, the tax export."""
+    from app.models import User
+
+    with clinic["app"].app_context():
+        name = clinic["db"].session.get(User, clinic["ids"]["doctor"]).full_name
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    rows[0][6] = name
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    body = boss.post("/patients/import/history/link", data={
+        "token": token, "col_service_date": "1", "col_patient_code": "3",
+        "col_service_name": "7", "col_doctor_name": "6",
+        "col_price": "16"}).get_data(as_text=True)
+
+    assert f'value="{clinic["ids"]["doctor"]}" selected' in body
+
+
+def test_a_confirmed_doctor_lands_on_the_imported_row(with_catalogue, boss,
+                                                      clinic):
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={
+        "link_0": "", "doc_0": str(clinic["ids"]["doctor"])})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert ImportedService.query.one().doctor_id == clinic["ids"]["doctor"]
+
+
+def test_a_doctor_who_no_longer_exists_is_not_written(with_catalogue, boss,
+                                                      clinic):
+    """A dangling doctor is worse than none: the reports would count the work
+    and be unable to say whose it was."""
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token,
+                               links={"link_0": "", "doc_0": "999999"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert ImportedService.query.one().doctor_id is None
+
+
+def test_the_screen_matches_the_contract_column_to_a_category(with_catalogue,
+                                                              boss, clinic):
+    """"نقدي" in the file is the clinic's own "عادي" category, and matching it
+    is what lets the discount aimed at that category apply."""
+    from app.utils.client_categories import ensure_seeded
+
+    with clinic["app"].app_context():
+        ensure_seeded()
+        clinic["db"].session.commit()
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    rows[0][11] = "عادي"
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    body = boss.post("/patients/import/history/link", data={
+        "token": token, "col_service_date": "1", "col_patient_code": "3",
+        "col_service_name": "7", "col_client_category": "11",
+        "col_price": "16"}).get_data(as_text=True)
+
+    assert 'value="normal" selected' in body
+
+
+def test_a_confirmed_category_is_stored_as_the_key(with_catalogue, boss, clinic):
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token,
+                               links={"link_0": "", "cat_0": "employee"})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert ImportedService.query.one().client_category == "employee"
+
+
+def test_an_unmatched_category_is_kept_as_text_not_dropped(with_catalogue, boss,
+                                                           clinic):
+    """A category the clinic has not created is still information — losing it
+    would make the row unexplainable later."""
+    from app.models import ImportedService
+
+    rows = [_row(1, "1001", date(2024, 3, 1), "كشف")]
+    reply = _upload(boss, _sheet(rows))
+    token = _token(reply.get_data(as_text=True))
+    preview = _map_and_preview(boss, token, links={"link_0": "", "cat_0": ""})
+    boss.post("/patients/import/history/commit",
+              data={"token": _token(preview.get_data(as_text=True))},
+              follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert ImportedService.query.one().client_category == "نقدي"

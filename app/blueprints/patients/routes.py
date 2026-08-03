@@ -1423,6 +1423,10 @@ def history_import_commit():
     # brand". Resolved once into {name: (brand_id, vaccine_id)} rather than
     # per row — 9,908 rows carry 27 names.
     links = _resolved_links(payload.get("links") or {})
+    # The same "map onto what exists" rule, for the two columns that were
+    # previously stored as text and therefore invisible to every report.
+    doctor_links = _resolved_doctors(payload.get("doctor_links") or {})
+    category_links = payload.get("category_links") or {}
 
     pending = []
     for record in records:
@@ -1434,6 +1438,10 @@ def history_import_commit():
         brand_id, vaccine_id = links.get(record["service_name"], (None, None))
         pending.append({
             "brand_id": brand_id, "vaccine_id": vaccine_id,
+            # Without this a decade of a doctor's work sits outside the
+            # commission reports, the doctor filter and the statements — every
+            # one of which joins on doctor_id.
+            "doctor_id": doctor_links.get(record["doctor_name"]),
             "batch_id": batch.id, "patient_id": record["_patient_id"],
             "service_date": record["service_date"],
             "service_time": record["service_time"],
@@ -1442,7 +1450,9 @@ def history_import_commit():
             "doctor_share": record["doctor_share"],
             "paid_cash": record["paid_cash"],
             "paid_company": record["paid_company"],
-            "client_category": (record["client_category"] or "")[:30] or None,
+            "client_category": (category_links.get(record["client_category"])
+                                or (record["client_category"] or "")[:30]
+                                or None),
             "source_key": record["_key"], "source_row": record["source_row"][:40],
             "notes": record["notes"] or None,
         })
@@ -1563,6 +1573,8 @@ def history_import_link():
 
     records = build_rows(payload["rows"], mapping)
     names = distinct_values(records, "service_name")
+    doctors = distinct_values(records, "doctor_name")
+    categories = distinct_values(records, "client_category")
 
     # Saving the screen: store what the clinic chose and go on to the preview.
     if request.form.get("confirm") == "1":
@@ -1571,20 +1583,60 @@ def history_import_link():
             choice = (request.form.get(f"link_{index}") or "").strip()
             if choice:
                 links[row["value"]] = choice
+        doctor_links = {}
+        for index, row in enumerate(doctors):
+            choice = (request.form.get(f"doc_{index}") or "").strip()
+            if choice:
+                doctor_links[row["value"]] = choice
+        category_links = {}
+        for index, row in enumerate(categories):
+            choice = (request.form.get(f"cat_{index}") or "").strip()
+            if choice:
+                category_links[row["value"]] = choice
         with open(tmp_path, "w", encoding="utf-8") as fh:
-            json.dump({**payload, "links": links}, fh, ensure_ascii=False,
-                      default=_history_cell)
+            json.dump({**payload, "links": links,
+                       "doctor_links": doctor_links,
+                       "category_links": category_links},
+                      fh, ensure_ascii=False, default=_history_cell)
         return history_import_map()
 
-    suggestions = suggest_all([row["value"] for row in names])
-    saved = payload.get("links") or {}
+    # Every column that points at something in the program is matched against
+    # what exists first — the file's doctor and its "التعاقد" as much as its
+    # vaccine names. Creating is never the default.
+    from app.utils.history_match import doctor_index, normalise_arabic
+    from app.utils.client_categories import active_categories, ensure_seeded
+
+    ensure_seeded()
+    known_doctors = doctor_index()
+    category_rows = active_categories()
+    by_category = {normalise_arabic(c.display_name("ar")): c.key
+                   for c in category_rows}
+    by_category.update({normalise_arabic(c.key): c.key for c in category_rows})
+
     return render_template(
         "patients/history_link.html", token=token, names=names,
-        suggestions=suggestions, saved=saved,
+        suggestions=suggest_all([row["value"] for row in names]),
+        saved=payload.get("links") or {},
         filename=payload.get("filename"),
         # Every brand, for the rows the matcher could not place. Loaded once —
         # a select per row, not a query per row.
-        brands=_brand_choices())
+        brands=_brand_choices(),
+        doctors=doctors, doctor_choices=_doctor_choices(),
+        doctor_guess={row["value"]: known_doctors.get(
+            normalise_arabic(row["value"])) for row in doctors},
+        saved_doctors=payload.get("doctor_links") or {},
+        categories=categories, category_choices=category_rows,
+        category_guess={row["value"]: by_category.get(
+            normalise_arabic(row["value"])) for row in categories},
+        saved_categories=payload.get("category_links") or {})
+
+
+def _doctor_choices():
+    """``[(user_id, name)]`` for the "who is this doctor?" dropdown."""
+    from app.utils.appointments import list_doctors
+
+    lang = getattr(g, "lang", "ar")
+    return [(u.id, u.display_name(lang)) for u in list_doctors()]
 
 
 def _submitted_mapping(payload):
@@ -1834,3 +1886,26 @@ def imported_service_delete(row_id):
     flash(t("history_import.row_removed"), "info")
     return redirect(url_for("patients.view", patient_id=patient_id)
                     + "#history")
+
+
+def _resolved_doctors(links):
+    """``{name in the file: user id}`` from the confirmed choices.
+
+    Only ids that still exist are kept: a mapping saved against a user who has
+    since been deleted would write a dangling reference into ten years of
+    history, and a dangling doctor is worse than none — the reports would count
+    the work and be unable to say whose it was.
+    """
+    from app.models import User
+
+    wanted = {}
+    for name, choice in links.items():
+        choice = str(choice or "").strip()
+        if not choice.isdigit():
+            continue
+        wanted[name] = int(choice)
+    if not wanted:
+        return {}
+    real = {u.id for u in User.query.filter(
+        User.id.in_(set(wanted.values()))).all()}
+    return {name: uid for name, uid in wanted.items() if uid in real}

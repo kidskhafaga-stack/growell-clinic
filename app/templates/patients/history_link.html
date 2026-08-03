@@ -59,6 +59,55 @@
       </table>
     </div>
   </div>
+  {# The doctors and the client categories, matched onto what exists first —
+     the same rule as the vaccine names. Stored as bare text they were invisible
+     to every report: an imported doctor's decade of work sat outside the
+     commission statements, and the file's "التعاقد" never reached the client
+     categories that exist to carry its discount. #}
+  {% if doctors %}
+  <div class="card gc-scale-in" style="margin-top:14px;">
+    <h2 class="section-title"><i class="bi bi-person-badge"></i> {{ t('history_import.doctors_found') }}</h2>
+    <p class="hint" style="margin:-4px 0 10px;">{{ t('history_import.doctors_hint') }}</p>
+    {% for row in doctors %}
+    {% set guess = doctor_guess.get(row.value) %}
+    {% set chosen = saved_doctors.get(row.value) %}
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;">
+      <span dir="auto" style="min-width:180px;">{{ row.value }}
+        <span class="hint" dir="ltr">{{ row.rows }}</span></span>
+      <select class="select" name="doc_{{ loop.index0 }}" style="max-width:260px;">
+        <option value="">{{ t('history_import.no_doctor') }}</option>
+        {% for d in doctor_choices %}
+        {% set pick = (chosen == d[0]|string) or (not chosen and guess == d[0]) %}
+        <option value="{{ d[0] }}"{{ ' selected' if pick else '' }}>{{ d[1] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if categories %}
+  <div class="card gc-scale-in" style="margin-top:14px;">
+    <h2 class="section-title"><i class="bi bi-people"></i> {{ t('history_import.categories_found') }}</h2>
+    <p class="hint" style="margin:-4px 0 10px;">{{ t('history_import.categories_hint') }}</p>
+    {% for row in categories %}
+    {% set guess = category_guess.get(row.value) %}
+    {% set chosen = saved_categories.get(row.value) %}
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;">
+      <span dir="auto" style="min-width:180px;">{{ row.value }}
+        <span class="hint" dir="ltr">{{ row.rows }}</span></span>
+      <select class="select" name="cat_{{ loop.index0 }}" style="max-width:260px;">
+        <option value="">{{ t('history_import.keep_as_text') }}</option>
+        {% for c in category_choices %}
+        {% set pick = (chosen == c.key) or (not chosen and guess == c.key) %}
+        <option value="{{ c.key }}"{{ ' selected' if pick else '' }}>{{ c.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div style="display:flex;gap:10px;margin:14px 0 40px;">
     <button class="btn btn-primary gc-press gc-ripple" type="submit">
       <i class="bi bi-eye"></i> {{ t('history_import.preview') }}</button>

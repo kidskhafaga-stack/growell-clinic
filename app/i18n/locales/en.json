@@ -4225,6 +4225,10 @@
     "in_file": "History from the old program",
     "in_file_hint": "Services brought across from the program this clinic used before. The vaccinations among them became real vaccination records and appear on the vaccinations tab. These amounts are history only — they do not enter the till or the financial reports.",
     "row_saved": "Row saved",
-    "row_removed": "Row removed"
+    "row_removed": "Row removed",
+    "doctors_hint": "The doctors in your file are matched to users you already have. Without this, a doctor's past work stays outside the commission reports and the doctor statements.",
+    "categories_hint": "Your file's “contract” column is matched to your client categories. Left as text it never reaches the discount aimed at that category.",
+    "no_doctor": "No doctor",
+    "keep_as_text": "Keep as text"
   }
 }
