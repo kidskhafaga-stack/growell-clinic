@@ -162,6 +162,8 @@ def item_new():
         return redirect(url_for("inventory.items"))
 
     if kind == "vaccine":
+        from app.utils.item_codes import next_brand_code
+
         vaccine = db.session.get(Vaccine, request.form.get("vaccine_id", type=int))
         if vaccine is None:
             flash(t("common.required") + ": " + t("inventory.master_vaccine"), "danger")
@@ -171,7 +173,12 @@ def item_new():
             name_en=(request.form.get("name_en") or "").strip() or None,
             manufacturer=(request.form.get("manufacturer") or "").strip() or None,
             barcode=(request.form.get("barcode") or "").strip() or None,
-            item_code=(request.form.get("item_code") or "").strip() or None,
+            # Generated, like a store item's. It was the one creation form
+            # left asking a person for an internal code, and left blank the
+            # brand had none at all until the next update ran the backfill —
+            # so the barcode screen could not find a product created today.
+            # The supplier's own number has its own field: barcode.
+            item_code=next_brand_code(),
             purchase_price=request.form.get("purchase_price", type=float),
             price=request.form.get("price", type=float),
             doses_per_vial=max(request.form.get("doses_per_vial", type=int) or 1, 1),

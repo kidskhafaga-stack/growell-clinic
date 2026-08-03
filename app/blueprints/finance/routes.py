@@ -3185,9 +3185,16 @@ def contract_copy(contract_id):
     period, then adjust the prices on the copy."""
     from app.models import PayerContract
 
+    from app.utils.pricing import next_contract_number
+
     old = db.get_or_404(PayerContract, contract_id)
     clone = old.copy_to(
-        number=(request.form.get("number") or "").strip() or None,
+        # Generated, exactly as a brand-new contract is. Renewal is the case
+        # that most needs it: the number was typed beside last year's on the
+        # same screen, so it is the one most likely to be typed identically —
+        # and two contracts sharing a number is a data problem with no clean
+        # fix afterwards.
+        number=next_contract_number(old.payer),
         start_date=_parse_date_arg2(request.form.get("start_date")),
         end_date=_parse_date_arg2(request.form.get("end_date")))
     db.session.add(clone)
