@@ -492,16 +492,91 @@
           </div>
           <i class="bi bi-chevron-{{ 'left' if direction == 'rtl' else 'right' }}" style="color:var(--muted);"></i>
         </a>
+        {# Linking the wrong child happens, and an action with no way back is
+           one people avoid using at all. #}
+        <form method="post" action="{{ url_for('patients.sibling_unlink', patient_id=patient.id) }}"
+              onsubmit="return confirm('{{ t('common.confirm') }}?');" style="margin-top:-4px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="sibling_id" value="{{ s.id }}">
+          <button class="btn btn-outline btn-sm gc-press" type="submit">
+            <i class="bi bi-link-45deg"></i> {{ t('siblings.unlink') }}</button>
+        </form>
         {% endfor %}
       </div>
       {% else %}
       <p style="color:var(--muted);">{{ t('patients.no_siblings') }}</p>
       {% endif %}
-      {% if patient.family %}
-      <a class="btn btn-outline btn-sm gc-press" style="margin-top:12px;"
-         href="{{ url_for('patients.create', family_id=patient.family_id) }}">
-        <i class="bi bi-person-plus"></i> {{ t('patients.add_sibling') }}
-      </a>
+      {# Two actions, not one. In a clinic that has been open a while the
+         sibling is *already* a patient — with his own file number and his own
+         vaccination card — so sending somebody to create him again makes two
+         files for one child, and the empty one is what the next receptionist
+         finds. #}
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;"
+           x-data="{ open: false, q: '', rows: [],
+                     async find() {
+                       if (this.q.length < 2) { this.rows = []; return; }
+                       const r = await fetch('{{ url_for('patients.sibling_search', patient_id=patient.id) }}?q=' + encodeURIComponent(this.q));
+                       const d = await r.json();
+                       this.rows = d.patients || [];
+                     } }">
+        <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open">
+          <i class="bi bi-link-45deg"></i> {{ t('siblings.link_existing') }}</button>
+        <a class="btn btn-outline btn-sm gc-press"
+           href="{{ url_for('patients.create', family_id=patient.family_id) if patient.family_id else url_for('patients.create') }}">
+          <i class="bi bi-person-plus"></i> {{ t('patients.add_sibling') }}</a>
+
+        <div x-show="open" x-cloak style="flex-basis:100%;margin-top:8px;">
+          <input class="input" x-model="q" x-on:input.debounce.250ms="find()"
+                 placeholder="{{ t('siblings.search_hint') }}" autocomplete="off">
+          <div x-show="rows.length" x-cloak style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+            <template x-for="p in rows" :key="p.id">
+              <form method="post" action="{{ url_for('patients.sibling_link', patient_id=patient.id) }}"
+                    style="display:flex;gap:8px;align-items:center;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="sibling_id" :value="p.id">
+                <span style="flex:1;" x-text="p.full_name"></span>
+                <span class="hint" dir="ltr" x-text="p.patient_number"></span>
+                {# Said on the row, not found out after pressing. #}
+                <span class="badge badge--muted" x-show="p.in_family" x-cloak>{{ t('siblings.in_other_family') }}</span>
+                <button class="btn btn-primary btn-sm gc-press" type="submit" :disabled="p.in_family">
+                  <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
+              </form>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      {# And the ones the program can already see. It holds the two things a
+         receptionist would go on — the family part of the name, and the
+         parents' phone — so making them type a search for a child it can
+         already point at is work nobody needs to do. #}
+      {% if sibling_hints %}
+      <div class="card" style="margin-top:12px;background:var(--soft,#f6f8fb);">
+        <strong><i class="bi bi-lightbulb"></i> {{ t('siblings.suggested') }}</strong>
+        <p class="hint" style="margin:6px 0 10px;">{{ t('siblings.suggested_hint') }}</p>
+        {% for hint in sibling_hints %}
+        <form method="post" action="{{ url_for('patients.sibling_link', patient_id=patient.id) }}"
+              style="display:flex;gap:8px;align-items:center;padding:4px 0;flex-wrap:wrap;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="sibling_id" value="{{ hint.patient.id }}">
+          <a href="{{ url_for('patients.view', patient_id=hint.patient.id) }}" style="flex:1;min-width:150px;">
+            {{ hint.patient.display_name(current_lang) }}</a>
+          <span class="hint" dir="ltr">{{ hint.patient.patient_number }}</span>
+          <span class="badge {{ 'badge--green' if hint.reason == 'phone' else 'badge--muted' }}">
+            {{ t('siblings.why_' ~ hint.reason) }}</span>
+          {% if hint.in_family %}
+          {# Joining two households is a merge of two sets of parents, so the
+             row offers the file rather than a button that would only refuse. #}
+          <span class="badge badge--muted">{{ t('siblings.in_other_family') }}</span>
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=hint.patient.id) }}">
+            <i class="bi bi-box-arrow-up-right"></i> {{ t('siblings.open_file') }}</a>
+          {% else %}
+          <button class="btn btn-outline btn-sm gc-press" type="submit">
+            <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
+          {% endif %}
+        </form>
+        {% endfor %}
+      </div>
       {% endif %}
 
       <!-- Insurance / membership coverage -->

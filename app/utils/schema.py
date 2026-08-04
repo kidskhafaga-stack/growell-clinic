@@ -267,5 +267,91 @@ def apply_schema(report=None):
             db.session.execute(text(
                 "UPDATE named_discounts SET auto_apply = 0 "
                 "WHERE dtype = 'campaign'"))
+
+    # …and then everything the list forgot.
+    #
+    # ADDITIONS is hand-maintained, and a hand-maintained list of migrations
+    # gets forgotten exactly once per person who touches the models. It already
+    # has: `named_discounts.members_only` was added to the model, left out of
+    # the list, and every clinic that updated opened the discounts screen and
+    # got "no such column". The tests could not feel it either, because they
+    # build their database from the models and therefore always have every
+    # column.
+    #
+    # The program knows the answer without being told. SQLAlchemy holds every
+    # column the code expects; the database holds every column it has; the
+    # difference is precisely what has to be added. So the list stays — it
+    # carries deliberate DDL and the backfills above, which cannot be derived —
+    # and this catches whatever was left out of it.
+    applied += _add_columns_the_models_expect(inspector, existing_tables, report)
     db.session.commit()
     return applied
+
+
+def _add_columns_the_models_expect(inspector, existing_tables, report=None):
+    """Add any model column the database is missing, typed from the model.
+
+    Deliberately conservative about two things.
+
+    **Never NOT NULL.** SQLite refuses to add a non-null column to a table that
+    already has rows unless it carries a default, and inventing a default for
+    somebody's data is worse than a nullable column. The model still treats it
+    as required for everything written from here on.
+
+    **Never a foreign key or a unique constraint.** SQLite cannot add either to
+    an existing table, and a migration that fails halfway is worse than one
+    that adds a plain column and lets the application layer keep the promise.
+    """
+    from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.extensions import db
+
+    added = 0
+    for table_name, table in db.metadata.tables.items():
+        if table_name not in existing_tables:
+            continue                    # create_all just made it, in full
+        have = {c["name"] for c in inspector.get_columns(table_name)}
+        for column in table.columns:
+            if column.name in have:
+                continue
+            try:
+                ddl = column.type.compile(db.engine.dialect)
+            except Exception:           # noqa: BLE001 - an exotic type
+                ddl = "TEXT"
+            default = _literal_default(column)
+            if default is not None:
+                ddl = f"{ddl} DEFAULT {default}"
+            try:
+                db.session.execute(text(
+                    f"ALTER TABLE {table_name} ADD COLUMN {column.name} {ddl}"))
+            except SQLAlchemyError as exc:
+                db.session.rollback()
+                if report:
+                    report(f"  ! {table_name}.{column.name}: {exc}")
+                continue
+            added += 1
+            if report:
+                report(f"  + {table_name}.{column.name} (from the model)")
+    return added
+
+
+def _literal_default(column):
+    """The column's Python-side default as SQL, when it is a plain value.
+
+    Only literals. A default that is a function — ``datetime.utcnow`` — is one
+    the application supplies on every insert anyway, and freezing the moment
+    of the upgrade into it would be worse than leaving the old rows NULL.
+    """
+    default = getattr(column, "default", None)
+    if default is None or getattr(default, "is_callable", False):
+        return None
+    value = getattr(default, "arg", None)
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    return None

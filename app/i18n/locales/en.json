@@ -4301,5 +4301,20 @@
     "only_on": "This discount is for the people named here only — the rule is ignored.",
     "only_off": "This list tops the rule up: everyone the rule covers gets the discount, plus whoever is named here.",
     "exclusion_wins": "An excluded person never gets the discount, whatever the rule says — taking somebody off here really takes them off."
+  },
+  "siblings": {
+    "link_existing": "Link an existing patient",
+    "link": "Link",
+    "unlink": "Unlink",
+    "search_hint": "Type the sibling's name or file number…",
+    "suggested": "These could be siblings",
+    "suggested_hint": "Found by the family part of the name or by a parent's phone. Check them and link the ones who really are — nothing is linked on its own.",
+    "why_phone": "Same parent phone",
+    "why_name": "Same family name",
+    "linked": "{name} was added to the family.",
+    "unlinked": "Removed from the family.",
+    "in_other_family": "Already in another family",
+    "already_in_family": "{name} is already filed with another family. Moving them is a merge, not a link — open their file and change the family there.",
+    "open_file": "Open their file"
   }
 }
