@@ -706,9 +706,14 @@ def reminders():
              "phone": r["patient"].contact_phone} for r in found]
 
     from app.models import Vaccine, VaccineBrand
+    from app.utils import vaccine_back
+
     return render_template(
         "vaccinations/reminders.html", rows=rows,
         counts=summarise(found), order=order_suggestion(found),
+        # The families who were told to come while the shelf was empty, for
+        # every item that now has stock again.
+        back=vaccine_back.brands_with_people_waiting(),
         vaccines=Vaccine.query.order_by(Vaccine.sort_order, Vaccine.id).all(),
         brands=VaccineBrand.query.order_by(VaccineBrand.name).all(),
         f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
@@ -741,9 +746,41 @@ def remind_due(patient_id):
     log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
                   template_type="vaccine_due",
                   image_url=wa.template_image("vaccine_due"))
+    # Which item this was about. It is the only thing that lets the clinic
+    # answer "who did we tell?" when the stock finally arrives — a reminder
+    # sent into an empty fridge is a promise, and the promise has to be
+    # findable.
+    if due.get("brand") is not None:
+        log.vaccine_brand_id = due["brand"].id
     db.session.commit()
     return render_template("messages/sent.html", log=log, appt=None,
                            back_url=url_for("vaccinations.reminders"))
+
+
+@vaccinations_bp.route("/back-in-stock/<int:brand_id>", methods=["POST"])
+@module_required(MODULE)
+def back_in_stock(brand_id):
+    """Tell the families who were told to come while the shelf was empty.
+
+    Deliberately a button rather than something that happens by itself when a
+    delivery is booked in. Messaging a hundred families is not a side effect of
+    a store screen, and the person receiving the box is not always the person
+    who decides the clinic is ready to see them.
+    """
+    from app.utils import vaccine_back
+
+    brand = db.get_or_404(VaccineBrand, brand_id)
+    logs = vaccine_back.notify(brand, user_id=current_user.id,
+                               lang=getattr(g, "lang", "ar"))
+    if not logs:
+        flash(t("vaccinations.back_none"), "info")
+        return redirect(request.referrer or url_for("vaccinations.reminders"))
+    ActivityLog.record("vaccine.back_in_stock", user_id=current_user.id,
+                       entity="vaccine_brand", entity_id=brand.id,
+                       detail=f"{len(logs)}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.back_sent", n=len(logs)), "success")
+    return redirect(url_for("messages.index"))
 
 
 @vaccinations_bp.route("/verify/<token>")

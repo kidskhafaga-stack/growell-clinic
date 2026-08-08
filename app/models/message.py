@@ -34,6 +34,9 @@ SKIP_REASONS = ["missing_phone", "opted_out", "type_off"]
 SYSTEM_TEMPLATE_TYPES = [
     "appointment_confirm", "doctor_schedule", "vaccine_given",
     "vaccine_due", "vaccine_seasonal", "vaccine_changed",
+    # "It has arrived" — to the families who were told to come while the
+    # shelf was empty. See app/utils/vaccine_back.py.
+    "vaccine_back",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -50,6 +53,7 @@ TEMPLATE_VARIABLES = {
     "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
     "vaccine_seasonal": ["patient", "vaccine", "year", "clinic"],
     "vaccine_changed": ["patient", "old_vaccine", "new_vaccine", "clinic"],
+    "vaccine_back": ["patient", "vaccine", "clinic"],
     "birthday": ["patient", "clinic"],
     "feedback": ["patient", "clinic", "doctor", "link"],
     "seasonal": ["patient", "clinic"],
@@ -79,6 +83,11 @@ TEMPLATE_DEFAULTS = {
     "vaccine_changed": (
         "إشعار من {clinic}: تطعيم {old_vaccine} لم يعد متاحاً، "
         "وتم استبداله بـ{new_vaccine} لـ{patient}.\nبرجاء التواصل لمتابعة الجدول."
+    ),
+    "vaccine_back": (
+        "خبر كويس من {clinic}: تطعيم {vaccine} بقى متوفر.\n"
+        "تقدروا تجيبوا {patient} في أي وقت خلال مواعيد العيادة — "
+        "ومعلش على التأخير."
     ),
     "birthday": (
         "كل سنة و{patient} طيب! 🎉\n"
@@ -167,6 +176,11 @@ class MessageLog(db.Model):
     link = db.Column(db.Text)
     error = db.Column(db.String(200))
     template_type = db.Column(db.String(30))          # which notification type
+    # Which vaccine item a reminder was about. Without it the program can send
+    # "your dose is due" and then have no way to answer "who did we tell?" when
+    # the stock finally arrives — which is the whole of the call-back feature.
+    vaccine_brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
+                                 nullable=True, index=True)
     # The campaign template this message belongs to (occasion blasts) — lets
     # the campaign report count sent/pending/days per occasion.
     template_id = db.Column(db.Integer, db.ForeignKey("message_templates.id"),
@@ -178,6 +192,7 @@ class MessageLog(db.Model):
 
     patient = db.relationship("Patient")
     creator = db.relationship("User")
+    vaccine_brand = db.relationship("VaccineBrand")
 
     def __repr__(self):
         return f"<MessageLog to={self.to_phone} {self.status}>"

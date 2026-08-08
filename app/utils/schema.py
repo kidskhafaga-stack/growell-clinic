@@ -119,6 +119,7 @@ ADDITIONS = [
     ("users", "visit_complaint_chips", "TEXT"),
     ("users", "visit_exam_chips", "TEXT"),
     ("users", "visit_plan_chips", "TEXT"),
+    ("message_logs", "vaccine_brand_id", "INTEGER"),
     ("prescriptions", "diagnosis_stage", "VARCHAR(16)"),
     ("prescriptions", "complaint", "VARCHAR(255)"),
     ("prescription_items", "printed", "BOOLEAN DEFAULT 1"),
