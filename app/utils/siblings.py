@@ -59,10 +59,15 @@ def suggest_siblings(patient, limit=8):
     Anybody already in *this* family is excluded. Somebody filed with a family
     of their own is still shown — finding the brother is most of the value, and
     it is the commonest shape of the problem, since a child registered with a
-    guardian always gets a family row. But they carry ``in_family``, and the
-    screen offers their file rather than a link: joining two households is a
-    merge of two sets of parents, and that is not a one-click button beside
-    eight other names.
+    guardian always gets a family row.
+
+    They carry ``in_family`` so the screen can say what pressing the button
+    will do. It used to mean the screen refused instead, on the reasoning that
+    joining two households is a merge of two sets of parents. A clinic showed
+    that this was the wrong call: a real import had split one family in two,
+    the screen suggested each sibling to the other, and every attempt to act
+    on the suggestion was turned down. The commonest case here is not two
+    households — it is one household the program divided.
     """
     from app.models import Patient
 

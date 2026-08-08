@@ -572,7 +572,7 @@
                 <span class="hint" dir="ltr" x-text="p.patient_number"></span>
                 {# Said on the row, not found out after pressing. #}
                 <span class="badge badge--muted" x-show="p.in_family" x-cloak>{{ t('siblings.in_other_family') }}</span>
-                <button class="btn btn-primary btn-sm gc-press" type="submit" :disabled="p.in_family">
+                <button class="btn btn-primary btn-sm gc-press" type="submit">
                   <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
               </form>
             </template>
@@ -598,16 +598,19 @@
           <span class="hint" dir="ltr">{{ hint.patient.patient_number }}</span>
           <span class="badge {{ 'badge--green' if hint.reason == 'phone' else 'badge--muted' }}">
             {{ t('siblings.why_' ~ hint.reason) }}</span>
+          {# A child already in another family used to get their file offered
+             instead of a button, because the link would only have refused.
+             That refusal was the bug: a real import split one family in two,
+             and the screen then suggested each sibling to the other and
+             turned down every attempt to act on it. The row now says what
+             pressing it will do, and does it. #}
           {% if hint.in_family %}
-          {# Joining two households is a merge of two sets of parents, so the
-             row offers the file rather than a button that would only refuse. #}
           <span class="badge badge--muted">{{ t('siblings.in_other_family') }}</span>
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=hint.patient.id) }}">
             <i class="bi bi-box-arrow-up-right"></i> {{ t('siblings.open_file') }}</a>
-          {% else %}
+          {% endif %}
           <button class="btn btn-outline btn-sm gc-press" type="submit">
             <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
-          {% endif %}
         </form>
         {% endfor %}
       </div>

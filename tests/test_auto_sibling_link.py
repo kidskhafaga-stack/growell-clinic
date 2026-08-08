@@ -255,3 +255,160 @@ def test_nothing_certain_says_so_instead_of_linking_anything(clinic):
         assert t("siblings.no_certain_match") in page
     with clinic["app"].app_context():
         assert db.session.get(Patient, stranger_id).family_id is None
+
+
+# ============================================== the merge that was refused ==
+def _split_household(clinic):
+    """The state a real clinic's database was in.
+
+    Two siblings from one import, in two family records — because the import
+    split them — with the guardian's phone attached to one of the two.
+    """
+    from app.models import Family, Parent, Patient
+
+    db = clinic["db"]
+    first = Family(family_name="Mohammed Khafaga")
+    second = Family(family_name="محمد السيد خفاجه")
+    db.session.add_all([first, second])
+    db.session.flush()
+    db.session.add(Parent(family_id=second.id, full_name="محمد السيد",
+                          relation="father", phone="01005551234"))
+    omar = db.session.get(Patient, clinic["ids"]["child"])
+    omar.full_name = "عمر محمد السيد خفاجة"
+    omar.family_id = first.id
+    meral = Patient(patient_number="P5", full_name="ميرال محمد السيد خفاجه",
+                    gender="female", date_of_birth=date(2020, 6, 1),
+                    is_active=True, family_id=second.id)
+    db.session.add(meral)
+    db.session.commit()
+    return omar.id, meral.id, second.id
+
+
+def test_a_sibling_already_in_a_family_can_finally_be_linked(clinic):
+    """The bug a clinic reported with names.
+
+    "عمر محمد السيد خفاجة" and "ميرال محمد السيد خفاجه" arrived from one import
+    in two families. The screen suggested each to the other and refused every
+    attempt to act on it — and renaming either family changed nothing, because
+    the problem was never the name.
+
+    I wrote that refusal deliberately: joining two households is a merge of two
+    sets of parents. The clinic showed why it was the wrong call. The
+    commonest case is not two households — it is one household the program
+    itself divided, and refusing left the only way out as deleting a family by
+    hand.
+    """
+    from app.models import Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar_id, meral_id, _ = _split_household(clinic)
+
+    clinic["sign_in"]("boss").post(f"/patients/{omar_id}/siblings/link",
+                                   data={"sibling_id": meral_id},
+                                   follow_redirects=True)
+
+    with clinic["app"].app_context():
+        omar = db.session.get(Patient, omar_id)
+        meral = db.session.get(Patient, meral_id)
+        assert omar.family_id == meral.family_id, "the link was refused again"
+
+
+def test_the_emptied_family_does_not_linger(clinic):
+    """Left behind, it keeps the guardian's phone attached to a household with
+    no children — invisible on every screen and still turning up in searches."""
+    from app.models import Family
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar_id, meral_id, old_family_id = _split_household(clinic)
+
+    clinic["sign_in"]("boss").post(f"/patients/{omar_id}/siblings/link",
+                                   data={"sibling_id": meral_id},
+                                   follow_redirects=True)
+
+    with clinic["app"].app_context():
+        assert db.session.get(Family, old_family_id) is None
+
+
+def test_the_guardian_survives_the_merge(clinic):
+    """The phone number is the whole reason the family record existed.
+
+    ``Family.parents`` cascades delete-orphan, so a parent still in the old
+    family's collection when it is deleted goes with it — reassigning
+    ``family_id`` alone silently loses the guardian, which the first version of
+    this did.
+    """
+    from app.models import Parent, Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar_id, meral_id, _ = _split_household(clinic)
+
+    clinic["sign_in"]("boss").post(f"/patients/{omar_id}/siblings/link",
+                                   data={"sibling_id": meral_id},
+                                   follow_redirects=True)
+
+    with clinic["app"].app_context():
+        omar = db.session.get(Patient, omar_id)
+        phones = {p.phone for p in omar.family.parents}
+        assert "01005551234" in phones, "the guardian's phone was lost"
+        assert Parent.query.filter(Parent.family_id.is_(None)).count() == 0
+
+
+def test_the_same_guardian_is_not_recorded_twice(clinic):
+    """Both families usually carry the same father, because both were built
+    from the same import."""
+    from app.models import Parent, Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar_id, meral_id, _ = _split_household(clinic)
+        omar = db.session.get(Patient, omar_id)
+        db.session.add(Parent(family_id=omar.family_id, full_name="محمد السيد",
+                              relation="father", phone="01005551234"))
+        db.session.commit()
+
+    clinic["sign_in"]("boss").post(f"/patients/{omar_id}/siblings/link",
+                                   data={"sibling_id": meral_id},
+                                   follow_redirects=True)
+
+    with clinic["app"].app_context():
+        omar = db.session.get(Patient, omar_id)
+        assert len(omar.family.parents) == 1
+
+
+def test_a_family_with_other_children_is_left_alone(clinic):
+    """Moving one child out of a real household must not delete it, nor take
+    the guardians away from the siblings still in it."""
+    from app.models import Family, Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar_id, meral_id, old_family_id = _split_household(clinic)
+        db.session.add(Patient(patient_number="P6", full_name="ياسين محمد السيد",
+                               gender="male", date_of_birth=date(2016, 2, 1),
+                               is_active=True, family_id=old_family_id))
+        db.session.commit()
+
+    clinic["sign_in"]("boss").post(f"/patients/{omar_id}/siblings/link",
+                                   data={"sibling_id": meral_id},
+                                   follow_redirects=True)
+
+    with clinic["app"].app_context():
+        old = db.session.get(Family, old_family_id)
+        assert old is not None, "a family with children in it was deleted"
+        assert len(old.parents) == 1
+        assert [p.full_name for p in old.patients] == ["ياسين محمد السيد"]
+
+
+def test_the_screen_offers_the_button_it_used_to_withhold(clinic):
+    """The row said "in another family" and gave a link to their file. That is
+    a dead end when what you need is to join them."""
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar_id, _, _ = _split_household(clinic)
+
+    page = clinic["sign_in"]("boss").get(f"/patients/{omar_id}").data.decode()
+    assert f"/patients/{omar_id}/siblings/link" in page
+    assert ':disabled="p.in_family"' not in page

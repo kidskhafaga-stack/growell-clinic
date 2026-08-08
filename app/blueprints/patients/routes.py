@@ -2153,10 +2153,21 @@ def sibling_link(patient_id):
     if other is None or other.id == patient.id:
         flash(t("common.not_found"), "danger")
         return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+    # A child who already has a family used to be refused here, on the
+    # reasoning that joining two households is a merge of two sets of parents
+    # and not a one-click button. A clinic showed me why that was wrong, with
+    # names: "عمر محمد السيد خفاجة" and "ميرال محمد السيد خفاجه" arrived from
+    # one import in two families, because the import split them. The screen
+    # then suggested each to the other and refused every attempt to act on the
+    # suggestion — and renaming either family changed nothing, because the
+    # problem was never the name.
+    #
+    # The commonest case is not two real households. It is one household the
+    # program itself divided, and refusing the merge left the only way out as
+    # deleting a family by hand. So it merges, and says what it did.
+    merged_from = None
     if other.family_id and other.family_id != patient.family_id:
-        flash(t("siblings.already_in_family").replace(
-            "{name}", other.display_name(getattr(g, "lang", "ar"))), "warning")
-        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+        merged_from = other.family
 
     # This child may have no family row yet — the commonest case of all, since
     # a family is created the first time somebody records a parent.
@@ -2168,13 +2179,35 @@ def sibling_link(patient_id):
 
     other.family_id = patient.family_id
     other.family_auto = False          # a person looked at both files
+
+    # If that emptied the family they came from, carry its guardians across
+    # and remove the shell. Leaving it behind would keep the parents' phone
+    # numbers attached to a household with no children in it — invisible on
+    # every screen, and still turning up in searches.
+    db.session.flush()          # so the old family's child list is current
+    if merged_from is not None and not merged_from.patients:
+        known = {(p.phone or "").strip() for p in (patient.family.parents or [])
+                 if (p.phone or "").strip()}
+        for parent in list(merged_from.parents):
+            # Moved through the collections, not by reassigning the id.
+            # ``Family.parents`` cascades delete-orphan, so a parent that is
+            # still in the old family's list when it is deleted goes with it —
+            # setting `family_id` alone silently loses the guardian's phone
+            # number, which is the one thing the merge was supposed to keep.
+            merged_from.parents.remove(parent)
+            if parent.phone and (parent.phone or "").strip() in known:
+                db.session.delete(parent)   # the same guardian, twice
+            else:
+                patient.family.parents.append(parent)
+        db.session.delete(merged_from)
     ActivityLog.record("patient.sibling.link", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=f"{other.patient_number} → family {patient.family_id}",
                        ip_address=client_ip())
     db.session.commit()
-    flash(t("siblings.linked").replace(
-        "{name}", other.display_name(getattr(g, "lang", "ar"))), "success")
+    name = other.display_name(getattr(g, "lang", "ar"))
+    flash(t("siblings.merged" if merged_from is not None else "siblings.linked")
+          .replace("{name}", name), "success")
     return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
 
 

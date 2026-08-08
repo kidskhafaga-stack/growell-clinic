@@ -4422,7 +4422,7 @@
     "why_name": "Same family name",
     "linked": "{name} was added to the family.",
     "unlinked": "Removed from the family.",
-    "in_other_family": "Already in another family",
+    "in_other_family": "In another family — linking will move them here",
     "already_in_family": "{name} is already filed with another family. Moving them is a merge, not a link — open their file and change the family there.",
     "open_file": "Open their file",
     "auto_link": "Link the certain match",
@@ -4430,7 +4430,8 @@
     "auto_flag": "linked automatically",
     "auto_linked": "{name} was linked automatically — check it, and unlink if wrong.",
     "no_certain_match": "No case matches closely enough to link automatically.",
-    "need_family": "This patient has no family yet — add a guardian first."
+    "need_family": "This patient has no family yet — add a guardian first.",
+    "merged": "{name} joined this family; their old one was removed as it was left empty."
   },
   "rooms": {
     "title": "Clinics",
