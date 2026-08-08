@@ -56,6 +56,28 @@ def seed_reference():
         from app.utils.drugs import seed_drugs
         return seed_drugs() or 0
 
+    def _egypt_register():
+        """Every drug registered in Egypt — 25,000 trade names with prices.
+
+        Seeded with the rest of the catalogues rather than left behind a
+        button, because that is what an install is *for*: the curated 292
+        brands are the ones that carry paediatric dosing, but a doctor writes
+        from the whole market, and one who types a brand and finds nothing
+        does not conclude the catalogue is short — they type it as free text,
+        and a free-text line is one nothing can check for interactions,
+        allergies or a dose.
+
+        Placed after the drug reference for readability rather than for
+        correctness: the register links to an ingredient on an exact name
+        match, and ``_drugbook`` finishes by running ``link_existing_drugs``,
+        which back-fills anything still unlinked. So either order ends with
+        the same 2,000 dosable brands — which is worth knowing before
+        somebody "fixes" the order and expects a difference.
+        """
+        from app.utils.egypt_drugs import seed_register
+
+        return seed_register()
+
     def _investigations():
         from app.utils.investigations import seed_investigations
         return seed_investigations() or 0
@@ -188,6 +210,7 @@ def seed_reference():
     _try(_drugs, "drugs", out)
     _try(_investigations, "investigations", out)
     _try(_drugbook, "drug_reference", out)
+    _try(_egypt_register, "egypt_drug_register", out)
     _try(_devices, "devices", out)
     _try(_device_measurements, "device_measurements", out)
     _try(_device_services, "device_services", out)

@@ -321,3 +321,59 @@ def test_a_register_entry_with_no_match_is_still_usable(clinic):
         assert unlinked is not None
         assert unlinked.trade_name and unlinked.is_active
         assert unlinked.dose_per_kg is None
+
+
+def test_the_register_arrives_with_the_ordinary_install(clinic):
+    """The question that prompted this: does it actually get planted?
+
+    Behind a button it is a feature most clinics never find. Seeded with the
+    rest of the catalogues it is simply what the program knows, which is the
+    difference between a doctor searching a market and a doctor searching 292
+    names.
+    """
+    from app.models import Drug
+    from app.utils.reference import seed_reference
+
+    with clinic["app"].app_context():
+        out = seed_reference()
+        assert out.get("egypt_drug_register", 0) > 24000
+        assert Drug.query.count() > 24000
+
+
+def test_the_register_gets_its_dosing_whichever_order_the_seeders_run(clinic):
+    """Two thousand brands' dose calculators must not rest on a list order.
+
+    The register links to an ingredient on an exact name match, so seeding it
+    before the ingredients would link nothing — except that ``_drugbook``
+    finishes by running ``link_existing_drugs``, which back-fills whatever is
+    still unlinked. That is what makes the order safe, and it is worth pinning:
+    without it, moving one line in a seeder list would silently strip the
+    paediatric dosing off every register brand while every count on the screen
+    still looked right.
+    """
+    from app.models import Drug, GenericDrug
+    from app.utils.drugbook_seed import (link_existing_drugs, seed_drugbook,
+                                         seed_interactions)
+    from app.utils.egypt_drugs import seed_register
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        # The wrong way round on purpose: register first, ingredients after.
+        seed_register(limit=4000)
+        assert GenericDrug.query.count() == 0
+        assert Drug.query.filter(Drug.generic_id.isnot(None)).count() == 0
+        # Held by id, because the curated seeder adds its own 292 brands next
+        # and those link at creation — counting all linked drugs afterwards
+        # would be satisfied by the curated ones alone and prove nothing.
+        register_ids = [d.id for d in Drug.query.all()]
+
+        seed_drugbook()
+        link_existing_drugs()
+        seed_interactions()
+        db.session.commit()
+
+        dosable = Drug.query.filter(Drug.id.in_(register_ids),
+                                    Drug.generic_id.isnot(None)).count()
+        assert dosable > 50, (
+            "register brands seeded before their ingredients never got "
+            "linked, so they carry no paediatric dosing")
