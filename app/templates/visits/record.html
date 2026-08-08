@@ -75,29 +75,29 @@
 
   <!-- Workflow tabs: case → diagnosis → investigations → files -->
   <div class="visit-tabs no-print">
-    <button type="button" class="vtab" :class="tab==='case' && 'active'" x-on:click="go('case')">
+    <button type="button" class="vtab{% if (visit.vitals or visit.chief_complaint) %} has-content{% endif %}" :class="tab==='case' && 'active'" x-on:click="go('case')"><span class="vtab-step">1</span>
       <i class="bi bi-clipboard2-pulse"></i> {{ t('visits.tab_case') }}</button>
-    <button type="button" class="vtab" :class="tab==='dx' && 'active'" x-on:click="go('dx')">
+    <button type="button" class="vtab{% if visit.diagnoses %} has-content{% endif %}" :class="tab==='dx' && 'active'" x-on:click="go('dx')"><span class="vtab-step">2</span>
       <i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}
       <span class="vtab-count" data-count-for="dx"{% if not visit.diagnoses %} hidden{% endif %}>{{ visit.diagnoses|length }}</span></button>
-    <button type="button" class="vtab" :class="tab==='inv' && 'active'" x-on:click="go('inv')">
+    <button type="button" class="vtab{% if visit.investigations %} has-content{% endif %}" :class="tab==='inv' && 'active'" x-on:click="go('inv')"><span class="vtab-step">3</span>
       <i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}
       <span class="vtab-count" data-count-for="inv"{% if not visit.investigations %} hidden{% endif %}>{{ visit.investigations|length }}</span></button>
-    <button type="button" class="vtab" :class="tab==='meds' && 'active'" x-on:click="go('meds')">
+    <button type="button" class="vtab{% if visit.medications %} has-content{% endif %}" :class="tab==='meds' && 'active'" x-on:click="go('meds')"><span class="vtab-step">4</span>
       <i class="bi bi-capsule"></i> {{ t('visits.medications') }}
       <span class="vtab-count" data-count-for="meds"{% if not visit.medications %} hidden{% endif %}>{{ visit.medications|length }}</span>
       {% if med_safety and med_safety.has_warnings %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='consent' && 'active'" x-on:click="go('consent')">
+    <button type="button" class="vtab" :class="tab==='consent' && 'active'" x-on:click="go('consent')"><span class="vtab-step">5</span>
       <i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}
       {% if consent and consent.missing %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
+    <button type="button" class="vtab{% if (visit.services or visit.studies) %} has-content{% endif %}" :class="tab==='proc' && 'active'" x-on:click="go('proc')"><span class="vtab-step">6</span>
       <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
       {% set proc_n = (visit.services|length) + (visit.studies|length) %}
       {% if proc_n %}<span class="vtab-count">{{ proc_n }}</span>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='vac' && 'active'" x-on:click="go('vac')">
+    <button type="button" class="vtab" :class="tab==='vac' && 'active'" x-on:click="go('vac')"><span class="vtab-step">7</span>
       <i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}
       {% if vac_panel.give_now %}<span class="vtab-count">{{ vac_panel.give_now|length }}</span>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='files' && 'active'" x-on:click="go('files')">
+    <button type="button" class="vtab{% if visit.attachments %} has-content{% endif %}" :class="tab==='files' && 'active'" x-on:click="go('files')"><span class="vtab-step">8</span>
       <i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}
       <span class="vtab-count" data-count-for="files"{% if not visit.attachments %} hidden{% endif %}>{{ visit.attachments|length }}</span></button>
   </div>
@@ -318,7 +318,7 @@
     </div>
 
     <!-- Add diagnosis with ICD search -->
-    <form method="post" data-add-form data-inline action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="icd-search" style="position:relative;">
         <label>{{ t('visits.search_icd') }}</label>
@@ -407,7 +407,7 @@
     </div>
 
     <!-- Order a new investigation -->
-    <form method="post" data-add-form data-inline action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="investigation_id" :value="invId">
@@ -550,7 +550,7 @@
     {% endif %}
     </div>
 
-    <form method="post" data-add-form data-inline action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
           x-data="medWriter('{{ url_for('visits.drug_search') }}')" style="margin-top:12px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="drug_id" :value="drugId">
@@ -1008,7 +1008,7 @@
     {% endif %}
     </div>
 
-    <form method="post" data-add-form data-inline action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.att_label') }}</label>

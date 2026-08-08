@@ -730,7 +730,8 @@
     "inv_file_unlinked": "link removed — the file is still on the record",
     "inv_file_not_found": "that file is not on this child's record",
     "channel": "consultation channel",
-    "study_done": "Result recorded"
+    "study_done": "Result recorded",
+    "added_ok": "Added"
   },
   "diagnosis_types": {
     "working": "Working",

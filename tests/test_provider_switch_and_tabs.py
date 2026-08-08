@@ -307,3 +307,67 @@ def test_a_failed_inline_submit_falls_back_to_a_normal_one(clinic):
     assert "catch" in block and "form.submit()" in block
     assert "removeAttribute('data-inline')" in block, (
         "the fallback would re-enter the handler and loop")
+
+
+# ============================================== the screen reading as a flow
+def test_the_tabs_carry_their_place_in_the_sequence(clinic):
+    """Asked for as "make the doctor feel it goes in order".
+
+    Eight identical boxes in a row is a menu; a menu does not tell anybody
+    where they are in a consultation or what they have not reached yet. The
+    number is what turns it back into a sequence.
+    """
+    source = _record_source()
+    assert source.count("vtab-step") == 8, "a tab lost its place in the flow"
+    for n in range(1, 9):
+        assert f'<span class="vtab-step">{n}</span>' in source
+
+
+def test_a_tab_shows_that_it_already_holds_something(clinic):
+    """Half the "did I do that" of a consultation is answered by looking at
+    the tab strip rather than by opening each tab in turn."""
+    from app.models import Visit
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        visit_id = db.session.get(Visit, clinic["ids"]["visit"]).id
+
+    client = clinic["sign_in"]("doc")
+    empty = client.get(f"/visits/{visit_id}/record").data.decode()
+    assert "has-content" not in empty
+
+    client.post(f"/visits/{visit_id}/medications",
+                data={"name": "Augmentin", "dose": "5 ml"})
+    filled = client.get(f"/visits/{visit_id}/record").data.decode()
+    assert "has-content" in filled
+
+
+def test_every_add_form_can_say_what_it_added(clinic):
+    """The confirmation is written in the program's language by the template,
+    not hardcoded in the script — a green tick that says "Added" on an Arabic
+    screen is the kind of detail that makes software feel foreign."""
+    source = _record_source()
+    assert source.count("data-added-label") >= 4
+    assert "visits.added_ok" in source
+
+
+def test_the_new_row_is_pointed_at_rather_than_merely_present(clinic):
+    """A doctor adds a medicine and looks back at the child. The only evidence
+    the press worked used to be the list being one row longer than they
+    remembered — which halfway through a consultation is not evidence."""
+    source = open(os.path.join(os.path.dirname(__file__), "..", "app",
+                               "static", "js", "app.js"), encoding="utf-8").read()
+    block = source.split("inline add / remove", 1)[1]
+    assert "gc-just-added" in block
+    assert "confirmAdd" in block
+    # Compared *before* the swap: afterwards the only way to tell which row is
+    # new would be to trust the order.
+    assert block.index("const before") < block.index("list.innerHTML = fresh")
+
+
+def test_the_confirmation_fades_instead_of_becoming_furniture(clinic):
+    """A message that never leaves stops being read, and then a real one is
+    missed."""
+    source = open(os.path.join(os.path.dirname(__file__), "..", "app",
+                               "static", "css", "app.css"), encoding="utf-8").read()
+    assert ".gc-added-note.is-gone" in source and "opacity: 0" in source

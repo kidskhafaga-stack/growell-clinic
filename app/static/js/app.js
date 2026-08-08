@@ -538,6 +538,26 @@ window.gcPicker = function (config) {
     return form.closest('[data-add-panel]');
   }
 
+  // A visible "yes, that went in". Without it the only evidence a doctor has
+  // that the press worked is the list being one row longer than they
+  // remember, which is not evidence at all halfway through a consultation.
+  function confirmAdd(form, row) {
+    var note = form.querySelector('.gc-added-note');
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'gc-added-note';
+      form.appendChild(note);
+    }
+    var name = row ? (row.querySelector('strong') || row).textContent.trim() : '';
+    note.innerHTML = '<i class="bi bi-check-circle-fill"></i> ' +
+      (form.dataset.addedLabel || 'Added') +
+      (name ? ' — <b></b>' : '');
+    if (name) note.querySelector('b').textContent = name.slice(0, 60);
+    note.classList.remove('is-gone');
+    clearTimeout(note._timer);
+    note._timer = setTimeout(function () { note.classList.add('is-gone'); }, 3500);
+  }
+
   async function inlineSubmit(ev) {
     const form = ev.target.closest && ev.target.closest('form[data-inline]');
     if (!form) return;
@@ -559,9 +579,26 @@ window.gcPicker = function (config) {
       const fresh = doc.querySelector('#' + panel.id + ' [data-add-list]');
       if (!fresh) throw new Error('no list in response');
 
+      // Which rows are new. Compared before the swap, because after it the
+      // only way to tell would be to trust the order — and a doctor who
+      // cannot see *what* was added has to re-read the whole list to be sure
+      // the press worked, which is the thing this was meant to remove.
+      const before = new Set(
+        Array.from(list.children).map(function (el) { return el.outerHTML; }));
+
       list.innerHTML = fresh.innerHTML;
       // Alpine does not walk HTML that appeared after it started.
       if (window.Alpine && window.Alpine.initTree) window.Alpine.initTree(list);
+
+      const fresh_rows = Array.from(list.querySelectorAll('tbody tr, .dx-row'))
+        .filter(function (el) { return !before.has(el.outerHTML); });
+      const landed = fresh_rows.length ? fresh_rows[fresh_rows.length - 1] : null;
+      if (landed) {
+        landed.classList.add('gc-just-added');
+        landed.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        setTimeout(function () { landed.classList.remove('gc-just-added'); }, 2200);
+      }
+      if (form.hasAttribute('data-add-form')) confirmAdd(form, landed);
 
       // The tab badge counts what is in the list, so it moved too.
       const badge = document.querySelector('[data-count-for="' + panel.id + '"]');
