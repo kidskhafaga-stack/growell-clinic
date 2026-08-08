@@ -75,7 +75,18 @@
   {% endif %}
 
   <!-- Workflow tabs: case → diagnosis → investigations → files -->
-  <div class="visit-tabs no-print">
+  {# The moving highlight is what makes eight buttons read as eight *steps*.
+     It slides from wherever it was to the step just chosen, so the doctor
+     sees the direction of travel rather than a colour appearing somewhere
+     else on the strip.
+
+     It is drawn behind the buttons and only takes over once the browser has
+     positioned it (``has-pill``); without JavaScript the plain active colour
+     stays, because a step strip with nothing highlighted is worse than one
+     that does not animate. #}
+  <div class="visit-tabs no-print" x-ref="tabstrip" x-init="$nextTick(() => movePill())"
+       x-on:resize.window.debounce.100ms="movePill()">
+    <span class="vtab-pill" x-ref="tabpill" aria-hidden="true"></span>
     <button type="button" class="vtab{% if (visit.vitals or visit.chief_complaint) %} has-content{% endif %}" :class="tab==='case' && 'active'" x-on:click="go('case')"><span class="vtab-step">1</span>
       <i class="bi bi-clipboard2-pulse"></i> {{ t('visits.tab_case') }}</button>
     <button type="button" class="vtab{% if visit.diagnoses %} has-content{% endif %}" :class="tab==='dx' && 'active'" x-on:click="go('dx')"><span class="vtab-step">2</span>
@@ -1094,6 +1105,21 @@
     font-family:inherit; font-size:0.9rem; font-weight:600; transition:all .15s ease; }
   .vtab:hover { border-color:var(--green-600); }
   .vtab.active { background:var(--green-600); color:#fff; border-color:var(--green-600); }
+  /* Once the pill is placed, it becomes the highlight and the button keeps
+     only its colours — otherwise two greens slide past each other. */
+  .visit-tabs.has-pill .vtab.active { background:transparent; border-color:transparent; }
+  .visit-tabs { position:relative; }
+  .vtab { position:relative; z-index:1; }
+  .vtab-pill { position:absolute; z-index:0; border-radius:999px; background:var(--green-600);
+    opacity:0; pointer-events:none;
+    transition:opacity .15s ease,
+      transform .42s cubic-bezier(0.34, 1.2, 0.64, 1),
+      width .42s cubic-bezier(0.34, 1.2, 0.64, 1),
+      height .42s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .visit-tabs.has-pill .vtab-pill { opacity:1; }
+  /* Somebody who asked the system for less movement gets the highlight
+     without the journey. */
+  @media (prefers-reduced-motion: reduce) { .vtab-pill { transition:opacity .15s ease; } }
   .vtab-count { background:rgba(0,0,0,.12); border-radius:999px; padding:0 7px; font-size:0.75rem; }
   .vtab.active .vtab-count { background:rgba(255,255,255,.25); }
   /* Smart-phrase chips */
@@ -1280,6 +1306,22 @@
         this.tab = tab;
         history.replaceState(
           null, '', tab === 'case' ? window.location.pathname : '#' + tab);
+        // After Alpine has moved the `active` class, not before it.
+        this.$nextTick(() => this.movePill());
+      },
+      // Put the highlight over the step that is current. Measured rather than
+      // computed: the strip wraps onto two lines on a narrow screen and the
+      // buttons are different widths, so there is nothing to calculate from.
+      movePill() {
+        const strip = this.$refs.tabstrip, pill = this.$refs.tabpill;
+        if (!strip || !pill) return;
+        const active = strip.querySelector('.vtab.active');
+        if (!active) { strip.classList.remove('has-pill'); return; }
+        pill.style.width = active.offsetWidth + 'px';
+        pill.style.height = active.offsetHeight + 'px';
+        pill.style.transform =
+          'translate(' + active.offsetLeft + 'px,' + active.offsetTop + 'px)';
+        strip.classList.add('has-pill');
       },
       // Bring the "add another" form into view after a reload. The doctor's
       // next action is almost always another one of whatever they just added.

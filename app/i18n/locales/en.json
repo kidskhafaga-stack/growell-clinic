@@ -65,7 +65,8 @@
     "move_down": "Move down",
     "today": "Today",
     "min_short": "m",
-    "hour_short": "h"
+    "hour_short": "h",
+    "clear": "Clear"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -270,7 +271,8 @@
     "delete_family": "Delete family",
     "family_delete_confirm": "The family will be removed; the patient files stay exactly as they are. Continue?",
     "family_deleted": "Family removed. {n} file(s) kept, now without a family.",
-    "new_family_hint": "If that name already exists the patient joins it — no second record is made."
+    "new_family_hint": "If that name already exists the patient joins it — no second record is made.",
+    "name_ar": "Name (Arabic)"
   },
   "import": {
     "title": "Import patient data",
@@ -349,7 +351,8 @@
     "already_here": "Already here — not added again",
     "already_count": "Already here",
     "already_hint": "These rows are already in the register and were left exactly as they are. The import takes only what is new.",
-    "twin_of": "Listed twice in this file (line {line})"
+    "twin_of": "Listed twice in this file (line {line})",
+    "file": "File"
   },
   "appointments": {
     "title": "Appointments",
@@ -1558,7 +1561,8 @@
     "history": "Change history",
     "history_hint": "The accounting period is still open, so this invoice can be corrected — and every correction is recorded here with who made it and when, for the accountant to review.",
     "history_locked": "The accounting period is closed, so this invoice can no longer be edited. The record below is for review.",
-    "history_none": "This invoice has not been changed."
+    "history_none": "This invoice has not been changed.",
+    "invoice_number": "Invoice no."
   },
   "expenses": {
     "title": "Expenses",
@@ -1758,7 +1762,8 @@
     "sig_clinic": "For the clinic",
     "sig_payer": "For the payer",
     "hub_payers": "Payers & contracts",
-    "hub_payers_sub": "Insurance, companies and clubs — and each service's price in the contract."
+    "hub_payers_sub": "Insurance, companies and clubs — and each service's price in the contract.",
+    "payers_title": "Payers"
   },
   "payer_types": {
     "club": "Club",
@@ -2168,7 +2173,8 @@
     "longest_wait": "Longest wait",
     "median_consult": "Median consultation",
     "forgotten_records": "Records left open",
-    "overlapping_visits": "Overlapping visits"
+    "overlapping_visits": "Overlapping visits",
+    "cost": "Cost"
   },
   "ai": {
     "title": "AI Assistant",
@@ -2304,7 +2310,9 @@
     "verify_hint": "Scan to confirm it was issued by this clinic.",
     "verify_ok": "This prescription was issued by the clinic",
     "verify_note": "This page shows the clinic's own record of it — for checking only.",
-    "doctor_search_ph": "Search by doctor name"
+    "doctor_search_ph": "Search by doctor name",
+    "dose": "Dose",
+    "frequency": "Frequency"
   },
   "drug_forms": {
     "tablet": "Tablet",
