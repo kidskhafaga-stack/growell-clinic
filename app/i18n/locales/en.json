@@ -4483,6 +4483,7 @@
     "spo2_borderline": "Borderline oxygen saturation",
     "drowsy": "Drowsy",
     "breathing": "Difficulty breathing",
-    "convulsion": "Convulsion"
+    "convulsion": "Convulsion",
+    "in_queue": "urgent case waiting"
   }
 }

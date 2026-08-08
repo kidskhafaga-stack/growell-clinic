@@ -100,6 +100,12 @@ def index():
         "waiting": sum(1 for a in appointments if a.status in ("waiting", "scheduled")),
         "no_show": sum(1 for a in appointments if a.status == "no_show"),
     }
+    # What the nurse measured, read before the child's turn comes round.
+    # The station already flags it; this is the same judgement on the screen
+    # the *doctor* is looking at, because the nurse cannot always tell how
+    # serious a number is and the doctor is the one who decides.
+    flags = _red_flags(appointments)
+
     # Payment snapshot per appointment, so the doctor sees who paid / who's
     # still owing while the clinic is running.
     pay = _payment_status(appointments, on_date)
@@ -119,7 +125,7 @@ def index():
         current = next((a for a in appointments if a.status == "in_progress"), None)
         current_summary = _current_summary(current.patient) if current else None
     else:
-        clinics = _clinics_now(appointments, on_date)
+        clinics = _clinics_now(appointments, on_date, flags)
 
     # Collection + the doctor's own share, today and this month (invoice-based,
     # consistent with the doctor statement screen).
@@ -153,6 +159,7 @@ def index():
         waitlist=waitlist,
         appt_types=APPOINTMENT_TYPES,
         pay=pay,
+        flags=flags,
         fin=fin,
         breakdown=breakdown,
         bookable_services=_bookable_services(),
@@ -303,7 +310,42 @@ def _payment_status(appointments, on_date):
     return out
 
 
-def _clinics_now(appointments, on_date):
+def _red_flags(appointments):
+    """``{appointment_id: flag}`` for the children who have vitals recorded.
+
+    Only the ones still waiting or in the room: a completed visit's flag is
+    history, and history on a live board is noise that teaches people to stop
+    reading the colour.
+    """
+    from app.models import Visit
+    from app.utils.red_flags import assess
+
+    live = [a for a in appointments if a.status in ("waiting", "in_progress")]
+    if not live:
+        return {}
+    # Newest first, so a child with more than one open visit is judged on the
+    # one the nurse just filled rather than on whichever row the database
+    # happened to return — which is an older, empty visit as often as not, and
+    # produces a board that is silently blank about a feverish infant.
+    visits = {}
+    for visit in (Visit.query
+                  .filter(Visit.patient_id.in_([a.patient_id for a in live]),
+                          Visit.status == "open")
+                  .order_by(Visit.created_at.desc(), Visit.id.desc()).all()):
+        visits.setdefault(visit.patient_id, visit)
+
+    out = {}
+    for appt in live:
+        visit = visits.get(appt.patient_id)
+        flag = assess(appt.patient, getattr(visit, "vitals", None),
+                      " ".join(filter(None, [
+                          appt.reason, getattr(visit, "chief_complaint", "")])))
+        if flag["level"]:
+            out[appt.id] = flag
+    return out
+
+
+def _clinics_now(appointments, on_date, flags=None):
     """One card per عيادة that is running today — the whole-clinic view.
 
     Reception's question is never "who is the current patient"; there is no
@@ -336,6 +378,10 @@ def _clinics_now(appointments, on_date):
             "current": current,
             "waiting": len(waiting),
             "longest_since": min(checked_in) if checked_in else None,
+            # How many in this عيادة's queue should not be waiting. Reception
+            # watches the whole clinic and is the one who can go and knock.
+            "urgent": sum(1 for a in rows
+                          if (flags or {}).get(a.id, {}).get("level") == "urgent"),
             "done": sum(1 for a in rows if a.status == "completed"),
         })
     # Busy عيادات first — the ones with somebody inside, then by queue length,

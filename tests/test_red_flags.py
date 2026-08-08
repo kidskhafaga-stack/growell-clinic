@@ -315,3 +315,66 @@ def test_nothing_here_reorders_the_clinics_queue(clinic):
     with clinic["app"].app_context():
         appt = Appointment.query.one()
         assert (appt.appt_time, appt.status) == before
+
+
+# ============================================== and on the doctor's screen ==
+def test_the_doctor_sees_it_on_their_own_list(clinic):
+    """The half the nurse cannot do.
+
+    A nurse records 38.4 in a six-week-old; whether that is serious is a
+    judgement, and the doctor is the one who makes it. Until now it was only
+    on the station screen the doctor never opens, so the flag had to travel to
+    the list they are actually looking at.
+    """
+    from app.i18n import t
+
+    with clinic["app"].app_context():
+        infant = _aged(clinic, 1.5)
+        _waiting(clinic, infant, time(9, 0), temperature_c=38.4)
+
+    page = clinic["sign_in"]("doc").get("/appointments/").data.decode()
+    with clinic["app"].test_request_context():
+        assert "rf-urgent" in page
+        assert t("redflags.infant_fever") in page, (
+            "the flag arrived without its reason, which is the part that makes "
+            "it act-on-able")
+
+
+def test_reception_sees_it_across_the_whole_clinic(clinic):
+    """Reception watches every عيادة and is who can go and knock on a door."""
+    from app.i18n import t
+
+    with clinic["app"].app_context():
+        infant = _aged(clinic, 1.5)
+        _waiting(clinic, infant, time(9, 0), temperature_c=38.4)
+
+    page = clinic["sign_in"]("boss").get("/appointments/").data.decode()
+    with clinic["app"].test_request_context():
+        assert t("redflags.in_queue") in page
+
+
+def test_a_finished_visit_stops_flagging(clinic):
+    """History on a live board is noise, and noise is what teaches people to
+    stop reading the colour. Only the ones still waiting or in the room."""
+    from app.models import Appointment
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        infant = _aged(clinic, 1.5)
+        appt = _waiting(clinic, infant, time(9, 0), temperature_c=38.4)
+        appt.status = "completed"
+        db.session.commit()
+
+    page = clinic["sign_in"]("doc").get("/appointments/").data.decode()
+    assert "rf-urgent" not in page
+
+
+def test_a_board_of_well_children_carries_no_colour_at_all(clinic):
+    """Guarding the guard, on the screen where it matters most: a board where
+    every row is flagged is a board where none of them is."""
+    with clinic["app"].app_context():
+        child = _aged(clinic, 36)
+        _waiting(clinic, child, time(9, 0), temperature_c=37.1)
+
+    page = clinic["sign_in"]("doc").get("/appointments/").data.decode()
+    assert "rf-urgent" not in page and "rf-watch" not in page

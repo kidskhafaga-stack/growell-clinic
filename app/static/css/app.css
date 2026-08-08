@@ -189,3 +189,18 @@
 }
 .vtab.has-content .vtab-step { background: #198754; color: #fff; }
 .vtab.active .vtab-step { background: var(--brand, #198754); color: #fff; }
+
+/* A measured child who should not still be waiting. Deliberately small and
+   inline on the row rather than a banner: a board where every row shouts is a
+   board nobody reads, and this must stay rare enough to be believed. */
+.rf-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 3px; padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .72rem; font-weight: 700;
+  white-space: normal;
+}
+.rf-urgent { background: #fee2e2; color: #b91c1c; }
+.rf-watch  { background: #fef3c7; color: #b45309; }
+:root[data-theme="dark"] .rf-urgent { background: #3b1f22; color: #fca5a5; }
+:root[data-theme="dark"] .rf-watch  { background: #3a2f1c; color: #fcd34d; }
