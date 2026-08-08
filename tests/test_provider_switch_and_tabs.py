@@ -238,3 +238,72 @@ def test_the_add_form_is_marked_so_the_doctor_lands_on_it(clinic):
     source = _record_source()
     assert source.count("data-add-form") >= 4
     assert "scrollIntoView" in source
+
+
+# ============================================== adding without a page reload
+def test_every_panel_that_adds_something_can_be_updated_in_place(clinic):
+    """The contract the inline-add script relies on, checked in the template.
+
+    It works by posting the form, letting the redirect render the page as it
+    always did, and lifting one list out of that response. So each panel needs
+    three things: an id to find it by, a marked list to replace, and a form
+    marked as inline. Miss any one and the script silently falls back to a
+    full reload — which is the exact behaviour we set out to remove, and it
+    would come back without anything failing.
+    """
+    import re
+
+    source = _record_source()
+    panels = re.findall(
+        r'<div class="card[^"]*" data-add-panel id="(\w+)"', source)
+    assert len(panels) >= 4, "the inline-add panels lost their markers"
+
+    for pid in panels:
+        block = source.split(f'data-add-panel id="{pid}"', 1)[1]
+        block = block.split("data-add-panel", 1)[0]
+        assert "data-add-list" in block, f"#{pid} has no list to swap"
+        assert "data-inline" in block, f"#{pid}'s form would still reload"
+        assert f'data-count-for="{pid}"' in source, f"#{pid} has no tab badge"
+
+
+def test_the_tab_badge_exists_even_when_the_list_is_empty(clinic):
+    """It has to be in the page to count up from nothing to one. Rendered
+    always and hidden at zero, rather than conditionally rendered — otherwise
+    the first drug added leaves the tab showing no number until a reload."""
+    source = _record_source()
+    assert 'data-count-for="meds"{% if not visit.medications %} hidden{% endif %}' \
+        in source
+
+
+def test_the_response_to_an_add_still_contains_the_list_to_lift(clinic):
+    """End to end on the server side: the POST redirects, the redirect renders
+    the page, and the page carries the updated list. If that ever stopped
+    being true the script would fall back to reloading — quietly."""
+    from app.models import Visit
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        visit_id = db.session.get(Visit, clinic["ids"]["visit"]).id
+
+    page = clinic["sign_in"]("doc").post(
+        f"/visits/{visit_id}/medications",
+        data={"name": "Augmentin 156", "dose": "5 ml", "frequency": "×2"},
+        follow_redirects=True).data.decode()
+
+    assert "data-add-list" in page
+    assert "Augmentin 156" in page
+    # And it landed in the medications panel, not somewhere else on the page.
+    meds = page.split('id="meds"', 1)[1].split("data-add-panel", 1)[0]
+    assert "Augmentin 156" in meds
+
+
+def test_a_failed_inline_submit_falls_back_to_a_normal_one(clinic):
+    """A visit record that quietly fails to record something is far worse than
+    one that blinks. Pinned in the script, because "it worked when I tried it"
+    is not a guarantee about the clinic's network."""
+    source = open(os.path.join(os.path.dirname(__file__), "..", "app",
+                               "static", "js", "app.js"), encoding="utf-8").read()
+    block = source.split("inline add / remove", 1)[1]
+    assert "catch" in block and "form.submit()" in block
+    assert "removeAttribute('data-inline')" in block, (
+        "the fallback would re-enter the handler and loop")

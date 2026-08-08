@@ -512,3 +512,80 @@ window.gcPicker = function (config) {
     setInterval(tick, 30000);
   });
 })();
+
+// ------------------------------------------------- inline add / remove ----
+// Adding one drug should not reload the whole consultation.
+//
+// Every add on the visit screen was a form POST followed by a full page load.
+// That threw away the scroll position and anything half-typed elsewhere, and
+// a doctor adding four medicines paid for it four times — mid-consultation,
+// with a child on the couch.
+//
+// The trick here is that no new endpoint is needed. The POST already redirects
+// to the visit page, and `fetch` follows that redirect, so the response *is*
+// the freshly rendered page: parse it, lift out the one list that changed, and
+// put it in place. One request, same server code, same HTML the full reload
+// would have produced — so the two can never drift apart, which is what makes
+// this safe on a clinical screen rather than a second rendering path to
+// maintain.
+//
+// If anything about the page is not as expected — no list to swap, a failed
+// request, a response that is not the page we asked for — it falls back to
+// letting the browser submit normally. A visit record that quietly fails to
+// record something is far worse than one that blinks.
+(function () {
+  function panelOf(form) {
+    return form.closest('[data-add-panel]');
+  }
+
+  async function inlineSubmit(ev) {
+    const form = ev.target.closest && ev.target.closest('form[data-inline]');
+    if (!form) return;
+    const panel = panelOf(form);
+    const list = panel && panel.querySelector('[data-add-list]');
+    if (!panel || !list) return;            // nowhere to put it: normal submit
+
+    ev.preventDefault();
+    const button = form.querySelector('[type=submit]');
+    if (button) button.disabled = true;
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST', body: new FormData(form), redirect: 'follow',
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      if (!res.ok) throw new Error(res.status);
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      const fresh = doc.querySelector('#' + panel.id + ' [data-add-list]');
+      if (!fresh) throw new Error('no list in response');
+
+      list.innerHTML = fresh.innerHTML;
+      // Alpine does not walk HTML that appeared after it started.
+      if (window.Alpine && window.Alpine.initTree) window.Alpine.initTree(list);
+
+      // The tab badge counts what is in the list, so it moved too.
+      const badge = document.querySelector('[data-count-for="' + panel.id + '"]');
+      const freshBadge = doc.querySelector('[data-count-for="' + panel.id + '"]');
+      if (badge && freshBadge) {
+        badge.textContent = freshBadge.textContent;
+        // It renders even at zero so that it exists to count up from; hidden
+        // is what keeps an empty tab from wearing a "0".
+        badge.hidden = freshBadge.hidden;
+      }
+
+      if (form.hasAttribute('data-add-form')) {
+        form.reset();
+        const first = form.querySelector('input:not([type=hidden]), textarea');
+        if (first) first.focus();
+      }
+    } catch (e) {
+      form.removeAttribute('data-inline');   // do it the reliable way instead
+      form.submit();
+      return;
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  document.addEventListener('submit', inlineSubmit);
+})();
