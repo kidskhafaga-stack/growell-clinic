@@ -1096,8 +1096,78 @@ def doctor_search():
         for u in rows.order_by(User.full_name).limit(20).all()])
 
 
-@prescriptions_bp.route("/<int:rx_id>/verify.svg")
+@prescriptions_bp.route("/copy/<token>")
+def public_copy(token):
+    """The prescription as the family opens it — no login, no staff screen.
+
+    Reached from the link sent over WhatsApp. A picture would have been the
+    obvious thing to send and cannot be made: rendering a page to a canvas
+    through an SVG ``foreignObject`` taints the canvas in Chromium, which is
+    what every clinic uses, so the browser refuses to export it. That is why
+    the old "save as image" button silently did nothing.
+
+    A link is the better answer anyway. It carries the letterhead, the stamp
+    and the signature; it cannot be edited on the way; it is the clinic's own
+    record rather than a photograph of it; and the pharmacy can reach the same
+    verification code from it.
+    """
+    from app.utils.vaccines import visit_given_summary
+
+    rx = Prescription.query.filter_by(share_token=token).first_or_404()
+    tpl = RxPrintTemplate.default_instance()
+    try:
+        on_date = rx.visit.visit_date if rx.visit else rx.rx_date
+        rx_vaccines = visit_given_summary(rx.patient, on_date,
+                                          getattr(g, "lang", "ar"))
+    except Exception:  # noqa: BLE001
+        rx_vaccines = []
+    return render_template("prescriptions/public.html", rx=rx, tpl=tpl,
+                           rx_vaccines=rx_vaccines, digital=True)
+
+
+@prescriptions_bp.route("/<int:rx_id>/send", methods=["POST"])
 @module_required(MODULE)
+def send_copy(rx_id):
+    """Send the family their copy of the prescription.
+
+    What goes out is a **link** to the clinic's own page, not a picture. The
+    obvious thing would have been to render the paper to an image in the
+    browser and attach it; it cannot be done. Rasterising a page through an
+    SVG ``foreignObject`` taints the canvas in Chromium — every clinic's
+    browser — so the export throws, which is exactly why the old "save as
+    image" button had been quietly falling back to the print dialogue.
+
+    The link is the better document regardless: it carries the letterhead,
+    the stamp and the signature whatever the clinic prints on, it cannot be
+    edited between here and the pharmacy, and it is the clinic's record
+    rather than a photograph of one.
+    """
+    rx = db.get_or_404(Prescription, rx_id)
+    phone = rx.patient.contact_phone if rx.patient else None
+
+    from app.models import Setting
+    from app.utils import whatsapp as wa
+
+    lang = getattr(g, "lang", "ar")
+    link = url_for("prescriptions.public_copy",
+                   token=rx.share_link_token(), _external=True)
+    body = wa.render(wa.template_body("rx_copy"), {
+        "patient": rx.patient.display_name(lang) if rx.patient else "",
+        "doctor": rx.doctor.doctor_print_name(lang) if rx.doctor else "",
+        "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
+        "link": link,
+    })
+    log = wa.send(body, phone, patient_id=rx.patient_id, user_id=current_user.id,
+                  template_type="rx_copy")
+    ActivityLog.record("rx.send_copy", user_id=current_user.id,
+                       entity="prescription", entity_id=rx.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    return render_template("messages/sent.html", log=log, appt=None,
+                           back_url=url_for("prescriptions.view", rx_id=rx.id))
+
+
+@prescriptions_bp.route("/<int:rx_id>/verify.svg")
 def verify_qr(rx_id):
     """A QR the pharmacy can scan to check this prescription is real.
 
@@ -1114,7 +1184,16 @@ def verify_qr(rx_id):
     from flask import Response
 
     rx = db.get_or_404(Prescription, rx_id)
-    target = url_for("prescriptions.verify", rx_id=rx.id, _external=True)
+    # Where the code leads. On a copy the family is holding it must lead to
+    # the same page they are holding — the pharmacist scanning it is checking
+    # that this page came from the clinic, and the staff-only screen would
+    # simply refuse them. No login here either: the picture is a QR of a URL
+    # and carries nothing else.
+    if rx.share_token:
+        target = url_for("prescriptions.public_copy", token=rx.share_token,
+                         _external=True)
+    else:
+        target = url_for("prescriptions.verify", rx_id=rx.id, _external=True)
     svg = _qr_svg(target)
     if svg is None:
         return Response("", mimetype="image/svg+xml")

@@ -283,6 +283,19 @@ class Prescription(db.Model):
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # The unguessable address of the copy the family opens. Only set when a
+    # copy is actually sent: a token that exists for every prescription ever
+    # written is a bigger surface than one that exists for the ones somebody
+    # chose to share.
+    share_token = db.Column(db.String(48), unique=True, index=True)
+
+    def share_link_token(self):
+        """The token for this prescription, minted on first use."""
+        import secrets
+
+        if not self.share_token:
+            self.share_token = secrets.token_urlsafe(24)
+        return self.share_token
 
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])

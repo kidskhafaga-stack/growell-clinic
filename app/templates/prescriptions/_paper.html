@@ -1,0 +1,172 @@
+{# The prescription itself — the only copy of this markup.
+   Included by the staff screen and by the public page the family opens,
+   because a copy the parent reads that differs from the one the doctor
+   signed is the one bug this whole feature cannot afford.
+
+   It defines the doctor and the logo itself rather than relying on whoever
+   includes it. It did not, and the parent's page came out with no doctor in
+   the letterhead and "Doctor signature" where the name belongs. #}
+{% set doc = rx.doctor %}
+{% set personal_logo_url = url_for('static', filename='uploads/users/' ~ doc.personal_logo) if doc and doc.personal_logo else None %}
+{% if tpl.logo_source == 'personal' %}{% set logo_url = personal_logo_url %}
+{% elif tpl.logo_source == 'none' %}{% set logo_url = None %}
+{% else %}{% set logo_url = clinic.logo_url %}{% endif %}
+<div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
+  {% if tpl.mode == 'preprinted' %}
+    {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
+  {% else %}
+  <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:2px solid var(--green-600);padding-bottom:12px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      {% if logo_url %}<img src="{{ logo_url }}" alt="" style="max-height:64px;max-width:120px;object-fit:contain;">{% endif %}
+      <div>
+        {% if tpl.show_doctor and doc %}<h2 style="margin:0;color:var(--green-800);">{{ doc.doctor_print_name(current_lang) }}</h2>{% endif %}
+        <div style="font-weight:700;color:var(--green-800);">{{ clinic.name_ar if current_lang=='ar' and clinic.name_ar else (clinic.name or clinic_name) }}</div>
+        {% if tpl.show_specialty and doc %}{% for line in doc.doctor_title_lines(current_lang) %}<div style="color:var(--muted);font-size:0.85rem;line-height:1.35;">{{ line }}</div>{% endfor %}{% endif %}
+        {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
+        {% if tpl.show_contact and (addr or clinic.phone) %}<div style="color:var(--muted);font-size:0.8rem;">{% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</div>{% endif %}
+        {% if tpl.show_license and doc and doc.license_no %}<div style="color:var(--muted);font-size:0.78rem;" dir="ltr">License: {{ doc.license_no }}</div>{% endif %}
+      </div>
+    </div>
+    <div style="text-align:end;font-size:0.85rem;">{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
+  </div>
+  {% endif %}
+
+  {# The patient comes first and on their own — who this paper is for is the
+     one thing anybody reading it needs before anything else. The diagnosis
+     used to sit inside this block as a third cell, which made it look like
+     another identifying detail rather than a clinical statement. #}
+  {% if tpl.show_patient %}
+  <div class="info-grid" style="margin-bottom:14px;">
+    <div class="info-item"><div class="k">{{ t('rx.patient') }}</div><div class="v">{{ rx.patient.display_name(current_lang) }} ({{ rx.patient.patient_number }})</div></div>
+    <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(rx.patient) }}</div></div>
+    {% if rx.patient.gender %}<div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ rx.patient.gender) }}</div></div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% macro rx_section(icon, title) %}
+  <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
+    <i class="bi bi-{{ icon }}"></i> {{ title }}</div>
+  {% endmacro %}
+
+  {% if rx.complaint %}
+  <div style="margin-bottom:14px;">
+    {{ rx_section('chat-left-text', t('rx.complaint')) }}
+    <div>{{ rx.complaint }}</div>
+  </div>
+  {% endif %}
+
+  {# The stage is beside the words, because "التهاب رئوي" alone does not tell
+     a guardian — or the next doctor — whether this is settled or still being
+     worked out, and those mean very different things. #}
+  {% if tpl.show_diagnosis and rx.diagnosis %}
+  <div style="margin-bottom:14px;">
+    {{ rx_section('clipboard2-pulse', t('rx.diagnosis')) }}
+    <div>{{ rx.diagnosis }}
+      {% if rx.diagnosis_code %}<span class="badge badge--role" dir="ltr">{{ rx.diagnosis_code }}</span>{% endif %}
+      {% if rx.diagnosis_stage %}<span class="badge badge--muted">{{ t('rx.stage_' ~ rx.diagnosis_stage) }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% set printed_items = rx.items | selectattr('printed') | list %}
+  {% if printed_items %}
+  <div style="font-size:1.6rem;color:var(--green-700);font-weight:700;margin-bottom:6px;">℞</div>
+  <table class="table">
+    <thead><tr><th>{{ t('rx.drug') }}</th><th>{{ t('rx.default_dose') }}</th><th>{{ t('rx.default_frequency') }}</th><th>{{ t('rx.duration') }}</th><th>{{ t('rx.instructions') }}</th></tr></thead>
+    <tbody>
+      {% for it in printed_items %}
+      <tr><td><strong>{{ it.drug_name }}</strong></td><td>{{ it.dose or '—' }}</td><td>{{ it.frequency or '—' }}</td><td>{{ it.duration or '—' }}</td><td>{{ it.instructions or '—' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# Kept for the record but deliberately off the paper. Shown on screen only,
+     so the doctor can see what they excluded without the family carrying it
+     out of the room. #}
+  {% set hidden_items = rx.items | rejectattr('printed') | list %}
+  {% if hidden_items %}
+  <div class="no-print" style="margin-top:10px;color:var(--muted);font-size:.85rem;">
+    <i class="bi bi-eye-slash"></i> {{ t('rx.not_printed') }}:
+    {% for it in hidden_items %}{{ it.drug_name }}{% if not loop.last %} · {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if tpl.show_investigations and (rx.labs() or rx.imaging()) %}
+  <div style="margin-top:16px;">
+    {% if rx.labs() %}
+    <div style="margin-bottom:10px;">
+      <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
+        <i class="bi bi-droplet-half"></i> {{ t('rx.labs_requested') }}</div>
+      <ol style="margin:0;padding-inline-start:22px;">
+        {% for x in rx.labs() %}<li>{{ x.display_name(current_lang) }}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+    {% if rx.imaging() %}
+    <div>
+      <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
+        <i class="bi bi-radioactive"></i> {{ t('rx.imaging_requested') }}</div>
+      <ol style="margin:0;padding-inline-start:22px;">
+        {% for x in rx.imaging() %}<li>{{ x.display_name(current_lang) }}{% if x.notes %} <span style="color:var(--muted);">— {{ x.notes }}</span>{% endif %}</li>{% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if rx_vaccines %}
+  <!-- Vaccinations given this visit + when the next dose is expected -->
+  <div style="margin-top:16px;">
+    <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
+      <i class="bi bi-shield-plus"></i> {{ t('rx.vaccines_given') }}</div>
+    <ol style="margin:0;padding-inline-start:22px;">
+      {% for v in rx_vaccines %}
+      <li>
+        <strong>{{ v.vaccine.display_name(current_lang) }}</strong>
+        ({{ v.brand.display_name(current_lang) }}) —
+        {{ t('rx.vac_dose_of', n=v.dose_number, total=v.total) }}
+        ·
+        {% if v.next.kind == 'dose' %}
+          {{ t('rx.vac_next_dose', n=v.next.dose_number) }}{% if v.next.date %} — {{ t('visits.vac_expected') }} <span dir="ltr">{{ v.next.date }}</span>{% endif %}
+        {% elif v.next.kind == 'seasonal' %}
+          {{ t('rx.vac_next_seasonal') }} — {{ t('visits.vac_expected') }} <span dir="ltr">{{ v.next.date }}</span>
+        {% else %}
+          {{ t('rx.vac_next_none') }}
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+
+  {% if rx.notes %}<p style="margin-top:12px;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
+
+  {# On the copy that leaves the building. A signed PDF travelling over
+     WhatsApp is a document that can be forwarded and re-used, so it carries
+     its number and a code a pharmacy can check — the same idea as the
+     vaccination certificate, for the same reason. #}
+  {% if digital %}
+  <div style="display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:12px;border-top:1px dashed var(--line);">
+    <img src="{{ url_for('prescriptions.verify_qr', rx_id=rx.id) }}" alt=""
+         style="width:78px;height:78px;">
+    <div style="font-size:.78rem;color:var(--muted);">
+      <div><strong>{{ t('rx.verify_title') }}</strong></div>
+      <div dir="ltr">#{{ rx.id }} · {{ rx.rx_date }}</div>
+      <div>{{ t('rx.verify_hint') }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;">
+    {% if tpl.show_stamp and doc and doc.stamp_file %}
+    <div style="text-align:center;"><img src="{{ url_for('static', filename='uploads/users/' ~ doc.stamp_file) }}" alt="" style="max-height:90px;max-width:140px;opacity:0.9;"></div>
+    {% else %}<div></div>{% endif %}
+    {% if tpl.show_signature %}
+    <div style="text-align:center;">
+      {% if doc and doc.signature_file %}<img src="{{ url_for('static', filename='uploads/users/' ~ doc.signature_file) }}" alt="" style="max-height:60px;max-width:200px;display:block;margin:0 auto 4px;">{% endif %}
+      <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ doc.doctor_print_name(current_lang) if doc else t('rx.signature') }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>

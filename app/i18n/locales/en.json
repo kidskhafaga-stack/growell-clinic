@@ -2318,7 +2318,10 @@
     "verify_note": "This page shows the clinic's own record of it — for checking only.",
     "doctor_search_ph": "Search by doctor name",
     "dose": "Dose",
-    "frequency": "Frequency"
+    "frequency": "Frequency",
+    "send_to_family": "Send to the family",
+    "save_pdf": "Save PDF",
+    "public_note": "This is the clinic's own copy. To confirm it, scan the code above."
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -2630,7 +2633,8 @@
     "enqueue_confirm": "One message per family will be queued and sent gradually under the daily cap. Sure?",
     "campaign_queued": "{n} messages queued — they will go out under the daily cap",
     "occ_away": "Out-of-hours reply",
-    "occ_vaccine_back": "Vaccine back in stock"
+    "occ_vaccine_back": "Vaccine back in stock",
+    "occ_rx_copy": "Prescription copy"
   },
   "feedback": {
     "title": "Rate your visit",

@@ -647,67 +647,11 @@ window.gcPicker = function (config) {
 // inlined, at twice the screen resolution so it is legible when a pharmacist
 // zooms in on a phone. No dependency, no fonts to install, and nothing that
 // can render differently from what the doctor just approved on screen.
-window.gcSavePng = async function (elementId, filename) {
-  var node = document.getElementById(elementId);
-  if (!node) return;
+// A page cannot be turned into an image here, and it is worth writing down
+// why so nobody spends another afternoon on it: rasterising HTML by way of an
+// SVG <foreignObject> taints the canvas in Chromium, so toDataURL throws
+// SecurityError and no file ever comes out. The prescription screen used to
+// carry a "save as image" button built this way; it silently fell through to
+// window.print() every time. What replaced it is the print dialogue (which
+// makes a PDF) and a link to the clinic's own copy of the page.
 
-  // Anything outside the paper itself — buttons, warnings, the parts marked
-  // as "not printed" — must not travel with it.
-  var clone = node.cloneNode(true);
-  clone.querySelectorAll('.no-print').forEach(function (el) { el.remove(); });
-
-  var rect = node.getBoundingClientRect();
-  var scale = 2;
-  var wrapper = document.createElement('div');
-  wrapper.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;' +
-    'width:' + Math.ceil(rect.width) + 'px;padding:16px;';
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
-
-  try {
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    svg.setAttribute('width', wrapper.offsetWidth);
-    svg.setAttribute('height', wrapper.offsetHeight);
-    var fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    fo.setAttribute('width', '100%');
-    fo.setAttribute('height', '100%');
-    var body = document.createElement('div');
-    body.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    body.style.cssText = 'background:#fff;font-family:' +
-      getComputedStyle(document.body).fontFamily + ';';
-    body.innerHTML = wrapper.innerHTML;
-    fo.appendChild(body);
-    svg.appendChild(fo);
-
-    var blob = new Blob([new XMLSerializer().serializeToString(svg)],
-                        { type: 'image/svg+xml;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var img = new Image();
-    await new Promise(function (done, fail) {
-      img.onload = done; img.onerror = fail; img.src = url;
-    });
-
-    var canvas = document.createElement('canvas');
-    canvas.width = wrapper.offsetWidth * scale;
-    canvas.height = wrapper.offsetHeight * scale;
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
-
-    var link = document.createElement('a');
-    link.download = filename || 'page.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  } catch (err) {
-    // Falling back to the browser's own print dialogue, which can always
-    // "save as PDF". A doctor who pressed a button and got nothing would
-    // reasonably conclude the feature does not work.
-    window.print();
-  } finally {
-    wrapper.remove();
-  }
-};
