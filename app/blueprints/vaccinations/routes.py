@@ -619,18 +619,39 @@ def certificate(patient_id):
     # Optional upcoming-plan table (?schedule=1): every not-yet-given dose
     # with its expected date — doctor-planned dates included — so the family
     # leaves knowing exactly what is next and when.
-    upcoming = []
-    if request.args.get("schedule") == "1":
-        for v in plan:
+    # Two different tables, because they make two different claims.
+    #
+    # "What is left" is this clinic's own commitment: the remaining doses of
+    # courses it began. That is the table a family should be handed.
+    #
+    # "What the age suggests" is everything else the child is old enough for —
+    # true, but not a promise anybody here made, and mostly the national
+    # schedule that is given at the government unit. Printed only when the
+    # doctor asks for it, because a certificate implying this clinic owes the
+    # government's doses is a certificate that misleads the family holding it.
+    #
+    # A refused dose appears in neither. The family said no; reprinting it as
+    # outstanding is asking again on paper, every time the certificate is
+    # issued.
+    def _rows(items):
+        rows = []
+        for v in items:
             for d in v["doses"]:
-                if d["status"] == "done":
+                if d["status"] == "done" or d.get("event_type") == "refused":
                     continue
-                upcoming.append({"vaccine": v["vaccine"], "brand": v["brand"],
-                                 "dose_number": d["dose_number"],
-                                 "due_date": d["due_date"],
-                                 "planned": d.get("planned"),
-                                 "age_label": d["age_label"]})
-        upcoming.sort(key=lambda r: r["due_date"] or "9999")
+                rows.append({"vaccine": v["vaccine"], "brand": v["brand"],
+                             "dose_number": d["dose_number"],
+                             "due_date": d["due_date"],
+                             "planned": d.get("planned"),
+                             "age_label": d["age_label"]})
+        rows.sort(key=lambda r: r["due_date"] or "9999")
+        return rows
+
+    upcoming = suggested = []
+    if request.args.get("schedule") == "1":
+        upcoming = _rows([v for v in plan if v.get("started")])
+    if request.args.get("suggest") == "1":
+        suggested = _rows([v for v in plan if not v.get("started")])
     # Ensure a stable verification token and build the public QR.
     patient.ensure_qr_token()
     db.session.commit()
@@ -638,7 +659,8 @@ def certificate(patient_id):
     return render_template(
         "vaccinations/certificate.html", patient=patient,
         cards=cards, totals=totals,
-        upcoming=upcoming, with_schedule=request.args.get("schedule") == "1",
+        upcoming=upcoming, suggested=suggested, with_schedule=request.args.get("schedule") == "1",
+        with_suggestions=request.args.get("suggest") == "1",
         now_date=datetime.utcnow().date().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,
     )

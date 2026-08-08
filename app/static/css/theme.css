@@ -92,6 +92,7 @@
 :root[data-theme="dark"] .badge--muted,
 :root[data-theme="dark"] .st-cancelled,
 :root[data-theme="dark"] .vst-upcoming { background: #263141; color: var(--muted); }
+:root[data-theme="dark"] .vst-suggested { background: #262b41; color: #a5b4fc; }
 /* Danger / warning / success tints — dark, readable versions. */
 :root[data-theme="dark"] .badge--danger,
 :root[data-theme="dark"] .alert-pill.danger,
@@ -560,6 +561,9 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .vst-due      { background:#fef3c7; color:#b45309; }
 .vst-overdue  { background:#fee2e2; color:#b91c1c; }
 .vst-upcoming { background:#eef1f4; color:#6c7a89; }
+/* Old enough for it, but nobody here started the course. Deliberately calm:
+   red on this said "late" about a promise the clinic never made. */
+.vst-suggested { background:#eef2ff; color:#4338ca; }
 .vac-card { border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; }
 .vac-card .vac-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .dose-pills { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }

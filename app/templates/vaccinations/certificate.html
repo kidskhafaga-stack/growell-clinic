@@ -13,14 +13,22 @@
     <!-- Print language: hand the family the paper in either language -->
     <div class="btn-group" style="display:flex;gap:4px;">
       <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'ar' else 'btn-outline' }}"
-         href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang='ar', schedule='1' if with_schedule else None) }}">العربية</a>
+         href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang='ar', schedule='1' if with_schedule else None,
+                        suggest='1' if with_suggestions else None) }}">العربية</a>
       <a class="btn btn-sm gc-press {{ 'btn-primary' if current_lang == 'en' else 'btn-outline' }}"
-         href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang='en', schedule='1' if with_schedule else None) }}">English</a>
+         href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang='en', schedule='1' if with_schedule else None,
+                        suggest='1' if with_suggestions else None) }}">English</a>
     </div>
     <!-- Include the upcoming plan table -->
     <a class="btn btn-sm gc-press {{ 'btn-primary' if with_schedule else 'btn-outline' }}"
        href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang=current_lang, schedule=None if with_schedule else '1') }}">
       <i class="bi bi-calendar-week"></i> {{ t('vaccinations.cert_with_schedule') }}</a>
+    <!-- Age suggestions: the doctor's choice, and off by default -->
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if with_suggestions else 'btn-outline' }}"
+       href="{{ url_for('vaccinations.certificate', patient_id=patient.id, lang=current_lang,
+                        schedule='1' if with_schedule else None,
+                        suggest=None if with_suggestions else '1') }}">
+      <i class="bi bi-lightbulb"></i> {{ t('vaccinations.cert_with_suggestions') }}</a>
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('common.print') }}</button>
   </div>
 </div>
@@ -96,10 +104,7 @@
   <p style="color:var(--muted);">{{ t('vaccinations.no_given') }}</p>
   {% endif %}
 
-  {% if with_schedule %}
-  <h3 style="font-size:1rem;color:var(--green-800);margin:22px 0 8px;">
-    <i class="bi bi-calendar-week"></i> {{ t('vaccinations.cert_upcoming_title') }}</h3>
-  {% if upcoming %}
+{% macro dose_table(rows) %}
   <table class="table">
     <thead><tr>
       <th>{{ t('vaccinations.cert_vaccine') }}</th><th>{{ t('vaccinations.brand') }}</th>
@@ -107,7 +112,7 @@
       <th>{{ t('visits.vac_expected') }}</th>
     </tr></thead>
     <tbody>
-      {% for u in upcoming %}
+      {% for u in rows %}
       <tr>
         <td>{{ u.vaccine.display_name(current_lang) }}</td>
         <td>{{ u.brand.display_name(current_lang) }}</td>
@@ -118,10 +123,28 @@
       {% endfor %}
     </tbody>
   </table>
+{% endmacro %}
+
+  {# What is left of the courses this clinic began — its own commitment. #}
+  {% if with_schedule %}
+  <h3 style="font-size:1rem;color:var(--green-800);margin:22px 0 8px;">
+    <i class="bi bi-calendar-week"></i> {{ t('vaccinations.cert_upcoming_title') }}</h3>
+  {% if upcoming %}
+  {{ dose_table(upcoming) }}
   <p class="hint" style="font-size:0.78rem;">{{ t('vaccinations.cert_upcoming_hint') }}</p>
   {% else %}
   <p style="color:var(--muted);">{{ t('vaccinations.cert_no_upcoming') }}</p>
   {% endif %}
+  {% endif %}
+
+  {# Suggestions by age — true, but nobody here promised them, and most of
+     them are the national schedule given at the government unit. Off unless
+     the doctor asks, and headed so nothing about it reads as a debt. #}
+  {% if with_suggestions and suggested %}
+  <h3 style="font-size:1rem;color:var(--muted);margin:22px 0 8px;">
+    <i class="bi bi-lightbulb"></i> {{ t('vaccinations.cert_suggested_title') }}</h3>
+  {{ dose_table(suggested) }}
+  <p class="hint" style="font-size:0.78rem;">{{ t('vaccinations.cert_suggested_hint') }}</p>
   {% endif %}
 
   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;flex-wrap:wrap;">

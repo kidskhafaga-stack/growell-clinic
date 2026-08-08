@@ -304,6 +304,14 @@ def chosen_brand(patient_id, vaccine):
     return vaccine.default_brand, False
 
 
+# A dose that could be given today, whoever started the course. Named once
+# because it is asked in four places, and the fourth is always the one that
+# gets forgotten: adding `suggested` broke the visit panel's offer list —
+# an unvaccinated child was suddenly offered nothing at all — while every
+# other screen looked fine.
+GIVEABLE = ("overdue", "due", "suggested")
+
+
 def _status(due_date, given, today):
     if given:
         return "done"
@@ -425,9 +433,28 @@ def patient_plan(patient, lang="ar"):
                 "event_reason": (ev.refusal_reason if (ev and not pv
                                  and ev.event_type != "planned") else None),
             })
+        # Has this clinic actually begun this course? Everything about
+        # "late" hangs on the answer.
+        #
+        # The catalogue holds every vaccine the program knows, and a due date
+        # projected from a birthday exists for all of them — so a healthy
+        # two-year-old whose family uses the government unit for the national
+        # schedule read as *overdue on 41 doses*. That number frightens a
+        # parent, says nothing clinically, and is not this clinic's to make:
+        # nobody here promised those doses, and "late" is a broken promise.
+        #
+        # A course nobody started is a **suggestion by age**, which is a
+        # different sentence and belongs in a different column. Once a single
+        # dose is given here, the course is ours and the next dose really can
+        # be late.
+        started = any(x["status"] == "done" for x in doses)
+        if not started:
+            for x in doses:
+                if x["status"] in ("overdue", "due"):
+                    x["status"] = "suggested"
         plan.append({
             "vaccine": vaccine, "brand": brand, "locked": locked,
-            "doses": doses,
+            "doses": doses, "started": started,
             "done": sum(1 for x in doses if x["status"] == "done"),
             "total": len(doses),
         })
@@ -472,7 +499,7 @@ def group_plan(plan, today=None):
         given = [d for d in doses if d["status"] == "done"]
         if given:
             shelves["started" if len(given) < len(doses) else "complete"].append(item)
-        elif any(d["status"] in ("due", "overdue") for d in doses):
+        elif any(d["status"] in GIVEABLE for d in doses):
             shelves["ready"].append(item)
         else:
             shelves["later"].append(item)
@@ -542,11 +569,23 @@ def certificate_totals(cards):
 
 
 def plan_summary(plan):
-    """Aggregate counts across a plan for the visual status cards."""
-    s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "total": 0}
+    """Aggregate counts across a plan for the visual status cards.
+
+    ``overdue`` counts only courses this clinic actually began. Everything
+    else the child is old enough for is counted as ``suggested`` instead.
+
+    The distinction is not cosmetic. The catalogue holds every vaccine the
+    program knows, so a healthy two-year-old whose family uses the government
+    unit for the national schedule was being told they were *late for 41
+    vaccines* — a number that frightens a parent, means nothing clinically,
+    and is not even this clinic's to make. "Late" is a broken promise, and a
+    promise is only broken on a course somebody started here.
+    """
+    s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
+         "total": 0}
     for v in plan:
         for d in v["doses"]:
-            s[d["status"]] += 1
+            s[d["status"]] = s.get(d["status"], 0) + 1
             s["total"] += 1
     return s
 
@@ -556,7 +595,7 @@ def next_due_dose(plan):
     candidates = []
     for v in plan:
         for d in v["doses"]:
-            if d["status"] in ("overdue", "due"):
+            if d["status"] in GIVEABLE:
                 candidates.append((d["due_date"], v["vaccine"], v["brand"], d))
     if not candidates:
         return None
@@ -938,7 +977,7 @@ def visit_vaccine_panel(patient, lang="ar"):
             continue
         # Offer the first not-yet-given dose that's age-appropriate now
         # (its recommended age has arrived / is within the due window).
-        nxt = next((d for d in v["doses"] if d["status"] in ("overdue", "due")), None)
+        nxt = next((d for d in v["doses"] if d["status"] in GIVEABLE), None)
         if not nxt or brand is None:
             continue
         batch = brand.available_batches[0] if brand.available_batches else None

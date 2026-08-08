@@ -1003,13 +1003,17 @@
     "course_booster_left": "Booster outstanding",
     "course_left": "{n} left",
     "course_inferred": "Inferred",
-    "course_inferred_hint": "These dose numbers were worked out from the order of the imported dates, not recorded here. The child may have had the first three doses, or started elsewhere and had the second, third and fourth — the file does not separate those. Check it and correct the dose number with the “correct” button below."
+    "course_inferred_hint": "These dose numbers were worked out from the order of the imported dates, not recorded here. The child may have had the first three doses, or started elsewhere and had the second, third and fourth — the file does not separate those. Check it and correct the dose number with the “correct” button below.",
+    "cert_with_suggestions": "Age suggestions",
+    "cert_suggested_title": "Suitable for this age (suggestion)",
+    "cert_suggested_hint": "Suggestions by age, not a commitment by this clinic — national-schedule vaccines are given at the government unit."
   },
   "vstatus": {
     "done": "Done",
     "due": "Due now",
     "overdue": "Overdue",
-    "upcoming": "Upcoming"
+    "upcoming": "Upcoming",
+    "suggested": "Suggested for age"
   },
   "vtype": {
     "live": "Live attenuated",
