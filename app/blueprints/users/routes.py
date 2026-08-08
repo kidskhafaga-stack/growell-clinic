@@ -340,7 +340,7 @@ def doctors():
     from datetime import date, timedelta
 
     from app.utils.feedback import doctor_ratings
-    from app.utils.waiting import doctor_timings
+    from app.utils.waiting import clinic_start, doctor_timings
 
     docs = User.query.filter_by(role="doctor").order_by(User.full_name).all()
     # A month, because a week of a paediatric clinic is mostly whichever virus
@@ -351,6 +351,7 @@ def doctors():
     return render_template("users/doctors.html", doctors=docs,
                            ratings=doctor_ratings(),
                            timings=doctor_timings(since, until),
+                           starts=clinic_start(since, until),
                            since=since, until=until)
 
 

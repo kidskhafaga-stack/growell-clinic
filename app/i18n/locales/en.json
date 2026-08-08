@@ -1322,7 +1322,10 @@
     "ai_test_ok": "Connection works — {p} · {m}",
     "ai_test_failed": "Connection failed: {e}",
     "ai_fetch_models": "Fetch the available models",
-    "ai_fetch_hint": "Paste the key first, then press this — the program asks the provider which models your key can actually use, instead of a list written into the program that ages."
+    "ai_fetch_hint": "Paste the key first, then press this — the program asks the provider which models your key can actually use, instead of a list written into the program that ages.",
+    "timezone": "Clinic timezone",
+    "timezone_hint": "Every time is stored in UTC; this is needed wherever a stored moment is compared with a time somebody typed — such as \"did the doctor start at 10:00\".",
+    "timezone_broken": "This machine cannot resolve that timezone. On Windows that means the tzdata package is missing — metrics needing local time will stay blank rather than showing wrong numbers."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -1827,7 +1830,8 @@
     "over_slot": "Over the booked slot",
     "forgotten": "records left open",
     "overlapping": "overlapping visits",
-    "timing_note": "A description of the last month, not a ranking — a shorter consultation is not a better one. What is measured here is running over the booked slot, because that is what delays everyone behind."
+    "timing_note": "A description of the last month, not a ranking — a shorter consultation is not a better one. What is measured here is running over the booked slot, because that is what delays everyone behind.",
+    "late_start": "Clinic start"
   },
   "problems": {
     "title_list": "Problem list",

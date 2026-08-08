@@ -90,6 +90,23 @@
           {% endfor %}
         </select>
         <div class="hint">{{ t('settings.currency_hint') }}</div></div>
+      {# Where the clinic is. Everything the program *stores* is UTC and stays
+         correct without this; it is needed the moment a stored moment has to
+         be compared with a time somebody typed — "did the doctor start at
+         10:00" being the first of them. #}
+      <div class="form-row"><label>{{ t('settings.timezone') }}</label>
+        {% set tz = values.get('clinic_timezone') or default_tz %}
+        <select class="select" name="clinic_timezone" dir="ltr">
+          {% for z in zones %}
+          <option value="{{ z }}" {{ 'selected' if tz == z else '' }}>{{ z }}</option>
+          {% endfor %}
+          {% if tz not in zones %}<option value="{{ tz }}" selected>{{ tz }}</option>{% endif %}
+        </select>
+        <div class="hint">{{ t('settings.timezone_hint') }}</div>
+        {% if zone_broken %}
+        <div class="alert-pill danger" style="margin-top:6px;">
+          <i class="bi bi-exclamation-octagon"></i> {{ t('settings.timezone_broken') }}</div>
+        {% endif %}</div>
       <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
         <input class="input" name="clinic_name_ar" value="{{ values.get('clinic_name_ar','') }}"></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_en') }}</label>

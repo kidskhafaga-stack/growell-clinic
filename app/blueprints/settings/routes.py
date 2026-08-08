@@ -22,6 +22,9 @@ TEXT_KEYS = [
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
     "clinic_accent",
+    # Where the clinic is. Needed wherever a stored UTC moment has to be
+    # compared with a time a person typed (see app/utils/clock.py).
+    "clinic_timezone",
     # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
     # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.
@@ -182,13 +185,18 @@ def index():
         DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS, _visit_chips,
     )
 
+    from app.utils.clock import COMMON_ZONES, DEFAULT_TZ, valid_zone
     from app.utils.money import CURRENCIES
 
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
         free_ai=free_providers(), trial_ai=trial_defaults(),
-        currencies=CURRENCIES,
+        currencies=CURRENCIES, zones=COMMON_ZONES, default_tz=DEFAULT_TZ,
+        # A zone the machine cannot resolve is the Windows-without-tzdata
+        # case, and it has to be visible: silently falling back would put the
+        # wrong-by-three-hours numbers back on the screen.
+        zone_broken=not valid_zone(values.get("clinic_timezone") or DEFAULT_TZ),
         complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
         exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
     )

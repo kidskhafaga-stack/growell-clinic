@@ -209,3 +209,67 @@ def doctor_timings(date_from, date_to):
             "overlapping": sum(1 for a in sane if a.id in overlapping),
         }
     return out
+
+
+def clinic_start(date_from, date_to):
+    """Per doctor: how late their first patient of the day actually started.
+
+    The fairest question on the screen, and the one a doctor can answer for.
+    Waiting is mostly reception's and the schedule's doing, and consultation
+    length is a clinical judgement — but the first appointment of the session
+    starting forty minutes late is nobody else's, and it is the thing that
+    pushes every family behind it.
+
+    Only the **first** appointment of each day counts. Later ones inherit the
+    delay of everything before them, so counting them would charge a doctor
+    repeatedly for one late start.
+
+    This needs a clinic timezone and says so by returning nothing without one:
+    ``appt_time`` is a wall-clock time somebody typed and ``started_at`` is
+    stored UTC, so on a machine that cannot resolve its zone the subtraction
+    would report every doctor as hours late. An empty result renders as "—",
+    which is the truth; a fallback to UTC would render as a confident lie.
+    """
+    from datetime import datetime
+
+    from app.models import Appointment
+    from app.utils.clock import clinic_tz
+
+    zone = clinic_tz()
+    if zone is None:
+        return {}
+
+    from app.utils.clock import to_local
+
+    rows = (Appointment.query
+            .filter(Appointment.appt_date >= date_from,
+                    Appointment.appt_date <= date_to,
+                    Appointment.started_at.isnot(None))
+            .order_by(Appointment.appt_date, Appointment.appt_time)
+            .all())
+
+    firsts = {}
+    for appt in rows:
+        firsts.setdefault((appt.doctor_id, appt.appt_date), appt)
+
+    late = {}
+    for (doctor_id, on_date), appt in firsts.items():
+        local = to_local(appt.started_at, zone)
+        if local is None:
+            continue
+        booked = datetime.combine(on_date, appt.appt_time)
+        minutes = (local.replace(tzinfo=None) - booked).total_seconds() / 60.0
+        # A session that began the day before, or a stamp a day out, is a data
+        # problem rather than a twenty-hour delay.
+        if abs(minutes) > MAX_SANE_MINUTES:
+            continue
+        late.setdefault(doctor_id, []).append(minutes)
+
+    out = {}
+    for doctor_id, values in late.items():
+        values.sort()
+        mid = len(values) // 2
+        median = (values[mid] if len(values) % 2
+                  else (values[mid - 1] + values[mid]) / 2.0)
+        out[doctor_id] = {"late": round(median, 1), "days": len(values)}
+    return out

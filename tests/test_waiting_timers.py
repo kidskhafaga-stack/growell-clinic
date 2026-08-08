@@ -30,9 +30,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 def _appt(db, clinic_ids, doctor_id=None, status="waiting", **kw):
     from app.models import Appointment
 
+    kw.setdefault("appt_time", time(10, 0))
     appt = Appointment(patient_id=clinic_ids["child"],
                        doctor_id=doctor_id or clinic_ids["doctor"],
-                       appt_date=date.today(), appt_time=time(10, 0),
+                       appt_date=date.today(),
                        duration_minutes=15, status=status, **kw)
     db.session.add(appt)
     db.session.flush()
@@ -568,17 +569,137 @@ def test_the_report_stops_reporting_one_wait_for_two_queues(clinic):
         assert t("reports.wait_after_vitals") in page
 
 
-def test_the_clinic_start_metric_is_left_out_until_there_is_a_timezone(clinic):
-    """Deliberately absent, and pinned so it is not "helpfully" added.
+# ======================================================= the clinic clock ===
+def test_starting_late_is_measured_against_the_clinics_own_clock(clinic):
+    """The metric the timezone setting unblocked.
 
-    "Did the doctor open on time" means comparing ``appt_time`` — a wall-clock
-    time somebody typed — with ``started_at``, which is ``datetime.utcnow()``.
-    The program has no notion of which timezone it is in, so that subtraction
-    reports every doctor in Egypt as two or three hours late. A number that
-    wrong would discredit the whole screen.
+    ``appt_time`` is ten in the morning *in the clinic*; ``started_at`` is
+    stored UTC. Subtracting one from the other directly — which is all the
+    program could do before there was a timezone — reports a doctor who opened
+    exactly on time as two or three hours late.
     """
-    from app.utils import waiting
+    from zoneinfo import ZoneInfo
 
-    assert not hasattr(waiting, "clinic_start")
-    doc = waiting.doctor_timings.__doc__
-    assert "timezone" in doc, "the reason it is missing has to stay written down"
+    from app.models import Setting
+    from app.utils.waiting import clinic_start
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        Setting.set("clinic_timezone", "Africa/Cairo")
+        db.session.commit()
+
+        # 10:00 in Cairo, expressed as the UTC moment the program would store.
+        # The offset comes from zoneinfo directly and *not* from the app's own
+        # converter: deriving it from the code under test would make this pass
+        # whether or not the conversion happens at all.
+        booked = datetime.combine(date.today(), time(10, 0))
+        offset = booked.replace(tzinfo=ZoneInfo("Africa/Cairo")).utcoffset()
+        assert offset.total_seconds() != 0, (
+            "Cairo is not UTC; if it were, this test could not tell a "
+            "converted answer from an unconverted one")
+        on_time_utc = booked - offset
+
+        _appt(db, clinic["ids"], status="completed",
+              started_at=on_time_utc + timedelta(minutes=12),
+              completed_at=on_time_utc + timedelta(minutes=25))
+        db.session.commit()
+
+        row = clinic_start(date.today(), date.today())[clinic["ids"]["doctor"]]
+        assert row["late"] == 12, "the UTC offset leaked into the answer"
+        assert row["days"] == 1
+
+
+def test_only_the_first_appointment_of_the_day_counts_as_the_start(clinic):
+    """Everything after it inherits the delay of everything before it, so
+    counting them all would charge a doctor over and over for one late
+    opening."""
+    from zoneinfo import ZoneInfo
+
+    from app.models import Setting
+    from app.utils.waiting import clinic_start
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        Setting.set("clinic_timezone", "Africa/Cairo")
+        db.session.commit()
+
+        booked = datetime.combine(date.today(), time(9, 0))
+        offset = booked.replace(tzinfo=ZoneInfo("Africa/Cairo")).utcoffset()
+        opened = booked - offset + timedelta(minutes=20)
+
+        _appt(db, clinic["ids"], appt_time=time(9, 0), started_at=opened,
+              completed_at=opened + timedelta(minutes=15))
+        # Booked for 09:15, seen at 09:35 — pushed by the late start, not a
+        # second offence.
+        _appt(db, clinic["ids"], appt_time=time(9, 15),
+              started_at=opened + timedelta(minutes=15),
+              completed_at=opened + timedelta(minutes=30))
+        db.session.commit()
+
+        row = clinic_start(date.today(), date.today())[clinic["ids"]["doctor"]]
+        assert row["late"] == 20 and row["days"] == 1
+
+
+def test_a_machine_that_cannot_resolve_its_zone_reports_nothing(clinic):
+    """The whole reason this metric waited.
+
+    A silent fallback to UTC is how the wrong-by-three-hours number would have
+    shipped anyway — it would have looked like a working feature. Blank is the
+    truth on a Windows box without ``tzdata``.
+    """
+    from app.models import Setting
+    from app.utils.waiting import clinic_start
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        Setting.set("clinic_timezone", "Mars/Olympus_Mons")
+        db.session.commit()
+        base = datetime.utcnow()
+        _appt(db, clinic["ids"], started_at=base,
+              completed_at=base + timedelta(minutes=15))
+        db.session.commit()
+
+        assert clinic_start(date.today(), date.today()) == {}
+
+
+def test_the_settings_screen_says_when_the_zone_cannot_be_read(clinic):
+    """Blank numbers with no explanation read as a broken screen. The clinic
+    is told which package is missing instead of guessing."""
+    from app.models import Setting
+    from app.i18n import t
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        Setting.set("clinic_timezone", "Mars/Olympus_Mons")
+        db.session.commit()
+
+    page = clinic["sign_in"]("boss").get("/settings/").data.decode()
+    with clinic["app"].test_request_context():
+        assert t("settings.timezone_broken") in page
+
+
+def test_a_real_zone_raises_no_warning(clinic):
+    """Guarding the guard — a banner that is always on says nothing."""
+    from app.models import Setting
+    from app.i18n import t
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        Setting.set("clinic_timezone", "Africa/Cairo")
+        db.session.commit()
+
+    page = clinic["sign_in"]("boss").get("/settings/").data.decode()
+    with clinic["app"].test_request_context():
+        assert t("settings.timezone_broken") not in page
+
+
+def test_the_timezone_survives_being_saved(clinic):
+    """It is a plain setting, and plain settings have been silently dropped
+    from the form's key list before."""
+    from app.models import Setting
+
+    clinic["sign_in"]("boss").post("/settings/",
+                                   data={"clinic_timezone": "Asia/Riyadh"},
+                                   follow_redirects=True)
+    with clinic["app"].app_context():
+        assert Setting.get("clinic_timezone") == "Asia/Riyadh"
