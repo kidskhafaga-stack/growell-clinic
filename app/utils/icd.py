@@ -21,9 +21,8 @@ design:
 So the common case stays fast and Arabic, and the long tail stops being a
 dead end.
 
-**ICD-11.** Supported as a version, seeded with the paediatric codes that
-matter, and importable in full — but *not* bundled complete, and that is not
-an oversight. WHO publishes ICD-11 through an API that requires the clinic to
+**ICD-11.** Supported as a version and importable in full, but nothing of it
+is bundled — not one code — and that is not an oversight. WHO publishes ICD-11 through an API that requires the clinic to
 register its own credentials; there is no public file to ship. Pretending
 otherwise by shipping a partial list labelled "ICD-11" would be worse than
 saying so: a doctor would search, find nothing, and conclude the code does not
@@ -175,7 +174,13 @@ def install_full(version, pairs):
         raise ValueError(f"unknown ICD version: {version}")
     rows = [[str(code).strip().upper(), str(title).strip()]
             for code, title in pairs if str(code).strip()]
-    with gzip.open(_FULL[version], "wt", encoding="utf-8") as fh:
-        json.dump(rows, fh, ensure_ascii=False, separators=(",", ":"))
+    # ``mtime=0`` so the same input produces the same bytes. Gzip stamps the
+    # current time into its header by default, which would make an imported
+    # file look modified after every write even when nothing in it changed —
+    # noise in a clinic's backup diff, and a permanently dirty tree here.
+    with open(_FULL[version], "wb") as raw:
+        with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz:
+            gz.write(json.dumps(rows, ensure_ascii=False,
+                                separators=(",", ":")).encode("utf-8"))
     _full_cache.pop(version, None)
     return len(rows)

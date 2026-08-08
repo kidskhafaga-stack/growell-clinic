@@ -233,21 +233,33 @@ def test_icd11_is_reported_as_absent_rather_than_faked(clinic):
     assert counts["11"]["total"] == 0
 
 
-def test_an_imported_classification_behaves_like_the_bundled_one(clinic):
+def test_an_imported_classification_behaves_like_the_bundled_one(clinic, tmp_path):
     """The path out. An imported ICD-11 has to be a first-class citizen, not a
-    second code path that behaves differently."""
-    from app.utils.icd import coverage, install_full, lookup_icd, search_icd
+    second code path that behaves differently.
 
-    written = install_full("11", [("CA40", "Pneumonia"),
-                                  ("1A00", "Cholera")])
+    Written to a temporary file rather than the program's own data directory.
+    The first version of this test imported into ``app/data`` for real, so a
+    run left an ICD-11 file behind in the source tree — and had it failed
+    between writing and clearing, a half-imported classification would have
+    been committed as if it shipped that way.
+    """
+    from app.utils import icd
+
+    target = tmp_path / "icd11_full.json.gz"
+    original = icd._FULL["11"]
+    icd._FULL["11"] = str(target)
+    icd._full_cache.pop("11", None)
     try:
+        written = icd.install_full("11", [("CA40", "Pneumonia"),
+                                          ("1A00", "Cholera")])
         assert written == 2
-        assert coverage()["11"]["full"] == 2
-        assert lookup_icd("CA40", version="11")["en"] == "Pneumonia"
-        hits = search_icd("Cholera", limit=20, version="11")
+        assert icd.coverage()["11"]["full"] == 2
+        assert icd.lookup_icd("CA40", version="11")["en"] == "Pneumonia"
+        hits = icd.search_icd("Cholera", limit=20, version="11")
         assert any(row["code"] == "1A00" for row in hits)
     finally:
-        install_full("11", [])
+        icd._FULL["11"] = original
+        icd._full_cache.pop("11", None)
 
 
 def test_the_egyptian_drug_register_is_loadable_and_idempotent(clinic):
