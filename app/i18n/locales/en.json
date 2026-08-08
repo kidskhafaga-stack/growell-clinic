@@ -345,7 +345,11 @@
     "field_parent_email": "Guardian email",
     "field_parent_occupation": "Guardian occupation",
     "field_parent_nationality": "Guardian nationality",
-    "field_parent_address": "Guardian address"
+    "field_parent_address": "Guardian address",
+    "already_here": "Already here — not added again",
+    "already_count": "Already here",
+    "already_hint": "These rows are already in the register and were left exactly as they are. The import takes only what is new.",
+    "twin_of": "Listed twice in this file (line {line})"
   },
   "appointments": {
     "title": "Appointments",
@@ -1160,7 +1164,32 @@
     "master_vaccine": "Master vaccine",
     "select_master_vaccine": "Select master vaccine",
     "item_code": "Item code",
-    "manufacturer": "Manufacturer"
+    "manufacturer": "Manufacturer",
+    "held_where": "Where it is held",
+    "movement_card": "Item movement card",
+    "movement_card_hint": "Every dose in and every dose out, in order, with the balance after each.",
+    "movement": "Movement",
+    "balance": "Balance",
+    "details": "Details",
+    "qty": "Qty",
+    "date": "Date",
+    "no_movements": "Nothing has moved on this item yet.",
+    "mv_purchase": "Purchase",
+    "mv_opening": "Opening balance",
+    "mv_gift": "Gift",
+    "mv_donation": "Donation",
+    "mv_return": "Return",
+    "mv_adjustment": "Adjustment",
+    "mv_transfer": "Transfer in",
+    "mv_dose": "Dose to a patient",
+    "mv_stocktake": "Stocktake",
+    "mv_other": "Issued / transferred out",
+    "last_counted": "Last counted:",
+    "never_counted": "This warehouse has never been counted.",
+    "batches_elsewhere": "{n} batch(es) sit in other warehouses — move them with a transfer.",
+    "count_reason": "Reason for the difference (optional)",
+    "count_reason_ph": "Breakage, spoilage, a recording error…",
+    "into_warehouse": "Receive into"
   },
   "instatus": {
     "ok": "In stock",
@@ -3415,7 +3444,9 @@
     "set_keepers": "Set keepers",
     "keepers_saved": "Store keepers saved.",
     "keepers_hint": "Leave empty to keep the warehouse open to everyone. Once a keeper is assigned, only they work in it — and they see only their own stores (admins see all).",
-    "no_access": "You are not a keeper of this warehouse — ask an admin."
+    "no_access": "You are not a keeper of this warehouse — ask an admin.",
+    "one": "Warehouse",
+    "default_one": "Default warehouse"
   },
   "returns": {
     "title": "Return to supplier",

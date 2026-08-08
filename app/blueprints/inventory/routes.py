@@ -27,6 +27,7 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineInventory,
+    VaccineAdjustment,
     Warehouse,
 )
 from app.utils.costing import apply_purchase_cost, issue_unit_cost
@@ -212,6 +213,20 @@ def item_new():
     return redirect(url_for("inventory.store_item", item_id=item.id))
 
 
+def _receiving_warehouse():
+    """Where a vaccine receipt lands: what the form said, else the fridge.
+
+    A posted ``warehouse_id`` is honoured only if this user may work there —
+    a store keeper restricted to one warehouse must not be able to put stock
+    into somebody else's by editing a form field.
+    """
+    wh_id = request.values.get("warehouse_id", type=int)
+    posted = db.session.get(Warehouse, wh_id) if wh_id else None
+    if posted is not None and posted.is_active and posted.allows(current_user):
+        return posted
+    return Warehouse.for_vaccines()
+
+
 @inventory_bp.route("/batch/new", methods=["POST"])
 @module_required(MODULE)
 def batch_new():
@@ -260,7 +275,12 @@ def batch_new():
         storage_temp=(request.form.get("storage_temp") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
         document_id=grn.id,
+        # Where it physically goes. Defaults to the fridge when the clinic has
+        # one — receiving vaccines into the general store is what made the
+        # fridge a warehouse you could only ever transfer *into*.
+        warehouse_id=_receiving_warehouse().id,
     )
+    grn.warehouse_id = batch.warehouse_id
     db.session.add(batch)
     ActivityLog.record("inventory.goods_receipt", user_id=current_user.id,
                        entity="vaccine_inventory",
@@ -305,6 +325,7 @@ def receipt_new():
         added = 0
         touched = []
         grn = None  # one numbered GRN for the whole delivery
+        into = _receiving_warehouse()   # the fridge, unless the form says else
         for i in range(len(brand_ids)):
             brand = by_id.get(_to_int(brand_ids[i]))
             qty = _to_int(qtys[i] if i < len(qtys) else "")
@@ -314,6 +335,7 @@ def receipt_new():
                 grn = open_document("grn", reference=t(f"receipt_reasons.{reason}"),
                                     supplier_id=supplier_id, notes=header_note,
                                     doc_date=received)
+                grn.warehouse_id = into.id
             unit = (units[i] if i < len(units) else "") or "doses"
             per = brand.doses_per_vial or 1
             qty_doses = qty * per if unit == "vials" else qty
@@ -332,6 +354,7 @@ def receipt_new():
                 qty_received=qty_doses,
                 unit_cost=line_cost,
                 notes=header_note, document_id=grn.id,
+                warehouse_id=into.id,
             ))
             added += 1
             if brand not in touched:
@@ -355,6 +378,7 @@ def receipt_new():
     return render_template(
         "inventory/receipt_form.html", brands=brands, suppliers=_suppliers(),
         receipt_reasons=RECEIPT_REASONS, today=datetime.utcnow().date().isoformat(),
+        warehouses=_warehouses(), into=_receiving_warehouse(),
     )
 
 
@@ -371,10 +395,17 @@ def item_card(brand_id):
     doses_given = (VaccineInventory.query
                    .with_entities(db.func.coalesce(db.func.sum(VaccineInventory.qty_used), 0))
                    .filter(VaccineInventory.brand_id == brand.id).scalar()) or 0
+    # The card was a photograph of now — batches and what is left in them. A
+    # store card is the history that explains now, which is what somebody
+    # reaches for when the shelf and the screen disagree.
+    from app.utils import item_card as card
+
     return render_template(
         "inventory/item_card.html", brand=brand, batches=batches,
         doses_given=int(doses_given), suppliers=_suppliers(),
         receipt_reasons=RECEIPT_REASONS,
+        ledger=card.ledger(brand), held=card.by_warehouse(brand),
+        warehouses=_warehouses(),
     )
 
 
@@ -405,13 +436,41 @@ def item_pricing(brand_id):
 @inventory_bp.route("/vaccine-stocktake", methods=["GET", "POST"])
 @module_required(MODULE)
 def vaccine_stocktake():
-    """Count actual doses per vaccine batch and reconcile against the system."""
-    batches = (VaccineInventory.query
-               .join(VaccineInventory.brand)
-               .order_by(VaccineBrand.name, VaccineInventory.expiry_date).all())
+    """Count one warehouse of vaccines, and keep the count.
+
+    Two things were wrong with what this did before, and they are the same
+    thing twice. It counted **every** batch the clinic owns, so a clinic with a
+    fridge and a sub-store was asked to count them as one shelf and could not
+    say which one it had walked. And it wrote the result by silently rewriting
+    ``qty_used``: no document, no time, no counter — *"الجرد يوضّح توقيته"*.
+
+    So: a warehouse is chosen, only its batches are listed, and a difference
+    becomes a numbered adjustment document with a row per batch that moved,
+    saying what the shelf held, what was counted, when, and by whom.
+    """
+    from app.utils import item_card as card
+    from app.utils.store_docs import open_document
+
+    warehouses = _warehouses()
+    wh_id = request.values.get("warehouse_id", type=int)
+    warehouse = next((w for w in warehouses if w.id == wh_id), None)
+    if warehouse is None:
+        if wh_id:
+            if _warehouse_denied(db.session.get(Warehouse, wh_id)):
+                return redirect(url_for("inventory.vaccine_stocktake"))
+        # The fridge first: it is where the vaccines are, and counting them is
+        # the only reason anybody opens this screen.
+        warehouse = next((w for w in warehouses if w.kind == "fridge"),
+                         warehouses[0] if warehouses else Warehouse.default())
+    if _warehouse_denied(warehouse):
+        return redirect(url_for("inventory.index"))
+
+    batches = card.batches_in(warehouse)
     if request.method == "POST":
         if period_blocked(datetime.utcnow().date()):
-            return redirect(url_for("inventory.vaccine_stocktake"))
+            return redirect(url_for("inventory.vaccine_stocktake",
+                                    warehouse_id=warehouse.id))
+        doc = None
         adjusted = 0
         for batch in batches:
             raw = request.form.get(f"count_{batch.id}")
@@ -422,18 +481,34 @@ def vaccine_stocktake():
             except ValueError:
                 continue
             counted = max(counted, 0)
-            if counted != batch.qty_remaining:
-                # Keep qty_received; set used so remaining == counted.
-                batch.qty_used = max((batch.qty_received or 0) - counted, 0)
-                adjusted += 1
+            was = batch.qty_remaining
+            if counted == was:
+                continue
+            if doc is None:
+                doc = open_document("adjust",
+                                    reference=t("inventory.vaccine_stocktake"))
+                doc.warehouse_id = warehouse.id
+            db.session.add(VaccineAdjustment(
+                batch_id=batch.id, document_id=doc.id,
+                warehouse_id=warehouse.id, was=was, counted=counted,
+                reason=(request.form.get("reason") or "").strip() or None,
+                created_by=current_user.id))
+            # Keep qty_received; set used so remaining == counted.
+            batch.qty_used = max((batch.qty_received or 0) - counted, 0)
+            adjusted += 1
         if adjusted:
             ActivityLog.record("inventory.vaccine_stocktake", user_id=current_user.id,
-                               entity="vaccine_inventory", detail=f"adjusted={adjusted}",
+                               entity="vaccine_inventory",
+                               detail=f"{warehouse.id}:{adjusted}",
                                ip_address=client_ip())
             db.session.commit()
         flash(t("inventory.stocktake_done", n=adjusted), "success")
-        return redirect(url_for("inventory.vaccine_stocktake"))
-    return render_template("inventory/vaccine_stocktake.html", batches=batches)
+        return redirect(url_for("inventory.vaccine_stocktake",
+                                warehouse_id=warehouse.id))
+    return render_template("inventory/vaccine_stocktake.html", batches=batches,
+                           warehouses=warehouses, warehouse=warehouse,
+                           last=card.last_count(warehouse),
+                           elsewhere=VaccineInventory.query.count() - len(batches))
 
 
 @inventory_bp.route("/batch/<int:batch_id>/delete", methods=["POST"])
@@ -1234,6 +1309,9 @@ def purchase_receive(po_id):
                 received_date=datetime.utcnow().date(), receipt_reason="purchase",
                 qty_received=recv, unit_cost=item.unit_cost,
                 document_id=grn.id,
+                # A delivery of vaccines goes in the fridge, like every other
+                # way of receiving them.
+                warehouse_id=Warehouse.for_vaccines().id,
             )
             db.session.add(batch)
             if item.vaccine_brand:

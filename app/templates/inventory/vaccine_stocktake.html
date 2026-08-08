@@ -12,7 +12,37 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('inventory.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
 </div>
 
-<form method="post">
+{# One warehouse at a time. Counting every batch the clinic owns as one
+   shelf is not a count: nobody can walk two rooms at once, and the result
+   could not say which room had been walked. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <strong>{{ t('warehouses.one') }}:</strong>
+    {% for w in warehouses %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if w.id == warehouse.id else 'btn-outline' }}"
+       href="{{ url_for('inventory.vaccine_stocktake', warehouse_id=w.id) }}">
+      {% if w.kind == 'fridge' %}<i class="bi bi-thermometer-snow"></i> {% endif %}
+      {{ w.display_name(current_lang) }}</a>
+    {% endfor %}
+  </div>
+  {% if last %}
+  <p class="hint" style="margin:10px 0 0;"><i class="bi bi-clock-history"></i>
+    {{ t('inventory.last_counted') }}
+    <span dir="ltr">{{ last.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+    {% if last.counter %} — {{ last.counter.display_name(current_lang) }}{% endif %}
+    {% if last.document %} — <a href="{{ url_for('inventory.document_view', doc_id=last.document_id) }}" dir="ltr">{{ last.document.doc_number }}</a>{% endif %}
+  </p>
+  {% else %}
+  <p class="hint" style="margin:10px 0 0;"><i class="bi bi-clock-history"></i> {{ t('inventory.never_counted') }}</p>
+  {% endif %}
+  {% if elsewhere > 0 %}
+  {# Otherwise an empty fridge reads as "the program lost the stock". #}
+  <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i>
+    {{ t('inventory.batches_elsewhere', n=elsewhere) }}</p>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('inventory.vaccine_stocktake', warehouse_id=warehouse.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
     {% if batches %}
@@ -35,6 +65,10 @@
       </tbody>
     </table>
     <div style="padding:14px 18px;">
+      <div class="form-row" style="max-width:420px;margin-bottom:10px;">
+        <label>{{ t('inventory.count_reason') }}</label>
+        <input class="input" name="reason" placeholder="{{ t('inventory.count_reason_ph') }}">
+      </div>
       <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check2-square"></i> {{ t('inventory.apply_stocktake') }}</button>
       <span class="hint" style="margin-inline-start:8px;">{{ t('inventory.stocktake_hint') }}</span>
     </div>

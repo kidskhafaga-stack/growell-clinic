@@ -81,6 +81,20 @@ class Warehouse(db.Model):
             db.session.flush()
         return wh
 
+    @classmethod
+    def for_vaccines(cls):
+        """Where a vaccine goes when nobody says otherwise: the fridge.
+
+        A clinic that made a fridge made it because that is where the vaccines
+        live. Receiving into the general store by default meant the fridge was
+        a warehouse in name only — you could transfer into it, and nothing ever
+        arrived there. Falls back to the default warehouse, which is what a
+        clinic without a fridge has always had.
+        """
+        fridge = (cls.query.filter_by(kind="fridge", is_active=True)
+                  .order_by(cls.id).first())
+        return fridge or cls.default()
+
     def __repr__(self):
         return f"<Warehouse {self.name}>"
 

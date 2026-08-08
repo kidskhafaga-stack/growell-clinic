@@ -989,6 +989,10 @@ def _analyze_rows(rows):
     Returns (preview, valid_count) where preview is a per-row list with the
     resolved values and an ``ok``/``error`` status + reason.
     """
+    from app.utils import patient_dedupe
+
+    known = patient_dedupe.index()
+    in_file = {}
     preview = []
     valid = 0
     for offset, row in enumerate(rows):
@@ -1005,8 +1009,18 @@ def _analyze_rows(rows):
         elif dob is None:
             reason = t("import.err_dob")
 
+        # Already in the register, or listed twice in this sheet. Not an
+        # error — a second upload is the normal way a clinic adds a few
+        # months — but it has to be visible *before* the import runs, or the
+        # numbers afterwards are a surprise.
+        duplicate = False
         if reason is None:
-            valid += 1
+            duplicate = (patient_dedupe.match(row, dob, known) is not None
+                         or patient_dedupe.match(row, dob, in_file) is not None)
+            if not duplicate:
+                for key in patient_dedupe.row_keys(row, dob):
+                    in_file.setdefault(key, line)
+                valid += 1
         preview.append({
             "line": line,
             "name": name or "—",
@@ -1015,8 +1029,9 @@ def _analyze_rows(rows):
             "dob": dob.isoformat() if dob else (row.get("date_of_birth") or "—"),
             "family": (row.get("family_name") or "").strip() or None,
             "parent": (row.get("parent_name") or "").strip() or None,
-            "ok": reason is None,
-            "reason": reason,
+            "ok": reason is None and not duplicate,
+            "duplicate": duplicate,
+            "reason": reason or (t("import.already_here") if duplicate else None),
         })
     return preview, valid
 
@@ -1180,10 +1195,18 @@ def _process_import(rows):
     Families are de-duplicated by name within the import (and matched against
     existing families) so siblings land in the same family record.
     """
+    from app.utils import patient_dedupe
     from app.utils.imports import family_key
 
     created = 0
     errors = []
+    # Re-uploading a sheet used to double the register: every row was written,
+    # every time. The index is loaded once and the rows are walked in memory,
+    # like the history import — a real sheet is thousands of rows and asking
+    # per row is what makes an import look hung.
+    known = patient_dedupe.index()
+    in_file = {}                 # the same child listed twice in one sheet
+    skipped = []
     # Keyed by the *folded* household key rather than the name as typed.
     #
     # Grouping by the raw name is what put one family into three records:
@@ -1269,6 +1292,18 @@ def _process_import(rows):
             else:
                 family = None
 
+            # Already here — from an earlier upload or from earlier in this
+            # same sheet. Left exactly as it is: the request was the
+            # increment, and overwriting a file somebody has since corrected
+            # by hand is worse than importing nothing.
+            existing_id = patient_dedupe.match(row, dob, known)
+            twin = (None if existing_id is not None
+                    else patient_dedupe.match(row, dob, in_file))
+            if existing_id is not None or twin is not None:
+                skipped.append({"line": line, "name": name,
+                                "patient_id": existing_id, "twin": twin})
+                continue
+
             patient = Patient(
                 patient_number=next_number(),
                 reference_number=cell("reference_number"),
@@ -1308,9 +1343,15 @@ def _process_import(rows):
                 ))
                 family_has_parent.add(id(family))
 
+            # Remembered by line, not by id: the patients are still pending
+            # and flushing to get one would undo the batching that keeps a
+            # ten-thousand-row import from crawling.
+            for key in patient_dedupe.row_keys(row, dob):
+                in_file.setdefault(key, line)
             created += 1
 
-    return {"created": created, "errors": errors, "total": len(rows)}
+    return {"created": created, "errors": errors, "total": len(rows),
+            "skipped": skipped}
 
 
 # ==================================================== history import ========

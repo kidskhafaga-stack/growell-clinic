@@ -345,7 +345,11 @@
     "field_parent_email": "بريد ولي الأمر",
     "field_parent_occupation": "مهنة ولي الأمر",
     "field_parent_nationality": "جنسية ولي الأمر",
-    "field_parent_address": "عنوان ولي الأمر"
+    "field_parent_address": "عنوان ولي الأمر",
+    "already_here": "موجود قبل كده — ما اتضافش تاني",
+    "already_count": "موجودين قبل كده",
+    "already_hint": "الصفوف دي موجودة في السجل خلاص، فاتساب زي ما هي. الاستيراد بياخد الزيادة بس.",
+    "twin_of": "مكرر في نفس الملف (سطر {line})"
   },
   "appointments": {
     "title": "المواعيد",
@@ -1160,7 +1164,32 @@
     "master_vaccine": "اللقاح الرئيسي",
     "select_master_vaccine": "اختر اللقاح الرئيسي",
     "item_code": "كود الصنف",
-    "manufacturer": "الشركة المصنّعة"
+    "manufacturer": "الشركة المصنّعة",
+    "held_where": "موجود فين",
+    "movement_card": "بيان حركة الصنف",
+    "movement_card_hint": "كل جرعة دخلت وكل جرعة خرجت، بالترتيب، والرصيد بعد كل حركة.",
+    "movement": "الحركة",
+    "balance": "الرصيد",
+    "details": "التفاصيل",
+    "qty": "الكمية",
+    "date": "التاريخ",
+    "no_movements": "مفيش حركة على الصنف ده لسه.",
+    "mv_purchase": "شراء",
+    "mv_opening": "رصيد افتتاحي",
+    "mv_gift": "هدية",
+    "mv_donation": "تبرّع",
+    "mv_return": "مرتجع",
+    "mv_adjustment": "تسوية",
+    "mv_transfer": "تحويل وارد",
+    "mv_dose": "جرعة لحالة",
+    "mv_stocktake": "جرد",
+    "mv_other": "صرف/تحويل صادر",
+    "last_counted": "آخر جرد:",
+    "never_counted": "المخزن ده ما اتجردش قبل كده.",
+    "batches_elsewhere": "في {n} تشغيلة في مخازن تانية — اتنقل بينهم بتحويل مخزني.",
+    "count_reason": "سبب الفرق (اختياري)",
+    "count_reason_ph": "كسر، تلف، خطأ تسجيل…",
+    "into_warehouse": "يدخل مخزن"
   },
   "instatus": {
     "ok": "متوفر",
@@ -3415,7 +3444,9 @@
     "set_keepers": "تحديد الأمناء",
     "keepers_saved": "تم حفظ أمناء المخزن.",
     "keepers_hint": "سيب الاختيار فاضي علشان المخزن يفضل متاح للجميع. أول ما تحدد أمين، المخزن ده يبقى ليهم بس، وهما مايشوفوش غير مخازنهم (المدير بيشوف الكل).",
-    "no_access": "مالكش صلاحية على المخزن ده — كلّم المدير."
+    "no_access": "مالكش صلاحية على المخزن ده — كلّم المدير.",
+    "one": "المخزن",
+    "default_one": "المخزن الافتراضي"
   },
   "returns": {
     "title": "مرتجع مورد",

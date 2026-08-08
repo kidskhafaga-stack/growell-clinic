@@ -24,6 +24,14 @@
         </select></div>
       <div class="form-row"><label>{{ t('inventory.received_date') }}</label>
         <input class="input" type="date" name="received_date" value="{{ today }}"></div>
+      {# Which shelf it physically goes on. Defaults to the fridge, because a
+         clinic that made a fridge made it for exactly this. #}
+      <div class="form-row"><label>{{ t('inventory.into_warehouse') }}</label>
+        <select class="select" name="warehouse_id">
+          {% for w in warehouses %}
+          <option value="{{ w.id }}" {{ 'selected' if into and w.id == into.id else '' }}>{{ w.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('inventory.notes') }}</label><input class="input" name="notes"></div>
     </div>
   </div>
