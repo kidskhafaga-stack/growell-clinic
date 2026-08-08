@@ -316,7 +316,7 @@
     {% endif %}
 
     <!-- Add diagnosis with ICD search -->
-    <form method="post" action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
+    <form method="post" data-add-form action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="icd-search" style="position:relative;">
         <label>{{ t('visits.search_icd') }}</label>
@@ -403,7 +403,7 @@
     {% endif %}
 
     <!-- Order a new investigation -->
-    <form method="post" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
+    <form method="post" data-add-form action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="investigation_id" :value="invId">
@@ -544,7 +544,7 @@
     <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_meds') }}</p>
     {% endif %}
 
-    <form method="post" action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
+    <form method="post" data-add-form action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
           x-data="medWriter('{{ url_for('visits.drug_search') }}')" style="margin-top:12px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="drug_id" :value="drugId">
@@ -1000,7 +1000,7 @@
     <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_attachments') }}</p>
     {% endif %}
 
-    <form method="post" action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
+    <form method="post" data-add-form action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.att_label') }}</label>
@@ -1197,16 +1197,35 @@
         if (this.prev.plan && !this.planTxt) this.planTxt = this.prev.plan;
       },
       tab: 'case',
-      // Restore the active tab from the URL hash so it survives the page
-      // reloads after adding a diagnosis (#dx) / investigation (#inv) / file (#files).
+      // Every panel's id *is* its tab name, and the server redirects to
+      // '#' + that name after an add. So the mapping is the identity and
+      // there is nothing to keep in step.
+      //
+      // It used to be two hand-written lists — one for reading the hash and
+      // one for writing it — and both were missing 'meds' and 'consent'. The
+      // effect was the bug the clinic reported: a doctor adds a drug, the
+      // server sends them back to '#meds', the lookup finds nothing, and they
+      // land on the first tab. Mid-consultation, every single time.
+      TABS: ['case', 'dx', 'inv', 'meds', 'consent', 'proc', 'vac', 'files'],
       restore() {
-        const map = { '#dx': 'dx', '#inv': 'inv', '#proc': 'proc', '#vac': 'vac', '#files': 'files' };
-        this.tab = map[window.location.hash] || 'case';
+        const id = (window.location.hash || '').replace('#', '');
+        this.tab = this.TABS.includes(id) ? id : 'case';
+        // And put them back where they were working, rather than at the top
+        // of a panel they have to scroll down again.
+        if (id) this.$nextTick(() => this.showAdd(id));
       },
       go(tab) {
         this.tab = tab;
-        const hash = { dx: '#dx', inv: '#inv', proc: '#proc', vac: '#vac', files: '#files' }[tab] || '';
-        history.replaceState(null, '', hash || window.location.pathname);
+        history.replaceState(
+          null, '', tab === 'case' ? window.location.pathname : '#' + tab);
+      },
+      // Bring the "add another" form into view after a reload. The doctor's
+      // next action is almost always another one of whatever they just added.
+      showAdd(id) {
+        const panel = document.getElementById(id);
+        if (!panel) return;
+        const target = panel.querySelector('[data-add-form]');
+        if (target) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
       },
       // Build the "write prescription" link, appending the live weight.
       rxHref(base) {

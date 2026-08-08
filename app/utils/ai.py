@@ -494,3 +494,38 @@ def _http_error(resp):
     if len(snippet) > 300:
         snippet = snippet[:300] + "…"
     return f"HTTP {resp.status_code}: {snippet}"
+
+
+def why_not_ready(cfg=None):
+    """Which condition is missing, as keys the screen can translate.
+
+    "Not ready" on its own is what produced *"it says not ready while it is
+    connected and working"*: the assistant answers a test perfectly, the page
+    still shows a grey badge, and nothing on it says which of four different
+    things is missing. Most often nothing is wrong with the credentials at all
+    — the test button reads the **unsaved** form on purpose, so somebody can
+    paste a key and find out before committing it, and a key that tested fine
+    but was never saved leaves exactly this impression.
+    """
+    cfg = cfg or get_config()
+    missing = []
+    if not cfg["enabled"]:
+        missing.append("disabled")
+    if not cfg["model"]:
+        missing.append("no_model")
+    if not cfg["base_url"]:
+        missing.append("no_url")
+    if not cfg["local"] and not cfg["api_key"]:
+        missing.append("no_key")
+    return missing
+
+
+def same_as_saved(cfg):
+    """Whether a config is what the clinic actually has stored.
+
+    Used to tell somebody their successful test was of unsaved values — the
+    difference between "it works" and "it works and will keep working".
+    """
+    saved = get_config()
+    return all(cfg.get(k) == saved.get(k)
+               for k in ("provider", "api_key", "model", "base_url"))

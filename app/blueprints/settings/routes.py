@@ -129,21 +129,70 @@ def ai_test():
     """
     from app.utils.ai import test_connection
 
-    result = test_connection(_ai_form_config())
+    tested = _ai_form_config()
+    result = test_connection(tested)
     if result.get("ok"):
         flash(t("settings.ai_test_ok").replace("{p}", result["provider"])
               .replace("{m}", result["model"]), "success")
+        # It worked — on values that are still only in the form. Without this
+        # line somebody tests successfully, never presses save, and then finds
+        # the assistant reporting itself "not ready" with no idea why.
+        from app.utils.ai import same_as_saved
+        if not same_as_saved(tested):
+            flash(t("settings.ai_test_unsaved"), "warning")
     else:
         flash(t("settings.ai_test_failed").replace("{e}", str(result.get("error"))),
               "danger")
     return redirect(url_for("settings.index") + "#ai")
 
 
+def _provider_switch_fixups():
+    """Fields that must not survive a change of AI provider.
+
+    Reported as "the provider doesn't save — it stays on the first one", and
+    the provider was in fact saving perfectly. What did not change was the
+    address it talks to: ``ai_base_url`` is a free-text box holding whichever
+    provider's endpoint was there first, and :func:`app.utils.ai.get_config`
+    prefers a saved value over the selected provider's default. So a clinic
+    that set up Claude and later picked Gemini kept posting Gemini's key to
+    ``api.anthropic.com`` — the screen said one thing and the program did
+    another, which is indistinguishable from the selection being ignored.
+
+    A value is only kept across the switch when it was meant for the new
+    provider: either the box was edited in this same submission, or the
+    provider is ``custom``, where supplying the URL is the entire point.
+    Otherwise it is cleared, and ``get_config`` falls back to the provider's
+    own default — which stays right even when that default changes in a later
+    release, as a copied-in literal would not.
+    """
+    from app.utils.ai import AI_PROVIDERS
+
+    new = (request.form.get("ai_provider") or "").strip()
+    old = (Setting.get("ai_provider") or "").strip()
+    if not new or new == old or new not in AI_PROVIDERS:
+        return {}
+
+    out = {}
+    for key in ("ai_base_url", "ai_model"):
+        if key == "ai_base_url" and new == "custom":
+            continue
+        posted = (request.form.get(key) or "").strip()
+        if posted == (Setting.get(key) or "").strip():
+            out[key] = ""       # untouched, so it belongs to the old provider
+    return out
+
+
 @settings_bp.route("/", methods=["GET", "POST"])
 @admin_required
 def index():
     if request.method == "POST":
+        # Worked out before anything is written, because it compares what was
+        # posted against what is still saved.
+        overrides = _provider_switch_fixups()
         for key in TEXT_KEYS:
+            if key in overrides:
+                Setting.set(key, overrides[key])
+                continue
             Setting.set(key, (request.form.get(key) or "").strip())
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")

@@ -27,6 +27,9 @@ def index():
         "ai/index.html",
         config=cfg,
         ready=ai_utils.is_ready(),
+        # Which condition is missing, not just that one is. A grey badge with
+        # no reason is what made a working key look like a broken program.
+        missing=ai_utils.why_not_ready(cfg),
         settings_url=url_for("settings.index"),
     )
 

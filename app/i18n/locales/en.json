@@ -1325,7 +1325,8 @@
     "ai_fetch_hint": "Paste the key first, then press this — the program asks the provider which models your key can actually use, instead of a list written into the program that ages.",
     "timezone": "Clinic timezone",
     "timezone_hint": "Every time is stored in UTC; this is needed wherever a stored moment is compared with a time somebody typed — such as \"did the doctor start at 10:00\".",
-    "timezone_broken": "This machine cannot resolve that timezone. On Windows that means the tzdata package is missing — metrics needing local time will stay blank rather than showing wrong numbers."
+    "timezone_broken": "This machine cannot resolve that timezone. On Windows that means the tzdata package is missing — metrics needing local time will stay blank rather than showing wrong numbers.",
+    "ai_test_unsaved": "The test succeeded — but these settings are not saved yet. Press save, or the assistant will keep reporting itself as not ready."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2141,7 +2142,15 @@
     "thinking": "Thinking…",
     "placeholder": "Ask the assistant…",
     "disclaimer": "AI answers may be inaccurate — always use clinical judgement.",
-    "error": "The assistant could not respond"
+    "error": "The assistant could not respond",
+    "missing_disabled": "Assistant is switched off",
+    "missing_no_model": "No model selected",
+    "missing_no_url": "No provider address",
+    "missing_no_key": "No key saved",
+    "fix_disabled": "Open settings and tick 'enable the assistant' — the commonest reason the page says 'not ready' while the key works perfectly.",
+    "fix_no_model": "Pick a model in settings, or press 'fetch models' to ask the key what it can actually use.",
+    "fix_no_url": "The custom provider needs an address — fill in the base URL.",
+    "fix_no_key": "Paste the key in settings and press save. The test button deliberately works on the unsaved form, so a test can succeed on a key that was never stored."
   },
   "rx": {
     "title": "Drugs & Prescriptions",
