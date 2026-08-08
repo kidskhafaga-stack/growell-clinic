@@ -19,6 +19,7 @@ from app.models.appointment import (
 from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
 from app.models.schedule_exception import ScheduleException
 from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
+from app.models.clinic_room import ClinicRoom, RoomAssignment
 from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
@@ -193,6 +194,8 @@ __all__ = [
     "Setting",
     "ActivityLog",
     "Family",
+    "ClinicRoom",
+    "RoomAssignment",
     "Parent",
     "Patient",
     "PatientProblem",

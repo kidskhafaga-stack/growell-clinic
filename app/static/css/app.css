@@ -102,3 +102,47 @@
   color: var(--muted, #6c7a89);
   font-size: 0.85rem;
 }
+
+/* ------------------------------------------------- عيادات strip + timers --
+   The whole-clinic view: one card per عيادة, readable at a glance from the
+   reception desk. Cards wrap, so two doctors and ten doctors both look
+   deliberate rather than one being a broken version of the other. */
+.clinics-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.clinic-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.clinic-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.clinic-card.is-busy { border-color: var(--brand, #198754); }
+.cl-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cl-room { font-weight: 800; font-size: 1rem; }
+.cl-doc { font-size: .82rem; color: var(--muted); }
+.cl-now { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; min-height: 24px; }
+.cl-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-empty { color: var(--muted); font-size: .88rem; }
+.cl-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.cl-dot.busy { background: #198754; }
+.cl-dot.free { background: var(--line); }
+.cl-queue {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  font-size: .8rem; color: var(--muted);
+  border-top: 1px solid var(--line); padding-top: 8px;
+}
+.cl-longest b { font-weight: 700; }
+.cl-done { margin-inline-start: auto; }
+
+/* The counter itself. Neutral by default — it only takes on colour when it
+   is counting a family's wait, never a doctor's consultation. */
+.live-timer { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+.live-timer.lt-amber { color: #b45309; font-weight: 700; }
+.live-timer.lt-red { color: #b91c1c; font-weight: 800; }

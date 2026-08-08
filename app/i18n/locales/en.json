@@ -62,7 +62,10 @@
     "order": "Order",
     "confirm_delete": "Delete this?",
     "move_up": "Move up",
-    "move_down": "Move down"
+    "move_down": "Move down",
+    "today": "Today",
+    "min_short": "m",
+    "hour_short": "h"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -4316,5 +4319,31 @@
     "in_other_family": "Already in another family",
     "already_in_family": "{name} is already filed with another family. Moving them is a merge, not a link — open their file and change the family there.",
     "open_file": "Open their file"
+  },
+  "rooms": {
+    "title": "Clinics",
+    "one": "Clinic",
+    "nav": "Clinics & doctor assignment",
+    "list_title": "Clinic list",
+    "assign_title": "Who is in which clinic today",
+    "assign_hint": "Recorded per day, because a doctor is not in the same clinic every day.",
+    "from_last_day": "from the last day",
+    "unassigned": "No clinic",
+    "free": "Free",
+    "waiting": "waiting",
+    "longest": "longest",
+    "none_yet": "No clinics added yet.",
+    "no_doctors": "No doctors.",
+    "add": "Add clinic",
+    "added": "Clinic added.",
+    "saved": "Clinic saved.",
+    "deleted": "Clinic deleted.",
+    "deactivated_instead": "This clinic is used on earlier days, so it was switched off instead of deleted to keep the history readable.",
+    "assigned": "Clinic assignment saved.",
+    "name_ar": "Arabic name",
+    "name_en": "English name",
+    "name_optional": "Optional name",
+    "name_placeholder": "Clinic",
+    "number_hint": "The clinic number is generated automatically — it is not typed."
   }
 }

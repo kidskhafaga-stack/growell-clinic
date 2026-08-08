@@ -464,3 +464,51 @@ window.gcPicker = function (config) {
     close() { this.open = false; this.items = []; this.active = -1; },
   };
 };
+
+// --------------------------------------------------------- live timers ----
+// "This child has been waiting 41 minutes" — ticking, on the screen, without
+// the server being asked anything. The page prints the moment once and the
+// browser counts from it; there is no polling and no refresh, so a board left
+// open on the reception desk all morning costs nothing.
+//
+// The trap this code exists to avoid: the program stores times with
+// `datetime.utcnow()`, which is UTC with no timezone marker on it. Handed to
+// the browser as-is it would be read as local time, and every counter in a
+// clinic on UTC+3 would read three hours high — which looks exactly like a
+// bug in the counter rather than a bug in the timestamp. So the template
+// stamps a trailing `Z` and this reads it as UTC, always.
+(function () {
+  var AMBER = 20, RED = 40;   // minutes a family has been waiting
+
+  function label(el, mins) {
+    var hour = el.dataset.unitHour || 'h', min = el.dataset.unitMin || 'm';
+    if (mins < 60) return mins + ' ' + min;
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m ? h + ' ' + hour + ' ' + m + ' ' + min : h + ' ' + hour;
+  }
+
+  function tick() {
+    var now = Date.now();
+    document.querySelectorAll('.live-timer').forEach(function (el) {
+      var since = Date.parse(el.dataset.since);
+      if (isNaN(since)) return;
+      var mins = Math.floor((now - since) / 60000);
+      if (mins < 0) mins = 0;              // clocks drift; never count down
+      el.textContent = label(el, mins);
+      // Only a waiting family goes red. A counter turning red while a doctor
+      // is examining a sick child is pressure to hurry, and hurrying is not
+      // what anybody wants bought with this feature.
+      if (el.dataset.tone === 'wait') {
+        el.classList.toggle('lt-amber', mins >= AMBER && mins < RED);
+        el.classList.toggle('lt-red', mins >= RED);
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    tick();
+    // Half a minute: the number is shown in whole minutes, so anything
+    // faster redraws the same text.
+    setInterval(tick, 30000);
+  });
+})();

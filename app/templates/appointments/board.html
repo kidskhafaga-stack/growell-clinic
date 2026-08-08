@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% from "_timer.html" import live_timer with context %}
 {% set active_module = 'appointments' %}
 {% block title %}{{ t('appointments.today') }}{% endblock %}
 {% block page_heading %}{{ t('appointments.today') }}{% endblock %}
@@ -98,6 +99,8 @@
     <div class="current-date"><i class="bi bi-calendar3"></i> {{ on_date.strftime('%Y-%m-%d') }} · {{ t('weekdays.' ~ on_date.weekday()) }}</div>
     <a class="nav-btn" href="{{ url_for('appointments.index', date=next_date, doctor_id=doctor_id) }}"><i class="bi bi-chevron-{{ 'left' if direction=='rtl' else 'right' }}"></i></a>
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.index', date=today, doctor_id=doctor_id) }}">{{ t('appointments.today_btn') }}</a>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.clinics', date=on_date.isoformat()) }}">
+      <i class="bi bi-door-open"></i> {{ t('rooms.title') }}</a>
   </div>
   {% if doctor_locked %}
   <span class="badge badge--role" title="{{ t('appointments.own_board_only') }}">
@@ -239,6 +242,39 @@
   .no-v { font-size:1.4rem; font-weight:800; }
   @media (max-width:760px){ .no-grid{ grid-template-columns:1fr !important; } }
 </style>
+{% endif %}
+
+<!-- Every عيادة at once: the whole-clinic view, where "the current patient"
+     is not a question with one answer. -->
+{% if clinics %}
+<div class="clinics-strip gc-scale-in" style="margin-bottom:18px;">
+  {% for c in clinics %}
+  <a class="clinic-card{{ ' is-busy' if c.current else '' }}"
+     href="{{ url_for('appointments.index', date=on_date.isoformat(), doctor_id=c.doctor.id) }}">
+    <div class="cl-head">
+      <span class="cl-room">{{ c.room.display_name(current_lang) if c.room else t('rooms.unassigned') }}</span>
+      <span class="cl-doc">{{ c.doctor.display_name(current_lang) }}</span>
+    </div>
+    <div class="cl-now">
+      {% if c.current %}
+        <span class="cl-dot busy"></span>
+        <span class="cl-name">{{ c.current.patient.display_name(current_lang) }}</span>
+        {{ live_timer(c.current.started_at) }}
+      {% else %}
+        <span class="cl-dot free"></span>
+        <span class="cl-empty">{{ t('rooms.free') }}</span>
+      {% endif %}
+    </div>
+    <div class="cl-queue">
+      <span><i class="bi bi-people"></i> {{ c.waiting }} {{ t('rooms.waiting') }}</span>
+      {% if c.longest_since %}
+      <span class="cl-longest">{{ t('rooms.longest') }} {{ live_timer(c.longest_since, 'wait') }}</span>
+      {% endif %}
+      <span class="cl-done"><i class="bi bi-check2"></i> {{ c.done }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
 {% endif %}
 
 <!-- Current patient card -->

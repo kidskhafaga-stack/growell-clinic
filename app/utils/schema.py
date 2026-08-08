@@ -113,6 +113,7 @@ ADDITIONS = [
     ("users", "is_practitioner", "BOOLEAN DEFAULT 0"),
     ("appointments", "appt_type", "VARCHAR(20) DEFAULT 'new'"),
     ("appointments", "is_walk_in", "BOOLEAN DEFAULT 0"),
+    ("appointments", "vitals_at", "DATETIME"),
     ("appointments", "cancel_reason", "VARCHAR(200)"),
     ("appointments", "rescheduled_from", "VARCHAR(120)"),
     ("vaccines", "diseases_covered", "VARCHAR(255)"),

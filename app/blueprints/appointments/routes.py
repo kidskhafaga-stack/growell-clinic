@@ -107,8 +107,19 @@ def index():
     stats["unpaid"] = sum(
         1 for a in appointments if pay.get(a.id, {}).get("state") in ("unpaid", "partial")
     )
-    current = next((a for a in appointments if a.status == "in_progress"), None)
-    current_summary = _current_summary(current.patient) if current else None
+    # With one doctor in view, "the current patient" is a question with one
+    # answer and the big card below is right. Looking at the whole clinic it
+    # is not: ten doctors are examining ten children, and picking the first
+    # row that happens to say `in_progress` puts somebody else's patient under
+    # a heading that reads "المريض الحالي". So the clinic view gets a card per
+    # عيادة instead, and the big card is kept for the doctor's own board.
+    current = current_summary = None
+    clinics = None
+    if doctor_id:
+        current = next((a for a in appointments if a.status == "in_progress"), None)
+        current_summary = _current_summary(current.patient) if current else None
+    else:
+        clinics = _clinics_now(appointments, on_date)
 
     # Collection + the doctor's own share, today and this month (invoice-based,
     # consistent with the doctor statement screen).
@@ -138,6 +149,7 @@ def index():
         stats=stats,
         current=current,
         current_summary=current_summary,
+        clinics=clinics,
         waitlist=waitlist,
         appt_types=APPOINTMENT_TYPES,
         pay=pay,
@@ -289,6 +301,57 @@ def _payment_status(appointments, on_date):
             "invoice_id": ivs[0].id if len(ivs) == 1 else None,
         }
     return out
+
+
+def _clinics_now(appointments, on_date):
+    """One card per عيادة that is running today — the whole-clinic view.
+
+    Reception's question is never "who is the current patient"; there is no
+    such person once two doctors are working. Their question is "what is the
+    state of every عيادة right now", and the part of the answer nobody has
+    today is the second line: how many are waiting for each doctor and **how
+    long the worst of them has been sitting there**. That is the number that
+    turns a complaint at the desk into something the clinic saw coming.
+
+    Doctors with nothing booked today are left out — an empty card for a
+    doctor who is off is noise on a screen that has to be read at a glance.
+    """
+    rooms = _rooms_on(on_date)
+    by_doctor = {}
+    for appt in appointments:
+        by_doctor.setdefault(appt.doctor_id, []).append(appt)
+
+    out = []
+    for doctor_id, rows in by_doctor.items():
+        waiting = [a for a in rows if a.status in ("waiting", "scheduled")]
+        current = next((a for a in rows if a.status == "in_progress"), None)
+        # The earliest check-in still waiting *is* the longest wait — handing
+        # the screen that moment rather than a number of minutes lets the
+        # counter keep ticking instead of freezing at whatever it said when
+        # the page was drawn.
+        checked_in = [a.checked_in_at for a in waiting if a.checked_in_at]
+        out.append({
+            "doctor": rows[0].doctor,
+            "room": rooms.get(doctor_id),
+            "current": current,
+            "waiting": len(waiting),
+            "longest_since": min(checked_in) if checked_in else None,
+            "done": sum(1 for a in rows if a.status == "completed"),
+        })
+    # Busy عيادات first — the ones with somebody inside, then by queue length,
+    # so the screen puts what needs attention where the eye lands.
+    out.sort(key=lambda c: (c["current"] is None, -c["waiting"],
+                            c["doctor"].display_name() if c["doctor"] else ""))
+    return out
+
+
+def _rooms_on(on_date):
+    """``{doctor_id: ClinicRoom}`` for one day, from the daily assignments."""
+    from app.models import RoomAssignment
+
+    rows = (RoomAssignment.query.filter(RoomAssignment.on_date == on_date)
+            .join(RoomAssignment.room).all())
+    return {row.doctor_id: row.room for row in rows}
 
 
 def _current_summary(patient):
@@ -980,3 +1043,147 @@ def _validate_schedule(doctor_id, weekday, start_raw, end_raw):
     if start >= end:
         return t("appointments.bad_window")
     return None
+
+
+# --------------------------------------------------------- عيادات ----------
+@appointments_bp.route("/clinics")
+@module_required(MODULE)
+def clinics():
+    """The عيادات, and who is working in each one on a chosen day.
+
+    Deliberately a *daily* screen rather than a settings page. A doctor is not
+    in the same عيادة every day — shifts swap, somebody is on leave, one
+    عيادة has the nebuliser this week — so the thing reception actually does
+    is set today's arrangement each morning, and the thing a manager actually
+    asks is who was where last Tuesday. Both are the same screen with a
+    different date.
+    """
+    from app.models import ClinicRoom, RoomAssignment
+
+    on_date = parse_date_arg(request.args.get("date"))
+    rooms = (ClinicRoom.query.order_by(ClinicRoom.sort_order, ClinicRoom.code)
+             .all())
+    assigned = {row.doctor_id: row for row in
+                RoomAssignment.query.filter_by(on_date=on_date).all()}
+    # Yesterday's arrangement, offered as the starting point — most days are
+    # the same as the day before, and retyping the whole clinic every morning
+    # is how a feature stops being used by the second week.
+    previous = _previous_assignment(on_date)
+    return render_template(
+        "appointments/clinics.html", rooms=rooms, doctors=list_doctors(),
+        assigned=assigned, previous=previous, on_date=on_date,
+        today=date.today().isoformat(),
+        prev_date=(on_date - timedelta(days=1)).isoformat(),
+        next_date=(on_date + timedelta(days=1)).isoformat(),
+    )
+
+
+def _previous_assignment(on_date):
+    """``{doctor_id: room_id}`` from the most recent day that had any."""
+    from app.models import RoomAssignment
+
+    last = (RoomAssignment.query.filter(RoomAssignment.on_date < on_date)
+            .order_by(RoomAssignment.on_date.desc()).first())
+    if last is None:
+        return {}
+    rows = RoomAssignment.query.filter_by(on_date=last.on_date).all()
+    return {row.doctor_id: row.room_id for row in rows}
+
+
+@appointments_bp.route("/clinics/add", methods=["POST"])
+@module_required(MODULE)
+def clinic_add():
+    """Add a عيادة. The number generates itself — the clinic's own rule for
+    everything the program creates."""
+    from app.models import ClinicRoom
+
+    room = ClinicRoom(
+        code=ClinicRoom.next_code(),
+        name_ar=(request.form.get("name_ar") or "").strip() or None,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+    )
+    db.session.add(room)
+    ActivityLog.record("clinic_room.create", user_id=current_user.id,
+                       entity="clinic_room", detail=str(room.code),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("rooms.added"), "success")
+    return redirect(url_for("appointments.clinics",
+                            date=request.form.get("date") or None))
+
+
+@appointments_bp.route("/clinics/<int:room_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def clinic_edit(room_id):
+    from app.models import ClinicRoom
+
+    room = db.get_or_404(ClinicRoom, room_id)
+    room.name_ar = (request.form.get("name_ar") or "").strip() or None
+    room.name_en = (request.form.get("name_en") or "").strip() or None
+    room.is_active = bool(request.form.get("is_active"))
+    ActivityLog.record("clinic_room.update", user_id=current_user.id,
+                       entity="clinic_room", entity_id=room.id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("rooms.saved"), "success")
+    return redirect(url_for("appointments.clinics",
+                            date=request.form.get("date") or None))
+
+
+@appointments_bp.route("/clinics/<int:room_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def clinic_delete(room_id):
+    """Remove a عيادة — but never one that days of history point at.
+
+    Deleting it would take its assignments with it (cascade), and "who was in
+    عيادة ٢ that Tuesday" would quietly become unanswerable. A عيادة that has
+    been used gets switched off instead, which keeps the past readable and
+    still takes it off tomorrow's list.
+    """
+    from app.models import ClinicRoom
+
+    room = db.get_or_404(ClinicRoom, room_id)
+    if room.assignments:
+        room.is_active = False
+        flash(t("rooms.deactivated_instead"), "warning")
+    else:
+        db.session.delete(room)
+        flash(t("rooms.deleted"), "success")
+    ActivityLog.record("clinic_room.delete", user_id=current_user.id,
+                       entity="clinic_room", entity_id=room_id,
+                       ip_address=client_ip())
+    db.session.commit()
+    return redirect(url_for("appointments.clinics",
+                            date=request.form.get("date") or None))
+
+
+@appointments_bp.route("/clinics/assign", methods=["POST"])
+@module_required(MODULE)
+def clinic_assign():
+    """Set (or clear) which عيادة each doctor is in on one day."""
+    from app.models import ClinicRoom, RoomAssignment
+
+    on_date = parse_date_arg(request.form.get("date"))
+    valid = {r.id for r in ClinicRoom.query.all()}
+    existing = {row.doctor_id: row for row in
+                RoomAssignment.query.filter_by(on_date=on_date).all()}
+
+    for doctor in list_doctors():
+        room_id = request.form.get(f"room_{doctor.id}", type=int)
+        row = existing.get(doctor.id)
+        if room_id in valid:
+            if row is None:
+                db.session.add(RoomAssignment(on_date=on_date,
+                                              doctor_id=doctor.id,
+                                              room_id=room_id))
+            else:
+                row.room_id = room_id
+        elif row is not None:
+            db.session.delete(row)      # "— " means not working here today
+
+    ActivityLog.record("clinic_room.assign", user_id=current_user.id,
+                       entity="clinic_room", detail=on_date.isoformat(),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("rooms.assigned"), "success")
+    return redirect(url_for("appointments.clinics", date=on_date.isoformat()))

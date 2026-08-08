@@ -171,6 +171,39 @@ def start(patient_id):
 
 
 # -------------------------------------------------------------- record -----
+def _stamp_consultation_start(visit):
+    """Mark the consultation as begun, because the doctor just opened it.
+
+    The appointment has carried a ``started_at`` column for a long time and it
+    was almost always empty: the only thing that set it was a status button on
+    the board, and in a running clinic nobody stops to press it. So the timing
+    reports were averaging a field that barely existed.
+
+    Opening the record is the honest moment. It is the doctor's own action, it
+    happens exactly when the consultation starts, and nobody at the front desk
+    can move it earlier or later.
+
+    Three guards, each for a way the stamp would otherwise lie:
+
+    * **Only the visit's own doctor.** An admin or a colleague opening the
+      file to look something up is not the start of a consultation — and with
+      the privacy policy off, plenty of people can open it.
+    * **Only once.** A doctor opens and closes the screen several times in one
+      consultation; the first time is the one that means anything.
+    * **Only from a status that precedes it.** A completed appointment
+      reopened next week to fix a typo must not be dragged back into today.
+    """
+    appt = visit.appointment
+    if appt is None or appt.started_at is not None:
+        return
+    if current_user.id != visit.doctor_id:
+        return
+    if not appt.can_transition_to("in_progress"):
+        return
+    appt.apply_status("in_progress")
+    db.session.commit()
+
+
 @visits_bp.route("/<int:visit_id>/record", methods=["GET", "POST"])
 @module_required(MODULE)
 def record(visit_id):
@@ -180,6 +213,8 @@ def record(visit_id):
     if not can_see_visit(visit):
         flash(t("visits.not_yours"), "warning")
         return redirect(url_for("visits.index"))
+
+    _stamp_consultation_start(visit)
 
     if request.method == "POST":
         visit.chief_complaint = (request.form.get("chief_complaint") or "").strip()
@@ -427,6 +462,12 @@ def station_vitals(appointment_id):
         db.session.add(visit)
         db.session.flush()
     _save_vitals(visit)
+    # The moment the nurse is done — it splits the wait at reception from the
+    # wait at the doctor's door, which are two different queues with two
+    # different causes. Stamped once: the nurse may correct a weight later,
+    # and a correction is not a second visit to the station.
+    if appt.vitals_at is None:
+        appt.vitals_at = datetime.utcnow()
     ActivityLog.record(
         "visit.vitals_station", user_id=current_user.id, entity="visit",
         entity_id=visit.id, detail=appt.patient.patient_number,
