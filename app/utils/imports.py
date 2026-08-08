@@ -183,6 +183,40 @@ def derive_guardian_name(child_name):
     return " ".join(parts[first_len:])
 
 
+# How many words of a guardian's name identify the household. Father plus
+# grandfather: enough to tell two families apart, and short enough that it
+# does not change when somebody types one more ancestor than the last person
+# did.
+GUARDIAN_KEY_WORDS = 2
+
+
+def family_key(guardian_name):
+    """A stable grouping key for one household, from a guardian's name.
+
+    Grouping by the guardian name as typed is what scattered a family across
+    three records. Two things break it, and both are ordinary:
+
+    **Different lengths.** Egyptian names run child → father → grandfather →
+    family, and a clinic's sheet records as many as whoever filled it knew.
+    "زياد محمود سعيد أحمد" and "عمر محمود سعيد" are brothers, and yield
+    "محمود سعيد أحمد" and "محمود سعيد" — two families.
+
+    **Spelling.** "أحمد" and "احمد" are one name to every human being and two
+    strings to a computer, so the same household splits on whichever keyboard
+    the typist had.
+
+    Taking a *fixed* number of leading words, folded, fixes both: the father
+    and grandfather are the same in every recording of the same family,
+    however much of the rest was written down.
+    """
+    from app.utils.history_import import normalise_arabic
+
+    words = [w for w in normalise_arabic(guardian_name or "").split(" ") if w]
+    if not words:
+        return ""
+    return " ".join(words[:GUARDIAN_KEY_WORDS])
+
+
 def normalize_phone(value):
     """Digits-only phone for sibling matching, or None."""
     digits = "".join(ch for ch in str(value or "") if ch.isdigit())

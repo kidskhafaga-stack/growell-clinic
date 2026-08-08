@@ -1160,21 +1160,45 @@ def _process_import(rows):
     Families are de-duplicated by name within the import (and matched against
     existing families) so siblings land in the same family record.
     """
+    from app.utils.imports import family_key
+
     created = 0
     errors = []
-    # Prefetch every existing family once (one query) so sibling-linking is an
-    # in-memory dict lookup instead of a query (and autoflush) per row.
-    family_cache = {f.family_name: f for f in Family.query.all()}
+    # Keyed by the *folded* household key rather than the name as typed.
+    #
+    # Grouping by the raw name is what put one family into three records:
+    # Egyptian names run child → father → grandfather → family and a sheet
+    # records as many as whoever filled it knew, so "محمود سعيد أحمد" and
+    # "محمود سعيد" are the same father written twice — and "أحمد" / "احمد" are
+    # one name to every human being and two strings to a computer.
+    #
+    # Existing families are indexed the same way, so a second import next
+    # month joins the family the first one made instead of building a parallel
+    # one beside it.
+    family_cache = {}
+    for existing in Family.query.all():
+        family_cache.setdefault(family_key(existing.family_name), existing)
     phone_family = {}        # guardian phone -> Family (siblings share a phone)
     family_has_parent = set()  # id(family) that already carries a guardian
     next_number = patient_number_allocator()
 
-    def get_named_family(key):
+    def get_named_family(name):
+        """The family for this guardian name, matched on the folded key.
+
+        The *stored* name stays the fullest version anybody wrote — the key is
+        for matching, and "محمود سعيد أحمد" is a better thing to read on a
+        screen than the two words used to group by.
+        """
+        key = family_key(name)
+        if not key:
+            return None
         family = family_cache.get(key)
         if family is None:
-            family = Family(family_name=key)
+            family = Family(family_name=name)
             db.session.add(family)
             family_cache[key] = family
+        elif len((name or "").split()) > len((family.family_name or "").split()):
+            family.family_name = name
         return family
 
     def cell(key):
