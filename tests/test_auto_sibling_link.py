@@ -22,6 +22,21 @@ from datetime import date
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
+def _wording(lang):
+    """The siblings section of a locale file, read from disk.
+
+    Asserting against the file rather than a copy of the sentence means the
+    test still checks the screen when somebody rewords the message, and stops
+    passing when they delete it.
+    """
+    import json
+
+    path = os.path.join(os.path.dirname(__file__), "..", "app", "i18n",
+                        "locales", f"{lang}.json")
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)["siblings"]
+
+
 def _household(clinic, phone="01001234567", name="زياد محمود سعيد"):
     """This clinic's child, in a family with a guardian's phone on it."""
     from app.models import Family, Parent, Patient
@@ -412,3 +427,111 @@ def test_the_screen_offers_the_button_it_used_to_withhold(clinic):
     page = clinic["sign_in"]("boss").get(f"/patients/{omar_id}").data.decode()
     assert f"/patients/{omar_id}/siblings/link" in page
     assert ':disabled="p.in_family"' not in page
+
+
+# ============================================== two rows, one name ==========
+def _same_named_families(clinic, name="Mohammed Khafaga"):
+    """The state the clinic ended up in after trying to fix the split by hand.
+
+    Told the two children were in different families, they renamed *both*
+    families to the same thing — which is the obvious move, and changes
+    nothing, because it is two family rows that are the problem, not two
+    labels.
+    """
+    from app.models import Family, Patient
+
+    db = clinic["db"]
+    omar_id, meral_id, second_id = _split_household(clinic)
+    db.session.get(Family, second_id).family_name = name
+    db.session.commit()
+    return db.session.get(Patient, omar_id), db.session.get(Patient, meral_id)
+
+
+def test_a_sibling_in_a_family_of_the_same_name_is_marked_as_such(clinic):
+    """The report: *"بيقول مربوطة على اسم عائلة مع إن اسم العائلة غيرته هو هو
+    في الاتنين"*. Both rows read "Mohammed Khafaga" and the screen still said
+    the child was in another family, which reads as the program being wrong
+    rather than as two records sharing a label."""
+    from app.utils.siblings import suggest_siblings
+
+    with clinic["app"].app_context():
+        omar, meral = _same_named_families(clinic)
+        hint = next(h for h in suggest_siblings(omar)
+                    if h["patient"].id == meral.id)
+
+        assert hint["in_family"] is True
+        assert hint["same_name"] is True
+        assert hint["family_name"] == "Mohammed Khafaga"
+
+
+def test_a_differently_named_family_is_not_called_the_same(clinic):
+    """Guarding the guard. Two households that really are two households must
+    keep the plain wording, or the clearer message stops meaning anything."""
+    from app.utils.siblings import suggest_siblings
+
+    with clinic["app"].app_context():
+        omar, meral = _same_named_families(clinic, name="آل خفاجة")
+        hint = next(h for h in suggest_siblings(omar)
+                    if h["patient"].id == meral.id)
+
+        assert hint["same_name"] is False
+        assert hint["family_name"] == "آل خفاجة"
+
+
+def test_two_families_nobody_has_named_do_not_count_as_matching(clinic):
+    """Two blanks are not the same name — they are two families nobody has
+    got round to naming. Calling that "a second record with the same name"
+    would put the message on rows it does not explain."""
+    from app.models import Family
+    from app.utils.siblings import suggest_siblings
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        omar, meral = _same_named_families(clinic, name="")
+        db.session.get(Family, omar.family_id).family_name = ""
+        db.session.commit()
+
+        hint = next(h for h in suggest_siblings(omar)
+                    if h["patient"].id == meral.id)
+        assert hint["same_name"] is False
+        assert hint["family_name"] is None
+
+
+def test_the_screen_explains_the_duplicate_instead_of_repeating_it(clinic):
+    """The point of the whole change: what the receptionist actually reads."""
+    with clinic["app"].app_context():
+        omar, _ = _same_named_families(clinic)
+        omar_id = omar.id
+
+    page = clinic["sign_in"]("boss").get(f"/patients/{omar_id}").data.decode()
+    words = _wording("ar")
+    # Only the suggestions card: the manual-search panel below it ships both
+    # wordings as an Alpine template and picks between them in the browser.
+    card = page.split(words["suggested"])[-1].split("Insurance / membership")[0]
+    assert words["same_name_family"] in card
+    assert words["in_other_family"] not in card
+
+
+def test_the_search_panel_says_it_too(clinic):
+    """The same two children are reachable by typing a name, and the row
+    there was making the identical claim."""
+    with clinic["app"].app_context():
+        omar, meral = _same_named_families(clinic)
+        omar_id, meral_id = omar.id, meral.id
+
+    rows = clinic["sign_in"]("boss").get(
+        f"/patients/{omar_id}/siblings/search?q=ميرال").get_json()["patients"]
+    row = next(r for r in rows if r["id"] == meral_id)
+
+    assert row["in_family"] is True
+    assert row["same_name"] is True
+    assert row["family_name"] == "Mohammed Khafaga"
+
+
+def test_both_languages_carry_the_wording(clinic):
+    """A clinic switching to English must not get a blank badge, or the key
+    printed at it."""
+    for lang in ("ar", "en"):
+        words = _wording(lang)
+        assert words["same_name_family"].strip(), f"{lang} has no wording"
+        assert words["same_name_family"] != words["in_other_family"]

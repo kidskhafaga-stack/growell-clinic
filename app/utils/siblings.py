@@ -62,7 +62,10 @@ def suggest_siblings(patient, limit=8):
     guardian always gets a family row.
 
     They carry ``in_family`` so the screen can say what pressing the button
-    will do. It used to mean the screen refused instead, on the reasoning that
+    will do, and ``family_name``/``same_name`` so it can say *which* family —
+    two records with one typed name being the case where "another family" is
+    read as a mistake rather than as a fact. It used to mean the screen
+    refused instead, on the reasoning that
     joining two households is a merge of two sets of parents. A clinic showed
     that this was the wrong call: a real import had split one family in two,
     the screen suggested each sibling to the other, and every attempt to act
@@ -91,7 +94,20 @@ def suggest_siblings(patient, limit=8):
         elif mine and name_key(other.full_name) == mine:
             reason = "name"
         if reason:
+            # Two family *records* can carry the same typed name, and when
+            # they do "in another family" reads as though the program is
+            # simply wrong — a clinic renamed both to the same thing and the
+            # screen went on saying they were apart. Carrying the other
+            # family's name lets the row explain the difference instead of
+            # deepening it.
+            their_family = getattr(other, "family", None)
+            their_name = (getattr(their_family, "family_name", "") or "").strip()
+            my_name = (getattr(patient.family, "family_name", "") or "").strip()
             out.append({"patient": other, "reason": reason,
+                        "family_name": their_name or None,
+                        # Two blanks are not "the same name" — they are two
+                        # families nobody has named yet.
+                        "same_name": bool(their_name and their_name == my_name),
                         # Filed with a family of their own. Still worth
                         # showing — finding the brother is most of the value —
                         # but joining them is a merge of two sets of parents,

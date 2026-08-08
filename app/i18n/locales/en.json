@@ -4431,7 +4431,8 @@
     "auto_linked": "{name} was linked automatically — check it, and unlink if wrong.",
     "no_certain_match": "No case matches closely enough to link automatically.",
     "need_family": "This patient has no family yet — add a guardian first.",
-    "merged": "{name} joined this family; their old one was removed as it was left empty."
+    "merged": "{name} joined this family; their old one was removed as it was left empty.",
+    "same_name_family": "A second family record with the same name — link to merge them"
   },
   "rooms": {
     "title": "Clinics",

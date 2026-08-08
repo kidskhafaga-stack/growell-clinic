@@ -570,8 +570,12 @@
                 <input type="hidden" name="sibling_id" :value="p.id">
                 <span style="flex:1;" x-text="p.full_name"></span>
                 <span class="hint" dir="ltr" x-text="p.patient_number"></span>
-                {# Said on the row, not found out after pressing. #}
-                <span class="badge badge--muted" x-show="p.in_family" x-cloak>{{ t('siblings.in_other_family') }}</span>
+                {# Said on the row, not found out after pressing — and naming
+                   the record when two of them carry the same typed name. #}
+                <span class="badge badge--muted" x-show="p.in_family && !p.same_name" x-cloak
+                      :title="p.family_name || ''">{{ t('siblings.in_other_family') }}</span>
+                <span class="badge badge--muted" x-show="p.in_family && p.same_name" x-cloak
+                      :title="p.family_name || ''">{{ t('siblings.same_name_family') }}</span>
                 <button class="btn btn-primary btn-sm gc-press" type="submit">
                   <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
               </form>
@@ -605,7 +609,14 @@
              turned down every attempt to act on it. The row now says what
              pressing it will do, and does it. #}
           {% if hint.in_family %}
-          <span class="badge badge--muted">{{ t('siblings.in_other_family') }}</span>
+          {# Naming the record, not just its existence. Two families can carry
+             the same typed name — a clinic renamed both to "Mohammed Khafaga"
+             and the screen kept saying "another family", which reads as the
+             program being wrong rather than as two rows sharing a label. #}
+          <span class="badge badge--muted"
+                title="{{ hint.family_name or '' }}">
+            {{ t('siblings.same_name_family') if hint.same_name else t('siblings.in_other_family') }}
+          </span>
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=hint.patient.id) }}">
             <i class="bi bi-box-arrow-up-right"></i> {{ t('siblings.open_file') }}</a>
           {% endif %}

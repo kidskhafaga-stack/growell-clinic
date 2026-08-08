@@ -2252,13 +2252,26 @@ def sibling_search(patient_id):
                              Patient.id != patient.id), q)
         .order_by(Patient.full_name).limit(15).all())
     lang = getattr(g, "lang", "ar")
-    return jsonify({"patients": [
-        {"id": p.id, "full_name": p.display_name(lang),
-         "patient_number": p.patient_number,
-         # Said on the row rather than found out after pressing: a child in
-         # another family cannot be linked, and the reason is not obvious.
-         "in_family": bool(p.family_id and p.family_id != patient.family_id)}
-        for p in rows]})
+    mine = ((patient.family.family_name or "").strip()
+            if patient.family else "")
+    out = []
+    for p in rows:
+        theirs = ((p.family.family_name or "").strip()
+                  if p.family_id and p.family else "")
+        out.append({
+            "id": p.id, "full_name": p.display_name(lang),
+            "patient_number": p.patient_number,
+            # Said on the row rather than found out after pressing: linking a
+            # child who already has a family joins two households, which is
+            # not what the button looks like it does.
+            "in_family": bool(p.family_id and p.family_id != patient.family_id),
+            "family_name": theirs or None,
+            # …unless both records carry the same typed name, which is one
+            # household the program divided. Saying "another family" there
+            # reads as the program being wrong.
+            "same_name": bool(theirs and mine and theirs == mine
+                              and p.family_id != patient.family_id)})
+    return jsonify({"patients": out})
 
 
 def _resolved_doctors(links):
