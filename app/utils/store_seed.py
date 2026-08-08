@@ -48,6 +48,37 @@ DEFAULT_UNITS = ["قطعة", "علبة", "زجاجة", "لفة", "كيس", "عب
 DEFAULT_PURCHASE_UNITS = ["علبة", "كرتونة", "عبوة", "زجاجة", "شكارة", "دستة"]
 
 
+# Which item type each seeded category belongs to, so the 21 bundled
+# consumables arrive already typed. An item with no type is not broken — it
+# simply cannot be grouped — but leaving the program's own seed data untyped
+# would teach every clinic that the field is optional decoration.
+CATEGORY_TYPE = {
+    "مستهلكات طبية": "consumable",
+    "مطهرات وتعقيم": "consumable",
+    "أدوات الفحص": "consumable",
+    "نظافة": "consumable",
+    "مستلزمات الأجهزة": "device",
+    "مكتبية وإدارية": "office",
+    "أدوية": "drug",
+}
+
+
+def backfill_item_types():
+    """Give existing items a type from the category they already carry.
+
+    Runs on upgrade as well as on install: a clinic that has been typing
+    categories for a year should not have to open every item to say which of
+    them are drugs.
+    """
+    made = 0
+    for item in StoreItem.query.filter(StoreItem.item_type.is_(None)).all():
+        guess = CATEGORY_TYPE.get((item.category or "").strip())
+        if guess:
+            item.item_type = guess
+            made += 1
+    return made
+
+
 def seed_store_items():
     """Create the default consumables that don't exist yet (matched by name).
     Idempotent and non-destructive — does not commit; caller owns the txn."""
@@ -80,29 +111,48 @@ def _distinct(column):
             if v and v.strip()]
 
 
-def store_categories():
-    """Default + already-used categories, de-duplicated, for the pick list."""
+def _picker(domain, column, fallback):
+    """The clinic's own list, plus anything already on an item.
+
+    The catalogue is the source: it can be added to *and* deleted from, which
+    the old "defaults + everything ever typed" could not — one "قطعه" typed
+    for "قطعة" stayed in the picker for the life of the installation.
+
+    Values already sitting on items are still appended, because a picker that
+    hides a clinic's own data is worse than an untidy one; they are simply not
+    offered to anybody new once the entry is removed from the catalogue.
+    """
+    from app.utils.lookups import options
+
+    try:
+        names = [row.display_name("ar") for row in options(domain)]
+    except Exception:                     # noqa: BLE001 - table not created yet
+        names = list(fallback)
     seen, out = set(), []
-    for c in DEFAULT_CATEGORIES + _distinct(StoreItem.category):
-        if c not in seen:
-            seen.add(c)
-            out.append(c)
+    for value in names + _distinct(column):
+        if value and value not in seen:
+            seen.add(value)
+            out.append(value)
     return out
+
+
+def store_categories(item_type=None):
+    """Categories, narrowed to one item type when the form knows it."""
+    from app.utils.lookups import options
+
+    if item_type:
+        try:
+            rows = options("item_category", parent=item_type)
+            return [r.display_name("ar") for r in rows]
+        except Exception:                 # noqa: BLE001
+            pass
+    return _picker("item_category", StoreItem.category, DEFAULT_CATEGORIES)
 
 
 def store_units():
-    seen, out = set(), []
-    for u in DEFAULT_UNITS + _distinct(StoreItem.unit):
-        if u not in seen:
-            seen.add(u)
-            out.append(u)
-    return out
+    return _picker("unit", StoreItem.unit, DEFAULT_UNITS)
 
 
 def store_purchase_units():
-    seen, out = set(), []
-    for u in DEFAULT_PURCHASE_UNITS + _distinct(StoreItem.purchase_unit):
-        if u not in seen:
-            seen.add(u)
-            out.append(u)
-    return out
+    return _picker("purchase_unit", StoreItem.purchase_unit,
+                   DEFAULT_PURCHASE_UNITS)

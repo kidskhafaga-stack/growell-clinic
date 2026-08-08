@@ -511,6 +511,7 @@ def store():
                            stats=stats, suppliers=_suppliers(),
                            categories=store_categories(), units=store_units(),
                            purchase_units=store_purchase_units(),
+                           item_types=_item_types(),
                            dispense_policy=store_dispense_policy(),
                            margin_default=default_margin())
 
@@ -565,6 +566,7 @@ def store_item_new():
         barcode=(request.form.get("barcode") or "").strip() or None,
         purchase_price=request.form.get("purchase_price", type=float),
         sell_price=request.form.get("sell_price", type=float),
+        item_type=(request.form.get("item_type") or "").strip() or None,
         price_policy=("auto" if request.form.get("price_policy") == "auto" else "manual"),
         margin_percent=request.form.get("margin_percent", type=float),
         reorder_level=request.form.get("reorder_level", type=int) or 0,
@@ -591,6 +593,7 @@ def store_item_edit(item_id):
     item.barcode = (request.form.get("barcode") or "").strip() or None
     item.purchase_price = request.form.get("purchase_price", type=float)
     item.sell_price = request.form.get("sell_price", type=float)
+    item.item_type = (request.form.get("item_type") or "").strip() or None
     item.price_policy = "auto" if request.form.get("price_policy") == "auto" else "manual"
     item.margin_percent = request.form.get("margin_percent", type=float)
     item.reorder_level = request.form.get("reorder_level", type=int) or 0
@@ -657,7 +660,8 @@ def store_item(item_id):
     return render_template("inventory/store_item.html", item=item,
                            movements=movements, suppliers=_suppliers(),
                            categories=store_categories(), units=store_units(),
-                           purchase_units=store_purchase_units())
+                           purchase_units=store_purchase_units(),
+                           item_types=_item_types())
 
 
 @inventory_bp.route("/scan")
@@ -1340,3 +1344,127 @@ def brand_label(brand_id):
     return render_template(
         "inventory/label.html", name=name, code=code,
         price=brand.price, barcode_svg=svg(code), copies=copies)
+
+
+def _item_types():
+    """The clinic's item types, for the add/edit pickers."""
+    from app.utils.lookups import ensure_seeded, options
+
+    try:
+        if ensure_seeded():
+            db.session.commit()
+        return options("item_type")
+    except Exception:                      # noqa: BLE001 - table not created
+        return []
+
+
+# --------------------------------------------------- the clinic's own lists --
+@inventory_bp.route("/lookups")
+@module_required(MODULE)
+def lookups():
+    """Item types, categories, units and warehouse kinds — all editable.
+
+    The fourth fixed list to be opened up, and the first to be done once
+    rather than four times. What was wrong with each differed usefully:
+    ``WAREHOUSE_KINDS`` was a Python list nobody could extend, while the
+    categories and units *looked* editable — the picker offered the defaults
+    plus everything ever typed — but nothing could be removed. One "قطعه"
+    typed instead of "قطعة" sat beside the correct one for the life of the
+    installation, and everybody after chose between them at random.
+    """
+    from app.utils.lookups import DOMAINS, ensure_seeded, options, usage_counts
+
+    ensure_seeded()
+    db.session.commit()
+    domain = (request.args.get("domain") or "item_type").strip()
+    if domain not in DOMAINS:
+        domain = "item_type"
+    from app.utils.lookups import BUILT_IN, can_delete
+
+    counts = usage_counts(domain)
+    rows = options(domain, include_inactive=True)
+    return render_template(
+        "inventory/lookups.html", domain=domain, domains=DOMAINS, rows=rows,
+        counts=counts,
+        deletable={r.id: can_delete(r, counts)[0] for r in rows},
+        # Categories sit under a type, so the form has to offer the types.
+        types=options("item_type") if domain == "item_category" else [],
+        built_in=BUILT_IN,
+    )
+
+
+@inventory_bp.route("/lookups/add", methods=["POST"])
+@module_required(MODULE)
+def lookup_add():
+    from app.models import Lookup
+    from app.utils.lookups import DOMAINS, make_key
+
+    domain = (request.form.get("domain") or "").strip()
+    name_ar = (request.form.get("name_ar") or "").strip()
+    if domain not in DOMAINS or not name_ar:
+        flash(t("common.required"), "danger")
+        return redirect(url_for("inventory.lookups", domain=domain or None))
+    last = (Lookup.query.filter_by(domain=domain)
+            .order_by(Lookup.sort_order.desc()).first())
+    db.session.add(Lookup(
+        domain=domain, key=make_key(request.form.get("name_en") or name_ar, domain),
+        name_ar=name_ar,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        parent_key=(request.form.get("parent_key") or "").strip() or None,
+        sort_order=(last.sort_order + 1) if last else 0,
+    ))
+    ActivityLog.record("lookup.create", user_id=current_user.id, entity="lookup",
+                       detail=f"{domain}:{name_ar}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("lookups.added"), "success")
+    return redirect(url_for("inventory.lookups", domain=domain))
+
+
+@inventory_bp.route("/lookups/<int:row_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def lookup_edit(row_id):
+    """Reword or reclassify an entry — never re-key it.
+
+    The key is what every item row stored. Changing it would orphan them all
+    silently, so this edits the label and the parent and leaves the key alone,
+    which is the rule the three catalogues before this one arrived at too.
+    """
+    from app.models import Lookup
+
+    row = db.get_or_404(Lookup, row_id)
+    row.name_ar = (request.form.get("name_ar") or row.name_ar or "").strip()
+    row.name_en = (request.form.get("name_en") or "").strip() or None
+    row.parent_key = (request.form.get("parent_key") or "").strip() or None
+    row.is_active = bool(request.form.get("is_active"))
+    db.session.commit()
+    flash(t("lookups.saved"), "success")
+    return redirect(url_for("inventory.lookups", domain=row.domain))
+
+
+@inventory_bp.route("/lookups/<int:row_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def lookup_delete(row_id):
+    """Remove an entry, unless something depends on it.
+
+    A built-in stays, and so does anything in use — deleting either would
+    leave items pointing at a value that no longer exists, which is a report
+    that quietly drops rows rather than an error anybody sees. Both cases fall
+    back to switching it off, which keeps the history readable and still takes
+    it off tomorrow's list.
+    """
+    from app.models import Lookup
+    from app.utils.lookups import can_delete
+
+    row = db.get_or_404(Lookup, row_id)
+    domain = row.domain
+    allowed, reason = can_delete(row)
+    if allowed:
+        db.session.delete(row)
+        flash(t("lookups.deleted"), "success")
+    else:
+        row.is_active = False
+        flash(t("lookups.deactivated_" + reason), "warning")
+    ActivityLog.record("lookup.delete", user_id=current_user.id, entity="lookup",
+                       entity_id=row_id, detail=reason, ip_address=client_ip())
+    db.session.commit()
+    return redirect(url_for("inventory.lookups", domain=domain))

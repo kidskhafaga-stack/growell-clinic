@@ -4443,5 +4443,29 @@
     "name_optional": "Optional name",
     "name_placeholder": "Clinic",
     "number_hint": "The clinic number is generated automatically — it is not typed."
+  },
+  "lookups": {
+    "title": "Store lists",
+    "nav": "Store lists",
+    "subtitle": "Item types, categories, units and warehouse kinds — all added, edited and removed here.",
+    "d_item_type": "Item type",
+    "d_item_category": "Category",
+    "d_unit": "Dispense unit",
+    "d_purchase_unit": "Purchase unit",
+    "d_warehouse_kind": "Warehouse kind",
+    "name_ar": "Arabic name",
+    "name_en": "English name",
+    "any_type": "Any type",
+    "in_use": "Used by",
+    "built_in": "built-in",
+    "none": "Nothing in this list yet.",
+    "add_title": "Add to the list",
+    "added": "Added.",
+    "saved": "Saved.",
+    "deleted": "Deleted.",
+    "cannot_delete": "Cannot be deleted — will be switched off",
+    "deactivated_system": "This is a built-in entry, so it was switched off instead.",
+    "deactivated_in_use": "This entry is used by existing items, so it was switched off instead of deleted to keep them readable.",
+    "guard_hint": "An entry that is in use, or built in, is switched off rather than deleted — so nothing is left pointing at something that no longer exists."
   }
 }

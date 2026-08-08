@@ -1,0 +1,106 @@
+{% extends "shell.html" %}
+{% set active_module = 'inventory' %}
+{% block title %}{{ t('lookups.title') }}{% endblock %}
+{% block page_heading %}{{ t('lookups.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('lookups.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lookups.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('inventory.items') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('inventory.title') }}</a>
+</div>
+
+<div class="visit-tabs no-print" style="margin-bottom:16px;">
+  {% for d in domains %}
+  <a class="vtab {{ 'active' if d == domain else '' }}"
+     href="{{ url_for('inventory.lookups', domain=d) }}">{{ t('lookups.d_' ~ d) }}</a>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('lookups.name_ar') }}</th>
+      <th>{{ t('lookups.name_en') }}</th>
+      {% if domain == 'item_category' %}<th>{{ t('lookups.d_item_type') }}</th>{% endif %}
+      <th>{{ t('lookups.in_use') }}</th>
+      <th>{{ t('common.status') }}</th>
+      <th style="text-align:end;"></th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr {% if not r.is_active %}style="opacity:.55;"{% endif %}>
+        <form method="post" action="{{ url_for('inventory.lookup_edit', row_id=r.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <td><input class="input" name="name_ar" value="{{ r.name_ar or '' }}"></td>
+          <td><input class="input" name="name_en" dir="ltr" value="{{ r.name_en or '' }}"></td>
+          {% if domain == 'item_category' %}
+          <td>
+            <select class="select" name="parent_key" style="max-width:180px;">
+              <option value="">{{ t('lookups.any_type') }}</option>
+              {% for ty in types %}
+              <option value="{{ ty.key }}" {{ 'selected' if r.parent_key == ty.key else '' }}>
+                {{ ty.display_name(current_lang) }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          {% endif %}
+          <td>
+            {% set n = counts.get(r.key, 0) %}
+            {% if n %}<span class="badge badge--role">{{ n }}</span>
+            {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+          </td>
+          <td><label style="display:flex;gap:6px;align-items:center;">
+            <input type="checkbox" name="is_active" {{ 'checked' if r.is_active else '' }}>
+            {{ t('common.active') }}</label>
+            {% if r.is_system %}<span class="badge badge--muted">{{ t('lookups.built_in') }}</span>{% endif %}
+          </td>
+          <td style="text-align:end;white-space:nowrap;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i></button>
+        </form>
+            {# Offered even when it cannot be deleted: pressing it switches the
+               entry off and says why, which is more useful than a button that
+               is not there and an explanation nobody ever reads. #}
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('inventory.lookup_delete', row_id=r.id) }}"
+                  onsubmit="return confirm('{{ t('common.confirm_delete') }}');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"
+                      title="{{ t('lookups.cannot_delete') if not deletable.get(r.id) else t('common.delete') }}">
+                <i class="bi bi-{{ 'trash' if deletable.get(r.id) else 'slash-circle' }}"></i></button>
+            </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px;">{{ t('lookups.none') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card gc-scale-in" style="margin-top:14px;animation-delay:.06s;">
+  <h3 style="margin:0 0 12px;font-size:1rem;">{{ t('lookups.add_title') }}</h3>
+  <form method="post" action="{{ url_for('inventory.lookup_add') }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="domain" value="{{ domain }}">
+    <div class="form-row" style="margin:0;"><label>{{ t('lookups.name_ar') }} *</label>
+      <input class="input" name="name_ar" required style="max-width:220px;"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('lookups.name_en') }}</label>
+      <input class="input" name="name_en" dir="ltr" style="max-width:220px;"></div>
+    {% if domain == 'item_category' %}
+    <div class="form-row" style="margin:0;"><label>{{ t('lookups.d_item_type') }}</label>
+      <select class="select" name="parent_key" style="max-width:200px;">
+        <option value="">{{ t('lookups.any_type') }}</option>
+        {% for ty in types %}<option value="{{ ty.key }}">{{ ty.display_name(current_lang) }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+  <p class="hint" style="margin:10px 0 0;">{{ t('lookups.guard_hint') }}</p>
+</div>
+{% endblock %}

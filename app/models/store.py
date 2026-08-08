@@ -137,6 +137,12 @@ class StoreItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(160), nullable=False)
     name_en = db.Column(db.String(160))
+    # Two layers, asked for in those words: the *type* says what a thing
+    # fundamentally is (drug / vaccine / consumable) and the *category* groups
+    # within it (antibiotic, antiseptic). Both come from the editable
+    # catalogue in app/utils/lookups.py — the type as a stable key, the
+    # category as the text it has always been, so no existing row moves.
+    item_type = db.Column(db.String(40), index=True)
     category = db.Column(db.String(80))
     # Internal program code (ITM-0001…), auto-assigned; doubles as the printed
     # barcode when no supplier barcode is set.

@@ -78,6 +78,16 @@ def seed_reference():
 
         return seed_register()
 
+    def _lookups():
+        """The clinic's own short lists — types, categories, units, kinds.
+
+        Seeded before the store items so the first item added has a type to
+        pick rather than an empty dropdown and a reason to type free text.
+        """
+        from app.utils.lookups import ensure_seeded
+
+        return ensure_seeded()
+
     def _investigations():
         from app.utils.investigations import seed_investigations
         return seed_investigations() or 0
@@ -164,8 +174,18 @@ def seed_reference():
         return made
 
     def _store():
-        from app.utils.store_seed import seed_store_items_if_empty
-        return seed_store_items_if_empty() or 0
+        from app.utils.store_seed import (backfill_item_types,
+                                          seed_store_items_if_empty)
+        made = seed_store_items_if_empty() or 0
+        # After the items exist, not before. The first version of this ran
+        # with the lists — which are seeded earlier — so it typed nothing at
+        # all and every count on the screen still looked right.
+        #
+        # It runs on upgrade as well as install: a clinic that has been typing
+        # categories for a year should not have to open every item to say
+        # which of them are drugs.
+        backfill_item_types()
+        return made
 
     def _device_consumables():
         """Tie each device's service to what it burns per test.
@@ -209,6 +229,7 @@ def seed_reference():
     _try(_services, "services", out)
     _try(_drugs, "drugs", out)
     _try(_investigations, "investigations", out)
+    _try(_lookups, "store_lists", out)
     _try(_drugbook, "drug_reference", out)
     _try(_egypt_register, "egypt_drug_register", out)
     _try(_devices, "devices", out)

@@ -46,6 +46,13 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
           <div class="form-row"><label>{{ t('store.name') }}</label><input class="input" name="name" value="{{ item.name }}"></div>
+          <div class="form-row"><label>{{ t('lookups.d_item_type') }}</label>
+            <select class="select" name="item_type">
+              <option value="">—</option>
+              {% for ty in item_types %}
+              <option value="{{ ty.key }}" {{ 'selected' if item.item_type == ty.key else '' }}>{{ ty.display_name(current_lang) }}</option>
+              {% endfor %}
+            </select></div>
           <div class="form-row"><label>{{ t('store.category') }}</label><input class="input" name="category" list="cat_list" value="{{ item.category or '' }}"></div>
           <div class="form-row"><label>{{ t('store.unit') }}</label><input class="input" name="unit" list="unit_list" value="{{ item.unit or '' }}"></div>
           <div class="form-row"><label>{{ t('store.purchase_unit') }}</label><input class="input" name="purchase_unit" list="punit_list" value="{{ item.purchase_unit or '' }}"></div>
