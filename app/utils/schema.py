@@ -115,6 +115,7 @@ ADDITIONS = [
     ("appointments", "is_walk_in", "BOOLEAN DEFAULT 0"),
     ("appointments", "vitals_at", "DATETIME"),
     ("store_items", "item_type", "VARCHAR(40)"),
+    ("patients", "family_auto", "BOOLEAN DEFAULT 0"),
     ("users", "visit_complaint_chips", "TEXT"),
     ("users", "visit_exam_chips", "TEXT"),
     ("prescriptions", "diagnosis_stage", "VARCHAR(16)"),

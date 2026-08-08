@@ -39,6 +39,12 @@ class Patient(db.Model):
     family_id = db.Column(
         db.Integer, db.ForeignKey("families.id"), nullable=True, index=True
     )
+    # This link was made by the program, not by a person. Kept apart because
+    # the two are not equally trustworthy: a receptionist who links two files
+    # has looked at both of them, while the program has only matched a phone
+    # and a name. The screen says which it was, and an automatic link is the
+    # one somebody undoes without wondering whose decision they are undoing.
+    family_auto = db.Column(db.Boolean, default=False, nullable=False)
 
     # Bilingual names.
     full_name = db.Column(db.String(120), nullable=False)

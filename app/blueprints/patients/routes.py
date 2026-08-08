@@ -2143,6 +2143,7 @@ def sibling_link(patient_id):
         patient.family_id = family.id
 
     other.family_id = patient.family_id
+    other.family_auto = False          # a person looked at both files
     ActivityLog.record("patient.sibling.link", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=f"{other.patient_number} → family {patient.family_id}",
@@ -2166,6 +2167,9 @@ def sibling_unlink(patient_id):
         return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
 
     other.family_id = None
+    # Clear the marker too: a child linked again by hand tomorrow must not
+    # still be labelled as the program's guess.
+    other.family_auto = False
     ActivityLog.record("patient.sibling.unlink", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=other.patient_number, ip_address=client_ip())
@@ -2257,3 +2261,34 @@ def family_delete(family_id):
     if patient_id:
         return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
     return redirect(url_for("patients.index"))
+
+
+@patients_bp.route("/<int:patient_id>/siblings/auto", methods=["POST"])
+@module_required(MODULE)
+def sibling_auto_link(patient_id):
+    """Link the one candidate that matches on both signals.
+
+    Offered as a press rather than done silently on save. The import already
+    groups children by their father's name and gets it wrong on real data;
+    doing more of that automatically, invisibly, is how a clinic ends up
+    distrusting every family on the screen. One press, one child, and the link
+    it makes says it was the program's.
+    """
+    from app.utils.siblings import auto_link
+
+    patient = db.get_or_404(Patient, patient_id)
+    if not patient.family_id:
+        flash(t("siblings.need_family"), "warning")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+
+    other = auto_link(patient)
+    if other is None:
+        flash(t("siblings.no_certain_match"), "info")
+    else:
+        ActivityLog.record("patient.sibling.auto_link", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           detail=other.patient_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("siblings.auto_linked").replace(
+            "{name}", other.display_name(getattr(g, "lang", "ar"))), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
