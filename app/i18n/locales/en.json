@@ -1337,7 +1337,9 @@
     "timezone": "Clinic timezone",
     "timezone_hint": "Every time is stored in UTC; this is needed wherever a stored moment is compared with a time somebody typed — such as \"did the doctor start at 10:00\".",
     "timezone_broken": "This machine cannot resolve that timezone. On Windows that means the tzdata package is missing — metrics needing local time will stay blank rather than showing wrong numbers.",
-    "ai_test_unsaved": "The test succeeded — but these settings are not saved yet. Press save, or the assistant will keep reporting itself as not ready."
+    "ai_test_unsaved": "The test succeeded — but these settings are not saved yet. Press save, or the assistant will keep reporting itself as not ready.",
+    "plan_chips": "Plan phrases",
+    "plan_chips_hint": "The sentences that repeat in the plan box."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -4504,5 +4506,22 @@
     "breathing": "Difficulty breathing",
     "convulsion": "Convulsion",
     "in_queue": "urgent case waiting"
+  },
+  "phrases": {
+    "title": "Quick phrases and shortcuts",
+    "intro": "These are your own phrases — a diabetes clinic is not a neonatal one, and a cardiologist is not an endocrinologist. Anything you leave empty falls back to the clinic's list.",
+    "code_title": "A short code that writes a long sentence",
+    "code_hint": "Type the code in the complaint, examination or plan box and press space — the whole phrase is written in its place.",
+    "code_example": "For example: \"normal\" writes the whole normal-examination paragraph, and \"heart\" writes the cardiac examination you say every day.",
+    "code_ph": "Code",
+    "field_complaint": "Chief complaint",
+    "field_exam": "Clinical examination",
+    "field_plan": "Plan",
+    "yours": "This is your own list.",
+    "from_clinic": "This is the clinic's list — saving here makes it yours.",
+    "empty_means_clinic": "Clear every line in a box to go back to the clinic's list.",
+    "saved": "Phrases saved.",
+    "mine_link": "a doctor's own phrases",
+    "clinic_is_a_start": "This is the clinic's list — where every doctor starts, and each can keep their own."
   }
 }

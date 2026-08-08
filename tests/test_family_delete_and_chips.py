@@ -175,7 +175,12 @@ def test_the_clinic_list_is_the_fallback_not_the_ceiling(clinic):
 
 def test_clearing_the_box_means_use_the_clinics(clinic):
     """Not "I have none". An empty palette would be a worse consultation than
-    the shared list this replaced."""
+    the shared list this replaced.
+
+    The box moved: it was a raw textarea on the profile page and is now the
+    doctor's own quick-phrases screen, which also carries the short codes. The
+    rule it is testing did not move.
+    """
     from app.models import Setting, User, Visit
 
     db = clinic["db"]
@@ -187,7 +192,7 @@ def test_clearing_the_box_means_use_the_clinics(clinic):
         visit_id = db.session.get(Visit, clinic["ids"]["visit"]).id
 
     clinic["sign_in"]("doc").post(
-        "/profile", data={"full_name": "د. أحمد", "visit_complaint_chips": ""},
+        "/visits/phrases", data={"visit_complaint_chips": ""},
         follow_redirects=True)
 
     with clinic["app"].app_context():
@@ -200,8 +205,8 @@ def test_clearing_the_box_means_use_the_clinics(clinic):
 
 
 def test_a_doctor_can_reach_the_editor_from_their_profile(clinic):
-    """The phrases are theirs, so they are edited where the rest of their own
-    settings live — not in the clinic-wide settings screen."""
+    """The phrases are theirs, so they are reachable from their own profile —
+    not buried in the clinic-wide settings screen, which a doctor may not even
+    be allowed to open."""
     page = clinic["sign_in"]("doc").get("/profile").data.decode()
-    assert 'name="visit_complaint_chips"' in page
-    assert 'name="visit_exam_chips"' in page
+    assert "/visits/phrases" in page

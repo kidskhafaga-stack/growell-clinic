@@ -1,0 +1,49 @@
+{% extends "shell.html" %}
+{% set active_module = 'visits' %}
+{% block title %}{{ t('phrases.title') }}{% endblock %}
+{% block page_heading %}{{ t('phrases.title') }}{% endblock %}
+
+{% from "_chip_editor.html" import chip_editor, chip_editor_assets with context %}
+
+{% block head %}<style>[x-cloak]{display:none!important;}</style>{{ chip_editor_assets() }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('phrases.title') }}</h1>
+<p class="hint gc-animate" style="margin-top:-6px;max-width:70ch;">{{ t('phrases.intro') }}</p>
+
+<form method="post" action="{{ url_for('visits.phrases_screen') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {# What the code is for, said once and plainly: this is the part nobody
+     discovers on their own. #}
+  <div class="card gc-scale-in" style="border-inline-start:4px solid var(--green-600);background:var(--green-050);">
+    <strong><i class="bi bi-lightning-charge"></i> {{ t('phrases.code_title') }}</strong>
+    <p class="hint" style="margin:6px 0 0;">{{ t('phrases.code_hint') }}</p>
+    <p class="hint" style="margin:4px 0 0;">{{ t('phrases.code_example') }}</p>
+  </div>
+
+  {% for field in fields %}
+  <div class="card gc-scale-in" style="animation-delay:{{ loop.index0 * 0.06 }}s;">
+    <h2 class="section-title"><i class="bi bi-chat-square-text"></i>
+      {{ t('phrases.field_' ~ field.name) }}</h2>
+    {# Whether they are looking at their own list or the clinic's. Without
+       this, a doctor editing what they think is theirs is really about to
+       copy the clinic's list into their account — which is harmless, but it
+       is not what they think is happening. #}
+    <p class="hint" style="margin-top:-4px;">
+      {% if field.mine %}<i class="bi bi-person-check"></i> {{ t('phrases.yours') }}
+      {% else %}<i class="bi bi-hospital"></i> {{ t('phrases.from_clinic') }}{% endif %}
+    </p>
+    {{ chip_editor(field.key, field.rows) }}
+  </div>
+  {% endfor %}
+
+  <div class="gc-animate" style="display:flex;gap:10px;margin-top:16px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('visits.index') }}">
+      <i class="bi bi-arrow-left"></i> {{ t('common.back') }}</a>
+  </div>
+  <p class="hint" style="margin-top:10px;">{{ t('phrases.empty_means_clinic') }}</p>
+</form>
+{% endblock %}

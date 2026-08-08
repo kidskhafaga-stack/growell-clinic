@@ -42,72 +42,21 @@ from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.icd import search_icd
+from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 
 MODULE = "visits"
 
-# Quick "write less" chips in the visit — editable in Settings, with sensible
-# bilingual pediatric defaults. Stored one per line as "ar|en" (en optional);
-# the chip shows and inserts in the program language.
-DEFAULT_COMPLAINT_CHIPS = [
-    ("حرارة", "Fever"), ("كحة", "Cough"), ("رشح", "Runny nose"),
-    ("إسهال", "Diarrhea"), ("قيء", "Vomiting"), ("مغص", "Colic"),
-    ("إمساك", "Constipation"), ("طفح جلدي", "Skin rash"),
-    ("التهاب حلق", "Sore throat"), ("التهاب أذن", "Ear infection"),
-    ("صعوبة تنفس", "Difficulty breathing"), ("صفير بالصدر", "Wheezing"),
-    ("ضعف شهية", "Poor appetite"), ("خمول", "Lethargy"),
-    ("تسنين", "Teething"), ("احمرار عين", "Red eye"),
-    ("ألم بطن", "Abdominal pain"), ("صداع", "Headache"),
-    ("متابعة نمو", "Growth follow-up"), ("متابعة تطعيم", "Vaccination follow-up"),
-    ("إعادة كشف", "Re-examination"),
-]
-DEFAULT_EXAM_CHIPS = [
-    ("الحالة العامة جيدة", "General condition good"),
-    ("الصدر: دخول هواء ثنائي متساوٍ بدون صفير", "Chest: equal bilateral air entry, no wheeze"),
-    ("القلب: أصوات منتظمة بدون لغط", "Heart: regular sounds, no murmur"),
-    ("البطن: لين غير منتفخ غير مؤلم", "Abdomen: soft, not distended, non-tender"),
-    ("الحلق: محتقن", "Throat: congested"),
-    ("الأذن: طبلة محتقنة", "Ear: congested tympanic membrane"),
-    ("لا توجد علامات جفاف", "No signs of dehydration"),
-    ("الغدد الليمفاوية غير متضخمة", "Lymph nodes not enlarged"),
-    ("الجلد: سليم", "Skin: intact"),
-]
 
+def _visit_chips(field, user=None):
+    """This doctor's quick phrases for a visit field.
 
-def _parse_chips(raw, defaults):
-    """Parse the stored ``ar|en`` lines into ``[{"ar":…, "en":…}]``."""
-    if raw:
-        chips = []
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            ar, _, en = line.partition("|")
-            chips.append({"ar": ar.strip(), "en": en.strip()})
-        if chips:
-            return chips
-    return [{"ar": ar, "en": en} for ar, en in defaults]
-
-
-def _visit_chips(key, defaults, user=None):
-    """A doctor's own quick phrases, falling back to the clinic's.
-
-    These were one list for the whole clinic, which is the wrong shape for
-    them: the phrases a paediatrician reaches for are not the ones a
-    dermatologist reaches for, and a shared list grows until it is faster to
-    type the sentence than to find it. So each doctor keeps their own.
-
-    The clinic's list stays as the starting point rather than being replaced —
-    a doctor who has never opened the settings should still find the sensible
-    defaults under their fingers on their first consultation.
+    The phrases themselves, the storage format and the doctor-versus-clinic
+    fallback all live in ``app.utils.phrases`` now. They used to be spelt out
+    in three files, which is how the settings screen came to show the
+    signed-in doctor's list under a heading that said "the clinic's".
     """
-    user = user if user is not None else current_user
-    own = getattr(user, key, None) if user is not None else None
-    if own:
-        chips = _parse_chips(own, [])
-        if chips:
-            return chips
-    return _parse_chips(Setting.get(key), defaults)
+    return phrases.for_user(user if user is not None else current_user, field)
 
 
 def _float(name):
@@ -344,8 +293,12 @@ def record(visit_id):
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
-        complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
-        exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
+        complaint_chips=_visit_chips("complaint"),
+        exam_chips=_visit_chips("exam"),
+        plan_chips=_visit_chips("plan"),
+        # The codes the browser expands as the doctor types: "نورمال" and a
+        # space becomes the paragraph they wrote once.
+        phrase_codes=phrases.codes(current_user, getattr(g, "lang", "ar")),
         ai_ready=ai.is_ready(),
     )
 
@@ -1215,6 +1168,41 @@ def complete(visit_id):
 def view(visit_id):
     visit = db.get_or_404(Visit, visit_id)
     return render_template("visits/view.html", visit=visit)
+
+
+# ----------------------------------------------------- my quick phrases -----
+@visits_bp.route("/phrases", methods=["GET", "POST"])
+@module_required(MODULE)
+def phrases_screen():
+    """Each doctor's own shorthand — the phrases and the codes that write them.
+
+    *"طبيب السكر غير طبيب حديثي الولادة، دكتور القلب غير حد تاني، والغدد"*.
+    One clinic-wide list is the wrong shape: it grows until finding a sentence
+    costs more than typing it, and most of it belongs to somebody else's
+    specialty. This screen is the signed-in user's own list; leaving a field
+    empty means "use the clinic's", so clearing it is how a doctor goes back
+    to the defaults rather than ending up with nothing.
+
+    The clinic's list is edited in settings, by whoever can reach settings.
+    This is deliberately not that screen: a doctor should not need the
+    settings module to write down the sentence they say forty times a day.
+    """
+    if request.method == "POST":
+        for field in phrases.FIELDS:
+            key = phrases.key_for(field)
+            setattr(current_user, key,
+                    (request.form.get(key) or "").strip() or None)
+        db.session.commit()
+        flash(t("phrases.saved"), "success")
+        return redirect(url_for("visits.phrases_screen"))
+
+    return render_template(
+        "visits/phrases.html",
+        fields=[{"key": phrases.key_for(f), "name": f,
+                 "rows": phrases.for_user(current_user, f),
+                 "mine": bool(getattr(current_user, phrases.key_for(f), None))}
+                for f in phrases.FIELDS],
+    )
 
 
 # -------------------------------------------------------- icd search -------

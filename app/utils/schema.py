@@ -118,6 +118,7 @@ ADDITIONS = [
     ("patients", "family_auto", "BOOLEAN DEFAULT 0"),
     ("users", "visit_complaint_chips", "TEXT"),
     ("users", "visit_exam_chips", "TEXT"),
+    ("users", "visit_plan_chips", "TEXT"),
     ("prescriptions", "diagnosis_stage", "VARCHAR(16)"),
     ("prescriptions", "complaint", "VARCHAR(255)"),
     ("prescription_items", "printed", "BOOLEAN DEFAULT 1"),

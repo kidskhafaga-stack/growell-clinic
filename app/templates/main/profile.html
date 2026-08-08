@@ -81,19 +81,13 @@
         </select></div>
       {% endif %}
     </div>
-    {# Per doctor, not per clinic. The sentences a paediatrician reaches for
-       are not a dermatologist's, and one shared list grows until typing is
-       faster than finding. Empty means "use the clinic's". #}
+    {# Per doctor, not per clinic — and edited on its own screen rather than
+       in a raw textarea here. Two editors of one list is how the code column
+       ended up existing in one of them and not the other. #}
     <h3 style="margin:14px 0 6px;font-size:0.95rem;"><i class="bi bi-chat-square-text"></i> {{ t('profile.my_chips') }}</h3>
     <p class="hint" style="margin:0 0 8px;">{{ t('profile.my_chips_hint') }}</p>
-    <div class="form-grid">
-      <div class="form-row" style="grid-column:1/-1;"><label>{{ t('settings.complaint_chips') }}</label>
-        <textarea class="input" name="visit_complaint_chips" rows="4"
-                  placeholder="{{ t('profile.chips_ph') }}">{{ current_user.visit_complaint_chips or '' }}</textarea></div>
-      <div class="form-row" style="grid-column:1/-1;"><label>{{ t('settings.exam_chips') }}</label>
-        <textarea class="input" name="visit_exam_chips" rows="4"
-                  placeholder="{{ t('profile.chips_ph') }}">{{ current_user.visit_exam_chips or '' }}</textarea></div>
-    </div>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.phrases_screen') }}">
+      <i class="bi bi-pencil-square"></i> {{ t('phrases.title') }}</a>
     <h3 style="margin:14px 0 6px;font-size:0.95rem;"><i class="bi bi-palette"></i> {{ t('profile.branding') }}</h3>
     {{ img_box('signature_file', t('profile.signature'), current_user.signature_file) }}
     {{ img_box('stamp_file', t('profile.stamp'), current_user.stamp_file) }}

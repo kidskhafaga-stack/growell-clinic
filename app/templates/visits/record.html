@@ -23,6 +23,7 @@
 <script type="application/json" id="visitCfg">
 {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
     'normal': t('visits.normal_exam_text'),
+    'codes': phrase_codes,
     'age_days': (visit.patient.age_days or 0),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
@@ -219,30 +220,51 @@
       </div>
 
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
-        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
+        {# The code expands as it is typed: "نورمال" + space becomes the
+           sentence. See app/utils/phrases.py — the doctor writes it once. #}
+        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"
+                  x-on:input="expand('complaint', 'cc', $event)"></textarea>
         <div class="smart-chips">
           {% for phrase in complaint_chips %}
           {% set _c = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
-          <button type="button" class="chip" x-on:click='addComplaint({{ _c|tojson }})'>{{ _c }}</button>
+          <button type="button" class="chip" x-on:click='addComplaint({{ _c|tojson }})'
+                  {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _c }}{% if phrase.code %}
+            <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
           {% endfor %}
+          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}"
+             title="{{ t('phrases.title') }}"><i class="bi bi-gear"></i></a>
         </div>
       </div>
 
       <div class="form-row"><label>{{ t('visits.clinical_exam') }}</label>
-        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"></textarea>
+        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"
+                  x-on:input="expand('exam', 'exam', $event)"></textarea>
         <div class="smart-chips">
           <button type="button" class="chip chip--primary" x-on:click="normalExam()">
             <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
           {% for phrase in exam_chips %}
           {% set _e = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
-          <button type="button" class="chip" x-on:click='addExam({{ _e|tojson }})'>{{ _e }}</button>
+          <button type="button" class="chip" x-on:click='addExam({{ _e|tojson }})'
+                  {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _e }}{% if phrase.code %}
+            <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
           {% endfor %}
+          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}"
+             title="{{ t('phrases.title') }}"><i class="bi bi-gear"></i></a>
         </div>
       </div>
 
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.plan') }}</label>
-          <textarea class="input" name="plan" rows="2" x-model="planTxt"></textarea></div>
+          <textarea class="input" name="plan" rows="2" x-model="planTxt"
+                    x-on:input="expand('plan', 'planTxt', $event)"></textarea>
+          <div class="smart-chips">
+            {% for phrase in plan_chips %}
+            {% set _p = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
+            <button type="button" class="chip" x-on:click='addPlan({{ _p|tojson }})'
+                    {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _p }}{% if phrase.code %}
+              <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
+            {% endfor %}
+          </div></div>
         <div class="form-row"><label>{{ t('visits.notes') }}</label>
           <textarea class="input" name="notes" id="visitNotes" rows="2">{{ visit.notes or '' }}</textarea></div>
       </div>
@@ -1080,6 +1102,9 @@
     border-radius:999px; padding:4px 11px; font-size:0.8rem; cursor:pointer; font-family:inherit;
     transition:all .15s ease; }
   .chip:hover { border-style:solid; border-color:var(--green-600); color:var(--green-800); }
+  .chip-code { margin-inline-start:5px; padding:0 4px; border-radius:5px; font-size:.72rem;
+    background:var(--green-050,#eef7f0); color:var(--green-800,#1f6b3b); font-family:var(--mono,monospace); }
+  .chip--link { text-decoration:none; }
   .chip--primary { border-style:solid; border-color:var(--green-600); color:var(--green-800);
     background:var(--green-050,#f3faf5); font-weight:600; }
   /* Sticky action bar */
@@ -1197,6 +1222,35 @@
         const t = (this.exam || '').trim();
         if (t.split('\n').map(x => x.trim()).includes(txt)) return;  // no dupes
         this.exam = t ? (t + '\n' + txt) : txt;
+      },
+      addPlan(txt) {
+        const t = (this.planTxt || '').trim();
+        if (t.split('\n').map(x => x.trim()).includes(txt)) return;  // no dupes
+        this.planTxt = t ? (t + '\n' + txt) : txt;
+      },
+      codes: cfg.codes || {},
+      // A code the doctor defined, typed and followed by a space, becomes the
+      // sentence it stands for. The trigger is the space rather than every
+      // keystroke, so a code that is also an ordinary word can still be typed
+      // as one — you get it back by deleting the space.
+      expand(field, model, ev) {
+        const map = this.codes[field] || {};
+        const el = ev && ev.target;
+        if (!el || el.selectionStart === null) return;
+        const at = el.selectionStart;
+        const before = (this[model] || '').slice(0, at);
+        if (!/\s$/.test(before)) return;          // only on a separator
+        const m = before.match(/(^|[\s،,.])([^\s،,.]+)\s$/);
+        if (!m) return;
+        const full = map[m[2]];
+        if (!full) return;
+        const head = before.slice(0, before.length - m[2].length - 1);
+        const tail = (this[model] || '').slice(at);
+        this[model] = head + full + tail;
+        // Put the caret after what was just written, not at the end of a
+        // paragraph the doctor is in the middle of.
+        const caret = (head + full).length;
+        this.$nextTick(() => { el.setSelectionRange(caret, caret); });
       },
       carryForward() {
         if (!this.prev) return;

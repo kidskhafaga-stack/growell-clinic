@@ -60,6 +60,7 @@ class User(UserMixin, db.Model):
     # clinic's", so nobody starts from an empty palette.
     visit_complaint_chips = db.Column(db.Text)
     visit_exam_chips = db.Column(db.Text)
+    visit_plan_chips = db.Column(db.Text)
 
     # UI personalization (per user).
     theme = db.Column(db.String(10))                # light | dark

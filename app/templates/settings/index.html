@@ -3,32 +3,11 @@
 {% block title %}{{ t('nav.settings') }}{% endblock %}
 {% block page_heading %}{{ t('nav.settings') }}{% endblock %}
 
+{% from "_chip_editor.html" import chip_editor, chip_editor_assets with context %}
+
 {% block head %}<style>
   [x-cloak]{display:none!important;}
-  .chip-editor{display:flex;flex-direction:column;gap:7px;}
-  .chip-edit-row{display:flex;gap:7px;align-items:center;}
-  .chip-edit-row .input{flex:1;min-width:0;}
-  .chip-edit-del{flex-shrink:0;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
-    background:#fff;color:#b42318;cursor:pointer;display:grid;place-items:center;}
-  .chip-edit-del:hover{background:#fdecea;border-color:#f5c2c7;}
-</style>{% endblock %}
-
-{% macro chip_editor(field, chips) %}
-<div class="chip-editor" x-data="chipEditor({{ chips|tojson|forceescape }})">
-  <input type="hidden" name="{{ field }}" :value="serialize()">
-  <template x-for="(c, i) in chips" :key="i">
-    <div class="chip-edit-row">
-      <input class="input" x-model="c.ar" placeholder="{{ t('settings.chip_ar_ph') }}" dir="rtl">
-      <input class="input" x-model="c.en" placeholder="{{ t('settings.chip_en_ph') }}" dir="ltr">
-      <button type="button" class="chip-edit-del" x-on:click="chips.splice(i, 1)" title="{{ t('common.delete') }}"><i class="bi bi-x-lg"></i></button>
-    </div>
-  </template>
-  <div>
-    <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="chips.push({ar:'', en:''})">
-      <i class="bi bi-plus-lg"></i> {{ t('settings.chip_add') }}</button>
-  </div>
-</div>
-{% endmacro %}
+</style>{{ chip_editor_assets() }}{% endblock %}
 
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -260,7 +239,17 @@
         <div class="hint" style="margin:2px 0 6px;">{{ t('settings.exam_chips_hint') }}</div>
         {{ chip_editor('visit_exam_chips', exam_chips) }}
       </div>
+      <div class="form-row">
+        <label><i class="bi bi-clipboard2-check"></i> {{ t('settings.plan_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.plan_chips_hint') }}</div>
+        {{ chip_editor('visit_plan_chips', plan_chips) }}
+      </div>
     </div>
+    <p class="hint" style="margin-top:10px;"><i class="bi bi-lightning-charge"></i>
+      {{ t('phrases.code_hint') }}</p>
+    <p class="hint"><i class="bi bi-person-badge"></i>
+      {{ t('phrases.clinic_is_a_start') }}
+      <a href="{{ url_for('visits.phrases_screen') }}">{{ t('phrases.mine_link') }}</a></p>
     <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('settings.visit_chips_lang_hint') }}</p>
   </div>
 
@@ -616,25 +605,4 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </div>
 </form>
-<script>
-  // Bilingual quick-phrase editor: rows of (Arabic, English) serialised back to
-  // the hidden field as "ar|en" lines (English optional) on submit.
-  function chipEditor(initial) {
-    var rows = (initial && initial.length)
-      ? initial.map(function (c) { return { ar: c.ar || '', en: c.en || '' }; })
-      : [{ ar: '', en: '' }];
-    return {
-      chips: rows,
-      serialize: function () {
-        return this.chips
-          .filter(function (c) { return (c.ar || '').trim() || (c.en || '').trim(); })
-          .map(function (c) {
-            var ar = (c.ar || '').trim(), en = (c.en || '').trim();
-            return en ? (ar + '|' + en) : ar;
-          })
-          .join('\n');
-      }
-    };
-  }
-</script>
 {% endblock %}

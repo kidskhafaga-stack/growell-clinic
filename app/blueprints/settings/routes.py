@@ -28,7 +28,7 @@ TEXT_KEYS = [
     # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
     # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.
-    "visit_complaint_chips", "visit_exam_chips",
+    "visit_complaint_chips", "visit_exam_chips", "visit_plan_chips",
     # ETA e-invoicing.
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",
@@ -230,9 +230,7 @@ def index():
         return redirect(url_for("settings.index"))
 
     from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
-    from app.blueprints.visits.routes import (
-        DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS, _visit_chips,
-    )
+    from app.utils import phrases
 
     from app.utils.clock import COMMON_ZONES, DEFAULT_TZ, valid_zone
     from app.utils.money import CURRENCIES
@@ -246,8 +244,13 @@ def index():
         # case, and it has to be visible: silently falling back would put the
         # wrong-by-three-hours numbers back on the screen.
         zone_broken=not valid_zone(values.get("clinic_timezone") or DEFAULT_TZ),
-        complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
-        exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
+        # The *clinic's* list, not the signed-in doctor's. This screen used to
+        # call the doctor-aware reader, so an admin with phrases of their own
+        # was shown them under a heading that said "the clinic's" — and saving
+        # wrote them over it.
+        complaint_chips=phrases.clinic_phrases("complaint"),
+        exam_chips=phrases.clinic_phrases("exam"),
+        plan_chips=phrases.clinic_phrases("plan"),
     )
 
 
