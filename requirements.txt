@@ -17,3 +17,8 @@ requests==2.32.3
 segno==1.6.1
 # Offline RCPCH UK growth reference (UK-WHO / UK90) — local Z-score/centile math
 rcpchgrowth==4.5.0
+# The IANA timezone database. Linux and macOS carry it; Windows does not,
+# and these clinics run on Windows — without it every ZoneInfo lookup fails
+# and the clinic's local time (and anything compared against a typed time)
+# cannot be worked out at all.
+tzdata==2025.2

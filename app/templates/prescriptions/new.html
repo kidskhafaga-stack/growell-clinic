@@ -26,16 +26,96 @@
   {% endif %}
   <div class="card gc-scale-in">
     <div class="form-grid">
-      <div class="form-row"><label>{{ t('rx.patient') }} *</label>
-        <select class="select" name="patient_id" required>
-          <option value="">{{ t('rx.select_patient') }}</option>
-          {% for p in patients %}<option value="{{ p.id }}" {{ 'selected' if patient and patient.id==p.id else '' }}>{{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>{% endfor %}
-        </select></div>
+      {# Arrived from a child's file or a visit: the patient is settled and
+         a picker here can only be used to get it wrong. Everywhere else it
+         is a search — the dropdown it replaces was capped at 500 names in
+         alphabetical order, so on a clinic with thousands of files it simply
+         stopped mid-alphabet and the child appeared not to exist. #}
+      {% if patient %}
+      <div class="form-row"><label>{{ t('rx.patient') }}</label>
+        <input type="hidden" name="patient_id" value="{{ patient.id }}">
+        <div class="locked-field">
+          <i class="bi bi-person-badge"></i>
+          <strong>{{ patient.display_name(current_lang) }}</strong>
+          <span class="badge badge--role">{{ patient.patient_number }}</span>
+        </div></div>
+      {% else %}
+      <div class="form-row" style="position:relative;"
+           x-data="rxPatient('{{ url_for('prescriptions.patient_search') }}')">
+        <label>{{ t('rx.patient') }} *</label>
+        <input type="hidden" name="patient_id" :value="chosenId" required>
+        <input class="input" x-model="q" autocomplete="off"
+               placeholder="{{ t('rx.patient_search_ph') }}"
+               role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="ask()" x-on:focus="ask()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.enter="enter($event)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(() => picker.close(), 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(p, idx) in picker.items" :key="p.id">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx"
+                    x-on:click="picker.close(); choose(p)">
+              <span class="badge badge--role" x-text="p.number"></span>
+              <span x-text="p.name"></span>
+            </button>
+          </template>
+        </div>
+        <div class="hint" x-show="chosenId" x-cloak>
+          <i class="bi bi-check-lg"></i> <span x-text="chosenLabel"></span></div>
+      </div>
+      {% endif %}
+      {# A doctor signs their own prescriptions: their name is taken from the
+         account they signed in with and there is no list, because a list that
+         lets one doctor put another's name on a signed prescription is a list
+         that will eventually be used that way by accident.
+
+         Everybody else — the administrator or the front desk writing one on a
+         doctor's behalf — searches, prefilled with themselves when they see
+         patients too. It was a dropdown, which is the same shape of problem
+         the patient list had. #}
+      {% if current_user.role == 'doctor' %}
       <div class="form-row"><label>{{ t('rx.doctor') }}</label>
-        <select class="select" name="doctor_id">
-          <option value="">—</option>
-          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if (pf.doctor_id and pf.doctor_id==d.id) or (not pf.doctor_id and current_user.id==d.id) else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
-        </select></div>
+        <input type="hidden" name="doctor_id" value="{{ current_user.id }}">
+        <div class="locked-field">
+          <i class="bi bi-person-vcard"></i>
+          <strong>{{ current_user.doctor_print_name(current_lang) }}</strong>
+        </div></div>
+      {% else %}
+      {% set _mine = rx_doctor %}
+      <div class="form-row" style="position:relative;"
+           x-data="rxDoctor('{{ url_for('prescriptions.doctor_search') }}',
+                            {{ (pf.doctor_id or (_mine.id if _mine else '')) or 'null' }},
+                            {{ (_mine.doctor_print_name(current_lang) if _mine else '')|tojson|forceescape }})">
+        <label>{{ t('rx.doctor') }}</label>
+        <input type="hidden" name="doctor_id" :value="chosenId">
+        <input class="input" x-model="q" autocomplete="off"
+               placeholder="{{ t('rx.doctor_search_ph') }}"
+               role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="ask()" x-on:focus="ask()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.enter="enter($event)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(() => picker.close(), 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(d, idx) in picker.items" :key="d.id">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx"
+                    x-on:click="picker.close(); choose(d)">
+              <span x-text="d.name"></span>
+              <span class="badge badge--role" x-show="d.number" x-cloak x-text="d.number"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+      {% endif %}
       <div class="form-row" style="position:relative;"><label>{{ t('rx.diagnosis') }}</label>
         <input type="hidden" name="diagnosis_code" x-model="dxCode">
         <input class="input" name="diagnosis" x-model="dx" autocomplete="off"
@@ -170,6 +250,17 @@
                    x-on:blur="line.duration = expandDuration(line.duration)"
                    placeholder="5d"></div>
           <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
+          {# Ticked by default: a line the doctor wrote must not vanish from
+             the paper by accident, so leaving one off is a deliberate press.
+             The form posts the *indexes that are off*, because an unticked
+             box sends nothing at all and the rows have to stay aligned. #}
+          <div class="form-row checkbox" style="align-self:end;">
+            <input type="checkbox" :id="'pr'+i" x-model="line.printed">
+            <label :for="'pr'+i" style="margin:0;font-weight:400;">{{ t('rx.print_this') }}</label>
+            <template x-if="!line.printed">
+              <input type="hidden" name="item_hidden" :value="i">
+            </template>
+          </div>
         </div>
         {% if ai_ready %}
         <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -256,6 +347,18 @@
   </div>
 
   <div class="card gc-scale-in" style="animation-delay:0.1s;">
+    <div class="form-row"><label>{{ t('rx.stage_label') }}</label>
+      <select class="select" name="diagnosis_stage">
+        {# Blank stays the default: plenty of prescriptions carry a diagnosis
+           nobody wants to grade, and defaulting to "final" would print a
+           certainty the doctor never claimed. #}
+        <option value="">{{ t('rx.stage_none') }}</option>
+        <option value="provisional">{{ t('rx.stage_provisional') }}</option>
+        <option value="working">{{ t('rx.stage_working') }}</option>
+        <option value="final">{{ t('rx.stage_final') }}</option>
+      </select></div>
+    <div class="form-row"><label>{{ t('rx.complaint') }}</label>
+      <input class="input" name="complaint" placeholder="{{ t('rx.complaint_ph') }}"></div>
     <div class="form-row"><label>{{ t('rx.notes') }}</label><textarea class="input" name="notes" rows="2"></textarea></div>
   </div>
 
@@ -266,6 +369,54 @@
 </form>
 
 <script>
+  // Finding a child by typing, instead of scrolling a list that stopped at
+  // five hundred names. Reuses the same picker widget as the ICD and drug
+  // searches so the keyboard behaves identically across the screen.
+  function rxPatient(url) {
+    return {
+      q: '', chosenId: '', chosenLabel: '',
+      picker: window.gcPicker({ url: url, minChars: 2 }),
+      ask() {
+        // Typing again after choosing means they are choosing somebody else;
+        // leaving the old id attached is how a prescription ends up on the
+        // wrong child's file.
+        this.chosenId = ''; this.chosenLabel = '';
+        this.picker.q = this.q; this.picker.search();
+      },
+      choose(p) {
+        this.chosenId = p.id;
+        this.chosenLabel = p.name + ' — ' + p.number;
+        this.q = this.chosenLabel;
+      },
+      enter(ev) {
+        const p = this.picker.take();
+        if (p) { ev.preventDefault(); this.choose(p); }
+      },
+    };
+  }
+
+  // The doctor field for whoever is not a doctor themselves. minChars 0: a
+  // clinic has a handful of doctors, so focusing the box shows all of them —
+  // making somebody guess two letters of a list that short is a hurdle, not a
+  // search.
+  function rxDoctor(url, initialId, initialName) {
+    return {
+      q: initialName || '', chosenId: initialId || '',
+      picker: window.gcPicker({ url: url, minChars: 0 }),
+      ask() {
+        // Typing again means they are choosing somebody else; leaving the old
+        // id attached is how a prescription goes out under the wrong name.
+        this.chosenId = '';
+        this.picker.q = this.q; this.picker.search();
+      },
+      choose(d) { this.chosenId = d.id; this.q = d.name; },
+      enter(ev) {
+        const d = this.picker.take();
+        if (d) { ev.preventDefault(); this.choose(d); }
+      },
+    };
+  }
+
 window.current_lang = "{{ current_lang }}";
 function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMeds){
   return {
@@ -346,9 +497,9 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       const s = line.picker.take();
       if (s) { ev.preventDefault(); this.applyDrug(line, s); }
     },
-    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
     addLine(){ this.lines.push(this.blankLine()); },
-    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''})); },
+    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''})); },
     async aiDose(i){
       var l=this.lines[i]; if(!l.name || l.aiBusy) return;
       l.aiBusy=true; l.aiNote='';

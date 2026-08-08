@@ -1,0 +1,19 @@
+{# A counter that ticks in the browser from a moment the server printed once.
+
+   `since` is a naive UTC datetime (the program stores `datetime.utcnow()`),
+   so the `Z` below is not decoration — without it the browser reads the time
+   as local and every counter in the clinic runs hours ahead.
+
+   tone='wait'  → goes amber then red as a family waits (nobody is watching
+                  the waiting room; that is the whole point of the colour).
+   tone='plain' → stays neutral, for time spent with the doctor. #}
+{% macro live_timer(since, tone='plain') %}
+  {%- if since -%}
+    <span class="live-timer{{ ' lt-wait' if tone == 'wait' else '' }}"
+          dir="ltr"
+          data-since="{{ since.strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+          data-tone="{{ tone }}"
+          data-unit-min="{{ t('common.min_short') }}"
+          data-unit-hour="{{ t('common.hour_short') }}">…</span>
+  {%- endif -%}
+{% endmacro %}

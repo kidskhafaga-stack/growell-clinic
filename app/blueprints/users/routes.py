@@ -337,11 +337,22 @@ def delete(user_id):
 @users_bp.route("/doctors")
 @admin_required
 def doctors():
+    from datetime import date, timedelta
+
     from app.utils.feedback import doctor_ratings
+    from app.utils.waiting import clinic_start, doctor_timings
 
     docs = User.query.filter_by(role="doctor").order_by(User.full_name).all()
+    # A month, because a week of a paediatric clinic is mostly whichever virus
+    # was going round — and the numbers below are medians, which need enough
+    # consultations under them to mean anything.
+    until = date.today()
+    since = until - timedelta(days=30)
     return render_template("users/doctors.html", doctors=docs,
-                           ratings=doctor_ratings())
+                           ratings=doctor_ratings(),
+                           timings=doctor_timings(since, until),
+                           starts=clinic_start(since, until),
+                           since=since, until=until)
 
 
 @users_bp.route("/doctors/<int:user_id>")

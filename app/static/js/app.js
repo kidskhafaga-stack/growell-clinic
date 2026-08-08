@@ -422,7 +422,11 @@ window.gcPicker = function (config) {
 
     async search() {
       var text = (this.q || "").trim();
-      if (text.length < (cfg.minChars || 1)) {
+      // `cfg.minChars || 1` turned an explicit 0 into 1, so a caller that
+      // wanted the whole (short) list on focus silently got nothing until two
+      // letters were typed.
+      var minChars = cfg.minChars === undefined ? 1 : cfg.minChars;
+      if (text.length < minChars) {
         this.items = []; this.open = false; this.searched = false; return;
       }
       var mine = ++this._seq;
@@ -463,4 +467,247 @@ window.gcPicker = function (config) {
 
     close() { this.open = false; this.items = []; this.active = -1; },
   };
+};
+
+// --------------------------------------------------------- live timers ----
+// "This child has been waiting 41 minutes" — ticking, on the screen, without
+// the server being asked anything. The page prints the moment once and the
+// browser counts from it; there is no polling and no refresh, so a board left
+// open on the reception desk all morning costs nothing.
+//
+// The trap this code exists to avoid: the program stores times with
+// `datetime.utcnow()`, which is UTC with no timezone marker on it. Handed to
+// the browser as-is it would be read as local time, and every counter in a
+// clinic on UTC+3 would read three hours high — which looks exactly like a
+// bug in the counter rather than a bug in the timestamp. So the template
+// stamps a trailing `Z` and this reads it as UTC, always.
+(function () {
+  var AMBER = 20, RED = 40;   // minutes a family has been waiting
+
+  function label(el, mins) {
+    var hour = el.dataset.unitHour || 'h', min = el.dataset.unitMin || 'm';
+    if (mins < 60) return mins + ' ' + min;
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m ? h + ' ' + hour + ' ' + m + ' ' + min : h + ' ' + hour;
+  }
+
+  function tick() {
+    var now = Date.now();
+    document.querySelectorAll('.live-timer').forEach(function (el) {
+      var since = Date.parse(el.dataset.since);
+      if (isNaN(since)) return;
+      var mins = Math.floor((now - since) / 60000);
+      if (mins < 0) mins = 0;              // clocks drift; never count down
+      el.textContent = label(el, mins);
+      // Only a waiting family goes red. A counter turning red while a doctor
+      // is examining a sick child is pressure to hurry, and hurrying is not
+      // what anybody wants bought with this feature.
+      if (el.dataset.tone === 'wait') {
+        el.classList.toggle('lt-amber', mins >= AMBER && mins < RED);
+        el.classList.toggle('lt-red', mins >= RED);
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    tick();
+    // Half a minute: the number is shown in whole minutes, so anything
+    // faster redraws the same text.
+    setInterval(tick, 30000);
+  });
+})();
+
+// ------------------------------------------------- inline add / remove ----
+// Adding one drug should not reload the whole consultation.
+//
+// Every add on the visit screen was a form POST followed by a full page load.
+// That threw away the scroll position and anything half-typed elsewhere, and
+// a doctor adding four medicines paid for it four times — mid-consultation,
+// with a child on the couch.
+//
+// The trick here is that no new endpoint is needed. The POST already redirects
+// to the visit page, and `fetch` follows that redirect, so the response *is*
+// the freshly rendered page: parse it, lift out the one list that changed, and
+// put it in place. One request, same server code, same HTML the full reload
+// would have produced — so the two can never drift apart, which is what makes
+// this safe on a clinical screen rather than a second rendering path to
+// maintain.
+//
+// If anything about the page is not as expected — no list to swap, a failed
+// request, a response that is not the page we asked for — it falls back to
+// letting the browser submit normally. A visit record that quietly fails to
+// record something is far worse than one that blinks.
+(function () {
+  function panelOf(form) {
+    return form.closest('[data-add-panel]');
+  }
+
+  // A visible "yes, that went in". Without it the only evidence a doctor has
+  // that the press worked is the list being one row longer than they
+  // remember, which is not evidence at all halfway through a consultation.
+  function confirmAdd(form, row) {
+    var note = form.querySelector('.gc-added-note');
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'gc-added-note';
+      form.appendChild(note);
+    }
+    var name = row ? (row.querySelector('strong') || row).textContent.trim() : '';
+    note.innerHTML = '<i class="bi bi-check-circle-fill"></i> ' +
+      (form.dataset.addedLabel || 'Added') +
+      (name ? ' — <b></b>' : '');
+    if (name) note.querySelector('b').textContent = name.slice(0, 60);
+    note.classList.remove('is-gone');
+    clearTimeout(note._timer);
+    note._timer = setTimeout(function () { note.classList.add('is-gone'); }, 3500);
+  }
+
+  async function inlineSubmit(ev) {
+    const form = ev.target.closest && ev.target.closest('form[data-inline]');
+    if (!form) return;
+    const panel = panelOf(form);
+    const list = panel && panel.querySelector('[data-add-list]');
+    if (!panel || !list) return;            // nowhere to put it: normal submit
+
+    ev.preventDefault();
+    const button = form.querySelector('[type=submit]');
+    if (button) button.disabled = true;
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST', body: new FormData(form), redirect: 'follow',
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      if (!res.ok) throw new Error(res.status);
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      const fresh = doc.querySelector('#' + panel.id + ' [data-add-list]');
+      if (!fresh) throw new Error('no list in response');
+
+      // Which rows are new. Compared before the swap, because after it the
+      // only way to tell would be to trust the order — and a doctor who
+      // cannot see *what* was added has to re-read the whole list to be sure
+      // the press worked, which is the thing this was meant to remove.
+      const before = new Set(
+        Array.from(list.children).map(function (el) { return el.outerHTML; }));
+
+      list.innerHTML = fresh.innerHTML;
+      // Alpine does not walk HTML that appeared after it started.
+      if (window.Alpine && window.Alpine.initTree) window.Alpine.initTree(list);
+
+      const fresh_rows = Array.from(list.querySelectorAll('tbody tr, .dx-row'))
+        .filter(function (el) { return !before.has(el.outerHTML); });
+      const landed = fresh_rows.length ? fresh_rows[fresh_rows.length - 1] : null;
+      if (landed) {
+        landed.classList.add('gc-just-added');
+        landed.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        setTimeout(function () { landed.classList.remove('gc-just-added'); }, 2200);
+      }
+      if (form.hasAttribute('data-add-form')) confirmAdd(form, landed);
+
+      // The tab badge counts what is in the list, so it moved too.
+      const badge = document.querySelector('[data-count-for="' + panel.id + '"]');
+      const freshBadge = doc.querySelector('[data-count-for="' + panel.id + '"]');
+      if (badge && freshBadge) {
+        badge.textContent = freshBadge.textContent;
+        // It renders even at zero so that it exists to count up from; hidden
+        // is what keeps an empty tab from wearing a "0".
+        badge.hidden = freshBadge.hidden;
+      }
+
+      if (form.hasAttribute('data-add-form')) {
+        form.reset();
+        const first = form.querySelector('input:not([type=hidden]), textarea');
+        if (first) first.focus();
+      }
+    } catch (e) {
+      form.removeAttribute('data-inline');   // do it the reliable way instead
+      form.submit();
+      return;
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  document.addEventListener('submit', inlineSubmit);
+})();
+
+// ------------------------------------------------- the copy that is sent --
+// Saving a prescription as an image, drawn by the browser that is already
+// displaying it correctly.
+//
+// The alternative was rendering the PDF on the server, and for this program
+// that is the wrong trade. WeasyPrint and wkhtmltopdf are heavy installs on
+// the Windows Server these clinics run on, and both need their Arabic fonts
+// and RTL handling configured by hand — so the first clinic to install the
+// program unaided would stop there. The browser has already solved every one
+// of those problems: what it is showing is, letter for letter, what should be
+// sent.
+//
+// So the page is redrawn into a canvas: text as text-shaped pixels, images
+// inlined, at twice the screen resolution so it is legible when a pharmacist
+// zooms in on a phone. No dependency, no fonts to install, and nothing that
+// can render differently from what the doctor just approved on screen.
+window.gcSavePng = async function (elementId, filename) {
+  var node = document.getElementById(elementId);
+  if (!node) return;
+
+  // Anything outside the paper itself — buttons, warnings, the parts marked
+  // as "not printed" — must not travel with it.
+  var clone = node.cloneNode(true);
+  clone.querySelectorAll('.no-print').forEach(function (el) { el.remove(); });
+
+  var rect = node.getBoundingClientRect();
+  var scale = 2;
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;' +
+    'width:' + Math.ceil(rect.width) + 'px;padding:16px;';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  try {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svg.setAttribute('width', wrapper.offsetWidth);
+    svg.setAttribute('height', wrapper.offsetHeight);
+    var fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    fo.setAttribute('width', '100%');
+    fo.setAttribute('height', '100%');
+    var body = document.createElement('div');
+    body.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    body.style.cssText = 'background:#fff;font-family:' +
+      getComputedStyle(document.body).fontFamily + ';';
+    body.innerHTML = wrapper.innerHTML;
+    fo.appendChild(body);
+    svg.appendChild(fo);
+
+    var blob = new Blob([new XMLSerializer().serializeToString(svg)],
+                        { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    await new Promise(function (done, fail) {
+      img.onload = done; img.onerror = fail; img.src = url;
+    });
+
+    var canvas = document.createElement('canvas');
+    canvas.width = wrapper.offsetWidth * scale;
+    canvas.height = wrapper.offsetHeight * scale;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    var link = document.createElement('a');
+    link.download = filename || 'page.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (err) {
+    // Falling back to the browser's own print dialogue, which can always
+    // "save as PDF". A doctor who pressed a button and got nothing would
+    // reasonably conclude the feature does not work.
+    window.print();
+  } finally {
+    wrapper.remove();
+  }
 };

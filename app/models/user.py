@@ -53,6 +53,14 @@ class User(UserMixin, db.Model):
     personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
     accent_color = db.Column(db.String(20))         # لون مميز
     rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
+    # A doctor's own quick phrases for the visit screen. They used to be one
+    # list for the whole clinic, which is the wrong shape: the sentences a
+    # paediatrician reaches for are not a dermatologist's, and a shared list
+    # grows until typing is faster than finding. Blank means "use the
+    # clinic's", so nobody starts from an empty palette.
+    visit_complaint_chips = db.Column(db.Text)
+    visit_exam_chips = db.Column(db.Text)
+    visit_plan_chips = db.Column(db.Text)
 
     # UI personalization (per user).
     theme = db.Column(db.String(10))                # light | dark
@@ -138,12 +146,44 @@ class User(UserMixin, db.Model):
             return self.full_name_en
         return self.full_name
 
+    # How a doctor is addressed, per language. Everybody is "د/" — except a
+    # professor, who is "أ.د/". Asked for in exactly those words, and it is
+    # the convention every Egyptian prescription follows.
+    HONORIFICS = {
+        "Professor": {"ar": "أ.د/", "en": "Prof. Dr."},
+    }
+    DEFAULT_HONORIFIC = {"ar": "د/", "en": "Dr."}
+
+    def doctor_honorific(self, lang="ar"):
+        """"د/" or "أ.د/" — derived from the doctor's classification.
+
+        Derived, not typed. It used to print ``professional_title`` verbatim,
+        which put the English word *Consultant* in front of an Arabic name on
+        an Arabic prescription; and every screen that wanted a doctor's name
+        with a title had to remember to add one itself, so most of them did
+        not. One rule here means the same doctor reads the same way on a
+        prescription, a report and a screen.
+        """
+        table = self.HONORIFICS.get(self.professional_title or "",
+                                    self.DEFAULT_HONORIFIC)
+        return table.get(lang, table.get("ar", ""))
+
     def doctor_print_name(self, lang="ar"):
-        """Name shown on the doctor's prescriptions/printouts."""
+        """Name shown on the doctor's prescriptions and printouts."""
+        # A name typed specifically for prescriptions is somebody's deliberate
+        # wording — it carries whatever title they wanted and is left alone.
         if self.rx_display_name:
             return self.rx_display_name
         base = self.display_name(lang)
-        return f"{self.professional_title} {base}" if self.professional_title else base
+        honorific = self.doctor_honorific(lang)
+        if not honorific:
+            return base
+        # Names entered as "د/ أحمد" already carry it; adding another would
+        # print "د/ د/ أحمد", which is how this sort of rule usually shows up.
+        if any(base.strip().startswith(known)
+               for known in ("د/", "د.", "أ.د", "Dr.", "Prof.")):
+            return base
+        return f"{honorific} {base}"
 
     def doctor_title_lines(self, lang="ar"):
         """Qualification lines printed under the name (one per line).

@@ -1,0 +1,102 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('wizard.title') }}{% endblock %}
+{% block page_heading %}{{ t('wizard.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:18px;">
+  <h1 class="page-title">{{ t('wizard.title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('wizard.subtitle') }}</p>
+</div>
+
+{# The one question this screen answers, before any of the detail. #}
+<div class="card gc-scale-in {{ 'edge-green' if state.ready else 'edge-yellow' }}"
+     style="margin-bottom:18px;">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div class="hub-ico {{ 'edge-green' if state.ready else 'edge-yellow' }}">
+      <i class="bi bi-{{ 'check2-circle' if state.ready else 'hourglass-split' }}"></i></div>
+    <div style="flex:1;min-width:220px;">
+      <div style="font-weight:800;font-size:1.1rem;">
+        {{ t('wizard.ready') if state.ready else t('wizard.not_ready') }}</div>
+      <div style="color:var(--muted);font-size:.9rem;">
+        {{ t('wizard.required_progress')
+             .replace('{d}', state.required_done|string)
+             .replace('{t}', state.required_total|string) }}
+        · {{ t('wizard.optional_progress')
+               .replace('{d}', state.optional_done|string)
+               .replace('{t}', state.optional_total|string) }}
+      </div>
+      {% set pct = (100 * state.required_done / state.required_total)|round(0)|int if state.required_total else 100 %}
+      <div style="height:8px;border-radius:99px;background:var(--line);margin-top:10px;overflow:hidden;">
+        <div style="height:100%;width:{{ pct }}%;background:{{ '#198754' if state.ready else '#b45309' }};transition:width .3s;"></div>
+      </div>
+    </div>
+    {% if state.next %}
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for(state.next.endpoint) }}">
+      <i class="bi bi-arrow-{{ 'left' if direction=='rtl' else 'right' }}"></i>
+      {{ t('wizard.continue') }}: {{ t('wizard.step_' ~ state.next.key) }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:.06s;">
+  <table class="table">
+    <thead><tr>
+      <th style="width:44px;"></th>
+      <th>{{ t('wizard.step') }}</th>
+      <th>{{ t('wizard.why') }}</th>
+      <th>{{ t('common.status') }}</th>
+      <th style="text-align:end;"></th>
+    </tr></thead>
+    <tbody>
+      {% for row in state.rows %}
+      <tr {% if row.blocked_by %}style="opacity:.55;"{% endif %}>
+        <td style="text-align:center;font-size:1.15rem;">
+          {% if row.done %}<i class="bi bi-check-circle-fill" style="color:#198754;"></i>
+          {% elif row.blocked_by %}<i class="bi bi-lock" style="color:var(--muted);"></i>
+          {% elif row.required %}<i class="bi bi-exclamation-circle" style="color:#b45309;"></i>
+          {% else %}<i class="bi bi-circle" style="color:var(--muted);"></i>{% endif %}
+        </td>
+        <td>
+          <strong>{{ t('wizard.step_' ~ row.key) }}</strong>
+          {% if not row.required %}<span class="badge badge--muted">{{ t('wizard.optional') }}</span>{% endif %}
+          {% if row.detail %}<div style="color:var(--muted);font-size:.78rem;" dir="auto">{{ row.detail }}</div>{% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:.84rem;">{{ t('wizard.why_' ~ row.key) }}</td>
+        <td>
+          {% if row.done %}<span class="badge badge--green">{{ t('wizard.done') }}</span>
+          {% elif row.blocked_by %}
+            <span class="badge badge--muted">{{ t('wizard.blocked') }}</span>
+            <div style="color:var(--muted);font-size:.75rem;">
+              {% for key in row.blocked_by %}{{ t('wizard.step_' ~ key) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+          {% else %}<span class="badge badge--{{ 'danger' if row.required else 'muted' }}">{{ t('wizard.pending') }}</span>{% endif %}
+        </td>
+        <td style="text-align:end;white-space:nowrap;">
+          {# A blocked step still opens: being told what to do first and then
+             being refused the door is worse than being let through to look. #}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for(row.endpoint) }}">
+            <i class="bi bi-box-arrow-{{ 'in-left' if direction=='rtl' else 'in-right' }}"></i>
+            {{ t('wizard.open') }}</a>
+          {% if row.key == 'drugs' and not row.done %}
+          <form method="post" action="{{ url_for('settings.wizard_seed_drugs') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-primary btn-sm gc-press" type="submit">
+              <i class="bi bi-download"></i> {{ t('wizard.seed_drugs') }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="gc-animate" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+  <form method="post" action="{{ url_for('settings.wizard_dismiss') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-bell-slash"></i> {{ t('wizard.dismiss') }}</button>
+  </form>
+  <span class="hint">{{ t('wizard.dismiss_hint') }}</span>
+</div>
+{% endblock %}

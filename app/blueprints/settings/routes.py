@@ -22,10 +22,13 @@ TEXT_KEYS = [
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
     "clinic_accent",
+    # Where the clinic is. Needed wherever a stored UTC moment has to be
+    # compared with a time a person typed (see app/utils/clock.py).
+    "clinic_timezone",
     # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
     # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.
-    "visit_complaint_chips", "visit_exam_chips",
+    "visit_complaint_chips", "visit_exam_chips", "visit_plan_chips",
     # ETA e-invoicing.
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",
@@ -126,21 +129,70 @@ def ai_test():
     """
     from app.utils.ai import test_connection
 
-    result = test_connection(_ai_form_config())
+    tested = _ai_form_config()
+    result = test_connection(tested)
     if result.get("ok"):
         flash(t("settings.ai_test_ok").replace("{p}", result["provider"])
               .replace("{m}", result["model"]), "success")
+        # It worked — on values that are still only in the form. Without this
+        # line somebody tests successfully, never presses save, and then finds
+        # the assistant reporting itself "not ready" with no idea why.
+        from app.utils.ai import same_as_saved
+        if not same_as_saved(tested):
+            flash(t("settings.ai_test_unsaved"), "warning")
     else:
         flash(t("settings.ai_test_failed").replace("{e}", str(result.get("error"))),
               "danger")
     return redirect(url_for("settings.index") + "#ai")
 
 
+def _provider_switch_fixups():
+    """Fields that must not survive a change of AI provider.
+
+    Reported as "the provider doesn't save — it stays on the first one", and
+    the provider was in fact saving perfectly. What did not change was the
+    address it talks to: ``ai_base_url`` is a free-text box holding whichever
+    provider's endpoint was there first, and :func:`app.utils.ai.get_config`
+    prefers a saved value over the selected provider's default. So a clinic
+    that set up Claude and later picked Gemini kept posting Gemini's key to
+    ``api.anthropic.com`` — the screen said one thing and the program did
+    another, which is indistinguishable from the selection being ignored.
+
+    A value is only kept across the switch when it was meant for the new
+    provider: either the box was edited in this same submission, or the
+    provider is ``custom``, where supplying the URL is the entire point.
+    Otherwise it is cleared, and ``get_config`` falls back to the provider's
+    own default — which stays right even when that default changes in a later
+    release, as a copied-in literal would not.
+    """
+    from app.utils.ai import AI_PROVIDERS
+
+    new = (request.form.get("ai_provider") or "").strip()
+    old = (Setting.get("ai_provider") or "").strip()
+    if not new or new == old or new not in AI_PROVIDERS:
+        return {}
+
+    out = {}
+    for key in ("ai_base_url", "ai_model"):
+        if key == "ai_base_url" and new == "custom":
+            continue
+        posted = (request.form.get(key) or "").strip()
+        if posted == (Setting.get(key) or "").strip():
+            out[key] = ""       # untouched, so it belongs to the old provider
+    return out
+
+
 @settings_bp.route("/", methods=["GET", "POST"])
 @admin_required
 def index():
     if request.method == "POST":
+        # Worked out before anything is written, because it compares what was
+        # posted against what is still saved.
+        overrides = _provider_switch_fixups()
         for key in TEXT_KEYS:
+            if key in overrides:
+                Setting.set(key, overrides[key])
+                continue
             Setting.set(key, (request.form.get(key) or "").strip())
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")
@@ -178,19 +230,27 @@ def index():
         return redirect(url_for("settings.index"))
 
     from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
-    from app.blueprints.visits.routes import (
-        DEFAULT_COMPLAINT_CHIPS, DEFAULT_EXAM_CHIPS, _visit_chips,
-    )
+    from app.utils import phrases
 
+    from app.utils.clock import COMMON_ZONES, DEFAULT_TZ, valid_zone
     from app.utils.money import CURRENCIES
 
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
         free_ai=free_providers(), trial_ai=trial_defaults(),
-        currencies=CURRENCIES,
-        complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
-        exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
+        currencies=CURRENCIES, zones=COMMON_ZONES, default_tz=DEFAULT_TZ,
+        # A zone the machine cannot resolve is the Windows-without-tzdata
+        # case, and it has to be visible: silently falling back would put the
+        # wrong-by-three-hours numbers back on the screen.
+        zone_broken=not valid_zone(values.get("clinic_timezone") or DEFAULT_TZ),
+        # The *clinic's* list, not the signed-in doctor's. This screen used to
+        # call the doctor-aware reader, so an admin with phrases of their own
+        # was shown them under a heading that said "the clinic's" — and saving
+        # wrote them over it.
+        complaint_chips=phrases.clinic_phrases("complaint"),
+        exam_chips=phrases.clinic_phrases("exam"),
+        plan_chips=phrases.clinic_phrases("plan"),
     )
 
 
@@ -792,3 +852,61 @@ def _remove_logo_file(filename):
             os.remove(path)
         except OSError:
             pass
+
+
+# ------------------------------------------------------- readiness wizard --
+@settings_bp.route("/wizard")
+@admin_required
+def wizard():
+    """One screen that says whether this clinic can open, and what is missing.
+
+    A clinic is installed once and configured over a fortnight, in the wrong
+    order, by whoever is free — and the pieces depend on each other without
+    saying so. Commissions need services. Booking needs working hours. Taking
+    money needs a till. The gap is found on the first real morning, with a
+    family already at the desk.
+
+    Deliberately a **checklist that inspects**, not a slideshow that asks.
+    Every row is answered by looking at the database, so it is right whether
+    the setting was made here, on the ordinary screen, or restored from a
+    backup — and a clinic can do half of it, leave, and come back to exactly
+    where it stopped without being asked anything twice.
+    """
+    from app.utils.readiness import summary
+
+    return render_template("settings/wizard.html", state=summary())
+
+
+@settings_bp.route("/wizard/dismiss", methods=["POST"])
+@admin_required
+def wizard_dismiss():
+    """Stop the reminder. The screen stays reachable from settings.
+
+    A clinic that has decided it does not want vaccinations should not be
+    nagged about vaccinations for ever — but the checklist itself remains,
+    because "what did we never finish setting up" is a question that comes
+    back six months later.
+    """
+    Setting.set("wizard_dismissed", "0" if request.form.get("undo") else "1")
+    db.session.commit()
+    return redirect(url_for("settings.wizard"))
+
+
+@settings_bp.route("/wizard/seed-drugs", methods=["POST"])
+@admin_required
+def wizard_seed_drugs():
+    """Load the Egyptian drug register — 25,000 trade names with their prices.
+
+    Offered as a press rather than done silently at install: it is the
+    clinic's catalogue, and a clinic that keeps its own short curated list
+    should be able to say no.
+    """
+    from app.utils.egypt_drugs import seed_register
+
+    added = seed_register()
+    ActivityLog.record("settings.seed_drugs", user_id=current_user.id,
+                       entity="settings", detail=str(added),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("wizard.drugs_seeded").replace("{n}", str(added)), "success")
+    return redirect(url_for("settings.wizard"))

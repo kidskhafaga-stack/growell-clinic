@@ -81,6 +81,20 @@ class Warehouse(db.Model):
             db.session.flush()
         return wh
 
+    @classmethod
+    def for_vaccines(cls):
+        """Where a vaccine goes when nobody says otherwise: the fridge.
+
+        A clinic that made a fridge made it because that is where the vaccines
+        live. Receiving into the general store by default meant the fridge was
+        a warehouse in name only — you could transfer into it, and nothing ever
+        arrived there. Falls back to the default warehouse, which is what a
+        clinic without a fridge has always had.
+        """
+        fridge = (cls.query.filter_by(kind="fridge", is_active=True)
+                  .order_by(cls.id).first())
+        return fridge or cls.default()
+
     def __repr__(self):
         return f"<Warehouse {self.name}>"
 
@@ -137,6 +151,12 @@ class StoreItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(160), nullable=False)
     name_en = db.Column(db.String(160))
+    # Two layers, asked for in those words: the *type* says what a thing
+    # fundamentally is (drug / vaccine / consumable) and the *category* groups
+    # within it (antibiotic, antiseptic). Both come from the editable
+    # catalogue in app/utils/lookups.py — the type as a stable key, the
+    # category as the text it has always been, so no existing row moves.
+    item_type = db.Column(db.String(40), index=True)
     category = db.Column(db.String(80))
     # Internal program code (ITM-0001…), auto-assigned; doubles as the printed
     # barcode when no supplier barcode is set.

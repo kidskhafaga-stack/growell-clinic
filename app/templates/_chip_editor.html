@@ -1,0 +1,63 @@
+{# The one quick-phrase editor, used by the clinic's settings and by each
+   doctor's own screen. It was written twice before — a settings tab and a raw
+   textarea on the profile page — and the two drifted, so a code column added
+   to one of them would simply not have existed in the other. #}
+
+{% macro chip_editor_assets() %}
+<style>
+  .chip-editor{display:flex;flex-direction:column;gap:7px;}
+  .chip-edit-row{display:flex;gap:7px;align-items:center;}
+  .chip-edit-row .input{flex:1;min-width:0;}
+  .chip-edit-code{flex:0 0 110px!important;font-family:var(--mono,monospace);}
+  .chip-edit-del{flex-shrink:0;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;color:#b42318;cursor:pointer;display:grid;place-items:center;}
+  .chip-edit-del:hover{background:#fdecea;border-color:#f5c2c7;}
+</style>
+<script>
+  function chipEditor(initial) {
+    var rows = (initial && initial.length)
+      ? initial.map(function (c) {
+          return { code: c.code || '', ar: c.ar || '', en: c.en || '' }; })
+      : [{ code: '', ar: '', en: '' }];
+    return {
+      chips: rows,
+      serialize: function () {
+        return this.chips
+          .filter(function (c) { return (c.ar || '').trim() || (c.en || '').trim(); })
+          .map(function (c) {
+            var code = (c.code || '').trim().replace(/[|\s]+/g, ''),
+                ar = (c.ar || '').trim(), en = (c.en || '').trim();
+            // Mirrors app/utils/phrases.py: three parts is code|ar|en, two is
+            // ar|en — which is what every clinic already has on disk.
+            if (code) return code + '|' + ar + '|' + en;
+            return en ? (ar + '|' + en) : ar;
+          })
+          .join('\n');
+      }
+    };
+  }
+</script>
+{% endmacro %}
+
+{% macro chip_editor(field, chips) %}
+<div class="chip-editor" x-data="chipEditor({{ chips|tojson|forceescape }})">
+  <input type="hidden" name="{{ field }}" :value="serialize()">
+  <template x-for="(c, i) in chips" :key="i">
+    <div class="chip-edit-row">
+      {# The short code. Optional: most phrases are picked from the row of
+         chips, and only the long ones are worth a keyboard shortcut. #}
+      <input class="input chip-edit-code" x-model="c.code"
+             placeholder="{{ t('phrases.code_ph') }}" dir="auto">
+      <input class="input" x-model="c.ar" placeholder="{{ t('settings.chip_ar_ph') }}" dir="rtl">
+      <input class="input" x-model="c.en" placeholder="{{ t('settings.chip_en_ph') }}" dir="ltr">
+      <button type="button" class="chip-edit-del" x-on:click="chips.splice(i, 1)"
+              title="{{ t('common.delete') }}"><i class="bi bi-x-lg"></i></button>
+    </div>
+  </template>
+  <div>
+    <button type="button" class="btn btn-outline btn-sm gc-press"
+            x-on:click="chips.push({code:'', ar:'', en:''})">
+      <i class="bi bi-plus-lg"></i> {{ t('settings.chip_add') }}</button>
+  </div>
+</div>
+{% endmacro %}

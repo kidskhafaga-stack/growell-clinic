@@ -1,0 +1,120 @@
+{% extends "shell.html" %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('rooms.title') }}{% endblock %}
+{% block page_heading %}{{ t('rooms.title') }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.clinics', date=prev_date) }}">
+    <i class="bi bi-chevron-right"></i></a>
+  <form method="get" style="display:flex;gap:8px;align-items:center;">
+    <input class="input" type="date" name="date" value="{{ on_date.isoformat() }}"
+           onchange="this.form.submit()" dir="ltr">
+  </form>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.clinics', date=next_date) }}">
+    <i class="bi bi-chevron-left"></i></a>
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.clinics', date=today) }}">
+    {{ t('common.today') }}</a>
+  <a class="btn btn-outline btn-sm gc-press" style="margin-inline-start:auto;"
+     href="{{ url_for('appointments.index', date=on_date.isoformat()) }}">
+    <i class="bi bi-calendar-week"></i> {{ t('appointments.today') }}</a>
+</div>
+
+{# --- who is where today ------------------------------------------------ #}
+<div class="card gc-scale-in" style="margin-bottom:18px;">
+  <h3 style="margin:0 0 4px;">{{ t('rooms.assign_title') }}</h3>
+  <p style="color:var(--muted);font-size:.85rem;margin:0 0 14px;">{{ t('rooms.assign_hint') }}</p>
+
+  {% if not rooms %}
+    <div class="placeholder-soft">{{ t('rooms.none_yet') }}</div>
+  {% elif not doctors %}
+    <div class="placeholder-soft">{{ t('rooms.no_doctors') }}</div>
+  {% else %}
+  <form method="post" action="{{ url_for('appointments.clinic_assign') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+    <table class="table">
+      <thead><tr><th>{{ t('appointments.doctor') }}</th><th>{{ t('rooms.one') }}</th></tr></thead>
+      <tbody>
+        {% for d in doctors %}
+        {% set chosen = assigned.get(d.id).room_id if assigned.get(d.id) else previous.get(d.id) %}
+        <tr>
+          <td>{{ d.display_name(current_lang) }}</td>
+          <td>
+            <select class="select" name="room_{{ d.id }}" style="max-width:220px;">
+              <option value="">—</option>
+              {% for r in rooms if r.is_active or chosen == r.id %}
+              <option value="{{ r.id }}" {{ 'selected' if chosen == r.id else '' }}>
+                {{ r.display_name(current_lang) }}</option>
+              {% endfor %}
+            </select>
+            {% if not assigned.get(d.id) and previous.get(d.id) %}
+              <span class="badge badge--role">{{ t('rooms.from_last_day') }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:12px;">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{# --- the عيادات themselves --------------------------------------------- #}
+<div class="card gc-scale-in" style="animation-delay:.06s;">
+  <h3 style="margin:0 0 14px;">{{ t('rooms.list_title') }}</h3>
+
+  {% if rooms %}
+  <table class="table">
+    <thead><tr>
+      <th>#</th><th>{{ t('rooms.name_ar') }}</th><th>{{ t('rooms.name_en') }}</th>
+      <th>{{ t('common.status') }}</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for r in rooms %}
+      <tr>
+        <form method="post" action="{{ url_for('appointments.clinic_edit', room_id=r.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+          <td><b>{{ r.code }}</b></td>
+          <td><input class="input" name="name_ar" value="{{ r.name_ar or '' }}"
+                     placeholder="{{ t('rooms.name_placeholder') }} {{ r.code }}"></td>
+          <td><input class="input" name="name_en" value="{{ r.name_en or '' }}" dir="ltr"></td>
+          <td><label style="display:flex;gap:6px;align-items:center;">
+            <input type="checkbox" name="is_active" {{ 'checked' if r.is_active else '' }}>
+            {{ t('common.active') }}</label></td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">
+              <i class="bi bi-check-lg"></i></button>
+        </form>
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('appointments.clinic_delete', room_id=r.id) }}"
+                  onsubmit="return confirm('{{ t('common.confirm_delete') }}');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit">
+                <i class="bi bi-trash"></i></button>
+            </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="placeholder-soft" style="margin-bottom:12px;">{{ t('rooms.none_yet') }}</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('appointments.clinic_add') }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+    <input class="input" name="name_ar" placeholder="{{ t('rooms.name_optional') }}" style="max-width:220px;">
+    <input class="input" name="name_en" placeholder="{{ t('rooms.name_en') }}" dir="ltr" style="max-width:220px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('rooms.add') }}</button>
+  </form>
+  <p style="color:var(--muted);font-size:.82rem;margin:10px 0 0;">{{ t('rooms.number_hint') }}</p>
+</div>
+{% endblock %}

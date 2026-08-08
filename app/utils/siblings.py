@@ -59,10 +59,18 @@ def suggest_siblings(patient, limit=8):
     Anybody already in *this* family is excluded. Somebody filed with a family
     of their own is still shown — finding the brother is most of the value, and
     it is the commonest shape of the problem, since a child registered with a
-    guardian always gets a family row. But they carry ``in_family``, and the
-    screen offers their file rather than a link: joining two households is a
-    merge of two sets of parents, and that is not a one-click button beside
-    eight other names.
+    guardian always gets a family row.
+
+    They carry ``in_family`` so the screen can say what pressing the button
+    will do, and ``family_name``/``same_name`` so it can say *which* family —
+    two records with one typed name being the case where "another family" is
+    read as a mistake rather than as a fact. It used to mean the screen
+    refused instead, on the reasoning that
+    joining two households is a merge of two sets of parents. A clinic showed
+    that this was the wrong call: a real import had split one family in two,
+    the screen suggested each sibling to the other, and every attempt to act
+    on the suggestion was turned down. The commonest case here is not two
+    households — it is one household the program divided.
     """
     from app.models import Patient
 
@@ -86,7 +94,20 @@ def suggest_siblings(patient, limit=8):
         elif mine and name_key(other.full_name) == mine:
             reason = "name"
         if reason:
+            # Two family *records* can carry the same typed name, and when
+            # they do "in another family" reads as though the program is
+            # simply wrong — a clinic renamed both to the same thing and the
+            # screen went on saying they were apart. Carrying the other
+            # family's name lets the row explain the difference instead of
+            # deepening it.
+            their_family = getattr(other, "family", None)
+            their_name = (getattr(their_family, "family_name", "") or "").strip()
+            my_name = (getattr(patient.family, "family_name", "") or "").strip()
             out.append({"patient": other, "reason": reason,
+                        "family_name": their_name or None,
+                        # Two blanks are not "the same name" — they are two
+                        # families nobody has named yet.
+                        "same_name": bool(their_name and their_name == my_name),
                         # Filed with a family of their own. Still worth
                         # showing — finding the brother is most of the value —
                         # but joining them is a merge of two sets of parents,
@@ -115,3 +136,62 @@ def _candidate_phones(other):
     if len(digits) >= 7:
         numbers.add(digits[-10:])
     return numbers
+
+
+def certain_sibling(patient):
+    """The one candidate safe enough to link without asking — or None.
+
+    The import links children by their father's name, which on real data puts
+    strangers in one family: "محمد أحمد" is not a fact about a household. So
+    this is deliberately much stricter than :func:`suggest_siblings`, which
+    proposes anything worth a human glance.
+
+    **Both signals must agree.** The same guardian phone *and* the same family
+    part of the name. Either alone is common — siblings share a phone with
+    their cousins in one shop's records, and two unrelated "محمد أحمد" walk in
+    every week — but a household that matches on both is one household.
+
+    **And the other child must have no family of their own.** Joining two
+    existing families is a merge of two sets of parents, and no rule should
+    ever do that on its own.
+    """
+    if patient is None:
+        return None
+    mine = name_key(patient.full_name)
+    my_phones = _phones(patient.family) if patient.family else set()
+    if not mine or not my_phones:
+        return None            # one signal missing: nothing here is certain
+
+    from app.models import Patient
+
+    matches = []
+    for other in Patient.query.filter(Patient.is_active.is_(True),
+                                      Patient.id != patient.id).all():
+        if other.family_id:
+            continue
+        if name_key(other.full_name) != mine:
+            continue
+        if not (_candidate_phones(other) & my_phones):
+            continue
+        matches.append(other)
+    # Two candidates is not certainty, it is a coincidence with a witness.
+    return matches[0] if len(matches) == 1 else None
+
+
+def auto_link(patient):
+    """Link the certain match, marked as the program's doing. Returns it or None.
+
+    Marked, because an automatic link and a receptionist's link are not
+    equally trustworthy and the screen has to be able to say which is which.
+    Somebody undoing this one is correcting a guess, not overruling a
+    colleague.
+    """
+    from app.extensions import db
+
+    other = certain_sibling(patient)
+    if other is None:
+        return None
+    other.family_id = patient.family_id
+    other.family_auto = True
+    db.session.flush()
+    return other

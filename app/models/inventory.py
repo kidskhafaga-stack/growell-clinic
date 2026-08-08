@@ -66,6 +66,10 @@ class VaccineInventory(db.Model):
 
     brand = db.relationship("VaccineBrand", back_populates="batches")
     supplier = db.relationship("Supplier", back_populates="batches")
+    # The numbered receipt this batch arrived on. The column was here; without
+    # the relationship the item card could not name the document a receipt
+    # came from, which is half of what a store card is for.
+    document = db.relationship("StoreDocument")
 
     @property
     def qty_remaining(self):
@@ -100,3 +104,50 @@ class VaccineInventory(db.Model):
 
     def __repr__(self):
         return f"<VaccineInventory brand={self.brand_id} lot={self.lot_number}>"
+
+
+class VaccineAdjustment(db.Model):
+    """What a stocktake found, kept.
+
+    Counting the fridge used to rewrite ``qty_used`` and say nothing: no
+    document, no time, no counter, and no way to tell a correction from a dose
+    that went into a child. The clinic asked for the count to show its timing;
+    what it really needs is for the count to exist as a record at all, because
+    a stock figure nobody can explain is a stock figure nobody trusts.
+
+    One row per batch that actually moved, under the numbered adjustment
+    document for that count. Batches that matched are not recorded — a list of
+    everything that was fine is noise, and the document already says the whole
+    warehouse was counted.
+    """
+
+    __tablename__ = "vaccine_adjustments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey("vaccine_inventory.id"),
+                         nullable=False, index=True)
+    document_id = db.Column(db.Integer, db.ForeignKey("store_documents.id"),
+                            nullable=True, index=True)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"),
+                             nullable=True)
+    # What the shelf held before and after, in patient doses. Both, because
+    # "adjusted by -3" and "counted 12 where the program said 15" are the same
+    # fact and only the second one can be checked against a paper count.
+    was = db.Column(db.Integer, default=0, nullable=False)
+    counted = db.Column(db.Integer, default=0, nullable=False)
+    reason = db.Column(db.String(200))
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False,
+                           index=True)
+
+    batch = db.relationship("VaccineInventory")
+    document = db.relationship("StoreDocument")
+    warehouse = db.relationship("Warehouse")
+    counter = db.relationship("User")
+
+    @property
+    def diff(self):
+        return (self.counted or 0) - (self.was or 0)
+
+    def __repr__(self):
+        return f"<VaccineAdjustment batch={self.batch_id} {self.diff:+d}>"

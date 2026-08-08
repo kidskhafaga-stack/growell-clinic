@@ -89,19 +89,28 @@ def test_linking_works_even_when_neither_has_a_family_yet(boss, clinic):
     assert _family_of(clinic, a) == _family_of(clinic, b)
 
 
-def test_a_child_already_in_another_family_is_refused(boss, clinic):
-    """Moving them is a merge, not a link, and a merge is not a one-click
-    button on a list of eight suggestions."""
+def test_a_child_already_in_another_family_is_merged_in(boss, clinic):
+    """This test used to assert the opposite, and the clinic was right.
+
+    The reasoning for refusing was that moving a child between families is a
+    merge of two sets of parents, not a link, and that a merge should not be a
+    one-click button on a list of eight suggestions. What settled it was a real
+    import: it had split one household into two family records, the screen
+    then suggested each sibling to the other, and every attempt to act on the
+    suggestion was turned down. The commonest case is not two households — it
+    is one household the program divided, and the button that fixes it was the
+    one being withheld.
+
+    So the link merges, and the merge is undoable (see the unlink tests).
+    """
     a = _patient(clinic, "عمر خفاجة", "P-A", _family(clinic, "أ"))
     other = _family(clinic, "ب")
     b = _patient(clinic, "علي خفاجة", "P-B", other)
 
-    body = boss.post(f"/patients/{a}/siblings/link", data={"sibling_id": b},
-                     follow_redirects=True).get_data(as_text=True)
-    assert _family_of(clinic, b) == other
-    with clinic["app"].test_request_context("/"):
-        from app.i18n import t
-        assert t("siblings.already_in_family").split("{")[0].strip() in body
+    boss.post(f"/patients/{a}/siblings/link", data={"sibling_id": b},
+              follow_redirects=True)
+    assert _family_of(clinic, b) == _family_of(clinic, a)
+    assert _family_of(clinic, b) != other, "the link was refused again"
 
 
 def test_linking_a_child_to_themselves_does_nothing(boss, clinic):
@@ -301,5 +310,5 @@ def test_both_languages_carry_the_words(clinic):
             data = json.load(fh)
         for key in ("link_existing", "link", "unlink", "suggested",
                     "suggested_hint", "why_phone", "why_name",
-                    "already_in_family"):
+                    "in_other_family", "same_name_family", "merged"):
             assert data["siblings"].get(key), f"{lang}.{key}"

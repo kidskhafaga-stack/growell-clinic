@@ -41,3 +41,7 @@ app/static/uploads/**
 !app/static/uploads/
 !app/static/uploads/**/
 !app/static/uploads/**/.gitkeep
+
+# Imported at runtime by a clinic (WHO ICD-11 needs their own credentials),
+# never shipped — and a test that wrote one here used to dirty the tree.
+app/data/icd11_full.json.gz

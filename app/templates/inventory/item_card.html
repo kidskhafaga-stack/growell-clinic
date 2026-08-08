@@ -99,6 +99,7 @@
       <th>{{ t('inventory.unit_cost') }}</th>
       <th>{{ t('inventory.value') }}</th>
       <th>{{ t('inventory.supplier') }}</th>
+      <th>{{ t('warehouses.one') }}</th>
     </tr></thead>
     <tbody>
       {% for b in batches %}
@@ -113,12 +114,76 @@
         <td>{{ b.unit_cost if b.unit_cost is not none else '—' }}</td>
         <td>{{ b.value }}</td>
         <td style="color:var(--muted);">{{ b.supplier.name if b.supplier else '—' }}</td>
+        <td style="color:var(--muted);">{{ b.warehouse.display_name(current_lang) if b.warehouse else t('warehouses.default_one') }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
   <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('inventory.no_batches') }}</div>
+  {% endif %}
+</div>
+
+<!-- Where the doses actually are -->
+{# A clinic with a fridge and a store keeps one number in two places. Saying
+   which shelf holds what is the difference between a stock figure and a
+   stock figure somebody can go and check. #}
+{% if held %}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title"><i class="bi bi-thermometer-snow"></i> {{ t('inventory.held_where') }}</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    {% for row in held %}
+    <span class="badge badge--role" style="font-size:.9rem;padding:6px 10px;">
+      {{ row.warehouse.display_name(current_lang) }} — <strong>{{ row.doses }}</strong>
+      {{ t('inventory.doses') }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- The movement card: every dose in and every dose out -->
+{# What was here before was a photograph of now. This is the history that
+   explains now — what a store keeper reaches for when the shelf and the
+   screen disagree. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
+  <h2 class="section-title" style="padding:16px 18px 0;">
+    <i class="bi bi-arrow-left-right"></i> {{ t('inventory.movement_card') }}</h2>
+  <p class="hint" style="padding:0 18px;">{{ t('inventory.movement_card_hint') }}</p>
+  {% if ledger %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('inventory.date') }}</th>
+      <th>{{ t('inventory.movement') }}</th>
+      <th>{{ t('inventory.lot_number') }}</th>
+      <th>{{ t('inventory.qty') }}</th>
+      <th>{{ t('inventory.balance') }}</th>
+      <th>{{ t('inventory.details') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for m in ledger %}
+      <tr>
+        <td dir="ltr">{{ m.date or '—' }}</td>
+        <td><span class="badge {{ 'badge--green' if m.kind == 'in' else '' }}">
+          {{ t('inventory.mv_' ~ m.reason) }}</span></td>
+        <td dir="ltr">{{ m.batch.lot_number or '—' }}</td>
+        <td dir="ltr" style="font-weight:600;color:{{ 'var(--green-700)' if m.qty > 0 else 'var(--danger)' }};">
+          {{ '+' if m.qty > 0 else '' }}{{ m.qty }}</td>
+        <td dir="ltr" style="font-weight:700;">{{ m.balance }}</td>
+        <td style="color:var(--muted);font-size:.86rem;">
+          {% if m.who %}<a href="{{ url_for('patients.view', patient_id=m.who.id) }}">{{ m.who.display_name(current_lang) }}</a>{% endif %}
+          {% if m.at %}<span dir="ltr">{{ m.at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+          {% if m.counter %} — {{ m.counter.display_name(current_lang) }}{% endif %}
+          {% if m.ref %}<span dir="ltr">{{ m.ref }}</span>{% endif %}
+          {% if m.note %} {{ m.note }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('inventory.no_movements') }}</div>
   {% endif %}
 </div>
 

@@ -42,56 +42,21 @@ from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.icd import search_icd
+from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 
 MODULE = "visits"
 
-# Quick "write less" chips in the visit — editable in Settings, with sensible
-# bilingual pediatric defaults. Stored one per line as "ar|en" (en optional);
-# the chip shows and inserts in the program language.
-DEFAULT_COMPLAINT_CHIPS = [
-    ("حرارة", "Fever"), ("كحة", "Cough"), ("رشح", "Runny nose"),
-    ("إسهال", "Diarrhea"), ("قيء", "Vomiting"), ("مغص", "Colic"),
-    ("إمساك", "Constipation"), ("طفح جلدي", "Skin rash"),
-    ("التهاب حلق", "Sore throat"), ("التهاب أذن", "Ear infection"),
-    ("صعوبة تنفس", "Difficulty breathing"), ("صفير بالصدر", "Wheezing"),
-    ("ضعف شهية", "Poor appetite"), ("خمول", "Lethargy"),
-    ("تسنين", "Teething"), ("احمرار عين", "Red eye"),
-    ("ألم بطن", "Abdominal pain"), ("صداع", "Headache"),
-    ("متابعة نمو", "Growth follow-up"), ("متابعة تطعيم", "Vaccination follow-up"),
-    ("إعادة كشف", "Re-examination"),
-]
-DEFAULT_EXAM_CHIPS = [
-    ("الحالة العامة جيدة", "General condition good"),
-    ("الصدر: دخول هواء ثنائي متساوٍ بدون صفير", "Chest: equal bilateral air entry, no wheeze"),
-    ("القلب: أصوات منتظمة بدون لغط", "Heart: regular sounds, no murmur"),
-    ("البطن: لين غير منتفخ غير مؤلم", "Abdomen: soft, not distended, non-tender"),
-    ("الحلق: محتقن", "Throat: congested"),
-    ("الأذن: طبلة محتقنة", "Ear: congested tympanic membrane"),
-    ("لا توجد علامات جفاف", "No signs of dehydration"),
-    ("الغدد الليمفاوية غير متضخمة", "Lymph nodes not enlarged"),
-    ("الجلد: سليم", "Skin: intact"),
-]
 
+def _visit_chips(field, user=None):
+    """This doctor's quick phrases for a visit field.
 
-def _visit_chips(key, defaults):
-    """Bilingual quick-phrase chips as ``[{"ar":…, "en":…}]``.
-
-    Stored one per line as ``ar|en`` (English optional). Falls back to the
-    pediatric defaults when the clinic hasn't set its own.
+    The phrases themselves, the storage format and the doctor-versus-clinic
+    fallback all live in ``app.utils.phrases`` now. They used to be spelt out
+    in three files, which is how the settings screen came to show the
+    signed-in doctor's list under a heading that said "the clinic's".
     """
-    raw = Setting.get(key)
-    if raw:
-        chips = []
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            ar, _, en = line.partition("|")
-            chips.append({"ar": ar.strip(), "en": en.strip()})
-        if chips:
-            return chips
-    return [{"ar": ar, "en": en} for ar, en in defaults]
+    return phrases.for_user(user if user is not None else current_user, field)
 
 
 def _float(name):
@@ -171,6 +136,39 @@ def start(patient_id):
 
 
 # -------------------------------------------------------------- record -----
+def _stamp_consultation_start(visit):
+    """Mark the consultation as begun, because the doctor just opened it.
+
+    The appointment has carried a ``started_at`` column for a long time and it
+    was almost always empty: the only thing that set it was a status button on
+    the board, and in a running clinic nobody stops to press it. So the timing
+    reports were averaging a field that barely existed.
+
+    Opening the record is the honest moment. It is the doctor's own action, it
+    happens exactly when the consultation starts, and nobody at the front desk
+    can move it earlier or later.
+
+    Three guards, each for a way the stamp would otherwise lie:
+
+    * **Only the visit's own doctor.** An admin or a colleague opening the
+      file to look something up is not the start of a consultation — and with
+      the privacy policy off, plenty of people can open it.
+    * **Only once.** A doctor opens and closes the screen several times in one
+      consultation; the first time is the one that means anything.
+    * **Only from a status that precedes it.** A completed appointment
+      reopened next week to fix a typo must not be dragged back into today.
+    """
+    appt = visit.appointment
+    if appt is None or appt.started_at is not None:
+        return
+    if current_user.id != visit.doctor_id:
+        return
+    if not appt.can_transition_to("in_progress"):
+        return
+    appt.apply_status("in_progress")
+    db.session.commit()
+
+
 @visits_bp.route("/<int:visit_id>/record", methods=["GET", "POST"])
 @module_required(MODULE)
 def record(visit_id):
@@ -180,6 +178,8 @@ def record(visit_id):
     if not can_see_visit(visit):
         flash(t("visits.not_yours"), "warning")
         return redirect(url_for("visits.index"))
+
+    _stamp_consultation_start(visit)
 
     if request.method == "POST":
         visit.chief_complaint = (request.form.get("chief_complaint") or "").strip()
@@ -293,8 +293,12 @@ def record(visit_id):
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
-        complaint_chips=_visit_chips("visit_complaint_chips", DEFAULT_COMPLAINT_CHIPS),
-        exam_chips=_visit_chips("visit_exam_chips", DEFAULT_EXAM_CHIPS),
+        complaint_chips=_visit_chips("complaint"),
+        exam_chips=_visit_chips("exam"),
+        plan_chips=_visit_chips("plan"),
+        # The codes the browser expands as the doctor types: "نورمال" and a
+        # space becomes the paragraph they wrote once.
+        phrase_codes=phrases.codes(current_user, getattr(g, "lang", "ar")),
         ai_ready=ai.is_ready(),
     )
 
@@ -392,20 +396,43 @@ def station():
     Saving pre-fills the open visit the doctor then continues."""
     from app.models import Appointment
 
+    from app.utils.patients import apply_patient_search
+    from app.utils.red_flags import assess
+
     today = datetime.utcnow().date()
     appts = (Appointment.query
              .filter(Appointment.appt_date == today,
                      Appointment.status.in_(("waiting", "in_progress")))
              .order_by(Appointment.appt_time)
              .all())
+    # A nurse looking for one child should not scroll a morning's list. The
+    # search narrows what is already here rather than opening the register —
+    # somebody not checked in today is not somebody this station can weigh.
+    query = (request.args.get("q") or "").strip()
+    if query:
+        matched = {p.id for p in apply_patient_search(Patient.query, query).all()}
+        appts = [a for a in appts if a.patient_id in matched]
+
     rows = []
     for a in appts:
         v = (Visit.query.filter_by(patient_id=a.patient_id, status="open")
              .order_by(Visit.created_at.desc()).first())
-        rows.append({"appt": a, "patient": a.patient,
-                     "vitals": v.vitals if v else None,
-                     "done": bool(v and v.vitals and v.vitals.has_growth)})
-    return render_template("visits/station.html", rows=rows, today=today)
+        vitals = v.vitals if v else None
+        # Read the moment they are saved rather than when the child's turn
+        # comes. The numbers were always in the file; nobody was reading them.
+        flag = assess(a.patient, vitals,
+                      " ".join(filter(None, [a.reason,
+                                             getattr(v, "chief_complaint", "")])))
+        rows.append({"appt": a, "patient": a.patient, "visit": v,
+                     "vitals": vitals, "flag": flag,
+                     "done": bool(vitals and vitals.has_growth)})
+    # The ones that should not still be sitting there come first. Nothing is
+    # reordered anywhere else — this is a nurse's worklist, not the queue.
+    order = {"urgent": 0, "watch": 1}
+    rows.sort(key=lambda r: (order.get(r["flag"]["level"], 2),
+                             r["appt"].appt_time))
+    return render_template("visits/station.html", rows=rows, today=today,
+                           q=query)
 
 
 @visits_bp.route("/station/<int:appointment_id>/vitals", methods=["POST"])
@@ -427,6 +454,19 @@ def station_vitals(appointment_id):
         db.session.add(visit)
         db.session.flush()
     _save_vitals(visit)
+    # The nurse hears the story the guardian tells at the scale, and it is
+    # usually fuller than the one line booked at reception. Appended rather
+    # than replaced: "متابعة" typed a week ago is not wrong, it is just not
+    # all of it — and the red-flag read depends on those words.
+    typed = (request.form.get("reason") or "").strip()
+    if typed and typed != (appt.reason or "").strip():
+        appt.reason = typed[:200]
+    # The moment the nurse is done — it splits the wait at reception from the
+    # wait at the doctor's door, which are two different queues with two
+    # different causes. Stamped once: the nurse may correct a weight later,
+    # and a correction is not a second visit to the station.
+    if appt.vitals_at is None:
+        appt.vitals_at = datetime.utcnow()
     ActivityLog.record(
         "visit.vitals_station", user_id=current_user.id, entity="visit",
         entity_id=visit.id, detail=appt.patient.patient_number,
@@ -745,6 +785,18 @@ def give_vaccine(visit_id):
     except Exception:  # noqa: BLE001
         db.session.rollback()
     flash(t("visits.vac_given"), "success")
+
+    # The message to the family. It used to be written only by the
+    # vaccinations screen, so a dose given here — which is where most of them
+    # are given — told the parent nothing about the next one.
+    from app.utils.vaccine_notify import notify_dose
+
+    _, reason = notify_dose(visit.patient, vaccine, pv.brand, pv.dose_number,
+                            pv.given_date, user_id=current_user.id,
+                            lang=getattr(g, "lang", "ar"))
+    db.session.commit()
+    if reason:
+        flash(t("crm.not_sent", why=t("crm.reason_" + reason)), "warning")
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
@@ -983,6 +1035,23 @@ def delete_attachment(att_id):
     return redirect(request.referrer or fallback)
 
 
+def _survey_unsent(visit, reason):
+    """Record that the post-visit survey did not go out, and why.
+
+    The row is returned, not swallowed: a caller that wants to tell the doctor
+    "the survey did not go, and here is why" needs the reason, and a caller
+    that only wants to know whether anything was sent can read the status.
+    """
+    from app.models import MessageLog
+
+    log = MessageLog(patient_id=visit.patient_id, body="",
+                     to_phone=visit.patient.contact_phone if visit.patient else None,
+                     template_type="feedback", status="skipped", error=reason,
+                     created_by=getattr(current_user, "id", None))
+    db.session.add(log)
+    return log
+
+
 def _send_feedback_survey(visit, force=False):
     """Queue/send a post-visit satisfaction survey.
 
@@ -992,12 +1061,19 @@ def _send_feedback_survey(visit, force=False):
     MessageLog, or None when skipped.
     """
     tpl = wa.template_for("feedback")
-    if not force and (tpl is None or not tpl.is_active):   # type switched off
-        return None
     patient = visit.patient
+    if not force and wa.type_is_off("feedback"):
+        # Switched off deliberately. A clinic that has simply never opened the
+        # templates screen still gets the survey, with the built-in wording —
+        # treating "not set up" as "off" is how a clinic ends up never asking
+        # a single family how the visit went.
+        return _survey_unsent(visit, "type_off")
     phone = patient.contact_phone if patient else None
     if not phone:
-        return None
+        # A file with no number on it. Recorded rather than dropped: "the
+        # message after the visit is not generated" was reported as a fault in
+        # the program, and this is one of the two things it actually was.
+        return _survey_unsent(visit, "missing_phone")
 
     fb = Feedback.query.filter_by(visit_id=visit.id).first()
     if fb is None:
@@ -1047,6 +1123,11 @@ def send_survey(visit_id):
     db.session.commit()
     if log is None:
         flash(t("visits.survey_no_phone"), "warning")
+    elif log.status == "skipped":
+        # No number on the file, or a family that asked not to be messaged —
+        # two different things, and the screen used to call both "no phone".
+        flash(t("crm.not_sent", why=t("crm.reason_" + (log.error or "missing_phone"))),
+              "warning")
     elif log.status == "link":
         flash(t("visits.survey_link_ready"), "success")
     else:
@@ -1070,9 +1151,14 @@ def complete(visit_id):
         "visit.complete", user_id=current_user.id, entity="visit",
         entity_id=visit.id, ip_address=client_ip(),
     )
-    _send_feedback_survey(visit)  # post-visit satisfaction survey (if enabled)
+    log = _send_feedback_survey(visit)  # post-visit survey (if enabled)
     db.session.commit()
     flash(t("visits.completed"), "success")
+    # Said here, once, rather than left for somebody to notice a month later
+    # that no family has been asked how the visit went.
+    if log is not None and log.status == "skipped":
+        flash(t("crm.not_sent", why=t("crm.reason_" + (log.error or "type_off"))),
+              "warning")
     return redirect(url_for("visits.view", visit_id=visit.id))
 
 
@@ -1082,6 +1168,41 @@ def complete(visit_id):
 def view(visit_id):
     visit = db.get_or_404(Visit, visit_id)
     return render_template("visits/view.html", visit=visit)
+
+
+# ----------------------------------------------------- my quick phrases -----
+@visits_bp.route("/phrases", methods=["GET", "POST"])
+@module_required(MODULE)
+def phrases_screen():
+    """Each doctor's own shorthand — the phrases and the codes that write them.
+
+    *"طبيب السكر غير طبيب حديثي الولادة، دكتور القلب غير حد تاني، والغدد"*.
+    One clinic-wide list is the wrong shape: it grows until finding a sentence
+    costs more than typing it, and most of it belongs to somebody else's
+    specialty. This screen is the signed-in user's own list; leaving a field
+    empty means "use the clinic's", so clearing it is how a doctor goes back
+    to the defaults rather than ending up with nothing.
+
+    The clinic's list is edited in settings, by whoever can reach settings.
+    This is deliberately not that screen: a doctor should not need the
+    settings module to write down the sentence they say forty times a day.
+    """
+    if request.method == "POST":
+        for field in phrases.FIELDS:
+            key = phrases.key_for(field)
+            setattr(current_user, key,
+                    (request.form.get(key) or "").strip() or None)
+        db.session.commit()
+        flash(t("phrases.saved"), "success")
+        return redirect(url_for("visits.phrases_screen"))
+
+    return render_template(
+        "visits/phrases.html",
+        fields=[{"key": phrases.key_for(f), "name": f,
+                 "rows": phrases.for_user(current_user, f),
+                 "mine": bool(getattr(current_user, phrases.key_for(f), None))}
+                for f in phrases.FIELDS],
+    )
 
 
 # -------------------------------------------------------- icd search -------

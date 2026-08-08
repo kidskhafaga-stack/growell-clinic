@@ -95,6 +95,24 @@ def template_for(template_type):
             or q.order_by(MessageTemplate.id).first())
 
 
+def type_is_off(template_type):
+    """True when this notification exists and every copy of it is switched off.
+
+    :func:`template_for` returns None for two different situations — "somebody
+    switched this off" and "nobody has ever set it up" — and callers that
+    treated the two as one silently stopped messaging anybody. A clinic that
+    has never opened the templates screen should still get its messages, from
+    the built-in wording; a clinic that deliberately turned one off should get
+    silence, and be told that silence is what it asked for.
+    """
+    from app.models import MessageTemplate
+
+    if template_for(template_type) is not None:
+        return False
+    return (MessageTemplate.query
+            .filter_by(occasion=template_type).first() is not None)
+
+
 def feedback_link(token, cfg=None):
     """Public survey URL for a feedback token — uses the configured public base
     (tunnel/domain) so it opens on the patient's phone; falls back to the

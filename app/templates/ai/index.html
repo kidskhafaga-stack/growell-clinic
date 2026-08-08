@@ -13,12 +13,14 @@
   <div style="flex:1;min-width:200px;">
     <div style="font-weight:700;">{{ config.provider_label }}</div>
     <div style="color:var(--muted);font-size:0.88rem;">
+      {# Name the missing condition. "Not ready" with nothing beside it is
+         what made a key that had just tested successfully look like a broken
+         program — most often the only thing missing is that the tested
+         settings were never saved. #}
       {% if ready %}
         {{ t('ai.model') }}: <code dir="ltr">{{ config.model }}</code>
-      {% elif not config.enabled %}
-        {{ t('ai.not_enabled') }}
       {% else %}
-        {{ t('ai.not_configured') }}
+        {% for reason in missing %}{% if not loop.first %} · {% endif %}{{ t('ai.missing_' ~ reason) }}{% endfor %}
       {% endif %}
     </div>
   </div>
@@ -32,6 +34,9 @@
 {% if not ready %}
 <div class="card gc-animate" style="margin-top:14px;">
   <p class="info-note" style="margin:0;"><i class="bi bi-info-circle"></i> {{ t('ai.setup_hint') }}</p>
+  <ul style="margin:10px 0 0;padding-inline-start:20px;color:var(--muted);font-size:.88rem;">
+    {% for reason in missing %}<li>{{ t('ai.fix_' ~ reason) }}</li>{% endfor %}
+  </ul>
 </div>
 {% else %}
 <!-- Assistant chat -->

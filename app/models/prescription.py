@@ -77,8 +77,24 @@ class RxPrintTemplate(db.Model):
 
     @classmethod
     def default_instance(cls):
-        """A transient, fully-on white template used when none is configured."""
-        return cls(name="default", mode="white", logo_source="clinic")
+        """A transient, fully-on white template used when none is configured.
+
+        The flags have to be set here in so many words. ``default=True`` on a
+        Column is applied by the *database*, at INSERT — and this object is
+        never inserted. So every ``show_*`` on it read ``None``, and a clinic
+        that had not built a print template printed prescriptions with no
+        doctor's name, no specialty, no licence, **no patient block**, no
+        diagnosis, no signature and no stamp. Only the drug table survived,
+        because nothing guards it.
+
+        That is the reported symptom exactly — *"I didn't see the doctor's
+        name … where is the signature, there's no stamp"* — and it looked like
+        a dozen separate holes in the printout rather than one line here. The
+        docstring said "fully-on" the whole time, which is the part worth
+        remembering: it described the intention, and nothing checked it.
+        """
+        return cls(name="default", mode="white", logo_source="clinic",
+                   **{flag: True for flag in cls.BOOLS})
 
     def __repr__(self):
         return f"<RxPrintTemplate {self.name}>"
@@ -258,6 +274,12 @@ class Prescription(db.Model):
     rx_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     diagnosis = db.Column(db.String(255))
     diagnosis_code = db.Column(db.String(20))   # ICD-10 code snapshot
+    # How settled the diagnosis is. A guardian reading "التهاب رئوي" cannot
+    # tell whether the doctor is sure or still working it out, and the two
+    # mean very different things to the next doctor who sees the child.
+    diagnosis_stage = db.Column(db.String(16))  # provisional | working | final
+    # The complaint in the family's own words, kept apart from the diagnosis.
+    complaint = db.Column(db.String(255))
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -271,6 +293,9 @@ class Prescription(db.Model):
         "PrescriptionInvestigation", back_populates="prescription",
         cascade="all, delete-orphan",
     )
+
+    #: The stages a diagnosis can be at, in the order they progress.
+    DIAGNOSIS_STAGES = ["provisional", "working", "final"]
 
     def labs(self):
         return [x for x in self.investigations if x.kind == "lab"]
@@ -293,6 +318,11 @@ class PrescriptionItem(db.Model):
     frequency = db.Column(db.String(120))
     duration = db.Column(db.String(120))
     instructions = db.Column(db.String(255))
+    # A doctor writes a line for the record that the family should not carry
+    # out of the room — a medicine they are stopping, a note to themselves.
+    # Default true, so nothing a doctor wrote disappears from the paper by
+    # accident: leaving something *off* has to be a deliberate press.
+    printed = db.Column(db.Boolean, default=True, nullable=False)
 
     prescription = db.relationship("Prescription", back_populates="items")
     drug = db.relationship("Drug")

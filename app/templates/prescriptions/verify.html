@@ -1,0 +1,50 @@
+{% extends "shell.html" %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('rx.verify_title') }}{% endblock %}
+{% block page_heading %}{{ t('rx.verify_title') }}{% endblock %}
+
+{% block content %}
+{# What a scanned code opens: the clinic's own record of this prescription,
+   to check a forwarded file against. Read-only on purpose — a scan should
+   never be able to change anything. #}
+<div class="card gc-scale-in" style="max-width:640px;">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+    <i class="bi bi-patch-check-fill" style="font-size:1.6rem;color:#198754;"></i>
+    <div>
+      <strong style="font-size:1.05rem;">{{ t('rx.verify_ok') }}</strong>
+      <div style="color:var(--muted);font-size:.85rem;" dir="ltr">#{{ rx.id }}</div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('rx.date') }}</div>
+      <div class="v" dir="ltr">{{ rx.rx_date }}</div></div>
+    <div class="info-item"><div class="k">{{ t('rx.patient') }}</div>
+      <div class="v">{{ rx.patient.display_name(current_lang) }}
+        ({{ rx.patient.patient_number }})</div></div>
+    <div class="info-item"><div class="k">{{ t('rx.doctor') }}</div>
+      <div class="v">{{ rx.doctor.doctor_print_name(current_lang) if rx.doctor else '—' }}</div></div>
+    {% if rx.diagnosis %}
+    <div class="info-item"><div class="k">{{ t('rx.diagnosis') }}</div>
+      <div class="v">{{ rx.diagnosis }}</div></div>
+    {% endif %}
+  </div>
+
+  {% set printed_items = rx.items | selectattr('printed') | list %}
+  {% if printed_items %}
+  <h3 class="section-title" style="margin-top:18px;"><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h3>
+  <table class="table">
+    <thead><tr><th>{{ t('rx.drug') }}</th><th>{{ t('rx.default_dose') }}</th>
+      <th>{{ t('rx.default_frequency') }}</th><th>{{ t('rx.duration') }}</th></tr></thead>
+    <tbody>
+      {% for it in printed_items %}
+      <tr><td><strong>{{ it.drug_name }}</strong></td><td>{{ it.dose or '—' }}</td>
+        <td>{{ it.frequency or '—' }}</td><td>{{ it.duration or '—' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <p class="hint" style="margin-top:14px;">{{ t('rx.verify_note') }}</p>
+</div>
+{% endblock %}

@@ -25,6 +25,15 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}"><i class="bi bi-sliders"></i> {{ t('rxtpl.manage') }}</a>
     {% endif %}
     <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('rx.print') }}</button>
+    {# The digital copy is a different document from the printed one, so it is
+       a different button rather than a checkbox somebody forgets to tick. #}
+    {% if not digital %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.view', rx_id=rx.id, digital=1) }}">
+      <i class="bi bi-file-earmark-image"></i> {{ t('rx.digital_copy') }}</a>
+    {% else %}
+    <button type="button" class="btn btn-primary gc-press" onclick="gcSavePng('rxPaper', 'rx-{{ rx.id }}.png')">
+      <i class="bi bi-download"></i> {{ t('rx.save_image') }}</button>
+    {% endif %}
     <form method="post" action="{{ url_for('prescriptions.delete', rx_id=rx.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-danger gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
@@ -43,7 +52,7 @@
 </div>
 {% endif %}
 
-<div class="card gc-scale-in print-area" style="font-size:{{ tpl.font_size }}px;">
+<div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
   {% if tpl.mode == 'preprinted' %}
     {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
   {% else %}
@@ -63,23 +72,66 @@
   </div>
   {% endif %}
 
+  {# The patient comes first and on their own — who this paper is for is the
+     one thing anybody reading it needs before anything else. The diagnosis
+     used to sit inside this block as a third cell, which made it look like
+     another identifying detail rather than a clinical statement. #}
   {% if tpl.show_patient %}
   <div class="info-grid" style="margin-bottom:14px;">
     <div class="info-item"><div class="k">{{ t('rx.patient') }}</div><div class="v">{{ rx.patient.display_name(current_lang) }} ({{ rx.patient.patient_number }})</div></div>
     <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(rx.patient) }}</div></div>
-    {% if tpl.show_diagnosis and rx.diagnosis %}<div class="info-item"><div class="k">{{ t('rx.diagnosis') }}</div><div class="v">{{ rx.diagnosis }}{% if rx.diagnosis_code %} <span class="badge badge--role" dir="ltr">{{ rx.diagnosis_code }}</span>{% endif %}</div></div>{% endif %}
+    {% if rx.patient.gender %}<div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ rx.patient.gender) }}</div></div>{% endif %}
   </div>
   {% endif %}
 
+  {% macro rx_section(icon, title) %}
+  <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
+    <i class="bi bi-{{ icon }}"></i> {{ title }}</div>
+  {% endmacro %}
+
+  {% if rx.complaint %}
+  <div style="margin-bottom:14px;">
+    {{ rx_section('chat-left-text', t('rx.complaint')) }}
+    <div>{{ rx.complaint }}</div>
+  </div>
+  {% endif %}
+
+  {# The stage is beside the words, because "التهاب رئوي" alone does not tell
+     a guardian — or the next doctor — whether this is settled or still being
+     worked out, and those mean very different things. #}
+  {% if tpl.show_diagnosis and rx.diagnosis %}
+  <div style="margin-bottom:14px;">
+    {{ rx_section('clipboard2-pulse', t('rx.diagnosis')) }}
+    <div>{{ rx.diagnosis }}
+      {% if rx.diagnosis_code %}<span class="badge badge--role" dir="ltr">{{ rx.diagnosis_code }}</span>{% endif %}
+      {% if rx.diagnosis_stage %}<span class="badge badge--muted">{{ t('rx.stage_' ~ rx.diagnosis_stage) }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% set printed_items = rx.items | selectattr('printed') | list %}
+  {% if printed_items %}
   <div style="font-size:1.6rem;color:var(--green-700);font-weight:700;margin-bottom:6px;">℞</div>
   <table class="table">
     <thead><tr><th>{{ t('rx.drug') }}</th><th>{{ t('rx.default_dose') }}</th><th>{{ t('rx.default_frequency') }}</th><th>{{ t('rx.duration') }}</th><th>{{ t('rx.instructions') }}</th></tr></thead>
     <tbody>
-      {% for it in rx.items %}
+      {% for it in printed_items %}
       <tr><td><strong>{{ it.drug_name }}</strong></td><td>{{ it.dose or '—' }}</td><td>{{ it.frequency or '—' }}</td><td>{{ it.duration or '—' }}</td><td>{{ it.instructions or '—' }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  {% endif %}
+
+  {# Kept for the record but deliberately off the paper. Shown on screen only,
+     so the doctor can see what they excluded without the family carrying it
+     out of the room. #}
+  {% set hidden_items = rx.items | rejectattr('printed') | list %}
+  {% if hidden_items %}
+  <div class="no-print" style="margin-top:10px;color:var(--muted);font-size:.85rem;">
+    <i class="bi bi-eye-slash"></i> {{ t('rx.not_printed') }}:
+    {% for it in hidden_items %}{{ it.drug_name }}{% if not loop.last %} · {% endif %}{% endfor %}
+  </div>
+  {% endif %}
 
   {% if tpl.show_investigations and (rx.labs() or rx.imaging()) %}
   <div style="margin-top:16px;">
@@ -130,6 +182,22 @@
   {% endif %}
 
   {% if rx.notes %}<p style="margin-top:12px;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
+
+  {# On the copy that leaves the building. A signed PDF travelling over
+     WhatsApp is a document that can be forwarded and re-used, so it carries
+     its number and a code a pharmacy can check — the same idea as the
+     vaccination certificate, for the same reason. #}
+  {% if digital %}
+  <div style="display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:12px;border-top:1px dashed var(--line);">
+    <img src="{{ url_for('prescriptions.verify_qr', rx_id=rx.id) }}" alt=""
+         style="width:78px;height:78px;">
+    <div style="font-size:.78rem;color:var(--muted);">
+      <div><strong>{{ t('rx.verify_title') }}</strong></div>
+      <div dir="ltr">#{{ rx.id }} · {{ rx.rx_date }}</div>
+      <div>{{ t('rx.verify_hint') }}</div>
+    </div>
+  </div>
+  {% endif %}
 
   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:40px;gap:20px;">
     {% if tpl.show_stamp and doc and doc.stamp_file %}

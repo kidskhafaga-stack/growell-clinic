@@ -37,6 +37,11 @@
       <div class="value gc-counter" data-count="{{ summary.overdue }}">0</div><div class="label">{{ t('vaccinations.stat_overdue') }}</div></div>
     <div class="stat-card edge-blue gc-lift"><i class="bi bi-calendar3 ico"></i>
       <div class="value gc-counter" data-count="{{ summary.upcoming }}">0</div><div class="label">{{ t('vaccinations.stat_upcoming') }}</div></div>
+    {# Old enough for it, but nobody here started it — a suggestion, not a
+       debt. It used to be counted as "late", which is how a healthy child
+       whose family uses the government unit came to be 41 doses overdue. #}
+    <div class="stat-card gc-lift"><i class="bi bi-lightbulb ico"></i>
+      <div class="value gc-counter" data-count="{{ summary.suggested }}">0</div><div class="label">{{ t('vstatus.suggested') }}</div></div>
   </div>
 
   <!-- Next due -->

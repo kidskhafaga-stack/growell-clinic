@@ -90,6 +90,10 @@ class Appointment(db.Model):
 
     # Lifecycle timestamps.
     checked_in_at = db.Column(db.DateTime)
+    # The nurse finished the vitals. Without this moment the wait is one
+    # number covering two different queues — the one at reception and the one
+    # at the doctor's door — and a clinic cannot tell which of them is slow.
+    vitals_at = db.Column(db.DateTime)
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
 

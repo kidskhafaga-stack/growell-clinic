@@ -14,12 +14,21 @@
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.08s;">
+  {# Said out loud on the screen, not only in the code: these are a
+     description of how the month went, not a ranking. A clinic that starts
+     rewarding shorter consultations gets shorter consultations. #}
+  <p style="margin:0;padding:12px 14px 0;color:var(--muted);font-size:.8rem;">
+    {{ t('doctors.timing_note') }}
+    <span dir="ltr">({{ since }} → {{ until }})</span></p>
   <table class="table">
     <thead>
       <tr>
         <th>{{ t('users.full_name') }}</th>
         <th>{{ t('doctors.specialty') }}</th>
         <th>{{ t('doctors.rating') }}</th>
+        <th>{{ t('doctors.consult_len') }}</th>
+        <th>{{ t('doctors.over_slot') }}</th>
+        <th>{{ t('doctors.late_start') }}</th>
         <th>{{ t('doctors.license') }}</th>
         <th>{{ t('common.status') }}</th>
         <th style="text-align:end;">{{ t('common.actions') }}</th>
@@ -43,6 +52,38 @@
             <span style="color:var(--muted);font-size:0.8rem;">({{ r.count }})</span>
           {% else %}<span style="color:var(--muted);">{{ t('doctors.no_ratings') }}</span>{% endif %}
         </td>
+        {# Length of a consultation — shown as a fact, never scored. Nothing
+           here says shorter is better, because it is not. #}
+        {% set tm = timings.get(doc.id) %}
+        <td>
+          {% if tm %}
+            <b dir="ltr">{{ tm.consult }}</b> {{ t('common.min_short') }}
+            <span style="color:var(--muted);font-size:.78rem;" dir="ltr">
+              ({{ tm.shortest }}–{{ tm.longest }})</span>
+            {% if tm.forgotten or tm.overlapping %}
+            <div style="color:var(--muted);font-size:.72rem;">
+              {% if tm.forgotten %}{{ t('doctors.forgotten') }}: {{ tm.forgotten }}{% endif %}
+              {% if tm.overlapping %} · {{ t('doctors.overlapping') }}: {{ tm.overlapping }}{% endif %}
+            </div>{% endif %}
+          {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+        </td>
+        <td>
+          {% if tm and tm.over_slot is not none %}
+            <b dir="ltr" style="color:{{ '#b45309' if tm.over_slot > 0 else 'inherit' }};">
+              {{ '+' if tm.over_slot > 0 else '' }}{{ tm.over_slot }}</b>
+            {{ t('common.min_short') }}
+          {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+        </td>
+        {# The fairest of the three: the first appointment of the session is
+           nobody else's delay, and it pushes every family behind it. #}
+        {% set st = starts.get(doc.id) %}
+        <td>
+          {% if st %}
+            <b dir="ltr" style="color:{{ '#b45309' if st.late > 10 else 'inherit' }};">
+              {{ '+' if st.late > 0 else '' }}{{ st.late }}</b> {{ t('common.min_short') }}
+            <span style="color:var(--muted);font-size:.72rem;" dir="ltr">({{ st.days }})</span>
+          {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+        </td>
         <td dir="ltr" style="text-align:start;">{{ doc.license_no or '—' }}</td>
         <td>
           {% if doc.is_active %}<span class="badge badge--green">{{ t('common.active') }}</span>
@@ -54,7 +95,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px;">{{ t('doctors.none') }}</td></tr>
+      <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px;">{{ t('doctors.none') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -17,12 +17,41 @@
     <div class="value gc-counter" data-count="{{ result.errors|length }}">0</div>
     <div class="label">{{ t('import.skipped_count') }}</div>
   </div>
+  {# Not an error. A second upload is how a clinic adds a few months, and
+     these rows are the ones that were already here. #}
+  <div class="stat-card edge-blue gc-lift">
+    <i class="bi bi-files ico"></i>
+    <div class="value gc-counter" data-count="{{ (result.skipped or [])|length }}">0</div>
+    <div class="label">{{ t('import.already_count') }}</div>
+  </div>
   <div class="stat-card edge-blue gc-lift">
     <i class="bi bi-list-ol ico"></i>
     <div class="value gc-counter" data-count="{{ result.total }}">0</div>
     <div class="label">{{ t('import.total_rows') }}</div>
   </div>
 </div>
+
+{% if result.skipped %}
+<details class="card gc-scale-in" style="margin-bottom:14px;">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-files"></i> {{ t('import.already_count') }} ({{ result.skipped|length }})</summary>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('import.already_hint') }}</p>
+  <table class="table">
+    <thead><tr><th style="width:90px;">{{ t('import.line') }}</th>
+      <th>{{ t('patients.full_name') }}</th><th>{{ t('import.reason') }}</th></tr></thead>
+    <tbody>
+      {% for row in result.skipped %}
+      <tr>
+        <td><span class="badge badge--muted">{{ row.line }}</span></td>
+        <td>{% if row.patient_id %}<a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</td>
+        <td style="color:var(--muted);">
+          {% if row.twin %}{{ t('import.twin_of', line=row.twin) }}{% else %}{{ t('import.already_here') }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}
 
 <div class="card gc-scale-in" style="animation-delay:0.12s;">
   {% if result.errors %}

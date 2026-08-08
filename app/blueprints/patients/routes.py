@@ -939,9 +939,29 @@ def _validate_patient(form, existing):
 
 
 def _resolve_family(form):
-    """Return a family id based on the form: existing, new, or None."""
-    if form.get("new_family_name"):
-        family = Family(family_name=form["new_family_name"])
+    """Return a family id based on the form: existing, new, or None.
+
+    A typed name is matched against the register before anything is created.
+    A clinic found its imported siblings in two families and did the obvious
+    thing — opened each child and typed the family name they wanted on both —
+    which produced two family records with one name on them and left the
+    children as far apart as before. Typing is how somebody says what the
+    family is *called*; it should not be how a duplicate gets made.
+
+    Matched on the folded name, like every other Arabic name comparison here:
+    "أحمد" and "احمد" are one household, and so are "Mohammed Khafaga" and
+    "mohammed khafaga". Folding is about spelling and nothing else — two
+    families that wrote different names stay two families.
+    """
+    typed = form.get("new_family_name")
+    if typed:
+        from app.utils.history_import import normalise_arabic
+
+        key = normalise_arabic(typed)
+        for existing in Family.query.all():
+            if normalise_arabic(existing.family_name or "") == key:
+                return existing.id
+        family = Family(family_name=typed)
         db.session.add(family)
         db.session.flush()
         return family.id
@@ -969,6 +989,10 @@ def _analyze_rows(rows):
     Returns (preview, valid_count) where preview is a per-row list with the
     resolved values and an ``ok``/``error`` status + reason.
     """
+    from app.utils import patient_dedupe
+
+    known = patient_dedupe.index()
+    in_file = {}
     preview = []
     valid = 0
     for offset, row in enumerate(rows):
@@ -985,8 +1009,18 @@ def _analyze_rows(rows):
         elif dob is None:
             reason = t("import.err_dob")
 
+        # Already in the register, or listed twice in this sheet. Not an
+        # error — a second upload is the normal way a clinic adds a few
+        # months — but it has to be visible *before* the import runs, or the
+        # numbers afterwards are a surprise.
+        duplicate = False
         if reason is None:
-            valid += 1
+            duplicate = (patient_dedupe.match(row, dob, known) is not None
+                         or patient_dedupe.match(row, dob, in_file) is not None)
+            if not duplicate:
+                for key in patient_dedupe.row_keys(row, dob):
+                    in_file.setdefault(key, line)
+                valid += 1
         preview.append({
             "line": line,
             "name": name or "—",
@@ -995,8 +1029,9 @@ def _analyze_rows(rows):
             "dob": dob.isoformat() if dob else (row.get("date_of_birth") or "—"),
             "family": (row.get("family_name") or "").strip() or None,
             "parent": (row.get("parent_name") or "").strip() or None,
-            "ok": reason is None,
-            "reason": reason,
+            "ok": reason is None and not duplicate,
+            "duplicate": duplicate,
+            "reason": reason or (t("import.already_here") if duplicate else None),
         })
     return preview, valid
 
@@ -1160,21 +1195,53 @@ def _process_import(rows):
     Families are de-duplicated by name within the import (and matched against
     existing families) so siblings land in the same family record.
     """
+    from app.utils import patient_dedupe
+    from app.utils.imports import family_key
+
     created = 0
     errors = []
-    # Prefetch every existing family once (one query) so sibling-linking is an
-    # in-memory dict lookup instead of a query (and autoflush) per row.
-    family_cache = {f.family_name: f for f in Family.query.all()}
+    # Re-uploading a sheet used to double the register: every row was written,
+    # every time. The index is loaded once and the rows are walked in memory,
+    # like the history import — a real sheet is thousands of rows and asking
+    # per row is what makes an import look hung.
+    known = patient_dedupe.index()
+    in_file = {}                 # the same child listed twice in one sheet
+    skipped = []
+    # Keyed by the *folded* household key rather than the name as typed.
+    #
+    # Grouping by the raw name is what put one family into three records:
+    # Egyptian names run child → father → grandfather → family and a sheet
+    # records as many as whoever filled it knew, so "محمود سعيد أحمد" and
+    # "محمود سعيد" are the same father written twice — and "أحمد" / "احمد" are
+    # one name to every human being and two strings to a computer.
+    #
+    # Existing families are indexed the same way, so a second import next
+    # month joins the family the first one made instead of building a parallel
+    # one beside it.
+    family_cache = {}
+    for existing in Family.query.all():
+        family_cache.setdefault(family_key(existing.family_name), existing)
     phone_family = {}        # guardian phone -> Family (siblings share a phone)
     family_has_parent = set()  # id(family) that already carries a guardian
     next_number = patient_number_allocator()
 
-    def get_named_family(key):
+    def get_named_family(name):
+        """The family for this guardian name, matched on the folded key.
+
+        The *stored* name stays the fullest version anybody wrote — the key is
+        for matching, and "محمود سعيد أحمد" is a better thing to read on a
+        screen than the two words used to group by.
+        """
+        key = family_key(name)
+        if not key:
+            return None
         family = family_cache.get(key)
         if family is None:
-            family = Family(family_name=key)
+            family = Family(family_name=name)
             db.session.add(family)
             family_cache[key] = family
+        elif len((name or "").split()) > len((family.family_name or "").split()):
+            family.family_name = name
         return family
 
     def cell(key):
@@ -1225,6 +1292,18 @@ def _process_import(rows):
             else:
                 family = None
 
+            # Already here — from an earlier upload or from earlier in this
+            # same sheet. Left exactly as it is: the request was the
+            # increment, and overwriting a file somebody has since corrected
+            # by hand is worse than importing nothing.
+            existing_id = patient_dedupe.match(row, dob, known)
+            twin = (None if existing_id is not None
+                    else patient_dedupe.match(row, dob, in_file))
+            if existing_id is not None or twin is not None:
+                skipped.append({"line": line, "name": name,
+                                "patient_id": existing_id, "twin": twin})
+                continue
+
             patient = Patient(
                 patient_number=next_number(),
                 reference_number=cell("reference_number"),
@@ -1264,9 +1343,15 @@ def _process_import(rows):
                 ))
                 family_has_parent.add(id(family))
 
+            # Remembered by line, not by id: the patients are still pending
+            # and flushing to get one would undo the batching that keeps a
+            # ten-thousand-row import from crawling.
+            for key in patient_dedupe.row_keys(row, dob):
+                in_file.setdefault(key, line)
             created += 1
 
-    return {"created": created, "errors": errors, "total": len(rows)}
+    return {"created": created, "errors": errors, "total": len(rows),
+            "skipped": skipped}
 
 
 # ==================================================== history import ========
@@ -2129,10 +2214,21 @@ def sibling_link(patient_id):
     if other is None or other.id == patient.id:
         flash(t("common.not_found"), "danger")
         return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+    # A child who already has a family used to be refused here, on the
+    # reasoning that joining two households is a merge of two sets of parents
+    # and not a one-click button. A clinic showed me why that was wrong, with
+    # names: "عمر محمد السيد خفاجة" and "ميرال محمد السيد خفاجه" arrived from
+    # one import in two families, because the import split them. The screen
+    # then suggested each to the other and refused every attempt to act on the
+    # suggestion — and renaming either family changed nothing, because the
+    # problem was never the name.
+    #
+    # The commonest case is not two real households. It is one household the
+    # program itself divided, and refusing the merge left the only way out as
+    # deleting a family by hand. So it merges, and says what it did.
+    merged_from = None
     if other.family_id and other.family_id != patient.family_id:
-        flash(t("siblings.already_in_family").replace(
-            "{name}", other.display_name(getattr(g, "lang", "ar"))), "warning")
-        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+        merged_from = other.family
 
     # This child may have no family row yet — the commonest case of all, since
     # a family is created the first time somebody records a parent.
@@ -2143,13 +2239,36 @@ def sibling_link(patient_id):
         patient.family_id = family.id
 
     other.family_id = patient.family_id
+    other.family_auto = False          # a person looked at both files
+
+    # If that emptied the family they came from, carry its guardians across
+    # and remove the shell. Leaving it behind would keep the parents' phone
+    # numbers attached to a household with no children in it — invisible on
+    # every screen, and still turning up in searches.
+    db.session.flush()          # so the old family's child list is current
+    if merged_from is not None and not merged_from.patients:
+        known = {(p.phone or "").strip() for p in (patient.family.parents or [])
+                 if (p.phone or "").strip()}
+        for parent in list(merged_from.parents):
+            # Moved through the collections, not by reassigning the id.
+            # ``Family.parents`` cascades delete-orphan, so a parent that is
+            # still in the old family's list when it is deleted goes with it —
+            # setting `family_id` alone silently loses the guardian's phone
+            # number, which is the one thing the merge was supposed to keep.
+            merged_from.parents.remove(parent)
+            if parent.phone and (parent.phone or "").strip() in known:
+                db.session.delete(parent)   # the same guardian, twice
+            else:
+                patient.family.parents.append(parent)
+        db.session.delete(merged_from)
     ActivityLog.record("patient.sibling.link", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=f"{other.patient_number} → family {patient.family_id}",
                        ip_address=client_ip())
     db.session.commit()
-    flash(t("siblings.linked").replace(
-        "{name}", other.display_name(getattr(g, "lang", "ar"))), "success")
+    name = other.display_name(getattr(g, "lang", "ar"))
+    flash(t("siblings.merged" if merged_from is not None else "siblings.linked")
+          .replace("{name}", name), "success")
     return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
 
 
@@ -2166,6 +2285,9 @@ def sibling_unlink(patient_id):
         return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
 
     other.family_id = None
+    # Clear the marker too: a child linked again by hand tomorrow must not
+    # still be labelled as the program's guess.
+    other.family_auto = False
     ActivityLog.record("patient.sibling.unlink", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=other.patient_number, ip_address=client_ip())
@@ -2191,13 +2313,26 @@ def sibling_search(patient_id):
                              Patient.id != patient.id), q)
         .order_by(Patient.full_name).limit(15).all())
     lang = getattr(g, "lang", "ar")
-    return jsonify({"patients": [
-        {"id": p.id, "full_name": p.display_name(lang),
-         "patient_number": p.patient_number,
-         # Said on the row rather than found out after pressing: a child in
-         # another family cannot be linked, and the reason is not obvious.
-         "in_family": bool(p.family_id and p.family_id != patient.family_id)}
-        for p in rows]})
+    mine = ((patient.family.family_name or "").strip()
+            if patient.family else "")
+    out = []
+    for p in rows:
+        theirs = ((p.family.family_name or "").strip()
+                  if p.family_id and p.family else "")
+        out.append({
+            "id": p.id, "full_name": p.display_name(lang),
+            "patient_number": p.patient_number,
+            # Said on the row rather than found out after pressing: linking a
+            # child who already has a family joins two households, which is
+            # not what the button looks like it does.
+            "in_family": bool(p.family_id and p.family_id != patient.family_id),
+            "family_name": theirs or None,
+            # …unless both records carry the same typed name, which is one
+            # household the program divided. Saying "another family" there
+            # reads as the program being wrong.
+            "same_name": bool(theirs and mine and theirs == mine
+                              and p.family_id != patient.family_id)})
+    return jsonify({"patients": out})
 
 
 def _resolved_doctors(links):
@@ -2221,3 +2356,70 @@ def _resolved_doctors(links):
     real = {u.id for u in User.query.filter(
         User.id.in_(set(wanted.values()))).all()}
     return {name: uid for name, uid in wanted.items() if uid in real}
+
+
+@patients_bp.route("/families/<int:family_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def family_delete(family_id):
+    """Remove a family, leaving its children as unattached files.
+
+    Needed because the history import links by the father's name, and a run
+    over messy data produces families that should never have existed —
+    somebody else's children under one man's name. Until now the only way out
+    was to unlink each child one at a time and leave the empty shell behind.
+
+    The children are kept, always. A family is a grouping, not a container:
+    deleting the grouping must never take a patient's file with it, so the
+    rows are detached first and the empty family is what gets removed.
+    """
+    from app.models import Family
+
+    family = db.get_or_404(Family, family_id)
+    freed = list(family.patients)
+    for patient in freed:
+        patient.family_id = None
+    # Parents belong to the family rather than to any one child, so they go
+    # with it — there is nothing left for them to describe.
+    for parent in list(getattr(family, "parents", []) or []):
+        db.session.delete(parent)
+    db.session.delete(family)
+    ActivityLog.record("patient.family.delete", user_id=current_user.id,
+                       entity="family", entity_id=family_id,
+                       detail=f"{len(freed)} freed", ip_address=client_ip())
+    db.session.commit()
+    flash(t("patients.family_deleted").replace("{n}", str(len(freed))), "info")
+    patient_id = request.form.get("patient_id", type=int)
+    if patient_id:
+        return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+    return redirect(url_for("patients.index"))
+
+
+@patients_bp.route("/<int:patient_id>/siblings/auto", methods=["POST"])
+@module_required(MODULE)
+def sibling_auto_link(patient_id):
+    """Link the one candidate that matches on both signals.
+
+    Offered as a press rather than done silently on save. The import already
+    groups children by their father's name and gets it wrong on real data;
+    doing more of that automatically, invisibly, is how a clinic ends up
+    distrusting every family on the screen. One press, one child, and the link
+    it makes says it was the program's.
+    """
+    from app.utils.siblings import auto_link
+
+    patient = db.get_or_404(Patient, patient_id)
+    if not patient.family_id:
+        flash(t("siblings.need_family"), "warning")
+        return redirect(url_for("patients.view", patient_id=patient.id) + "#family")
+
+    other = auto_link(patient)
+    if other is None:
+        flash(t("siblings.no_certain_match"), "info")
+    else:
+        ActivityLog.record("patient.sibling.auto_link", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           detail=other.patient_number, ip_address=client_ip())
+        db.session.commit()
+        flash(t("siblings.auto_linked").replace(
+            "{name}", other.display_name(getattr(g, "lang", "ar"))), "success")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#family")

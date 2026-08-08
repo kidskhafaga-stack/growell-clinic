@@ -37,8 +37,9 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
-from app.utils.dose_labels import dose_choices, dose_label, next_dose_text
+from app.utils.dose_labels import dose_choices, dose_label
 from app.utils.patients import apply_patient_search
+from app.utils.vaccine_notify import notify_dose
 from app.utils.vaccines import (
     administer_dose,
     interval_warning,
@@ -172,28 +173,18 @@ def record(patient_id):
     flash(t("vaccinations.recorded"), "success")
 
     # Auto-notify the guardian via the unified CRM engine (dose + next due).
-    phone = patient.contact_phone
-    if phone:
-        lang = getattr(g, "lang", "ar")
-        body = wa.render(wa.template_body("vaccine_given"), {
-            "patient": patient.display_name(lang),
-            "vaccine": vaccine.display_name(lang),
-            "dose": dose_label(dose_number, lang, brand=brand, vaccine=vaccine,
-                               on_date=given_date),
-            # "—" told a parent nothing. Now it says the date, or that the
-            # course is finished, or that it comes back next season.
-            "next_date": next_dose_text(patient, vaccine, brand, dose_number,
-                                        lang, given_date),
-            "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
-        })
-        log = wa.send(body, phone, patient_id=patient.id, user_id=current_user.id,
-                      template_type="vaccine_given",
-                      image_url=wa.template_image("vaccine_given"))
-        db.session.commit()
-        return render_template(
-            "messages/sent.html", log=log, appt=None,
-            back_url=url_for("vaccinations.view", patient_id=patient.id))
-    return redirect(url_for("vaccinations.view", patient_id=patient.id))
+    # The wording and every reason it might not go live in one place, because
+    # the visit room gives doses too and used to send nothing at all.
+    log, reason = notify_dose(patient, vaccine, brand, dose_number, given_date,
+                              user_id=current_user.id,
+                              lang=getattr(g, "lang", "ar"))
+    db.session.commit()
+    if reason:
+        flash(t("crm.not_sent", why=t("crm.reason_" + reason)), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+    return render_template(
+        "messages/sent.html", log=log, appt=None,
+        back_url=url_for("vaccinations.view", patient_id=patient.id))
 
 
 @vaccinations_bp.route("/<int:patient_id>/record-event", methods=["POST"])
@@ -619,18 +610,39 @@ def certificate(patient_id):
     # Optional upcoming-plan table (?schedule=1): every not-yet-given dose
     # with its expected date — doctor-planned dates included — so the family
     # leaves knowing exactly what is next and when.
-    upcoming = []
-    if request.args.get("schedule") == "1":
-        for v in plan:
+    # Two different tables, because they make two different claims.
+    #
+    # "What is left" is this clinic's own commitment: the remaining doses of
+    # courses it began. That is the table a family should be handed.
+    #
+    # "What the age suggests" is everything else the child is old enough for —
+    # true, but not a promise anybody here made, and mostly the national
+    # schedule that is given at the government unit. Printed only when the
+    # doctor asks for it, because a certificate implying this clinic owes the
+    # government's doses is a certificate that misleads the family holding it.
+    #
+    # A refused dose appears in neither. The family said no; reprinting it as
+    # outstanding is asking again on paper, every time the certificate is
+    # issued.
+    def _rows(items):
+        rows = []
+        for v in items:
             for d in v["doses"]:
-                if d["status"] == "done":
+                if d["status"] == "done" or d.get("event_type") == "refused":
                     continue
-                upcoming.append({"vaccine": v["vaccine"], "brand": v["brand"],
-                                 "dose_number": d["dose_number"],
-                                 "due_date": d["due_date"],
-                                 "planned": d.get("planned"),
-                                 "age_label": d["age_label"]})
-        upcoming.sort(key=lambda r: r["due_date"] or "9999")
+                rows.append({"vaccine": v["vaccine"], "brand": v["brand"],
+                             "dose_number": d["dose_number"],
+                             "due_date": d["due_date"],
+                             "planned": d.get("planned"),
+                             "age_label": d["age_label"]})
+        rows.sort(key=lambda r: r["due_date"] or "9999")
+        return rows
+
+    upcoming = suggested = []
+    if request.args.get("schedule") == "1":
+        upcoming = _rows([v for v in plan if v.get("started")])
+    if request.args.get("suggest") == "1":
+        suggested = _rows([v for v in plan if not v.get("started")])
     # Ensure a stable verification token and build the public QR.
     patient.ensure_qr_token()
     db.session.commit()
@@ -638,7 +650,8 @@ def certificate(patient_id):
     return render_template(
         "vaccinations/certificate.html", patient=patient,
         cards=cards, totals=totals,
-        upcoming=upcoming, with_schedule=request.args.get("schedule") == "1",
+        upcoming=upcoming, suggested=suggested, with_schedule=request.args.get("schedule") == "1",
+        with_suggestions=request.args.get("suggest") == "1",
         now_date=datetime.utcnow().date().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,
     )

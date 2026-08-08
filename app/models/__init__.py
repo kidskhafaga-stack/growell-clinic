@@ -19,6 +19,8 @@ from app.models.appointment import (
 from app.models.doctor_schedule import WEEKDAY_ORDER, DoctorSchedule
 from app.models.schedule_exception import ScheduleException
 from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
+from app.models.clinic_room import ClinicRoom, RoomAssignment
+from app.models.lookup import Lookup
 from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
@@ -77,6 +79,7 @@ from app.models.inventory import (
     NEAR_EXPIRY_DAYS,
     RECEIPT_REASONS,
     Supplier,
+    VaccineAdjustment,
     VaccineInventory,
 )
 from app.models.service import (
@@ -142,6 +145,7 @@ from app.models.message import (
     MESSAGE_STATUSES,
     OCCASION_TYPES,
     SEND_MODES,
+    SKIP_REASONS,
     SYSTEM_TEMPLATE_TYPES,
     TEMPLATE_DEFAULTS,
     TEMPLATE_VARIABLES,
@@ -193,6 +197,9 @@ __all__ = [
     "Setting",
     "ActivityLog",
     "Family",
+    "ClinicRoom",
+    "Lookup",
+    "RoomAssignment",
     "Parent",
     "Patient",
     "PatientProblem",
@@ -255,6 +262,7 @@ __all__ = [
     "VACCINE_TYPES",
     "VACCINE_EVENT_TYPES",
     "Supplier",
+    "VaccineAdjustment",
     "VaccineInventory",
     "NEAR_EXPIRY_DAYS",
     "LOW_STOCK_QTY",
@@ -321,6 +329,7 @@ __all__ = [
     "MESSAGE_DIRECTIONS",
     "OCCASION_TYPES",
     "SEND_MODES",
+    "SKIP_REASONS",
     "AUTOMATION_TYPES",
     "SYSTEM_TEMPLATE_TYPES",
     "TEMPLATE_DEFAULTS",

@@ -124,6 +124,16 @@ def dashboard():
     from app.models import Setting
 
     ctx = {"greeting": _greeting_key(_dt.now().hour)}
+    # A half-configured clinic should learn it here, not on the first busy
+    # morning with a family at the desk. Admins only — a receptionist can do
+    # nothing about a missing till, and a banner nobody can act on is noise.
+    ctx["setup"] = None
+    if current_user.is_admin:
+        from app.utils.readiness import dismissed, summary
+
+        state = summary()
+        if not state["ready"] and not dismissed():
+            ctx["setup"] = state
     # Whether bookings are paused is read for **everyone**, not only the doctor
     # who can flip it. It used to be set inside the doctor-home branch, so the
     # banner lived inside a card reception never sees: the doctor paused
@@ -278,6 +288,10 @@ def profile():
             u.print_title_en = (request.form.get("print_title_en") or "").strip() or None
             u.license_no = (request.form.get("license_no") or "").strip() or None
             u.rx_template_id = request.form.get("rx_template_id", type=int) or None
+            # Their own quick phrases are edited on their own screen
+            # (``visits.phrases_screen``) and deliberately not written here:
+            # this form does not post them, and a blank read as "clear it"
+            # would wipe a doctor's list every time they changed their photo.
 
         for field in IMAGE_FIELDS:
             saved = _save_image(field)

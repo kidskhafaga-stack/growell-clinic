@@ -23,6 +23,7 @@
 <script type="application/json" id="visitCfg">
 {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
     'normal': t('visits.normal_exam_text'),
+    'codes': phrase_codes,
     'age_days': (visit.patient.age_days or 0),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
@@ -75,31 +76,31 @@
 
   <!-- Workflow tabs: case → diagnosis → investigations → files -->
   <div class="visit-tabs no-print">
-    <button type="button" class="vtab" :class="tab==='case' && 'active'" x-on:click="go('case')">
+    <button type="button" class="vtab{% if (visit.vitals or visit.chief_complaint) %} has-content{% endif %}" :class="tab==='case' && 'active'" x-on:click="go('case')"><span class="vtab-step">1</span>
       <i class="bi bi-clipboard2-pulse"></i> {{ t('visits.tab_case') }}</button>
-    <button type="button" class="vtab" :class="tab==='dx' && 'active'" x-on:click="go('dx')">
+    <button type="button" class="vtab{% if visit.diagnoses %} has-content{% endif %}" :class="tab==='dx' && 'active'" x-on:click="go('dx')"><span class="vtab-step">2</span>
       <i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}
-      {% if visit.diagnoses %}<span class="vtab-count">{{ visit.diagnoses|length }}</span>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='inv' && 'active'" x-on:click="go('inv')">
+      <span class="vtab-count" data-count-for="dx"{% if not visit.diagnoses %} hidden{% endif %}>{{ visit.diagnoses|length }}</span></button>
+    <button type="button" class="vtab{% if visit.investigations %} has-content{% endif %}" :class="tab==='inv' && 'active'" x-on:click="go('inv')"><span class="vtab-step">3</span>
       <i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}
-      {% if visit.investigations %}<span class="vtab-count">{{ visit.investigations|length }}</span>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='meds' && 'active'" x-on:click="go('meds')">
+      <span class="vtab-count" data-count-for="inv"{% if not visit.investigations %} hidden{% endif %}>{{ visit.investigations|length }}</span></button>
+    <button type="button" class="vtab{% if visit.medications %} has-content{% endif %}" :class="tab==='meds' && 'active'" x-on:click="go('meds')"><span class="vtab-step">4</span>
       <i class="bi bi-capsule"></i> {{ t('visits.medications') }}
-      {% if visit.medications %}<span class="vtab-count">{{ visit.medications|length }}</span>{% endif %}
+      <span class="vtab-count" data-count-for="meds"{% if not visit.medications %} hidden{% endif %}>{{ visit.medications|length }}</span>
       {% if med_safety and med_safety.has_warnings %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='consent' && 'active'" x-on:click="go('consent')">
+    <button type="button" class="vtab" :class="tab==='consent' && 'active'" x-on:click="go('consent')"><span class="vtab-step">5</span>
       <i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}
       {% if consent and consent.missing %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='proc' && 'active'" x-on:click="go('proc')">
+    <button type="button" class="vtab{% if (visit.services or visit.studies) %} has-content{% endif %}" :class="tab==='proc' && 'active'" x-on:click="go('proc')"><span class="vtab-step">6</span>
       <i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}
       {% set proc_n = (visit.services|length) + (visit.studies|length) %}
       {% if proc_n %}<span class="vtab-count">{{ proc_n }}</span>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='vac' && 'active'" x-on:click="go('vac')">
+    <button type="button" class="vtab" :class="tab==='vac' && 'active'" x-on:click="go('vac')"><span class="vtab-step">7</span>
       <i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}
       {% if vac_panel.give_now %}<span class="vtab-count">{{ vac_panel.give_now|length }}</span>{% endif %}</button>
-    <button type="button" class="vtab" :class="tab==='files' && 'active'" x-on:click="go('files')">
+    <button type="button" class="vtab{% if visit.attachments %} has-content{% endif %}" :class="tab==='files' && 'active'" x-on:click="go('files')"><span class="vtab-step">8</span>
       <i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}
-      {% if visit.attachments %}<span class="vtab-count">{{ visit.attachments|length }}</span>{% endif %}</button>
+      <span class="vtab-count" data-count-for="files"{% if not visit.attachments %} hidden{% endif %}>{{ visit.attachments|length }}</span></button>
   </div>
 
   <!-- Continuity: what to review when the patient returns for the consultation -->
@@ -219,30 +220,51 @@
       </div>
 
       <div class="form-row"><label>{{ t('visits.chief_complaint') }}</label>
-        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"></textarea>
+        {# The code expands as it is typed: "نورمال" + space becomes the
+           sentence. See app/utils/phrases.py — the doctor writes it once. #}
+        <textarea class="input" name="chief_complaint" rows="2" x-model="cc"
+                  x-on:input="expand('complaint', 'cc', $event)"></textarea>
         <div class="smart-chips">
           {% for phrase in complaint_chips %}
           {% set _c = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
-          <button type="button" class="chip" x-on:click='addComplaint({{ _c|tojson }})'>{{ _c }}</button>
+          <button type="button" class="chip" x-on:click='addComplaint({{ _c|tojson }})'
+                  {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _c }}{% if phrase.code %}
+            <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
           {% endfor %}
+          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}"
+             title="{{ t('phrases.title') }}"><i class="bi bi-gear"></i></a>
         </div>
       </div>
 
       <div class="form-row"><label>{{ t('visits.clinical_exam') }}</label>
-        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"></textarea>
+        <textarea class="input" name="clinical_exam" rows="3" x-model="exam"
+                  x-on:input="expand('exam', 'exam', $event)"></textarea>
         <div class="smart-chips">
           <button type="button" class="chip chip--primary" x-on:click="normalExam()">
             <i class="bi bi-check2-circle"></i> {{ t('visits.normal_exam') }}</button>
           {% for phrase in exam_chips %}
           {% set _e = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
-          <button type="button" class="chip" x-on:click='addExam({{ _e|tojson }})'>{{ _e }}</button>
+          <button type="button" class="chip" x-on:click='addExam({{ _e|tojson }})'
+                  {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _e }}{% if phrase.code %}
+            <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
           {% endfor %}
+          <a class="chip chip--link" href="{{ url_for('visits.phrases_screen') }}"
+             title="{{ t('phrases.title') }}"><i class="bi bi-gear"></i></a>
         </div>
       </div>
 
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.plan') }}</label>
-          <textarea class="input" name="plan" rows="2" x-model="planTxt"></textarea></div>
+          <textarea class="input" name="plan" rows="2" x-model="planTxt"
+                    x-on:input="expand('plan', 'planTxt', $event)"></textarea>
+          <div class="smart-chips">
+            {% for phrase in plan_chips %}
+            {% set _p = phrase.en if (current_lang == 'en' and phrase.en) else phrase.ar %}
+            <button type="button" class="chip" x-on:click='addPlan({{ _p|tojson }})'
+                    {% if phrase.code %}title="{{ phrase.code }}"{% endif %}>{{ _p }}{% if phrase.code %}
+              <span class="chip-code">{{ phrase.code }}</span>{% endif %}</button>
+            {% endfor %}
+          </div></div>
         <div class="form-row"><label>{{ t('visits.notes') }}</label>
           <textarea class="input" name="notes" id="visitNotes" rows="2">{{ visit.notes or '' }}</textarea></div>
       </div>
@@ -294,9 +316,10 @@
   {% endif %}
 
   <!-- Diagnoses -->
-  <div class="card gc-scale-in" id="dx" x-show="tab==='dx'" style="animation-delay:0.2s;">
+  <div class="card gc-scale-in" data-add-panel id="dx" x-show="tab==='dx'" style="animation-delay:0.2s;">
     <h2 class="section-title"><i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}</h2>
 
+    <div data-add-list>
     {% if visit.diagnoses %}
     <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
       {% for dx in visit.diagnoses %}
@@ -314,9 +337,10 @@
     {% else %}
     <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_dx') }}</p>
     {% endif %}
+    </div>
 
     <!-- Add diagnosis with ICD search -->
-    <form method="post" action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="icd-search" style="position:relative;">
         <label>{{ t('visits.search_icd') }}</label>
@@ -368,9 +392,10 @@
   </div>
 
   <!-- Investigations: request labs/imaging + record results -->
-  <div class="card gc-scale-in" id="inv" x-show="tab==='inv'" style="animation-delay:0.24s;">
+  <div class="card gc-scale-in" data-add-panel id="inv" x-show="tab==='inv'" style="animation-delay:0.24s;">
     <h2 class="section-title"><i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}</h2>
 
+    <div data-add-list>
     {% if visit.investigations %}
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
       {% for x in visit.investigations %}
@@ -401,9 +426,10 @@
     {% else %}
     <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_inv') }}</p>
     {% endif %}
+    </div>
 
     <!-- Order a new investigation -->
-    <form method="post" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}"
           x-data="invOrder('{{ url_for('visits.investigation_search') }}')">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="investigation_id" :value="invId">
@@ -451,7 +477,7 @@
 
   <!-- Procedures: chargeable services performed in the visit (echo, nebuliser…) -->
   <!-- Medicines written in the room: they carry over to the prescription -->
-  <div class="card gc-scale-in" id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
+  <div class="card gc-scale-in" data-add-panel id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
     <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.med_hint') }}</p>
     {% if visit.prescriptions %}
@@ -495,6 +521,7 @@
     {% endfor %}
     {% endif %}
 
+    <div data-add-list>
     {% if visit.medications %}
     <table class="table">
       <thead><tr>
@@ -532,7 +559,7 @@
             {% else %}—{% endif %}
           </td>
           <td style="text-align:end;">
-            <form method="post" action="{{ url_for('visits.delete_medication', med_id=m.id) }}" style="display:inline;">
+            <form method="post" data-inline action="{{ url_for('visits.delete_medication', med_id=m.id) }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
           </td>
@@ -543,8 +570,9 @@
     {% else %}
     <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_meds') }}</p>
     {% endif %}
+    </div>
 
-    <form method="post" action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_medication', visit_id=visit.id) }}"
           x-data="medWriter('{{ url_for('visits.drug_search') }}')" style="margin-top:12px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="drug_id" :value="drugId">
@@ -978,9 +1006,10 @@
   </div>
 
   <!-- Patient file attachments (lab/imaging reports) -->
-  <div class="card gc-scale-in" id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
+  <div class="card gc-scale-in" data-add-panel id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
     <h2 class="section-title"><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h2>
 
+    <div data-add-list>
     {% if visit.attachments %}
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
       {% for a in visit.attachments %}
@@ -990,7 +1019,7 @@
           {{ a.label or a.original_name }}</a>
         <span class="badge badge--muted">{{ t('visits.att_' ~ a.kind) if a.kind in ['lab','imaging','report','other'] else a.kind }}</span>
         <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ a.created_at.strftime('%Y-%m-%d') }}</span>
-        <form method="post" action="{{ url_for('visits.delete_attachment', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+        <form method="post" data-inline action="{{ url_for('visits.delete_attachment', att_id=a.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
       </div>
@@ -999,8 +1028,9 @@
     {% else %}
     <p style="color:var(--muted);margin-bottom:16px;">{{ t('visits.no_attachments') }}</p>
     {% endif %}
+    </div>
 
-    <form method="post" action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
+    <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.upload_attachment', visit_id=visit.id) }}" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-grid">
         <div class="form-row"><label>{{ t('visits.att_label') }}</label>
@@ -1072,6 +1102,9 @@
     border-radius:999px; padding:4px 11px; font-size:0.8rem; cursor:pointer; font-family:inherit;
     transition:all .15s ease; }
   .chip:hover { border-style:solid; border-color:var(--green-600); color:var(--green-800); }
+  .chip-code { margin-inline-start:5px; padding:0 4px; border-radius:5px; font-size:.72rem;
+    background:var(--green-050,#eef7f0); color:var(--green-800,#1f6b3b); font-family:var(--mono,monospace); }
+  .chip--link { text-decoration:none; }
   .chip--primary { border-style:solid; border-color:var(--green-600); color:var(--green-800);
     background:var(--green-050,#f3faf5); font-weight:600; }
   /* Sticky action bar */
@@ -1190,6 +1223,35 @@
         if (t.split('\n').map(x => x.trim()).includes(txt)) return;  // no dupes
         this.exam = t ? (t + '\n' + txt) : txt;
       },
+      addPlan(txt) {
+        const t = (this.planTxt || '').trim();
+        if (t.split('\n').map(x => x.trim()).includes(txt)) return;  // no dupes
+        this.planTxt = t ? (t + '\n' + txt) : txt;
+      },
+      codes: cfg.codes || {},
+      // A code the doctor defined, typed and followed by a space, becomes the
+      // sentence it stands for. The trigger is the space rather than every
+      // keystroke, so a code that is also an ordinary word can still be typed
+      // as one — you get it back by deleting the space.
+      expand(field, model, ev) {
+        const map = this.codes[field] || {};
+        const el = ev && ev.target;
+        if (!el || el.selectionStart === null) return;
+        const at = el.selectionStart;
+        const before = (this[model] || '').slice(0, at);
+        if (!/\s$/.test(before)) return;          // only on a separator
+        const m = before.match(/(^|[\s،,.])([^\s،,.]+)\s$/);
+        if (!m) return;
+        const full = map[m[2]];
+        if (!full) return;
+        const head = before.slice(0, before.length - m[2].length - 1);
+        const tail = (this[model] || '').slice(at);
+        this[model] = head + full + tail;
+        // Put the caret after what was just written, not at the end of a
+        // paragraph the doctor is in the middle of.
+        const caret = (head + full).length;
+        this.$nextTick(() => { el.setSelectionRange(caret, caret); });
+      },
       carryForward() {
         if (!this.prev) return;
         if (this.prev.cc && !this.cc) this.cc = this.prev.cc;
@@ -1197,16 +1259,35 @@
         if (this.prev.plan && !this.planTxt) this.planTxt = this.prev.plan;
       },
       tab: 'case',
-      // Restore the active tab from the URL hash so it survives the page
-      // reloads after adding a diagnosis (#dx) / investigation (#inv) / file (#files).
+      // Every panel's id *is* its tab name, and the server redirects to
+      // '#' + that name after an add. So the mapping is the identity and
+      // there is nothing to keep in step.
+      //
+      // It used to be two hand-written lists — one for reading the hash and
+      // one for writing it — and both were missing 'meds' and 'consent'. The
+      // effect was the bug the clinic reported: a doctor adds a drug, the
+      // server sends them back to '#meds', the lookup finds nothing, and they
+      // land on the first tab. Mid-consultation, every single time.
+      TABS: ['case', 'dx', 'inv', 'meds', 'consent', 'proc', 'vac', 'files'],
       restore() {
-        const map = { '#dx': 'dx', '#inv': 'inv', '#proc': 'proc', '#vac': 'vac', '#files': 'files' };
-        this.tab = map[window.location.hash] || 'case';
+        const id = (window.location.hash || '').replace('#', '');
+        this.tab = this.TABS.includes(id) ? id : 'case';
+        // And put them back where they were working, rather than at the top
+        // of a panel they have to scroll down again.
+        if (id) this.$nextTick(() => this.showAdd(id));
       },
       go(tab) {
         this.tab = tab;
-        const hash = { dx: '#dx', inv: '#inv', proc: '#proc', vac: '#vac', files: '#files' }[tab] || '';
-        history.replaceState(null, '', hash || window.location.pathname);
+        history.replaceState(
+          null, '', tab === 'case' ? window.location.pathname : '#' + tab);
+      },
+      // Bring the "add another" form into view after a reload. The doctor's
+      // next action is almost always another one of whatever they just added.
+      showAdd(id) {
+        const panel = document.getElementById(id);
+        if (!panel) return;
+        const target = panel.querySelector('[data-add-form]');
+        if (target) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
       },
       // Build the "write prescription" link, appending the live weight.
       rxHref(base) {

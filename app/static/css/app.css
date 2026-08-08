@@ -102,3 +102,105 @@
   color: var(--muted, #6c7a89);
   font-size: 0.85rem;
 }
+
+/* ------------------------------------------------- عيادات strip + timers --
+   The whole-clinic view: one card per عيادة, readable at a glance from the
+   reception desk. Cards wrap, so two doctors and ten doctors both look
+   deliberate rather than one being a broken version of the other. */
+.clinics-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.clinic-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.clinic-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.clinic-card.is-busy { border-color: var(--brand, #198754); }
+.cl-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cl-room { font-weight: 800; font-size: 1rem; }
+.cl-doc { font-size: .82rem; color: var(--muted); }
+.cl-now { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; min-height: 24px; }
+.cl-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-empty { color: var(--muted); font-size: .88rem; }
+.cl-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.cl-dot.busy { background: #198754; }
+.cl-dot.free { background: var(--line); }
+.cl-queue {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  font-size: .8rem; color: var(--muted);
+  border-top: 1px solid var(--line); padding-top: 8px;
+}
+.cl-longest b { font-weight: 700; }
+.cl-done { margin-inline-start: auto; }
+
+/* The counter itself. Neutral by default — it only takes on colour when it
+   is counting a family's wait, never a doctor's consultation. */
+.live-timer { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+.live-timer.lt-amber { color: #b45309; font-weight: 700; }
+.live-timer.lt-red { color: #b91c1c; font-weight: 800; }
+
+/* ------------------------------------------------ "yes, that went in" ----
+   A doctor adds a medicine mid-consultation and looks away to the child. The
+   only evidence the press worked used to be the list being one row longer
+   than they remembered — which, halfway through a consultation, is not
+   evidence. So the new row announces itself briefly, and the form says what
+   landed. Both fade: a confirmation that stays becomes furniture. */
+@keyframes gc-just-added {
+  0%   { background: rgba(25, 135, 84, .22); }
+  100% { background: transparent; }
+}
+.gc-just-added {
+  animation: gc-just-added 2.2s ease-out;
+  box-shadow: inset 3px 0 0 #198754;
+}
+.gc-added-note {
+  margin-top: 10px;
+  font-size: .86rem;
+  color: #198754;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 1;
+  transition: opacity .4s ease;
+}
+.gc-added-note.is-gone { opacity: 0; }
+
+/* The tabs read as a sequence rather than a row of equal boxes: each carries
+   its place in the flow, and fills in once it holds something. */
+.vtab .vtab-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  font-size: .7rem;
+  font-weight: 700;
+  background: var(--line);
+  color: var(--muted);
+  margin-inline-end: 2px;
+}
+.vtab.has-content .vtab-step { background: #198754; color: #fff; }
+.vtab.active .vtab-step { background: var(--brand, #198754); color: #fff; }
+
+/* A measured child who should not still be waiting. Deliberately small and
+   inline on the row rather than a banner: a board where every row shouts is a
+   board nobody reads, and this must stay rare enough to be believed. */
+.rf-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 3px; padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .72rem; font-weight: 700;
+  white-space: normal;
+}
+.rf-urgent { background: #fee2e2; color: #b91c1c; }
+.rf-watch  { background: #fef3c7; color: #b45309; }
+:root[data-theme="dark"] .rf-urgent { background: #3b1f22; color: #fca5a5; }
+:root[data-theme="dark"] .rf-watch  { background: #3a2f1c; color: #fcd34d; }

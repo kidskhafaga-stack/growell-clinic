@@ -56,6 +56,38 @@ def seed_reference():
         from app.utils.drugs import seed_drugs
         return seed_drugs() or 0
 
+    def _egypt_register():
+        """Every drug registered in Egypt — 25,000 trade names with prices.
+
+        Seeded with the rest of the catalogues rather than left behind a
+        button, because that is what an install is *for*: the curated 292
+        brands are the ones that carry paediatric dosing, but a doctor writes
+        from the whole market, and one who types a brand and finds nothing
+        does not conclude the catalogue is short — they type it as free text,
+        and a free-text line is one nothing can check for interactions,
+        allergies or a dose.
+
+        Placed after the drug reference for readability rather than for
+        correctness: the register links to an ingredient on an exact name
+        match, and ``_drugbook`` finishes by running ``link_existing_drugs``,
+        which back-fills anything still unlinked. So either order ends with
+        the same 2,000 dosable brands — which is worth knowing before
+        somebody "fixes" the order and expects a difference.
+        """
+        from app.utils.egypt_drugs import seed_register
+
+        return seed_register()
+
+    def _lookups():
+        """The clinic's own short lists — types, categories, units, kinds.
+
+        Seeded before the store items so the first item added has a type to
+        pick rather than an empty dropdown and a reason to type free text.
+        """
+        from app.utils.lookups import ensure_seeded
+
+        return ensure_seeded()
+
     def _investigations():
         from app.utils.investigations import seed_investigations
         return seed_investigations() or 0
@@ -142,8 +174,18 @@ def seed_reference():
         return made
 
     def _store():
-        from app.utils.store_seed import seed_store_items_if_empty
-        return seed_store_items_if_empty() or 0
+        from app.utils.store_seed import (backfill_item_types,
+                                          seed_store_items_if_empty)
+        made = seed_store_items_if_empty() or 0
+        # After the items exist, not before. The first version of this ran
+        # with the lists — which are seeded earlier — so it typed nothing at
+        # all and every count on the screen still looked right.
+        #
+        # It runs on upgrade as well as install: a clinic that has been typing
+        # categories for a year should not have to open every item to say
+        # which of them are drugs.
+        backfill_item_types()
+        return made
 
     def _device_consumables():
         """Tie each device's service to what it burns per test.
@@ -187,7 +229,9 @@ def seed_reference():
     _try(_services, "services", out)
     _try(_drugs, "drugs", out)
     _try(_investigations, "investigations", out)
+    _try(_lookups, "store_lists", out)
     _try(_drugbook, "drug_reference", out)
+    _try(_egypt_register, "egypt_drug_register", out)
     _try(_devices, "devices", out)
     _try(_device_measurements, "device_measurements", out)
     _try(_device_services, "device_services", out)

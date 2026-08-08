@@ -222,11 +222,24 @@ def test_a_course_given_today_leaves_the_visit_panel_unalarmed(kid):
 def test_an_unvaccinated_child_is_still_offered_everything_due(kid):
     """**This is not the fix's job, and the test exists to say so.**
 
-    A three-year-old with an empty history genuinely is behind on every
-    optional vaccine, so all of them are offered — the count is honest, and the
+    A three-year-old with an empty history is old enough for every optional
+    vaccine, so all of them are offered — the count is honest, and the
     dose-chaining fix does not and should not reduce it. Whether that list wants
     grouping or a catch-up priority is a separate policy question about the
     panel, not a bug in the schedule.
+
+    The *wording* of that offer changed later, and this test changed with it.
+    It used to assert the first dose read ``overdue``, on the reasoning that a
+    child with an empty history "genuinely is behind". A clinic disagreed, with
+    a screen telling a healthy two-year-old he was late for forty-one vaccines:
+    the catalogue holds everything the program knows, most of it is the national
+    schedule given at the government unit, and this clinic never promised any of
+    it. Late is a broken promise. So a course nobody started here reads
+    ``suggested`` — the same dose, offered just as prominently, described
+    truthfully.
+
+    What must not change is the number offered, which is what the rest of this
+    test pins.
     """
     from app.models import Patient
     from app.utils.vaccines import visit_vaccine_panel
@@ -237,4 +250,6 @@ def test_an_unvaccinated_child_is_still_offered_everything_due(kid):
         mine = [e for e in offered if e["vaccine"].code == "OPTX"]
         assert len(mine) == 1                      # one entry, its first dose
         assert mine[0]["dose"]["dose_number"] == 1
-        assert mine[0]["dose"]["status"] == "overdue"
+        assert mine[0]["dose"]["status"] == "suggested"
+        # Offered, but never described as a debt this clinic is owed.
+        assert mine[0]["started"] is False and mine[0]["overdue"] is False

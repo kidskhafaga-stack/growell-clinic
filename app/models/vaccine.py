@@ -195,6 +195,20 @@ class VaccineBrand(db.Model):
         """Total remaining usable patient doses across all batches."""
         return sum(b.qty_remaining for b in self.batches)
 
+    def stock_in(self, warehouse):
+        """Doses held in one warehouse.
+
+        Mirrors ``StoreItem.stock_in``: a batch with no warehouse on it was
+        received before the fridge was a place, and belongs to the default
+        warehouse. Without this a clinic with a fridge could see its vaccines
+        on the shelf list and find nothing to count inside the fridge.
+        """
+        if warehouse is None:
+            return self.stock
+        return sum(b.qty_remaining for b in self.batches
+                   if b.warehouse_id == warehouse.id
+                   or (b.warehouse_id is None and warehouse.is_default))
+
     @property
     def is_multidose(self):
         return (self.doses_per_vial or 1) > 1

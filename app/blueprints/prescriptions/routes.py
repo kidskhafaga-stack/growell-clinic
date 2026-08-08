@@ -711,6 +711,17 @@ def investigation_search():
 
 
 # ----------------------------------------------------- writing -------------
+def _stage(value):
+    """Validate the diagnosis stage, or leave it unsaid.
+
+    Unsaid is a real answer: plenty of prescriptions carry a diagnosis nobody
+    wants to grade, and inventing "final" for them would put a certainty on
+    paper that the doctor never claimed.
+    """
+    value = (value or "").strip()
+    return value if value in Prescription.DIAGNOSIS_STAGES else None
+
+
 @prescriptions_bp.route("/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def new():
@@ -727,6 +738,8 @@ def new():
             visit_id=request.form.get("visit_id", type=int) or None,
             diagnosis=(request.form.get("diagnosis") or "").strip() or None,
             diagnosis_code=(request.form.get("diagnosis_code") or "").strip() or None,
+            diagnosis_stage=_stage(request.form.get("diagnosis_stage")),
+            complaint=(request.form.get("complaint") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None,
             created_by=current_user.id,
         )
@@ -739,6 +752,10 @@ def new():
         freqs = request.form.getlist("item_frequency")
         durs = request.form.getlist("item_duration")
         instrs = request.form.getlist("item_instructions")
+        # Ticked boxes only report the rows that are on, so the set of indices
+        # is what says which lines print — an absent value means "off", and
+        # that has to be a deliberate press rather than a default.
+        off = {i for i in request.form.getlist("item_hidden", type=int)}
         used_ids, count = [], 0
         for i in range(len(names)):
             name = (names[i] or "").strip()
@@ -763,6 +780,7 @@ def new():
                 frequency=written["frequency"] or None,
                 duration=written["duration"] or None,
                 instructions=(instrs[i].strip() if i < len(instrs) else "") or None,
+                printed=i not in off,
             ))
             used_ids.append(did)
             count += 1
@@ -874,8 +892,13 @@ def new():
         prefill_invs=prefill_invs, prefill_meds=prefill_meds,
         visit_rx=visit_rx, recent_meds=recent_meds,
         presets=visible_presets(), frequencies=FREQUENCIES,
-        patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
-        doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
+        # The doctor the field starts on: the one the visit carried over,
+        # else the signed-in user when they see patients. Both the patient
+        # list and the doctor list used to be sent whole and picked from a
+        # dropdown; both are searches now.
+        rx_doctor=(db.session.get(User, prefill["doctor_id"])
+                   if prefill["doctor_id"]
+                   else (current_user if current_user.is_practitioner else None)),
         ai_ready=ai_utils.is_ready(),
     )
 
@@ -904,6 +927,20 @@ def view(rx_id):
     rx = db.get_or_404(Prescription, rx_id)
     warnings = interaction_warnings([it.drug_id for it in rx.items])
     tpl = resolve_template(rx.doctor, request.args.get("template", type=int))
+    # The copy that leaves the building has to stand on its own.
+    #
+    # A "preprinted" template deliberately omits the letterhead, because the
+    # paper it prints on already carries it. Send that same layout as a PDF and
+    # the family receives a page with no clinic name, no doctor, no licence and
+    # no stamp — which is not a prescription, it is a list of drug names. A
+    # pharmacy is right to refuse it.
+    #
+    # So the digital copy is always rendered from a complete white template,
+    # whatever the clinic prints on. This is not the doctor's choice to make:
+    # the choice is about paper, and there is no paper here.
+    digital = request.args.get("digital") == "1"
+    if digital:
+        tpl = RxPrintTemplate.default_instance()
     # Vaccinations administered in this visit (or on the rx date) print on the
     # prescription with dose X/N and the expected date of the next dose.
     try:
@@ -913,7 +950,7 @@ def view(rx_id):
     except Exception:  # noqa: BLE001 - printing must never break on plan maths
         rx_vaccines = []
     return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
-                           tpl=tpl, rx_vaccines=rx_vaccines,
+                           tpl=tpl, rx_vaccines=rx_vaccines, digital=digital,
                            templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
 
 
@@ -993,3 +1030,117 @@ def delete(rx_id):
     db.session.commit()
     flash(t("rx.deleted"), "info")
     return redirect(url_for("patients.view", patient_id=pid))
+
+
+@prescriptions_bp.route("/patient-search")
+@module_required(MODULE)
+def patient_search():
+    """JSON: find a patient to write a prescription for.
+
+    Replaces a dropdown that was capped at 500 names sorted alphabetically. On
+    a clinic with a few hundred files nobody noticed; on one with thousands
+    the list simply stopped somewhere in the middle of the alphabet, and a
+    doctor looking for a child whose name began with a later letter concluded
+    the patient was not in the program. Searching has no such edge.
+    """
+    from flask import jsonify
+
+    from app.utils.patients import apply_patient_search
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify([])
+    rows = (apply_patient_search(
+        Patient.query.filter(Patient.is_active.is_(True)), q)
+        .order_by(Patient.full_name).limit(20).all())
+    lang = getattr(g, "lang", "ar")
+    # A bare array, because that is what the shared picker widget consumes —
+    # every other search on these screens answers the same way.
+    return jsonify([
+        {"id": p.id, "name": p.display_name(lang), "number": p.patient_number,
+         "dob": p.date_of_birth.isoformat() if p.date_of_birth else ""}
+        for p in rows])
+
+
+@prescriptions_bp.route("/doctor-search")
+@module_required(MODULE)
+def doctor_search():
+    """JSON: the doctors a prescription can be written for.
+
+    A doctor signing in gets their own name, settled, and no list at all — a
+    picker that lets one doctor put another's name on a signed prescription is
+    a picker that will eventually be used that way by accident. This answers
+    the other case: an administrator or the front desk writing one on a
+    doctor's behalf, who has to be able to say which doctor.
+
+    An empty query returns everybody, because a clinic has a handful of
+    doctors and making somebody guess the first two letters of a list that
+    short is not searching, it is a hurdle.
+    """
+    from flask import jsonify
+
+    q = (request.args.get("q") or "").strip()
+    rows = User.query.filter(User.is_active.is_(True),
+                             db.or_(User.role == "doctor",
+                                    User.is_practitioner.is_(True)))
+    if q:
+        like = f"%{q}%"
+        rows = rows.filter(db.or_(User.full_name.ilike(like),
+                                  User.full_name_en.ilike(like),
+                                  User.rx_display_name.ilike(like),
+                                  User.username.ilike(like)))
+    lang = getattr(g, "lang", "ar")
+    return jsonify([
+        {"id": u.id, "name": u.doctor_print_name(lang),
+         "number": u.job_title or ""}
+        for u in rows.order_by(User.full_name).limit(20).all()])
+
+
+@prescriptions_bp.route("/<int:rx_id>/verify.svg")
+@module_required(MODULE)
+def verify_qr(rx_id):
+    """A QR the pharmacy can scan to check this prescription is real.
+
+    The digital copy is the point. A signed, stamped PDF sent over WhatsApp is
+    a document that can be forwarded, edited and re-used, and the family
+    holding it has no way to prove otherwise. The printed page has never
+    needed this — it is on the clinic's own paper — but the moment a copy
+    leaves as a file, "is this genuine" becomes a question somebody has to be
+    able to answer.
+
+    Same approach as the vaccination certificate, deliberately: one habit for
+    the clinic, one thing for a pharmacist to learn.
+    """
+    from flask import Response
+
+    rx = db.get_or_404(Prescription, rx_id)
+    target = url_for("prescriptions.verify", rx_id=rx.id, _external=True)
+    svg = _qr_svg(target)
+    if svg is None:
+        return Response("", mimetype="image/svg+xml")
+    return Response(svg, mimetype="image/svg+xml")
+
+
+@prescriptions_bp.route("/<int:rx_id>/verify")
+@module_required(MODULE)
+def verify(rx_id):
+    """What the scanned code opens: what this prescription actually says.
+
+    Read-only and deliberately thin — enough to check a forwarded file against
+    the clinic's own record, and nothing a scan should be able to change.
+    """
+    rx = db.get_or_404(Prescription, rx_id)
+    return render_template("prescriptions/verify.html", rx=rx)
+
+
+def _qr_svg(url, scale=3):
+    """An inline SVG QR for ``url``, or None when the library is missing."""
+    import io
+
+    try:
+        import segno
+    except ImportError:                 # pragma: no cover - segno is required
+        return None
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(buf, kind="svg", scale=scale, border=0)
+    return buf.getvalue().decode("utf-8")
