@@ -51,6 +51,30 @@
   </div>
 </div>
 
+{# The dose arrived, and the families who did exactly what they were asked —
+   and found nothing — are the wrong people to forget. Sent by a button and
+   not by the delivery itself: messaging a hundred families is not a side
+   effect of booking in a box. #}
+{% if back %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--green-600);background:var(--green-050);">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-box-arrow-in-down"></i>
+    {{ t('vaccinations.back_title') }}</h2>
+  <p class="hint" style="margin:-4px 0 10px;">{{ t('vaccinations.back_hint') }}</p>
+  {% for row in back %}
+  <form method="post" action="{{ url_for('vaccinations.back_in_stock', brand_id=row.brand.id) }}"
+        style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:5px 0;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span style="flex:1;min-width:180px;">
+      {{ row.brand.vaccine.display_name(current_lang) if row.brand.vaccine else '' }}
+      — <strong>{{ row.brand.name }}</strong></span>
+    <span class="badge badge--role">{{ t('vaccinations.back_waiting', n=row.count) }}</span>
+    <button class="btn btn-primary btn-sm gc-press" type="submit">
+      <i class="bi bi-whatsapp"></i> {{ t('vaccinations.back_send') }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if order %}
 {# The same list totalled by brand is a purchase order. "to order" is what is
    missing rather than what is needed: a clinic with nine on the shelf and
