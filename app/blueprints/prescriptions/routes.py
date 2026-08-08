@@ -711,6 +711,17 @@ def investigation_search():
 
 
 # ----------------------------------------------------- writing -------------
+def _stage(value):
+    """Validate the diagnosis stage, or leave it unsaid.
+
+    Unsaid is a real answer: plenty of prescriptions carry a diagnosis nobody
+    wants to grade, and inventing "final" for them would put a certainty on
+    paper that the doctor never claimed.
+    """
+    value = (value or "").strip()
+    return value if value in Prescription.DIAGNOSIS_STAGES else None
+
+
 @prescriptions_bp.route("/new", methods=["GET", "POST"])
 @module_required(MODULE)
 def new():
@@ -727,6 +738,8 @@ def new():
             visit_id=request.form.get("visit_id", type=int) or None,
             diagnosis=(request.form.get("diagnosis") or "").strip() or None,
             diagnosis_code=(request.form.get("diagnosis_code") or "").strip() or None,
+            diagnosis_stage=_stage(request.form.get("diagnosis_stage")),
+            complaint=(request.form.get("complaint") or "").strip() or None,
             notes=(request.form.get("notes") or "").strip() or None,
             created_by=current_user.id,
         )
@@ -739,6 +752,10 @@ def new():
         freqs = request.form.getlist("item_frequency")
         durs = request.form.getlist("item_duration")
         instrs = request.form.getlist("item_instructions")
+        # Ticked boxes only report the rows that are on, so the set of indices
+        # is what says which lines print — an absent value means "off", and
+        # that has to be a deliberate press rather than a default.
+        off = {i for i in request.form.getlist("item_hidden", type=int)}
         used_ids, count = [], 0
         for i in range(len(names)):
             name = (names[i] or "").strip()
@@ -763,6 +780,7 @@ def new():
                 frequency=written["frequency"] or None,
                 duration=written["duration"] or None,
                 instructions=(instrs[i].strip() if i < len(instrs) else "") or None,
+                printed=i not in off,
             ))
             used_ids.append(did)
             count += 1
@@ -993,3 +1011,33 @@ def delete(rx_id):
     db.session.commit()
     flash(t("rx.deleted"), "info")
     return redirect(url_for("patients.view", patient_id=pid))
+
+
+@prescriptions_bp.route("/patient-search")
+@module_required(MODULE)
+def patient_search():
+    """JSON: find a patient to write a prescription for.
+
+    Replaces a dropdown that was capped at 500 names sorted alphabetically. On
+    a clinic with a few hundred files nobody noticed; on one with thousands
+    the list simply stopped somewhere in the middle of the alphabet, and a
+    doctor looking for a child whose name began with a later letter concluded
+    the patient was not in the program. Searching has no such edge.
+    """
+    from flask import jsonify
+
+    from app.utils.patients import apply_patient_search
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify([])
+    rows = (apply_patient_search(
+        Patient.query.filter(Patient.is_active.is_(True)), q)
+        .order_by(Patient.full_name).limit(20).all())
+    lang = getattr(g, "lang", "ar")
+    # A bare array, because that is what the shared picker widget consumes —
+    # every other search on these screens answers the same way.
+    return jsonify([
+        {"id": p.id, "name": p.display_name(lang), "number": p.patient_number,
+         "dob": p.date_of_birth.isoformat() if p.date_of_birth else ""}
+        for p in rows])
