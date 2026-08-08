@@ -124,6 +124,16 @@ def dashboard():
     from app.models import Setting
 
     ctx = {"greeting": _greeting_key(_dt.now().hour)}
+    # A half-configured clinic should learn it here, not on the first busy
+    # morning with a family at the desk. Admins only — a receptionist can do
+    # nothing about a missing till, and a banner nobody can act on is noise.
+    ctx["setup"] = None
+    if current_user.is_admin:
+        from app.utils.readiness import dismissed, summary
+
+        state = summary()
+        if not state["ready"] and not dismissed():
+            ctx["setup"] = state
     # Whether bookings are paused is read for **everyone**, not only the doctor
     # who can flip it. It used to be set inside the doctor-home branch, so the
     # banner lived inside a card reception never sees: the doctor paused

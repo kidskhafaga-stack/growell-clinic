@@ -849,3 +849,61 @@ def _remove_logo_file(filename):
             os.remove(path)
         except OSError:
             pass
+
+
+# ------------------------------------------------------- readiness wizard --
+@settings_bp.route("/wizard")
+@admin_required
+def wizard():
+    """One screen that says whether this clinic can open, and what is missing.
+
+    A clinic is installed once and configured over a fortnight, in the wrong
+    order, by whoever is free — and the pieces depend on each other without
+    saying so. Commissions need services. Booking needs working hours. Taking
+    money needs a till. The gap is found on the first real morning, with a
+    family already at the desk.
+
+    Deliberately a **checklist that inspects**, not a slideshow that asks.
+    Every row is answered by looking at the database, so it is right whether
+    the setting was made here, on the ordinary screen, or restored from a
+    backup — and a clinic can do half of it, leave, and come back to exactly
+    where it stopped without being asked anything twice.
+    """
+    from app.utils.readiness import summary
+
+    return render_template("settings/wizard.html", state=summary())
+
+
+@settings_bp.route("/wizard/dismiss", methods=["POST"])
+@admin_required
+def wizard_dismiss():
+    """Stop the reminder. The screen stays reachable from settings.
+
+    A clinic that has decided it does not want vaccinations should not be
+    nagged about vaccinations for ever — but the checklist itself remains,
+    because "what did we never finish setting up" is a question that comes
+    back six months later.
+    """
+    Setting.set("wizard_dismissed", "0" if request.form.get("undo") else "1")
+    db.session.commit()
+    return redirect(url_for("settings.wizard"))
+
+
+@settings_bp.route("/wizard/seed-drugs", methods=["POST"])
+@admin_required
+def wizard_seed_drugs():
+    """Load the Egyptian drug register — 25,000 trade names with their prices.
+
+    Offered as a press rather than done silently at install: it is the
+    clinic's catalogue, and a clinic that keeps its own short curated list
+    should be able to say no.
+    """
+    from app.utils.egypt_drugs import seed_register
+
+    added = seed_register()
+    ActivityLog.record("settings.seed_drugs", user_id=current_user.id,
+                       entity="settings", detail=str(added),
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("wizard.drugs_seeded").replace("{n}", str(added)), "success")
+    return redirect(url_for("settings.wizard"))

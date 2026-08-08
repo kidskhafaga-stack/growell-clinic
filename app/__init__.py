@@ -384,9 +384,17 @@ def create_app(config_name="default"):
             return None
         endpoint = request.endpoint or ""
         # Don't trap static assets, auth, the wizard itself, or public pages.
-        allowed = ("static", "settings.setup", "auth.logout", "auth.login",
-                   "main.set_theme")
-        if endpoint in allowed or endpoint.startswith(("feedback.", "webhooks.")):
+        # The readiness checklist is allowed through too. It is the screen
+        # that *explains* what setup is still missing, so trapping it behind
+        # the very step it is meant to introduce leaves a new owner with a
+        # single form and no map.
+        allowed = ("static", "settings.setup", "settings.wizard",
+                   "auth.logout", "auth.login", "main.set_theme")
+        # `settings.wizard*` covers the checklist's own actions too — a POST
+        # that gets swallowed by this redirect looks to the user like a button
+        # that does nothing, which is exactly how the drug seeder behaved.
+        if (endpoint in allowed or endpoint.startswith("settings.wizard")
+                or endpoint.startswith(("feedback.", "webhooks."))):
             return None
         from app.utils.facility import is_configured
         try:

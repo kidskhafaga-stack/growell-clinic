@@ -4,6 +4,22 @@
 {% block page_heading %}{{ t('dashboard.title') }}{% endblock %}
 
 {% block content %}
+{# Setup is unfinished and this person can fix it. Shown once, dismissible,
+   and it disappears by itself the moment the last essential step is done. #}
+{% if setup %}
+<div class="card gc-scale-in edge-yellow" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+  <i class="bi bi-tools" style="font-size:1.4rem;color:#b45309;"></i>
+  <div style="flex:1;min-width:220px;">
+    <strong>{{ t('wizard.banner').replace('{n}', (setup.required_total - setup.required_done)|string) }}</strong>
+    {% if setup.next %}
+    <div style="color:var(--muted);font-size:.85rem;">
+      {{ t('wizard.continue') }}: {{ t('wizard.step_' ~ setup.next.key) }}</div>
+    {% endif %}
+  </div>
+  <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('settings.wizard') }}">
+    <i class="bi bi-list-check"></i> {{ t('wizard.banner_open') }}</a>
+</div>
+{% endif %}
 {# The greeting's icon is a Bootstrap Icon, not an emoji. Every other icon in
    the program is one, and an emoji sits wrong beside them for reasons that are
    not a matter of taste: it renders from the OS font rather than the icon set,
