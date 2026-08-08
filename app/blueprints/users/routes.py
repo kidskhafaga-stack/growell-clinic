@@ -218,7 +218,12 @@ def create():
             # Only an existing owner may mint another owner (super-admin).
             is_super_admin=form["is_super_admin"] and current_user.is_owner,
             # Doctors default to an English UI; others follow the program default.
-            language=form["language"] or ("en" if form["role"] == "doctor" else None),
+            # No language forced on anybody. A doctor used to be created as
+            # "en" whatever the clinic runs in, so they signed in to an
+            # English interface wrapped around Arabic names, Arabic
+            # complaints and Arabic drug notes — "عربي على إنجليزي". The
+            # field is still theirs to set, here or from their own profile.
+            language=form["language"] or None,
         )
         user.set_password(form["password"])
         _apply_profile(user, form)

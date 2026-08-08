@@ -24,7 +24,7 @@
         {% if tpl.show_specialty and doc %}{% for line in doc.doctor_title_lines(current_lang) %}<div style="color:var(--muted);font-size:0.85rem;line-height:1.35;">{{ line }}</div>{% endfor %}{% endif %}
         {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
         {% if tpl.show_contact and (addr or clinic.phone) %}<div style="color:var(--muted);font-size:0.8rem;">{% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</div>{% endif %}
-        {% if tpl.show_license and doc and doc.license_no %}<div style="color:var(--muted);font-size:0.78rem;" dir="ltr">License: {{ doc.license_no }}</div>{% endif %}
+        {% if tpl.show_license and doc and doc.license_no %}<div style="color:var(--muted);font-size:0.78rem;">{{ t('rx.license') }}: <span dir="ltr">{{ doc.license_no }}</span></div>{% endif %}
       </div>
     </div>
     <div style="text-align:end;font-size:0.85rem;">{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
