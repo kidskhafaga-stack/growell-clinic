@@ -369,8 +369,24 @@
           <div><i class="bi bi-house-heart" style="color:var(--green-700);"></i>
             <strong>{{ patient.family.display_name(current_lang) }}</strong>
             {% if patient.family.family_number %}<span class="badge badge--muted">#{{ patient.family.family_number }}</span>{% endif %}</div>
-          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="editFamily=!editFamily">
-            <i class="bi bi-pencil"></i> {{ t('patients.edit_family') }}</button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="editFamily=!editFamily">
+              <i class="bi bi-pencil"></i> {{ t('patients.edit_family') }}</button>
+            {# The import links by the father's name, so a run over messy data
+               can invent a family that groups the wrong children. Without this
+               the only way out was unlinking each child one at a time and
+               leaving the empty shell behind. The children survive it — a
+               family is a grouping, not a container. #}
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('patients.family_delete', family_id=patient.family_id) }}"
+                  onsubmit="return confirm('{{ t('patients.family_delete_confirm') }}');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="patient_id" value="{{ patient.id }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"
+                      title="{{ t('patients.delete_family') }}">
+                <i class="bi bi-trash"></i></button>
+            </form>
+          </div>
         </div>
         <form method="post" action="{{ url_for('patients.family_update', family_id=patient.family_id) }}"
               x-show="editFamily" x-cloak style="margin-top:12px;">

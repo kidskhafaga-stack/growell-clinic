@@ -278,6 +278,11 @@ def profile():
             u.print_title_en = (request.form.get("print_title_en") or "").strip() or None
             u.license_no = (request.form.get("license_no") or "").strip() or None
             u.rx_template_id = request.form.get("rx_template_id", type=int) or None
+            # Their own quick phrases. Left blank on purpose falls back to the
+            # clinic's list, so clearing the box is "use the clinic's" rather
+            # than "I have none".
+            for key in ("visit_complaint_chips", "visit_exam_chips"):
+                setattr(u, key, (request.form.get(key) or "").strip() or None)
 
         for field in IMAGE_FIELDS:
             saved = _save_image(field)

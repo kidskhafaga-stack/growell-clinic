@@ -114,6 +114,8 @@ ADDITIONS = [
     ("appointments", "appt_type", "VARCHAR(20) DEFAULT 'new'"),
     ("appointments", "is_walk_in", "BOOLEAN DEFAULT 0"),
     ("appointments", "vitals_at", "DATETIME"),
+    ("users", "visit_complaint_chips", "TEXT"),
+    ("users", "visit_exam_chips", "TEXT"),
     ("prescriptions", "diagnosis_stage", "VARCHAR(16)"),
     ("prescriptions", "complaint", "VARCHAR(255)"),
     ("prescription_items", "printed", "BOOLEAN DEFAULT 1"),

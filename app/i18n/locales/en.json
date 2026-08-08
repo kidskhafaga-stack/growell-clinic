@@ -266,7 +266,10 @@
     "file_no": "File #",
     "name": "Name",
     "tab_studies": "Studies",
-    "tab_history": "Old history"
+    "tab_history": "Old history",
+    "delete_family": "Delete family",
+    "family_delete_confirm": "The family will be removed; the patient files stay exactly as they are. Continue?",
+    "family_deleted": "Family removed. {n} file(s) kept, now without a family."
   },
   "import": {
     "title": "Import patient data",
@@ -2315,7 +2318,10 @@
     "landing_default": "Dashboard",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_system": "System"
+    "theme_system": "System",
+    "my_chips": "My quick phrases",
+    "my_chips_hint": "Yours alone. Leave empty to use the clinic's list.",
+    "chips_ph": "One per line — بالعربي|English"
   },
   "rxtpl": {
     "title": "Prescription print templates",

@@ -74,13 +74,8 @@ DEFAULT_EXAM_CHIPS = [
 ]
 
 
-def _visit_chips(key, defaults):
-    """Bilingual quick-phrase chips as ``[{"ar":…, "en":…}]``.
-
-    Stored one per line as ``ar|en`` (English optional). Falls back to the
-    pediatric defaults when the clinic hasn't set its own.
-    """
-    raw = Setting.get(key)
+def _parse_chips(raw, defaults):
+    """Parse the stored ``ar|en`` lines into ``[{"ar":…, "en":…}]``."""
     if raw:
         chips = []
         for line in raw.splitlines():
@@ -92,6 +87,27 @@ def _visit_chips(key, defaults):
         if chips:
             return chips
     return [{"ar": ar, "en": en} for ar, en in defaults]
+
+
+def _visit_chips(key, defaults, user=None):
+    """A doctor's own quick phrases, falling back to the clinic's.
+
+    These were one list for the whole clinic, which is the wrong shape for
+    them: the phrases a paediatrician reaches for are not the ones a
+    dermatologist reaches for, and a shared list grows until it is faster to
+    type the sentence than to find it. So each doctor keeps their own.
+
+    The clinic's list stays as the starting point rather than being replaced —
+    a doctor who has never opened the settings should still find the sensible
+    defaults under their fingers on their first consultation.
+    """
+    user = user if user is not None else current_user
+    own = getattr(user, key, None) if user is not None else None
+    if own:
+        chips = _parse_chips(own, [])
+        if chips:
+            return chips
+    return _parse_chips(Setting.get(key), defaults)
 
 
 def _float(name):

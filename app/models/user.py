@@ -53,6 +53,13 @@ class User(UserMixin, db.Model):
     personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
     accent_color = db.Column(db.String(20))         # لون مميز
     rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
+    # A doctor's own quick phrases for the visit screen. They used to be one
+    # list for the whole clinic, which is the wrong shape: the sentences a
+    # paediatrician reaches for are not a dermatologist's, and a shared list
+    # grows until typing is faster than finding. Blank means "use the
+    # clinic's", so nobody starts from an empty palette.
+    visit_complaint_chips = db.Column(db.Text)
+    visit_exam_chips = db.Column(db.Text)
 
     # UI personalization (per user).
     theme = db.Column(db.String(10))                # light | dark

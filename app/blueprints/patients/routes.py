@@ -2221,3 +2221,39 @@ def _resolved_doctors(links):
     real = {u.id for u in User.query.filter(
         User.id.in_(set(wanted.values()))).all()}
     return {name: uid for name, uid in wanted.items() if uid in real}
+
+
+@patients_bp.route("/families/<int:family_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def family_delete(family_id):
+    """Remove a family, leaving its children as unattached files.
+
+    Needed because the history import links by the father's name, and a run
+    over messy data produces families that should never have existed —
+    somebody else's children under one man's name. Until now the only way out
+    was to unlink each child one at a time and leave the empty shell behind.
+
+    The children are kept, always. A family is a grouping, not a container:
+    deleting the grouping must never take a patient's file with it, so the
+    rows are detached first and the empty family is what gets removed.
+    """
+    from app.models import Family
+
+    family = db.get_or_404(Family, family_id)
+    freed = list(family.patients)
+    for patient in freed:
+        patient.family_id = None
+    # Parents belong to the family rather than to any one child, so they go
+    # with it — there is nothing left for them to describe.
+    for parent in list(getattr(family, "parents", []) or []):
+        db.session.delete(parent)
+    db.session.delete(family)
+    ActivityLog.record("patient.family.delete", user_id=current_user.id,
+                       entity="family", entity_id=family_id,
+                       detail=f"{len(freed)} freed", ip_address=client_ip())
+    db.session.commit()
+    flash(t("patients.family_deleted").replace("{n}", str(len(freed))), "info")
+    patient_id = request.form.get("patient_id", type=int)
+    if patient_id:
+        return redirect(url_for("patients.view", patient_id=patient_id) + "#family")
+    return redirect(url_for("patients.index"))
