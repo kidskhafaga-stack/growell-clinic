@@ -215,8 +215,8 @@
     "family_name": "Family name",
     "select_family": "Select an existing family",
     "no_family": "No family",
-    "or_new_family": "Or create a new family named",
-    "new_family_placeholder": "New family name",
+    "or_new_family": "Or type the family name",
+    "new_family_placeholder": "Family name",
     "parents": "Parents / Guardians",
     "parent": "Guardian",
     "add_parent": "Add guardian",
@@ -269,7 +269,8 @@
     "tab_history": "Old history",
     "delete_family": "Delete family",
     "family_delete_confirm": "The family will be removed; the patient files stay exactly as they are. Continue?",
-    "family_deleted": "Family removed. {n} file(s) kept, now without a family."
+    "family_deleted": "Family removed. {n} file(s) kept, now without a family.",
+    "new_family_hint": "If that name already exists the patient joins it — no second record is made."
   },
   "import": {
     "title": "Import patient data",
@@ -2271,7 +2272,8 @@
     "verify_title": "Verify prescription",
     "verify_hint": "Scan to confirm it was issued by this clinic.",
     "verify_ok": "This prescription was issued by the clinic",
-    "verify_note": "This page shows the clinic's own record of it — for checking only."
+    "verify_note": "This page shows the clinic's own record of it — for checking only.",
+    "doctor_search_ph": "Search by doctor name"
   },
   "drug_forms": {
     "tablet": "Tablet",

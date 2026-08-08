@@ -163,9 +163,14 @@
         </div>
       </div>
       <div class="form-row">
+        {# It used to say "create a new family named", and it did exactly
+           that — a clinic typed one name on two siblings' files and got two
+           families with that name. A typed name now joins the family that
+           already carries it, and the label says so. #}
         <label for="new_family_name">{{ t('patients.or_new_family') }}</label>
         <input class="input" id="new_family_name" name="new_family_name"
                placeholder="{{ t('patients.new_family_placeholder') }}">
+        <div class="hint">{{ t('patients.new_family_hint') }}</div>
       </div>
     </div>
     <div class="form-row checkbox">

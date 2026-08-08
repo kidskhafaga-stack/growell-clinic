@@ -939,9 +939,29 @@ def _validate_patient(form, existing):
 
 
 def _resolve_family(form):
-    """Return a family id based on the form: existing, new, or None."""
-    if form.get("new_family_name"):
-        family = Family(family_name=form["new_family_name"])
+    """Return a family id based on the form: existing, new, or None.
+
+    A typed name is matched against the register before anything is created.
+    A clinic found its imported siblings in two families and did the obvious
+    thing — opened each child and typed the family name they wanted on both —
+    which produced two family records with one name on them and left the
+    children as far apart as before. Typing is how somebody says what the
+    family is *called*; it should not be how a duplicate gets made.
+
+    Matched on the folded name, like every other Arabic name comparison here:
+    "أحمد" and "احمد" are one household, and so are "Mohammed Khafaga" and
+    "mohammed khafaga". Folding is about spelling and nothing else — two
+    families that wrote different names stay two families.
+    """
+    typed = form.get("new_family_name")
+    if typed:
+        from app.utils.history_import import normalise_arabic
+
+        key = normalise_arabic(typed)
+        for existing in Family.query.all():
+            if normalise_arabic(existing.family_name or "") == key:
+                return existing.id
+        family = Family(family_name=typed)
         db.session.add(family)
         db.session.flush()
         return family.id

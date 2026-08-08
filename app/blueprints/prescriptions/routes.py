@@ -892,8 +892,13 @@ def new():
         prefill_invs=prefill_invs, prefill_meds=prefill_meds,
         visit_rx=visit_rx, recent_meds=recent_meds,
         presets=visible_presets(), frequencies=FREQUENCIES,
-        patients=Patient.query.filter_by(is_active=True).order_by(Patient.full_name).limit(500).all(),
-        doctors=User.query.filter_by(role="doctor", is_active=True).order_by(User.full_name).all(),
+        # The doctor the field starts on: the one the visit carried over,
+        # else the signed-in user when they see patients. Both the patient
+        # list and the doctor list used to be sent whole and picked from a
+        # dropdown; both are searches now.
+        rx_doctor=(db.session.get(User, prefill["doctor_id"])
+                   if prefill["doctor_id"]
+                   else (current_user if current_user.is_practitioner else None)),
         ai_ready=ai_utils.is_ready(),
     )
 
@@ -1055,6 +1060,40 @@ def patient_search():
         {"id": p.id, "name": p.display_name(lang), "number": p.patient_number,
          "dob": p.date_of_birth.isoformat() if p.date_of_birth else ""}
         for p in rows])
+
+
+@prescriptions_bp.route("/doctor-search")
+@module_required(MODULE)
+def doctor_search():
+    """JSON: the doctors a prescription can be written for.
+
+    A doctor signing in gets their own name, settled, and no list at all — a
+    picker that lets one doctor put another's name on a signed prescription is
+    a picker that will eventually be used that way by accident. This answers
+    the other case: an administrator or the front desk writing one on a
+    doctor's behalf, who has to be able to say which doctor.
+
+    An empty query returns everybody, because a clinic has a handful of
+    doctors and making somebody guess the first two letters of a list that
+    short is not searching, it is a hurdle.
+    """
+    from flask import jsonify
+
+    q = (request.args.get("q") or "").strip()
+    rows = User.query.filter(User.is_active.is_(True),
+                             db.or_(User.role == "doctor",
+                                    User.is_practitioner.is_(True)))
+    if q:
+        like = f"%{q}%"
+        rows = rows.filter(db.or_(User.full_name.ilike(like),
+                                  User.full_name_en.ilike(like),
+                                  User.rx_display_name.ilike(like),
+                                  User.username.ilike(like)))
+    lang = getattr(g, "lang", "ar")
+    return jsonify([
+        {"id": u.id, "name": u.doctor_print_name(lang),
+         "number": u.job_title or ""}
+        for u in rows.order_by(User.full_name).limit(20).all()])
 
 
 @prescriptions_bp.route("/<int:rx_id>/verify.svg")

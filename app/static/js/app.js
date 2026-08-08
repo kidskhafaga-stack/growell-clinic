@@ -422,7 +422,11 @@ window.gcPicker = function (config) {
 
     async search() {
       var text = (this.q || "").trim();
-      if (text.length < (cfg.minChars || 1)) {
+      // `cfg.minChars || 1` turned an explicit 0 into 1, so a caller that
+      // wanted the whole (short) list on focus silently got nothing until two
+      // letters were typed.
+      var minChars = cfg.minChars === undefined ? 1 : cfg.minChars;
+      if (text.length < minChars) {
         this.items = []; this.open = false; this.searched = false; return;
       }
       var mine = ++this._seq;

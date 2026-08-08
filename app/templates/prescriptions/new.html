@@ -69,12 +69,16 @@
           <i class="bi bi-check-lg"></i> <span x-text="chosenLabel"></span></div>
       </div>
       {% endif %}
-      {# The doctor is whoever is signed in. A prescription is signed, and a
-         list that lets one doctor put another's name on it is a list that
-         will eventually be used that way by accident. Admins who do not see
-         patients still get the picker, because somebody has to be able to
-         write one on a doctor's behalf. #}
-      {% if current_user.is_practitioner or current_user.role == 'doctor' %}
+      {# A doctor signs their own prescriptions: their name is taken from the
+         account they signed in with and there is no list, because a list that
+         lets one doctor put another's name on a signed prescription is a list
+         that will eventually be used that way by accident.
+
+         Everybody else — the administrator or the front desk writing one on a
+         doctor's behalf — searches, prefilled with themselves when they see
+         patients too. It was a dropdown, which is the same shape of problem
+         the patient list had. #}
+      {% if current_user.role == 'doctor' %}
       <div class="form-row"><label>{{ t('rx.doctor') }}</label>
         <input type="hidden" name="doctor_id" value="{{ current_user.id }}">
         <div class="locked-field">
@@ -82,11 +86,35 @@
           <strong>{{ current_user.doctor_print_name(current_lang) }}</strong>
         </div></div>
       {% else %}
-      <div class="form-row"><label>{{ t('rx.doctor') }}</label>
-        <select class="select" name="doctor_id">
-          <option value="">—</option>
-          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if (pf.doctor_id and pf.doctor_id==d.id) else '' }}>{{ d.doctor_print_name(current_lang) }}</option>{% endfor %}
-        </select></div>
+      {% set _mine = rx_doctor %}
+      <div class="form-row" style="position:relative;"
+           x-data="rxDoctor('{{ url_for('prescriptions.doctor_search') }}',
+                            {{ (pf.doctor_id or (_mine.id if _mine else '')) or 'null' }},
+                            {{ (_mine.doctor_print_name(current_lang) if _mine else '')|tojson|forceescape }})">
+        <label>{{ t('rx.doctor') }}</label>
+        <input type="hidden" name="doctor_id" :value="chosenId">
+        <input class="input" x-model="q" autocomplete="off"
+               placeholder="{{ t('rx.doctor_search_ph') }}"
+               role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="ask()" x-on:focus="ask()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.enter="enter($event)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(() => picker.close(), 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(d, idx) in picker.items" :key="d.id">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx"
+                    x-on:click="picker.close(); choose(d)">
+              <span x-text="d.name"></span>
+              <span class="badge badge--role" x-show="d.number" x-cloak x-text="d.number"></span>
+            </button>
+          </template>
+        </div>
+      </div>
       {% endif %}
       <div class="form-row" style="position:relative;"><label>{{ t('rx.diagnosis') }}</label>
         <input type="hidden" name="diagnosis_code" x-model="dxCode">
@@ -363,6 +391,28 @@
       enter(ev) {
         const p = this.picker.take();
         if (p) { ev.preventDefault(); this.choose(p); }
+      },
+    };
+  }
+
+  // The doctor field for whoever is not a doctor themselves. minChars 0: a
+  // clinic has a handful of doctors, so focusing the box shows all of them —
+  // making somebody guess two letters of a list that short is a hurdle, not a
+  // search.
+  function rxDoctor(url, initialId, initialName) {
+    return {
+      q: initialName || '', chosenId: initialId || '',
+      picker: window.gcPicker({ url: url, minChars: 0 }),
+      ask() {
+        // Typing again means they are choosing somebody else; leaving the old
+        // id attached is how a prescription goes out under the wrong name.
+        this.chosenId = '';
+        this.picker.q = this.q; this.picker.search();
+      },
+      choose(d) { this.chosenId = d.id; this.q = d.name; },
+      enter(ev) {
+        const d = this.picker.take();
+        if (d) { ev.preventDefault(); this.choose(d); }
       },
     };
   }

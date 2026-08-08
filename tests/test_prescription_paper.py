@@ -301,9 +301,15 @@ def test_a_doctor_writing_a_prescription_signs_it_themselves(clinic):
 
 
 def test_an_admin_who_does_not_examine_still_gets_the_picker(clinic):
-    """Somebody has to be able to write one on a doctor's behalf."""
+    """Somebody has to be able to write one on a doctor's behalf.
+
+    It was a dropdown when this was written, and is a search now — the same
+    change the patient field on this screen had already had. What the test is
+    really about is unchanged: an admin gets to choose, a doctor does not.
+    """
     page = clinic["sign_in"]("boss").get("/prescriptions/new").data.decode()
-    assert '<select class="select" name="doctor_id"' in page
+    assert "doctor-search" in page
+    assert '<select class="select" name="doctor_id"' not in page
 
 
 # ================================================ the copy that is sent =====
