@@ -24,6 +24,12 @@ MESSAGE_DIRECTIONS = ["out", "in"]
 # manual = always produce a click-to-send link even in automatic mode.
 SEND_MODES = ["manual", "auto"]
 
+# Why a message was not sent. These are clinic states rather than provider
+# errors — a file with no number, a family that asked not to be messaged, a
+# notification type switched off — so they are shown in words. Anything else
+# in ``MessageLog.error`` came from the provider and is shown as it arrived.
+SKIP_REASONS = ["missing_phone", "opted_out", "type_off"]
+
 # System (automatic-trigger) template types + manual occasion types.
 SYSTEM_TEMPLATE_TYPES = [
     "appointment_confirm", "doctor_schedule", "vaccine_given",

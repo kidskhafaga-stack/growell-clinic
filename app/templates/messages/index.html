@@ -99,7 +99,11 @@
           <td>{% if f.patient %}<a href="{{ url_for('patients.view', patient_id=f.patient_id) }}">{{ f.patient.display_name(current_lang) }}</a>{% else %}—{% endif %}</td>
           <td class="num" dir="ltr">{{ f.to_phone or '—' }}</td>
           <td>{{ t('occasions.occ_' ~ f.template_type) if f.template_type else '—' }}</td>
-          <td style="color:var(--danger);font-size:.85rem;">{{ f.error or '—' }}</td>
+          {# The reason in words, for the reasons the clinic can act on:
+             "missing_phone" is a key, not an answer. Anything else in here
+             came from the provider and is shown as it arrived. #}
+          <td style="color:var(--danger);font-size:.85rem;">
+            {{ t('crm.reason_' ~ f.error) if f.error in skip_reasons else (f.error or '—') }}</td>
         </tr>
         {% endfor %}
       </tbody>

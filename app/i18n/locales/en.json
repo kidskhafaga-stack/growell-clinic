@@ -2697,7 +2697,7 @@
     "board_other": "No type",
     "board_none": "No outgoing messages in the last 30 days.",
     "failures_title": "Messages that didn't go",
-    "failures_hint": "The reason beside each one — a wrong number, a provider that was down, or the daily cap.",
+    "failures_hint": "The reason beside each one — no number on the file, the notification switched off, a provider that was down, or the daily cap.",
     "failure_reason": "Reason",
     "meta_app_secret": "Meta app secret",
     "meta_app_secret_hint": "Meta for Developers → App settings → Basic. It proves a delivery really came from Meta.",
@@ -2711,7 +2711,11 @@
     "approved_title": "Meta-approved templates",
     "approved_hint": "24 hours after the family's last message WhatsApp refuses free text — only an approved template goes out. Register the names Meta approved so the conversation can offer them once the window shuts.",
     "approved_format": "One per line: name | language | approved body (parameters as {{1}}). Names are lowercase letters, digits and _ only.",
-    "approved_none_parsed": "No line here parsed — check the format."
+    "approved_none_parsed": "No line here parsed — check the format.",
+    "not_sent": "The message was not sent: {why}",
+    "reason_missing_phone": "No phone number on the file",
+    "reason_opted_out": "The family asked not to be messaged",
+    "reason_type_off": "This notification is switched off in settings"
   },
   "notif": {
     "title": "Notifications",
@@ -4423,7 +4427,6 @@
     "linked": "{name} was added to the family.",
     "unlinked": "Removed from the family.",
     "in_other_family": "In another family — linking will move them here",
-    "already_in_family": "{name} is already filed with another family. Moving them is a merge, not a link — open their file and change the family there.",
     "open_file": "Open their file",
     "auto_link": "Link the certain match",
     "auto_hint": "Links the one case matching on both the phone and the name.",

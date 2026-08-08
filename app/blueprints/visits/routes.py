@@ -832,6 +832,18 @@ def give_vaccine(visit_id):
     except Exception:  # noqa: BLE001
         db.session.rollback()
     flash(t("visits.vac_given"), "success")
+
+    # The message to the family. It used to be written only by the
+    # vaccinations screen, so a dose given here — which is where most of them
+    # are given — told the parent nothing about the next one.
+    from app.utils.vaccine_notify import notify_dose
+
+    _, reason = notify_dose(visit.patient, vaccine, pv.brand, pv.dose_number,
+                            pv.given_date, user_id=current_user.id,
+                            lang=getattr(g, "lang", "ar"))
+    db.session.commit()
+    if reason:
+        flash(t("crm.not_sent", why=t("crm.reason_" + reason)), "warning")
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
@@ -1070,6 +1082,23 @@ def delete_attachment(att_id):
     return redirect(request.referrer or fallback)
 
 
+def _survey_unsent(visit, reason):
+    """Record that the post-visit survey did not go out, and why.
+
+    The row is returned, not swallowed: a caller that wants to tell the doctor
+    "the survey did not go, and here is why" needs the reason, and a caller
+    that only wants to know whether anything was sent can read the status.
+    """
+    from app.models import MessageLog
+
+    log = MessageLog(patient_id=visit.patient_id, body="",
+                     to_phone=visit.patient.contact_phone if visit.patient else None,
+                     template_type="feedback", status="skipped", error=reason,
+                     created_by=getattr(current_user, "id", None))
+    db.session.add(log)
+    return log
+
+
 def _send_feedback_survey(visit, force=False):
     """Queue/send a post-visit satisfaction survey.
 
@@ -1079,12 +1108,19 @@ def _send_feedback_survey(visit, force=False):
     MessageLog, or None when skipped.
     """
     tpl = wa.template_for("feedback")
-    if not force and (tpl is None or not tpl.is_active):   # type switched off
-        return None
     patient = visit.patient
+    if not force and wa.type_is_off("feedback"):
+        # Switched off deliberately. A clinic that has simply never opened the
+        # templates screen still gets the survey, with the built-in wording —
+        # treating "not set up" as "off" is how a clinic ends up never asking
+        # a single family how the visit went.
+        return _survey_unsent(visit, "type_off")
     phone = patient.contact_phone if patient else None
     if not phone:
-        return None
+        # A file with no number on it. Recorded rather than dropped: "the
+        # message after the visit is not generated" was reported as a fault in
+        # the program, and this is one of the two things it actually was.
+        return _survey_unsent(visit, "missing_phone")
 
     fb = Feedback.query.filter_by(visit_id=visit.id).first()
     if fb is None:
@@ -1134,6 +1170,11 @@ def send_survey(visit_id):
     db.session.commit()
     if log is None:
         flash(t("visits.survey_no_phone"), "warning")
+    elif log.status == "skipped":
+        # No number on the file, or a family that asked not to be messaged —
+        # two different things, and the screen used to call both "no phone".
+        flash(t("crm.not_sent", why=t("crm.reason_" + (log.error or "missing_phone"))),
+              "warning")
     elif log.status == "link":
         flash(t("visits.survey_link_ready"), "success")
     else:
@@ -1157,9 +1198,14 @@ def complete(visit_id):
         "visit.complete", user_id=current_user.id, entity="visit",
         entity_id=visit.id, ip_address=client_ip(),
     )
-    _send_feedback_survey(visit)  # post-visit satisfaction survey (if enabled)
+    log = _send_feedback_survey(visit)  # post-visit survey (if enabled)
     db.session.commit()
     flash(t("visits.completed"), "success")
+    # Said here, once, rather than left for somebody to notice a month later
+    # that no family has been asked how the visit went.
+    if log is not None and log.status == "skipped":
+        flash(t("crm.not_sent", why=t("crm.reason_" + (log.error or "type_off"))),
+              "warning")
     return redirect(url_for("visits.view", visit_id=visit.id))
 
 

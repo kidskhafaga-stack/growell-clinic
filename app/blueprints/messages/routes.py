@@ -21,6 +21,7 @@ from app.models import (
     MESSAGE_STATUSES,
     OCCASION_TYPES,
     SEND_MODES,
+    SKIP_REASONS,
     TEMPLATE_VARIABLES,
     Appointment,
     MessageLog,
@@ -139,6 +140,7 @@ def index():
         counts=counts, status=status, statuses=MESSAGE_STATUSES,
         sent_today=sent_today, due_now=due_now,
         by_type=_delivery_by_type(), failures=_recent_failures(),
+        skip_reasons=SKIP_REASONS,
         daily_cap=Setting.get("wa_daily_cap", "") or "0",
     )
 
@@ -178,12 +180,20 @@ def _delivery_by_type(days=BOARD_DAYS):
 
 
 def _recent_failures(limit=20, days=BOARD_DAYS):
-    """The ones that didn't go, with the reason — a list you can act on."""
+    """The ones that didn't go, with the reason — a list you can act on.
+
+    Skipped counts as didn't go. A clinic reported the post-visit and
+    post-vaccination messages "not being generated": they were being skipped —
+    no number on the file, or the type switched off — and a skip that appears
+    on no screen is the same thing as a bug to whoever is waiting for the
+    message.
+    """
     from datetime import timedelta
 
     since = datetime.utcnow() - timedelta(days=days)
     return (MessageLog.query
-            .filter(MessageLog.status == "failed", MessageLog.created_at >= since)
+            .filter(MessageLog.status.in_(("failed", "skipped")),
+                    MessageLog.created_at >= since)
             .order_by(MessageLog.created_at.desc()).limit(limit).all())
 
 
