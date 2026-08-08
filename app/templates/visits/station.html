@@ -9,8 +9,19 @@
     <h1 class="page-title" style="margin-bottom:2px;"><i class="bi bi-heart-pulse"></i> {{ t('visits.station_title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('visits.station_subtitle') }} · {{ today }}</p>
   </div>
-  <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index') }}">
-    <i class="bi bi-calendar2-week"></i> {{ t('dashboard.open_board') }}</a>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    {# Narrows today's checked-in list, not the whole register: somebody who
+       has not arrived is not somebody this station can weigh. #}
+    <form method="get" style="position:relative;">
+      <i class="bi bi-search" style="position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+      <input class="input" name="q" value="{{ q or '' }}" autocomplete="off"
+             placeholder="{{ t('visits.station_search') }}" style="padding-inline-start:32px;max-width:240px;">
+    </form>
+    {% if q %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.station') }}">
+      <i class="bi bi-x-lg"></i></a>{% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index') }}">
+      <i class="bi bi-calendar2-week"></i> {{ t('dashboard.open_board') }}</a>
+  </div>
 </div>
 
 {% if not rows %}
@@ -36,6 +47,23 @@
         </div>
       </div>
     </div>
+
+    {# The whole point of the screen. The numbers were always in the file; the
+       one thing missing was somebody reading them before the child's turn
+       came round. Thresholds are banded by age — 38.0 in a six-week-old is
+       not the same event as 39.0 in a four-year-old. #}
+    {% if r.flag and r.flag.level %}
+    <div class="alert-pill {{ 'danger' if r.flag.level == 'urgent' else 'warn' }}"
+         style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <i class="bi bi-{{ 'exclamation-octagon-fill' if r.flag.level == 'urgent' else 'exclamation-triangle-fill' }}"></i>
+      <strong>{{ t('redflags.level_' ~ r.flag.level) }}</strong>
+      <span>{% for why in r.flag.reasons %}{{ t('redflags.' ~ why) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+    </div>
+    {% endif %}
+
+    <div class="form-row" style="margin:0 0 10px;"><label>{{ t('appointments.reason') }}</label>
+      <input class="input" name="reason" value="{{ r.appt.reason or '' }}"
+             placeholder="{{ t('visits.station_reason_ph') }}"></div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;">
       <div class="form-row" style="margin:0;"><label>{{ t('visits.weight') }}</label>

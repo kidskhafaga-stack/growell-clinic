@@ -731,7 +731,9 @@
     "inv_file_not_found": "that file is not on this child's record",
     "channel": "consultation channel",
     "study_done": "Result recorded",
-    "added_ok": "Added"
+    "added_ok": "Added",
+    "station_search": "Search the waiting list…",
+    "station_reason_ph": "The reason in the family's words"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -4467,5 +4469,20 @@
     "deactivated_system": "This is a built-in entry, so it was switched off instead.",
     "deactivated_in_use": "This entry is used by existing items, so it was switched off instead of deleted to keep them readable.",
     "guard_hint": "An entry that is in use, or built in, is switched off rather than deleted — so nothing is left pointing at something that no longer exists."
+  },
+  "redflags": {
+    "level_urgent": "Should be seen now",
+    "level_watch": "Worth a look",
+    "fever": "Fever",
+    "fever_high": "High fever for this age",
+    "infant_fever": "Infant under 3 months with fever",
+    "fever_gastro": "Fever with diarrhoea and vomiting",
+    "fever_fluids": "Fever with fluid loss",
+    "fever_rash": "Fever with rash",
+    "spo2_low": "Low oxygen saturation",
+    "spo2_borderline": "Borderline oxygen saturation",
+    "drowsy": "Drowsy",
+    "breathing": "Difficulty breathing",
+    "convulsion": "Convulsion"
   }
 }

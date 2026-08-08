@@ -443,20 +443,43 @@ def station():
     Saving pre-fills the open visit the doctor then continues."""
     from app.models import Appointment
 
+    from app.utils.patients import apply_patient_search
+    from app.utils.red_flags import assess
+
     today = datetime.utcnow().date()
     appts = (Appointment.query
              .filter(Appointment.appt_date == today,
                      Appointment.status.in_(("waiting", "in_progress")))
              .order_by(Appointment.appt_time)
              .all())
+    # A nurse looking for one child should not scroll a morning's list. The
+    # search narrows what is already here rather than opening the register —
+    # somebody not checked in today is not somebody this station can weigh.
+    query = (request.args.get("q") or "").strip()
+    if query:
+        matched = {p.id for p in apply_patient_search(Patient.query, query).all()}
+        appts = [a for a in appts if a.patient_id in matched]
+
     rows = []
     for a in appts:
         v = (Visit.query.filter_by(patient_id=a.patient_id, status="open")
              .order_by(Visit.created_at.desc()).first())
-        rows.append({"appt": a, "patient": a.patient,
-                     "vitals": v.vitals if v else None,
-                     "done": bool(v and v.vitals and v.vitals.has_growth)})
-    return render_template("visits/station.html", rows=rows, today=today)
+        vitals = v.vitals if v else None
+        # Read the moment they are saved rather than when the child's turn
+        # comes. The numbers were always in the file; nobody was reading them.
+        flag = assess(a.patient, vitals,
+                      " ".join(filter(None, [a.reason,
+                                             getattr(v, "chief_complaint", "")])))
+        rows.append({"appt": a, "patient": a.patient, "visit": v,
+                     "vitals": vitals, "flag": flag,
+                     "done": bool(vitals and vitals.has_growth)})
+    # The ones that should not still be sitting there come first. Nothing is
+    # reordered anywhere else — this is a nurse's worklist, not the queue.
+    order = {"urgent": 0, "watch": 1}
+    rows.sort(key=lambda r: (order.get(r["flag"]["level"], 2),
+                             r["appt"].appt_time))
+    return render_template("visits/station.html", rows=rows, today=today,
+                           q=query)
 
 
 @visits_bp.route("/station/<int:appointment_id>/vitals", methods=["POST"])
@@ -478,6 +501,13 @@ def station_vitals(appointment_id):
         db.session.add(visit)
         db.session.flush()
     _save_vitals(visit)
+    # The nurse hears the story the guardian tells at the scale, and it is
+    # usually fuller than the one line booked at reception. Appended rather
+    # than replaced: "متابعة" typed a week ago is not wrong, it is just not
+    # all of it — and the red-flag read depends on those words.
+    typed = (request.form.get("reason") or "").strip()
+    if typed and typed != (appt.reason or "").strip():
+        appt.reason = typed[:200]
     # The moment the nurse is done — it splits the wait at reception from the
     # wait at the doctor's door, which are two different queues with two
     # different causes. Stamped once: the nurse may correct a weight later,
