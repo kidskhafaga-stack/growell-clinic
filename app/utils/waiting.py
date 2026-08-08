@@ -150,3 +150,62 @@ def over_slot(appt):
     if consult is None or not appt.duration_minutes:
         return None
     return round(consult - appt.duration_minutes, 1)
+
+
+def doctor_timings(date_from, date_to):
+    """Per-doctor timings over a period, for the doctors screen.
+
+    Two numbers, and deliberately not a third.
+
+    ``consult`` is **description, not score**. It is the median length of a
+    consultation with the spread around it, and nothing on the screen says
+    shorter is better — a scorecard that rewards shorter minutes rewards
+    rushing a sick child, which is the opposite of what a clinic wants to buy
+    with a stopwatch.
+
+    ``over_slot`` is the one that is fair to ask about. The clinic chose the
+    slot; running past it is what pushes the next family's appointment back,
+    and that is a question about how the day was planned rather than about how
+    carefully somebody examined a child.
+
+    **What is missing, and why.** "Did the doctor open the clinic on time"
+    would be the third, and it cannot be computed honestly yet: appointment
+    times are wall-clock times the clinic typed, while ``started_at`` is
+    ``datetime.utcnow()``, and the program has no notion of which timezone it
+    is in. Subtracting one from the other would report every doctor in Egypt
+    as two or three hours late — a number so wrong it would discredit the rest
+    of the screen. It needs a clinic timezone first.
+    """
+    from app.models import Appointment
+
+    rows = (Appointment.query
+            .filter(Appointment.appt_date >= date_from,
+                    Appointment.appt_date <= date_to,
+                    Appointment.started_at.isnot(None))
+            .all())
+    overlapping = overlaps(rows)
+
+    by_doctor = {}
+    for appt in rows:
+        by_doctor.setdefault(appt.doctor_id, []).append(appt)
+
+    out = {}
+    for doctor_id, appts in by_doctor.items():
+        sane = [a for a in appts if is_sane(a)]
+        consults = sorted(_gap(a.started_at, a.completed_at) for a in sane)
+        overs = [over_slot(a) for a in sane]
+        overs = sorted(o for o in overs if o is not None)
+        if not consults:
+            continue
+        mid = len(consults) // 2
+        out[doctor_id] = {
+            "consult": round(consults[mid] if len(consults) % 2 else
+                             (consults[mid - 1] + consults[mid]) / 2.0, 1),
+            "shortest": round(consults[0], 1),
+            "longest": round(consults[-1], 1),
+            "over_slot": (round(overs[len(overs) // 2], 1) if overs else None),
+            "counted": len(sane),
+            "forgotten": len(appts) - len(sane),
+            "overlapping": sum(1 for a in sane if a.id in overlapping),
+        }
+    return out

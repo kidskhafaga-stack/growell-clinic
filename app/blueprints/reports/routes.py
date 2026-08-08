@@ -439,6 +439,14 @@ def operational():
         "avg_wait": _avg_minutes([(a.checked_in_at, a.started_at) for a in appts]),
         "avg_consult": _avg_minutes([(a.started_at, a.completed_at) for a in appts]),
     }
+    # The same period, read properly: one "average wait" spans two queues with
+    # two different owners — the front desk's and the doctor's door — and a
+    # clinic cannot act on the sum of them. Medians, because one record left
+    # open over lunch redraws a mean. The GAHAR averages above stay as they
+    # are; that indicator set is defined as an average and changing what it
+    # means under the same name would be worse than showing both.
+    from app.utils.waiting import summarise
+    timing = summarise(appts)
     invoices = Invoice.query.filter(Invoice.invoice_date >= date_from,
                                     Invoice.invoice_date <= date_to).all()
     unpaid = sum(1 for i in invoices if i.status in ("unpaid", "partial"))
@@ -448,7 +456,7 @@ def operational():
         "reports/operational.html", date_from=date_from, date_to=date_to,
         by_status=sorted(by_status.items(), key=lambda kv: -kv[1]),
         appts_total=len(appts), new_patients=new_patients,
-        visits=visits, doses=doses, quality=quality,
+        visits=visits, doses=doses, quality=quality, timing=timing,
     )
 
 

@@ -512,3 +512,73 @@ def test_a_deleted_number_is_reused_rather_than_leaving_a_hole(clinic):
         db.session.add_all([ClinicRoom(code=1), ClinicRoom(code=3)])
         db.session.commit()
         assert ClinicRoom.next_code() == 2
+
+
+# ======================================================= the scorecard ======
+def test_the_doctors_screen_describes_the_month_without_scoring_it(clinic):
+    """The number goes on the screen; the ranking does not.
+
+    A clinic that starts rewarding shorter consultations gets shorter
+    consultations, which is the opposite of what a stopwatch was bought for.
+    So the screen carries the median *with its spread*, and says in words that
+    it is a description — checked here, because a note like that is exactly
+    the kind of thing a later redesign drops.
+    """
+    from app.utils.waiting import doctor_timings
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        base = datetime.utcnow() - timedelta(days=1)
+        for minutes in (10, 14, 30):
+            _appt(db, clinic["ids"], status="completed", started_at=base,
+                  completed_at=base + timedelta(minutes=minutes))
+        db.session.commit()
+
+        row = doctor_timings(date.today() - timedelta(days=30), date.today())
+        row = row[clinic["ids"]["doctor"]]
+        assert row["consult"] == 14                 # median, not the mean 18
+        assert (row["shortest"], row["longest"]) == (10, 30)
+        assert row["over_slot"] == -1               # 14 in a 15-minute slot
+
+    page = clinic["sign_in"]("boss").get("/users/doctors").data.decode()
+    assert "14" in page
+    from app.i18n import t
+    with clinic["app"].test_request_context():
+        assert t("doctors.timing_note") in page
+
+
+def test_the_report_stops_reporting_one_wait_for_two_queues(clinic):
+    """A single average spans the front desk and the doctor's door. The fix
+    for a slow front desk and the fix for a doctor running late are not the
+    same fix, so the sum of them is not something anybody can act on."""
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        base = datetime.utcnow() - timedelta(hours=2)
+        _appt(db, clinic["ids"], status="completed", checked_in_at=base,
+              vitals_at=base + timedelta(minutes=8),
+              started_at=base + timedelta(minutes=40),
+              completed_at=base + timedelta(minutes=55))
+        db.session.commit()
+
+    page = clinic["sign_in"]("boss").get(
+        "/reports/operational", follow_redirects=True).data.decode()
+    from app.i18n import t
+    with clinic["app"].test_request_context():
+        assert t("reports.wait_to_vitals") in page
+        assert t("reports.wait_after_vitals") in page
+
+
+def test_the_clinic_start_metric_is_left_out_until_there_is_a_timezone(clinic):
+    """Deliberately absent, and pinned so it is not "helpfully" added.
+
+    "Did the doctor open on time" means comparing ``appt_time`` — a wall-clock
+    time somebody typed — with ``started_at``, which is ``datetime.utcnow()``.
+    The program has no notion of which timezone it is in, so that subtraction
+    reports every doctor in Egypt as two or three hours late. A number that
+    wrong would discredit the whole screen.
+    """
+    from app.utils import waiting
+
+    assert not hasattr(waiting, "clinic_start")
+    doc = waiting.doctor_timings.__doc__
+    assert "timezone" in doc, "the reason it is missing has to stay written down"

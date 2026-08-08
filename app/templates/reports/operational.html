@@ -36,6 +36,38 @@
     <div class="stat-card edge-yellow"><i class="bi bi-cash-coin ico"></i><div class="value">{{ quality.unpaid_pct }}%</div><div class="label">{{ t('reports.unpaid_rate') }}</div></div>
   </div>
 
+  {# The wait, split into the two queues it is actually made of. A single
+     average spans the front desk and the doctor's door, which have different
+     owners and different fixes, so the sum of them is not something anybody
+     can act on. Medians here — one record left open over lunch redraws a
+     mean, and this section is meant to describe an ordinary day. #}
+  <h3 class="section-title" id="timing"><i class="bi bi-hourglass"></i> {{ t('reports.timing_title') }}</h3>
+  <p class="hint" style="margin-top:-6px;">{{ t('reports.timing_hint') }}</p>
+  <div class="stat-grid">
+    <div class="stat-card edge-blue"><i class="bi bi-person-check ico"></i>
+      <div class="value">{{ timing.to_vitals if timing.to_vitals is not none else '—' }}{% if timing.to_vitals is not none %} {{ t('reports.min') }}{% endif %}</div>
+      <div class="label">{{ t('reports.wait_to_vitals') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-door-closed ico"></i>
+      <div class="value">{{ timing.after_vitals if timing.after_vitals is not none else '—' }}{% if timing.after_vitals is not none %} {{ t('reports.min') }}{% endif %}</div>
+      <div class="label">{{ t('reports.wait_after_vitals') }}</div></div>
+    <div class="stat-card edge-red"><i class="bi bi-exclamation-triangle ico"></i>
+      <div class="value">{{ timing.longest_wait|round(0)|int if timing.longest_wait is not none else '—' }}{% if timing.longest_wait is not none %} {{ t('reports.min') }}{% endif %}</div>
+      <div class="label">{{ t('reports.longest_wait') }}</div></div>
+    <div class="stat-card edge-teal"><i class="bi bi-stopwatch ico"></i>
+      <div class="value">{{ timing.consult if timing.consult is not none else '—' }}{% if timing.consult is not none %} {{ t('reports.min') }}{% endif %}</div>
+      <div class="label">{{ t('reports.median_consult') }}</div></div>
+    {% if timing.forgotten %}
+    <div class="stat-card edge-yellow"><i class="bi bi-folder-x ico"></i>
+      <div class="value">{{ timing.forgotten }}</div>
+      <div class="label">{{ t('reports.forgotten_records') }}</div></div>
+    {% endif %}
+    {% if timing.overlapping %}
+    <div class="stat-card edge-yellow"><i class="bi bi-layers ico"></i>
+      <div class="value">{{ timing.overlapping }}</div>
+      <div class="label">{{ t('reports.overlapping_visits') }}</div></div>
+    {% endif %}
+  </div>
+
   <h3 class="section-title"><i class="bi bi-bar-chart"></i> {{ t('reports.by_status') }}</h3>
   <table class="table"><thead><tr><th>{{ t('reports.status') }}</th><th>{{ t('reports.count') }}</th></tr></thead><tbody>
     {% for s, n in by_status %}<tr><td>{{ t('statuses.' ~ s) }}</td><td>{{ n }}</td></tr>

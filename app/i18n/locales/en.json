@@ -1822,7 +1822,12 @@
     "commission_type": "Commission type",
     "commission_value": "Commission value",
     "save_pricing": "Save prices",
-    "no_services": "No active services."
+    "no_services": "No active services.",
+    "consult_len": "Consultation length",
+    "over_slot": "Over the booked slot",
+    "forgotten": "records left open",
+    "overlapping": "overlapping visits",
+    "timing_note": "A description of the last month, not a ranking — a shorter consultation is not a better one. What is measured here is running over the booked slot, because that is what delays everyone behind."
   },
   "problems": {
     "title_list": "Problem list",
@@ -2108,7 +2113,15 @@
     "income": "Income statement",
     "income_desc": "Revenue vs expenses and net profit from the automatic journal.",
     "ar_aging": "AR aging",
-    "ar_aging_desc": "Outstanding patient balances bucketed by age (0-30/31-60/61-90/90+)."
+    "ar_aging_desc": "Outstanding patient balances bucketed by age (0-30/31-60/61-90/90+).",
+    "timing_title": "Waiting — broken down",
+    "timing_hint": "Medians, not averages, and the wait split into its two queues: before the nurse and before the doctor.",
+    "wait_to_vitals": "Wait before vitals",
+    "wait_after_vitals": "Wait before the doctor",
+    "longest_wait": "Longest wait",
+    "median_consult": "Median consultation",
+    "forgotten_records": "Records left open",
+    "overlapping_visits": "Overlapping visits"
   },
   "ai": {
     "title": "AI Assistant",
