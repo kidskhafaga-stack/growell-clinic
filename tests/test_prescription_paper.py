@@ -304,3 +304,137 @@ def test_an_admin_who_does_not_examine_still_gets_the_picker(clinic):
     """Somebody has to be able to write one on a doctor's behalf."""
     page = clinic["sign_in"]("boss").get("/prescriptions/new").data.decode()
     assert '<select class="select" name="doctor_id"' in page
+
+
+# ================================================ the copy that is sent =====
+def _preprinted(clinic):
+    """A clinic that prints on its own letterheaded paper."""
+    from app.models import RxPrintTemplate
+
+    db = clinic["db"]
+    tpl = RxPrintTemplate(name="ورق مطبوع", mode="preprinted", is_default=True,
+                          logo_source="none", show_doctor=False,
+                          show_specialty=False, show_contact=False,
+                          show_license=False, show_patient=False,
+                          show_diagnosis=False, show_signature=False,
+                          show_stamp=False, show_investigations=True)
+    db.session.add(tpl)
+    db.session.commit()
+    return tpl
+
+
+def test_the_digital_copy_is_complete_even_on_preprinted_paper(clinic):
+    """The bug in one sentence: the letterhead is on the paper, and a PDF has
+    no paper.
+
+    A "preprinted" template omits the clinic name, the doctor, the licence and
+    the stamp because the page it prints on already carries them. Send that
+    same layout over WhatsApp and the family receives a list of drug names with
+    nothing identifying it — which a pharmacy is right to refuse.
+    """
+    from app.models import Patient, User
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        _preprinted(clinic)
+        doctor = db.session.get(User, clinic["ids"]["doctor"])
+        doctor.license_no = "12345"
+        db.session.commit()
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+        number = db.session.get(Patient, pid).patient_number
+        printed_name = doctor.doctor_print_name("ar")
+
+    client = clinic["sign_in"]("doc")
+    _write(client, pid, diagnosis="التهاب رئوي")
+
+    def paper(url):
+        """Just the prescription, without the page's own chrome — the sidebar
+        shows the signed-in doctor's name on every screen in the program."""
+        return client.get(url).data.decode().split('id="rxPaper"', 1)[1]
+
+    on_paper = paper("/prescriptions/1")
+    assert printed_name not in on_paper       # the paper carries it already
+    assert number not in on_paper
+
+    to_send = paper("/prescriptions/1?digital=1")
+    assert printed_name in to_send, "the sent copy had no doctor on it"
+    assert number in to_send, "the sent copy had no patient on it"
+    assert "التهاب رئوي" in to_send
+
+
+def test_the_digital_copy_is_not_the_doctors_choice(clinic):
+    """The template choice is about paper. There is no paper here, so an
+    explicitly chosen preprinted template must not follow the file out."""
+    from app.models import Patient, RxPrintTemplate
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        tpl = _preprinted(clinic)
+        tpl_id = tpl.id
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write(client, pid, diagnosis="التهاب رئوي")
+
+    page = client.get(
+        f"/prescriptions/1?digital=1&template={tpl_id}").data.decode()
+    assert "التهاب رئوي" in page, (
+        "an explicitly chosen preprinted template stripped the sent copy")
+
+
+def test_the_sent_copy_can_be_checked_by_whoever_receives_it(clinic):
+    """A signed PDF on WhatsApp can be forwarded, edited and re-used, and the
+    family holding it cannot prove otherwise. The printed page never needed
+    this — it is on the clinic's own paper — but a file does."""
+    from app.models import Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write(client, pid, diagnosis="التهاب رئوي")
+
+    to_send = client.get("/prescriptions/1?digital=1").data.decode()
+    assert "/verify.svg" in to_send
+
+    assert client.get("/prescriptions/1/verify.svg").status_code == 200
+    check = client.get("/prescriptions/1/verify")
+    assert check.status_code == 200
+    assert "Augmentin" in check.data.decode()
+
+
+def test_the_printed_page_is_not_cluttered_with_a_code(clinic):
+    """It is on the clinic's own paper and was handed over by a person. A QR
+    there is noise, and noise on a prescription is not free."""
+    from app.models import Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write(client, pid)
+    assert "/verify.svg" not in client.get("/prescriptions/1").data.decode()
+
+
+def test_a_line_kept_off_the_paper_stays_off_the_sent_copy(clinic):
+    """The two must not disagree. A medicine the doctor deliberately withheld
+    reaching the family by WhatsApp is worse than it reaching them on paper —
+    nobody handed it over and nobody can explain it."""
+    from app.models import Patient
+
+    db = clinic["db"]
+    with clinic["app"].app_context():
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write(client, pid,
+           item_name=["Augmentin", "Ventolin"], item_dose=["5 ml", "2 puffs"],
+           item_frequency=["×2", "×3"], item_duration=["7d", "5d"],
+           item_instructions=["", ""], item_hidden=["1"])
+
+    page = client.get("/prescriptions/1?digital=1").data.decode()
+    printed = page.split("℞", 1)[1].split("</table>", 1)[0]
+    assert "Augmentin" in printed
+    assert "Ventolin" not in printed

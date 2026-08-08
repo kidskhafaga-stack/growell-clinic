@@ -922,6 +922,20 @@ def view(rx_id):
     rx = db.get_or_404(Prescription, rx_id)
     warnings = interaction_warnings([it.drug_id for it in rx.items])
     tpl = resolve_template(rx.doctor, request.args.get("template", type=int))
+    # The copy that leaves the building has to stand on its own.
+    #
+    # A "preprinted" template deliberately omits the letterhead, because the
+    # paper it prints on already carries it. Send that same layout as a PDF and
+    # the family receives a page with no clinic name, no doctor, no licence and
+    # no stamp — which is not a prescription, it is a list of drug names. A
+    # pharmacy is right to refuse it.
+    #
+    # So the digital copy is always rendered from a complete white template,
+    # whatever the clinic prints on. This is not the doctor's choice to make:
+    # the choice is about paper, and there is no paper here.
+    digital = request.args.get("digital") == "1"
+    if digital:
+        tpl = RxPrintTemplate.default_instance()
     # Vaccinations administered in this visit (or on the rx date) print on the
     # prescription with dose X/N and the expected date of the next dose.
     try:
@@ -931,7 +945,7 @@ def view(rx_id):
     except Exception:  # noqa: BLE001 - printing must never break on plan maths
         rx_vaccines = []
     return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
-                           tpl=tpl, rx_vaccines=rx_vaccines,
+                           tpl=tpl, rx_vaccines=rx_vaccines, digital=digital,
                            templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
 
 
@@ -1041,3 +1055,53 @@ def patient_search():
         {"id": p.id, "name": p.display_name(lang), "number": p.patient_number,
          "dob": p.date_of_birth.isoformat() if p.date_of_birth else ""}
         for p in rows])
+
+
+@prescriptions_bp.route("/<int:rx_id>/verify.svg")
+@module_required(MODULE)
+def verify_qr(rx_id):
+    """A QR the pharmacy can scan to check this prescription is real.
+
+    The digital copy is the point. A signed, stamped PDF sent over WhatsApp is
+    a document that can be forwarded, edited and re-used, and the family
+    holding it has no way to prove otherwise. The printed page has never
+    needed this — it is on the clinic's own paper — but the moment a copy
+    leaves as a file, "is this genuine" becomes a question somebody has to be
+    able to answer.
+
+    Same approach as the vaccination certificate, deliberately: one habit for
+    the clinic, one thing for a pharmacist to learn.
+    """
+    from flask import Response
+
+    rx = db.get_or_404(Prescription, rx_id)
+    target = url_for("prescriptions.verify", rx_id=rx.id, _external=True)
+    svg = _qr_svg(target)
+    if svg is None:
+        return Response("", mimetype="image/svg+xml")
+    return Response(svg, mimetype="image/svg+xml")
+
+
+@prescriptions_bp.route("/<int:rx_id>/verify")
+@module_required(MODULE)
+def verify(rx_id):
+    """What the scanned code opens: what this prescription actually says.
+
+    Read-only and deliberately thin — enough to check a forwarded file against
+    the clinic's own record, and nothing a scan should be able to change.
+    """
+    rx = db.get_or_404(Prescription, rx_id)
+    return render_template("prescriptions/verify.html", rx=rx)
+
+
+def _qr_svg(url, scale=3):
+    """An inline SVG QR for ``url``, or None when the library is missing."""
+    import io
+
+    try:
+        import segno
+    except ImportError:                 # pragma: no cover - segno is required
+        return None
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(buf, kind="svg", scale=scale, border=0)
+    return buf.getvalue().decode("utf-8")

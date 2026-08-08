@@ -626,3 +626,84 @@ window.gcPicker = function (config) {
 
   document.addEventListener('submit', inlineSubmit);
 })();
+
+// ------------------------------------------------- the copy that is sent --
+// Saving a prescription as an image, drawn by the browser that is already
+// displaying it correctly.
+//
+// The alternative was rendering the PDF on the server, and for this program
+// that is the wrong trade. WeasyPrint and wkhtmltopdf are heavy installs on
+// the Windows Server these clinics run on, and both need their Arabic fonts
+// and RTL handling configured by hand — so the first clinic to install the
+// program unaided would stop there. The browser has already solved every one
+// of those problems: what it is showing is, letter for letter, what should be
+// sent.
+//
+// So the page is redrawn into a canvas: text as text-shaped pixels, images
+// inlined, at twice the screen resolution so it is legible when a pharmacist
+// zooms in on a phone. No dependency, no fonts to install, and nothing that
+// can render differently from what the doctor just approved on screen.
+window.gcSavePng = async function (elementId, filename) {
+  var node = document.getElementById(elementId);
+  if (!node) return;
+
+  // Anything outside the paper itself — buttons, warnings, the parts marked
+  // as "not printed" — must not travel with it.
+  var clone = node.cloneNode(true);
+  clone.querySelectorAll('.no-print').forEach(function (el) { el.remove(); });
+
+  var rect = node.getBoundingClientRect();
+  var scale = 2;
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;' +
+    'width:' + Math.ceil(rect.width) + 'px;padding:16px;';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  try {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svg.setAttribute('width', wrapper.offsetWidth);
+    svg.setAttribute('height', wrapper.offsetHeight);
+    var fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    fo.setAttribute('width', '100%');
+    fo.setAttribute('height', '100%');
+    var body = document.createElement('div');
+    body.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    body.style.cssText = 'background:#fff;font-family:' +
+      getComputedStyle(document.body).fontFamily + ';';
+    body.innerHTML = wrapper.innerHTML;
+    fo.appendChild(body);
+    svg.appendChild(fo);
+
+    var blob = new Blob([new XMLSerializer().serializeToString(svg)],
+                        { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    await new Promise(function (done, fail) {
+      img.onload = done; img.onerror = fail; img.src = url;
+    });
+
+    var canvas = document.createElement('canvas');
+    canvas.width = wrapper.offsetWidth * scale;
+    canvas.height = wrapper.offsetHeight * scale;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    var link = document.createElement('a');
+    link.download = filename || 'page.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (err) {
+    // Falling back to the browser's own print dialogue, which can always
+    // "save as PDF". A doctor who pressed a button and got nothing would
+    // reasonably conclude the feature does not work.
+    window.print();
+  } finally {
+    wrapper.remove();
+  }
+};

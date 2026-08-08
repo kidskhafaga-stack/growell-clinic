@@ -2265,7 +2265,13 @@
     "stage_label": "Diagnosis stage",
     "stage_none": "Not stated",
     "not_printed": "Not printed",
-    "print_this": "Print"
+    "print_this": "Print",
+    "digital_copy": "Copy to send",
+    "save_image": "Save as image",
+    "verify_title": "Verify prescription",
+    "verify_hint": "Scan to confirm it was issued by this clinic.",
+    "verify_ok": "This prescription was issued by the clinic",
+    "verify_note": "This page shows the clinic's own record of it — for checking only."
   },
   "drug_forms": {
     "tablet": "Tablet",
