@@ -173,8 +173,44 @@ def live_fingerprint(kind, ident):
 @main_bp.route("/guide")
 @login_required
 def guide():
-    """In-app user guide (available to every signed-in user)."""
-    return render_template("main/guide.html")
+    """The user guide, cut to what the signed-in user is allowed to do.
+
+    It used to render the same page for everyone: admin, doctor and reception
+    measured 4,193 / 4,114 / 4,075 characters — the difference was the name in
+    the top bar. So a receptionist was taught the doctor's statement of account
+    and how to write a prescription, neither of which opens for them, while the
+    parts that *are* their job sat between the two.
+
+    ``?all=1`` puts the rest back, clearly marked as outside your permissions,
+    because "what would I be able to do as a doctor" is a fair question and
+    hiding the answer only sends people to ask somebody.
+    """
+    from app.utils.facility import module_enabled
+    from app.utils.handbook import CAPABILITY_LABELS, SECTIONS, sections_for
+
+    from flask import g
+
+    from app.models import Role
+
+    show_all = request.args.get("all") == "1"
+    role = Role.query.filter_by(name=current_user.role).first()
+    lang = getattr(g, "lang", "ar")
+    role_label = (role.label(lang) if role is not None
+                  else t(f"roles.{current_user.role}"))
+    mine = sections_for(current_user, module_enabled)
+    mine_keys = {s["key"] for s in mine}
+    sections = SECTIONS if show_all else mine
+    return render_template(
+        "main/guide.html",
+        sections=sections,
+        mine_keys=mine_keys,
+        role_label=role_label,
+        show_all=show_all,
+        hidden_count=len(SECTIONS) - len(mine),
+        my_modules=[m for m in current_user.modules if module_enabled(m)],
+        my_capabilities=[(c, CAPABILITY_LABELS[c]) for c in CAPABILITY_LABELS
+                         if current_user.can(c)],
+    )
 
 
 @main_bp.route("/set-theme", methods=["POST"])
@@ -192,9 +228,46 @@ def set_theme():
 @main_bp.route("/about")
 @login_required
 def about():
-    """Version, licence and credits — the detail that used to be printed in
-    0.64rem type down the side of every screen."""
-    return render_template("main/about.html")
+    """What the program is, who made it, and what it does not do yet.
+
+    It held three lines — name, version, licence. Everything else a person
+    might reasonably ask lived in ``ROADMAP.md``, which nobody in a clinic is
+    ever going to open.
+    """
+    from app.utils import project
+
+    return render_template(
+        "main/about.html",
+        summary=project.SUMMARY,
+        principles=project.PRINCIPLES,
+        people=project.people(),
+        facts=project.facts(),
+        plan=[("done", "منجز وشغّال", "Done and running", project.DONE),
+              ("building", "شغّال دلوقتي", "In progress", project.BUILDING),
+              ("next", "الجاي", "Next", project.NEXT),
+              ("deferred", "مؤجّل عن قصد", "Deliberately deferred",
+               project.DEFERRED)],
+    )
+
+
+@main_bp.route("/about/people", methods=["POST"])
+@login_required
+def about_people():
+    """Edit the credits from the page they appear on (admins only).
+
+    The supervising doctor is different in every installation, so the name is
+    the clinic's to write — a real person's details do not belong compiled
+    into the program.
+    """
+    from app.utils import project
+
+    if not current_user.is_admin:
+        flash(t("auth.no_permission"), "danger")
+        return redirect(url_for("main.about"))
+    project.save_people(request.form)
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("main.about"))
 
 
 @main_bp.route("/set-sidebar", methods=["POST"])
