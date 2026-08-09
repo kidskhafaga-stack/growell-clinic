@@ -9,7 +9,7 @@ is another 116. ``ACYCLOVIR`` and ``CEFALEXIN`` are the US and British
 spellings of drugs the reference already holds under the other one.
 
 Measured across the whole register, recognising every spelling of a name takes
-the brands tied to a dosable ingredient from **2,018 to 2,721** — clinical
+the brands tied to a dosable ingredient from **2,018 to 2,618** — clinical
 data already written and already referenced. That is the cheapest and safest
 coverage there is: no new numbers, no new judgement, just reading a name.
 
@@ -32,18 +32,46 @@ import re
 
 # Orthographic pairs, applied in both directions. British and American
 # pharmacopoeias differ on these and Egyptian packaging uses both.
-# Words that make a bracket a route rather than a synonym.
+# Words that make a bracket a route rather than a synonym — in both
+# languages, because the reference names every ingredient twice.
+#
+# English-only was the first version and it defeated the entire rule: a
+# lookup on the Arabic name went straight past it, so "أوفلوكساسين" reached
+# "Ofloxacin (otic)", "كيتوكونازول" reached the topical ketoconazole and
+# "كلورامفينيكول" reached the eye chloramphenicol. Those are the three route
+# confusions this module exists to prevent, and they were all live through
+# the Arabic side.
 _ROUTE_WORDS = {
     "TOPICAL", "OTIC", "EAR", "EYE", "OPHTHALMIC", "NASAL", "INHALED",
     "INHALATION", "ORAL", "RECTAL", "VAGINAL", "IV", "IM", "INJECTION",
     "SUBLINGUAL", "TRANSDERMAL", "BUCCAL",
+    "موضعي", "أنف", "عين", "أذن", "قطرة", "استنشاق", "لبوس", "فموي",
+    "شرجي", "مهبلي", "حقن", "وريدي", "عضلي",
 }
+
+# A bracket that names the *form* or the *purpose* rather than the substance.
+# "Teething gel (chamomile)" is not another way of writing chamomile — and
+# treating it as one linked chamomile tea and a skin cream to the teething
+# gel's entry. "Lysine (appetite)" has the same shape.
+_FORM_WORDS = {
+    "GEL", "CREAM", "OINTMENT", "LOTION", "DROPS", "SPRAY", "SUPPOSITORY",
+    "APPETITE",
+    "جل", "كريم", "مرهم", "لوشن", "بخاخ", "شهية",
+}
+
+
+def _words(text):
+    return {w.strip(" .") for w in (text or "").upper().split()}
 
 
 def _is_route(text):
     """Whether a bracket's contents name a route of administration."""
-    words = {w.strip(" .") for w in (text or "").upper().split()}
-    return bool(words & _ROUTE_WORDS)
+    return bool(_words(text) & _ROUTE_WORDS)
+
+
+def _is_form(text):
+    """Whether a name is a dosage form or a purpose rather than a substance."""
+    return bool(_words(text) & _FORM_WORDS)
 
 
 _SWAPS = [
@@ -55,6 +83,13 @@ _SWAPS = [
     ("AMPICILLIN", "AMPICILIN"),
     ("Æ", "AE"),
 ]
+
+
+# Every way the register writes "this box holds more than one drug". Only
+# "+" was rejected before, so "LIDOCAINE - AESCIN - METHYL SALICYLATE" and
+# "MENTHOL & CAMPHOR & LIDOCAINE" were single names as far as the matcher
+# could tell.
+_SEPARATORS = re.compile(r"[+/&،]|\s-\s")
 
 
 def variants(name):
@@ -83,10 +118,13 @@ def variants(name):
     # hepatotoxic and restricted. A route qualifier is a fact about the drug,
     # not a spelling of it, so it is never dropped.
     inner = re.findall(r"\(([^)]*)\)", raw)
-    if not any(_is_route(part) for part in inner):
-        outside = " ".join(re.sub(r"\([^)]*\)", " ", raw).split())
+    outside = " ".join(re.sub(r"\([^)]*\)", " ", raw).split())
+    if not any(_is_route(part) or _is_form(part) for part in inner):
         inside = " ".join(" ".join(inner).split())
-        for part in (outside, inside):
+        # The bracket is a synonym only when what is outside it is a substance.
+        # "Teething gel (chamomile)" fails that and keeps its full name alone.
+        parts = [outside] if _is_form(outside) else [outside, inside]
+        for part in parts:
             if part:
                 out.append(part)
 
@@ -144,10 +182,35 @@ def match(scientific_name, table):
     exact failure the whole exact-match rule existed to prevent.
     """
     raw = (scientific_name or "").strip()
-    if not raw or "+" in raw:
+    if not raw or _SEPARATORS.search(raw):
+        return None
+    # A bare route word is not a drug. Without this, "موضعي" — the word
+    # "topical" on its own — matched the topical clotrimazole.
+    if _is_route(raw) or _is_form(raw):
         return None
     for key in variants(raw):
         found = table.get(key)
         if found is not None:
             return found
     return None
+
+
+def route_agrees(product_route, generic_routes):
+    """Whether a box's route is one the reference dosed the ingredient by.
+
+    Measured on the bundled register: **98 products** were taking a dose from
+    an ingredient given another way — 20 topical gentamicin drops carrying the
+    intravenous mg/kg, 12 domperidone suppositories carrying the oral dose, 11
+    vaginal clindamycin, 9 rectal ibuprofen. A milligrams-per-kilo written for
+    a vein does not describe an eye drop, and the number looks just as
+    confident either way.
+
+    An unknown route on either side is not a disagreement — most of the
+    catalogue says nothing about route, and refusing those would throw away
+    the coverage this module was built for. Only a **stated** conflict blocks.
+    """
+    product = (product_route or "").strip().lower()
+    known = (generic_routes or "").strip().lower()
+    if not product or not known:
+        return True
+    return product in known

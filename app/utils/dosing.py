@@ -81,11 +81,21 @@ def calculate(generic, weight_kg=None, age_months=None, product=None,
 
         # Ceilings, in order: mg/kg/day → adult per-dose → adult per-day.
         if generic.max_per_kg_day:
+            # A hair of tolerance, because these two numbers are written to
+            # agree and floating point disagrees. Adrenaline is 0.01 mg/kg a
+            # dose with a 0.03 mg/kg/day ceiling over 3 doses: 0.03/3 is
+            # 0.009999999999999998, so the anaphylaxis dose was reported as
+            # *above its own daily ceiling* at 5, 10 and 20 kg — and not at 15
+            # or 30, which is how a rounding bug looks from the outside.
+            #
+            # A false ceiling warning on the one drug where hesitating is what
+            # kills is worse than no warning at all.
             cap = weight_kg * generic.max_per_kg_day / per_day
-            if dose_hi > cap:
+            cap_limit = cap * (1 + 1e-9)
+            if dose_hi > cap_limit:
                 dose_hi = cap
                 out["capped"] = True
-            if dose_lo > cap:
+            if dose_lo > cap_limit:
                 dose_lo = cap
                 out["capped"] = True
                 out["warnings"].append(WARN_DAILY_CAP)

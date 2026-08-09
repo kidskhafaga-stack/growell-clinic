@@ -1349,12 +1349,14 @@ def link_existing_drugs():
     the same ingredient. Matching exactly here and loosely there would make
     whether a box carries a dose depend on who entered it.
     """
-    from app.utils.ingredient_names import index_of, match
+    from app.utils.ingredient_names import index_of, match, route_agrees
 
     table = index_of(GenericDrug.query.all())
     n = 0
     for d in Drug.query.filter(Drug.generic_id.is_(None)).all():
         found = match(d.generic_name, table)
+        if found is not None and not route_agrees(d.route, found.routes):
+            found = None
         if found is not None:
             d.generic_id = found.id
             n += 1

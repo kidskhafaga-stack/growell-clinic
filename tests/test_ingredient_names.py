@@ -10,8 +10,8 @@ drugs the reference already holds under the other one.
 
 Measured over the whole register: spelling alone accounts for hundreds of
 brands that can be dosed from clinical data already written and already
-referenced — 2,018 linked with an exact match, 2,721 once every spelling of a
-name is recognised, with no new clinical numbers and no new judgement.
+referenced — 2,018 linked with an exact match, 2,618 once every spelling of a
+name is recognised and every route conflict refused, with no new clinical numbers and no new judgement.
 
 An earlier version reached 2,613, and 251 of that was wrong. It stripped
 brackets off this program's own ingredient names too, where a bracket usually
@@ -147,11 +147,10 @@ def test_the_register_gains_the_brands_this_was_written_for(clinic):
         seed_drugbook()
         seed_register()
         linked = Drug.query.filter(Drug.generic_id.isnot(None)).count()
-        # 2,018 with an exact match; 2,721 now. Not the 2,613 an early version
-        # reached by stripping route qualifiers — 251 of those were route
-        # confusions, removed, and more than made up by the hyphen rule and
-        # the ingredients added since.
-        assert 2600 < linked < 2850
+        # 2,018 with an exact match; 2,618 now. Never the 2,721 an earlier
+        # version reached — 98 of those were boxes taking a dose written for
+        # another route, and 5 were chamomile linked to a teething gel.
+        assert 2550 < linked < 2700
 
         # And the drug the whole thing started from.
         para = Drug.query.filter(
@@ -233,3 +232,112 @@ def test_a_route_qualifier_is_a_fact_not_a_spelling():
     assert "CHOLECALCIFEROL" in variants("Vitamin D (cholecalciferol)")
     assert "OMEGA-3" in variants("Omega-3 (fish oil)")
     assert "FISH OIL" in variants("Omega-3 (fish oil)")
+
+
+# ---------------------------------------------- what a review found ---------
+# The six below were all live on `main` and were found by reviewing the diff
+# rather than by any test. Each is here so it stays found.
+
+def test_the_route_rule_is_not_english_only():
+    """It was, and that defeated the whole thing.
+
+    The reference names every ingredient twice, and a lookup on the Arabic
+    name walked straight past a rule written in English. Verified against the
+    real reference before the fix: "أوفلوكساسين" reached ``Ofloxacin (otic)``,
+    "كيتوكونازول" the topical ketoconazole, "كلورامفينيكول" the eye
+    chloramphenicol — the exact three confusions this module documents as
+    prevented.
+    """
+    from app.utils.ingredient_names import variants
+
+    assert "أوفلوكساسين" not in variants("أوفلوكساسين (قطرة أذن)")
+    assert "كيتوكونازول" not in variants("كيتوكونازول (موضعي)")
+    assert "كلورامفينيكول" not in variants("كلورامفينيكول (قطرة عين)")
+
+
+def test_a_bare_route_word_is_not_a_drug():
+    """"موضعي" — the word "topical" alone — matched topical clotrimazole."""
+    from app.utils.ingredient_names import match
+
+    table = {"موضعي": object(), "TOPICAL": object(), "GEL": object()}
+    assert match("موضعي", table) is None
+    assert match("topical", table) is None
+    assert match("gel", table) is None
+
+
+def test_a_bracket_naming_the_form_is_not_a_synonym():
+    """"Teething gel (chamomile)" is not another way of writing chamomile.
+
+    Treating it as one made ``CHAMOMILE`` a key, and chamomile tea bags and a
+    skin cream linked to the teething gel's entry.
+    """
+    from app.utils.ingredient_names import variants
+
+    assert "CHAMOMILE" not in variants("Teething gel (chamomile)")
+    assert "APPETITE" not in variants("Lysine (appetite)")
+    # …while a real synonym still expands.
+    assert "CHOLECALCIFEROL" in variants("Vitamin D (cholecalciferol)")
+    assert "ORS" in variants("Oral rehydration salts (ORS)")
+
+
+def test_a_combination_is_recognised_by_every_separator_the_register_uses():
+    """Only "+" was rejected, and the register uses four more.
+
+    "LIDOCAINE - AESCIN - METHYL SALICYLATE" and "MENTHOL & CAMPHOR &
+    LIDOCAINE" were single drug names as far as the matcher could tell — and
+    on today's data that costs nothing, because none of them is a key. The
+    rule is here for the data the clinic adds tomorrow.
+    """
+    from app.utils.ingredient_names import match
+
+    # The table has to hold the *combination* itself, or this passes whether
+    # the rule exists or not — measured: narrowing the separators back to "+"
+    # alone changes the verdict on **zero** of the register's 25,065 names,
+    # because no multi-drug name happens to be a key. So the rule is
+    # defensive, and it is pinned directly rather than through a scenario that
+    # would pass without it.
+    marker = object()
+    assert match("LIDOCAINE - AESCIN", {"LIDOCAINE - AESCIN": marker}) is None
+    assert match("MENTHOL & CAMPHOR", {"MENTHOL & CAMPHOR": marker}) is None
+    assert match("PARACETAMOL/CAFFEINE", {"PARACETAMOL/CAFFEINE": marker}) is None
+    assert match("زنك، حديد", {"زنك، حديد": marker}) is None
+    # A hyphen inside a name is not a separator, and must still match.
+    assert match("OMEGA-3", {"OMEGA-3": marker}) is marker
+
+
+def test_a_box_never_inherits_a_dose_written_for_another_route():
+    """98 products were doing exactly that on the merged branch.
+
+    20 topical gentamicin drops carrying the intravenous mg/kg, 12 domperidone
+    suppositories carrying the oral dose, 11 vaginal clindamycin, 9 rectal
+    ibuprofen. A number written for a vein does not describe an eye drop.
+    """
+    from app.utils.ingredient_names import route_agrees
+
+    assert route_agrees("topical", "IV, IM") is False
+    assert route_agrees("rectal", "oral") is False
+    assert route_agrees("oral", "oral, IV") is True
+    # Silence on either side is not a conflict — most of the catalogue says
+    # nothing about route, and refusing those would throw the coverage away.
+    assert route_agrees(None, "oral") is True
+    assert route_agrees("topical", None) is True
+
+
+def test_the_route_guard_reaches_the_whole_register(clinic):
+    """End to end, because the 98 were only visible on the real data."""
+    with clinic["app"].app_context():
+        from app.models import Drug, GenericDrug
+        from app.utils.drugbook_seed import seed_drugbook
+        from app.utils.egypt_drugs import seed_register
+        db = clinic["db"]
+
+        seed_drugbook()
+        seed_register()
+        wrong = 0
+        for drug, generic in (db.session.query(Drug, GenericDrug)
+                              .join(GenericDrug, Drug.generic_id == GenericDrug.id)
+                              .filter(Drug.route.isnot(None),
+                                      GenericDrug.routes.isnot(None)).all()):
+            if drug.route not in (generic.routes or "").lower():
+                wrong += 1
+        assert wrong == 0
