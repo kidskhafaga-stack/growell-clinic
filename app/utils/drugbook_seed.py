@@ -27,6 +27,12 @@ CLASSES = [
     ("ANTIV", "مضادات الفيروسات", "Antivirals", "bi-shield-plus", 100),
     ("PARAS", "طاردات الديدان والطفيليات", "Antiparasitics", "bi-bug-fill", 110),
     ("TOPIC", "المستحضرات الموضعية", "Topical preparations", "bi-bandaid", 120),
+    # Infant formula is the most paediatric thing in the Egyptian register —
+    # 147 products across first, second and third stage, hypoallergenic,
+    # lactose-free, anti-regurgitation and preterm — and there was no shelf
+    # for it. It is not a drug and does not belong under vitamins; a clinic
+    # that recommends a milk needs to find it where it looks for milk.
+    ("MILK", "ألبان الأطفال", "Infant formula", "bi-cup-straw", 130),
 ]
 
 # name_ar, name_en, class, dosing…, safety…

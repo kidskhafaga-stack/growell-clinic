@@ -39,26 +39,40 @@ RULES = [
     ("Antivirals", r"ANTIVIRAL|ANTI-VIRAL"),
     ("Antiparasitics",
      r"ANTHELMINTIC|ANTI-HELMINTIC|ANTIPARASIT|ANTI-PARASIT"
-     r"|SCABIES|AMOEB|ANTIMALARIAL"),
+     r"|SCABIES|AMOEB|ANTIMALARIAL"
+     # Metronidazole for giardia is an everyday paediatric prescription here,
+     # and the register calls it ANTIPROTOZOAL.
+     r"|SCABICIDE|ANTIPROTOZOAL|\bLICE\b|PEDICULOSIS"),
     ("Antihistamines & allergy", r"ANTI-?HISTAMINE|ANTI-?ALLERG"),
     ("Respiratory",
      r"MUCOLYTIC|EXPECTORANT|BRONCHODILATOR|ANTITUSSIVE|ANTI-?ASTHMA"
-     r"|\bASTHMA\b|DECONGESTANT|COLD PRODUCT"),
+     r"|\bASTHMA\b|DECONGESTANT|COLD PRODUCT"
+     # A children's clinic runs on cough syrup and saline nose drops, and the
+     # register files them under words the first pass did not know.
+     r"|COUGH|NASAL|SORE THROAT"),
     ("Corticosteroids", r"CORTICOSTEROID|\bSTEROID\b|GLUCOCORTICOID"),
     ("Antipyretics & analgesics",
      r"ANALGESIC|ANTIPYRETIC|\bNSAID\b|ANTI-?INFLAMMATORY|\bPAIN\b"),
     ("Gastrointestinal",
      r"PEPTIC ULCER|ANTACID|LAXATIVE|ANTI-?EMETIC|ANTI-?SPASMODIC"
      r"|PROTON PUMP|PROKINETIC|\bGIT\b|CONSTIPATION|FLATULENCE"),
-    ("Rehydration & diarrhoea", r"DIARRH|REHYDRAT|PROBIOTIC"),
+    ("Rehydration & diarrhoea", r"DIARRH|REHYDRAT|PROBIOTIC|\bORS\b"),
     ("Vitamins & minerals",
      r"VITAMIN|MINERAL|IRON SUPPLEMENT|CALCIUM SUPPLEMENT|ZINC"
-     r"|FOLIC|SUPPLEMENT"),
+     r"|FOLIC|SUPPLEMENT|OMEGA 3|IMMUNITY BOOSTER|APPETITE"),
     ("Eye & ear drops", r"OPHTHALM|\bEYE\b|\bOTIC\b|\bEAR\b"),
     ("Neurology & anticonvulsants",
      r"ANTICONVULS|ANTI-?EPILEPTIC|\bEPILEP\b|NEUROLOG"),
     ("Topical preparations",
-     r"TOPICAL|SKIN CARE|DERMATOLOG|EMOLLIENT|\bACNE\b"),
+     r"TOPICAL|SKIN CARE|DERMATOLOG|EMOLLIENT|\bACNE\b"
+     # Nappy cream, baby care and the antiseptics a clinic dresses a graze
+     # with. "DIAPER RASH" is 52 products and about as paediatric as the
+     # register gets; it was going nowhere.
+     r"|DIAPER|NAPPY|BABY CARE|ANTISEPTIC"),
+    # Milk, on its own shelf rather than forced onto somebody else's.
+    ("Infant formula",
+     r"MILK PRODUCT|INFANT FORMULA|FOLLOW UP FORMULA|GROWING FORMULA"
+     r"|HYPO-?ALLERGENIC MILK|LACTOSE FREE MILK|EXTRA CARE MILK|SOY MILK"),
 ]
 
 _COMPILED = [(name, re.compile(pattern)) for name, pattern in RULES]

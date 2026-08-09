@@ -160,6 +160,72 @@ def test_the_registers_words_map_onto_the_clinics_classes():
     assert map_label("ANTHELMINTIC") == "Antiparasitics"
 
 
+def test_the_words_a_childrens_clinic_runs_on():
+    """A second pass, after reading what had been left behind.
+
+    The first set of rules was written from the biggest labels and missed the
+    everyday paediatric ones — a clinic runs on cough syrup, saline nose
+    drops, nappy cream and metronidazole for giardia, and the register files
+    those under words the first pass did not know. 1,051 more drugs found a
+    shelf, and the shelves that gained most are the paediatric ones:
+    respiratory 705 → 1,065, antiparasitics 74 → 177.
+    """
+    from app.utils.drug_classing import map_label
+
+    assert map_label("COUGH PRODUCTS") == "Respiratory"
+    assert map_label("ANTI-COUGH.NON-PRODUCTIVE") == "Respiratory"
+    assert map_label("NASAL CONGESTION.ADRENERGIC ALPHA-AGONIST") == "Respiratory"
+    assert map_label("DIAPER RASH") == "Topical preparations"
+    assert map_label("BABY CARE") == "Topical preparations"
+    assert map_label("ANTISEPTIC") == "Topical preparations"
+    assert map_label("ANTIPROTOZOAL.NITROIMIDAZOLE") == "Antiparasitics"
+    assert map_label("SCABICIDE") == "Antiparasitics"
+    assert map_label("ORS") == "Rehydration & diarrhoea"
+    assert map_label("OMEGA 3") == "Vitamins & minerals"
+
+
+def test_infant_formula_gets_a_shelf_rather_than_somebody_elses():
+    """147 products, the most paediatric group in the register, homeless.
+
+    Milk is not a drug and does not belong under vitamins, and a clinic that
+    recommends a formula looks for it where formula is. Forcing it onto an
+    existing shelf would have been exactly the silent guess this module
+    avoids everywhere else — so it got the fifteenth shelf.
+    """
+    from app.utils.drug_classing import map_label
+
+    assert map_label("MILK PRODUCTS.FIRST STAGE (AGE 0-6 MONTHS)") == "Infant formula"
+    assert map_label("HYPO-ALLERGENIC MILK") == "Infant formula"
+    assert map_label("LACTOSE FREE MILK") == "Infant formula"
+    assert map_label("MILK PRODUCTS.ANTI-REGURGITATION MILK") == "Infant formula"
+    # …and not a formula that is only called one.
+    assert map_label("MALE HEALTH FORMULA") is None
+
+
+def test_the_milk_shelf_exists_to_be_filed_onto(clinic):
+    """Mapping to a class name that no class has is mapping to nothing.
+
+    Caught by deleting the ``DrugClass`` row and watching the string tests
+    stay green: ``map_label`` still answered "Infant formula", ``class_id_for``
+    found no such class, and every milk product silently went unfiled. The
+    name and the shelf have to be checked together.
+    """
+    with clinic["app"].app_context():
+        from app.models import Drug, DrugClass
+        from app.utils.drug_classing import class_id_for
+        from app.utils.drugbook_seed import seed_drugbook
+        from app.utils.egypt_drugs import seed_register
+
+        seed_drugbook()
+        milk = DrugClass.query.filter_by(name_en="Infant formula").first()
+        assert milk is not None, "there is no shelf for infant formula"
+        assert milk.name_ar == "ألبان الأطفال"
+        assert class_id_for("HYPO-ALLERGENIC MILK") == milk.id
+
+        seed_register()
+        assert Drug.query.filter_by(class_id=milk.id).count() > 100
+
+
 def test_what_does_not_belong_in_a_childrens_clinic_stays_unshelved():
     """``None`` is a real answer, and it is the honest one here.
 
@@ -172,6 +238,9 @@ def test_what_does_not_belong_in_a_childrens_clinic_stays_unshelved():
     from app.utils.drug_classing import map_label
 
     assert map_label("HAIR CARE") is None
+    assert map_label("MASSAGE CREAM") is None
+    assert map_label("WEIGHT LOSS") is None
+    assert map_label("ANTI-DIABETIC.SECRETAGOGUES.DPP-4 INHIBITORS") is None
     assert map_label("ANTINEOPLASTIC") is None
     assert map_label("SUN BLOCK") is None
     assert map_label("ANTIHYPERLIPIDEMIC.STATINS") is None
