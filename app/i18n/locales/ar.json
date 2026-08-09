@@ -1198,7 +1198,8 @@
     "batches_elsewhere": "في {n} تشغيلة في مخازن تانية — اتنقل بينهم بتحويل مخزني.",
     "count_reason": "سبب الفرق (اختياري)",
     "count_reason_ph": "كسر، تلف، خطأ تسجيل…",
-    "into_warehouse": "يدخل مخزن"
+    "into_warehouse": "يدخل مخزن",
+    "auto_price_preview": "سعر البيع بعد أول استلام هيبقى:"
   },
   "instatus": {
     "ok": "متوفر",

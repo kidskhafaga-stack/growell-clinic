@@ -30,7 +30,8 @@ from app.models import (
     VaccineAdjustment,
     Warehouse,
 )
-from app.utils.costing import apply_purchase_cost, issue_unit_cost
+from app.utils.costing import (apply_purchase_cost, default_margin,
+                               issue_unit_cost)
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.periods import period_blocked
@@ -406,6 +407,7 @@ def item_card(brand_id):
         receipt_reasons=RECEIPT_REASONS,
         ledger=card.ledger(brand), held=card.by_warehouse(brand),
         warehouses=_warehouses(),
+        default_margin=default_margin(),
     )
 
 
@@ -422,6 +424,14 @@ def item_pricing(brand_id):
     brand.doctor_fee = request.form.get("doctor_fee", type=float)
     brand.max_discount = request.form.get("max_discount", type=float)
     brand.min_stock = request.form.get("min_stock", type=int)
+    # Auto-pricing. The engine has always understood vaccines — a purchase
+    # receipt calls the same ``apply_purchase_cost`` for a brand as for a
+    # store item — but there was nowhere to *switch it on* for one, so the
+    # columns sat at their defaults and the feature existed only for the
+    # general store. This is the switch.
+    brand.price_policy = ("auto" if request.form.get("price_policy") == "auto"
+                          else "manual")
+    brand.margin_percent = request.form.get("margin_percent", type=float)
     brand.doses_per_vial = max(request.form.get("doses_per_vial", type=int) or 1, 1)
     brand.purchase_unit = (request.form.get("purchase_unit") or "").strip() or None
     brand.dispense_unit = (request.form.get("dispense_unit") or "").strip() or None

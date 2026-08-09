@@ -1198,7 +1198,8 @@
     "batches_elsewhere": "{n} batch(es) sit in other warehouses — move them with a transfer.",
     "count_reason": "Reason for the difference (optional)",
     "count_reason_ph": "Breakage, spoilage, a recording error…",
-    "into_warehouse": "Receive into"
+    "into_warehouse": "Receive into",
+    "auto_price_preview": "After the next delivery the sell price becomes:"
   },
   "instatus": {
     "ok": "In stock",
