@@ -11,6 +11,7 @@ from config import config as config_map
 
 from app import i18n
 from app.extensions import db, login_manager
+from app.utils.brand import PRIMARY as BRAND_PRIMARY
 from app.utils.clock import local_today
 
 
@@ -355,12 +356,16 @@ def create_app(config_name="default"):
                     "name": product,
                     "slogan": program_slogan,
                     "logo_url": program_logo_url,
-                    "accent": (rows.get("clinic_accent") or "").strip() or None,
+                    # The brand's own blue when the clinic has not chosen a
+                    # colour. The program has shipped as PediaPro all along
+                    # and looked nothing like its own logo.
+                    "accent": ((rows.get("clinic_accent") or "").strip()
+                               or BRAND_PRIMARY),
                 },
             }
         except Exception:  # noqa: BLE001 - DB not ready yet (e.g. pre-init)
             return {"clinic": defaults, "product_name": product_default,
-                    "program": {"name": product_default,
+                    "program": {"name": product_default, "accent": BRAND_PRIMARY,
                                 "slogan": "حلول طب الأطفال الذكية",
                                 "logo_url": None, "accent": None}}
 
