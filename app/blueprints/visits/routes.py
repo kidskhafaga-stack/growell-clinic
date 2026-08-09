@@ -389,7 +389,8 @@ def ai_summary(visit_id):
         f"This is a draft for the treating doctor to review and edit."
     )
     text = _visit_clinical_text(visit, anonymize=ai.anonymize_enabled())
-    res = ai.chat([{"role": "user", "content": text}], system=system)
+    res = ai.chat([{"role": "user", "content": text}], system=system,
+                  feature="visit_summary")
     if res.get("ok"):
         ActivityLog.record("visit.ai_summary", user_id=current_user.id,
                            entity="visit", entity_id=visit.id, ip_address=client_ip())

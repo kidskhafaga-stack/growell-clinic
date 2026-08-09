@@ -27,9 +27,66 @@
   <span class="badge {{ 'badge--green' if ready else 'badge--muted' }}">
     {{ t('ai.status_ready') if ready else t('ai.status_off') }}
   </span>
+  {# Offered next to the assistant, and deliberately not inside it: looking a
+     child up needs no provider, no key and no credit, so it stays reachable
+     when the badge beside it says the assistant is off. #}
+  <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('ai.lookup') }}">
+    <i class="bi bi-search"></i> {{ t('ai.lookup_link') }}</a>
   <a class="btn btn-outline btn-sm gc-press" href="{{ settings_url }}#ai">
     <i class="bi bi-gear"></i> {{ t('ai.configure') }}</a>
 </div>
+
+{# What the assistant has spent, by feature.
+
+   Not "how much is left": no provider reports remaining quota to a chat
+   request — that lives in the vendor's console and depends on a plan the
+   program was never told about, so a number here would be a guess that reads
+   as a fact. What is exact is what was used, which every provider already
+   hands back in the reply the program is reading anyway.
+
+   Split by feature because that is the shape somebody can act on. "The month
+   cost 400,000 tokens" tells a clinic nothing; "visit summaries are three
+   quarters of it" tells them what to switch off. #}
+{% if usage and usage.calls %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title"><i class="bi bi-speedometer2"></i> {{ t('ai.usage_title') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('ai.usage_window', days=usage.days) }}</p>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:420px;">
+      <thead><tr>
+        <th>{{ t('ai.usage_feature') }}</th>
+        <th>{{ t('ai.usage_calls') }}</th>
+        <th>{{ t('ai.usage_in') }}</th>
+        <th>{{ t('ai.usage_out') }}</th>
+        <th>{{ t('ai.usage_total') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in usage.features %}
+        <tr>
+          <td><strong>{{ t('ai.feature_' ~ row.feature) }}</strong></td>
+          <td dir="ltr">{{ '{:,}'.format(row.calls) }}</td>
+          <td dir="ltr" style="color:var(--muted);">{{ '{:,}'.format(row.prompt) }}</td>
+          <td dir="ltr" style="color:var(--muted);">{{ '{:,}'.format(row.completion) }}</td>
+          <td dir="ltr"><strong>{{ '{:,}'.format(row.total) }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr>
+        <th>{{ t('common.total') }}</th>
+        <th dir="ltr">{{ '{:,}'.format(usage.calls) }}</th>
+        <th></th><th></th>
+        <th dir="ltr">{{ '{:,}'.format(usage.total) }}</th>
+      </tr></tfoot>
+    </table>
+  </div>
+  <p class="hint" style="margin:10px 0 0;">
+    <i class="bi bi-info-circle"></i> {{ t('ai.usage_no_balance') }}
+    {% if keys_url %}
+    <a href="{{ keys_url }}" target="_blank" rel="noopener">{{ t('ai.usage_open_console') }}</a>
+    {% endif %}
+  </p>
+</div>
+{% endif %}
 
 {% if not ready %}
 <div class="card gc-animate" style="margin-top:14px;">

@@ -90,6 +90,29 @@ AI_PROVIDERS = {
                    "deepseek-chat", "claude-3-5-haiku-20241022"],
         "keys_url": "https://aihubmix.com/token",
     },
+    "puter": {
+        "label": "Puter (one token, many models)",
+        "api": "openai",
+        # Puter speaks the OpenAI shape and takes the token as a normal Bearer
+        # header, so it needs no code of its own — only this entry. That is
+        # also the reason to be careful about it: a provider this cheap to add
+        # is a provider nobody looks at twice.
+        "base_url": "https://api.puter.com/puterai/openai/v1/chat/completions",
+        "default_model": "gpt-4o-mini",
+        # Suggestions only, and short on purpose. The token can ask the
+        # account which models it may actually use (the "refresh" button on
+        # the settings screen), and an aggregator's catalogue moves faster
+        # than any list written here.
+        "models": ["gpt-4o-mini", "gpt-4o", "claude-sonnet-4",
+                   "gemini-2.5-flash", "deepseek-chat"],
+        "keys_url": "https://puter.com/settings/api-keys",
+        # Not marked ``free``. Puter's pitch is that the *end user* pays, which
+        # is a sound model for a public website and the wrong one to describe
+        # to a clinic: here the account holder is the clinic, and a badge
+        # saying "free" would be read as "this costs the clinic nothing"
+        # — a promise this program is in no position to make on someone
+        # else's pricing page.
+    },
     "ollama": {
         "label": "Local — Ollama (offline, private)",
         "api": "openai",
@@ -286,12 +309,19 @@ def build_patient_summary(patient, anonymize=True):
     return "\n".join(lines)
 
 
-def chat(messages, system=None, config=None):
+def chat(messages, system=None, config=None, feature=None):
     """Send a chat conversation to the configured provider.
 
     ``messages`` is a list of ``{"role": "user"|"assistant", "content": str}``.
     Returns ``{"ok": True, "text": ...}`` or ``{"ok": False, "error": ...}``.
     Networking/SDK errors never raise out of here — callers get a clean dict.
+
+    ``feature`` names the part of the program that is spending, and is what
+    makes the usage screen worth looking at: a clinic can act on "the visit
+    summaries are three quarters of the bill" and can do nothing at all with
+    one monthly total from the vendor. It is metered here, in the one place
+    every AI call already passes through, so a feature added later is counted
+    without anybody remembering to count it.
     """
     cfg = config or get_config()
     if not cfg["enabled"]:
@@ -309,14 +339,48 @@ def chat(messages, system=None, config=None):
     system_prompt = system or cfg["system_prompt"] or None
     try:
         if api == "anthropic":
-            return _chat_anthropic(requests, cfg, messages, system_prompt)
-        if api == "gemini":
-            return _chat_gemini(requests, cfg, messages, system_prompt)
-        return _chat_openai(requests, cfg, messages, system_prompt)
+            result = _chat_anthropic(requests, cfg, messages, system_prompt)
+        elif api == "gemini":
+            result = _chat_gemini(requests, cfg, messages, system_prompt)
+        else:
+            result = _chat_openai(requests, cfg, messages, system_prompt)
     except requests.exceptions.RequestException as exc:  # network/timeout
         return {"ok": False, "error": f"network: {exc}"}
     except (KeyError, ValueError, IndexError) as exc:  # unexpected payload
         return {"ok": False, "error": f"bad response: {exc}"}
+    _record_usage(cfg, result, feature)
+    return result
+
+
+def _record_usage(cfg, result, feature):
+    """Bank the token count the provider just handed back.
+
+    Wrapped in its own try: a metering table is never a reason for the doctor
+    to lose an answer they already have. If the write fails the reply still
+    returns and the clinic is short one row in a report.
+    """
+    usage = (result or {}).get("usage") or {}
+    if not result.get("ok") or not (usage.get("prompt") or usage.get("completion")):
+        return
+    try:
+        from flask_login import current_user
+
+        from app.extensions import db
+        from app.models import AiUsage
+
+        who = getattr(current_user, "id", None) if current_user else None
+        db.session.add(AiUsage(
+            feature=(feature or "chat")[:40], provider=cfg["provider"],
+            model=cfg["model"][:80], user_id=who,
+            prompt_tokens=int(usage.get("prompt") or 0),
+            completion_tokens=int(usage.get("completion") or 0)))
+        db.session.commit()
+    except Exception:                   # noqa: BLE001 - metering is not the job
+        try:
+            from app.extensions import db
+            db.session.rollback()
+        except Exception:               # noqa: BLE001
+            pass
 
 
 def _chat_openai(requests, cfg, messages, system_prompt):
@@ -334,7 +398,10 @@ def _chat_openai(requests, cfg, messages, system_prompt):
     if not resp.ok:
         return {"ok": False, "error": _http_error(resp)}
     data = resp.json()
-    return {"ok": True, "text": data["choices"][0]["message"]["content"]}
+    usage = data.get("usage") or {}
+    return {"ok": True, "text": data["choices"][0]["message"]["content"],
+            "usage": {"prompt": usage.get("prompt_tokens") or 0,
+                      "completion": usage.get("completion_tokens") or 0}}
 
 
 def _chat_anthropic(requests, cfg, messages, system_prompt):
@@ -361,7 +428,10 @@ def _chat_anthropic(requests, cfg, messages, system_prompt):
         return {"ok": False, "error": _http_error(resp)}
     data = resp.json()
     parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
-    return {"ok": True, "text": "".join(parts)}
+    usage = data.get("usage") or {}
+    return {"ok": True, "text": "".join(parts),
+            "usage": {"prompt": usage.get("input_tokens") or 0,
+                      "completion": usage.get("output_tokens") or 0}}
 
 
 def _chat_gemini(requests, cfg, messages, system_prompt):
@@ -387,7 +457,10 @@ def _chat_gemini(requests, cfg, messages, system_prompt):
         return {"ok": False, "error": _http_error(resp)}
     data = resp.json()
     parts = data["candidates"][0]["content"]["parts"]
-    return {"ok": True, "text": "".join(p.get("text", "") for p in parts)}
+    usage = data.get("usageMetadata") or {}
+    return {"ok": True, "text": "".join(p.get("text", "") for p in parts),
+            "usage": {"prompt": usage.get("promptTokenCount") or 0,
+                      "completion": usage.get("candidatesTokenCount") or 0}}
 
 
 def list_models(config=None):
@@ -518,6 +591,46 @@ def why_not_ready(cfg=None):
     if not cfg["local"] and not cfg["api_key"]:
         missing.append("no_key")
     return missing
+
+
+def usage_summary(days=30):
+    """What the assistant has cost, by feature, over a window of days.
+
+    Deliberately *not* called "remaining". No provider tells a chat request how
+    much quota is left on the key — that number is in the vendor's billing
+    console and depends on a plan the program has never been told about. A
+    screen that guessed would be wrong in the direction that hurts: a clinic
+    that trusts "plenty left" and stops mid-consultation. So this reports what
+    was spent, which is exact, and links to the vendor for what is not.
+
+    Split by feature because that is the only shape anybody can act on. Knowing
+    the month cost 400,000 tokens tells a clinic nothing; knowing that visit
+    summaries are three quarters of it tells them what to turn off.
+    """
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import func
+
+    from app.extensions import db
+    from app.models import AiUsage
+
+    since = datetime.utcnow() - timedelta(days=days)
+    rows = (db.session.query(
+        AiUsage.feature,
+        func.count(AiUsage.id),
+        func.sum(AiUsage.prompt_tokens),
+        func.sum(AiUsage.completion_tokens))
+        .filter(AiUsage.created_at >= since)
+        .group_by(AiUsage.feature)
+        .all())
+    features = [{"feature": feature or "chat", "calls": calls,
+                 "prompt": int(prompt or 0), "completion": int(completion or 0),
+                 "total": int(prompt or 0) + int(completion or 0)}
+                for feature, calls, prompt, completion in rows]
+    features.sort(key=lambda row: row["total"], reverse=True)
+    return {"days": days, "features": features,
+            "calls": sum(row["calls"] for row in features),
+            "total": sum(row["total"] for row in features)}
 
 
 def same_as_saved(cfg):
