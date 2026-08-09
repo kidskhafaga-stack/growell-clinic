@@ -31,11 +31,16 @@
     <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.view', rx_id=rx.id, digital=1) }}">
       <i class="bi bi-file-earmark-image"></i> {{ t('rx.digital_copy') }}</a>
     {% else %}
-    {# "Save as image" is gone: rendering the page to a canvas taints it in
-       Chromium, so the button never produced a file — it fell through to
-       this same print dialogue, which is where a PDF actually comes from. #}
     <button type="button" class="btn btn-outline gc-press" onclick="window.print()">
       <i class="bi bi-filetype-pdf"></i> {{ t('rx.save_pdf') }}</button>
+    {# "Save as image" is back, and this time it produces a file. The version
+       that shipped before rasterised through an SVG <foreignObject>, which
+       taints the canvas in Chromium — it never once worked, it silently
+       printed instead. html2canvas repaints the DOM itself and never touches
+       SVG, so nothing taints. #}
+    <button type="button" class="btn btn-outline gc-press"
+            onclick="gcSaveImage('#rxPaper', 'rx-{{ rx.id }}.png', this)">
+      <i class="bi bi-file-earmark-image"></i> {{ t('rx.save_image') }}</button>
     <form method="post" action="{{ url_for('prescriptions.send_copy', rx_id=rx.id) }}" style="display:inline;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-primary gc-press" type="submit">

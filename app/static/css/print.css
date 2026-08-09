@@ -1,0 +1,109 @@
+/* What every screen does when somebody presses print.
+ *
+ * Fifteen report screens; four of them had a print stylesheet and eleven had
+ * none. Printing one of those eleven put the sidebar, the top bar and the
+ * date-filter toolbar on the paper, at whatever page size the browser
+ * happened to default to. The four that worked each carried their own copy of
+ * the same rules, so "does this print properly" depended on which screen you
+ * were standing on.
+ *
+ * This is that one copy. Loaded globally, before any page's own `{% block
+ * head %}`, so a screen with a genuine reason to differ still wins — the
+ * prescription sets its page size and per-side margins from the clinic's
+ * chosen template, and must keep overriding this.
+ *
+ * A4 is stated rather than left to the browser. A default is a default *of
+ * the machine*, and a clinic that prints a report on a laptop set to Letter
+ * gets a page whose bottom 18mm is missing, once, with no warning.
+ */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  /* The program around the document. `.no-print` is the marker the screens
+     already used; the rest is the shell they all share. */
+  .sidebar,
+  .sidebar__scrim,
+  .topbar,
+  .no-print,
+  .flashes,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* The shell lays out for a sidebar that is no longer there. */
+  html, body {
+    background: #fff !important;
+  }
+  .layout,
+  .main,
+  .content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  /* Cards are a screen device. On paper they are boxes drawn round things
+     that were already separate, and their shadows print as grey smears. */
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 0 10px !important;
+    break-inside: auto;
+  }
+
+  /* A row split across a page break is read as two rows, and a table whose
+     headings appeared once is unreadable from page two on. */
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+  tr, img {
+    break-inside: avoid;
+  }
+  h1, h2, h3 {
+    break-after: avoid;
+  }
+
+  /* Ink. A report is read on white paper, not on a screen's greys, and a
+     clinic printing a hundred of these is buying the difference. */
+  * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .table th,
+  .table td {
+    border-bottom: 1px solid #999 !important;
+  }
+  .badge {
+    border: 1px solid #999 !important;
+    color: #000 !important;
+  }
+
+  /* Anything that scrolls on screen has to unroll on paper — an
+     `overflow: auto` container prints only its visible slice, which is how a
+     twenty-row table comes out with six rows and no indication of the rest. */
+  [style*="overflow"],
+  .table-wrap,
+  .scroll-x {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* A link's target is invisible on paper, so the underline only misleads. */
+  a {
+    text-decoration: none !important;
+  }
+}

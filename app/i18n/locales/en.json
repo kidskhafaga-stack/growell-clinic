@@ -2214,7 +2214,8 @@
     "disc_by_hand": "Typed by hand (no rule)",
     "disc_none": "No discounts in this period.",
     "patient": "Patient",
-    "date": "Date"
+    "date": "Date",
+    "save_image": "Save as image"
   },
   "ai": {
     "title": "AI Assistant",
@@ -2386,7 +2387,8 @@
     "send_to_family": "Send to the family",
     "save_pdf": "Save PDF",
     "public_note": "This is the clinic's own copy. To confirm it, scan the code above.",
-    "license": "License"
+    "license": "License",
+    "all_classes": "All classes"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -4639,5 +4641,25 @@
     "saved": "Phrases saved.",
     "mine_link": "a doctor's own phrases",
     "clinic_is_a_start": "This is the clinic's list — where every doctor starts, and each can keep their own."
+  },
+  "icd11": {
+    "section": "ICD-11 from the WHO",
+    "hint": "ICD-10 is bundled in full (71,787 codes) and works offline. The WHO does not distribute ICD-11 as a file — the clinic registers with them free, gets two keys, and the program downloads it once and is offline again, exactly like ICD-10.",
+    "register": "Register with the WHO",
+    "client_id": "Client ID",
+    "client_secret": "Client Secret",
+    "release": "Release id (optional)",
+    "release_hint": "Leave blank for whatever the WHO currently calls latest. Set something like 2024-01 to pin a release.",
+    "not_loaded": "Not downloaded yet — doctors are not offered the option until it is.",
+    "test": "Test connection",
+    "import": "Download ICD-11",
+    "import_hint": "Takes a few minutes — leave the page open. Done once.",
+    "test_ok": "Connected to the WHO.",
+    "test_failed": "Connection failed: {e}",
+    "import_ok": "ICD-11 downloaded: {n} codes. Doctors are now offered it.",
+    "error_who_bad_credentials": "The WHO rejected the keys. Re-copy the Client ID and Secret from your account page with them.",
+    "error_who_not_configured": "The Client ID and Secret have not been entered yet.",
+    "error_who_empty": "The WHO returned no codes — nothing was written, try again.",
+    "error_who_no_token": "The WHO returned no token."
   }
 }

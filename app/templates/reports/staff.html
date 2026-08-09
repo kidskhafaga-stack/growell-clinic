@@ -4,14 +4,14 @@
 {% block page_heading %}{{ t('reports.staff') }}{% endblock %}
 
 {% block content %}
-<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+<div class="gc-animate no-print" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title">{{ t('reports.staff') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('reports.staff_desc') }}</p>
   </div>
 </div>
 
-<div class="card gc-animate" style="margin-bottom:16px;">
+<div class="card gc-animate no-print" style="margin-bottom:16px;">
   <form method="get" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
     <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
     <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>

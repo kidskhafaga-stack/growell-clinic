@@ -22,8 +22,24 @@
 <form data-live-search="#gc-results" method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
   <input class="input" name="q" value="{{ q }}" placeholder="{{ t('rx.search_drugs') }}" style="max-width:340px;">
   <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
-  {% if q %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">{{ t('common.reset') }}</a>{% endif %}
+  {% if class_id %}<input type="hidden" name="class_id" value="{{ class_id }}">{% endif %}
+  {% if q or class_id %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">{{ t('common.reset') }}</a>{% endif %}
 </form>
+
+{# The clinic's own classes, exactly as the drug reference shows them —
+   same shelves, same order, same counts. The catalogue holds trade names and
+   the reference holds ingredients, so the numbers differ; what must not
+   differ is the vocabulary. #}
+{% if classes %}
+<div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+  {% for c in classes %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if c.id == class_id else 'btn-outline' }}"
+     href="{{ url_for('prescriptions.drugs', class_id=c.id, q=q or None) }}">
+    <i class="bi {{ c.icon or 'bi-capsule' }}"></i> {{ c.display_name(current_lang) }}
+    <span class="badge badge--role">{{ '{:,}'.format(counts.get(c.id, 0)) }}</span></a>
+  {% endfor %}
+</div>
+{% endif %}
 
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rx.add_drug') }}</summary>
@@ -53,7 +69,10 @@
     <tbody>
       {% for d in drugs %}
       <tr>
-        <td><strong>{{ d.trade_name }}</strong></td>
+        <td><strong>{{ d.trade_name }}</strong>
+          {# Shown under the name rather than as a column: it is context, not
+             a field anybody scans down. #}
+          {% if d.drug_class %}<div style="font-size:0.74rem;color:var(--muted);" dir="ltr">{{ d.drug_class }}</div>{% endif %}</td>
         <td style="color:var(--muted);">{{ d.generic_name or '—' }}</td>
         <td>{{ t('drug_forms.' ~ d.form) if d.form else '—' }}</td>
         <td dir="ltr">{{ d.strength or '—' }}</td>

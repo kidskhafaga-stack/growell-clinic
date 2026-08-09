@@ -632,26 +632,177 @@ window.gcPicker = function (config) {
 })();
 
 // ------------------------------------------------- the copy that is sent --
-// Saving a prescription as an image, drawn by the browser that is already
-// displaying it correctly.
+// Saving a page as an image, drawn by the browser that is already displaying
+// it correctly.
 //
-// The alternative was rendering the PDF on the server, and for this program
-// that is the wrong trade. WeasyPrint and wkhtmltopdf are heavy installs on
-// the Windows Server these clinics run on, and both need their Arabic fonts
-// and RTL handling configured by hand — so the first clinic to install the
-// program unaided would stop there. The browser has already solved every one
-// of those problems: what it is showing is, letter for letter, what should be
-// sent.
+// Rendering on the server was the alternative and is the wrong trade for this
+// program. WeasyPrint and wkhtmltopdf are heavy installs on the Windows Server
+// these clinics run, and both need their Arabic fonts and RTL handling
+// configured by hand — so the first clinic installing unaided would stop
+// there. The browser has already solved every one of those problems: what it
+// is showing is, letter for letter, what should be sent.
 //
-// So the page is redrawn into a canvas: text as text-shaped pixels, images
-// inlined, at twice the screen resolution so it is legible when a pharmacist
-// zooms in on a phone. No dependency, no fonts to install, and nothing that
-// can render differently from what the doctor just approved on screen.
-// A page cannot be turned into an image here, and it is worth writing down
-// why so nobody spends another afternoon on it: rasterising HTML by way of an
-// SVG <foreignObject> taints the canvas in Chromium, so toDataURL throws
-// SecurityError and no file ever comes out. The prescription screen used to
-// carry a "save as image" button built this way; it silently fell through to
-// window.print() every time. What replaced it is the print dialogue (which
-// makes a PDF) and a link to the clinic's own copy of the page.
+// The first attempt at this rasterised the page through an SVG
+// <foreignObject>, which *taints the canvas* in Chromium — every clinic —
+// so toDataURL threw SecurityError and no file ever came out. The button
+// silently fell through to window.print() each time. That approach cannot be
+// made to work and should not be tried again.
+//
+// html2canvas works because it does not go through SVG at all: it walks the
+// DOM and repaints it onto the canvas itself, so nothing ever taints it. It
+// is vendored locally (app/static/vendor) rather than loaded from a CDN,
+// because a clinic with no internet still has to be able to send a
+// prescription.
+(function () {
+  const LIB = '/static/vendor/html2canvas.min.js';
+  let loading = null;
 
+  function library() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    // Loaded on first use rather than on every page: it is 194KB, and the
+    // overwhelming majority of screens never render an image.
+    if (!loading) {
+      loading = new Promise(function (resolve, reject) {
+        const tag = document.createElement('script');
+        tag.src = LIB;
+        tag.onload = function () { resolve(window.html2canvas); };
+        tag.onerror = function () { loading = null; reject(new Error('load')); };
+        document.head.appendChild(tag);
+      });
+    }
+    return loading;
+  }
+
+  // Modern CSS colours, spelled the way a 2022 parser understands.
+  //
+  // The theme derives its palette with `color-mix(in srgb, …)`, which is how
+  // one `--accent` recolours the whole brand. Chromium computes that to
+  // `color(srgb r g b)` — a syntax html2canvas does not know, and it throws
+  // rather than skipping the declaration: "Attempting to parse an unsupported
+  // color function". Every capture failed on it, silently, by way of the
+  // print fallback.
+  //
+  // Converting is exact rather than approximate: `color(srgb …)` carries the
+  // same numbers in 0–1 that rgb() carries in 0–255. Doing it on the *clone*
+  // means the real page keeps its modern colours and only the copy being
+  // rasterised is written the old way.
+  function toLegacyColour(value) {
+    return value.replace(
+      /color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)/g,
+      function (_all, r, g, b, a) {
+        const ch = function (x) { return Math.round(parseFloat(x) * 255); };
+        return a !== undefined && parseFloat(a) < 1
+          ? 'rgba(' + ch(r) + ',' + ch(g) + ',' + ch(b) + ',' + a + ')'
+          : 'rgb(' + ch(r) + ',' + ch(g) + ',' + ch(b) + ')';
+      });
+  }
+
+  // Every property, rather than a list of the ones that seemed likely.
+  //
+  // The list was tried first and was wrong: `color(srgb …)` turned up in 80
+  // declarations on a single prescription page, including logical properties
+  // (`border-inline-start-color`) and inside gradient stacks. Enumerating
+  // which properties can hold a colour is a losing game — CSS keeps adding
+  // them — so this sweeps whatever the browser says is set and rewrites only
+  // what actually contains the unsupported syntax.
+  // Land every entrance animation on its finished state.
+  //
+  // The renderer works on a *clone*, and a cloned element restarts its
+  // animations from the first keyframe. Every card in this program enters with
+  // `gc-scale-in`, whose first keyframe is `opacity: 0` — so the capture came
+  // out of a page that was, at that instant, invisible. The first working
+  // render produced a prescription with zero pixels darker than (228,230,231):
+  // correct layout, correct text, all of it at nearly zero opacity.
+  //
+  // Zero duration with the `both` fill mode the animations already declare
+  // means each one immediately holds its *last* keyframe. That settles them
+  // whatever they animate, rather than naming opacity and being wrong about
+  // the next animation somebody adds.
+  function settleAnimations(doc) {
+    const style = doc.createElement('style');
+    style.textContent =
+      '*, *::before, *::after {' +
+      ' animation-delay: 0s !important;' +
+      ' animation-duration: 0s !important;' +
+      ' transition: none !important; }';
+    (doc.head || doc.documentElement).appendChild(style);
+  }
+
+  // Arabic does not survive being drawn one letter at a time.
+  //
+  // With a non-zero `letter-spacing`, html2canvas positions each character
+  // itself instead of letting the browser lay out the run — and Arabic is
+  // contextual, so its letters stop joining and the leading alef disappears.
+  // "المريض" came out as "لم ي ض" and "الجرعة" as "لج رعة", on the field
+  // labels and table headers where the theme adds 0.4px of tracking. Body
+  // text, which has none, was perfect.
+  //
+  // Only elements actually holding Arabic are touched, so the Latin wordmark
+  // keeps its tracking. Losing 0.4px on a label is invisible; losing the
+  // shaping makes a prescription unusable at a pharmacy.
+  const ARABIC = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+  function unspaceArabic(doc) {
+    const view = doc.defaultView || window;
+    doc.querySelectorAll('*').forEach(function (el) {
+      const spacing = view.getComputedStyle(el).letterSpacing;
+      if (!spacing || spacing === 'normal' || parseFloat(spacing) === 0) return;
+      if (ARABIC.test(el.textContent || '')) {
+        el.style.setProperty('letter-spacing', 'normal', 'important');
+      }
+    });
+  }
+
+  function flattenColours(doc) {
+    const view = doc.defaultView || window;
+    doc.querySelectorAll('*').forEach(function (el) {
+      const computed = view.getComputedStyle(el);
+      for (let i = 0; i < computed.length; i++) {
+        const prop = computed[i];
+        const value = computed.getPropertyValue(prop);
+        if (value && value.indexOf('color(') !== -1) {
+          el.style.setProperty(prop, toLegacyColour(value));
+        }
+      }
+    });
+  }
+
+  // Turn one element into a PNG the user's browser downloads.
+  //
+  // `scale: 2` because a pharmacist reads this zoomed in on a phone, and a
+  // screen-resolution capture of Arabic text is a smear at that size.
+  window.gcSaveImage = async function (selector, filename, button) {
+    const node = document.querySelector(selector);
+    if (!node) return;
+    const label = button ? button.innerHTML : null;
+    if (button) { button.disabled = true; button.textContent = '…'; }
+    try {
+      const h2c = await library();
+      const canvas = await h2c(node, {
+        scale: 2,
+        useCORS: true,
+        // The rendered page must not carry the screen's dark theme into a
+        // document somebody prints or forwards: white paper, always.
+        backgroundColor: '#ffffff',
+        // Anything marked no-print is furniture — buttons, nav, flash
+        // messages. It has no business in a saved copy either.
+        ignoreElements: function (el) {
+          return el.classList && el.classList.contains('no-print');
+        },
+        onclone: function (doc) {
+          settleAnimations(doc); unspaceArabic(doc); flattenColours(doc);
+        }
+      });
+      const link = document.createElement('a');
+      link.download = filename || 'page.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      // Never leave somebody pressing a dead button. Printing is the route
+      // that always works, and it is where a PDF comes from anyway.
+      window.print();
+    } finally {
+      if (button) { button.disabled = false; button.innerHTML = label; }
+    }
+  };
+})();

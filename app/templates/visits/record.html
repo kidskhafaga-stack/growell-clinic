@@ -452,11 +452,17 @@
             <option value="secondary">{{ t('diagnosis_types.secondary') }}</option>
             <option value="final">{{ t('diagnosis_types.final') }}</option>
           </select></div>
+        {# Offered only when it has codes behind it. The picker used to list
+           ICD-11 unconditionally while nothing of it was loaded, so choosing
+           it produced an empty search and looked like a broken program. #}
+        {% if icd_versions | length > 1 %}
         <div class="form-row"><label>{{ t('visits.icd_version') }}</label>
           <select class="select" name="icd_version" x-model="version">
-            <option value="10">ICD-10</option>
-            <option value="11">ICD-11</option>
+            {% for v in icd_versions %}<option value="{{ v }}">ICD-{{ v }}</option>{% endfor %}
           </select></div>
+        {% else %}
+        <input type="hidden" name="icd_version" value="{{ icd_versions[0] if icd_versions else '10' }}">
+        {% endif %}
       </div>
       <p class="hint">{{ t('visits.manual_dx_hint') }}</p>
       <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.add_diagnosis') }}</button>

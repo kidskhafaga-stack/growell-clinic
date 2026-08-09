@@ -552,9 +552,32 @@ def drugs():
         query = query.filter(or_(Drug.trade_name.ilike(like),
                                  Drug.trade_name_ar.ilike(like),
                                  Drug.generic_name.ilike(like)))
+    # Narrowed by the clinic's own classes — the same fourteen the drug
+    # reference is organised by, so the two screens speak one language.
+    #
+    # The first version of this offered the register's raw labels instead, and
+    # that is how a clean screen came to have a 683-entry dropdown with
+    # "5-HT3 ANTAGONIST.ANTI-EMETIC" next to "HAIR CARE". Those are a
+    # supplier's inventory categories; the clinic already had better ones.
+    class_id = request.args.get("class_id", type=int)
+    if class_id:
+        query = query.filter(Drug.class_id == class_id)
+    # With a count each, because a category name alone does not say whether
+    # anything is behind it. A class holding nothing here is not offered: the
+    # register has no antineoplastics shelf for a children's clinic to browse.
+    from sqlalchemy import func
+    from app.models import DrugClass
+    counted = dict(db.session.query(Drug.class_id, func.count(Drug.id))
+                   .filter(Drug.class_id.isnot(None))
+                   .group_by(Drug.class_id).all())
+    classes = [c for c in DrugClass.query.filter_by(is_active=True)
+               .order_by(DrugClass.sort_order, DrugClass.name_ar).all()
+               if counted.get(c.id)]
     pagination = paginate(query.order_by(Drug.trade_name))
     return render_template("prescriptions/drugs.html", drugs=pagination.items,
-                           pagination=pagination, forms=DRUG_FORMS, q=q)
+                           pagination=pagination, forms=DRUG_FORMS, q=q,
+                           classes=classes, counts=counted,
+                           class_id=class_id)
 
 
 @prescriptions_bp.route("/drugs/new", methods=["POST"])
