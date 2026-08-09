@@ -890,6 +890,206 @@ BRANDS += [
     ("Butamol", "Salbutamol", "syrup", "2 mg/5 ml", 0.4, "Sigma"),
 ]
 
+# --- third wave: the ingredients the register kept asking for ---------------
+#
+# Chosen by measurement, not by taste. After the whole Egyptian register is
+# seeded, these are the single-ingredient names carrying the most trade names
+# that this reference could not dose — filtered to what a paediatric clinic
+# actually gives.
+#
+# The count on each is how many boxes it *actually* reaches, re-measured after
+# the entry was written. Several are far lower than the register's raw label
+# count suggested, because the register writes a salt ("HYDROXYZINE
+# HYDROCHLORIDE") or spaces a word differently ("PHENOXYMETHYL PENICILLIN").
+# Those are left honest rather than padded: an entry that reaches nothing today
+# still carries a correct dose for the day somebody types that drug by hand.
+#
+# Deliberately NOT added, and the reason matters as much as the additions:
+# pregabalin (96), gabapentin (69), etoricoxib (66), meloxicam (35),
+# piroxicam (34), moxifloxacin (57), linezolid (37) and vonoprazan (41) are
+# large in the register and are not children's medicines. Ranitidine (45) was
+# withdrawn worldwide over NDMA. Putting a paediatric dose beside any of them
+# would be inventing a use, and the catalogue can hold a drug perfectly well
+# without pretending to dose it.
+#
+# Every number below carries the reference it came from in `ref=`, so it can
+# be checked against the source rather than trusted because it is on a screen.
+GENERICS += [
+    dict(  # 50 brands
+        name_ar="سيفوتاكسيم", name_en="Cefotaxime", cls="ABX", atc="J01DD01",
+        routes="IV, IM",
+        dose=(100, 150, "per_day", 4, 180, None, 12000),
+        indications="التهابات شديدة: التهاب سحائي، إنتان دم، التهاب رئوي يحتاج دخول.",
+        contraindications="حساسية شديدة سابقة للسيفالوسبورينات.",
+        precautions="جرعة التهاب السحايا أعلى (200 مج/كج/يوم) وتُقرَّر في المستشفى.",
+        renal="تُباعد الجرعات مع نقص الترشيح الكبيبي.",
+        preg="B", lact="آمن أثناء الرضاعة.", ref="BNF for Children",
+        note="كل 6–8 ساعات وريدياً.",
+    ),
+    dict(  # 34 brands
+        name_ar="سيفتازيديم", name_en="Ceftazidime", cls="ABX", atc="J01DD02",
+        routes="IV, IM",
+        dose=(30, 100, "per_day", 3, 150, None, 6000),
+        indications="التهابات بالزائفة الزنجارية، والحمى مع نقص المناعة.",
+        contraindications="حساسية شديدة سابقة للسيفالوسبورينات.",
+        precautions="يُحفظ للحالات التي تحتاجه — استخدامه الواسع يصنع مقاومة.",
+        renal="يحتاج تعديلاً واضحاً في القصور الكلوي.",
+        preg="B", lact="آمن أثناء الرضاعة.", ref="BNF for Children",
+    ),
+    dict(  # 32 brands
+        name_ar="سيفدينير", name_en="Cefdinir", cls="ABX", atc="J01DD15",
+        routes="oral",
+        dose=(14, 14, "per_day", 2, 14, None, 600),
+        min_age=6,
+        indications="التهاب الأذن الوسطى والجيوب والحلق واللوزتين.",
+        contraindications="حساسية شديدة سابقة للسيفالوسبورينات.",
+        precautions="مع الحديد أو مضادات الحموضة يقل امتصاصه — يُباعَد ساعتين.",
+        side="براز أحمر اللون مع الحديد — غير مقلق ويخيف الأهل بلا داعٍ.",
+        preg="B", lact="آمن أثناء الرضاعة.", ref="BNF for Children",
+    ),
+    dict(  # 15 brands
+        name_ar="إريثرومايسين", name_en="Erythromycin", cls="ABX", atc="J01FA01",
+        routes="oral",
+        dose=(30, 50, "per_day", 4, 50, None, 2000),
+        indications="بديل البنسلين عند الحساسية، والسعال الديكي، والكلاميديا.",
+        contraindications="حساسية للماكروليدات، أمراض كبد نشطة.",
+        precautions="تفاعلات دوائية كثيرة (يثبّط CYP3A4) — راجع أدوية الطفل الأخرى.",
+        black_box="تضخّم البواب التضيّقي في الرضّع أقل من 6 أسابيع — يُتجنَّب إلا لضرورة.",
+        hepatic="يُتجنّب في القصور الكبدي.",
+        preg="B", lact="آمن أثناء الرضاعة.", ref="BNF for Children",
+        note="كل 6 ساعات؛ يُفضّل مع الطعام لتقليل مغص المعدة.",
+    ),
+    dict(  # 0 brands today — the register writes it "PHENOXYMETHYL
+           # PENICILLIN" with a space, on 3 products. Here for the
+           # rheumatic-fever prophylaxis course, not for coverage.
+        name_ar="فينوكسي ميثيل بنسللين", name_en="Phenoxymethylpenicillin",
+        cls="ABX", atc="J01CE02", routes="oral",
+        dose=(25, 50, "per_day", 4, 50, None, 2000),
+        indications="التهاب اللوزتين بالسبحيات، والوقاية من الحمى الروماتيزمية.",
+        contraindications="حساسية البنسلين.",
+        precautions="كورس التهاب اللوزتين 10 أيام كاملة — تقصيره سبب الحمى الروماتيزمية.",
+        preg="B", lact="آمن أثناء الرضاعة.", ref="BNF for Children",
+        note="على معدة فارغة، كل 6 ساعات.",
+    ),
+    dict(  # 33 brands
+        name_ar="تيربينافين", name_en="Terbinafine", cls="ANTIF", atc="D01BA02",
+        routes="oral",
+        min_age=24,
+        indications="سعفة فروة الرأس والأظافر.",
+        contraindications="مرض كبدي نشط.",
+        precautions="يحتاج متابعة وظائف الكبد في الكورسات الطويلة.",
+        monitoring="وظائف الكبد قبل البدء ثم كل 4–6 أسابيع.",
+        hepatic="يُمنع في القصور الكبدي.",
+        preg="B", lact="غير مفضّل — يُفرَز في اللبن.",
+        ref="BNF for Children",
+        note="بالوزن لا بالكيلو: أقل من 20 كجم = 62.5 مج، 20–40 كجم = 125 مج، "
+             "أكثر من 40 كجم = 250 مج — مرة يومياً.",
+    ),
+    dict(  # 4 brands
+        name_ar="جريزيوفولفين", name_en="Griseofulvin", cls="ANTIF", atc="D01BA01",
+        routes="oral",
+        dose=(10, 20, "per_day", 1, 20, None, 1000),
+        min_age=24,
+        indications="سعفة فروة الرأس — العلاج الأول في الأطفال.",
+        contraindications="مرض كبدي، البورفيريا.",
+        precautions="يُؤخذ مع طعام دسم (لبن كامل) وإلا لا يُمتَص.",
+        hepatic="يُتجنّب في القصور الكبدي.",
+        preg="X", lact="غير مفضّل.",
+        ref="BNF for Children", note="كورس 6–8 أسابيع لفروة الرأس.",
+    ),
+    dict(  # 51 brands
+        name_ar="بانتوبرازول", name_en="Pantoprazole", cls="GIT", atc="A02BC02",
+        routes="oral, IV",
+        dose=(1, 1, "per_day", 1, 1, None, 40),
+        min_age=12,
+        indications="الارتجاع المريئي وقرحة المعدة عند الأطفال.",
+        contraindications="فرط الحساسية للمادة.",
+        precautions="لا يُستمَر بلا مراجعة — الاستخدام الطويل يقلل امتصاص الحديد وB12.",
+        preg="B", lact="بيانات محدودة.", ref="BNF for Children",
+        note="قبل الإفطار بنصف ساعة.",
+    ),
+    dict(  # 3 brands
+        name_ar="سيبروهيبتادين", name_en="Cyproheptadine", cls="ANTIH",
+        atc="R06AX02", routes="oral",
+        dose=(0.25, 0.25, "per_day", 3, 0.5, None, 16),
+        min_age=24,
+        indications="الحساسية، ويُستعمل كفاتح للشهية في الأطفال.",
+        contraindications="أقل من سنتين، الجلوكوما، احتباس البول، نوبات الربو الحادة.",
+        precautions="النعاس شائع. فتح الشهية مكسب مؤقت ولا يعالج سبب ضعف الأكل.",
+        side="نعاس، جفاف الفم، زيادة وزن سريعة.",
+        preg="B", lact="غير مفضّل — يقلل إدرار اللبن.",
+        ref="BNF for Children",
+        note="الحد الأقصى 12 مج/يوم من 2–6 سنوات، و16 مج/يوم من 7–14 سنة.",
+    ),
+    dict(  # 0 brands today — the register writes the salt,
+           # "HYDROXYZINE HYDROCHLORIDE", on 2 products.
+        name_ar="هيدروكسيزين", name_en="Hydroxyzine", cls="ANTIH", atc="N05BB01",
+        routes="oral",
+        dose=(1, 2, "per_day", 4, 2, None, 100),
+        min_age=12,
+        indications="الحكة الشديدة والأرتيكاريا، والتهدئة قبل الإجراءات.",
+        contraindications="إطالة فترة QT، أقل من سنة.",
+        precautions="يزيد النعاس مع أي مهدّئ آخر.",
+        preg="C", lact="غير مفضّل.", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="أدرينالين (إبينفرين)", name_en="Adrenaline (epinephrine)",
+        cls="ANTIH", atc="C01CA24", routes="IM",
+        dose=(0.01, 0.01, "per_dose", 3, 0.03, 0.5, None),
+        indications="الحساسية المفرطة (أنافيلاكسيس) — العلاج الأول ولا بديل له.",
+        contraindications="لا يوجد مانع مطلق في الأنافيلاكسيس.",
+        precautions="يُعطى في عضلة الفخذ الوحشية، ويُكرَّر بعد 5 دقائق لو لم يتحسّن.",
+        black_box="التأخير في إعطائه هو سبب الوفاة في الأنافيلاكسيس — "
+                  "لا يُنتظَر رد الفعل على مضاد الهيستامين أو الكورتيزون.",
+        preg="C", lact="آمن.", ref="WHO / BNF for Children",
+        note="0.01 مج/كج من تركيز 1:1000 عضلياً، بحد أقصى 0.5 مج للجرعة "
+             "(0.3 مج تحت 6 سنوات).",
+    ),
+    dict(  # 65 brands
+        name_ar="فيتامين ج (حمض الأسكوربيك)", name_en="Vitamin C (ascorbic acid)",
+        cls="VIT", atc="A11GA01", routes="oral",
+        indications="نقص فيتامين ج، ودعم امتصاص الحديد.",
+        contraindications="حصوات الكلى بالأوكسالات، نقص G6PD بالجرعات العالية.",
+        precautions="لا دليل على أنه يمنع نزلات البرد — لا يُوصف لهذا الغرض.",
+        preg="A", lact="آمن.", ref="WHO",
+        note="بالسن لا بالوزن: علاج النقص 100–300 مج يومياً مقسّمة، والوقاية أقل.",
+    ),
+    dict(
+        name_ar="فيتامين أ", name_en="Vitamin A", cls="VIT", atc="A11CA01",
+        routes="oral",
+        indications="نقص فيتامين أ، والدعم في الحصبة حسب توصية منظمة الصحة.",
+        contraindications="فرط فيتامين أ، الحمل بجرعات عالية.",
+        black_box="الجرعة الزائدة تسبب ارتفاع الضغط داخل الجمجمة — "
+                  "الجرعات الكبيرة تُعطى بالسن وبمواعيد محددة، لا يومياً.",
+        preg="X", lact="آمن بالجرعات العادية.", ref="WHO",
+        note="بالسن: 100,000 وحدة من 6–11 شهر، و200,000 وحدة من 12–59 شهر — "
+             "جرعة واحدة تتكرر كل 4–6 شهور.",
+    ),
+    dict(  # 64 brands
+        name_ar="بوفيدون أيودين", name_en="Povidone-iodine",
+        cls="TOPIC", atc="D08AG02", routes="topical",
+        indications="تطهير الجروح والسحجات قبل التضميد.",
+        contraindications="حساسية اليود، أمراض الغدة الدرقية.",
+        precautions="لا يُستعمل على مساحات واسعة أو حروق كبيرة.",
+        black_box="في حديثي الولادة يُمتَص اليود عبر الجلد ويثبّط الغدة الدرقية — "
+                  "يُتجنّب تماماً تحت شهر.",
+        preg="C", lact="يُتجنّب على منطقة الثدي.", ref="WHO",
+    ),
+    dict(  # 0 brands, deliberately. The register has 38 plain
+           # "LIDOCAINE", and plain lidocaine may be the injectable —
+           # so the (topical) qualifier blocks the match on purpose.
+        name_ar="ليدوكايين موضعي", name_en="Lidocaine (topical)", cls="TOPIC",
+        atc="D04AB01", routes="topical",
+        indications="تخدير موضعي سطحي قبل الوخز أو على قرحة الفم.",
+        contraindications="حساسية المخدرات الموضعية الأميدية.",
+        black_box="جل التسنين المحتوي على ليدوكايين يسبب ميتهيموجلوبينية "
+                  "وتشنجات في الرضّع — هيئة الغذاء والدواء الأمريكية تحذّر من "
+                  "استعماله تحت سنتين.",
+        precautions="كمية صغيرة على مساحة محدودة فقط؛ الابتلاع المتكرر خطر.",
+        preg="B", lact="آمن موضعياً.", ref="FDA / BNF for Children",
+    ),
+]
+
 # --- third wave of trade names: more of the shelf, and more strengths ------
 BRANDS += [
     # paracetamol / ibuprofen family
@@ -1095,6 +1295,12 @@ def seed_generics():
             precautions=row.get("precautions"), side_effects=row.get("side"),
             black_box=row.get("black_box"),
             renal_adjustment=row.get("renal"), hepatic_adjustment=row.get("hepatic"),
+            # The reference screen has rendered this row since it was written
+            # and it was always empty: the seeder never read the key. So
+            # vancomycin — where trough levels are the whole safety of the
+            # drug — carried its monitoring advice in the source and showed
+            # nothing.
+            monitoring=row.get("monitoring"),
             pregnancy_category=row.get("preg"), lactation_note=row.get("lact"),
             reference=row.get("ref"), is_active=True,
         )
@@ -1136,17 +1342,21 @@ def seed_brands():
 
 
 def link_existing_drugs():
-    """Attach drugs the clinic typed itself to a matching ingredient."""
-    generics = {}
-    for g in GenericDrug.query.all():
-        for key in (g.name_en, g.name_ar):
-            if key:
-                generics[key.strip().lower()] = g.id
+    """Attach drugs the clinic typed itself to a matching ingredient.
+
+    Through the same spelling table the register import uses, so a drug a
+    nurse typed as "Acyclovir" and one the register spells "ACICLOVIR" reach
+    the same ingredient. Matching exactly here and loosely there would make
+    whether a box carries a dose depend on who entered it.
+    """
+    from app.utils.ingredient_names import index_of, match
+
+    table = index_of(GenericDrug.query.all())
     n = 0
     for d in Drug.query.filter(Drug.generic_id.is_(None)).all():
-        key = (d.generic_name or "").strip().lower()
-        if key and key in generics:
-            d.generic_id = generics[key]
+        found = match(d.generic_name, table)
+        if found is not None:
+            d.generic_id = found.id
             n += 1
     return n
 

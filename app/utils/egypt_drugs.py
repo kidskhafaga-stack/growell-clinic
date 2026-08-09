@@ -103,11 +103,11 @@ def seed_register(limit=None):
     classes = class_index()
     # Ingredients we can dose, by both names, so a register entry whose
     # scientific name matches one of ours inherits the paediatric maths.
-    generics = {}
-    for generic in GenericDrug.query.all():
-        for key in (generic.name_en, generic.name_ar):
-            if key:
-                generics[key.strip().upper()] = generic
+    # Every spelling of every ingredient, not just the one the reference
+    # happens to use. The match was exact, so "PARACETAMOL(ACETAMINOPHEN)" —
+    # 92 boxes of the commonest drug in paediatrics — matched nothing.
+    from app.utils.ingredient_names import index_of, match as match_generic
+    generics = index_of(GenericDrug.query.all())
 
     added = 0
     for row in rows:
@@ -120,11 +120,11 @@ def seed_register(limit=None):
         if trade.upper() in have:
             continue
         have.add(trade.upper())
-        # Only an exact ingredient match links. A combination product like
-        # "PARACETAMOL+CAFFEINE" is deliberately left unlinked: dosing it on
-        # its first-named ingredient is how a child gets the wrong dose of the
-        # second one.
-        generic = generics.get(scientific.strip().upper())
+        # A combination product like "PARACETAMOL+CAFFEINE" is still
+        # deliberately left unlinked: dosing it on its first-named ingredient
+        # is how a child gets the wrong dose of the second one. What changed
+        # is only that one ingredient may be spelled several ways.
+        generic = match_generic(scientific, generics)
         db.session.add(Drug(
             trade_name=trade[:160],
             trade_name_ar=(trade_ar or None) and trade_ar[:160],
