@@ -54,6 +54,11 @@
         href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+  <!-- What every screen does on paper. Loaded before `block head` so a page
+       with a real reason to differ — the prescription sets its page size and
+       margins from the clinic's chosen template — still overrides it. -->
+  <link rel="stylesheet" media="print"
+        href="{{ url_for('static', filename='css/print.css') }}">
   <!-- Hide Alpine-controlled elements (modals, dropdowns, the notifications
        panel) until Alpine initialises, so they don't flash on every page load.
        Must be global — Alpine is deferred. -->
