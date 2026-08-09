@@ -38,7 +38,10 @@
 
 <!-- Pricing & units (editable straight from the card) -->
 <div class="card gc-scale-in" style="margin-bottom:16px;"
-     x-data="pricing({{ brand.purchase_price or 0 }}, {{ brand.price or 0 }}, {{ brand.doctor_fee or 0 }})">
+     x-data="pricing({{ brand.purchase_price or 0 }}, {{ brand.price or 0 }}, {{ brand.doctor_fee or 0 }},
+                     {{ (brand.price_policy or 'manual')|tojson }},
+                     {{ brand.margin_percent if brand.margin_percent is not none else 'null' }},
+                     {{ default_margin }})">
   <h2 class="section-title"><i class="bi bi-cash-coin"></i> {{ t('inventory.pricing_units') }}</h2>
   <form method="post" action="{{ url_for('inventory.item_pricing', brand_id=brand.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -66,13 +69,38 @@
         <div class="hint">{{ t('inventory.units_per_purchase_hint') }}</div></div>
       <div class="form-row"><label>{{ t('inventory.reorder_level') }}</label>
         <input class="input" type="number" min="0" name="min_stock" value="{{ brand.min_stock if brand.min_stock is not none else '' }}"></div>
+      {# Same two fields the general store has had all along. The engine
+         already priced vaccines this way on every purchase receipt; there was
+         simply no way to ask it to. #}
+      <div class="form-row"><label>{{ t('store.price_policy') }}</label>
+        <select class="select" name="price_policy" x-model="policy">
+          <option value="manual" {{ 'selected' if brand.price_policy != 'auto' else '' }}>{{ t('store.policy_manual') }}</option>
+          <option value="auto" {{ 'selected' if brand.price_policy == 'auto' else '' }}>{{ t('store.policy_auto') }}</option>
+        </select></div>
+      <div class="form-row"><label>{{ t('store.margin') }} (%)</label>
+        <input class="input" type="number" step="0.5" min="0" name="margin_percent"
+               x-model.number="margin" placeholder="{{ default_margin }}"
+               value="{{ brand.margin_percent if brand.margin_percent is not none else '' }}">
+        <div class="hint">{{ t('store.margin_hint') }}</div>
+        {# What the next delivery will do to the price, before it does it. #}
+        <div class="hint" x-show="policy === 'auto' && cost > 0" x-cloak>
+          {{ t('inventory.auto_price_preview') }}
+          <strong x-text="autoPrice()"></strong></div></div>
     </div>
     <!-- Live profit readout: profit = sell − cost; margin = profit / sell. -->
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:6px 0 12px;">
       <div class="pl-box"><span class="pl-k">{{ t('inventory.profit') }}</span>
         <span class="pl-v" x-text="(sell - cost).toFixed(2)"></span></div>
+      {# Two different numbers that were both called "هامش الربح", and they
+         never agreed: this one is the profit as a share of the *sell* price,
+         while the margin typed into the field above is added on top of the
+         *cost*. Type 25 and this used to answer 20, on the same screen. They
+         are named for what they are now, rather than made to match — both are
+         real questions a clinic asks. #}
       <div class="pl-box"><span class="pl-k">{{ t('inventory.profit_margin') }}</span>
         <span class="pl-v" x-text="sell > 0 ? ((sell - cost) / sell * 100).toFixed(1) + '%' : '—'"></span></div>
+      <div class="pl-box"><span class="pl-k">{{ t('inventory.markup') }}</span>
+        <span class="pl-v" x-text="cost > 0 ? ((sell - cost) / cost * 100).toFixed(1) + '%' : '—'"></span></div>
       <div class="pl-box"><span class="pl-k">{{ t('inventory.clinic_net') }}</span>
         <span class="pl-v" x-text="(sell - cost - fee).toFixed(2)"></span></div>
     </div>
@@ -223,8 +251,20 @@
 
 {% block scripts %}
 <script>
-  function pricing(cost, sell, fee) {
-    return { cost: cost || 0, sell: sell || 0, fee: fee || 0 };
+  function pricing(cost, sell, fee, policy, margin, fallback) {
+    return {
+      cost: cost || 0, sell: sell || 0, fee: fee || 0,
+      policy: policy || 'manual', margin: margin,
+      // Mirrors app/utils/costing.py::_auto_sell exactly — cost plus the
+      // margin *of the cost*, so 25% on 80 is 100. A preview that used a
+      // different formula from the engine would be worse than no preview:
+      // the number would change by itself after the next delivery.
+      autoPrice() {
+        var m = (this.margin === null || this.margin === '' || isNaN(this.margin))
+          ? fallback : Number(this.margin);
+        return (this.cost * (1 + m / 100)).toFixed(2);
+      },
+    };
   }
 </script>
 {% endblock %}

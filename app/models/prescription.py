@@ -8,6 +8,7 @@ optional per-drug max daily dose for guidance/over-dose flags.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 DRUG_FORMS = ["tablet", "capsule", "syrup", "suspension", "drops",
               "injection", "cream", "ointment", "suppository", "inhaler", "other"]
@@ -271,7 +272,7 @@ class Prescription(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
-    rx_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
+    rx_date = db.Column(db.Date, default=local_today, nullable=False)
     diagnosis = db.Column(db.String(255))
     diagnosis_code = db.Column(db.String(20))   # ICD-10 code snapshot
     # How settled the diagnosis is. A guardian reading "التهاب رئوي" cannot
@@ -283,6 +284,19 @@ class Prescription(db.Model):
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # The unguessable address of the copy the family opens. Only set when a
+    # copy is actually sent: a token that exists for every prescription ever
+    # written is a bigger surface than one that exists for the ones somebody
+    # chose to share.
+    share_token = db.Column(db.String(48), unique=True, index=True)
+
+    def share_link_token(self):
+        """The token for this prescription, minted on first use."""
+        import secrets
+
+        if not self.share_token:
+            self.share_token = secrets.token_urlsafe(24)
+        return self.share_token
 
     patient = db.relationship("Patient")
     doctor = db.relationship("User", foreign_keys=[doctor_id])

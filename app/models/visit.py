@@ -7,6 +7,7 @@ mirrored into growth_records for the growth charts (Phase 5).
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 VISIT_STATUSES = ["open", "completed"]
 INVESTIGATION_STATUSES = ["requested", "resulted"]
@@ -24,7 +25,7 @@ class Visit(db.Model):
         db.Integer, db.ForeignKey("appointments.id"), nullable=True
     )
 
-    visit_date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    visit_date = db.Column(db.Date, nullable=False, default=local_today)
 
     chief_complaint = db.Column(db.Text)
     clinical_exam = db.Column(db.Text)
@@ -49,6 +50,22 @@ class Visit(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
+
+    # What the doctor wants the nurse to do — written in the room, read at the
+    # station. It was being said out loud across a corridor, which is how an
+    # instruction reaches the wrong child or nobody at all.
+    nurse_instructions = db.Column(db.Text)
+
+    # Sent to emergency. Recorded rather than remembered: the child leaves the
+    # clinic mid-encounter, and the visit that stays behind has to say where
+    # they went and why, or it reads as a consultation somebody abandoned.
+    referred_at = db.Column(db.DateTime)
+    referred_to = db.Column(db.String(120))
+    referral_note = db.Column(db.Text)
+
+    @property
+    def is_referred(self):
+        return self.referred_at is not None
 
     patient = db.relationship("Patient", backref="visits")
     doctor = db.relationship("User", backref="visits")

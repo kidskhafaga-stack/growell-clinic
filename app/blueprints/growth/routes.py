@@ -24,6 +24,7 @@ from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.patients import apply_patient_search
 from app.utils import rcpch
+from app.utils.clock import local_today
 from app.utils.growth import (
     INDICATORS,
     age_in_months,
@@ -98,7 +99,7 @@ def view(patient_id):
         default_ref=_default_reference(patient),
         has_records=bool(records),
         records=records,
-        today=datetime.utcnow().date().isoformat(),
+        today=local_today().isoformat(),
     )
 
 

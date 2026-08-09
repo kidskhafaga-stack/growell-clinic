@@ -14,6 +14,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.models import Patient, Setting, Visit
+from app.utils.clock import local_today
 
 DEFAULT_INACTIVE_YEARS = 3
 
@@ -34,7 +35,7 @@ def auto_enabled():
 def cutoff_date(years=None, today=None):
     """The last-activity date on/before which an active file is a candidate."""
     years = inactive_years() if years is None else years
-    today = today or datetime.utcnow().date()
+    today = today or local_today()
     # Shift back N years, clamping Feb-29 to Feb-28 on non-leap targets.
     try:
         return today.replace(year=today.year - years)

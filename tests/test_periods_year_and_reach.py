@@ -225,7 +225,11 @@ def test_no_page_is_left_without_a_link(boss, clinic):
 
     skip = ("search", "slots", "export", "print", "download", "healthz",
             "webhook", "verify", "qr", "logout", "static", "api", "_json",
-            "preset_lines", "feedback.rate")
+            "preset_lines", "feedback.rate",
+            # The prescription a family opens from the link sent to them.
+            # There is deliberately no way in from the program: it is the
+            # parent's copy, reached by a token and nothing else.
+            "public_copy")
     missing = []
     for rule in clinic["app"].url_map.iter_rules():
         endpoint = rule.endpoint

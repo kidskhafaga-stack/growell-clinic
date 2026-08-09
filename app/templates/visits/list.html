@@ -37,7 +37,11 @@
           {% if v.channel == 'whatsapp' %}<span class="badge badge--green" title="{{ t('teleconsult.decision_' ~ v.decision) if v.decision else '' }}"><i class="bi bi-whatsapp"></i> {{ t('teleconsult.channel_whatsapp') }}</span>{% endif %}</td>
         <td>{{ v.doctor.display_name(current_lang) }}</td>
         <td>{% for dx in v.final_diagnoses() %}<span class="badge badge--green">{{ dx.title }}</span> {% else %}<span style="color:var(--muted);">—</span>{% endfor %}</td>
-        <td><span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span></td>
+        <td><span class="status-badge {{ 'st-completed' if v.is_completed else 'st-in_progress' }}">{{ t('visits.completed_status') if v.is_completed else t('visits.open') }}</span>
+          {# The one thing on this list that is not routine. A child sent to
+             emergency stops being a row somebody scrolls past. #}
+          {% if v.is_referred %}<span class="status-badge st-no_show" title="{{ v.referral_note or '' }}">
+            <i class="bi bi-hospital-fill"></i> {{ t('visits.referred_badge') }}</span>{% endif %}</td>
         <td style="text-align:end;white-space:nowrap;">
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.view', visit_id=v.id) }}"><i class="bi bi-eye"></i> {{ t('common.view') }}</a>
           {% if not v.is_completed %}<a class="btn btn-primary btn-sm gc-press" href="{{ url_for('visits.record', visit_id=v.id) }}"><i class="bi bi-pencil"></i></a>{% endif %}

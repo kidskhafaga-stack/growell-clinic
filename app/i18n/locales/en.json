@@ -741,7 +741,20 @@
     "study_done": "Result recorded",
     "added_ok": "Added",
     "station_search": "Search the waiting list…",
-    "station_reason_ph": "The reason in the family's words"
+    "station_reason_ph": "The reason in the family's words",
+    "nurse_instructions": "Instructions for nursing",
+    "nurse_ph": "e.g. salbutamol nebuliser, recheck the temperature in 30 minutes",
+    "nurse_hint": "Appears on the nurse's station screen straight away, without saving the visit.",
+    "nurse_send": "Send to nursing",
+    "nurse_saved": "Sent to nursing.",
+    "refer_title": "Emergency referral",
+    "refer_where": "Referred where? (hospital / department)",
+    "refer_why": "Reason, briefly",
+    "refer_now": "Refer to emergency now",
+    "referred_badge": "Referred to emergency",
+    "referred_ok": "The referral is recorded and the case is flagged on every screen.",
+    "referral_undo": "Undo the referral",
+    "referral_undone": "The referral was undone."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1159,7 +1172,7 @@
     "dispense_unit": "Dispense unit",
     "units_per_purchase_hint": "Dispense units per one purchase unit (e.g. 10 doses per vial).",
     "profit": "Profit",
-    "profit_margin": "Profit margin",
+    "profit_margin": "Profit share of price",
     "clinic_net": "Clinic net",
     "doses_per_vial": "Dispense units per purchase unit",
     "items_title": "Item catalogue",
@@ -1198,7 +1211,9 @@
     "batches_elsewhere": "{n} batch(es) sit in other warehouses — move them with a transfer.",
     "count_reason": "Reason for the difference (optional)",
     "count_reason_ph": "Breakage, spoilage, a recording error…",
-    "into_warehouse": "Receive into"
+    "into_warehouse": "Receive into",
+    "auto_price_preview": "After the next delivery the sell price becomes:",
+    "markup": "Markup on cost"
   },
   "instatus": {
     "ok": "In stock",
@@ -2318,7 +2333,11 @@
     "verify_note": "This page shows the clinic's own record of it — for checking only.",
     "doctor_search_ph": "Search by doctor name",
     "dose": "Dose",
-    "frequency": "Frequency"
+    "frequency": "Frequency",
+    "send_to_family": "Send to the family",
+    "save_pdf": "Save PDF",
+    "public_note": "This is the clinic's own copy. To confirm it, scan the code above.",
+    "license": "License"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -2492,8 +2511,8 @@
     "price_policy": "Sell-price policy",
     "policy_manual": "Manual (price untouched)",
     "policy_auto": "Auto: last purchase + margin %",
-    "margin": "Profit margin %",
-    "margin_hint": "Leave blank = clinic default margin",
+    "margin": "Markup on cost %",
+    "margin_hint": "Added on top of the purchase price. Leave blank = clinic default.",
     "policy_title": "Store & pricing policies",
     "dispense_policy": "General-store dispensing policy",
     "fifo": "FIFO — first in, first out",
@@ -2630,7 +2649,8 @@
     "enqueue_confirm": "One message per family will be queued and sent gradually under the daily cap. Sure?",
     "campaign_queued": "{n} messages queued — they will go out under the daily cap",
     "occ_away": "Out-of-hours reply",
-    "occ_vaccine_back": "Vaccine back in stock"
+    "occ_vaccine_back": "Vaccine back in stock",
+    "occ_rx_copy": "Prescription copy"
   },
   "feedback": {
     "title": "Rate your visit",

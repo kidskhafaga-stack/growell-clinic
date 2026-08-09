@@ -44,6 +44,7 @@ from app.utils.paging import paginate
 from app.utils.icd import search_icd
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
+from app.utils.clock import local_today
 
 MODULE = "visits"
 
@@ -399,7 +400,7 @@ def station():
     from app.utils.patients import apply_patient_search
     from app.utils.red_flags import assess
 
-    today = datetime.utcnow().date()
+    today = local_today()
     appts = (Appointment.query
              .filter(Appointment.appt_date == today,
                      Appointment.status.in_(("waiting", "in_progress")))
@@ -1135,6 +1136,57 @@ def send_survey(visit_id):
     return redirect(request.referrer or url_for("visits.view", visit_id=visit.id))
 
 
+# ------------------------------------------------- nursing and referral -----
+@visits_bp.route("/<int:visit_id>/nurse-instructions", methods=["POST"])
+@module_required(MODULE)
+def nurse_instructions(visit_id):
+    """What the doctor wants nursing to do with this child.
+
+    Written in the room and read at the station. It was being called across a
+    corridor — which is how an instruction reaches the wrong child, or nobody.
+    """
+    visit = db.get_or_404(Visit, visit_id)
+    visit.nurse_instructions = (request.form.get("nurse_instructions")
+                                or "").strip() or None
+    ActivityLog.record("visit.nurse_instructions", user_id=current_user.id,
+                       entity="visit", entity_id=visit.id, ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.nurse_saved"), "success")
+    return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+
+@visits_bp.route("/<int:visit_id>/refer", methods=["POST"])
+@module_required(MODULE)
+def refer(visit_id):
+    """Send this child to emergency, and say so on every screen that lists them.
+
+    Recorded rather than remembered. The child leaves mid-encounter, and a
+    visit that simply stops reads as a consultation somebody abandoned — the
+    one record that has to survive the panic is where they went and why.
+
+    Reversible, because a referral written on the wrong child is a thing that
+    happens in exactly the minutes this button is pressed in.
+    """
+    visit = db.get_or_404(Visit, visit_id)
+    if request.form.get("undo"):
+        visit.referred_at = None
+        visit.referred_to = None
+        visit.referral_note = None
+        db.session.commit()
+        flash(t("visits.referral_undone"), "info")
+        return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+    visit.referred_at = datetime.utcnow()
+    visit.referred_to = (request.form.get("referred_to") or "").strip() or None
+    visit.referral_note = (request.form.get("referral_note") or "").strip() or None
+    ActivityLog.record("visit.refer", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, detail=visit.referred_to or "",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.referred_ok"), "warning")
+    return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+
 # ------------------------------------------------------------ complete -----
 @visits_bp.route("/<int:visit_id>/complete", methods=["POST"])
 @module_required(MODULE)
@@ -1283,7 +1335,7 @@ def study_new(patient_id):
             sdate = _dt.strptime((request.form.get("study_date") or "").strip(),
                                  "%Y-%m-%d").date()
         except ValueError:
-            sdate = _dt.utcnow().date()
+            sdate = local_today()
         # Attach to the visit it was opened from, else the patient's open one.
         visit_id = request.values.get("visit_id", type=int)
         open_visit = db.session.get(Visit, visit_id) if visit_id else None
@@ -1320,7 +1372,7 @@ def study_new(patient_id):
     return render_template("visits/study_new.html", patient=patient,
                            devices=devices, device=device,
                            visit_id=request.values.get("visit_id", type=int),
-                           today=datetime.utcnow().date().isoformat())
+                           today=local_today().isoformat())
 
 
 @visits_bp.route("/studies/<int:study_id>")
@@ -1348,4 +1400,4 @@ def study_print(study_id):
         g.direction = get_direction(lang)
     study = db.get_or_404(DeviceStudy, study_id)
     return render_template("visits/study_print.html", study=study,
-                           spiro=analyse(study), today=datetime.utcnow().date())
+                           spiro=analyse(study), today=local_today())

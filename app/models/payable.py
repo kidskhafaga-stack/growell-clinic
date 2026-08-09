@@ -10,6 +10,7 @@ tracked and settled — in full, deferred, or in instalments.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 SUPPLIER_PAYMENT_METHODS = ["cash", "bank", "transfer", "cheque"]
 
@@ -27,7 +28,7 @@ class SupplierPayment(db.Model):
     amount = db.Column(db.Float, default=0, nullable=False)
     method = db.Column(db.String(12), default="cash", nullable=False)
     reference = db.Column(db.String(80))       # cheque / transfer reference
-    paid_at = db.Column(db.Date, default=lambda: datetime.utcnow().date(),
+    paid_at = db.Column(db.Date, default=local_today,
                         nullable=False, index=True)
     notes = db.Column(db.String(255))
     # The till the money left. Paying a supplier out of the reception drawer

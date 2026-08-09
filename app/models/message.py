@@ -37,6 +37,8 @@ SYSTEM_TEMPLATE_TYPES = [
     # "It has arrived" — to the families who were told to come while the
     # shelf was empty. See app/utils/vaccine_back.py.
     "vaccine_back",
+    # The prescription itself, sent to the family as a picture of the paper.
+    "rx_copy",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -54,6 +56,7 @@ TEMPLATE_VARIABLES = {
     "vaccine_seasonal": ["patient", "vaccine", "year", "clinic"],
     "vaccine_changed": ["patient", "old_vaccine", "new_vaccine", "clinic"],
     "vaccine_back": ["patient", "vaccine", "clinic"],
+    "rx_copy": ["patient", "doctor", "clinic", "link"],
     "birthday": ["patient", "clinic"],
     "feedback": ["patient", "clinic", "doctor", "link"],
     "seasonal": ["patient", "clinic"],
@@ -88,6 +91,13 @@ TEMPLATE_DEFAULTS = {
         "خبر كويس من {clinic}: تطعيم {vaccine} بقى متوفر.\n"
         "تقدروا تجيبوا {patient} في أي وقت خلال مواعيد العيادة — "
         "ومعلش على التأخير."
+    ),
+    "rx_copy": (
+        # No "د." in front of {doctor}: the name already arrives with its
+        # title, and the two together read "د. Dr. منى حسن".
+        "روشتة {patient} من {clinic} — {doctor}.\n"
+        "تقدروا تفتحوها وتطبعوها من هنا: {link}\n"
+        "سلامته وعافيته."
     ),
     "birthday": (
         "كل سنة و{patient} طيب! 🎉\n"

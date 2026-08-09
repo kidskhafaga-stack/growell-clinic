@@ -741,7 +741,20 @@
     "study_done": "النتيجة اتسجّلت",
     "added_ok": "اتضاف",
     "station_search": "ابحث في المنتظرين…",
-    "station_reason_ph": "سبب الزيارة بكلام الأهل"
+    "station_reason_ph": "سبب الزيارة بكلام الأهل",
+    "nurse_instructions": "توجيهات للتمريض",
+    "nurse_ph": "مثال: نيبولايزر سالبيوتامول، وقيس الحرارة تاني بعد نص ساعة",
+    "nurse_hint": "بتظهر لممرضة المحطة على شاشتها فوراً، من غير ما تحفظ الزيارة.",
+    "nurse_send": "ابعت للتمريض",
+    "nurse_saved": "اتبعتت للتمريض.",
+    "refer_title": "تحويل للطوارئ",
+    "refer_where": "محوّل لفين؟ (مستشفى/قسم)",
+    "refer_why": "السبب باختصار",
+    "refer_now": "حوّل للطوارئ دلوقتي",
+    "referred_badge": "محوّل للطوارئ",
+    "referred_ok": "اتسجّل التحويل للطوارئ، والحالة اتعلّمت في كل الشاشات.",
+    "referral_undo": "إلغاء التحويل",
+    "referral_undone": "التحويل اتلغى."
   },
   "diagnosis_types": {
     "working": "أولي",
@@ -1159,7 +1172,7 @@
     "dispense_unit": "وحدة الصرف",
     "units_per_purchase_hint": "عدد وحدات الصرف في وحدة الإضافة الواحدة (مثال: 10 جرعات في العبوة).",
     "profit": "الربح",
-    "profit_margin": "هامش الربح",
+    "profit_margin": "نسبة الربح من سعر البيع",
     "clinic_net": "صافي العيادة",
     "doses_per_vial": "وحدات الصرف لكل وحدة إضافة",
     "items_title": "تعريف الأصناف",
@@ -1198,7 +1211,9 @@
     "batches_elsewhere": "في {n} تشغيلة في مخازن تانية — اتنقل بينهم بتحويل مخزني.",
     "count_reason": "سبب الفرق (اختياري)",
     "count_reason_ph": "كسر، تلف، خطأ تسجيل…",
-    "into_warehouse": "يدخل مخزن"
+    "into_warehouse": "يدخل مخزن",
+    "auto_price_preview": "سعر البيع بعد أول استلام هيبقى:",
+    "markup": "الهامش على سعر الشراء"
   },
   "instatus": {
     "ok": "متوفر",
@@ -1256,8 +1271,8 @@
     "eta_environment": "البيئة",
     "eta_preprod": "تجريبية (Preprod)",
     "eta_production": "إنتاج",
-    "eta_client_id": "Client ID",
-    "eta_client_secret": "Client Secret",
+    "eta_client_id": "معرّف العميل",
+    "eta_client_secret": "المفتاح السري",
     "eta_tax_number": "الرقم الضريبي للمنشأة",
     "eta_activity_code": "كود النشاط",
     "eta_company_name": "اسم المنشأة (كما بالسجل)",
@@ -2318,7 +2333,11 @@
     "verify_note": "الصفحة دي بتعرض سجل العيادة للروشتة — للمراجعة فقط.",
     "doctor_search_ph": "دوّر باسم الطبيب",
     "dose": "الجرعة",
-    "frequency": "عدد المرات"
+    "frequency": "عدد المرات",
+    "send_to_family": "ابعتها للأهل",
+    "save_pdf": "احفظ PDF",
+    "public_note": "دي نسخة رسمية من العيادة. لو محتاج تتأكد منها، امسح الكود اللي فوق.",
+    "license": "ترخيص"
   },
   "drug_forms": {
     "tablet": "أقراص",
@@ -2492,8 +2511,8 @@
     "price_policy": "سياسة سعر البيع",
     "policy_manual": "يدوي (ماحدش يلمس السعر)",
     "policy_auto": "تلقائي: آخر شراء + هامش %",
-    "margin": "هامش الربح %",
-    "margin_hint": "سيبه فاضي = الهامش الافتراضي للعيادة",
+    "margin": "هامش على سعر الشراء %",
+    "margin_hint": "بيتزوّد على سعر الشراء. سيبه فاضي = الهامش الافتراضي للعيادة.",
     "policy_title": "سياسات المخزن والتسعير",
     "dispense_policy": "سياسة صرف المخزن العام",
     "fifo": "FIFO — أول ما دخل أول ما يخرج",
@@ -2630,7 +2649,8 @@
     "enqueue_confirm": "هيتم وضع رسالة لكل أسرة في طابور الإرسال، وهتخرج تدريجياً حسب الحد اليومي. متأكد؟",
     "campaign_queued": "اتحطت {n} رسالة في طابور الحملة — هتخرج حسب الحد اليومي",
     "occ_away": "رد خارج المواعيد",
-    "occ_vaccine_back": "التطعيم بقى متوفر"
+    "occ_vaccine_back": "التطعيم بقى متوفر",
+    "occ_rx_copy": "نسخة الروشتة"
   },
   "feedback": {
     "title": "قيّم زيارتك",
@@ -2726,7 +2746,7 @@
     "inbound_title": "استقبال رسائل المرضى (Webhook)",
     "inbound_hint": "لاستقبال ردود المرضى (وتقييمهم من واتساب). يحتاج رابط نطاق عام (نفق/دومين) عشان يوصله واتساب.",
     "inbound_enable": "تفعيل الاستقبال",
-    "meta_verify_token": "Meta verify token",
+    "meta_verify_token": "رمز التحقق من Meta",
     "meta_verify_hint": "أي كلمة سر تكتبها هنا وتحطها في إعداد Webhook عند Meta للتحقق.",
     "webhook_secret": "سر الـ Webhook (لـ WaPilot)",
     "regen_secret": "إعادة توليد السر عند الحفظ",
@@ -3077,7 +3097,7 @@
   },
   "connection_types": {
     "usb": "USB",
-    "serial": "Serial",
+    "serial": "منفذ تسلسلي",
     "lan": "شبكة LAN",
     "wifi": "Wi-Fi",
     "bluetooth": "بلوتوث",

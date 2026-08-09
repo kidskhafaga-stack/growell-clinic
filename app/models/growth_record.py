@@ -7,6 +7,7 @@ columns are reserved for Phase 5.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 
 class GrowthRecord(db.Model):
@@ -18,7 +19,7 @@ class GrowthRecord(db.Model):
     )
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
 
-    record_date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    record_date = db.Column(db.Date, nullable=False, default=local_today)
     weight_kg = db.Column(db.Float)
     height_cm = db.Column(db.Float)
     head_circ_cm = db.Column(db.Float)

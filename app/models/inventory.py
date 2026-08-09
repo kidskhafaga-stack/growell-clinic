@@ -7,6 +7,7 @@ alerts (near-expiry, low/out of stock) are derived from these.
 from datetime import date, datetime, timedelta
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 # Alerting thresholds (overridable later via settings if needed).
 NEAR_EXPIRY_DAYS = 60
@@ -47,7 +48,7 @@ class VaccineInventory(db.Model):
     lot_number = db.Column(db.String(60))
     expiry_date = db.Column(db.Date)
     mfg_date = db.Column(db.Date)
-    received_date = db.Column(db.Date, default=lambda: datetime.utcnow().date())
+    received_date = db.Column(db.Date, default=local_today)
     # How this batch entered stock (Goods Receipt document reason).
     receipt_reason = db.Column(db.String(20), default="opening")
     # The numbered warehouse document (GRN) this batch arrived on (W1).

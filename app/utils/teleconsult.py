@@ -24,6 +24,7 @@ conversation stays in one place and the record stays with the clinic rather
 than in somebody's personal phone.
 """
 from datetime import datetime
+from app.utils.clock import local_today
 
 # What a doctor can conclude from a result. Deliberately three, and
 # deliberately explicit: "he replied with some text" is not a decision anybody
@@ -64,7 +65,7 @@ def record_decision(order, doctor, decision, note=None, new_test=None,
     visit = Visit(
         patient_id=order.patient_id,
         doctor_id=doctor.id,
-        visit_date=datetime.utcnow().date(),
+        visit_date=local_today(),
         channel="whatsapp",
         decision=decision,
         based_on_id=order.id,

@@ -3604,7 +3604,7 @@ def invoice_set_payer(invoice_id):
 @finance_bp.route("/claims")
 @module_required(MODULE)
 def claims():
-    today = datetime.utcnow().date()
+    today = local_today()
     date_from = _parse_date_arg("date_from", today.replace(day=1))
     date_to = _parse_date_arg("date_to", today)
 
@@ -3758,7 +3758,7 @@ def claim_action(claim_id):
 @module_required(MODULE)
 def claim_detail(payer_id):
     entity = db.get_or_404(PayerEntity, payer_id)
-    today = datetime.utcnow().date()
+    today = local_today()
     date_from = _parse_date_arg("date_from", today.replace(day=1))
     date_to = _parse_date_arg("date_to", today)
 
@@ -3794,7 +3794,7 @@ def _parse_date_arg(name, default=None):
 @finance_bp.route("/statements")
 @module_required(MODULE)
 def statements():
-    today = datetime.utcnow().date()
+    today = local_today()
     date_from = _parse_date_arg("date_from", today.replace(day=1))
     date_to = _parse_date_arg("date_to", today)
     paid_only = request.args.get("paid_only") == "1"
@@ -3830,6 +3830,7 @@ def statements():
 # ETA e-invoicing
 # =======================================================================
 import time as _time
+from app.utils.clock import local_today
 
 
 @finance_bp.route("/einvoice")
@@ -3914,7 +3915,7 @@ def _month_bounds(year, month):
 
 def _parse_month(arg):
     """Parse a 'YYYY-MM' arg, defaulting to the current month."""
-    today = datetime.utcnow().date()
+    today = local_today()
     raw = (arg or "").strip()
     try:
         y, m = raw.split("-")
@@ -4032,7 +4033,7 @@ def parse_date_or_today(raw, default=None):
     try:
         return datetime.strptime((raw or "").strip(), "%Y-%m-%d").date()
     except ValueError:
-        return default or datetime.utcnow().date()
+        return default or local_today()
 
 
 # ================================================================= P&L =====

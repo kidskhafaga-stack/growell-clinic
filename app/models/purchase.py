@@ -7,6 +7,7 @@ received quantities (optionally recording the receipt as a clinic expense).
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 PO_STATUSES = ["draft", "approved", "partial", "received", "cancelled"]
 
@@ -19,7 +20,7 @@ class PurchaseOrder(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True, index=True)
     status = db.Column(db.String(12), default="draft", nullable=False, index=True)
 
-    order_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
+    order_date = db.Column(db.Date, default=local_today, nullable=False)
     expected_date = db.Column(db.Date)
     notes = db.Column(db.Text)
 

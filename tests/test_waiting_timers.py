@@ -27,6 +27,20 @@ from datetime import date, datetime, time, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
+def _midday(days_ago=0):
+    """A fixed hour of the day, ``days_ago`` days back.
+
+    Not ``utcnow()``. A consultation that starts before midnight and ends
+    after it is deliberately *not* counted — a visit that crossed into another
+    day is not evidence about how long consultations take — so a test that
+    anchors its stamps to the current moment quietly fails for the half hour
+    before midnight UTC and passes every other hour of the day. It did, on a
+    run at 23:33.
+    """
+    return datetime.combine(date.today() - timedelta(days=days_ago),
+                            time(10, 0))
+
+
 def _appt(db, clinic_ids, doctor_id=None, status="waiting", **kw):
     from app.models import Appointment
 
@@ -529,7 +543,7 @@ def test_the_doctors_screen_describes_the_month_without_scoring_it(clinic):
 
     db = clinic["db"]
     with clinic["app"].app_context():
-        base = datetime.utcnow() - timedelta(days=1)
+        base = _midday(1)
         for minutes in (10, 14, 30):
             _appt(db, clinic["ids"], status="completed", started_at=base,
                   completed_at=base + timedelta(minutes=minutes))
@@ -554,7 +568,7 @@ def test_the_report_stops_reporting_one_wait_for_two_queues(clinic):
     same fix, so the sum of them is not something anybody can act on."""
     db = clinic["db"]
     with clinic["app"].app_context():
-        base = datetime.utcnow() - timedelta(hours=2)
+        base = _midday()
         _appt(db, clinic["ids"], status="completed", checked_in_at=base,
               vitals_at=base + timedelta(minutes=8),
               started_at=base + timedelta(minutes=40),
@@ -654,7 +668,7 @@ def test_a_machine_that_cannot_resolve_its_zone_reports_nothing(clinic):
     with clinic["app"].app_context():
         Setting.set("clinic_timezone", "Mars/Olympus_Mons")
         db.session.commit()
-        base = datetime.utcnow()
+        base = _midday()
         _appt(db, clinic["ids"], started_at=base,
               completed_at=base + timedelta(minutes=15))
         db.session.commit()
