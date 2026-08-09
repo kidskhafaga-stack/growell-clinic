@@ -308,16 +308,36 @@ def test_a_register_entry_is_never_linked_to_a_different_ingredient(clinic):
         db.session.commit()
         seed_register()
 
+        # The link is no longer *string-exact*: one ingredient is spelled
+        # several ways ("PARACETAMOL(ACETAMINOPHEN)", "CEFALEXIN"), and 344
+        # brands reach already-referenced dosing through that. What must stay
+        # exact is the **route**, and that is what this now checks.
+        #
+        # It is not a hypothetical. The first version of the spelling table
+        # stripped every bracket, and measuring the result found 27 systemic
+        # ofloxacin products linked to "Ofloxacin (otic)" — ear drops — plus
+        # 21 chloramphenicol to the eye entry, whose systemic form causes grey
+        # baby syndrome, and 18 ketoconazole to the topical entry, whose oral
+        # form is hepatotoxic and restricted.
+        from app.utils.ingredient_names import _is_route
+        import re as _re
+
         generics = {g.id: (g.name_en, g.name_ar) for g in GenericDrug.query.all()}
-        mismatched = []
+        wrong_route = []
         for drug in Drug.query.filter(Drug.generic_id.isnot(None)).all():
-            names = {n.strip().upper() for n in generics.get(drug.generic_id, ())
-                     if n}
-            if (drug.generic_name or "").strip().upper() not in names:
-                mismatched.append(drug.trade_name)
-        assert not mismatched, (
-            "these carry dosing from an ingredient that is not what is in the "
-            "box: " + ", ".join(mismatched[:5]))
+            english = (generics.get(drug.generic_id, (None,))[0] or "")
+            box = (drug.generic_name or "").strip().upper()
+            for bracket in _re.findall(r"\(([^)]*)\)", english):
+                if not _is_route(bracket):
+                    continue
+                # The ingredient is route-qualified, so the box has to say the
+                # same route — or be the same string, brackets and all.
+                if (bracket.strip().upper() not in box
+                        and box != english.strip().upper()):
+                    wrong_route.append(f"{drug.trade_name} [{box}] -> {english}")
+        assert not wrong_route, (
+            "these carry dosing from an ingredient given by a different "
+            "route: " + ", ".join(wrong_route[:5]))
 
 
 def test_a_register_entry_with_no_match_is_still_usable(clinic):

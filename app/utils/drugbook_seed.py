@@ -1136,17 +1136,21 @@ def seed_brands():
 
 
 def link_existing_drugs():
-    """Attach drugs the clinic typed itself to a matching ingredient."""
-    generics = {}
-    for g in GenericDrug.query.all():
-        for key in (g.name_en, g.name_ar):
-            if key:
-                generics[key.strip().lower()] = g.id
+    """Attach drugs the clinic typed itself to a matching ingredient.
+
+    Through the same spelling table the register import uses, so a drug a
+    nurse typed as "Acyclovir" and one the register spells "ACICLOVIR" reach
+    the same ingredient. Matching exactly here and loosely there would make
+    whether a box carries a dose depend on who entered it.
+    """
+    from app.utils.ingredient_names import index_of, match
+
+    table = index_of(GenericDrug.query.all())
     n = 0
     for d in Drug.query.filter(Drug.generic_id.is_(None)).all():
-        key = (d.generic_name or "").strip().lower()
-        if key and key in generics:
-            d.generic_id = generics[key]
+        found = match(d.generic_name, table)
+        if found is not None:
+            d.generic_id = found.id
             n += 1
     return n
 
