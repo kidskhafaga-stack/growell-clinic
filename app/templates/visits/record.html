@@ -57,6 +57,25 @@
   <!-- Clinical safety: allergies / chronic diseases, up front -->
   {% with p = visit.patient %}{% include "_safety_banner.html" %}{% endwith %}
 
+  {# The age-banded reading of this child's own vitals. The nurse's station has
+     shown this since it was written; the doctor's screen showed the numbers and
+     left the band unsaid — and the band is the part that is not obvious, since
+     38.6 is a cold in a four-year-old and a workup in a six-week-old. It states
+     the limit it used, so a doctor who disagrees can see the rule rather than
+     argue with a colour. #}
+  {% if red_flag and red_flag.level %}
+  <div class="alert-pill {{ 'danger' if red_flag.level == 'urgent' else 'warn' }} no-print gc-scale-in"
+       style="margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <i class="bi bi-{{ 'exclamation-octagon-fill' if red_flag.level == 'urgent' else 'exclamation-triangle-fill' }}"></i>
+    <strong>{{ t('redflags.level_' ~ red_flag.level) }}</strong>
+    <span>{% for why in red_flag.reasons %}{{ t('redflags.' ~ why) }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+    {% if red_flag.temp_limit %}
+    <span class="muted" style="font-size:0.8rem;" dir="auto">({{ t('redflags.limits_for_age') }}
+      {{ red_flag.temp_limit }}° / {{ red_flag.urgent_limit }}°)</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Active problem list (GAHAR continuity) -->
   {% set _active_problems = visit.patient.problems | selectattr('status', 'equalto', 'active') | list %}
   {% if _active_problems %}
@@ -1152,7 +1171,16 @@
   .visit-tabs.has-pill .vtab.active { background:transparent; border-color:transparent; }
   .visit-tabs { position:relative; }
   .vtab { position:relative; z-index:1; }
-  .vtab-pill { position:absolute; z-index:0; border-radius:999px; background:var(--green-600);
+  /* Anchored to the strip's own corner, not left to fall where the flex line
+     would have put it. Without `left/top` an absolute box keeps its static
+     position — which in a right-to-left row is the *right* end of the strip,
+     already level with the first tab. The script then translates it by that
+     same offset again and the highlight lands a screen-width away, off the
+     page. Left-to-right hid the fault: there the static position is 0, so the
+     translate happened to be right. The clinic works in Arabic, so the current
+     step was the one step nobody could see — white text, no pill behind it. */
+  .vtab-pill { position:absolute; z-index:0; left:0; top:0;
+    border-radius:999px; background:var(--green-600);
     opacity:0; pointer-events:none;
     transition:opacity .15s ease,
       transform .42s cubic-bezier(0.34, 1.2, 0.64, 1),

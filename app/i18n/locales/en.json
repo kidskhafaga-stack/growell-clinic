@@ -1900,7 +1900,12 @@
     "forgotten": "records left open",
     "overlapping": "overlapping visits",
     "timing_note": "A description of the last month, not a ranking — a shorter consultation is not a better one. What is measured here is running over the booked slot, because that is what delays everyone behind.",
-    "late_start": "Clinic start"
+    "late_start": "Clinic start",
+    "rx_setup": "Prescription layout",
+    "rx_setup_hint": "The layout this doctor's prescriptions print on, with their signature and stamp.",
+    "rx_use_default": "The clinic's default layout",
+    "rx_no_templates": "No layouts yet — create one from Print templates.",
+    "rx_template": "Layout"
   },
   "problems": {
     "title_list": "Problem list",
@@ -4585,7 +4590,8 @@
     "drowsy": "Drowsy",
     "breathing": "Difficulty breathing",
     "convulsion": "Convulsion",
-    "in_queue": "urgent case waiting"
+    "in_queue": "urgent case waiting",
+    "limits_for_age": "Limit for this age:"
   },
   "phrases": {
     "title": "Quick phrases and shortcuts",
