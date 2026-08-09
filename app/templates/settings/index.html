@@ -141,7 +141,7 @@
     <p class="hint" style="margin-top:-6px;">{{ t('settings.clinic_accent_hint') }}</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
       <input type="color" name="clinic_accent" id="clinicAccent"
-             value="{{ values.get('clinic_accent') or '#198754' }}"
+             value="{{ values.get('clinic_accent') or program.accent }}"
              style="width:54px;height:40px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:none;">
       {% if clinic.logo_url %}
       <button type="button" class="btn btn-outline btn-sm gc-press" onclick="useLogoColors()">

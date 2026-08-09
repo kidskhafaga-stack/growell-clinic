@@ -1,0 +1,102 @@
+{% extends "shell.html" %}
+{% from "_print_header.html" import print_header with context %}
+{% set active_module = 'reports' %}
+{% block title %}{{ t('reports.discounts') }}{% endblock %}
+{% block page_heading %}{{ t('reports.discounts') }}{% endblock %}
+
+{% block content %}
+<div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('reports.back') }}</a>
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
+    <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('reports.show') }}</button>
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in print-area">
+  {{ print_header(t('reports.discounts'), t('reports.period') ~ ': <strong>' ~ (date_from|string) ~ ' → ' ~ (date_to|string) ~ '</strong>') }}
+
+  <div class="stat-grid" style="margin-bottom:16px;">
+    <div class="stat-card edge-red"><i class="bi bi-tags ico"></i>
+      <div class="value">{{ total }}</div><div class="label">{{ t('reports.disc_given') }}</div></div>
+    <div class="stat-card edge-blue"><i class="bi bi-receipt ico"></i>
+      <div class="value">{{ rows|length }}</div><div class="label">{{ t('reports.disc_invoices') }}</div></div>
+    <div class="stat-card edge-green"><i class="bi bi-cash-stack ico"></i>
+      <div class="value">{{ billed }}</div><div class="label">{{ t('reports.disc_billed') }}</div></div>
+    {# The share is what makes the number mean anything: 3,000 given away is
+       a rounding error on 200,000 and a crisis on 12,000. #}
+    <div class="stat-card {{ 'edge-red' if share >= 15 else 'edge-yellow' }}"><i class="bi bi-percent ico"></i>
+      <div class="value">{{ share }}%</div><div class="label">{{ t('reports.disc_share') }}</div></div>
+  </div>
+
+  {% if rows %}
+  <div class="form-grid" style="margin-bottom:18px;">
+    <div>
+      <h3 class="section-title"><i class="bi bi-bookmark"></i> {{ t('reports.disc_by_rule') }}</h3>
+      {# A rule the clinic decided on and a number somebody typed at the till
+         are the same money and completely different problems. #}
+      <table class="table">
+        <thead><tr><th>{{ t('reports.disc_rule') }}</th>
+          <th class="num">{{ t('reports.disc_invoices') }}</th>
+          <th class="num">{{ t('reports.disc_given') }}</th></tr></thead>
+        <tbody>
+          {% for r in by_rule %}
+          <tr>
+            <td>{% if r.name %}{{ r.name }}{% else %}
+              <em>{{ t('reports.disc_by_hand') }}</em>{% endif %}</td>
+            <td class="num" dir="ltr">{{ r.count }}</td>
+            <td class="num" dir="ltr"><strong>{{ r.total }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 class="section-title"><i class="bi bi-person-badge"></i> {{ t('reports.disc_by_user') }}</h3>
+      <table class="table">
+        <thead><tr><th>{{ t('reports.disc_who') }}</th>
+          <th class="num">{{ t('reports.disc_invoices') }}</th>
+          <th class="num">{{ t('reports.disc_given') }}</th></tr></thead>
+        <tbody>
+          {% for r in by_user %}
+          <tr>
+            <td>{{ r.user.display_name(current_lang) if r.user else '—' }}</td>
+            <td class="num" dir="ltr">{{ r.count }}</td>
+            <td class="num" dir="ltr"><strong>{{ r.total }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3 class="section-title"><i class="bi bi-list-ul"></i> {{ t('reports.disc_each') }}</h3>
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('reports.date') }}</th><th>{{ t('invoices.invoice_number') }}</th>
+        <th>{{ t('reports.patient') }}</th><th>{{ t('reports.disc_rule') }}</th>
+        <th class="num">{{ t('reports.disc_billed') }}</th>
+        <th class="num">{{ t('reports.disc_given') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td dir="ltr">{{ r.invoice.invoice_date }}</td>
+          <td dir="ltr"><a href="{{ url_for('finance.invoice_view', invoice_id=r.invoice.id) }}">{{ r.invoice.invoice_number }}</a></td>
+          <td>{{ r.invoice.patient.display_name(current_lang) if r.invoice.patient else '—' }}</td>
+          <td>{% if r.rule %}{{ r.rule }}{% else %}<em>{{ t('reports.disc_by_hand') }}</em>{% endif %}</td>
+          <td class="num" dir="ltr">{{ r.gross }}</td>
+          <td class="num" dir="ltr"><strong style="color:var(--danger);">{{ r.amount }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-tags"></i>{{ t('reports.disc_none') }}</div>
+  {% endif %}
+</div>
+{% endblock %}
