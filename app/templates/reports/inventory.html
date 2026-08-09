@@ -8,6 +8,12 @@
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
   <a class="btn btn-outline gc-press" href="{{ url_for('reports.index') }}"><i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('reports.back') }}</a>
   <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+    {# Same page, as a file somebody can send. `.print-area` is already
+       the convention for "the part that is the document"; `.no-print`
+       furniture is dropped by the renderer, so the toolbar above does
+       not end up inside the image. #}
+    <button class="btn btn-outline gc-press" type="button"
+            onclick="gcSaveImage('.print-area', 'inventory.png', this)"><i class="bi bi-file-earmark-image"></i> {{ t('reports.save_image') }}</button>
 </div>
 
 <div class="card gc-scale-in print-area">

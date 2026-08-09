@@ -13,6 +13,12 @@
     <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('reports.show') }}</button>
     <button class="btn btn-outline gc-press" type="button" onclick="window.print()"><i class="bi bi-printer"></i> {{ t('reports.print') }}</button>
+    {# Same page, as a file somebody can send. `.print-area` is already
+       the convention for "the part that is the document"; `.no-print`
+       furniture is dropped by the renderer, so the toolbar above does
+       not end up inside the image. #}
+    <button class="btn btn-outline gc-press" type="button"
+            onclick="gcSaveImage('.print-area', 'staff_statement.png', this)"><i class="bi bi-file-earmark-image"></i> {{ t('reports.save_image') }}</button>
   </form>
 </div>
 

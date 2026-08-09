@@ -2214,7 +2214,8 @@
     "disc_by_hand": "Typed by hand (no rule)",
     "disc_none": "No discounts in this period.",
     "patient": "Patient",
-    "date": "Date"
+    "date": "Date",
+    "save_image": "Save as image"
   },
   "ai": {
     "title": "AI Assistant",
