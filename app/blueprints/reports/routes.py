@@ -23,6 +23,7 @@ from app.models import (
     Visit,
 )
 from app.utils.decorators import module_required
+from app.utils.clock import local_today
 
 MODULE = "reports"
 
@@ -43,7 +44,7 @@ def _age_bucket(patient):
 
 
 def _range():
-    today = datetime.utcnow().date()
+    today = local_today()
     def parse(name, default):
         raw = (request.args.get(name) or "").strip()
         if not raw:
@@ -150,7 +151,7 @@ AGING_BUCKETS = [(0, 30), (31, 60), (61, 90), (91, None)]
 def ar_aging():
     """AR aging (أعمار الديون): every unpaid balance bucketed by how long it
     has been outstanding, grouped per patient — the collection to-do list."""
-    today = datetime.utcnow().date()
+    today = local_today()
     open_invoices = [i for i in Invoice.query
                      .filter(Invoice.status.in_(["unpaid", "partial"])).all()
                      if i.balance > 0.009]
@@ -184,7 +185,7 @@ def _as_of():
             return datetime.strptime(raw, "%Y-%m-%d").date()
         except ValueError:
             pass
-    return datetime.utcnow().date()
+    return local_today()
 
 
 def _ledger_movements(as_of):
@@ -374,7 +375,7 @@ def patient_statement(patient_id):
                 "kind": "refund" if pay.kind == "refund" else "payment",
                 "ref": inv.invoice_number, "amount": pay.amount or 0,
             })
-    events.sort(key=lambda e: (e["date"] or datetime.utcnow().date(), e["kind"]))
+    events.sort(key=lambda e: (e["date"] or local_today(), e["kind"]))
 
     # Opening balance = net of everything strictly before the range start; the
     # in-range rows then continue the running balance from there.
@@ -399,7 +400,7 @@ def patient_statement(patient_id):
     return render_template("reports/statement.html", patient=patient,
                            events=shown, summary=summary,
                            opening=opening, date_from=date_from, date_to=date_to,
-                           today=datetime.utcnow().date())
+                           today=local_today())
 
 
 @reports_bp.route("/operational")

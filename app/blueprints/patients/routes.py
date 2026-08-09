@@ -40,6 +40,7 @@ from app.models import (
     PatientAttachment,
     PatientProblem,
 )
+from app.utils.clock import local_today
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.decorators import capability_required, client_ip, module_required
 from app.utils.paging import paginate
@@ -190,7 +191,7 @@ def analytics():
     days = request.args.get("days", 90, type=int)
     if days not in (30, 90, 180, 365):
         days = 90
-    start = datetime.utcnow().date() - timedelta(days=days)
+    start = local_today() - timedelta(days=days)
 
     patients = Patient.query.filter_by(is_active=True).all()
     groups = {key: 0 for key, _ in AGE_GROUPS}

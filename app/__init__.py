@@ -11,6 +11,7 @@ from config import config as config_map
 
 from app import i18n
 from app.extensions import db, login_manager
+from app.utils.clock import local_today
 
 
 @event.listens_for(Engine, "connect")
@@ -197,7 +198,7 @@ def create_app(config_name="default"):
             "module_enabled": module_enabled,
             "small_clinic_mode": Setting.get("small_clinic_mode", "0") == "1",
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
-            "now_date": datetime.utcnow().date().isoformat(),
+            "now_date": local_today().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),
             # Two forms, because the sidebar and the About page are asking
             # different questions. The short one is a credit line; the long one

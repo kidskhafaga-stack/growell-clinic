@@ -34,6 +34,7 @@ from app.utils import whatsapp as wa
 from app.utils.decorators import admin_required, module_required
 from app.utils.paging import paginate
 from app.utils.triage import TOPICS as TRIAGE_TOPICS
+from app.utils.clock import local_today
 
 MODULE = "messages"
 ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "gif"}
@@ -791,7 +792,7 @@ def _parse_day():
             return datetime.strptime(raw, "%Y-%m-%d").date()
         except ValueError:
             pass
-    return datetime.utcnow().date()
+    return local_today()
 
 
 @messages_bp.route("/roster")

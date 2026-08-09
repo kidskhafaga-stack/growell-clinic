@@ -44,6 +44,7 @@ from app.utils.paging import paginate
 from app.utils.icd import search_icd
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
+from app.utils.clock import local_today
 
 MODULE = "visits"
 
@@ -399,7 +400,7 @@ def station():
     from app.utils.patients import apply_patient_search
     from app.utils.red_flags import assess
 
-    today = datetime.utcnow().date()
+    today = local_today()
     appts = (Appointment.query
              .filter(Appointment.appt_date == today,
                      Appointment.status.in_(("waiting", "in_progress")))
@@ -1283,7 +1284,7 @@ def study_new(patient_id):
             sdate = _dt.strptime((request.form.get("study_date") or "").strip(),
                                  "%Y-%m-%d").date()
         except ValueError:
-            sdate = _dt.utcnow().date()
+            sdate = local_today()
         # Attach to the visit it was opened from, else the patient's open one.
         visit_id = request.values.get("visit_id", type=int)
         open_visit = db.session.get(Visit, visit_id) if visit_id else None
@@ -1320,7 +1321,7 @@ def study_new(patient_id):
     return render_template("visits/study_new.html", patient=patient,
                            devices=devices, device=device,
                            visit_id=request.values.get("visit_id", type=int),
-                           today=datetime.utcnow().date().isoformat())
+                           today=local_today().isoformat())
 
 
 @visits_bp.route("/studies/<int:study_id>")
@@ -1348,4 +1349,4 @@ def study_print(study_id):
         g.direction = get_direction(lang)
     study = db.get_or_404(DeviceStudy, study_id)
     return render_template("visits/study_print.html", study=study,
-                           spiro=analyse(study), today=datetime.utcnow().date())
+                           spiro=analyse(study), today=local_today())

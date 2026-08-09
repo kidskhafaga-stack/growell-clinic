@@ -8,6 +8,7 @@ and posts adjustment movements for the differences.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 MOVEMENT_KINDS = ["in", "out", "adjust", "waste"]
 
@@ -113,7 +114,7 @@ class StoreDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     doc_number = db.Column(db.String(40), unique=True, nullable=False, index=True)
     kind = db.Column(db.String(10), default="grn", nullable=False, index=True)
-    doc_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(),
+    doc_date = db.Column(db.Date, default=local_today,
                          nullable=False, index=True)
     # Where the document acts (W2); a transfer also has a destination.
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=True)

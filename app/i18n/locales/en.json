@@ -1159,7 +1159,7 @@
     "dispense_unit": "Dispense unit",
     "units_per_purchase_hint": "Dispense units per one purchase unit (e.g. 10 doses per vial).",
     "profit": "Profit",
-    "profit_margin": "Profit margin",
+    "profit_margin": "Profit share of price",
     "clinic_net": "Clinic net",
     "doses_per_vial": "Dispense units per purchase unit",
     "items_title": "Item catalogue",
@@ -1199,7 +1199,8 @@
     "count_reason": "Reason for the difference (optional)",
     "count_reason_ph": "Breakage, spoilage, a recording error…",
     "into_warehouse": "Receive into",
-    "auto_price_preview": "After the next delivery the sell price becomes:"
+    "auto_price_preview": "After the next delivery the sell price becomes:",
+    "markup": "Markup on cost"
   },
   "instatus": {
     "ok": "In stock",
@@ -2497,8 +2498,8 @@
     "price_policy": "Sell-price policy",
     "policy_manual": "Manual (price untouched)",
     "policy_auto": "Auto: last purchase + margin %",
-    "margin": "Profit margin %",
-    "margin_hint": "Leave blank = clinic default margin",
+    "margin": "Markup on cost %",
+    "margin_hint": "Added on top of the purchase price. Leave blank = clinic default.",
     "policy_title": "Store & pricing policies",
     "dispense_policy": "General-store dispensing policy",
     "fifo": "FIFO — first in, first out",

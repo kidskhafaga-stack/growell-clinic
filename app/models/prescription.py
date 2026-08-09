@@ -8,6 +8,7 @@ optional per-drug max daily dose for guidance/over-dose flags.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 DRUG_FORMS = ["tablet", "capsule", "syrup", "suspension", "drops",
               "injection", "cream", "ointment", "suppository", "inhaler", "other"]
@@ -271,7 +272,7 @@ class Prescription(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
-    rx_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
+    rx_date = db.Column(db.Date, default=local_today, nullable=False)
     diagnosis = db.Column(db.String(255))
     diagnosis_code = db.Column(db.String(20))   # ICD-10 code snapshot
     # How settled the diagnosis is. A guardian reading "التهاب رئوي" cannot

@@ -76,7 +76,16 @@ def to_local(moment, tz=None):
     """
     if moment is None:
         return None
-    zone = tz if tz is not None else clinic_tz()
+    # ``tz`` may be a zone *name* or an already-resolved zone. Taking only the
+    # second was a trap: every setting, every form field and every caller with
+    # a zone to hand has the name, and passing it raised deep inside
+    # ``astimezone`` with a message about tzinfo subclasses.
+    if isinstance(tz, str):
+        zone = clinic_tz(tz)
+    elif tz is not None:
+        zone = tz
+    else:
+        zone = clinic_tz()
     if zone is None:
         return None
     from datetime import timezone
@@ -87,6 +96,18 @@ def to_local(moment, tz=None):
 
 
 def local_today(tz=None):
-    """Today's date in the clinic, which is not always today's date in UTC."""
+    """Today's date in the clinic, which is not always today's date in UTC.
+
+    This is what a record should be **stamped** with and what a screen should
+    mean by "today". A visit opened at half past midnight in Cairo is a visit
+    today; dated from ``utcnow()`` it lands on yesterday and stays there — in
+    the day's list, in the month's revenue, and in the child's history. The
+    window is small (two or three hours a night) and a paediatric clinic is
+    exactly the kind that is open inside it.
+
+    Falls back to the UTC date when the zone cannot be resolved, because a
+    date is not optional: every caller here needs *a* day, and the settings
+    screen already says out loud when the zone is unreadable.
+    """
     local = to_local(datetime.utcnow(), tz)
     return local.date() if local else datetime.utcnow().date()

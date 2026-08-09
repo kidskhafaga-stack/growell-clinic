@@ -91,8 +91,16 @@
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:6px 0 12px;">
       <div class="pl-box"><span class="pl-k">{{ t('inventory.profit') }}</span>
         <span class="pl-v" x-text="(sell - cost).toFixed(2)"></span></div>
+      {# Two different numbers that were both called "هامش الربح", and they
+         never agreed: this one is the profit as a share of the *sell* price,
+         while the margin typed into the field above is added on top of the
+         *cost*. Type 25 and this used to answer 20, on the same screen. They
+         are named for what they are now, rather than made to match — both are
+         real questions a clinic asks. #}
       <div class="pl-box"><span class="pl-k">{{ t('inventory.profit_margin') }}</span>
         <span class="pl-v" x-text="sell > 0 ? ((sell - cost) / sell * 100).toFixed(1) + '%' : '—'"></span></div>
+      <div class="pl-box"><span class="pl-k">{{ t('inventory.markup') }}</span>
+        <span class="pl-v" x-text="cost > 0 ? ((sell - cost) / cost * 100).toFixed(1) + '%' : '—'"></span></div>
       <div class="pl-box"><span class="pl-k">{{ t('inventory.clinic_net') }}</span>
         <span class="pl-v" x-text="(sell - cost - fee).toFixed(2)"></span></div>
     </div>

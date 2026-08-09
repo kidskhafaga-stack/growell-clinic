@@ -9,6 +9,7 @@ collections; the invoice status is derived from paid-vs-total.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 INVOICE_STATUSES = ["unpaid", "partial", "paid"]
 PAYMENT_METHODS = ["cash", "card", "instapay", "transfer", "wallet"]
@@ -30,7 +31,7 @@ class Invoice(db.Model):
     discount_name = db.Column(db.String(120))
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    invoice_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
+    invoice_date = db.Column(db.Date, default=local_today, nullable=False)
     status = db.Column(db.String(10), default="unpaid", nullable=False)
     is_tax = db.Column(db.Boolean, default=False, nullable=False)  # ETA tax invoice
     notes = db.Column(db.Text)

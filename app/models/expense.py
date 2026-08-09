@@ -7,6 +7,7 @@ without re-entering it.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 EXPENSE_CATEGORIES = [
     "rent", "salaries", "utilities", "supplies",
@@ -19,7 +20,7 @@ class Expense(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     expense_date = db.Column(
-        db.Date, default=lambda: datetime.utcnow().date(), nullable=False, index=True
+        db.Date, default=local_today, nullable=False, index=True
     )
     category = db.Column(db.String(20), default="other", nullable=False, index=True)
     description = db.Column(db.String(200))

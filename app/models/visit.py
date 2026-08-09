@@ -7,6 +7,7 @@ mirrored into growth_records for the growth charts (Phase 5).
 from datetime import datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 VISIT_STATUSES = ["open", "completed"]
 INVESTIGATION_STATUSES = ["requested", "resulted"]
@@ -24,7 +25,7 @@ class Visit(db.Model):
         db.Integer, db.ForeignKey("appointments.id"), nullable=True
     )
 
-    visit_date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    visit_date = db.Column(db.Date, nullable=False, default=local_today)
 
     chief_complaint = db.Column(db.Text)
     clinical_exam = db.Column(db.Text)

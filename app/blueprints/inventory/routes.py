@@ -35,6 +35,7 @@ from app.utils.costing import (apply_purchase_cost, default_margin,
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.periods import period_blocked
+from app.utils.clock import local_today
 
 MODULE = "inventory"
 
@@ -255,7 +256,7 @@ def batch_new():
     # Stock is money on a shelf: receiving a box into January after January's
     # books are signed changes January's closing stock value. The store obeys
     # the same period lock the till does.
-    received_on = _parse_date("received_date") or datetime.utcnow().date()
+    received_on = _parse_date("received_date") or local_today()
     if period_blocked(received_on):
         return redirect(url_for("inventory.index"))
 
@@ -269,7 +270,7 @@ def batch_new():
         lot_number=(request.form.get("lot_number") or "").strip() or None,
         expiry_date=_parse_date("expiry_date"),
         mfg_date=_parse_date("mfg_date"),
-        received_date=_parse_date("received_date") or datetime.utcnow().date(),
+        received_date=_parse_date("received_date") or local_today(),
         receipt_reason=reason,
         qty_received=qty_doses,
         unit_cost=request.form.get("unit_cost", type=float),
@@ -307,7 +308,7 @@ def receipt_new():
         if reason not in RECEIPT_REASONS:
             reason = "opening"
         supplier_id = request.form.get("supplier_id", type=int) or None
-        received = _parse_date("received_date") or datetime.utcnow().date()
+        received = _parse_date("received_date") or local_today()
         if period_blocked(received):
             return redirect(url_for("inventory.receipt_new"))
         header_note = (request.form.get("notes") or "").strip() or None
@@ -378,7 +379,7 @@ def receipt_new():
 
     return render_template(
         "inventory/receipt_form.html", brands=brands, suppliers=_suppliers(),
-        receipt_reasons=RECEIPT_REASONS, today=datetime.utcnow().date().isoformat(),
+        receipt_reasons=RECEIPT_REASONS, today=local_today().isoformat(),
         warehouses=_warehouses(), into=_receiving_warehouse(),
     )
 
@@ -477,7 +478,7 @@ def vaccine_stocktake():
 
     batches = card.batches_in(warehouse)
     if request.method == "POST":
-        if period_blocked(datetime.utcnow().date()):
+        if period_blocked(local_today()):
             return redirect(url_for("inventory.vaccine_stocktake",
                                     warehouse_id=warehouse.id))
         doc = None
@@ -527,7 +528,7 @@ def batch_delete(batch_id):
     batch = db.get_or_404(VaccineInventory, batch_id)
     # Deleting a batch received inside a signed month rewrites that month's
     # closing stock — same rule as deleting one of its invoices.
-    if period_blocked(batch.received_date or datetime.utcnow().date()):
+    if period_blocked(batch.received_date or local_today()):
         return redirect(url_for("inventory.index"))
     db.session.delete(batch)
     db.session.commit()
@@ -699,7 +700,7 @@ def store_move(item_id):
     if qty <= 0:
         flash(t("store.bad_qty"), "danger")
         return redirect(url_for("inventory.store"))
-    if period_blocked(datetime.utcnow().date()):
+    if period_blocked(local_today()):
         return redirect(url_for("inventory.store"))
     # Receipts add, issues/wastage subtract — each under a numbered document.
     from app.utils.store_docs import open_document
@@ -806,7 +807,7 @@ def stocktake():
         return redirect(url_for("inventory.store"))
     items = StoreItem.query.filter_by(is_active=True).order_by(StoreItem.name).all()
     if request.method == "POST":
-        if period_blocked(datetime.utcnow().date()):
+        if period_blocked(local_today()):
             return redirect(url_for("inventory.stocktake",
                                     warehouse_id=warehouse.id))
         adjusted = 0
@@ -959,7 +960,7 @@ def transfer_new():
         # Stock may only leave a store its keeper is responsible for.
         if _warehouse_denied(src):
             return redirect(url_for("inventory.transfer_new"))
-        if period_blocked(datetime.utcnow().date()):
+        if period_blocked(local_today()):
             return redirect(url_for("inventory.transfer_new"))
 
         doc = None
@@ -1017,7 +1018,7 @@ def transfer_new():
                 brand_id=batch.brand_id, supplier_id=batch.supplier_id,
                 lot_number=batch.lot_number, expiry_date=batch.expiry_date,
                 mfg_date=batch.mfg_date,
-                received_date=datetime.utcnow().date(),
+                received_date=local_today(),
                 receipt_reason="transfer", qty_received=qty,
                 unit_cost=batch.unit_cost, warehouse_id=dst.id,
                 document_id=doc.id,
@@ -1066,7 +1067,7 @@ def return_new():
                if b.qty_remaining > 0]
 
     if request.method == "POST":
-        if period_blocked(datetime.utcnow().date()):
+        if period_blocked(local_today()):
             return redirect(url_for("inventory.return_new"))
         src = db.session.get(Warehouse, request.form.get("from_id", type=int)) \
             or Warehouse.default()
@@ -1124,7 +1125,7 @@ def return_new():
             db.session.add(VaccineInventory(
                 brand_id=batch.brand_id, supplier_id=supplier_id or batch.supplier_id,
                 lot_number=batch.lot_number, expiry_date=batch.expiry_date,
-                received_date=datetime.utcnow().date(),
+                received_date=local_today(),
                 receipt_reason="return", qty_received=qty, qty_used=qty,
                 unit_cost=batch.unit_cost, document_id=doc.id,
                 warehouse_id=doc.warehouse_id,
@@ -1211,7 +1212,7 @@ def purchase_new():
         po = PurchaseOrder(
             po_number=_po_number(),
             supplier_id=request.form.get("supplier_id", type=int) or None,
-            order_date=_parse_date("order_date") or datetime.utcnow().date(),
+            order_date=_parse_date("order_date") or local_today(),
             expected_date=_parse_date("expected_date"),
             notes=(request.form.get("notes") or "").strip() or None,
             created_by=current_user.id, status="draft",
@@ -1287,7 +1288,7 @@ def purchase_receive(po_id):
         return redirect(url_for("inventory.purchase_view", po_id=po.id))
     # A GRN is a purchase: it raises stock value and the supplier's balance.
     # Neither belongs in a month that has already been signed off.
-    if period_blocked(datetime.utcnow().date()):
+    if period_blocked(local_today()):
         return redirect(url_for("inventory.purchase_view", po_id=po.id))
 
     from app.utils.store_docs import open_document
@@ -1316,7 +1317,7 @@ def purchase_receive(po_id):
                 lot_number=(request.form.get(f"lot_{item.id}") or "").strip() or None,
                 expiry_date=_parse_date(f"exp_{item.id}"),
                 mfg_date=_parse_date(f"mfg_{item.id}"),
-                received_date=datetime.utcnow().date(), receipt_reason="purchase",
+                received_date=local_today(), receipt_reason="purchase",
                 qty_received=recv, unit_cost=item.unit_cost,
                 document_id=grn.id,
                 # A delivery of vaccines goes in the fridge, like every other
@@ -1350,7 +1351,7 @@ def purchase_receive(po_id):
     if request.form.get("as_expense") and receipt_value > 0:
         from app.models import Expense
         db.session.add(Expense(
-            expense_date=datetime.utcnow().date(), category="supplies",
+            expense_date=local_today(), category="supplies",
             description=t("purchases.grn_reason", po=po.po_number),
             amount=round(receipt_value, 2),
             vendor=(po.supplier.name if po.supplier else None),

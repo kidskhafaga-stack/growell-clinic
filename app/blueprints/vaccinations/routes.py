@@ -39,6 +39,7 @@ from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
 from app.utils.dose_labels import dose_choices, dose_label
 from app.utils.patients import apply_patient_search
+from app.utils.clock import local_today
 from app.utils.vaccine_notify import notify_dose
 from app.utils.vaccines import (
     administer_dose,
@@ -90,7 +91,7 @@ def view(patient_id):
         # Which dose is which, per vaccine — so the doctor picks "the second
         # dose" by name instead of typing a number and hoping.
         dose_options=_dose_options(patient, plan, lang),
-        today=datetime.utcnow().date().isoformat(),
+        today=local_today().isoformat(),
     )
 
 
@@ -129,9 +130,9 @@ def record(patient_id):
     raw_date = (request.form.get("given_date") or "").strip()
     try:
         given_date = datetime.strptime(raw_date, "%Y-%m-%d").date() if raw_date \
-            else datetime.utcnow().date()
+            else local_today()
     except ValueError:
-        given_date = datetime.utcnow().date()
+        given_date = local_today()
 
     # Same guard as the visit room: a dose of this vaccine given too recently.
     # Read before the record is written — afterwards the newest dose is the one
@@ -217,14 +218,14 @@ def record_event(patient_id):
     db.session.add(PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id,
         brand_id=brand.id if brand else None, dose_number=dose_number,
-        given_date=datetime.utcnow().date(), event_type=event_type,
+        given_date=local_today(), event_type=event_type,
         refusal_reason=(request.form.get("reason") or "").strip() or None,
     ))
     ActivityLog.record(f"vaccine.{event_type}", user_id=current_user.id,
                        entity="patient", entity_id=patient.id,
                        detail=f"{vaccine.code}#{dose_number}", ip_address=client_ip())
     # Refusing a dose the parent already paid for owes them the price back.
-    _settle_paid_vaccines(patient, datetime.utcnow().date())
+    _settle_paid_vaccines(patient, local_today())
     db.session.commit()
     flash(t("vaccinations.event_saved"), "success")
     return redirect(url_for("vaccinations.view", patient_id=patient.id))
@@ -652,7 +653,7 @@ def certificate(patient_id):
         cards=cards, totals=totals,
         upcoming=upcoming, suggested=suggested, with_schedule=request.args.get("schedule") == "1",
         with_suggestions=request.args.get("suggest") == "1",
-        now_date=datetime.utcnow().date().isoformat(),
+        now_date=local_today().isoformat(),
         qr_svg=_qr_svg(verify_url), verify_url=verify_url,
     )
 
@@ -666,7 +667,7 @@ def compliance():
     lang = getattr(g, "lang", "ar")
     data = immunization_compliance(lang)
     return render_template("vaccinations/compliance.html", data=data,
-                           now_date=datetime.utcnow().date().isoformat())
+                           now_date=local_today().isoformat())
 
 
 # ------------------------------------------------------ due reminders ------
@@ -718,7 +719,7 @@ def reminders():
         brands=VaccineBrand.query.order_by(VaccineBrand.name).all(),
         f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
         f_vaccine=vaccine_id, f_brand=brand_id, f_status=status,
-        now_date=datetime.utcnow().date().isoformat())
+        now_date=local_today().isoformat())
 
 
 @vaccinations_bp.route("/<int:patient_id>/remind-due")
@@ -799,7 +800,7 @@ def verify(token):
               or "GROWELL CLINIC")
     return render_template(
         "vaccinations/verify.html", patient=patient, given=given,
-        clinic=clinic, now_date=datetime.utcnow().date().isoformat(),
+        clinic=clinic, now_date=local_today().isoformat(),
     )
 
 
