@@ -146,6 +146,11 @@ class Drug(db.Model):
     price_updated_at = db.Column(db.DateTime)     # when the price was last set
     barcode = db.Column(db.String(60), index=True)
     manufacturer = db.Column(db.String(120))
+    # What kind of medicine this is, as the Egyptian register classifies it
+    # ("ANTIBIOTICS", "COLD PRODUCTS", "SKIN CARE"…). It was in the register
+    # file all along and was dropped when the catalogue was compressed, so
+    # 24,634 drugs arrived with no way to group them at all.
+    drug_class = db.Column(db.String(80), index=True)
     # Catalogue media: the package photo the parent recognises on the shelf,
     # and the leaflet/SPC to read before prescribing.
     image = db.Column(db.String(255))

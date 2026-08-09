@@ -552,9 +552,30 @@ def drugs():
         query = query.filter(or_(Drug.trade_name.ilike(like),
                                  Drug.trade_name_ar.ilike(like),
                                  Drug.generic_name.ilike(like)))
+    # The register's own classification, which the bundled catalogue had been
+    # dropping. 25,000 trade names with no way to narrow them by kind is a
+    # list nobody browses — they search, and only find what they already knew
+    # the name of.
+    drug_class = (request.args.get("drug_class") or "").strip()
+    if drug_class:
+        query = query.filter(Drug.drug_class == drug_class)
+    # Only classes that group more than one drug. A "class" holding a single
+    # trade name is not a category — it is that drug described — and a
+    # thousand of them would bury the four hundred real ones.
+    from sqlalchemy import func
+    classes = [row[0] for row in
+               db.session.query(Drug.drug_class)
+               .filter(Drug.drug_class.isnot(None), Drug.drug_class != "")
+               .group_by(Drug.drug_class)
+               .having(func.count(Drug.id) > 1)
+               .order_by(Drug.drug_class).all()]
+    # …but a class arrived at by URL still filters, even if it is not offered.
+    if drug_class and drug_class not in classes:
+        classes = sorted(classes + [drug_class])
     pagination = paginate(query.order_by(Drug.trade_name))
     return render_template("prescriptions/drugs.html", drugs=pagination.items,
-                           pagination=pagination, forms=DRUG_FORMS, q=q)
+                           pagination=pagination, forms=DRUG_FORMS, q=q,
+                           drug_classes=classes, drug_class=drug_class)
 
 
 @prescriptions_bp.route("/drugs/new", methods=["POST"])

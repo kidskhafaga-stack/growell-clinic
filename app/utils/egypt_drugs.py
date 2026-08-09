@@ -8,8 +8,12 @@ it as free text, and a free-text prescription is one nothing can check for
 interactions, allergies or a dose.
 
 So the register goes in too: **25,065 trade names** with their Arabic name,
-their active ingredient, the manufacturer and the price, shipped compressed at
-under a megabyte and seeded on first run.
+their active ingredient, the manufacturer, the price **and the register's own
+drug class**, shipped compressed and seeded on first run.
+
+The class was in the register file from the beginning and was dropped when the
+catalogue was first compressed — so 24,634 drugs arrived with no way to group
+them, and "show me the antibiotics" had no answer. Restoring it costs 115KB.
 
 **The two layers stay distinct, and that matters clinically.** A seeded
 register entry knows what it contains but not how to dose it; a curated brand
@@ -52,6 +56,23 @@ def available():
     return len(_load())
 
 
+# The register's class field is mostly a classification and occasionally a
+# product description that ran into the wrong column — some of them 300
+# characters of ingredient list. A real classification name is short, so this
+# is where the two are told apart. It costs 494 of 24,634 drugs their class
+# (2%); they stay in the catalogue and stay searchable, they simply do not
+# appear under a category. Keeping them would put a paragraph in a filter.
+MAX_CLASS_LEN = 60
+
+
+def clean_class(value):
+    """The register's classification, or None when it is really a description."""
+    value = (value or "").strip()
+    if not value or len(value) > MAX_CLASS_LEN:
+        return None
+    return value
+
+
 def _clean_maker(value):
     """The register writes "OLD NAME > NEW NAME"; keep the one in use now."""
     return (value or "").split(">")[-1].strip()[:120] or None
@@ -84,7 +105,13 @@ def seed_register(limit=None):
                 generics[key.strip().upper()] = generic
 
     added = 0
-    for trade, trade_ar, scientific, maker, route, price in rows:
+    for row in rows:
+        # Seven fields since the register's own drug class was restored to the
+        # bundled file. Unpacked defensively rather than by position count so
+        # a clinic running an older data file is not met with a ValueError on
+        # upgrade — it simply has no classes until the file catches up.
+        trade, trade_ar, scientific, maker, route, price = row[:6]
+        drug_class = row[6] if len(row) > 6 else None
         if trade.upper() in have:
             continue
         have.add(trade.upper())
@@ -99,6 +126,7 @@ def seed_register(limit=None):
             generic_name=(scientific or None) and scientific[:160],
             generic_id=generic.id if generic else None,
             manufacturer=_clean_maker(maker),
+            drug_class=clean_class(drug_class),
             route=_ROUTES.get((route or "").strip().upper()),
             price=price,
             dose_per_kg=(generic.dose_per_kg

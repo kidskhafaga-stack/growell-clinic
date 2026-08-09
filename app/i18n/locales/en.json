@@ -2387,7 +2387,8 @@
     "send_to_family": "Send to the family",
     "save_pdf": "Save PDF",
     "public_note": "This is the clinic's own copy. To confirm it, scan the code above.",
-    "license": "License"
+    "license": "License",
+    "all_classes": "All classes"
   },
   "drug_forms": {
     "tablet": "Tablet",
