@@ -565,6 +565,71 @@ def analytics_export():
 
 
 # ================================================ staff performance =========
+@reports_bp.route("/discounts")
+@module_required(MODULE)
+def discounts():
+    """Who actually got a discount, how much, and who gave it.
+
+    The discounts screen says what the clinic *offers*. This says what it
+    **gave away** — a different question, and the one with money in it. A
+    clinic can have four named discounts and no idea that one of them is
+    costing it more than the other three together, or that most of what went
+    out was not a named discount at all: it was typed line by line by
+    whoever was on the till.
+
+    That last distinction is the point of the split below. A rule the clinic
+    decided on and a number somebody entered by hand are the same amount of
+    money and completely different problems.
+    """
+    from app.models import Invoice, InvoiceItem, User
+
+    date_from, date_to = _range()
+    rows = (Invoice.query
+            .filter(Invoice.invoice_date >= date_from,
+                    Invoice.invoice_date <= date_to,
+                    Invoice.status != "cancelled")
+            .order_by(Invoice.invoice_date.desc(), Invoice.id.desc()).all())
+
+    given, gross_total, by_rule, by_user = [], 0.0, {}, {}
+    for invoice in rows:
+        amount = invoice.discount_total
+        if amount <= 0:
+            continue
+        gross_total += amount
+        # Named or hand-typed. An invoice carries the rule it was billed
+        # under; a line discounted without one was somebody's decision at the
+        # counter, and that is worth being able to total on its own.
+        label = invoice.discount_name or None
+        slot = by_rule.setdefault(label or "", {"name": label, "total": 0.0,
+                                                "count": 0})
+        slot["total"] += amount
+        slot["count"] += 1
+        who = invoice.creator
+        entry = by_user.setdefault(invoice.created_by or 0,
+                                   {"user": who, "total": 0.0, "count": 0})
+        entry["total"] += amount
+        entry["count"] += 1
+        given.append({"invoice": invoice, "amount": round(amount, 2),
+                      "rule": label,
+                      "gross": round(sum(i.gross for i in invoice.items), 2)})
+
+    for slot in by_rule.values():
+        slot["total"] = round(slot["total"], 2)
+    for entry in by_user.values():
+        entry["total"] = round(entry["total"], 2)
+
+    billed = round(sum(sum(i.gross for i in inv.items) for inv in rows), 2)
+    return render_template(
+        "reports/discounts.html", rows=given,
+        by_rule=sorted(by_rule.values(), key=lambda r: -r["total"]),
+        by_user=sorted(by_user.values(), key=lambda r: -r["total"]),
+        total=round(gross_total, 2), billed=billed,
+        # What share of everything billed was given away. A number nobody can
+        # put in context is a number nobody acts on.
+        share=round(gross_total * 100.0 / billed, 1) if billed else 0,
+        date_from=date_from, date_to=date_to)
+
+
 @reports_bp.route("/staff")
 @module_required(MODULE)
 def staff():
