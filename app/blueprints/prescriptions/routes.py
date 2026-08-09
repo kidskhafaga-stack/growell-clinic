@@ -660,7 +660,8 @@ def ai_dose():
     )
     prompt = (f"Drug: {drug}\nWeight: {weight or '—'} kg\nAge: {age or '—'}\n"
               f"Diagnosis: {diagnosis or '—'}")
-    result = ai_utils.chat([{"role": "user", "content": prompt}], system=system)
+    result = ai_utils.chat([{"role": "user", "content": prompt}], system=system,
+                           feature="rx_review")
     if not result.get("ok"):
         return jsonify({"ok": False, "error": result.get("error", "ai_error")}), 502
 

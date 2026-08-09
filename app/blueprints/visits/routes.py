@@ -283,9 +283,18 @@ def record(visit_id):
     # room list and the prescription read as one thing, not two parallel lists.
     prescribed_names = {(" ".join((it.drug_name or "").split())).lower()
                         for rx in visit.prescriptions for it in rx.items}
+    # The same judgement the nurse's station makes, in front of the person who
+    # decides. The numbers were already on this screen — a red-tinted input box
+    # says "38.7 is high" but not "38.7 is high *for a child this age*", and the
+    # age band is the whole point. A doctor who has read the thermometer still
+    # benefits from the line that names the rule, and one who is half-way
+    # through a busy morning benefits from it more.
+    from app.utils.red_flags import assess_visit
+    red_flag = assess_visit(visit)
     from app.utils import ai
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        red_flag=red_flag,
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,
         consent_guardian=consent_guardian,
@@ -380,7 +389,8 @@ def ai_summary(visit_id):
         f"This is a draft for the treating doctor to review and edit."
     )
     text = _visit_clinical_text(visit, anonymize=ai.anonymize_enabled())
-    res = ai.chat([{"role": "user", "content": text}], system=system)
+    res = ai.chat([{"role": "user", "content": text}], system=system,
+                  feature="visit_summary")
     if res.get("ok"):
         ActivityLog.record("visit.ai_summary", user_id=current_user.id,
                            entity="visit", entity_id=visit.id, ip_address=client_ip())

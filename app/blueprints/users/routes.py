@@ -366,13 +366,50 @@ def doctor_manage(user_id):
     from app.blueprints.main.routes import PROFESSIONAL_TITLES
     from app.models import COMMISSION_TYPES, DoctorServiceCommission, Service
 
+    from app.models import RxPrintTemplate
+
     doc = db.get_or_404(User, user_id)
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
     overrides = {oc.service_id: oc
                  for oc in DoctorServiceCommission.query.filter_by(doctor_id=doc.id).all()}
     return render_template("users/doctor_manage.html", doc=doc, services=services,
                            overrides=overrides, titles=PROFESSIONAL_TITLES,
-                           commission_types=COMMISSION_TYPES)
+                           commission_types=COMMISSION_TYPES,
+                           rx_templates=(RxPrintTemplate.query
+                                         .order_by(RxPrintTemplate.name).all()))
+
+
+@users_bp.route("/doctors/<int:user_id>/rx", methods=["POST"])
+@admin_required
+def doctor_rx(user_id):
+    """The paper this doctor's prescriptions come out on.
+
+    It was already a per-doctor setting in the database and already had a
+    picker — on the doctor's *own* profile page, which only the doctor can
+    reach. So the person who sets the clinic up could enter a doctor's name,
+    licence and stamp and then not say which layout to print them with; that
+    last step needed the doctor's password. The layouts themselves are drawn
+    on the templates screen, which stays one screen for the whole clinic
+    because a layout is a piece of paper and clinics buy one kind.
+    """
+    from app.models import RxPrintTemplate
+
+    doc = db.get_or_404(User, user_id)
+    chosen = request.form.get("rx_template_id", type=int)
+    # A template id from a stale form (someone deleted the layout meanwhile)
+    # must not become a dangling reference that prints nothing.
+    doc.rx_template_id = (chosen if chosen
+                          and db.session.get(RxPrintTemplate, chosen) else None)
+    from app.blueprints.main.routes import _save_image
+    for field in RX_IMAGE_FIELDS:
+        saved = _save_image(field)
+        if saved:
+            setattr(doc, field, saved)
+    ActivityLog.record("doctor.rx_setup", user_id=current_user.id, entity="user",
+                       entity_id=doc.id, detail=doc.username, ip_address=client_ip())
+    db.session.commit()
+    flash(t("doctors.saved"), "success")
+    return redirect(url_for("users.doctor_manage", user_id=doc.id))
 
 
 @users_bp.route("/doctors/<int:user_id>/professional", methods=["POST"])

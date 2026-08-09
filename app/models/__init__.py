@@ -5,6 +5,7 @@ Later phases add the clinical and financial domain models. Importing them
 here ensures SQLAlchemy registers every table when ``db.create_all()`` runs.
 """
 from app.models.activity_log import ActivityLog
+from app.models.ai_usage import AiUsage
 from app.models.appointment import (
     ACTIVE_STATUSES,
     APPOINTMENT_STATUSES,
@@ -196,6 +197,7 @@ __all__ = [
     "User",
     "Setting",
     "ActivityLog",
+    "AiUsage",
     "Family",
     "ClinicRoom",
     "Lookup",

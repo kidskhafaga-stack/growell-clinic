@@ -269,7 +269,7 @@ def draft_reply(msgs, patient=None, lang="ar"):
     suspicious = any(looks_like_injection(m["content"])
                      for m in history if m["role"] == "user")
     system = AI_SYSTEM + "\n\nClinic facts:\n" + "\n".join(clinic_facts(patient, lang))
-    result = ai.chat(history, system=system)
+    result = ai.chat(history, system=system, feature="service_desk")
     if not result.get("ok"):
         return result
     return {"ok": True, "text": (result.get("text") or "").strip(),

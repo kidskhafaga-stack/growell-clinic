@@ -1,0 +1,134 @@
+{% extends "shell.html" %}
+{% set active_module = 'ai' %}
+{% block title %}{{ t('ai.lookup_title') }}{% endblock %}
+{% block page_heading %}{{ t('ai.lookup_title') }}{% endblock %}
+
+{% block content %}
+{# Everything on this page comes out of the clinic's own tables. No provider is
+   called to render it, so it reads the same with the assistant switched off,
+   costs nothing, and cannot answer "he last came in March" about a child who
+   has never been here. The assistant enters only at the bottom, for the one
+   thing it is actually good at: wording a letter from facts already true. #}
+<h1 class="page-title gc-animate">{{ t('ai.lookup_title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('ai.lookup_sub') }}</p>
+
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <form method="get" action="{{ url_for('ai.lookup') }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;">
+    <input class="input" name="q" value="{{ term }}" style="flex:1;min-width:220px;"
+           placeholder="{{ t('ai.lookup_placeholder') }}" autofocus>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-search"></i> {{ t('common.search') }}</button>
+  </form>
+</div>
+
+{% if term and not matches and not chosen %}
+<div class="card gc-animate" style="margin-top:14px;">
+  {# Said plainly rather than dressed up. "No record" is a real answer and a
+     useful one; a screen that hedges here is a screen somebody argues with. #}
+  <p class="info-note" style="margin:0;"><i class="bi bi-search"></i>
+    {{ t('ai.lookup_none', term=term) }}</p>
+</div>
+{% endif %}
+
+{% if matches|length > 1 and not chosen %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title"><i class="bi bi-people"></i> {{ t('ai.lookup_which') }}</h2>
+  {# Never resolved automatically. "أحمد" is half the register, and a lookup
+     that silently picks one Ahmed will eventually report the wrong child's
+     vaccinations to somebody who believes it. #}
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    {% for p in matches %}
+    <a class="btn btn-outline gc-press" style="justify-content:space-between;"
+       href="{{ url_for('ai.lookup', q=term, patient_id=p.id) }}">
+      <span>{{ p.display_name(current_lang) }}</span>
+      <span class="badge badge--muted" dir="ltr">{{ p.patient_number }}</span></a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if chosen and data %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title"><i class="bi bi-person-vcard"></i>
+    {{ chosen.display_name(current_lang) }}
+    <span class="badge badge--role" dir="ltr">{{ chosen.patient_number }}</span></h2>
+
+  <div class="form-grid" style="margin-top:6px;">
+    <div class="form-row">
+      <label>{{ t('ai.lookup_last_visit') }}</label>
+      {% if data.last_visit %}
+      <div><strong dir="ltr">{{ data.last_visit.visit_date }}</strong>
+        <span style="color:var(--muted);">· {{ t('ai.lookup_days_ago', days=data.days_since_last) }}</span></div>
+      {% else %}
+      <div style="color:var(--muted);">{{ t('ai.lookup_never_visited') }}</div>
+      {% endif %}
+    </div>
+    <div class="form-row">
+      <label>{{ t('ai.lookup_visit_count') }}</label>
+      <div dir="ltr"><strong>{{ data.visits_total }}</strong></div>
+    </div>
+  </div>
+
+  {% if data.allergies or data.chronic or data.problems %}
+  <div class="alert-pill warn" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {% if data.allergies %}<span><strong>{{ t('patients.allergies') }}:</strong> {{ data.allergies }}</span>{% endif %}
+    {% if data.chronic %}<span><strong>{{ t('patients.chronic_diseases') }}:</strong> {{ data.chronic }}</span>{% endif %}
+    {% for pr in data.problems %}<span class="badge badge--muted">{{ pr.display_title(current_lang) }}</span>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if data.recent_visits %}
+  <h3 style="margin:12px 0 6px;font-size:0.95rem;"><i class="bi bi-clock-history"></i> {{ t('ai.lookup_recent') }}</h3>
+  <div style="overflow-x:auto;">
+    <table class="table" style="min-width:420px;">
+      <tbody>
+        {% for v in data.recent_visits %}
+        <tr>
+          <td dir="ltr" style="white-space:nowrap;">{{ v.visit_date }}</td>
+          <td>{{ v.final_diagnoses() | map(attribute='title') | join('، ') or v.chief_complaint or '—' }}</td>
+          <td><a href="{{ url_for('visits.view', visit_id=v.id) }}">{{ t('visits.view_title') }}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <h3 style="margin:12px 0 6px;font-size:0.95rem;"><i class="bi bi-shield-plus"></i> {{ t('ai.lookup_vaccines') }}</h3>
+  {% if data.vaccines_given %}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    {% for row in data.vaccines_given %}
+    <span class="badge badge--muted">{{ row.vaccine.display_name(current_lang) }}
+      {% if row.dose %}<span dir="ltr">({{ row.dose }})</span>{% endif %}
+      <span dir="ltr" style="opacity:.75;">{{ row.date }}</span></span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);margin:0;">{{ t('ai.lookup_no_vaccines') }}</p>
+  {% endif %}
+  {% if data.next_dose %}
+  <p class="hint" style="margin:8px 0 0;"><i class="bi bi-calendar-event"></i>
+    {{ t('ai.lookup_next_dose') }}: <strong>{{ data.next_dose.vaccine.display_name(current_lang) }}</strong>
+    <span dir="ltr">({{ data.next_dose.number }}) · {{ data.next_dose.due }}</span></p>
+  {% endif %}
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=chosen.id) }}">
+      <i class="bi bi-folder2-open"></i> {{ t('appointments.open_file') }}</a>
+    {% if can_ask %}
+    {# The one thing worth a model: wording. It is handed exactly the rows
+       above and told not to go outside them. #}
+    <a class="btn btn-primary gc-press gc-ripple"
+       href="{{ url_for('patients.view', patient_id=chosen.id) }}#ai">
+      <i class="bi bi-chat-dots"></i> {{ t('ai.lookup_ask_assistant') }}</a>
+    {% endif %}
+  </div>
+  {% if not can_ask %}
+  <p class="hint" style="margin:10px 0 0;"><i class="bi bi-info-circle"></i>
+    {{ t('ai.lookup_facts_only') }}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

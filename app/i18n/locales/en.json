@@ -1900,7 +1900,12 @@
     "forgotten": "records left open",
     "overlapping": "overlapping visits",
     "timing_note": "A description of the last month, not a ranking — a shorter consultation is not a better one. What is measured here is running over the booked slot, because that is what delays everyone behind.",
-    "late_start": "Clinic start"
+    "late_start": "Clinic start",
+    "rx_setup": "Prescription layout",
+    "rx_setup_hint": "The layout this doctor's prescriptions print on, with their signature and stamp.",
+    "rx_use_default": "The clinic's default layout",
+    "rx_no_templates": "No layouts yet — create one from Print templates.",
+    "rx_template": "Layout"
   },
   "problems": {
     "title_list": "Problem list",
@@ -2233,7 +2238,37 @@
     "fix_disabled": "Open settings and tick 'enable the assistant' — the commonest reason the page says 'not ready' while the key works perfectly.",
     "fix_no_model": "Pick a model in settings, or press 'fetch models' to ask the key what it can actually use.",
     "fix_no_url": "The custom provider needs an address — fill in the base URL.",
-    "fix_no_key": "Paste the key in settings and press save. The test button deliberately works on the unsaved form, so a test can succeed on a key that was never stored."
+    "fix_no_key": "Paste the key in settings and press save. The test button deliberately works on the unsaved form, so a test can succeed on a key that was never stored.",
+    "usage_title": "Usage",
+    "usage_window": "Last {days} days.",
+    "usage_feature": "Feature",
+    "usage_calls": "Calls",
+    "usage_in": "Tokens in",
+    "usage_out": "Tokens out",
+    "usage_total": "Total",
+    "usage_no_balance": "Providers do not report a remaining balance to a request — that lives in your account with them. What is here is what was actually spent.",
+    "usage_open_console": "Open the provider's console",
+    "feature_chat": "Assistant chat",
+    "feature_patient_chat": "Questions about a patient",
+    "feature_visit_summary": "Visit summary",
+    "feature_rx_review": "Prescription review",
+    "feature_service_desk": "Patient service desk",
+    "lookup_title": "Look up a patient",
+    "lookup_sub": "Answers here come from the clinic's own records — not from the AI.",
+    "lookup_placeholder": "Name, file number or phone…",
+    "lookup_none": "Nobody in the register matches \"{term}\".",
+    "lookup_which": "Which one?",
+    "lookup_last_visit": "Last visit",
+    "lookup_days_ago": "{days} days ago",
+    "lookup_never_visited": "Has never attended",
+    "lookup_visit_count": "Visits",
+    "lookup_recent": "Recent visits",
+    "lookup_vaccines": "Vaccines given",
+    "lookup_no_vaccines": "No vaccinations recorded here.",
+    "lookup_next_dose": "Next dose",
+    "lookup_ask_assistant": "Ask the assistant about this case",
+    "lookup_facts_only": "The assistant will not be asked about this case — sharing patient data is switched off in Settings. Everything above is from the record itself.",
+    "lookup_link": "Look up a patient"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -4585,7 +4620,8 @@
     "drowsy": "Drowsy",
     "breathing": "Difficulty breathing",
     "convulsion": "Convulsion",
-    "in_queue": "urgent case waiting"
+    "in_queue": "urgent case waiting",
+    "limits_for_age": "Limit for this age:"
   },
   "phrases": {
     "title": "Quick phrases and shortcuts",

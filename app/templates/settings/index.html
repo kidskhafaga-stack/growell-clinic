@@ -24,6 +24,10 @@
       <i class="bi bi-calendar2-week"></i> {{ t('visit_types.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.devices') }}">
       <i class="bi bi-hdd-stack"></i> {{ t('devices.title') }}</a>
+    {# The prescription layouts were only reachable from an already-printed
+       prescription, so setting the clinic up meant printing something first. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}">
+      <i class="bi bi-file-earmark-medical"></i> {{ t('rxtpl.manage') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
       <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
   </div>

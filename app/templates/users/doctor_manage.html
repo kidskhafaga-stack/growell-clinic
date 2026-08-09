@@ -46,6 +46,61 @@
   </form>
 </div>
 
+<!-- The paper this doctor prints on, next to the name that prints on it -->
+{# The layout, the signature and the stamp are three halves of one setting:
+   whether a printed prescription is usable at a pharmacy. They lived on three
+   different screens, and the layout picker lived on a screen only the doctor
+   could open — so an admin could set a doctor up completely and still not have
+   said what to print them on. #}
+<div class="card gc-scale-in" style="animation-delay:0.09s;">
+  <h2 class="section-title"><i class="bi bi-file-earmark-medical"></i> {{ t('doctors.rx_setup') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('doctors.rx_setup_hint') }}</p>
+  <form method="post" enctype="multipart/form-data"
+        action="{{ url_for('users.doctor_rx', user_id=doc.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      {# Not `rxtpl.my_template`: this screen is an admin looking at somebody
+         else's doctor, and "mine" would be a lie about whose paper it is. #}
+      <div class="form-row"><label>{{ t('doctors.rx_template') }}</label>
+        <select class="select" name="rx_template_id">
+          <option value="">{{ t('doctors.rx_use_default') }}</option>
+          {% for tp in rx_templates %}
+          <option value="{{ tp.id }}" {{ 'selected' if doc.rx_template_id == tp.id else '' }}>
+            {{ tp.name }} · {{ t('rxtpl.' ~ tp.mode) }} · {{ tp.page_size }}</option>
+          {% endfor %}
+        </select>
+        {% if not rx_templates %}
+        <div class="hint">{{ t('doctors.rx_no_templates') }}</div>
+        {% endif %}
+        <div class="hint" style="margin-top:6px;">
+          <a href="{{ url_for('prescriptions.templates') }}">{{ t('rxtpl.manage') }}</a></div>
+      </div>
+    </div>
+    {# Uploaded by whoever has them in hand on the doctor's first day. Waiting
+       for the doctor to upload their own stamp is how a clinic prints a month
+       of prescriptions without one. #}
+    {% for field, label in [('signature_file', t('profile.signature')),
+                            ('stamp_file', t('profile.stamp')),
+                            ('personal_logo', t('profile.personal_logo'))] %}
+    <div class="form-row">
+      <label>{{ label }}</label>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        {% set current = doc[field] %}
+        {% if current %}
+        <img src="{{ url_for('static', filename='uploads/users/' ~ current) }}" alt=""
+             style="max-width:120px;max-height:70px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff;">
+        {% endif %}
+        <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
+          <i class="bi bi-upload"></i> {{ t('profile.upload') }}
+          <input type="file" name="{{ field }}" accept="image/*" hidden></label>
+      </div>
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:12px;">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+
 <!-- Per-service pricing & commission -->
 <div class="card gc-scale-in" style="animation-delay:0.12s;">
   <h2 class="section-title"><i class="bi bi-cash-stack"></i> {{ t('doctors.pricing') }}</h2>
