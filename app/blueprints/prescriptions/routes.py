@@ -562,16 +562,22 @@ def drugs():
     # Only classes that group more than one drug. A "class" holding a single
     # trade name is not a category — it is that drug described — and a
     # thousand of them would bury the four hundred real ones.
+    #
+    # Carried with their counts, because a category name on its own does not
+    # say whether there is anything behind it. "ANTIBIOTICS (412)" is a thing
+    # to open; "ANTIBIOTICS" is a guess.
     from sqlalchemy import func
-    classes = [row[0] for row in
-               db.session.query(Drug.drug_class)
+    classes = [{"name": name, "count": n} for name, n in
+               db.session.query(Drug.drug_class, func.count(Drug.id))
                .filter(Drug.drug_class.isnot(None), Drug.drug_class != "")
                .group_by(Drug.drug_class)
                .having(func.count(Drug.id) > 1)
                .order_by(Drug.drug_class).all()]
     # …but a class arrived at by URL still filters, even if it is not offered.
-    if drug_class and drug_class not in classes:
-        classes = sorted(classes + [drug_class])
+    if drug_class and not any(c["name"] == drug_class for c in classes):
+        here = (Drug.query.filter(Drug.drug_class == drug_class).count())
+        classes = sorted(classes + [{"name": drug_class, "count": here}],
+                         key=lambda c: c["name"])
     pagination = paginate(query.order_by(Drug.trade_name))
     return render_template("prescriptions/drugs.html", drugs=pagination.items,
                            pagination=pagination, forms=DRUG_FORMS, q=q,

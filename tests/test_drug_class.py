@@ -192,6 +192,35 @@ def test_a_class_reached_by_link_still_filters(clinic):
     assert 'value="ONE OF A KIND"' in body
 
 
+def test_each_category_says_how_many_drugs_are_in_it(clinic):
+    """A category name alone does not say whether anything is behind it.
+
+    Asked for after seeing the register's own reference, which lists a count
+    against every class — and it is the right call: "ANTIBIOTICS (412)" is
+    something to open, "ANTIBIOTICS" is a guess.
+
+    It lives in the dropdown and nowhere else. A first attempt also put the
+    twelve biggest classes across the top as chips; it answered the same
+    question twice and made a clean screen busy, so it came out again.
+    """
+    with clinic["app"].app_context():
+        from app.models import Drug
+        db = clinic["db"]
+        db.session.add_all([
+            Drug(trade_name="AAA", drug_class="ANTIBIOTICS", is_active=True),
+            Drug(trade_name="BBB", drug_class="ANTIBIOTICS", is_active=True),
+            Drug(trade_name="CCC", drug_class="ANTIBIOTICS", is_active=True),
+            Drug(trade_name="DDD", drug_class="SKIN CARE", is_active=True),
+            Drug(trade_name="EEE", drug_class="SKIN CARE", is_active=True),
+        ])
+        db.session.commit()
+
+    body = (clinic["sign_in"]("boss").get("/prescriptions/drugs")
+            .get_data(as_text=True))
+    assert "ANTIBIOTICS (3)" in body
+    assert "SKIN CARE (2)" in body
+
+
 def test_the_column_is_in_the_additive_migration():
     """A new column on an existing table, so an installed clinic gets it.
 
