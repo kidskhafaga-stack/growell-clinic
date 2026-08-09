@@ -96,6 +96,11 @@ def seed_register(limit=None):
 
     have = {name.upper() for (name,) in
             db.session.query(Drug.trade_name).all()}
+    # The clinic's own classes, so each register label lands on a shelf the
+    # drug reference already uses. Empty when the reference has not been
+    # seeded — the catalogue still works, it simply has no categories yet.
+    from app.utils.drug_classing import class_id_for, class_index
+    classes = class_index()
     # Ingredients we can dose, by both names, so a register entry whose
     # scientific name matches one of ours inherits the paediatric maths.
     generics = {}
@@ -127,6 +132,7 @@ def seed_register(limit=None):
             generic_id=generic.id if generic else None,
             manufacturer=_clean_maker(maker),
             drug_class=clean_class(drug_class),
+            class_id=class_id_for(drug_class, classes),
             route=_ROUTES.get((route or "").strip().upper()),
             price=price,
             dose_per_kg=(generic.dose_per_kg
@@ -140,4 +146,10 @@ def seed_register(limit=None):
         if added % 2000 == 0:
             db.session.commit()
     db.session.commit()
+    # Trade names already on file get their class too. Re-running the seeder
+    # cannot do it: it skips names it already has, deliberately, so it never
+    # overwrites a clinic's own edits — which would leave a clinic that seeded
+    # before this existed with 25,000 uncategorised drugs and no way forward.
+    from app.utils.drug_classing import backfill
+    backfill()
     return added

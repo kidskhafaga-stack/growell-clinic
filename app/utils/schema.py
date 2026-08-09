@@ -79,6 +79,7 @@ ADDITIONS = [
     ("drugs", "image", "VARCHAR(255)"),
     ("drugs", "leaflet", "VARCHAR(255)"),
     ("drugs", "drug_class", "VARCHAR(80)"),
+    ("drugs", "class_id", "INTEGER"),
     ("patient_vaccines", "inventory_id", "INTEGER"),
     ("invoices", "payer_id", "INTEGER"),
     ("invoices", "coverage_card", "VARCHAR(60)"),

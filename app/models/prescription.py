@@ -151,6 +151,12 @@ class Drug(db.Model):
     # file all along and was dropped when the catalogue was compressed, so
     # 24,634 drugs arrived with no way to group them at all.
     drug_class = db.Column(db.String(80), index=True)
+    # …and which of the clinic's own fourteen shelves that lands it on. The
+    # register's label is a supplier's inventory category; this is the class
+    # the drug reference is already organised by, so the catalogue and the
+    # reference speak the same language instead of two.
+    class_id = db.Column(db.Integer, db.ForeignKey("drug_classes.id"),
+                         nullable=True, index=True)
     # Catalogue media: the package photo the parent recognises on the shelf,
     # and the leaflet/SPC to read before prescribing.
     image = db.Column(db.String(255))

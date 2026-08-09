@@ -128,99 +128,6 @@ def test_an_older_data_file_does_not_break_the_upgrade(clinic):
         assert row.drug_class is None
 
 
-def test_the_catalogue_can_be_narrowed_by_class(clinic):
-    """The whole point: "show me the antibiotics" now has an answer."""
-    with clinic["app"].app_context():
-        from app.models import Drug
-        db = clinic["db"]
-        db.session.add_all([
-            Drug(trade_name="AAA", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="BBB", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="CCC", drug_class="SKIN CARE", is_active=True),
-            Drug(trade_name="DDD", drug_class="SKIN CARE", is_active=True),
-        ])
-        db.session.commit()
-
-    body = (clinic["sign_in"]("boss")
-            .get("/prescriptions/drugs?drug_class=ANTIBIOTICS")
-            .get_data(as_text=True))
-    assert "AAA" in body and "BBB" in body
-    assert "CCC" not in body
-
-
-def test_a_class_of_one_is_not_offered_as_a_category(clinic):
-    """It is not a category — it is that drug, described.
-
-    Left in, a thousand single-drug "classes" bury the four hundred real ones,
-    and a filter nobody can find their way down is a filter nobody uses.
-    """
-    with clinic["app"].app_context():
-        from app.models import Drug
-        db = clinic["db"]
-        db.session.add_all([
-            Drug(trade_name="AAA", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="BBB", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="LONELY", drug_class="ONE OF A KIND",
-                 is_active=True),
-        ])
-        db.session.commit()
-
-    body = (clinic["sign_in"]("boss").get("/prescriptions/drugs")
-            .get_data(as_text=True))
-    assert 'value="ANTIBIOTICS"' in body
-    assert 'value="ONE OF A KIND"' not in body
-
-
-def test_a_class_reached_by_link_still_filters(clinic):
-    """Not being offered in the list is not the same as not existing.
-
-    Somebody who follows a link, or types the URL, gets the drugs — and the
-    dropdown shows what they are actually looking at rather than resetting
-    itself to "all" and quietly disagreeing with the rows below it.
-    """
-    with clinic["app"].app_context():
-        from app.models import Drug
-        clinic["db"].session.add(
-            Drug(trade_name="LONELY", drug_class="ONE OF A KIND",
-                 is_active=True))
-        clinic["db"].session.commit()
-
-    body = (clinic["sign_in"]("boss")
-            .get("/prescriptions/drugs?drug_class=ONE OF A KIND")
-            .get_data(as_text=True))
-    assert "LONELY" in body
-    assert 'value="ONE OF A KIND"' in body
-
-
-def test_each_category_says_how_many_drugs_are_in_it(clinic):
-    """A category name alone does not say whether anything is behind it.
-
-    Asked for after seeing the register's own reference, which lists a count
-    against every class — and it is the right call: "ANTIBIOTICS (412)" is
-    something to open, "ANTIBIOTICS" is a guess.
-
-    It lives in the dropdown and nowhere else. A first attempt also put the
-    twelve biggest classes across the top as chips; it answered the same
-    question twice and made a clean screen busy, so it came out again.
-    """
-    with clinic["app"].app_context():
-        from app.models import Drug
-        db = clinic["db"]
-        db.session.add_all([
-            Drug(trade_name="AAA", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="BBB", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="CCC", drug_class="ANTIBIOTICS", is_active=True),
-            Drug(trade_name="DDD", drug_class="SKIN CARE", is_active=True),
-            Drug(trade_name="EEE", drug_class="SKIN CARE", is_active=True),
-        ])
-        db.session.commit()
-
-    body = (clinic["sign_in"]("boss").get("/prescriptions/drugs")
-            .get_data(as_text=True))
-    assert "ANTIBIOTICS (3)" in body
-    assert "SKIN CARE (2)" in body
-
-
 def test_the_column_is_in_the_additive_migration():
     """A new column on an existing table, so an installed clinic gets it.
 
@@ -231,3 +138,162 @@ def test_the_column_is_in_the_additive_migration():
     from app.utils.schema import ADDITIONS
 
     assert ("drugs", "drug_class", "VARCHAR(80)") in ADDITIONS
+
+
+# --------------------------------------------- onto the clinic's shelves ----
+# The register's labels are a supplier's inventory categories. The program
+# already had better ones: the fourteen classes the drug reference is
+# organised by, named in both languages and ordered the way a paediatrician
+# thinks. The first version of the catalogue filter exposed the raw labels
+# instead — a 683-entry dropdown with "5-HT3 ANTAGONIST.ANTI-EMETIC" beside
+# "HAIR CARE" — which is what "the reference looked better" was pointing at.
+
+def test_the_registers_words_map_onto_the_clinics_classes():
+    """Matched on the register's own vocabulary for a therapeutic group."""
+    from app.utils.drug_classing import map_label
+
+    assert map_label("ANTIBIOTIC.CEPHALOSPORIN.THIRD-GENERATION") == "Antibiotics"
+    assert map_label("ANTIBIOTIC.QUINOLONE") == "Antibiotics"
+    assert map_label("MUCOLYTIC") == "Respiratory"
+    assert map_label("ANTI-HISTAMINE.ANTI-ALLERGY") == "Antihistamines & allergy"
+    assert map_label("IRON SUPPLEMENT") == "Vitamins & minerals"
+    assert map_label("ANTHELMINTIC") == "Antiparasitics"
+
+
+def test_what_does_not_belong_in_a_childrens_clinic_stays_unshelved():
+    """``None`` is a real answer, and it is the honest one here.
+
+    Roughly half the register does not map, and the half that does not is
+    hair care, oncology, massage cream, sun block, statins. A paediatric
+    clinic has no shelf for those and should not grow one to make a
+    percentage look better — they stay in the catalogue and stay searchable
+    by name, under no category.
+    """
+    from app.utils.drug_classing import map_label
+
+    assert map_label("HAIR CARE") is None
+    assert map_label("ANTINEOPLASTIC") is None
+    assert map_label("SUN BLOCK") is None
+    assert map_label("ANTIHYPERLIPIDEMIC.STATINS") is None
+    assert map_label(None) is None
+    assert map_label("") is None
+
+
+def test_seeding_puts_drugs_on_the_clinics_shelves(clinic):
+    """End to end, and the number is the point: 12,506 of 25,065."""
+    with clinic["app"].app_context():
+        from app.models import Drug, DrugClass
+        from app.utils.drugbook_seed import seed_drugbook
+        from app.utils.egypt_drugs import seed_register
+
+        seed_drugbook()
+        seed_register(limit=3000)
+        classed = Drug.query.filter(Drug.class_id.isnot(None)).count()
+        assert classed > 1000
+        antibiotics = DrugClass.query.filter_by(name_en="Antibiotics").first()
+        assert Drug.query.filter_by(class_id=antibiotics.id).count() > 50
+
+
+def test_a_catalogue_seeded_before_this_is_classified_in_place(clinic):
+    """Re-seeding cannot fix it, so the mapping is applied to what is there.
+
+    The seeder skips trade names it already has — deliberately, so it never
+    overwrites a clinic's own edits. Without a backfill, a clinic that seeded
+    last month would have 25,000 uncategorised drugs and no way forward.
+    """
+    with clinic["app"].app_context():
+        from app.models import Drug
+        from app.utils.drug_classing import backfill
+        from app.utils.drugbook_seed import seed_drugbook
+        db = clinic["db"]
+
+        seed_drugbook()
+        db.session.add_all([
+            Drug(trade_name="OLD ONE", drug_class="ANTIBIOTIC.QUINOLONE",
+                 is_active=True),
+            Drug(trade_name="OLD TWO", drug_class="HAIR CARE", is_active=True),
+        ])
+        db.session.commit()
+
+        assert backfill() == 1
+        assert Drug.query.filter_by(trade_name="OLD ONE").first().class_id
+        assert Drug.query.filter_by(trade_name="OLD TWO").first().class_id is None
+
+
+def test_a_hand_filed_drug_outranks_the_pattern(clinic):
+    """Somebody who filed a drug themselves has made a decision.
+
+    The backfill touches only rows with no class, so re-running it — which
+    happens on every seed — never undoes that.
+    """
+    with clinic["app"].app_context():
+        from app.models import Drug, DrugClass
+        from app.utils.drug_classing import backfill
+        from app.utils.drugbook_seed import seed_drugbook
+        db = clinic["db"]
+
+        seed_drugbook()
+        topical = DrugClass.query.filter_by(name_en="Topical preparations").first()
+        db.session.add(Drug(trade_name="FILED BY HAND",
+                            drug_class="ANTIBIOTIC.QUINOLONE",
+                            class_id=topical.id, is_active=True))
+        db.session.commit()
+
+        backfill()
+        row = Drug.query.filter_by(trade_name="FILED BY HAND").first()
+        assert row.class_id == topical.id
+
+
+def test_the_catalogue_shows_the_same_shelves_as_the_reference(clinic):
+    """One vocabulary across both screens, with counts, as the reference has.
+
+    The catalogue holds trade names and the reference holds ingredients, so
+    the numbers differ; what must not differ is what the categories are
+    called.
+    """
+    with clinic["app"].app_context():
+        from app.models import Drug, DrugClass
+        from app.utils.drugbook_seed import seed_drugbook
+        db = clinic["db"]
+
+        seed_drugbook()
+        antibiotics = DrugClass.query.filter_by(name_en="Antibiotics").first()
+        db.session.add_all([
+            Drug(trade_name="AAA", class_id=antibiotics.id, is_active=True),
+            Drug(trade_name="BBB", class_id=antibiotics.id, is_active=True),
+        ])
+        db.session.commit()
+        antibiotics_id = antibiotics.id
+
+    body = (clinic["sign_in"]("boss").get("/prescriptions/drugs")
+            .get_data(as_text=True))
+    assert "المضادات الحيوية" in body
+    assert f"class_id={antibiotics_id}" in body
+    # The raw supplier labels are no longer offered as categories.
+    assert 'name="drug_class"' not in body
+
+
+def test_an_empty_shelf_is_not_offered(clinic):
+    """A children's clinic browsing an oncology category finds nothing."""
+    with clinic["app"].app_context():
+        from app.models import Drug, DrugClass
+        from app.utils.drugbook_seed import seed_drugbook
+        db = clinic["db"]
+
+        seed_drugbook()
+        antibiotics = DrugClass.query.filter_by(name_en="Antibiotics").first()
+        db.session.add(Drug(trade_name="AAA", class_id=antibiotics.id,
+                            is_active=True))
+        db.session.commit()
+
+    body = (clinic["sign_in"]("boss").get("/prescriptions/drugs")
+            .get_data(as_text=True))
+    assert "المضادات الحيوية" in body
+    assert "مضادات الفطريات" not in body      # nothing in it
+
+
+def test_the_class_link_is_in_the_additive_migration():
+    """A new column on ``drugs``, which every installed clinic already has."""
+    from app.utils.schema import ADDITIONS
+
+    assert ("drugs", "class_id", "INTEGER") in ADDITIONS

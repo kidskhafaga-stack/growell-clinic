@@ -21,20 +21,25 @@
    search lands on an empty screen that reads as "nothing found". #}
 <form data-live-search="#gc-results" method="get" class="gc-animate" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
   <input class="input" name="q" value="{{ q }}" placeholder="{{ t('rx.search_drugs') }}" style="max-width:340px;">
-  {# The register's own classification. 25,000 trade names with only a search
-     box is a list nobody browses: you can find what you already knew the name
-     of, and nothing else. #}
-  {% if drug_classes %}
-  <select class="select" name="drug_class" style="max-width:260px;">
-    <option value="">{{ t('rx.all_classes') }}</option>
-    {% for c in drug_classes %}
-    <option value="{{ c.name }}" {{ 'selected' if drug_class == c.name else '' }}>{{ c.name }} ({{ c.count }})</option>
-    {% endfor %}
-  </select>
-  {% endif %}
   <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-search"></i></button>
-  {% if q or drug_class %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">{{ t('common.reset') }}</a>{% endif %}
+  {% if class_id %}<input type="hidden" name="class_id" value="{{ class_id }}">{% endif %}
+  {% if q or class_id %}<a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.drugs') }}">{{ t('common.reset') }}</a>{% endif %}
 </form>
+
+{# The clinic's own classes, exactly as the drug reference shows them —
+   same shelves, same order, same counts. The catalogue holds trade names and
+   the reference holds ingredients, so the numbers differ; what must not
+   differ is the vocabulary. #}
+{% if classes %}
+<div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+  {% for c in classes %}
+  <a class="btn btn-sm gc-press {{ 'btn-primary' if c.id == class_id else 'btn-outline' }}"
+     href="{{ url_for('prescriptions.drugs', class_id=c.id, q=q or None) }}">
+    <i class="bi {{ c.icon or 'bi-capsule' }}"></i> {{ c.display_name(current_lang) }}
+    <span class="badge badge--role">{{ '{:,}'.format(counts.get(c.id, 0)) }}</span></a>
+  {% endfor %}
+</div>
+{% endif %}
 
 <details class="card gc-scale-in" style="animation-delay:0.05s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('rx.add_drug') }}</summary>
