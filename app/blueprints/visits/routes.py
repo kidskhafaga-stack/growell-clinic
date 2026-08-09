@@ -1136,6 +1136,57 @@ def send_survey(visit_id):
     return redirect(request.referrer or url_for("visits.view", visit_id=visit.id))
 
 
+# ------------------------------------------------- nursing and referral -----
+@visits_bp.route("/<int:visit_id>/nurse-instructions", methods=["POST"])
+@module_required(MODULE)
+def nurse_instructions(visit_id):
+    """What the doctor wants nursing to do with this child.
+
+    Written in the room and read at the station. It was being called across a
+    corridor — which is how an instruction reaches the wrong child, or nobody.
+    """
+    visit = db.get_or_404(Visit, visit_id)
+    visit.nurse_instructions = (request.form.get("nurse_instructions")
+                                or "").strip() or None
+    ActivityLog.record("visit.nurse_instructions", user_id=current_user.id,
+                       entity="visit", entity_id=visit.id, ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.nurse_saved"), "success")
+    return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+
+@visits_bp.route("/<int:visit_id>/refer", methods=["POST"])
+@module_required(MODULE)
+def refer(visit_id):
+    """Send this child to emergency, and say so on every screen that lists them.
+
+    Recorded rather than remembered. The child leaves mid-encounter, and a
+    visit that simply stops reads as a consultation somebody abandoned — the
+    one record that has to survive the panic is where they went and why.
+
+    Reversible, because a referral written on the wrong child is a thing that
+    happens in exactly the minutes this button is pressed in.
+    """
+    visit = db.get_or_404(Visit, visit_id)
+    if request.form.get("undo"):
+        visit.referred_at = None
+        visit.referred_to = None
+        visit.referral_note = None
+        db.session.commit()
+        flash(t("visits.referral_undone"), "info")
+        return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+    visit.referred_at = datetime.utcnow()
+    visit.referred_to = (request.form.get("referred_to") or "").strip() or None
+    visit.referral_note = (request.form.get("referral_note") or "").strip() or None
+    ActivityLog.record("visit.refer", user_id=current_user.id, entity="visit",
+                       entity_id=visit.id, detail=visit.referred_to or "",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("visits.referred_ok"), "warning")
+    return redirect(request.referrer or url_for("visits.record", visit_id=visit.id))
+
+
 # ------------------------------------------------------------ complete -----
 @visits_bp.route("/<int:visit_id>/complete", methods=["POST"])
 @module_required(MODULE)

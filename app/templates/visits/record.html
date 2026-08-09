@@ -280,7 +280,49 @@
           <textarea class="input" name="notes" id="visitNotes" rows="2">{{ visit.notes or '' }}</textarea></div>
       </div>
       <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-save"></i> {{ t('common.save') }}</button>
+    </form>
 
+    {# Two things that leave the room. Deliberately outside the visit form —
+       both are their own action with their own record, and neither should
+       wait for somebody to remember to press Save. #}
+    <div class="form-grid" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;">
+      <form method="post" action="{{ url_for('visits.nurse_instructions', visit_id=visit.id) }}"
+            class="form-row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label><i class="bi bi-clipboard2-heart"></i> {{ t('visits.nurse_instructions') }}</label>
+        <textarea class="input" name="nurse_instructions" rows="2"
+                  placeholder="{{ t('visits.nurse_ph') }}">{{ visit.nurse_instructions or '' }}</textarea>
+        <div class="hint">{{ t('visits.nurse_hint') }}</div>
+        <button class="btn btn-outline btn-sm gc-press" type="submit" style="margin-top:6px;align-self:start;">
+          <i class="bi bi-send"></i> {{ t('visits.nurse_send') }}</button>
+      </form>
+
+      <form method="post" action="{{ url_for('visits.refer', visit_id=visit.id) }}"
+            class="form-row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label><i class="bi bi-hospital"></i> {{ t('visits.refer_title') }}</label>
+        {% if visit.is_referred %}
+        <div class="alert-pill danger" style="display:block;">
+          <i class="bi bi-hospital-fill"></i>
+          <strong>{{ t('visits.referred_badge') }}</strong>
+          {% if visit.referred_to %} — {{ visit.referred_to }}{% endif %}
+          <span dir="ltr">{{ visit.referred_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          {% if visit.referral_note %}<div>{{ visit.referral_note }}</div>{% endif %}
+        </div>
+        <button class="btn btn-outline btn-sm gc-press" type="submit" name="undo" value="1"
+                style="margin-top:6px;align-self:start;">
+          <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.referral_undo') }}</button>
+        {% else %}
+        <input class="input" name="referred_to" placeholder="{{ t('visits.refer_where') }}">
+        <input class="input" name="referral_note" placeholder="{{ t('visits.refer_why') }}"
+               style="margin-top:6px;">
+        <button class="btn btn-danger btn-sm gc-press" type="submit" style="margin-top:6px;align-self:start;">
+          <i class="bi bi-hospital"></i> {{ t('visits.refer_now') }}</button>
+        {% endif %}
+      </form>
+    </div>
+
+    <form>
       <!-- AI visit summary (draft; doctor reviews before keeping) -->
       <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;"
            x-data="aiSummary('{{ url_for('visits.ai_summary', visit_id=visit.id) }}')">

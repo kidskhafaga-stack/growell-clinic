@@ -741,7 +741,20 @@
     "study_done": "Result recorded",
     "added_ok": "Added",
     "station_search": "Search the waiting list…",
-    "station_reason_ph": "The reason in the family's words"
+    "station_reason_ph": "The reason in the family's words",
+    "nurse_instructions": "Instructions for nursing",
+    "nurse_ph": "e.g. salbutamol nebuliser, recheck the temperature in 30 minutes",
+    "nurse_hint": "Appears on the nurse's station screen straight away, without saving the visit.",
+    "nurse_send": "Send to nursing",
+    "nurse_saved": "Sent to nursing.",
+    "refer_title": "Emergency referral",
+    "refer_where": "Referred where? (hospital / department)",
+    "refer_why": "Reason, briefly",
+    "refer_now": "Refer to emergency now",
+    "referred_badge": "Referred to emergency",
+    "referred_ok": "The referral is recorded and the case is flagged on every screen.",
+    "referral_undo": "Undo the referral",
+    "referral_undone": "The referral was undone."
   },
   "diagnosis_types": {
     "working": "Working",

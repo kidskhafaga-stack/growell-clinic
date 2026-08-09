@@ -52,6 +52,23 @@
        one thing missing was somebody reading them before the child's turn
        came round. Thresholds are banded by age — 38.0 in a six-week-old is
        not the same event as 39.0 in a four-year-old. #}
+    {# What the doctor asked nursing to do, and whether this child has been
+       sent to emergency. Both belong on the nurse's screen more than
+       anywhere else: this is where somebody is standing next to the child. #}
+    {% if r.visit and r.visit.is_referred %}
+    <div class="alert-pill danger" style="display:flex;gap:8px;align-items:center;">
+      <i class="bi bi-hospital-fill"></i>
+      <strong>{{ t('visits.referred_badge') }}</strong>
+      {% if r.visit.referred_to %}<span>{{ r.visit.referred_to }}</span>{% endif %}
+    </div>
+    {% endif %}
+    {% if r.visit and r.visit.nurse_instructions %}
+    <div class="alert-pill" style="display:flex;gap:8px;align-items:center;background:var(--green-050);">
+      <i class="bi bi-clipboard2-heart"></i>
+      <strong>{{ t('visits.nurse_instructions') }}:</strong>
+      <span>{{ r.visit.nurse_instructions }}</span>
+    </div>
+    {% endif %}
     {% if r.flag and r.flag.level %}
     <div class="alert-pill {{ 'danger' if r.flag.level == 'urgent' else 'warn' }}"
          style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">

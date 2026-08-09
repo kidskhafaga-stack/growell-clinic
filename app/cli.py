@@ -213,6 +213,7 @@ def register_commands(app):
         _seed_accounts_safe()
         _seed_tills_safe()
         _ensure_owner_safe()
+        _unforce_doctor_english_safe()
         db.session.commit()
         click.secho(f"Database upgraded ({applied} column(s) added).", fg="green")
 
@@ -600,6 +601,36 @@ def _seed_accounts_safe():
             click.echo("  + chart of accounts seeded")
     except Exception:  # noqa: BLE001
         pass
+
+
+def _unforce_doctor_english_safe():
+    """Give back the interface language that was taken from the doctors.
+
+    Creating a doctor used to set ``language = "en"`` whatever the clinic ran
+    in, so a doctor signed in to an English program wrapped around Arabic
+    names and Arabic complaints while reception saw Arabic. The default is
+    gone; this is for the accounts that already carry it.
+
+    Only ``en``, only doctors, and only once — the flag is what makes it once,
+    because a clinic that deliberately puts a doctor back into English must
+    not have it undone by the next upgrade.
+    """
+    from app.models import Setting, User
+
+    try:
+        if Setting.get("doctor_language_unforced") == "1":
+            return
+        changed = 0
+        for user in User.query.filter_by(role="doctor", language="en").all():
+            user.language = None
+            changed += 1
+        Setting.set("doctor_language_unforced", "1")
+        db.session.commit()
+        if changed:
+            click.secho(f"  + {changed} doctor(s) returned to the clinic's "
+                        "language (they can still choose English)", fg="green")
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
 
 
 def _ensure_owner_safe():

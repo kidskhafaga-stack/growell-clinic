@@ -51,6 +51,22 @@ class Visit(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
 
+    # What the doctor wants the nurse to do — written in the room, read at the
+    # station. It was being said out loud across a corridor, which is how an
+    # instruction reaches the wrong child or nobody at all.
+    nurse_instructions = db.Column(db.Text)
+
+    # Sent to emergency. Recorded rather than remembered: the child leaves the
+    # clinic mid-encounter, and the visit that stays behind has to say where
+    # they went and why, or it reads as a consultation somebody abandoned.
+    referred_at = db.Column(db.DateTime)
+    referred_to = db.Column(db.String(120))
+    referral_note = db.Column(db.Text)
+
+    @property
+    def is_referred(self):
+        return self.referred_at is not None
+
     patient = db.relationship("Patient", backref="visits")
     doctor = db.relationship("User", backref="visits")
     based_on = db.relationship("VisitInvestigation",
