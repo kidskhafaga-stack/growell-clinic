@@ -41,7 +41,7 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
-from app.utils.icd import search_icd
+from app.utils.icd import available_versions, search_icd
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.clock import local_today
@@ -309,6 +309,9 @@ def record(visit_id):
         # The codes the browser expands as the doctor types: "نورمال" and a
         # space becomes the paragraph they wrote once.
         phrase_codes=phrases.codes(current_user, getattr(g, "lang", "ar")),
+        # Only the classifications this machine actually holds. ICD-11 joins
+        # the list the moment it is imported, and stays out of it until then.
+        icd_versions=available_versions(),
         ai_ready=ai.is_ready(),
     )
 

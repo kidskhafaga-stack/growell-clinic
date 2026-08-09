@@ -603,6 +603,50 @@
     </div>
     <p class="info-note" style="margin:10px 0 0;"><i class="bi bi-shield-lock"></i> {{ t('settings.ai_privacy') }}</p>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_patient_hint') }}</p>
+
+    {# ICD-11 sits on the AI tab because it is the other thing on this screen
+       that needs credentials from an outside body — not because WHO has
+       anything to do with the assistant. It is imported once and then the
+       program is offline again: a diagnosis picker that asks WHO on every
+       keystroke is a picker that stops working when the line drops, silently,
+       while a parent is sitting there. #}
+    <h3 id="icd11" style="margin:20px 0 6px;font-size:0.95rem;"><i class="bi bi-list-ol"></i> {{ t('icd11.section') }}</h3>
+    <p class="hint" style="margin:0 0 8px;">{{ t('icd11.hint') }}
+      <a href="https://icd.who.int/icdapi" target="_blank" rel="noopener">{{ t('icd11.register') }}</a></p>
+
+    <div class="alert-pill {{ 'warn' if not icd_coverage['11'].total else '' }}"
+         style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+      <i class="bi bi-{{ 'check-circle-fill' if icd_coverage['11'].total else 'exclamation-triangle-fill' }}"></i>
+      {# Stated as a count, because "not loaded" and "loaded" are the two
+         things a doctor's empty search needs to be told apart by. #}
+      <span dir="auto">ICD-10: <strong dir="ltr">{{ '{:,}'.format(icd_coverage['10'].total) }}</strong>
+        · ICD-11: <strong dir="ltr">{{ '{:,}'.format(icd_coverage['11'].total) }}</strong></span>
+      {% if not icd_coverage['11'].total %}<span>{{ t('icd11.not_loaded') }}</span>{% endif %}
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('icd11.client_id') }}</label>
+        <input class="input" name="icd11_client_id" dir="ltr" autocomplete="off"
+               value="{{ values.get('icd11_client_id','') }}"></div>
+      <div class="form-row"><label>{{ t('icd11.client_secret') }}</label>
+        <input class="input" type="password" name="icd11_client_secret" dir="ltr"
+               autocomplete="new-password"
+               value="{{ values.get('icd11_client_secret','') }}"></div>
+      <div class="form-row"><label>{{ t('icd11.release') }}</label>
+        <input class="input" name="icd11_release" dir="ltr" placeholder="2024-01"
+               value="{{ values.get('icd11_release','') }}">
+        <div class="hint">{{ t('icd11.release_hint') }}</div></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-outline btn-sm gc-press" type="submit"
+              formaction="{{ url_for('settings.icd11_test') }}">
+        <i class="bi bi-plug"></i> {{ t('icd11.test') }}</button>
+      <button class="btn btn-outline btn-sm gc-press" type="submit"
+              formaction="{{ url_for('settings.icd11_import') }}">
+        <i class="bi bi-cloud-download"></i> {{ t('icd11.import') }}</button>
+      <span class="hint">{{ t('icd11.import_hint') }}</span>
+    </div>
   </div>
 
   <div class="gc-animate" style="margin-top:16px;">

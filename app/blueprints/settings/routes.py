@@ -36,6 +36,10 @@ TEXT_KEYS = [
     "eta_vat_rate", "eta_send_gap", "eta_default_item_type", "eta_client_secret2",
     # AI assistant (provider-agnostic).
     "ai_provider", "ai_api_key", "ai_model", "ai_base_url", "ai_system_prompt",
+    # ICD-11 from WHO. The credentials are the clinic's own, registered free
+    # at icd.who.int/icdapi — there is no key of ours to embed, and one key
+    # shared by every install is one key to be rate-limited for everybody.
+    "icd11_client_id", "icd11_client_secret", "icd11_release",
     # Document numbering (F1): patient file + invoice/receipt series.
     "patient_number_scheme", "patient_number_prefix", "patient_number_prefix_fixed",
     "invoice_number_prefix", "invoice_number_scheme", "invoice_number_start",
@@ -146,6 +150,63 @@ def ai_test():
     return redirect(url_for("settings.index") + "#ai")
 
 
+@settings_bp.route("/icd11/test", methods=["POST"])
+@admin_required
+def icd11_test():
+    """One token request against WHO, so a mistyped secret costs a second.
+
+    Separate from the import on purpose. The import is a walk of thousands of
+    requests and takes minutes; discovering a wrong secret at the end of it is
+    how a clinic decides the feature does not work and stops pressing the
+    button.
+    """
+    from app.utils import icd_who
+
+    result = icd_who.test_connection()
+    if result.get("ok"):
+        flash(t("icd11.test_ok"), "success")
+    else:
+        flash(_who_error(result.get("error")), "danger")
+    return redirect(url_for("settings.index") + "#icd11")
+
+
+def _who_error(error):
+    """WHO's failure in the clinic's own words where we can name it.
+
+    ``who_bad_credentials`` is the overwhelmingly common one and the only one
+    the clinic can fix themselves, so it gets a sentence telling them where to
+    re-copy the two strings. Anything else falls back to showing the raw
+    reason rather than a reassuring translation of a problem we did not
+    anticipate.
+    """
+    error = str(error or "")
+    if error.startswith("who_"):
+        named = t("icd11.error_" + error)
+        if named != "icd11.error_" + error:      # a translation exists
+            return named
+    return t("icd11.test_failed").replace("{e}", error)
+
+
+@settings_bp.route("/icd11/import", methods=["POST"])
+@admin_required
+def icd11_import():
+    """Fetch the whole of ICD-11 once, then never speak to WHO again.
+
+    Runs in the request rather than in a worker because this program has no
+    worker and a clinic imports this exactly once, deliberately, while
+    watching. The alternative — a background thread whose failure nobody sees
+    — is worse for a one-off action somebody is standing in front of.
+    """
+    from app.utils import icd_who
+
+    result = icd_who.import_all()
+    if result.get("ok"):
+        flash(t("icd11.import_ok").replace("{n}", str(result["codes"])), "success")
+    else:
+        flash(_who_error(result.get("error")), "danger")
+    return redirect(url_for("settings.index") + "#icd11")
+
+
 def _provider_switch_fixups():
     """Fields that must not survive a change of AI provider.
 
@@ -233,12 +294,16 @@ def index():
     from app.utils import phrases
 
     from app.utils.clock import COMMON_ZONES, DEFAULT_TZ, valid_zone
+    from app.utils.icd import coverage as icd_coverage
     from app.utils.money import CURRENCIES
 
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
         free_ai=free_providers(), trial_ai=trial_defaults(),
+        # How many codes each classification actually holds, so the screen can
+        # say "not loaded" rather than let a doctor's empty search say it.
+        icd_coverage=icd_coverage(),
         currencies=CURRENCIES, zones=COMMON_ZONES, default_tz=DEFAULT_TZ,
         # A zone the machine cannot resolve is the Windows-without-tzdata
         # case, and it has to be visible: silently falling back would put the

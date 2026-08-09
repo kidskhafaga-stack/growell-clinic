@@ -21,13 +21,20 @@ design:
 So the common case stays fast and Arabic, and the long tail stops being a
 dead end.
 
-**ICD-11.** Supported as a version and importable in full, but nothing of it
-is bundled — not one code — and that is not an oversight. WHO publishes ICD-11 through an API that requires the clinic to
-register its own credentials; there is no public file to ship. Pretending
-otherwise by shipping a partial list labelled "ICD-11" would be worse than
-saying so: a doctor would search, find nothing, and conclude the code does not
-exist rather than that it was never loaded. :func:`coverage` exists so a
-screen can say exactly what is loaded and what is not.
+**ICD-11.** Nothing of it is bundled — not one code — and that is not an
+oversight. WHO publishes ICD-11 through an API that requires the clinic to
+register its own credentials; there is no public file to ship. Shipping a
+partial list labelled "ICD-11" would be worse than shipping none: a doctor
+would search, find nothing, and conclude the code does not exist rather than
+that it was never loaded.
+
+That failure had happened anyway, by a different route. This module said
+"importable" and what existed was only :func:`install_full` — the *storage*
+half — with nothing calling it, while the visit screen offered ICD-11 in its
+picker regardless. So the option was there, the data never was, and the doctor
+met the empty search this paragraph exists to prevent. The importer now exists
+(:mod:`app.utils.icd_who`), and :func:`available_versions` is what the picker
+asks, so the option and the data arrive together.
 """
 import gzip
 import json
@@ -89,6 +96,23 @@ def coverage():
         out[version] = {"curated": curated, "full": len(_load_full(version))}
         out[version]["total"] = out[version]["curated"] + out[version]["full"]
     return out
+
+
+def available_versions():
+    """The versions a doctor can actually be offered, because they have codes.
+
+    ``VERSIONS`` is what the program understands; this is what it currently
+    holds. The two were being conflated, and the visit screen offered
+    ``ICD-11`` from a list of zero codes — so a doctor picked it, searched,
+    found nothing, and concluded the diagnosis was missing from medicine
+    rather than from this machine. An option that cannot deliver is worse than
+    an absent one, because the person spends time on it first.
+
+    ICD-11 appears here the moment it is imported, with no further change: the
+    same function drives the picker, so the option arrives with the data.
+    """
+    counts = coverage()
+    return [v for v in VERSIONS if counts[v]["total"] > 0]
 
 
 def _rank(entry, query):
