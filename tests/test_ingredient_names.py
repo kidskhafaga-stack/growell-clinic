@@ -8,9 +8,10 @@ dose calculator behind them. ``CHOLECALCIFEROL(VITAMIN D3)`` is another 116.
 ``ACYCLOVIR`` and ``CEFALEXIN`` are the American and British spellings of
 drugs the reference already holds under the other one.
 
-Measured over the whole register: spelling accounts for **344 brands** that
-can now be dosed from clinical data already written and already referenced —
-2,018 linked → 2,362, with no new numbers and no new judgement.
+Measured over the whole register: spelling alone accounts for hundreds of
+brands that can be dosed from clinical data already written and already
+referenced — 2,018 linked with an exact match, 2,721 once every spelling of a
+name is recognised, with no new clinical numbers and no new judgement.
 
 An earlier version reached 2,613, and 251 of that was wrong. It stripped
 brackets off this program's own ingredient names too, where a bracket usually
@@ -146,9 +147,11 @@ def test_the_register_gains_the_brands_this_was_written_for(clinic):
         seed_drugbook()
         seed_register()
         linked = Drug.query.filter(Drug.generic_id.isnot(None)).count()
-        # 2,018 before the spelling table, 2,362 after — and not the 2,613 an
-        # earlier version reached, because 251 of those were route confusions.
-        assert 2300 < linked < 2500
+        # 2,018 with an exact match; 2,721 now. Not the 2,613 an early version
+        # reached by stripping route qualifiers — 251 of those were route
+        # confusions, removed, and more than made up by the hyphen rule and
+        # the ingredients added since.
+        assert 2600 < linked < 2850
 
         # And the drug the whole thing started from.
         para = Drug.query.filter(

@@ -8,10 +8,10 @@ arrived with no dose calculator behind them. ``CHOLECALCIFEROL(VITAMIN D3)``
 is another 116. ``ACYCLOVIR`` and ``CEFALEXIN`` are the US and British
 spellings of drugs the reference already holds under the other one.
 
-Measured across the whole register, spelling accounts for **344 brands** that
-can be dosed from clinical data already written and already referenced. That
-is the cheapest and safest coverage there is: no new numbers, no new
-judgement, just recognising a name.
+Measured across the whole register, recognising every spelling of a name takes
+the brands tied to a dosable ingredient from **2,018 to 2,721** — clinical
+data already written and already referenced. That is the cheapest and safest
+coverage there is: no new numbers, no new judgement, just reading a name.
 
 It was 595 before the route rule below. The extra 251 came from stripping
 brackets off this program's *own* ingredient names, where a bracket usually
@@ -89,6 +89,15 @@ def variants(name):
         for part in (outside, inside):
             if part:
                 out.append(part)
+
+    # "POVIDONE- IODINE" and "Povidone-iodine" are the same 64 products typed
+    # by two people. Spacing around a hyphen is punctuation, not chemistry.
+    spaced = []
+    for value in out:
+        tidy = " ".join(re.sub(r"\s*-\s*", "-", value).split())
+        if tidy != value:
+            spaced.append(tidy)
+    out += spaced
 
     swapped = []
     for value in out:
