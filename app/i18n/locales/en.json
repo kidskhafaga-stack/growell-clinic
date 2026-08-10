@@ -1909,7 +1909,10 @@
     "rx_setup_hint": "The layout this doctor's prescriptions print on, with their signature and stamp.",
     "rx_use_default": "The clinic's default layout",
     "rx_no_templates": "No layouts yet — create one from Print templates.",
-    "rx_template": "Layout"
+    "rx_template": "Layout",
+    "provides": "Performs",
+    "other_services": "Other services",
+    "provides_hint": "Tick what this doctor actually performs. With nothing ticked they see the whole catalogue, unchanged."
   },
   "problems": {
     "title_list": "Problem list",

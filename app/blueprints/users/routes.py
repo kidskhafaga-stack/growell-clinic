@@ -451,8 +451,14 @@ def doctor_pricing(user_id):
         raw_price = (request.form.get(f"price_{svc.id}") or "").strip()
         price = request.form.get(f"price_{svc.id}", type=float) if raw_price != "" else None
 
+        provides = bool(request.form.get(f"provides_{svc.id}"))
+
         oc = existing.get(svc.id)
-        if ctype == "none" and price is None:
+        # The row is deleted only when it would say nothing at all. Ticking
+        # "performs this" at the clinic's own price sets no commission and no
+        # price override, so the old condition threw the tick away on save and
+        # the mark would never have survived the redirect.
+        if ctype == "none" and price is None and not provides:
             if oc:
                 db.session.delete(oc)
             continue
@@ -461,6 +467,7 @@ def doctor_pricing(user_id):
             db.session.add(oc)
         oc.commission_type, oc.commission_value = ctype, cval
         oc.price_override = price
+        oc.provides = provides
     ActivityLog.record("doctor.pricing", user_id=current_user.id, entity="user",
                        entity_id=doc.id, detail=doc.username, ip_address=client_ip())
     db.session.commit()

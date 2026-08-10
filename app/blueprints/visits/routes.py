@@ -236,6 +236,11 @@ def record(visit_id):
                              Service.category.in_(("procedure", "lab", "radiology")))
         .order_by(Service.name).all()
     )
+    # What this doctor actually performs, first — and everything else still
+    # underneath it. Split by the *visit's* doctor, not by whoever is logged
+    # in: reception opening Dr X's visit is choosing from Dr X's list.
+    from app.utils.doctor_services import split as _split_services
+    my_services, other_services = _split_services(visit.doctor, procedure_services)
     # Vaccination snapshot for the visit tab, framed as "what can I give now"
     # (received history + in-stock optional vaccines + out-of-stock suggestions).
     from app.models import Vaccine
@@ -302,6 +307,7 @@ def record(visit_id):
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
+        my_services=my_services, other_services=other_services,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("complaint"),
         exam_chips=_visit_chips("exam"),

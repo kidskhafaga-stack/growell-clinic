@@ -256,7 +256,14 @@ class ServiceConsumable(db.Model):
 
 
 class DoctorServiceCommission(db.Model):
-    """Per-doctor override of a service's commission."""
+    """What one doctor's relationship to one service is.
+
+    Started as a commission override and is now the doctor–service link
+    generally: the same row carries whether they **perform** the service at
+    all. One table because the pairing is the same pairing — a second one
+    would mean two places to look, two rows to keep in step, and a join
+    everywhere a service list is drawn.
+    """
     __tablename__ = "doctor_service_commissions"
     __table_args__ = (
         db.UniqueConstraint("doctor_id", "service_id", name="uq_doctor_service"),
@@ -270,6 +277,15 @@ class DoctorServiceCommission(db.Model):
     # Per-doctor price for this service. NULL = use the service default;
     # 0 = this doctor performs it for free (e.g. a free consultation).
     price_override = db.Column(db.Float)
+    # Does this doctor actually perform this service? Marked by the clinic so
+    # a long catalogue stops burying the handful of things one doctor does.
+    #
+    # **A doctor with no marks at all performs everything.** Silence has to
+    # mean "nobody has said", never "provides nothing" — otherwise the day
+    # this column ships, every doctor's screen empties. See
+    # ``app/utils/doctor_services.py``, which is the only place that rule
+    # lives.
+    provides = db.Column(db.Boolean, default=False, nullable=False)
 
     doctor = db.relationship("User")
     service = db.relationship("Service", back_populates="doctor_commissions")

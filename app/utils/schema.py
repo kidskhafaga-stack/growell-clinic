@@ -47,6 +47,7 @@ ADDITIONS = [
     ("doctor_schedules", "end_date", "DATE"),
     ("doctor_schedules", "season_label", "VARCHAR(60)"),
     ("doctor_service_commissions", "price_override", "FLOAT"),
+    ("doctor_service_commissions", "provides", "BOOLEAN DEFAULT 0"),
     ("parents", "auto_named", "BOOLEAN DEFAULT 0"),
     ("diagnoses", "title_en", "VARCHAR(255)"),
     ("visit_investigations", "name_en", "VARCHAR(200)"),
