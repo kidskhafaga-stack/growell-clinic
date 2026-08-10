@@ -1,0 +1,83 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% set ar = current_lang != 'en' %}
+{% block title %}{{ t('crm.recall_title') }}{% endblock %}
+{% block page_heading %}{{ t('crm.recall_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+  <div>
+    <h1 class="page-title">{{ t('crm.recall_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('crm.recall_sub', months=months) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('nav.messages') }}</a>
+</div>
+
+{# The empty list that would otherwise be a mystery: every file that old has
+   already been archived off the roster, so nothing can appear here. #}
+{% if archive_conflict %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-{{ 'right' if direction=='rtl' else 'left' }}:4px solid var(--danger);">
+  <b style="color:var(--danger);"><i class="bi bi-exclamation-triangle"></i>
+    {{ t('crm.recall_vs_archive_title') }}</b>
+  <p style="margin:6px 0 0;line-height:1.9;">
+    {{ t('crm.recall_vs_archive', months=months, years=archive_years) }}</p>
+  <a class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
+     href="{{ url_for('patients.archive') }}">{{ t('crm.recall_archive_link') }}</a>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+    <div><div style="font-size:1.6rem;font-weight:700;color:var(--green-800);">{{ rows|length }}</div>
+      <div style="color:var(--muted);font-size:.85rem;">{{ t('crm.recall_count') }}</div></div>
+    <div style="color:var(--muted);line-height:1.9;">
+      {{ t('crm.recall_explain', date=cutoff.isoformat(), cap=daily_cap) }}
+    </div>
+  </div>
+  {% if rows %}
+  <form method="post" action="{{ url_for('messages.recall_send') }}" style="margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-send"></i> {{ t('crm.recall_send_all', n=rows|length) }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('messages_mod.patient') }}</th>
+        <th>{{ t('crm.recall_last_visit') }}</th>
+        <th>{{ t('messages_mod.to') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for patient, last in rows %}
+        <tr>
+          <td><a href="{{ url_for('patients.view', patient_id=patient.id) }}">{{ patient.display_name(current_lang) }}</a></td>
+          <td class="num" dir="ltr">{{ last.isoformat() }}</td>
+          <td class="num" dir="ltr">{{ patient.contact_phone }}</td>
+          <td>
+            <form method="post" action="{{ url_for('messages.recall_send') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="patient_id" value="{{ patient.id }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit">
+                <i class="bi bi-whatsapp"></i> {{ t('crm.recall_send_one') }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:26px;text-align:center;color:var(--muted);">
+    <i class="bi bi-emoji-smile" style="font-size:1.6rem;"></i>
+    <p style="margin:8px 0 0;">{{ t('crm.recall_empty') }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

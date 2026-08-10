@@ -404,7 +404,12 @@ def send_approved(tpl, values, to_phone, patient_id=None, user_id=None,
 def _send_cloud_template(cfg, phone, tpl, values):
     token, phone_id = cfg.get("cloud_token"), cfg.get("cloud_phone_id")
     if not token or not phone_id:
-        return False, "cloud_not_configured"
+        # Three values, like every other exit from here. This returned two and
+        # the caller unpacks three, so a clinic that picked Cloud API and had
+        # not yet pasted its credentials met a ValueError instead of the
+        # message "cloud_not_configured" — a crash in place of the sentence
+        # that would have told them what to fix.
+        return False, "cloud_not_configured", None
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{phone_id}/messages"
     template = {"name": tpl.get("name"),
                 "language": {"code": tpl.get("lang") or "ar"}}
@@ -530,7 +535,7 @@ def _post_multipart(url, fields, file_field, file_path, headers, timeout=20):
 def _send_cloud(cfg, phone, body, image_url=None):
     token, phone_id = cfg.get("cloud_token"), cfg.get("cloud_phone_id")
     if not token or not phone_id:
-        return False, "cloud_not_configured"
+        return False, "cloud_not_configured", None
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{phone_id}/messages"
     media = _public_image_url(cfg, image_url)  # Cloud API fetches by link
     if media:  # image with the body as caption

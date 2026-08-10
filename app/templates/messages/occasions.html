@@ -419,6 +419,10 @@ function tplEditor(id, occ){
       <div class="form-row"><label>{{ t('crm.send_to') }}</label><input class="input" type="number" min="1" max="24" name="wa_send_to" dir="ltr" value="{{ values.get('wa_send_to','') }}" placeholder="21"></div>
       <div class="form-row"><label>{{ t('crm.daily_cap') }}</label><input class="input" type="number" min="0" name="wa_daily_cap" dir="ltr" value="{{ values.get('wa_daily_cap','') }}" placeholder="0">
         <div class="hint">{{ t('crm.daily_cap_hint') }}</div></div>
+      <div class="form-row"><label>{{ t('crm.recall_after_months') }}</label>
+        <input class="input" type="number" min="1" max="60" name="recall_after_months" dir="ltr"
+               value="{{ values.get('recall_after_months','') }}" placeholder="12">
+        <div class="hint">{{ t('crm.recall_after_months_hint') }}</div></div>
       <div class="form-row"><label>{{ t('crm.reminder_hours') }}</label>
         <input class="input" type="number" min="1" max="168" name="wa_reminder_hours" dir="ltr"
                value="{{ values.get('wa_reminder_hours','') }}" placeholder="24">

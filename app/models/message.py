@@ -59,6 +59,10 @@ SYSTEM_TEMPLATE_TYPES = [
     # worth one message and the one nothing here ever sent: ``no_show`` was a
     # terminal state that fed the reports and stopped.
     "no_show_followup",
+    # The child who stopped coming. Unlike every other type here this is not a
+    # reply to an event — nothing happened, which is the point — so it is the
+    # one the clinic sends rather than the program.
+    "patient_recall",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -72,6 +76,7 @@ TEMPLATE_VARIABLES = {
     "appointment_confirm": ["patient", "clinic", "date", "time", "doctor", "queue"],
     "appointment_reminder": ["patient", "clinic", "date", "time", "doctor"],
     "no_show_followup": ["patient", "clinic", "date", "doctor"],
+    "patient_recall": ["patient", "clinic", "date", "months"],
     "doctor_schedule": ["doctor", "date", "count", "list"],
     "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
     "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
@@ -109,6 +114,14 @@ TEMPLATE_DEFAULTS = {
         "اطمنّا على {patient} 🌱\n"
         "ماشُفناكوش في موعد {date}. لو لسه محتاجين متابعة، ردّوا على الرسالة "
         "وهنحجزلكم في أقرب وقت مناسب."
+    ),
+    # No urgency and no guilt. A family that stopped coming may have moved, or
+    # changed doctor, or simply have a well child — and the clinic does not
+    # know which. It says the door is open and gets out of the way.
+    "patient_recall": (
+        "اطمنّا على {patient} 🌱\n"
+        "آخر زيارة كانت {date}. لو حابين متابعة أو استشارة، إحنا في "
+        "{clinic} تحت أمركم — ردّوا على الرسالة وهنحجزلكم."
     ),
     "doctor_schedule": "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}",
     "vaccine_given": (
