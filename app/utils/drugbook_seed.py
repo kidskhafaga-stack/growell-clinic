@@ -33,6 +33,17 @@ CLASSES = [
     # for it. It is not a drug and does not belong under vitamins; a clinic
     # that recommends a milk needs to find it where it looks for milk.
     ("MILK", "ألبان الأطفال", "Infant formula", "bi-cup-straw", 130),
+    # 190 products the register files under ORAL CARE and this program filed
+    # nowhere. Its own label is used rather than a guess at what each one is:
+    # every single name says what it is — MOUTH WASH, ORAL GEL, ORAL SPRAY,
+    # TOOTHPASTE — including all 35 that list no ingredient at all.
+    #
+    # It earns a shelf in a *children's* clinic for one reason that has
+    # nothing to do with tidiness: 28 of those 190 contain a local anaesthetic
+    # or a salicylate, several are sold as teething gels, and they were
+    # sitting in the catalogue with no class, no warning and no way to find
+    # them.
+    ("ORAL", "العناية بالفم والأسنان", "Oral & dental care", "bi-emoji-smile", 140),
 ]
 
 # name_ar, name_en, class, dosing…, safety…
@@ -1074,6 +1085,39 @@ GENERICS += [
         black_box="في حديثي الولادة يُمتَص اليود عبر الجلد ويثبّط الغدة الدرقية — "
                   "يُتجنّب تماماً تحت شهر.",
         preg="C", lact="يُتجنّب على منطقة الثدي.", ref="WHO",
+    ),
+    # The two ingredients that made classifying ORAL CARE worth doing. 28 of
+    # the register's 190 oral-care products carry a local anaesthetic or a
+    # salicylate, several are sold as teething gels — DENTINOX, KAMISTAD,
+    # MUNDISAL and PANSORAL are all on Egyptian shelves — and neither
+    # ingredient had an entry here, so the catalogue held them with no class,
+    # no warning, and no way for a doctor to find out.
+    dict(
+        name_ar="كولين ساليسيلات (جل فم)",
+        name_en="Choline salicylate (oral gel)", cls="ORAL",
+        atc="A01AD11", routes="topical",
+        indications="قرح الفم وألم اللثة — للكبار فقط.",
+        contraindications="تحت ١٦ سنة؛ حساسية الأسبرين.",
+        black_box="ساليسيلات: ممنوع تحت ١٦ سنة لاحتمال متلازمة راي، "
+                  "والامتصاص من غشاء الفم الملتهب أعلى من المتوقع. هيئة "
+                  "الدواء البريطانية قصرته على ١٦ سنة فأكثر منذ ٢٠٠٩.",
+        precautions="بيتباع هنا كجل تسنين، وده بالظبط الاستعمال اللي التقييد "
+                    "اتعمل عشانه.",
+        preg="C", lact="يُتجنب.",
+        ref="MHRA Drug Safety Update 2009 / BNF for Children",
+    ),
+    dict(
+        name_ar="بنزوكايين (جل فم)", name_en="Benzocaine (oral gel)",
+        cls="ORAL", atc="N01BA05", routes="topical",
+        indications="تخدير سطحي لألم اللثة أو قرحة الفم.",
+        contraindications="تحت سنتين؛ نقص G6PD أو ميتهيموجلوبينية سابقة.",
+        black_box="ميتهيموجلوبينية: هيئة الغذاء والدواء الأمريكية طلبت وقف "
+                  "تسويق مستحضرات التسنين المحتوية على بنزوكايين للأطفال تحت "
+                  "سنتين (٢٠١٨). الازرقاق بيظهر خلال دقايق لساعتين من "
+                  "الاستعمال.",
+        precautions="ازرقاق حوالين الفم أو في الأظافر بعد الاستعمال = طوارئ.",
+        preg="C", lact="يُتجنب.",
+        ref="FDA Drug Safety Communication 2018",
     ),
     dict(  # 0 brands, deliberately. The register has 38 plain
            # "LIDOCAINE", and plain lidocaine may be the injectable —
