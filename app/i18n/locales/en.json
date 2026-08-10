@@ -2681,6 +2681,7 @@
     "add_template_btn": "Add template",
     "occ_appointment_confirm": "Appointment confirm",
     "occ_appointment_reminder": "Appointment reminder",
+    "occ_no_show_followup": "Missed-appointment follow-up",
     "occ_doctor_schedule": "Doctor schedule",
     "occ_vaccine_given": "Vaccine given",
     "vars_for": "Available variables",

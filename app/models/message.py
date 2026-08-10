@@ -55,6 +55,10 @@ SYSTEM_TEMPLATE_TYPES = [
     # confirmation goes out when the booking is made — often weeks earlier —
     # and by then it is a receipt, not a reminder.
     "appointment_reminder",
+    # The child who did not come. A missed follow-up is the appointment most
+    # worth one message and the one nothing here ever sent: ``no_show`` was a
+    # terminal state that fed the reports and stopped.
+    "no_show_followup",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -67,6 +71,7 @@ OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback", "seasonal", "g
 TEMPLATE_VARIABLES = {
     "appointment_confirm": ["patient", "clinic", "date", "time", "doctor", "queue"],
     "appointment_reminder": ["patient", "clinic", "date", "time", "doctor"],
+    "no_show_followup": ["patient", "clinic", "date", "doctor"],
     "doctor_schedule": ["doctor", "date", "count", "list"],
     "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
     "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
@@ -95,6 +100,15 @@ TEMPLATE_DEFAULTS = {
     "appointment_reminder": (
         "تذكير من {clinic}: عند {patient} موعد يوم {date} الساعة {time} "
         "مع {doctor}.\nلو الموعد مش مناسب، برجاء إبلاغنا بالرد على الرسالة."
+    ),
+    # Written to be easy to answer and impossible to read as a reprimand. A
+    # family misses an appointment because a child got worse, or better, or
+    # because the day fell apart — none of which the clinic knows. So it says
+    # the clinic noticed, offers the only thing it can offer, and stops.
+    "no_show_followup": (
+        "اطمنّا على {patient} 🌱\n"
+        "ماشُفناكوش في موعد {date}. لو لسه محتاجين متابعة، ردّوا على الرسالة "
+        "وهنحجزلكم في أقرب وقت مناسب."
     ),
     "doctor_schedule": "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}",
     "vaccine_given": (

@@ -2681,6 +2681,7 @@
     "add_template_btn": "إضافة قالب",
     "occ_appointment_confirm": "تأكيد موعد",
     "occ_appointment_reminder": "تذكير قبل الموعد",
+    "occ_no_show_followup": "متابعة الغياب",
     "occ_doctor_schedule": "جدول الطبيب",
     "occ_vaccine_given": "إشعار تطعيم",
     "vars_for": "المتغيرات المتاحة",

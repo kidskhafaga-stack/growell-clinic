@@ -95,6 +95,22 @@ def template_for(template_type):
             or q.order_by(MessageTemplate.id).first())
 
 
+def sends_itself(template_type):
+    """True when a message of this type would actually leave on its own.
+
+    In manual mode — and for a type set to manual inside automatic mode —
+    ``resolve_provider`` returns ``web``: a click-to-send link for a person to
+    press. That is fine for a message somebody is composing right now, and
+    wrong for anything **scheduled**: a link queued for tomorrow morning is a
+    link nobody is standing in front of, and it sits in the log looking like a
+    message that went out.
+
+    So the scheduled types ask this first and queue nothing rather than queue
+    something that cannot deliver itself.
+    """
+    return resolve_provider(get_config(), template_type) != "web"
+
+
 def type_is_off(template_type):
     """True when this notification exists and every copy of it is switched off.
 

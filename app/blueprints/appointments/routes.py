@@ -47,6 +47,7 @@ from app.utils.appointments import (
     slot_duration,
 )
 from app.utils import appt_reminder as reminders
+from app.utils import no_show
 from app.utils.clock import local_today
 from app.utils.decorators import client_ip, module_required
 
@@ -525,6 +526,9 @@ def create():
         # flash message on the booking screen.
         reminders.schedule(appt, user_id=current_user.id,
                            lang=getattr(g, "lang", "ar"))
+        # They have rebooked, so the "we missed you — shall we book you in?"
+        # waiting in the queue would now be asking for something already done.
+        no_show.cancel_for_patient(appt.patient_id)
         db.session.commit()
         flash(t("appointments.created"), "success")
         # Consultation follow-up window: warn reception if it's late / overdue.
@@ -883,6 +887,11 @@ def change_status(appt_id):
     # to something that is not happening.
     reminders.resync(appt, user_id=current_user.id,
                      lang=getattr(g, "lang", "ar"))
+    if new_status == "no_show":
+        # The most important patient of the day, and the one the program used
+        # to do nothing at all about.
+        no_show.schedule(appt, user_id=current_user.id,
+                         lang=getattr(g, "lang", "ar"))
     ActivityLog.record(
         "appointment.status", user_id=current_user.id, entity="appointment",
         entity_id=appt.id, detail=new_status, ip_address=client_ip(),
