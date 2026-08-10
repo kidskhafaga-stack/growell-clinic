@@ -27,6 +27,14 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 import pytest  # noqa: E402
 
 
@@ -52,7 +60,7 @@ def register(clinic):
         doctor = db.session.get(User, clinic["ids"]["doctor"])
         for days, complaint in ((90, "كحة"), (30, "حرارة"), (5, "متابعة نمو")):
             visit = Visit(patient_id=omar.id, doctor_id=doctor.id,
-                          visit_date=date.today() - timedelta(days=days),
+                          visit_date=local_today() - timedelta(days=days),
                           chief_complaint=complaint)
             db.session.add(visit)
             db.session.flush()
@@ -102,7 +110,7 @@ def test_when_they_last_came_is_a_date_from_the_register(register):
         omar = register["db"].session.get(Patient, register["people"]["P-A"])
         data = ai_lookup.facts(omar)
         assert data["visits_total"] == 3
-        assert data["last_visit"].visit_date == date.today() - timedelta(days=5)
+        assert data["last_visit"].visit_date == local_today() - timedelta(days=5)
         assert data["days_since_last"] == 5
 
 

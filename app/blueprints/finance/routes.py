@@ -1863,10 +1863,18 @@ def _todays_invoice(patient_id):
     Exam, in-clinic procedures and vaccines all land on the same invoice
     (appended as the day unfolds) instead of spawning a new invoice per
     collection step, so the patient's statement stays clean and accounting
-    correct."""
+    correct.
+
+    ``local_today`` and not ``date.today``: the invoice is *written* with the
+    clinic's day (``Invoice.invoice_date`` defaults to ``local_today``), and
+    looking it up with the server's day meant that for the hours the two
+    disagree — every night after 22:00 UTC for a Cairo clinic — this found
+    nothing and the second collection of the evening opened a **second
+    invoice** for the same visit. Which is the exact thing the paragraph above
+    says it exists to prevent."""
     return (Invoice.query
             .filter(Invoice.patient_id == patient_id,
-                    Invoice.invoice_date == date.today())
+                    Invoice.invoice_date == local_today())
             .order_by(Invoice.id.desc()).first())
 
 

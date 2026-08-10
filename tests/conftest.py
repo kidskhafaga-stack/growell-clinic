@@ -13,9 +13,18 @@ import os
 import sys
 from datetime import date
 
+# The clinic's today, not the machine's. The program books, bills and lists
+# "today" with ``local_today``; a fixture that builds its world with
+# ``date.today`` puts the data on a different day whenever the server's zone
+# and the clinic's disagree — which on a UTC server and a Cairo clinic is
+# every night after 22:00, and is how twenty tests come to fail on the hour
+# rather than on a change.
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest  # noqa: E402
+
+from app.utils.clock import local_today  # noqa: E402
 
 
 @pytest.fixture()
@@ -62,7 +71,7 @@ def clinic():
         db.session.flush()
 
         visit = Visit(patient_id=child.id, doctor_id=people["doc"].id,
-                      visit_date=date.today())
+                      visit_date=local_today())
         db.session.add(visit)
 
         # An optional (clinic-supplied) vaccine — the kind that costs money and

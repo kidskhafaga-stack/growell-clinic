@@ -26,6 +26,14 @@ from datetime import date, datetime, time, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 
 def _midday(days_ago=0):
     """A fixed hour of the day, ``days_ago`` days back.
@@ -37,7 +45,7 @@ def _midday(days_ago=0):
     before midnight UTC and passes every other hour of the day. It did, on a
     run at 23:33.
     """
-    return datetime.combine(date.today() - timedelta(days=days_ago),
+    return datetime.combine(local_today() - timedelta(days=days_ago),
                             time(10, 0))
 
 
@@ -47,7 +55,7 @@ def _appt(db, clinic_ids, doctor_id=None, status="waiting", **kw):
     kw.setdefault("appt_time", time(10, 0))
     appt = Appointment(patient_id=clinic_ids["child"],
                        doctor_id=doctor_id or clinic_ids["doctor"],
-                       appt_date=date.today(),
+                       appt_date=local_today(),
                        duration_minutes=15, status=status, **kw)
     db.session.add(appt)
     db.session.flush()
@@ -330,7 +338,7 @@ def test_the_clinic_view_shows_every_doctor_not_one_at_random(clinic):
                        status="in_progress", started_at=datetime.utcnow())
         db.session.commit()
 
-        cards = _clinics_now([mine, theirs], date.today())
+        cards = _clinics_now([mine, theirs], local_today())
         assert len(cards) == 2
         assert {c["current"].id for c in cards} == {mine.id, theirs.id}
 
@@ -348,7 +356,7 @@ def test_the_card_says_how_long_the_worst_wait_has_run(clinic):
         _appt(db, clinic["ids"], checked_in_at=now - timedelta(minutes=5))
         db.session.commit()
 
-        card = _clinics_now(db.session.query(type(early)).all(), date.today())[0]
+        card = _clinics_now(db.session.query(type(early)).all(), local_today())[0]
         assert card["waiting"] == 2
         # The moment, not a number of minutes — so the counter on screen keeps
         # ticking instead of freezing at whatever it said when the page drew.
@@ -439,7 +447,7 @@ def test_a_doctor_can_be_in_a_different_clinic_tomorrow(clinic):
         two = ClinicRoom(code=2)
         db.session.add_all([one, two])
         db.session.flush()
-        today = date.today()
+        today = local_today()
         db.session.add(RoomAssignment(on_date=today - timedelta(days=1),
                                       doctor_id=clinic["ids"]["doctor"],
                                       room_id=one.id))
@@ -463,7 +471,7 @@ def test_a_clinic_with_history_is_switched_off_rather_than_deleted(clinic):
         room = ClinicRoom(code=1)
         db.session.add(room)
         db.session.flush()
-        db.session.add(RoomAssignment(on_date=date.today(),
+        db.session.add(RoomAssignment(on_date=local_today(),
                                       doctor_id=clinic["ids"]["doctor"],
                                       room_id=room.id))
         db.session.commit()
@@ -549,7 +557,7 @@ def test_the_doctors_screen_describes_the_month_without_scoring_it(clinic):
                   completed_at=base + timedelta(minutes=minutes))
         db.session.commit()
 
-        row = doctor_timings(date.today() - timedelta(days=30), date.today())
+        row = doctor_timings(local_today() - timedelta(days=30), local_today())
         row = row[clinic["ids"]["doctor"]]
         assert row["consult"] == 14                 # median, not the mean 18
         assert (row["shortest"], row["longest"]) == (10, 30)
@@ -606,7 +614,7 @@ def test_starting_late_is_measured_against_the_clinics_own_clock(clinic):
         # The offset comes from zoneinfo directly and *not* from the app's own
         # converter: deriving it from the code under test would make this pass
         # whether or not the conversion happens at all.
-        booked = datetime.combine(date.today(), time(10, 0))
+        booked = datetime.combine(local_today(), time(10, 0))
         offset = booked.replace(tzinfo=ZoneInfo("Africa/Cairo")).utcoffset()
         assert offset.total_seconds() != 0, (
             "Cairo is not UTC; if it were, this test could not tell a "
@@ -618,7 +626,7 @@ def test_starting_late_is_measured_against_the_clinics_own_clock(clinic):
               completed_at=on_time_utc + timedelta(minutes=25))
         db.session.commit()
 
-        row = clinic_start(date.today(), date.today())[clinic["ids"]["doctor"]]
+        row = clinic_start(local_today(), local_today())[clinic["ids"]["doctor"]]
         assert row["late"] == 12, "the UTC offset leaked into the answer"
         assert row["days"] == 1
 
@@ -637,7 +645,7 @@ def test_only_the_first_appointment_of_the_day_counts_as_the_start(clinic):
         Setting.set("clinic_timezone", "Africa/Cairo")
         db.session.commit()
 
-        booked = datetime.combine(date.today(), time(9, 0))
+        booked = datetime.combine(local_today(), time(9, 0))
         offset = booked.replace(tzinfo=ZoneInfo("Africa/Cairo")).utcoffset()
         opened = booked - offset + timedelta(minutes=20)
 
@@ -650,7 +658,7 @@ def test_only_the_first_appointment_of_the_day_counts_as_the_start(clinic):
               completed_at=opened + timedelta(minutes=30))
         db.session.commit()
 
-        row = clinic_start(date.today(), date.today())[clinic["ids"]["doctor"]]
+        row = clinic_start(local_today(), local_today())[clinic["ids"]["doctor"]]
         assert row["late"] == 20 and row["days"] == 1
 
 
@@ -673,7 +681,7 @@ def test_a_machine_that_cannot_resolve_its_zone_reports_nothing(clinic):
               completed_at=base + timedelta(minutes=15))
         db.session.commit()
 
-        assert clinic_start(date.today(), date.today()) == {}
+        assert clinic_start(local_today(), local_today()) == {}
 
 
 def test_the_settings_screen_says_when_the_zone_cannot_be_read(clinic):

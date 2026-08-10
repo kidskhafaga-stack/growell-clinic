@@ -17,15 +17,30 @@ So the rule here: whatever a screen *shows*, its fingerprint *covers*.
 import hashlib
 from datetime import datetime
 
+from app.utils.clock import to_utc
+
 
 def _digest(parts):
     return hashlib.md5(repr(parts).encode()).hexdigest()
 
 
 def day_bounds(on_date):
-    """The datetime range covering one clinic day."""
-    return (datetime.combine(on_date, datetime.min.time()),
-            datetime.combine(on_date, datetime.max.time()))
+    """The clinic's day, as the naive UTC range the database stores.
+
+    ``on_date`` is a **clinic** date — it comes from ``local_today`` — while
+    ``Payment.paid_at`` is written with ``datetime.utcnow()``. Combining the
+    date with midnight and comparing that directly asks for "UTC midnight to
+    UTC midnight of that calendar date", which is not the clinic's day at all
+    once the two zones differ.
+
+    For a Cairo clinic on a UTC server the mismatch is the first three hours
+    of every working day: money collected between midnight and 03:00 fell
+    outside the window, so the live board did not notice a payment and the
+    doctor's screen sat there stale while the desk was taking cash. Found by a
+    test at 00:20 Cairo, which is the only hour it can be found in.
+    """
+    return (to_utc(datetime.combine(on_date, datetime.min.time())),
+            to_utc(datetime.combine(on_date, datetime.max.time())))
 
 
 def board_fingerprint(on_date, doctor_id=None):

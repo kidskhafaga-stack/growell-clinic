@@ -17,6 +17,14 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 
 def _visit(clinic):
     return clinic["ids"]["visit"]
@@ -49,9 +57,9 @@ def test_the_nurse_reads_what_the_doctor_asked_for(clinic):
         # place in the queue to be read from.
         db.session.add(Appointment(patient_id=visit.patient_id,
                                    doctor_id=visit.doctor_id,
-                                   appt_date=date.today(), appt_time=time(10, 0),
+                                   appt_date=local_today(), appt_time=time(10, 0),
                                    status="waiting"))
-        visit.visit_date = date.today()
+        visit.visit_date = local_today()
         db.session.commit()
 
     page = clinic["sign_in"]("doc").get("/visits/station").data.decode()
@@ -125,10 +133,10 @@ def test_the_nurse_sees_it_too(clinic):
     _refer(clinic)
     with clinic["app"].app_context():
         visit = db.session.get(Visit, _visit(clinic))
-        visit.visit_date = date.today()
+        visit.visit_date = local_today()
         db.session.add(Appointment(patient_id=visit.patient_id,
                                    doctor_id=visit.doctor_id,
-                                   appt_date=date.today(), appt_time=time(10, 0),
+                                   appt_date=local_today(), appt_time=time(10, 0),
                                    status="waiting"))
         db.session.commit()
 
