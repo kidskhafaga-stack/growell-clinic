@@ -46,6 +46,7 @@ from app.utils.appointments import (
     parse_date_arg,
     slot_duration,
 )
+from app.utils import appt_reminder as reminders
 from app.utils.clock import local_today
 from app.utils.decorators import client_ip, module_required
 
@@ -518,6 +519,12 @@ def create():
             if entry and entry.status == "active":
                 entry.status = "booked"
                 entry.appointment_id = appt.id
+        # Queue the day-before reminder. Declines quietly for every ordinary
+        # reason (manual mode, type off, no phone, booked for later today) —
+        # the reminder's settings card is where those are explained, not a
+        # flash message on the booking screen.
+        reminders.schedule(appt, user_id=current_user.id,
+                           lang=getattr(g, "lang", "ar"))
         db.session.commit()
         flash(t("appointments.created"), "success")
         # Consultation follow-up window: warn reception if it's late / overdue.
@@ -680,6 +687,8 @@ def reschedule(appt_id):
     appt.appt_time = datetime.strptime(new_slot, "%H:%M").time()
     if appt.status in ("no_show", "cancelled"):
         appt.status = "scheduled"
+    reminders.resync(appt, user_id=current_user.id,
+                     lang=getattr(g, "lang", "ar"))
     ActivityLog.record(
         "appointment.reschedule", user_id=current_user.id, entity="appointment",
         entity_id=appt.id, detail=appt.rescheduled_from, ip_address=client_ip(),
@@ -870,6 +879,10 @@ def change_status(appt_id):
             appt.cancel_reason = reason
 
     appt.apply_status(new_status)
+    # A reminder for a cancelled visit is the clinic telling a family to come
+    # to something that is not happening.
+    reminders.resync(appt, user_id=current_user.id,
+                     lang=getattr(g, "lang", "ar"))
     ActivityLog.record(
         "appointment.status", user_id=current_user.id, entity="appointment",
         entity_id=appt.id, detail=new_status, ip_address=client_ip(),
@@ -884,6 +897,9 @@ def change_status(appt_id):
 def delete(appt_id):
     appt = db.get_or_404(Appointment, appt_id)
     target = _back_to_board(appt)
+    # Before the row goes: a queued reminder outlives the appointment it points
+    # at, and would still go out — to a family whose booking no longer exists.
+    reminders.cancel(appt.id)
     db.session.delete(appt)
     ActivityLog.record(
         "appointment.delete", user_id=current_user.id, entity="appointment",

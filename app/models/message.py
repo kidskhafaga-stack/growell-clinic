@@ -39,6 +39,11 @@ SYSTEM_TEMPLATE_TYPES = [
     "vaccine_back",
     # The prescription itself, sent to the family as a picture of the paper.
     "rx_copy",
+    # The one message that reduces no-shows more than any other, and the one
+    # this program did not have: a reminder *before* the appointment. The
+    # confirmation goes out when the booking is made — often weeks earlier —
+    # and by then it is a receipt, not a reminder.
+    "appointment_reminder",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -50,6 +55,7 @@ OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback", "seasonal", "g
 # staff can compose messages without guessing the tokens.
 TEMPLATE_VARIABLES = {
     "appointment_confirm": ["patient", "clinic", "date", "time", "doctor", "queue"],
+    "appointment_reminder": ["patient", "clinic", "date", "time", "doctor"],
     "doctor_schedule": ["doctor", "date", "count", "list"],
     "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
     "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
@@ -69,6 +75,15 @@ TEMPLATE_DEFAULTS = {
     "appointment_confirm": (
         "مرحباً {patient}،\nتم تأكيد موعدك في {clinic} يوم {date} الساعة {time} "
         "مع {doctor}.\nدورك رقم: {queue}\nنتمنى لكم الصحة والعافية."
+    ),
+    # Deliberately shorter than the confirmation, and it asks something. The
+    # confirmation is a record; this is the message that has to make somebody
+    # either come or call — so it names the time, and it says what to do if
+    # the time no longer suits them, which is the whole point of sending it a
+    # day early rather than an hour.
+    "appointment_reminder": (
+        "تذكير من {clinic}: عند {patient} موعد يوم {date} الساعة {time} "
+        "مع {doctor}.\nلو الموعد مش مناسب، برجاء إبلاغنا بالرد على الرسالة."
     ),
     "doctor_schedule": "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}",
     "vaccine_given": (

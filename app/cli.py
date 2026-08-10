@@ -495,6 +495,7 @@ def _seed_drugs_safe():
 # Friendly default names for the seeded CRM templates.
 _CRM_TPL_NAMES = {
     "appointment_confirm": "تأكيد موعد",
+    "appointment_reminder": "تذكير قبل الموعد",
     "doctor_schedule": "جدول الطبيب اليومي",
     "vaccine_given": "إشعار تطعيم",
     "vaccine_back": "التطعيم بقى متوفر",

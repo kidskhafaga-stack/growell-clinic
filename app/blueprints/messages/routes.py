@@ -43,6 +43,11 @@ WA_CONFIG_KEYS = [
     "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_instance", "wa_wapilot_endpoint",
     "wa_public_base_url", "wa_send_from", "wa_send_to", "wa_daily_cap",
+    # How far ahead of an appointment its reminder goes out. It lives with the
+    # window and the cap rather than on the template, because the template's
+    # own delay columns mean "after the trigger" for every other type and a
+    # column that means "before" for one row is a bug factory.
+    "wa_reminder_hours",
     "wa_meta_verify_token", "wa_meta_app_secret",
     "wa_approved_templates",
 ]
