@@ -300,10 +300,31 @@ def test_a_booking_for_later_today_gets_no_reminder(clinic_auto):
 
     Sending it now would be a duplicate of the confirmation the family
     received thirty seconds ago, which reads as a mistake — because it is one.
-    """
-    _book(clinic_auto, days_ahead=0, at=time(23, 30))
 
+    The appointment is created directly rather than booked through the screen.
+    Written the other way first, with a 23:30 slot: that is outside the
+    clinic's hours, so the booking silently failed, **no appointment existed at
+    all**, and "no reminder was queued" was true for a reason that had nothing
+    to do with this rule. Probed by counting the appointments the test
+    actually created — there were none.
+    """
     with clinic_auto["app"].app_context():
+        from app.models import Appointment
+        from app.utils.appt_reminder import schedule
+        from app.utils.clock import local_today
+        db = clinic_auto["db"]
+
+        appt = Appointment(
+            patient_id=clinic_auto["ids"]["child"],
+            doctor_id=clinic_auto["ids"]["doctor"],
+            appt_date=local_today(), appt_time=time(23, 30),
+            duration_minutes=15, status="scheduled")
+        db.session.add(appt)
+        db.session.flush()
+        assert Appointment.query.count() >= 1, "the appointment was not created"
+
+        assert schedule(appt) is None
+        db.session.commit()
         assert _reminders(clinic_auto) == []
 
 
@@ -338,7 +359,13 @@ def test_the_appointments_already_booked_are_not_skipped(clinic_auto):
     with clinic_auto["app"].app_context():
         from app.models import Appointment
         db = clinic_auto["db"]
-        for offset in (1, 2, 3):
+        # Two days out, not one. An appointment tomorrow at 11:00 has its
+        # reminder moment *today* at 11:00, so this asserted 3 in the morning
+        # and 2 in the afternoon — a test that fails by the hour it is run at,
+        # which is the exact fragility this session spent a commit removing
+        # from the rest of the suite. From two days out every reminder moment
+        # is in the future whatever o'clock it is.
+        for offset in (2, 3, 4):
             db.session.add(Appointment(
                 patient_id=clinic_auto["ids"]["child"],
                 doctor_id=clinic_auto["ids"]["doctor"],

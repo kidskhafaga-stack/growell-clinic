@@ -84,18 +84,6 @@ def pending_for(appt_id):
             .order_by(MessageLog.id).first())
 
 
-def _would_send_itself():
-    """True when a scheduled reminder would actually leave on its own.
-
-    In manual mode ``resolve_provider`` returns ``web`` — a link for a person
-    to press. Queueing one for tomorrow morning creates a row that looks like
-    a reminder and is not one.
-    """
-    from app.utils import whatsapp as wa
-
-    return wa.resolve_provider(wa.get_config(), TYPE) != "web"
-
-
 def render(appt, lang="ar"):
     """The reminder text for this appointment, from the clinic's template."""
     from app.utils import whatsapp as wa
@@ -126,7 +114,7 @@ def schedule(appt, user_id=None, lang="ar"):
         return None
     from app.utils import whatsapp as wa
 
-    if wa.type_is_off(TYPE) or not _would_send_itself():
+    if wa.type_is_off(TYPE) or not wa.sends_itself(TYPE):
         return None
     patient = appt.patient
     phone = patient.contact_phone if patient else None
