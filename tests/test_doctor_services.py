@@ -317,3 +317,63 @@ def test_the_visit_date_is_unaffected(clinic):
         from app.models import Visit
         visit = clinic["db"].session.get(Visit, clinic["ids"]["visit"])
         assert visit.visit_date == date.today()
+
+
+# --- booking, where the doctor is chosen in the same form ------------------
+
+def test_the_booking_screens_carry_the_marks_for_the_browser(clinic):
+    """Booking is where this matters most, and where a server split cannot work.
+
+    The doctor is picked in the same form as the services, so the list has to
+    reorder as that choice changes. The page therefore carries the map rather
+    than a pre-split list.
+    """
+    _mark(clinic, clinic["ids"]["nebul"])
+    desk = clinic["sign_in"]("desk")
+
+    import json
+    import re
+
+    for url in ("/appointments/new", "/appointments/"):
+        body = desk.get(url).get_data(as_text=True)
+        found = re.search(r"marks:\s*(\{.*?\}),", body, re.S)
+        assert found, f"{url} carries no marks map"
+        # Parsed rather than searched for as a substring: every service id is
+        # already on the page as a checkbox value, so "the id appears
+        # somewhere" would pass with an empty map.
+        marks = json.loads(found.group(1))
+        assert marks.get(str(clinic["ids"]["doctor"])) == [clinic["ids"]["nebul"]], (
+            f"{url} sent {marks!r}")
+
+
+def test_an_unmarked_clinic_gets_an_empty_map(clinic):
+    """Absent means "nobody has said" — the list must be left alone."""
+    body = clinic["sign_in"]("desk").get("/appointments/new").get_data(as_text=True)
+    assert "marks: {}" in body, "an unmarked clinic is being sent marks"
+
+
+def test_the_map_is_keyed_by_doctor(clinic):
+    from app.utils.doctor_services import marks_map
+
+    _mark(clinic, clinic["ids"]["nebul"])
+    _mark(clinic, clinic["ids"]["exam"], doctor_id=clinic["ids"]["admin"])
+    with clinic["app"].app_context():
+        found = marks_map()
+        assert found[clinic["ids"]["doctor"]] == [clinic["ids"]["nebul"]]
+        assert found[clinic["ids"]["admin"]] == [clinic["ids"]["exam"]]
+
+
+def test_a_doctor_who_said_no_is_not_in_the_map(clinic):
+    from app.utils.doctor_services import marks_map
+
+    _mark(clinic, clinic["ids"]["nebul"], provides=False)
+    with clinic["app"].app_context():
+        assert marks_map() == {}
+
+
+def test_every_service_is_still_offered_at_booking(clinic):
+    """Ordering only. A marked doctor must not lose the rest of the catalogue."""
+    _mark(clinic, clinic["ids"]["nebul"])
+    body = clinic["sign_in"]("desk").get("/appointments/new").get_data(as_text=True)
+    assert f'value="{clinic["ids"]["exam"]}"' in body, (
+        "an unmarked service vanished from the booking form")

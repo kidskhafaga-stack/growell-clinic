@@ -63,3 +63,26 @@ def split(doctor, services):
     mine = [s for s in services if s.id in ids]
     others = [s for s in services if s.id not in ids]
     return mine, others
+
+
+def marks_map():
+    """``{doctor_id: [service_id, ...]}`` for every doctor who has marks.
+
+    For screens where the doctor is chosen **in the same form** — booking is
+    the main one — so the list has to reorder as the doctor changes rather
+    than being split once on the server. Doctors with no marks are simply
+    absent, which is the same rule as everywhere else read from the other
+    side: a missing key means "nobody has said", so nothing is reordered and
+    nothing is tagged.
+    """
+    try:
+        from app.models import DoctorServiceCommission
+
+        out = {}
+        rows = (DoctorServiceCommission.query
+                .filter(DoctorServiceCommission.provides.is_(True)).all())
+        for row in rows:
+            out.setdefault(row.doctor_id, []).append(row.service_id)
+        return out
+    except Exception:                                       # pragma: no cover
+        return {}

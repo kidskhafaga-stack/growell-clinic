@@ -504,6 +504,13 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     cancel: { id: null, reason: '' },
     // walk-in / waitlist fields
     f: { doctorId: '', appt_type: 'new', reason: '', preferred_from: '', preferred_to: '', services: [] },
+    // {doctor_id: [service_id]} for doctors somebody has marked. Absent means
+    // nobody has said, so the list is left exactly as it was.
+    marks: {{ doctor_marks | tojson }},
+    mine(serviceId) {
+      var list = this.marks[this.f.doctorId];
+      return !!list && list.indexOf(serviceId) !== -1;
+    },
 
     close() { this.modal = null; this.q=''; this.results=[]; this.chosen=null; },
     async searchPatients() {
