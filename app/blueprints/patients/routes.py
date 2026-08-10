@@ -530,14 +530,14 @@ def _growth_concern(patient):
     (|z|>2), return a compact dict so the profile can flag it prominently."""
     from app.models import GrowthRecord
     from app.utils.growth import (
-        INDICATORS, age_in_months, compute_point, status_for_z,
+        INDICATORS, age_in_months, compute_point, reference_for, status_for_z,
     )
 
     rec = (GrowthRecord.query.filter_by(patient_id=patient.id)
            .order_by(GrowthRecord.record_date.desc(), GrowthRecord.id.desc()).first())
     if rec is None:
         return None
-    ref = "WHO" if patient.age_parts[0] < 5 else "CDC"
+    ref = reference_for(patient)
     worst = None
     for ind, meta in INDICATORS.items():
         value = getattr(rec, meta["field"], None)

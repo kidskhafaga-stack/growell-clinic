@@ -159,6 +159,22 @@ class Patient(db.Model):
         return latest_weight_record(self)
 
     @property
+    def growth_picture(self):
+        """The newest measurement event, and each reading's percentile.
+
+        ``{"record": GrowthRecord|None, "rows": [...]}``. One event rather
+        than the newest of each measurement separately — see
+        ``growth.summarise`` for why that distinction matters.
+        """
+        from app.models.growth_record import GrowthRecord
+        from app.utils.growth import summarise
+
+        record = (GrowthRecord.query.filter_by(patient_id=self.id)
+                  .order_by(GrowthRecord.record_date.desc(),
+                            GrowthRecord.id.desc()).first())
+        return {"record": record, "rows": summarise(self, record)}
+
+    @property
     def active_coverage(self):
         """The patient's current valid membership/insurance, if any."""
         valid = [c for c in getattr(self, "coverages", []) if c.is_valid]

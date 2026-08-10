@@ -115,6 +115,48 @@
   </div>
   {% endif %}
 
+  {# The growth picture — off unless the clinic asked for it.
+
+     This is what a paediatric endocrinologist reads and what a general
+     paediatrician writing an antibiotic does not, so it is the first block on
+     this page that defaults to off. A clinic builds a template with it on,
+     names it, and hands it to the doctors who want it; the per-doctor
+     template already exists, so nothing new was needed to make that work.
+
+     It prints **one measurement event**, with its date, and only what that
+     event actually recorded. A ten-year-old has no head circumference and
+     none is printed. Assembling the newest of each measurement separately
+     would put today's weight beside a height from eighteen months ago and
+     read as one moment, which is a child who never existed.
+
+     The weight appears here as well as in the band above on purpose: up there
+     it is the number a dose is checked against, here it is one point on a
+     growth curve. Different readers, different questions. #}
+  {% if tpl.show_growth %}
+  {% set picture = rx.patient.growth_picture %}
+  {% set growth_rows = picture.rows %}
+  {% if growth_rows %}
+  <div style="margin-bottom:14px;">
+    {{ rx_section('graph-up-arrow', t('rx.growth')) }}
+    <div style="display:flex;flex-wrap:wrap;gap:4px 18px;">
+      {% for row in growth_rows %}
+      <div>
+        <span style="color:var(--muted);">{{ t('growth.short_' ~ row.indicator) }}:</span>
+        <strong dir="ltr">{{ row.value }} {{ row.unit }}</strong>
+        {% if row.percentile is not none %}
+        <span class="badge {{ 'badge--muted' if row.status == 'normal' else 'badge--role' }}"
+              dir="ltr">{{ t('rx.percentile_short') }} {{ row.percentile }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if picture.record and picture.record.record_date != rx.rx_date %}
+      <div style="color:var(--muted);" dir="ltr">({{ picture.record.record_date }})</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
   {% set printed_items = rx.items | selectattr('printed') | list %}
   {% if printed_items %}
   <div style="font-size:1.6rem;color:var(--green-700);font-weight:700;margin-bottom:6px;">℞</div>

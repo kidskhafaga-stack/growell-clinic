@@ -57,13 +57,30 @@ class RxPrintTemplate(db.Model):
     # which prints even when the file is empty.
     show_weight = db.Column(db.Boolean, default=True, nullable=False)
     show_allergies = db.Column(db.Boolean, default=True, nullable=False)
+    # The growth picture: height, head circumference, BMI, each with the
+    # percentile it sits on. **Off unless a clinic asks for it**, which is the
+    # opposite of everything above — see OFF_BY_DEFAULT.
+    show_growth = db.Column(db.Boolean, default=False, nullable=False)
 
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",
-             "show_investigations", "show_weight", "show_allergies"]
+             "show_investigations", "show_weight", "show_allergies",
+             "show_growth"]
+
+    # In BOOLS so the template form saves them, but **not** switched on for a
+    # clinic that has expressed no opinion.
+    #
+    # The weight and the allergy are on for everybody because leaving them off
+    # can hurt a child. Percentiles cannot: they are what an endocrinologist
+    # reads and what a general paediatrician writing an antibiotic does not,
+    # and every block added to this page competes for room with the drugs. So
+    # a clinic builds a template with growth on, names it, and hands it to the
+    # doctors who want it — the per-doctor template already exists
+    # (``User.rx_template_id``), which is why no new concept is needed here.
+    OFF_BY_DEFAULT = ["show_growth"]
 
     def _side(self, value):
         return value if value is not None else (self.margin_mm or 0)
@@ -112,7 +129,8 @@ class RxPrintTemplate(db.Model):
         """
         return cls(name="default", mode="white", logo_source="clinic",
                    page_size="A4", font_size=14, margin_mm=12, top_offset_mm=0,
-                   **{flag: True for flag in cls.BOOLS})
+                   **{flag: flag not in cls.OFF_BY_DEFAULT
+                      for flag in cls.BOOLS})
 
     def __repr__(self):
         return f"<RxPrintTemplate {self.name}>"
