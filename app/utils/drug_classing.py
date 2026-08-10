@@ -192,3 +192,36 @@ def backfill(batch=2000):
                 db.session.commit()
     db.session.commit()
     return changed
+
+
+# --- what an adolescent might need, and a toddler will not -----------------
+#
+# The five classes a paediatric catalogue was carrying without a decision:
+# roughly 2,000 products. The obvious move — deleting them the way the
+# cosmetics went — is **wrong here**, and the clinic said why: this doctor
+# sees patients up to eighteen. A sixteen-year-old with type 1 diabetes needs
+# insulin; an adolescent gets an antihypertensive, a statin, an antidepressant.
+# Removing these would take the medicine away from the patient who needs it.
+#
+# So they stay, and the search stops putting them in front of a two-year-old
+# instead. Order, not deletion — the same answer as the doctor's own service
+# list, and for the same reason: the complaint is about hunting, so the fix is
+# ranking rather than permission.
+ADULT_ORIENTED = re.compile(
+    r"ANTINEOPLASTIC|ONCOLOG|CYTOTOXIC"
+    r"|PSYCHIATRIC|ANTIPSYCHOTIC|ANTIDEPRESS|ANXIOLYTIC"
+    r"|STATIN|ANTI-? ?HYPERLIPID|LIPID LOWER"
+    r"|ANTI-? ?HYPERTENS|ANTIHYPERTENS"
+    r"|ANTI-? ?DIABETIC|ANTIDIABETIC|INSULIN"
+    r"|BENIGN PROSTAT|ERECTILE|GOUT|ALZHEIMER|PARKINSON", re.I)
+
+# From here the program stops treating a patient as a small child for the
+# purpose of *ordering* a drug list. Twelve rather than eighteen because that
+# is where these prescriptions actually begin — and because being wrong in
+# this direction only reorders a list, it never hides anything.
+ADOLESCENT_MONTHS = 12 * 12
+
+
+def is_adult_oriented(raw):
+    """True for a class an adolescent may need and an infant will not."""
+    return bool(ADULT_ORIENTED.search(raw or ""))

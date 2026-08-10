@@ -636,6 +636,23 @@ def drug_delete(drug_id):
     return redirect(url_for("prescriptions.drugs"))
 
 
+def _search_age_months():
+    """The age of the child the search is being run for, when we know it.
+
+    Passed as ``patient_id`` by the screen doing the asking. Absent is a real
+    answer — a search with no patient behind it ranks on the text alone, which
+    is exactly what it did before.
+    """
+    from app.models import Patient
+    from app.utils.dosing import age_months_of
+
+    patient_id = request.args.get("patient_id", type=int)
+    if not patient_id:
+        return None
+    patient = db.session.get(Patient, patient_id)
+    return age_months_of(patient) if patient is not None else None
+
+
 @prescriptions_bp.route("/drugs/search")
 @module_required(MODULE)
 def drug_search():
@@ -649,6 +666,7 @@ def drug_search():
     from app.utils.drug_search import search_drugs
 
     return jsonify(search_drugs(request.args.get("q"),
+                                age_months=_search_age_months(),
                                 lang=getattr(g, "lang", "ar")))
 
 

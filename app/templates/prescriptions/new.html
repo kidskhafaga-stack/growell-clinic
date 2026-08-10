@@ -488,7 +488,14 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     // other's search — which is what a single shared list would do.
     withPicker(line){
       line.picker = window.gcPicker({
-        url: "{{ url_for('prescriptions.drug_search') }}" });
+        url: "{{ url_for('prescriptions.drug_search') }}",
+        // Read at search time, not at render: on this screen the patient can
+        // still be chosen after the page has loaded, and the ranking has to
+        // follow whoever is actually being prescribed for.
+        extra: function () {
+          const pid = document.querySelector('[name="patient_id"]');
+          return pid && pid.value ? "patient_id=" + pid.value : "";
+        } });
       return line;
     },
     // Enter takes the highlighted row. The picker hands it back rather than
