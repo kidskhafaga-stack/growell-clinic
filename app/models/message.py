@@ -14,7 +14,18 @@ from app.extensions import db
 # skipped   = intentionally not sent (patient opted out)
 # received  = an inbound message from a patient (direction=in)
 # failed/queued = self-explanatory
-MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped", "received", "read"]
+# delivered = the provider says it reached the handset
+# read      = the provider says it was opened
+# "sent" only ever meant "the provider accepted it" — a dead number and a read
+# message looked identical until these two arrived. See DELIVERY_RANK.
+MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "delivered",
+                    "failed", "skipped", "received", "read"]
+
+# Delivery receipts arrive out of order — Meta will hand you "delivered" after
+# "read" often enough that treating them as a simple assignment loses the
+# better fact. A status only ever moves *up* this ladder.
+DELIVERY_RANK = {"queued": 0, "scheduled": 0, "link": 1, "sent": 2,
+                 "delivered": 3, "read": 4}
 
 # Message direction: outbound (we sent) vs inbound (patient replied).
 MESSAGE_DIRECTIONS = ["out", "in"]
@@ -196,6 +207,10 @@ class MessageLog(db.Model):
     body = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))
     provider = db.Column(db.String(20))
+    # The provider's own id for this message ("wamid.…" on Meta). Without it a
+    # delivery receipt cannot be matched to the row it belongs to, which is why
+    # every message here was stuck at "the provider accepted it".
+    provider_msg_id = db.Column(db.String(120), index=True)
     direction = db.Column(db.String(3), default="out", nullable=False, index=True)
     status = db.Column(db.String(12), default="queued", nullable=False)
     link = db.Column(db.Text)

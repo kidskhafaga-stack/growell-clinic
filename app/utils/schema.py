@@ -222,6 +222,8 @@ ADDITIONS = [
     ("message_templates", "repeat_rule", "VARCHAR(10) DEFAULT 'once'"),
     ("message_templates", "last_enqueued_on", "DATE"),
     ("message_logs", "template_id", "INTEGER"),
+    # Delivery receipts are matched to their message by this id.
+    ("message_logs", "provider_msg_id", "VARCHAR(120)"),
     ("named_discounts", "service_id", "INTEGER"),
     ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
     ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),

@@ -161,6 +161,13 @@ def _delivery_by_type(days=BOARD_DAYS):
 
     A single "12 failed" tells you nothing worth acting on. "Every vaccine
     reminder failed and nothing else did" tells you exactly where to look.
+
+    ``sent`` and ``arrived`` are counted apart on purpose. "Sent" only ever
+    meant the provider accepted the message; ``delivered``/``read`` are the
+    provider coming back to say it reached the handset. A board that adds them
+    together tells a clinic every reminder landed while a dead number quietly
+    swallows one a week — which is exactly what this program did before the
+    delivery receipts were read.
     """
     from datetime import timedelta
 
@@ -175,12 +182,18 @@ def _delivery_by_type(days=BOARD_DAYS):
         entry = board.setdefault(kind or "other",
                                  {"type": kind or "other", "total": 0,
                                   "sent": 0, "failed": 0, "link": 0,
-                                  "scheduled": 0, "skipped": 0})
+                                  "scheduled": 0, "skipped": 0,
+                                  "delivered": 0, "read": 0})
         entry["total"] += count
         if status in entry:
             entry[status] += count
     for entry in board.values():
-        done = entry["sent"] + entry["failed"]
+        entry["arrived"] = entry["delivered"] + entry["read"]
+        # Accepted by the provider, and never heard of again. On a clinic whose
+        # provider sends receipts this is the number worth looking at: it is
+        # the messages nobody can say arrived.
+        entry["unconfirmed"] = entry["sent"]
+        done = entry["sent"] + entry["arrived"] + entry["failed"]
         entry["fail_rate"] = round(entry["failed"] * 100.0 / done, 1) if done else 0
     return sorted(board.values(), key=lambda e: (-e["failed"], -e["total"]))
 

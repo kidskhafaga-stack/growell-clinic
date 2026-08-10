@@ -282,8 +282,12 @@ def _dispatch(log, cfg):
     """Actually hand ``log`` to its provider (or build a link) and stamp it."""
     phone, body, image_url = log.to_phone, log.body, log.image_url
     if log.provider == "cloud_api":
-        ok, err = _send_cloud(cfg, phone, body, image_url)
+        ok, err, msg_id = _send_cloud(cfg, phone, body, image_url)
         log.status, log.error = ("sent", None) if ok else ("failed", err)
+        # "sent" is the weakest of the three words this row can carry: it means
+        # the provider took it, nothing more. The id is what lets a delivery
+        # receipt come back later and say whether it actually arrived.
+        log.provider_msg_id = msg_id
         if not ok:
             log.link = wa_link(phone, body)
     elif log.provider == "wapilot":
@@ -374,8 +378,9 @@ def send_approved(tpl, values, to_phone, patient_id=None, user_id=None,
     if log.provider != "cloud_api":
         log.status, log.error = "failed", "templates_need_cloud_api"
         return log
-    ok, err = _send_cloud_template(cfg, phone, tpl, values)
+    ok, err, msg_id = _send_cloud_template(cfg, phone, tpl, values)
     log.status, log.error = ("sent", None) if ok else ("failed", err)
+    log.provider_msg_id = msg_id
     log.sent_at = datetime.utcnow()
     return log
 
@@ -397,10 +402,11 @@ def _send_cloud_template(cfg, phone, tpl, values):
     headers = {"Authorization": f"Bearer {token}",
                "Content-Type": "application/json"}
     try:
-        status, _ = _post_json(url, payload, headers)
-        return (200 <= status < 300), (None if 200 <= status < 300 else f"http_{status}")
+        status, raw = _post_json(url, payload, headers)
+        ok = 200 <= status < 300
+        return ok, (None if ok else f"http_{status}"), (_cloud_msg_id(raw) if ok else None)
     except Exception as exc:  # noqa: BLE001 - network/credential failure
-        return False, str(exc)[:180]
+        return False, str(exc)[:180], None
 
 
 def dispatch_due(cfg=None, limit=500):
@@ -523,10 +529,29 @@ def _send_cloud(cfg, phone, body, image_url=None):
         }
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     try:
-        status, _ = _post_json(url, payload, headers)
-        return (200 <= status < 300), (None if 200 <= status < 300 else f"http_{status}")
+        status, raw = _post_json(url, payload, headers)
+        ok = 200 <= status < 300
+        return ok, (None if ok else f"http_{status}"), (_cloud_msg_id(raw) if ok else None)
     except Exception as exc:  # noqa: BLE001 - network/credential failure
-        return False, str(exc)[:180]
+        return False, str(exc)[:180], None
+
+
+def _cloud_msg_id(raw):
+    """The ``wamid.…`` Meta hands back for a message it accepted.
+
+    This was being thrown away — ``status, _ = _post_json(...)`` — and it is
+    the only thing a delivery receipt can be matched against. Without it every
+    message in this program was stuck at "the provider accepted it": a number
+    that has been dead for a year and a message somebody read look identical.
+
+    Never raises: a body that does not parse means no id, which costs a receipt
+    and must not cost the send.
+    """
+    try:
+        data = json.loads(raw or "{}")
+        return ((data.get("messages") or [{}])[0].get("id")) or None
+    except Exception:  # noqa: BLE001 - malformed body is not a send failure
+        return None
 
 
 def _send_wapilot(cfg, phone, body, image_url=None):
