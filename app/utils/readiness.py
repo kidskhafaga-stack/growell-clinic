@@ -185,8 +185,12 @@ STEPS = [
          endpoint="settings.index"),
     dict(key="timezone", required=True, needs=[], check=_timezone,
          endpoint="settings.index"),
+    # Owner-only: the facility setup reshapes what the whole institution is,
+    # and a plain admin must not. The checklist used to offer the button to
+    # them anyway and they met a 403 — the same failure as the two below, in
+    # its third form: a button that does not take you where it says.
     dict(key="facility", required=True, needs=["identity"], check=_facility,
-         endpoint="settings.setup"),
+         endpoint="settings.setup", owner_only=True),
     dict(key="doctors", required=True, needs=["facility"], check=_doctors,
          endpoint="users.create"),
     dict(key="doctor_identity", required=False, needs=["doctors"],
@@ -209,10 +213,20 @@ STEPS = [
          endpoint="settings.index"),
     dict(key="rx_template", required=False, needs=["doctors"],
          check=_rx_template, endpoint="prescriptions.templates"),
+    # Both of these pointed somewhere that could not be opened.
+    #
+    # "backup" aimed at ``settings.backup_settings``, which is POST-only — it
+    # *saves* the settings, it does not show them — so pressing "open" issued
+    # a GET and the clinic got **405 Method Not Allowed** on the one screen
+    # whose entire job is to take you somewhere.
+    #
+    # "ai" aimed at the settings page with no anchor, so it landed on the
+    # clinic tab and left somebody hunting for the section they had just asked
+    # for. The page already understands ``#ai``; the link simply never sent it.
     dict(key="backup", required=True, needs=[], check=_backup,
-         endpoint="settings.backup_settings"),
+         endpoint="settings.data_tools", anchor="backup"),
     dict(key="ai", required=False, needs=[], check=_ai,
-         endpoint="settings.index"),
+         endpoint="settings.index", anchor="ai"),
 ]
 
 
@@ -237,7 +251,8 @@ def review():
             done_keys.add(step["key"])
         rows.append({
             "key": step["key"], "required": step["required"],
-            "endpoint": step["endpoint"], "done": bool(done),
+            "endpoint": step["endpoint"], "anchor": step.get("anchor"),
+            "owner_only": bool(step.get("owner_only")), "done": bool(done),
             "detail": detail, "blocked_by": blocked,
         })
     return rows

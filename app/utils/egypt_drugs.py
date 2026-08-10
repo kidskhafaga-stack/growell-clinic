@@ -99,7 +99,8 @@ def seed_register(limit=None):
     # The clinic's own classes, so each register label lands on a shelf the
     # drug reference already uses. Empty when the reference has not been
     # seeded — the catalogue still works, it simply has no categories yet.
-    from app.utils.drug_classing import class_id_for, class_index
+    from app.utils.drug_classing import (class_id_for, class_index,
+                                         is_cosmetic)
     classes = class_index()
     # Ingredients we can dose, by both names, so a register entry whose
     # scientific name matches one of ours inherits the paediatric maths.
@@ -118,6 +119,12 @@ def seed_register(limit=None):
         # upgrade — it simply has no classes until the file catches up.
         trade, trade_ar, scientific, maker, route, price = row[:6]
         drug_class = row[6] if len(row) > 6 else None
+        # The register is a *pharmacy* list: what may be sold, not what a
+        # children's doctor prescribes. Hair care alone is 928 products —
+        # bigger than the whole antibiotic shelf — and every one of them sits
+        # between the doctor and the drug they are looking for.
+        if is_cosmetic(drug_class):
+            continue
         if trade.upper() in have:
             continue
         have.add(trade.upper())

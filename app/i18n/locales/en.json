@@ -3039,7 +3039,8 @@
     "why_icd": "Coded diagnoses are what make reporting possible at all.",
     "why_rx_template": "The printed page's layout; a working default is used if you add none.",
     "why_backup": "The first day of real data should already have a backup behind it.",
-    "why_ai": "Entirely optional — it runs on the clinic's own key."
+    "why_ai": "Entirely optional — it runs on the clinic's own key.",
+    "owner_only": "Owner only"
   },
   "facility_types": {
     "single_doctor": "Single-doctor clinic",

@@ -81,6 +81,48 @@ RULES = [
 
 _COMPILED = [(name, re.compile(pattern)) for name, pattern in RULES]
 
+# --- what a children's clinic is not a shop for ---------------------------
+# The Egyptian register is a *pharmacy* register: it lists what may be sold,
+# and a great deal of that is retail cosmetics. Hair care alone is 928
+# products — more than the whole antibiotic shelf — and a paediatrician
+# searching for a drug meets them.
+#
+# Measured before deciding: 2,945 products across 145 label spellings, 12% of
+# the catalogue, none of which a children's doctor prescribes.
+#
+# **The register file is not edited.** These are skipped at seed time, so the
+# bundled data stays exactly as the authority published it and the decision is
+# one visible list in one file rather than a deletion nobody can review.
+COSMETIC = re.compile(
+    r"HAIR CARE|HAIR LOSS|HAIR FALL|HAIR NOURISH|HAIR CONDITION|HAIR BOOSTER"
+    r"|MASSAGE|SUN ?BLOCK|SEXUAL|APHRODISIAC|WEIGHT LOSS|SLIMMING"
+    r"|VAGINAL|SWEETENER|SCAR THERAPY|COSMETIC|PERFUME|DEODORANT|NAIL"
+    r"|LIP CARE|FOOT CARE|DANDRUFF|SHAMPOO|WHITENING|BRIGHT"
+    r"|ANTI-? ?WRINKLE|ANTI-? ?AGING|ANTI AGING", re.I)
+
+# …and the handful the sweep would take that a paediatric clinic genuinely
+# uses. Head lice is a schoolyard illness treated with a shampoo; saline nasal
+# wash is filed under a label containing "VAGINAL"; and a multivitamin sold
+# for hair and nails is still a multivitamin.
+CLINICAL_ANYWAY = re.compile(r"\bLICE\b|PEDICULOSIS|ANTISEPTIC|NASAL|VITAMIN",
+                             re.I)
+
+
+def is_cosmetic(raw):
+    """True for a register label a children's clinic has no use for.
+
+    Checked *before* the class rules rather than after: several of these
+    already matched a shelf by accident — 130 skin-whitening creams were
+    sitting under "Topical preparations" because the label began "SKIN CARE",
+    and an anti-wrinkle eye cream had landed under "Eye & ear drops".
+    """
+    label = raw or ""
+    if not label:
+        return False
+    if CLINICAL_ANYWAY.search(label):
+        return False
+    return bool(COSMETIC.search(label))
+
 
 def map_label(raw):
     """The clinic's class for one of the register's labels, or ``None``.
