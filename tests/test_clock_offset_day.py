@@ -88,6 +88,32 @@ def test_one_of_the_two_zones_always_disagrees_with_utc(clinic, zone):
     assert abs((clinic_day - server_day).days) <= 1
 
 
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_the_zone_the_clinic_chose_is_the_one_used(clinic, zone):
+    """The discriminator the rest of this file was missing.
+
+    Everything below asks "does the clinic's day differ from UTC" — and
+    ``DEFAULT_TZ`` is Africa/Cairo, which also differs from UTC for three
+    hours a night. So a version that ignored the setting entirely and always
+    answered Cairo passed every other test in this file at the hour it was
+    written. Found by mutating ``tz_name`` to return the default and watching
+    nineteen tests stay green.
+
+    This one computes the date independently, from the zone actually asked
+    for, so only the right answer passes.
+    """
+    from zoneinfo import ZoneInfo
+
+    _set_tz(clinic, zone)
+    expected = datetime.now(ZoneInfo(zone)).date()
+    with clinic["app"].app_context():
+        from app.utils.clock import local_today, tz_name
+
+        assert tz_name() == zone, "the clinic's chosen zone was not read"
+        assert local_today() == expected, (
+            f"{zone}: the day came out as {local_today()}, not {expected}")
+
+
 def test_at_least_one_zone_differs_at_this_very_hour(clinic):
     """At any hour of the day, one of the two is on another date."""
     differs = []

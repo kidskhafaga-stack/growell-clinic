@@ -24,6 +24,13 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program works, bills and counts "today" with
+# ``local_today``; a test that builds its data with ``date.today``
+# is on another day whenever the server's zone and the clinic's
+# differ — every night after 22:00 UTC for a Cairo clinic.
+from app.utils.clock import local_today  # noqa: E402
+
+
 import pytest  # noqa: E402
 
 
@@ -41,7 +48,7 @@ def billed(clinic):
 
         inv = Invoice(invoice_number="INV-V001",
                       patient_id=clinic["ids"]["child"],
-                      invoice_date=date.today(), status="issued")
+                      invoice_date=local_today(), status="issued")
         clinic["db"].session.add(inv)
         clinic["db"].session.flush()
         # The vial: priced by its brand, carrying no service.
@@ -176,7 +183,7 @@ def test_the_prefilled_vial_line_carries_no_service(billed):
         billed["db"].session.add(PatientVaccine(
             patient_id=billed["ids"]["child"], vaccine_id=billed["ids"]["pcv"],
             brand_id=billed["ids"]["brand"], dose_number=1,
-            given_date=date.today(), event_type="given"))
+            given_date=local_today(), event_type="given"))
         billed["db"].session.commit()
 
         lines = _vaccine_prefill_lines(billed["ids"]["child"], None, "ar", False)
@@ -203,7 +210,7 @@ def test_the_fee_line_still_carries_the_fee_service(billed):
         billed["db"].session.add(PatientVaccine(
             patient_id=billed["ids"]["child"], vaccine_id=billed["ids"]["pcv"],
             brand_id=billed["ids"]["brand"], dose_number=1,
-            given_date=date.today(), event_type="given"))
+            given_date=local_today(), event_type="given"))
         billed["db"].session.commit()
 
     # The fee line is labelled through `t()`, which reads the request's
@@ -226,7 +233,7 @@ def test_the_fee_is_not_charged_twice_on_the_same_day(billed):
         billed["db"].session.add(PatientVaccine(
             patient_id=billed["ids"]["child"], vaccine_id=billed["ids"]["pcv"],
             brand_id=billed["ids"]["brand"], dose_number=1,
-            given_date=date.today(), event_type="given"))
+            given_date=local_today(), event_type="given"))
         billed["db"].session.commit()
 
         lines = _vaccine_prefill_lines(billed["ids"]["child"], None, "ar", False)

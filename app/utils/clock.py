@@ -41,10 +41,26 @@ COMMON_ZONES = [
 
 
 def tz_name():
-    """The zone the clinic has chosen, as a string."""
+    """The zone the clinic has chosen, as a string.
+
+    Reading it needs a database, and therefore an application context. Some
+    callers legitimately have neither: ``group_plan`` sorts an already-built
+    vaccination plan and touches nothing, and its tests call it with a plain
+    list — which is what a function like that *should* allow.
+
+    So a missing context falls back to the default zone rather than raising.
+    That is the same bargain :func:`to_utc` already makes and for the same
+    reason: the honest alternative is to make every pure helper that mentions
+    a date require a database, and a day's arithmetic in the default zone is
+    a far smaller error than that.
+    """
     from app.models import Setting
 
-    return (Setting.get("clinic_timezone") or "").strip() or DEFAULT_TZ
+    try:
+        chosen = Setting.get("clinic_timezone")
+    except Exception:                       # no app context, or no database
+        return DEFAULT_TZ
+    return (chosen or "").strip() or DEFAULT_TZ
 
 
 def clinic_tz(name=None):
