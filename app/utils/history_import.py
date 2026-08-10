@@ -116,13 +116,62 @@ def _norm_header(value):
     return normalise_arabic(value)
 
 
+# A second pass, for the headers no alias list will ever finish covering.
+#
+# The alias table matches exactly, which is right for the wordings we know and
+# useless for the ones we do not: a file headed "Visit Date" missed the date
+# column entirely — a **required** field — and the person importing had to find
+# it on the mapping screen and point at it. Measured on an export with English
+# headers in a different order: nine of fourteen columns were recognised and
+# the date was not one of them.
+#
+# So each key also carries the *words* that mean it. "Visit Date", "Date of
+# service" and "تاريخ الكشف" all contain one, and none of them needs adding by
+# hand. Deliberately word-ish rather than clever: no scoring, no distance —
+# a wrong guess here silently imports the wrong column, and the mapping screen
+# is right there for anything this cannot see.
+LOOSE_WORDS = [
+    ("service_date", r"date|تاريخ"),
+    ("service_time", r"\btime\b|الساعة|الوقت"),
+    ("patient_code", r"\bmrn\b|file *(no|number|#)|رقم الملف|كود المريض"),
+    ("patient_name", r"patient|المريض|اسم المريض"),
+    ("doctor_share", r"(doctor|طبيب|دكتور).*(share|نصيب|حصة)"
+                     r"|(share|نصيب|حصة).*(doctor|طبيب|دكتور)"),
+    ("doctor_name", r"doctor|طبيب|دكتور|consultant"),
+    ("service_name", r"service|procedure|item|الخدمة|الخدمه|البند|الصنف"),
+    ("paid_company", r"insurance|company|تامين|تأمين|شرك"),
+    ("paid_cash", r"cash|نقد"),
+    ("price", r"amount|total|price|fee|السعر|المبلغ|الاجمالي|الإجمالي"),
+    ("quantity", r"\bqty\b|quantity|الكمية|الكميه|العدد"),
+    ("notes", r"remark|comment|note|ملاحظ"),
+]
+_LOOSE = [(key, re.compile(pattern, re.I)) for key, pattern in LOOSE_WORDS]
+
+
 def map_headers(raw_headers):
-    """``{column index: canonical key}`` for the headers we recognise."""
+    """``{column index: canonical key}`` for the headers we recognise.
+
+    Exact aliases first — they are precise and they are what the known exports
+    use. The word pass then fills only what is still empty, and only from
+    columns nothing has claimed, so it can never overrule a name we know.
+    """
     mapping = {}
     for index, header in enumerate(raw_headers):
         key = COLUMN_ALIASES.get(_norm_header(header))
         if key and key not in mapping.values():
             mapping[index] = key
+
+    taken_keys = set(mapping.values())
+    for key, pattern in _LOOSE:
+        if key in taken_keys:
+            continue
+        for index, header in enumerate(raw_headers):
+            if index in mapping:
+                continue
+            if pattern.search(str(header or "")):
+                mapping[index] = key
+                taken_keys.add(key)
+                break
     return mapping
 
 
