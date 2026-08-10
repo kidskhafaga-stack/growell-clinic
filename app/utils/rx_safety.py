@@ -126,13 +126,28 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
                                  if w not in ("no_weight", "no_rule")]
         lines.append(entry)
 
+    # What the child is *already* on, added before the interactions are
+    # paired. Without this the check could only see the drugs being written in
+    # this room: a child on carbamazepine for epilepsy, handed a macrolide for
+    # a chest infection, produced no warning at all — the carbamazepine was
+    # prescribed months ago by somebody else and was never in the list.
+    from app.utils.patient_meds import ingredient_ids
+
+    ongoing = ingredient_ids(patient) if patient is not None else []
+    pairs = interaction_pairs(generic_ids + ongoing)
+
     return {
         "lines": lines,
-        "interactions": interaction_pairs(generic_ids),
+        "interactions": pairs,
+        # Named separately so the screen can say *why* a drug it cannot see on
+        # the page is in the warning. "Interacts with something" is a warning
+        # a doctor dismisses; "interacts with the carbamazepine he is on" is
+        # one they act on.
+        "ongoing_ids": ongoing,
         "weight": weight_kg,
         "age_months": age_months,
         "has_warnings": (any(l["warnings"] or l["allergy"] for l in lines)
-                         or bool(interaction_pairs(generic_ids))),
+                         or bool(pairs)),
         "allergies": [l for l in lines if l["allergy"]],
     }
 

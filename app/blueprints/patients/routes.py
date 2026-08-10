@@ -273,6 +273,45 @@ def archive_run():
     return redirect(url_for("patients.archive"))
 
 
+@patients_bp.route("/<int:patient_id>/medications", methods=["POST"])
+@module_required(MODULE)
+def medication_add(patient_id):
+    """Record a medicine the child is already on.
+
+    Open to the staff who hear it, because the person who learns that a child
+    takes something is usually whoever the mother is talking to. Who wrote it
+    is stored, since "the mother says he takes something white" and "the
+    neurologist's letter says 200mg twice a day" are not the same evidence.
+    """
+    from app.utils import patient_meds as meds
+
+    patient = db.get_or_404(Patient, patient_id)
+    row = meds.add(
+        patient, request.form.get("name"), user=current_user,
+        dose=(request.form.get("dose") or "").strip(),
+        frequency=(request.form.get("frequency") or "").strip(),
+        reason=(request.form.get("reason") or "").strip(),
+        generic_id=request.form.get("generic_id", type=int),
+        drug_id=request.form.get("drug_id", type=int),
+    )
+    flash(t("meds.added") if row else t("meds.need_name"),
+          "success" if row else "danger")
+    return redirect(url_for("patients.view", patient_id=patient.id) + "#meds")
+
+
+@patients_bp.route("/medications/<int:med_id>/stop", methods=["POST"])
+@module_required(MODULE)
+def medication_stop(med_id):
+    """End a medicine. The row stays — see ``patient_meds.stop``."""
+    from app.models import PatientMedication
+    from app.utils import patient_meds as meds
+
+    row = db.get_or_404(PatientMedication, med_id)
+    meds.stop(row, user=current_user, reason=request.form.get("stop_reason"))
+    flash(t("meds.stopped"), "info")
+    return redirect(url_for("patients.view", patient_id=row.patient_id) + "#meds")
+
+
 @patients_bp.route("/<int:patient_id>/flag", methods=["POST"])
 @module_required(MODULE)
 def flag_raise(patient_id):
@@ -470,12 +509,14 @@ def view(patient_id):
     from app.utils.siblings import suggest_siblings
 
     from app.utils import patient_flags as flags
+    from app.utils import patient_meds as meds
 
     return render_template(
         "patients/profile.html",
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
         imported=imported,
         payment_flag=flags.active(patient.id),
+        medications=meds.history(patient),
         payment_flag_history=flags.history(patient.id),
         can_clear_flag=flags.can_clear(current_user),
         sibling_hints=suggest_siblings(patient),

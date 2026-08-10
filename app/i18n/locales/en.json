@@ -4736,5 +4736,24 @@
     "cleared": "Flag cleared.",
     "history": "Earlier flags",
     "staff_only": "Internal staff note — never appears on anything the family is handed."
+  },
+  "meds": {
+    "title": "Ongoing medicines",
+    "hint": "What the child is currently taking. These are included in the interaction check when a new drug is written.",
+    "name": "Medicine",
+    "dose": "Dose",
+    "frequency": "Frequency",
+    "reason": "Reason",
+    "add": "Add ongoing medicine",
+    "added": "Medicine recorded",
+    "stopped": "Medicine stopped",
+    "need_name": "A name is required",
+    "stop": "Stop",
+    "stopped_on": "Stopped",
+    "since": "Since",
+    "none": "No ongoing medicines recorded",
+    "added_by": "Recorded by",
+    "unlinked": "Not linked to the drug reference — excluded from the interaction check",
+    "ongoing_interaction": "Interacts with an ongoing medicine"
   }
 }
