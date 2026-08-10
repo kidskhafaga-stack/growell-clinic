@@ -68,6 +68,53 @@
   </div>
   {% endif %}
 
+  {# Weight and allergy, together and immediately above the ℞ — the two things
+     whoever is about to hand over a bottle has to read before they read the
+     drugs.
+
+     **Weight**, because a paediatric dose is mg/kg and this paper carried the
+     age alone. A two-year-old can be 9 kg or 16 kg, so the age does not let
+     anybody check a dose; the number the dose was computed from was the one
+     number missing from the page. It prints with the date it was taken
+     whenever that is not this prescription's own date, because 12 kg measured
+     this morning and 12 kg measured last winter are the same number and a
+     different dose.
+
+     **Allergy prints even when the file is empty**, and says "not recorded"
+     rather than "none". A blank cannot be read: nobody looking at one can
+     tell a child with no allergies from a child nobody asked. Printing "no
+     allergies" would be worse — the program knows the field is empty, it does
+     not know the child is safe. The warning triangle carries the alarm as
+     well as the colour, because these come out of a black-and-white printer. #}
+  {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
+  {% set has_weight = growth and growth.weight_kg %}
+  {% if has_weight or tpl.show_allergies %}
+  <div style="display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;
+              border:1px solid var(--line);border-inline-start:3px solid var(--green-600);
+              border-radius:6px;padding:8px 11px;margin-bottom:14px;">
+    {% if has_weight %}
+    <div><span style="color:var(--muted);">{{ t('rx.weight') }}:</span>
+      <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
+      {% if growth.record_date != rx.rx_date %}
+      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if tpl.show_allergies %}
+    {% set allergy_text = (rx.patient.allergies or '')|trim %}
+    <div>
+      <span style="color:var(--muted);">{{ t('rx.allergies') }}:</span>
+      {% if allergy_text %}
+      <i class="bi bi-exclamation-triangle-fill" style="color:#c1121f;"></i>
+      <strong style="color:#c1121f;">{{ allergy_text }}</strong>
+      {% else %}
+      <span style="color:var(--muted);">{{ t('rx.allergies_none_recorded') }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% set printed_items = rx.items | selectattr('printed') | list %}
   {% if printed_items %}
   <div style="font-size:1.6rem;color:var(--green-700);font-weight:700;margin-bottom:6px;">℞</div>

@@ -151,14 +151,25 @@ def age_months_of(patient, on_date=None):
     return max(months, 0)
 
 
-def latest_weight(patient):
-    """The most recent recorded weight (kg), if the clinic has one."""
+def latest_weight_record(patient):
+    """The most recent growth record carrying a weight, or ``None``.
+
+    The row rather than the bare number, because a weight without its date is
+    not something anybody can act on: 12 kg measured this morning and 12 kg
+    measured last winter are the same number and a different dose. Whoever
+    shows a weight to a human being needs the date beside it.
+    """
     try:
         from app.models import GrowthRecord
-        row = (GrowthRecord.query
-               .filter(GrowthRecord.patient_id == patient.id,
-                       GrowthRecord.weight_kg.isnot(None))
-               .order_by(GrowthRecord.record_date.desc()).first())
-        return row.weight_kg if row else None
+        return (GrowthRecord.query
+                .filter(GrowthRecord.patient_id == patient.id,
+                        GrowthRecord.weight_kg.isnot(None))
+                .order_by(GrowthRecord.record_date.desc()).first())
     except Exception:                                       # pragma: no cover
         return None
+
+
+def latest_weight(patient):
+    """The most recent recorded weight (kg), if the clinic has one."""
+    row = latest_weight_record(patient)
+    return row.weight_kg if row else None
