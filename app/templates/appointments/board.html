@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% from "_timer.html" import live_timer with context %}
 {% set active_module = 'appointments' %}
@@ -108,12 +109,8 @@
   {% else %}
   <form method="get" id="docFilter">
     <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
-    <select class="select" name="doctor_id" onchange="document.getElementById('docFilter').submit()">
-      <option value="">{{ t('appointments.all_doctors') }}</option>
-      {% for d in doctors %}
-        <option value="{{ d.id }}" {{ 'selected' if doctor_id == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
-      {% endfor %}
-    </select>
+    {{ pickers.doctor_picker('doctor_id', doctor_id, None, doctors=doctors,
+                             allow_all=True) }}
   </form>
   {% endif %}
 </div>

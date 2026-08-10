@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'appointments' %}
 {% block title %}{{ t('appointments.schedules') }}{% endblock %}
 {% block page_heading %}{{ t('appointments.schedules') }}{% endblock %}
@@ -15,13 +16,11 @@
 
 <!-- Doctor selector -->
 <div class="card gc-animate" style="margin-bottom:18px;animation-delay:0.05s;">
+  {# Was a <select> holding every doctor. Fine at four; at forty it is the
+     screen — you open it, scroll, and read forty names to find one. #}
   <form method="get">
     <label class="section-title" style="font-size:0.95rem;"><i class="bi bi-person-badge"></i> {{ t('appointments.schedule_for') }}</label>
-    <select class="select" name="doctor_id" style="max-width:340px;" onchange="this.form.submit()">
-      {% for d in doctors %}
-        <option value="{{ d.id }}" {{ 'selected' if selected == d.id else '' }}>{{ d.display_name(current_lang) }}</option>
-      {% endfor %}
-    </select>
+    {{ pickers.doctor_picker('doctor_id', selected, None, doctors=doctors) }}
   </form>
 </div>
 

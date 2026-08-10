@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% from "_print_header.html" import print_header with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ invoice.invoice_number }}{% endblock %}
@@ -35,9 +36,9 @@
           {% for p in patients %}<option value="{{ p.id }}" {{ 'selected' if invoice.patient_id==p.id else '' }}>{{ p.display_name(current_lang) }} — {{ p.patient_number }}</option>{% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('invoices.doctor') }}</label>
-        <select class="select" name="doctor_id"><option value="">—</option>
-          {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if invoice.doctor_id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
-        </select></div>
+        {{ pickers.doctor_picker('doctor_id', invoice.doctor_id, None,
+                                 doctors=doctors, allow_all=True,
+                                 autosubmit=False) }}</div>
       <div class="form-row"><label>{{ t('claims.payer') }}</label>
         <select class="select" name="payer_id"><option value="">{{ t('claims.no_payer') }}</option>
           {% for pe in payers %}<option value="{{ pe.id }}" {{ 'selected' if invoice.payer_id==pe.id else '' }}>{{ pe.display_name(current_lang) }}</option>{% endfor %}

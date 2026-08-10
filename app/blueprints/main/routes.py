@@ -225,6 +225,54 @@ def set_theme():
     return {"theme": theme}
 
 
+@main_bp.route("/doctor-search")
+@login_required
+def doctor_search():
+    """JSON: the clinic's doctors, for every screen that has to pick one.
+
+    The same list already existed behind ``prescriptions.doctor_search`` and
+    exactly one screen used it — the prescription. Every other screen that
+    asks "which doctor" (the schedules, the day board, the roster, the
+    statements, the invoices, the discounts) still renders the whole list into
+    a ``<select>``, which is fine at four doctors and is the screen at forty.
+
+    It lives here rather than in ``prescriptions`` because reception needs it
+    on the appointments board and has no prescriptions module — and a clinic
+    can switch that module off entirely, which would take the doctor picker on
+    unrelated screens with it.
+
+    Nothing here is newly exposed: this is the same set of names those screens
+    already render into their dropdowns for the same signed-in users. The
+    screens keep their own module gates; this only answers the filter.
+
+    An empty query returns everybody, because a clinic has a handful of
+    doctors and making somebody guess the first two letters of a list that
+    short is not searching, it is a hurdle.
+    """
+    from flask import g, jsonify
+
+    from app.utils.appointments import list_doctors
+
+    query = (request.args.get("q") or "").strip()
+    lang = getattr(g, "lang", "ar")
+    rows = list_doctors()
+    if query:
+        needle = query.lower()
+
+        def matches(user):
+            for field in (user.full_name, user.full_name_en,
+                          user.rx_display_name, user.username, user.specialty):
+                if field and needle in field.lower():
+                    return True
+            return False
+
+        rows = [u for u in rows if matches(u)]
+    return jsonify([
+        {"id": u.id, "name": u.display_name(lang),
+         "number": u.specialty or u.job_title or ""}
+        for u in rows[:20]])
+
+
 @main_bp.route("/about")
 @login_required
 def about():

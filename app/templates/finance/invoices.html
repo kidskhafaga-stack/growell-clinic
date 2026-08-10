@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ t('invoices.title') }}{% endblock %}
@@ -41,10 +42,8 @@
     <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('data_export.to') }}</label>
       <input class="input" type="date" name="to" value="{{ f_to }}"></div>
     <div class="form-row" style="margin:0;max-width:190px;"><label>{{ t('invoices.doctor') }}</label>
-      <select class="select" name="doctor_id">
-        <option value="">{{ t('common.all') }}</option>
-        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if f_doctor == d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
-      </select></div>
+      {{ pickers.doctor_picker('doctor_id', f_doctor, None, doctors=doctors,
+                               allow_all=True, autosubmit=False) }}</div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">{{ t('common.reset') }}</a>
     {# Exported from exactly what is on screen, so what the accountant hands

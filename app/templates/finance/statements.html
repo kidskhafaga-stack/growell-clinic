@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% from "_print_header.html" import print_header with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ t('statements.title') }}{% endblock %}
@@ -15,10 +16,8 @@
 <form method="get" class="card gc-scale-in no-print">
   <div class="form-grid">
     <div class="form-row"><label>{{ t('statements.select_doctor') }}</label>
-      <select class="select" name="doctor_id" required>
-        <option value="">{{ t('statements.select_doctor') }}</option>
-        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if doctor and doctor.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
-      </select></div>
+      {{ pickers.doctor_picker('doctor_id', doctor.id if doctor else None, None,
+                               doctors=doctors, autosubmit=False) }}</div>
     <div class="form-row"><label>{{ t('statements.from') }}</label><input class="input" type="date" name="date_from" value="{{ date_from }}"></div>
     <div class="form-row"><label>{{ t('statements.to') }}</label><input class="input" type="date" name="date_to" value="{{ date_to }}"></div>
     <div class="form-row checkbox" style="align-self:end;"><input type="checkbox" id="paid_only" name="paid_only" value="1" {{ 'checked' if paid_only else '' }}>
