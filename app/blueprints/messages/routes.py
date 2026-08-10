@@ -43,6 +43,11 @@ WA_CONFIG_KEYS = [
     "wa_cloud_token", "wa_cloud_phone_id",
     "wa_wapilot_key", "wa_wapilot_instance", "wa_wapilot_endpoint",
     "wa_public_base_url", "wa_send_from", "wa_send_to", "wa_daily_cap",
+    # How far ahead of an appointment its reminder goes out. It lives with the
+    # window and the cap rather than on the template, because the template's
+    # own delay columns mean "after the trigger" for every other type and a
+    # column that means "before" for one row is a bug factory.
+    "wa_reminder_hours",
     "wa_meta_verify_token", "wa_meta_app_secret",
     "wa_approved_templates",
 ]
@@ -156,6 +161,13 @@ def _delivery_by_type(days=BOARD_DAYS):
 
     A single "12 failed" tells you nothing worth acting on. "Every vaccine
     reminder failed and nothing else did" tells you exactly where to look.
+
+    ``sent`` and ``arrived`` are counted apart on purpose. "Sent" only ever
+    meant the provider accepted the message; ``delivered``/``read`` are the
+    provider coming back to say it reached the handset. A board that adds them
+    together tells a clinic every reminder landed while a dead number quietly
+    swallows one a week — which is exactly what this program did before the
+    delivery receipts were read.
     """
     from datetime import timedelta
 
@@ -170,12 +182,18 @@ def _delivery_by_type(days=BOARD_DAYS):
         entry = board.setdefault(kind or "other",
                                  {"type": kind or "other", "total": 0,
                                   "sent": 0, "failed": 0, "link": 0,
-                                  "scheduled": 0, "skipped": 0})
+                                  "scheduled": 0, "skipped": 0,
+                                  "delivered": 0, "read": 0})
         entry["total"] += count
         if status in entry:
             entry[status] += count
     for entry in board.values():
-        done = entry["sent"] + entry["failed"]
+        entry["arrived"] = entry["delivered"] + entry["read"]
+        # Accepted by the provider, and never heard of again. On a clinic whose
+        # provider sends receipts this is the number worth looking at: it is
+        # the messages nobody can say arrived.
+        entry["unconfirmed"] = entry["sent"]
+        done = entry["sent"] + entry["arrived"] + entry["failed"]
         entry["fail_rate"] = round(entry["failed"] * 100.0 / done, 1) if done else 0
     return sorted(board.values(), key=lambda e: (-e["failed"], -e["total"]))
 

@@ -2680,6 +2680,7 @@
     "occ_custom": "Custom",
     "add_template_btn": "Add template",
     "occ_appointment_confirm": "Appointment confirm",
+    "occ_appointment_reminder": "Appointment reminder",
     "occ_doctor_schedule": "Doctor schedule",
     "occ_vaccine_given": "Vaccine given",
     "vars_for": "Available variables",
@@ -2834,7 +2835,10 @@
     "not_sent": "The message was not sent: {why}",
     "reason_missing_phone": "No phone number on the file",
     "reason_opted_out": "The family asked not to be messaged",
-    "reason_type_off": "This notification is switched off in settings"
+    "reason_type_off": "This notification is switched off in settings",
+    "reminder_hours": "Remind this many hours before",
+    "reminder_hours_hint": "The message is queued this far ahead of the appointment. 24 means it goes out at the same hour the day before.",
+    "reminder_needs_auto": "Automatic reminders need sending mode \"automatic\" — in manual mode nothing is queued, because a link needs somebody there to press it."
   },
   "notif": {
     "title": "Notifications",

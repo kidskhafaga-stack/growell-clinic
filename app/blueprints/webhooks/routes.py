@@ -55,6 +55,11 @@ def meta_receive():
     payload = request.get_json(silent=True) or {}
     for item in inbound.normalize_meta(payload):
         inbound.handle_inbound(item, "cloud_api")
+    # The same webhook carries delivery receipts for what the clinic sent.
+    # They were being dropped, which is why no message here could ever say
+    # more than "the provider accepted it".
+    for item in inbound.normalize_meta_statuses(payload):
+        inbound.apply_status(item)
     db.session.commit()
     return jsonify(ok=True)
 

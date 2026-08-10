@@ -82,7 +82,7 @@ def test_it_sends_the_filled_body_to_the_number_given(desk, monkeypatch):
 
     def fake_cloud(cfg, phone, body, image_url=None):
         sent["phone"], sent["body"] = phone, body
-        return True, None
+        return True, None, "wamid.test"
 
     monkeypatch.setattr(wa, "_send_cloud", fake_cloud)
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
@@ -103,7 +103,7 @@ def test_it_tests_what_is_on_the_screen_not_what_was_saved(desk, monkeypatch):
     sent = {}
     monkeypatch.setattr(wa, "_send_cloud",
                         lambda cfg, phone, body, image_url=None: (
-                            sent.update(body=body), (True, None))[1])
+                            sent.update(body=body), (True, None, "wamid.test"))[1])
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
               wa_cloud_token="tok", wa_cloud_phone_id="1")
 
@@ -119,7 +119,7 @@ def test_an_empty_editor_falls_back_to_the_saved_body(desk, monkeypatch):
     sent = {}
     monkeypatch.setattr(wa, "_send_cloud",
                         lambda cfg, phone, body, image_url=None: (
-                            sent.update(body=body), (True, None))[1])
+                            sent.update(body=body), (True, None, "wamid.test"))[1])
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
               wa_cloud_token="tok", wa_cloud_phone_id="1")
 
@@ -147,7 +147,7 @@ def test_it_goes_out_now_even_outside_the_sending_window(desk, monkeypatch):
     from app.utils import whatsapp as wa
 
     monkeypatch.setattr(wa, "_send_cloud",
-                        lambda *a, **k: (True, None))
+                        lambda *a, **k: (True, None, "wamid.test"))
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
               wa_cloud_token="tok", wa_cloud_phone_id="1",
               # A one-minute window that has certainly passed or not arrived.
@@ -165,7 +165,7 @@ def test_a_manual_type_still_tests_through_the_real_provider(desk, monkeypatch):
     from app.models import MessageTemplate
     from app.utils import whatsapp as wa
 
-    monkeypatch.setattr(wa, "_send_cloud", lambda *a, **k: (True, None))
+    monkeypatch.setattr(wa, "_send_cloud", lambda *a, **k: (True, None, "wamid.test"))
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
               wa_cloud_token="tok", wa_cloud_phone_id="1")
     with desk["app"].app_context():
@@ -191,7 +191,7 @@ def test_a_click_to_send_clinic_gets_the_ready_message_to_click(desk):
 def test_a_failure_says_so(desk, monkeypatch):
     from app.utils import whatsapp as wa
 
-    monkeypatch.setattr(wa, "_send_cloud", lambda *a, **k: (False, "http_401"))
+    monkeypatch.setattr(wa, "_send_cloud", lambda *a, **k: (False, "http_401", None))
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
               wa_cloud_token="tok", wa_cloud_phone_id="1")
 
@@ -213,7 +213,7 @@ def test_a_test_send_is_not_counted_as_a_notification_to_anyone(desk,
     from app.models import MessageLog
     from app.utils import whatsapp as wa
 
-    monkeypatch.setattr(wa, "_send_cloud", lambda *a, **k: (True, None))
+    monkeypatch.setattr(wa, "_send_cloud", lambda *a, **k: (True, None, "wamid.test"))
     _settings(desk, crm_mode="automatic", wa_provider="cloud_api",
               wa_cloud_token="tok", wa_cloud_phone_id="1")
 

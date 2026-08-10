@@ -14,7 +14,18 @@ from app.extensions import db
 # skipped   = intentionally not sent (patient opted out)
 # received  = an inbound message from a patient (direction=in)
 # failed/queued = self-explanatory
-MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "failed", "skipped", "received", "read"]
+# delivered = the provider says it reached the handset
+# read      = the provider says it was opened
+# "sent" only ever meant "the provider accepted it" — a dead number and a read
+# message looked identical until these two arrived. See DELIVERY_RANK.
+MESSAGE_STATUSES = ["queued", "scheduled", "link", "sent", "delivered",
+                    "failed", "skipped", "received", "read"]
+
+# Delivery receipts arrive out of order — Meta will hand you "delivered" after
+# "read" often enough that treating them as a simple assignment loses the
+# better fact. A status only ever moves *up* this ladder.
+DELIVERY_RANK = {"queued": 0, "scheduled": 0, "link": 1, "sent": 2,
+                 "delivered": 3, "read": 4}
 
 # Message direction: outbound (we sent) vs inbound (patient replied).
 MESSAGE_DIRECTIONS = ["out", "in"]
@@ -39,6 +50,11 @@ SYSTEM_TEMPLATE_TYPES = [
     "vaccine_back",
     # The prescription itself, sent to the family as a picture of the paper.
     "rx_copy",
+    # The one message that reduces no-shows more than any other, and the one
+    # this program did not have: a reminder *before* the appointment. The
+    # confirmation goes out when the booking is made — often weeks earlier —
+    # and by then it is a receipt, not a reminder.
+    "appointment_reminder",
 ]
 # Notification types the clinic manages centrally (each has one canonical
 # template with its own body/image/auto-or-manual toggle). Birthday is an
@@ -50,6 +66,7 @@ OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback", "seasonal", "g
 # staff can compose messages without guessing the tokens.
 TEMPLATE_VARIABLES = {
     "appointment_confirm": ["patient", "clinic", "date", "time", "doctor", "queue"],
+    "appointment_reminder": ["patient", "clinic", "date", "time", "doctor"],
     "doctor_schedule": ["doctor", "date", "count", "list"],
     "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
     "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
@@ -69,6 +86,15 @@ TEMPLATE_DEFAULTS = {
     "appointment_confirm": (
         "مرحباً {patient}،\nتم تأكيد موعدك في {clinic} يوم {date} الساعة {time} "
         "مع {doctor}.\nدورك رقم: {queue}\nنتمنى لكم الصحة والعافية."
+    ),
+    # Deliberately shorter than the confirmation, and it asks something. The
+    # confirmation is a record; this is the message that has to make somebody
+    # either come or call — so it names the time, and it says what to do if
+    # the time no longer suits them, which is the whole point of sending it a
+    # day early rather than an hour.
+    "appointment_reminder": (
+        "تذكير من {clinic}: عند {patient} موعد يوم {date} الساعة {time} "
+        "مع {doctor}.\nلو الموعد مش مناسب، برجاء إبلاغنا بالرد على الرسالة."
     ),
     "doctor_schedule": "د. {doctor}، جدول حجوزات اليوم {date} ({count} حجز):\n{list}",
     "vaccine_given": (
@@ -181,6 +207,10 @@ class MessageLog(db.Model):
     body = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(300))
     provider = db.Column(db.String(20))
+    # The provider's own id for this message ("wamid.…" on Meta). Without it a
+    # delivery receipt cannot be matched to the row it belongs to, which is why
+    # every message here was stuck at "the provider accepted it".
+    provider_msg_id = db.Column(db.String(120), index=True)
     direction = db.Column(db.String(3), default="out", nullable=False, index=True)
     status = db.Column(db.String(12), default="queued", nullable=False)
     link = db.Column(db.Text)

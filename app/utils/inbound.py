@@ -44,6 +44,80 @@ def _meta_message(m):
     return item
 
 
+def normalize_meta_statuses(payload):
+    """Meta delivery receipts → ``{msg_id, status, error}`` items.
+
+    The same webhook that carries a family's reply also carries these, in
+    ``value["statuses"]`` — and this program read only ``value["messages"]``
+    and dropped them on the floor. That is why a message here could never say
+    more than "the provider accepted it": a number disconnected a year ago and
+    a message somebody read looked exactly alike on every screen.
+
+    Meta's own vocabulary is kept (``sent`` / ``delivered`` / ``read`` /
+    ``failed``) rather than translated, so what the log says and what the Meta
+    dashboard says are the same word.
+    """
+    items = []
+    for entry in (payload or {}).get("entry", []):
+        for change in entry.get("changes", []):
+            for st in (change.get("value") or {}).get("statuses", []):
+                items.append({
+                    "msg_id": st.get("id"),
+                    "status": st.get("status"),
+                    "error": _status_error(st),
+                })
+    return [i for i in items if i.get("msg_id") and i.get("status")]
+
+
+def _status_error(st):
+    """The provider's own words for why a message failed, or None.
+
+    Shown as it arrived. "This number is not on WhatsApp" is something
+    reception can act on; a code is something they will ask somebody about.
+    """
+    errors = st.get("errors") or []
+    if not errors:
+        return None
+    first = errors[0] or {}
+    text = (first.get("title") or first.get("message")
+            or str(first.get("code") or ""))
+    return (text or None) and text[:200]
+
+
+def apply_status(item):
+    """Record one delivery receipt against the message it belongs to.
+
+    Two rules, both learned from how these actually arrive:
+
+    * **Only ever upward.** Receipts come out of order — a ``delivered`` lands
+      after a ``read`` often enough that a plain assignment would quietly
+      downgrade the better fact and the clinic would read fewer opens than
+      really happened.
+    * **``failed`` always wins.** It is not a rung on the ladder; it is the
+      message not arriving, and it is the one status somebody has to act on.
+
+    Returns the row it touched, or None when the id is unknown — a receipt for
+    a message this clinic never sent is not an error, it is a webhook for
+    somebody else's message or one sent before this column existed.
+    """
+    from app.models import DELIVERY_RANK
+
+    row = (MessageLog.query
+           .filter_by(provider_msg_id=item.get("msg_id")).first())
+    if row is None:
+        return None
+    incoming = item.get("status")
+    if incoming == "failed":
+        row.status = "failed"
+        row.error = item.get("error") or row.error or "provider_failed"
+        return row
+    if incoming not in DELIVERY_RANK:
+        return None
+    if DELIVERY_RANK[incoming] > DELIVERY_RANK.get(row.status, 0):
+        row.status = incoming
+    return row
+
+
 def normalize_wapilot(payload):
     """WaPilot v2 ``message`` webhook → list of normalized items."""
     m = (payload or {}).get("message") or {}

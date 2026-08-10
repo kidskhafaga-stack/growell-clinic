@@ -95,6 +95,36 @@ def to_local(moment, tz=None):
     return moment.replace(tzinfo=timezone.utc).astimezone(zone)
 
 
+def to_utc(moment, tz=None):
+    """A wall-clock moment in the clinic as the naive UTC the database stores.
+
+    The inverse of :func:`to_local`, and it exists for one thing: scheduling.
+    An appointment is "Tuesday at 10:00" in the clinic's own time, while
+    ``MessageLog.scheduled_at`` is compared against ``datetime.utcnow()``.
+    Sending a reminder means converting between the two, and doing it by
+    subtraction somewhere in a route is how the reminder for a 10 a.m.
+    appointment goes out at 7 a.m.
+
+    Unlike :func:`to_local` this **falls back** to treating the moment as UTC
+    when the zone cannot be resolved, because refusing would mean scheduling
+    nothing at all. A reminder a few hours off is a poor reminder; no reminder
+    is a missed appointment. The settings screen already says out loud when
+    the zone is unreadable.
+    """
+    if moment is None:
+        return None
+    zone = clinic_tz(tz) if isinstance(tz, str) else (tz or clinic_tz())
+    if zone is None:
+        return moment
+    from datetime import timezone
+
+    # Naive in, naive out: the caller's moment is the clinic's wall clock, and
+    # what goes back into the column has to be naive UTC like every other
+    # stored time here.
+    return (moment.replace(tzinfo=zone)
+            .astimezone(timezone.utc).replace(tzinfo=None))
+
+
 def local_today(tz=None):
     """Today's date in the clinic, which is not always today's date in UTC.
 

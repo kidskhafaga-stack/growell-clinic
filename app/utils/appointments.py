@@ -1,5 +1,5 @@
 """Smart scheduling helpers: available slot generation and doctor lookup."""
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import (
@@ -10,6 +10,7 @@ from app.models import (
     User,
 )
 from app.models.appointment import ACTIVE_STATUSES
+from app.utils.clock import local_today, to_local
 
 # How far ahead the "next available" finders scan before giving up.
 LOOKAHEAD_DAYS = 60
@@ -62,7 +63,7 @@ def consultation_window(patient_id, doctor_id, on_date=None):
       * ``exceeded`` – past the max → should be an exam (or doctor approval)
     plus ``days`` since the last exam, ``last_date``, ``free_days``, ``max_days``.
     """
-    on_date = on_date or date.today()
+    on_date = on_date or local_today()
     free_days, max_days = consult_window_days()
     last = last_exam_date(patient_id, doctor_id, on_date)
     if last is None:
@@ -178,8 +179,13 @@ def available_slots(doctor_id, on_date, exclude_id=None):
         return []
 
     taken = taken_times(doctor_id, on_date, exclude_id=exclude_id)
-    now = datetime.now()
-    is_today = on_date == date.today()
+    # Both halves of "is this slot already past?" have to come off the same
+    # clock. These were ``datetime.now()`` and ``date.today()`` — the machine's
+    # — which agree with each other but not with the clinic's zone when the
+    # machine is not in it. Splitting only one of them would be worse than
+    # leaving both: the day would be the clinic's and the hour the server's.
+    now = to_local(datetime.utcnow()) or datetime.utcnow()
+    is_today = on_date == now.date()
 
     slots = []
     seen = set()
@@ -203,7 +209,7 @@ def next_available(doctor_id, from_date=None, days=LOOKAHEAD_DAYS):
     Returns ``{"date": iso, "time": "HH:MM"}`` or ``None`` if nothing is free
     within the lookahead window.
     """
-    start = from_date or date.today()
+    start = from_date or local_today()
     for offset in range(days):
         on_date = start + timedelta(days=offset)
         slots = available_slots(doctor_id, on_date)
@@ -218,7 +224,7 @@ def first_available_doctor(from_date=None, days=LOOKAHEAD_DAYS, doctors=None):
     Scans date-by-date so the *soonest* slot wins regardless of doctor.
     Returns a dict with doctor/date/time, or ``None``.
     """
-    start = from_date or date.today()
+    start = from_date or local_today()
     docs = doctors if doctors is not None else list_doctors()
     if not docs:
         return None
@@ -247,10 +253,33 @@ def slot_duration(doctor_id, on_date):
 
 
 def parse_date_arg(value, default=None):
-    """Parse an ISO date string, falling back to ``default`` or today."""
+    """Parse an ISO date string, falling back to ``default`` or **today**.
+
+    Today here is the *clinic's* today, not the machine's. Thirty-four callers
+    default through this one line, and it used to answer with ``date.today()``
+    — the date in the **operating system's** timezone — while the doctor's
+    station screen was already asking :func:`local_today`, which is the date in
+    the timezone the clinic *set*.
+
+    On a Windows box sitting in the clinic those are the same date and nothing
+    was wrong. They come apart whenever the machine's zone is not the clinic's:
+    a server left on UTC, a hosted install, or an admin who picks a zone in
+    settings that the OS does not share. Then, for the hours each night when
+    the two dates differ, the two halves of one feature look at different days.
+
+    Measured, with the clinic's zone set so the dates differ: a walk-in was
+    stored with the machine's date, appeared on reception's board, and **did
+    not appear on the doctor's station at all** — a child checked in, sitting
+    in the waiting room, and the doctor's screen saying nobody was there.
+
+    Asking one clock removes the condition rather than narrowing it.
+    """
     if value:
         try:
             return datetime.strptime(value, "%Y-%m-%d").date()
         except ValueError:
             pass
-    return default or date.today()
+    if default:
+        return default
+    from app.utils.clock import local_today
+    return local_today()
