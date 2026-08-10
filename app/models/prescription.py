@@ -49,13 +49,48 @@ class RxPrintTemplate(db.Model):
     show_signature = db.Column(db.Boolean, default=True, nullable=False)
     show_stamp = db.Column(db.Boolean, default=True, nullable=False)
     show_investigations = db.Column(db.Boolean, default=True, nullable=False)
+    # The child's weight, and what they are allergic to. Both default on, and
+    # both for the same reason: a paediatric dose is mg/kg, so a prescription
+    # that carries the age but not the weight is missing the number the dose
+    # was computed from — and the pharmacist handing over the bottle has no
+    # way to notice it is wrong. See the paper template for the allergy line,
+    # which prints even when the file is empty.
+    show_weight = db.Column(db.Boolean, default=True, nullable=False)
+    show_allergies = db.Column(db.Boolean, default=True, nullable=False)
+    # Asthma, epilepsy, diabetes — the other half of what the profile already
+    # calls an alert. On by default like the allergy, but it prints only when
+    # there is something to print; see the paper template for why the two
+    # differ there.
+    show_conditions = db.Column(db.Boolean, default=True, nullable=False)
+    # Vaccinations given at this visit and when the next dose is due. It was
+    # the only block on the page with no switch — it simply appeared whenever
+    # a vaccine had been given. Defensible, and inconsistent with everything
+    # around it, which is the kind of thing a clinic reports as a bug.
+    show_vaccines = db.Column(db.Boolean, default=True, nullable=False)
+    # The growth picture: height, head circumference, BMI, each with the
+    # percentile it sits on. **Off unless a clinic asks for it**, which is the
+    # opposite of everything above — see OFF_BY_DEFAULT.
+    show_growth = db.Column(db.Boolean, default=False, nullable=False)
 
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",
-             "show_investigations"]
+             "show_investigations", "show_weight", "show_allergies",
+             "show_conditions", "show_vaccines", "show_growth"]
+
+    # In BOOLS so the template form saves them, but **not** switched on for a
+    # clinic that has expressed no opinion.
+    #
+    # The weight and the allergy are on for everybody because leaving them off
+    # can hurt a child. Percentiles cannot: they are what an endocrinologist
+    # reads and what a general paediatrician writing an antibiotic does not,
+    # and every block added to this page competes for room with the drugs. So
+    # a clinic builds a template with growth on, names it, and hands it to the
+    # doctors who want it — the per-doctor template already exists
+    # (``User.rx_template_id``), which is why no new concept is needed here.
+    OFF_BY_DEFAULT = ["show_growth"]
 
     def _side(self, value):
         return value if value is not None else (self.margin_mm or 0)
@@ -93,9 +128,19 @@ class RxPrintTemplate(db.Model):
         a dozen separate holes in the printout rather than one line here. The
         docstring said "fully-on" the whole time, which is the part worth
         remembering: it described the intention, and nothing checked it.
+
+        The same sentence applies to the numbers, and they were still missing:
+        ``font_size`` came out ``None``, so the page carried
+        ``font-size:Nonepx`` — invalid, ignored by the browser, and printed at
+        whatever size the surrounding page happened to be. ``margin_mm`` came
+        out ``None`` too, which ``_side`` reads as a **zero** margin: a
+        prescription printed hard against the edge of the paper. Anything with
+        a Column default has to be repeated here.
         """
         return cls(name="default", mode="white", logo_source="clinic",
-                   **{flag: True for flag in cls.BOOLS})
+                   page_size="A4", font_size=14, margin_mm=12, top_offset_mm=0,
+                   **{flag: flag not in cls.OFF_BY_DEFAULT
+                      for flag in cls.BOOLS})
 
     def __repr__(self):
         return f"<RxPrintTemplate {self.name}>"

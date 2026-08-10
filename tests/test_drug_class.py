@@ -96,7 +96,10 @@ def test_seeding_puts_the_class_on_the_drug(clinic):
         seed_register(limit=400)
         classed = Drug.query.filter(Drug.drug_class.isnot(None)).count()
         total = Drug.query.count()
-        assert total >= 400
+        # ``limit`` caps the rows *read*, not the rows written: the cosmetic
+        # ones inside that slice are skipped, so 400 in is fewer than 400 out.
+        # Asserting exactly 400 was asserting the pre-cosmetics catalogue.
+        assert 300 < total <= 400
         assert classed > total * 0.9
         one = Drug.query.filter_by(
             trade_name="1 2 3 (ONE TWO THREE) 20 F.C.TABS.").first()

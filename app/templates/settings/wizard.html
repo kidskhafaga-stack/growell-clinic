@@ -32,9 +32,16 @@
       </div>
     </div>
     {% if state.next %}
-    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for(state.next.endpoint) }}">
+    {# The same rule as the per-row button: the biggest button on the screen
+       must not be the one that 403s. #}
+    {% if state.next.owner_only and not current_user.is_owner %}
+    <span class="badge badge--muted">
+      {{ t('wizard.step_' ~ state.next.key) }} — {{ t('wizard.owner_only') }}</span>
+    {% else %}
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for(state.next.endpoint) }}{{ '#' ~ state.next.anchor if state.next.anchor else '' }}">
       <i class="bi bi-arrow-{{ 'left' if direction=='rtl' else 'right' }}"></i>
       {{ t('wizard.continue') }}: {{ t('wizard.step_' ~ state.next.key) }}</a>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -73,10 +80,18 @@
         </td>
         <td style="text-align:end;white-space:nowrap;">
           {# A blocked step still opens: being told what to do first and then
-             being refused the door is worse than being let through to look. #}
-          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for(row.endpoint) }}">
+             being refused the door is worse than being let through to look.
+
+             An owner-only step is the exception, and it is not the same
+             thing: the door is not going to open however long they look at
+             it, so it says who can open it instead of handing them a 403. #}
+          {% if row.owner_only and not current_user.is_owner %}
+          <span class="badge badge--muted">{{ t('wizard.owner_only') }}</span>
+          {% else %}
+          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for(row.endpoint) }}{{ '#' ~ row.anchor if row.anchor else '' }}">
             <i class="bi bi-box-arrow-{{ 'in-left' if direction=='rtl' else 'in-right' }}"></i>
             {{ t('wizard.open') }}</a>
+          {% endif %}
           {% if row.key == 'drugs' and not row.done %}
           <form method="post" action="{{ url_for('settings.wizard_seed_drugs') }}" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

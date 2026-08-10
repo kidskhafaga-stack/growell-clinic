@@ -90,7 +90,9 @@
 </div>
 
 <!-- Backups (Phase 0 — the safety net) -->
-<div class="card gc-scale-in" style="margin-bottom:16px;">
+{# Anchored: the setup checklist links straight here, and a link that lands at
+   the top of a long data screen is a link that has not arrived. #}
+<div class="card gc-scale-in" id="backup" style="margin-bottom:16px;scroll-margin-top:80px;">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
     <div>
       <h2 class="section-title" style="margin:0;"><i class="bi bi-safe"></i> {{ t('backups.title') }}</h2>

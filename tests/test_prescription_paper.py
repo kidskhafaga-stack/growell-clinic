@@ -45,12 +45,26 @@ def test_a_clinic_with_no_print_template_still_prints_everything(clinic):
 
     A brand-new clinic has no ``rx_print_templates`` row, so every printout
     goes through the transient default — and every flag on it was None.
+
+    ``None`` is the thing to keep out, and it stays the assertion for every
+    flag: an element that vanishes because nobody set it is the original bug.
+    A flag deliberately listed in ``OFF_BY_DEFAULT`` is a different statement —
+    somebody decided it, and growth is the first one (percentiles are what an
+    endocrinologist reads and what a general paediatrician does not).
     """
     from app.models import RxPrintTemplate
 
     with clinic["app"].app_context():
         tpl = RxPrintTemplate.default_instance()
-        off = [flag for flag in RxPrintTemplate.BOOLS if not getattr(tpl, flag)]
+        unset = [flag for flag in RxPrintTemplate.BOOLS
+                 if getattr(tpl, flag) is None]
+        assert not unset, (
+            "these flags are None rather than decided, which is the bug this "
+            "test exists for: " + ", ".join(unset))
+
+        off = [flag for flag in RxPrintTemplate.BOOLS
+               if not getattr(tpl, flag)
+               and flag not in RxPrintTemplate.OFF_BY_DEFAULT]
         assert not off, (
             "these sections would silently vanish from every prescription in a "
             "clinic that never built a template: " + ", ".join(off))

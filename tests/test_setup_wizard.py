@@ -368,8 +368,13 @@ def test_the_register_arrives_with_the_ordinary_install(clinic):
 
     with clinic["app"].app_context():
         out = seed_reference()
-        assert out.get("egypt_drug_register", 0) > 24000
-        assert Drug.query.count() > 24000
+        # Not the register's full 25,065: the retail cosmetics are skipped at
+        # seed time — 2,945 products a paediatrician never prescribes, hair
+        # care alone being larger than the antibiotic shelf. The number that
+        # matters is that the *clinical* register arrives whole, so this is a
+        # floor with a little room rather than the file's row count.
+        assert out.get("egypt_drug_register", 0) > 21000
+        assert Drug.query.count() > 21000
 
 
 def test_the_register_gets_its_dosing_whichever_order_the_seeders_run(clinic):

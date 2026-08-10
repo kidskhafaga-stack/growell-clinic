@@ -68,6 +68,114 @@
   </div>
   {% endif %}
 
+  {# Weight and allergy, together and immediately above the ℞ — the two things
+     whoever is about to hand over a bottle has to read before they read the
+     drugs.
+
+     **Weight**, because a paediatric dose is mg/kg and this paper carried the
+     age alone. A two-year-old can be 9 kg or 16 kg, so the age does not let
+     anybody check a dose; the number the dose was computed from was the one
+     number missing from the page. It prints with the date it was taken
+     whenever that is not this prescription's own date, because 12 kg measured
+     this morning and 12 kg measured last winter are the same number and a
+     different dose.
+
+     **Allergy prints even when the file is empty**, and says "not recorded"
+     rather than "none". A blank cannot be read: nobody looking at one can
+     tell a child with no allergies from a child nobody asked. Printing "no
+     allergies" would be worse — the program knows the field is empty, it does
+     not know the child is safe. The warning triangle carries the alarm as
+     well as the colour, because these come out of a black-and-white printer. #}
+  {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
+  {% set has_weight = growth and growth.weight_kg %}
+  {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
+  {% if has_weight or tpl.show_allergies or has_conditions %}
+  <div style="display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;
+              border:1px solid var(--line);border-inline-start:3px solid var(--green-600);
+              border-radius:6px;padding:8px 11px;margin-bottom:14px;">
+    {% if has_weight %}
+    <div><span style="color:var(--muted);">{{ t('rx.weight') }}:</span>
+      <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
+      {% if growth.record_date != rx.rx_date %}
+      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if tpl.show_allergies %}
+    {% set allergy_text = (rx.patient.allergies or '')|trim %}
+    <div>
+      <span style="color:var(--muted);">{{ t('rx.allergies') }}:</span>
+      {% if allergy_text %}
+      <i class="bi bi-exclamation-triangle-fill" style="color:#c1121f;"></i>
+      <strong style="color:#c1121f;">{{ allergy_text }}</strong>
+      {% else %}
+      <span style="color:var(--muted);">{{ t('rx.allergies_none_recorded') }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    {# Asthma, epilepsy, diabetes — context the next person reading this page
+       needs, and it was in the file the whole time beside the allergy.
+
+       **Printed only when there is something to print**, which is deliberately
+       not what the allergy line does. Silence about an allergy is dangerous
+       ambiguity, so that line speaks even when empty. Silence here is the
+       ordinary case: most children have no chronic condition, and stamping
+       "none recorded" on every prescription in the clinic would be noise with
+       no safety bought by it. #}
+    {% if tpl.show_conditions %}
+    {% set conditions = (rx.patient.chronic_diseases or '')|trim %}
+    {% if conditions %}
+    <div>
+      <span style="color:var(--muted);">{{ t('rx.conditions') }}:</span>
+      <strong>{{ conditions }}</strong>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# The growth picture — off unless the clinic asked for it.
+
+     This is what a paediatric endocrinologist reads and what a general
+     paediatrician writing an antibiotic does not, so it is the first block on
+     this page that defaults to off. A clinic builds a template with it on,
+     names it, and hands it to the doctors who want it; the per-doctor
+     template already exists, so nothing new was needed to make that work.
+
+     It prints **one measurement event**, with its date, and only what that
+     event actually recorded. A ten-year-old has no head circumference and
+     none is printed. Assembling the newest of each measurement separately
+     would put today's weight beside a height from eighteen months ago and
+     read as one moment, which is a child who never existed.
+
+     The weight appears here as well as in the band above on purpose: up there
+     it is the number a dose is checked against, here it is one point on a
+     growth curve. Different readers, different questions. #}
+  {% if tpl.show_growth %}
+  {% set picture = rx.patient.growth_picture %}
+  {% set growth_rows = picture.rows %}
+  {% if growth_rows %}
+  <div style="margin-bottom:14px;">
+    {{ rx_section('graph-up-arrow', t('rx.growth')) }}
+    <div style="display:flex;flex-wrap:wrap;gap:4px 18px;">
+      {% for row in growth_rows %}
+      <div>
+        <span style="color:var(--muted);">{{ t('growth.short_' ~ row.indicator) }}:</span>
+        <strong dir="ltr">{{ row.value }} {{ row.unit }}</strong>
+        {% if row.percentile is not none %}
+        <span class="badge {{ 'badge--muted' if row.status == 'normal' else 'badge--role' }}"
+              dir="ltr">{{ t('rx.percentile_short') }} {{ row.percentile }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if picture.record and picture.record.record_date != rx.rx_date %}
+      <div style="color:var(--muted);" dir="ltr">({{ picture.record.record_date }})</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
   {% set printed_items = rx.items | selectattr('printed') | list %}
   {% if printed_items %}
   <div style="font-size:1.6rem;color:var(--green-700);font-weight:700;margin-bottom:6px;">℞</div>
@@ -115,7 +223,7 @@
   </div>
   {% endif %}
 
-  {% if rx_vaccines %}
+  {% if rx_vaccines and tpl.show_vaccines %}
   <!-- Vaccinations given this visit + when the next dose is expected -->
   <div style="margin-top:16px;">
     <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">

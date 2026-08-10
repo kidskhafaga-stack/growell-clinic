@@ -767,6 +767,10 @@
     "subtitle": "Growth curves against international standards with percentile and Z-score",
     "reference": "Reference",
     "indicator": "Indicator",
+    "short_wfa": "Weight",
+    "short_hfa": "Height",
+    "short_hcfa": "Head circ.",
+    "short_bmifa": "BMI",
     "wfa": "Weight-for-age",
     "hfa": "Height-for-age",
     "hcfa": "Head circumference-for-age",
@@ -1905,7 +1909,10 @@
     "rx_setup_hint": "The layout this doctor's prescriptions print on, with their signature and stamp.",
     "rx_use_default": "The clinic's default layout",
     "rx_no_templates": "No layouts yet — create one from Print templates.",
-    "rx_template": "Layout"
+    "rx_template": "Layout",
+    "provides": "Performs",
+    "other_services": "Other services",
+    "provides_hint": "Tick what this doctor actually performs. With nothing ticked they see the whole catalogue, unchanged."
   },
   "problems": {
     "title_list": "Problem list",
@@ -2273,6 +2280,12 @@
   },
   "rx": {
     "title": "Drugs & Prescriptions",
+    "weight": "Weight",
+    "weight_kg": "kg",
+    "allergies": "Allergies",
+    "allergies_none_recorded": "No allergy recorded on file",
+    "growth": "Growth",
+    "percentile_short": "P",
     "new": "New prescription",
     "manage_drugs": "Manage drugs",
     "catalogue": "Drug catalogue",
@@ -2388,7 +2401,8 @@
     "save_pdf": "Save PDF",
     "public_note": "This is the clinic's own copy. To confirm it, scan the code above.",
     "license": "License",
-    "all_classes": "All classes"
+    "all_classes": "All classes",
+    "conditions": "Chronic conditions"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -2473,6 +2487,9 @@
     "show_contact": "Contact / address",
     "show_license": "License no.",
     "show_patient": "Patient data",
+    "show_weight": "Weight (for dosing)",
+    "show_allergies": "Allergies",
+    "show_growth": "Growth (height, percentiles, BMI)",
     "show_diagnosis": "Diagnosis",
     "show_signature": "Signature",
     "show_stamp": "Stamp",
@@ -2497,7 +2514,13 @@
     "preview_hint": "Adjust margins and offset to see where content lands on the sheet instantly.",
     "preprinted_area": "Pre-printed letterhead area",
     "pv_doctor": "Dr. Name",
-    "pv_invest": "Labs / investigations requested"
+    "pv_invest": "Labs / investigations requested",
+    "show_conditions": "Chronic conditions",
+    "show_vaccines": "Vaccinations given",
+    "test_print": "Test print",
+    "sample": "SAMPLE",
+    "test_print_hint": "Print this on the paper you actually use and see where the text lands. Every detail is invented — no real patient appears here. On a pre-printed template the dashed red line marks the top offset: it has to fall below your printed letterhead.",
+    "offset_line": "Offset — {n} mm"
   },
   "store": {
     "title": "General store",
@@ -3039,7 +3062,8 @@
     "why_icd": "Coded diagnoses are what make reporting possible at all.",
     "why_rx_template": "The printed page's layout; a working default is used if you add none.",
     "why_backup": "The first day of real data should already have a backup behind it.",
-    "why_ai": "Entirely optional — it runs on the clinic's own key."
+    "why_ai": "Entirely optional — it runs on the clinic's own key.",
+    "owner_only": "Owner only"
   },
   "facility_types": {
     "single_doctor": "Single-doctor clinic",
@@ -4712,5 +4736,24 @@
     "cleared": "Flag cleared.",
     "history": "Earlier flags",
     "staff_only": "Internal staff note — never appears on anything the family is handed."
+  },
+  "meds": {
+    "title": "Ongoing medicines",
+    "hint": "What the child is currently taking. These are included in the interaction check when a new drug is written.",
+    "name": "Medicine",
+    "dose": "Dose",
+    "frequency": "Frequency",
+    "reason": "Reason",
+    "add": "Add ongoing medicine",
+    "added": "Medicine recorded",
+    "stopped": "Medicine stopped",
+    "need_name": "A name is required",
+    "stop": "Stop",
+    "stopped_on": "Stopped",
+    "since": "Since",
+    "none": "No ongoing medicines recorded",
+    "added_by": "Recorded by",
+    "unlinked": "Not linked to the drug reference — excluded from the interaction check",
+    "ongoing_interaction": "Interacts with an ongoing medicine"
   }
 }

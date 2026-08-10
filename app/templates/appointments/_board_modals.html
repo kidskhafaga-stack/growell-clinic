@@ -95,9 +95,14 @@
         <i class="bi" :class="svcOpen ? 'bi-chevron-up' : 'bi-plus-lg'"></i> {{ t('appointments.extra_services') }}
       </button>
       <div x-show="svcOpen" x-cloak style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;max-height:160px;overflow-y:auto;">
+        {# Ordering, not filtering — see the booking form for the reasoning. #}
         {% for s in bookable_services %}
-        <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:.85rem;">
+        <label :style="mine({{ s.id }}) ? 'order:0' : 'order:1'"
+               style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:.85rem;">
           <input type="checkbox" value="{{ s.id }}" x-model="f.services">
+          <i class="bi bi-person-check" style="color:var(--green-700);"
+             x-show="mine({{ s.id }})" x-cloak
+             title="{{ t('doctors.provides') }}"></i>
           {{ s.display_name(current_lang) }} <span style="color:var(--muted);">({{ s.price }})</span>
         </label>
         {% endfor %}

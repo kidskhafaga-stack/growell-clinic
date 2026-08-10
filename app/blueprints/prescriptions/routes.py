@@ -636,6 +636,23 @@ def drug_delete(drug_id):
     return redirect(url_for("prescriptions.drugs"))
 
 
+def _search_age_months():
+    """The age of the child the search is being run for, when we know it.
+
+    Passed as ``patient_id`` by the screen doing the asking. Absent is a real
+    answer — a search with no patient behind it ranks on the text alone, which
+    is exactly what it did before.
+    """
+    from app.models import Patient
+    from app.utils.dosing import age_months_of
+
+    patient_id = request.args.get("patient_id", type=int)
+    if not patient_id:
+        return None
+    patient = db.session.get(Patient, patient_id)
+    return age_months_of(patient) if patient is not None else None
+
+
 @prescriptions_bp.route("/drugs/search")
 @module_required(MODULE)
 def drug_search():
@@ -649,6 +666,7 @@ def drug_search():
     from app.utils.drug_search import search_drugs
 
     return jsonify(search_drugs(request.args.get("q"),
+                                age_months=_search_age_months(),
                                 lang=getattr(g, "lang", "ar")))
 
 
@@ -984,6 +1002,30 @@ def view(rx_id):
 def templates():
     return render_template("prescriptions/templates.html",
                            templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
+
+
+@prescriptions_bp.route("/templates/<int:tpl_id>/test-print")
+@admin_required
+def template_test_print(tpl_id):
+    """The layout on real paper, before anybody commits to it.
+
+    The whole question on pre-printed letterhead is whether the text lands
+    under the printed header or across it, and nothing on a screen answers
+    that — you put ink on the paper and look. The sample child is invented, so
+    a clinic aiming its printer is not reprinting a real patient's weight,
+    allergy and medicines onto sheet after sheet destined for the bin.
+
+    It renders the same ``_paper.html`` a real prescription does. A separate,
+    simpler mock-up would drift, and then the preview would agree with itself
+    and disagree with the printer.
+    """
+    from app.utils.rx_testprint import sample
+
+    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    lang = getattr(g, "lang", "ar")
+    return render_template("prescriptions/test_print.html",
+                           rx=sample(current_user, lang), tpl=tpl,
+                           rx_vaccines=[], digital=False)
 
 
 def _save_template(tpl):

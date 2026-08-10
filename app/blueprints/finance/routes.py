@@ -2312,6 +2312,14 @@ def _checkout_screen(appt, patient):
     lines = (_checkout_lines(appt, lang) if appt
              else _patient_checkout_lines(patient, doctor_id, lang))
     suggested, suggested_amount = _discount_preview(patient, doctor_id, lines)
+    # The doctor is already settled by the time anybody reaches the till, so
+    # this splits on the server — unlike booking, where the doctor is being
+    # chosen in the same form and the browser has to do it.
+    from app.utils.doctor_services import split as _split_services
+    _services = (Service.query.filter_by(is_active=True)
+                 .order_by(Service.name).all())
+    _my_services, _other_services = _split_services(
+        db.session.get(User, doctor_id) if doctor_id else None, _services)
     from app.utils.vaccine_sale import as_json, sellable
     return render_template(
         "finance/checkout.html", appt=appt, patient=patient, lines=lines,
@@ -2331,7 +2339,8 @@ def _checkout_screen(appt, patient):
         refundable=_refundable(patient_id),
         refund_needs_approval=(Setting.get("refund_approval_required", "1") != "0"
                                and not current_user.is_admin),
-        services=Service.query.filter_by(is_active=True).order_by(Service.name).all(),
+        services=_services,
+        my_services=_my_services, other_services=_other_services,
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
         suggested=suggested, suggested_amount=suggested_amount,
         payment_methods=PAYMENT_METHODS,

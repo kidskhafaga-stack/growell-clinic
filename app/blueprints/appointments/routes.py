@@ -167,6 +167,7 @@ def index():
         fin=fin,
         breakdown=breakdown,
         bookable_services=_bookable_services(),
+        doctor_marks=_doctor_marks(),
         doctor_locked=bool(locked),
     )
 
@@ -504,6 +505,7 @@ def create():
                 appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
                 doctor_options=_doctor_options(doctors),
                 services=_bookable_services(),
+                doctor_marks=_doctor_marks(),
                 vaccination_service_id=_vaccination_service_id(),
             )
 
@@ -572,6 +574,7 @@ def create():
         appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
         doctor_options=_doctor_options(doctors),
         services=_bookable_services(),
+        doctor_marks=_doctor_marks(),
         vaccination_service_id=_vaccination_service_id(),
         booking_open=is_open,
     )
@@ -588,6 +591,19 @@ def _bookable_services():
     from app.models import Service
 
     return Service.query.filter_by(is_active=True).order_by(Service.name).all()
+
+
+def _doctor_marks():
+    """Which services each doctor is marked as performing, for the browser.
+
+    The doctor is chosen in the same form as the services here, so the list
+    has to reorder as that choice changes — which a server-side split cannot
+    do. A doctor with no marks is absent from the map, and the screen then
+    behaves exactly as it did before.
+    """
+    from app.utils.doctor_services import marks_map
+
+    return marks_map()
 
 
 def _vaccination_service_id():

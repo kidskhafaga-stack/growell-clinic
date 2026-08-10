@@ -182,3 +182,57 @@ def status_for_z(z):
     if az <= 3:
         return "caution"
     return "alert"
+
+
+def reference_for(patient):
+    """Which standard to measure this child against: WHO 0–5, CDC after.
+
+    Extracted so the printed prescription and the profile's growth flag cannot
+    quietly disagree about it. A child read against the wrong reference gets a
+    percentile that is wrong by a clinically interesting amount around the
+    boundary, and nothing on the page would say why.
+    """
+    try:
+        return "WHO" if patient.age_parts[0] < 5 else "CDC"
+    except Exception:                                       # pragma: no cover
+        return "WHO"
+
+
+def summarise(patient, record):
+    """One measurement event, with a percentile against each indicator.
+
+    ``[{indicator, value, unit, percentile, z, status}]`` for whatever that
+    record actually holds — which is what keeps this honest without any
+    per-age configuration. A ten-year-old has no head circumference on file,
+    so no head circumference is printed; a visit where only the weight was
+    taken prints only the weight.
+
+    **One record, not the best of several.** Taking each measurement from
+    whichever visit last recorded it would build a child who never existed —
+    today's weight against a height from eighteen months ago — and read as a
+    single moment on the page. The date belongs to the whole row.
+    """
+    if patient is None or record is None:
+        return []
+    ref = reference_for(patient)
+    out = []
+    for indicator, meta in INDICATORS.items():
+        value = getattr(record, meta["field"], None)
+        if not value:
+            continue
+        point = compute_point(ref, indicator, patient.gender,
+                              patient.date_of_birth, record.record_date, value)
+        z = point.get("z") if point else None
+        out.append({
+            "indicator": indicator,
+            "value": round(value, 2),
+            "unit": meta["unit"],
+            # A measurement off the end of the reference (a 21-year-old, a
+            # birth date nobody filled in) still prints its value. Dropping
+            # the row would hide a real measurement because the standard has
+            # nothing to say about it.
+            "percentile": point.get("percentile") if point else None,
+            "z": z,
+            "status": status_for_z(z),
+        })
+    return out

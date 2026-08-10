@@ -105,12 +105,14 @@
 <div class="card gc-scale-in" style="animation-delay:0.12s;">
   <h2 class="section-title"><i class="bi bi-cash-stack"></i> {{ t('doctors.pricing') }}</h2>
   <p class="hint" style="margin-top:-6px;">{{ t('doctors.pricing_hint') }}</p>
+  <p class="hint" style="margin-top:-2px;">{{ t('doctors.provides_hint') }}</p>
   {% if services %}
   <form method="post" action="{{ url_for('users.doctor_pricing', user_id=doc.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="overflow-x:auto;">
       <table class="table" style="min-width:640px;">
         <thead><tr>
+          <th>{{ t('doctors.provides') }}</th>
           <th>{{ t('doctors.service') }}</th>
           <th>{{ t('doctors.base_price') }}</th>
           <th>{{ t('doctors.price_override') }}</th>
@@ -121,6 +123,8 @@
           {% for svc in services %}
           {% set oc = overrides.get(svc.id) %}
           <tr>
+            <td><input type="checkbox" name="provides_{{ svc.id }}" value="1"
+                       {{ 'checked' if oc and oc.provides else '' }}></td>
             <td><strong>{{ svc.display_name(current_lang) }}</strong>
               {% if svc.code %}<div style="font-size:0.76rem;color:var(--muted);" dir="ltr">{{ svc.code }}</div>{% endif %}</td>
             <td style="color:var(--muted);" dir="ltr">{{ svc.price }}</td>

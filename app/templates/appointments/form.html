@@ -159,11 +159,25 @@
       <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open" style="align-self:start;">
         <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-plus-lg'"></i> {{ t('appointments.extra_services') }}
       </button>
+      {# The services this doctor performs float to the front and are ticked
+         with a small mark. Ordering only — nothing is hidden and nothing is
+         disabled, because somebody booking an unusual case must still be able
+         to pick it.
+
+         Done with flex `order` rather than by rebuilding the list, so the
+         chips stay server-rendered and the reordering follows the doctor as
+         they are chosen in this same form. A doctor nobody has marked is
+         absent from the map, `mine()` is false for every chip, and this reads
+         exactly as it did before the feature existed. #}
       <div x-show="open" x-cloak style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
         {% for s in services %}
-        <label style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:.88rem;">
+        <label :style="mine({{ s.id }}) ? 'order:0' : 'order:1'"
+               style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:.88rem;">
           <input type="checkbox" name="extra_services" value="{{ s.id }}"
                  {% if vaccination_service_id and s.id == vaccination_service_id %}data-opens-vaccine="1"{% endif %}>
+          <i class="bi bi-person-check" style="color:var(--green-700);"
+             x-show="mine({{ s.id }})" x-cloak
+             title="{{ t('doctors.provides') }}"></i>
           {{ s.display_name(current_lang) }} <span class="muted" style="color:var(--muted);">({{ s.price }})</span>
         </label>
         {% endfor %}
@@ -235,6 +249,13 @@
       doctors: {{ doctor_options | tojson }},
       docQ: '', docOpen: false,
       slots: [], selected: preselected, loading: false, finderMsg: '',
+      // {doctor_id: [service_id]}, for doctors somebody has marked. A doctor
+      // who is absent has said nothing, so nothing about the list changes.
+      marks: {{ doctor_marks | tojson }},
+      mine(serviceId) {
+        var list = this.marks[this.doctorId];
+        return !!list && list.indexOf(serviceId) !== -1;
+      },
       doctorMatches() {
         var q = this.docQ.trim().toLowerCase();
         if (!q) return this.doctors;

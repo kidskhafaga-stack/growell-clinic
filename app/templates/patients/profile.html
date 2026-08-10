@@ -73,6 +73,84 @@
   </div>
   {% endif %}
 
+  {# What the child is already on.
+
+     Behind the clinical capability like the banner above it, because a list
+     of a child's psychiatric or epilepsy medicines is not front-desk
+     information.
+
+     The point of this section is not the list — it is that these ingredients
+     go into the interaction check when the doctor writes something new. A row
+     nobody could link to the drug reference says so, plainly, rather than
+     letting the screen imply a check that cannot happen. #}
+  {% if current_user.can('patient_medical') %}
+  <div class="card gc-scale-in no-print" id="meds" style="scroll-margin-top:80px;">
+    <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('meds.title') }}</h2>
+    <p class="hint" style="margin-top:-6px;">{{ t('meds.hint') }}</p>
+
+    {% set ongoing = medications | selectattr('is_current') | list %}
+    {% if ongoing %}
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      {% for m in ongoing %}
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:9px;padding:9px 12px;">
+        <strong>{{ m.label(current_lang) }}</strong>
+        {% if m.reason %}<span class="badge badge--muted">{{ m.reason }}</span>{% endif %}
+        {% if not m.generic_id %}
+        <span class="badge badge--muted" title="{{ t('meds.unlinked') }}"><i class="bi bi-link-45deg"></i></span>
+        {% endif %}
+        <span style="color:var(--muted);font-size:.82rem;">
+          {{ t('meds.since') }} <span dir="ltr">{{ m.started_on }}</span>
+          {% if m.adder %} · {{ t('meds.added_by') }} {{ m.adder.display_name(current_lang) }}{% endif %}
+        </span>
+        <form method="post" action="{{ url_for('patients.medication_stop', med_id=m.id) }}"
+              style="margin-inline-start:auto;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="stop_reason" placeholder="{{ t('meds.reason') }}"
+                 style="max-width:150px;display:inline-block;">
+          <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('meds.stop') }}</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint">{{ t('meds.none') }}</p>
+    {% endif %}
+
+    {# Stopped, not deleted: a medicine the child was on until March explains a
+       result or a rash, and removing the row would leave the file reading as
+       though it was never given. #}
+    {% set past = medications | rejectattr('is_current') | list %}
+    {% if past %}
+    <details style="margin-top:10px;">
+      <summary class="hint" style="cursor:pointer;">{{ t('meds.stopped_on') }} ({{ past|length }})</summary>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:7px;">
+        {% for m in past %}
+        <div style="color:var(--muted);font-size:.86rem;">
+          {{ m.label(current_lang) }} — {{ t('meds.stopped_on') }} <span dir="ltr">{{ m.stopped_on }}</span>
+          {% if m.stop_reason %} · {{ m.stop_reason }}{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('patients.medication_add', patient_id=patient.id) }}"
+          style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin:0;"><label>{{ t('meds.name') }} *</label>
+        <input class="input" name="name" required style="min-width:180px;"></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('meds.dose') }}</label>
+        <input class="input" name="dose" style="max-width:120px;"></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('meds.frequency') }}</label>
+        <input class="input" name="frequency" style="max-width:130px;"></div>
+      <div class="form-row" style="margin:0;"><label>{{ t('meds.reason') }}</label>
+        <input class="input" name="reason" style="max-width:140px;"></div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('meds.add') }}</button>
+    </form>
+  </div>
+  {% endif %}
+
   <!-- Header -->
   <div class="card profile-header gc-scale-in">
     {{ patient_avatar(patient, 'lg') }}

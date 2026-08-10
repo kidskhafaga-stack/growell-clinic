@@ -43,7 +43,39 @@ def _rank(needle, *names):
     return best
 
 
-def search_drugs(q, lang="ar", limit=DEFAULT_LIMIT, include_generics=True):
+
+def age_fit(drug, age_months):
+    """0 when this product suits the child, 1 when it is unlikely to.
+
+    Only ever a **tie-breaker**, and deliberately: what the doctor typed wins
+    first, always. Somebody who types "Concor" for a sixteen-year-old gets
+    Concor at the top whatever this says. What it fixes is the tier below —
+    where two thousand adult products crowd in beside the paediatric ones on
+    a partial match and the doctor scrolls past them all day.
+
+    Two signals, best first:
+
+    * the **dosing rule's own minimum age**, when the product is linked to an
+      ingredient that has one. That is a real number about a real drug, not an
+      inference from a label;
+    * otherwise the **class**, for the five adult-oriented shelves.
+
+    Above :data:`ADOLESCENT_MONTHS` nothing sinks. This clinic treats to
+    eighteen, and the whole point is that a teenager's insulin must not be
+    buried by a rule written for toddlers.
+    """
+    from app.utils.drug_classing import ADOLESCENT_MONTHS, is_adult_oriented
+
+    if age_months is None or age_months >= ADOLESCENT_MONTHS:
+        return 0
+    generic = getattr(drug, "generic", None)
+    minimum = getattr(generic, "min_age_months", None) if generic else None
+    if minimum is not None:
+        return 1 if age_months < minimum else 0
+    return 1 if is_adult_oriented(getattr(drug, "drug_class", None)) else 0
+
+def search_drugs(q, lang="ar", limit=DEFAULT_LIMIT, include_generics=True,
+                 age_months=None):
     """Active products matching ``q``, best match first.
 
     One payload for every caller: adding a field for one screen and not the
@@ -71,8 +103,11 @@ def search_drugs(q, lang="ar", limit=DEFAULT_LIMIT, include_generics=True):
             # here would throw away the exact match before it was ranked.
             .order_by(Drug.trade_name).limit(max(limit * 4, 40)).all())
 
+    # Text match first and age second, never the other way round: the doctor
+    # typed something, and no inference about the patient outranks that.
     rows.sort(key=lambda d: (
         _rank(needle, d.trade_name_ar, d.trade_name, d.generic_name),
+        age_fit(d, age_months),
         (d.trade_name or "").lower()))
     out = [_as_dict(d, lang) for d in rows[:limit]]
     if include_generics:

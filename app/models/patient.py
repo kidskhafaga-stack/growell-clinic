@@ -147,6 +147,34 @@ class Patient(db.Model):
         return bool((self.allergies or "").strip() or (self.chronic_diseases or "").strip())
 
     @property
+    def latest_growth(self):
+        """The most recent measurement carrying a weight, or ``None``.
+
+        Delegates rather than querying, so "the child's current weight" has
+        one definition in the program. The dosing calculator and the printed
+        prescription must never be able to disagree about it.
+        """
+        from app.utils.dosing import latest_weight_record
+
+        return latest_weight_record(self)
+
+    @property
+    def growth_picture(self):
+        """The newest measurement event, and each reading's percentile.
+
+        ``{"record": GrowthRecord|None, "rows": [...]}``. One event rather
+        than the newest of each measurement separately — see
+        ``growth.summarise`` for why that distinction matters.
+        """
+        from app.models.growth_record import GrowthRecord
+        from app.utils.growth import summarise
+
+        record = (GrowthRecord.query.filter_by(patient_id=self.id)
+                  .order_by(GrowthRecord.record_date.desc(),
+                            GrowthRecord.id.desc()).first())
+        return {"record": record, "rows": summarise(self, record)}
+
+    @property
     def active_coverage(self):
         """The patient's current valid membership/insurance, if any."""
         valid = [c for c in getattr(self, "coverages", []) if c.is_valid]

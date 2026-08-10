@@ -236,6 +236,11 @@ def record(visit_id):
                              Service.category.in_(("procedure", "lab", "radiology")))
         .order_by(Service.name).all()
     )
+    # What this doctor actually performs, first — and everything else still
+    # underneath it. Split by the *visit's* doctor, not by whoever is logged
+    # in: reception opening Dr X's visit is choosing from Dr X's list.
+    from app.utils.doctor_services import split as _split_services
+    my_services, other_services = _split_services(visit.doctor, procedure_services)
     # Vaccination snapshot for the visit tab, framed as "what can I give now"
     # (received history + in-stock optional vaccines + out-of-stock suggestions).
     from app.models import Vaccine
@@ -302,6 +307,7 @@ def record(visit_id):
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
+        my_services=my_services, other_services=other_services,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("complaint"),
         exam_chips=_visit_chips("exam"),
@@ -617,6 +623,23 @@ def add_investigation(visit_id):
 
 
 # ------------------------------------------------ medicines in the visit ----
+def _search_age_months():
+    """The age of the child the search is being run for, when we know it.
+
+    Passed as ``patient_id`` by the screen doing the asking. Absent is a real
+    answer — a search with no patient behind it ranks on the text alone, which
+    is exactly what it did before.
+    """
+    from app.models import Patient
+    from app.utils.dosing import age_months_of
+
+    patient_id = request.args.get("patient_id", type=int)
+    if not patient_id:
+        return None
+    patient = db.session.get(Patient, patient_id)
+    return age_months_of(patient) if patient is not None else None
+
+
 @visits_bp.route("/drugs/search")
 @module_required(MODULE)
 def drug_search():
@@ -629,6 +652,7 @@ def drug_search():
     from app.utils.drug_search import search_drugs
 
     return jsonify(search_drugs(request.args.get("q"),
+                                age_months=_search_age_months(),
                                 lang=getattr(g, "lang", "ar"), limit=12))
 
 
