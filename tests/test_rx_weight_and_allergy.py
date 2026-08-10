@@ -282,3 +282,91 @@ def test_an_existing_clinic_gets_the_columns_on_upgrade(column):
     assert any(table == "rx_print_templates" and name == column
                for table, name, _ in ADDITIONS), (
         f"{column} is missing from ADDITIONS")
+
+
+# --- the chronic conditions -----------------------------------------------
+
+def _rx_with_conditions(clinic, conditions):
+    with clinic["app"].app_context():
+        from app.models import Patient, Prescription
+        db = clinic["db"]
+        patient = db.session.get(Patient, clinic["ids"]["child"])
+        patient.chronic_diseases = conditions
+        rx = Prescription(patient_id=patient.id,
+                          doctor_id=clinic["ids"]["doctor"],
+                          rx_date=date.today())
+        db.session.add(rx)
+        db.session.commit()
+        return rx.id
+
+
+def test_what_the_child_is_being_treated_for_is_printed(clinic):
+    """The other half of what the profile already calls an alert.
+
+    ``chronic_diseases`` sat beside ``allergies`` in ``has_alerts``, showed in
+    the red banner on every clinical screen, and never reached the paper. For
+    a child with asthma or epilepsy that is context whoever reads this page
+    next actually needs.
+    """
+    rx_id = _rx_with_conditions(clinic, "ربو")
+    assert "ربو" in _paper(clinic, rx_id)
+
+
+def test_a_healthy_child_gets_no_line_about_it(clinic):
+    """Deliberately unlike the allergy line, and the asymmetry is the point.
+
+    Silence about an allergy is dangerous ambiguity, so that line speaks even
+    when the field is empty. Silence here is the ordinary case — most children
+    have no chronic condition — and stamping "none recorded" on every
+    prescription the clinic issues would be noise with no safety bought by it.
+    """
+    rx_id = _rx_with_conditions(clinic, None)
+    body = _paper(clinic, rx_id)
+    assert "أمراض مزمنة" not in body
+
+
+def test_whitespace_is_not_a_condition(clinic):
+    rx_id = _rx_with_conditions(clinic, "  \n ")
+    assert "أمراض مزمنة" not in _paper(clinic, rx_id)
+
+
+def test_the_clinic_can_turn_the_conditions_off(clinic):
+    rx_id = _rx_with_conditions(clinic, "صرع")
+    with clinic["app"].app_context():
+        from app.models import RxPrintTemplate
+        db = clinic["db"]
+        db.session.add(RxPrintTemplate(name="bare", mode="white",
+                                       is_default=True, show_weight=True,
+                                       show_allergies=True,
+                                       show_conditions=False))
+        db.session.commit()
+    assert "صرع" not in _paper(clinic, rx_id)
+
+
+def test_conditions_can_be_the_only_thing_in_the_band(clinic):
+    """The band's own guard has to know about it, or it renders nothing."""
+    rx_id = _rx_with_conditions(clinic, "سكر")
+    with clinic["app"].app_context():
+        from app.models import RxPrintTemplate
+        db = clinic["db"]
+        db.session.add(RxPrintTemplate(name="only", mode="white",
+                                       is_default=True, show_weight=False,
+                                       show_allergies=False,
+                                       show_conditions=True))
+        db.session.commit()
+    assert "سكر" in _paper(clinic, rx_id), (
+        "the band is gated on weight and allergy, so conditions alone vanish")
+
+
+def test_conditions_are_on_for_a_clinic_with_no_template(clinic):
+    from app.models import RxPrintTemplate
+
+    assert RxPrintTemplate.default_instance().show_conditions is True
+
+
+def test_an_existing_clinic_gets_the_conditions_column():
+    from app.utils.schema import ADDITIONS
+
+    ddl = next(d for t, n, d in ADDITIONS
+               if t == "rx_print_templates" and n == "show_conditions")
+    assert "1" in ddl, f"show_conditions arrives as {ddl!r}"

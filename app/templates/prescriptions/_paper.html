@@ -88,7 +88,8 @@
      well as the colour, because these come out of a black-and-white printer. #}
   {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
   {% set has_weight = growth and growth.weight_kg %}
-  {% if has_weight or tpl.show_allergies %}
+  {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
+  {% if has_weight or tpl.show_allergies or has_conditions %}
   <div style="display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;
               border:1px solid var(--line);border-inline-start:3px solid var(--green-600);
               border-radius:6px;padding:8px 11px;margin-bottom:14px;">
@@ -111,6 +112,24 @@
       <span style="color:var(--muted);">{{ t('rx.allergies_none_recorded') }}</span>
       {% endif %}
     </div>
+    {% endif %}
+    {# Asthma, epilepsy, diabetes — context the next person reading this page
+       needs, and it was in the file the whole time beside the allergy.
+
+       **Printed only when there is something to print**, which is deliberately
+       not what the allergy line does. Silence about an allergy is dangerous
+       ambiguity, so that line speaks even when empty. Silence here is the
+       ordinary case: most children have no chronic condition, and stamping
+       "none recorded" on every prescription in the clinic would be noise with
+       no safety bought by it. #}
+    {% if tpl.show_conditions %}
+    {% set conditions = (rx.patient.chronic_diseases or '')|trim %}
+    {% if conditions %}
+    <div>
+      <span style="color:var(--muted);">{{ t('rx.conditions') }}:</span>
+      <strong>{{ conditions }}</strong>
+    </div>
+    {% endif %}
     {% endif %}
   </div>
   {% endif %}

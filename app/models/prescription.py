@@ -57,6 +57,11 @@ class RxPrintTemplate(db.Model):
     # which prints even when the file is empty.
     show_weight = db.Column(db.Boolean, default=True, nullable=False)
     show_allergies = db.Column(db.Boolean, default=True, nullable=False)
+    # Asthma, epilepsy, diabetes — the other half of what the profile already
+    # calls an alert. On by default like the allergy, but it prints only when
+    # there is something to print; see the paper template for why the two
+    # differ there.
+    show_conditions = db.Column(db.Boolean, default=True, nullable=False)
     # The growth picture: height, head circumference, BMI, each with the
     # percentile it sits on. **Off unless a clinic asks for it**, which is the
     # opposite of everything above — see OFF_BY_DEFAULT.
@@ -68,7 +73,7 @@ class RxPrintTemplate(db.Model):
     BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",
              "show_investigations", "show_weight", "show_allergies",
-             "show_growth"]
+             "show_conditions", "show_growth"]
 
     # In BOOLS so the template form saves them, but **not** switched on for a
     # clinic that has expressed no opinion.

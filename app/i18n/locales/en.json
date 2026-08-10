@@ -2401,7 +2401,8 @@
     "save_pdf": "Save PDF",
     "public_note": "This is the clinic's own copy. To confirm it, scan the code above.",
     "license": "License",
-    "all_classes": "All classes"
+    "all_classes": "All classes",
+    "conditions": "Chronic conditions"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -2513,7 +2514,8 @@
     "preview_hint": "Adjust margins and offset to see where content lands on the sheet instantly.",
     "preprinted_area": "Pre-printed letterhead area",
     "pv_doctor": "Dr. Name",
-    "pv_invest": "Labs / investigations requested"
+    "pv_invest": "Labs / investigations requested",
+    "show_conditions": "Chronic conditions"
   },
   "store": {
     "title": "General store",
