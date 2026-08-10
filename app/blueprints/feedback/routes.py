@@ -7,7 +7,8 @@ verify page.
 """
 from datetime import datetime
 
-from flask import g, redirect, render_template, request, url_for
+from flask import (current_app, g, redirect, render_template, request,
+                   url_for)
 
 from app.blueprints.feedback import feedback_bp
 from app.extensions import db
@@ -63,5 +64,14 @@ def submit(token):
         fb.comment = (request.form.get("comment") or "").strip()[:2000] or None
         fb.status = "submitted"
         fb.submitted_at = datetime.utcnow()
+        # A low score used to go into a monthly average and nowhere else. It
+        # now lands in the inbox as a thread waiting for an answer — which is
+        # the whole difference between a complaint that is handled and one
+        # that is counted.
+        try:
+            from app.utils.complaints import raise_from_feedback
+            raise_from_feedback(fb, getattr(g, "lang", "ar"))
+        except Exception:  # noqa: BLE001 — never fail a guardian's submission
+            current_app.logger.exception("could not raise complaint thread")
         db.session.commit()
     return redirect(url_for("feedback.rate", token=token))
