@@ -15,9 +15,28 @@
   </div>
 </div>
 
-<div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('perms.hint') }}</div>
+<div class="info-note" style="margin-bottom:14px;"><i class="bi bi-info-circle"></i> {{ t('perms.edit_hint') }}</div>
 
+{# The matrix is the editor now.
+
+   It used to say "review only — open role management to change anything",
+   which is a screen showing somebody exactly what they want to change and
+   sending them elsewhere to change it. Role management keeps what only it can
+   do — creating, naming and deleting roles — so there is still one editor for
+   "who reaches what" and one for "which roles exist", and no two places that
+   can drift apart. #}
 <!-- Module access matrix -->
+<form method="post" action="{{ url_for('users.permissions_save') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{# One marker per role the form actually drew.
+
+   Without it the save reads "no boxes for this role" as "this role reaches
+   nothing", so any POST that did not carry every role silently empties the
+   ones it left out — permissions data loss from a partial submit. The marker
+   makes absence mean "not on this form" instead of "revoke everything". #}
+{% for r in roles %}{% if not r.is_admin %}
+<input type="hidden" name="role_present_{{ r.id }}" value="1">
+{% endif %}{% endfor %}
 <div class="card gc-scale-in" style="padding:0;overflow-x:auto;margin-bottom:16px;">
   <table class="table" style="min-width:640px;">
     <thead><tr>
@@ -35,15 +54,29 @@
           <i class="bi bi-{{ module_icons.get(m, 'dot') }}"></i> {{ t('nav.' ~ m) }}</td>
         {% for r in roles %}
         <td style="text-align:center;">
-          {% if access[m][r.id] %}<i class="bi bi-check-lg" style="color:var(--green-600);"></i>
-          {% else %}<span style="color:var(--line);">·</span>{% endif %}
+          {# An admin role reaches everything by definition. A screen that let
+             somebody untick it is not permissions — it is how you lock
+             yourself out of your own program. #}
+          {% if r.is_admin %}
+          <i class="bi bi-check-lg" style="color:var(--muted);opacity:.55;"
+             title="{{ t('perms.always') }}"></i>
+          {% else %}
+          <input type="checkbox" name="mod_{{ r.id }}_{{ m }}" value="1"
+                 {{ 'checked' if access[m][r.id] else '' }}
+                 aria-label="{{ t('nav.' ~ m) }} — {{ r.label(current_lang) }}">
+          {% endif %}
         </td>
         {% endfor %}
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  <div style="padding:12px 16px;border-top:1px solid var(--line);">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
 </div>
+</form>
 
 <!-- Sensitive capabilities matrix -->
 <div class="card gc-scale-in" style="padding:0;overflow-x:auto;">

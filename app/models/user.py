@@ -124,13 +124,38 @@ class User(UserMixin, db.Model):
         return role_can_access(self.role, module)  # static fallback
 
     def can(self, capability):
-        """Whether this user's role has a fine-grained capability
-        (e.g. ``patient_medical`` to view the full clinical file)."""
+        """Whether this user has a fine-grained capability.
+
+        Their role first, then anything granted to **them personally** — the
+        clinic's "the reception does certain things in finance" case, without
+        giving every receptionist the capability and without inventing a role
+        for one person.
+
+        Grants can only add. There is deliberately no way to take a capability
+        away from one holder of a role: a role whose list did not mean what it
+        said would have to be checked holder by holder, and the honest way to
+        stop somebody is to change their role where everyone can see it.
+        """
         from app.models.permissions import role_has_capability
         rec = self._role_record()
         if rec is not None and rec.is_admin:
             return True
-        return role_has_capability(self.role, capability)
+        if role_has_capability(self.role, capability):
+            return True
+        return capability in self.granted_capabilities
+
+    @property
+    def granted_capabilities(self):
+        """Capabilities given to this person beyond their role."""
+        try:
+            from app.models.user_capability import UserCapability
+
+            rows = UserCapability.query.filter_by(user_id=self.id).all()
+            return {row.capability for row in rows}
+        except Exception:                                   # pragma: no cover
+            # A permission screen is not worth a 500, and falling back to the
+            # role alone is the safe direction: it can only ever allow less.
+            return set()
 
     @property
     def modules(self):

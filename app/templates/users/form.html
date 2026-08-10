@@ -171,4 +171,60 @@
     </div>
   </form>
 </div>
+
+{# One person allowed one thing their role is not — the clinic's "reception
+   does certain things in finance" case, without giving every receptionist the
+   capability and without inventing a role for one person.
+
+   It reads as a sentence rather than a second grid, and each line carries who
+   granted it and when: that is what keeps an exception legible a year later
+   instead of becoming a permission nobody remembers agreeing to.
+
+   Only on an existing user — there is nobody to grant anything to until the
+   account has been created. #}
+{% if user %}
+<div class="card gc-scale-in" id="caps" style="margin-top:16px;scroll-margin-top:80px;">
+  <h2 class="section-title"><i class="bi bi-key"></i> {{ t('perms.exceptions') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('perms.exceptions_hint') }}</p>
+
+  {% if grants %}
+  <div style="display:flex;flex-direction:column;gap:7px;">
+    {% for g in grants %}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+                border:1px solid var(--line);border-radius:9px;padding:9px 12px;
+                border-inline-start:3px solid var(--green-600);">
+      <strong>{{ t('cap.' ~ g.capability) }}</strong>
+      {% if g.reason %}<span class="badge badge--muted">{{ g.reason }}</span>{% endif %}
+      <span style="color:var(--muted);font-size:.82rem;margin-inline-start:auto;">
+        {% if g.granter %}{{ g.granter.display_name(current_lang) }} · {% endif %}
+        <span dir="ltr">{{ g.granted_at.date() }}</span>
+      </span>
+      <form method="post" action="{{ url_for('users.capability_revoke', grant_id=g.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('perms.revoke') }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint">{{ t('perms.no_exceptions') }}</p>
+  {% endif %}
+
+  {% if grantable %}
+  <form method="post" action="{{ url_for('users.capability_grant', user_id=user.id) }}"
+        style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="select" name="capability" style="max-width:260px;" required>
+      <option value="">{{ t('perms.pick_capability') }}…</option>
+      {% for c in grantable %}<option value="{{ c }}">{{ t('cap.' ~ c) }}</option>{% endfor %}
+    </select>
+    <input class="input" name="reason" placeholder="{{ t('perms.reason') }}" style="max-width:200px;">
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('perms.grant') }}</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin-top:10px;">{{ t('perms.nothing_to_grant') }}</p>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

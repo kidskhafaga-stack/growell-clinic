@@ -43,6 +43,7 @@ from app.models.patient import (
 )
 from app.models.patient_flag import FLAG_LEVELS, PatientFlag
 from app.models.patient_medication import PatientMedication
+from app.models.user_capability import UserCapability
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
 from app.models.setting import Setting
@@ -229,6 +230,7 @@ __all__ = [
     "MODULES",
     "PatientFlag",
     "PatientMedication",
+    "UserCapability",
     "ROLE_PERMISSIONS",
     "PARENT_RELATIONS",
     "CLIENT_CATEGORIES",

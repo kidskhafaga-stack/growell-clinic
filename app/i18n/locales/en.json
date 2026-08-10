@@ -3687,7 +3687,22 @@
     "capability": "Capability",
     "capabilities": "Sensitive capabilities",
     "capabilities_hint": "Fine-grained rights inside screens (beyond just reaching the screen).",
-    "users_short": "users"
+    "users_short": "users",
+    "edit_hint": "Tick what each role reaches and save. Creating, naming and deleting roles is in Role management.",
+    "always": "An administrator reaches everything by definition",
+    "saved": "{n} role(s) saved",
+    "no_change": "Nothing changed",
+    "exceptions": "Exceptions for this user",
+    "revoke": "Remove",
+    "grant": "Add exception",
+    "exceptions_hint": "A capability for this person alone, on top of their role — without giving the whole role it. Grants only add; they never take anything away.",
+    "no_exceptions": "No exceptions — permissions come from the role alone.",
+    "pick_capability": "Choose a capability",
+    "reason": "Reason",
+    "nothing_to_grant": "Their role already carries every sensitive capability.",
+    "granted": "Capability granted",
+    "revoked": "Capability removed",
+    "unknown_capability": "Unknown capability"
   },
   "cap": {
     "patient_medical": "View full medical file",
