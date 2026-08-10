@@ -11,6 +11,40 @@
      }"
      x-init="window.addEventListener('hashchange', () => tab = (window.location.hash||'#overview').substring(1))">
 
+  {# The payment flag, in the "no-print" class so it can never reach anything
+     the family is handed. It sits above the clinical banner because it is
+     read at the desk, and below nothing — a note about money must not be the
+     first thing on a child's medical file, so it is deliberately quieter than
+     the allergy banner under it. #}
+  {% if payment_flag %}
+  <div class="card no-print gc-scale-in"
+       style="margin-bottom:12px;border-{{ 'right' if direction=='rtl' else 'left' }}:4px solid {{ 'var(--danger)' if payment_flag.level == 'block' else '#d97706' }};">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+      <div>
+        <b style="color:{{ 'var(--danger)' if payment_flag.level == 'block' else '#b45309' }};">
+          <i class="bi bi-cash-stack"></i> {{ t('flags.title') }} —
+          {{ t('flags.' ~ payment_flag.level) }}</b>
+        <div style="line-height:1.9;margin-top:4px;">{{ payment_flag.reason }}</div>
+        <div class="hint">
+          {{ t('flags.raised_by')
+               .replace('{who}', payment_flag.raiser.display_name(current_lang) if payment_flag.raiser else '—')
+               .replace('{when}', payment_flag.raised_at.strftime('%Y-%m-%d')) }}
+          · {{ t('flags.staff_only') }}</div>
+      </div>
+      {% if can_clear_flag %}
+      <form method="post" action="{{ url_for('patients.flag_clear', patient_id=patient.id) }}"
+            style="display:flex;gap:6px;align-items:center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="clear_reason" style="max-width:200px;"
+               placeholder="{{ t('flags.clear_reason') }}">
+        <button class="btn btn-outline btn-sm gc-press" type="submit">
+          <i class="bi bi-check2"></i> {{ t('flags.clear') }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Prominent, animated safety banner: allergies / chronic / growth concern -->
   {% if current_user.can('patient_medical') and (patient.allergies or patient.chronic_diseases or growth_alert) %}
   <div class="alert-banner gc-scale-in">

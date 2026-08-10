@@ -48,6 +48,7 @@ from app.utils.appointments import (
 )
 from app.utils import appt_reminder as reminders
 from app.utils import no_show
+from app.utils import patient_flags as flags
 from app.utils.clock import local_today
 from app.utils.decorators import client_ip, module_required
 
@@ -480,6 +481,20 @@ def create():
         appt_type = _appt_type((request.form.get("appt_type") or "").strip())
 
         error = _validate_booking(patient_id, doctor_id, on_date, slot)
+        # A payment block stops the booking unless somebody with financial
+        # authority says otherwise on this booking, and that override is
+        # recorded with their name — the point of the block is that a decision
+        # gets made by a person who can make it, not that the family is turned
+        # away by a screen.
+        if not error and flags.blocks_booking(patient_id):
+            override = request.form.get("flag_override") == "1"
+            if not (override and flags.can_clear(current_user)):
+                error = t("flags.blocked_booking")
+            else:
+                ActivityLog.record(
+                    "appointment.flag_override", user_id=current_user.id,
+                    entity="patient", entity_id=patient_id,
+                    ip_address=client_ip())
         if error:
             flash(error, "danger")
             chosen = db.session.get(Patient, patient_id) if patient_id else None

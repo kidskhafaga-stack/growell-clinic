@@ -41,6 +41,7 @@ from app.models.patient import (
     Patient,
     PatientProblem,
 )
+from app.models.patient_flag import FLAG_LEVELS, PatientFlag
 from app.models.permissions import MODULES, ROLE_PERMISSIONS, ROLES
 from app.models.role import Role
 from app.models.setting import Setting
@@ -223,7 +224,9 @@ __all__ = [
     "GrowthRecord",
     "ROLES",
     "Role",
+    "FLAG_LEVELS",
     "MODULES",
+    "PatientFlag",
     "ROLE_PERMISSIONS",
     "PARENT_RELATIONS",
     "CLIENT_CATEGORIES",
