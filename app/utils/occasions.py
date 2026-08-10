@@ -18,6 +18,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.models import MessageLog, MessageTemplate, Patient
+from app.utils.clock import local_today
 
 
 def _next_year(d):
@@ -54,7 +55,7 @@ def enqueue_occasion(tpl, user_id=None, on_date=None):
     re-arms next year's date. Returns the number of messages queued."""
     from app.utils import whatsapp as wa
 
-    on_date = on_date or tpl.occasion_date or date.today()
+    on_date = on_date or tpl.occasion_date or local_today()
     if tpl.last_enqueued_on and tpl.last_enqueued_on >= on_date:
         return 0                      # this occasion was already queued
     from datetime import timedelta
@@ -95,7 +96,7 @@ def enqueue_occasion(tpl, user_id=None, on_date=None):
 def enqueue_due_occasions(user_id=None):
     """Queue every active campaign whose occasion date has arrived. Called by
     the dispatcher, so the existing send-due button/CLI drives campaigns too."""
-    today = date.today()
+    today = local_today()
     total = 0
     due = (MessageTemplate.query
            .filter(MessageTemplate.is_active.is_(True),

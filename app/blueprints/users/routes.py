@@ -11,6 +11,7 @@ from app.models import ActivityLog, Role, User
 from app.models.permissions import MODULES
 from app.utils.decorators import admin_required, client_ip
 from app.utils.paging import paginate
+from app.utils.clock import local_today
 
 
 def _titles():
@@ -457,7 +458,7 @@ def doctors():
     # A month, because a week of a paediatric clinic is mostly whichever virus
     # was going round — and the numbers below are medians, which need enough
     # consultations under them to mean anything.
-    until = date.today()
+    until = local_today()
     since = until - timedelta(days=30)
     return render_template("users/doctors.html", doctors=docs,
                            ratings=doctor_ratings(),

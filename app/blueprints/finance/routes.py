@@ -142,7 +142,7 @@ def journal():
     }
     return render_template("finance/journal.html", accounts=accounts,
                            entries=entries, totals=totals,
-                           today=date.today().isoformat())
+                           today=local_today().isoformat())
 
 
 @finance_bp.route("/journal/new", methods=["POST"])
@@ -163,9 +163,9 @@ def journal_entry_new():
     memo = (request.form.get("memo") or "").strip()
     raw_date = (request.form.get("entry_date") or "").strip()
     try:
-        entry_date = datetime.strptime(raw_date, "%Y-%m-%d").date() if raw_date else date.today()
+        entry_date = datetime.strptime(raw_date, "%Y-%m-%d").date() if raw_date else local_today()
     except ValueError:
-        entry_date = date.today()
+        entry_date = local_today()
     if _period_blocked(entry_date):
         return redirect(url_for("finance.journal"))
 
@@ -826,7 +826,7 @@ def invoices_export():
 
     invoices = _filtered_invoices().order_by(Invoice.id).all()
     rows = list(_tax_rows(invoices))
-    stamp = date.today().isoformat()
+    stamp = local_today().isoformat()
 
     if (request.args.get("fmt") or "csv").lower() == "xlsx":
         try:
@@ -873,9 +873,9 @@ def invoices_export():
 def _cashier_date():
     raw = (request.values.get("date") or "").strip()
     try:
-        return datetime.strptime(raw, "%Y-%m-%d").date() if raw else date.today()
+        return datetime.strptime(raw, "%Y-%m-%d").date() if raw else local_today()
     except ValueError:
-        return date.today()
+        return local_today()
 
 
 def _shift_number():
@@ -1104,7 +1104,7 @@ def _uncollected_by_patient(days=7):
     Grouped per patient so the cashier can chase each one with one click."""
     from app.models import VisitService
 
-    since = date.today() - timedelta(days=days)
+    since = local_today() - timedelta(days=days)
     lang = getattr(g, "lang", "ar")
     out = {}
 
@@ -1556,7 +1556,7 @@ def _siblings_seen_today(patient, on_date=None, doctor_id=None, disc=None):
     different doctors on the same day are two separate visits, not a pair."""
     if patient is None or not patient.family_id:
         return 0
-    day = on_date or date.today()
+    day = on_date or local_today()
     ids = {p.id for p in Patient.query.filter_by(family_id=patient.family_id).all()}
     if not ids:
         return 0
@@ -1628,7 +1628,7 @@ def _auto_candidates(invoice, patient, doctor_id=None):
     """Every named discount this invoice legitimately qualifies for."""
     from app.models import NamedDiscount
 
-    on_date = invoice.invoice_date or date.today()
+    on_date = invoice.invoice_date or local_today()
     if doctor_id is None:
         doctor_id = invoice.doctor_id
     out = []
@@ -1756,7 +1756,7 @@ def _uncharged_vaccines(patient_id, days=2):
     """Recently-given, priced, not-yet-billed doses for a patient (charge on exit)."""
     from datetime import timedelta
 
-    since = date.today() - timedelta(days=days)
+    since = local_today() - timedelta(days=days)
     doses = (PatientVaccine.query.filter(
         PatientVaccine.patient_id == patient_id,
         PatientVaccine.event_type == "given",
@@ -1886,7 +1886,7 @@ def _unbilled_patient_services(patient_id, days=7):
 
     from app.models import VisitService
 
-    since = date.today() - timedelta(days=days)
+    since = local_today() - timedelta(days=days)
     return (VisitService.query.join(Visit, VisitService.visit_id == Visit.id)
             .filter(Visit.patient_id == patient_id,
                     VisitService.invoice_id.is_(None),
@@ -2366,7 +2366,7 @@ def _refundable(patient_id, days=30):
     Only invoices with something collected on them are offered: refunding an
     unpaid invoice is not a refund, it is a discount, and it has its own way in.
     """
-    since = date.today() - timedelta(days=days)
+    since = local_today() - timedelta(days=days)
     recent = (Invoice.query
               .filter(Invoice.patient_id == patient_id,
                       Invoice.invoice_date >= since)
@@ -2396,7 +2396,7 @@ def _discount_preview(patient, doctor_id, lines):
             gross = 0
         items.append(SimpleNamespace(service=svc, gross=round(gross, 2),
                                      discount_value=0))
-    draft = SimpleNamespace(invoice_date=date.today(), doctor_id=doctor_id,
+    draft = SimpleNamespace(invoice_date=local_today(), doctor_id=doctor_id,
                             items=items)
     best = _best_discount(draft, patient, doctor_id)
     return best, (_discount_worth(draft, best) if best is not None else 0)
@@ -2598,7 +2598,7 @@ def _valid_member_counts():
     """
     from app.models import PatientCoverage
 
-    today = date.today()
+    today = local_today()
     counts = {}
     for payer_id, active, expiry in db.session.query(
             PatientCoverage.payer_id, PatientCoverage.is_active,
@@ -2696,7 +2696,7 @@ def _discount_rule_reach(disc):
         ids = disc.payer_ids
         if not ids:
             return 0
-        today = date.today()
+        today = local_today()
         seen = set()
         for pid, patient_id, active, expiry in db.session.query(
                 PatientCoverage.payer_id, PatientCoverage.patient_id,
@@ -3382,9 +3382,9 @@ def payer_members(payer_id):
             g.lang = lang
             g.direction = get_direction(lang)
         return render_template("finance/members_print.html", payer=payer,
-                               rows=rows, today=date.today())
+                               rows=rows, today=local_today())
     return render_template("finance/payer_members.html", payer=payer, rows=rows,
-                           member_discounts=member_discounts, today=date.today())
+                           member_discounts=member_discounts, today=local_today())
 
 
 @finance_bp.route("/payers/cash-list", methods=["POST"])
@@ -3482,7 +3482,7 @@ def contract_new(payer_id):
     from app.utils.pricing import next_contract_number, year_window
 
     payer = db.get_or_404(PayerEntity, payer_id)
-    start = _parse_date_arg2(request.form.get("start_date")) or date.today()
+    start = _parse_date_arg2(request.form.get("start_date")) or local_today()
     end = _parse_date_arg2(request.form.get("end_date"))
     if end is None:
         # A year, unless somebody says otherwise. A contract with no end never
@@ -4132,7 +4132,7 @@ def tills():
                            can_adjust=current_user.can("treasury_adjust"),
                            kinds=CASH_MOVEMENT_KINDS,
                            can_move=current_user.can("treasury_move"),
-                           today=date.today())
+                           today=local_today())
 
 
 @finance_bp.route("/tills/<int:account_id>")
@@ -4474,7 +4474,7 @@ def payables():
     return render_template("finance/payables.html", rows=rows, totals=totals,
                            aging_rows=aging_rows, aging_totals=aging_totals,
                            aging_grand=aging_grand, upcoming=upcoming,
-                           today=date.today(), buckets=ap.AP_AGING_BUCKETS)
+                           today=local_today(), buckets=ap.AP_AGING_BUCKETS)
 
 
 @finance_bp.route("/payables/<int:supplier_id>")
@@ -4497,7 +4497,7 @@ def supplier_statement(supplier_id):
         balance=balance, billed=ap.supplier_billed(supplier_id),
         paid=ap.supplier_paid(supplier_id), open_docs=open_docs,
         schedules=schedules, methods=SUPPLIER_PAYMENT_METHODS,
-        today=date.today())
+        today=local_today())
 
 
 @finance_bp.route("/payables/<int:supplier_id>/pay", methods=["POST"])
@@ -4571,7 +4571,7 @@ def supplier_statement_print(supplier_id):
     }
     return render_template(
         "finance/supplier_statement_print.html", supplier=supplier,
-        events=events, summary=summary, today=date.today())
+        events=events, summary=summary, today=local_today())
 
 
 @finance_bp.route("/documents/<int:doc_id>/schedule", methods=["POST"])

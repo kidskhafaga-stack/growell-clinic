@@ -19,6 +19,7 @@ from datetime import datetime, time, timedelta
 
 from app.extensions import db
 from app.models import MessageLog, Setting
+from app.utils.clock import local_today
 
 # Saturday…Friday as Python weekday numbers (Mon=0). The clinic picks its own;
 # this is only what a fresh install starts with.
@@ -336,7 +337,7 @@ def _patient_facts(patient, lang="ar"):
     out = []
     appt = (Appointment.query
             .filter(Appointment.patient_id == patient.id,
-                    Appointment.appt_date >= _date.today(),
+                    Appointment.appt_date >= local_today(),
                     Appointment.status.notin_(("cancelled", "no_show")))
             .order_by(Appointment.appt_date, Appointment.appt_time).first())
     if appt is not None:

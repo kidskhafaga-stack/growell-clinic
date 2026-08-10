@@ -11,6 +11,7 @@ If this is ever too slow to read, the fix is a cache with a rebuild command —
 added as an optimisation, never promoted to the source of truth.
 """
 from datetime import datetime, timedelta
+from app.utils.clock import local_today
 
 # A back-dated movement must not read as "waiting a negative number of days".
 _ZERO = timedelta(0)
@@ -260,7 +261,7 @@ def record_movement(kind, account, amount, to_account=None, fee=None,
     movement = CashMovement(
         kind=kind, account_id=account.id,
         to_account_id=to_account.id if to_account else None,
-        amount=amount, fee=fee, moved_on=moved_on or date.today(),
+        amount=amount, fee=fee, moved_on=moved_on or local_today(),
         reference=reference or None, notes=notes or None, created_by=user_id)
     db.session.add(movement)
     db.session.commit()
@@ -331,7 +332,7 @@ def settlement_age(account, today=None):
             oldest = row["at"]
     if oldest is None:
         return None
-    return max((today or date.today()) - oldest.date(), _ZERO).days
+    return max((today or local_today()) - oldest.date(), _ZERO).days
 
 
 def pending_settlements(today=None):
@@ -405,7 +406,7 @@ def record_count(account, counted, note=None, user_id=None, counted_on=None):
     count = CashCount(
         account_id=account.id, counted=counted,
         expected=account_balance(account),
-        counted_on=counted_on or date.today(),
+        counted_on=counted_on or local_today(),
         note=(note or None), counted_by=user_id,
         status="open")
     db.session.add(count)

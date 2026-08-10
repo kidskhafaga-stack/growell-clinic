@@ -8,6 +8,7 @@ supplier (what was billed), nets it against :class:`SupplierPayment` records
 from datetime import date
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 
 def doc_value(doc):
@@ -89,7 +90,7 @@ def supplier_statement(supplier_id):
         events.append({"date": p.paid_at, "kind": "payment",
                        "ref": p.reference or "", "supplier_ref": None,
                        "due": None, "amount": -(p.amount or 0), "method": p.method})
-    events.sort(key=lambda e: (e["date"] or date.today(),
+    events.sort(key=lambda e: (e["date"] or local_today(),
                                0 if e["kind"] != "payment" else 1))
     running = 0.0
     for e in events:
@@ -108,7 +109,7 @@ def ap_aging(today=None):
     first (FIFO) to age it."""
     from app.models import Supplier
 
-    today = today or date.today()
+    today = today or local_today()
     totals = [0.0] * len(AP_AGING_BUCKETS)
     rows = []
     for s in Supplier.query.all():
@@ -188,10 +189,10 @@ def pay_installment(inst, method="cash", paid_at=None, user_id=None,
         return None
     payment = record_payment(
         inst.document.supplier_id, inst.amount, method=method,
-        paid_at=paid_at or date.today(), document_id=inst.document_id,
+        paid_at=paid_at or local_today(), document_id=inst.document_id,
         notes=f"قسط #{inst.seq}", user_id=user_id, account_id=account_id)
     inst.status = "paid"
-    inst.paid_at = paid_at or date.today()
+    inst.paid_at = paid_at or local_today()
     inst.payment_id = payment.id
     db.session.commit()
     return payment
@@ -204,7 +205,7 @@ def upcoming_installments(within_days=30, today=None):
 
     from app.models import SupplierInstallment
 
-    today = today or date.today()
+    today = today or local_today()
     horizon = today + timedelta(days=within_days)
     rows = (SupplierInstallment.query
             .filter(SupplierInstallment.status == "pending",
@@ -223,7 +224,7 @@ def record_payment(supplier_id, amount, method="cash", paid_at=None,
 
     payment = SupplierPayment(
         supplier_id=supplier_id, amount=round(float(amount or 0), 2),
-        method=method, paid_at=paid_at or date.today(),
+        method=method, paid_at=paid_at or local_today(),
         reference=(reference or None), notes=(notes or None),
         document_id=document_id, account_id=account_id, shift_id=shift_id,
         created_by=user_id)

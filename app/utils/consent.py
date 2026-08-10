@@ -12,6 +12,7 @@ it never blocks a doctor from treating a child.
 from datetime import date, timedelta
 
 from app.models import Consent
+from app.utils.clock import local_today
 
 # A general consent covers the visit itself; the others are asked for by what
 # was actually done. Kept small on purpose: a warning nobody reads is worse
@@ -28,7 +29,7 @@ def signed_kinds(patient, on_date=None):
     """
     if patient is None:
         return set()
-    ref = on_date or date.today()
+    ref = on_date or local_today()
     out = set()
     for c in getattr(patient, "consents", []):
         if c.signed_date is None or c.signed_date > ref:
@@ -163,7 +164,7 @@ def record(patient, kind, guardian_name, relation=None, id_no=None,
         guardian_id_no=id_no or None,
         statement=(statement or "").strip() or statement_for(kind),
         notes=notes or None,
-        signed_date=on_date or date.today(),
+        signed_date=on_date or local_today(),
         obtained_by=user_id,
     )
     from app.extensions import db

@@ -12,6 +12,7 @@ from flask_login import current_user
 
 from app.extensions import db
 from app.models import DOC_PREFIXES, Setting, StoreDocument
+from app.utils.clock import local_today
 
 
 def next_doc_number(kind):
@@ -35,7 +36,7 @@ def open_document(kind, reference=None, supplier_id=None, notes=None,
     """Create (and flush) a new numbered store document to hang changes on."""
     doc = StoreDocument(
         doc_number=next_doc_number(kind), kind=kind,
-        doc_date=doc_date or date.today(),
+        doc_date=doc_date or local_today(),
         supplier_id=supplier_id, reference=reference, notes=notes,
         created_by=getattr(current_user, "id", None),
     )

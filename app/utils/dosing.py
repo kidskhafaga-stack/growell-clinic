@@ -7,6 +7,8 @@ overdose when a child is dosed like an adult), an adult maximum reached, no
 weight recorded. The caller shows them — nothing here writes a prescription.
 """
 
+from app.utils.clock import local_today
+
 WARN_MIN_AGE = "min_age"
 WARN_MAX_AGE = "max_age"
 WARN_MIN_WEIGHT = "min_weight"
@@ -143,7 +145,7 @@ def age_months_of(patient, on_date=None):
 
     if patient is None or not patient.date_of_birth:
         return None
-    ref = on_date or date.today()
+    ref = on_date or local_today()
     dob = patient.date_of_birth
     months = (ref.year - dob.year) * 12 + (ref.month - dob.month)
     if ref.day < dob.day:

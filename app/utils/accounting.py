@@ -15,6 +15,7 @@ from datetime import date
 
 from app.extensions import db
 from app.models.accounting import Account, JournalEntry, JournalLine
+from app.utils.clock import local_today
 
 # (code, name_ar, name_en, type, parent_code)
 CHART = [
@@ -131,7 +132,7 @@ def post_entry(source_type, source_id, memo, lines, entry_date=None, user_id=Non
             return existing
 
     entry = JournalEntry(entry_number=_je_number(),
-                         entry_date=entry_date or date.today(),
+                         entry_date=entry_date or local_today(),
                          memo=memo, source_type=source_type,
                          source_id=source_id, created_by=user_id)
     entry.lines = built

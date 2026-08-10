@@ -21,6 +21,7 @@ from datetime import date, datetime
 from app.extensions import db
 from app.models import (Invoice, PatientVaccine, VaccineBrand,
                         VaccineSettlement)
+from app.utils.clock import local_today
 
 
 def _not_given_label(lang):
@@ -81,7 +82,7 @@ def sync_for_patient(patient_id, on_date=None):
     updates an amount that changed, and cancels a pending settlement the doctor
     has since undone (e.g. the refused dose was given after all).
     """
-    on_date = on_date or date.today()
+    on_date = on_date or local_today()
     events = _dose_events(patient_id, on_date)
     pending = {s.item_id: s for s in VaccineSettlement.query.filter_by(
         patient_id=patient_id, status="pending").all()}

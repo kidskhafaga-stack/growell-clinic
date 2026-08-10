@@ -985,7 +985,7 @@ def _parse_form_date(name):
 
 def _upcoming_birthdays(days=7):
     """Active patients whose birthday falls within the next ``days`` days."""
-    today = date.today()
+    today = local_today()
     rows = []
     for p in Patient.query.filter_by(is_active=True).all():
         if not p.date_of_birth:
@@ -1051,7 +1051,7 @@ def occasions():
         send_modes=SEND_MODES,
         values=values,
         campaigns=campaigns,
-        today=date.today(),
+        today=local_today(),
         crm_mode=values.get("crm_mode", "manual"),
     )
 
@@ -1064,7 +1064,7 @@ def occasion_enqueue_now(tpl_id):
     tpl = db.get_or_404(MessageTemplate, tpl_id)
     tpl.last_enqueued_on = None                 # force a fresh campaign run
     from app.utils.occasions import enqueue_occasion
-    n = enqueue_occasion(tpl, user_id=current_user.id, on_date=date.today())
+    n = enqueue_occasion(tpl, user_id=current_user.id, on_date=local_today())
     db.session.commit()
     flash(t("occasions.campaign_queued").replace("{n}", str(n)), "success")
     return redirect(url_for("messages.occasions") + "#custom")

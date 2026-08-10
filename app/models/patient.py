@@ -6,6 +6,7 @@ legacy numbers) or generated automatically as ``PM-YYYY-NNNN``.
 from datetime import date, datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 GENDERS = ["male", "female"]
 BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
@@ -17,7 +18,7 @@ OWN_PHONE_AGE = 13
 
 def own_phone_cutoff(today=None):
     """Latest date of birth that makes a patient at least ``OWN_PHONE_AGE``."""
-    today = today or date.today()
+    today = today or local_today()
     try:
         return today.replace(year=today.year - OWN_PHONE_AGE)
     except ValueError:  # 29 Feb
@@ -115,7 +116,7 @@ class Patient(db.Model):
         """Return (years, months) since birth — accurate for pediatric ages."""
         if not self.date_of_birth:
             return (0, 0)
-        today = date.today()
+        today = local_today()
         years = today.year - self.date_of_birth.year
         months = today.month - self.date_of_birth.month
         if today.day < self.date_of_birth.day:
@@ -129,7 +130,7 @@ class Patient(db.Model):
     def age_days(self):
         if not self.date_of_birth:
             return 0
-        return (date.today() - self.date_of_birth).days
+        return (local_today() - self.date_of_birth).days
 
     @property
     def age_years(self):
