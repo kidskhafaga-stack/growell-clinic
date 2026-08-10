@@ -97,7 +97,18 @@
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
         <select class="select" x-model.number="addId" style="max-width:280px;">
           <option value="">{{ t('checkout.add_service') }}…</option>
-          {% for s in services %}<option value="{{ s.id }}" data-name="{{ s.display_name(current_lang) }}" data-price="{{ s.price or 0 }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
+          {# Grouped by what this visit's doctor performs — ordering only, and
+             only once somebody has marked them. See the visit screen. #}
+          {% if other_services %}
+          <optgroup label="{{ t('doctors.provides') }}">
+            {% for s in my_services %}<option value="{{ s.id }}" data-name="{{ s.display_name(current_lang) }}" data-price="{{ s.price or 0 }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
+          </optgroup>
+          <optgroup label="{{ t('doctors.other_services') }}">
+            {% for s in other_services %}<option value="{{ s.id }}" data-name="{{ s.display_name(current_lang) }}" data-price="{{ s.price or 0 }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
+          </optgroup>
+          {% else %}
+          {% for s in my_services %}<option value="{{ s.id }}" data-name="{{ s.display_name(current_lang) }}" data-price="{{ s.price or 0 }}">{{ s.display_name(current_lang) }} ({{ s.price }})</option>{% endfor %}
+          {% endif %}
         </select>
         <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
       </div>

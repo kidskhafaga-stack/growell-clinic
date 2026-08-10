@@ -2515,7 +2515,12 @@
     "preprinted_area": "Pre-printed letterhead area",
     "pv_doctor": "Dr. Name",
     "pv_invest": "Labs / investigations requested",
-    "show_conditions": "Chronic conditions"
+    "show_conditions": "Chronic conditions",
+    "show_vaccines": "Vaccinations given",
+    "test_print": "Test print",
+    "sample": "SAMPLE",
+    "test_print_hint": "Print this on the paper you actually use and see where the text lands. Every detail is invented — no real patient appears here. On a pre-printed template the dashed red line marks the top offset: it has to fall below your printed letterhead.",
+    "offset_line": "Offset — {n} mm"
   },
   "store": {
     "title": "General store",

@@ -158,6 +158,7 @@ ADDITIONS = [
     ("rx_print_templates", "show_weight", "BOOLEAN DEFAULT 1"),
     ("rx_print_templates", "show_allergies", "BOOLEAN DEFAULT 1"),
     ("rx_print_templates", "show_conditions", "BOOLEAN DEFAULT 1"),
+    ("rx_print_templates", "show_vaccines", "BOOLEAN DEFAULT 1"),
     ("rx_print_templates", "show_growth", "BOOLEAN DEFAULT 0"),
     ("drugs", "dose_per_kg", "FLOAT"),
     ("drugs", "max_per_kg", "FLOAT"),

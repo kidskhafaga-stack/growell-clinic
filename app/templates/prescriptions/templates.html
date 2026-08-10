@@ -21,6 +21,7 @@ rxPreview({
   show_weight: {{ 'true' if (tp and tp.show_weight) or not tp else 'false' }},
   show_allergies: {{ 'true' if (tp and tp.show_allergies) or not tp else 'false' }},
   show_conditions: {{ 'true' if (tp and tp.show_conditions) or not tp else 'false' }},
+  show_vaccines: {{ 'true' if (tp and tp.show_vaccines) or not tp else 'false' }},
   {# Not `or not tp`: growth is the one element that stays off until asked for. #}
   show_growth: {{ 'true' if tp and tp.show_growth else 'false' }},
   show_investigations: {{ 'true' if (tp and tp.show_investigations) or not tp else 'false' }},
@@ -63,7 +64,7 @@ rxPreview({
 
     <label style="font-weight:600;">{{ t('rxtpl.elements') }}</label>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0;">
-      {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_weight','show_allergies','show_conditions','show_growth','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
+      {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
       <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
         <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
       {% endfor %}
@@ -130,6 +131,12 @@ rxPreview({
         {% if tp.is_default %}<span class="badge badge--green">{{ t('rxtpl.default') }}</span>{% endif %}</h3>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        {# Opens in its own tab: this is something you print, look at, come
+           back and adjust — losing the form you were editing in the middle of
+           that would be the whole point undone. #}
+        <a class="btn btn-outline btn-sm gc-press" target="_blank" rel="noopener"
+           href="{{ url_for('prescriptions.template_test_print', tpl_id=tp.id) }}">
+          <i class="bi bi-printer"></i> {{ t('rxtpl.test_print') }}</a>
         {% if not tp.is_default %}
         <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('prescriptions.template_default', tpl_id=tp.id) }}" formnovalidate>{{ t('rxtpl.set_default') }}</button>
         <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('prescriptions.template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>

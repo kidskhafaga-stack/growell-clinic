@@ -1,0 +1,68 @@
+{% extends "shell.html" %}
+{# The paper template calls this; whoever includes it has to supply it. #}
+{% from "patients/_macros.html" import age_label with context %}
+{% set active_module = 'prescriptions' %}
+{% block title %}{{ t('rxtpl.test_print') }}{% endblock %}
+{% block page_heading %}{{ t('rxtpl.test_print') }}{% endblock %}
+
+{% block content %}
+{# Aiming the printer at the paper.
+
+   Everything that marks this page as a sample sits **outside the flow** — a
+   watermark over the layout and a rule drawn at the offset. A banner or an
+   extra note would push the content down by its own height, and the page
+   would stop testing the one thing it was printed for. #}
+<div class="card gc-scale-in no-print" style="margin-bottom:14px;">
+  <p style="margin:0 0 8px;">{{ t('rxtpl.test_print_hint') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-primary gc-press gc-ripple" onclick="window.print()">
+      <i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('prescriptions.templates') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('rxtpl.title') }}</a>
+  </div>
+</div>
+
+<div class="rx-testwrap">
+  {# The rule sits at the top offset so the clinic can measure rather than
+     guess: print it, and see whether the line falls below the letterhead or
+     through it. Absolutely positioned, so it costs no height. #}
+  {% if tpl.mode == 'preprinted' and tpl.top_offset_mm %}
+  <div class="rx-offset-rule" style="top:{{ tpl.top_offset_mm }}mm;">
+    <span>{{ t('rxtpl.offset_line', n=tpl.top_offset_mm) }}</span>
+  </div>
+  {% endif %}
+
+  <div class="rx-testmark" aria-hidden="true">{{ t('rxtpl.sample') }}</div>
+
+  {% include "prescriptions/_paper.html" %}
+</div>
+
+<style>
+  .rx-testwrap { position: relative; }
+
+  /* Over the layout, never in it. */
+  .rx-testmark {
+    position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(3rem, 13vw, 8rem); font-weight: 800;
+    color: rgba(140, 150, 160, .16);
+    letter-spacing: .12em; transform: rotate(-24deg);
+    white-space: nowrap; overflow: hidden;
+  }
+  .rx-offset-rule {
+    position: absolute; inset-inline: 0; z-index: 6; pointer-events: none;
+    border-top: 1px dashed #c1121f;
+  }
+  .rx-offset-rule span {
+    position: absolute; inset-inline-end: 0; top: 2px;
+    font-size: .7rem; color: #c1121f; background: var(--card); padding: 0 4px;
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    /* Kept when printing — a test page that comes out looking exactly like a
+       real prescription is a test page somebody eventually hands to a parent. */
+    .rx-testmark { color: rgba(120, 130, 140, .22); }
+  }
+</style>
+{% endblock %}

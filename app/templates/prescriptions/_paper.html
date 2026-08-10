@@ -223,7 +223,7 @@
   </div>
   {% endif %}
 
-  {% if rx_vaccines %}
+  {% if rx_vaccines and tpl.show_vaccines %}
   <!-- Vaccinations given this visit + when the next dose is expected -->
   <div style="margin-top:16px;">
     <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:3px;margin-bottom:6px;">
