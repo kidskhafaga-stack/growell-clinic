@@ -2061,7 +2061,7 @@
   "guide": {
     "nav": "User guide",
     "title": "System user guide",
-    "intro": "A step-by-step guide to each section. Click a section to jump to it."
+    "intro": "Step by step, cut to the screens your permissions actually open."
   },
   "vaccine_routes": {
     "IM": "Intramuscular",
@@ -4414,7 +4414,7 @@
   },
   "about": {
     "title": "About",
-    "subtitle": "Version, licence and credits.",
+    "subtitle": "The project, its plan and who is behind it — plus version and licence.",
     "version": "Version",
     "clinic": "Clinic",
     "licence": "Licence and terms"

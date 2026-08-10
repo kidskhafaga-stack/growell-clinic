@@ -106,7 +106,8 @@ def seed_register(limit=None):
     # Every spelling of every ingredient, not just the one the reference
     # happens to use. The match was exact, so "PARACETAMOL(ACETAMINOPHEN)" —
     # 92 boxes of the commonest drug in paediatrics — matched nothing.
-    from app.utils.ingredient_names import index_of, match as match_generic
+    from app.utils.ingredient_names import index_of, route_agrees
+    from app.utils.ingredient_names import match as match_generic
     generics = index_of(GenericDrug.query.all())
 
     added = 0
@@ -125,6 +126,12 @@ def seed_register(limit=None):
         # is how a child gets the wrong dose of the second one. What changed
         # is only that one ingredient may be spelled several ways.
         generic = match_generic(scientific, generics)
+        # …and the box has to be given the way the dose was written for. A
+        # topical gentamicin drop inheriting the intravenous mg/kg is a
+        # confident number about the wrong thing.
+        if generic is not None and not route_agrees(
+                _ROUTES.get((route or "").strip().upper()), generic.routes):
+            generic = None
         db.session.add(Drug(
             trade_name=trade[:160],
             trade_name_ar=(trade_ar or None) and trade_ar[:160],

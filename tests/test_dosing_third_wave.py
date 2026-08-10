@@ -7,7 +7,7 @@ the other half: ingredients the reference simply did not hold.
 They were **chosen by measurement**. After seeding the whole Egyptian
 register, these are the single-ingredient names carrying the most trade names
 that could not be dosed — then filtered to what a children's clinic actually
-gives. 107 ingredients → 122; brands with a dose behind them 1,622 → 1,816.
+gives. 107 ingredients → 122; brands with a dose behind them 1,622 → 1,741.
 Povidone-iodine alone accounts for 64 of that, and only after its name
 lost a ``(topical)`` qualifier that bought nothing — it is never given
 any other way — and the register's ``POVIDONE- IODINE`` spacing was
@@ -155,9 +155,12 @@ def test_the_warnings_that_are_the_reason_to_look_it_up(clinic, name, warning):
 def test_the_additions_reach_the_catalogue(clinic):
     """End to end, and the number is the justification.
 
-    Brands with a dose behind them: 1,622 → 1,816. Not a large share of
+    Brands with a dose behind them: 1,622 → 1,741. Not a large share of
     25,350, and saying so is the point — most of that catalogue is adult and
     cosmetic products a children's clinic will never dose.
+
+    It read 1,816 before the route guard, and 75 of those were products taking
+    a dose written for another route. Losing them is the fix, not a cost.
     """
     with clinic["app"].app_context():
         from app.models import Drug, GenericDrug
@@ -170,7 +173,7 @@ def test_the_additions_reach_the_catalogue(clinic):
         with_dose = (db.session.query(Drug.id)
                      .join(GenericDrug, Drug.generic_id == GenericDrug.id)
                      .filter(GenericDrug.dose_per_kg.isnot(None)).count())
-        assert with_dose > 1750
+        assert 1700 < with_dose < 1800
 
         cefotaxime = GenericDrug.query.filter_by(name_en="Cefotaxime").first()
         assert Drug.query.filter_by(generic_id=cefotaxime.id).count() >= 40
@@ -215,3 +218,29 @@ def test_vancomycin_shows_the_levels_it_is_dosed_by(clinic):
         vanc = GenericDrug.query.filter_by(name_en="Vancomycin").first()
         assert vanc is not None
         assert vanc.monitoring, "vancomycin has no monitoring advice on screen"
+
+
+def test_the_anaphylaxis_dose_is_not_reported_as_over_its_own_ceiling(clinic):
+    """A rounding bug on the one drug where hesitating is what kills.
+
+    Adrenaline is 0.01 mg/kg a dose with a 0.03 mg/kg/day ceiling over three
+    doses. ``0.03/3`` is 0.009999999999999998, so the dose came back flagged
+    ``capped`` with a ``daily_cap`` warning at 5, 10 and 20 kg — and not at 15
+    or 30, which is how a floating-point fault looks from the outside.
+
+    The tolerance is in ``dosing.calculate`` rather than in adrenaline's
+    numbers, because writing a per-dose that multiplies exactly to the daily
+    ceiling is the normal way these entries are written.
+    """
+    with clinic["app"].app_context():
+        from app.models import GenericDrug
+        from app.utils import dosing
+        from app.utils.drugbook_seed import seed_drugbook
+
+        seed_drugbook()
+        adrenaline = GenericDrug.query.filter_by(
+            name_en="Adrenaline (epinephrine)").first()
+        for weight in (5, 10, 15, 20, 30):
+            result = dosing.calculate(adrenaline, weight)
+            assert not result.get("capped"), f"{weight}kg reported as capped"
+            assert "daily_cap" not in result.get("warnings", [])
