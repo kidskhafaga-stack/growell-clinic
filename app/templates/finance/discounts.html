@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'finance' %}
 {% block title %}{{ t('discounts.title') }}{% endblock %}
 {% block page_heading %}{{ t('discounts.title') }}{% endblock %}
@@ -41,8 +42,9 @@
     </select><div class="hint">{{ t('discounts.service_hint') }}</div>
     <div class="hint" x-show="svc" x-cloak><strong>{{ t('discounts.service_only') }}</strong></div></div>
   <div class="form-row" x-show="dt==='doctor'" x-cloak><label>{{ t('appointments.doctor') }}</label>
-    <select class="select" name="doctor_id"><option value="">—</option>
-      {% for doc in doctors %}<option value="{{ doc.id }}" {{ 'selected' if d and d.doctor_id==doc.id else '' }}>{{ doc.display_name(current_lang) }}</option>{% endfor %}</select></div>
+    {{ pickers.doctor_picker('doctor_id', d.doctor_id if d else None, None,
+                             doctors=doctors, allow_all=True,
+                             autosubmit=False) }}</div>
   <div class="form-row" x-show="dt==='sibling'" x-cloak><label>{{ t('discounts.min_siblings') }}</label>
     <input class="input" type="number" min="2" name="min_siblings" value="{{ d.min_siblings or 2 if d else 2 }}" dir="ltr">
     <div class="hint">{{ t('discounts.sibling_hint') }}</div></div>

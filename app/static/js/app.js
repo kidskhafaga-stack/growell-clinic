@@ -806,3 +806,76 @@ window.gcPicker = function (config) {
     }
   };
 })();
+
+// gcDoctorPicker — "which doctor?", the same way on every screen that asks.
+//
+// A clinic with four doctors is fine with a <select>. A centre with forty is
+// the screen: you open a list, scroll, and read forty names to find one. The
+// searchable picker already existed and exactly one screen used it — the
+// prescription — because it was written inside that template's <script> and
+// could not be reached from anywhere else. Six other screens kept their
+// dropdowns.
+//
+// `allowAll` is the difference between a *field* and a *filter*. Picking the
+// doctor a schedule belongs to has no "all"; the appointments board and the
+// roster do, and a search box with no way back to "everybody" would be a
+// worse filter than the dropdown it replaced.
+window.gcDoctorPicker = function (url, initialId, initialName, allowAll, field,
+                                  autosubmit) {
+  return {
+    q: initialName || "",
+    chosenId: initialId === null || initialId === undefined ? "" : String(initialId),
+    allowAll: !!allowAll,
+    // A filter that reloads on choice, or a field in a form with its own
+    // button. Auto-submitting the second kind sends the form before the
+    // person has filled in the date next to it.
+    autosubmit: autosubmit !== false,
+    picker: window.gcPicker({ url: url, minChars: 0 }),
+    ask(all) {
+      // Typing again means they are choosing somebody else. Leaving the old id
+      // attached is how a form is submitted for a doctor whose name is no
+      // longer in the box.
+      this.chosenId = "";
+      // On focus the box still holds the name of whoever is chosen, and
+      // searching *that* returns only the one they already have. Opening the
+      // list has to offer the others — which is why somebody clicked it.
+      // Measured: focusing showed 2 of 40 doctors.
+      this.picker.q = all ? "" : this.q;
+      this.picker.search();
+    },
+    choose(d, el) {
+      this.picker.close();
+      this.chosenId = String(d.id);
+      this.q = d.name;
+      this.go(el);
+    },
+    clear(el) {
+      this.chosenId = "";
+      this.q = "";
+      this.picker.close();
+      if (this.allowAll) this.go(el);
+    },
+    // The element comes from the template rather than from `this.$el`, and the
+    // field is written straight onto the DOM rather than through the `:value`
+    // binding. Both were the other way round first, and the picker silently
+    // did not submit: the id landed in the hidden input and the URL never
+    // changed, so the screen went on showing the previous doctor while the box
+    // showed the new one — the worst way for a picker to fail, because it
+    // looks like it worked. Alpine's magics ($el, $nextTick) are reliable
+    // inside expressions and not inside methods on an object built by a plain
+    // function like this one, and the binding flushes a tick after the click.
+    // Passing the element in and setting the value directly needs neither.
+    go(el) {
+      if (!this.autosubmit) return;
+      var form = el && el.closest ? el.closest("form") : null;
+      if (!form) return;
+      var hidden = form.querySelector('input[name="' + field + '"]');
+      if (hidden) hidden.value = this.chosenId;
+      form.submit();
+    },
+    enter(ev, el) {
+      var d = this.picker.take();
+      if (d) { ev.preventDefault(); this.choose(d, el); }
+    },
+  };
+};

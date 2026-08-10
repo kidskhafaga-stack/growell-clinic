@@ -69,6 +69,10 @@ RULES = [
      # with. "DIAPER RASH" is 52 products and about as paediatric as the
      # register gets; it was going nowhere.
      r"|DIAPER|NAPPY|BABY CARE|ANTISEPTIC"),
+    # Mouthwash, toothpaste, oral gels and sprays. The register's own label,
+    # because every product name in it already says which of those it is.
+    ("Oral & dental care",
+     r"ORAL CARE|MOUTH ?WASH|TOOTH ?PASTE|DENTAL"),
     # Milk, on its own shelf rather than forced onto somebody else's.
     ("Infant formula",
      r"MILK PRODUCT|INFANT FORMULA|FOLLOW UP FORMULA|GROWING FORMULA"

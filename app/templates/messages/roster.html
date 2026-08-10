@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'messages' %}
 {% block title %}{{ t('messages_mod.roster') }}{% endblock %}
 {% block page_heading %}{{ t('messages_mod.roster') }}{% endblock %}
@@ -12,10 +13,8 @@
 <form method="get" class="card gc-scale-in">
   <div class="form-grid">
     <div class="form-row"><label>{{ t('messages_mod.select_doctor') }}</label>
-      <select class="select" name="doctor_id" required>
-        <option value="">{{ t('messages_mod.select_doctor') }}</option>
-        {% for d in doctors %}<option value="{{ d.id }}" {{ 'selected' if doctor and doctor.id==d.id else '' }}>{{ d.display_name(current_lang) }}</option>{% endfor %}
-      </select></div>
+      {{ pickers.doctor_picker('doctor_id', doctor.id if doctor else None, None,
+                               doctors=doctors, autosubmit=False) }}</div>
     <div class="form-row"><label>{{ t('messages_mod.date') }}</label><input class="input" type="date" name="date" value="{{ on_date }}"></div>
   </div>
   <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('messages_mod.show') }}</button>

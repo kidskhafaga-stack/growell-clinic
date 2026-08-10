@@ -49,6 +49,9 @@ WA_CONFIG_KEYS = [
     # own delay columns mean "after the trigger" for every other type and a
     # column that means "before" for one row is a bug factory.
     "wa_reminder_hours",
+    # How long without a visit before a family is worth a message. The clinic
+    # decides; it has to stay under the archiving window.
+    "recall_after_months",
     "wa_meta_verify_token", "wa_meta_app_secret",
     "wa_approved_templates",
 ]
@@ -216,6 +219,49 @@ def _recent_failures(limit=20, days=BOARD_DAYS):
             .filter(MessageLog.status.in_(("failed", "skipped")),
                     MessageLog.created_at >= since)
             .order_by(MessageLog.created_at.desc()).limit(limit).all())
+
+
+@messages_bp.route("/recall")
+@module_required(MODULE)
+def recall():
+    """The families who have stopped coming — as a list to read, not a sweep.
+
+    This is the only message the clinic sends to people who are not currently
+    talking to it, so nothing here is scheduled or automatic: somebody looks at
+    the list and presses.
+    """
+    from app.utils import recall as rc
+    from app.utils.archiving import inactive_years
+
+    rows = rc.candidates()
+    return render_template(
+        "messages/recall.html", rows=rows, months=rc.after_months(),
+        cutoff=rc.cutoff(), archive_years=inactive_years(),
+        archive_conflict=rc.archive_conflict(),
+        daily_cap=Setting.get("wa_daily_cap", "") or "0")
+
+
+@messages_bp.route("/recall/send", methods=["POST"])
+@module_required(MODULE)
+def recall_send():
+    """Send one family's recall, or everybody currently on the list."""
+    from app.utils import recall as rc
+
+    lang = getattr(g, "lang", "ar")
+    patient_id = request.form.get("patient_id", type=int)
+    if patient_id:
+        patient = db.session.get(Patient, patient_id)
+        last = next((d for p, d in rc.candidates() if p.id == patient_id), None)
+        log = rc.send_to(patient, last, user_id=current_user.id, lang=lang)
+        db.session.commit()
+        flash(t("crm.recall_sent_one") if log is not None
+              else t("crm.recall_none"), "success" if log else "info")
+    else:
+        result = rc.send_all(user_id=current_user.id, lang=lang)
+        flash(t("crm.recall_sent_n", n=result["sent"]) if result["sent"]
+              else t("crm.recall_none"),
+              "success" if result["sent"] else "info")
+    return redirect(url_for("messages.recall"))
 
 
 @messages_bp.route("/resend-failed", methods=["POST"])

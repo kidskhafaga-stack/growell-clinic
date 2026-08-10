@@ -1,0 +1,53 @@
+{# The one "which doctor?" control, for every screen that asks.
+
+   Six screens rendered every doctor into a <select> — fine at four doctors,
+   and the screen itself at forty. The searchable version already existed and
+   only the prescription could reach it, because it lived inside that
+   template's own <script>.
+
+   ``allow_all`` marks a *filter* rather than a field: the day board and the
+   roster need a way back to "every doctor", and a search box without one is a
+   worse filter than the dropdown it replaces. #}
+{% macro doctor_picker(name, value, label, doctors=None, allow_all=False,
+                       placeholder=None, autosubmit=True) %}
+{% set chosen = (doctors | selectattr('id', 'equalto', value) | first)
+                if (doctors and value) else None %}
+<div class="form-row" style="position:relative;max-width:340px;"
+     x-data="gcDoctorPicker('{{ url_for('main.doctor_search') }}',
+                            {{ value or 'null' }},
+                            {{ (chosen.display_name(current_lang) if chosen else '')|tojson|forceescape }},
+                            {{ 'true' if allow_all else 'false' }},
+                            {{ name|tojson|forceescape }},
+                            {{ 'true' if autosubmit else 'false' }})">
+  {% if label %}<label>{{ label }}</label>{% endif %}
+  <input type="hidden" name="{{ name }}" :value="chosenId">
+  <div style="display:flex;gap:6px;align-items:center;">
+    <input class="input" x-model="q" autocomplete="off"
+           placeholder="{{ placeholder or t('crm.doctor_search_ph') }}"
+           role="combobox" aria-autocomplete="list"
+           :aria-expanded="picker.open ? 'true' : 'false'"
+           x-on:input.debounce.250ms="ask()" x-on:focus="ask(true)"
+           x-on:keydown.arrow-down.prevent="picker.move(1)"
+           x-on:keydown.arrow-up.prevent="picker.move(-1)"
+           x-on:keydown.enter="enter($event, $el)"
+           x-on:keydown.escape="picker.close()"
+           x-on:blur="setTimeout(() => picker.close(), 150)">
+    {% if allow_all %}
+    <button class="btn btn-outline btn-sm gc-press" type="button"
+            x-on:click="clear($el)" x-show="q" x-cloak
+            title="{{ t('crm.all_doctors') }}"><i class="bi bi-x-lg"></i></button>
+    {% endif %}
+  </div>
+  <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+    <template x-for="(d, idx) in picker.items" :key="d.id">
+      <button type="button" class="gc-picker-item" role="option"
+              :aria-selected="idx === picker.active ? 'true' : 'false'"
+              x-on:mouseenter="picker.active = idx"
+              x-on:click="choose(d, $el)">
+        <span x-text="d.name"></span>
+        <span class="badge badge--role" x-show="d.number" x-cloak x-text="d.number"></span>
+      </button>
+    </template>
+  </div>
+</div>
+{% endmacro %}

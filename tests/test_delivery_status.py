@@ -271,3 +271,43 @@ def test_the_column_reaches_clinics_that_already_have_the_program():
     from app.utils.schema import ADDITIONS
 
     assert ("message_logs", "provider_msg_id", "VARCHAR(120)") in ADDITIONS
+
+
+def test_every_exit_from_the_cloud_sender_carries_three_values(clinic):
+    """The crash the delivery-status change shipped with, in the one state a
+    real clinic meets first.
+
+    Adding the message id made ``_send_cloud`` return three values — except on
+    the early exit for missing credentials, which still returned two. The
+    caller unpacks three, so a clinic that picked Cloud API and had not yet
+    pasted its token met ``ValueError: not enough values to unpack`` instead of
+    the words "cloud_not_configured" telling it what to fix. Found by a test
+    for an unrelated feature, which is the only reason it was found at all.
+    """
+    from app.utils.whatsapp import _send_cloud, _send_cloud_template
+
+    with clinic["app"].app_context():
+        blank = {"cloud_token": "", "cloud_phone_id": ""}
+        assert _send_cloud(blank, "201000000000", "نص") == (
+            False, "cloud_not_configured", None)
+        assert _send_cloud_template(blank, "201000000000", {"name": "t"}, []) == (
+            False, "cloud_not_configured", None)
+
+
+def test_an_unconfigured_clinic_gets_a_reason_not_a_crash(clinic):
+    """End to end through ``send``: the row says why, and nothing raises."""
+    with clinic["app"].app_context():
+        from app.models import MessageLog, Setting
+        from app.utils import whatsapp as wa
+
+        Setting.set("crm_mode", "automatic")
+        Setting.set("wa_provider", "cloud_api")
+        Setting.set("wa_cloud_token", "")
+        Setting.set("wa_cloud_phone_id", "")
+        clinic["db"].session.commit()
+
+        wa.send("نص", "201000000000")
+        clinic["db"].session.commit()
+        row = MessageLog.query.order_by(MessageLog.id.desc()).first()
+        assert row.status == "failed"
+        assert row.error == "cloud_not_configured"

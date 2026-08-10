@@ -497,6 +497,7 @@ _CRM_TPL_NAMES = {
     "appointment_confirm": "تأكيد موعد",
     "appointment_reminder": "تذكير قبل الموعد",
     "no_show_followup": "متابعة الغياب",
+    "patient_recall": "استدعاء مريض غايب",
     "doctor_schedule": "جدول الطبيب اليومي",
     "vaccine_given": "إشعار تطعيم",
     "vaccine_back": "التطعيم بقى متوفر",
