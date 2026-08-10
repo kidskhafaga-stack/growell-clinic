@@ -97,3 +97,61 @@ def stop(row, user=None, reason=None, on=None):
     row.stop_reason = (reason or "").strip() or None
     db.session.commit()
     return row
+
+
+# --- the reconciliation ---------------------------------------------------
+
+def review(medication, decision, user=None, visit=None, note=None):
+    """Write down what was decided about one medicine at this encounter.
+
+    A stop decision also stops the medicine — the review is the document and
+    ``PatientMedication`` is the state, and it would be a poor document that
+    said "stopped" beside a drug the program still thinks the child is on.
+    """
+    from app.extensions import db
+    from app.models import REVIEW_DECISIONS, MedicationReview
+
+    if medication is None or decision not in REVIEW_DECISIONS:
+        return None
+    row = MedicationReview(
+        patient_id=medication.patient_id,
+        medication_id=medication.id,
+        visit_id=getattr(visit, "id", visit),
+        decision=decision,
+        note=(note or "").strip() or None,
+        reviewed_by=getattr(user, "id", None))
+    db.session.add(row)
+    if decision == "stop":
+        stop(medication, user=user, reason=note)
+    db.session.commit()
+    return row
+
+
+def reviewed_ids(patient, visit):
+    """Medicines already reviewed at this encounter.
+
+    So the screen can show what is left rather than asking twice — and so
+    "everything on the list was looked at" is a question the program can
+    actually answer.
+    """
+    if patient is None or visit is None:
+        return set()
+    from app.models import MedicationReview
+
+    rows = (MedicationReview.query
+            .filter(MedicationReview.patient_id == getattr(patient, "id", patient),
+                    MedicationReview.visit_id == getattr(visit, "id", visit))
+            .all())
+    return {row.medication_id for row in rows}
+
+
+def reconciled(patient, visit):
+    """Has every medicine on the list been decided about at this encounter?
+
+    ``True`` with an empty list as well — a child on nothing has a reviewed
+    list, and answering "no" there would put a permanent warning on the
+    healthy majority and teach everybody to ignore it.
+    """
+    outstanding = [m for m in current(patient)
+                   if m.id not in reviewed_ids(patient, visit)]
+    return not outstanding

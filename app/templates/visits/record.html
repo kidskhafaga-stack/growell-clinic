@@ -558,6 +558,53 @@
   <div class="card gc-scale-in" data-add-panel id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
     <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.med_hint') }}</p>
+
+    {# Medication reconciliation (GAHAR).
+
+       It sits on the visit rather than on the prescription writer because it
+       is a property of the **encounter**: a visit where nothing is prescribed
+       still has a list that should have been looked at, and reconciliation
+       hanging off the prescription would simply not happen on those days.
+
+       "Continue" is recorded like the others. Storing only stops and changes
+       would leave a drug somebody deliberately continued and a drug nobody
+       looked at with the same trace — nothing — and reconciliation is exactly
+       the claim that the whole list was looked at. #}
+    {% if ongoing_meds %}
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px;
+                border-inline-start:3px solid {{ 'var(--green-600)' if meds_reconciled else '#d97706' }};">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <strong><i class="bi bi-clipboard2-check"></i> {{ t('meds.reconcile') }}</strong>
+        {% if meds_reconciled %}
+        <span class="badge badge--green">{{ t('meds.reconciled') }}</span>
+        {% endif %}
+      </div>
+      <p class="hint" style="margin:5px 0 9px;">{{ t('meds.reconcile_hint') }}</p>
+
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        {% for m in ongoing_meds %}
+        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+                    border:1px solid var(--line);border-radius:9px;padding:8px 11px;">
+          <strong style="flex:1;min-width:150px;">{{ m.label(current_lang) }}
+            {% if m.reason %}<span class="badge badge--muted">{{ m.reason }}</span>{% endif %}</strong>
+          {% if m.id in reviewed_meds %}
+          <span class="badge badge--green"><i class="bi bi-check-lg"></i> {{ t('meds.decided') }}</span>
+          {% else %}
+          <span class="badge badge--muted">{{ t('meds.pending_review') }}</span>
+          {% for d in ['continue', 'stop', 'modify'] %}
+          <form method="post" style="display:inline;"
+                action="{{ url_for('visits.reconcile_medication', visit_id=visit.id, med_id=m.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="decision" value="{{ d }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">{{ t('meds.dec_' ~ d) }}</button>
+          </form>
+          {% endfor %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
     {% if visit.prescriptions %}
     <p class="hint" style="margin:0 0 10px;color:var(--green-800);">
       <i class="bi bi-info-circle"></i> {{ t('visits.med_rx_exists') }}

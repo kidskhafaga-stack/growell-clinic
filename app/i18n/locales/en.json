@@ -4769,6 +4769,16 @@
     "none": "No ongoing medicines recorded",
     "added_by": "Recorded by",
     "unlinked": "Not linked to the drug reference — excluded from the interaction check",
-    "ongoing_interaction": "Interacts with an ongoing medicine"
+    "ongoing_interaction": "Interacts with an ongoing medicine",
+    "reconcile": "Review ongoing medicines",
+    "reviewed": "Decision recorded",
+    "bad_decision": "Unknown decision",
+    "dec_continue": "Continue",
+    "dec_stop": "Stop",
+    "dec_modify": "Modify",
+    "reconcile_hint": "For each ongoing medicine: continue, stop or modify. The decision is recorded under your name and this visit's date.",
+    "reconciled": "Every medicine reviewed at this visit",
+    "pending_review": "Not yet reviewed",
+    "decided": "Decided"
   }
 }

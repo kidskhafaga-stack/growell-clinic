@@ -133,9 +133,16 @@ def test_a_walk_in_is_seen_today_even_with_no_slot_left(journey):
         "appt_type": "consultation"}, follow_redirects=True)
     with journey["app"].app_context():
         appt = Appointment.query.one()
+        from app.utils.clock import local_today
+
         assert appt.is_walk_in is True
         assert appt.status == "waiting"
-        assert appt.appt_date == date.today()
+        # The clinic's today, not the machine's. Booking uses ``local_today``,
+        # so with the server on UTC and the clinic in Cairo this assertion
+        # failed every night between 22:00 UTC and midnight — a test that goes
+        # red on a clock rather than on a change, which is how a suite stops
+        # being believed.
+        assert appt.appt_date == local_today()
 
 
 def test_a_paused_clinic_stops_reception_but_not_the_manager(journey):
