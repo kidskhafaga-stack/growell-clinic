@@ -3,7 +3,7 @@
 Includes the doctor's "Today's Appointments" board, conflict-free booking,
 the appointment status lifecycle, and per-doctor working-hours schedules.
 """
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from flask import (
     flash,
@@ -46,6 +46,7 @@ from app.utils.appointments import (
     parse_date_arg,
     slot_duration,
 )
+from app.utils.clock import local_today
 from app.utils.decorators import client_ip, module_required
 
 MODULE = "appointments"
@@ -151,7 +152,7 @@ def index():
         on_date=on_date,
         prev_date=(on_date - timedelta(days=1)).isoformat(),
         next_date=(on_date + timedelta(days=1)).isoformat(),
-        today=datetime.today().date().isoformat(),
+        today=local_today().isoformat(),
         stats=stats,
         current=current,
         current_summary=current_summary,
@@ -608,7 +609,7 @@ def consult_check():
     info = consultation_window(
         request.args.get("patient_id", type=int),
         request.args.get("doctor_id", type=int),
-        parse_date_arg(request.args.get("date"), default=None) or date.today(),
+        parse_date_arg(request.args.get("date"), default=None),
     )
     msgs = {
         "no_exam": t("appointments.consult_no_exam"),
@@ -706,7 +707,10 @@ def walk_in():
         flash(t("appointments.walk_in_need"), "danger")
         return redirect(url_for("appointments.index"))
 
-    today = datetime.today().date()
+    # The clinic's day, not the server's: a walk-in taken after midnight
+    # local time was being stamped with yesterday and never reached the
+    # doctor's station, which asks for local_today().
+    today = local_today()
     spot = next_available(doctor_id, today, days=1)
     if spot:
         appt_time = datetime.strptime(spot["time"], "%H:%M").time()
@@ -948,7 +952,7 @@ def schedules():
         # Upcoming time off / breaks only (past ones are irrelevant).
         exceptions = (
             ScheduleException.query.filter_by(doctor_id=selected)
-            .filter(ScheduleException.exc_date >= datetime.today().date())
+            .filter(ScheduleException.exc_date >= local_today())
             .order_by(ScheduleException.exc_date)
             .all()
         )
@@ -1118,7 +1122,7 @@ def clinics():
     return render_template(
         "appointments/clinics.html", rooms=rooms, doctors=list_doctors(),
         assigned=assigned, previous=previous, on_date=on_date,
-        today=date.today().isoformat(),
+        today=local_today().isoformat(),
         prev_date=(on_date - timedelta(days=1)).isoformat(),
         next_date=(on_date + timedelta(days=1)).isoformat(),
     )
