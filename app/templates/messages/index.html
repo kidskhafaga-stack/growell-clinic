@@ -87,6 +87,14 @@
   <summary class="section-title" style="cursor:pointer;color:var(--danger);">
     <i class="bi bi-exclamation-octagon"></i> {{ t('crm.failures_title') }} ({{ failures|length }})</summary>
   <p class="hint" style="margin:6px 0 10px;">{{ t('crm.failures_hint') }}</p>
+  {% if retryable %}
+  <form method="post" action="{{ url_for('messages.resend_failed') }}" style="margin-bottom:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm gc-press" type="submit">
+      <i class="bi bi-arrow-clockwise"></i> {{ t('crm.resend_failed', n=retryable) }}</button>
+    <span class="hint">{{ t('crm.resend_hint') }}</span>
+  </form>
+  {% endif %}
   <div style="overflow-x:auto;">
     <table class="table">
       <thead><tr><th>{{ t('messages_mod.date') }}</th><th>{{ t('messages_mod.patient') }}</th>

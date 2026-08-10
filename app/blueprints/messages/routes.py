@@ -33,6 +33,7 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import admin_required, module_required
 from app.utils.paging import paginate
+from app.utils.resend import retryable
 from app.utils.triage import TOPICS as TRIAGE_TOPICS
 from app.utils.clock import local_today
 
@@ -146,6 +147,7 @@ def index():
         counts=counts, status=status, statuses=MESSAGE_STATUSES,
         sent_today=sent_today, due_now=due_now,
         by_type=_delivery_by_type(), failures=_recent_failures(),
+        retryable=len(retryable()),
         skip_reasons=SKIP_REASONS,
         daily_cap=Setting.get("wa_daily_cap", "") or "0",
     )
@@ -214,6 +216,25 @@ def _recent_failures(limit=20, days=BOARD_DAYS):
             .filter(MessageLog.status.in_(("failed", "skipped")),
                     MessageLog.created_at >= since)
             .order_by(MessageLog.created_at.desc()).limit(limit).all())
+
+
+@messages_bp.route("/resend-failed", methods=["POST"])
+@module_required(MODULE)
+def resend_failed():
+    """Send the recent failures again — the ones still worth sending.
+
+    The board has counted failures since it was built and offered nothing to
+    do about them; the only remedy was to find each one and send it by hand,
+    which nobody does twelve times.
+    """
+    from app.utils.resend import resend_all
+
+    result = resend_all(user_id=current_user.id)
+    if result["resent"]:
+        flash(t("crm.resent_n", n=result["resent"]), "success")
+    else:
+        flash(t("crm.resend_none"), "info")
+    return redirect(request.referrer or url_for("messages.index"))
 
 
 @messages_bp.route("/service")

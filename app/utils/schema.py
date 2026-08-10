@@ -224,6 +224,8 @@ ADDITIONS = [
     ("message_logs", "template_id", "INTEGER"),
     # Delivery receipts are matched to their message by this id.
     ("message_logs", "provider_msg_id", "VARCHAR(120)"),
+    # Links a retry back to the failure it is a second attempt at.
+    ("message_logs", "retry_of", "INTEGER"),
     ("named_discounts", "service_id", "INTEGER"),
     ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
     ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),

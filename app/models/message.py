@@ -225,6 +225,13 @@ class MessageLog(db.Model):
     # delivery receipt cannot be matched to the row it belongs to, which is why
     # every message here was stuck at "the provider accepted it".
     provider_msg_id = db.Column(db.String(120), index=True)
+    # The failed message this one is a second attempt at. A retry is a new
+    # message rather than a rewritten one: flipping the old row back to
+    # "scheduled" would erase the failure, and the failure is the record of
+    # what happened. It also makes "already retried" a fact in the data rather
+    # than something a button has to remember.
+    retry_of = db.Column(db.Integer, db.ForeignKey("message_logs.id"),
+                         nullable=True, index=True)
     direction = db.Column(db.String(3), default="out", nullable=False, index=True)
     status = db.Column(db.String(12), default="queued", nullable=False)
     link = db.Column(db.Text)
