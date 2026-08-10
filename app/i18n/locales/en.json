@@ -4526,7 +4526,11 @@
     "no_missing": "No missing patients in this file — every code found a patient here.",
     "missing_sheet_1": "This file holds the patients your services export names that do not exist here yet — their code and name are already filled in from your file.",
     "missing_sheet_2": "Fill in date_of_birth and gender — both are required, and a services export carries neither. The date of birth in particular drives every vaccination due date and growth centile, so a guessed one is a wrong dose date for a real child.",
-    "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before."
+    "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before.",
+    "count_money": "Count this import’s money as clinic earnings",
+    "count_money_hint": "Unticked, the amounts are kept as history on the patient file only — outside the till and outside today’s collection. Ticked, they appear as a separate line marked \"imported\" on the money screens. Leave it unticked when importing old years, or the same money is counted twice against the accountant’s opening balances.",
+    "imported_line": "Imported (earlier history)",
+    "imported_batches": "from {n} import(s)"
   },
   "payer_types_admin": {
     "title": "Entity kinds",

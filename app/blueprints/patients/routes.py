@@ -1512,7 +1512,11 @@ def history_import_commit():
     records, counts = classify(records, start=start, end=end)
 
     batch = ImportBatch(kind="history", filename=payload.get("filename"),
-                        created_by=current_user.id, rows_total=len(records))
+                        created_by=current_user.id, rows_total=len(records),
+                        # Asked on the preview, stored on the batch. Off unless
+                        # somebody ticked it: replaying ten years as revenue
+                        # counts a decade twice.
+                        count_money=request.form.get("count_money") == "1")
     db.session.add(batch)
     db.session.flush()
 

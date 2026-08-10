@@ -3819,10 +3819,18 @@ def statements():
             "clinic_share": round(sum(i.clinic_share_total for i in invoices), 2),
         }
 
+    # Imported history, on its own line and never added into the totals above.
+    # Empty (batches=0) unless somebody ticked the box on an import preview,
+    # which is the default — a decade replayed into these figures would count
+    # ten years twice.
+    from app.utils.history_money import totals as imported_totals
+
+    imported = imported_totals(date_from, date_to,
+                               doctor_id=doctor.id if doctor else None)
     return render_template(
         "finance/statements.html", doctors=_doctors_active(), doctor=doctor,
         invoices=invoices, totals=totals, paid_only=paid_only,
-        date_from=date_from, date_to=date_to,
+        date_from=date_from, date_to=date_to, imported=imported,
     )
 
 
