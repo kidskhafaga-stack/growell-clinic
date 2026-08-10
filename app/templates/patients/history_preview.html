@@ -186,6 +186,14 @@
     <input type="checkbox" name="update_changed" value="1">
     {{ t('history_import.update_changed').replace('{n}', counts.changed|string) }}</label>
   {% endif %}
+  {# The money question, asked here because this is the last screen before
+     anything is written — and answered per import, since a decade of another
+     program's takings and last month's rows are not the same answer. #}
+  <label class="check" style="display:flex;align-items:flex-start;gap:6px;
+                              width:100%;line-height:1.8;">
+    <input type="checkbox" name="count_money" value="1" style="margin-top:5px;">
+    <span>{{ t('history_import.count_money') }}
+      <span class="hint" style="display:block;">{{ t('history_import.count_money_hint') }}</span></span></label>
   <button class="btn btn-primary gc-press gc-ripple" type="submit" {{ 'disabled' if not counts.new and not counts.changed else '' }}>
     <i class="bi bi-database-add"></i> {{ t('history_import.commit') }}</button>
   <a class="btn btn-outline gc-press" href="{{ url_for('patients.history_import') }}">{{ t('common.cancel') }}</a>

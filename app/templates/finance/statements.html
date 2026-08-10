@@ -72,12 +72,29 @@
     <div class="stat-card edge-blue"><i class="bi bi-hospital ico"></i><div class="value">{{ totals.clinic_share }}</div><div class="label">{{ t('statements.clinic_share') }}</div></div>
   </div>
 
+
   <div style="display:flex;justify-content:space-between;margin-top:48px;">
     <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ doctor.display_name(current_lang) }}</div></div>
     <div style="text-align:center;"><div style="border-top:1px solid var(--ink);width:200px;padding-top:6px;">{{ t('vaccinations.cert_stamp') }}</div></div>
   </div>
   {% else %}
   <div class="empty-state"><i class="bi bi-inbox"></i>{{ t('statements.no_data') }}</div>
+  {% endif %}
+
+  {# Imported history: its own line, never added into the totals above.
+     Deliberately outside the invoices branch — a doctor with a decade of
+     imported history and nothing billed this period is exactly the case this
+     exists for, and inside the branch they saw "no data". Only appears when
+     the clinic ticked the box on an import preview, which is not the default. #}
+  {% if imported and imported.rows %}
+  <div class="card" style="margin-top:14px;border-{{ 'right' if direction=='rtl' else 'left' }}:4px solid var(--muted);">
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;">
+      <b>{{ t('history_import.imported_line') }}</b>
+      <span>{{ t('statements.total_collected') }}: <b dir="ltr">{{ imported.collected }}</b></span>
+      <span>{{ t('statements.doctor_share') }}: <b dir="ltr">{{ imported.doctor_share }}</b></span>
+      <span class="hint">{{ imported.rows }} · {{ t('history_import.imported_batches').replace('{n}', imported.batches|string) }}</span>
+    </div>
+  </div>
   {% endif %}
 </div>
 {% endif %}

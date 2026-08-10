@@ -38,6 +38,18 @@ class ImportBatch(db.Model):
     rows_added = db.Column(db.Integer, default=0, nullable=False)
     rows_skipped = db.Column(db.Integer, default=0, nullable=False)
     rows_rejected = db.Column(db.Integer, default=0, nullable=False)
+    # Whether this batch's money is allowed to appear in the clinic's own
+    # money screens, chosen on the preview before anything is written.
+    #
+    # Per batch rather than a global switch, because the answer differs by
+    # batch: a decade of another program's takings is history, and last
+    # month's rows — imported because the clinic switched over mid-year — are
+    # this year's earnings. One setting could not say both.
+    #
+    # Off by default. Ten years replayed as revenue counts a decade twice, in
+    # the reports and in the accountant's opening balances, and a default that
+    # does that quietly is the wrong default.
+    count_money = db.Column(db.Boolean, default=False, nullable=False)
     notes = db.Column(db.Text)
 
     creator = db.relationship("User")

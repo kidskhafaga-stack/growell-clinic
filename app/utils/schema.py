@@ -226,6 +226,8 @@ ADDITIONS = [
     ("message_logs", "provider_msg_id", "VARCHAR(120)"),
     # Links a retry back to the failure it is a second attempt at.
     ("message_logs", "retry_of", "INTEGER"),
+    # Whether an import's money may appear in the clinic's money screens.
+    ("import_batches", "count_money", "BOOLEAN DEFAULT 0"),
     ("named_discounts", "service_id", "INTEGER"),
     ("named_discounts", "same_doctor", "BOOLEAN DEFAULT 1"),
     ("named_discounts", "family_wide", "BOOLEAN DEFAULT 1"),

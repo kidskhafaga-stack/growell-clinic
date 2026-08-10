@@ -4526,7 +4526,11 @@
     "no_missing": "No missing patients in this file — every code found a patient here.",
     "missing_sheet_1": "This file holds the patients your services export names that do not exist here yet — their code and name are already filled in from your file.",
     "missing_sheet_2": "Fill in date_of_birth and gender — both are required, and a services export carries neither. The date of birth in particular drives every vaccination due date and growth centile, so a guessed one is a wrong dose date for a real child.",
-    "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before."
+    "missing_sheet_3": "When it is filled: upload it under “Import patients”, then upload the services file again — it will find them and add their history without duplicating what was imported before.",
+    "count_money": "Count this import’s money as clinic earnings",
+    "count_money_hint": "Unticked, the amounts are kept as history on the patient file only — outside the till and outside today’s collection. Ticked, they appear as a separate line marked \"imported\" on the money screens. Leave it unticked when importing old years, or the same money is counted twice against the accountant’s opening balances.",
+    "imported_line": "Imported (earlier history)",
+    "imported_batches": "from {n} import(s)"
   },
   "payer_types_admin": {
     "title": "Entity kinds",
@@ -4689,5 +4693,24 @@
     "error_who_not_configured": "The Client ID and Secret have not been entered yet.",
     "error_who_empty": "The WHO returned no codes — nothing was written, try again.",
     "error_who_no_token": "The WHO returned no token."
+  },
+  "flags": {
+    "title": "Payment flag",
+    "warn": "Warning",
+    "block": "Temporary block",
+    "raise": "Raise a payment flag",
+    "clear": "Clear the flag",
+    "reason": "Reason",
+    "clear_reason": "Reason for clearing",
+    "blocked_booking": "This file carries a temporary payment block. Booking needs an admin or financial authority.",
+    "override": "Allow this booking despite the block",
+    "raised_by": "Raised by {who} on {when}",
+    "cleared_by": "Cleared by {who} on {when}",
+    "need_reason": "Write the reason — a flag without one is a note nobody can judge.",
+    "no_permission_clear": "Clearing a payment flag needs financial authority or an admin.",
+    "raised": "Flag raised.",
+    "cleared": "Flag cleared.",
+    "history": "Earlier flags",
+    "staff_only": "Internal staff note — never appears on anything the family is handed."
   }
 }

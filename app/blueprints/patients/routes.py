@@ -21,7 +21,7 @@ from flask import (
     send_file,
     url_for,
 )
-from flask_login import current_user
+from flask_login import current_user, login_required
 
 from app.blueprints.patients import patients_bp
 from app.extensions import db
@@ -273,6 +273,66 @@ def archive_run():
     return redirect(url_for("patients.archive"))
 
 
+@patients_bp.route("/<int:patient_id>/flag", methods=["POST"])
+@module_required(MODULE)
+def flag_raise(patient_id):
+    """Record that a family does not pay, or pays only after being chased.
+
+    Open to the staff who meet it — reception, the doctor, the office. Taking
+    it off is a different permission, so the person who wrote it while annoyed
+    is not the one who lifts it.
+    """
+    from app.utils import patient_flags as flags
+
+    patient = db.get_or_404(Patient, patient_id)
+    level = (request.form.get("level") or "warn").strip()
+    reason = (request.form.get("reason") or "").strip()
+    flag = flags.raise_flag(patient.id, level, reason, user_id=current_user.id)
+    if flag is None:
+        flash(t("flags.need_reason"), "danger")
+        return redirect(request.referrer
+                        or url_for("patients.view", patient_id=patient.id))
+    ActivityLog.record("patient.flag", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=level, ip_address=client_ip())
+    db.session.commit()
+    flash(t("flags.raised"), "warning")
+    return redirect(request.referrer
+                    or url_for("patients.view", patient_id=patient.id))
+
+
+@patients_bp.route("/<int:patient_id>/flag/clear", methods=["POST"])
+@login_required
+def flag_clear(patient_id):
+    """Take the flag off when the behaviour changes — admin or finance only.
+
+    Deliberately **not** behind ``module_required("patients")``. The
+    accountant is the one person who actually knows whether the money arrived,
+    and an accountant has no patients module — so gating on it meant the only
+    people who could clear a payment flag were the ones who could not check
+    it. Same shape as ``cashier_access``, which lets reception take money
+    without handing them the whole of finance. The capability is checked
+    below, so nothing is opened up: it is a narrower gate, not an absent one.
+    """
+    from app.utils import patient_flags as flags
+
+    patient = db.get_or_404(Patient, patient_id)
+    if not flags.can_clear(current_user):
+        flash(t("flags.no_permission_clear"), "danger")
+        return redirect(request.referrer
+                        or url_for("patients.view", patient_id=patient.id))
+    flag = flags.clear_flag(patient.id, request.form.get("clear_reason"),
+                            user_id=current_user.id)
+    if flag is not None:
+        ActivityLog.record("patient.flag_clear", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           ip_address=client_ip())
+        db.session.commit()
+        flash(t("flags.cleared"), "success")
+    return redirect(request.referrer
+                    or url_for("patients.view", patient_id=patient.id))
+
+
 @patients_bp.route("/<int:patient_id>/archive", methods=["POST"])
 @module_required(MODULE)
 def archive_one(patient_id):
@@ -409,10 +469,15 @@ def view(patient_id):
     # exists already, and creating him again makes two files for one child.
     from app.utils.siblings import suggest_siblings
 
+    from app.utils import patient_flags as flags
+
     return render_template(
         "patients/profile.html",
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
         imported=imported,
+        payment_flag=flags.active(patient.id),
+        payment_flag_history=flags.history(patient.id),
+        can_clear_flag=flags.can_clear(current_user),
         sibling_hints=suggest_siblings(patient),
         patient=patient,
         relations=PARENT_RELATIONS,
@@ -1512,7 +1577,11 @@ def history_import_commit():
     records, counts = classify(records, start=start, end=end)
 
     batch = ImportBatch(kind="history", filename=payload.get("filename"),
-                        created_by=current_user.id, rows_total=len(records))
+                        created_by=current_user.id, rows_total=len(records),
+                        # Asked on the preview, stored on the batch. Off unless
+                        # somebody ticked it: replaying ten years as revenue
+                        # counts a decade twice.
+                        count_money=request.form.get("count_money") == "1")
     db.session.add(batch)
     db.session.flush()
 
