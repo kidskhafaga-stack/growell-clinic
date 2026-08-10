@@ -137,7 +137,7 @@ def test_stopping_keeps_the_row(clinic):
         row = meds.add(patient, "فنتولين")
         meds.stop(row, reason="خلصت المدة")
 
-        kept = PatientMedication.query.get(row.id)
+        kept = clinic["db"].session.get(PatientMedication, row.id)
         assert kept is not None, "the medicine was deleted rather than stopped"
         assert kept.stopped_on is not None
         assert kept.stop_reason == "خلصت المدة"
@@ -251,7 +251,8 @@ def test_stopping_from_the_screen_works(clinic):
 
     with clinic["app"].app_context():
         from app.models import PatientMedication
-        assert PatientMedication.query.get(med_id).is_current is False
+        row = clinic["db"].session.get(PatientMedication, med_id)
+        assert row.is_current is False
 
 
 @pytest.mark.parametrize("table", ["patient_medications"])
