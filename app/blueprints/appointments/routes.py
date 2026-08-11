@@ -49,7 +49,7 @@ from app.utils.appointments import (
 from app.utils import appt_reminder as reminders
 from app.utils import no_show
 from app.utils import patient_flags as flags
-from app.utils.clock import local_today
+from app.utils.clock import local_now, local_today
 from app.utils.decorators import client_ip, module_required
 
 MODULE = "appointments"
@@ -759,8 +759,11 @@ def walk_in():
     if spot:
         appt_time = datetime.strptime(spot["time"], "%H:%M").time()
     else:
-        # Clinic full / outside hours: overbook at the current time.
-        appt_time = datetime.now().time().replace(second=0, microsecond=0)
+        # Clinic full / outside hours: overbook at the current time — the
+        # clinic's time. ``datetime.now()`` is the server's wall clock, so on
+        # a UTC host a Cairo walk-in at 10:00 was written down as 07:00, and
+        # sat on the board and in the reports at that hour.
+        appt_time = local_now().time().replace(second=0, microsecond=0)
 
     appt = Appointment(
         patient_id=patient_id, doctor_id=doctor_id, appt_date=today,

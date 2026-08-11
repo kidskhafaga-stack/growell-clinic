@@ -19,7 +19,7 @@ from datetime import datetime, time, timedelta
 
 from app.extensions import db
 from app.models import MessageLog, Setting
-from app.utils.clock import local_today
+from app.utils.clock import local_now, local_today
 
 # Saturday…Friday as Python weekday numbers (Mon=0). The clinic picks its own;
 # this is only what a fresh install starts with.
@@ -75,7 +75,7 @@ def is_open(at=None, cfg=None):
     mistake worth rejecting.
     """
     cfg = cfg or hours_config()
-    at = at or datetime.now()
+    at = at or local_now()      # the clinic's wall clock, not the server's
     start = _parse_time(cfg["from"], DEFAULT_OPEN_FROM)
     end = _parse_time(cfg["to"], DEFAULT_OPEN_TO)
     now = at.time()

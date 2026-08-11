@@ -13,6 +13,7 @@ automatically and the entity's share becomes claimable.
 from datetime import date, datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 PAYER_TYPES = ["club", "syndicate", "insurance", "company", "cash", "other"]
 COVERAGE_TYPES = ["percent", "fixed"]
@@ -78,8 +79,17 @@ class PayerEntity(db.Model):
         return self.name_en if (lang == "en" and self.name_en) else self.name
 
     def active_contract(self, on_date=None):
-        """The contract in force on ``on_date`` (defaults to today), or None."""
-        d = on_date or date.today()
+        """The contract in force on ``on_date`` (defaults to today), or None.
+
+        The clinic's today. These four dates decide **what a family is
+        charged** — which contract applies, whether a price list has started,
+        whether a card has expired — so a boundary crossing three hours late
+        puts the wrong price on a real bill. They were left out of the first
+        clock sweep as "expiry dates", which was wrong: a manufacturer's
+        expiry on a vaccine vial is a fact about the vial, and this is a fact
+        about the clinic's day.
+        """
+        d = on_date or local_today()
         live = [c for c in self.contracts if c.is_active
                 and (not c.start_date or c.start_date <= d)
                 and (not c.end_date or d <= c.end_date)]
@@ -189,7 +199,7 @@ class PayerContract(db.Model):
 
     @property
     def is_current(self):
-        d = date.today()
+        d = local_today()
         return (self.is_active
                 and (not self.start_date or self.start_date <= d)
                 and (not self.end_date or d <= self.end_date))
@@ -198,7 +208,7 @@ class PayerContract(db.Model):
     def is_scheduled(self):
         """Signed today, in force later — a price list that starts on a date."""
         return bool(self.is_active and self.start_date
-                    and self.start_date > date.today())
+                    and self.start_date > local_today())
 
     @property
     def status_key(self):
@@ -278,7 +288,7 @@ class PatientCoverage(db.Model):
 
     @property
     def is_expired(self):
-        return bool(self.expiry_date and self.expiry_date < date.today())
+        return bool(self.expiry_date and self.expiry_date < local_today())
 
     @property
     def is_valid(self):

@@ -214,3 +214,140 @@ def test_todays_board_is_the_clinics_today(clinic, zone):
         from app.utils.clock import local_today
 
         assert parse_date_arg(None) == local_today()
+
+
+# --- the server's wall clock, which is not the clinic's -------------------
+#
+# `date.today()` was only half the problem. `datetime.now()` answers with the
+# *server's* wall clock — neither UTC nor the clinic's — so where the machine
+# sits in a different zone it is wrong by the whole offset, **all day**, not
+# for three hours a night. Two things were reading it.
+
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_the_clinics_own_time_is_what_local_now_answers(clinic, zone):
+    from zoneinfo import ZoneInfo
+
+    _set_tz(clinic, zone)
+    expected = datetime.now(ZoneInfo(zone))
+    with clinic["app"].app_context():
+        from app.utils.clock import local_now
+
+        # ``local_now`` answers with an aware datetime; strip both sides so
+        # the comparison is about the wall clock and nothing else.
+        got = local_now().replace(tzinfo=None)
+        assert abs((got - expected.replace(tzinfo=None)).total_seconds()) < 120, (
+            f"{zone}: the clinic's clock reads {got}, not {expected:%H:%M}")
+
+
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_a_walk_in_is_written_down_at_the_clinics_time(clinic, zone):
+    """A Cairo clinic on a UTC server booked a 10:00 walk-in as 07:00.
+
+    Not a boundary case — wrong by the whole offset, every hour of every day,
+    and visible on the board and in the reports.
+    """
+    _set_tz(clinic, zone)
+    from zoneinfo import ZoneInfo
+
+    expected = datetime.now(ZoneInfo(zone)).time()
+    desk = clinic["sign_in"]("desk")
+    desk.post("/appointments/walk-in", data={
+        "patient_id": clinic["ids"]["child"],
+        "doctor_id": clinic["ids"]["doctor"],
+        "appt_type": "consultation"}, follow_redirects=True)
+
+    with clinic["app"].app_context():
+        from app.models import Appointment
+
+        appt = Appointment.query.order_by(Appointment.id.desc()).first()
+        assert appt is not None, "the walk-in was not booked at all"
+        # A free slot may be found instead of overbooking, and then the time is
+        # the grid's rather than the clock's — so this only asserts the clock
+        # when the clock is what was used.
+        if appt.is_walk_in and appt.appt_time.hour == expected.hour:
+            return
+        booked = datetime.combine(appt.appt_date, appt.appt_time)
+        drift = abs((booked - datetime.combine(appt.appt_date, expected)).total_seconds())
+        assert drift < 3600 or not appt.is_walk_in, (
+            f"{zone}: booked at {appt.appt_time}, clinic clock said {expected:%H:%M}")
+
+
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_whether_the_clinic_is_open_is_asked_of_the_clinics_clock(clinic, zone):
+    """This decides whether a family's message gets an out-of-hours reply.
+
+    On a UTC server a Cairo clinic thought it was closed for the first three
+    hours of every working morning.
+    """
+    from zoneinfo import ZoneInfo
+
+    _set_tz(clinic, zone)
+    now = datetime.now(ZoneInfo(zone)).replace(tzinfo=None)
+    with clinic["app"].app_context():
+        from app.utils.service_desk import is_open
+
+        # Open the clinic across the hour it actually is there, and shut for
+        # the hour before: only a reading on the clinic's clock tells them
+        # apart.
+        cfg = {"from": f"{now.hour:02d}:00", "to": f"{(now.hour + 1) % 24:02d}:00",
+               "days": set(range(7))}      # every day, so only the hour decides
+        assert is_open(cfg=cfg) is True, f"{zone}: open now, read as closed"
+
+
+# --- what a family is charged --------------------------------------------
+
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_a_price_list_starting_today_is_in_force_today(clinic, zone):
+    """Left out of the first sweep as an "expiry date", which was wrong.
+
+    A manufacturer's expiry on a vial is a fact about the vial. This is a fact
+    about the clinic's day, and it decides what goes on a bill.
+    """
+    _set_tz(clinic, zone)
+    with clinic["app"].app_context():
+        from app.models import PayerContract
+        from app.utils.clock import local_today
+
+        contract = PayerContract(start_date=local_today(), is_active=True)
+        assert contract.is_current is True, (
+            f"{zone}: a contract starting today is not in force today")
+        assert contract.is_scheduled is False
+
+
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_the_contract_in_force_today_is_found(clinic, zone):
+    """``active_contract`` — a separate site from ``is_current``.
+
+    Written after reverting all four payer dates and watching only two tests
+    fail: the price-list test above exercises ``is_current`` and
+    ``is_scheduled`` and says nothing about the other two.
+    """
+    _set_tz(clinic, zone)
+    with clinic["app"].app_context():
+        from app.models import PayerContract, PayerEntity
+        from app.utils.clock import local_today
+
+        db = clinic["db"]
+        payer = PayerEntity(name="تأمين", entity_type="insurance")
+        db.session.add(payer)
+        db.session.flush()
+        db.session.add(PayerContract(payer_id=payer.id, start_date=local_today(),
+                                     is_active=True))
+        db.session.commit()
+
+        assert payer.active_contract() is not None, (
+            f"{zone}: a contract starting today is not in force today")
+
+
+@pytest.mark.parametrize("zone", [AHEAD, BEHIND])
+def test_a_card_expiring_today_is_not_expired_yet(clinic, zone):
+    """``is_expired`` — the fourth site, and the one that stops a family's
+    cover a day early."""
+    _set_tz(clinic, zone)
+    with clinic["app"].app_context():
+        from app.models import PatientCoverage
+        from app.utils.clock import local_today
+
+        card = PatientCoverage(expiry_date=local_today())
+        assert card.is_expired is False, (
+            f"{zone}: a card valid to the end of today reads as expired")

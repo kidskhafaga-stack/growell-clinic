@@ -141,6 +141,27 @@ def to_utc(moment, tz=None):
             .astimezone(timezone.utc).replace(tzinfo=None))
 
 
+def local_now(tz=None):
+    """The wall-clock **time** in the clinic right now.
+
+    The companion to :func:`local_today`, and it exists because ``date`` was
+    only half the problem. ``datetime.now()`` answers with the *server's* wall
+    clock — neither UTC nor the clinic's — so on any install where the machine
+    sits in a different zone from the clinic it is wrong by the whole offset,
+    all day, not for a few hours a night.
+
+    Two things were reading it: the time stamped on a walk-in when the grid is
+    full, and the answer to "is the clinic open right now" that decides whether
+    a message gets an out-of-hours reply. A Cairo clinic on a UTC server booked
+    a 10:00 walk-in as 07:00 and thought it was closed for the first three
+    hours of every morning.
+
+    Falls back to ``utcnow`` on an unreadable zone, like everything else here:
+    a time is not optional.
+    """
+    return to_local(datetime.utcnow(), tz) or datetime.utcnow()
+
+
 def local_today(tz=None):
     """Today's date in the clinic, which is not always today's date in UTC.
 
