@@ -284,19 +284,20 @@ def test_the_page_states_what_this_installation_actually_ships(clinic):
 
 # --- the people section ----------------------------------------------------
 
-def test_the_supervisor_appears_only_when_the_clinic_names_one(clinic):
+def test_a_doctor_appears_only_when_the_clinic_names_one(clinic):
     """No real person's biography belongs compiled into a program.
 
-    The supervising doctor differs per installation, so the section is absent
-    until somebody fills it in — rather than shipping a placeholder name that
-    every clinic then has to notice and remove.
+    The doctors a clinic credits differ per installation, so the section is
+    absent until somebody fills it in — rather than shipping a placeholder
+    name that every clinic then has to notice and remove.
     """
     client = clinic["sign_in"]("boss")
     assert "الإشراف الطبي" not in client.get("/about").data.decode()
 
     client.post("/about/people", data={
-        "about_supervisor_name": "د. منى حسن",
-        "about_supervisor_title": "استشاري طب الأطفال",
+        "action": "add",
+        "name": "د. منى حسن",
+        "title": "استشاري طب الأطفال",
     }, follow_redirects=True)
 
     body = client.get("/about").data.decode()
@@ -318,8 +319,8 @@ def test_only_an_admin_can_edit_the_credits(clinic, username):
     client = clinic["sign_in"](username)
     assert "people-edit" not in client.get("/about").data.decode()
 
-    client.post("/about/people", data={"about_supervisor_name": "دخيل"},
+    client.post("/about/people", data={"action": "add", "name": "دخيل"},
                 follow_redirects=True)
     with clinic["app"].app_context():
-        from app.models import Setting
-        assert Setting.get("about_supervisor_name") in (None, "")
+        from app.models import AboutPerson
+        assert AboutPerson.query.count() == 0

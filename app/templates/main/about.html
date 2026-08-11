@@ -127,8 +127,12 @@
   <div style="margin-top:12px;">
     <div style="font-weight:700;">{{ txt(people.developer.name) }}</div>
     <div style="color:var(--muted);">{{ txt(people.developer.role) }}</div>
-    {% if people.developer.note %}
-    <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ people.developer.note }}</p>
+    {# Written by the clinic, so escaped — unlike the plan bullets above. Each
+       language falls back to the other rather than printing nothing. #}
+    {% set dev_note = (people.developer.note[0] or people.developer.note[1]) if ar
+                      else (people.developer.note[1] or people.developer.note[0]) %}
+    {% if dev_note %}
+    <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ dev_note }}</p>
     {% endif %}
     {% if people.developer.contact %}
     <div style="margin-top:6px;color:var(--muted);" dir="auto">
@@ -136,41 +140,122 @@
     {% endif %}
   </div>
 
-  {% if people.supervisor %}
+  {# Each credited person, in the clinic's own order. The name, the title and
+     the note each pick their language and fall back to Arabic, so a clinic
+     that only filled in the Arabic side still has a working English page. #}
+  {% for person in people.doctors %}
   <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-    <div style="font-weight:700;">{{ people.supervisor.name }}</div>
-    <div style="color:var(--muted);">
-      {{ people.supervisor.title or (ar and 'الإشراف الطبي' or 'Medical supervision') }}</div>
-    {% if people.supervisor.note %}
-    <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ people.supervisor.note }}</p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      {# ``unicode-bidi:isolate`` rather than ``dir="auto"``: a name the clinic
+         only wrote in Arabic still has to read right-to-left on the English
+         page, but it must stay in the column with the names above it. dir
+         changes the block's alignment too, and pushes that one name across to
+         the far side of a left-aligned list. #}
+      <div>
+        <div style="font-weight:700;unicode-bidi:isolate;">{{ person.display_name(current_lang) }}</div>
+        <div style="color:var(--muted);unicode-bidi:isolate;">
+          {{ person.display_title(current_lang) or t('about.medical_supervision') }}</div>
+      </div>
+      {% if current_user.is_admin %}
+      <div style="display:flex;gap:6px;white-space:nowrap;">
+        {# The form opens **below the whole person**, not beside the button, so
+           it never lands between somebody's title and their own note. Same
+           toggle the developer block above uses. #}
+        <button class="btn btn-outline btn-sm gc-press" type="button"
+                onclick="var f=document.getElementById('person-{{ person.id }}');f.hidden=!f.hidden;">
+          <i class="bi bi-pencil"></i></button>
+        <form method="post" action="{{ url_for('main.about_people') }}" style="display:inline;"
+              onsubmit="return confirm('{{ t('common.confirm') }}?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="id" value="{{ person.id }}">
+          <button class="btn btn-outline btn-sm gc-press" type="submit">
+            <i class="bi bi-trash"></i></button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% if person.display_note(current_lang) %}
+    <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ person.display_note(current_lang) }}</p>
+    {% endif %}
+
+    {% if current_user.is_admin %}
+    <form id="person-{{ person.id }}" hidden method="post"
+          action="{{ url_for('main.about_people') }}" style="margin-top:12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="id" value="{{ person.id }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('about.name_ar') }} *</label>
+          <input class="input" name="name" value="{{ person.name }}" required></div>
+        <div class="form-row"><label>{{ t('about.name_en') }}</label>
+          <input class="input" name="name_en" dir="ltr" value="{{ person.name_en or '' }}"></div>
+        <div class="form-row"><label>{{ t('about.title_ar') }}</label>
+          <input class="input" name="title" value="{{ person.title or '' }}"></div>
+        <div class="form-row"><label>{{ t('about.title_en') }}</label>
+          <input class="input" name="title_en" dir="ltr" value="{{ person.title_en or '' }}"></div>
+        <div class="form-row"><label>{{ t('about.note_ar') }}</label>
+          <textarea class="input" name="note" rows="2">{{ person.note or '' }}</textarea></div>
+        <div class="form-row"><label>{{ t('about.note_en') }}</label>
+          <textarea class="input" name="note_en" dir="ltr" rows="2">{{ person.note_en or '' }}</textarea></div>
+        <div class="form-row"><label>{{ t('about.order') }}</label>
+          <input class="input" type="number" name="sort_order" value="{{ person.sort_order }}"></div>
+      </div>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+    </form>
     {% endif %}
   </div>
-  {% endif %}
+  {% endfor %}
 
   {% if current_user.is_admin %}
-  {# Edited from the page it appears on: the supervising doctor is different in
+  {# Edited from the page it appears on: the doctors a clinic credits differ in
      every installation, so no real person's details are compiled in. #}
-  <form id="people-edit" hidden method="post" action="{{ url_for('main.about_people') }}"
-        style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-grid">
-      <div class="form-row"><label>{{ ar and 'نبذة عن المطوّر' or 'About the developer' }}</label>
-        <textarea class="input" name="about_developer_note" rows="3">{{ people.developer.note }}</textarea></div>
-      <div class="form-row"><label>{{ ar and 'وسيلة تواصل' or 'Contact' }}</label>
-        <input class="input" name="about_developer_contact" value="{{ people.developer.contact }}"></div>
-      <div class="form-row"><label>{{ ar and 'اسم المشرف الطبي' or 'Medical supervisor name' }}</label>
-        <input class="input" name="about_supervisor_name"
-               value="{{ people.supervisor.name if people.supervisor else '' }}"></div>
-      <div class="form-row"><label>{{ ar and 'صفته' or 'Their title' }}</label>
-        <input class="input" name="about_supervisor_title"
-               value="{{ people.supervisor.title if people.supervisor else '' }}"></div>
-      <div class="form-row" style="grid-column:1/-1;">
-        <label>{{ ar and 'نبذة عن المشرف' or 'About the supervisor' }}</label>
-        <textarea class="input" name="about_supervisor_note" rows="3">{{ people.supervisor.note if people.supervisor else '' }}</textarea></div>
-    </div>
-    <button class="btn btn-primary gc-press" type="submit">
-      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
-  </form>
+  <div id="people-edit" hidden
+       style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+    <form method="post" action="{{ url_for('main.about_people') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="developer">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('about.developer_note') }}</label>
+          <textarea class="input" name="about_developer_note" rows="3">{{ people.developer.note[0] }}</textarea></div>
+        <div class="form-row"><label>{{ t('about.developer_note_en') }}</label>
+          <textarea class="input" name="about_developer_note_en" dir="ltr" rows="3">{{ people.developer.note[1] }}</textarea></div>
+        <div class="form-row"><label>{{ t('about.contact') }}</label>
+          <input class="input" name="about_developer_contact" dir="ltr"
+                 value="{{ people.developer.contact }}"></div>
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+    </form>
+
+    <form method="post" action="{{ url_for('main.about_people') }}"
+          style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <h3 class="section-title" style="margin-top:0;font-size:1rem;">
+        <i class="bi bi-person-plus"></i> {{ t('about.add_person') }}</h3>
+      <p style="color:var(--muted);margin:0 0 10px;font-size:.9rem;">{{ t('about.en_optional') }}</p>
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('about.name_ar') }} *</label>
+          <input class="input" name="name" required></div>
+        <div class="form-row"><label>{{ t('about.name_en') }}</label>
+          <input class="input" name="name_en" dir="ltr"></div>
+        <div class="form-row"><label>{{ t('about.title_ar') }}</label>
+          <input class="input" name="title"></div>
+        <div class="form-row"><label>{{ t('about.title_en') }}</label>
+          <input class="input" name="title_en" dir="ltr"></div>
+        <div class="form-row"><label>{{ t('about.note_ar') }}</label>
+          <textarea class="input" name="note" rows="2"></textarea></div>
+        <div class="form-row"><label>{{ t('about.note_en') }}</label>
+          <textarea class="input" name="note_en" dir="ltr" rows="2"></textarea></div>
+        <div class="form-row"><label>{{ t('about.order') }}</label>
+          <input class="input" type="number" name="sort_order" value="{{ people.doctors|length }}"></div>
+      </div>
+      <button class="btn btn-primary gc-press gc-ripple" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('about.add_person') }}</button>
+    </form>
+  </div>
   {% endif %}
 </div>
 

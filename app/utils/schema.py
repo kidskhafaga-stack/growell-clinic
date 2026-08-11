@@ -314,6 +314,24 @@ def apply_schema(report=None):
     # and this catches whatever was left out of it.
     applied += _add_columns_the_models_expect(inspector, existing_tables, report)
     db.session.commit()
+
+    # A new table can hold what an old settings key used to. The About page
+    # kept one "medical supervisor" in three settings; it now keeps a list of
+    # people in ``about_people``, and the person a clinic already credited is
+    # theirs, not ours to drop on the floor during an upgrade.
+    #
+    # Deliberately after the commit above and in its own transaction: moving a
+    # credit line is the least important thing this function does, and it must
+    # not be able to roll back the columns the program needs to start.
+    try:
+        from app.utils.project import carry_over_supervisor
+        moved = carry_over_supervisor()
+        db.session.commit()
+        if moved and report:
+            report("  + about_people: carried over the medical supervisor")
+    except Exception:  # noqa: BLE001 — a credit line never blocks an upgrade
+        db.session.rollback()
+
     return applied
 
 

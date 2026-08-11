@@ -19,8 +19,10 @@ Two rules kept it from becoming a brochure:
   are *decisions*, not oversights.
 
 The people section is editable from the page itself (admins only) rather than
-hard-coded, because the supervising doctor differs per installation and no
-biography of a real person belongs in a source file.
+hard-coded, because the doctors a clinic credits differ per installation and no
+biography of a real person belongs in a source file. Each of them carries both
+languages: this page is read in Arabic by the clinic and in English by whoever
+is being shown the system, and one string cannot serve both.
 """
 from app.models.setting import Setting
 
@@ -32,10 +34,21 @@ DEVELOPER_DEFAULTS = {
              "Design and development of the entire system"),
 }
 
-# Settings keys backing the editable people section.
+# Settings keys backing the developer block. The note is a pair like every
+# other piece of writing on this page: the Arabic screen must not print an
+# English paragraph at an Arabic reader, and the reverse. The contact is a
+# single field on purpose — an email address and a phone number are the same
+# in both languages, and asking for them twice invites them to disagree.
 KEYS = [
     "about_developer_note",
+    "about_developer_note_en",
     "about_developer_contact",
+]
+
+# The single supervisor these three keys used to hold now lives in the
+# ``about_people`` table. They are read once, carried over, and cleared —
+# see :func:`carry_over_supervisor`.
+LEGACY_SUPERVISOR_KEYS = [
     "about_supervisor_name",
     "about_supervisor_title",
     "about_supervisor_note",
@@ -170,32 +183,130 @@ DEFERRED = [
 
 
 def people():
-    """The developer and (if the clinic filled it in) the medical supervisor.
+    """The developer, and whichever doctors the clinic chose to credit.
 
-    Read from settings so no real person's biography is compiled into the
-    program. The developer's name is the one constant — it is the copyright
-    holder — and everything else is the clinic's to write.
+    Read from settings and the ``about_people`` table so no real person's
+    biography is compiled into the program. The developer's name is the one
+    constant — it is the copyright holder — and everything else is the
+    clinic's to write.
     """
-    supervisor_name = (Setting.get("about_supervisor_name") or "").strip()
+    from app.models.about_person import AboutPerson
+
+    try:
+        doctors = (AboutPerson.query
+                   .order_by(AboutPerson.sort_order, AboutPerson.id).all())
+    except Exception:  # noqa: BLE001 — a credits list never breaks the page
+        doctors = []
+
     return {
         "developer": {
             "name": DEVELOPER_DEFAULTS["name"],
             "role": DEVELOPER_DEFAULTS["role"],
-            "note": (Setting.get("about_developer_note") or "").strip(),
+            "note": ((Setting.get("about_developer_note") or "").strip(),
+                     (Setting.get("about_developer_note_en") or "").strip()),
             "contact": (Setting.get("about_developer_contact") or "").strip(),
         },
-        "supervisor": {
-            "name": supervisor_name,
-            "title": (Setting.get("about_supervisor_title") or "").strip(),
-            "note": (Setting.get("about_supervisor_note") or "").strip(),
-        } if supervisor_name else None,
+        "doctors": doctors,
     }
 
 
 def save_people(form):
-    """Persist the editable people fields. Blank clears a field."""
+    """Persist the developer block. Blank clears a field."""
     for key in KEYS:
         Setting.set(key, (form.get(key) or "").strip())
+
+
+# Fields a person row carries, in the order the form asks for them.
+PERSON_FIELDS = ["name", "name_en", "title", "title_en", "note", "note_en"]
+
+
+def _read_person(form, person):
+    """Copy the submitted fields onto a row. Blank clears; Arabic name stays."""
+    for field in PERSON_FIELDS:
+        value = (form.get(field) or "").strip()
+        # The Arabic name is the one thing that cannot be emptied — a row
+        # without it would be a person with no name on the Arabic page, which
+        # is every page in this clinic by default.
+        if field == "name" and not value:
+            continue
+        setattr(person, field, value or None)
+    try:
+        person.sort_order = int(form.get("sort_order") or 0)
+    except (TypeError, ValueError):
+        person.sort_order = 0
+    return person
+
+
+def add_person(form):
+    """Add a credited person. Returns the row, or None if unnamed."""
+    from app.extensions import db
+    from app.models.about_person import AboutPerson
+
+    if not (form.get("name") or "").strip():
+        return None
+    person = _read_person(form, AboutPerson(name=(form.get("name")).strip()))
+    db.session.add(person)
+    return person
+
+
+def _person(person_id):
+    """Look one up by the id a form posted — a string, or nothing at all."""
+    from app.extensions import db
+    from app.models.about_person import AboutPerson
+
+    try:
+        return db.session.get(AboutPerson, int(person_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def edit_person(person_id, form):
+    person = _person(person_id)
+    if person is None:
+        return None
+    return _read_person(form, person)
+
+
+def delete_person(person_id):
+    from app.extensions import db
+
+    person = _person(person_id)
+    if person is not None:
+        db.session.delete(person)
+    return person
+
+
+def carry_over_supervisor():
+    """Move the old single supervisor into the new table, once.
+
+    Whatever the clinic typed into the three ``about_supervisor_*`` settings
+    is a real person they chose to credit; a schema change is not a reason for
+    it to disappear from their page. Runs from ``apply_schema``, does nothing
+    once the keys are cleared, and refuses to run at all if the table already
+    has rows — so it cannot resurrect somebody who was deliberately deleted.
+
+    Returns True when a row was created.
+    """
+    from app.extensions import db
+    from app.models.about_person import AboutPerson
+
+    name = (Setting.get("about_supervisor_name") or "").strip()
+    if not name:
+        return False
+    if AboutPerson.query.first() is not None:
+        for key in LEGACY_SUPERVISOR_KEYS:
+            Setting.set(key, "")
+        return False
+
+    db.session.add(AboutPerson(
+        name=name,
+        title=(Setting.get("about_supervisor_title") or "").strip() or None,
+        note=(Setting.get("about_supervisor_note") or "").strip() or None,
+        sort_order=0,
+    ))
+    for key in LEGACY_SUPERVISOR_KEYS:
+        Setting.set(key, "")
+    return True
 
 
 def facts():
