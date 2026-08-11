@@ -4,6 +4,7 @@ Phase 1 establishes the foundation models (users, settings, activity log).
 Later phases add the clinical and financial domain models. Importing them
 here ensures SQLAlchemy registers every table when ``db.create_all()`` runs.
 """
+from app.models.about_person import AboutPerson
 from app.models.activity_log import ActivityLog
 from app.models.ai_usage import AiUsage
 from app.models.appointment import (
@@ -202,6 +203,7 @@ from app.models.device import (
 __all__ = [
     "User",
     "Setting",
+    "AboutPerson",
     "ActivityLog",
     "AiUsage",
     "Family",

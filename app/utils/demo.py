@@ -463,6 +463,13 @@ def seed_demo():
         (doc2.id, kashf.id, 380, "fixed", 300),
         (doc2.id, esh.id, 100, "fixed", 50),   # this doctor's consultation is paid
     ]:
+        # The clinic may already have priced this pairing on the doctor's own
+        # screen — the pair is unique, and the demo is a guest here. Leave a
+        # real agreement exactly as the clinic set it, the same way the
+        # catalogue above is reused rather than rewritten.
+        if DoctorServiceCommission.query.filter_by(doctor_id=did,
+                                                   service_id=sid).first():
+            continue
         db.session.add(DoctorServiceCommission(
             doctor_id=did, service_id=sid, price_override=price,
             commission_type=ctype, commission_value=cval))

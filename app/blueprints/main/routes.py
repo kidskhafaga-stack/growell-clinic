@@ -303,16 +303,30 @@ def about():
 def about_people():
     """Edit the credits from the page they appear on (admins only).
 
-    The supervising doctor is different in every installation, so the name is
-    the clinic's to write — a real person's details do not belong compiled
-    into the program.
+    The doctors a clinic credits are different in every installation, so the
+    names are the clinic's to write — a real person's details do not belong
+    compiled into the program. Four actions on one endpoint, the same shape
+    the device-measurements screen uses: the developer block, and add / edit /
+    delete for each credited person.
     """
     from app.utils import project
 
     if not current_user.is_admin:
         flash(t("auth.no_permission"), "danger")
         return redirect(url_for("main.about"))
-    project.save_people(request.form)
+
+    action = (request.form.get("action") or "developer").strip()
+    if action == "add":
+        if project.add_person(request.form) is None:
+            flash(t("about.person_needs_name"), "warning")
+            return redirect(url_for("main.about"))
+    elif action == "edit":
+        project.edit_person(request.form.get("id"), request.form)
+    elif action == "delete":
+        project.delete_person(request.form.get("id"))
+    else:
+        project.save_people(request.form)
+
     db.session.commit()
     flash(t("common.saved"), "success")
     return redirect(url_for("main.about"))
