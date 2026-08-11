@@ -19,6 +19,7 @@ from app.models import (
     VaccineScheduleTemplate,
 )
 from app.utils.dose_labels import is_booster
+from app.utils.clock import local_today
 
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "egypt_vaccines.json")
 
@@ -331,7 +332,7 @@ def patient_plan(patient, lang="ar"):
     dose dicts {dose_number, age_months, age_label, due_date, given_date,
     lot_number, status}.
     """
-    today = date.today()
+    today = local_today()
     dob = patient.date_of_birth
     given_index = {}
     events_index = {}   # (vaccine_id, dose_number) -> refused/delayed event
@@ -492,7 +493,7 @@ def group_plan(plan, today=None):
     Returns ``[(key, items), …]`` in :data:`PLAN_GROUPS` order, skipping empty
     shelves so a headed section is never a heading over nothing.
     """
-    today = today or date.today()
+    today = today or local_today()
     shelves = {key: [] for key in PLAN_GROUPS}
     for item in plan:
         doses = item.get("doses") or []
@@ -609,7 +610,7 @@ def seasonal_recall(patient, vaccine, today=None):
     once ~11 months have passed since the last dose, regardless of the fixed
     schedule (each season is a fresh dose).
     """
-    today = today or date.today()
+    today = today or local_today()
     given = (PatientVaccine.query
              .filter_by(patient_id=patient.id, vaccine_id=vaccine.id, event_type="given")
              .all())
@@ -630,7 +631,7 @@ def patient_due_reminders(patient, lang="ar", today=None):
     Returns a list of dicts ``{vaccine, brand, dose_number, due_date, status}``
     sorted most-urgent first (``status`` is overdue / due / seasonal).
     """
-    today = today or date.today()
+    today = today or local_today()
     plan = patient_plan(patient, lang)
     out = []
     for v in plan:
@@ -669,7 +670,7 @@ def immunization_compliance(lang="ar", today=None):
     coverage tally and the most-overdue patients for follow-up. Cost scales with
     those patients: one plan computation each.
     """
-    today = today or date.today()
+    today = today or local_today()
     started_ids = {r[0] for r in (
         PatientVaccine.query.filter(PatientVaccine.event_type == "given")
         .with_entities(PatientVaccine.patient_id).distinct().all())}
@@ -797,7 +798,7 @@ def administer_dose(patient, vaccine, *, brand=None, dose_number=None, doctor_id
 
     pv = PatientVaccine(
         patient_id=patient.id, vaccine_id=vaccine.id, brand_id=brand.id,
-        dose_number=dose_number, given_date=given_date or date.today(),
+        dose_number=dose_number, given_date=given_date or local_today(),
         doctor_id=doctor_id, lot_number=lot_number, event_type="given",
         given_outside=given_outside, adverse_events=adverse_events, notes=notes,
         # Only meaningful for a dose given elsewhere; kept off a clinic dose so
@@ -851,7 +852,7 @@ def interval_warning(patient_id, vaccine, given_date=None):
     Returns ``None`` when there is nothing to say. Two *different* vaccines in
     one visit is normal practice and never warns.
     """
-    on = given_date or date.today()
+    on = given_date or local_today()
     last = (PatientVaccine.query
             .filter_by(patient_id=patient_id, vaccine_id=vaccine.id,
                        event_type="given")
@@ -936,7 +937,7 @@ def visit_vaccine_panel(patient, lang="ar"):
     Mandatory (EPI) and on-demand (rabies/travel) vaccines are excluded from the
     suggestions; the doctor adds those deliberately.
     """
-    today = date.today()
+    today = local_today()
     plan = patient_plan(patient, lang)
     received, give_now, out_of_stock = [], [], []
     for v in plan:

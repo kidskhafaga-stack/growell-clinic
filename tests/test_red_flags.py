@@ -25,6 +25,14 @@ from types import SimpleNamespace
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 
 def _vitals(**fields):
     base = {"temperature_c": None, "spo2": None, "pulse_bpm": None,
@@ -38,7 +46,7 @@ def _aged(clinic, months):
 
     db = clinic["db"]
     patient = db.session.get(Patient, clinic["ids"]["child"])
-    patient.date_of_birth = date.today() - timedelta(days=int(months * 30.44))
+    patient.date_of_birth = local_today() - timedelta(days=int(months * 30.44))
     db.session.commit()
     return patient
 
@@ -201,7 +209,7 @@ def _waiting(clinic, patient, at, **vitals):
 
     db = clinic["db"]
     appt = Appointment(patient_id=patient.id, doctor_id=clinic["ids"]["doctor"],
-                       appt_date=date.today(), appt_time=at,
+                       appt_date=local_today(), appt_time=at,
                        duration_minutes=15, status="waiting")
     db.session.add(appt)
     db.session.flush()
@@ -238,7 +246,7 @@ def test_the_urgent_child_is_listed_before_the_well_one(clinic):
         infant = _aged(clinic, 2)
         infant.full_name = "رضيع صغير"
         well = Patient(patient_number="P9", full_name="طفل كبير", gender="male",
-                       date_of_birth=date.today() - timedelta(days=1500),
+                       date_of_birth=local_today() - timedelta(days=1500),
                        is_active=True)
         db.session.add(well)
         db.session.commit()
@@ -260,7 +268,7 @@ def test_the_nurse_can_find_one_child_without_scrolling_a_morning(clinic):
         first.full_name = "زياد محمود"
         other = Patient(patient_number="P8", full_name="مريم سامي",
                         gender="female",
-                        date_of_birth=date.today() - timedelta(days=900),
+                        date_of_birth=local_today() - timedelta(days=900),
                         is_active=True)
         db.session.add(other)
         db.session.commit()

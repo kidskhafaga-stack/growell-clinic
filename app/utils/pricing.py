@@ -9,6 +9,7 @@ resolve the base charge the same way — no duplicated logic.
 import json
 
 from app.models import Service, Setting
+from app.utils.clock import local_today
 
 _SETTING_KEY = "visit_type_services"
 
@@ -227,7 +228,7 @@ def ensure_cash_contract(today=None, ahead_days=RENEW_AHEAD_DAYS):
 
     from app.extensions import db
 
-    today = today or _date.today()
+    today = today or local_today()
     if Setting.get(_CASH_RENEW_KEY) == today.isoformat():
         return None
     Setting.set(_CASH_RENEW_KEY, today.isoformat())

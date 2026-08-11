@@ -20,6 +20,14 @@ from datetime import date, datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 import pytest  # noqa: E402
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 300
@@ -98,7 +106,7 @@ def test_the_decision_is_a_visit_in_the_childs_history(waiting):
         visit = consults[0]
         assert visit.patient_id == waiting["ids"]["child"]
         assert visit.doctor_id == waiting["ids"]["doctor"]
-        assert visit.visit_date == date.today()
+        assert visit.visit_date == local_today()
 
 
 def test_the_record_says_it_was_decided_remotely(waiting):

@@ -5,6 +5,7 @@ doctor can review and reconcile — continue, stop or modify — when examining 
 writing a new prescription, avoiding duplication and interactions.
 """
 from datetime import date, timedelta
+from app.utils.clock import local_today
 
 
 def recent_medications(patient_id, days=180, limit=25):
@@ -14,7 +15,7 @@ def recent_medications(patient_id, days=180, limit=25):
     """
     from app.models import Prescription, PrescriptionItem
 
-    since = date.today() - timedelta(days=days)
+    since = local_today() - timedelta(days=days)
     rows = (PrescriptionItem.query
             .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
             .filter(Prescription.patient_id == patient_id,

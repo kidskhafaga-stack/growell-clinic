@@ -243,7 +243,7 @@ def archive():
     return render_template(
         "patients/archive.html",
         stats=archive_stats(years), years=years, auto_enabled=auto_enabled(),
-        candidates=candidates, archived=archived, today=date.today(),
+        candidates=candidates, archived=archived, today=local_today(),
     )
 
 
@@ -562,7 +562,7 @@ def report(patient_id):
         "patients/report.html", patient=patient, problems=problems,
         visits=visits, latest_growth=latest_growth, vac=vac,
         latest_rx=latest_rx, growth_alert=_growth_concern(patient),
-        generated_by=current_user, today=date.today(),
+        generated_by=current_user, today=local_today(),
     )
 
 
@@ -873,7 +873,7 @@ def toggle_problem(problem_id):
     prob = db.get_or_404(PatientProblem, problem_id)
     if prob.status == "active":
         prob.status = "resolved"
-        prob.resolved_date = date.today()
+        prob.resolved_date = local_today()
     else:
         prob.status = "active"
         prob.resolved_date = None
@@ -916,7 +916,7 @@ def add_consent(patient_id):
         statement=(request.form.get("statement") or "").strip() or None,
         notes=(request.form.get("notes") or "").strip() or None,
         user_id=current_user.id,
-        on_date=_parse_date("signed_date") or date.today(),
+        on_date=_parse_date("signed_date") or local_today(),
     )
     ActivityLog.record("consent.add", user_id=current_user.id, entity="patient",
                        entity_id=patient.id, detail=ctype, ip_address=client_ip())

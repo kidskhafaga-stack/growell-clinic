@@ -14,6 +14,7 @@ reception can override the choice.
 from datetime import date, datetime
 
 from app.extensions import db
+from app.utils.clock import local_today
 
 DISCOUNT_TYPES = ["campaign", "doctor", "category", "payer", "sibling",
                   "special"]
@@ -207,7 +208,7 @@ class NamedDiscount(db.Model):
         return service.category == self.scope
 
     def in_window(self, on_date=None):
-        d = on_date or date.today()
+        d = on_date or local_today()
         return ((not self.start_date or self.start_date <= d)
                 and (not self.end_date or d <= self.end_date))
 

@@ -20,6 +20,14 @@ from datetime import date, time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 import pytest  # noqa: E402
 
 
@@ -31,7 +39,7 @@ def board(clinic):
 
         appt = Appointment(patient_id=clinic["ids"]["child"],
                            doctor_id=clinic["ids"]["doctor"],
-                           appt_date=date.today(), appt_time=time(10, 0),
+                           appt_date=local_today(), appt_time=time(10, 0),
                            status="scheduled", appt_type="consultation")
         clinic["db"].session.add(appt)
         clinic["db"].session.commit()
@@ -85,7 +93,7 @@ def test_a_new_booking_reaches_the_doctor(board):
     with board["app"].app_context():
         board["db"].session.add(Appointment(
             patient_id=board["ids"]["child"], doctor_id=board["ids"]["doctor"],
-            appt_date=date.today(), appt_time=time(11, 0), status="scheduled",
+            appt_date=local_today(), appt_time=time(11, 0), status="scheduled",
             appt_type="consultation"))
         board["db"].session.commit()
     assert _fingerprint(board) != before
@@ -181,7 +189,7 @@ def test_yesterdays_money_does_not_disturb_todays_board(board):
         board["db"].session.add(Invoice(
             invoice_number="INV-OLD", patient_id=board["ids"]["child"],
             doctor_id=board["ids"]["doctor"],
-            invoice_date=date.today() - timedelta(days=30)))
+            invoice_date=local_today() - timedelta(days=30)))
         board["db"].session.commit()
 
     first = _fingerprint(board)

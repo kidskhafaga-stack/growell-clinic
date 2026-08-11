@@ -79,7 +79,7 @@ class SupplierInstallment(db.Model):
     def is_overdue(self, today=None):
         from datetime import date as _date
         return (not self.is_paid and self.due_date
-                and self.due_date < (today or _date.today()))
+                and self.due_date < (today or local_today()))
 
     def __repr__(self):
         return f"<SupplierInstallment doc={self.document_id} #{self.seq} {self.status}>"

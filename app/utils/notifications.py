@@ -8,6 +8,7 @@ who can reach it.
 """
 import time
 from datetime import date, timedelta
+from app.utils.clock import local_today
 
 # Short process-level cache so the (heavier) scans run at most every TTL seconds.
 _CACHE = {"at": 0.0, "data": None}
@@ -22,7 +23,7 @@ def invalidate():
 
 
 def _compute():
-    today = date.today()
+    today = local_today()
     items = []
 
     # --- cheap, indexed counts -------------------------------------------
@@ -276,7 +277,7 @@ def dismiss(user, key):
         return
     current = next((it["count"] for it in _all() if it["key"] == key), 0)
     data = _dismissed_map(user)
-    data[key] = {"c": int(current or 0), "d": date.today().isoformat()}
+    data[key] = {"c": int(current or 0), "d": local_today().isoformat()}
     Setting.set(f"notif_dismiss:{user.id}", json.dumps(data))
     db.session.commit()
 
@@ -290,7 +291,7 @@ def dismiss_all(user):
 
     if user is None or not getattr(user, "is_authenticated", False):
         return
-    today_s = date.today().isoformat()
+    today_s = local_today().isoformat()
     data = _dismissed_map(user)
     for it in _all():
         if not user.can_access(it["module"]):
@@ -305,7 +306,7 @@ def get_notifications(user):
     if user is None or not getattr(user, "is_authenticated", False):
         return []
     dismissed = _dismissed_map(user)
-    today_s = date.today().isoformat()
+    today_s = local_today().isoformat()
     out = []
     for it in _all():
         if not user.can_access(it["module"]):

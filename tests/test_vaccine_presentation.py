@@ -27,6 +27,13 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program works, bills and counts "today" with
+# ``local_today``; a test that builds its data with ``date.today``
+# is on another day whenever the server's zone and the clinic's
+# differ — every night after 22:00 UTC for a Cairo clinic.
+from app.utils.clock import local_today  # noqa: E402
+
+
 import pytest  # noqa: E402
 
 
@@ -240,7 +247,7 @@ def test_a_dose_carries_the_doctor_who_gave_it(clinic):
         from app.models import Patient
         clinic["db"].session.add(PatientVaccine(
             patient_id=ids["child"], vaccine_id=ids["pcv"],
-            brand_id=ids["brand"], dose_number=1, given_date=date.today(),
+            brand_id=ids["brand"], dose_number=1, given_date=local_today(),
             doctor_id=ids["doctor"], lot_number="LOT-9", event_type="given"))
         clinic["db"].session.commit()
 
@@ -261,7 +268,7 @@ def test_a_dose_given_elsewhere_is_marked_as_such(clinic):
         clinic["db"].session.add(PatientVaccine(
             patient_id=ids["child"], vaccine_id=ids["opv"],
             brand_id=ids["gov_brand"], dose_number=1,
-            given_date=date.today() - timedelta(days=30),
+            given_date=local_today() - timedelta(days=30),
             given_outside=True, outside_place="وحدة صحية",
             event_type="given"))
         clinic["db"].session.commit()
@@ -280,7 +287,7 @@ def carded(clinic):
     with clinic["app"].app_context():
         clinic["db"].session.add(PatientVaccine(
             patient_id=ids["child"], vaccine_id=ids["pcv"],
-            brand_id=ids["brand"], dose_number=1, given_date=date.today(),
+            brand_id=ids["brand"], dose_number=1, given_date=local_today(),
             doctor_id=ids["doctor"], lot_number="LOT-9", event_type="given"))
         clinic["db"].session.commit()
     return clinic

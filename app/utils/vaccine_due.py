@@ -19,6 +19,7 @@ discipline as the invoice export: what you hand over is what you were looking
 at.
 """
 from datetime import date, timedelta
+from app.utils.clock import local_today
 
 
 def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
@@ -35,7 +36,7 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
     from app.models import Patient, PatientVaccine
     from app.utils.vaccines import patient_due_reminders
 
-    today = today or date.today()
+    today = today or local_today()
 
     # Only patients who have actually had something here. One query, and it is
     # what keeps this from being a plan computation for every patient on file.
@@ -101,7 +102,7 @@ def order_suggestion(rows, cover_days=None, today=None):
     ``cover_days`` narrows the rows to doses due within that many days, so the
     same list answers "order for this month" without re-running anything.
     """
-    today = today or date.today()
+    today = today or local_today()
     horizon = today + timedelta(days=cover_days) if cover_days else None
 
     needed = {}

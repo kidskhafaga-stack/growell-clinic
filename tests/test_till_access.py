@@ -25,6 +25,13 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# One clock. The program works, bills and counts "today" with
+# ``local_today``; a test that builds its data with ``date.today``
+# is on another day whenever the server's zone and the clinic's
+# differ — every night after 22:00 UTC for a Cairo clinic.
+from app.utils.clock import local_today  # noqa: E402
+
+
 import pytest  # noqa: E402
 
 
@@ -256,7 +263,7 @@ def _card_money(tilled, amount=1000, days_ago=0):
     with tilled["app"].app_context():
         tilled["db"].session.add(CashMovement(
             kind="deposit", account_id=card_id, amount=amount,
-            moved_on=date.today() - timedelta(days=days_ago)))
+            moved_on=local_today() - timedelta(days=days_ago)))
         tilled["db"].session.commit()
     return card_id
 
@@ -294,7 +301,7 @@ def test_a_settlement_resets_the_clock(tilled):
     with tilled["app"].app_context():
         tilled["db"].session.add(CashMovement(
             kind="settle", account_id=card_id, to_account_id=bank_id,
-            amount=500, moved_on=date.today() - timedelta(days=8)))
+            amount=500, moved_on=local_today() - timedelta(days=8)))
         tilled["db"].session.commit()
     _card_money(tilled, 300, days_ago=2)
     with tilled["app"].app_context():

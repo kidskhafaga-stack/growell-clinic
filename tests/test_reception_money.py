@@ -14,6 +14,14 @@ from datetime import date
 
 import pytest
 
+# One clock. The program books, bills and lists "today" with
+# ``local_today``; a test that builds or asserts with ``date.today``
+# sits on a different day whenever the server's zone and the clinic's
+# disagree — on a UTC server and a Cairo clinic, every night after
+# 22:00. These twenty failed on the hour rather than on a change.
+from app.utils.clock import local_today  # noqa: E402
+
+
 
 # --------------------------------------------------------------- helpers --
 def _open_shift(client, float_amount="100"):
@@ -397,7 +405,7 @@ def test_a_closed_month_refuses_a_collection(clinic):
     _bill(desk, clinic["ids"])
     invoice = _the_invoice(clinic)
     with clinic["app"].app_context():
-        today = date.today()
+        today = local_today()
         close_period(ensure_month(today.year, today.month))
         clinic["db"].session.commit()
     _pay(desk, invoice, "200")
@@ -413,7 +421,7 @@ def test_a_closed_month_refuses_a_refund(clinic):
     invoice = _the_invoice(clinic)
     _pay(desk, invoice, "200")
     with clinic["app"].app_context():
-        today = date.today()
+        today = local_today()
         close_period(ensure_month(today.year, today.month))
         clinic["db"].session.commit()
     _refund(desk, invoice, "50")

@@ -11,6 +11,7 @@ from app.models import ActivityLog, Role, User
 from app.models.permissions import MODULES
 from app.utils.decorators import admin_required, client_ip
 from app.utils.paging import paginate
+from app.utils.clock import local_today
 
 
 def _titles():
@@ -59,6 +60,7 @@ def index():
 AUDIT_ACTIONS = ["login", "login_failed", "login_disabled", "logout",
                  "user.create", "user.update", "user.delete",
                  "role.create", "role.update", "role.delete",
+                 "user.capability_grant", "user.capability_revoke",
                  "patient.archive", "patient.restore", "patient.delete",
                  "appointment.booking_toggle"]
 
@@ -99,9 +101,14 @@ def roles():
 @users_bp.route("/permissions")
 @admin_required
 def permissions():
-    """Read-only permissions audit: every role vs every module and sensitive
-    capability, at a glance — who can reach what, and how many users hold each
-    role. Editing still happens on the roles screen."""
+    """Every role against every module and sensitive capability, on one screen.
+
+    It was read-only, and told the reader to go to role management to change
+    anything — a screen showing somebody exactly what they want to change and
+    sending them somewhere else to change it. The module grid is editable here
+    now; role management keeps what only it can do (creating, naming and
+    deleting roles), so "who reaches what" still has exactly one editor.
+    """
     from app.models.permissions import (
         CAPABILITIES, MODULE_ICONS, role_capabilities,
     )
@@ -116,6 +123,94 @@ def permissions():
         "users/permissions.html", roles=roles, modules=MODULES,
         module_icons=MODULE_ICONS, access=access,
         capabilities=CAPABILITIES, caps=caps, user_counts=counts)
+
+
+@users_bp.route("/permissions", methods=["POST"])
+@admin_required
+def permissions_save():
+    """Save the whole matrix in one press.
+
+    Read as "every box that is ticked", not as a diff: a checkbox that is off
+    sends nothing at all, so anything absent from the form is absent from the
+    role. That is only safe because the form draws every module for every
+    role — which it does, and the test below holds it, since a partially
+    rendered form would silently strip access nobody chose to remove.
+
+    Admin roles are skipped rather than read. Their boxes are not rendered, so
+    reading them would strip every module from the one role that must keep
+    them, on the first save.
+    """
+    changed = 0
+    for role in _roles():
+        if role.is_admin:
+            continue
+        # Only roles this form actually drew. An unchecked box sends nothing,
+        # so without the marker a POST that omitted a role would read as
+        # "this role now reaches nothing" and empty it — found by a test that
+        # posted one role's boxes and watched another role lose everything.
+        if not request.form.get(f"role_present_{role.id}"):
+            continue
+        wanted = [m for m in MODULES if request.form.get(f"mod_{role.id}_{m}")]
+        if sorted(wanted) != sorted(role.module_list):
+            role.set_modules(wanted)
+            changed += 1
+            ActivityLog.record("role.update", user_id=current_user.id,
+                               entity="role", entity_id=role.id,
+                               detail=role.name, ip_address=client_ip())
+    db.session.commit()
+    flash(t("perms.saved", n=changed) if changed else t("perms.no_change"),
+          "success" if changed else "info")
+    return redirect(url_for("users.permissions"))
+
+
+@users_bp.route("/<int:user_id>/capabilities", methods=["POST"])
+@admin_required
+def capability_grant(user_id):
+    """Allow one person one thing their role is not.
+
+    Admin only. A capability that can be handed out by anybody who already has
+    it spreads until the matrix on the permissions screen stops describing the
+    clinic.
+    """
+    from app.models import UserCapability
+    from app.models.permissions import CAPABILITIES
+
+    user = db.get_or_404(User, user_id)
+    capability = (request.form.get("capability") or "").strip()
+    if capability not in CAPABILITIES:
+        flash(t("perms.unknown_capability"), "danger")
+        return redirect(url_for("users.edit", user_id=user.id) + "#caps")
+
+    existing = UserCapability.query.filter_by(
+        user_id=user.id, capability=capability).first()
+    if existing is None:
+        db.session.add(UserCapability(
+            user_id=user.id, capability=capability,
+            reason=(request.form.get("reason") or "").strip() or None,
+            granted_by=current_user.id))
+        ActivityLog.record("user.capability_grant", user_id=current_user.id,
+                           entity="user", entity_id=user.id,
+                           detail=capability, ip_address=client_ip())
+        db.session.commit()
+        flash(t("perms.granted"), "success")
+    return redirect(url_for("users.edit", user_id=user.id) + "#caps")
+
+
+@users_bp.route("/capabilities/<int:grant_id>/revoke", methods=["POST"])
+@admin_required
+def capability_revoke(grant_id):
+    """Take the exception back. The role underneath is untouched."""
+    from app.models import UserCapability
+
+    row = db.get_or_404(UserCapability, grant_id)
+    user_id, capability = row.user_id, row.capability
+    db.session.delete(row)
+    ActivityLog.record("user.capability_revoke", user_id=current_user.id,
+                       entity="user", entity_id=user_id,
+                       detail=capability, ip_address=client_ip())
+    db.session.commit()
+    flash(t("perms.revoked"), "info")
+    return redirect(url_for("users.edit", user_id=user_id) + "#caps")
 
 
 @users_bp.route("/roles/new", methods=["POST"])
@@ -303,8 +398,20 @@ def edit(user_id):
     }
     for field in PROFILE_FIELDS + PRACTITIONER_FIELDS:
         form[field] = getattr(user, field, None) or ""
+    from app.models import UserCapability
+    from app.models.permissions import CAPABILITIES, role_capabilities
+
+    grants = UserCapability.query.filter_by(user_id=user.id).all()
+    # Only capabilities the role does not already carry are offered. Granting
+    # somebody something they already have would read as a decision on the
+    # screen forever, and mean nothing.
+    from_role = set(role_capabilities(user.role))
     return render_template("users/form.html", roles=_roles(), user=user,
-                           form=form, titles=_titles())
+                           form=form, titles=_titles(),
+                           grants=grants, role_capabilities=from_role,
+                           grantable=[c for c in CAPABILITIES
+                                      if c not in from_role
+                                      and c not in {g.capability for g in grants}])
 
 
 @users_bp.route("/<int:user_id>/delete", methods=["POST"])
@@ -351,7 +458,7 @@ def doctors():
     # A month, because a week of a paediatric clinic is mostly whichever virus
     # was going round — and the numbers below are medians, which need enough
     # consultations under them to mean anything.
-    until = date.today()
+    until = local_today()
     since = until - timedelta(days=30)
     return render_template("users/doctors.html", doctors=docs,
                            ratings=doctor_ratings(),

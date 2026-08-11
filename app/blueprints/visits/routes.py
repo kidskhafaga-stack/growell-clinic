@@ -239,6 +239,7 @@ def record(visit_id):
     # What this doctor actually performs, first — and everything else still
     # underneath it. Split by the *visit's* doctor, not by whoever is logged
     # in: reception opening Dr X's visit is choosing from Dr X's list.
+    from app.utils import patient_meds as _meds
     from app.utils.doctor_services import split as _split_services
     my_services, other_services = _split_services(visit.doctor, procedure_services)
     # Vaccination snapshot for the visit tab, framed as "what can I give now"
@@ -307,6 +308,11 @@ def record(visit_id):
         pending_investigations=pending_investigations,
         recent_attachments=recent_attachments, linkable_files=linkable_files,
         procedure_services=procedure_services, recent_meds=recent_meds,
+        # Medication reconciliation (GAHAR): the child's ongoing medicines and
+        # what has already been decided about each at *this* encounter.
+        ongoing_meds=_meds.current(visit.patient),
+        reviewed_meds=_meds.reviewed_ids(visit.patient, visit),
+        meds_reconciled=_meds.reconciled(visit.patient, visit),
         my_services=my_services, other_services=other_services,
         vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
         complaint_chips=_visit_chips("complaint"),
@@ -654,6 +660,33 @@ def drug_search():
     return jsonify(search_drugs(request.args.get("q"),
                                 age_months=_search_age_months(),
                                 lang=getattr(g, "lang", "ar"), limit=12))
+
+
+@visits_bp.route("/<int:visit_id>/reconcile/<int:med_id>", methods=["POST"])
+@module_required(MODULE)
+def reconcile_medication(visit_id, med_id):
+    """Record the decision taken about one ongoing medicine at this visit.
+
+    Continue is stored like the others rather than skipped. Storing only the
+    stops and changes would leave a medicine somebody deliberately continued
+    and a medicine nobody looked at with the same trace — nothing — and
+    reconciliation is precisely the claim that the whole list was looked at.
+    """
+    from app.models import PatientMedication
+    from app.utils import patient_meds as meds
+
+    visit = db.get_or_404(Visit, visit_id)
+    row = db.get_or_404(PatientMedication, med_id)
+    if row.patient_id != visit.patient_id:
+        flash(t("visits.not_yours"), "danger")
+        return redirect(url_for("visits.record", visit_id=visit.id) + "#meds")
+
+    saved = meds.review(row, (request.form.get("decision") or "").strip(),
+                        user=current_user, visit=visit,
+                        note=request.form.get("note"))
+    flash(t("meds.reviewed") if saved else t("meds.bad_decision"),
+          "success" if saved else "danger")
+    return redirect(url_for("visits.record", visit_id=visit.id) + "#meds")
 
 
 @visits_bp.route("/<int:visit_id>/medications", methods=["POST"])
