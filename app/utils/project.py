@@ -190,7 +190,7 @@ def people():
     constant — it is the copyright holder — and everything else is the
     clinic's to write.
     """
-    from app.models.about_person import AboutPerson
+    from app.models.about_person import AboutPerson, initial_of
 
     try:
         doctors = (AboutPerson.query
@@ -205,22 +205,91 @@ def people():
             "note": ((Setting.get("about_developer_note") or "").strip(),
                      (Setting.get("about_developer_note_en") or "").strip()),
             "contact": (Setting.get("about_developer_contact") or "").strip(),
+            "photo": (Setting.get("about_developer_photo") or "").strip(),
+            # A pair, like the name it is taken from, so the circle follows
+            # whichever language the page is being read in.
+            "initial": tuple(initial_of(n) for n in DEVELOPER_DEFAULTS["name"]),
         },
         "doctors": doctors,
     }
 
 
-def save_people(form):
+def save_people(form, files=None):
     """Persist the developer block. Blank clears a field."""
     for key in KEYS:
         Setting.set(key, (form.get(key) or "").strip())
+
+    current = (Setting.get("about_developer_photo") or "").strip()
+    saved = save_photo((files or {}).get("photo"))
+    if saved:
+        drop_photo(current)
+        Setting.set("about_developer_photo", saved)
+    elif form.get("drop_photo"):
+        drop_photo(current)
+        Setting.set("about_developer_photo", "")
+
+
+# ---------------------------------------------------------------- photographs
+#
+# A photograph of a person is a raster image, so SVG is not on this list even
+# though the staff-photo upload elsewhere allows it: an SVG is a document that
+# can carry script, and nothing here needs one.
+ALLOWED_PHOTO = {"png", "jpg", "jpeg", "webp", "gif"}
+
+
+def _photo_dir():
+    """``static/uploads/about`` — kept apart from the staff photo folder.
+
+    These are two different things that happen to both be pictures of people:
+    one identifies a user who signs in, the other is a credit on a public-ish
+    page. Mixing them means deleting a credit can reach a staff file.
+    """
+    import os
+
+    from flask import current_app
+
+    path = os.path.join(current_app.static_folder, "uploads", "about")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def save_photo(storage):
+    """Store an uploaded photo and return its filename, or None."""
+    import os
+    import uuid
+
+    from werkzeug.utils import secure_filename
+
+    if not storage or not getattr(storage, "filename", ""):
+        return None
+    name = storage.filename
+    ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    if ext not in ALLOWED_PHOTO:
+        return None
+    stored = f"{uuid.uuid4().hex}.{ext}"
+    storage.save(os.path.join(_photo_dir(), secure_filename(stored)))
+    return stored
+
+
+def drop_photo(name):
+    """Delete a stored photo. Silent when it is already gone."""
+    import os
+
+    if not name:
+        return
+    path = os.path.join(_photo_dir(), name)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:      # a locked or read-only file is not worth a 500
+            pass
 
 
 # Fields a person row carries, in the order the form asks for them.
 PERSON_FIELDS = ["name", "name_en", "title", "title_en", "note", "note_en"]
 
 
-def _read_person(form, person):
+def _read_person(form, person, files=None):
     """Copy the submitted fields onto a row. Blank clears; Arabic name stays."""
     for field in PERSON_FIELDS:
         value = (form.get(field) or "").strip()
@@ -234,17 +303,29 @@ def _read_person(form, person):
         person.sort_order = int(form.get("sort_order") or 0)
     except (TypeError, ValueError):
         person.sort_order = 0
+
+    # A new upload replaces the old file rather than orphaning it, and the
+    # checkbox is the only way back to no photo at all — an empty file input
+    # means "I did not choose a new one", never "remove the one there is".
+    saved = save_photo((files or {}).get("photo"))
+    if saved:
+        drop_photo(person.photo)
+        person.photo = saved
+    elif form.get("drop_photo"):
+        drop_photo(person.photo)
+        person.photo = None
     return person
 
 
-def add_person(form):
+def add_person(form, files=None):
     """Add a credited person. Returns the row, or None if unnamed."""
     from app.extensions import db
     from app.models.about_person import AboutPerson
 
     if not (form.get("name") or "").strip():
         return None
-    person = _read_person(form, AboutPerson(name=(form.get("name")).strip()))
+    person = _read_person(form, AboutPerson(name=(form.get("name")).strip()),
+                          files)
     db.session.add(person)
     return person
 
@@ -260,11 +341,11 @@ def _person(person_id):
         return None
 
 
-def edit_person(person_id, form):
+def edit_person(person_id, form, files=None):
     person = _person(person_id)
     if person is None:
         return None
-    return _read_person(form, person)
+    return _read_person(form, person, files)
 
 
 def delete_person(person_id):
@@ -272,6 +353,9 @@ def delete_person(person_id):
 
     person = _person(person_id)
     if person is not None:
+        # The row is going; leaving its picture on disk would leave a face in
+        # the uploads folder that nothing in the program can reach or remove.
+        drop_photo(person.photo)
         db.session.delete(person)
     return person
 

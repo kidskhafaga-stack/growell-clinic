@@ -4501,7 +4501,10 @@
     "order": "Order",
     "no_doctors": "No people have been added yet.",
     "en_optional": "English is optional — leave it blank and the Arabic is shown in both languages.",
-    "medical_supervision": "Medical supervision"
+    "medical_supervision": "Medical supervision",
+    "photo": "Photo",
+    "remove_photo": "Remove the current photo",
+    "photo_hint": "A square picture works best — it is cropped to a circle."
   },
   "history_import": {
     "title": "Import case history",
