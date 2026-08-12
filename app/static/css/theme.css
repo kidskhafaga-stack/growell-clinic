@@ -260,6 +260,22 @@ a:hover { color: var(--green-900); }
 .user-chip .meta { line-height: 1.15; }
 .user-chip .meta .role { font-size: 0.72rem; color: var(--muted); }
 
+/* A credited person on the About page: the same circle whether there is a
+   photograph or only an initial, so a half-filled list still lines up. The
+   ring keeps a photo from bleeding into the card on either theme, and
+   object-fit stops a portrait or a landscape being squashed into the square
+   the browser would otherwise draw. */
+.person-avatar {
+  width: 56px; height: 56px; flex: 0 0 56px;
+  border-radius: 50%;
+  background: var(--green-100); color: var(--green-800);
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 1.15rem;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+
 .content { padding: 26px; flex: 1; }
 
 /* ---------- Cards / generic ---------- */

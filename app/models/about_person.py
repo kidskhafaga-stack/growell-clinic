@@ -20,6 +20,30 @@ means nobody is forced to type everything twice to get a working page.
 """
 from app.extensions import db
 
+# Titles, not names. Nearly every name on this page begins with one, so an
+# initial taken from the first character makes every circle read "د" — the
+# same letter for every doctor in the clinic, which is no use to anybody
+# scanning the list. The initial comes from the first word that is a name.
+HONORIFICS = {
+    "د", "دكتور", "دكتورة", "أ", "أ.د", "ا", "م", "مهندس", "الأستاذ", "است",
+    "dr", "prof", "professor", "eng", "mr", "mrs", "ms", "miss",
+}
+
+
+# "د/ منى" is written at least as often as "د. منى" in an Egyptian clinic, so
+# the slash has to come off the word before it is recognised as a title.
+_PUNCT = ".،,/\\-"
+
+
+def initial_of(name):
+    """The letter to put in an empty circle for this name."""
+    for word in (name or "").split():
+        cleaned = word.strip(_PUNCT).lower()
+        if cleaned and cleaned not in HONORIFICS:
+            return word.lstrip(_PUNCT)[:1].upper()
+    # A name that is nothing but a title still has to render something.
+    return (name or "").strip()[:1].upper()
+
 
 class AboutPerson(db.Model):
     __tablename__ = "about_people"
@@ -37,6 +61,12 @@ class AboutPerson(db.Model):
 
     note = db.Column(db.Text)
     note_en = db.Column(db.Text)
+
+    # A filename under ``static/uploads/about``, or nothing. Optional on
+    # purpose — a credits page has to look finished before anybody has been
+    # asked for a photograph, so a person without one gets their initial in
+    # the same circle rather than a hole where a face should be.
+    photo = db.Column(db.String(255))
 
     # The clinic's own order. Ties fall back to id, so rows added without a
     # number still come out in the order they were entered rather than
@@ -61,6 +91,9 @@ class AboutPerson(db.Model):
 
     def display_note(self, lang="ar"):
         return self._pick(self.note, self.note_en, lang)
+
+    def initial(self, lang="ar"):
+        return initial_of(self.display_name(lang))
 
     def __repr__(self):
         return f"<AboutPerson {self.name!r}>"

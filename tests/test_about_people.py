@@ -10,6 +10,7 @@ languages, because that is where both faults were visible and neither was
 visible in the stored value.
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -232,6 +233,191 @@ def test_the_developer_note_is_a_pair_not_one_string(app_ctx):
     assert "An English note" in _about(app_ctx, "en")
     assert "نبذة بالعربي" not in _about(app_ctx, "en")
     assert "نبذة بالعربي" in _about(app_ctx, "ar")
+
+
+# ---------------------------------------------------------------- photographs
+
+import base64  # noqa: E402
+
+# A real one-pixel PNG, so nothing below passes because the upload quietly
+# did nothing with a handful of bytes that were never an image.
+_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
+    "z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+def _upload(name="face.png", data=None):
+    import io
+
+    return (io.BytesIO(_PNG if data is None else data), name)
+
+
+def _reload(person_id):
+    from app.extensions import db
+    from app.models import AboutPerson
+
+    return db.session.get(AboutPerson, person_id)
+
+
+def test_a_person_can_be_given_a_photo(app_ctx):
+    from app.models import AboutPerson
+
+    _admin()
+    client = _client(app_ctx, "ar")
+    client.post("/about/people", data={
+        "action": "add", "name": "د. سارة", "photo": _upload()},
+        content_type="multipart/form-data", follow_redirects=True)
+
+    row = AboutPerson.query.filter_by(name="د. سارة").first()
+    assert row is not None and row.photo, "the photo was not stored"
+    assert row.photo.endswith(".png")
+
+
+def test_the_photo_shows_as_a_circle_on_the_page(app_ctx):
+    """Stored is not shown. The page has to actually point at the file."""
+    from app.extensions import db
+    from app.models import AboutPerson
+
+    _admin()
+    db.session.add(AboutPerson(name="د. سارة", photo="abc123.png"))
+    db.session.commit()
+
+    page = _about(app_ctx, "ar")
+    assert "uploads/about/abc123.png" in page
+    assert "person-avatar" in page
+
+
+def test_the_initial_skips_the_title_and_uses_the_name(app_ctx):
+    """Otherwise every circle in an Egyptian clinic reads the same letter.
+
+    Nearly every name here begins with "د." — so taking the first character
+    puts د in the circle for the endocrinologist, the cardiologist and the
+    neurologist alike, and the initial stops telling anybody anything.
+    """
+    from app.models.about_person import initial_of
+
+    assert initial_of("د. أحمد جمال") == "أ"
+    assert initial_of("د/ منى حسن") == "م"          # slash instead of a dot
+    assert initial_of("أ.د. إسراء محمود") == "إ"    # professor
+    assert initial_of("م. محمد خفاجة") == "م"
+    assert initial_of("Dr. Ahmed Gamal") == "A"
+    assert initial_of("Prof. Sara") == "S"
+    assert initial_of("منى حسن") == "م"             # no title at all
+    assert initial_of("د.") == "د"                  # nothing but a title
+    assert initial_of("") == ""
+
+
+def test_two_doctors_do_not_get_the_same_letter(app_ctx):
+    """The same thing again, but read off the page rather than the function."""
+    from app.extensions import db
+    from app.models import AboutPerson
+
+    _admin()
+    db.session.add(AboutPerson(name="د. منى حسن", sort_order=0))
+    db.session.add(AboutPerson(name="د. إسراء محمود", sort_order=1))
+    db.session.commit()
+
+    page = _about(app_ctx, "ar")
+    circles = re.findall(r'class="person-avatar"[^>]*>([^<]*)<', page)
+    letters = [c.strip() for c in circles if c.strip()]
+    assert "م" in letters and "إ" in letters, letters
+    assert letters.count("د") == 0, "every circle fell back to the honorific"
+
+
+def test_somebody_without_a_photo_still_gets_the_circle(app_ctx):
+    """A half-filled list has to line up, so the initial fills the same shape."""
+    from app.extensions import db
+    from app.models import AboutPerson
+
+    _admin()
+    db.session.add(AboutPerson(name="منى حسن"))
+    db.session.commit()
+
+    page = _about(app_ctx, "ar")
+    assert "person-avatar" in page
+    assert "uploads/about/" not in page
+
+
+def test_an_empty_file_input_does_not_erase_the_photo(app_ctx):
+    """Saving a name must not cost somebody their face.
+
+    A browser posts an empty file part for a file input nobody touched. If
+    that counted as "remove it", every edit of a title would silently drop
+    the photograph — and the person editing would have no reason to expect it.
+    """
+    from app.extensions import db
+    from app.models import AboutPerson
+
+    _admin()
+    person = AboutPerson(name="د. سارة", photo="keep-me.png")
+    db.session.add(person)
+    db.session.commit()
+    person_id = person.id
+
+    client = _client(app_ctx, "ar")
+    client.post("/about/people", data={
+        "action": "edit", "id": person_id, "name": "د. سارة",
+        "title": "استشاري", "photo": _upload("", b"")},
+        content_type="multipart/form-data", follow_redirects=True)
+
+    assert _reload(person_id).photo == "keep-me.png"
+
+
+def test_the_checkbox_is_how_a_photo_is_removed(app_ctx):
+    from app.extensions import db
+    from app.models import AboutPerson
+
+    _admin()
+    person = AboutPerson(name="د. سارة", photo="drop-me.png")
+    db.session.add(person)
+    db.session.commit()
+    person_id = person.id
+
+    client = _client(app_ctx, "ar")
+    client.post("/about/people", data={
+        "action": "edit", "id": person_id, "name": "د. سارة",
+        "drop_photo": "1"}, follow_redirects=True)
+
+    assert _reload(person_id).photo is None
+
+
+def test_a_file_that_is_not_an_image_is_refused(app_ctx):
+    from app.models import AboutPerson
+
+    _admin()
+    client = _client(app_ctx, "ar")
+    client.post("/about/people", data={
+        "action": "add", "name": "د. سارة",
+        "photo": _upload("payload.sh", b"#!/bin/sh\n")},
+        content_type="multipart/form-data", follow_redirects=True)
+
+    row = AboutPerson.query.filter_by(name="د. سارة").first()
+    assert row is not None, "the person should still be added"
+    assert row.photo is None, "a shell script was accepted as a photograph"
+
+
+def test_deleting_a_person_takes_their_photo_with_them(app_ctx):
+    """Otherwise a face stays in the uploads folder that nothing can reach."""
+    import os
+
+    from app.models import AboutPerson
+    from app.utils.project import _photo_dir
+
+    _admin()
+    client = _client(app_ctx, "ar")
+    client.post("/about/people", data={
+        "action": "add", "name": "د. مؤقت", "photo": _upload()},
+        content_type="multipart/form-data", follow_redirects=True)
+
+    person = AboutPerson.query.filter_by(name="د. مؤقت").one()
+    stored = os.path.join(_photo_dir(), person.photo)
+    assert os.path.isfile(stored)
+
+    client.post("/about/people", data={"action": "delete", "id": person.id},
+                follow_redirects=True)
+
+    assert not os.path.exists(stored), "the photo outlived the person"
 
 
 # ------------------------------------------------------------- the carry-over

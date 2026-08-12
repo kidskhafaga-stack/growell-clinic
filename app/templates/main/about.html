@@ -6,6 +6,18 @@
 {# Bullets carry <b> markup written in app/utils/*.py — never user input. #}
 {% macro txt(pair) %}{{ (pair[1] if not ar else pair[0])|safe }}{% endmacro %}
 
+{# One circle for everybody credited here. A photograph fills it; a person who
+   has not been asked for one yet gets their initial, so the column still lines
+   up before anybody has sent a picture. #}
+{% macro face(photo, letter) %}
+  {% if photo %}
+  <img class="person-avatar" alt="" loading="lazy"
+       src="{{ url_for('static', filename='uploads/about/' ~ photo) }}">
+  {% else %}
+  <div class="person-avatar" aria-hidden="true">{{ letter }}</div>
+  {% endif %}
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
@@ -124,20 +136,23 @@
     {% endif %}
   </div>
 
-  <div style="margin-top:12px;">
-    <div style="font-weight:700;">{{ txt(people.developer.name) }}</div>
-    <div style="color:var(--muted);">{{ txt(people.developer.role) }}</div>
-    {# Written by the clinic, so escaped — unlike the plan bullets above. Each
-       language falls back to the other rather than printing nothing. #}
-    {% set dev_note = (people.developer.note[0] or people.developer.note[1]) if ar
-                      else (people.developer.note[1] or people.developer.note[0]) %}
-    {% if dev_note %}
-    <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ dev_note }}</p>
-    {% endif %}
-    {% if people.developer.contact %}
-    <div style="margin-top:6px;color:var(--muted);" dir="auto">
-      <i class="bi bi-envelope"></i> {{ people.developer.contact }}</div>
-    {% endif %}
+  <div style="margin-top:12px;display:flex;gap:14px;align-items:flex-start;">
+    {{ face(people.developer.photo, txt(people.developer.initial)|string) }}
+    <div style="min-width:0;">
+      <div style="font-weight:700;">{{ txt(people.developer.name) }}</div>
+      <div style="color:var(--muted);">{{ txt(people.developer.role) }}</div>
+      {# Written by the clinic, so escaped — unlike the plan bullets above. Each
+         language falls back to the other rather than printing nothing. #}
+      {% set dev_note = (people.developer.note[0] or people.developer.note[1]) if ar
+                        else (people.developer.note[1] or people.developer.note[0]) %}
+      {% if dev_note %}
+      <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ dev_note }}</p>
+      {% endif %}
+      {% if people.developer.contact %}
+      <div style="margin-top:6px;color:var(--muted);" dir="auto">
+        <i class="bi bi-envelope"></i> {{ people.developer.contact }}</div>
+      {% endif %}
+    </div>
   </div>
 
   {# Each credited person, in the clinic's own order. The name, the title and
@@ -151,10 +166,19 @@
          page, but it must stay in the column with the names above it. dir
          changes the block's alignment too, and pushes that one name across to
          the far side of a left-aligned list. #}
-      <div>
-        <div style="font-weight:700;unicode-bidi:isolate;">{{ person.display_name(current_lang) }}</div>
-        <div style="color:var(--muted);unicode-bidi:isolate;">
-          {{ person.display_title(current_lang) or t('about.medical_supervision') }}</div>
+      <div style="display:flex;gap:14px;align-items:flex-start;min-width:0;">
+        {{ face(person.photo, person.initial(current_lang)) }}
+        <div style="min-width:0;">
+          <div style="font-weight:700;unicode-bidi:isolate;">{{ person.display_name(current_lang) }}</div>
+          <div style="color:var(--muted);unicode-bidi:isolate;">
+            {{ person.display_title(current_lang) or t('about.medical_supervision') }}</div>
+          {# Inside the text column, not under the whole row: a note that starts
+             beneath the circle rather than beneath the name reads as a caption
+             for the photograph. #}
+          {% if person.display_note(current_lang) %}
+          <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ person.display_note(current_lang) }}</p>
+          {% endif %}
+        </div>
       </div>
       {% if current_user.is_admin %}
       <div style="display:flex;gap:6px;white-space:nowrap;">
@@ -175,13 +199,11 @@
       </div>
       {% endif %}
     </div>
-    {% if person.display_note(current_lang) %}
-    <p dir="auto" style="line-height:1.9;margin:8px 0 0;">{{ person.display_note(current_lang) }}</p>
-    {% endif %}
 
     {% if current_user.is_admin %}
     <form id="person-{{ person.id }}" hidden method="post"
-          action="{{ url_for('main.about_people') }}" style="margin-top:12px;">
+          action="{{ url_for('main.about_people') }}" style="margin-top:12px;"
+          enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="edit">
       <input type="hidden" name="id" value="{{ person.id }}">
@@ -200,6 +222,14 @@
           <textarea class="input" name="note_en" dir="ltr" rows="2">{{ person.note_en or '' }}</textarea></div>
         <div class="form-row"><label>{{ t('about.order') }}</label>
           <input class="input" type="number" name="sort_order" value="{{ person.sort_order }}"></div>
+        <div class="form-row"><label>{{ t('about.photo') }}</label>
+          <input class="input" type="file" name="photo" accept="image/*">
+          {% if person.photo %}
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;
+                        color:var(--muted);font-size:.9rem;font-weight:400;">
+            <input type="checkbox" name="drop_photo" value="1"> {{ t('about.remove_photo') }}</label>
+          {% endif %}
+        </div>
       </div>
       <button class="btn btn-primary btn-sm gc-press" type="submit">
         <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
@@ -213,7 +243,8 @@
      every installation, so no real person's details are compiled in. #}
   <div id="people-edit" hidden
        style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-    <form method="post" action="{{ url_for('main.about_people') }}">
+    <form method="post" action="{{ url_for('main.about_people') }}"
+          enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="developer">
       <div class="form-grid">
@@ -224,12 +255,21 @@
         <div class="form-row"><label>{{ t('about.contact') }}</label>
           <input class="input" name="about_developer_contact" dir="ltr"
                  value="{{ people.developer.contact }}"></div>
+        <div class="form-row"><label>{{ t('about.photo') }}</label>
+          <input class="input" type="file" name="photo" accept="image/*">
+          {% if people.developer.photo %}
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;
+                        color:var(--muted);font-size:.9rem;font-weight:400;">
+            <input type="checkbox" name="drop_photo" value="1"> {{ t('about.remove_photo') }}</label>
+          {% endif %}
+        </div>
       </div>
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
     </form>
 
     <form method="post" action="{{ url_for('main.about_people') }}"
+          enctype="multipart/form-data"
           style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="add">
@@ -251,6 +291,10 @@
           <textarea class="input" name="note_en" dir="ltr" rows="2"></textarea></div>
         <div class="form-row"><label>{{ t('about.order') }}</label>
           <input class="input" type="number" name="sort_order" value="{{ people.doctors|length }}"></div>
+        <div class="form-row"><label>{{ t('about.photo') }}</label>
+          <input class="input" type="file" name="photo" accept="image/*">
+          <span style="color:var(--muted);font-size:.85rem;margin-top:6px;">
+            {{ t('about.photo_hint') }}</span></div>
       </div>
       <button class="btn btn-primary gc-press gc-ripple" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('about.add_person') }}</button>

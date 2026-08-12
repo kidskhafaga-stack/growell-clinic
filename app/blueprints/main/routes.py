@@ -317,15 +317,15 @@ def about_people():
 
     action = (request.form.get("action") or "developer").strip()
     if action == "add":
-        if project.add_person(request.form) is None:
+        if project.add_person(request.form, request.files) is None:
             flash(t("about.person_needs_name"), "warning")
             return redirect(url_for("main.about"))
     elif action == "edit":
-        project.edit_person(request.form.get("id"), request.form)
+        project.edit_person(request.form.get("id"), request.form, request.files)
     elif action == "delete":
         project.delete_person(request.form.get("id"))
     else:
-        project.save_people(request.form)
+        project.save_people(request.form, request.files)
 
     db.session.commit()
     flash(t("common.saved"), "success")

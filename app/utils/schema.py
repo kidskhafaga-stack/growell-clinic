@@ -261,6 +261,10 @@ ADDITIONS = [
     # Which import created this vaccination record, so an import can be undone
     # exactly and a doctor can see which doses came from the old program.
     ("patient_vaccines", "import_batch_id", "INTEGER"),
+    # A face on the About page. The table shipped one version before the
+    # column did, so a clinic that already upgraded once has the table and
+    # not this.
+    ("about_people", "photo", "VARCHAR(255)"),
 ]
 
 def apply_schema(report=None):
