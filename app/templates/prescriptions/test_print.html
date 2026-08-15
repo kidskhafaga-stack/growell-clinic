@@ -38,6 +38,19 @@
 </div>
 
 <style>
+  /* The same page geometry the real prescription prints with, taken from the
+     same template. Without this line the test page fell back to the global
+     rule in print.css — A4, 12mm all round — so a clinic aiming its printer
+     at A5 letterhead with its own margins was checking a page that shared
+     neither the size nor a single margin with the prescriptions it was
+     supposed to be proving.
+     A test print that does not match the thing it is testing is worse than no
+     test print: it is a wrong answer that looks like a checked one. */
+  @page {
+    size: {{ tpl.page_size or 'A4' }};
+    margin: {{ tpl.m_top }}mm {{ tpl.m_right }}mm {{ tpl.m_bottom }}mm {{ tpl.m_left }}mm;
+  }
+
   .rx-testwrap { position: relative; }
 
   /* Over the layout, never in it. */

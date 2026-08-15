@@ -31,14 +31,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pytest  # noqa: E402
 
 
-def _template(clinic, **fields):
+def _template(clinic, size="A4", **fields):
     with clinic["app"].app_context():
         from app.models import RxPrintTemplate
         db = clinic["db"]
         base = {flag: flag not in RxPrintTemplate.OFF_BY_DEFAULT
                 for flag in RxPrintTemplate.BOOLS}
         base.update(fields)
-        tpl = RxPrintTemplate(name="t", page_size="A4", font_size=14,
+        tpl = RxPrintTemplate(name="t", page_size=size, font_size=14,
                               margin_mm=12, **base)
         db.session.add(tpl)
         db.session.commit()
@@ -264,3 +264,66 @@ def test_a_layout_with_no_doctor_still_previews(clinic):
 
     assert answer.status_code == 200
     assert 'id="rxPaper"' in answer.data.decode()
+
+
+# --- it is printed on the paper it is testing -----------------------------
+
+def test_the_test_page_prints_at_the_size_the_template_chose(clinic):
+    """Reported as: the test print comes out shifted, though the settings are right.
+
+    They were right. The test page carried no ``@page`` rule at all, so it
+    fell back to the global one in print.css — A4, 12mm on every side. A
+    clinic aiming its printer at A5 letterhead with its own margins was
+    checking a page that shared neither the size nor a single margin with the
+    prescriptions it was meant to be proving.
+    """
+    tpl_id = _template(clinic, mode="preprinted", margin_top_mm=30,
+                       margin_right_mm=8, margin_bottom_mm=14,
+                       margin_left_mm=22, top_offset_mm=25, size="A5")
+
+    page = _print(clinic, tpl_id, who="boss").data.decode()
+
+    assert "size: A5" in page, "the test page did not take the page size"
+    assert "30mm 8mm 14mm 22mm" in page, \
+        "the test page did not take the template's four margins"
+
+
+def test_the_test_page_and_the_real_one_agree_on_the_paper(clinic):
+    """The two pages exist to be compared, so they have to be printed alike.
+
+    Built as a comparison rather than two separate assertions: this is the
+    property that matters, and either page drifting on its own is the bug.
+    """
+    import re
+
+    from app.extensions import db
+    from app.models import Patient
+
+    tpl_id = _template(clinic, margin_top_mm=17, margin_right_mm=9,
+                       margin_bottom_mm=11, margin_left_mm=19, size="A5")
+    with clinic["app"].app_context():
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write_one(client, pid)
+
+    def page_rule(html):
+        found = re.search(r"@page\s*\{[^}]*\}", html, re.S)
+        assert found, "no @page rule on this screen"
+        return " ".join(found.group(0).split())
+
+    real = page_rule(client.get("/prescriptions/1").data.decode())
+    trial = page_rule(_print(clinic, tpl_id, who="boss").data.decode())
+
+    assert "A5" in trial and "17mm" in trial
+    assert real.count("mm") == trial.count("mm"), \
+        f"the two pages describe the paper differently:\n{real}\n{trial}"
+
+
+def _write_one(client, pid):
+    """One prescription, so there is a real page to compare against."""
+    return client.post("/prescriptions/new", data={
+        "patient_id": pid,
+        "item_name": ["Augmentin"], "item_dose": ["5 ml"],
+        "item_frequency": ["x2"], "item_duration": ["7d"],
+        "item_instructions": [""]}, follow_redirects=True)
