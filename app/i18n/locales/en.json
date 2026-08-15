@@ -3346,7 +3346,14 @@
     "every_month": "Monthly",
     "full_never": "No full backup has ever been taken",
     "full_age": "Last full backup: {days} day(s) ago",
-    "full_stale_hint": "The copy holding your pictures is old. If the disk failed now, every record would come back with a broken image beside it — take a full backup, or check its schedule."
+    "full_stale_hint": "The copy holding your pictures is old. If the disk failed now, every record would come back with a broken image beside it — take a full backup, or check its schedule.",
+    "unlock_title": "Unlock future backups (stop encrypting)",
+    "unlock_current": "Current backup passphrase",
+    "unlock_forgot": "Forgotten it? Type your own sign-in password",
+    "unlock_do": "Unlock future backups",
+    "unlock_confirm": "Backups from now on will be taken unencrypted. Continue?",
+    "unlock_denied": "Not unlocked: the password you typed does not match.",
+    "unlock_scope": "This affects future backups only. Archives already on disk keep the passphrase they were written with."
   },
   "reception_guide": {
     "title": "Reception guide — visit & collection cycle",

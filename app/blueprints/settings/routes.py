@@ -759,8 +759,40 @@ def backup_password_set():
     typed wrong, and a backup folder is not a place to be clever.
     """
     from app import settings_file
+    from app.utils.backups import backup_password
 
     value = (request.form.get("backup_password") or "").strip()
+
+    # Turning encryption *off* has to be proved, and until now it was the one
+    # thing on this screen that needed no proof at all: an empty box cleared
+    # the passphrase, so anybody who reached this page could quietly unlock
+    # every backup the clinic would take from then on — without knowing the
+    # current passphrase and with nothing on screen to mark it as a decision.
+    #
+    # Two ways through, both deliberate. The passphrase itself, which is what
+    # somebody who set it will have. Or the signed-in owner's own password,
+    # for the case this exists to answer — the passphrase was lost, and the
+    # clinic still has to be able to take backups it can restore. That second
+    # door does not open any *existing* archive: those keep the key they were
+    # written with, and nothing here can change that.
+    current = backup_password()
+    if current and not value:
+        given = (request.form.get("current_password") or "").strip()
+        owner = (request.form.get("owner_password") or "").strip()
+        # No ``is_admin`` here: this endpoint is ``@admin_required``, so
+        # anybody reaching this line already is one. Repeating the check would
+        # read like the guarantee and be dead code — the real guarantee is on
+        # the route, and that is where a test has to point.
+        by_passphrase = bool(given) and given == current
+        by_owner = bool(owner) and current_user.check_password(owner)
+        if not (by_passphrase or by_owner):
+            flash(t("backups.unlock_denied"), "danger")
+            return redirect(url_for("settings.data_tools"))
+        ActivityLog.record(
+            "backup.unlock", user_id=current_user.id, entity="system",
+            detail="owner_password" if by_owner and not by_passphrase
+            else "passphrase", ip_address=client_ip())
+
     if value and len(value) < MIN_BACKUP_PASSWORD:
         flash(t("backups.pwd_too_short").replace(
             "{n}", str(MIN_BACKUP_PASSWORD)), "danger")
