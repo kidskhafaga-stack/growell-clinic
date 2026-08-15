@@ -543,186 +543,194 @@
       {% endif %}
 
       <!-- Siblings -->
-      <h3 class="section-title" style="margin-top:26px;"><i class="bi bi-diagram-3"></i> {{ t('patients.siblings') }}</h3>
-      {% set sibs = patient.siblings %}
-      {% if sibs %}
-      <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
-        {% for s in sibs %}
-        <a class="patient-row card gc-lift {{ 'gm' if s.gender == 'male' else 'gf' }}" href="{{ url_for('patients.view', patient_id=s.id) }}"
-           style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;">
-          {{ patient_avatar(s, 'sm') }}
-          <div style="flex:1;">
-            <div class="name">{{ s.display_name(current_lang) }}
-              {# Said out loud. An automatic link is a matched phone and a
-                 matched name, not somebody who opened both files — and the
-                 person deciding whether to undo it needs to know which. #}
-              {% if s.family_auto %}<span class="badge badge--muted">{{ t('siblings.auto_flag') }}</span>{% endif %}
+      <details class="gc-fold" style="margin-top:26px;">
+        <summary style="cursor:pointer;list-style:none;">
+          <span class="section-title"><i class="bi bi-diagram-3"></i> {{ t('patients.siblings') }}</span>
+        </summary>
+        {% set sibs = patient.siblings %}
+        {% if sibs %}
+        <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
+          {% for s in sibs %}
+          <a class="patient-row card gc-lift {{ 'gm' if s.gender == 'male' else 'gf' }}" href="{{ url_for('patients.view', patient_id=s.id) }}"
+             style="box-shadow:none;border:1px solid var(--line);text-decoration:none;color:inherit;">
+            {{ patient_avatar(s, 'sm') }}
+            <div style="flex:1;">
+              <div class="name">{{ s.display_name(current_lang) }}
+                {# Said out loud. An automatic link is a matched phone and a
+                   matched name, not somebody who opened both files — and the
+                   person deciding whether to undo it needs to know which. #}
+                {% if s.family_auto %}<span class="badge badge--muted">{{ t('siblings.auto_flag') }}</span>{% endif %}
+              </div>
+              <div class="num">{{ s.patient_number }} · {{ age_label(s) }}</div>
             </div>
-            <div class="num">{{ s.patient_number }} · {{ age_label(s) }}</div>
-          </div>
-          <i class="bi bi-chevron-{{ 'left' if direction == 'rtl' else 'right' }}" style="color:var(--muted);"></i>
-        </a>
-        {# Linking the wrong child happens, and an action with no way back is
-           one people avoid using at all. #}
-        <form method="post" action="{{ url_for('patients.sibling_unlink', patient_id=patient.id) }}"
-              onsubmit="return confirm('{{ t('common.confirm') }}?');" style="margin-top:-4px;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="sibling_id" value="{{ s.id }}">
-          <button class="btn btn-outline btn-sm gc-press" type="submit">
-            <i class="bi bi-link-45deg"></i> {{ t('siblings.unlink') }}</button>
-        </form>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p style="color:var(--muted);">{{ t('patients.no_siblings') }}</p>
-      {% endif %}
-      {# Two actions, not one. In a clinic that has been open a while the
-         sibling is *already* a patient — with his own file number and his own
-         vaccination card — so sending somebody to create him again makes two
-         files for one child, and the empty one is what the next receptionist
-         finds. #}
-      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;"
-           x-data="{ open: false, q: '', rows: [],
-                     async find() {
-                       if (this.q.length < 2) { this.rows = []; return; }
-                       const r = await fetch('{{ url_for('patients.sibling_search', patient_id=patient.id) }}?q=' + encodeURIComponent(this.q));
-                       const d = await r.json();
-                       this.rows = d.patients || [];
-                     } }">
-        <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open">
-          <i class="bi bi-link-45deg"></i> {{ t('siblings.link_existing') }}</button>
-        {# One press, one child, and only when both signals agree. Offered
-           rather than done on save: the import already groups by the father's
-           name and gets it wrong on real data, and more of that happening
-           invisibly is how a clinic stops trusting every family on screen. #}
-        {% if patient.family_id %}
-        <form method="post" style="display:inline;"
-              action="{{ url_for('patients.sibling_auto_link', patient_id=patient.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline gc-press" type="submit"
-                  title="{{ t('siblings.auto_hint') }}">
-            <i class="bi bi-magic"></i> {{ t('siblings.auto_link') }}</button>
-        </form>
+            <i class="bi bi-chevron-{{ 'left' if direction == 'rtl' else 'right' }}" style="color:var(--muted);"></i>
+          </a>
+          {# Linking the wrong child happens, and an action with no way back is
+             one people avoid using at all. #}
+          <form method="post" action="{{ url_for('patients.sibling_unlink', patient_id=patient.id) }}"
+                onsubmit="return confirm('{{ t('common.confirm') }}?');" style="margin-top:-4px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="sibling_id" value="{{ s.id }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">
+              <i class="bi bi-link-45deg"></i> {{ t('siblings.unlink') }}</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--muted);">{{ t('patients.no_siblings') }}</p>
         {% endif %}
-        <a class="btn btn-outline btn-sm gc-press"
-           href="{{ url_for('patients.create', family_id=patient.family_id) if patient.family_id else url_for('patients.create') }}">
-          <i class="bi bi-person-plus"></i> {{ t('patients.add_sibling') }}</a>
-
-        <div x-show="open" x-cloak style="flex-basis:100%;margin-top:8px;">
-          <input class="input" x-model="q" x-on:input.debounce.250ms="find()"
-                 placeholder="{{ t('siblings.search_hint') }}" autocomplete="off">
-          <div x-show="rows.length" x-cloak style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
-            <template x-for="p in rows" :key="p.id">
-              <form method="post" action="{{ url_for('patients.sibling_link', patient_id=patient.id) }}"
-                    style="display:flex;gap:8px;align-items:center;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="sibling_id" :value="p.id">
-                <span style="flex:1;" x-text="p.full_name"></span>
-                <span class="hint" dir="ltr" x-text="p.patient_number"></span>
-                {# Said on the row, not found out after pressing — and naming
-                   the record when two of them carry the same typed name. #}
-                <span class="badge badge--muted" x-show="p.in_family && !p.same_name" x-cloak
-                      :title="p.family_name || ''">{{ t('siblings.in_other_family') }}</span>
-                <span class="badge badge--muted" x-show="p.in_family && p.same_name" x-cloak
-                      :title="p.family_name || ''">{{ t('siblings.same_name_family') }}</span>
-                <button class="btn btn-primary btn-sm gc-press" type="submit">
-                  <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
-              </form>
-            </template>
-          </div>
-        </div>
-      </div>
-
-      {# And the ones the program can already see. It holds the two things a
-         receptionist would go on — the family part of the name, and the
-         parents' phone — so making them type a search for a child it can
-         already point at is work nobody needs to do. #}
-      {% if sibling_hints %}
-      <div class="card" style="margin-top:12px;background:var(--soft,#f6f8fb);">
-        <strong><i class="bi bi-lightbulb"></i> {{ t('siblings.suggested') }}</strong>
-        <p class="hint" style="margin:6px 0 10px;">{{ t('siblings.suggested_hint') }}</p>
-        {% for hint in sibling_hints %}
-        <form method="post" action="{{ url_for('patients.sibling_link', patient_id=patient.id) }}"
-              style="display:flex;gap:8px;align-items:center;padding:4px 0;flex-wrap:wrap;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="sibling_id" value="{{ hint.patient.id }}">
-          <a href="{{ url_for('patients.view', patient_id=hint.patient.id) }}" style="flex:1;min-width:150px;">
-            {{ hint.patient.display_name(current_lang) }}</a>
-          <span class="hint" dir="ltr">{{ hint.patient.patient_number }}</span>
-          <span class="badge {{ 'badge--green' if hint.reason == 'phone' else 'badge--muted' }}">
-            {{ t('siblings.why_' ~ hint.reason) }}</span>
-          {# A child already in another family used to get their file offered
-             instead of a button, because the link would only have refused.
-             That refusal was the bug: a real import split one family in two,
-             and the screen then suggested each sibling to the other and
-             turned down every attempt to act on it. The row now says what
-             pressing it will do, and does it. #}
-          {% if hint.in_family %}
-          {# Naming the record, not just its existence. Two families can carry
-             the same typed name — a clinic renamed both to "Mohammed Khafaga"
-             and the screen kept saying "another family", which reads as the
-             program being wrong rather than as two rows sharing a label. #}
-          <span class="badge badge--muted"
-                title="{{ hint.family_name or '' }}">
-            {{ t('siblings.same_name_family') if hint.same_name else t('siblings.in_other_family') }}
-          </span>
-          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=hint.patient.id) }}">
-            <i class="bi bi-box-arrow-up-right"></i> {{ t('siblings.open_file') }}</a>
+        {# Two actions, not one. In a clinic that has been open a while the
+           sibling is *already* a patient — with his own file number and his own
+           vaccination card — so sending somebody to create him again makes two
+           files for one child, and the empty one is what the next receptionist
+           finds. #}
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;"
+             x-data="{ open: false, q: '', rows: [],
+                       async find() {
+                         if (this.q.length < 2) { this.rows = []; return; }
+                         const r = await fetch('{{ url_for('patients.sibling_search', patient_id=patient.id) }}?q=' + encodeURIComponent(this.q));
+                         const d = await r.json();
+                         this.rows = d.patients || [];
+                       } }">
+          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open">
+            <i class="bi bi-link-45deg"></i> {{ t('siblings.link_existing') }}</button>
+          {# One press, one child, and only when both signals agree. Offered
+             rather than done on save: the import already groups by the father's
+             name and gets it wrong on real data, and more of that happening
+             invisibly is how a clinic stops trusting every family on screen. #}
+          {% if patient.family_id %}
+          <form method="post" style="display:inline;"
+                action="{{ url_for('patients.sibling_auto_link', patient_id=patient.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline gc-press" type="submit"
+                    title="{{ t('siblings.auto_hint') }}">
+              <i class="bi bi-magic"></i> {{ t('siblings.auto_link') }}</button>
+          </form>
           {% endif %}
-          <button class="btn btn-outline btn-sm gc-press" type="submit">
-            <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
-        </form>
-        {% endfor %}
-      </div>
-      {% endif %}
+          <a class="btn btn-outline btn-sm gc-press"
+             href="{{ url_for('patients.create', family_id=patient.family_id) if patient.family_id else url_for('patients.create') }}">
+            <i class="bi bi-person-plus"></i> {{ t('patients.add_sibling') }}</a>
 
-      <!-- Insurance / membership coverage -->
-      <h3 class="section-title" style="margin-top:26px;" id="coverage"><i class="bi bi-shield-check"></i> {{ t('coverage.section') }}</h3>
-      {% set covs = patient.coverages %}
-      {% if covs %}
-      <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
-        {% for cov in covs %}
-        <div class="card" style="box-shadow:none;border:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <div>
-            <strong>{{ cov.payer.display_name(current_lang) }}</strong>
-            <span class="badge {{ 'badge--green' if cov.is_valid else 'badge--danger' }}">{{ t('coverage.valid') if cov.is_valid else t('coverage.expired') }}</span>
-            <div style="color:var(--muted);font-size:0.85rem;margin-top:2px;">
-              {% if cov.membership_number %}{{ t('coverage.card') }}: <span dir="ltr">{{ cov.membership_number }}</span>{% endif %}
-              {% if cov.expiry_date %} · {{ t('coverage.expiry') }}: <span dir="ltr">{{ cov.expiry_date }}</span>{% endif %}
+          <div x-show="open" x-cloak style="flex-basis:100%;margin-top:8px;">
+            <input class="input" x-model="q" x-on:input.debounce.250ms="find()"
+                   placeholder="{{ t('siblings.search_hint') }}" autocomplete="off">
+            <div x-show="rows.length" x-cloak style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+              <template x-for="p in rows" :key="p.id">
+                <form method="post" action="{{ url_for('patients.sibling_link', patient_id=patient.id) }}"
+                      style="display:flex;gap:8px;align-items:center;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="sibling_id" :value="p.id">
+                  <span style="flex:1;" x-text="p.full_name"></span>
+                  <span class="hint" dir="ltr" x-text="p.patient_number"></span>
+                  {# Said on the row, not found out after pressing — and naming
+                     the record when two of them carry the same typed name. #}
+                  <span class="badge badge--muted" x-show="p.in_family && !p.same_name" x-cloak
+                        :title="p.family_name || ''">{{ t('siblings.in_other_family') }}</span>
+                  <span class="badge badge--muted" x-show="p.in_family && p.same_name" x-cloak
+                        :title="p.family_name || ''">{{ t('siblings.same_name_family') }}</span>
+                  <button class="btn btn-primary btn-sm gc-press" type="submit">
+                    <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
+                </form>
+              </template>
             </div>
           </div>
-          <form method="post" action="{{ url_for('patients.delete_coverage', coverage_id=cov.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
         </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p style="color:var(--muted);">{{ t('coverage.none') }}</p>
-      {% endif %}
 
-      {% if payers %}
-      <details style="margin-top:12px;">
-        <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-plus-lg"></i> {{ t('coverage.add') }}</summary>
-        <form method="post" action="{{ url_for('patients.add_coverage', patient_id=patient.id) }}" style="margin-top:10px;">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="form-grid">
-            <div class="form-row"><label>{{ t('coverage.entity') }} *</label>
-              <select class="select" name="payer_id" required>
-                <option value="">{{ t('coverage.need_payer') }}</option>
-                {% for pe in payers %}<option value="{{ pe.id }}">{{ pe.display_name(current_lang) }}</option>{% endfor %}
-              </select></div>
-            <div class="form-row"><label>{{ t('coverage.membership_number') }}</label><input class="input" name="membership_number" dir="ltr"></div>
-            <div class="form-row"><label>{{ t('coverage.expiry') }}</label><input class="input" type="date" name="expiry_date"></div>
-          </div>
-          {% if patient.siblings %}
-          <div class="form-row checkbox"><input type="checkbox" id="apply_siblings" name="apply_siblings" value="1">
-            <label for="apply_siblings" style="margin:0;font-weight:400;">{{ t('coverage.apply_siblings') }}</label></div>
-          {% endif %}
-          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-        </form>
+        {# And the ones the program can already see. It holds the two things a
+           receptionist would go on — the family part of the name, and the
+           parents' phone — so making them type a search for a child it can
+           already point at is work nobody needs to do. #}
+        {% if sibling_hints %}
+        <div class="card" style="margin-top:12px;background:var(--soft,#f6f8fb);">
+          <strong><i class="bi bi-lightbulb"></i> {{ t('siblings.suggested') }}</strong>
+          <p class="hint" style="margin:6px 0 10px;">{{ t('siblings.suggested_hint') }}</p>
+          {% for hint in sibling_hints %}
+          <form method="post" action="{{ url_for('patients.sibling_link', patient_id=patient.id) }}"
+                style="display:flex;gap:8px;align-items:center;padding:4px 0;flex-wrap:wrap;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="sibling_id" value="{{ hint.patient.id }}">
+            <a href="{{ url_for('patients.view', patient_id=hint.patient.id) }}" style="flex:1;min-width:150px;">
+              {{ hint.patient.display_name(current_lang) }}</a>
+            <span class="hint" dir="ltr">{{ hint.patient.patient_number }}</span>
+            <span class="badge {{ 'badge--green' if hint.reason == 'phone' else 'badge--muted' }}">
+              {{ t('siblings.why_' ~ hint.reason) }}</span>
+            {# A child already in another family used to get their file offered
+               instead of a button, because the link would only have refused.
+               That refusal was the bug: a real import split one family in two,
+               and the screen then suggested each sibling to the other and
+               turned down every attempt to act on it. The row now says what
+               pressing it will do, and does it. #}
+            {% if hint.in_family %}
+            {# Naming the record, not just its existence. Two families can carry
+               the same typed name — a clinic renamed both to "Mohammed Khafaga"
+               and the screen kept saying "another family", which reads as the
+               program being wrong rather than as two rows sharing a label. #}
+            <span class="badge badge--muted"
+                  title="{{ hint.family_name or '' }}">
+              {{ t('siblings.same_name_family') if hint.same_name else t('siblings.in_other_family') }}
+            </span>
+            <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.view', patient_id=hint.patient.id) }}">
+              <i class="bi bi-box-arrow-up-right"></i> {{ t('siblings.open_file') }}</a>
+            {% endif %}
+            <button class="btn btn-outline btn-sm gc-press" type="submit">
+              <i class="bi bi-link-45deg"></i> {{ t('siblings.link') }}</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Insurance / membership coverage -->
       </details>
-      {% endif %}
+      <details class="gc-fold" style="margin-top:26px;" x-data="{}" x-init="if (window.location.hash === '#coverage') $el.open = true">
+        <summary style="cursor:pointer;list-style:none;">
+          <span class="section-title" id="coverage"><i class="bi bi-shield-check"></i> {{ t('coverage.section') }}</span>
+        </summary>
+        {% set covs = patient.coverages %}
+        {% if covs %}
+        <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;">
+          {% for cov in covs %}
+          <div class="card" style="box-shadow:none;border:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div>
+              <strong>{{ cov.payer.display_name(current_lang) }}</strong>
+              <span class="badge {{ 'badge--green' if cov.is_valid else 'badge--danger' }}">{{ t('coverage.valid') if cov.is_valid else t('coverage.expired') }}</span>
+              <div style="color:var(--muted);font-size:0.85rem;margin-top:2px;">
+                {% if cov.membership_number %}{{ t('coverage.card') }}: <span dir="ltr">{{ cov.membership_number }}</span>{% endif %}
+                {% if cov.expiry_date %} · {{ t('coverage.expiry') }}: <span dir="ltr">{{ cov.expiry_date }}</span>{% endif %}
+              </div>
+            </div>
+            <form method="post" action="{{ url_for('patients.delete_coverage', coverage_id=cov.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--muted);">{{ t('coverage.none') }}</p>
+        {% endif %}
+
+        {% if payers %}
+        <details style="margin-top:12px;">
+          <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-plus-lg"></i> {{ t('coverage.add') }}</summary>
+          <form method="post" action="{{ url_for('patients.add_coverage', patient_id=patient.id) }}" style="margin-top:10px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('coverage.entity') }} *</label>
+                <select class="select" name="payer_id" required>
+                  <option value="">{{ t('coverage.need_payer') }}</option>
+                  {% for pe in payers %}<option value="{{ pe.id }}">{{ pe.display_name(current_lang) }}</option>{% endfor %}
+                </select></div>
+              <div class="form-row"><label>{{ t('coverage.membership_number') }}</label><input class="input" name="membership_number" dir="ltr"></div>
+              <div class="form-row"><label>{{ t('coverage.expiry') }}</label><input class="input" type="date" name="expiry_date"></div>
+            </div>
+            {% if patient.siblings %}
+            <div class="form-row checkbox"><input type="checkbox" id="apply_siblings" name="apply_siblings" value="1">
+              <label for="apply_siblings" style="margin:0;font-weight:400;">{{ t('coverage.apply_siblings') }}</label></div>
+            {% endif %}
+            <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+          </form>
+        </details>
+        {% endif %}
+      </details>
     </div>
 
     {% if current_user.can('patient_medical') %}
