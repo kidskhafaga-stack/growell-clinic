@@ -754,7 +754,9 @@
     "referred_badge": "Referred to emergency",
     "referred_ok": "The referral is recorded and the case is flagged on every screen.",
     "referral_undo": "Undo the referral",
-    "referral_undone": "The referral was undone."
+    "referral_undone": "The referral was undone.",
+    "icd11_not_loaded": "ICD-11 has not been imported, so it is not offered here.",
+    "icd11_load_it": "Import it from settings"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -4751,7 +4753,10 @@
     "error_who_bad_credentials": "The WHO rejected the keys. Re-copy the Client ID and Secret from your account page with them.",
     "error_who_not_configured": "The Client ID and Secret have not been entered yet.",
     "error_who_empty": "The WHO returned no codes — nothing was written, try again.",
-    "error_who_no_token": "The WHO returned no token."
+    "error_who_no_token": "The WHO returned no token.",
+    "progress_count": "{n} codes so far…",
+    "progress_estimated": "estimated",
+    "progress_lost": "Lost contact with the program during the import — check the count below before retrying."
   },
   "flags": {
     "title": "Payment flag",

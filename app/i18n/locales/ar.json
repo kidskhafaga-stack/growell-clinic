@@ -754,7 +754,9 @@
     "referred_badge": "محوّل للطوارئ",
     "referred_ok": "اتسجّل التحويل للطوارئ، والحالة اتعلّمت في كل الشاشات.",
     "referral_undo": "إلغاء التحويل",
-    "referral_undone": "التحويل اتلغى."
+    "referral_undone": "التحويل اتلغى.",
+    "icd11_not_loaded": "ICD-11 لسه متنزّلش، فمش ظاهر كاختيار هنا.",
+    "icd11_load_it": "نزّله من الإعدادات"
   },
   "diagnosis_types": {
     "working": "أولي",
@@ -4751,7 +4753,10 @@
     "error_who_bad_credentials": "منظمة الصحة رفضت المفتاحين. راجع الـ Client ID والـ Secret من صفحة حسابك عندهم واعمل نسخ ولصق تاني.",
     "error_who_not_configured": "محطّيتش الـ Client ID والـ Secret لسه.",
     "error_who_empty": "منظمة الصحة ردّت من غير أكواد — متكتبش حاجة، جرّب تاني.",
-    "error_who_no_token": "منظمة الصحة ردّت من غير توكن."
+    "error_who_no_token": "منظمة الصحة ردّت من غير توكن.",
+    "progress_count": "تم تحميل {n} كود…",
+    "progress_estimated": "تقديري",
+    "progress_lost": "الاتصال بالبرنامج اتقطع أثناء التحميل — راجع الأكواد تحت قبل ما تعيد."
   },
   "flags": {
     "title": "تنبيه مالي",

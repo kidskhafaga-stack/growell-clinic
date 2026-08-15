@@ -197,14 +197,44 @@ def icd11_import():
     watching. The alternative — a background thread whose failure nobody sees
     — is worse for a one-off action somebody is standing in front of.
     """
-    from app.utils import icd_who
+    from flask import jsonify
 
-    result = icd_who.import_all()
+    from app.utils import icd_progress, icd_who
+
+    # The walk already counted — it takes an ``on_progress`` callback and its
+    # own docstring says a spinner with no number cannot be told apart from a
+    # hang. Nothing was passed, so every number it computed was discarded and
+    # the screen sat still for minutes. See app/utils/icd_progress.py.
+    icd_progress.start()
+    result = icd_who.import_all(on_progress=icd_progress.note)
+    icd_progress.finish(result.get("codes"), ok=result.get("ok"))
+
     if result.get("ok"):
-        flash(t("icd11.import_ok").replace("{n}", str(result["codes"])), "success")
+        message, kind = t("icd11.import_ok").replace(
+            "{n}", str(result["codes"])), "success"
     else:
-        flash(_who_error(result.get("error")), "danger")
+        message, kind = _who_error(result.get("error")), "danger"
+
+    # Answered as JSON when the page asked that way. The page has to stay
+    # alive to poll for the count, so the button posts in the background
+    # instead of navigating; a plain form post still works and still
+    # redirects, which is what happens with no JavaScript.
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": bool(result.get("ok")), "message": message,
+                        "codes": result.get("codes") or 0})
+    flash(message, kind)
     return redirect(url_for("settings.index") + "#icd11")
+
+
+@settings_bp.route("/icd11/progress")
+@admin_required
+def icd11_progress():
+    """How far the import has got — asked by the page while it runs."""
+    from flask import jsonify
+
+    from app.utils import icd_progress
+
+    return jsonify(icd_progress.status())
 
 
 def _provider_switch_fixups():

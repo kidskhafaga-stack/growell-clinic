@@ -463,6 +463,20 @@
         {% else %}
         <input type="hidden" name="icd_version" value="{{ icd_versions[0] if icd_versions else '10' }}">
         {% endif %}
+        {# Hiding the option was right — an option that returns nothing is
+           worse than an absent one. Saying nothing about *why* it is absent
+           was not: the clinic had entered its WHO credentials, pressed
+           import, and then looked for a picker that was never going to
+           appear, with no way to tell "not imported yet" from "this program
+           does not do ICD-11". Admins get the reason and the way there;
+           there is nothing a doctor could do with it mid-consultation. #}
+        {% if '11' not in icd_versions and current_user.is_admin %}
+        <div class="form-row" style="grid-column:1/-1;">
+          <span class="hint"><i class="bi bi-info-circle"></i>
+            {{ t('visits.icd11_not_loaded') }}
+            <a href="{{ url_for('settings.index') }}#icd11">{{ t('visits.icd11_load_it') }}</a></span>
+        </div>
+        {% endif %}
       </div>
       <p class="hint">{{ t('visits.manual_dx_hint') }}</p>
       <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.add_diagnosis') }}</button>

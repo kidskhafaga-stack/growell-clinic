@@ -658,16 +658,81 @@
         <div class="hint">{{ t('icd11.release_hint') }}</div></div>
     </div>
 
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {# The import blocks its own request for minutes, so the button posts in
+       the background and the page stays alive to ask how far it has got.
+       Without JavaScript it is still an ordinary submit that redirects — the
+       count is the part that needs the page to survive, not the import. #}
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"
+         x-data="icd11Import()">
       <button class="btn btn-outline btn-sm gc-press" type="submit"
               formaction="{{ url_for('settings.icd11_test') }}">
         <i class="bi bi-plug"></i> {{ t('icd11.test') }}</button>
       <button class="btn btn-outline btn-sm gc-press" type="submit"
-              formaction="{{ url_for('settings.icd11_import') }}">
-        <i class="bi bi-cloud-download"></i> {{ t('icd11.import') }}</button>
-      <span class="hint">{{ t('icd11.import_hint') }}</span>
+              formaction="{{ url_for('settings.icd11_import') }}"
+              x-on:click.prevent="run($el.form)" x-bind:disabled="busy">
+        <i class="bi" x-bind:class="busy ? 'bi-hourglass-split' : 'bi-cloud-download'"></i>
+        {{ t('icd11.import') }}</button>
+      <span class="hint" x-show="!busy && !done">{{ t('icd11.import_hint') }}</span>
+
+      <span x-show="busy" x-cloak class="badge badge--muted" style="font-weight:400;">
+        <span x-text="label"></span>
+        <span x-show="percent !== null" x-cloak>
+          · <strong x-text="percent + '%'"></strong>
+          <span style="opacity:.75;">({{ t('icd11.progress_estimated') }})</span>
+        </span>
+        · <span dir="ltr" x-text="clock"></span>
+      </span>
+      <span x-show="done" x-cloak x-text="done" class="badge badge--muted"
+            style="font-weight:400;"></span>
     </div>
   </div>
+
+  <script>
+    /* Ask a second time while the first request is still working. The count
+       is written by the import into a settings row; see
+       app/utils/icd_progress.py for why it is stored rather than held. */
+    function icd11Import() {
+      return {
+        busy: false, done: '', count: 0, percent: null, elapsed: 0, timer: null,
+        get label() {
+          return '{{ t('icd11.progress_count') }}'
+            .replace('{n}', this.count.toLocaleString('en'));
+        },
+        get clock() {
+          const m = Math.floor(this.elapsed / 60), s = this.elapsed % 60;
+          return m + ':' + String(s).padStart(2, '0');
+        },
+        async poll() {
+          try {
+            const r = await fetch('{{ url_for("settings.icd11_progress") }}');
+            const d = await r.json();
+            this.count = d.count || 0;
+            this.percent = d.percent;
+            this.elapsed = d.elapsed || 0;
+          } catch (e) { /* a missed poll is not a failed import */ }
+        },
+        async run(form) {
+          if (this.busy) return;
+          this.busy = true; this.done = ''; this.count = 0; this.percent = null;
+          this.timer = setInterval(() => this.poll(), 2000);
+          try {
+            const r = await fetch('{{ url_for("settings.icd11_import") }}', {
+              method: 'POST', body: new FormData(form),
+              headers: { 'X-Requested-With': 'fetch' },
+            });
+            const d = await r.json();
+            this.done = d.message || '';
+            if (d.ok) setTimeout(() => window.location.reload(), 1200);
+          } catch (e) {
+            this.done = '{{ t('icd11.progress_lost') }}';
+          } finally {
+            clearInterval(this.timer);
+            this.busy = false;
+          }
+        },
+      };
+    }
+  </script>
 
   <div class="gc-animate" style="margin-top:16px;">
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
