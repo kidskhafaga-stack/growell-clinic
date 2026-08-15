@@ -458,3 +458,29 @@ def test_a_line_kept_off_the_paper_stays_off_the_sent_copy(clinic):
     printed = page.split("℞", 1)[1].split("</table>", 1)[0]
     assert "Augmentin" in printed
     assert "Ventolin" not in printed
+
+
+def test_the_date_prints_on_preprinted_paper_too(clinic):
+    """A pre-printed letterhead cannot carry a date.
+
+    The clinic's name, address and logo are already on the paper — that is
+    what the paper is for. The date is not: it changes with every
+    prescription. It used to live inside the header block that this mode
+    skips entirely, so a prescription printed on the clinic's own paper came
+    out of the printer with no date anywhere on it.
+    """
+    from app.extensions import db
+    from app.models import Patient, Prescription
+
+    with clinic["app"].app_context():
+        _preprinted(clinic)
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write(client, pid, diagnosis="التهاب رئوي")
+
+    with clinic["app"].app_context():
+        written = Prescription.query.first().rx_date.isoformat()
+
+    paper = client.get("/prescriptions/1").data.decode().split('id="rxPaper"', 1)[1]
+    assert written in paper, "a prescription printed on clinic paper had no date"
