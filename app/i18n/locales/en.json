@@ -1041,7 +1041,8 @@
     "back_waiting": "{n} waiting",
     "back_send": "Tell them it arrived",
     "back_none": "Nobody is waiting for this one right now.",
-    "back_sent": "{n} message(s) written to the families waiting."
+    "back_sent": "{n} message(s) written to the families waiting.",
+    "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above."
   },
   "vstatus": {
     "done": "Done",

@@ -268,7 +268,20 @@ def _set_brand_doses(brand, ages):
 @vaccinations_bp.route("/manage")
 @module_required(MODULE)
 def manage():
-    cat = (request.args.get("cat") or "all").strip()
+    # Opens on what the clinic actually dispenses.
+    #
+    # The government (EPI) set is given at the government unit: the clinic
+    # neither buys it, prices it nor stocks it — this screen already declines
+    # to show a stock figure for those rows, because there is none. Opening on
+    # "all" still put forty-seven of them in front of somebody whose business
+    # here is the handful they sell, which is what was reported: it scatters
+    # the person using it.
+    #
+    # Nothing is hidden and nothing is deleted. The government set keeps its
+    # own tab one click away with its count on it, and the child's vaccination
+    # schedule — a different screen — still shows every dose, government
+    # included, because that is where a dose given elsewhere gets recorded.
+    cat = (request.args.get("cat") or "optional").strip()
     all_vaccines = (Vaccine.query
                     .order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all())
     counts = {

@@ -91,6 +91,13 @@
   {% endfor %}
 </div>
 
+{# Said once, where the filtered list is, so nobody concludes the government
+   vaccines have gone missing. They are on the tab above with their count. #}
+{% if cat == 'optional' %}
+<p class="hint" style="margin:8px 0 0;"><i class="bi bi-info-circle"></i>
+  {{ t('vaccinations.showing_clinic_only') }}</p>
+{% endif %}
+
 {% if not vaccines %}
 <div class="card"><div class="empty-state"><i class="bi bi-shield-plus"></i>{{ t('vaccinations.no_vaccines') }}</div></div>
 {% endif %}
