@@ -64,16 +64,69 @@ def _patients_query(start, end):
                     Patient.created_at, start, end, is_datetime=True)
 
 
+# Everything the clinic types into a patient file, in the order the file
+# itself asks for it. The ten columns this used to carry left out the
+# allergies, the chronic conditions, the guardian and their phone, the family,
+# the notes and the archive reason — asked about in exactly those words:
+# *"why am I entering it at all, then?"*
+#
+# Two of them are not stored columns and are here because a spreadsheet cannot
+# work them out: ``age`` (the file shows it everywhere and a date of birth in
+# a cell does not) and ``guardian_phone`` (which lives on the parent, not the
+# child, and is the number a clinic actually rings).
+PATIENT_COLUMNS = [
+    "file_no", "reference_no", "name", "name_en", "gender",
+    "date_of_birth", "age", "national_id", "blood_type",
+    "own_phone", "contact_phone",
+    "guardian_name", "guardian_relation", "guardian_phone",
+    "family", "allergies", "chronic_diseases", "notes",
+    "whatsapp_opt_out", "active", "archived_at", "archive_reason",
+    "created_at", "updated_at",
+]
+
+
+def _age_text(patient):
+    """Years and months, the way the file states an age."""
+    try:
+        years, months, _ = patient.age_parts
+    except Exception:                    # noqa: BLE001 — an export never raises
+        return ""
+    return f"{years}y {months}m"
+
+
 def _patients_rows(start=None, end=None):
     for p in _patients_query(start, end).all():
+        guardian = None
+        try:
+            guardian = p.primary_guardian
+        except Exception:                # noqa: BLE001
+            guardian = None
+        family = getattr(getattr(p, "family", None), "family_name", "") or ""
         yield {
-            "file_no": p.patient_number, "name": p.full_name,
-            "name_en": p.full_name_en or "", "gender": p.gender,
+            "file_no": p.patient_number,
+            "reference_no": p.reference_number or "",
+            "name": p.full_name,
+            "name_en": p.full_name_en or "",
+            "gender": p.gender,
             "date_of_birth": _fmt_d(p.date_of_birth),
-            "phone": p.contact_phone or "", "national_id": p.national_id or "",
+            "age": _age_text(p),
+            "national_id": p.national_id or "",
             "blood_type": p.blood_type or "",
+            "own_phone": p.own_phone or "",
+            "contact_phone": p.contact_phone or "",
+            "guardian_name": getattr(guardian, "full_name", "") or "",
+            "guardian_relation": getattr(guardian, "relation", "") or "",
+            "guardian_phone": getattr(guardian, "phone", "") or "",
+            "family": family,
+            "allergies": p.allergies or "",
+            "chronic_diseases": p.chronic_diseases or "",
+            "notes": p.notes or "",
+            "whatsapp_opt_out": "1" if p.wa_opt_out else "0",
             "active": "1" if p.is_active else "0",
+            "archived_at": _fmt_dt(p.archived_at),
+            "archive_reason": p.archive_reason or "",
             "created_at": _fmt_dt(p.created_at),
+            "updated_at": _fmt_dt(p.updated_at),
         }
 
 
@@ -212,8 +265,7 @@ def _expenses_rows(start=None, end=None):
 # Registry: kind -> (header order, row generator, query builder, date label).
 # Adding a dataset is one entry, and the range comes with it for free.
 DATASETS = {
-    "patients": (["file_no", "name", "name_en", "gender", "date_of_birth",
-                  "phone", "national_id", "blood_type", "active", "created_at"],
+    "patients": (PATIENT_COLUMNS,
                  _patients_rows, _patients_query, "created_at"),
     "visits": (["date", "patient", "file_no", "doctor", "status",
                 "has_complaint"], _visits_rows, _visits_query, "visit_date"),

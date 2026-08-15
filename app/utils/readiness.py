@@ -161,10 +161,28 @@ def _rx_template():
 
 
 def _backup():
+    """Satisfied by a backup that exists, or by one that is scheduled.
+
+    This used to ask one question — is the *automatic* backup switched on —
+    while the sentence beside it on the checklist says a day of real data
+    needs a backup behind it. So a clinic that had taken three backups by
+    hand, and could see them listed on the very next screen, was still told
+    the step was missing, with nothing on the page to explain why.
+
+    Both answers are true ways to have a backup, and the count is returned so
+    the checklist can say which one it found rather than only "done".
+    """
     from app.models import Setting
 
-    on = (Setting.get("backup_auto") or "").strip() in ("1", "true", "on")
-    return on, ""
+    if (Setting.get("backup_auto") or "").strip() in ("1", "true", "on"):
+        return True, ""
+    try:
+        from app.utils.backups import list_backups
+
+        taken = len(list_backups())
+    except Exception:            # noqa: BLE001 — a checklist never breaks a page
+        return False, ""
+    return taken > 0, (taken or "")
 
 
 def _ai():

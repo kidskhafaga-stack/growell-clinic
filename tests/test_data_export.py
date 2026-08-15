@@ -285,3 +285,64 @@ def test_the_range_survives_onto_the_download_links(ledger, boss):
     body = boss.get("/settings/data",
                     query_string={"from": TODAY.isoformat()}).get_data(as_text=True)
     assert f"from={TODAY.isoformat()}" in body
+
+
+# ---------------------------------------------- the patient file, in full
+
+def test_the_patient_export_carries_what_the_clinic_typed(clinic):
+    """Asked in these words: *"why am I entering it at all, then?"*
+
+    The export used to carry ten columns. A clinic types allergies, chronic
+    conditions, a guardian and their phone, a family, a reference number and
+    notes into every file — and none of them came out again, so the export
+    could not be used to move a clinic, to work on its list, or to answer
+    anybody's question about a patient.
+    """
+    from app.utils.export import DATASETS
+
+    columns = DATASETS["patients"][0]
+    for expected in ("allergies", "chronic_diseases", "guardian_name",
+                     "guardian_phone", "family", "notes", "reference_no",
+                     "age", "national_id", "blood_type"):
+        assert expected in columns, f"the export drops {expected}"
+
+
+def test_every_patient_column_is_actually_filled_in(clinic):
+    """A header with no value behind it is worse than no header.
+
+    ``csv.DictWriter`` is given the header list, so a key the rows forget is
+    silently written as an empty column for every patient in the clinic.
+    """
+    from app.utils.export import DATASETS, _patients_rows
+
+    with clinic["app"].app_context():
+        columns = set(DATASETS["patients"][0])
+        rows = list(_patients_rows())
+        assert rows, "the fixture has no patients to check"
+        for row in rows:
+            assert set(row) == columns, (
+                f"row keys and header disagree: "
+                f"{columns ^ set(row)}")
+
+
+def test_the_guardians_phone_reaches_the_export(clinic):
+    """The number a clinic rings lives on the parent, not on the child."""
+    from app.extensions import db
+    from app.models import Family, Parent, Patient
+    from app.utils.export import _patients_rows
+
+    with clinic["app"].app_context():
+        child = db.session.get(Patient, clinic["ids"]["child"])
+        family = Family(family_name="عائلة جلال")
+        db.session.add(family)
+        db.session.flush()
+        child.family_id = family.id
+        db.session.add(Parent(family_id=family.id, relation="mother",
+                              full_name="سمية جلال", phone="01000000099",
+                              is_primary_contact=True))
+        db.session.commit()
+
+        row = next(r for r in _patients_rows()
+                   if r["file_no"] == child.patient_number)
+        assert row["guardian_phone"] == "01000000099"
+        assert row["guardian_name"] == "سمية جلال"

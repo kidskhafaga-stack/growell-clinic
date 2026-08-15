@@ -243,6 +243,18 @@ def _provider_switch_fixups():
     return out
 
 
+# The tabs on the settings screen, as the template names them. A posted tab is
+# looked up in this list rather than trusted: it lands in a redirect URL, and a
+# name arriving from a form is not somewhere to put unchecked text.
+SETTINGS_TABS = ["clinic", "logo", "numbering", "board", "phrases", "policies",
+                 "eta", "ai"]
+
+
+def _saved_tab():
+    tab = (request.form.get("active_tab") or "").strip()
+    return tab if tab in SETTINGS_TABS else "clinic"
+
+
 @settings_bp.route("/", methods=["GET", "POST"])
 @admin_required
 def index():
@@ -288,7 +300,12 @@ def index():
                            entity="settings", ip_address=client_ip())
         db.session.commit()
         flash(t("settings.saved"), "success")
-        return redirect(url_for("settings.index"))
+        # Come back to the tab that was being edited. Every tab on this screen
+        # posts the *same* form, so saving the tax settings used to answer by
+        # redrawing the clinic-name tab — the person saving had to find their
+        # way back to where they were, on every save. The hash is never sent
+        # to a server, so the tab rides along as a field instead.
+        return redirect(url_for("settings.index", _anchor=_saved_tab()))
 
     from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
     from app.utils import phrases

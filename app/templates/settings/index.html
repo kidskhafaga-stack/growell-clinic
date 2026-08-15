@@ -33,9 +33,29 @@
   </div>
 </div>
 
+{# Every tab below posts this one form, so the server has to be told which tab
+   was open or it answers by redrawing the first one. The hash is never sent to
+   a server, hence the hidden field; the hash is still kept in step so a
+   refresh, a back button or a bookmarked #eta all land where they say. #}
+{% set tab_ids = ['clinic','logo','numbering','board','phrases','policies','eta','ai'] %}
 <form method="post" enctype="multipart/form-data"
-      x-data="{ tab: (window.location.hash === '#ai' ? 'ai' : 'clinic') }">
+      x-data="{
+        tabs: {{ tab_ids | tojson }},
+        {# Sections that live *inside* a tab and are linked to by their own
+           name — the ICD-11 block is reached by three redirects in the
+           settings blueprint, and none of them named a tab, so following one
+           opened the clinic tab and the section stayed hidden. #}
+        inside: { icd11: 'ai' },
+        tab: 'clinic',
+        init() {
+          const asked = (window.location.hash || '').slice(1);
+          if (this.tabs.includes(asked)) this.tab = asked;
+          else if (this.inside[asked]) this.tab = this.inside[asked];
+          this.$watch('tab', v => history.replaceState(null, '', '#' + v));
+        }
+      }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="active_tab" :value="tab">
   <!-- Tabs -->
   <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
     {% for tid, icon, label in [

@@ -106,8 +106,14 @@ def test_the_ai_step_opens_the_ai_tab(clinic):
     body = client.get("/settings/wizard").data.decode()
     assert "/settings/#ai" in body or "/settings/index#ai" in body
 
+    # The page used to hard-code one anchor (`hash === '#ai'`) and this line
+    # looked for that literal. It now reads *any* tab out of the address, so
+    # the check is on the behaviour: the hash is consulted, and "ai" is one of
+    # the names it will accept.
     page = client.get("/settings/").data.decode()
-    assert "#ai" in page, "the settings page no longer reads the anchor"
+    assert "window.location.hash" in page, \
+        "the settings page no longer reads the anchor at all"
+    assert '"ai"' in page, "the settings page no longer knows the ai tab"
 
 
 def test_an_owner_only_step_says_so_instead_of_handing_over_a_403(clinic):
