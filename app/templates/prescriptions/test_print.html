@@ -51,7 +51,17 @@
     margin: {{ tpl.m_top }}mm {{ tpl.m_right }}mm {{ tpl.m_bottom }}mm {{ tpl.m_left }}mm;
   }
 
-  .rx-testwrap { position: relative; }
+  /* ``overflow: hidden`` is the whole point of this rule, not tidiness.
+     The sample watermark below is rotated, and a rotated box is *wider than
+     the thing it is written across* — measured at 1512px on a 1280px page,
+     hanging 116px past the edge. Being ``position: absolute`` keeps it out of
+     the layout but not out of the page's own width, so the printed page came
+     out 116px too wide and the browser paid for it by clipping — and on an
+     Arabic, right-to-left page what gets clipped is the left-hand side.
+     Reported exactly that way: "the whole left part disappears".
+     Clipping the mark to the paper it is drawn on costs nothing: anything of
+     it that fell outside was never on the page anyway. */
+  .rx-testwrap { position: relative; overflow: hidden; }
 
   /* Over the layout, never in it. */
   .rx-testmark {

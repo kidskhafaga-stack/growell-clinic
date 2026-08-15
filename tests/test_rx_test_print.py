@@ -327,3 +327,30 @@ def _write_one(client, pid):
         "item_name": ["Augmentin"], "item_dose": ["5 ml"],
         "item_frequency": ["x2"], "item_duration": ["7d"],
         "item_instructions": [""]}, follow_redirects=True)
+
+
+def test_the_sample_mark_cannot_widen_the_page(clinic):
+    """Reported as: "the whole left part disappears" when it prints.
+
+    Measured in Chromium with print media emulated: the page's scrollWidth
+    was 1396px on a 1280px paper. One element accounted for all of it — the
+    rotated sample watermark, whose *bounding box* is wider than the text it
+    is written across (1512px), hanging 116px past the edge.
+
+    ``position: absolute`` keeps it out of the layout but not out of the
+    page's own width, which is the part that was missed the first time this
+    mark was reviewed. A page wider than the paper is paid for by clipping,
+    and on a right-to-left page what gets clipped is the left-hand side.
+
+    This asserts the containment rule rather than the measurement, because
+    the suite has no browser in it — the measurement was taken by hand, is
+    written down above, and this line is what keeps the rule from being
+    tidied away by somebody who reads it as decoration.
+    """
+    tpl_id = _template(clinic)
+    page = _print(clinic, tpl_id, who="boss").data.decode()
+
+    rule = [line for line in page.splitlines() if ".rx-testwrap" in line]
+    assert rule, "the wrapper rule is gone"
+    assert "overflow: hidden" in rule[0], (
+        "the sample mark is no longer clipped to the paper: " + rule[0])
