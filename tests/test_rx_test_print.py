@@ -221,3 +221,46 @@ def test_it_is_offered_from_the_templates_screen(clinic):
     body = clinic["sign_in"]("boss").get(
         "/prescriptions/templates").get_data(as_text=True)
     assert f"/templates/{tpl_id}/test-print" in body
+
+
+# --- whose paper is being previewed ---------------------------------------
+
+def test_the_preview_shows_the_doctor_the_layout_belongs_to(clinic):
+    """Reported as "the signature and stamp do not appear, though I saved them".
+
+    They had. This screen is admin-only, so the person aiming the printer is
+    almost never the doctor — and the preview was built from whoever was
+    signed in. An administrator has no signature, no stamp and no licence, so
+    a template named for a consultant previewed with all three missing and
+    nothing to say why.
+    """
+    from app.extensions import db
+    from app.models import User
+
+    tpl_id = _template(clinic)
+    with clinic["app"].app_context():
+        doctor = db.session.get(User, clinic["ids"]["doctor"])
+        doctor.rx_template_id = tpl_id
+        doctor.signature_file = "sig-of-the-doctor.png"
+        doctor.stamp_file = "stamp-of-the-doctor.png"
+        doctor.license_no = "LIC-9876"
+        db.session.commit()
+
+    page = _print(clinic, tpl_id, who="boss").data.decode()
+
+    assert "sig-of-the-doctor.png" in page, "the doctor's signature is missing"
+    assert "stamp-of-the-doctor.png" in page, "the doctor's stamp is missing"
+    assert "LIC-9876" in page, "the doctor's licence number is missing"
+
+
+def test_a_layout_with_no_doctor_still_previews(clinic):
+    """The case the original code was written for, and still right.
+
+    With nobody on the layout there is no one else to show, so the viewer is
+    the honest answer rather than an empty page.
+    """
+    tpl_id = _template(clinic)
+    answer = _print(clinic, tpl_id, who="boss")
+
+    assert answer.status_code == 200
+    assert 'id="rxPaper"' in answer.data.decode()
