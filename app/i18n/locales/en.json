@@ -754,7 +754,9 @@
     "referred_badge": "Referred to emergency",
     "referred_ok": "The referral is recorded and the case is flagged on every screen.",
     "referral_undo": "Undo the referral",
-    "referral_undone": "The referral was undone."
+    "referral_undone": "The referral was undone.",
+    "icd11_not_loaded": "ICD-11 has not been imported, so it is not offered here.",
+    "icd11_load_it": "Import it from settings"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -1039,7 +1041,8 @@
     "back_waiting": "{n} waiting",
     "back_send": "Tell them it arrived",
     "back_none": "Nobody is waiting for this one right now.",
-    "back_sent": "{n} message(s) written to the families waiting."
+    "back_sent": "{n} message(s) written to the families waiting.",
+    "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above."
   },
   "vstatus": {
     "done": "Done",
@@ -3343,7 +3346,14 @@
     "every_month": "Monthly",
     "full_never": "No full backup has ever been taken",
     "full_age": "Last full backup: {days} day(s) ago",
-    "full_stale_hint": "The copy holding your pictures is old. If the disk failed now, every record would come back with a broken image beside it — take a full backup, or check its schedule."
+    "full_stale_hint": "The copy holding your pictures is old. If the disk failed now, every record would come back with a broken image beside it — take a full backup, or check its schedule.",
+    "unlock_title": "Unlock future backups (stop encrypting)",
+    "unlock_current": "Current backup passphrase",
+    "unlock_forgot": "Forgotten it? Type your own sign-in password",
+    "unlock_do": "Unlock future backups",
+    "unlock_confirm": "Backups from now on will be taken unencrypted. Continue?",
+    "unlock_denied": "Not unlocked: the password you typed does not match.",
+    "unlock_scope": "This affects future backups only. Archives already on disk keep the passphrase they were written with."
   },
   "reception_guide": {
     "title": "Reception guide — visit & collection cycle",
@@ -4751,7 +4761,10 @@
     "error_who_bad_credentials": "The WHO rejected the keys. Re-copy the Client ID and Secret from your account page with them.",
     "error_who_not_configured": "The Client ID and Secret have not been entered yet.",
     "error_who_empty": "The WHO returned no codes — nothing was written, try again.",
-    "error_who_no_token": "The WHO returned no token."
+    "error_who_no_token": "The WHO returned no token.",
+    "progress_count": "{n} codes so far…",
+    "progress_estimated": "estimated",
+    "progress_lost": "Lost contact with the program during the import — check the count below before retrying."
   },
   "flags": {
     "title": "Payment flag",

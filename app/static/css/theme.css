@@ -257,6 +257,34 @@ a:hover { color: var(--green-900); }
   background: var(--green-100); color: var(--green-800);
   display: grid; place-items: center; font-weight: 700;
 }
+/* A section that can be put away. Asked for in these words: the screens
+   shouldn't look crowded, people get lost.
+
+   `<details>` rather than a toggle in script, because a section that is shut
+   must still be findable — the browser's own find-in-page opens one, and a
+   div hidden by JavaScript is invisible to it. The marker is drawn here
+   rather than left to the default triangle so it sits on the correct side in
+   Arabic, which is the whole reason the default was no good. */
+.gc-fold > summary {
+  display: flex; align-items: center; gap: 8px;
+  list-style: none; cursor: pointer;
+}
+.gc-fold > summary::-webkit-details-marker { display: none; }
+.gc-fold > summary::before {
+  content: "";
+  width: 0; height: 0;
+  border-block: 5px solid transparent;
+  border-inline-start: 6px solid var(--muted);
+  transition: transform .15s ease;
+  flex: 0 0 auto;
+}
+.gc-fold[open] > summary::before { transform: rotate(90deg); }
+[dir="rtl"] .gc-fold > summary::before { transform: scaleX(-1); }
+[dir="rtl"] .gc-fold[open] > summary::before { transform: scaleX(-1) rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .gc-fold > summary::before { transition: none; }
+}
+
 .user-chip .meta { line-height: 1.15; }
 .user-chip .meta .role { font-size: 0.72rem; color: var(--muted); }
 

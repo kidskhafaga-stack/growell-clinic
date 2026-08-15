@@ -246,6 +246,36 @@
       <button class="btn btn-outline gc-press" type="submit">
         <i class="bi bi-key"></i> {{ t('common.save') }}</button>
     </form>
+
+    {# Unlocking used to be "submit the box empty", which is not a thing
+       anybody discovers and not a thing anybody should be able to do without
+       saying so. It is its own action now, and it has to be proved: the
+       passphrase, or — for the case this exists to answer, a passphrase that
+       has been lost — the signed-in owner's own password. #}
+    {% if bset.encrypted %}
+    <details style="margin-top:12px;">
+      <summary class="hint" style="cursor:pointer;">
+        <i class="bi bi-unlock"></i> {{ t('backups.unlock_title') }}</summary>
+      <form method="post" action="{{ url_for('settings.backup_password_set') }}"
+            style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px;"
+            onsubmit="return confirm('{{ t('backups.unlock_confirm') }}');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {# Empty on purpose: an empty passphrase *is* the unlock. #}
+        <input type="hidden" name="backup_password" value="">
+        <div class="form-row" style="margin:0;flex:1;min-width:170px;">
+          <label style="font-size:.85rem;">{{ t('backups.unlock_current') }}</label>
+          <input class="input" type="password" name="current_password" dir="ltr"
+                 autocomplete="off" placeholder="••••••••"></div>
+        <div class="form-row" style="margin:0;flex:1;min-width:170px;">
+          <label style="font-size:.85rem;">{{ t('backups.unlock_forgot') }}</label>
+          <input class="input" type="password" name="owner_password" dir="ltr"
+                 autocomplete="off" placeholder="••••••••"></div>
+        <button class="btn btn-outline gc-press" type="submit">
+          <i class="bi bi-unlock"></i> {{ t('backups.unlock_do') }}</button>
+      </form>
+      <p class="hint" style="margin:6px 0 0;">{{ t('backups.unlock_scope') }}</p>
+    </details>
+    {% endif %}
     {# Said where it cannot be missed: there is no recovery, by design. A
        passphrase we could recover would be a passphrase an intruder could. #}
     <p class="hint" style="margin:8px 0 0;color:var(--danger);font-weight:600;">

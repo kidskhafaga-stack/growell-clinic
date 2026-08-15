@@ -31,14 +31,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pytest  # noqa: E402
 
 
-def _template(clinic, **fields):
+def _template(clinic, size="A4", **fields):
     with clinic["app"].app_context():
         from app.models import RxPrintTemplate
         db = clinic["db"]
         base = {flag: flag not in RxPrintTemplate.OFF_BY_DEFAULT
                 for flag in RxPrintTemplate.BOOLS}
         base.update(fields)
-        tpl = RxPrintTemplate(name="t", page_size="A4", font_size=14,
+        tpl = RxPrintTemplate(name="t", page_size=size, font_size=14,
                               margin_mm=12, **base)
         db.session.add(tpl)
         db.session.commit()
@@ -221,3 +221,136 @@ def test_it_is_offered_from_the_templates_screen(clinic):
     body = clinic["sign_in"]("boss").get(
         "/prescriptions/templates").get_data(as_text=True)
     assert f"/templates/{tpl_id}/test-print" in body
+
+
+# --- whose paper is being previewed ---------------------------------------
+
+def test_the_preview_shows_the_doctor_the_layout_belongs_to(clinic):
+    """Reported as "the signature and stamp do not appear, though I saved them".
+
+    They had. This screen is admin-only, so the person aiming the printer is
+    almost never the doctor — and the preview was built from whoever was
+    signed in. An administrator has no signature, no stamp and no licence, so
+    a template named for a consultant previewed with all three missing and
+    nothing to say why.
+    """
+    from app.extensions import db
+    from app.models import User
+
+    tpl_id = _template(clinic)
+    with clinic["app"].app_context():
+        doctor = db.session.get(User, clinic["ids"]["doctor"])
+        doctor.rx_template_id = tpl_id
+        doctor.signature_file = "sig-of-the-doctor.png"
+        doctor.stamp_file = "stamp-of-the-doctor.png"
+        doctor.license_no = "LIC-9876"
+        db.session.commit()
+
+    page = _print(clinic, tpl_id, who="boss").data.decode()
+
+    assert "sig-of-the-doctor.png" in page, "the doctor's signature is missing"
+    assert "stamp-of-the-doctor.png" in page, "the doctor's stamp is missing"
+    assert "LIC-9876" in page, "the doctor's licence number is missing"
+
+
+def test_a_layout_with_no_doctor_still_previews(clinic):
+    """The case the original code was written for, and still right.
+
+    With nobody on the layout there is no one else to show, so the viewer is
+    the honest answer rather than an empty page.
+    """
+    tpl_id = _template(clinic)
+    answer = _print(clinic, tpl_id, who="boss")
+
+    assert answer.status_code == 200
+    assert 'id="rxPaper"' in answer.data.decode()
+
+
+# --- it is printed on the paper it is testing -----------------------------
+
+def test_the_test_page_prints_at_the_size_the_template_chose(clinic):
+    """Reported as: the test print comes out shifted, though the settings are right.
+
+    They were right. The test page carried no ``@page`` rule at all, so it
+    fell back to the global one in print.css — A4, 12mm on every side. A
+    clinic aiming its printer at A5 letterhead with its own margins was
+    checking a page that shared neither the size nor a single margin with the
+    prescriptions it was meant to be proving.
+    """
+    tpl_id = _template(clinic, mode="preprinted", margin_top_mm=30,
+                       margin_right_mm=8, margin_bottom_mm=14,
+                       margin_left_mm=22, top_offset_mm=25, size="A5")
+
+    page = _print(clinic, tpl_id, who="boss").data.decode()
+
+    assert "size: A5" in page, "the test page did not take the page size"
+    assert "30mm 8mm 14mm 22mm" in page, \
+        "the test page did not take the template's four margins"
+
+
+def test_the_test_page_and_the_real_one_agree_on_the_paper(clinic):
+    """The two pages exist to be compared, so they have to be printed alike.
+
+    Built as a comparison rather than two separate assertions: this is the
+    property that matters, and either page drifting on its own is the bug.
+    """
+    import re
+
+    from app.extensions import db
+    from app.models import Patient
+
+    tpl_id = _template(clinic, margin_top_mm=17, margin_right_mm=9,
+                       margin_bottom_mm=11, margin_left_mm=19, size="A5")
+    with clinic["app"].app_context():
+        pid = db.session.get(Patient, clinic["ids"]["child"]).id
+
+    client = clinic["sign_in"]("doc")
+    _write_one(client, pid)
+
+    def page_rule(html):
+        found = re.search(r"@page\s*\{[^}]*\}", html, re.S)
+        assert found, "no @page rule on this screen"
+        return " ".join(found.group(0).split())
+
+    real = page_rule(client.get("/prescriptions/1").data.decode())
+    trial = page_rule(_print(clinic, tpl_id, who="boss").data.decode())
+
+    assert "A5" in trial and "17mm" in trial
+    assert real.count("mm") == trial.count("mm"), \
+        f"the two pages describe the paper differently:\n{real}\n{trial}"
+
+
+def _write_one(client, pid):
+    """One prescription, so there is a real page to compare against."""
+    return client.post("/prescriptions/new", data={
+        "patient_id": pid,
+        "item_name": ["Augmentin"], "item_dose": ["5 ml"],
+        "item_frequency": ["x2"], "item_duration": ["7d"],
+        "item_instructions": [""]}, follow_redirects=True)
+
+
+def test_the_sample_mark_cannot_widen_the_page(clinic):
+    """Reported as: "the whole left part disappears" when it prints.
+
+    Measured in Chromium with print media emulated: the page's scrollWidth
+    was 1396px on a 1280px paper. One element accounted for all of it — the
+    rotated sample watermark, whose *bounding box* is wider than the text it
+    is written across (1512px), hanging 116px past the edge.
+
+    ``position: absolute`` keeps it out of the layout but not out of the
+    page's own width, which is the part that was missed the first time this
+    mark was reviewed. A page wider than the paper is paid for by clipping,
+    and on a right-to-left page what gets clipped is the left-hand side.
+
+    This asserts the containment rule rather than the measurement, because
+    the suite has no browser in it — the measurement was taken by hand, is
+    written down above, and this line is what keeps the rule from being
+    tidied away by somebody who reads it as decoration.
+    """
+    tpl_id = _template(clinic)
+    page = _print(clinic, tpl_id, who="boss").data.decode()
+
+    rule = [line for line in page.splitlines() if ".rx-testwrap" in line]
+    assert rule, "the wrapper rule is gone"
+    assert "overflow: hidden" in rule[0], (
+        "the sample mark is no longer clipped to the paper: " + rule[0])

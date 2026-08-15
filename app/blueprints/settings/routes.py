@@ -197,14 +197,44 @@ def icd11_import():
     watching. The alternative — a background thread whose failure nobody sees
     — is worse for a one-off action somebody is standing in front of.
     """
-    from app.utils import icd_who
+    from flask import jsonify
 
-    result = icd_who.import_all()
+    from app.utils import icd_progress, icd_who
+
+    # The walk already counted — it takes an ``on_progress`` callback and its
+    # own docstring says a spinner with no number cannot be told apart from a
+    # hang. Nothing was passed, so every number it computed was discarded and
+    # the screen sat still for minutes. See app/utils/icd_progress.py.
+    icd_progress.start()
+    result = icd_who.import_all(on_progress=icd_progress.note)
+    icd_progress.finish(result.get("codes"), ok=result.get("ok"))
+
     if result.get("ok"):
-        flash(t("icd11.import_ok").replace("{n}", str(result["codes"])), "success")
+        message, kind = t("icd11.import_ok").replace(
+            "{n}", str(result["codes"])), "success"
     else:
-        flash(_who_error(result.get("error")), "danger")
+        message, kind = _who_error(result.get("error")), "danger"
+
+    # Answered as JSON when the page asked that way. The page has to stay
+    # alive to poll for the count, so the button posts in the background
+    # instead of navigating; a plain form post still works and still
+    # redirects, which is what happens with no JavaScript.
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": bool(result.get("ok")), "message": message,
+                        "codes": result.get("codes") or 0})
+    flash(message, kind)
     return redirect(url_for("settings.index") + "#icd11")
+
+
+@settings_bp.route("/icd11/progress")
+@admin_required
+def icd11_progress():
+    """How far the import has got — asked by the page while it runs."""
+    from flask import jsonify
+
+    from app.utils import icd_progress
+
+    return jsonify(icd_progress.status())
 
 
 def _provider_switch_fixups():
@@ -241,6 +271,18 @@ def _provider_switch_fixups():
         if posted == (Setting.get(key) or "").strip():
             out[key] = ""       # untouched, so it belongs to the old provider
     return out
+
+
+# The tabs on the settings screen, as the template names them. A posted tab is
+# looked up in this list rather than trusted: it lands in a redirect URL, and a
+# name arriving from a form is not somewhere to put unchecked text.
+SETTINGS_TABS = ["clinic", "logo", "numbering", "board", "phrases", "policies",
+                 "eta", "ai"]
+
+
+def _saved_tab():
+    tab = (request.form.get("active_tab") or "").strip()
+    return tab if tab in SETTINGS_TABS else "clinic"
 
 
 @settings_bp.route("/", methods=["GET", "POST"])
@@ -288,7 +330,12 @@ def index():
                            entity="settings", ip_address=client_ip())
         db.session.commit()
         flash(t("settings.saved"), "success")
-        return redirect(url_for("settings.index"))
+        # Come back to the tab that was being edited. Every tab on this screen
+        # posts the *same* form, so saving the tax settings used to answer by
+        # redrawing the clinic-name tab — the person saving had to find their
+        # way back to where they were, on every save. The hash is never sent
+        # to a server, so the tab rides along as a field instead.
+        return redirect(url_for("settings.index", _anchor=_saved_tab()))
 
     from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
     from app.utils import phrases
@@ -712,8 +759,40 @@ def backup_password_set():
     typed wrong, and a backup folder is not a place to be clever.
     """
     from app import settings_file
+    from app.utils.backups import backup_password
 
     value = (request.form.get("backup_password") or "").strip()
+
+    # Turning encryption *off* has to be proved, and until now it was the one
+    # thing on this screen that needed no proof at all: an empty box cleared
+    # the passphrase, so anybody who reached this page could quietly unlock
+    # every backup the clinic would take from then on — without knowing the
+    # current passphrase and with nothing on screen to mark it as a decision.
+    #
+    # Two ways through, both deliberate. The passphrase itself, which is what
+    # somebody who set it will have. Or the signed-in owner's own password,
+    # for the case this exists to answer — the passphrase was lost, and the
+    # clinic still has to be able to take backups it can restore. That second
+    # door does not open any *existing* archive: those keep the key they were
+    # written with, and nothing here can change that.
+    current = backup_password()
+    if current and not value:
+        given = (request.form.get("current_password") or "").strip()
+        owner = (request.form.get("owner_password") or "").strip()
+        # No ``is_admin`` here: this endpoint is ``@admin_required``, so
+        # anybody reaching this line already is one. Repeating the check would
+        # read like the guarantee and be dead code — the real guarantee is on
+        # the route, and that is where a test has to point.
+        by_passphrase = bool(given) and given == current
+        by_owner = bool(owner) and current_user.check_password(owner)
+        if not (by_passphrase or by_owner):
+            flash(t("backups.unlock_denied"), "danger")
+            return redirect(url_for("settings.data_tools"))
+        ActivityLog.record(
+            "backup.unlock", user_id=current_user.id, entity="system",
+            detail="owner_password" if by_owner and not by_passphrase
+            else "passphrase", ip_address=client_ip())
+
     if value and len(value) < MIN_BACKUP_PASSWORD:
         flash(t("backups.pwd_too_short").replace(
             "{n}", str(MIN_BACKUP_PASSWORD)), "danger")

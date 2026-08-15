@@ -1024,8 +1024,30 @@ def template_test_print(tpl_id):
     tpl = db.get_or_404(RxPrintTemplate, tpl_id)
     lang = getattr(g, "lang", "ar")
     return render_template("prescriptions/test_print.html",
-                           rx=sample(current_user, lang), tpl=tpl,
+                           rx=sample(_whose_paper(tpl), lang), tpl=tpl,
                            rx_vaccines=[], digital=False)
+
+
+def _whose_paper(tpl):
+    """The doctor this layout actually prints for — not whoever is looking.
+
+    This screen is admin-only, so the person aiming the printer is almost
+    never the doctor. It used to hand the sample ``current_user``, and an
+    administrator has no signature, no stamp, no personal logo and no licence
+    number — so a template named for a consultant previewed as a page with
+    all four missing, and the obvious conclusion is that saving them did not
+    work. It had; the preview was showing somebody else.
+
+    Falls back to the viewer when no doctor is on this layout yet, which is
+    the case the original code was written for and is still right: there is
+    nobody else to show.
+    """
+    from app.models import User
+
+    doctor = (User.query
+              .filter(User.rx_template_id == tpl.id, User.is_active.is_(True))
+              .order_by(User.id).first())
+    return doctor or current_user
 
 
 def _save_template(tpl):

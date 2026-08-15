@@ -14,6 +14,14 @@
 <div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
   {% if tpl.mode == 'preprinted' %}
     {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
+    {# The date is the one thing a pre-printed letterhead cannot carry. The
+       clinic's name, address and logo are on the paper already — that is what
+       the paper is for — but the date changes with every prescription, so it
+       has to come from here. It used to live inside the header block below,
+       which this mode skips entirely, and a prescription printed on the
+       clinic's own paper came out with no date on it at all. #}
+    <div style="text-align:end;font-size:0.85rem;margin-bottom:10px;">
+      {{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
   {% else %}
   <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:2px solid var(--green-600);padding-bottom:12px;margin-bottom:14px;">
     <div style="display:flex;align-items:center;gap:14px;">
