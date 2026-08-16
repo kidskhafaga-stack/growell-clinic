@@ -54,6 +54,18 @@ REQUEST_TIMEOUT = 30
 # credential everybody shares gets throttled for everybody.
 POLITE_DELAY = 0.05
 
+# One dropped connection must not throw away half an hour of walking. Four
+# attempts with a doubling pause covers the blip that killed the first real
+# import; anything still failing after ~7 seconds of trying is a fault worth
+# stopping for rather than grinding at.
+RETRIES = 4
+RETRY_BACKOFF = 1.0
+
+# Statuses that mean "ask again", as opposed to "you asked wrongly". 429 is
+# WHO telling us to slow down; 5xx is WHO having a moment. A 401 or a 404 is
+# not going to come true on the third attempt.
+RETRY_STATUS = {429, 500, 502, 503, 504}
+
 
 def settings():
     """The clinic's WHO credentials and chosen release, from the settings table."""
@@ -186,9 +198,27 @@ class Session:
 
     @property
     def requests(self):
+        """A connection-reusing session — or whatever a test injected.
+
+        This used to be the ``requests`` *module*, which opens a new TCP and
+        TLS connection for every single call. Over the tens of thousands of
+        calls a full walk makes, on Windows, that exhausts the machine's
+        ephemeral ports — they sit in TIME_WAIT far longer than the walk takes
+        to reuse them — and the operating system starts aborting connections
+        itself. Reported from a real import, in Windows' own words:
+
+            [WinError 10053] An established connection was aborted by
+            the software in your host machine
+
+        "the software in your host machine" is the clinic's own machine
+        saying it, not WHO. A session keeps one connection alive and reuses
+        it, which removes the cause rather than retrying around it — and
+        makes the walk considerably faster, since it stops paying for a TLS
+        handshake per code.
+        """
         if self._requests is None:
             import requests as real
-            self._requests = real
+            self._requests = real.Session()
         return self._requests
 
     def token(self):
@@ -211,16 +241,39 @@ class Session:
         return self._token
 
     def get(self, url):
-        """One entity from WHO, as a dict."""
-        resp = self.requests.get(url, timeout=REQUEST_TIMEOUT, headers={
-            "Authorization": f"Bearer {self.token()}",
-            "Accept": "application/json",
-            "Accept-Language": LANGUAGE,
-            "API-Version": API_VERSION,
-        })
-        if not resp.ok:
-            raise WhoError(f"HTTP {resp.status_code}")
-        return resp.json()
+        """One entity from WHO, as a dict — retried when the failure is one
+        that goes away.
+
+        A walk is tens of thousands of requests over the better part of an
+        hour. Without this, *one* dropped connection anywhere in it throws the
+        whole import away, and the clinic is told to start again from nothing.
+        The first real import died exactly that way, forty seconds in.
+
+        Only failures worth retrying are retried. A refused credential or a
+        missing entity is not going to become true on the third attempt, and
+        retrying it wastes a clinic's afternoon before telling them the same
+        thing.
+        """
+        last = None
+        for attempt in range(RETRIES):
+            try:
+                resp = self.requests.get(url, timeout=REQUEST_TIMEOUT, headers={
+                    "Authorization": f"Bearer {self.token()}",
+                    "Accept": "application/json",
+                    "Accept-Language": LANGUAGE,
+                    "API-Version": API_VERSION,
+                })
+            except Exception as exc:        # noqa: BLE001 — dropped, reset, DNS
+                last = exc
+            else:
+                if resp.ok:
+                    return resp.json()
+                if resp.status_code not in RETRY_STATUS:
+                    raise WhoError(f"HTTP {resp.status_code}")
+                last = WhoError(f"HTTP {resp.status_code}")
+            if attempt + 1 < RETRIES:
+                time.sleep(RETRY_BACKOFF * (2 ** attempt))
+        raise WhoError(f"network: {last}")
 
 
 class WhoError(Exception):

@@ -415,3 +415,112 @@ def _credentials():
     Setting.set("icd11_client_secret", "secret")
     Setting.set("icd11_release", "")
     db.session.commit()
+
+
+# ------------------------------------ surviving a walk of thousands of calls
+
+class _Flaky:
+    """WHO, dropping the connection the way a real import saw it drop."""
+
+    def __init__(self, fail_times, payload=None, status=None):
+        self.left = fail_times
+        self.payload = payload or {"code": "1A00", "title": {"@value": "Cholera"}}
+        self.status = status
+        self.calls = 0
+
+    def get(self, url, **kw):
+        self.calls += 1
+        if self.left > 0:
+            self.left -= 1
+            if self.status:
+                return _Reply({}, ok=False, status=self.status)
+            raise OSError("[WinError 10053] An established connection was aborted")
+        return _Reply(self.payload)
+
+    def post(self, url, **kw):
+        return _Reply({"access_token": "t", "expires_in": 3600})
+
+
+def test_a_dropped_connection_is_retried_not_fatal(who_clinic, monkeypatch):
+    """The first real import died forty seconds in, on one dropped connection.
+
+    A walk is tens of thousands of requests over most of an hour. Throwing all
+    of it away for one blip means the clinic is told to start again from
+    nothing, which is how a feature stops being used.
+    """
+    from app.utils import icd_who
+
+    monkeypatch.setattr(icd_who.time, "sleep", lambda *_: None)
+    flaky = _Flaky(fail_times=2)
+
+    with who_clinic["app"].app_context():
+        session = icd_who.Session({"client_id": "a", "client_secret": "b",
+                                   "release": "2026-01"}, requests=flaky)
+        entity = session.get("https://id.who.int/x")
+
+    assert entity["code"] == "1A00"
+    assert flaky.calls == 3, "it gave up instead of trying again"
+
+
+def test_it_stops_trying_eventually(who_clinic, monkeypatch):
+    """Retrying for ever is its own failure — it never reports anything."""
+    from app.utils import icd_who
+
+    monkeypatch.setattr(icd_who.time, "sleep", lambda *_: None)
+    flaky = _Flaky(fail_times=99)
+
+    with who_clinic["app"].app_context():
+        session = icd_who.Session({"client_id": "a", "client_secret": "b",
+                                   "release": ""}, requests=flaky)
+        with pytest.raises(icd_who.WhoError):
+            session.get("https://id.who.int/x")
+
+    assert flaky.calls == icd_who.RETRIES
+
+
+def test_being_told_to_slow_down_is_retried(who_clinic, monkeypatch):
+    """429 is WHO asking for a pause, not refusing."""
+    from app.utils import icd_who
+
+    monkeypatch.setattr(icd_who.time, "sleep", lambda *_: None)
+    flaky = _Flaky(fail_times=1, status=429)
+
+    with who_clinic["app"].app_context():
+        session = icd_who.Session({"client_id": "a", "client_secret": "b",
+                                   "release": ""}, requests=flaky)
+        assert session.get("https://id.who.int/x")["code"] == "1A00"
+
+
+def test_a_refused_credential_is_not_retried(who_clinic, monkeypatch):
+    """It will not come true on the third attempt, and trying wastes an hour."""
+    from app.utils import icd_who
+
+    monkeypatch.setattr(icd_who.time, "sleep", lambda *_: None)
+    flaky = _Flaky(fail_times=99, status=401)
+
+    with who_clinic["app"].app_context():
+        session = icd_who.Session({"client_id": "a", "client_secret": "b",
+                                   "release": ""}, requests=flaky)
+        with pytest.raises(icd_who.WhoError):
+            session.get("https://id.who.int/x")
+
+    assert flaky.calls == 1, "a rejected credential was retried"
+
+
+def test_the_walk_reuses_one_connection(who_clinic):
+    """The cause of WinError 10053, not a symptom of it.
+
+    A new TCP and TLS connection per code exhausts Windows' ephemeral ports
+    over a walk this size, and the machine starts aborting its own
+    connections. A session keeps one alive.
+    """
+    from app.utils import icd_who
+
+    with who_clinic["app"].app_context():
+        session = icd_who.Session({"client_id": "a", "client_secret": "b",
+                                   "release": ""})
+        transport = session.requests
+
+    import requests as real
+    assert isinstance(transport, real.Session), \
+        "every call still opens its own connection"
