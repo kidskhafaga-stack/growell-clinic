@@ -29,9 +29,26 @@
   /* Copyright line stamped on every printed report (one line, screen-hidden). */
   .print-footer { display:none; }
   @media print {
+    /* In the flow, at the end of the document — not `position: fixed`.
+       A fixed footer reserves no space, so it printed straight over whatever
+       the last lines of the page happened to be; a prescription came back with
+       "الفحوصات المطلوبة" and this line stamped on top of each other.
+
+       There is no way to make it reserve space either. Four arrangements were
+       printed through Chromium and measured: at `bottom: 4mm` it appeared on
+       the last page only; at `bottom: 0` it repeated on every page but sat in
+       the last 8pt of the text area, which content can still reach; a negative
+       offset and a `translateY` both overflowed the page and re-appeared at the
+       *top* of the next one, which is how it ended up printed across a heading;
+       and `display: table-footer-group` did not repeat at all.
+
+       So it prints once, after the last thing on the page, where it cannot
+       cover anything. `break-before: avoid` keeps it from being pushed onto a
+       sheet of its own. */
     .print-footer { display:flex !important; align-items:center; justify-content:center; gap:5px;
-      position:fixed; bottom:4mm; inset-inline:0; text-align:center; font-size:8.5px;
-      color:#666; letter-spacing:.2px; }
+      margin-top:10mm; text-align:center; font-size:8.5px;
+      color:#666; letter-spacing:.2px;
+      break-inside:avoid; break-before:avoid; }
     .print-footer__logo { height:11px; width:auto; object-fit:contain; }
   }
 </style>
