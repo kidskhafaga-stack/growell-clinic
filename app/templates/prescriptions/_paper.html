@@ -19,14 +19,79 @@
 {% elif tpl.logo_source == 'personal' %}{% set logo_url = personal_logo_url or clinic.logo_url %}
 {% else %}{% set logo_url = clinic.logo_url %}{% endif %}
 <div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
+{# Shrink the type until the whole prescription fits one sheet.
+
+   The measurement is the awkward part. On screen the paper is as wide as the
+   window; on paper it is the page minus its margins, and a narrower column
+   wraps more lines and is taller. Measuring what is on the screen answers a
+   question nobody asked. So this measures a copy of the page, held off-screen
+   at the **printed** width, with the parts print.css removes already removed
+   from it — the card's padding and border, and everything marked no-print.
+
+   It runs after `load` rather than on `beforeprint`: images that have not
+   arrived have no height yet, and a fit computed without the logo is a fit
+   that is wrong by the height of the logo. Doing it once, up front, also
+   means the screen shows the size that will come out of the printer.
+
+   The floor is in here rather than on the settings form. "How small is too
+   small" is the point where a pharmacist misreads a dose, and that is not a
+   number to hand a clinic on a form next to the margins.
+#}
+{% if tpl.fit_page %}
+{% set page_w, page_h = tpl.page_mm %}
+<script>
+(function () {
+  var MIN_PX = 8;           // below this a dose stops being legible
+  var FOOT_MM = 14;         // the copyright line and the gap above it
+  var MM = 96 / 25.4;
+  var paper = document.getElementById('rxPaper');
+  if (!paper) return;
+
+  var availW = ({{ page_w }} - {{ tpl.m_left }} - {{ tpl.m_right }}) * MM;
+  var availH = ({{ page_h }} - {{ tpl.m_top }} - {{ tpl.m_bottom }} - FOOT_MM) * MM;
+  var base = {{ tpl.font_size }};
+
+  function fit() {
+    var probe = paper.cloneNode(true);
+    probe.removeAttribute('id');
+    Array.prototype.forEach.call(probe.querySelectorAll('.no-print'), function (el) {
+      el.parentNode.removeChild(el);
+    });
+    probe.style.cssText += ';position:absolute;left:-10000px;top:0;visibility:hidden;'
+      + 'width:' + availW + 'px;padding:0;margin:0;border:0;box-shadow:none;';
+    document.body.appendChild(probe);
+
+    var size = base;
+    probe.style.fontSize = size + 'px';
+    while (size > MIN_PX && probe.scrollHeight > availH) {
+      size -= 0.25;
+      probe.style.fontSize = size + 'px';
+    }
+    probe.parentNode.removeChild(probe);
+    // Never *grow* the type: the number on the template is what the clinic
+    // asked for, and this is permission to go smaller, not a free hand.
+    paper.style.fontSize = Math.min(base, size) + 'px';
+    paper.setAttribute('data-fitted', size.toFixed(2));
+  }
+
+  if (document.readyState === 'complete') fit();
+  else window.addEventListener('load', fit);
+})();
+</script>
+{% endif %}
+
   {% if tpl.mode == 'preprinted' %}
     {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
-    {# The date is the one thing a pre-printed letterhead cannot carry. The
-       clinic's name, address and logo are on the paper already — that is what
-       the paper is for — but the date changes with every prescription, so it
-       has to come from here. It used to live inside the header block below,
-       which this mode skips entirely, and a prescription printed on the
-       clinic's own paper came out with no date on it at all. #}
+    {# The top of this sheet belongs to the clinic's own letterhead. The one
+       thing that paper can never carry is the date — it changes with every
+       prescription — so the date, and nothing else, prints here.
+
+       The doctor's own details are not dropped; they move. See the signature
+       at the foot of this file: on pre-printed paper that is where the name,
+       the specialty and above all the licence number belong, which is where an
+       Egyptian prescription puts them anyway and is the one part of the sheet
+       guaranteed to be empty. Printing them at the top would put them on top
+       of the letterhead that is already there. #}
     <div style="text-align:end;font-size:0.85em;margin-bottom:0.7em;">
       {{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
   {% else %}
@@ -46,54 +111,80 @@
   </div>
   {% endif %}
 
-  {# The patient comes first and on their own — who this paper is for is the
-     one thing anybody reading it needs before anything else. The diagnosis
-     used to sit inside this block as a third cell, which made it look like
-     another identifying detail rather than a clinical statement. #}
-  {% if tpl.show_patient %}
-  <div class="info-grid rx-block" style="margin-bottom:1em;">
-    <div class="info-item"><div class="k">{{ t('rx.patient') }}</div><div class="v">{{ rx.patient.display_name(current_lang) }} ({{ rx.patient.patient_number }})</div></div>
-    <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(rx.patient) }}</div></div>
-    {% if rx.patient.gender %}<div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ rx.patient.gender) }}</div></div>{% endif %}
-  </div>
-  {% endif %}
-
   {% macro rx_section(icon, title) %}
   <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:0.2em;margin-bottom:0.45em;">
     <i class="bi bi-{{ icon }}"></i> {{ title }}</div>
   {% endmacro %}
 
-  {% if rx.complaint %}
-  <div class="rx-block" style="margin-bottom:1em;">
-    {{ rx_section('chat-left-text', t('rx.complaint')) }}
-    <div>{{ rx.complaint }}</div>
+  {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
+  {% set has_weight = growth and growth.weight_kg %}
+  {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
+  {% set coverage = rx.patient.active_coverage if tpl.show_coverage else None %}
+
+  {# Who this is for, on one line.
+
+     It used to be a three-column grid with each field's label stacked above
+     its value — nine words in eleven lines, 215pt of an A5 page, 36% of the
+     sheet, and the investigations pushed onto a second one. Nobody reads a
+     prescription's identity block; they glance at it. So the labels sit
+     beside their values and the whole of it is one run that wraps only when
+     the paper is genuinely too narrow.
+
+     **The weight is up here now**, with the name rather than in the warning
+     band below. A paediatric dose is mg/kg, so it has to be on the page — but
+     it is a fact about the child, not a warning, and putting it beside the age
+     is what makes the age useful: a two-year-old can be 9kg or 16kg. It keeps
+     the date it was taken whenever that is not this prescription's own, since
+     12kg measured this morning and 12kg measured last winter are the same
+     number and a different dose. #}
+  {% if tpl.show_patient %}
+  <div class="rx-block rx-line" style="margin-bottom:0.6em;">
+    <span><span class="rx-k">{{ t('rx.patient') }}:</span>
+      <strong>{{ rx.patient.display_name(current_lang) }}</strong>
+      <span class="rx-k">({{ rx.patient.patient_number }})</span></span>
+    <span><span class="rx-k">{{ t('patients.age') }}:</span>
+      <strong>{{ age_label(rx.patient) }}</strong></span>
+    {% if rx.patient.gender %}<span><strong>{{ t('genders.' ~ rx.patient.gender) }}</strong></span>{% endif %}
+    {% if has_weight %}
+    <span><span class="rx-k">{{ t('rx.weight') }}:</span>
+      <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
+      {% if growth.record_date != rx.rx_date %}
+      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>{% endif %}</span>
+    {% endif %}
+    {# Insurance or club membership. The payer's name and the member's number
+       are the two things a payer's desk asks for, and both were already in the
+       file — ``Patient.active_coverage`` is the current, unexpired one, which
+       is the only one worth printing: an expired card sends a family away. #}
+    {% if tpl.show_coverage and coverage %}
+    <span><span class="rx-k">{{ t('rx.coverage') }}:</span>
+      <strong>{{ coverage.payer.display_name(current_lang) if coverage.payer else '' }}</strong>
+      {% if coverage.membership_number %}
+      <span dir="ltr" class="rx-k">#{{ coverage.membership_number }}</span>{% endif %}</span>
+    {% endif %}
   </div>
   {% endif %}
 
-  {# The stage is beside the words, because "التهاب رئوي" alone does not tell
-     a guardian — or the next doctor — whether this is settled or still being
-     worked out, and those mean very different things. #}
-  {% if tpl.show_diagnosis and rx.diagnosis %}
-  <div class="rx-block" style="margin-bottom:1em;">
-    {{ rx_section('clipboard2-pulse', t('rx.diagnosis')) }}
-    <div>{{ rx.diagnosis }}
+  {# The complaint and the diagnosis, likewise: two labelled runs on one line
+     instead of two headings with a line under each. Four lines become one.
+
+     The stage stays beside the words, because "التهاب رئوي" alone does not
+     tell a guardian — or the next doctor — whether this is settled or still
+     being worked out, and those mean very different things. #}
+  {% if (tpl.show_complaint and rx.complaint) or (tpl.show_diagnosis and rx.diagnosis) %}
+  <div class="rx-block rx-line" style="margin-bottom:0.7em;">
+    {% if tpl.show_complaint and rx.complaint %}
+    <span><span class="rx-k">{{ t('rx.complaint') }}:</span> {{ rx.complaint }}</span>
+    {% endif %}
+    {% if tpl.show_diagnosis and rx.diagnosis %}
+    <span><span class="rx-k">{{ t('rx.diagnosis') }}:</span> <strong>{{ rx.diagnosis }}</strong>
       {% if rx.diagnosis_code %}<span class="badge badge--role" dir="ltr">{{ rx.diagnosis_code }}</span>{% endif %}
-      {% if rx.diagnosis_stage %}<span class="badge badge--muted">{{ t('rx.stage_' ~ rx.diagnosis_stage) }}</span>{% endif %}
-    </div>
+      {% if rx.diagnosis_stage %}<span class="badge badge--muted">{{ t('rx.stage_' ~ rx.diagnosis_stage) }}</span>{% endif %}</span>
+    {% endif %}
   </div>
   {% endif %}
 
-  {# Weight and allergy, together and immediately above the ℞ — the two things
-     whoever is about to hand over a bottle has to read before they read the
-     drugs.
-
-     **Weight**, because a paediatric dose is mg/kg and this paper carried the
-     age alone. A two-year-old can be 9 kg or 16 kg, so the age does not let
-     anybody check a dose; the number the dose was computed from was the one
-     number missing from the page. It prints with the date it was taken
-     whenever that is not this prescription's own date, because 12 kg measured
-     this morning and 12 kg measured last winter are the same number and a
-     different dose.
+  {# What is left in the band is what the band was for: the things somebody
+     about to hand over a bottle has to read before they read the drugs.
 
      **Allergy prints even when the file is empty**, and says "not recorded"
      rather than "none". A blank cannot be read: nobody looking at one can
@@ -101,19 +192,21 @@
      allergies" would be worse — the program knows the field is empty, it does
      not know the child is safe. The warning triangle carries the alarm as
      well as the colour, because these come out of a black-and-white printer. #}
-  {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
-  {% set has_weight = growth and growth.weight_kg %}
-  {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
-  {% if has_weight or tpl.show_allergies or has_conditions %}
+  {# The weight rides up with the patient line, so it is only still wanted here
+     when there is no patient line to ride on. A template with the patient
+     block off and the weight on would otherwise drop the number a mg/kg dose
+     was worked out from, silently — which is the one thing this band exists to
+     stop happening. #}
+  {% set weight_here = has_weight and not tpl.show_patient %}
+  {% if tpl.show_allergies or has_conditions or weight_here %}
   <div class="rx-block" style="display:flex;flex-wrap:wrap;gap:0.45em 1.4em;align-items:baseline;
               border:1px solid var(--line);border-inline-start:3px solid var(--green-600);
-              border-radius:6px;padding:0.6em 0.8em;margin-bottom:1em;">
-    {% if has_weight %}
+              border-radius:6px;padding:0.5em 0.8em;margin-bottom:0.8em;">
+    {% if weight_here %}
     <div><span style="color:var(--muted);">{{ t('rx.weight') }}:</span>
       <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
       {% if growth.record_date != rx.rx_date %}
-      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>
-      {% endif %}
+      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>{% endif %}
     </div>
     {% endif %}
     {% if tpl.show_allergies %}
@@ -312,6 +405,21 @@
     <div style="text-align:center;">
       {% if doc and doc.signature_file %}<img src="{{ url_for('static', filename='uploads/users/' ~ doc.signature_file) }}" alt="" style="max-height:60px;max-width:200px;display:block;margin:0 auto 4px;">{% endif %}
       <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ doc.doctor_print_name(current_lang) if doc else t('rx.signature') }}</div>
+      {# On pre-printed paper the letterhead at the top is the clinic's, and
+         these belong under the signature instead — which is where a
+         prescription puts them anyway, and the one part of the sheet that is
+         reliably empty. The same ticks decide it; only the place changes with
+         the paper. On white paper they are up in the letterhead already and
+         repeating them here would be printing the same line twice. #}
+      {% if tpl.mode == 'preprinted' and doc %}
+      {% if tpl.show_specialty %}{% for line in doc.doctor_title_lines(current_lang) %}
+      <div style="color:var(--muted);font-size:0.78em;line-height:1.3;">{{ line }}</div>{% endfor %}{% endif %}
+      {% if tpl.show_license and doc.license_no %}
+      <div style="color:var(--muted);font-size:0.78em;">{{ t('rx.license') }}: <span dir="ltr">{{ doc.license_no }}</span></div>{% endif %}
+      {% set foot_addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
+      {% if tpl.show_contact and (foot_addr or clinic.phone) %}
+      <div style="color:var(--muted);font-size:0.78em;">{% if foot_addr %}{{ foot_addr }}{% endif %}{% if foot_addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</div>{% endif %}
+      {% endif %}
     </div>
     {% endif %}
   </div>

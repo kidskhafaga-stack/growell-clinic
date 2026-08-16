@@ -59,11 +59,24 @@ def test_the_letterhead_settings_say_when_they_do_nothing(clinic):
         "the note is not tied to the mode that makes them unused"
 
 
-def test_the_group_is_dimmed_in_the_mode_that_ignores_it(clinic):
-    page = _screen(clinic)
-    group = _block(page, 'class="rx-inert"', end='class="rx-legend"')
+def test_the_letterhead_settings_work_in_both_paper_modes(clinic):
+    """They were dimmed here, and dimming them was the wrong half of the fix.
 
-    assert "is-inert" in group, "the letterhead group is never marked inert"
+    A pre-printed template used to skip the whole letterhead, so the four
+    settings really did nothing and the honest thing was to say so. Then:
+    "the ones that are ticked I might still want printed, like the licence on
+    pre-printed paper" — which is right. A letterhead printed last year does
+    not carry this doctor's licence, and a pad shared by three doctors does
+    not carry a name either. So they print in both modes and the group is
+    live in both.
+    """
+    page = _screen(clinic)
+    group = page[page.index("rxtpl.letterhead_group") if "rxtpl.letterhead_group" in page
+                 else page.index('class="rx-legend"'):]
+    group = group[:group.index('class="rx-legend"', 40)]
+
+    assert "is-inert" not in group, \
+        "the letterhead settings are dimmed again on a mode that now uses them"
 
 
 def test_dimming_them_does_not_quietly_clear_them(clinic):

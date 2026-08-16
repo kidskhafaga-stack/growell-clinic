@@ -778,3 +778,17 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 #rxPaper .info-item .k { font-size: 0.76em; }
 #rxPaper .info-item .v { font-size: 0.98em; }
 #rxPaper .info-grid { gap: 1em 1.7em; }
+
+/* Labelled facts on one line instead of a column of stacked pairs.
+ *
+ * The identity block was a grid with each label above its value: nine words
+ * in eleven lines. On A5 that was 215pt — 36% of the sheet — before the ℞ had
+ * been reached, and it pushed the investigations onto a second page. Nobody
+ * reads a prescription's identity block, they glance at it.
+ *
+ * `flex-wrap` rather than a fixed set of columns, so a long name takes the
+ * room it needs and the rest follows it down; on paper wide enough for all of
+ * it, it stays on one line. */
+#rxPaper .rx-line { display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 0.25em 1.5em; }
+#rxPaper .rx-k { color: var(--muted); }

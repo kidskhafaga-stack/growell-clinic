@@ -26,6 +26,10 @@ rxPreview({
   show_growth: {{ 'true' if tp and tp.show_growth else 'false' }},
   show_investigations: {{ 'true' if (tp and tp.show_investigations) or not tp else 'false' }},
   show_next_appointment: {{ 'true' if (tp and tp.show_next_appointment) or not tp else 'false' }},
+  show_complaint: {{ 'true' if (tp and tp.show_complaint) or not tp else 'false' }},
+  {# Like growth: a concept most clinics do not have, so it waits to be asked for. #}
+  show_coverage: {{ 'true' if tp and tp.show_coverage else 'false' }},
+  fit_page: {{ 'true' if tp and tp.fit_page else 'false' }},
   show_signature: {{ 'true' if (tp and tp.show_signature) or not tp else 'false' }},
   show_stamp: {{ 'true' if (tp and tp.show_stamp) or not tp else 'false' }}
 })
@@ -52,25 +56,26 @@ rxPreview({
           <option value="A4">A4</option>
           <option value="A5">A5</option>
         </select></div>
-      <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" x-model.number="f.font_size"></div>
+      <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" x-model.number="f.font_size">
+        <label class="form-row checkbox" style="margin:6px 0 0;"><input type="checkbox" name="fit_page" value="1" x-model="f.fit_page">
+          <span style="font-weight:400;">{{ t('rxtpl.fit_page') }}</span></label>
+        <div class="hint" x-show="f.fit_page" x-cloak>{{ t('rxtpl.fit_page_hint') }}</div></div>
       <div class="form-row rx-inert" :class="f.mode!=='preprinted' ? 'is-inert' : ''">
         <label>{{ t('rxtpl.top_offset') }}</label>
         <input class="input" type="number" name="top_offset_mm" x-model.number="f.top_offset">
         <div class="hint" x-show="f.mode!=='preprinted'" x-cloak>{{ t('rxtpl.offset_preprinted_only') }}</div></div>
     </div>
 
-    {# The five settings that only exist in the letterhead.
-       A "pre-printed" template skips the letterhead entirely — the paper it
-       prints on already has one — so these five do nothing at all in that
-       mode. They were shown ticked and enabled anyway, which is exactly the
-       question that came back: "why isn't the address showing, it's ticked?"
-       They stay in the form and keep their value: disabling a checkbox stops
-       it being posted, which would quietly turn the setting off on save. #}
-    <div class="rx-inert" :class="f.mode==='preprinted' ? 'is-inert' : ''"
-         style="margin-top:6px;">
+    {# These four were dimmed here a commit ago, because a pre-printed
+       template skipped the whole letterhead and so ignored them. Greying out
+       a control the person wants is the wrong half of the fix: they print in
+       both modes now, and on pre-printed paper they land below the offset as
+       one compact run. So the group is live in both modes and the note says
+       what the mode changes rather than that the settings are dead. #}
+    <div style="margin-top:6px;">
       <label class="rx-legend">{{ t('rxtpl.letterhead_group') }}</label>
       <div class="rx-note" x-show="f.mode==='preprinted'" x-cloak>
-        <i class="bi bi-info-circle"></i> {{ t('rxtpl.preprinted_inert') }}</div>
+        <i class="bi bi-info-circle"></i> {{ t('rxtpl.preprinted_letterhead') }}</div>
       <div class="rx-checks">
         {% for b in ['show_doctor','show_specialty','show_contact','show_license'] %}
         <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
@@ -99,7 +104,7 @@ rxPreview({
        list from the letterhead above rather than one grid of fourteen. #}
     <label class="rx-legend">{{ t('rxtpl.elements') }}</label>
     <div class="rx-checks" style="margin:8px 0;">
-      {% for b in ['show_patient','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_diagnosis','show_investigations','show_next_appointment','show_signature','show_stamp'] %}
+      {% for b in ['show_patient','show_coverage','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_complaint','show_diagnosis','show_investigations','show_next_appointment','show_signature','show_stamp'] %}
       <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
         <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
       {% endfor %}
