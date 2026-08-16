@@ -20,6 +20,14 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's day, not the machine's. `pricing` and the whole finance
+# blueprint date a contract with `local_today()`; `date.today()` is UTC, and
+# after 21:00 UTC those are different days in Cairo. This file asked for the
+# UTC day and got the clinic's, so the once-a-day stamp and the default
+# start date both read one day out — but only between 21:00 and midnight UTC,
+# which is why it passed every time it was run in the afternoon.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -37,8 +45,8 @@ def cash(clinic):
 
         contract = PayerContract(
             payer_id=payer.id, number="1", is_active=True,
-            start_date=date.today() - timedelta(days=364),
-            end_date=date.today())
+            start_date=local_today() - timedelta(days=364),
+            end_date=local_today())
         contract.rates.append(PayerContractRate(
             service_id=clinic["ids"]["exam"], special_price=150))
         clinic["db"].session.add(contract)
@@ -97,8 +105,8 @@ def test_the_new_year_starts_the_day_after_the_old_one_ends(cash):
 
     with cash["app"].app_context():
         renewed = ensure_cash_contract()
-        assert renewed.start_date == date.today() + timedelta(days=1)
-        assert renewed.end_date == date.today() + timedelta(days=365)
+        assert renewed.start_date == local_today() + timedelta(days=1)
+        assert renewed.end_date == local_today() + timedelta(days=365)
 
 
 def test_the_prices_come_across(cash):
@@ -121,7 +129,7 @@ def test_the_old_years_prices_are_left_alone(cash):
     with cash["app"].app_context():
         ensure_cash_contract()
         old = cash["db"].session.get(PayerContract, cash["contract"])
-        assert old.end_date == date.today()
+        assert old.end_date == local_today()
         assert [r.special_price for r in old.rates] == [150]
 
 
@@ -141,7 +149,7 @@ def test_a_list_with_a_year_left_is_not_renewed_early(cash):
 
     with cash["app"].app_context():
         contract = cash["db"].session.get(PayerContract, cash["contract"])
-        contract.end_date = date.today() + timedelta(days=300)
+        contract.end_date = local_today() + timedelta(days=300)
         cash["db"].session.commit()
         assert ensure_cash_contract() is None
         assert len(_contracts(cash)) == 1
@@ -168,8 +176,8 @@ def test_a_year_prepared_by_hand_is_not_duplicated(cash):
     with cash["app"].app_context():
         cash["db"].session.add(PayerContract(
             payer_id=cash["payer"], number="99", is_active=True,
-            start_date=date.today() + timedelta(days=1),
-            end_date=date.today() + timedelta(days=365)))
+            start_date=local_today() + timedelta(days=1),
+            end_date=local_today() + timedelta(days=365)))
         cash["db"].session.commit()
         assert ensure_cash_contract() is None
         assert len(_contracts(cash)) == 2
@@ -214,7 +222,7 @@ def test_it_only_asks_once_a_day(cash):
 
     with cash["app"].app_context():
         ensure_cash_contract()
-        assert Setting.get("cash_contract_renewed_on") == date.today().isoformat()
+        assert Setting.get("cash_contract_renewed_on") == local_today().isoformat()
 
 
 # ------------------------------------------------ the prices stay in force -
@@ -231,7 +239,7 @@ def test_the_cash_price_survives_the_turn_of_the_year(cash):
         assert cash_tariff(exam) == 150              # today, from the list
 
         ensure_cash_contract()
-        tomorrow = date.today() + timedelta(days=1)
+        tomorrow = local_today() + timedelta(days=1)
         assert cash_tariff(exam, tomorrow) == 150    # and after it rolls over
 
 
@@ -267,8 +275,8 @@ def test_a_new_contract_needs_nothing_typed(cash):
         made = (PayerContract.query.filter_by(payer_id=cash["payer"])
                 .order_by(PayerContract.id.desc()).first())
         assert made.number and made.number.isdigit()
-        assert made.start_date == date.today()
-        assert made.end_date == date.today() + timedelta(days=364)
+        assert made.start_date == local_today()
+        assert made.end_date == local_today() + timedelta(days=364)
 
 
 def test_two_contracts_never_share_a_number(cash):

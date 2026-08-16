@@ -26,9 +26,14 @@ that cried wolf on it would be turned off within a week.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# `interval_warning` counts from `local_today()`, so a dose backdated with
+# `date.today()` is a different number of days old whenever UTC and Cairo
+# disagree — which they do from 21:00 UTC. "five days ago" read as six.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -115,7 +120,7 @@ def test_the_warning_stops_once_the_interval_has_passed(clinic):
         patient = clinic["db"].session.get(Patient, ids["child"])
         clinic["db"].session.add(PatientVaccine(
             patient_id=patient.id, vaccine_id=vaccine.id, brand_id=ids["brand"],
-            dose_number=1, given_date=date.today() - timedelta(days=60),
+            dose_number=1, given_date=local_today() - timedelta(days=60),
             event_type="given"))
         clinic["db"].session.commit()
         assert interval_warning(patient.id, vaccine) is None
@@ -131,7 +136,7 @@ def test_the_warning_fires_inside_the_interval(clinic):
         patient = clinic["db"].session.get(Patient, ids["child"])
         clinic["db"].session.add(PatientVaccine(
             patient_id=patient.id, vaccine_id=vaccine.id, brand_id=ids["brand"],
-            dose_number=1, given_date=date.today() - timedelta(days=5),
+            dose_number=1, given_date=local_today() - timedelta(days=5),
             event_type="given"))
         clinic["db"].session.commit()
         warn = interval_warning(patient.id, vaccine)
@@ -153,7 +158,7 @@ def test_the_vaccines_own_interval_wins_over_the_default(clinic):
         patient = clinic["db"].session.get(Patient, ids["child"])
         clinic["db"].session.add(PatientVaccine(
             patient_id=patient.id, vaccine_id=vaccine.id, brand_id=ids["brand"],
-            dose_number=1, given_date=date.today() - timedelta(days=40),
+            dose_number=1, given_date=local_today() - timedelta(days=40),
             event_type="given"))
         clinic["db"].session.commit()
         warn = interval_warning(patient.id, vaccine)
@@ -173,9 +178,9 @@ def test_a_backdated_dose_does_not_cry_wolf(clinic):
         patient = clinic["db"].session.get(Patient, ids["child"])
         clinic["db"].session.add(PatientVaccine(
             patient_id=patient.id, vaccine_id=vaccine.id, brand_id=ids["brand"],
-            dose_number=2, given_date=date.today(), event_type="given"))
+            dose_number=2, given_date=local_today(), event_type="given"))
         clinic["db"].session.commit()
-        older = date.today() - timedelta(days=90)
+        older = local_today() - timedelta(days=90)
         assert interval_warning(patient.id, vaccine, older) is None
 
 
