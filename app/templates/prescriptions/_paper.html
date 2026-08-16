@@ -21,14 +21,36 @@
 <div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
   {% if tpl.mode == 'preprinted' %}
     {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
-    {# The date is the one thing a pre-printed letterhead cannot carry. The
-       clinic's name, address and logo are on the paper already — that is what
-       the paper is for — but the date changes with every prescription, so it
-       has to come from here. It used to live inside the header block below,
-       which this mode skips entirely, and a prescription printed on the
-       clinic's own paper came out with no date on it at all. #}
-    <div style="text-align:end;font-size:0.85em;margin-bottom:0.7em;">
-      {{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
+    {# The paper mode decides the *layout*; the ticks decide the *content*.
+
+       This mode used to skip the whole letterhead, ticks and all, on the
+       reasoning that the paper already carries one. Which is true of the
+       clinic's name and logo and not true of everything: a letterhead printed
+       last year does not carry this doctor's licence number, and a clinic
+       with three doctors sharing one pad does not carry the doctor's name
+       either. Asked for exactly that way — "the ones that are ticked I might
+       still want printed, like the licence on pre-printed paper".
+
+       So the four fields print here too, each if it is ticked, in one compact
+       run below the offset instead of the full block with its rule and logo.
+       A clinic whose paper already says these things unticks them, which is
+       what the ticks are for.
+
+       The date is the one thing that is never on pre-printed paper — it
+       changes with every prescription — so it is not behind a tick at all. #}
+    <div class="rx-line" style="justify-content:space-between;font-size:0.85em;margin-bottom:0.7em;">
+      {# `flex: 1 1 auto; min-width: 0` or the run cannot shrink inside the
+         space-between row, and the fields print across one another —
+         measured with the doctor's name and the address overlapping. #}
+      <span class="rx-line" style="gap:0.15em 1em;flex:1 1 auto;min-width:0;">
+        {% if tpl.show_doctor and doc %}<strong>{{ doc.doctor_print_name(current_lang) }}</strong>{% endif %}
+        {% if tpl.show_specialty and doc %}{% for line in doc.doctor_title_lines(current_lang) %}<span class="rx-k">{{ line }}</span>{% endfor %}{% endif %}
+        {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
+        {% if tpl.show_contact and (addr or clinic.phone) %}<span class="rx-k">{% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</span>{% endif %}
+        {% if tpl.show_license and doc and doc.license_no %}<span class="rx-k">{{ t('rx.license') }}: <span dir="ltr">{{ doc.license_no }}</span></span>{% endif %}
+      </span>
+      <span>{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></span>
+    </div>
   {% else %}
   <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:2px solid var(--green-600);padding-bottom:0.85em;margin-bottom:1em;">
     <div style="display:flex;align-items:center;gap:14px;">
@@ -54,6 +76,7 @@
   {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
   {% set has_weight = growth and growth.weight_kg %}
   {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
+  {% set coverage = rx.patient.active_coverage if tpl.show_coverage else None %}
 
   {# Who this is for, on one line.
 
@@ -85,6 +108,16 @@
       {% if growth.record_date != rx.rx_date %}
       <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>{% endif %}</span>
     {% endif %}
+    {# Insurance or club membership. The payer's name and the member's number
+       are the two things a payer's desk asks for, and both were already in the
+       file — ``Patient.active_coverage`` is the current, unexpired one, which
+       is the only one worth printing: an expired card sends a family away. #}
+    {% if tpl.show_coverage and coverage %}
+    <span><span class="rx-k">{{ t('rx.coverage') }}:</span>
+      <strong>{{ coverage.payer.display_name(current_lang) if coverage.payer else '' }}</strong>
+      {% if coverage.membership_number %}
+      <span dir="ltr" class="rx-k">#{{ coverage.membership_number }}</span>{% endif %}</span>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -94,9 +127,9 @@
      The stage stays beside the words, because "التهاب رئوي" alone does not
      tell a guardian — or the next doctor — whether this is settled or still
      being worked out, and those mean very different things. #}
-  {% if rx.complaint or (tpl.show_diagnosis and rx.diagnosis) %}
+  {% if (tpl.show_complaint and rx.complaint) or (tpl.show_diagnosis and rx.diagnosis) %}
   <div class="rx-block rx-line" style="margin-bottom:0.7em;">
-    {% if rx.complaint %}
+    {% if tpl.show_complaint and rx.complaint %}
     <span><span class="rx-k">{{ t('rx.complaint') }}:</span> {{ rx.complaint }}</span>
     {% endif %}
     {% if tpl.show_diagnosis and rx.diagnosis %}

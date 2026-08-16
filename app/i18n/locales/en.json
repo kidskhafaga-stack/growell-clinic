@@ -2406,7 +2406,8 @@
     "license": "License",
     "all_classes": "All classes",
     "conditions": "Chronic conditions",
-    "next_appointment": "Next appointment"
+    "next_appointment": "Next appointment",
+    "coverage": "Insurance / membership"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -2530,7 +2531,10 @@
     "offset_preprinted_only": "The top offset applies to pre-printed paper only; it has no effect on white paper.",
     "contact_empty": "No address or phone is saved in the clinic settings, so this box will print nothing. Add them under Settings → Clinic details.",
     "pv_margin": "Margin",
-    "show_next_appointment": "Next appointment"
+    "show_next_appointment": "Next appointment",
+    "show_complaint": "Complaint",
+    "show_coverage": "Insurance / membership",
+    "preprinted_letterhead": "On pre-printed paper these print as one compact line below the offset, without the logo or the rule. Untick whatever your own letterhead already carries."
   },
   "store": {
     "title": "General store",

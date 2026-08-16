@@ -98,15 +98,23 @@
     position: absolute; inset-inline: 0; z-index: 6; pointer-events: none;
     border-top: 1px dashed #c1121f;
   }
-  /* The label goes on the *start* side. It used to sit at `inset-inline-end`,
-     which is where the date is — the two were printed one across the other,
-     "التاريخ: 2026-08-16" with "حد الإزاحة — 33 مم" struck through it. It
-     looked fine on screen only because the label had an opaque background,
-     and print.css strips every background to save ink, so the collision was
-     invisible until it came off the printer. Moving it to the other edge
-     costs nothing: the date is the only thing on that line, and it is short. */
+  /* The label goes **above** the rule, in the band the offset reserves for
+     the clinic's own letterhead — which is, by definition, the one part of
+     this page that our ink never touches.
+
+     Sitting below it was wrong twice. First it was at `inset-inline-end`,
+     where the date is, and the two printed one across the other. Moving it to
+     the other edge fixed that until the letterhead fields started printing on
+     pre-printed paper, and they land on that edge — measured in the PDF: the
+     label at x 310–383 straight through the doctor's name at 348–386. Any
+     edge below the rule is an edge something else can want. Above it, nothing
+     can.
+
+     It looks fine on screen either way, because the label has an opaque
+     background and print.css strips every background to save ink — so this
+     collision only ever existed on paper. */
   .rx-offset-rule span {
-    position: absolute; inset-inline-start: 0; top: 2px;
+    position: absolute; inset-inline-start: 0; bottom: 2px;
     font-size: .7rem; color: #c1121f; background: var(--card); padding: 0 4px;
   }
 

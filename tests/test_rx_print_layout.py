@@ -206,15 +206,31 @@ def test_the_offset_marker_is_not_on_the_same_edge_as_the_date(clinic):
     marker = test_print[test_print.index(".rx-offset-rule span {"):]
     marker = marker[:marker.index("}")]
 
-    # The date, in pre-printed mode, is the only thing on that line.
+    # Where the date sits in pre-printed mode. It used to be a row of its own
+    # at `text-align: end`; it is now the last item of a `space-between` run
+    # that also carries whichever letterhead fields are ticked. Same edge,
+    # different markup — and this guard is what caught the change rather than
+    # letting the test quietly pass on a line it was no longer reading.
     date_row = paper[paper.index("{% if tpl.mode == 'preprinted' %}"):]
     date_row = date_row[:date_row.index("{% else %}")]
-    assert "text-align:end" in date_row, \
+    assert "justify-content:space-between" in date_row, \
         "this test is reading the wrong line — the date moved"
+    assert date_row.rindex("rx.date") > date_row.index("show_license"), \
+        "the date is no longer the last thing on that run"
 
     assert "inset-inline-end" not in marker, \
         "the offset label is back on the same edge as the date"
     assert "inset-inline-start" in marker
+
+    # And above the rule, not below it. Moving it to the other edge was only
+    # ever half a fix: it stopped colliding with the date and then collided
+    # with the letterhead fields the moment those began printing on
+    # pre-printed paper — measured in the PDF, the label at x 310–383 straight
+    # through the doctor's name at 348–386. Every edge *below* the rule is an
+    # edge something else can want. The band above it is the space reserved
+    # for the clinic's own letterhead, which our ink never touches.
+    assert "bottom:" in marker and "top:" not in marker, \
+        "the offset label is below the rule again, where the content is"
 
 
 def _test_print_html():
