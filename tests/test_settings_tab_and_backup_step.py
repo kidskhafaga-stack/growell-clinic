@@ -70,17 +70,57 @@ def test_a_tab_name_that_is_not_a_tab_does_not_reach_the_url(app_ctx):
     assert answer.headers["Location"].endswith("#clinic")
 
 
+def _x_data(page):
+    """The whole ``x-data`` attribute of the settings form, as the browser
+    would parse it — up to the quote that ends it, not up to the one I meant.
+
+    This is the point of the test. The first version asserted that the strings
+    ``tabs:``, ``"eta"`` and ``replaceState`` appeared *somewhere* on the page,
+    and all three did — on a page where the attribute had been terminated by
+    an unescaped quote, so the rest of the script printed itself as visible
+    text and every panel disappeared. The assertions were true and the screen
+    was broken.
+    """
+    start = page.index('x-data="', page.index("<form method=\"post\""))
+    start += len('x-data="')
+    return page[start:page.index('"', start)]
+
+
+def test_the_tab_script_is_not_cut_in_half_by_a_quote(app_ctx):
+    """`tojson` emits double quotes and the attribute is double-quoted."""
+    _admin()
+    page = _signed_in(app_ctx).get("/settings/").get_data(as_text=True)
+
+    attr = _x_data(page)
+    assert "init()" in attr, \
+        "the x-data attribute ends before its own code: " + attr[-80:]
+    assert "replaceState" in attr
+
+
 def test_the_screen_reads_the_tab_back_out_of_the_address(app_ctx):
     """The other half: landing on #eta has to open the tax tab."""
     _admin()
     page = _signed_in(app_ctx).get("/settings/").get_data(as_text=True)
 
-    # The tab list the page decides from, and the sync that keeps it there.
-    assert "tabs:" in page and '"eta"' in page
-    assert "replaceState" in page
+    attr = _x_data(page)
+    assert "eta" in attr, "the tab list never reached the browser"
+    assert "window.location.hash" in attr
     # And the ICD-11 block, which three redirects point at by its own name,
     # has to resolve to the tab it actually lives on.
-    assert "icd11" in page and "'ai'" in page
+    assert "icd11" in attr and "ai" in attr
+
+
+def test_the_page_below_the_tabs_is_not_empty(app_ctx):
+    """What the reporter actually saw: a heading, the tabs, and nothing.
+
+    Asserted on a field from a tab that is *not* the default one, so a page
+    that renders only its first panel does not pass either.
+    """
+    _admin()
+    page = _signed_in(app_ctx).get("/settings/").get_data(as_text=True)
+
+    assert 'name="clinic_name"' in page, "the clinic identity tab is empty"
+    assert 'name="eta_vat_rate"' in page, "the tax tab never rendered"
 
 
 # ------------------------------------------------- the backup step is honest

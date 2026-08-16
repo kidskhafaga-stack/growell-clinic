@@ -40,7 +40,13 @@
 {% set tab_ids = ['clinic','logo','numbering','board','phrases','policies','eta','ai'] %}
 <form method="post" enctype="multipart/form-data"
       x-data="{
-        tabs: {{ tab_ids | tojson }},
+        {# `forceescape` is not decoration. `tojson` emits double quotes, this
+           attribute is delimited by double quotes, and without the escape the
+           first one it produced ended the attribute — the rest of this script
+           printed itself onto the page as text and every tab panel vanished.
+           Every other `tojson` inside an attribute in this program already
+           pairs the two; this one was written without it. #}
+        tabs: {{ tab_ids | tojson | forceescape }},
         {# Sections that live *inside* a tab and are linked to by their own
            name — the ICD-11 block is reached by three redirects in the
            settings blueprint, and none of them named a tab, so following one
