@@ -183,7 +183,10 @@ def create_app(config_name="default"):
         "finance": "finance.index",
         "reports": "reports.index",
         "ai": "ai.index",
-        "messages": "messages.occasions",
+        # Not `occasions`: that is where the WhatsApp connection and the
+        # message templates are configured, and somebody whose job is
+        # answering people arrived there every morning.
+        "messages": "messages.desk",
         "settings": "settings.index",
         "users": "users.index",
     }

@@ -18,7 +18,7 @@
     {% if current_user.is_admin %}
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.survey_builder') }}"><i class="bi bi-ui-checks"></i> {{ t('survey.title') }}</a>
     {% endif %}
-    <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}"><i class="bi bi-headset"></i> {{ t('crm.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.desk') }}"><i class="bi bi-headset"></i> {{ t('crm.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('messages.index') }}"><i class="bi bi-clock-history"></i> {{ t('crm.dashboard') }}</a>
   </div>
 </div>

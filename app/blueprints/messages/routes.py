@@ -31,7 +31,8 @@ from app.models import (
     User,
 )
 from app.utils import whatsapp as wa
-from app.utils.decorators import admin_required, module_required
+from app.utils.decorators import (admin_required, capability_required,
+                                  module_required)
 from app.utils.paging import paginate
 from app.utils.resend import retryable
 from app.utils.triage import TOPICS as TRIAGE_TOPICS
@@ -219,6 +220,76 @@ def _recent_failures(limit=20, days=BOARD_DAYS):
             .filter(MessageLog.status.in_(("failed", "skipped")),
                     MessageLog.created_at >= since)
             .order_by(MessageLog.created_at.desc()).limit(limit).all())
+
+
+@messages_bp.route("/desk")
+@module_required(MODULE)
+def desk():
+    """The customer-service desk: what is waiting, and who to send to today.
+
+    This module used to open on ``occasions`` — the hub where the WhatsApp
+    connection and the message templates are configured. So somebody whose job
+    is answering people all day arrived, every morning, in a settings screen.
+    Reported as: the customer-service tab is almost all settings.
+
+    Nothing here is new work. Every block is a question that already had an
+    answer somewhere in this blueprint; they were spread across five screens
+    with no front door between them. The desk is the front door: it says what
+    is waiting and hands over the one action for each thing.
+
+    Deliberately read-only in itself. Every row links to the screen that owns
+    the doing, because a summary that also edits is a second place for the
+    same bug to live.
+    """
+    from app.utils import inbox as ibx
+
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Who is waiting. The whole point of a desk is that this is the first
+    # thing on it, and that it is sorted by who has waited longest rather than
+    # by who wrote last — a queue read newest-first is not a queue.
+    waiting = [c for c in ibx.conversations(only_open=True) if c["open"]]
+    # Closing-soon first, then longest-waiting. Not longest-waiting alone:
+    # ``inbox`` already works out how long the clinic may still answer for
+    # free, and a thread with forty minutes left on that window is more urgent
+    # than one that has waited two days with a day still in hand. After it
+    # shuts, the reply costs money and can only go out as an approved
+    # template — so the order here is the order of what is about to become
+    # impossible, not of what has been slowest.
+    waiting.sort(key=lambda c: (not c.get("closing"),
+                                -(c.get("waiting_hours") or 0)))
+
+    # Today's sending, in the three numbers somebody acts on.
+    sent_today = (MessageLog.query
+                  .filter(MessageLog.status == "sent",
+                          MessageLog.sent_at >= today).count())
+    failed_today = (MessageLog.query
+                    .filter(MessageLog.status == "failed",
+                            MessageLog.created_at >= today).count())
+    due_now = (MessageLog.query
+               .filter(MessageLog.status == "scheduled",
+                       MessageLog.scheduled_at <= datetime.utcnow()).count())
+
+    # Today's clinic, per doctor, so the desk can tell a caller what is left.
+    doctors = (User.query.filter_by(role="doctor", is_active=True)
+               .order_by(User.full_name).all())
+    on_date = local_today()
+    clinic_today = [{"doctor": d, "appointments": _day_appointments(d.id, on_date)}
+                    for d in doctors]
+
+    return render_template(
+        "messages/desk.html",
+        waiting=waiting,
+        waiting_label=waiting_label,
+        response=ibx.response_stats(),
+        sent_today=sent_today, failed_today=failed_today, due_now=due_now,
+        retryable=len(retryable()),
+        failures=_recent_failures(limit=5),
+        birthdays=_upcoming_birthdays(),
+        clinic_today=clinic_today,
+        on_date=on_date,
+        can_setup=current_user.can("messages_setup"),
+    )
 
 
 @messages_bp.route("/recall")
@@ -611,6 +682,7 @@ def quick_reply_delete(reply_id):
 
 @messages_bp.route("/away-hours", methods=["POST"])
 @module_required(MODULE)
+@capability_required("messages_setup")
 def away_hours():
     """When the clinic answers, and what it says when it doesn't."""
     from app.utils.service_desk import (DEFAULT_OPEN_FROM, DEFAULT_OPEN_TO,
@@ -1011,6 +1083,7 @@ def _upcoming_birthdays(days=7):
 
 @messages_bp.route("/occasions")
 @module_required(MODULE)
+@capability_required("messages_setup")
 def occasions():
     """The unified Patient Customer Service (CRM) hub.
 
@@ -1090,6 +1163,7 @@ def connection_save():
 
 @messages_bp.route("/type/<int:tpl_id>/save", methods=["POST"])
 @module_required(MODULE)
+@capability_required("messages_setup")
 def system_template_save(tpl_id):
     """Edit a canonical notification type: body, image, auto/manual, on/off."""
     tpl = db.get_or_404(MessageTemplate, tpl_id)
@@ -1118,6 +1192,7 @@ def system_template_save(tpl_id):
 
 @messages_bp.route("/type/<int:tpl_id>/test-send", methods=["POST"])
 @module_required(MODULE)
+@capability_required("messages_setup")
 def template_test_send(tpl_id):
     """Send this template to one number before it goes to everybody.
 
@@ -1188,6 +1263,7 @@ def send_birthday(patient_id):
 
 @messages_bp.route("/occasions/template/new", methods=["POST"])
 @module_required(MODULE)
+@capability_required("messages_setup")
 def occasion_template_new():
     name = (request.form.get("name") or "").strip()
     body = (request.form.get("body") or "").strip()
@@ -1210,6 +1286,7 @@ def occasion_template_new():
 
 @messages_bp.route("/occasions/template/<int:tpl_id>/edit", methods=["POST"])
 @module_required(MODULE)
+@capability_required("messages_setup")
 def occasion_template_edit(tpl_id):
     tpl = db.get_or_404(MessageTemplate, tpl_id)
     tpl.name = (request.form.get("name") or tpl.name).strip()
@@ -1237,6 +1314,7 @@ def occasion_template_edit(tpl_id):
 
 @messages_bp.route("/occasions/template/<int:tpl_id>/delete", methods=["POST"])
 @module_required(MODULE)
+@capability_required("messages_setup")
 def occasion_template_delete(tpl_id):
     tpl = db.get_or_404(MessageTemplate, tpl_id)
     if tpl.is_system:  # canonical rows are managed, never deleted
