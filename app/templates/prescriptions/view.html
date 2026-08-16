@@ -4,12 +4,9 @@
 {% block title %}{{ t('rx.prescription') }}{% endblock %}
 {% block page_heading %}{{ t('rx.prescription') }}{% endblock %}
 
-{% set doc = rx.doctor %}
-{% set personal_logo_url = url_for('static', filename='uploads/users/' ~ doc.personal_logo) if doc and doc.personal_logo else None %}
-{% if tpl.logo_source == 'personal' %}{% set logo_url = personal_logo_url %}
-{% elif tpl.logo_source == 'none' %}{% set logo_url = None %}
-{% else %}{% set logo_url = clinic.logo_url %}{% endif %}
-
+{# The logo is resolved by the paper itself, for every page that includes it.
+   A second copy here was dead the moment the include re-set it, and a dead
+   copy of a rule is a copy that gets fixed on one side only. #}
 {% block content %}
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
   <a class="btn btn-outline gc-press" href="{{ url_for('patients.view', patient_id=rx.patient_id) }}">

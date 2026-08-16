@@ -76,6 +76,26 @@
     break-after: avoid;
   }
 
+  /* A prescription long enough to need a second page.
+   *
+   * Left to itself the browser broke wherever it ran out of room, and one came
+   * back with "الفحوصات المطلوبة" alone at the foot of page one and its single
+   * line — "أشعة صدر" — by itself at the top of page two, with the signature
+   * stranded under it on an otherwise empty sheet. Each of these blocks is one
+   * thing to read, so each is kept whole; the drug table is deliberately not
+   * in the list, because a table of twenty drugs *has* to be allowed to split
+   * and `thead` above already repeats its headings on the next page.
+   */
+  #rxPaper .rx-block {
+    break-inside: avoid;
+  }
+  /* The signature and stamp belong to the prescription above them, not to a
+     fresh sheet of their own. */
+  #rxPaper .rx-sign {
+    break-inside: avoid;
+    break-before: avoid;
+  }
+
   /* Ink. A report is read on white paper, not on a screen's greys, and a
      clinic printing a hundred of these is buying the difference. */
   * {
