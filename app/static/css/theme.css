@@ -792,3 +792,26 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 #rxPaper .rx-line { display: flex; flex-wrap: wrap; align-items: baseline;
   gap: 0.25em 1.5em; }
 #rxPaper .rx-k { color: var(--muted); }
+
+/* ---------- Segmented filter tabs ----------
+ *
+ * A row of pills that filter one list without leaving it, each carrying its
+ * own count. Written for the vaccine catalogue and kept in that template's
+ * own <style> until the customer-service work list needed the same control —
+ * at which point the choice was to copy nine lines of CSS or to move them
+ * here. A second copy is a second thing to keep in step with the first.
+ *
+ * The count is what makes it a filter rather than a menu: "government (0)"
+ * answers the question before it is pressed.
+ */
+.vseg { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.vseg-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--card, #fff);
+  color: var(--text); font-weight: 600; font-size: 0.9rem; text-decoration: none;
+  transition: all .15s; }
+.vseg-btn:hover { border-color: var(--green-500, #22c55e); }
+.vseg-btn.active { background: var(--green-700, #15803d); color: #fff;
+  border-color: var(--green-700, #15803d); }
+.vseg-count { background: rgba(0, 0, 0, .08); border-radius: 999px; padding: 1px 9px;
+  font-size: 0.78rem; }
+.vseg-btn.active .vseg-count { background: rgba(255, 255, 255, .22); }

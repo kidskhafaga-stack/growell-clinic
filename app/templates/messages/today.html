@@ -1,0 +1,78 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('messages_mod.today_title') }}{% endblock %}
+{% block page_heading %}{{ t('messages_mod.today_title') }}{% endblock %}
+
+{# Three reasons, one list. The filter tabs are a view over the same rows, not
+   three queries: a count that disagrees with the list it heads is the reason
+   nobody trusts a dashboard. #}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('messages_mod.today_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('messages_mod.today_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('messages.desk') }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('messages_mod.desk_title') }}</a>
+</div>
+
+<div class="vseg gc-animate">
+  <a class="vseg-btn {{ 'active' if not kind else '' }}" href="{{ url_for('messages.today_worklist') }}">
+    <i class="bi bi-collection"></i> {{ t('messages_mod.today_all') }}
+    <span class="vseg-count">{{ counts.total }}</span></a>
+  {% for k in kinds %}
+  <a class="vseg-btn {{ 'active' if kind == k else '' }}"
+     href="{{ url_for('messages.today_worklist', kind=k) }}">
+    {% if k == 'birthday' %}<i class="bi bi-gift"></i>
+    {% elif k == 'vaccine' %}<i class="bi bi-shield-exclamation"></i>
+    {% else %}<i class="bi bi-person-dash"></i>{% endif %}
+    {{ t('messages_mod.kind_' ~ k) }}
+    <span class="vseg-count">{{ counts[k] }}</span></a>
+  {% endfor %}
+</div>
+
+<div class="card gc-scale-in">
+  {% if not rows %}
+  <div class="empty-state"><i class="bi bi-emoji-smile"></i>{{ t('messages_mod.today_none') }}</div>
+  {% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            <a href="{{ url_for('patients.view', patient_id=r.patient.id) }}">
+              <strong>{{ r.patient.display_name(current_lang) }}</strong></a>
+            <span class="badge badge--muted">{{ r.patient.patient_number }}</span>
+          </td>
+          <td>
+            {% if r.kind == 'birthday' %}<span class="badge badge--role"><i class="bi bi-gift"></i> {{ t('messages_mod.kind_birthday') }}</span>
+            {% elif r.kind == 'vaccine' %}<span class="badge badge--danger"><i class="bi bi-shield-exclamation"></i> {{ t('messages_mod.kind_vaccine') }}</span>
+            {% else %}<span class="badge badge--muted"><i class="bi bi-person-dash"></i> {{ t('messages_mod.kind_recall') }}</span>{% endif %}
+            {% if r.detail %}<span style="color:var(--muted);">{{ r.detail.display_name(current_lang) }}</span>{% endif %}
+          </td>
+          <td style="color:var(--muted);">
+            {# `days` is negative for anything already late. Saying "12 days
+               late" rather than printing a date is the difference between a
+               list somebody triages and a list somebody scrolls. #}
+            {% if r.days is none %}—
+            {% elif r.days < 0 %}<strong style="color:var(--danger);">{{ t('messages_mod.today_overdue', n=-r.days) }}</strong>
+            {% elif r.days == 0 %}<strong>{{ t('messages_mod.today_due_today') }}</strong>
+            {% else %}{{ t('messages_mod.today_in', n=r.days) }}{% endif %}
+            {% if r.kind == 'recall' and r.due %}
+            <span dir="ltr">({{ t('messages_mod.today_last_visit') }} {{ r.due }})</span>{% endif %}
+          </td>
+          <td style="text-align:end;">
+            <a class="btn btn-outline btn-sm gc-press"
+               href="{{ url_for(r.endpoint, **r.kwargs) }}">
+              <i class="bi bi-whatsapp"></i> {{ t('messages_mod.desk_send') }}</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

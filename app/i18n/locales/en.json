@@ -1863,7 +1863,19 @@
     "desk_minutes": "min",
     "desk_today_is": "birthday today",
     "desk_in_days": "in {n} days",
-    "desk_log": "Send log"
+    "desk_log": "Send log",
+    "today_title": "Today's list",
+    "today_sub": "Everybody the clinic has a reason to write to today, in one place.",
+    "today_none": "Nobody needs a message today. 👌",
+    "today_all": "All",
+    "kind_birthday": "Birthday",
+    "kind_vaccine": "Overdue dose",
+    "kind_recall": "Stopped coming",
+    "today_overdue": "{n} days late",
+    "today_due_today": "today",
+    "today_in": "in {n} days",
+    "today_last_visit": "last visit",
+    "today_open": "Open today's list"
   },
   "coverage": {
     "title": "Insurance / Membership",

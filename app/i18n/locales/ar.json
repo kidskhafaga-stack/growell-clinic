@@ -1863,7 +1863,19 @@
     "desk_minutes": "دقيقة",
     "desk_today_is": "عيد ميلاده النهاردة",
     "desk_in_days": "بعد {n} يوم",
-    "desk_log": "سجل الإرسال"
+    "desk_log": "سجل الإرسال",
+    "today_title": "قائمة النهاردة",
+    "today_sub": "كل اللي عندنا سبب نبعتله النهاردة، في مكان واحد.",
+    "today_none": "مفيش حد محتاج رسالة النهاردة. 👌",
+    "today_all": "الكل",
+    "kind_birthday": "عيد ميلاد",
+    "kind_vaccine": "تطعيم متأخر",
+    "kind_recall": "انقطع عن العيادة",
+    "today_overdue": "متأخر {n} يوم",
+    "today_due_today": "النهاردة",
+    "today_in": "بعد {n} يوم",
+    "today_last_visit": "آخر زيارة",
+    "today_open": "افتح قائمة النهاردة"
   },
   "coverage": {
     "title": "التأمين / العضوية",
