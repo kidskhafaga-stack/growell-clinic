@@ -20,6 +20,13 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's clock, not the machine's. `datetime.date.today()` is UTC
+# and the program runs on the clinic's timezone; at 21:00 UTC in Cairo
+# those are different days. This file used both, and the full suite
+# caught it by running across that boundary: a birthday built for
+# "today" read as yesterday's and vanished off the list.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -28,7 +35,7 @@ def _patient(clinic, name="طفل جديد", number="W1", dob_in_days=2,
     from app.extensions import db
     from app.models import Patient
 
-    today = date.today()
+    today = local_today()
     dob = None
     if dob_in_days is not None:
         when = today + timedelta(days=dob_in_days)

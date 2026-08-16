@@ -494,8 +494,14 @@
              // Guarded by `model`: the free-setup button sets the provider AND
              // the model in one click, and this watcher fires *after* it —
              // unguarded it threw that model away and left the box on
-             // "type one manually", which is exactly what it was meant to spare
-             // somebody.
+             // 'type one manually', which is exactly what it was meant to
+             // spare somebody. Single quotes are not a style choice here: this
+             // whole block is the value of a double-quoted `x-data` attribute,
+             // so one double quote anywhere in it — comments included — ends
+             // the attribute. It did, at 2013 characters, mid-sentence, and
+             // everything after it was dropped: the model list, the watcher,
+             // `init()`. The tab rendered, the provider box worked, and the
+             // model box quietly never appeared.
              const l = this.list();
              if (!l.includes(this.model)) {
                this.model = l[0] || '';
