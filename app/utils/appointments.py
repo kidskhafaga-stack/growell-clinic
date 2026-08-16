@@ -283,3 +283,30 @@ def parse_date_arg(value, default=None):
         return default
     from app.utils.clock import local_today
     return local_today()
+
+
+def next_booked(patient_id, on_or_after=None, doctor_id=None):
+    """The next appointment this patient already has, or ``None``.
+
+    For the prescription. A parent leaves holding one piece of paper, and the
+    follow-up date they were told out loud is the first thing to go — so if
+    the doctor has already booked it, it belongs on the page.
+
+    Only the ones that are still going to happen: a cancelled or no-show
+    booking is not a date anybody should be told to come back on, and a
+    ``completed`` one has already happened. ``scheduled`` is the whole of
+    "booked and still ahead of us", so it is the whole of what this returns.
+
+    Ordered by date **and time** together. Ordering on the date alone leaves
+    two bookings on the same morning in whatever order the table hands them
+    back, which is how you print 4pm for a patient who is expected at 9.
+    """
+    on_or_after = on_or_after or local_today()
+    query = (Appointment.query
+             .filter(Appointment.patient_id == patient_id,
+                     Appointment.status == "scheduled",
+                     Appointment.appt_date >= on_or_after))
+    if doctor_id is not None:
+        query = query.filter(Appointment.doctor_id == doctor_id)
+    return query.order_by(Appointment.appt_date.asc(),
+                          Appointment.appt_time.asc()).first()

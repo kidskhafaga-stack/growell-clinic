@@ -25,6 +25,7 @@ rxPreview({
   {# Not `or not tp`: growth is the one element that stays off until asked for. #}
   show_growth: {{ 'true' if tp and tp.show_growth else 'false' }},
   show_investigations: {{ 'true' if (tp and tp.show_investigations) or not tp else 'false' }},
+  show_next_appointment: {{ 'true' if (tp and tp.show_next_appointment) or not tp else 'false' }},
   show_signature: {{ 'true' if (tp and tp.show_signature) or not tp else 'false' }},
   show_stamp: {{ 'true' if (tp and tp.show_stamp) or not tp else 'false' }}
 })
@@ -40,7 +41,8 @@ rxPreview({
           <option value="white">{{ t('rxtpl.white') }}</option>
           <option value="preprinted">{{ t('rxtpl.preprinted') }}</option>
         </select></div>
-      <div class="form-row"><label>{{ t('rxtpl.logo_source') }}</label>
+      <div class="form-row rx-inert" :class="f.mode==='preprinted' ? 'is-inert' : ''">
+        <label>{{ t('rxtpl.logo_source') }}</label>
         <select class="select" name="logo_source" x-model="f.logo">
           {% for v,k in [('clinic','logo_clinic'),('personal','logo_personal'),('none','logo_none')] %}
           <option value="{{ v }}">{{ t('rxtpl.' ~ k) }}</option>{% endfor %}
@@ -51,10 +53,41 @@ rxPreview({
           <option value="A5">A5</option>
         </select></div>
       <div class="form-row"><label>{{ t('rxtpl.font_size') }}</label><input class="input" type="number" name="font_size" x-model.number="f.font_size"></div>
-      <div class="form-row"><label>{{ t('rxtpl.top_offset') }}</label><input class="input" type="number" name="top_offset_mm" x-model.number="f.top_offset"></div>
+      <div class="form-row rx-inert" :class="f.mode!=='preprinted' ? 'is-inert' : ''">
+        <label>{{ t('rxtpl.top_offset') }}</label>
+        <input class="input" type="number" name="top_offset_mm" x-model.number="f.top_offset">
+        <div class="hint" x-show="f.mode!=='preprinted'" x-cloak>{{ t('rxtpl.offset_preprinted_only') }}</div></div>
     </div>
 
-    <label style="font-weight:600;">{{ t('rxtpl.margins') }}</label>
+    {# The five settings that only exist in the letterhead.
+       A "pre-printed" template skips the letterhead entirely — the paper it
+       prints on already has one — so these five do nothing at all in that
+       mode. They were shown ticked and enabled anyway, which is exactly the
+       question that came back: "why isn't the address showing, it's ticked?"
+       They stay in the form and keep their value: disabling a checkbox stops
+       it being posted, which would quietly turn the setting off on save. #}
+    <div class="rx-inert" :class="f.mode==='preprinted' ? 'is-inert' : ''"
+         style="margin-top:6px;">
+      <label class="rx-legend">{{ t('rxtpl.letterhead_group') }}</label>
+      <div class="rx-note" x-show="f.mode==='preprinted'" x-cloak>
+        <i class="bi bi-info-circle"></i> {{ t('rxtpl.preprinted_inert') }}</div>
+      <div class="rx-checks">
+        {% for b in ['show_doctor','show_specialty','show_contact','show_license'] %}
+        <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
+          <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
+        {% endfor %}
+      </div>
+      {# The box can be ticked and still print nothing, because what it prints
+         is the clinic's address and phone — and those live in the settings,
+         not here. Said where it is ticked rather than left to be discovered
+         on paper. #}
+      {% if not clinic.address and not clinic.phone %}
+      <div class="rx-note rx-note--warn" x-show="f.show_contact" x-cloak>
+        <i class="bi bi-exclamation-triangle"></i> {{ t('rxtpl.contact_empty') }}</div>
+      {% endif %}
+    </div>
+
+    <label class="rx-legend">{{ t('rxtpl.margins') }}</label>
     <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
       <div class="form-row"><label>{{ t('rxtpl.m_top') }}</label><input class="input" type="number" name="margin_top_mm" x-model.number="f.mt"></div>
       <div class="form-row"><label>{{ t('rxtpl.m_right') }}</label><input class="input" type="number" name="margin_right_mm" x-model.number="f.mr"></div>
@@ -62,9 +95,11 @@ rxPreview({
       <div class="form-row"><label>{{ t('rxtpl.m_left') }}</label><input class="input" type="number" name="margin_left_mm" x-model.number="f.ml"></div>
     </div>
 
-    <label style="font-weight:600;">{{ t('rxtpl.elements') }}</label>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0;">
-      {% for b in ['show_doctor','show_specialty','show_contact','show_license','show_patient','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
+    {# Everything below prints in both modes, which is why it is a separate
+       list from the letterhead above rather than one grid of fourteen. #}
+    <label class="rx-legend">{{ t('rxtpl.elements') }}</label>
+    <div class="rx-checks" style="margin:8px 0;">
+      {% for b in ['show_patient','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_diagnosis','show_investigations','show_next_appointment','show_signature','show_stamp'] %}
       <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
         <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
       {% endfor %}
@@ -74,11 +109,18 @@ rxPreview({
   <div class="rx-editor__preview">
     <div class="rx-prev-label"><i class="bi bi-eye"></i> {{ t('rxtpl.live_preview') }}
       <span x-text="f.page_size"></span></div>
+    {# The margins are the sheet's own padding and the letterhead band sits
+       inside them, because that is the order on the paper: margin, then the
+       space reserved for the printed header, then the content. The band used
+       to be drawn above the margin *and* added to the inner padding as well,
+       so the offset was counted twice and the preview put the content at
+       `margin + 2 × offset`. Reported as "this part isn't real any more". #}
     <div class="rx-sheet" :style="pageStyle">
-      <template x-if="f.mode==='preprinted'">
-        <div class="rx-letterhead" :style="letterheadStyle"><span>{{ t('rxtpl.preprinted_area') }}</span></div>
-      </template>
-      <div class="rx-inner" :style="innerStyle">
+      <div class="rx-page" :style="pageInset">
+        <template x-if="f.mode==='preprinted'">
+          <div class="rx-letterhead" :style="letterheadStyle"><span>{{ t('rxtpl.preprinted_area') }}</span></div>
+        </template>
+        <div class="rx-inner" :style="innerStyle">
         <template x-if="f.mode!=='preprinted' && f.show_doctor">
           <div class="rx-hd">
             <template x-if="f.logo!=='none'"><div class="rx-logo"><i class="bi bi-image"></i></div></template>
@@ -99,9 +141,11 @@ rxPreview({
           <span x-show="f.show_stamp" class="rx-stamp">◯</span>
           <span x-show="f.show_signature" class="rx-sig">— {{ t('rx.signature') }} —</span>
         </div>
+        </div>
       </div>
     </div>
     <div class="hint">{{ t('rxtpl.preview_hint') }}</div>
+    <div class="hint" dir="ltr" x-text="scaleNote"></div>
   </div>
 </div>
 {% endmacro %}
@@ -161,7 +205,19 @@ rxPreview({
     box-shadow:0 6px 22px rgba(0,0,0,.12);border-radius:3px;overflow:hidden;color:#222;direction:rtl;}
   .rx-letterhead{display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 6px,#e8eef3 6px,#e8eef3 12px);
     border-bottom:1px dashed #cbd5e1;color:#94a3b8;font-size:9px;}
-  .rx-inner{box-sizing:border-box;height:100%;}
+  .rx-page{box-sizing:border-box;height:100%;display:flex;flex-direction:column;}
+  .rx-inner{box-sizing:border-box;flex:1 1 auto;min-height:0;}
+  /* A control that is shown but does nothing is worse than one that is
+     not shown. Dimmed rather than disabled: a disabled checkbox is not
+     posted, so saving the form would quietly clear the setting. */
+  .rx-inert.is-inert{opacity:.5;}
+  .rx-note{font-size:.8rem;line-height:1.5;color:#1e40af;background:#eff6ff;
+    border-inline-start:3px solid #3b82f6;border-radius:8px;padding:7px 11px;margin:6px 0;}
+  .rx-note--warn{color:#b45309;background:#fef3c7;border-inline-start-color:#f59e0b;}
+  .rx-legend{display:block;font-weight:600;margin:16px 0 6px;}
+  .rx-checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;}
+  html[data-theme="dark"] .rx-note{background:rgba(59,130,246,.14);color:#bfdbfe;}
+  html[data-theme="dark"] .rx-note--warn{background:rgba(245,158,11,.16);color:#fcd34d;}
   .rx-hd{display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--green-600);padding-bottom:5px;margin-bottom:6px;}
   .rx-logo{width:22px;height:22px;border:1px solid #cbd5e1;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;}
   .rx-doc{font-weight:700;color:var(--green-800);line-height:1.1;}
@@ -175,18 +231,47 @@ rxPreview({
   @media (max-width:760px){ .rx-editor__preview{position:static;width:100%;} }
 </style>
 <script>
+  // Paper, in millimetres. The preview is a scale drawing of one of these,
+  // so A5 has to come out visibly smaller than A4 rather than the same
+  // rectangle with a different label on it.
+  const RX_PAPER = { A4: [210, 297], A5: [148, 210] };
+  const RX_SHEET_W = 250;   // px the widest sheet (A4) is drawn at
+
   function rxPreview(init){
     return {
       f: init,
-      get pxPerMm(){ return 250 / (this.f.page_size === 'A5' ? 148 : 210); },
-      get pageStyle(){ const w = 250; return `width:${w}px;height:${w*1.4142}px;`; },
-      get letterheadStyle(){ return `height:${Number(this.f.top_offset||0)*this.pxPerMm}px;`; },
+      get paper(){ return RX_PAPER[this.f.page_size] || RX_PAPER.A4; },
+      // One scale for everything on the sheet: millimetres and the font
+      // size go through the same number, so the drawing is to scale instead
+      // of being millimetres to scale with type at an invented size.
+      get pxPerMm(){ return RX_SHEET_W / RX_PAPER.A4[0]; },
+      get pageStyle(){
+        const [w, h] = this.paper, p = this.pxPerMm;
+        return `width:${(w*p).toFixed(1)}px;height:${(h*p).toFixed(1)}px;`;
+      },
+      // Margins belong to the page, not to the content inside it.
+      get pageInset(){
+        const p = this.pxPerMm, n = v => (Number(v||0)*p).toFixed(1);
+        return `padding:${n(this.f.mt)}px ${n(this.f.mr)}px ${n(this.f.mb)}px ${n(this.f.ml)}px;`;
+      },
+      // Drawn once, inside the margins. It is not added to the content's
+      // padding as well — that was the double count.
+      get letterheadStyle(){
+        return `height:${(Number(this.f.top_offset||0)*this.pxPerMm).toFixed(1)}px;`;
+      },
       get innerStyle(){
-        const p = this.pxPerMm;
-        const extra = this.f.mode === 'preprinted' ? Number(this.f.top_offset||0) : 0;
-        const fs = Math.max(6, Number(this.f.font_size||14) * 0.62);
-        return `padding:${(Number(this.f.mt||0)+extra)*p}px ${Number(this.f.mr||0)*p}px `
-             + `${Number(this.f.mb||0)*p}px ${Number(this.f.ml||0)*p}px;font-size:${fs}px;`;
+        // The font size is px at 96dpi; on the sheet it is millimetres like
+        // everything else, so it goes through the same scale. 1px is the floor
+        // a browser will still draw.
+        const fs = Math.max(1, Number(this.f.font_size||14) * (25.4/96) * this.pxPerMm);
+        return `font-size:${fs.toFixed(2)}px;`;
+      },
+      // Said out loud, because a drawing that is to scale and does not say so
+      // is read as a picture of the page rather than a measurement of it.
+      get scaleNote(){
+        const [w, h] = this.paper;
+        const drawnMm = RX_SHEET_W * 25.4/96;            // CSS px are 1/96in
+        return `${w}×${h} mm · 1 : ${(RX_PAPER.A4[0]/drawnMm).toFixed(1)}`;
       }
     };
   }

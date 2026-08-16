@@ -346,11 +346,28 @@ def test_the_sample_mark_cannot_widen_the_page(clinic):
     the suite has no browser in it — the measurement was taken by hand, is
     written down above, and this line is what keeps the rule from being
     tidied away by somebody who reads it as decoration.
+
+    The clip has since moved off the wrapper and onto a layer of its own,
+    and that move is the point: on the wrapper, ``overflow: hidden`` also
+    made the element a fragmentation container, so a prescription that ran
+    past the first sheet was clipped instead of carried over and the second
+    sheet printed empty. The clip is still required — it is just not allowed
+    to sit on anything that holds content.
     """
     tpl_id = _template(clinic)
     page = _print(clinic, tpl_id, who="boss").data.decode()
 
-    rule = [line for line in page.splitlines() if ".rx-testwrap" in line]
-    assert rule, "the wrapper rule is gone"
-    assert "overflow: hidden" in rule[0], (
-        "the sample mark is no longer clipped to the paper: " + rule[0])
+    clip = [line for line in page.splitlines() if ".rx-testmark-clip {" in line]
+    assert clip, "the layer that clips the sample mark is gone"
+    rule = page[page.index(".rx-testmark-clip {"):]
+    rule = rule[:rule.index("}")]
+    assert "overflow: hidden" in rule, (
+        "the sample mark is no longer clipped to the paper: " + rule)
+    assert "position: absolute" in rule, (
+        "the clipping layer is in the flow and will take up room: " + rule)
+
+    wrap = page[page.index(".rx-testwrap {"):]
+    wrap = wrap[:wrap.index("}")]
+    assert "overflow" not in wrap, (
+        "the clip is back on the element that holds the prescription, which "
+        "clips the second sheet instead of breaking onto it: " + wrap)

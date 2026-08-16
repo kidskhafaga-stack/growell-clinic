@@ -45,6 +45,16 @@
     padding: 0 !important;
     width: auto !important;
     max-width: none !important;
+    /* `.layout` carries `min-height: 100vh` so the sidebar reaches the bottom
+       of the window. On paper a viewport is a *page*, so it stretched every
+       document to the full height of its first sheet — and anything after it
+       started below the bottom edge. That is why a prescription that ended
+       540px into a 703px page still printed a second sheet with nothing on it
+       but the copyright line: measured, the layout ended at 702 and the footer
+       began at 740. There is no window here and nothing to reach the bottom
+       of. */
+    min-height: 0 !important;
+    height: auto !important;
   }
 
   /* Cards are a screen device. On paper they are boxes drawn round things

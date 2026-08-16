@@ -261,3 +261,92 @@ def test_the_watermark_is_still_clipped_to_the_paper(clinic):
         "the clipping layer is in the flow and will take up room"
     assert html.index('class="rx-testmark-clip"') < html.index('class="rx-testmark"'), \
         "the watermark is not inside the layer that clips it"
+
+
+# ------------------------------------------ the font size actually does work
+
+def _paper_source():
+    with open(os.path.join(ROOT, "app/templates/prescriptions/_paper.html"),
+              encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _theme_css():
+    with open(os.path.join(ROOT, "app/static/css/theme.css"),
+              encoding="utf-8") as fh:
+        return fh.read()
+
+
+def test_nothing_on_the_paper_is_sized_off_the_browser_root(clinic):
+    """Reported as "only some things get smaller".
+
+    The template stamps its size on `#rxPaper`, and `rem` is relative to the
+    *browser's root*, not to the element it is written on — so every size
+    declared that way ignored the setting completely. Measured at 9, 14 and
+    20px, the date line stayed at 13.6, the table headings at 12.8, the badges
+    at 11.8, the patient labels at 12.2 and the ℞ at 25.6, at every setting.
+    """
+    import re
+
+    stray = re.findall(r"font-size:\s*[0-9.]+rem", _paper_source())
+
+    assert not stray, \
+        f"sizes on the prescription still ignore the template: {stray}"
+
+
+@pytest.mark.parametrize("selector", [
+    "#rxPaper .table th",
+    "#rxPaper .badge",
+    "#rxPaper .info-item .k",
+    "#rxPaper .info-item .v",
+])
+def test_the_shared_classes_are_rescaled_for_the_paper(clinic, selector):
+    """The other half: these sizes live in the shared stylesheet.
+
+    Fixing only the inline sizes would have left the table headings and the
+    badges frozen, which is most of what somebody notices.
+    """
+    css = _theme_css()
+    assert selector in css, f"{selector} is not rescaled for the paper"
+    rule = css[css.index(selector):]
+    rule = rule[:rule.index("}")]
+    assert "em;" in rule and "rem" not in rule, \
+        f"{selector} is still sized off the browser root"
+
+
+def test_the_gaps_shrink_with_the_type(clinic):
+    """Type at 9px inside 12px of padding is not a smaller prescription.
+
+    The point of turning the size down is to fit the page, and the spacing is
+    most of the height. Measured: before this, 14px→9px took the paper from
+    899px to 803px — 11%. After, 868px to 626px — 28%.
+    """
+    css = _theme_css()
+    rule = css[css.index("#rxPaper .table th,"):]
+    rule = rule[:rule.index("}")]
+    assert "padding: 0.85em 1em" in rule, \
+        "the table padding does not follow the font size"
+
+    source = _paper_source()
+    sign = source[source.index('class="rx-sign"'):]
+    sign = sign[:sign.index(">")]
+    assert "margin-top:2.4em" in sign, \
+        "the gap above the signature is a fixed size again"
+
+
+def test_the_page_does_not_stretch_to_the_height_of_the_sheet(clinic):
+    """`min-height: 100vh` on `.layout`, on paper, means "one whole page".
+
+    So every document was stretched to the full height of its first sheet and
+    anything after it began below the bottom edge. Measured on an A5 page with
+    703px of room: the prescription ended at 616, the layout at 702, and the
+    copyright line started at 740 — a second sheet, carrying one grey line.
+    With this it ends at 668 and the whole thing is one page.
+    """
+    css = _print_css()
+    rule = css[css.index(".layout,\n  .main,\n  .content {"):]
+    rule = rule[:rule.index("}")]
+
+    assert "min-height: 0 !important" in rule, \
+        "the layout still stretches to a full sheet and pushes the footer off"
+    assert "height: auto !important" in rule
