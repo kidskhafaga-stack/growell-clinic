@@ -752,3 +752,29 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   border-bottom: 1px solid var(--line);
 }
 .study-group[open] .study-group__head { border-bottom: 1px solid var(--line); }
+
+/* ---------- The prescription's own type scale ----------
+ *
+ * The template carries a font size and stamps it on `#rxPaper`. It did almost
+ * nothing: reported as "I keep changing the font size and only some things get
+ * smaller". Measured at 9px, 14px and 20px, only the drug-table cells and the
+ * section headings moved. The date line stayed at 13.6px, the table headings
+ * at 12.8, the badges at 11.8, the patient labels at 12.2 and the ℞ at 25.6 —
+ * at every setting.
+ *
+ * The reason is `rem`. It is relative to the *browser's root*, not to the
+ * element it is written on, so `font-size` on the paper cannot reach anything
+ * declared that way. These are the shared classes; the sizes written inline on
+ * the paper itself were changed to `em` in the same pass.
+ *
+ * The padding is here for the same reason. Type at 9px inside 12px of padding
+ * is not a smaller prescription, it is the same prescription with smaller
+ * words in it — and the point of turning the size down is to fit the page.
+ */
+#rxPaper .table th,
+#rxPaper .table td { padding: 0.85em 1em; }
+#rxPaper .table th { font-size: 0.8em; }
+#rxPaper .badge { font-size: 0.74em; padding: 0.2em 0.7em; }
+#rxPaper .info-item .k { font-size: 0.76em; }
+#rxPaper .info-item .v { font-size: 0.98em; }
+#rxPaper .info-grid { gap: 1em 1.7em; }
