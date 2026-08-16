@@ -2523,7 +2523,12 @@
     "test_print": "Test print",
     "sample": "SAMPLE",
     "test_print_hint": "Print this on the paper you actually use and see where the text lands. Every detail is invented — no real patient appears here. On a pre-printed template the dashed red line marks the top offset: it has to fall below your printed letterhead.",
-    "offset_line": "Offset — {n} mm"
+    "offset_line": "Offset — {n} mm",
+    "letterhead_group": "Letterhead",
+    "preprinted_inert": "Your pre-printed paper already carries its letterhead, and the program prints none in this mode — so these settings do nothing. Switch “Paper mode” to “white paper” to use them.",
+    "offset_preprinted_only": "The top offset applies to pre-printed paper only; it has no effect on white paper.",
+    "contact_empty": "No address or phone is saved in the clinic settings, so this box will print nothing. Add them under Settings → Clinic details.",
+    "pv_margin": "Margin"
   },
   "store": {
     "title": "General store",
