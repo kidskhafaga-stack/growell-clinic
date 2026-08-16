@@ -98,6 +98,18 @@ CAPABILITIES = [
     # disappears, so whoever counts the drawer must not be the one who erases
     # what they were short.
     "treasury_adjust",
+    # Setting up customer service, as opposed to doing it. The desk answers
+    # people, sends the birthday message and chases a failed delivery all day;
+    # it does not repoint the clinic's WhatsApp connection or rewrite the text
+    # that goes out under the clinic's name to everybody. Same split as
+    # ``cashier`` against ``treasury_move``: taking the day's work and changing
+    # what the day's work is are different jobs.
+    #
+    # It also decides the shape of the team. A small clinic gives reception the
+    # module and nothing changes; a large one hires a customer-service desk,
+    # and separating the two is granting this to one person rather than
+    # rebuilding anything.
+    "messages_setup",
 ]
 
 ROLE_CAPABILITIES = {

@@ -1,0 +1,172 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('messages_mod.desk_title') }}{% endblock %}
+{% block page_heading %}{{ t('messages_mod.desk_title') }}{% endblock %}
+
+{# The front door of customer service.
+   Every block here is a question that already had an answer somewhere in this
+   module; they were spread over five screens with nothing linking them. So
+   this page reads and links — it does not edit. A summary that also edits is
+   a second place for the same bug to live. #}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">{{ t('messages_mod.desk_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('messages_mod.desk_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('messages.inbox') }}">
+      <i class="bi bi-chat-dots"></i> {{ t('messages_mod.desk_open_inbox') }}</a>
+    {# Only for whoever is allowed to change how customer service works. A
+       desk that answers people all day does not repoint the clinic's WhatsApp
+       connection, and the link is not shown to somebody who would only get a
+       403 from it. #}
+    {% if can_setup %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.occasions') }}">
+      <i class="bi bi-sliders"></i> {{ t('messages_mod.desk_setup') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Who is waiting. First, because that is what a desk is for. -->
+<div class="card gc-scale-in">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;">
+      <i class="bi bi-hourglass-split"></i> {{ t('messages_mod.desk_waiting') }}
+      {% if waiting %}<span class="badge badge--danger">{{ waiting|length }}</span>{% endif %}
+    </h2>
+    {% if response and response.avg_minutes %}
+    <span class="hint" style="margin:0;">{{ t('messages_mod.desk_avg_reply') }}:
+      <strong dir="ltr">{{ response.avg_minutes }}</strong> {{ t('messages_mod.desk_minutes') }}</span>
+    {% endif %}
+  </div>
+
+  {% if not waiting %}
+  <div class="empty-state"><i class="bi bi-emoji-smile"></i>{{ t('messages_mod.desk_waiting_none') }}</div>
+  {% else %}
+  <div class="table-wrap" style="margin-top:10px;">
+    <table class="table">
+      <tbody>
+        {% for c in waiting[:12] %}
+        <tr>
+          <td>
+            <a href="{{ url_for('messages.inbox_thread', key=c.key) }}"><strong>
+              {{ c.patient.display_name(current_lang) if c.patient else c.phone }}</strong></a>
+            {# The free-reply window, not just how long they have waited: after
+               it shuts the answer costs money and has to be an approved
+               template, so it is the more urgent of the two facts. #}
+            {% if c.closing %}
+            <span class="badge badge--danger"><i class="bi bi-clock-history"></i>
+              {{ t('messages_mod.desk_closing') }}</span>{% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ waiting_label(c.waiting_hours) }}</td>
+          <td style="color:var(--muted);">{{ c.last.body[:60] if c.last and c.last.body else '' }}</td>
+          <td style="text-align:end;">
+            <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.inbox_thread', key=c.key) }}">
+              <i class="bi bi-reply"></i></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if waiting|length > 12 %}
+  <a class="btn btn-outline btn-sm gc-press" style="margin-top:10px;"
+     href="{{ url_for('messages.inbox') }}">{{ t('messages_mod.desk_open_inbox') }}</a>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- What went out today, in the three numbers somebody acts on. -->
+<div class="card gc-scale-in" style="animation-delay:0.05s;">
+  <h2 class="section-title"><i class="bi bi-send"></i> {{ t('messages_mod.desk_today') }}</h2>
+  <div class="info-grid">
+    <div class="info-item"><div class="k">{{ t('messages_mod.desk_sent') }}</div>
+      <div class="v" dir="ltr">{{ sent_today }}</div></div>
+    <div class="info-item"><div class="k">{{ t('messages_mod.desk_failed') }}</div>
+      <div class="v" dir="ltr" {% if failed_today %}style="color:var(--danger);"{% endif %}>{{ failed_today }}</div></div>
+    <div class="info-item"><div class="k">{{ t('messages_mod.desk_due') }}</div>
+      <div class="v" dir="ltr">{{ due_now }}</div></div>
+  </div>
+
+  {% if failures %}
+  <div style="margin-top:12px;">
+    <div class="hint" style="margin:0 0 6px;">{{ t('messages_mod.desk_failures') }}</div>
+    <ul style="margin:0;padding-inline-start:20px;">
+      {% for f in failures %}
+      <li style="color:var(--muted);font-size:0.88rem;">
+        {{ f.patient.display_name(current_lang) if f.patient else f.to_phone }}
+        {% if f.error %}— {{ f.error[:70] }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+    {% if retryable %}
+    <form method="post" action="{{ url_for('messages.resend_failed') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-arrow-repeat"></i> {{ t('messages_mod.desk_retry') }}
+        <span class="badge badge--muted">{{ retryable }}</span></button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.index') }}">
+      <i class="bi bi-list-ul"></i> {{ t('messages_mod.desk_log') }}</a>
+  </div>
+</div>
+
+<!-- Who to write to today. -->
+<div class="card gc-scale-in" style="animation-delay:0.1s;">
+  <h2 class="section-title"><i class="bi bi-gift"></i> {{ t('messages_mod.desk_birthdays') }}</h2>
+  {% if not birthdays %}
+  <div class="empty-state"><i class="bi bi-calendar-x"></i>{{ t('messages_mod.desk_birthdays_none') }}</div>
+  {% else %}
+  <div class="table-wrap">
+    <table class="table">
+      <tbody>
+        {% for b in birthdays %}
+        <tr>
+          <td><a href="{{ url_for('patients.view', patient_id=b.patient.id) }}">
+            <strong>{{ b.patient.display_name(current_lang) }}</strong></a></td>
+          <td style="color:var(--muted);">
+            {% if b.in_days == 0 %}<strong>{{ t('messages_mod.desk_today_is') }}</strong>
+            {% else %}{{ t('messages_mod.desk_in_days', n=b.in_days) }}{% endif %}</td>
+          <td dir="ltr" style="color:var(--muted);">{{ b.date }}</td>
+          <td style="text-align:end;">
+            <a class="btn btn-outline btn-sm gc-press"
+               href="{{ url_for('messages.send_birthday', patient_id=b.patient.id) }}">
+              <i class="bi bi-whatsapp"></i> {{ t('messages_mod.desk_send') }}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Today's clinic, so the desk can answer "how many are still ahead of me". -->
+<div class="card gc-scale-in" style="animation-delay:0.15s;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;">
+      <i class="bi bi-calendar-day"></i> {{ t('messages_mod.desk_today_clinic') }}</h2>
+    <span class="hint" style="margin:0;" dir="ltr">{{ on_date }}</span>
+  </div>
+  {% set any_booked = clinic_today | selectattr('appointments') | list %}
+  {% if not any_booked %}
+  <div class="empty-state"><i class="bi bi-calendar-x"></i>{{ t('messages_mod.desk_no_appointments') }}</div>
+  {% else %}
+  <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+    {% for row in clinic_today if row.appointments %}
+    <div class="window-pill" style="justify-content:space-between;width:100%;border-radius:10px;padding:10px 12px;">
+      <span><strong>{{ row.doctor.display_name(current_lang) }}</strong>
+        <span class="badge badge--role">{{ row.appointments|length }}</span></span>
+      <a class="btn btn-outline btn-sm gc-press"
+         href="{{ url_for('messages.roster', doctor_id=row.doctor.id) }}">
+        <i class="bi bi-send"></i> {{ t('messages_mod.desk_notify_doctor') }}</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

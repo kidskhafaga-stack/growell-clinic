@@ -184,7 +184,12 @@
     </div>
     {% elif approved.available %}
     <p class="hint" style="margin:8px 0 0;">
-      <a href="{{ url_for('messages.occasions') }}#connection">{{ t('inbox.tpl_none') }}</a></p>
+      {# This one really does point at the settings, so it is shown only to
+         somebody who can open them. A desk that cannot configure templates is
+         better told nothing than sent to a 403. #}
+      {% if current_user.can('messages_setup') %}
+      <a href="{{ url_for('messages.occasions') }}#connection">{{ t('inbox.tpl_none') }}</a>
+      {% else %}<span>{{ t('inbox.tpl_none') }}</span>{% endif %}</p>
     {% endif %}
   </div>
   {% elif window and window.hours_left <= 3 %}

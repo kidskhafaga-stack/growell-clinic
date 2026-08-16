@@ -233,9 +233,13 @@ def _compute():
                           "icon": "shield-exclamation", "severity": "warning", "count": vac_due,
                           "endpoint": "vaccinations.reminders", "kwargs": {}})
         if birthdays:
+            # The desk, not the settings hub. The birthdays are on both, but
+            # the hub now needs ``messages_setup`` — so a receptionist
+            # following this bell used to land on a 403 for a thing they are
+            # perfectly entitled to act on.
             items.append({"key": "birthdays", "module": "messages",
                           "icon": "balloon", "severity": "info", "count": birthdays,
-                          "endpoint": "messages.occasions", "kwargs": {}})
+                          "endpoint": "messages.desk", "kwargs": {}})
     except Exception:  # noqa: BLE001
         pass
 
