@@ -103,7 +103,7 @@
 {% endif %}
 
 {% for vaccine in vaccines %}
-<div class="card gc-scale-in" style="animation-delay:0.08s;">
+<div class="card gc-scale-in" style="animation-delay:0.08s;" x-data="{ edit: false }">
   <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
     <div>
       <h3 style="margin:0;">{{ vaccine.display_name(current_lang) }}
@@ -121,40 +121,55 @@
     <div style="display:flex;gap:6px;">
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('vaccinations.schedule_templates', vaccine_id=vaccine.id) }}"
          title="{{ t('vaccinations.schedules_title') }}"><i class="bi bi-calendar3"></i> {{ t('vaccinations.schedules_short') }}</a>
-      <details style="position:relative;">
-        <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
-        <form method="post" action="{{ url_for('vaccinations.vaccine_edit', vaccine_id=vaccine.id) }}" class="popform">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="form-row"><label>{{ t('vaccinations.vaccine_name_ar') }}</label><input class="input" name="name_ar" value="{{ vaccine.name_ar }}"></div>
-          <div class="form-row"><label>{{ t('vaccinations.vaccine_name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ vaccine.name_en or '' }}"></div>
-          <div class="form-row"><label>{{ t('vaccinations.category') }}</label>
-            <select class="select" name="category">
-              <option value="mandatory" {{ 'selected' if vaccine.is_mandatory else '' }}>{{ t('vaccinations.mandatory') }}</option>
-              <option value="optional" {{ 'selected' if not vaccine.is_mandatory else '' }}>{{ t('vaccinations.optional') }}</option>
-            </select></div>
-          <div class="form-row"><label>{{ t('vaccinations.route') }}</label>
-            <select class="select" name="route">
-              <option value="">—</option>
-              {% for r in routes %}<option value="{{ r }}" {{ 'selected' if vaccine.route==r else '' }}>{{ t('vaccine_routes.' ~ r) }}</option>{% endfor %}
-            </select></div>
-          <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="{{ vaccine.sort_order }}"></div>
-          <div class="form-row checkbox"><input type="checkbox" id="vd_{{ vaccine.id }}" name="is_discontinued" value="1" {{ 'checked' if vaccine.is_discontinued else '' }}>
-            <label for="vd_{{ vaccine.id }}" style="margin:0;font-weight:400;">{{ t('vaccinations.discontinued') }}</label></div>
-          <div class="form-row"><label>{{ t('vaccinations.replaced_by') }}</label>
-            <select class="select" name="replaced_by_id">
-              <option value="">—</option>
-              {% for ov in vaccines if ov.id != vaccine.id %}
-                <option value="{{ ov.id }}" {{ 'selected' if vaccine.replaced_by_id == ov.id else '' }}>{{ ov.display_name(current_lang) }}</option>
-              {% endfor %}
-            </select><div class="hint">{{ t('vaccinations.replaced_by_hint') }}</div></div>
-          <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-        </form>
-      </details>
+      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="edit = !edit"
+              x-bind:aria-expanded="edit ? 'true' : 'false'" title="{{ t('common.edit') }}">
+        {# tojson + forceescape, because the attribute is double-quoted and a
+           translation is free to contain a quote of its own. #}
+        <i class="bi bi-pencil"></i> <span
+          x-text="edit ? {{ t('common.cancel') | tojson | forceescape }} : {{ t('common.edit') | tojson | forceescape }}"
+          >{{ t('common.edit') }}</span></button>
       <form method="post" action="{{ url_for('vaccinations.vaccine_delete', vaccine_id=vaccine.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-danger btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button>
       </form>
     </div>
+  </div>
+
+  {# The edit form opens *in* the card, full width, and pushes what is below it
+     down. It used to be a 300px box pinned on top of the page, which covered
+     the two cards under it and ran off the edge of the screen. #}
+  <div class="edit-panel" x-show="edit" x-cloak>
+    <form method="post" action="{{ url_for('vaccinations.vaccine_edit', vaccine_id=vaccine.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('vaccinations.vaccine_name_ar') }}</label><input class="input" name="name_ar" value="{{ vaccine.name_ar }}"></div>
+        <div class="form-row"><label>{{ t('vaccinations.vaccine_name_en') }}</label><input class="input" name="name_en" dir="ltr" value="{{ vaccine.name_en or '' }}"></div>
+        <div class="form-row"><label>{{ t('vaccinations.category') }}</label>
+          <select class="select" name="category">
+            <option value="mandatory" {{ 'selected' if vaccine.is_mandatory else '' }}>{{ t('vaccinations.mandatory') }}</option>
+            <option value="optional" {{ 'selected' if not vaccine.is_mandatory else '' }}>{{ t('vaccinations.optional') }}</option>
+          </select></div>
+        <div class="form-row"><label>{{ t('vaccinations.route') }}</label>
+          <select class="select" name="route">
+            <option value="">—</option>
+            {% for r in routes %}<option value="{{ r }}" {{ 'selected' if vaccine.route==r else '' }}>{{ t('vaccine_routes.' ~ r) }}</option>{% endfor %}
+          </select></div>
+        <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="{{ vaccine.sort_order }}"></div>
+        <div class="form-row"><label>{{ t('vaccinations.replaced_by') }}</label>
+          <select class="select" name="replaced_by_id">
+            <option value="">—</option>
+            {% for ov in vaccines if ov.id != vaccine.id %}
+              <option value="{{ ov.id }}" {{ 'selected' if vaccine.replaced_by_id == ov.id else '' }}>{{ ov.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select><div class="hint">{{ t('vaccinations.replaced_by_hint') }}</div></div>
+      </div>
+      <div class="form-row checkbox"><input type="checkbox" id="vd_{{ vaccine.id }}" name="is_discontinued" value="1" {{ 'checked' if vaccine.is_discontinued else '' }}>
+        <label for="vd_{{ vaccine.id }}" style="margin:0;font-weight:400;">{{ t('vaccinations.discontinued') }}</label></div>
+      <div class="panel-actions">
+        <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+        <button class="btn btn-outline btn-sm gc-press" type="button" x-on:click="edit = false">{{ t('common.cancel') }}</button>
+      </div>
+    </form>
   </div>
 
   <!-- Normal schedule + catch-up (المعلومات الطبية للتطعيم) -->
@@ -181,7 +196,7 @@
   <!-- Brands -->
   <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
     {% for brand in vaccine.brands %}
-    <div class="brand-block">
+    <div class="brand-block" x-data="{ edit: false }">
     <div class="window-pill" style="justify-content:space-between;width:100%;border-radius:10px;padding:10px 12px;">
       <span>
         <strong>{{ brand.display_name(current_lang) }}</strong>
@@ -202,35 +217,42 @@
           <button class="btn-x" type="submit"><i class="bi bi-star"></i></button>
         </form>
         {% endif %}
-        <details style="position:relative;">
-          <summary class="btn-x" style="list-style:none;"><i class="bi bi-pencil"></i></summary>
-          <form method="post" action="{{ url_for('vaccinations.brand_edit', brand_id=brand.id) }}" class="popform">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-row"><label>{{ t('vaccinations.brand_name') }}</label><input class="input" name="name" value="{{ brand.name }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer" value="{{ brand.manufacturer or '' }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ brand.purchase_price or '' }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.doctor_fee') }}</label><input class="input" type="number" step="0.01" name="doctor_fee" value="{{ brand.doctor_fee or '' }}"></div>
-            <div class="form-row"><label>{{ t('store.price_policy') }}</label>
-              <select class="select" name="price_policy">
-                <option value="manual" {{ 'selected' if brand.price_policy != 'auto' else '' }}>{{ t('store.policy_manual') }}</option>
-                <option value="auto" {{ 'selected' if brand.price_policy == 'auto' else '' }}>{{ t('store.policy_auto') }}</option>
-              </select></div>
-            <div class="form-row"><label>{{ t('store.margin') }}</label><input class="input" type="number" step="0.5" name="margin_percent" value="{{ brand.margin_percent if brand.margin_percent is not none else '' }}" placeholder="25"></div>
-            <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ brand.max_discount or '' }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.doses_per_vial') }}</label><input class="input" type="number" min="1" name="doses_per_vial" value="{{ brand.doses_per_vial or 1 }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" value="{{ brand.doses|map(attribute='age_months')|join(', ') }}"></div>
-            <div class="form-row"><label>{{ t('vaccinations.catch_up') }}</label><textarea class="input" name="catch_up_notes" rows="2">{{ brand.catch_up_notes or '' }}</textarea></div>
-            <div class="form-row checkbox"><input type="checkbox" id="bd_{{ brand.id }}" name="is_discontinued" value="1" {{ 'checked' if brand.is_discontinued else '' }}>
-              <label for="bd_{{ brand.id }}" style="margin:0;font-weight:400;">{{ t('vaccinations.discontinued') }}</label></div>
-            <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
-          </form>
-        </details>
+        <button class="btn-x" type="button" x-on:click="edit = !edit" title="{{ t('common.edit') }}"
+                x-bind:aria-expanded="edit ? 'true' : 'false'"><i class="bi bi-pencil"></i></button>
         <form method="post" action="{{ url_for('vaccinations.brand_delete', brand_id=brand.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-x" type="submit"><i class="bi bi-x"></i></button>
         </form>
       </span>
+    </div>
+
+    <div class="edit-panel" x-show="edit" x-cloak>
+      <form method="post" action="{{ url_for('vaccinations.brand_edit', brand_id=brand.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('vaccinations.brand_name') }}</label><input class="input" name="name" value="{{ brand.name }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.manufacturer') }}</label><input class="input" name="manufacturer" value="{{ brand.manufacturer or '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.sell_price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ brand.price or '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.purchase_price') }}</label><input class="input" type="number" step="0.01" name="purchase_price" value="{{ brand.purchase_price or '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.doctor_fee') }}</label><input class="input" type="number" step="0.01" name="doctor_fee" value="{{ brand.doctor_fee or '' }}"></div>
+          <div class="form-row"><label>{{ t('store.price_policy') }}</label>
+            <select class="select" name="price_policy">
+              <option value="manual" {{ 'selected' if brand.price_policy != 'auto' else '' }}>{{ t('store.policy_manual') }}</option>
+              <option value="auto" {{ 'selected' if brand.price_policy == 'auto' else '' }}>{{ t('store.policy_auto') }}</option>
+            </select></div>
+          <div class="form-row"><label>{{ t('store.margin') }}</label><input class="input" type="number" step="0.5" name="margin_percent" value="{{ brand.margin_percent if brand.margin_percent is not none else '' }}" placeholder="25"></div>
+          <div class="form-row"><label>{{ t('vaccinations.max_discount') }}</label><input class="input" type="number" step="0.01" name="max_discount" value="{{ brand.max_discount or '' }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.doses_per_vial') }}</label><input class="input" type="number" min="1" name="doses_per_vial" value="{{ brand.doses_per_vial or 1 }}"></div>
+          <div class="form-row"><label>{{ t('vaccinations.dose_ages') }}</label><input class="input" name="dose_ages" dir="ltr" value="{{ brand.doses|map(attribute='age_months')|join(', ') }}"></div>
+        </div>
+        <div class="form-row"><label>{{ t('vaccinations.catch_up') }}</label><textarea class="input" name="catch_up_notes" rows="2">{{ brand.catch_up_notes or '' }}</textarea></div>
+        <div class="form-row checkbox"><input type="checkbox" id="bd_{{ brand.id }}" name="is_discontinued" value="1" {{ 'checked' if brand.is_discontinued else '' }}>
+          <label for="bd_{{ brand.id }}" style="margin:0;font-weight:400;">{{ t('vaccinations.discontinued') }}</label></div>
+        <div class="panel-actions">
+          <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+          <button class="btn btn-outline btn-sm gc-press" type="button" x-on:click="edit = false">{{ t('common.cancel') }}</button>
+        </div>
+      </form>
     </div>
     {% if brand.catch_up_notes %}
     <div class="brand-catchup"><i class="bi bi-arrow-counterclockwise"></i>
@@ -255,8 +277,17 @@
 {% block head %}
 <style>
   details > summary { margin-bottom: 4px; }
-  .popform { position:absolute; z-index:30; inset-inline-end:0; margin-top:6px; width:300px;
-    background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; }
+  /* Editing happens in place: the panel is part of the page, so it is as wide
+     as the card, it never covers the row underneath, and closing it puts the
+     page back exactly as it was. */
+  .edit-panel { margin-top: 12px; padding: 14px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--surface-2,#f8fafc); }
+  .panel-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  html[data-theme="dark"] .edit-panel { background: rgba(255,255,255,.04); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .edit-panel { background: rgba(255,255,255,.04); }
+  }
+  html[data-theme="light"] .edit-panel { background: var(--surface-2,#f8fafc); }
   .btn-x { border:none; background:none; cursor:pointer; color:var(--muted); padding:2px 4px; }
   .btn-x:hover { color:var(--danger); }
   .vseg { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
