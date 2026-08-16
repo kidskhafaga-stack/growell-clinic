@@ -25,6 +25,7 @@ rxPreview({
   {# Not `or not tp`: growth is the one element that stays off until asked for. #}
   show_growth: {{ 'true' if tp and tp.show_growth else 'false' }},
   show_investigations: {{ 'true' if (tp and tp.show_investigations) or not tp else 'false' }},
+  show_next_appointment: {{ 'true' if (tp and tp.show_next_appointment) or not tp else 'false' }},
   show_signature: {{ 'true' if (tp and tp.show_signature) or not tp else 'false' }},
   show_stamp: {{ 'true' if (tp and tp.show_stamp) or not tp else 'false' }}
 })
@@ -98,7 +99,7 @@ rxPreview({
        list from the letterhead above rather than one grid of fourteen. #}
     <label class="rx-legend">{{ t('rxtpl.elements') }}</label>
     <div class="rx-checks" style="margin:8px 0;">
-      {% for b in ['show_patient','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_diagnosis','show_investigations','show_signature','show_stamp'] %}
+      {% for b in ['show_patient','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_diagnosis','show_investigations','show_next_appointment','show_signature','show_stamp'] %}
       <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
         <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
       {% endfor %}

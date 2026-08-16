@@ -945,6 +945,21 @@ def new():
     )
 
 
+def _next_appt(rx):
+    """The follow-up already booked for this patient, or ``None``.
+
+    Never raises: this is one line on a page whose job is to print, and a
+    prescription that will not render because of a booking is a worse outcome
+    than a prescription without the booking on it.
+    """
+    from app.utils.appointments import next_booked
+
+    try:
+        return next_booked(rx.patient_id, on_or_after=rx.rx_date)
+    except Exception:  # noqa: BLE001 - printing must never break on a booking
+        return None
+
+
 def resolve_template(doctor, override_id=None):
     """Pick the print template: explicit override → doctor's → default → built-in."""
     if override_id:
@@ -993,6 +1008,7 @@ def view(rx_id):
         rx_vaccines = []
     return render_template("prescriptions/view.html", rx=rx, warnings=warnings,
                            tpl=tpl, rx_vaccines=rx_vaccines, digital=digital,
+                           next_appt=_next_appt(rx),
                            templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
 
 
@@ -1019,13 +1035,14 @@ def template_test_print(tpl_id):
     simpler mock-up would drift, and then the preview would agree with itself
     and disagree with the printer.
     """
-    from app.utils.rx_testprint import sample
+    from app.utils.rx_testprint import sample, sample_appointment
 
     tpl = db.get_or_404(RxPrintTemplate, tpl_id)
     lang = getattr(g, "lang", "ar")
     return render_template("prescriptions/test_print.html",
                            rx=sample(_whose_paper(tpl), lang), tpl=tpl,
-                           rx_vaccines=[], digital=False)
+                           rx_vaccines=[], digital=False,
+                           next_appt=sample_appointment(lang))
 
 
 def _whose_paper(tpl):
@@ -1210,7 +1227,8 @@ def public_copy(token):
     except Exception:  # noqa: BLE001
         rx_vaccines = []
     return render_template("prescriptions/public.html", rx=rx, tpl=tpl,
-                           rx_vaccines=rx_vaccines, digital=True)
+                           rx_vaccines=rx_vaccines, digital=True,
+                           next_appt=_next_appt(rx))
 
 
 @prescriptions_bp.route("/<int:rx_id>/send", methods=["POST"])

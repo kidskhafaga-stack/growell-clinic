@@ -71,6 +71,12 @@ class RxPrintTemplate(db.Model):
     # percentile it sits on. **Off unless a clinic asks for it**, which is the
     # opposite of everything above — see OFF_BY_DEFAULT.
     show_growth = db.Column(db.Boolean, default=False, nullable=False)
+    # The next appointment, when the doctor has already booked one. A parent
+    # walks out holding this piece of paper and nothing else, and the date
+    # they were told out loud is the first thing to go. It is per template,
+    # and a template is per doctor (``User.rx_template_id``), so a doctor who
+    # books follow-ups prints them and one who does not never sees the line.
+    show_next_appointment = db.Column(db.Boolean, default=True, nullable=False)
 
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -78,7 +84,8 @@ class RxPrintTemplate(db.Model):
     BOOLS = ["show_doctor", "show_specialty", "show_contact", "show_license",
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",
              "show_investigations", "show_weight", "show_allergies",
-             "show_conditions", "show_vaccines", "show_growth"]
+             "show_conditions", "show_vaccines", "show_growth",
+             "show_next_appointment"]
 
     # In BOOLS so the template form saves them, but **not** switched on for a
     # clinic that has expressed no opinion.

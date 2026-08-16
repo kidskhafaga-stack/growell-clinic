@@ -263,6 +263,29 @@
   </div>
   {% endif %}
 
+  {# The next appointment, when there already is one.
+
+     A guardian walks out of the room holding this and nothing else, and the
+     date they were told out loud is the first thing to go. It prints only
+     when the doctor has actually booked one — a heading with nothing under
+     it teaches people to stop reading headings — and it is the one block
+     that has to be right about the *time* as well as the day, because "come
+     back Tuesday" and "come back Tuesday at nine" are different
+     instructions. #}
+  {% if tpl.show_next_appointment and next_appt %}
+  <div class="rx-block" style="margin-top:1.15em;">
+    {{ rx_section('calendar-check', t('rx.next_appointment')) }}
+    <div>
+      <strong dir="ltr">{{ next_appt.appt_date }}</strong>
+      {% if next_appt.appt_time %}
+      · <strong dir="ltr">{{ next_appt.appt_time.strftime('%H:%M') }}</strong>{% endif %}
+      {% if next_appt.doctor and next_appt.doctor_id != rx.doctor_id %}
+      · {{ next_appt.doctor.doctor_print_name(current_lang) }}{% endif %}
+      {% if next_appt.reason %}<span style="color:var(--muted);"> — {{ next_appt.reason }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   {% if rx.notes %}<p style="margin-top:0.85em;"><strong>{{ t('rx.notes') }}:</strong> {{ rx.notes }}</p>{% endif %}
 
   {# On the copy that leaves the building. A signed PDF travelling over

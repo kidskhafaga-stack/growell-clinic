@@ -24,7 +24,7 @@ prescription would drift from the true one, and then the preview would agree
 with itself and disagree with the printer — which is the failure this feature
 exists to prevent.
 """
-from datetime import date
+from datetime import date, time, timedelta
 
 from app.utils.clock import local_today
 
@@ -131,4 +131,25 @@ def sample(doctor, lang="ar"):
                                           else "Chest X-ray"))],
         notes="",
         _growth=growth,
+    )
+
+
+def sample_appointment(lang="ar"):
+    """An invented follow-up, so the test print shows the line that carries one.
+
+    Same reason as everything else in this file: a layout checked without the
+    appointment block on it is a layout that has not been checked, and the
+    clinic finds out on the first prescription that actually has a booking.
+
+    A week out at nine in the morning — a plausible follow-up rather than a
+    date that reads as real data. ``doctor_id`` matches nobody, so the paper
+    takes the branch that prints the date alone; the sample doctor is the one
+    writing the prescription, which is the ordinary case.
+    """
+    return _Sample(
+        appt_date=local_today() + timedelta(days=7),
+        appt_time=time(9, 0),
+        doctor=None,
+        doctor_id=None,
+        reason="متابعة" if lang != "en" else "Follow-up",
     )
