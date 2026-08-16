@@ -32,7 +32,16 @@
   </div>
   {% endif %}
 
-  <div class="rx-testmark" aria-hidden="true">{{ t('rxtpl.sample') }}</div>
+  {# The watermark gets its own clipping layer. It used to be clipped by the
+     wrapper that holds the prescription, and `overflow: hidden` on paged media
+     is not tidiness — it makes that element a fragmentation container, so the
+     part of the page that did not fit on the first sheet was clipped away
+     rather than carried over. Reported as a second sheet that came out blank.
+     This layer is `position: absolute`, so it holds no content and cannot
+     fragment anything. #}
+  <div class="rx-testmark-clip" aria-hidden="true">
+    <div class="rx-testmark">{{ t('rxtpl.sample') }}</div>
+  </div>
 
   {% include "prescriptions/_paper.html" %}
 </div>
@@ -51,26 +60,39 @@
     margin: {{ tpl.m_top }}mm {{ tpl.m_right }}mm {{ tpl.m_bottom }}mm {{ tpl.m_left }}mm;
   }
 
-  /* ``overflow: hidden`` is the whole point of this rule, not tidiness.
-     The sample watermark below is rotated, and a rotated box is *wider than
-     the thing it is written across* — measured at 1512px on a 1280px page,
-     hanging 116px past the edge. Being ``position: absolute`` keeps it out of
-     the layout but not out of the page's own width, so the printed page came
-     out 116px too wide and the browser paid for it by clipping — and on an
-     Arabic, right-to-left page what gets clipped is the left-hand side.
-     Reported exactly that way: "the whole left part disappears".
-     Clipping the mark to the paper it is drawn on costs nothing: anything of
-     it that fell outside was never on the page anyway. */
-  .rx-testwrap { position: relative; overflow: hidden; }
+  /* The wrapper holds the prescription, so it must be able to break across
+     sheets — which means it must **not** carry `overflow: hidden`. It did.
+     In paged media that turns an element into a fragmentation container: the
+     part of the page that did not fit on the first sheet is clipped instead
+     of carried over, and the sheet that was reserved for it comes out empty.
+     Reported as "a blank page came out". */
+  .rx-testwrap { position: relative; }
+
+  /* The clipping the mark genuinely needs, on a layer of its own.
+     The watermark is rotated, and a rotated box is *wider than the thing it
+     is written across* — measured at 1512px on a 1280px page, hanging 116px
+     past the edge. `position: absolute` keeps it out of the layout but not
+     out of the page's own width, so the printed page came out 116px too wide
+     and the browser paid for it by clipping; on an Arabic, right-to-left page
+     what gets clipped is the left-hand side. Reported exactly that way: "the
+     whole left part disappears".
+     Measured again with the clip on this layer instead of the wrapper:
+     scrollWidth 1280 on a 1280px page, and the second sheet keeps its
+     content. `clip-path` on the mark itself was tried first and does not do
+     it — the transform still counted towards the page's width. */
+  .rx-testmark-clip {
+    position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    overflow: hidden;
+  }
 
   /* Over the layout, never in it. */
   .rx-testmark {
-    position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: clamp(3rem, 13vw, 8rem); font-weight: 800;
     color: rgba(140, 150, 160, .16);
     letter-spacing: .12em; transform: rotate(-24deg);
-    white-space: nowrap; overflow: hidden;
+    white-space: nowrap;
   }
   .rx-offset-rule {
     position: absolute; inset-inline: 0; z-index: 6; pointer-events: none;

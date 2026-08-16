@@ -215,3 +215,49 @@ def test_the_offset_marker_is_not_on_the_same_edge_as_the_date(clinic):
     assert "inset-inline-end" not in marker, \
         "the offset label is back on the same edge as the date"
     assert "inset-inline-start" in marker
+
+
+def _test_print_html():
+    with open(os.path.join(ROOT, "app/templates/prescriptions/test_print.html"),
+              encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _rule(css, selector):
+    head = selector + " {"
+    assert head in css, f"there is no {selector} rule at all"
+    body = css[css.index(head) + len(head):]
+    return body[:body.index("}")]
+
+
+def test_the_page_the_prescription_sits_on_can_break(clinic):
+    """`overflow: hidden` on it is what produced the blank sheet.
+
+    In paged media that is not tidiness — it makes the element a fragmentation
+    container, so whatever did not fit on the first sheet is clipped away
+    instead of carried over, and the sheet reserved for it prints empty.
+    """
+    rule = _rule(_test_print_html(), ".rx-testwrap")
+
+    assert "overflow" not in rule, \
+        "the wrapper holding the prescription clips instead of breaking"
+    assert "position: relative" in rule, \
+        "the watermark and the offset rule are positioned against this"
+
+
+def test_the_watermark_is_still_clipped_to_the_paper(clinic):
+    """The other half. Losing this brings back "the whole left part vanishes".
+
+    The mark is rotated, and a rotated box is wider than its own text — it hung
+    116px off a 1280px page and the browser clipped the page to compensate. The
+    clip has to live somewhere; it now lives on a layer that holds no content,
+    so it can clip without fragmenting anything.
+    """
+    html = _test_print_html()
+    layer = _rule(html, ".rx-testmark-clip")
+
+    assert "overflow: hidden" in layer
+    assert "position: absolute" in layer, \
+        "the clipping layer is in the flow and will take up room"
+    assert html.index('class="rx-testmark-clip"') < html.index('class="rx-testmark"'), \
+        "the watermark is not inside the layer that clips it"
