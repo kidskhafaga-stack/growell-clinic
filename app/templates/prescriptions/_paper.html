@@ -46,54 +46,69 @@
   </div>
   {% endif %}
 
-  {# The patient comes first and on their own — who this paper is for is the
-     one thing anybody reading it needs before anything else. The diagnosis
-     used to sit inside this block as a third cell, which made it look like
-     another identifying detail rather than a clinical statement. #}
-  {% if tpl.show_patient %}
-  <div class="info-grid rx-block" style="margin-bottom:1em;">
-    <div class="info-item"><div class="k">{{ t('rx.patient') }}</div><div class="v">{{ rx.patient.display_name(current_lang) }} ({{ rx.patient.patient_number }})</div></div>
-    <div class="info-item"><div class="k">{{ t('patients.age') }}</div><div class="v">{{ age_label(rx.patient) }}</div></div>
-    {% if rx.patient.gender %}<div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ rx.patient.gender) }}</div></div>{% endif %}
-  </div>
-  {% endif %}
-
   {% macro rx_section(icon, title) %}
   <div style="font-weight:700;color:var(--green-800);border-bottom:1px solid var(--green-200,var(--line));padding-bottom:0.2em;margin-bottom:0.45em;">
     <i class="bi bi-{{ icon }}"></i> {{ title }}</div>
   {% endmacro %}
 
-  {% if rx.complaint %}
-  <div class="rx-block" style="margin-bottom:1em;">
-    {{ rx_section('chat-left-text', t('rx.complaint')) }}
-    <div>{{ rx.complaint }}</div>
+  {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
+  {% set has_weight = growth and growth.weight_kg %}
+  {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
+
+  {# Who this is for, on one line.
+
+     It used to be a three-column grid with each field's label stacked above
+     its value — nine words in eleven lines, 215pt of an A5 page, 36% of the
+     sheet, and the investigations pushed onto a second one. Nobody reads a
+     prescription's identity block; they glance at it. So the labels sit
+     beside their values and the whole of it is one run that wraps only when
+     the paper is genuinely too narrow.
+
+     **The weight is up here now**, with the name rather than in the warning
+     band below. A paediatric dose is mg/kg, so it has to be on the page — but
+     it is a fact about the child, not a warning, and putting it beside the age
+     is what makes the age useful: a two-year-old can be 9kg or 16kg. It keeps
+     the date it was taken whenever that is not this prescription's own, since
+     12kg measured this morning and 12kg measured last winter are the same
+     number and a different dose. #}
+  {% if tpl.show_patient %}
+  <div class="rx-block rx-line" style="margin-bottom:0.6em;">
+    <span><span class="rx-k">{{ t('rx.patient') }}:</span>
+      <strong>{{ rx.patient.display_name(current_lang) }}</strong>
+      <span class="rx-k">({{ rx.patient.patient_number }})</span></span>
+    <span><span class="rx-k">{{ t('patients.age') }}:</span>
+      <strong>{{ age_label(rx.patient) }}</strong></span>
+    {% if rx.patient.gender %}<span><strong>{{ t('genders.' ~ rx.patient.gender) }}</strong></span>{% endif %}
+    {% if has_weight %}
+    <span><span class="rx-k">{{ t('rx.weight') }}:</span>
+      <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
+      {% if growth.record_date != rx.rx_date %}
+      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>{% endif %}</span>
+    {% endif %}
   </div>
   {% endif %}
 
-  {# The stage is beside the words, because "التهاب رئوي" alone does not tell
-     a guardian — or the next doctor — whether this is settled or still being
-     worked out, and those mean very different things. #}
-  {% if tpl.show_diagnosis and rx.diagnosis %}
-  <div class="rx-block" style="margin-bottom:1em;">
-    {{ rx_section('clipboard2-pulse', t('rx.diagnosis')) }}
-    <div>{{ rx.diagnosis }}
+  {# The complaint and the diagnosis, likewise: two labelled runs on one line
+     instead of two headings with a line under each. Four lines become one.
+
+     The stage stays beside the words, because "التهاب رئوي" alone does not
+     tell a guardian — or the next doctor — whether this is settled or still
+     being worked out, and those mean very different things. #}
+  {% if rx.complaint or (tpl.show_diagnosis and rx.diagnosis) %}
+  <div class="rx-block rx-line" style="margin-bottom:0.7em;">
+    {% if rx.complaint %}
+    <span><span class="rx-k">{{ t('rx.complaint') }}:</span> {{ rx.complaint }}</span>
+    {% endif %}
+    {% if tpl.show_diagnosis and rx.diagnosis %}
+    <span><span class="rx-k">{{ t('rx.diagnosis') }}:</span> <strong>{{ rx.diagnosis }}</strong>
       {% if rx.diagnosis_code %}<span class="badge badge--role" dir="ltr">{{ rx.diagnosis_code }}</span>{% endif %}
-      {% if rx.diagnosis_stage %}<span class="badge badge--muted">{{ t('rx.stage_' ~ rx.diagnosis_stage) }}</span>{% endif %}
-    </div>
+      {% if rx.diagnosis_stage %}<span class="badge badge--muted">{{ t('rx.stage_' ~ rx.diagnosis_stage) }}</span>{% endif %}</span>
+    {% endif %}
   </div>
   {% endif %}
 
-  {# Weight and allergy, together and immediately above the ℞ — the two things
-     whoever is about to hand over a bottle has to read before they read the
-     drugs.
-
-     **Weight**, because a paediatric dose is mg/kg and this paper carried the
-     age alone. A two-year-old can be 9 kg or 16 kg, so the age does not let
-     anybody check a dose; the number the dose was computed from was the one
-     number missing from the page. It prints with the date it was taken
-     whenever that is not this prescription's own date, because 12 kg measured
-     this morning and 12 kg measured last winter are the same number and a
-     different dose.
+  {# What is left in the band is what the band was for: the things somebody
+     about to hand over a bottle has to read before they read the drugs.
 
      **Allergy prints even when the file is empty**, and says "not recorded"
      rather than "none". A blank cannot be read: nobody looking at one can
@@ -101,19 +116,21 @@
      allergies" would be worse — the program knows the field is empty, it does
      not know the child is safe. The warning triangle carries the alarm as
      well as the colour, because these come out of a black-and-white printer. #}
-  {% set growth = rx.patient.latest_growth if tpl.show_weight else None %}
-  {% set has_weight = growth and growth.weight_kg %}
-  {% set has_conditions = tpl.show_conditions and (rx.patient.chronic_diseases or '')|trim %}
-  {% if has_weight or tpl.show_allergies or has_conditions %}
+  {# The weight rides up with the patient line, so it is only still wanted here
+     when there is no patient line to ride on. A template with the patient
+     block off and the weight on would otherwise drop the number a mg/kg dose
+     was worked out from, silently — which is the one thing this band exists to
+     stop happening. #}
+  {% set weight_here = has_weight and not tpl.show_patient %}
+  {% if tpl.show_allergies or has_conditions or weight_here %}
   <div class="rx-block" style="display:flex;flex-wrap:wrap;gap:0.45em 1.4em;align-items:baseline;
               border:1px solid var(--line);border-inline-start:3px solid var(--green-600);
-              border-radius:6px;padding:0.6em 0.8em;margin-bottom:1em;">
-    {% if has_weight %}
+              border-radius:6px;padding:0.5em 0.8em;margin-bottom:0.8em;">
+    {% if weight_here %}
     <div><span style="color:var(--muted);">{{ t('rx.weight') }}:</span>
       <strong dir="ltr">{{ growth.weight_kg }} {{ t('rx.weight_kg') }}</strong>
       {% if growth.record_date != rx.rx_date %}
-      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>
-      {% endif %}
+      <span class="badge badge--muted" dir="ltr">{{ growth.record_date }}</span>{% endif %}
     </div>
     {% endif %}
     {% if tpl.show_allergies %}
