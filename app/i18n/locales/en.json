@@ -4760,7 +4760,7 @@
     "import_ok": "ICD-11 downloaded: {n} codes. Doctors are now offered it.",
     "error_who_bad_credentials": "The WHO rejected the keys. Re-copy the Client ID and Secret from your account page with them.",
     "error_who_not_configured": "The Client ID and Secret have not been entered yet.",
-    "error_who_empty": "The WHO returned no codes — nothing was written, try again.",
+    "error_who_empty": "The WHO returned no codes — nothing was written. The program walked {n} entities; a small number means the starting address was wrong.",
     "error_who_no_token": "The WHO returned no token.",
     "progress_count": "{n} codes so far…",
     "progress_estimated": "estimated",

@@ -118,6 +118,36 @@ def child_uris(entity):
     return [uri for uri in (entity.get("child") or []) if uri]
 
 
+def release_index(entity):
+    """The linearization to walk, when what came back is a *list of releases*.
+
+    Reported as: the connection works and the download brings nothing back.
+
+    ``/icd/release/11/mms`` — the address used when a clinic pins no release,
+    which is the default and the sensible one — does not answer with the
+    classification. It answers with the releases that exist:
+
+        {"release": [".../2024-01/mms", ".../2023-01/mms", …],
+         "latestRelease": ".../2024-01/mms"}
+
+    There is no ``child`` in that, so the walk collected exactly one entity,
+    found no code on it, and stopped — in seconds, reporting "WHO returned no
+    codes". True, and useless: the walk had never reached the classification.
+
+    Returns the URI to start from instead, or None when this really is a node
+    of the tree.
+    """
+    if entity.get("child"):
+        return None
+    latest = entity.get("latestRelease")
+    if latest:
+        return latest
+    releases = entity.get("release") or []
+    # Newest first is what WHO returns; taking the first is "latest" when
+    # ``latestRelease`` is absent rather than guessing at version strings.
+    return releases[0] if releases else None
+
+
 def flatten(entities):
     """Turn walked entities into the ``(code, title)`` pairs storage wants.
 
@@ -248,14 +278,29 @@ def walk(session, start=None, on_progress=None, limit=None):
     something is happening; this takes minutes, and a spinner with no number
     is indistinguishable from a hang.
     """
-    queue = [start or root_url(session.cfg)]
+    first = start or root_url(session.cfg)
+    queue = [first]
     seen_urls, entities = set(), []
+    hopped = False
     while queue:
         url = queue.pop(0)
         if url in seen_urls:
             continue
         seen_urls.add(url)
         entity = session.get(url)
+
+        # The address a clinic lands on when it pins no release answers with
+        # the *list of releases*, not the classification — see
+        # ``release_index``. Checked only on the very first response, and the
+        # response is reused rather than re-fetched when it turns out to be a
+        # real node, so the ordinary case costs nothing.
+        if not hopped and not entities:
+            hopped = True
+            moved = release_index(entity)
+            if moved:
+                queue.insert(0, moved)
+                continue
+
         entities.append(entity)
         queue.extend(uri for uri in child_uris(entity) if uri not in seen_urls)
         if on_progress:
@@ -290,6 +335,11 @@ def import_all(cfg=None, requests=None, on_progress=None, limit=None):
 
     pairs = flatten(entities)
     if not pairs:
-        return {"ok": False, "error": "who_empty"}
+        # "WHO returned no codes" was true and undiagnosable: it says the same
+        # thing whether the walk never reached the classification (one entity,
+        # the release list) or reached it and found nothing coded. Those are a
+        # broken start address and a broken parser, and they are fixed in
+        # different files. The count separates them at a glance.
+        return {"ok": False, "error": "who_empty", "walked": len(entities)}
     install_full("11", pairs)
     return {"ok": True, "codes": len(pairs)}
