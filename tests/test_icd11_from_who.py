@@ -238,7 +238,7 @@ def test_nothing_is_written_when_the_walk_yields_no_codes(who_clinic):
     with who_clinic["app"].app_context():
         icd_who.POLITE_DELAY = 0
         result = icd_who.import_all(requests=FakeWho(tree=empty))
-        assert result == {"ok": False, "error": "who_empty"}
+        assert result["ok"] is False and result["error"] == "who_empty"
         assert not os.path.exists(icd._FULL["11"])
 
 
@@ -312,3 +312,106 @@ def test_the_settings_screen_states_what_is_loaded(clinic):
     assert "71,787" in body            # ICD-10, bundled
     assert "لسه متنزّلش" in body        # ICD-11, said plainly
     assert "icd.who.int/icdapi" in body
+
+
+# ------------------------------------- the address a clinic actually lands on
+
+class _Recorded:
+    """A stand-in for WHO that answers from a fixed map of url -> payload."""
+
+    def __init__(self, pages):
+        self.pages = pages
+        self.asked = []
+
+    def get(self, url, **kw):
+        self.asked.append(url)
+        if url.endswith("/token"):
+            raise AssertionError("the token url does not come through get")
+        return _Reply(self.pages.get(url, {}))
+
+    def post(self, url, **kw):
+        return _Reply({"access_token": "t", "expires_in": 3600})
+
+
+class _Reply:
+    def __init__(self, payload, ok=True, status=200):
+        self._payload = payload
+        self.ok = ok
+        self.status_code = status
+
+    def json(self):
+        return self._payload
+
+
+ROOT = "https://id.who.int/icd/release/11/mms"
+LATEST = "https://id.who.int/icd/release/11/2024-01/mms"
+
+
+def test_the_release_list_is_not_mistaken_for_the_classification(who_clinic):
+    """Reported as: the connection works and the download brings nothing back.
+
+    Pinning no release is the default and the sensible choice — a clinic
+    should not have to know WHO's release ids. But that address answers with
+    the list of releases, not the tree: no ``child``, no ``code``. The walk
+    collected one entity, found nothing, and said "WHO returned no codes" in
+    a couple of seconds, which is true and tells nobody anything.
+    """
+    from app.utils import icd_who
+
+    fake = _Recorded({
+        ROOT: {"release": [LATEST], "latestRelease": LATEST},
+        LATEST: {"title": {"@value": "ICD-11 MMS"}, "child": [LATEST + "/1"]},
+        LATEST + "/1": {"code": "1A00", "title": {"@value": "Cholera"}},
+    })
+    with who_clinic["app"].app_context():
+        _credentials()
+        result = icd_who.import_all(requests=fake)
+
+    assert result["ok"] is True, result
+    assert result["codes"] == 1
+    assert LATEST in fake.asked, "the walk never hopped to the real release"
+
+
+def test_a_pinned_release_is_walked_directly(who_clinic):
+    """The hop is for the unpinned case; pinning one must not cost a request."""
+    from app.models import Setting
+    from app.utils import icd_who
+
+    fake = _Recorded({
+        LATEST: {"child": [LATEST + "/1"]},
+        LATEST + "/1": {"code": "1A00", "title": {"@value": "Cholera"}},
+    })
+    with who_clinic["app"].app_context():
+        _credentials()
+        Setting.set("icd11_release", "2024-01")
+        result = icd_who.import_all(requests=fake)
+
+    assert result["ok"] is True
+    assert ROOT not in fake.asked
+
+
+def test_a_walk_that_found_nothing_says_how_far_it_got(who_clinic):
+    """"No codes" alone cannot tell a bad start address from a bad parser."""
+    from app.utils import icd_who
+
+    fake = _Recorded({ROOT: {"title": {"@value": "nothing here"}}})
+    with who_clinic["app"].app_context():
+        _credentials()
+        result = icd_who.import_all(requests=fake)
+
+    assert result["ok"] is False
+    assert result["error"] == "who_empty"
+    assert result["walked"] == 1
+    # The field names WHO sent, so a clinic that can reach the API can report
+    # the shape back to a place that cannot. Names only, never values.
+    assert result["shape"] == ["title"]
+
+
+def _credentials():
+    from app.extensions import db
+    from app.models import Setting
+
+    Setting.set("icd11_client_id", "cid")
+    Setting.set("icd11_client_secret", "secret")
+    Setting.set("icd11_release", "")
+    db.session.commit()

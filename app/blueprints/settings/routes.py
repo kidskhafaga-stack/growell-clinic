@@ -170,7 +170,7 @@ def icd11_test():
     return redirect(url_for("settings.index") + "#icd11")
 
 
-def _who_error(error):
+def _who_error(error, walked=None, shape=None):
     """WHO's failure in the clinic's own words where we can name it.
 
     ``who_bad_credentials`` is the overwhelmingly common one and the only one
@@ -183,6 +183,15 @@ def _who_error(error):
     if error.startswith("who_"):
         named = t("icd11.error_" + error)
         if named != "icd11.error_" + error:      # a translation exists
+            # How far the walk actually got, when the failure is one that
+            # cannot be told apart without it.
+            named = named.replace("{n}",
+                                  str(walked if walked is not None else "?"))
+            # The field names WHO actually sent, when there are any. Without a
+            # way to reach the API from where this is written, this line is
+            # how the shape of a response gets reported back.
+            if shape:
+                named += "  [" + ", ".join(shape) + "]"
             return named
     return t("icd11.test_failed").replace("{e}", error)
 
@@ -213,7 +222,9 @@ def icd11_import():
         message, kind = t("icd11.import_ok").replace(
             "{n}", str(result["codes"])), "success"
     else:
-        message, kind = _who_error(result.get("error")), "danger"
+        message, kind = _who_error(result.get("error"),
+                                   result.get("walked"),
+                                   result.get("shape")), "danger"
 
     # Answered as JSON when the page asked that way. The page has to stay
     # alive to poll for the count, so the button posts in the background
