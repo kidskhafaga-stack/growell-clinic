@@ -340,6 +340,16 @@ def import_all(cfg=None, requests=None, on_progress=None, limit=None):
         # the release list) or reached it and found nothing coded. Those are a
         # broken start address and a broken parser, and they are fixed in
         # different files. The count separates them at a glance.
-        return {"ok": False, "error": "who_empty", "walked": len(entities)}
+        #
+        # The field names of the first thing WHO sent go with it. This program
+        # is developed where WHO is unreachable — the network denies the API
+        # and its documentation at the gateway — so the only way to learn what
+        # an address actually answers with is for the clinic that *can* reach
+        # it to be able to say. Field names, never values: "release",
+        # "latestRelease", "child", "title" describe the shape and carry
+        # nothing about the clinic or its credentials.
+        shape = sorted(entities[0].keys())[:8] if entities else []
+        return {"ok": False, "error": "who_empty",
+                "walked": len(entities), "shape": shape}
     install_full("11", pairs)
     return {"ok": True, "codes": len(pairs)}

@@ -402,6 +402,9 @@ def test_a_walk_that_found_nothing_says_how_far_it_got(who_clinic):
     assert result["ok"] is False
     assert result["error"] == "who_empty"
     assert result["walked"] == 1
+    # The field names WHO sent, so a clinic that can reach the API can report
+    # the shape back to a place that cannot. Names only, never values.
+    assert result["shape"] == ["title"]
 
 
 def _credentials():
