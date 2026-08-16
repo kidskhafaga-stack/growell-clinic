@@ -206,17 +206,17 @@ def test_the_offset_marker_is_not_on_the_same_edge_as_the_date(clinic):
     marker = test_print[test_print.index(".rx-offset-rule span {"):]
     marker = marker[:marker.index("}")]
 
-    # Where the date sits in pre-printed mode. It used to be a row of its own
-    # at `text-align: end`; it is now the last item of a `space-between` run
-    # that also carries whichever letterhead fields are ticked. Same edge,
-    # different markup — and this guard is what caught the change rather than
-    # letting the test quietly pass on a line it was no longer reading.
+    # Where the date sits in pre-printed mode — the only thing on that line,
+    # because everything else the sheet would carry has moved to the foot
+    # beside the signature. This guard has now caught two changes to that
+    # line rather than letting the test quietly pass on markup it was no
+    # longer reading, which is the whole reason it is here.
     date_row = paper[paper.index("{% if tpl.mode == 'preprinted' %}"):]
     date_row = date_row[:date_row.index("{% else %}")]
-    assert "justify-content:space-between" in date_row, \
+    assert "text-align:end" in date_row, \
         "this test is reading the wrong line — the date moved"
-    assert date_row.rindex("rx.date") > date_row.index("show_license"), \
-        "the date is no longer the last thing on that run"
+    assert "show_license" not in date_row, \
+        "the letterhead fields are back at the top, on the clinic's own header"
 
     assert "inset-inline-end" not in marker, \
         "the offset label is back on the same edge as the date"

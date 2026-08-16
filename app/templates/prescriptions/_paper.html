@@ -19,38 +19,81 @@
 {% elif tpl.logo_source == 'personal' %}{% set logo_url = personal_logo_url or clinic.logo_url %}
 {% else %}{% set logo_url = clinic.logo_url %}{% endif %}
 <div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
+{# Shrink the type until the whole prescription fits one sheet.
+
+   The measurement is the awkward part. On screen the paper is as wide as the
+   window; on paper it is the page minus its margins, and a narrower column
+   wraps more lines and is taller. Measuring what is on the screen answers a
+   question nobody asked. So this measures a copy of the page, held off-screen
+   at the **printed** width, with the parts print.css removes already removed
+   from it — the card's padding and border, and everything marked no-print.
+
+   It runs after `load` rather than on `beforeprint`: images that have not
+   arrived have no height yet, and a fit computed without the logo is a fit
+   that is wrong by the height of the logo. Doing it once, up front, also
+   means the screen shows the size that will come out of the printer.
+
+   The floor is in here rather than on the settings form. "How small is too
+   small" is the point where a pharmacist misreads a dose, and that is not a
+   number to hand a clinic on a form next to the margins.
+#}
+{% if tpl.fit_page %}
+{% set page_w, page_h = tpl.page_mm %}
+<script>
+(function () {
+  var MIN_PX = 8;           // below this a dose stops being legible
+  var FOOT_MM = 14;         // the copyright line and the gap above it
+  var MM = 96 / 25.4;
+  var paper = document.getElementById('rxPaper');
+  if (!paper) return;
+
+  var availW = ({{ page_w }} - {{ tpl.m_left }} - {{ tpl.m_right }}) * MM;
+  var availH = ({{ page_h }} - {{ tpl.m_top }} - {{ tpl.m_bottom }} - FOOT_MM) * MM;
+  var base = {{ tpl.font_size }};
+
+  function fit() {
+    var probe = paper.cloneNode(true);
+    probe.removeAttribute('id');
+    Array.prototype.forEach.call(probe.querySelectorAll('.no-print'), function (el) {
+      el.parentNode.removeChild(el);
+    });
+    probe.style.cssText += ';position:absolute;left:-10000px;top:0;visibility:hidden;'
+      + 'width:' + availW + 'px;padding:0;margin:0;border:0;box-shadow:none;';
+    document.body.appendChild(probe);
+
+    var size = base;
+    probe.style.fontSize = size + 'px';
+    while (size > MIN_PX && probe.scrollHeight > availH) {
+      size -= 0.25;
+      probe.style.fontSize = size + 'px';
+    }
+    probe.parentNode.removeChild(probe);
+    // Never *grow* the type: the number on the template is what the clinic
+    // asked for, and this is permission to go smaller, not a free hand.
+    paper.style.fontSize = Math.min(base, size) + 'px';
+    paper.setAttribute('data-fitted', size.toFixed(2));
+  }
+
+  if (document.readyState === 'complete') fit();
+  else window.addEventListener('load', fit);
+})();
+</script>
+{% endif %}
+
   {% if tpl.mode == 'preprinted' %}
     {% if tpl.top_offset_mm %}<div style="height:{{ tpl.top_offset_mm }}mm;"></div>{% endif %}
-    {# The paper mode decides the *layout*; the ticks decide the *content*.
+    {# The top of this sheet belongs to the clinic's own letterhead. The one
+       thing that paper can never carry is the date — it changes with every
+       prescription — so the date, and nothing else, prints here.
 
-       This mode used to skip the whole letterhead, ticks and all, on the
-       reasoning that the paper already carries one. Which is true of the
-       clinic's name and logo and not true of everything: a letterhead printed
-       last year does not carry this doctor's licence number, and a clinic
-       with three doctors sharing one pad does not carry the doctor's name
-       either. Asked for exactly that way — "the ones that are ticked I might
-       still want printed, like the licence on pre-printed paper".
-
-       So the four fields print here too, each if it is ticked, in one compact
-       run below the offset instead of the full block with its rule and logo.
-       A clinic whose paper already says these things unticks them, which is
-       what the ticks are for.
-
-       The date is the one thing that is never on pre-printed paper — it
-       changes with every prescription — so it is not behind a tick at all. #}
-    <div class="rx-line" style="justify-content:space-between;font-size:0.85em;margin-bottom:0.7em;">
-      {# `flex: 1 1 auto; min-width: 0` or the run cannot shrink inside the
-         space-between row, and the fields print across one another —
-         measured with the doctor's name and the address overlapping. #}
-      <span class="rx-line" style="gap:0.15em 1em;flex:1 1 auto;min-width:0;">
-        {% if tpl.show_doctor and doc %}<strong>{{ doc.doctor_print_name(current_lang) }}</strong>{% endif %}
-        {% if tpl.show_specialty and doc %}{% for line in doc.doctor_title_lines(current_lang) %}<span class="rx-k">{{ line }}</span>{% endfor %}{% endif %}
-        {% set addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
-        {% if tpl.show_contact and (addr or clinic.phone) %}<span class="rx-k">{% if addr %}{{ addr }}{% endif %}{% if addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</span>{% endif %}
-        {% if tpl.show_license and doc and doc.license_no %}<span class="rx-k">{{ t('rx.license') }}: <span dir="ltr">{{ doc.license_no }}</span></span>{% endif %}
-      </span>
-      <span>{{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></span>
-    </div>
+       The doctor's own details are not dropped; they move. See the signature
+       at the foot of this file: on pre-printed paper that is where the name,
+       the specialty and above all the licence number belong, which is where an
+       Egyptian prescription puts them anyway and is the one part of the sheet
+       guaranteed to be empty. Printing them at the top would put them on top
+       of the letterhead that is already there. #}
+    <div style="text-align:end;font-size:0.85em;margin-bottom:0.7em;">
+      {{ t('rx.date') }}: <strong dir="ltr">{{ rx.rx_date }}</strong></div>
   {% else %}
   <div class="print-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:2px solid var(--green-600);padding-bottom:0.85em;margin-bottom:1em;">
     <div style="display:flex;align-items:center;gap:14px;">
@@ -362,6 +405,21 @@
     <div style="text-align:center;">
       {% if doc and doc.signature_file %}<img src="{{ url_for('static', filename='uploads/users/' ~ doc.signature_file) }}" alt="" style="max-height:60px;max-width:200px;display:block;margin:0 auto 4px;">{% endif %}
       <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;">{{ doc.doctor_print_name(current_lang) if doc else t('rx.signature') }}</div>
+      {# On pre-printed paper the letterhead at the top is the clinic's, and
+         these belong under the signature instead — which is where a
+         prescription puts them anyway, and the one part of the sheet that is
+         reliably empty. The same ticks decide it; only the place changes with
+         the paper. On white paper they are up in the letterhead already and
+         repeating them here would be printing the same line twice. #}
+      {% if tpl.mode == 'preprinted' and doc %}
+      {% if tpl.show_specialty %}{% for line in doc.doctor_title_lines(current_lang) %}
+      <div style="color:var(--muted);font-size:0.78em;line-height:1.3;">{{ line }}</div>{% endfor %}{% endif %}
+      {% if tpl.show_license and doc.license_no %}
+      <div style="color:var(--muted);font-size:0.78em;">{{ t('rx.license') }}: <span dir="ltr">{{ doc.license_no }}</span></div>{% endif %}
+      {% set foot_addr = clinic.address if current_lang=='ar' else (clinic.address_en or clinic.address) %}
+      {% if tpl.show_contact and (foot_addr or clinic.phone) %}
+      <div style="color:var(--muted);font-size:0.78em;">{% if foot_addr %}{{ foot_addr }}{% endif %}{% if foot_addr and clinic.phone %} · {% endif %}{% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}</div>{% endif %}
+      {% endif %}
     </div>
     {% endif %}
   </div>

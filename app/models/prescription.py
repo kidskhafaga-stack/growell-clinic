@@ -16,8 +16,12 @@ DRUG_FORMS = ["tablet", "capsule", "syrup", "suspension", "drops",
 # Investigation kinds: lab tests (تحاليل) and radiology / imaging (أشعة).
 INVESTIGATION_KINDS = ["lab", "imaging"]
 
-# Supported print paper sizes.
-RX_PAGE_SIZES = ["A4", "A5"]
+# Supported print paper sizes, and what they measure. The millimetres are
+# here rather than in the page because the fit-to-page pass has to know the
+# height of the sheet it is fitting to, and a second copy of "A5 is 148x210"
+# somewhere else is a second copy that can drift.
+RX_PAGE_MM = {"A4": (210, 297), "A5": (148, 210)}
+RX_PAGE_SIZES = list(RX_PAGE_MM)
 
 
 class RxPrintTemplate(db.Model):
@@ -86,6 +90,14 @@ class RxPrintTemplate(db.Model):
     # Off unless asked for — most clinics are cash and would be printing an
     # empty concept on every prescription. See OFF_BY_DEFAULT.
     show_coverage = db.Column(db.Boolean, default=False, nullable=False)
+    # Shrink the type until the whole prescription fits one sheet.
+    #
+    # One switch and no second number: the floor is fixed in the page itself,
+    # because "how small is too small" is not a decision to hand a clinic on a
+    # form — it is the point where a pharmacist misreads a dose. Off by
+    # default, because turning it on changes what every existing template puts
+    # on paper, and a medical document is not something to resize unasked.
+    fit_page = db.Column(db.Boolean, default=False, nullable=False)
 
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -94,7 +106,8 @@ class RxPrintTemplate(db.Model):
              "show_patient", "show_diagnosis", "show_signature", "show_stamp",
              "show_investigations", "show_weight", "show_allergies",
              "show_conditions", "show_vaccines", "show_growth",
-             "show_next_appointment", "show_complaint", "show_coverage"]
+             "show_next_appointment", "show_complaint", "show_coverage",
+             "fit_page"]
 
     # In BOOLS so the template form saves them, but **not** switched on for a
     # clinic that has expressed no opinion.
@@ -106,7 +119,7 @@ class RxPrintTemplate(db.Model):
     # a clinic builds a template with growth on, names it, and hands it to the
     # doctors who want it — the per-doctor template already exists
     # (``User.rx_template_id``), which is why no new concept is needed here.
-    OFF_BY_DEFAULT = ["show_growth", "show_coverage"]
+    OFF_BY_DEFAULT = ["show_growth", "show_coverage", "fit_page"]
 
     def _side(self, value):
         return value if value is not None else (self.margin_mm or 0)
@@ -126,6 +139,11 @@ class RxPrintTemplate(db.Model):
     @property
     def m_left(self):
         return self._side(self.margin_left_mm)
+
+    @property
+    def page_mm(self):
+        """(width, height) of this template's paper, in millimetres."""
+        return RX_PAGE_MM.get(self.page_size or "A4", RX_PAGE_MM["A4"])
 
     @classmethod
     def default_instance(cls):

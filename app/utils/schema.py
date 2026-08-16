@@ -163,6 +163,7 @@ ADDITIONS = [
     ("rx_print_templates", "show_next_appointment", "BOOLEAN DEFAULT 1"),
     ("rx_print_templates", "show_complaint", "BOOLEAN DEFAULT 1"),
     ("rx_print_templates", "show_coverage", "BOOLEAN DEFAULT 0"),
+    ("rx_print_templates", "fit_page", "BOOLEAN DEFAULT 0"),
     ("drugs", "dose_per_kg", "FLOAT"),
     ("drugs", "max_per_kg", "FLOAT"),
     ("drugs", "conc_mg_per_ml", "FLOAT"),
