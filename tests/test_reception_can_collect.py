@@ -183,7 +183,22 @@ def test_a_doctor_is_not_given_the_collect_button(desk):
 # ------------------------------------------------- the booking on the till
 
 def test_todays_booking_is_on_the_till(desk):
-    """So the desk works down one screen instead of walking to the board."""
+    """So the desk works down one screen instead of walking to the board.
+
+    The booking needs a price. A visit worth nothing is deliberately kept off
+    this list — see `test_collect_prompt_and_free` — so an unpriced one could
+    not show whether the list works.
+    """
+    from app.extensions import db
+    from app.models import Appointment, Service
+
+    with desk["app"].app_context():
+        service = Service.query.first()
+        service.visit_type = "consultation"
+        service.price = 200
+        db.session.get(Appointment, desk["appt"]).appt_type = "consultation"
+        db.session.commit()
+
     page = desk["sign_in"]("desk").get("/finance/cashier",
                                        follow_redirects=True).data.decode()
 

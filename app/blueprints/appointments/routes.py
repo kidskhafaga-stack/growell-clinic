@@ -147,8 +147,19 @@ def index():
         )
     waitlist = wl_query.order_by(WaitlistEntry.created_at).all()
 
+    # The booking that was just made, when the desk may collect and there is
+    # something to collect. Read from the URL rather than the session so a
+    # refresh does not resurrect a prompt somebody has already dealt with.
+    just_booked = None
+    asked = request.args.get("collect", type=int)
+    if asked and current_user.can_collect:
+        candidate = db.session.get(Appointment, asked)
+        if candidate is not None and candidate.appt_date == on_date:
+            just_booked = candidate
+
     return render_template(
         "appointments/board.html",
+        just_booked=just_booked,
         appointments=appointments,
         doctors=doctors,
         doctor_id=doctor_id,
@@ -557,8 +568,22 @@ def create():
             elif info["status"] == "exceeded":
                 flash(t("appointments.consult_exceeded",
                         days=info["days"], max=info["max_days"]), "warning")
+        # The desk's next question is always "do I take the money now?", and
+        # it used to be answered by remembering to find the row again and
+        # press collect. The board is told which booking was just made so it
+        # can ask once, in place — and only when there is something to ask
+        # about: a free consultation gets no prompt at all, because offering
+        # to collect nothing is the step that teaches people to ignore
+        # prompts.
+        ask = None
+        if current_user.can_collect:
+            from app.blueprints.finance.routes import booking_due
+
+            due = booking_due(appt, getattr(g, "lang", "ar"))
+            if due is None or due > 0:
+                ask = appt.id
         return redirect(url_for("appointments.index", date=on_date.isoformat(),
-                                doctor_id=doctor_id))
+                                doctor_id=doctor_id, collect=ask))
 
     # Prefill from query params (patient profile or a waiting-list promotion).
     prefill = request.args.get("patient_id", type=int)

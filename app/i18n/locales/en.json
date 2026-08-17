@@ -528,7 +528,11 @@
     "exc_to": "To date (optional)",
     "exc_to_hint": "Leave empty for one day — or set it for a full vacation",
     "exc_added_n": "{n} days off registered",
-    "quick_search": "Search name / file no / phone…"
+    "quick_search": "Search name / file no / phone…",
+    "booked_now": "Booked for {name}",
+    "collect_now_hint": "Collect now, or later? You can collect any time from the same row.",
+    "collect_now": "Collect now",
+    "collect_later": "Later"
   },
   "appt_types": {
     "new": "New visit",

@@ -73,6 +73,31 @@
 
 {% block content %}
 <div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }}, {{ doctors[0].id if doctors|length == 1 else 'null' }})">
+{# Just booked, and there is money to take. Asked here, in place, rather
+   than leaving the desk to remember the row and press collect — and it is a
+   question, not a redirect: a family that pays on the way out should not
+   have the checkout forced on them at booking time. #}
+{% if just_booked %}
+<div class="card gc-scale-in no-print" x-data="{ shown: true }" x-show="shown" x-cloak
+     style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-inline-start:4px solid var(--green-600);margin-bottom:14px;">
+  <i class="bi bi-check-circle-fill" style="font-size:1.4rem;color:var(--green-600);"></i>
+  <div style="flex:1;min-width:200px;">
+    <strong>{{ t('appointments.booked_now', name=just_booked.patient.display_name(current_lang)) }}</strong>
+    <div class="hint" style="margin:0;">{{ t('appointments.collect_now_hint') }}</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-primary btn-sm gc-press gc-ripple"
+       {# The trip back already exists: collecting lands on the receipt, which
+          auto-prints and returns here. No parameter needed, and a dead one
+          would read like it did something. #}
+       href="{{ url_for('finance.checkout', appt_id=just_booked.id) }}">
+      <i class="bi bi-cash-coin"></i> {{ t('appointments.collect_now') }}</a>
+    <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="shown = false">
+      {{ t('appointments.collect_later') }}</button>
+  </div>
+</div>
+{% endif %}
+
 <!-- Header row -->
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
