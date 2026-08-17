@@ -4922,6 +4922,23 @@
     "title": "Nursing stations",
     "rooms": "Clinics it covers",
     "none_covered": "This station has no clinics assigned yet.",
-    "empty": "Nobody in this station's clinics right now."
+    "empty": "Nobody in this station's clinics right now.",
+    "subtitle": "Each station and the clinics it covers — so nursing sees only its own.",
+    "explainer": "A station is a fixed place beside certain clinics, so you pick clinics rather than doctors. Who is in each clinic today is read from the rota, so a doctor moving room updates the station by itself.",
+    "add": "Add a station",
+    "name_ar": "Name",
+    "name_en": "Name (English)",
+    "name_ph": "Nursing station 1",
+    "sort": "Order",
+    "name_required": "A station needs a name.",
+    "added": "Station added.",
+    "updated": "Station updated.",
+    "deleted": "Station removed.",
+    "covers_n": "Covers {n} doctors today",
+    "covers_none": "Covers nobody today",
+    "today_doctors": "Today's doctors",
+    "no_rooms_yet": "No clinics defined yet.",
+    "none": "No nursing stations defined.",
+    "none_hint": "Without stations the nursing screen shows the whole clinic — which is fine if you only have one."
   }
 }

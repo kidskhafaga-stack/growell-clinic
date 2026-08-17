@@ -1,0 +1,116 @@
+{% extends "shell.html" %}
+{% set active_module = 'appointments' %}
+{% block title %}{{ t('station.title') }}{% endblock %}
+{% block page_heading %}{{ t('station.title') }}{% endblock %}
+
+{#- The عيادات a station covers. Ticked, not typed: a nurse's screen showing
+    the wrong corridor is worse than one showing everything, and a free-text
+    list of room numbers is how that happens. -#}
+{% macro room_grid(station) %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:8px 0;">
+    {% for room in rooms %}
+    <label class="form-row checkbox" style="margin:0;">
+      <input type="checkbox" name="rooms" value="{{ room.id }}"
+             {{ 'checked' if station and room.id in station.room_ids else '' }}>
+      <span style="font-weight:400;">{{ room.display_name(current_lang) }}</span>
+    </label>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('station.no_rooms_yet') }}</p>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-hospital"></i> {{ t('station.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('station.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('appointments.clinics') }}">
+    <i class="bi bi-door-open"></i> {{ t('rooms.title') }}</a>
+</div>
+
+{# Said once, at the top: this screen sets *places*, and who is in them today
+   comes from the rota next door. Without this the two screens read as two
+   ways to do the same thing. #}
+<div class="card gc-scale-in" style="display:flex;align-items:flex-start;gap:10px;border-inline-start:4px solid var(--muted);">
+  <i class="bi bi-info-circle" style="font-size:1.15rem;color:var(--muted);"></i>
+  <p class="hint" style="margin:0;">{{ t('station.explainer') }}</p>
+</div>
+
+<details class="card gc-scale-in" style="animation-delay:.05s;">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-plus-circle"></i> {{ t('station.add') }}</summary>
+  <form method="post" action="{{ url_for('appointments.station_add') }}" style="margin-top:12px;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('station.name_ar') }} *</label>
+        <input class="input" name="name_ar" required placeholder="{{ t('station.name_ph') }}"></div>
+      <div class="form-row"><label>{{ t('station.name_en') }}</label>
+        <input class="input" name="name_en" dir="ltr"></div>
+      <div class="form-row"><label>{{ t('station.sort') }}</label>
+        <input class="input" type="number" name="sort_order" value="0" dir="ltr"></div>
+    </div>
+    <label class="rx-legend">{{ t('station.rooms') }}</label>
+    {{ room_grid(none) }}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+{% for st in stations %}
+<div class="card gc-scale-in">
+  <form method="post" action="{{ url_for('appointments.station_edit', station_id=st.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h3 style="margin:0;">{{ st.display_name(current_lang) }}
+        {% if not st.is_active %}<span class="badge badge--muted">{{ t('common.inactive') }}</span>{% endif %}
+        {# The consequence of the setting, not only the setting: how many
+           doctors this station is actually responsible for today. A station
+           covering nobody is nearly always one whose عيادات were never
+           ticked, and this is where that becomes visible. #}
+        {% if covers.get(st.id) %}
+        <span class="badge badge--green">{{ t('station.covers_n', n=covers[st.id]|length) }}</span>
+        {% else %}
+        <span class="badge badge--danger">{{ t('station.covers_none') }}</span>
+        {% endif %}
+      </h3>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        <button class="btn btn-outline btn-sm gc-press" type="submit"
+                formaction="{{ url_for('appointments.station_delete', station_id=st.id) }}"
+                formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');">
+          <i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="form-row"><label>{{ t('station.name_ar') }}</label>
+        <input class="input" name="name_ar" value="{{ st.name_ar }}"></div>
+      <div class="form-row"><label>{{ t('station.name_en') }}</label>
+        <input class="input" name="name_en" dir="ltr" value="{{ st.name_en or '' }}"></div>
+      <div class="form-row"><label>{{ t('station.sort') }}</label>
+        <input class="input" type="number" name="sort_order" dir="ltr" value="{{ st.sort_order or 0 }}"></div>
+    </div>
+    <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-weight:400;">
+      <input type="checkbox" name="is_active" value="1" {{ 'checked' if st.is_active else '' }}>
+      {{ t('common.active') }}</label>
+
+    <label class="rx-legend">{{ t('station.rooms') }}</label>
+    {{ room_grid(st) }}
+
+    {% if covers.get(st.id) %}
+    <p class="hint" style="margin:4px 0 0;">
+      <i class="bi bi-person-badge"></i> {{ t('station.today_doctors') }}:
+      {% for did in covers[st.id] %}{{ doctors[did].display_name(current_lang) if doctors.get(did) else '—' }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+  </form>
+</div>
+{% else %}
+<div class="card"><div class="empty-state">
+  <i class="bi bi-hospital"></i>{{ t('station.none') }}
+  <div class="hint" style="margin-top:6px;">{{ t('station.none_hint') }}</div>
+</div></div>
+{% endfor %}
+{% endblock %}

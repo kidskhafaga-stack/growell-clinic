@@ -15,7 +15,11 @@
     <i class="bi bi-chevron-left"></i></a>
   <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('appointments.clinics', date=today) }}">
     {{ t('common.today') }}</a>
+  {# The stations are set up next door and read this screen's rota. #}
   <a class="btn btn-outline btn-sm gc-press" style="margin-inline-start:auto;"
+     href="{{ url_for('appointments.stations') }}">
+    <i class="bi bi-hospital"></i> {{ t('station.title') }}</a>
+  <a class="btn btn-outline btn-sm gc-press"
      href="{{ url_for('appointments.index', date=on_date.isoformat()) }}">
     <i class="bi bi-calendar-week"></i> {{ t('appointments.today') }}</a>
 </div>

@@ -1291,6 +1291,106 @@ def clinic_delete(room_id):
                             date=request.form.get("date") or None))
 
 
+@appointments_bp.route("/stations")
+@module_required(MODULE)
+def stations():
+    """Nursing stations, and which عيادات each one covers.
+
+    A settings screen rather than a daily one, which is the opposite of the
+    عيادات screen next door and for the same reason: a doctor is in a
+    different room on different days, and a nursing station is a fixed place
+    beside fixed doors. What changes daily is the rota, and the station reads
+    that rather than storing it.
+    """
+    from app.models import ClinicRoom, NursingStation
+
+    rooms = (ClinicRoom.query.filter_by(is_active=True)
+             .order_by(ClinicRoom.sort_order, ClinicRoom.code).all())
+    stations = (NursingStation.query
+                .order_by(NursingStation.sort_order, NursingStation.id).all())
+    # Who each station covers *today*, so the screen shows the consequence of
+    # the setting rather than only the setting.
+    today = local_today()
+    covers = {st.id: st.doctor_ids_on(today) for st in stations}
+    doctors = {u.id: u for u in list_doctors()}
+    return render_template("appointments/stations.html", rooms=rooms,
+                           stations=stations, covers=covers, doctors=doctors,
+                           today=today)
+
+
+@appointments_bp.route("/stations/add", methods=["POST"])
+@module_required(MODULE)
+def station_add():
+    from app.models import ClinicRoom, NursingStation
+
+    name = (request.form.get("name_ar") or "").strip()
+    if not name:
+        flash(t("station.name_required"), "warning")
+        return redirect(url_for("appointments.stations"))
+    station = NursingStation(
+        name_ar=name,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        sort_order=request.form.get("sort_order", type=int) or 0,
+    )
+    station.rooms = _picked_rooms(ClinicRoom)
+    db.session.add(station)
+    ActivityLog.record("nursing_station.create", user_id=current_user.id,
+                       entity="nursing_station", detail=name,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("station.added"), "success")
+    return redirect(url_for("appointments.stations"))
+
+
+def _picked_rooms(room_model):
+    """The عيادات ticked on the form, as rows."""
+    ids = [i for i in request.form.getlist("rooms", type=int) if i]
+    if not ids:
+        return []
+    return room_model.query.filter(room_model.id.in_(ids)).all()
+
+
+@appointments_bp.route("/stations/<int:station_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def station_edit(station_id):
+    from app.models import ClinicRoom, NursingStation
+
+    station = db.get_or_404(NursingStation, station_id)
+    station.name_ar = (request.form.get("name_ar") or station.name_ar).strip()
+    station.name_en = (request.form.get("name_en") or "").strip() or None
+    station.sort_order = request.form.get("sort_order", type=int) or 0
+    station.is_active = bool(request.form.get("is_active"))
+    station.rooms = _picked_rooms(ClinicRoom)
+    db.session.commit()
+    flash(t("station.updated"), "success")
+    return redirect(url_for("appointments.stations"))
+
+
+@appointments_bp.route("/stations/<int:station_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def station_delete(station_id):
+    """Deleting one is safe: a station owns no history.
+
+    It is a view over the rota, so removing it loses nothing that was
+    recorded — unlike a عيادة, which days of assignments point at. The people
+    who were standing at it keep their `nursing_station_id`, which resolves to
+    nothing and falls back to the whole clinic rather than to an error.
+    """
+    from app.models import NursingStation, User
+
+    station = db.get_or_404(NursingStation, station_id)
+    name = station.name_ar
+    User.query.filter_by(nursing_station_id=station.id).update(
+        {"nursing_station_id": None})
+    db.session.delete(station)
+    ActivityLog.record("nursing_station.delete", user_id=current_user.id,
+                       entity="nursing_station", detail=name,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("station.deleted"), "info")
+    return redirect(url_for("appointments.stations"))
+
+
 @appointments_bp.route("/clinics/assign", methods=["POST"])
 @module_required(MODULE)
 def clinic_assign():
