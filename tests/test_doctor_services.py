@@ -25,9 +25,14 @@ rather than a second table to keep in step.
 """
 import os
 import sys
-from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The fixture dates its visit with `local_today()`, so this has to ask the
+# same clock. `date.today()` is UTC and the clinic runs on Cairo time; after
+# 21:00 UTC they are different days, and the guard below fired on the drift
+# it exists to rule out.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -316,7 +321,7 @@ def test_the_visit_date_is_unaffected(clinic):
     with clinic["app"].app_context():
         from app.models import Visit
         visit = clinic["db"].session.get(Visit, clinic["ids"]["visit"])
-        assert visit.visit_date == date.today()
+        assert visit.visit_date == local_today()
 
 
 # --- booking, where the doctor is chosen in the same form ------------------

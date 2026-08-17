@@ -116,7 +116,33 @@
   </div>
 </div>
 
-<!-- Who to write to today. -->
+<!-- Who to write to today: one list, three reasons. -->
+<div class="card gc-scale-in" style="animation-delay:0.08s;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;">
+      <i class="bi bi-list-check"></i> {{ t('messages_mod.today_title') }}
+      {% if worklist_counts and worklist_counts.total %}
+      <span class="badge badge--role">{{ worklist_counts.total }}</span>{% endif %}
+    </h2>
+    <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('messages.today_worklist') }}">
+      {{ t('messages_mod.today_open') }}</a>
+  </div>
+  {% if worklist_counts and worklist_counts.total %}
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+    {% for k in ['birthday', 'vaccine', 'recall'] %}
+    {% if worklist_counts.get(k) %}
+    <a href="{{ url_for('messages.today_worklist', kind=k) }}" class="badge badge--muted">
+      {{ t('messages_mod.kind_' ~ k) }}: {{ worklist_counts[k] }}</a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-emoji-smile"></i>{{ t('messages_mod.today_none') }}</div>
+  {% endif %}
+</div>
+
+<!-- The birthdays on their own as well: they are the one reason with a
+     send button that finishes the job from here. -->
 <div class="card gc-scale-in" style="animation-delay:0.1s;">
   <h2 class="section-title"><i class="bi bi-gift"></i> {{ t('messages_mod.desk_birthdays') }}</h2>
   {% if not birthdays %}

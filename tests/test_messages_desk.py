@@ -23,6 +23,13 @@ from datetime import date, datetime, time, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's clock, not the machine's. `datetime.date.today()` is UTC
+# and the program runs on the clinic's timezone; at 21:00 UTC in Cairo
+# those are different days. This file used both, and the full suite
+# caught it by running across that boundary: a birthday built for
+# "today" read as yesterday's and vanished off the list.
+from app.utils.clock import local_today  # noqa: E402
+
 WORK_SCREENS = ["/messages/desk", "/messages/", "/messages/inbox",
                 "/messages/service", "/messages/recall", "/messages/roster",
                 "/messages/satisfaction", "/messages/quick-replies"]
@@ -137,7 +144,7 @@ def test_the_birthday_bell_points_at_the_desk(clinic):
 
     with clinic["app"].app_context():
         kid = Patient.query.first()
-        today = date.today()
+        today = local_today()
         kid.date_of_birth = date(2024, today.month, today.day)
         db.session.commit()
         items = get_notifications(User.query.filter_by(username="desk").first())
@@ -227,7 +234,7 @@ def test_this_weeks_birthdays_are_on_it_with_a_way_to_send(clinic):
 
     with clinic["app"].app_context():
         kid = Patient.query.first()
-        soon = date.today() + timedelta(days=2)
+        soon = local_today() + timedelta(days=2)
         kid.date_of_birth = date(2024, soon.month, soon.day)
         db.session.commit()
         name = kid.full_name
@@ -247,7 +254,7 @@ def test_todays_clinic_is_on_it(clinic):
     with clinic["app"].app_context():
         doc = User.query.filter_by(username="doc").first()
         db.session.add(Appointment(patient_id=Patient.query.first().id,
-                                   doctor_id=doc.id, appt_date=date.today(),
+                                   doctor_id=doc.id, appt_date=local_today(),
                                    appt_time=time(10, 0), status="scheduled"))
         db.session.commit()
         doctor_name = doc.full_name

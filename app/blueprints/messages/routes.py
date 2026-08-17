@@ -6,7 +6,7 @@ click-to-send wa.me link for the front desk.
 """
 import os
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from flask import current_app, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -222,6 +222,16 @@ def _recent_failures(limit=20, days=BOARD_DAYS):
             .order_by(MessageLog.created_at.desc()).limit(limit).all())
 
 
+def _worklist_counts():
+    """The day's list, counted. Never raises: it is one panel on a dashboard."""
+    from app.utils import worklist
+
+    try:
+        return worklist.counts()
+    except Exception:  # noqa: BLE001 - a count must not take the desk down
+        return {"total": 0}
+
+
 @messages_bp.route("/desk")
 @module_required(MODULE)
 def desk():
@@ -286,10 +296,38 @@ def desk():
         retryable=len(retryable()),
         failures=_recent_failures(limit=5),
         birthdays=_upcoming_birthdays(),
+        worklist_counts=_worklist_counts(),
         clinic_today=clinic_today,
         on_date=on_date,
         can_setup=current_user.can("messages_setup"),
     )
+
+
+@messages_bp.route("/today")
+@module_required(MODULE)
+def today_worklist():
+    """One list of everybody the clinic has a reason to write to today.
+
+    The reasons each had a screen of their own — birthdays, recall, vaccine
+    reminders — which is three times somebody has to remember to look, and the
+    one nobody opens is the one that stops happening.
+
+    The assembling lives in ``utils.worklist`` rather than here, because the
+    hard part is not joining three lists: it is that all three have to pass the
+    same gate, and an opt-out lost in one of them is the one mistake on this
+    screen that cannot be taken back.
+    """
+    from app.utils import worklist
+
+    kind = (request.args.get("kind") or "").strip()
+    rows = worklist.today_list()
+    shown = rows if kind not in worklist.TEMPLATE_TYPES else [
+        r for r in rows if r["kind"] == kind]
+    counts = {k: sum(1 for r in rows if r["kind"] == k)
+              for k in worklist.TEMPLATE_TYPES}
+    counts["total"] = len(rows)
+    return render_template("messages/today.html", rows=shown, counts=counts,
+                           kind=kind, kinds=list(worklist.TEMPLATE_TYPES))
 
 
 @messages_bp.route("/recall")
@@ -1087,9 +1125,14 @@ def _upcoming_birthdays(days=7):
 def occasions():
     """The unified Patient Customer Service (CRM) hub.
 
-    One place for: the WhatsApp connection, the canonical per-type
-    notification templates (body + image + auto/manual), free-form occasion
-    templates, and upcoming birthdays.
+    Three tabs: the canonical per-type notification templates (body + image +
+    auto/manual), the free-form occasion templates, and the WhatsApp
+    connection.
+
+    Birthdays were a fourth section here and are not any more — they are the
+    desk's work, and `messages.desk` shows them to the people who act on them.
+    This screen needs `messages_setup`, which reception does not have, so the
+    copy here was a to-do list shown only to whoever was not going to do it.
     """
     # Make sure the canonical rows exist even before an upgrade-db has run.
     wa.seed_system_templates()
@@ -1116,7 +1159,6 @@ def occasions():
         wa_samples=wa_preview.samples(clinic),
         approved_templates=wa_templates.parse(
             values.get("wa_approved_templates", "")),
-        birthdays=_upcoming_birthdays(),
         system_templates=system_templates,
         custom_templates=custom_templates,
         occasion_types=OCCASION_TYPES,
