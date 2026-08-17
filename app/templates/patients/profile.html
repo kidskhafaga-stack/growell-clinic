@@ -1091,7 +1091,7 @@
             <td style="color:var(--green-700);">{{ inv.paid }}</td>
             <td style="{{ 'color:var(--danger);' if inv.balance > 0 else '' }}">{{ inv.balance }}</td>
             <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
-            <td style="text-align:end;">{% if current_user.can_access('finance') %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}"><i class="bi bi-eye"></i></a>{% endif %}</td>
+            <td style="text-align:end;">{% if current_user.can_collect %}<a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.invoice_view', invoice_id=inv.id) }}"><i class="bi bi-eye"></i></a>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>

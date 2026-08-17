@@ -466,6 +466,7 @@ _ROLE_LABELS = {
     "reception": ("استقبال", "Reception"),
     "accountant": ("محاسب", "Accountant"),
     "pharmacy": ("صيدلية", "Pharmacy"),
+    "nursing": ("تمريض", "Nursing"),
 }
 
 
@@ -702,8 +703,15 @@ def _ensure_default_roles():
         if Role.query.filter_by(name=name).first() is not None:
             continue
         label_ar, label_en = _ROLE_LABELS.get(name, (name, name))
-        db.session.add(Role(
+        role = Role(
             name=name, label_ar=label_ar, label_en=label_en,
             modules="" if name == "admin" else ",".join(modules),
             is_system=True, is_admin=(name == "admin"),
-        ))
+        )
+        # Seed the capabilities too, now that a role can hold them. Without
+        # this a fresh clinic's nursing role would be a set of screens with no
+        # permission to write on any of them — and `can` would fall back to
+        # the table in code, which is the thing the column exists to replace.
+        from app.models.permissions import ROLE_CAPABILITIES
+        role.set_capabilities(ROLE_CAPABILITIES.get(name, []))
+        db.session.add(role)

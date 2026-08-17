@@ -18,6 +18,14 @@
 {% if tpl.logo_source == 'none' %}{% set logo_url = None %}
 {% elif tpl.logo_source == 'personal' %}{% set logo_url = personal_logo_url or clinic.logo_url %}
 {% else %}{% set logo_url = clinic.logo_url %}{% endif %}
+{# The program's credit line lives in the shell, at the foot of every printed
+   page, so it is switched off from here rather than there — this is the only
+   place that knows which template is being printed with. The public page the
+   family opens has no shell and therefore no footer to hide, which is why the
+   rule is harmless there rather than needing a guard. #}
+{% if not tpl.show_program_line %}
+<style>@media print { .print-footer { display: none !important; } }</style>
+{% endif %}
 <div class="card gc-scale-in print-area" id="rxPaper" style="font-size:{{ tpl.font_size }}px;">
 {# Shrink the type until the whole prescription fits one sheet.
 

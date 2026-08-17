@@ -879,3 +879,25 @@ window.gcDoctorPicker = function (url, initialId, initialName, allowAll, field,
     },
   };
 };
+
+// ------------------------------------------------- remembered fold state ---
+// A collapse that comes back open on the next page is worse than no collapse:
+// you re-do it all day and it never sticks. The same reasoning the sidebar
+// preference already carries, kept in the browser rather than on the user
+// because it is a per-screen habit, not an account setting.
+(function () {
+  function key(el) { return 'fold:' + (el.dataset.fold || ''); }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('details[data-fold]').forEach(function (el) {
+      try {
+        var saved = localStorage.getItem(key(el));
+        if (saved !== null) el.open = saved === '1';
+      } catch (e) { /* private mode: the default stands */ }
+      el.addEventListener('toggle', function () {
+        try { localStorage.setItem(key(el), el.open ? '1' : '0'); }
+        catch (e) { /* nothing to do; it just will not be remembered */ }
+      });
+    });
+  });
+})();

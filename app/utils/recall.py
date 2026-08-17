@@ -108,30 +108,49 @@ def candidates(months=None, today=None, limit=200):
     a send queue. Archived files are excluded by ``is_active``: the clinic has
     already said those are off its books.
     """
+    from sqlalchemy.orm import joinedload
+
+    from app.models import Family
+
     today = today or local_today()
     line = cutoff(months, today)
-    actives = Patient.query.filter_by(is_active=True).all()
-    if not actives:
-        return []
-    ids = [p.id for p in actives]
-    last = dict(db.session.query(Visit.patient_id, func.max(Visit.visit_date))
-                .filter(Visit.patient_id.in_(ids))
-                .group_by(Visit.patient_id).all())
+
+    # The lapsed condition is the selective one, so it belongs in the database.
+    # This used to read **every active patient** into memory and decide here —
+    # a full scan of the register to build a review list, on a screen the desk
+    # opens daily. Only patients whose newest visit is already past the cutoff
+    # come back now.
+    #
+    # "No visit at all" is excluded by the join itself, and deliberately: a
+    # file somebody created and never used is not a lapsed family, and a
+    # message about a visit that never happened reads as a mistake.
+    lapsed = (db.session.query(Visit.patient_id.label("pid"),
+                               func.max(Visit.visit_date).label("seen"))
+              .group_by(Visit.patient_id)
+              .having(func.max(Visit.visit_date) <= line)
+              .subquery())
+
+    rows = (db.session.query(Patient, lapsed.c.seen)
+            .join(lapsed, lapsed.c.pid == Patient.id)
+            .filter(Patient.is_active.is_(True))
+            # `contact_phone` falls back to the guardians' numbers, so without
+            # this it is one more query per candidate.
+            .options(joinedload(Patient.family).joinedload(Family.parents))
+            .order_by(lapsed.c.seen)
+            .all())
+
+    # The rest stays in Python, on what is now a small set. The opt-out in
+    # particular: it is nullable on older rows, and `wa_opt_out IS false` in
+    # SQL would quietly disagree with the truthiness test this has always
+    # used — a difference that would show up as somebody being written to.
     skip = _recently_recalled_ids(today)
     out = []
-    for patient in actives:
+    for patient, seen in rows:
         if patient.id in skip or patient.wa_opt_out:
-            continue
-        seen = last.get(patient.id)
-        # No visit at all is not "lapsed" — it is a file somebody created and
-        # never used, and a message about a visit that never happened would
-        # read as a mistake.
-        if seen is None or seen > line:
             continue
         if not patient.contact_phone:
             continue
         out.append((patient, seen))
-    out.sort(key=lambda row: row[1])
     return out[:limit]
 
 

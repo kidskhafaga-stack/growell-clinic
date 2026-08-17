@@ -116,7 +116,13 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
                                 else_=db.cast(MessageLog.patient_id,
                                               db.String)))
               .subquery())
+    # The patient comes back with the message rather than being fetched when
+    # the row is drawn. Every caller reads `conv["patient"]` — the desk, the
+    # inbox, the search — so a lazy load here is one `SELECT patients WHERE
+    # id = ?` per conversation: measured at 134 of the desk's 164 queries,
+    # and it grew with the clinic while the rest of the screen did not.
     lasts = (MessageLog.query.filter(MessageLog.id.in_(db.select(newest)))
+             .options(db.joinedload(MessageLog.patient))
              .order_by(MessageLog.created_at.desc()).limit(limit).all())
     if not lasts:
         return []

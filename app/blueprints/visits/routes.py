@@ -425,12 +425,40 @@ def station():
     from app.utils.patients import apply_patient_search
     from app.utils.red_flags import assess
 
+    from app.models import NursingStation
+
     today = local_today()
+    # Which station this screen is standing at. A nurse serving three of eight
+    # عيادات was shown all eight and had to find their children in somebody
+    # else's list every time.
+    #
+    # The scope hangs off the **station**, not the nurse: staff rotate, and a
+    # preference stored on the person walks off with them the day they cover
+    # another shift. The choice is remembered per user only so nobody re-picks
+    # it every morning — the switcher on the screen changes it in one press.
+    stations = (NursingStation.query.filter_by(is_active=True)
+                .order_by(NursingStation.sort_order, NursingStation.id).all())
+    asked = request.args.get("station", type=int)
+    station = None
+    if asked:
+        station = next((s for s in stations if s.id == asked), None)
+    elif current_user.nursing_station_id:
+        station = next((s for s in stations
+                        if s.id == current_user.nursing_station_id), None)
+    if asked and station is not None and current_user.nursing_station_id != station.id:
+        current_user.nursing_station_id = station.id
+        db.session.commit()
+
     appts = (Appointment.query
              .filter(Appointment.appt_date == today,
                      Appointment.status.in_(("waiting", "in_progress")))
              .order_by(Appointment.appt_time)
              .all())
+    if station is not None:
+        # Rooms, resolved to today's doctors. A station with no rooms yet
+        # covers nobody rather than everybody — see the model for why.
+        mine = station.doctor_ids_on(today)
+        appts = [a for a in appts if a.doctor_id in mine]
     # A nurse looking for one child should not scroll a morning's list. The
     # search narrows what is already here rather than opening the register —
     # somebody not checked in today is not somebody this station can weigh.
@@ -458,7 +486,7 @@ def station():
     rows.sort(key=lambda r: (order.get(r["flag"]["level"], 2),
                              r["appt"].appt_time))
     return render_template("visits/station.html", rows=rows, today=today,
-                           q=query)
+                           q=query, stations=stations, station=station)
 
 
 @visits_bp.route("/station/<int:appointment_id>/vitals", methods=["POST"])

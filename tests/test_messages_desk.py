@@ -236,6 +236,11 @@ def test_this_weeks_birthdays_are_on_it_with_a_way_to_send(clinic):
         kid = Patient.query.first()
         soon = local_today() + timedelta(days=2)
         kid.date_of_birth = date(2024, soon.month, soon.day)
+        # A number, because the assertion below is about there being a *way to
+        # send*. The card stopped showing a send button to a child nobody can
+        # be reached about — a button whose only possible outcome is failure —
+        # so a child with no number cannot demonstrate this test's own point.
+        kid.own_phone = "01000000000"
         db.session.commit()
         name = kid.full_name
 

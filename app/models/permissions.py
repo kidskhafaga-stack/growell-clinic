@@ -6,8 +6,11 @@ given functional module. This is intentionally coarse-grained; finer actions
 changing the role definitions here.
 """
 
-# The five system roles described in the project plan.
-ROLES = ["admin", "doctor", "reception", "accountant", "pharmacy"]
+# The system roles. `nursing` joined them when nursing stations arrived: a
+# nurse is not a doctor with fewer screens — they take the vitals and the
+# reason for the visit before the child is seen, and they need the clinical
+# module to do it and nothing that prices or bills.
+ROLES = ["admin", "doctor", "reception", "accountant", "pharmacy", "nursing"]
 
 # Every functional module in the system. The string keys double as i18n keys
 # under ``nav.*`` and as the permission identifiers used by the decorators.
@@ -27,6 +30,26 @@ MODULES = [
     "users",
     "settings",
 ]
+
+# Modules whose screens are guarded by ``admin_required`` from end to end, and
+# which therefore **cannot** be handed to a role by ticking a box.
+#
+# Reported as: "I gave the doctor the settings screen and it gives me 404."
+# The role editor offered the tick, the sidebar honoured it — `can_access`
+# reads the role's module list — and every route behind it asks `is_admin`
+# instead. So the doctor got a Settings link that answered 403, and a 404 on
+# any address under it that does not exist. Measured across all fourteen
+# modules by granting every one of them to a test role and opening each: these
+# two were the only ones that refused.
+#
+# They are not simply removed from ``MODULES``: the sidebar, the module
+# toggles and the icons all iterate that list, and an admin does reach both.
+# What changes is that a role cannot be *granted* them, which is the promise
+# that was not being kept.
+ADMIN_ONLY_MODULES = ["users", "settings"]
+
+# What a role checkbox may actually grant.
+GRANTABLE_MODULES = [m for m in MODULES if m not in ADMIN_ONLY_MODULES]
 
 # Module -> Bootstrap icon name, used by the sidebar navigation.
 MODULE_ICONS = {
@@ -59,6 +82,16 @@ ROLE_PERMISSIONS = {
         "vaccinations",
         "prescriptions",
         "ai",
+    ],
+    # The vitals station and the child's file, and nothing else. No
+    # prescriptions (they do not prescribe) and no finance (they do not bill).
+    "nursing": [
+        "dashboard",
+        "patients",
+        "appointments",
+        "visits",
+        "growth",
+        "vaccinations",
     ],
     "reception": [
         "dashboard",
@@ -116,6 +149,9 @@ ROLE_CAPABILITIES = {
     "admin": list(CAPABILITIES),
     "doctor": ["patient_medical"],
     "reception": ["cashier"],
+    # They write into the child's clinical record — the vitals, the reason for
+    # the visit — so they hold the medical capability and no money one.
+    "nursing": ["patient_medical"],
     "accountant": ["cashier", "finance_manage", "treasury_move"],
     "pharmacy": [],
 }

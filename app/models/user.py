@@ -53,6 +53,12 @@ class User(UserMixin, db.Model):
     personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
     accent_color = db.Column(db.String(20))         # لون مميز
     rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
+    # Which nursing station this person last worked at. Remembered so nobody
+    # re-picks it every morning — the scope itself belongs to the station, not
+    # to them, and one press on the screen moves them to another.
+    nursing_station_id = db.Column(db.Integer,
+                                   db.ForeignKey("nursing_stations.id"),
+                                   nullable=True)
     # A doctor's own quick phrases for the visit screen. They used to be one
     # list for the whole clinic, which is the wrong shape: the sentences a
     # paediatrician reaches for are not a dermatologist's, and a shared list
@@ -123,6 +129,25 @@ class User(UserMixin, db.Model):
             return rec.is_admin or module in rec.module_list
         return role_can_access(self.role, module)  # static fallback
 
+    @property
+    def can_collect(self):
+        """Whether this person may take money — the till, not the ledger.
+
+        The same test ``cashier_access`` applies to the routes, said once so
+        the buttons and the doors cannot disagree. They did: the collect
+        button on the appointment board, the "invoice this visit" button on
+        the visit, and the invoice link on the patient profile were all drawn
+        only for ``can_access('finance')`` — the whole finance module — while
+        every route behind them accepts the ``cashier`` capability on its own.
+
+        So a receptionist who could open the checkout by typing its address
+        was shown no way to reach it: reported as "the collect button doesn't
+        appear after a booking", and again as "the money owed doesn't show
+        when the doctor has done something". One condition, three copies of
+        it, and all three were the wrong one.
+        """
+        return self.can_access("finance") or self.can("cashier")
+
     def can(self, capability):
         """Whether this user has a fine-grained capability.
 
@@ -139,6 +164,15 @@ class User(UserMixin, db.Model):
         from app.models.permissions import role_has_capability
         rec = self._role_record()
         if rec is not None and rec.is_admin:
+            return True
+        # The role's own list, then the built-in table, then this person's
+        # grants — a union, deliberately. A clinic upgrading has roles whose
+        # new `capabilities` column is empty, and reading only the column
+        # would take the till away from every receptionist on the morning of
+        # the upgrade. Reading only the built-in table is the bug this fixes:
+        # a role the clinic invented is in no table in the code, so it could
+        # hold nothing at all.
+        if rec is not None and capability in rec.capability_list:
             return True
         if role_has_capability(self.role, capability):
             return True

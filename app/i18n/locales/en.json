@@ -528,7 +528,11 @@
     "exc_to": "To date (optional)",
     "exc_to_hint": "Leave empty for one day — or set it for a full vacation",
     "exc_added_n": "{n} days off registered",
-    "quick_search": "Search name / file no / phone…"
+    "quick_search": "Search name / file no / phone…",
+    "booked_now": "Booked for {name}",
+    "collect_now_hint": "Collect now, or later? You can collect any time from the same row.",
+    "collect_now": "Collect now",
+    "collect_later": "Later"
   },
   "appt_types": {
     "new": "New visit",
@@ -1373,8 +1377,6 @@
     "complaint_chips_hint": "Quick complaint phrases the doctor taps instead of typing (fever, cough…).",
     "exam_chips_hint": "Quick exam phrases (general condition good, chest clear…).",
     "visit_chips_lang_hint": "Each phrase has two texts: Arabic and English (optional) — shown in the current program language.",
-    "small_clinic_mode": "Small-clinic mode (reception runs the till)",
-    "small_clinic_mode_hint": "Lets a reception user collect payments, run the shift and do checkout — without exposing P&L, expenses or financial reports.",
     "logo_pending": "Image selected — click Save to apply",
     "login_security": "Login security",
     "login_security_hint": "Temporarily lock an account after repeated failed attempts to deter guessing.",
@@ -1875,7 +1877,10 @@
     "today_due_today": "today",
     "today_in": "in {n} days",
     "today_last_visit": "last visit",
-    "today_open": "Open today's list"
+    "today_open": "Open today's list",
+    "desk_tomorrow_is": "Tomorrow",
+    "desk_turning": "Turning {n}",
+    "desk_no_phone": "No number"
   },
   "coverage": {
     "title": "Insurance / Membership",
@@ -2044,7 +2049,8 @@
     "system_locked": "System roles cannot be deleted",
     "in_use": "Role in use — reassign its users first",
     "name_hint": "lowercase letters, numbers and _ only (e.g. nurse)",
-    "admin_note": "The admin role always has full access"
+    "admin_note": "The admin role always has full access",
+    "capabilities": "Fine-grained capabilities"
   },
   "einvoice": {
     "title": "E-invoicing (Tax Authority)",
@@ -2573,7 +2579,12 @@
     "show_coverage": "Insurance / membership",
     "preprinted_letterhead": "On pre-printed paper these print as one compact line below the offset, without the logo or the rule. Untick whatever your own letterhead already carries.",
     "fit_page": "Shrink to fit one page",
-    "fit_page_hint": "Steps the type down until the prescription fits a single sheet, never below a legible floor. If it still does not fit, it prints on two as usual."
+    "fit_page_hint": "Steps the type down until the prescription fits a single sheet, never below a legible floor. If it still does not fit, it prints on two as usual.",
+    "show_program_line": "Program line at the foot",
+    "my_layout": "My prescription layout",
+    "my_layout_hint": "Build your own template and choose what appears on it — yours alone, and it changes nothing for the other doctors.",
+    "clinic_wide": "Clinic template",
+    "owned": "Personal"
   },
   "store": {
     "title": "General store",
@@ -2997,7 +3008,9 @@
     "sign_cashier": "Cashier signature",
     "sign_manager": "Manager signature",
     "print_report": "Print report",
-    "change_flash": "Give the patient {amount} change"
+    "change_flash": "Give the patient {amount} change",
+    "unbilled_title": "Booked today, not billed yet",
+    "unbilled_hint": "Bookings with no invoice against them — collect from here without leaving the till."
   },
   "shifts": {
     "open_now": "Open shift",
@@ -3769,7 +3782,8 @@
     "cashier": "Collect payments",
     "finance_manage": "Full finance management",
     "treasury_move": "Move money between tills",
-    "treasury_adjust": "Write off counting differences"
+    "treasury_adjust": "Write off counting differences",
+    "messages_setup": "Customer-service setup"
   },
   "survey": {
     "title": "Survey builder",
@@ -4771,7 +4785,10 @@
     "name_en": "English name",
     "name_optional": "Optional name",
     "name_placeholder": "Clinic",
-    "number_hint": "The clinic number is generated automatically — it is not typed."
+    "number_hint": "The clinic number is generated automatically — it is not typed.",
+    "done": "Done",
+    "busy_n": "{n} working",
+    "waiting_n": "{n} waiting"
   },
   "lookups": {
     "title": "Store lists",
@@ -4901,5 +4918,29 @@
     "reconciled": "Every medicine reviewed at this visit",
     "pending_review": "Not yet reviewed",
     "decided": "Decided"
+  },
+  "station": {
+    "all_clinics": "All clinics",
+    "title": "Nursing stations",
+    "rooms": "Clinics it covers",
+    "none_covered": "This station has no clinics assigned yet.",
+    "empty": "Nobody in this station's clinics right now.",
+    "subtitle": "Each station and the clinics it covers — so nursing sees only its own.",
+    "explainer": "A station is a fixed place beside certain clinics, so you pick clinics rather than doctors. Who is in each clinic today is read from the rota, so a doctor moving room updates the station by itself.",
+    "add": "Add a station",
+    "name_ar": "Name",
+    "name_en": "Name (English)",
+    "name_ph": "Nursing station 1",
+    "sort": "Order",
+    "name_required": "A station needs a name.",
+    "added": "Station added.",
+    "updated": "Station updated.",
+    "deleted": "Station removed.",
+    "covers_n": "Covers {n} doctors today",
+    "covers_none": "Covers nobody today",
+    "today_doctors": "Today's doctors",
+    "no_rooms_yet": "No clinics defined yet.",
+    "none": "No nursing stations defined.",
+    "none_hint": "Without stations the nursing screen shows the whole clinic — which is fine if you only have one."
   }
 }

@@ -1097,6 +1097,74 @@ def _flash_change(change):
               "warning")
 
 
+def booking_due(appt, lang="ar"):
+    """What this booking would actually cost, before anybody bills it.
+
+    Reused rather than re-derived: `_checkout_lines` is what the checkout
+    itself charges, so a booking is "worth collecting" exactly when the
+    checkout would ask for something. Working it out a second way here is how
+    the till ends up disagreeing with the screen it sends people to.
+
+    Zero is a real answer. A free follow-up, or a consultation a doctor does
+    not charge for, has nothing to collect — and a till that lists it anyway
+    is asking reception to open a checkout, look at a total of zero and back
+    out, for every one of them. That is the sort of step that teaches people
+    to ignore the list.
+    """
+    try:
+        lines = _checkout_lines(appt, lang)
+    except Exception:  # noqa: BLE001 - a pricing gap must not break the till
+        return None
+    return round(sum((line.get("unit_price") or 0) * (line.get("quantity") or 1)
+                     for line in lines), 2)
+
+
+def _unbilled_bookings(on_date):
+    """Today's bookings that nobody has billed yet.
+
+    The till listed unpaid *invoices* and clinical items given without one.
+    A booking is neither until somebody makes it one, so a family who came in,
+    was booked, and walked to the desk appeared nowhere on this screen —
+    reported as "the collect button doesn't show after the booking". It was on
+    the appointments board, which meant leaving the till, finding the row, and
+    coming back.
+
+    The payment state is `appointments._payment_status`, not a second reading
+    of the same question here: the board already decides what "unpaid" means
+    for a booking, and two answers to that would eventually disagree in front
+    of a family.
+    """
+    from app.blueprints.appointments.routes import _payment_status
+    from app.models import ACTIVE_STATUSES, Appointment
+
+    rows = (Appointment.query
+            .options(db.joinedload(Appointment.patient),
+                     db.joinedload(Appointment.doctor))
+            .filter(Appointment.appt_date == on_date,
+                    Appointment.status.in_(ACTIVE_STATUSES))
+            .order_by(Appointment.appt_time, Appointment.id)
+            .all())
+    if not rows:
+        return []
+
+    state = _payment_status(rows, on_date)
+    lang = getattr(g, "lang", "ar")
+    out = []
+    for a in rows:
+        if a.patient is None or state.get(a.id, {}).get("state") != "none":
+            continue
+        due = booking_due(a, lang)
+        # Nothing to collect is not the same as "not collected yet". A free
+        # consultation belongs on nobody's chase list; `None` means the price
+        # could not be worked out, which is a reason to show it rather than
+        # hide it.
+        if due is not None and due <= 0:
+            continue
+        out.append({"appt": a, "patient": a.patient, "doctor": a.doctor,
+                    "due": due})
+    return out
+
+
 def _uncollected_by_patient(days=7):
     """Money that silently falls through the till: vaccine doses given (and
     priced) but never invoiced + doctor-added visit services with no invoice —
@@ -1223,6 +1291,7 @@ def cashier():
     recent_shifts = (CashierShift.query.order_by(CashierShift.opened_at.desc())
                      .limit(8).all())
     uncollected = _uncollected_by_patient()
+    unbilled = _unbilled_bookings(on_date)
 
     return render_template(
         "finance/cashier.html", on_date=on_date, drawer=drawer,
@@ -1232,7 +1301,8 @@ def cashier():
         outstanding=outstanding, outstanding_total=outstanding_total,
         payment_methods=PAYMENT_METHODS,
         open_shift=open_shift, recent_shifts=recent_shifts,
-        uncollected=uncollected, shift_label_presets=_shift_label_presets(),
+        uncollected=uncollected, unbilled=unbilled,
+        shift_label_presets=_shift_label_presets(),
         settlements=pending_settlements(),
         suggested_float=treasury.suggested_float(),
         cash_tills=[a for a in CashAccount.usable_by(current_user)

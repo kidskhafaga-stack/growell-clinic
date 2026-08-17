@@ -99,6 +99,22 @@ class RxPrintTemplate(db.Model):
     # on paper, and a medical document is not something to resize unasked.
     fit_page = db.Column(db.Boolean, default=False, nullable=False)
 
+    # The program's own credit line at the foot of every printed page. On by
+    # default, because it is how the clinic's own copy says where it came
+    # from — and a switch, because a prescription is the clinic's document
+    # and a doctor who wants their paper carrying nothing but their name is
+    # not making an unreasonable request.
+    show_program_line = db.Column(db.Boolean, default=True, nullable=False)
+
+    # Whose template this is. NULL means the clinic's — built by an admin and
+    # offered to everybody, which is every template that existed before this
+    # column. Set, it belongs to one doctor: theirs to edit from their own
+    # profile without reaching the settings screen, and nobody else's to
+    # change. A doctor asked for exactly this, and the alternative was handing
+    # them the whole settings module to get at one form.
+    doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                          nullable=True, index=True)
+
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -107,7 +123,21 @@ class RxPrintTemplate(db.Model):
              "show_investigations", "show_weight", "show_allergies",
              "show_conditions", "show_vaccines", "show_growth",
              "show_next_appointment", "show_complaint", "show_coverage",
-             "fit_page"]
+             "fit_page", "show_program_line"]
+
+    def editable_by(self, user):
+        """Whether ``user`` may change this template.
+
+        An admin may change any. A doctor may change only one that is theirs —
+        a shared clinic template edited by one doctor would silently reshape
+        every other doctor's paper, which is the failure this ownership column
+        exists to prevent.
+        """
+        if user is None or not user.is_authenticated:
+            return False
+        if user.is_admin:
+            return True
+        return self.doctor_id is not None and self.doctor_id == user.id
 
     # In BOOLS so the template form saves them, but **not** switched on for a
     # clinic that has expressed no opinion.
