@@ -81,6 +81,18 @@
         </select></div>
       {% endif %}
     </div>
+
+    {# Choosing a layout was already here; changing one was not, and reaching
+       the screen that does meant being handed the whole settings module —
+       which does not even work, because those routes ask `is_admin` rather
+       than the permission. Same idiom as the quick phrases below: the setting
+       that belongs to this doctor is edited on the screen that owns it. #}
+    {% if current_user.can_access('prescriptions') %}
+    <h3 style="margin:14px 0 6px;font-size:0.95rem;"><i class="bi bi-file-earmark-medical"></i> {{ t('rxtpl.my_layout') }}</h3>
+    <p class="hint" style="margin:0 0 8px;">{{ t('rxtpl.my_layout_hint') }}</p>
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.templates') }}">
+      <i class="bi bi-sliders"></i> {{ t('rxtpl.title') }}</a>
+    {% endif %}
     {# Per doctor, not per clinic — and edited on its own screen rather than
        in a raw textarea here. Two editors of one list is how the code column
        ended up existing in one of them and not the other. #}

@@ -3,7 +3,8 @@ import os
 from datetime import datetime, timedelta
 
 from flask import (
-    current_app, flash, g, jsonify, redirect, render_template, request, url_for,
+    abort, current_app, flash, g, jsonify, redirect, render_template, request,
+    url_for,
 )
 from flask_login import current_user
 from sqlalchemy import or_
@@ -1013,15 +1014,43 @@ def view(rx_id):
 
 
 # ----------------------------------------------------- print templates -----
+def _my_template_or_404(tpl_id):
+    """A template this user is allowed to change, or a refusal.
+
+    403 rather than 404: the template exists and the answer is "not yours",
+    and a 404 here would send a doctor hunting for a broken link.
+    """
+    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    if not tpl.editable_by(current_user):
+        abort(403, description=t("auth.no_permission"))
+    return tpl
+
+
 @prescriptions_bp.route("/templates")
-@admin_required
+@module_required(MODULE)
 def templates():
-    return render_template("prescriptions/templates.html",
-                           templates=RxPrintTemplate.query.order_by(RxPrintTemplate.name).all())
+    """The clinic's print layouts, and — for a doctor — their own.
+
+    A doctor could already *choose* which template their prescriptions print
+    with, from their profile, and could not change a single thing about it:
+    every route here was admin-only. Reported as "I gave the doctor the
+    settings screen so he could set up his own prescription" — which is a lot
+    of screen to hand somebody to reach one form, and it did not work anyway
+    because the settings routes check `is_admin` rather than the module.
+
+    So the screen opens for whoever prescribes, and shows what they may
+    change. An admin sees every template; a doctor sees the clinic's (to read
+    and to pick) and their own (to edit).
+    """
+    rows = RxPrintTemplate.query.order_by(RxPrintTemplate.name).all()
+    if not current_user.is_admin:
+        rows = [t_ for t_ in rows
+                if t_.doctor_id in (None, current_user.id)]
+    return render_template("prescriptions/templates.html", templates=rows)
 
 
 @prescriptions_bp.route("/templates/<int:tpl_id>/test-print")
-@admin_required
+@module_required(MODULE)
 def template_test_print(tpl_id):
     """The layout on real paper, before anybody commits to it.
 
@@ -1083,9 +1112,12 @@ def _save_template(tpl):
 
 
 @prescriptions_bp.route("/templates/new", methods=["POST"])
-@admin_required
+@module_required(MODULE)
 def template_new():
     tpl = RxPrintTemplate()
+    # A doctor's new template belongs to them; an admin builds the clinic's.
+    if not current_user.is_admin:
+        tpl.doctor_id = current_user.id
     _save_template(tpl)
     if not RxPrintTemplate.query.first():
         tpl.is_default = True
@@ -1096,9 +1128,9 @@ def template_new():
 
 
 @prescriptions_bp.route("/templates/<int:tpl_id>/edit", methods=["POST"])
-@admin_required
+@module_required(MODULE)
 def template_edit(tpl_id):
-    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    tpl = _my_template_or_404(tpl_id)
     _save_template(tpl)
     db.session.commit()
     flash(t("rxtpl.updated"), "success")
@@ -1117,9 +1149,9 @@ def template_default(tpl_id):
 
 
 @prescriptions_bp.route("/templates/<int:tpl_id>/delete", methods=["POST"])
-@admin_required
+@module_required(MODULE)
 def template_delete(tpl_id):
-    tpl = db.get_or_404(RxPrintTemplate, tpl_id)
+    tpl = _my_template_or_404(tpl_id)
     db.session.delete(tpl)
     db.session.commit()
     flash(t("rxtpl.deleted"), "info")

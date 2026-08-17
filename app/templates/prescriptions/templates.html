@@ -31,6 +31,9 @@ rxPreview({
   show_coverage: {{ 'true' if tp and tp.show_coverage else 'false' }},
   fit_page: {{ 'true' if tp and tp.fit_page else 'false' }},
   show_signature: {{ 'true' if (tp and tp.show_signature) or not tp else 'false' }},
+  {# On for a new template and for every template that predates the column, so
+     an upgrade does not silently strip the line off a clinic's paper. #}
+  show_program_line: {{ 'true' if (tp and tp.show_program_line) or not tp else 'false' }},
   show_stamp: {{ 'true' if (tp and tp.show_stamp) or not tp else 'false' }}
 })
 {%- endmacro -%}
@@ -104,7 +107,7 @@ rxPreview({
        list from the letterhead above rather than one grid of fourteen. #}
     <label class="rx-legend">{{ t('rxtpl.elements') }}</label>
     <div class="rx-checks" style="margin:8px 0;">
-      {% for b in ['show_patient','show_coverage','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_complaint','show_diagnosis','show_investigations','show_next_appointment','show_signature','show_stamp'] %}
+      {% for b in ['show_patient','show_coverage','show_weight','show_allergies','show_conditions','show_vaccines','show_growth','show_complaint','show_diagnosis','show_investigations','show_next_appointment','show_signature','show_stamp','show_program_line'] %}
       <label class="form-row checkbox" style="margin:0;"><input type="checkbox" name="{{ b }}" value="1" x-model="f.{{ b }}">
         <span style="font-weight:400;">{{ t('rxtpl.' ~ b) }}</span></label>
       {% endfor %}
@@ -171,15 +174,25 @@ rxPreview({
 </details>
 
 {% for tp in templates %}
+{# A doctor sees the clinic's layouts as well as their own, because picking one
+   is half of what this screen is for. What they cannot do is change somebody
+   else's — a shared template edited by one doctor reshapes every other
+   doctor's paper, silently. #}
+{% set mine = tp.editable_by(current_user) %}
 <div class="card gc-scale-in">
   <form method="post" action="{{ url_for('prescriptions.template_edit', tpl_id=tp.id) }}" x-data="{{ rxinit(tp) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <h3 style="margin:0;">{{ tp.name }}
         <span class="badge badge--muted">{{ t('rxtpl.' ~ tp.mode) }}</span>
-        {% if tp.is_default %}<span class="badge badge--green">{{ t('rxtpl.default') }}</span>{% endif %}</h3>
+        {% if tp.is_default %}<span class="badge badge--green">{{ t('rxtpl.default') }}</span>{% endif %}
+        {% if tp.doctor_id %}<span class="badge badge--role"><i class="bi bi-person"></i>
+          {{ tp.doctor.display_name(current_lang) if tp.doctor else t('rxtpl.owned') }}</span>
+        {% else %}<span class="badge badge--muted">{{ t('rxtpl.clinic_wide') }}</span>{% endif %}</h3>
       <div style="display:flex;gap:6px;">
+        {% if mine %}
         <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
+        {% endif %}
         {# Opens in its own tab: this is something you print, look at, come
            back and adjust — losing the form you were editing in the middle of
            that would be the whole point undone. #}
@@ -187,12 +200,24 @@ rxPreview({
            href="{{ url_for('prescriptions.template_test_print', tpl_id=tp.id) }}">
           <i class="bi bi-printer"></i> {{ t('rxtpl.test_print') }}</a>
         {% if not tp.is_default %}
+        {# The clinic's default is the clinic's decision. A doctor chooses what
+           *they* print with from their own profile, which changes nothing for
+           anybody else. #}
+        {% if current_user.is_admin %}
         <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('prescriptions.template_default', tpl_id=tp.id) }}" formnovalidate>{{ t('rxtpl.set_default') }}</button>
+        {% endif %}
+        {% if mine %}
         <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('prescriptions.template_delete', tpl_id=tp.id) }}" formnovalidate onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+        {% endif %}
         {% endif %}
       </div>
     </div>
-    <div style="margin-top:10px;">{{ fields(tp) }}</div>
+    {# Shown either way — a doctor picking a layout needs to see what is in it.
+       Disabled when it is not theirs, so the screen reads as "this is how the
+       clinic's template is set up" rather than offering an edit that the
+       route would refuse. #}
+    <fieldset style="margin-top:10px;border:0;padding:0;min-width:0;"
+              {{ '' if mine else 'disabled' }}>{{ fields(tp) }}</fieldset>
   </form>
 </div>
 {% else %}

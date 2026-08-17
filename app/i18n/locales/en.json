@@ -2576,7 +2576,12 @@
     "show_coverage": "Insurance / membership",
     "preprinted_letterhead": "On pre-printed paper these print as one compact line below the offset, without the logo or the rule. Untick whatever your own letterhead already carries.",
     "fit_page": "Shrink to fit one page",
-    "fit_page_hint": "Steps the type down until the prescription fits a single sheet, never below a legible floor. If it still does not fit, it prints on two as usual."
+    "fit_page_hint": "Steps the type down until the prescription fits a single sheet, never below a legible floor. If it still does not fit, it prints on two as usual.",
+    "show_program_line": "Program line at the foot",
+    "my_layout": "My prescription layout",
+    "my_layout_hint": "Build your own template and choose what appears on it — yours alone, and it changes nothing for the other doctors.",
+    "clinic_wide": "Clinic template",
+    "owned": "Personal"
   },
   "store": {
     "title": "General store",

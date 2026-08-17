@@ -164,6 +164,12 @@ ADDITIONS = [
     ("rx_print_templates", "show_complaint", "BOOLEAN DEFAULT 1"),
     ("rx_print_templates", "show_coverage", "BOOLEAN DEFAULT 0"),
     ("rx_print_templates", "fit_page", "BOOLEAN DEFAULT 0"),
+    # The program's credit line at the foot of the page. Defaults to 1 so an
+    # existing clinic's paper comes out of the upgrade looking the same.
+    ("rx_print_templates", "show_program_line", "BOOLEAN DEFAULT 1"),
+    # Whose template it is. NULL — which is what every existing row gets — is
+    # the clinic's, so nothing that already worked changes owner on upgrade.
+    ("rx_print_templates", "doctor_id", "INTEGER"),
     ("drugs", "dose_per_kg", "FLOAT"),
     ("drugs", "max_per_kg", "FLOAT"),
     ("drugs", "conc_mg_per_ml", "FLOAT"),
