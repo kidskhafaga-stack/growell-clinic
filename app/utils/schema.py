@@ -170,6 +170,7 @@ ADDITIONS = [
     # unions this with the built-in table for exactly that reason — nobody
     # loses a capability on the morning of an upgrade.
     ("roles", "capabilities", "TEXT DEFAULT ''"),
+    ("users", "nursing_station_id", "INTEGER"),
     ("rx_print_templates", "show_program_line", "BOOLEAN DEFAULT 1"),
     # Whose template it is. NULL — which is what every existing row gets — is
     # the clinic's, so nothing that already worked changes owner on upgrade.

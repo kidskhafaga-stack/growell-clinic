@@ -10,6 +10,25 @@
     <p class="page-sub" style="margin:0;">{{ t('visits.station_subtitle') }} · {{ today }}</p>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    {# Which عيادات this station covers. Remembered per person only so nobody
+       re-picks it every morning; the scope itself belongs to the station, so
+       moving to another one is a single press and takes the whole list with
+       it. "كل العيادات" stays available — a small clinic with one station
+       should not have to define one to use the screen. #}
+    {% if stations %}
+    <form method="get" style="display:flex;gap:6px;align-items:center;">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+      <i class="bi bi-hospital" style="color:var(--muted);"></i>
+      <select class="select" name="station" style="max-width:190px;"
+              onchange="this.form.submit()">
+        <option value="">{{ t('station.all_clinics') }}</option>
+        {% for st in stations %}
+        <option value="{{ st.id }}" {{ 'selected' if station and station.id == st.id else '' }}>
+          {{ st.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
     {# Narrows today's checked-in list, not the whole register: somebody who
        has not arrived is not somebody this station can weigh. #}
     <form method="get" style="position:relative;">

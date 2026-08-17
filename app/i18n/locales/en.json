@@ -4916,5 +4916,12 @@
     "reconciled": "Every medicine reviewed at this visit",
     "pending_review": "Not yet reviewed",
     "decided": "Decided"
+  },
+  "station": {
+    "all_clinics": "All clinics",
+    "title": "Nursing stations",
+    "rooms": "Clinics it covers",
+    "none_covered": "This station has no clinics assigned yet.",
+    "empty": "Nobody in this station's clinics right now."
   }
 }

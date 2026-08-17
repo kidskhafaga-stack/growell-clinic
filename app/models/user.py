@@ -53,6 +53,12 @@ class User(UserMixin, db.Model):
     personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
     accent_color = db.Column(db.String(20))         # لون مميز
     rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
+    # Which nursing station this person last worked at. Remembered so nobody
+    # re-picks it every morning — the scope itself belongs to the station, not
+    # to them, and one press on the screen moves them to another.
+    nursing_station_id = db.Column(db.Integer,
+                                   db.ForeignKey("nursing_stations.id"),
+                                   nullable=True)
     # A doctor's own quick phrases for the visit screen. They used to be one
     # list for the whole clinic, which is the wrong shape: the sentences a
     # paediatrician reaches for are not a dermatologist's, and a shared list
