@@ -13,7 +13,9 @@
     {% if not visit.is_completed %}
     <a class="btn btn-outline gc-press" href="{{ url_for('visits.record', visit_id=visit.id) }}"><i class="bi bi-pencil"></i> {{ t('common.edit') }}</a>
     {% endif %}
-    {% if current_user.can_access('finance') %}
+    {# What the doctor added during the visit is collected from here, and
+       reception is who collects it. #}
+    {% if current_user.can_collect %}
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.collect', patient_id=visit.patient_id) }}">
       <i class="bi bi-receipt"></i> {{ t('invoices.create_for_visit') }}</a>
     {% endif %}

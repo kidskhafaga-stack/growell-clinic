@@ -1097,6 +1097,41 @@ def _flash_change(change):
               "warning")
 
 
+def _unbilled_bookings(on_date):
+    """Today's bookings that nobody has billed yet.
+
+    The till listed unpaid *invoices* and clinical items given without one.
+    A booking is neither until somebody makes it one, so a family who came in,
+    was booked, and walked to the desk appeared nowhere on this screen —
+    reported as "the collect button doesn't show after the booking". It was on
+    the appointments board, which meant leaving the till, finding the row, and
+    coming back.
+
+    The payment state is `appointments._payment_status`, not a second reading
+    of the same question here: the board already decides what "unpaid" means
+    for a booking, and two answers to that would eventually disagree in front
+    of a family.
+    """
+    from app.blueprints.appointments.routes import _payment_status
+    from app.models import ACTIVE_STATUSES, Appointment
+
+    rows = (Appointment.query
+            .options(db.joinedload(Appointment.patient),
+                     db.joinedload(Appointment.doctor))
+            .filter(Appointment.appt_date == on_date,
+                    Appointment.status.in_(ACTIVE_STATUSES))
+            .order_by(Appointment.appt_time, Appointment.id)
+            .all())
+    if not rows:
+        return []
+
+    state = _payment_status(rows, on_date)
+    return [{"appt": a, "patient": a.patient, "doctor": a.doctor}
+            for a in rows
+            if a.patient is not None
+            and state.get(a.id, {}).get("state") == "none"]
+
+
 def _uncollected_by_patient(days=7):
     """Money that silently falls through the till: vaccine doses given (and
     priced) but never invoiced + doctor-added visit services with no invoice —
@@ -1223,6 +1258,7 @@ def cashier():
     recent_shifts = (CashierShift.query.order_by(CashierShift.opened_at.desc())
                      .limit(8).all())
     uncollected = _uncollected_by_patient()
+    unbilled = _unbilled_bookings(on_date)
 
     return render_template(
         "finance/cashier.html", on_date=on_date, drawer=drawer,
@@ -1232,7 +1268,8 @@ def cashier():
         outstanding=outstanding, outstanding_total=outstanding_total,
         payment_methods=PAYMENT_METHODS,
         open_shift=open_shift, recent_shifts=recent_shifts,
-        uncollected=uncollected, shift_label_presets=_shift_label_presets(),
+        uncollected=uncollected, unbilled=unbilled,
+        shift_label_presets=_shift_label_presets(),
         settlements=pending_settlements(),
         suggested_float=treasury.suggested_float(),
         cash_tills=[a for a in CashAccount.usable_by(current_user)

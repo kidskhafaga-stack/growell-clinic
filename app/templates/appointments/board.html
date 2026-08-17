@@ -26,7 +26,11 @@
   {% else %}
     <span class="pay-tag pay-none"><i class="bi bi-dash"></i> {{ t('appointments.pay_none') }}</span>
   {% endif %}
-  {% if current_user.can_access('finance') %}
+  {# The route behind these is `cashier_access`, so the button asks what the
+     route asks. It used to ask for the whole finance module, and reception
+     has the till capability without it — so the door opened and nothing on
+     the screen led to it. #}
+  {% if current_user.can_collect %}
     {% if p.state in ['unpaid', 'partial'] and p.invoice_id %}
       <a class="btn btn-outline btn-sm gc-press" style="margin-top:4px;display:inline-flex;color:#0e7490;border-color:#0e7490;"
          href="{{ url_for('finance.invoice_view', invoice_id=p.invoice_id) }}"><i class="bi bi-cash"></i> {{ t('appointments.collect') }}</a>

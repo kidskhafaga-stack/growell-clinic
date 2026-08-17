@@ -123,6 +123,25 @@ class User(UserMixin, db.Model):
             return rec.is_admin or module in rec.module_list
         return role_can_access(self.role, module)  # static fallback
 
+    @property
+    def can_collect(self):
+        """Whether this person may take money — the till, not the ledger.
+
+        The same test ``cashier_access`` applies to the routes, said once so
+        the buttons and the doors cannot disagree. They did: the collect
+        button on the appointment board, the "invoice this visit" button on
+        the visit, and the invoice link on the patient profile were all drawn
+        only for ``can_access('finance')`` — the whole finance module — while
+        every route behind them accepts the ``cashier`` capability on its own.
+
+        So a receptionist who could open the checkout by typing its address
+        was shown no way to reach it: reported as "the collect button doesn't
+        appear after a booking", and again as "the money owed doesn't show
+        when the doctor has done something". One condition, three copies of
+        it, and all three were the wrong one.
+        """
+        return self.can_access("finance") or self.can("cashier")
+
     def can(self, capability):
         """Whether this user has a fine-grained capability.
 

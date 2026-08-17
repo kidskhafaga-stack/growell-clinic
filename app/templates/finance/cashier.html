@@ -187,6 +187,39 @@
 </div>
 {% endif %}
 
+{% if unbilled %}
+<!-- Booked today and not billed yet: the family standing at the desk. -->
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--green-600);">
+  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-calendar-check"></i> {{ t('cashier.unbilled_title') }} ({{ unbilled|length }})</h2>
+  <p class="hint" style="padding:0 18px;margin:4px 0 8px;">{{ t('cashier.unbilled_hint') }}</p>
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('appointments.patient') }}</th>
+      <th>{{ t('appointments.doctor') }}</th>
+      <th>{{ t('appointments.time') }}</th>
+      <th style="text-align:end;">{{ t('cashier.collect') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for e in unbilled %}
+      <tr>
+        <td><a href="{{ url_for('patients.view', patient_id=e.patient.id) }}">{{ e.patient.display_name(current_lang) }}</a></td>
+        <td style="color:var(--muted);">{{ e.doctor.display_name(current_lang) if e.doctor else '—' }}</td>
+        <td style="color:var(--muted);">{{ e.appt.time_label }}</td>
+        <td style="text-align:end;">
+          {# Straight to the checkout for this booking, which already knows the
+             patient and the visit charge — and comes back here afterwards, so
+             the desk works down one screen rather than walking to the board
+             and back for each family. #}
+          <a class="btn btn-primary btn-sm gc-press" href="{{ url_for('finance.checkout', appt_id=e.appt.id) }}">
+            <i class="bi bi-cash-coin"></i> {{ t('cashier.collect') }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if uncollected %}
 <!-- Never-billed money: doses/services given after the visit was collected -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;border-inline-start:4px solid var(--warning,#f0ad4e);">

@@ -3005,7 +3005,9 @@
     "sign_cashier": "Cashier signature",
     "sign_manager": "Manager signature",
     "print_report": "Print report",
-    "change_flash": "Give the patient {amount} change"
+    "change_flash": "Give the patient {amount} change",
+    "unbilled_title": "Booked today, not billed yet",
+    "unbilled_hint": "Bookings with no invoice against them — collect from here without leaving the till."
   },
   "shifts": {
     "open_now": "Open shift",
