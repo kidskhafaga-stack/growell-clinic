@@ -102,6 +102,32 @@ function tplEditor(id, occ){
     get showImg(){ return this.img && !this.rm; }
   };
 }
+// The hub was one column of six cards, 1912px tall, with no way to say which
+// part of it you had come for. Same treatment as the main settings screen: a
+// tab strip, and the sections grouped under it.
+//
+// Kept as a function rather than an inline `x-data` object on purpose. Nine
+// routes redirect back here with a fragment, so this needs a comment
+// explaining them, and a comment is exactly what truncated the settings
+// screen's own `x-data` — a double quote inside a double-quoted attribute
+// ends the attribute. Here there is nowhere for one to get in.
+function crmTabs(){
+  return {
+    tab: 'types',
+    // Saving any form on this screen redirects to a *section* anchor, not to
+    // a tab: `#types`, `#custom`, `#connection`. Without this map every save
+    // would land on the first tab and the thing just edited would be on a
+    // panel nobody is looking at. `templates` is here too so that a reload
+    // after the watcher has rewritten the hash still lands where it says.
+    inside: { types:'types', custom:'templates', templates:'templates',
+              connection:'connection' },
+    init(){
+      const asked = (window.location.hash || '').slice(1);
+      if (this.inside[asked]) this.tab = this.inside[asked];
+      this.$watch('tab', v => history.replaceState(null, '', '#' + v));
+    }
+  };
+}
 </script>
 
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
@@ -124,8 +150,26 @@ function tplEditor(id, occ){
   </div>
 </div>
 
+{# The banner above stays outside the tabs: which mode the clinic is in
+   changes what every one of these panels means, so it is not a section. #}
+<div x-data="crmTabs()">
+
+  <!-- Tabs -->
+  <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
+    {% for tid, icon, label in [
+        ('types','bell', t('crm.types_title')),
+        ('templates','chat-square-text', t('occasions.templates')),
+        ('connection','whatsapp', t('crm.connection_title'))] %}
+    {% if tid != 'connection' or current_user.can_access('settings') %}
+    <button type="button" class="btn btn-sm gc-press"
+            :class="tab==='{{ tid }}' ? 'btn-primary' : 'btn-outline'"
+            x-on:click="tab='{{ tid }}'"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
+    {% endif %}
+    {% endfor %}
+  </div>
+
 <!-- ============ Notification types (master-detail + live preview) ============ -->
-<div class="card gc-scale-in" id="types" style="animation-delay:0.05s;" x-data="{ sel: {{ system_templates[0].id if system_templates else 0 }} }">
+<div class="card gc-scale-in" id="types" style="animation-delay:0.05s;" x-show="tab==='types'" x-cloak x-data="{ sel: {{ system_templates[0].id if system_templates else 0 }} }">
   <h2 class="section-title"><i class="bi bi-bell"></i> {{ t('crm.types_title') }}</h2>
   <p class="hint" style="margin-top:-6px;">{{ t('crm.types_hint') }}</p>
 
@@ -227,33 +271,13 @@ function tplEditor(id, occ){
   </div>
 </div>
 
-<!-- ============ Birthdays ============ -->
-<div class="card gc-scale-in" style="animation-delay:0.1s;">
-  <h2 class="section-title"><i class="bi bi-balloon"></i> {{ t('occasions.birthdays') }}</h2>
-  {% if birthdays %}
-  <table class="table">
-    <thead><tr><th>{{ t('occasions.patient') }}</th><th>{{ t('occasions.turning') }}</th><th></th><th style="text-align:end;"></th></tr></thead>
-    <tbody>
-      {% for b in birthdays %}
-      <tr>
-        <td><strong>{{ b.patient.display_name(current_lang) }}</strong> <span style="color:var(--muted);" dir="ltr">{{ b.patient.patient_number }}</span></td>
-        <td>🎂 {{ b.turning }} {{ t('occasions.years') }}</td>
-        <td>{% if b.in_days == 0 %}<span class="badge badge--green">{{ t('occasions.today') }}</span>{% else %}<span class="badge badge--muted">{{ t('occasions.in_days').replace('{n}', b.in_days|string) }}</span>{% endif %}
-            <span style="color:var(--muted);font-size:0.8rem;" dir="ltr">{{ b.date }}</span></td>
-        <td style="text-align:end;">
-          {% if b.phone %}
-          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('messages.send_birthday', patient_id=b.patient.id) }}" style="color:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> {{ t('occasions.send_wish') }}</a>
-          {% else %}<span class="badge badge--danger">{{ t('occasions.no_phone') }}</span>{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}<div class="empty-state"><i class="bi bi-balloon"></i>{{ t('occasions.no_birthdays') }}</div>{% endif %}
-</div>
+{# Birthdays used to be a seventh card here. They are the desk's work — the
+   list, the count and the send button are all on `/messages/desk` now — and
+   a second copy on a settings screen only reception cannot open was a list
+   shown to the one person with no reason to act on it. #}
 
 <!-- ============ Custom occasion templates ============ -->
-<details class="card gc-scale-in" id="custom" style="animation-delay:0.14s;">
+<details class="card gc-scale-in" id="custom" style="animation-delay:0.14s;" x-show="tab==='templates'" x-cloak>
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-plus-circle"></i> {{ t('occasions.add_template') }}</summary>
   <form method="post" action="{{ url_for('messages.occasion_template_new') }}" enctype="multipart/form-data" style="margin-top:12px;" x-data="tplEditor(0, 'greeting')">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -299,7 +323,7 @@ function tplEditor(id, occ){
   </form>
 </details>
 
-<div class="card gc-scale-in" style="animation-delay:0.16s;">
+<div class="card gc-scale-in" style="animation-delay:0.16s;" x-show="tab==='templates'" x-cloak>
   <h2 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('occasions.templates') }}</h2>
   {% if custom_templates %}
   <div style="display:flex;flex-direction:column;gap:8px;">
@@ -387,7 +411,7 @@ function tplEditor(id, occ){
 
 <!-- ============ Connection (admin) ============ -->
 {% if current_user.can_access('settings') %}
-<details class="card gc-scale-in" id="connection" style="animation-delay:0.2s;">
+<details class="card gc-scale-in" id="connection" style="animation-delay:0.2s;" x-show="tab==='connection'" x-cloak>
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-whatsapp"></i> {{ t('crm.connection_title') }}</summary>
   <p class="hint" style="margin-top:4px;">{{ t('crm.connection_hint') }}</p>
   <form method="post" action="{{ url_for('messages.connection_save') }}" style="margin-top:10px;" x-data="{ mode: '{{ values.get('crm_mode','manual') }}', provider: '{{ values.get('wa_provider','web') }}' }">
@@ -522,4 +546,6 @@ function tplEditor(id, occ){
   </form>
 </details>
 {% endif %}
+
+</div>
 {% endblock %}

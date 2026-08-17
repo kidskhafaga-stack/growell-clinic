@@ -6,7 +6,7 @@ click-to-send wa.me link for the front desk.
 """
 import os
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from flask import current_app, flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -1125,9 +1125,14 @@ def _upcoming_birthdays(days=7):
 def occasions():
     """The unified Patient Customer Service (CRM) hub.
 
-    One place for: the WhatsApp connection, the canonical per-type
-    notification templates (body + image + auto/manual), free-form occasion
-    templates, and upcoming birthdays.
+    Three tabs: the canonical per-type notification templates (body + image +
+    auto/manual), the free-form occasion templates, and the WhatsApp
+    connection.
+
+    Birthdays were a fourth section here and are not any more — they are the
+    desk's work, and `messages.desk` shows them to the people who act on them.
+    This screen needs `messages_setup`, which reception does not have, so the
+    copy here was a to-do list shown only to whoever was not going to do it.
     """
     # Make sure the canonical rows exist even before an upgrade-db has run.
     wa.seed_system_templates()
@@ -1154,7 +1159,6 @@ def occasions():
         wa_samples=wa_preview.samples(clinic),
         approved_templates=wa_templates.parse(
             values.get("wa_approved_templates", "")),
-        birthdays=_upcoming_birthdays(),
         system_templates=system_templates,
         custom_templates=custom_templates,
         occasion_types=OCCASION_TYPES,
