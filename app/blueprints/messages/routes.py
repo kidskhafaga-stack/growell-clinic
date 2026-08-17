@@ -409,6 +409,30 @@ def service_board():
                            stats=summary(days=days), days=days)
 
 
+@messages_bp.route("/outcomes")
+@module_required(MODULE)
+def outcomes():
+    """Whether any of the sending brings anybody back.
+
+    The other two boards look at what arrives: the send log counts what left
+    the building by status, the service board counts how fast the clinic
+    answers. Neither says whether the birthday, the recall and the overdue
+    dose are worth the breath — which is the whole question about outbound,
+    and the one that had no screen.
+
+    Work, not setup: it reports on what the desk did and names no
+    credentials, so it sits with the rest of the desk's screens rather than
+    behind ``messages_setup``.
+    """
+    from app.utils.outcomes import delivery_health, reach_report
+
+    days = request.args.get("days", 30, type=int)
+    days = days if days in (7, 30, 90) else 30
+    return render_template("messages/outcomes.html",
+                           report=reach_report(days=days),
+                           health=delivery_health(days=days), days=days)
+
+
 @messages_bp.route("/inbox")
 @module_required(MODULE)
 def inbox():
