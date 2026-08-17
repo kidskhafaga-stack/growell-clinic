@@ -152,25 +152,55 @@
   {% if not birthdays %}
   <div class="empty-state"><i class="bi bi-calendar-x"></i>{{ t('messages_mod.desk_birthdays_none') }}</div>
   {% else %}
-  <div class="table-wrap">
-    <table class="table">
-      <tbody>
-        {% for b in birthdays %}
-        <tr>
-          <td><a href="{{ url_for('patients.view', patient_id=b.patient.id) }}">
-            <strong>{{ b.patient.display_name(current_lang) }}</strong></a></td>
-          <td style="color:var(--muted);">
-            {% if b.in_days == 0 %}<strong>{{ t('messages_mod.desk_today_is') }}</strong>
-            {% else %}{{ t('messages_mod.desk_in_days', n=b.in_days) }}{% endif %}</td>
-          <td dir="ltr" style="color:var(--muted);">{{ b.date }}</td>
-          <td style="text-align:end;">
-            <a class="btn btn-outline btn-sm gc-press"
-               href="{{ url_for('messages.send_birthday', patient_id=b.patient.id) }}">
-              <i class="bi bi-whatsapp"></i> {{ t('messages_mod.desk_send') }}</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {#- Three days told apart by *shape* before colour: a filled medallion for
+      today, a dashed ring for tomorrow, a plain ring with the number of days
+      for the rest. Colour alone would carry this for most people and for
+      nobody who cannot separate the greens, and the whole point of the card
+      is being read at a glance on the way past. -#}
+  <div class="bday-list gc-stagger">
+    {% for b in birthdays %}
+    {% set when = 'today' if b.in_days == 0 else ('tomorrow' if b.in_days == 1 else 'later') %}
+    <div class="bday-row bday-row--{{ when }}">
+      <div class="bday-medal bday-medal--{{ when }}" aria-hidden="true">
+        {% if when == 'today' %}🎂
+        {% elif when == 'tomorrow' %}<i class="bi bi-gift"></i>
+        {% else %}<span class="bday-days">{{ b.in_days }}</span>{% endif %}
+      </div>
+
+      <div class="bday-who">
+        <a href="{{ url_for('patients.view', patient_id=b.patient.id) }}">
+          <strong>{{ b.patient.display_name(current_lang) }}</strong></a>
+        <div class="bday-meta">
+          {#- The age was on the old screen and is the thing that makes the
+              greeting personal rather than generic. -#}
+          {{ t('messages_mod.desk_turning', n=b.turning) }}
+          · <span dir="ltr">{{ b.date }}</span>
+        </div>
+      </div>
+
+      <div class="bday-when">
+        {% if when == 'today' %}
+        <span class="badge badge--green">{{ t('messages_mod.desk_today_is') }}</span>
+        {% elif when == 'tomorrow' %}
+        <span class="badge badge--role">{{ t('messages_mod.desk_tomorrow_is') }}</span>
+        {% else %}
+        <span class="badge badge--muted">{{ t('messages_mod.desk_in_days', n=b.in_days) }}</span>
+        {% endif %}
+      </div>
+
+      <div class="bday-act">
+        {#- No number, no send. A button that can only fail is worse than
+            saying why it is not there. -#}
+        {% if b.phone %}
+        <a class="btn btn-sm gc-press {{ 'btn-primary' if when == 'today' else 'btn-outline' }}"
+           href="{{ url_for('messages.send_birthday', patient_id=b.patient.id) }}">
+          <i class="bi bi-whatsapp"></i> {{ t('messages_mod.desk_send') }}</a>
+        {% else %}
+        <span class="badge badge--danger">{{ t('messages_mod.desk_no_phone') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
   </div>
   {% endif %}
 </div>

@@ -93,6 +93,17 @@
 :root[data-theme="dark"] .st-cancelled,
 :root[data-theme="dark"] .vst-upcoming { background: #263141; color: var(--muted); }
 :root[data-theme="dark"] .vst-suggested { background: #262b41; color: #a5b4fc; }
+/* Green tints. The dark palette redefines `--green-100` and `--green-050` —
+   the badge *backgrounds* — to dark surfaces, and leaves `--green-900` and
+   `--green-800`, which are the badge *text*, at their light-mode darks. So
+   these two rendered dark-on-dark and were effectively invisible: measured on
+   the desk's birthday card, where "today" and "tomorrow" both read as empty
+   pills. `.badge--muted` and `.badge--danger` beside them already carry dark
+   variants; these two were missed, in 195 places across 78 templates. */
+:root[data-theme="dark"] .badge--green { background: #17352a; color: #6ee7b7; }
+:root[data-theme="dark"] .badge--role {
+  background: #16281f; color: #86efac; border-color: #24503a;
+}
 /* Danger / warning / success tints — dark, readable versions. */
 :root[data-theme="dark"] .badge--danger,
 :root[data-theme="dark"] .alert-pill.danger,
@@ -815,3 +826,78 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .vseg-count { background: rgba(0, 0, 0, .08); border-radius: 999px; padding: 1px 9px;
   font-size: 0.78rem; }
 .vseg-btn.active .vseg-count { background: rgba(255, 255, 255, .22); }
+
+/* ---------- The desk's birthday list ----------
+   Three days apart at a glance: today, tomorrow, and the rest of the week.
+
+   Told apart by SHAPE first and colour second — a filled medallion, a dashed
+   ring, a plain ring carrying the number of days. Colour alone would work for
+   most people and for nobody who cannot separate the greens, and this card
+   exists to be read on the way past rather than studied.
+
+   Built out of the theme tokens throughout, so the dark palette that
+   redefines them further up carries this without a second set of rules. */
+.bday-list { display: flex; flex-direction: column; gap: 8px; }
+
+.bday-row {
+  display: grid; align-items: center; gap: 12px;
+  grid-template-columns: auto 1fr auto auto;
+  padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--card);
+}
+/* Today gets the only filled row, and an edge on the reading side. `inline`
+   because the whole program flips with `dir` and a hard `left` would sit on
+   the wrong side in Arabic — which is the language it runs in. */
+.bday-row--today {
+  background: var(--green-050);
+  border-color: var(--green-100, var(--line));
+  border-inline-start: 3px solid var(--green-600);
+}
+
+.bday-medal {
+  width: 42px; height: 42px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; line-height: 1;
+}
+/* Its own keyframe rather than the shared `gc-pulse-ring`, which hardcodes a
+   green: the medallion is painted with `--green-600`, and that token is
+   redefined to the clinic's own accent further up. On a clinic with a blue
+   accent the shared ring pulsed green around a blue disc. `color-mix` is
+   already relied on by the accent tokens themselves, so this adds no new
+   requirement. */
+@keyframes bday-glow {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green-600) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--green-600) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green-600) 0%, transparent); }
+}
+.bday-medal--today {
+  background: var(--green-600); color: #fff;
+  /* Lights up and fades — three times, then it stops. An animation that
+     never stops on a screen somebody works at all day stops being a
+     pleasure and becomes something they want turned off. */
+  animation: bday-glow 2.2s ease-out 3;
+}
+.bday-medal--tomorrow {
+  border: 2px dashed var(--green-600); color: var(--green-600);
+  background: transparent;
+}
+.bday-medal--later {
+  border: 1px solid var(--line); color: var(--muted); background: transparent;
+}
+.bday-days { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.bday-who { min-width: 0; }
+.bday-who a { text-decoration: none; }
+.bday-who strong { font-size: 0.98rem; }
+.bday-meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+
+.bday-when { white-space: nowrap; }
+.bday-act { white-space: nowrap; }
+
+/* Narrow: the medallion keeps its column and the rest stacks under the name,
+   so the shape that says *when* survives the smallest screen. */
+@media (max-width: 640px) {
+  .bday-row { grid-template-columns: auto 1fr; }
+  .bday-when, .bday-act { grid-column: 2; }
+  .bday-act { justify-self: start; }
+}

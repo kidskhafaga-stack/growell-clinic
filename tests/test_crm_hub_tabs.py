@@ -155,6 +155,9 @@ def test_the_desk_still_has_them(clinic):
         kid = Patient.query.first()
         soon = local_today() + timedelta(days=2)
         kid.date_of_birth = date(2024, soon.month, soon.day)
+        # The send link is only offered for a child somebody can be reached
+        # about, so this needs a number to assert the link at all.
+        kid.own_phone = "01000000000"
         db.session.commit()
 
     page = clinic["sign_in"]("desk").get("/messages/desk").data.decode()

@@ -1875,7 +1875,10 @@
     "today_due_today": "النهاردة",
     "today_in": "بعد {n} يوم",
     "today_last_visit": "آخر زيارة",
-    "today_open": "افتح قائمة النهاردة"
+    "today_open": "افتح قائمة النهاردة",
+    "desk_tomorrow_is": "بكره",
+    "desk_turning": "بيكمل {n} سنة",
+    "desk_no_phone": "مفيش رقم"
   },
   "coverage": {
     "title": "التأمين / العضوية",

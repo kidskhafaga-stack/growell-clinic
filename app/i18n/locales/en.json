@@ -1875,7 +1875,10 @@
     "today_due_today": "today",
     "today_in": "in {n} days",
     "today_last_visit": "last visit",
-    "today_open": "Open today's list"
+    "today_open": "Open today's list",
+    "desk_tomorrow_is": "Tomorrow",
+    "desk_turning": "Turning {n}",
+    "desk_no_phone": "No number"
   },
   "coverage": {
     "title": "Insurance / Membership",
