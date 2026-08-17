@@ -28,6 +28,26 @@ MODULES = [
     "settings",
 ]
 
+# Modules whose screens are guarded by ``admin_required`` from end to end, and
+# which therefore **cannot** be handed to a role by ticking a box.
+#
+# Reported as: "I gave the doctor the settings screen and it gives me 404."
+# The role editor offered the tick, the sidebar honoured it — `can_access`
+# reads the role's module list — and every route behind it asks `is_admin`
+# instead. So the doctor got a Settings link that answered 403, and a 404 on
+# any address under it that does not exist. Measured across all fourteen
+# modules by granting every one of them to a test role and opening each: these
+# two were the only ones that refused.
+#
+# They are not simply removed from ``MODULES``: the sidebar, the module
+# toggles and the icons all iterate that list, and an admin does reach both.
+# What changes is that a role cannot be *granted* them, which is the promise
+# that was not being kept.
+ADMIN_ONLY_MODULES = ["users", "settings"]
+
+# What a role checkbox may actually grant.
+GRANTABLE_MODULES = [m for m in MODULES if m not in ADMIN_ONLY_MODULES]
+
 # Module -> Bootstrap icon name, used by the sidebar navigation.
 MODULE_ICONS = {
     "dashboard": "speedometer2",

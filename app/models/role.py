@@ -11,7 +11,7 @@ the table is populated (e.g. very first boot).
 from datetime import datetime
 
 from app.extensions import db
-from app.models.permissions import MODULES
+from app.models.permissions import ADMIN_ONLY_MODULES, GRANTABLE_MODULES, MODULES
 
 
 class Role(db.Model):
@@ -28,17 +28,33 @@ class Role(db.Model):
 
     @property
     def module_list(self):
+        """The modules this role reaches. Admins reach everything.
+
+        ``ADMIN_ONLY_MODULES`` are filtered out for everybody else even if the
+        stored CSV still names them — a role saved before this rule existed
+        would otherwise keep showing a sidebar link that has never once
+        opened. Nothing is lost by dropping them here: the routes behind both
+        ask ``is_admin`` regardless, so the entry was only ever a link to a
+        refusal.
+        """
         if self.is_admin:
             return list(MODULES)
         wanted = {m.strip() for m in (self.modules or "").split(",") if m.strip()}
         # Preserve canonical module order.
-        return [m for m in MODULES if m in wanted]
+        return [m for m in GRANTABLE_MODULES if m in wanted]
 
     def set_modules(self, module_keys):
-        keep = [m for m in MODULES if m in set(module_keys)]
+        """Save the ticked modules, ignoring the ones a role cannot hold.
+
+        Filtered here rather than only in the form, so a hand-posted request
+        cannot store a permission that does not work either.
+        """
+        asked = set(module_keys)
+        keep = [m for m in GRANTABLE_MODULES if m in asked]
         if "dashboard" not in keep:        # everyone needs a landing page
             keep = ["dashboard"] + keep
         self.modules = ",".join(keep)
+        _ = ADMIN_ONLY_MODULES            # named above; kept for the reader
 
     def label(self, lang="ar"):
         if lang == "en" and self.label_en:

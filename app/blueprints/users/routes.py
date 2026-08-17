@@ -8,7 +8,7 @@ from app.blueprints.users import users_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog, Role, User
-from app.models.permissions import MODULES
+from app.models.permissions import GRANTABLE_MODULES, MODULES
 from app.utils.decorators import admin_required, client_ip
 from app.utils.paging import paginate
 from app.utils.clock import local_today
@@ -95,7 +95,10 @@ def audit():
 @users_bp.route("/roles")
 @admin_required
 def roles():
-    return render_template("users/roles.html", roles=_roles(), modules=MODULES)
+    # Only what a role can actually be given; `users` and `settings`
+    # are admin-only at every route behind them.
+    return render_template("users/roles.html", roles=_roles(),
+                           modules=GRANTABLE_MODULES)
 
 
 @users_bp.route("/permissions")
