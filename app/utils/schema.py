@@ -166,6 +166,10 @@ ADDITIONS = [
     ("rx_print_templates", "fit_page", "BOOLEAN DEFAULT 0"),
     # The program's credit line at the foot of the page. Defaults to 1 so an
     # existing clinic's paper comes out of the upgrade looking the same.
+    # A role's own capabilities. Empty on every existing row, and `User.can`
+    # unions this with the built-in table for exactly that reason — nobody
+    # loses a capability on the morning of an upgrade.
+    ("roles", "capabilities", "TEXT DEFAULT ''"),
     ("rx_print_templates", "show_program_line", "BOOLEAN DEFAULT 1"),
     # Whose template it is. NULL — which is what every existing row gets — is
     # the clinic's, so nothing that already worked changes owner on upgrade.

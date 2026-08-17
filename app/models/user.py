@@ -159,6 +159,15 @@ class User(UserMixin, db.Model):
         rec = self._role_record()
         if rec is not None and rec.is_admin:
             return True
+        # The role's own list, then the built-in table, then this person's
+        # grants — a union, deliberately. A clinic upgrading has roles whose
+        # new `capabilities` column is empty, and reading only the column
+        # would take the till away from every receptionist on the morning of
+        # the upgrade. Reading only the built-in table is the bug this fixes:
+        # a role the clinic invented is in no table in the code, so it could
+        # hold nothing at all.
+        if rec is not None and capability in rec.capability_list:
+            return True
         if role_has_capability(self.role, capability):
             return True
         return capability in self.granted_capabilities

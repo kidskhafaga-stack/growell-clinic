@@ -22,6 +22,17 @@ class Role(db.Model):
     label_ar = db.Column(db.String(80))
     label_en = db.Column(db.String(80))
     modules = db.Column(db.Text, default="")          # CSV of module keys
+    # Fine-grained capabilities this role holds, as a CSV like `modules`.
+    #
+    # Roles could be created from the UI and could not hold a single
+    # capability: `User.can` asked `role_has_capability(self.role, ...)`, which
+    # reads a table in code keyed by the five built-in role names. So a clinic
+    # that made its own "front desk" role got a receptionist who could not
+    # reach the till, with nothing on any screen to say why and no way to fix
+    # it except granting the capability to each person one at a time.
+    #
+    # It surfaced properly when a nursing station needed a role of its own.
+    capabilities = db.Column(db.Text, default="")
     is_system = db.Column(db.Boolean, default=False, nullable=False)  # built-in
     is_admin = db.Column(db.Boolean, default=False, nullable=False)   # full access
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -42,6 +53,22 @@ class Role(db.Model):
         wanted = {m.strip() for m in (self.modules or "").split(",") if m.strip()}
         # Preserve canonical module order.
         return [m for m in GRANTABLE_MODULES if m in wanted]
+
+    @property
+    def capability_list(self):
+        """The capabilities stored on this role, in canonical order."""
+        from app.models.permissions import CAPABILITIES
+
+        if self.is_admin:
+            return list(CAPABILITIES)
+        wanted = {c.strip() for c in (self.capabilities or "").split(",") if c.strip()}
+        return [c for c in CAPABILITIES if c in wanted]
+
+    def set_capabilities(self, capability_keys):
+        from app.models.permissions import CAPABILITIES
+
+        asked = set(capability_keys)
+        self.capabilities = ",".join(c for c in CAPABILITIES if c in asked)
 
     def set_modules(self, module_keys):
         """Save the ticked modules, ignoring the ones a role cannot hold.

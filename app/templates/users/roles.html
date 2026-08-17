@@ -16,6 +16,23 @@
   </div>
 {% endmacro %}
 
+{# Fine-grained capabilities. A role could be created here and could not hold
+   one: `User.can` only ever consulted a table in code keyed by the five
+   built-in role names, so a role a clinic invented held nothing — a "front
+   desk" that could not reach the till, with nothing on screen to say why. #}
+{% macro capability_grid(role) %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin:4px 0 10px;">
+    {% for c in capabilities %}
+    <label class="form-row checkbox" style="margin:0;{{ 'opacity:.55;' if role and role.is_admin else '' }}">
+      <input type="checkbox" name="capabilities" value="{{ c }}"
+             {{ 'checked' if role and (role.is_admin or c in role.capability_list) else '' }}
+             {{ 'disabled' if role and role.is_admin else '' }}>
+      <span style="font-weight:400;">{{ t('cap.' ~ c) }}</span>
+    </label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
@@ -42,6 +59,8 @@
     </div>
     <label style="font-weight:600;">{{ t('roles_mgmt.permissions') }}</label>
     {{ module_grid(none) }}
+    <label class="rx-legend">{{ t('roles_mgmt.capabilities') }}</label>
+    {{ capability_grid(none) }}
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
@@ -76,6 +95,8 @@
     <p class="hint"><i class="bi bi-info-circle"></i> {{ t('roles_mgmt.admin_note') }}</p>
     {% endif %}
     {{ module_grid(role) }}
+    <label class="rx-legend">{{ t('roles_mgmt.capabilities') }}</label>
+    {{ capability_grid(role) }}
   </form>
 </div>
 {% endfor %}

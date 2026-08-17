@@ -97,8 +97,10 @@ def audit():
 def roles():
     # Only what a role can actually be given; `users` and `settings`
     # are admin-only at every route behind them.
+    from app.models.permissions import CAPABILITIES
     return render_template("users/roles.html", roles=_roles(),
-                           modules=GRANTABLE_MODULES)
+                           modules=GRANTABLE_MODULES,
+                           capabilities=CAPABILITIES)
 
 
 @users_bp.route("/permissions")
@@ -233,6 +235,7 @@ def role_new():
         is_system=False, is_admin=False,
     )
     role.set_modules(request.form.getlist("modules"))
+    role.set_capabilities(request.form.getlist("capabilities"))
     db.session.add(role)
     ActivityLog.record("role.create", user_id=current_user.id, entity="role",
                        detail=name, ip_address=client_ip())
@@ -250,6 +253,7 @@ def role_edit(role_id):
     # The admin role keeps full access; everyone else is editable.
     if not role.is_admin:
         role.set_modules(request.form.getlist("modules"))
+        role.set_capabilities(request.form.getlist("capabilities"))
     db.session.commit()
     flash(t("roles_mgmt.updated"), "success")
     return redirect(url_for("users.roles"))
