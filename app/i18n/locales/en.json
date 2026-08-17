@@ -1377,8 +1377,6 @@
     "complaint_chips_hint": "Quick complaint phrases the doctor taps instead of typing (fever, cough…).",
     "exam_chips_hint": "Quick exam phrases (general condition good, chest clear…).",
     "visit_chips_lang_hint": "Each phrase has two texts: Arabic and English (optional) — shown in the current program language.",
-    "small_clinic_mode": "Small-clinic mode (reception runs the till)",
-    "small_clinic_mode_hint": "Lets a reception user collect payments, run the shift and do checkout — without exposing P&L, expenses or financial reports.",
     "logo_pending": "Image selected — click Save to apply",
     "login_security": "Login security",
     "login_security_hint": "Temporarily lock an account after repeated failed attempts to deter guessing.",

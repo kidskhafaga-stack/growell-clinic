@@ -200,7 +200,6 @@ def create_app(config_name="default"):
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
-            "small_clinic_mode": Setting.get("small_clinic_mode", "0") == "1",
             "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
             "now_date": local_today().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),
