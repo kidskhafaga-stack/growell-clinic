@@ -275,33 +275,65 @@
 {% if clinics %}
 <div class="clinics-strip gc-scale-in" style="margin-bottom:18px;">
   {% for c in clinics %}
-  <a class="clinic-card{{ ' is-busy' if c.current else '' }}"
+  {# Three tiers, because the old card put the room, the patient and every
+     number at one weight and the eye had nowhere to land — you had to *read*
+     it instead of glancing at it.
+
+     The card takes its state from the timer inside it (`:has`), so the
+     escalation that `app.js` already computes every thirty seconds drives the
+     whole tile rather than only the digits. One rule for "this wait is too
+     long", in the place that already owned it. #}
+  <a class="clinic-card{{ ' is-busy' if c.current else ' is-free' }}{{ ' is-urgent' if c.urgent else '' }}"
      href="{{ url_for('appointments.index', date=on_date.isoformat(), doctor_id=c.doctor.id) }}">
+    <span class="cl-edge" aria-hidden="true"></span>
+
     <div class="cl-head">
       <span class="cl-room">{{ c.room.display_name(current_lang) if c.room else t('rooms.unassigned') }}</span>
       <span class="cl-doc">{{ c.doctor.display_name(current_lang) }}</span>
     </div>
+
+    {# The hero line. Who is in the room is the one thing worth reading from
+       across the desk, so it is the largest thing on the card. #}
     <div class="cl-now">
       {% if c.current %}
-        <span class="cl-dot busy"></span>
+        <span class="cl-orb busy" aria-hidden="true"></span>
         <span class="cl-name">{{ c.current.patient.display_name(current_lang) }}</span>
-        {{ live_timer(c.current.started_at) }}
+        <span class="cl-elapsed">{{ live_timer(c.current.started_at) }}</span>
       {% else %}
-        <span class="cl-dot free"></span>
+        <span class="cl-orb free" aria-hidden="true"></span>
         <span class="cl-empty">{{ t('rooms.free') }}</span>
       {% endif %}
     </div>
+
     {% if c.urgent %}
-    <div class="rf-tag rf-urgent" style="margin-bottom:6px;">
+    <div class="cl-alarm">
       <i class="bi bi-exclamation-octagon-fill"></i> {{ c.urgent }} {{ t('redflags.in_queue') }}
     </div>
     {% endif %}
-    <div class="cl-queue">
-      <span><i class="bi bi-people"></i> {{ c.waiting }} {{ t('rooms.waiting') }}</span>
+
+    <div class="cl-rail">
+      <div class="cl-stat">
+        <span class="cl-num">{{ c.waiting }}</span>
+        <span class="cl-lab">{{ t('rooms.waiting') }}</span>
+        {# The queue as a shape. Five bars reads before "5" does, and the
+           overflow marker keeps a twenty-deep queue from drawing twenty. #}
+        <span class="cl-pips" aria-hidden="true">
+          {% for _ in range([c.waiting, 6]|min) %}<i></i>{% endfor %}
+          {% if c.waiting > 6 %}<em>+{{ c.waiting - 6 }}</em>{% endif %}
+        </span>
+      </div>
+
       {% if c.longest_since %}
-      <span class="cl-longest">{{ t('rooms.longest') }} {{ live_timer(c.longest_since, 'wait') }}</span>
+      <div class="cl-stat cl-stat--wait">
+        <span class="cl-num">{{ live_timer(c.longest_since, 'wait') }}</span>
+        <span class="cl-lab">{{ t('rooms.longest') }}</span>
+      </div>
       {% endif %}
-      <span class="cl-done"><i class="bi bi-check2"></i> {{ c.done }}</span>
+
+      <div class="cl-stat cl-stat--done">
+        <span class="cl-num">{{ c.done }}</span>
+        <span class="cl-lab"><i class="bi bi-check2"></i> {{ t('rooms.done') }}</span>
+      </div>
     </div>
   </a>
   {% endfor %}

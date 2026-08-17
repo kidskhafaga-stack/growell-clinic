@@ -4783,7 +4783,8 @@
     "name_en": "English name",
     "name_optional": "Optional name",
     "name_placeholder": "Clinic",
-    "number_hint": "The clinic number is generated automatically — it is not typed."
+    "number_hint": "The clinic number is generated automatically — it is not typed.",
+    "done": "Done"
   },
   "lookups": {
     "title": "Store lists",

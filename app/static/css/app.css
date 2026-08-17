@@ -112,34 +112,116 @@
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 12px;
 }
+/* A status tile that is watched all day, not a card that is admired once.
+   So: real hierarchy, real materials — and motion kept for the one thing that
+   needs somebody to get up. */
 .clinic-card {
+  position: relative;
   display: block;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 14px;
+  padding: 13px 15px 11px;
+  /* The inline-start edge is a child element, so the padding clears it on
+     whichever side `dir` puts it. */
+  padding-inline-start: 18px;
   background: var(--card);
   text-decoration: none;
   color: inherit;
-  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+  overflow: hidden;
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.clinic-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
-.clinic-card.is-busy { border-color: var(--brand, #198754); }
+.clinic-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(16, 81, 50, .13);
+  border-color: var(--green-500, #22c55e);
+}
+
+/* The state edge. One strip that says, before anything is read, whether this
+   room is empty, working, or keeping somebody waiting too long. */
+.cl-edge {
+  position: absolute; inset-block: 0; inset-inline-start: 0;
+  width: 4px; background: var(--line);
+  transition: background .3s ease;
+}
+.clinic-card.is-busy .cl-edge {
+  background: linear-gradient(to bottom, var(--green-500, #22c55e), var(--green-600));
+}
+/* Driven by the timer's own classes: `app.js` already decides when a family
+   has waited too long, and only ever says so about a family — never about a
+   doctor mid-consultation. The card follows that rule rather than inventing a
+   second one, which is why this reads `.lt-amber`/`.lt-red` instead of a
+   number of minutes. */
+.clinic-card:has(.lt-amber) .cl-edge { background: linear-gradient(to bottom, #f59e0b, #d97706); }
+.clinic-card:has(.lt-red) .cl-edge { background: linear-gradient(to bottom, #ef4444, #b91c1c); }
+.clinic-card:has(.lt-red) { border-color: rgba(185, 28, 28, .35); }
+
+/* ---- tier 1: whose room this is. A label, so it is quiet. ---- */
 .cl-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.cl-room { font-weight: 800; font-size: 1rem; }
-.cl-doc { font-size: .82rem; color: var(--muted); }
-.cl-now { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; min-height: 24px; }
-.cl-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cl-empty { color: var(--muted); font-size: .88rem; }
-.cl-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.cl-dot.busy { background: #198754; }
-.cl-dot.free { background: var(--line); }
-.cl-queue {
-  display: flex; gap: 12px; flex-wrap: wrap;
-  font-size: .8rem; color: var(--muted);
-  border-top: 1px solid var(--line); padding-top: 8px;
+.cl-room { font-weight: 800; font-size: .95rem; letter-spacing: -.01em; }
+.cl-doc { font-size: .78rem; color: var(--muted); }
+
+/* ---- tier 2: who is in the room. The one line worth reading from a
+   distance, so it is the largest thing here. ---- */
+.cl-now { display: flex; align-items: center; gap: 9px; margin: 9px 0 10px; min-height: 26px; }
+.cl-name {
+  font-weight: 700; font-size: 1.02rem; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cl-longest b { font-weight: 700; }
-.cl-done { margin-inline-start: auto; }
+.cl-empty { color: var(--muted); font-size: .88rem; flex: 1; }
+.cl-elapsed { font-size: .78rem; color: var(--muted); flex: none; }
+
+.cl-orb {
+  width: 10px; height: 10px; border-radius: 50%; flex: none; position: relative;
+}
+.cl-orb.busy { background: var(--green-600); box-shadow: 0 0 0 3px var(--green-050); }
+.cl-orb.free { background: var(--line); }
+/* It breathes only when somebody should get up: a red wait, or a child in the
+   queue already flagged urgent. A room simply in use is the normal state of a
+   clinic, and a tile that pulses all day is one nobody looks at by Thursday. */
+@keyframes cl-breathe {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, .55); }
+  70%  { box-shadow: 0 0 0 9px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.clinic-card:has(.lt-red) .cl-orb.busy,
+.clinic-card.is-urgent .cl-orb.busy {
+  background: #ef4444; animation: cl-breathe 2s ease-out infinite;
+}
+
+.cl-alarm {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .76rem; font-weight: 700; color: #b91c1c;
+  background: rgba(239, 68, 68, .09); border-radius: 8px;
+  padding: 4px 8px; margin-bottom: 9px;
+}
+
+/* ---- tier 3: the queue. Three stats, deliberately not equal. ---- */
+.cl-rail {
+  display: flex; align-items: flex-end; gap: 14px;
+  border-top: 1px solid var(--line); padding-top: 9px;
+}
+.cl-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cl-num {
+  font-size: 1.05rem; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums;      /* or the digits jitter as it ticks */
+}
+.cl-lab { font-size: .68rem; color: var(--muted); white-space: nowrap; }
+.cl-stat--done { margin-inline-start: auto; text-align: end; }
+.cl-stat--done .cl-num { font-size: .95rem; font-weight: 700; color: var(--muted); }
+
+/* The queue as a shape. Five bars land before the numeral "5" does. */
+.cl-pips { display: flex; align-items: center; gap: 3px; margin-top: 3px; }
+.cl-pips i {
+  width: 4px; height: 11px; border-radius: 2px; background: var(--green-500, #22c55e);
+  opacity: .85;
+}
+.cl-pips em { font-size: .64rem; color: var(--muted); font-style: normal; margin-inline-start: 2px; }
+.clinic-card:has(.lt-amber) .cl-pips i { background: #f59e0b; }
+.clinic-card:has(.lt-red) .cl-pips i { background: #ef4444; }
+
+/* The waiting stat is the one that escalates, so it is the one that carries
+   the timer's colour into the number itself. */
+.cl-stat--wait .cl-num .live-timer { font-size: 1.05rem; font-weight: 800; }
 
 /* The counter itself. Neutral by default — it only takes on colour when it
    is counting a family's wait, never a doctor's consultation. */

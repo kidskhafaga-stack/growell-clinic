@@ -54,6 +54,13 @@
         href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+  {# Component styles: the عيادات cards, the patient/drug pickers, the live
+     counters. This file existed and **nothing linked it** — every rule in it
+     had never once applied. It is why the عيادات cards read as plain lines of
+     text, and why the amber/red escalation on a family's wait was invisible:
+     `app.js` has been adding `lt-amber`/`lt-red` for months to classes no
+     stylesheet defined. #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <!-- What every screen does on paper. Loaded before `block head` so a page
        with a real reason to differ — the prescription sets its page size and
        margins from the clinic's chosen template — still overrides it. -->
