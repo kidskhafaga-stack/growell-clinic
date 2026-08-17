@@ -1,0 +1,160 @@
+{% extends "shell.html" %}
+{% set active_module = 'messages' %}
+{% block title %}{{ t('outcomes.title') }}{% endblock %}
+{% block page_heading %}{{ t('outcomes.title') }}{% endblock %}
+
+{% macro reason_name(key) %}
+  {#- An unknown `template_type` shows under its own name rather than
+      vanishing: a reason nobody translated is still a reason that was sent. -#}
+  {{- t('outcomes.reasons.' ~ key) if t('outcomes.reasons.' ~ key) != 'outcomes.reasons.' ~ key else key -}}
+{% endmacro %}
+
+{% macro pct(value) %}{{ '—' if value is none else value ~ '%' }}{% endmacro %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-graph-up-arrow"></i> {{ t('outcomes.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('outcomes.subtitle') }}</p>
+  </div>
+  <div style="display:flex;gap:6px;">
+    {% for d in [7, 30, 90] %}
+    <a class="btn btn-sm gc-press {{ 'btn-primary' if days == d else 'btn-outline' }}"
+       href="{{ url_for('messages.outcomes', days=d) }}">{{ d }} {{ t('outcomes.days') }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{# Said once, at the top, in the same weight as the numbers themselves. A
+   screen that reports "the recall worked" without this line is one somebody
+   makes a spending decision on. #}
+<div class="card gc-scale-in" style="display:flex;align-items:flex-start;gap:10px;border-inline-start:4px solid var(--muted);">
+  <i class="bi bi-info-circle" style="font-size:1.2rem;color:var(--muted);"></i>
+  <p class="hint" style="margin:0;">{{ t('outcomes.not_because') }}</p>
+</div>
+
+{% set tot = report.totals %}
+<div class="stat-grid gc-stagger" style="margin:16px 0 6px;">
+  <div class="stat-card">
+    <div class="label">{{ t('outcomes.sent') }}</div>
+    <div class="value">{{ tot.sent }}</div>
+    <div class="hint" style="margin:0;">{{ t('outcomes.measurable') }}: {{ tot.mature }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">{{ t('outcomes.booked_rate') }}</div>
+    <div class="value">{{ pct(tot.booked_rate) }}</div>
+    <div class="hint" style="margin:0;">{{ tot.booked }} / {{ tot.mature }}</div>
+  </div>
+  {# The one that matters more than the one before it. #}
+  <div class="stat-card">
+    <div class="label">{{ t('outcomes.attended_rate') }}</div>
+    <div class="value">{{ pct(tot.attended_rate) }}</div>
+    <div class="hint" style="margin:0;">{{ tot.attended }} / {{ tot.mature }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">{{ t('outcomes.median_days') }}</div>
+    <div class="value" style="color:var(--muted);">{{ tot.median_days if tot.median_days is not none else '—' }}</div>
+    <div class="hint" style="margin:0;">{{ t('outcomes.median_days_hint') }}</div>
+  </div>
+</div>
+
+<p class="hint" style="margin:0 0 16px;">
+  <i class="bi bi-clock-history"></i>
+  {{ t('outcomes.window_hint', n=report.follow_days) }}
+  {# The window is stated once, just above. Repeating it here put the count
+     of young messages next to the length of the window as two adjacent
+     numbers that happened to read as one. #}
+  {% if tot.too_recent %}
+  · {{ t('outcomes.too_recent') }}: <strong>{{ tot.too_recent }}</strong>
+    — {{ t('outcomes.too_recent_hint') }}
+  {% endif %}
+</p>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('outcomes.by_reason') }}</h2>
+  {% if report.rows %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('outcomes.reason') }}</th>
+        <th style="text-align:end;">{{ t('outcomes.sent') }}</th>
+        <th style="text-align:end;">{{ t('outcomes.measurable') }}</th>
+        <th style="text-align:end;">{{ t('outcomes.booked') }}</th>
+        <th style="text-align:end;">{{ t('outcomes.attended') }}</th>
+        <th style="text-align:end;">{{ t('outcomes.booked_rate') }}</th>
+        <th style="text-align:end;">{{ t('outcomes.median_days') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in report.rows %}
+        <tr>
+          <td><strong>{{ reason_name(row.reason) }}</strong></td>
+          <td style="text-align:end;">{{ row.sent }}</td>
+          <td style="text-align:end;color:var(--muted);">{{ row.mature }}</td>
+          <td style="text-align:end;">{{ row.booked }}</td>
+          <td style="text-align:end;">{{ row.attended }}</td>
+          <td style="text-align:end;font-weight:600;">{{ pct(row.booked_rate) }}</td>
+          <td style="text-align:end;color:var(--muted);">{{ row.median_days if row.median_days is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr style="border-top:2px solid var(--border);">
+        <td><strong>{{ t('outcomes.total') }}</strong></td>
+        <td style="text-align:end;"><strong>{{ tot.sent }}</strong></td>
+        <td style="text-align:end;color:var(--muted);">{{ tot.mature }}</td>
+        <td style="text-align:end;"><strong>{{ tot.booked }}</strong></td>
+        <td style="text-align:end;"><strong>{{ tot.attended }}</strong></td>
+        <td style="text-align:end;"><strong>{{ pct(tot.booked_rate) }}</strong></td>
+        <td style="text-align:end;color:var(--muted);">{{ tot.median_days if tot.median_days is not none else '—' }}</td>
+      </tr></tfoot>
+    </table>
+  </div>
+  <p class="hint" style="margin:10px 0 0;">{{ t('outcomes.attended_gap') }}</p>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-send"></i>{{ t('outcomes.no_sends') }}
+    <div class="hint" style="margin-top:6px;">{{ t('outcomes.no_sends_hint') }}</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ================================================== delivery health === -->
+<div class="card gc-scale-in">
+  <h2 class="section-title"><i class="bi bi-broadcast"></i> {{ t('outcomes.health') }}</h2>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px;">
+    <div><strong style="font-size:1.3rem;{{ 'color:var(--danger);' if health.failed }}">{{ health.failed }}</strong>
+      <span style="color:var(--muted);"> {{ t('outcomes.failed') }}</span></div>
+    <div><strong style="font-size:1.3rem;">{{ pct(health.fail_rate) }}</strong>
+      <span style="color:var(--muted);"> {{ t('outcomes.fail_rate') }}</span></div>
+  </div>
+
+  {% if health.failed %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:10px;">
+    <div>
+      <h3 style="font-size:0.95rem;margin:0 0 6px;">{{ t('outcomes.by_error') }}</h3>
+      <table class="table"><tbody>
+        {% for row in health.by_error %}
+        <tr><td dir="auto">{{ row.error }}</td>
+          <td style="text-align:end;font-weight:600;">{{ row.count }}</td></tr>
+        {% endfor %}
+      </tbody></table>
+    </div>
+    {# Actionable in a way the error list is not: each of these is one phone
+       number in one patient file that somebody can go and correct. #}
+    {% if health.repeat_numbers %}
+    <div>
+      <h3 style="font-size:0.95rem;margin:0 0 6px;">{{ t('outcomes.repeat_numbers') }}</h3>
+      <table class="table"><tbody>
+        {% for row in health.repeat_numbers %}
+        <tr><td dir="ltr">{{ row.phone }}</td>
+          <td style="text-align:end;font-weight:600;">{{ row.count }} {{ t('outcomes.times') }}</td></tr>
+        {% endfor %}
+      </tbody></table>
+      <p class="hint" style="margin:6px 0 0;">{{ t('outcomes.repeat_hint') }}</p>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="bi bi-check2-circle"></i>{{ t('outcomes.no_failures') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

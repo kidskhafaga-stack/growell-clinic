@@ -18,6 +18,10 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-primary gc-press gc-ripple" href="{{ url_for('messages.inbox') }}">
       <i class="bi bi-chat-dots"></i> {{ t('messages_mod.desk_open_inbox') }}</a>
+    {# Work, not setup: it reports on what this desk did, so everybody who
+       sits here can open it. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('messages.outcomes') }}">
+      <i class="bi bi-graph-up-arrow"></i> {{ t('outcomes.title') }}</a>
     {# Only for whoever is allowed to change how customer service works. A
        desk that answers people all day does not repoint the clinic's WhatsApp
        connection, and the link is not shown to somebody who would only get a
