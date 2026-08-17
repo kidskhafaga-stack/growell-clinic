@@ -1118,12 +1118,36 @@ def _parse_form_date(name):
 
 
 def _upcoming_birthdays(days=7):
-    """Active patients whose birthday falls within the next ``days`` days."""
+    """Active patients whose birthday falls within the next ``days`` days.
+
+    Asked for up to three times while one desk page is built — the card, the
+    work-list counts, the bell — so the answer is remembered for the length of
+    the request. Nothing here survives the response, so there is no staleness
+    to reason about.
+
+    The window is turned into the handful of (month, day) pairs it covers and
+    the filtering happens in SQL. It used to read **every active patient** and
+    decide in Python: fine on a laptop with fifty files, and three full scans
+    of ten thousand records per page view on a clinic that has been open a few
+    years — for a card that shows about five rows.
+    """
+    from app.utils.request_cache import remember
+
+    return remember(f"upcoming_birthdays:{days}", lambda: _birthdays_within(days))
+
+
+def _birthdays_within(days):
+    """The rows for the desk's card.
+
+    The *selecting* is `worklist.birthday_candidates` — the same query the work
+    list uses, rather than a second copy of it here. This function is only the
+    shaping: the age, the day, and the number to send to.
+    """
+    from app.utils.worklist import birthday_candidates
+
     today = local_today()
     rows = []
-    for p in Patient.query.filter_by(is_active=True).all():
-        if not p.date_of_birth:
-            continue
+    for p in birthday_candidates(today, days):
         dob = p.date_of_birth
         # This year's birthday (handle Feb 29 -> Feb 28).
         try:

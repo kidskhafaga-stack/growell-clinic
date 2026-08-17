@@ -49,6 +49,50 @@ TEMPLATE_TYPES = {
 BIRTHDAY_AHEAD_DAYS = 7
 
 
+def birthday_candidates(today, days):
+    """Active patients whose birthday falls in the next ``days`` days.
+
+    One implementation, because there were two: this list and the desk's own
+    birthday card each read **every active patient** and decided in Python.
+    Fine on a laptop with fifty files; on a clinic a few years old it is a
+    full scan of every record, several times per page view, to produce a card
+    with about five rows on it.
+
+    The window is only ever a handful of days, so it becomes the handful of
+    (month, day) pairs it covers and the database does the filtering.
+
+    The family is loaded with the patient on purpose. ``contact_phone`` — which
+    both the gate and the row itself ask for — falls back to the guardians'
+    numbers by walking ``family.parents``, so without this it is one more query
+    per patient. That one hides during testing: a fixture patient with no
+    family issues no query at all, and the cost only appears on real records
+    where families are the normal case.
+    """
+    from sqlalchemy import extract, or_
+    from sqlalchemy.orm import joinedload
+
+    from app.models import Family
+
+    wanted = {(d.month, d.day)
+              for d in (today + timedelta(days=n) for n in range(days + 1))}
+    # 29 February has no anniversary in a common year, and `next_birthday`
+    # moves those to the 28th. The filter has to let them through or it drops
+    # exactly the patients that fallback exists for.
+    if (2, 28) in wanted:
+        wanted.add((2, 29))
+
+    pairs = [db.and_(extract("month", Patient.date_of_birth) == month,
+                     extract("day", Patient.date_of_birth) == day)
+             for month, day in sorted(wanted)]
+
+    return (Patient.query
+            .filter(Patient.is_active.is_(True),
+                    Patient.date_of_birth.isnot(None),
+                    or_(*pairs))
+            .options(joinedload(Patient.family).joinedload(Family.parents))
+            .all())
+
+
 def _sent_recently(kind, today=None):
     """Patient ids already sent ``kind`` inside its own repeat guard."""
     today = today or local_today()
@@ -93,8 +137,8 @@ def _next_birthday(dob, today):
 def _birthdays(today, skip):
     rows = []
     horizon = today + timedelta(days=BIRTHDAY_AHEAD_DAYS)
-    for patient in Patient.query.filter_by(is_active=True).all():
-        if patient.id in skip or not patient.date_of_birth:
+    for patient in birthday_candidates(today, BIRTHDAY_AHEAD_DAYS):
+        if patient.id in skip:
             continue
         if not reachable(patient):
             continue
