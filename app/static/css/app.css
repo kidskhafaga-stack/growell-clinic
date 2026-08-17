@@ -286,3 +286,30 @@
 .rf-watch  { background: #fef3c7; color: #b45309; }
 :root[data-theme="dark"] .rf-urgent { background: #3b1f22; color: #fca5a5; }
 :root[data-theme="dark"] .rf-watch  { background: #3a2f1c; color: #fcd34d; }
+
+/* Folding the عيادات strip. Four rooms of cards push the day's list below the
+   fold on a laptop, and the list is where reception spends the day. */
+.clinics-fold { border: 0; }
+.clinics-sum {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  cursor: pointer; list-style: none; user-select: none;
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card); font-size: .9rem;
+}
+.clinics-sum::-webkit-details-marker { display: none; }
+.clinics-sum:hover { border-color: var(--green-500, #22c55e); }
+.clinics-caret { color: var(--muted); transition: transform .2s ease; }
+.clinics-fold[open] .clinics-caret { transform: rotate(180deg); }
+/* The summary carries the answer, so folding loses nothing at a glance. */
+.clinics-facts {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-inline-start: auto; color: var(--muted); font-size: .82rem;
+}
+.clinics-facts .clinics-urgent { color: #b91c1c; font-weight: 700; }
+.clinics-fold[open] .clinics-sum {
+  border-radius: 12px 12px 0 0; border-bottom-color: transparent;
+}
+.clinics-fold[open] .clinics-strip {
+  border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 12px 12px; padding: 12px;
+}

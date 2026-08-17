@@ -4786,7 +4786,9 @@
     "name_optional": "اسم اختياري",
     "name_placeholder": "عيادة",
     "number_hint": "رقم العيادة بيتولّد تلقائي — مش بيتكتب.",
-    "done": "خلصوا"
+    "done": "خلصوا",
+    "busy_n": "{n} شغالة",
+    "waiting_n": "{n} مستني"
   },
   "lookups": {
     "title": "قوائم المخزن",

@@ -273,7 +273,29 @@
 <!-- Every عيادة at once: the whole-clinic view, where "the current patient"
      is not a question with one answer. -->
 {% if clinics %}
-<div class="clinics-strip gc-scale-in" style="margin-bottom:18px;">
+{# Foldable, because four عيادات of cards push the day's list below the fold
+   on a laptop and reception spends most of the day in the list.
+
+   The summary line is the point: folded, it still answers "is anything wrong
+   out there" — how many rooms are working, how many are waiting, and whether
+   anybody has waited too long. A fold that hides the answer is one people
+   unfold every time, which is the same as not having it. #}
+{% set busy_rooms = clinics | selectattr('current') | list | length %}
+{% set queue_total = clinics | sum(attribute='waiting') %}
+{% set urgent_total = clinics | sum(attribute='urgent') %}
+<details class="clinics-fold gc-scale-in" style="margin-bottom:18px;" data-fold="clinics" open>
+  <summary class="clinics-sum">
+    <i class="bi bi-chevron-down clinics-caret"></i>
+    <strong>{{ t('rooms.title') }}</strong>
+    <span class="clinics-facts">
+      <span><i class="bi bi-door-open"></i> {{ t('rooms.busy_n', n=busy_rooms) }}</span>
+      <span><i class="bi bi-people"></i> {{ t('rooms.waiting_n', n=queue_total) }}</span>
+      {% if urgent_total %}
+      <span class="clinics-urgent"><i class="bi bi-exclamation-octagon-fill"></i> {{ urgent_total }}</span>
+      {% endif %}
+    </span>
+  </summary>
+<div class="clinics-strip">
   {% for c in clinics %}
   {# Three tiers, because the old card put the room, the patient and every
      number at one weight and the eye had nowhere to land — you had to *read*
@@ -338,6 +360,7 @@
   </a>
   {% endfor %}
 </div>
+</details>
 {% endif %}
 
 <!-- Current patient card -->

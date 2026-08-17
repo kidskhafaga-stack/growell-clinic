@@ -4786,7 +4786,9 @@
     "name_optional": "Optional name",
     "name_placeholder": "Clinic",
     "number_hint": "The clinic number is generated automatically — it is not typed.",
-    "done": "Done"
+    "done": "Done",
+    "busy_n": "{n} working",
+    "waiting_n": "{n} waiting"
   },
   "lookups": {
     "title": "Store lists",

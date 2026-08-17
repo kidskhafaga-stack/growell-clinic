@@ -6,8 +6,11 @@ given functional module. This is intentionally coarse-grained; finer actions
 changing the role definitions here.
 """
 
-# The five system roles described in the project plan.
-ROLES = ["admin", "doctor", "reception", "accountant", "pharmacy"]
+# The system roles. `nursing` joined them when nursing stations arrived: a
+# nurse is not a doctor with fewer screens — they take the vitals and the
+# reason for the visit before the child is seen, and they need the clinical
+# module to do it and nothing that prices or bills.
+ROLES = ["admin", "doctor", "reception", "accountant", "pharmacy", "nursing"]
 
 # Every functional module in the system. The string keys double as i18n keys
 # under ``nav.*`` and as the permission identifiers used by the decorators.
@@ -80,6 +83,16 @@ ROLE_PERMISSIONS = {
         "prescriptions",
         "ai",
     ],
+    # The vitals station and the child's file, and nothing else. No
+    # prescriptions (they do not prescribe) and no finance (they do not bill).
+    "nursing": [
+        "dashboard",
+        "patients",
+        "appointments",
+        "visits",
+        "growth",
+        "vaccinations",
+    ],
     "reception": [
         "dashboard",
         "patients",
@@ -136,6 +149,9 @@ ROLE_CAPABILITIES = {
     "admin": list(CAPABILITIES),
     "doctor": ["patient_medical"],
     "reception": ["cashier"],
+    # They write into the child's clinical record — the vitals, the reason for
+    # the visit — so they hold the medical capability and no money one.
+    "nursing": ["patient_medical"],
     "accountant": ["cashier", "finance_manage", "treasury_move"],
     "pharmacy": [],
 }
