@@ -17,6 +17,13 @@ from datetime import date, timedelta
 
 import pytest
 
+# The clinic's day, not the machine's — the same point this file already makes
+# further down about `appt_date`, applied to the places that build the dates
+# rather than the one that checks them. Booking validates against
+# `local_today()`, so "tomorrow" worked out from `date.today()` on a server in
+# a different zone is today, and the route refuses it as a booking in the past.
+from app.utils.clock import local_today
+
 PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 400
 PDF = b"%PDF-1.4\n" + b"x" * 400
 
@@ -112,7 +119,7 @@ def test_a_booking_puts_the_child_on_the_doctors_day(journey):
     desk.post("/appointments/new", data={
         "patient_id": journey["ids"]["child"],
         "doctor_id": journey["ids"]["doctor"],
-        "appt_date": (date.today() + timedelta(days=1)).isoformat(),
+        "appt_date": (local_today() + timedelta(days=1)).isoformat(),
         "appt_time": "10:00", "appt_type": "consultation",
         "reason": "كحة وسخونية"}, follow_redirects=True)
     with journey["app"].app_context():
@@ -154,7 +161,7 @@ def test_a_paused_clinic_stops_reception_but_not_the_manager(journey):
         Setting.set("clinic_booking_open", "0")
         journey["db"].session.commit()
 
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (local_today() + timedelta(days=1)).isoformat()
     form = {"patient_id": journey["ids"]["child"],
             "doctor_id": journey["ids"]["doctor"], "appt_date": tomorrow,
             "appt_time": "10:00", "appt_type": "consultation"}
@@ -354,7 +361,7 @@ def test_the_pending_order_is_waiting_at_the_next_visit(journey):
     with journey["app"].app_context():
         follow_up = Visit(patient_id=journey["ids"]["child"],
                           doctor_id=journey["ids"]["doctor"],
-                          visit_date=date.today())
+                          visit_date=local_today())
         journey["db"].session.add(follow_up)
         journey["db"].session.commit()
         follow_up_id = follow_up.id
@@ -405,7 +412,7 @@ def test_a_resulted_order_stops_being_pending(journey):
     with journey["app"].app_context():
         follow_up = Visit(patient_id=journey["ids"]["child"],
                           doctor_id=journey["ids"]["doctor"],
-                          visit_date=date.today())
+                          visit_date=local_today())
         journey["db"].session.add(follow_up)
         journey["db"].session.commit()
         follow_up_id = follow_up.id
@@ -537,7 +544,7 @@ def test_the_film_shows_on_the_order_at_the_follow_up(journey):
     with journey["app"].app_context():
         follow_up = Visit(patient_id=journey["ids"]["child"],
                           doctor_id=journey["ids"]["doctor"],
-                          visit_date=date.today())
+                          visit_date=local_today())
         journey["db"].session.add(follow_up)
         journey["db"].session.commit()
         follow_up_id = follow_up.id
