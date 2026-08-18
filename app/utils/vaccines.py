@@ -288,18 +288,42 @@ def seed_vaccine_schedules():
 
 
 # -------------------------------------------------------- computation ------
-def chosen_brand(patient_id, vaccine):
+def _first_given(rows):
+    """The earliest given dose in ``rows``, ordered as the database orders it.
+
+    ``dose_number`` is NOT NULL, so the ordering is a plain ascending one; the
+    None arm is belt-and-braces for rows built in memory and never saved, and
+    places it where an ascending SQL order would — first.
+    """
+    return min(rows, key=lambda pv: (pv.dose_number is not None,
+                                     pv.dose_number or 0))
+
+
+def chosen_brand(patient_id, vaccine, given=None):
     """The brand locked for this patient/vaccine, or the default brand.
 
     Only an actually-given dose locks the brand; a refused/delayed event does
     not commit the patient to a brand.
+
+    ``given`` lets a caller that has already read the patient's doses hand them
+    over instead of paying for another query. `patient_plan` reads every one of
+    them on its first line and then asked again here, once per vaccine — which
+    is a query per patient per vaccine, for rows already sitting in memory.
+    Measured on the customer-service desk, whose work-list counts walk every
+    vaccinated patient on file: 6 queries per patient at 2,000 patients was
+    12,005 queries and 4.4 seconds, to draw a card that said zero.
     """
-    pv = (
-        PatientVaccine.query.filter_by(patient_id=patient_id, vaccine_id=vaccine.id,
-                                       event_type="given")
-        .order_by(PatientVaccine.dose_number)
-        .first()
-    )
+    if given is None:
+        pv = (
+            PatientVaccine.query.filter_by(patient_id=patient_id,
+                                           vaccine_id=vaccine.id,
+                                           event_type="given")
+            .order_by(PatientVaccine.dose_number)
+            .first()
+        )
+    else:
+        rows = given.get(vaccine.id) or []
+        pv = _first_given(rows) if rows else None
     if pv:
         return pv.brand, True  # locked
     return vaccine.default_brand, False
@@ -325,7 +349,37 @@ def _status(due_date, given, today):
     return "upcoming"
 
 
-def patient_plan(patient, lang="ar"):
+def _all_vaccines():
+    """The vaccine catalogue, read once per request.
+
+    A dozen rows that do not change while a page is being built, re-read for
+    every patient the work list walks.
+    """
+    from app.utils.request_cache import remember
+
+    return remember("vaccines:all",
+                    lambda: Vaccine.query.order_by(Vaccine.sort_order).all())
+
+
+def doses_for(patient_ids):
+    """Every recorded dose for many patients, grouped by patient, in one query.
+
+    The batched feed for :func:`patient_plan`. Walking a list of patients and
+    letting each one read its own doses is a query apiece — fine for a file
+    screen, and the whole cost of the work-list counts on a clinic with a few
+    thousand vaccinated children.
+    """
+    if not patient_ids:
+        return {}
+    out = {}
+    rows = (PatientVaccine.query
+            .filter(PatientVaccine.patient_id.in_(list(patient_ids))).all())
+    for pv in rows:
+        out.setdefault(pv.patient_id, []).append(pv)
+    return out
+
+
+def patient_plan(patient, lang="ar", doses=None):
     """Build the full vaccination plan for a patient.
 
     Returns a list of per-vaccine dicts with the chosen brand and a list of
@@ -336,13 +390,17 @@ def patient_plan(patient, lang="ar"):
     dob = patient.date_of_birth
     given_index = {}
     events_index = {}   # (vaccine_id, dose_number) -> refused/delayed event
-    for pv in PatientVaccine.query.filter_by(patient_id=patient.id).all():
+    given_by_vaccine = {}   # vaccine_id -> [given doses], for `chosen_brand`
+    rows = (PatientVaccine.query.filter_by(patient_id=patient.id).all()
+            if doses is None else doses)
+    for pv in rows:
         if (pv.event_type or "given") == "given":
             given_index[(pv.vaccine_id, pv.dose_number)] = pv
+            given_by_vaccine.setdefault(pv.vaccine_id, []).append(pv)
         else:
             events_index[(pv.vaccine_id, pv.dose_number)] = pv
 
-    all_vaccines = Vaccine.query.order_by(Vaccine.sort_order).all()
+    all_vaccines = _all_vaccines()
     # Injectable/intranasal live vaccines (oral live are exempt) and the latest
     # date each was given — used for the 28-day live-vaccine spacing rule.
     live_ids = {v.id for v in all_vaccines
@@ -356,7 +414,8 @@ def patient_plan(patient, lang="ar"):
 
     plan = []
     for vaccine in all_vaccines:
-        brand, locked = chosen_brand(patient.id, vaccine)
+        brand, locked = chosen_brand(patient.id, vaccine,
+                                     given=given_by_vaccine)
         if brand is None:
             continue
         # Catch-up: a not-yet-given dose can't fall due before the minimum gap
@@ -621,7 +680,7 @@ def seasonal_recall(patient, vaccine, today=None):
     return (today - last).days >= SEASONAL_RECALL_DAYS, last, nxt
 
 
-def patient_due_reminders(patient, lang="ar", today=None):
+def patient_due_reminders(patient, lang="ar", today=None, doses=None):
     """Everything worth reminding this patient about, limited to courses started
     *with us* (≥1 dose given) — we never chase a vaccine we never gave:
 
@@ -632,7 +691,7 @@ def patient_due_reminders(patient, lang="ar", today=None):
     sorted most-urgent first (``status`` is overdue / due / seasonal).
     """
     today = today or local_today()
-    plan = patient_plan(patient, lang)
+    plan = patient_plan(patient, lang, doses=doses)
     out = []
     for v in plan:
         vac, brand = v["vaccine"], v["brand"]

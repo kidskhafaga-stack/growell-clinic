@@ -50,9 +50,17 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
                 .filter(Patient.is_active.is_(True), Patient.id.in_(started))
                 .all())
 
+    # Every dose for every one of these patients, once. Letting each patient
+    # read its own was a query apiece, which is the whole cost of this list on
+    # a clinic that has been vaccinating for a couple of years.
+    from app.utils.vaccines import doses_for
+
+    by_patient = doses_for([p.id for p in patients])
+
     out = []
     for patient in patients:
-        for row in patient_due_reminders(patient, lang, today):
+        for row in patient_due_reminders(patient, lang, today,
+                                         doses=by_patient.get(patient.id, [])):
             if vaccine_id and row["vaccine"].id != int(vaccine_id):
                 continue
             if brand_id and (not row["brand"] or row["brand"].id != int(brand_id)):
