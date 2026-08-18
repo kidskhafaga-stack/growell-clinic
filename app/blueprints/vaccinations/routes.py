@@ -84,9 +84,22 @@ def view(patient_id):
     # missing is a primary dose the child is behind on or the booster that
     # falls due next year — a phone call and a diary note, not the same job.
     annotate(plan)
+    # The agreed plan, and what is left to agree on. Only the optional
+    # schedule is offered: the national one is given at the government unit
+    # and agreeing to it here would promise something this clinic does not do.
+    from app.models.vaccine_plan import VaccinePlanItem
+
+    agreed = (VaccinePlanItem.query.filter_by(patient_id=patient.id)
+              .join(Vaccine).order_by(Vaccine.sort_order).all())
+    on_plan = {row.vaccine_id for row in agreed}
+    offerable = [item["vaccine"] for item in plan
+                 if not item["vaccine"].is_mandatory
+                 and not item["vaccine"].on_demand
+                 and item["vaccine"].id not in on_plan]
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
+        agreed=agreed, offerable=offerable,
         groups=group_plan(plan), open_groups=OPEN_GROUPS,
         # Which dose is which, per vaccine — so the doctor picks "the second
         # dose" by name instead of typing a number and hoping.
@@ -116,6 +129,73 @@ def _settle_paid_vaccines(patient, on_date):
     except Exception:                                   # pragma: no cover
         current_app.logger.exception("vaccine settlement sync failed")
         return []
+
+
+@vaccinations_bp.route("/<int:patient_id>/plan/add", methods=["POST"])
+@module_required(MODULE)
+def plan_add(patient_id):
+    """Agree a vaccine with this family, so the program starts following it.
+
+    One press per vaccine and nothing else to fill in. The doses and their
+    dates come from the schedule the child is already on — asking the doctor
+    to type them would be asking them to restate what the program computed,
+    and a date typed twice is a date that eventually disagrees with itself.
+    Any one of them can still be moved afterwards, which is what the pencilled
+    dates were always for.
+    """
+    from app.models import Vaccine
+    from app.models.vaccine_plan import VaccinePlanItem
+
+    patient = db.get_or_404(Patient, patient_id)
+    vaccine_id = request.form.get("vaccine_id", type=int)
+    vaccine = db.session.get(Vaccine, vaccine_id) if vaccine_id else None
+    if vaccine is None:
+        flash(t("vplan.pick_one"), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    existing = VaccinePlanItem.query.filter_by(
+        patient_id=patient.id, vaccine_id=vaccine.id).first()
+    if existing is not None:
+        flash(t("vplan.already"), "info")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    item = VaccinePlanItem(
+        patient_id=patient.id, vaccine_id=vaccine.id,
+        brand_id=request.form.get("brand_id", type=int) or None,
+        # The family is bringing this one: still a plan, never an order.
+        supplied_outside=bool(request.form.get("supplied_outside")),
+        note=(request.form.get("note") or "").strip()[:200] or None,
+        added_by_id=current_user.id)
+    db.session.add(item)
+    ActivityLog.record("vaccine.plan_add", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=vaccine.code or vaccine.name_ar,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vplan.added"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+
+@vaccinations_bp.route("/plan/<int:item_id>/remove", methods=["POST"])
+@module_required(MODULE)
+def plan_remove(item_id):
+    """Take a vaccine off the plan.
+
+    The course goes back to being a suggestion for the child's age rather than
+    disappearing — the family did not become younger, and the doctor may only
+    have changed their mind about the timing.
+    """
+    from app.models.vaccine_plan import VaccinePlanItem
+
+    item = db.get_or_404(VaccinePlanItem, item_id)
+    patient_id = item.patient_id
+    ActivityLog.record("vaccine.plan_remove", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=str(item.vaccine_id), ip_address=client_ip())
+    db.session.delete(item)
+    db.session.commit()
+    flash(t("vplan.removed"), "info")
+    return redirect(url_for("vaccinations.view", patient_id=patient_id))
 
 
 @vaccinations_bp.route("/<int:patient_id>/record", methods=["POST"])

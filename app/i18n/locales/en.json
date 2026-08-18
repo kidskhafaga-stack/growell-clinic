@@ -4945,5 +4945,18 @@
     "no_rooms_yet": "No clinics defined yet.",
     "none": "No nursing stations defined.",
     "none_hint": "Without stations the nursing screen shows the whole clinic — which is fine if you only have one."
+  },
+  "vplan": {
+    "title": "Agreed vaccination plan",
+    "add": "Add to plan",
+    "already": "Already on the plan",
+    "added": "Added to the plan",
+    "removed": "Removed from the plan",
+    "remove": "Remove",
+    "pick_one": "Choose a vaccine first",
+    "outside": "Family supplies it",
+    "none": "No agreed plan yet",
+    "hint": "What you agree here is followed and chased; everything else stays a suggestion by age.",
+    "supplied_hint": "Followed, but never counted into a purchase order."
   }
 }

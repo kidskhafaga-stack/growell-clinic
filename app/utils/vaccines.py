@@ -480,7 +480,7 @@ def course_dates(dob, schedule, given, planned, min_interval,
     return out
 
 
-def patient_plan(patient, lang="ar", doses=None):
+def patient_plan(patient, lang="ar", doses=None, agreed=None):
     """Build the full vaccination plan for a patient.
 
     Returns a list of per-vaccine dicts with the chosen brand and a list of
@@ -494,6 +494,9 @@ def patient_plan(patient, lang="ar", doses=None):
     given_by_vaccine = {}   # vaccine_id -> [given doses], for `chosen_brand`
     rows = (PatientVaccine.query.filter_by(patient_id=patient.id).all()
             if doses is None else doses)
+    if agreed is None:
+        from app.models.vaccine_plan import planned_vaccine_ids
+        agreed = planned_vaccine_ids(patient.id)
     for pv in rows:
         if (pv.event_type or "given") == "given":
             given_index[(pv.vaccine_id, pv.dose_number)] = pv
@@ -640,12 +643,28 @@ def patient_plan(patient, lang="ar", doses=None):
                 fallback = "national"
             elif vaccine.on_demand:
                 fallback = "on_demand"
+            # Unless the doctor and the family agreed on this one. An
+            # agreement is a promise, and a promise is what makes a dose
+            # capable of being late — the same rule that already applied once
+            # somebody had started the course, moved one step earlier so it
+            # counts from the conversation rather than from the first needle.
+            #
+            # It raises what was agreed and hides nothing: everything else
+            # stays a suggestion for the child's age, which is what it is.
+            if vaccine.id in (agreed or ()):
+                fallback = None
             for x in doses:
-                if x["status"] in ("overdue", "due"):
+                if fallback and x["status"] in ("overdue", "due"):
                     x["status"] = fallback
         plan.append({
             "vaccine": vaccine, "brand": brand, "locked": locked,
             "doses": doses, "started": started,
+            # What the clinic has taken on: a course somebody began here, or
+            # one the doctor agreed to. The certificate's "what is left" table
+            # is exactly this set, and an agreed course belongs in it — that
+            # is the table a family is handed.
+            "agreed": vaccine.id in (agreed or ()),
+            "committed": started or vaccine.id in (agreed or ()),
             "done": sum(1 for x in doses if x["status"] == "done"),
             "total": len(doses),
         })
@@ -811,23 +830,35 @@ def seasonal_recall(patient, vaccine, today=None):
     return (today - last).days >= SEASONAL_RECALL_DAYS, last, nxt
 
 
-def patient_due_reminders(patient, lang="ar", today=None, doses=None):
-    """Everything worth reminding this patient about, limited to courses started
-    *with us* (≥1 dose given) — we never chase a vaccine we never gave:
+def patient_due_reminders(patient, lang="ar", today=None, doses=None,
+                          agreed=None):
+    """Everything worth reminding this patient about — the courses this clinic
+    has taken on, which is either of two things:
 
-      * a late/due next dose of a started course (incl. boosters), and
+      * one somebody **started** here (≥1 dose given), or
+      * one the doctor and the family **agreed** on.
+
+    Never a vaccine that is merely age-appropriate: we do not chase a course
+    nobody promised.
+
+      * a late/due next dose of such a course (incl. boosters), and
       * a seasonal vaccine's annual recall once ~11 months have passed.
 
     Returns a list of dicts ``{vaccine, brand, dose_number, due_date, status}``
     sorted most-urgent first (``status`` is overdue / due / seasonal).
     """
     today = today or local_today()
-    plan = patient_plan(patient, lang, doses=doses)
+    plan = patient_plan(patient, lang, doses=doses, agreed=agreed)
     out = []
     for v in plan:
         vac, brand = v["vaccine"], v["brand"]
         done = [d for d in v["doses"] if d["status"] == "done"]
-        if not done:                       # course never started here
+        # An agreed course with nothing given yet is the case a plan exists
+        # for: its first dose can be late before any dose exists to start it.
+        # Wiring the *status* without this left the file computing "overdue"
+        # and then dropping it on the floor, which the sweep did not — caught
+        # by the test that holds the two to the same answer.
+        if not done and not v.get("agreed"):
             continue
         if vac.is_seasonal:
             last_iso = max((d["given_date"] for d in done if d["given_date"]), default=None)
@@ -1228,7 +1259,7 @@ def _catalogue_rows():
     return remember("vaccines:catalogue_rows", load)
 
 
-def scan_due(dob, doses, today):
+def scan_due(dob, doses, today, agreed=None):
     """Every pending dose for one child, from plain values.
 
     ``doses`` are ``(vaccine_id, brand_id, dose_number, given_date,
@@ -1268,8 +1299,12 @@ def scan_due(dob, doses, today):
         if brand is None or not brand.get("doses"):
             continue
         mine = given.get(vaccine_id, {})
-        if not mine:
-            continue        # a course nobody started here is not "late"
+        if not mine and vaccine_id not in (agreed or ()):
+            # A course nobody started **and** nobody agreed on is not "late".
+            # The agreement is the other way in: it is what the doctor and the
+            # family settled on, so its first dose can be overdue before any
+            # dose exists to start it.
+            continue
         closed_after = (dob + timedelta(days=brand["ceiling"])
                         if dob and brand["ceiling"] else None)
         earliest_live = None
@@ -1285,6 +1320,8 @@ def scan_due(dob, doses, today):
 
         if meta["seasonal"]:
             last = max((d for d in mine.values() if d), default=None)
+            if last is None:
+                continue        # agreed, never given — no annual recall yet
             if last and (today - last).days >= SEASONAL_RECALL_DAYS:
                 out.append({"vaccine": meta["obj"], "brand": brand["obj"],
                             "dose_number": max(mine) + 1,

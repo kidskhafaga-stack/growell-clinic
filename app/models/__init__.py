@@ -23,6 +23,7 @@ from app.models.schedule_exception import ScheduleException
 from app.models.waitlist import WAITLIST_STATUSES, WaitlistEntry
 from app.models.clinic_room import ClinicRoom, RoomAssignment
 from app.models.nursing_station import NursingStation
+from app.models.vaccine_plan import VaccinePlanItem
 from app.models.lookup import Lookup
 from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
@@ -212,6 +213,7 @@ __all__ = [
     "Lookup",
     "RoomAssignment",
     "NursingStation",
+    "VaccinePlanItem",
     "Parent",
     "Patient",
     "PatientProblem",
