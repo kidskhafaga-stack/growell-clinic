@@ -1054,7 +1054,9 @@
     "overdue": "Overdue",
     "upcoming": "Upcoming",
     "suggested": "Suggested for age",
-    "expired": "Window closed"
+    "expired": "Window closed",
+    "national": "National schedule",
+    "on_demand": "On indication"
   },
   "vtype": {
     "live": "Live attenuated",

@@ -615,9 +615,34 @@ def patient_plan(patient, lang="ar", doses=None):
         # be late.
         started = any(x["status"] == "done" for x in doses)
         if not started:
+            # Neither of these is a course this clinic ever promised, so
+            # neither can be late here **and neither is a suggestion by age**.
+            #
+            # The national schedule is given free at the government units. A
+            # healthy two-year-old whose family uses one was carrying nine
+            # government vaccines and seventeen doses in their plan — a third
+            # of it — for a schedule this clinic does not give, does not stock
+            # and cannot be measured on. The compliance screen already
+            # excluded them for exactly that reason, and the visit panel
+            # already declines to offer them; the plan and the certificate
+            # were the two places still counting them.
+            #
+            # On-demand vaccines are the same shape for a different reason:
+            # rabies is given because a dog bit somebody. Projected from a
+            # birthday it came out due at birth, so every child in the
+            # register was being suggested it.
+            #
+            # They stay in the plan rather than vanishing: the row is what the
+            # doctor clicks to record a dose given at a government unit, and
+            # that record is the point of the certificate.
+            fallback = "suggested"
+            if vaccine.is_mandatory:
+                fallback = "national"
+            elif vaccine.on_demand:
+                fallback = "on_demand"
             for x in doses:
                 if x["status"] in ("overdue", "due"):
-                    x["status"] = "suggested"
+                    x["status"] = fallback
         plan.append({
             "vaccine": vaccine, "brand": brand, "locked": locked,
             "doses": doses, "started": started,
@@ -748,7 +773,7 @@ def plan_summary(plan):
     promise is only broken on a course somebody started here.
     """
     s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
-         "expired": 0, "total": 0}
+         "expired": 0, "national": 0, "on_demand": 0, "total": 0}
     for v in plan:
         for d in v["doses"]:
             s[d["status"]] = s.get(d["status"], 0) + 1

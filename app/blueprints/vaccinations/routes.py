@@ -642,7 +642,26 @@ def certificate(patient_id):
         rows = []
         for v in items:
             for d in v["doses"]:
-                if d["status"] == "done" or d.get("event_type") == "refused":
+                # The national schedule and the on-demand vaccines belong on
+                # the certificate as a **record** — a dose given at a
+                # government unit is part of the child's history and is why a
+                # parent carries the paper at all. They do not belong in the
+                # *suggestions*: nobody here promised them, and a page telling
+                # a family they are behind on nine government vaccines is
+                # frightening, useless and not this clinic's to say.
+                # A shut window is not a suggestion at any time: the series
+                # can no longer be completed, so printing it asks a family for
+                # something no clinic can give them.
+                #
+                # The national schedule stays. This table prints only when the
+                # doctor asks for it (`?suggest=1`), and being "what the age
+                # suggests" rather than anything this clinic promised is the
+                # whole reason it is opt-in — which in Egypt is mostly the
+                # government schedule. Taking it out of a table somebody
+                # deliberately switched on deletes the feature rather than
+                # fixing it; two older tests exist to say so, and caught this.
+                if (d["status"] == "done" or d.get("event_type") == "refused"
+                        or d["status"] == "expired"):
                     continue
                 rows.append({"vaccine": v["vaccine"], "brand": v["brand"],
                              "dose_number": d["dose_number"],

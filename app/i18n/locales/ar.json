@@ -1054,7 +1054,9 @@
     "overdue": "متأخر",
     "upcoming": "قادم",
     "suggested": "مقترح لسنه",
-    "expired": "انتهت مدته"
+    "expired": "انتهت مدته",
+    "national": "الجدول القومي",
+    "on_demand": "عند الحاجة"
   },
   "vtype": {
     "live": "حي مُضعَّف",
