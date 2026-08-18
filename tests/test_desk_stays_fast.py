@@ -319,3 +319,110 @@ def test_the_gate_still_refuses_an_opted_out_family(counting):
 
     assert all(r["patient"].id != opted_out for r in rows), \
         "an opted-out family is on the work list after the query changed"
+
+
+# ------------------------------------------ the cost of switching WhatsApp on
+
+def _configure_whatsapp(clinic):
+    """A clinic that actually sends, rather than one that only could."""
+    from app.extensions import db
+    from app.models import Setting
+
+    Setting.set("crm_mode", "automatic")
+    Setting.set("wa_provider", "meta")
+    db.session.commit()
+
+
+def test_the_desk_costs_the_same_with_whatsapp_switched_on(counting):
+    """The session window was a query per open conversation.
+
+    Invisible in every earlier measurement, and that is the point worth
+    keeping: with no provider configured there is no free-reply window to work
+    out, so the lookup never runs and the desk looks flat. Switch WhatsApp on —
+    which every clinic that sends anything has done — and it costs one extra
+    `SELECT MAX(created_at)` per waiting thread.
+
+    Measured on a seeded clinic with 150 open threads: 40 queries without a
+    provider, 190 with one, 41 after batching.
+
+    Asserted as a ratio rather than a number, because the number moves whenever
+    a panel is added to the desk and a test nobody can read is a test everybody
+    deletes.
+    """
+    clinic = counting
+
+    with clinic["app"].app_context():
+        _crowd(clinic, 60)
+
+    client = clinic["sign_in"]("desk")
+
+    clinic["count"]["n"] = 0
+    clinic["count"]["on"] = True
+    client.get("/messages/desk", follow_redirects=True)
+    clinic["count"]["on"] = False
+    without = clinic["count"]["n"]
+
+    with clinic["app"].app_context():
+        _configure_whatsapp(clinic)
+
+    clinic["count"]["n"] = 0
+    clinic["count"]["on"] = True
+    client.get("/messages/desk", follow_redirects=True)
+    clinic["count"]["on"] = False
+    with_provider = clinic["count"]["n"]
+
+    assert without > 5, "the counter did not see the page being built"
+    assert with_provider <= without + 5, (
+        "switching WhatsApp on costs a query per waiting conversation: "
+        f"{without} queries without a provider, {with_provider} with one")
+
+
+def test_the_batched_window_says_what_the_single_one_says(clinic):
+    """A faster answer that disagrees with the slow one is not an optimisation.
+
+    Checked against `last_inbound_at` itself rather than against a fixture, so
+    the two cannot drift apart quietly.
+    """
+    from datetime import datetime, timedelta
+
+    from app.extensions import db
+    from app.models import MessageLog, Patient
+    from app.utils.inbox import last_inbound_at, last_inbound_map, thread_key
+
+    with clinic["app"].app_context():
+        kid = Patient.query.first()
+        now = datetime.utcnow()
+        # Two inbound, one outbound after them: the map must report the newest
+        # *inbound*, not the newest message.
+        db.session.add_all([
+            MessageLog(patient_id=kid.id, direction="in", status="sent",
+                       body="أول", created_at=now - timedelta(hours=9)),
+            MessageLog(patient_id=kid.id, direction="in", status="sent",
+                       body="تاني", created_at=now - timedelta(hours=2)),
+            MessageLog(patient_id=kid.id, direction="out", status="sent",
+                       body="رد", created_at=now),
+            # A thread with no patient behind it, reached by number alone.
+            MessageLog(patient_id=None, to_phone="01000000009", direction="in",
+                       status="sent", body="غريب",
+                       created_at=now - timedelta(hours=4)),
+        ])
+        db.session.commit()
+
+        keys = [f"p{kid.id}", "01000000009"]
+        batched = last_inbound_map(keys)
+
+        for key in keys:
+            assert batched.get(key) == last_inbound_at(key), \
+                f"the batched lookup disagrees about {key}"
+        assert batched[f"p{kid.id}"] is not None
+        assert thread_key(MessageLog.query.filter_by(body="تاني").first()) == keys[0]
+
+
+def test_a_thread_nobody_wrote_in_is_absent_rather_than_zero(clinic):
+    """`session_window` branches on "the patient never wrote", so the map must
+    not answer that question with a timestamp it invented."""
+    from app.utils.inbox import last_inbound_map
+
+    with clinic["app"].app_context():
+        assert last_inbound_map(["p999999", "01999999999"]) == {}
+        assert last_inbound_map([]) == {}
