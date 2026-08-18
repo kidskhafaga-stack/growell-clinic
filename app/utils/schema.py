@@ -26,6 +26,17 @@ chose to run it.
 
 # (table, column, column DDL type) introduced by later phases.
 ADDITIONS = [
+    # The trade name's regulatory and window facts. `max_age_final_dose_days`
+    # is what stops a three-year-old being offered rotavirus, so it is the one
+    # that must reach an existing clinic rather than only a fresh install.
+    ("vaccine_brands", "max_age_final_dose_days", "INTEGER"),
+    ("vaccine_brands", "valency", "VARCHAR(120)"),
+    ("vaccine_brands", "dose_volume", "VARCHAR(40)"),
+    ("vaccine_brands", "registered_in_egypt", "BOOLEAN"),
+    ("vaccine_brands", "available_now", "BOOLEAN"),
+    ("vaccine_brands", "doses_change_by_start_age", "BOOLEAN DEFAULT 0"),
+    ("vaccine_brands", "reminder_scope", "VARCHAR(40)"),
+    ("vaccine_brands", "source_url", "VARCHAR(255)"),
     ("vaccine_brands", "purchase_price", "FLOAT"),
     ("vaccine_brands", "max_discount", "FLOAT"),
     ("vaccine_brands", "doses_per_vial", "INTEGER DEFAULT 1"),

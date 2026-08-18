@@ -232,19 +232,37 @@
             2,
             4
           ],
-          "catch_up_ar": "جرعتان فموياً (شهرين و4 شهور). أول جرعة قبل 15 أسبوع وآخر جرعة قبل 24 أسبوع. فاصل أدنى 4 أسابيع."
+          "catch_up_ar": "جرعتان فموياً (شهرين و4 شهور). أول جرعة قبل 15 أسبوع وآخر جرعة قبل 24 أسبوع. فاصل أدنى 4 أسابيع.",
+          "valency": "Monovalent; human strain RIX4414 (G1P[8])",
+          "dose_volume": "1.5 mL",
+          "max_age_final_dose_days": 168,
+          "max_age_final_dose_label": "24 weeks",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotarix"
         },
         {
           "name": "RotaTeq",
           "name_en": "RotaTeq",
-          "manufacturer": "MSD",
+          "manufacturer": "MSD / Merck",
           "price": 0,
           "doses_age_months": [
             2,
             4,
             6
           ],
-          "catch_up_ar": "3 جرعات فموياً (2/4/6 شهور). أول جرعة قبل 15 أسبوع وآخر جرعة قبل 32 أسبوع. فاصل أدنى 4 أسابيع."
+          "catch_up_ar": "3 جرعات فموياً (2/4/6 شهور). أول جرعة قبل 15 أسبوع وآخر جرعة قبل 32 أسبوع. فاصل أدنى 4 أسابيع.",
+          "valency": "Pentavalent; G1,G2,G3,G4,P1[8]",
+          "dose_volume": "2 mL",
+          "max_age_final_dose_days": 224,
+          "max_age_final_dose_label": "32 weeks",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotateq"
         },
         {
           "name": "Rotasiil",
@@ -254,7 +272,17 @@
             4,
             6
           ],
-          "catch_up_ar": "3 جرعات فموياً (2/4/6 شهور). نفس حدود العمر (البدء قبل 15 أسبوع)."
+          "catch_up_ar": "3 جرعات فموياً (2/4/6 شهور). نفس حدود العمر (البدء قبل 15 أسبوع).",
+          "manufacturer": "Serum Institute of India",
+          "valency": "Pentavalent; G1,G2,G3,G4,G9",
+          "dose_volume": "2.5 mL after reconstitution",
+          "max_age_final_dose_days": 238,
+          "max_age_final_dose_label": "34 weeks",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://extranet.who.int/prequal/vaccines/p/rotasiil"
         }
       ],
       "route": "oral",
@@ -281,7 +309,15 @@
             4,
             6,
             12
-          ]
+          ],
+          "valency": "13-valent PCV",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.pfizer.com/products/product-detail/prevnar_13"
         },
         {
           "name": "Synflorix",
@@ -293,7 +329,16 @@
             4,
             6,
             12
-          ]
+          ],
+          "valency": "10-valent PCV; 1,4,5,6B,7F,9V,14,18C,19F,23F",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 1825,
+          "max_age_final_dose_label": "5 years",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/synflorix"
         },
         {
           "name": "Vaxneuvance",
@@ -303,7 +348,16 @@
             4,
             6,
             12
-          ]
+          ],
+          "manufacturer": "MSD / Merck",
+          "valency": "15-valent PCV",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/vaxneuvance"
         },
         {
           "name": "Prevenar 20",
@@ -313,7 +367,16 @@
             4,
             6,
             12
-          ]
+          ],
+          "manufacturer": "Pfizer",
+          "valency": "20-valent PCV; 20 serotypes",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.edaegypt.gov.eg/ar/"
         },
         {
           "name": "Pneumo 23",
@@ -321,7 +384,16 @@
           "doses_age_months": [
             24
           ],
-          "catch_up_ar": "عديد سكاريد (23 نوع) — من عمر سنتين فقط ولأصحاب الخطورة؛ جرعة واحدة وتُعاد مرة بعد 5 سنوات عند اللزوم. لا يُعطى للرضّع بديلاً عن اللقاح المقترن."
+          "catch_up_ar": "عديد سكاريد (23 نوع) — من عمر سنتين فقط ولأصحاب الخطورة؛ جرعة واحدة وتُعاد مرة بعد 5 سنوات عند اللزوم. لا يُعطى للرضّع بديلاً عن اللقاح المقترن.",
+          "manufacturer": "MSD / Merck",
+          "valency": "23-valent PPSV23",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.cdc.gov/pneumococcal/hcp/vaccine-recommendations/index.html"
         }
       ],
       "route": "IM",
@@ -347,7 +419,15 @@
           "doses_age_months": [
             12,
             18
-          ]
+          ],
+          "valency": "Live attenuated varicella Oka strain",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "routine",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/referrals/varilrix"
         },
         {
           "name": "Varivax",
@@ -356,7 +436,16 @@
             12,
             54
           ],
-          "catch_up_ar": "جرعتان (12 شهر ثم 4–6 سنوات، أو بفاصل 3 شهور تحت 13 سنة). لقاح حي."
+          "catch_up_ar": "جرعتان (12 شهر ثم 4–6 سنوات، أو بفاصل 3 شهور تحت 13 سنة). لقاح حي.",
+          "manufacturer": "MSD / Merck",
+          "valency": "Live attenuated varicella Oka/Merck strain",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "routine",
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/varivax"
         }
       ],
       "route": "SC",
@@ -380,7 +469,16 @@
           "doses_age_months": [
             12,
             18
-          ]
+          ],
+          "valency": "Inactivated hepatitis A; Junior 720 ELU",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 6570,
+          "max_age_final_dose_label": "18 years (Junior)",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "routine",
+          "source_url": "https://www.edaegypt.gov.eg/ar/"
         },
         {
           "name": "Avaxim",
@@ -388,7 +486,17 @@
           "doses_age_months": [
             12,
             18
-          ]
+          ],
+          "manufacturer": "Sanofi",
+          "valency": "Inactivated hepatitis A; pediatric 80 EU presentation",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 5475,
+          "max_age_final_dose_label": "15 years (Avaxim 80)",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "routine",
+          "source_url": "https://www.sanofi.com/en/products/vaccines"
         },
         {
           "name": "Vaqta",
@@ -396,7 +504,17 @@
           "doses_age_months": [
             12,
             18
-          ]
+          ],
+          "manufacturer": "MSD / Merck",
+          "valency": "Inactivated hepatitis A; pediatric formulation",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 6570,
+          "max_age_final_dose_label": "18 years (pediatric)",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "routine",
+          "source_url": "https://www.merckvaccines.com/vaqta/"
         }
       ],
       "route": "IM",
@@ -420,21 +538,47 @@
           "default": true,
           "doses_age_months": [
             6
-          ]
+          ],
+          "valency": "Inactivated seasonal influenza vaccine; formulation varies by season",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "seasonal",
+          "source_url": "https://www.sanofi.com/en/products/vaccines"
         },
         {
           "name": "Influvac Tetra",
           "name_en": "Influvac Tetra",
           "doses_age_months": [
             6
-          ]
+          ],
+          "manufacturer": "Abbott",
+          "valency": "Quadrivalent inactivated influenza vaccine",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "seasonal",
+          "source_url": "https://www.abbott.com/"
         },
         {
           "name": "Fluarix Tetra",
           "name_en": "Fluarix Tetra",
           "doses_age_months": [
             6
-          ]
+          ],
+          "manufacturer": "GSK",
+          "valency": "Quadrivalent inactivated influenza vaccine",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "seasonal",
+          "source_url": "https://www.gsk.com/en-gb/products/"
         }
       ],
       "route": "IM",
@@ -457,7 +601,16 @@
             2,
             4,
             6
-          ]
+          ],
+          "manufacturer": "Sanofi",
+          "valency": "6-valent DTaP-IPV-HepB-Hib",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.sanofi.com/en/products/vaccines"
         },
         {
           "name": "Infanrix Hexa",
@@ -465,7 +618,16 @@
             2,
             4,
             6
-          ]
+          ],
+          "manufacturer": "GSK",
+          "valency": "6-valent DTaP-IPV-HepB-Hib",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://assets.gskstatic.com/pharma/PM-PI_portal/Jordan/infanrix_hexa_pil_jo.pdf"
         }
       ],
       "min_interval_days": 28,
@@ -488,7 +650,16 @@
             2,
             4,
             6
-          ]
+          ],
+          "manufacturer": "Sanofi",
+          "valency": "5-valent DTaP-IPV-Hib",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.sanofi.com/en/products/vaccines"
         }
       ],
       "min_interval_days": 28,
@@ -510,14 +681,33 @@
           "doses_age_months": [
             12,
             54
-          ]
+          ],
+          "manufacturer": "GSK",
+          "valency": "MMR + varicella; live attenuated",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "routine",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/priorix"
         },
         {
           "name": "ProQuad",
           "doses_age_months": [
             12,
             54
-          ]
+          ],
+          "manufacturer": "MSD / Merck",
+          "valency": "MMR + varicella; live attenuated",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 4380,
+          "max_age_final_dose_label": "12 years",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "routine",
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/proquad"
         }
       ],
       "min_interval_days": 84,
@@ -538,21 +728,48 @@
           "doses_age_months": [
             24
           ],
-          "catch_up_ar": "من عمر 9 شهور: جرعتان (9 و12 شهر)، أو جرعة واحدة من عمر سنتين حسب الخطورة."
+          "catch_up_ar": "من عمر 9 شهور: جرعتان (9 و12 شهر)، أو جرعة واحدة من عمر سنتين حسب الخطورة.",
+          "manufacturer": "Sanofi",
+          "valency": "4-valent conjugate; A,C,W,Y",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/menactra"
         },
         {
           "name": "Menveo",
           "doses_age_months": [
             24
           ],
-          "catch_up_ar": "من عمر شهرين بجدول رضّع متعدد، أو جرعة واحدة من عمر سنتين."
+          "catch_up_ar": "من عمر شهرين بجدول رضّع متعدد، أو جرعة واحدة من عمر سنتين.",
+          "manufacturer": "GSK",
+          "valency": "4-valent conjugate; A,C,W,Y",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/menveo"
         },
         {
           "name": "Nimenrix",
           "doses_age_months": [
             12
           ],
-          "catch_up_ar": "من عمر 6 أسابيع بجدول رضّع، أو جرعة واحدة من عمر سنة."
+          "catch_up_ar": "من عمر 6 أسابيع بجدول رضّع، أو جرعة واحدة من عمر سنة.",
+          "manufacturer": "GSK",
+          "valency": "4-valent conjugate; A,C,W,Y",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/nimenrix"
         },
         {
           "name": "Mencevax",
@@ -561,7 +778,15 @@
           "doses_age_months": [
             24
           ],
-          "catch_up_ar": "لقاح عديد السكاريد (polysaccharide) وليس مقترن (conjugate) — يُعطى عادةً من عمر سنتين، جرعة واحدة، والحماية أقصر ولا يوفّر مناعة قطيع. المقترن (Menactra / Nimenrix / Menveo) يُفضّل حيث توفّر. للمراجعة من الطبيب."
+          "catch_up_ar": "لقاح عديد السكاريد (polysaccharide) وليس مقترن (conjugate) — يُعطى عادةً من عمر سنتين، جرعة واحدة، والحماية أقصر ولا يوفّر مناعة قطيع. المقترن (Menactra / Nimenrix / Menveo) يُفضّل حيث توفّر. للمراجعة من الطبيب.",
+          "valency": "4-valent polysaccharide; A,C,W,Y",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "travel",
+          "source_url": "https://www.gsk.com/en-gb/products/"
         }
       ],
       "min_interval_days": 28,
@@ -584,7 +809,16 @@
             4,
             12
           ],
-          "catch_up_ar": "من عمر شهرين: جدول 2+1 (شهرين/4 شهور + منشّط 12 شهر). عدد الجرعات يختلف ببداية السن."
+          "catch_up_ar": "من عمر شهرين: جدول 2+1 (شهرين/4 شهور + منشّط 12 شهر). عدد الجرعات يختلف ببداية السن.",
+          "manufacturer": "GSK",
+          "valency": "MenB 4-component recombinant vaccine",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/bexsero"
         },
         {
           "name": "Trumenba",
@@ -592,7 +826,17 @@
             120,
             126
           ],
-          "catch_up_ar": "من عمر 10 سنوات: جرعتان (0 و6 شهور)، أو 3 جرعات لأصحاب الخطورة."
+          "catch_up_ar": "من عمر 10 سنوات: جرعتان (0 و6 شهور)، أو 3 جرعات لأصحاب الخطورة.",
+          "manufacturer": "Pfizer / Wyeth",
+          "valency": "MenB-fHbp recombinant vaccine",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 9125,
+          "max_age_final_dose_label": "25 years (US label)",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "risk",
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/trumenba"
         }
       ],
       "min_interval_days": 28,
@@ -614,7 +858,17 @@
             108,
             114
           ],
-          "catch_up_ar": "تساعي التكافؤ. 9–14 سنة: جرعتان (0 و6–12 شهر). من 15 سنة أو نقص المناعة: 3 جرعات (0، 2، 6 شهور)."
+          "catch_up_ar": "تساعي التكافؤ. 9–14 سنة: جرعتان (0 و6–12 شهر). من 15 سنة أو نقص المناعة: 3 جرعات (0، 2، 6 شهور).",
+          "manufacturer": "MSD / Merck",
+          "valency": "9-valent HPV; types 6,11,16,18,31,33,45,52,58",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 16425,
+          "max_age_final_dose_label": "45 years",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/gardasil-9"
         },
         {
           "name": "Cervarix",
@@ -622,7 +876,17 @@
             108,
             114
           ],
-          "catch_up_ar": "ثنائي التكافؤ (16/18). 9–14 سنة: جرعتان (0 و6 شهور). من 15 سنة: 3 جرعات (0، 1، 6 شهور)."
+          "catch_up_ar": "ثنائي التكافؤ (16/18). 9–14 سنة: جرعتان (0 و6 شهور). من 15 سنة: 3 جرعات (0، 1، 6 شهور).",
+          "manufacturer": "GSK",
+          "valency": "2-valent HPV; types 16,18",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_days": 16425,
+          "max_age_final_dose_label": "45 years",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.edaegypt.gov.eg/ar/"
         }
       ],
       "min_interval_days": 28,
@@ -643,14 +907,32 @@
           "doses_age_months": [
             9
           ],
-          "catch_up_ar": "لقاح مقترن — جرعة واحدة من عمر 6 شهور، بحماية ممتدة."
+          "catch_up_ar": "لقاح مقترن — جرعة واحدة من عمر 6 شهور، بحماية ممتدة.",
+          "manufacturer": "Bharat Biotech",
+          "valency": "Typhoid conjugate; Vi polysaccharide-TT",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "travel",
+          "source_url": "https://extranet.who.int/prequal/vaccines/p/typbar-tcv"
         },
         {
           "name": "Typhim Vi",
           "doses_age_months": [
             24
           ],
-          "catch_up_ar": "عديد سكاريد — من عمر سنتين، ويُعاد كل 3 سنوات عند استمرار الخطر."
+          "catch_up_ar": "عديد سكاريد — من عمر سنتين، ويُعاد كل 3 سنوات عند استمرار الخطر.",
+          "manufacturer": "Sanofi",
+          "valency": "Vi polysaccharide typhoid vaccine",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "travel",
+          "source_url": "https://www.sanofi.com/en/products/vaccines"
         }
       ],
       "booster": false,
@@ -670,13 +952,31 @@
           "default": true,
           "doses_age_months": [
             0
-          ]
+          ],
+          "manufacturer": "Sanofi",
+          "valency": "Inactivated rabies vaccine; Vero-cell",
+          "dose_volume": "0.5 mL IM / 0.1 mL ID",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "event",
+          "source_url": "https://www.edaegypt.gov.eg/ar/"
         },
         {
           "name": "Rabipur",
           "doses_age_months": [
             0
-          ]
+          ],
+          "manufacturer": "Bavarian Nordic",
+          "valency": "Inactivated rabies vaccine; purified chick embryo cell culture",
+          "dose_volume": "1.0 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "event",
+          "source_url": "https://www.bavarian-nordic.com/what-we-do/our-products.aspx"
         }
       ],
       "booster": false,
@@ -696,7 +996,16 @@
           "default": true,
           "doses_age_months": [
             9
-          ]
+          ],
+          "manufacturer": "Sanofi",
+          "valency": "Live attenuated yellow fever 17D-204",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": false,
+          "reminder_scope": "travel",
+          "source_url": "https://www.edaegypt.gov.eg/ar/"
         }
       ],
       "booster": false,
@@ -716,7 +1025,16 @@
           "default": true,
           "doses_age_months": [
             24
-          ]
+          ],
+          "manufacturer": "Valneva Sweden AB",
+          "valency": "Inactivated oral cholera O1 + recombinant B-subunit",
+          "dose_volume": "3 mL final mixed dose",
+          "max_age_final_dose_label": "غير محدد",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "travel",
+          "source_url": "https://www.who.int/news/item/21-03-2019-medical-product-alert-n-4-2019"
         }
       ],
       "max_age_months": 24,
@@ -738,7 +1056,16 @@
             72
           ],
           "price": 0,
-          "catch_up_ar": "تُشترى وتُصرف من العيادة. السعر يحدده كل مركز."
+          "catch_up_ar": "تُشترى وتُصرف من العيادة. السعر يحدده كل مركز.",
+          "manufacturer": "Manufacturer varies by presentation",
+          "valency": "Diphtheria toxoid + tetanus toxoid",
+          "dose_volume": "0.5 mL",
+          "max_age_final_dose_label": "حسب العمر/المنتج",
+          "registered_in_egypt": true,
+          "available_now": true,
+          "doses_change_by_start_age": true,
+          "reminder_scope": "risk",
+          "source_url": "https://www.edaegypt.gov.eg/ar/"
         }
       ],
       "route": "IM",

@@ -1053,7 +1053,8 @@
     "due": "Due now",
     "overdue": "Overdue",
     "upcoming": "Upcoming",
-    "suggested": "Suggested for age"
+    "suggested": "Suggested for age",
+    "expired": "Window closed"
   },
   "vtype": {
     "live": "Live attenuated",

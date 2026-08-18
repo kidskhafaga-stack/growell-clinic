@@ -162,6 +162,39 @@ class VaccineBrand(db.Model):
     # Falls back to the vaccine's catch-up when blank.
     catch_up_notes = db.Column(db.Text)
 
+    # ── The trade name's own regulatory and window facts ──────────────
+    #
+    # Kept on the **brand**, not the vaccine, because that is where they
+    # actually differ. The rotavirus series has to be finished by 24 weeks on
+    # RotaRix, 32 on RotaTeq and 34 on Rotasiil; Synflorix stops at five years
+    # while every other pneumococcal keeps going. A single number on the
+    # vaccine was wrong for all six of them.
+    #
+    # In **days**, deliberately. The labels are written in weeks, and 24 weeks
+    # is 5.5 months — rounding that to a whole month either closes the window
+    # two weeks early or leaves it two weeks too long, on the one vaccine
+    # where the window is the whole point.
+    max_age_final_dose_days = db.Column(db.Integer)   # NULL = no ceiling
+    valency = db.Column(db.String(120))               # "13-valent PCV"
+    dose_volume = db.Column(db.String(40))            # "0.5 mL"
+    # Registered is not the same as obtainable, and conflating them puts a
+    # product on the shelf that nobody can buy. `available_now` is
+    # deliberately three-valued — NULL means nobody has checked, which is the
+    # honest state for most of the catalogue most of the time.
+    registered_in_egypt = db.Column(db.Boolean)
+    available_now = db.Column(db.Boolean)             # NULL = unknown
+    # Whether the number of doses depends on how old the child was at the
+    # first one (HPV 2 vs 3, Synflorix, Nimenrix). Nothing reads this yet; it
+    # marks the brands that need an age-banded schedule before the plan can be
+    # right for them, so the gap is visible in the data instead of remembered.
+    doses_change_by_start_age = db.Column(db.Boolean, default=False,
+                                          nullable=False)
+    # How this brand may be reminded about at all. Rabies is the reason it
+    # exists: it is given after a bite, and a routine reminder for it is a
+    # frightening message about a course nobody is on.
+    reminder_scope = db.Column(db.String(40))         # see REMINDER_SCOPES
+    source_url = db.Column(db.String(255))            # where the fact came from
+
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(
         "VaccineBrandDose", back_populates="brand", cascade="all, delete-orphan",
@@ -282,6 +315,15 @@ class VaccineBrand(db.Model):
 
     def __repr__(self):
         return f"<VaccineBrand {self.name}>"
+
+
+# What a brand may be reminded about, from narrowest to widest.
+#
+# ``event`` is the one that changes behaviour: rabies is given because
+# something happened, so it must never appear on a routine due list. The rest
+# are descriptive today and are carried so the suggestions screen can filter
+# on them rather than hard-code a list of exceptions.
+REMINDER_SCOPES = ["event", "travel", "risk", "seasonal", "routine"]
 
 
 class VaccineBrandDose(db.Model):

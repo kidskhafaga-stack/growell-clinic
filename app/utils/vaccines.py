@@ -82,6 +82,42 @@ def _catalogue_load_flags():
     return gov, optional
 
 
+# The regulatory / window facts the catalogue carries per trade name. Filled
+# only where blank: a clinic that corrected a ceiling for its own stock keeps
+# its correction across a re-seed, which is the same promise the schedules
+# already make.
+_BRAND_FACTS = ("manufacturer", "valency", "dose_volume",
+                "max_age_final_dose_days", "registered_in_egypt",
+                "available_now", "doses_change_by_start_age",
+                "reminder_scope", "source_url")
+
+
+# The one fact whose blank really is ``False``: the column is NOT NULL with a
+# default, so an untouched row and a deliberate "no" look identical. Nothing
+# reads it yet — it marks which brands still need an age-banded schedule — so
+# following the catalogue is right for it and wrong for all the others.
+_FACTS_FILLED_OVER_FALSE = {"doses_change_by_start_age"}
+
+
+def _fill_brand_facts(brand, data):
+    """Copy the catalogue's facts onto a brand without clobbering edits.
+
+    Blank means ``None``, not falsy. Counting ``False`` as blank meant a clinic
+    marking a product out of stock had it declared available again by the next
+    re-seed — the correction quietly undone by the thing meant to help.
+    """
+    for field in _BRAND_FACTS:
+        value = data.get(field)
+        if value is None:
+            continue
+        current = getattr(brand, field, None)
+        blank = current is None or current == ""
+        if field in _FACTS_FILLED_OVER_FALSE:
+            blank = blank or current is False
+        if blank:
+            setattr(brand, field, value)
+
+
 def seed_vaccines():
     """Idempotently load the bundled vaccine catalogue into the database.
 
@@ -164,6 +200,7 @@ def seed_vaccines():
                 # only when the clinic hasn't set one (never clobber edits).
                 if b.get("catch_up_ar") and not existing.catch_up_notes:
                     existing.catch_up_notes = b["catch_up_ar"]
+                _fill_brand_facts(existing, b)
                 if booster_from:
                     for row in existing.doses:
                         if row.dose_number >= booster_from and not row.is_booster:
@@ -175,6 +212,7 @@ def seed_vaccines():
                 is_default=b.get("default", False),
                 catch_up_notes=b.get("catch_up_ar"),
             )
+            _fill_brand_facts(brand, b)
             db.session.add(brand)
             db.session.flush()
             for i, age in enumerate(b["doses_age_months"], start=1):
@@ -337,11 +375,27 @@ def chosen_brand(patient_id, vaccine, given=None):
 GIVEABLE = ("overdue", "due", "suggested")
 
 
-def _status(due_date, given, today):
+def _status(due_date, given, today, closed_after=None):
+    """What this dose is, for this child, today.
+
+    ``closed_after`` is the last date the dose could still be given — the
+    brand's ceiling projected onto this child's birthday. Past it the dose is
+    **expired**, not overdue: the difference is the whole point. "Overdue" asks
+    somebody to chase it, and the rotavirus series cannot be given to a
+    three-year-old at all, so chasing it is asking the desk to make a call that
+    ends in "no". Before this, every child past the window read as overdue on
+    rotavirus for the rest of their childhood.
+    """
     if given:
         return "done"
+    if closed_after is not None and today > closed_after:
+        return "expired"
     if due_date is None:
         return "upcoming"
+    # A dose whose own turn falls past the ceiling can never arrive in time,
+    # even though the child is still inside the window today.
+    if closed_after is not None and due_date > closed_after:
+        return "expired"
     if due_date < today:
         return "overdue"
     if (due_date - today).days <= DUE_WINDOW_DAYS:
@@ -432,6 +486,13 @@ def patient_plan(patient, lang="ar", doses=None):
         # floor the catch-up seeder already uses, so the program was carrying
         # the number and not applying it where it mattered most.
         min_iv = vaccine.min_interval_days or _CATCH_UP_MIN_INTERVAL
+        # The last day this brand's series may still be completed, on this
+        # child's birthday. Per brand, because that is where it differs:
+        # rotavirus finishes at 24 weeks on RotaRix and 32 on RotaTeq, and
+        # Synflorix stops at five years while the other pneumococcals do not.
+        closed_after = None
+        if dob and brand.max_age_final_dose_days:
+            closed_after = dob + timedelta(days=brand.max_age_final_dose_days)
         # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
         # the child already got (can't co-administer with a past dose anymore).
         earliest_live = None
@@ -486,7 +547,8 @@ def patient_plan(patient, lang="ar", doses=None):
                 "pv_id": pv.id if pv is not None else None,
                 "imported": bool(getattr(pv, "import_batch_id", None))
                 if pv is not None else False,
-                "status": _status(due, pv is not None, today),
+                "status": _status(due, pv is not None, today,
+                                  closed_after=closed_after),
                 "planned": planned is not None,
                 "event_type": (ev.event_type if (ev and not pv
                                and ev.event_type != "planned") else None),
@@ -642,7 +704,7 @@ def plan_summary(plan):
     promise is only broken on a course somebody started here.
     """
     s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
-         "total": 0}
+         "expired": 0, "total": 0}
     for v in plan:
         for d in v["doses"]:
             s[d["status"]] = s.get(d["status"], 0) + 1
