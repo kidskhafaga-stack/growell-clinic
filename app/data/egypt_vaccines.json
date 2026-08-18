@@ -105,6 +105,22 @@
             4,
             6
           ]
+        },
+        {
+          "name": "Quinvaxem",
+          "name_en": "Quinvaxem",
+          "manufacturer": "Crucell",
+          "valency": "5-valent DTwP-HepB-Hib (خلوي)",
+          "dose_volume": "0.5 mL",
+          "doses_age_months": [
+            2,
+            4,
+            6
+          ],
+          "discontinued": true,
+          "available_now": false,
+          "reminder_scope": "routine",
+          "catch_up_ar": "خماسي خلوي متوقف الإنتاج. موجود في الكتالوج عشان الحالات اللي أخدته قديماً تتربط على اسمه الصحيح بدل الحكومي — لا يُعرض لجرعة جديدة."
         }
       ],
       "route": "IM",

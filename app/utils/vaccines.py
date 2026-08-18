@@ -211,6 +211,12 @@ def seed_vaccines():
                 manufacturer=b.get("manufacturer"), price=b.get("price"),
                 is_default=b.get("default", False),
                 catch_up_notes=b.get("catch_up_ar"),
+                # Set at creation and never backfilled: whether a trade name
+                # is still made is the catalogue's opening position, and the
+                # clinic owns it afterwards. Backfilling it would undo a
+                # clinic that brought one back, the same way counting False as
+                # blank once undid "out of stock".
+                is_discontinued=b.get("discontinued", False),
             )
             _fill_brand_facts(brand, b)
             db.session.add(brand)
