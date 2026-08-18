@@ -131,6 +131,65 @@ def _settle_paid_vaccines(patient, on_date):
         return []
 
 
+@vaccinations_bp.route("/plans")
+@module_required(MODULE)
+def plans():
+    """The cases the clinic agreed a plan with, and what they still owe them.
+
+    Its own screen rather than a filter on the dose reminders, because it
+    answers a different question. Reminders ask "who is late"; this asks "who
+    did we promise something to, and are we keeping it" — and the second is
+    the one somebody works through on a Sunday morning with the fridge open.
+
+    The filters are the ones every screen here should carry: a date range, a
+    vaccine, and nothing else to learn. The purchase order is built from
+    **whatever the filter is showing**, the same rule the reminders screen and
+    the invoice export already follow, so what you take away is what you were
+    looking at.
+
+    A dose the family is buying themselves is on the list and never in the
+    order. They still need the visit arranged and the dose recorded; putting a
+    vial on the order for it fills the fridge with stock nobody will pay for.
+    """
+    from app.models.vaccine_plan import VaccinePlanItem
+    from app.utils.export import parse_date
+    from app.utils.vaccine_due import due_list, order_suggestion, summarise
+
+    lang = getattr(g, "lang", "ar")
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    vaccine_id = request.args.get("vaccine_id", type=int)
+
+    on_plan = {}
+    for item in VaccinePlanItem.query.all():
+        on_plan.setdefault(item.patient_id, set()).add(item.vaccine_id)
+    if not on_plan:
+        rows = []
+    else:
+        rows = [r for r in due_list(start=start, end=end,
+                                    vaccine_id=vaccine_id, lang=lang)
+                if r["vaccine"].id in on_plan.get(r["patient"].id, ())]
+
+    people = {}
+    for row in rows:
+        people.setdefault(row["patient"].id, {
+            "patient": row["patient"], "rows": []})["rows"].append(row)
+
+    return render_template(
+        "vaccinations/plans.html",
+        people=sorted(people.values(),
+                      key=lambda p: p["patient"].display_name(lang)),
+        rows=rows, counts=summarise(rows),
+        order=order_suggestion(rows),
+        # How many children are on a plan at all, so an empty result reads as
+        # "nothing due" rather than "nobody has a plan".
+        total_on_plan=len(on_plan),
+        vaccines=Vaccine.query.order_by(Vaccine.sort_order).all(),
+        f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
+        vaccine_id=vaccine_id,
+    )
+
+
 @vaccinations_bp.route("/<int:patient_id>/plan/add", methods=["POST"])
 @module_required(MODULE)
 def plan_add(patient_id):

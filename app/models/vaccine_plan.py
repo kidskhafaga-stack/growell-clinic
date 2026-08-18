@@ -72,11 +72,15 @@ def planned_vaccine_ids(patient_id):
 
 
 def planned_by_patient(patient_ids):
-    """``{patient_id: {vaccine_id}}`` for many children, in one query.
+    """``{patient_id: {vaccine_id: supplied_outside}}`` for many children.
 
     The batched form, for the sweeps that walk the whole register. Asking per
     child is a query apiece — the shape this module spent an afternoon
     removing everywhere else.
+
+    A mapping rather than a set because the sweep needs both answers from it:
+    membership decides whether a course is followed at all, and the flag
+    decides whether it may be counted into a purchase order.
     """
     if not patient_ids:
         return {}
@@ -85,6 +89,6 @@ def planned_by_patient(patient_ids):
                              VaccinePlanItem.vaccine_id,
                              VaccinePlanItem.supplied_outside)
             .filter(VaccinePlanItem.patient_id.in_(list(patient_ids))).all())
-    for patient_id, vaccine_id, _outside in rows:
-        out.setdefault(patient_id, set()).add(vaccine_id)
+    for patient_id, vaccine_id, outside in rows:
+        out.setdefault(patient_id, {})[vaccine_id] = bool(outside)
     return out

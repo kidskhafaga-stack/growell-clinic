@@ -102,7 +102,14 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
                     continue
                 if end and when > end:
                     continue
-            found.append((patient_id, {**row, "due": when}))
+            # Carried so the order screen can leave it out: a family who is
+            # buying their own dose still needs the visit arranged, and the
+            # clinic must not put a vial on the order for it.
+            found.append((patient_id, {
+                **row, "due": when,
+                "supplied_outside": bool(
+                    agreed.get(patient_id, {}).get(row["vaccine"].id)),
+            }))
 
     if not found:
         return []
@@ -154,6 +161,10 @@ def order_suggestion(rows, cover_days=None, today=None):
         brand = row.get("brand")
         if brand is None:
             continue                # no brand chosen yet — nothing to order
+        if row.get("supplied_outside"):
+            # Agreed, followed, chased — and bought by the family. Counting it
+            # here fills the fridge with stock nobody is going to pay for.
+            continue
         if horizon and row["due"] and row["due"] > horizon:
             continue
         slot = needed.setdefault(brand.id, {

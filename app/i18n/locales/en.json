@@ -4958,5 +4958,18 @@
     "none": "No agreed plan yet",
     "hint": "What you agree here is followed and chased; everything else stays a suggestion by age.",
     "supplied_hint": "Followed, but never counted into a purchase order."
+  },
+  "vplans": {
+    "title": "Cases on a plan",
+    "sub": "Who we agreed what with, and what is still owed.",
+    "none": "Nothing due in this range",
+    "no_plans": "No agreed plans yet",
+    "no_plans_hint": "Agree vaccines on any child's file and they appear here.",
+    "on_plan_n": "{n} cases on a plan",
+    "order": "Purchase order for what is shown",
+    "outside_note": "Family supplies it — not in the order",
+    "needed": "Needed",
+    "in_stock": "In stock",
+    "to_order": "Order"
   }
 }

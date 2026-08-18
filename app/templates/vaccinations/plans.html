@@ -1,0 +1,116 @@
+{% extends "shell.html" %}
+{% set active_module = 'vaccinations' %}
+{% block title %}{{ t('vplans.title') }}{% endblock %}
+{% block page_heading %}{{ t('vplans.title') }}{% endblock %}
+
+{% block content %}
+<div class="card gc-scale-in">
+  <h1 class="page-title" style="margin:0;">{{ t('vplans.title') }}</h1>
+  <p class="hint" style="margin:6px 0 0;">{{ t('vplans.sub') }}</p>
+</div>
+
+{# The filters every screen here should carry: a range, a vaccine, nothing to learn. #}
+<div class="card" style="margin-top:14px;">
+  <form method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.from') }}</label>
+      <input class="input" type="date" name="from" value="{{ f_from }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('reports.to') }}</label>
+      <input class="input" type="date" name="to" value="{{ f_to }}"></div>
+    <div class="form-row" style="margin:0;"><label>{{ t('nav.vaccinations') }}</label>
+      <select class="select" name="vaccine_id">
+        <option value="">{{ t('common.all') }}</option>
+        {% for v in vaccines %}
+          <option value="{{ v.id }}" {% if vaccine_id == v.id %}selected{% endif %}>
+            {{ v.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-funnel"></i> {{ t('common.filter') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('vaccinations.plans') }}">
+      {{ t('common.reset') }}</a>
+  </form>
+</div>
+
+{% if not total_on_plan %}
+  <div class="card" style="margin-top:14px;text-align:center;">
+    <p style="margin:0 0 6px;"><i class="bi bi-clipboard2-check"></i> {{ t('vplans.no_plans') }}</p>
+    <p class="hint" style="margin:0;">{{ t('vplans.no_plans_hint') }}</p>
+  </div>
+{% else %}
+  <div class="stat-grid gc-stagger" style="margin:14px 0;">
+    <div class="stat-card edge-red gc-lift"><i class="bi bi-clock-history ico"></i>
+      <div class="value gc-counter" data-count="{{ counts.overdue }}">0</div>
+      <div class="label">{{ t('vaccinations.stat_overdue') }}</div></div>
+    <div class="stat-card edge-yellow gc-lift"><i class="bi bi-exclamation-circle ico"></i>
+      <div class="value gc-counter" data-count="{{ counts.due }}">0</div>
+      <div class="label">{{ t('vaccinations.stat_due') }}</div></div>
+    <div class="stat-card edge-blue gc-lift"><i class="bi bi-people ico"></i>
+      <div class="value gc-counter" data-count="{{ total_on_plan }}">0</div>
+      <div class="label">{{ t('vplans.on_plan_n', n=total_on_plan) }}</div></div>
+  </div>
+
+  {% if order %}
+    <div class="card" style="margin-top:14px;">
+      <h2 style="margin:0 0 10px;font-size:1.05rem;">
+        <i class="bi bi-cart-plus"></i> {{ t('vplans.order') }}</h2>
+      <div style="overflow-x:auto;">
+        <table class="table">
+          <thead><tr>
+            <th>{{ t('nav.vaccinations') }}</th><th>{{ t('vplans.needed') }}</th>
+            <th>{{ t('vplans.in_stock') }}</th><th>{{ t('vplans.to_order') }}</th>
+          </tr></thead>
+          <tbody>
+            {% for row in order %}
+              <tr>
+                <td>{{ row.brand.name }}</td>
+                <td>{{ row.needed }}</td>
+                <td>{{ row.in_stock }}</td>
+                <td><strong>{{ row.to_order }}</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not people %}
+    <div class="card" style="margin-top:14px;text-align:center;">
+      <p class="hint" style="margin:0;">{{ t('vplans.none') }}</p>
+    </div>
+  {% else %}
+    {% for person in people %}
+      <div class="card gc-lift" style="margin-top:12px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <a href="{{ url_for('vaccinations.view', patient_id=person.patient.id) }}">
+            <strong>{{ person.patient.display_name(current_lang) }}</strong></a>
+          <span class="badge badge--role">{{ person.patient.patient_number }}</span>
+          {% if person.patient.contact_phone %}
+            <span class="hint"><i class="bi bi-telephone"></i>
+              {{ person.patient.contact_phone }}</span>
+          {% endif %}
+        </div>
+        <div style="overflow-x:auto;margin-top:8px;">
+          <table class="table">
+            <tbody>
+              {% for row in person.rows %}
+                <tr>
+                  <td>{{ row.vaccine.display_name(current_lang) }}</td>
+                  <td class="hint">{{ row.dose_number }}</td>
+                  <td>{{ row.due or '—' }}</td>
+                  <td><span class="badge badge--role">{{ t('vstatus.' ~ row.status) }}</span></td>
+                  <td class="hint">
+                    {% if row.supplied_outside %}
+                      <i class="bi bi-box-arrow-in-down"></i> {{ t('vplans.outside_note') }}
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endif %}
+{% endblock %}
