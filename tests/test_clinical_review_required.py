@@ -186,6 +186,57 @@ def test_it_does_not_fire_on_an_ordinary_late_course(seeded):
     assert chased is True
 
 
+def test_four_winters_are_not_a_contradiction(seeded):
+    """The narrowness promise, measured on the case that broke it.
+
+    Influenza is one dose in the catalogue and a five-year-old has had four.
+    Read as "more doses than the schedule has room for" that is a
+    contradiction; read as four winters it is an ordinary record, and it is
+    four winters. The same is true of rabies and typhoid, which are given
+    when something happens rather than as a course of a fixed length.
+
+    This was live before it was caught: **every returning influenza patient in
+    the register** read "clinical review required", and because the flag also
+    stops the message, their annual recall went quiet. The existing narrowness
+    test used PCV — a fixed course — and could not see it.
+    """
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+    from app.utils.vaccine_due import due_list
+    from app.utils.vaccines import patient_plan
+
+    with seeded["app"].app_context():
+        flu = Vaccine.query.filter_by(code="FLU").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=flu.id).first()
+        dob = local_today() - timedelta(days=int(5 * 365.25))
+        kid = Patient(patient_number="CRflu", full_name="طفل", gender="male",
+                      date_of_birth=dob, is_active=True)
+        db.session.add(kid)
+        db.session.flush()
+        for number, years in ((1, 1.0), (2, 2.0), (3, 3.0)):
+            db.session.add(PatientVaccine(
+                patient_id=kid.id, vaccine_id=flu.id, brand_id=brand.id,
+                dose_number=number, event_type="given",
+                given_date=dob + timedelta(days=int(years * 365.25))))
+        db.session.commit()
+
+        row = next(v for v in patient_plan(kid) if v["vaccine"].code == "FLU")
+        chased = any(r["patient"].id == kid.id and r["vaccine"].code == "FLU"
+                     for r in due_list())
+
+    assert row["review"] is None, \
+        f"a child with four winters of influenza was flagged: {row['review']}"
+    assert chased, "the annual influenza recall went silent"
+
+
+def test_a_fixed_course_still_counts_its_doses(seeded):
+    """The other half — otherwise "repeatable" could quietly be everything."""
+    review, _chased, _ = _course(seeded, "fixed", [(1, 60), (2, 120), (3, 180),
+                                                   (4, 240), (5, 300)])
+
+    assert review == "more_than_scheduled"
+
+
 def test_every_reason_it_can_give_has_words(seeded):
     """A flag with no explanation sends somebody hunting for what is wrong."""
     from app.utils.vaccines import REVIEW_REASONS

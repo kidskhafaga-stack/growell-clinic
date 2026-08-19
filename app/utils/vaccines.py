@@ -319,6 +319,90 @@ _AGE_BANDED = {
          "label": "Vaxneuvance — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
          "doses": [(24, None)]},
     ],
+    # MenACWY, where the three conjugates disagree with each other about
+    # nearly everything. They are licensed from different ages — 6 weeks for
+    # Nimenrix, 2 months for Menveo, 9 months for Menactra — and the number of
+    # doses a child needs depends on which product they are on as much as on
+    # how old they were when they started. One schedule on the vaccine could
+    # only ever be right for one of them, and the catalogue's Arabic prose
+    # said so in three different sentences that nothing read.
+    #
+    # Mencevax is deliberately absent. It is a polysaccharide, one dose from
+    # two years, and its `doses_change_by_start_age` is already False — so it
+    # falls through to the vaccine's own schedule, which is what it wants.
+    "MENACWY": [
+        # Menactra: 9–23 months is two doses, ≥3 months apart; from two years
+        # it is one.
+        {"code": "MCV4-MENACTRA-INF", "min": 9, "max": 23, "sort_order": 0,
+         "brand": "Menactra",
+         "label": "Menactra — بدء 9–23 شهر: جرعتان بفاصل ≥3 شهور — للمراجعة",
+         "doses": [(9, None), (12, 90)]},
+        {"code": "MCV4-MENACTRA-2Y", "min": 24, "max": None, "sort_order": 1,
+         "brand": "Menactra",
+         "label": "Menactra — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+
+        # Menveo: a four-dose infant series from two months, a two-dose
+        # catch-up for a child who reaches 7–23 months with nothing, and a
+        # single dose from two years. The catch-up asks for an empty record
+        # because that is what the leaflet asks: a nine-month-old already two
+        # doses into the infant series is not "unvaccinated 7–23 months", and
+        # moving them onto a two-dose course would shorten it by half.
+        {"code": "MCV4-MENVEO-INF", "min": 1, "max": 6, "sort_order": 2,
+         "brand": "Menveo",
+         "label": "Menveo — بدء 2–6 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
+         "doses": [(2, None), (4, 60), (6, 60), (12, 60)]},
+        {"code": "MCV4-MENVEO-CU7", "previous": "none",
+         "min": 7, "max": 23, "sort_order": 3,
+         "brand": "Menveo",
+         "label": "Menveo — بدء 7–23 شهر بدون جرعات سابقة: جرعتان، "
+                  "الثانية في السنة الثانية وبفاصل ≥3 شهور — للمراجعة",
+         "doses": [(7, None), (13, 90)]},
+        {"code": "MCV4-MENVEO-2Y", "min": 24, "max": None, "sort_order": 4,
+         "brand": "Menveo",
+         "label": "Menveo — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+
+        # Nimenrix: from 6 weeks, and the only one of the three whose infant
+        # course is two primary doses plus a booster in the second year.
+        {"code": "MCV4-NIMENRIX-INF", "min": 1, "max": 5, "sort_order": 5,
+         "brand": "Nimenrix",
+         "label": "Nimenrix — بدء 6 أسابيع–5 شهور: جرعتان بفاصل ≥شهرين "
+                  "+ منشّط عند 12 شهر — للمراجعة",
+         "doses": [(2, None), (4, 60), (12, 60)]},
+        {"code": "MCV4-NIMENRIX-6M", "previous": "none",
+         "min": 6, "max": 11, "sort_order": 6,
+         "brand": "Nimenrix",
+         "label": "Nimenrix — بدء 6–11 شهر: جرعة + منشّط عند 12 شهر "
+                  "بفاصل ≥شهرين — للمراجعة",
+         "doses": [(6, None), (12, 60)]},
+        {"code": "MCV4-NIMENRIX-12M", "min": 12, "max": None, "sort_order": 7,
+         "brand": "Nimenrix",
+         "label": "Nimenrix — بدء 12 شهر فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(12, None)]},
+    ],
+    # Influenza, where "one dose a year" is right for almost everybody and
+    # wrong for the child in front of you having their first ever flu shot: a
+    # first-time recipient under nine needs a second dose four weeks later, in
+    # the same season, and only then one a year for life.
+    #
+    # The catalogue said so in Arabic prose — "أول مرة تحت 9 سنوات: جرعتان
+    # بفاصل 4 أسابيع، ثم جرعة واحدة سنوياً" — and every seasonal code path in
+    # this module assumed a seasonal course was exactly one dose, so the
+    # second one had nowhere to appear.
+    #
+    # Matched on the age at the first dose, like every other band, which is
+    # also what the rule means: a child who begins at eight does not lose the
+    # second dose by turning nine four weeks later.
+    "FLU": [
+        {"code": "FLU-PRIME", "min": None, "max": 107, "sort_order": 0,
+         "label": "أول موسم تحت 9 سنوات: جرعتان بفاصل ≥4 أسابيع، "
+                  "ثم جرعة واحدة سنوياً — للمراجعة",
+         "doses": [(6, None), (7, 28)]},
+        {"code": "FLU-ANNUAL", "min": 108, "max": None, "sort_order": 1,
+         "label": "9 سنوات فأكثر: جرعة واحدة سنوياً — للمراجعة",
+         "doses": [(6, None)]},
+    ],
     "HPV": [
         {"code": "HPV2", "min": 108, "max": 179, "sort_order": 0,
          "gap_min": 150,
@@ -872,21 +956,32 @@ REVIEW_REASONS = {
     # Two doses recorded under the same number. Either one is a duplicate or
     # a number is wrong, and the course is a different length depending which.
     "duplicate_dose": "جرعتان بنفس الرقم — الكورس طوله مختلف حسب أيهما الصحيح",
-    # More doses on file than the schedule has room for.
+    # More doses on file than the schedule has room for. Never asked about a
+    # vaccine that repeats — four influenza doses are four winters.
     "more_than_scheduled": "جرعات أكثر مما يسمح به الجدول",
     # The child's own record contradicts the order of the schedule.
     "out_of_order": "تواريخ الجرعات مش بترتيب أرقامها",
 }
 
 
-def needs_clinical_review(dob, schedule, given_rows):
+def needs_clinical_review(dob, schedule, given_rows, repeatable=False):
     """Why this course cannot be scheduled, or None.
 
     ``given_rows`` are ``(dose_number, given_date)`` for the doses on file.
+    ``repeatable`` says this vaccine is given again and again rather than as a
+    course of fixed length — a seasonal one, or an on-demand one.
 
     Deliberately narrow. It looks for records the arithmetic cannot be run on
     at all — not for anything a doctor might want a second opinion about,
     which would put the flag on everybody and teach the clinic to ignore it.
+
+    ``repeatable`` is that promise being kept rather than an exception to it.
+    Influenza is one dose in the catalogue and a child of five has had four,
+    which is not a contradiction — it is four winters. Measured before this
+    argument existed: every returning influenza patient in the register read
+    "clinical review required", and because the flag also stops the message,
+    their annual recall went silent. A flag that fires on the ordinary case is
+    worse than no flag, and here it was worse than that.
     """
     if dob is None:
         return "undated_dose" if given_rows else None
@@ -895,7 +990,7 @@ def needs_clinical_review(dob, schedule, given_rows):
         return "undated_dose"
     if len(numbers) != len(set(numbers)):
         return "duplicate_dose"
-    if schedule and len(numbers) > len(schedule):
+    if schedule and not repeatable and len(numbers) > len(schedule):
         return "more_than_scheduled"
     ordered = [d for _n, d in sorted(given_rows, key=lambda r: r[0] or 0)]
     if any(b < a for a, b in zip(ordered, ordered[1:])):
@@ -1067,7 +1162,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             dob, rota,
             [(pv.dose_number, pv.given_date) for pv in rows
              if pv.vaccine_id == vaccine.id
-             and (pv.event_type or "given") == "given"])
+             and (pv.event_type or "given") == "given"],
+            repeatable=bool(vaccine.is_seasonal or vaccine.on_demand))
         # Did the course change product, and does the destination's leaflet
         # have anything to say about that?
         earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
@@ -1186,6 +1282,12 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # is exactly this set, and an agreed course belongs in it — that
             # is the table a family is handed.
             "mixed": mixed,
+            # Whether a schedule band actually answered for this course. The
+            # "doses vary with the starting age" warning exists to admit that
+            # the program does not know; once a band for this product has been
+            # read out of a leaflet and seeded, it does know, and going on
+            # warning turns a real caution into wallpaper.
+            "banded": bool(_bands_for(vaccine.id, brand.id)) if brand else False,
             # Set when the record cannot be scheduled from. The screens show
             # it in place of a due date, because a date computed from a
             # contradiction is worse than no date.
@@ -1395,6 +1497,16 @@ def patient_due_reminders(patient, lang="ar", today=None, doses=None,
         if not done and not v.get("agreed"):
             continue
         if vac.is_seasonal:
+            # The course before the recall — see the same split in `scan_due`.
+            # A first influenza dose under nine owes a second four weeks
+            # later, and until this was written no seasonal path could say so.
+            nxt = next((d for d in v["doses"]
+                        if d["status"] in ("overdue", "due")), None)
+            if nxt:
+                out.append({"vaccine": vac, "brand": brand,
+                            "dose_number": nxt["dose_number"],
+                            "due_date": nxt["due_date"], "status": nxt["status"]})
+                continue
             last_iso = max((d["given_date"] for d in done if d["given_date"]), default=None)
             if last_iso and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS:
                 out.append({"vaccine": vac, "brand": brand,
@@ -1718,7 +1830,12 @@ def visit_vaccine_panel(patient, lang="ar"):
             continue
         # Seasonal vaccines taken here recur every year instead of following the
         # fixed schedule — once ~11 months pass, offer the next yearly dose.
-        if vac.is_seasonal and given:
+        if vac.is_seasonal and given and not any(
+                d["status"] in GIVEABLE for d in v["doses"]):
+            # ...unless the course itself still owes a dose. The second
+            # influenza dose of a first season is four weeks after the first,
+            # not eleven months, and a nurse looking at this panel is the
+            # person who would otherwise never be told.
             last_iso = max((d["given_date"] for d in given if d["given_date"]), default=None)
             if (last_iso and brand is not None
                     and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS):
@@ -1769,6 +1886,10 @@ def _catalogue_rows():
         for v in Vaccine.query.order_by(Vaccine.sort_order).all():
             vaccines[v.id] = {
                 "id": v.id, "code": v.code, "seasonal": bool(v.is_seasonal),
+                # Given again and again rather than as a course of fixed
+                # length, so "more doses than the schedule" is not a
+                # contradiction about it.
+                "repeatable": bool(v.is_seasonal or v.on_demand),
                 "min_interval": v.min_interval_days or _CATCH_UP_MIN_INTERVAL,
                 "live": (v.vaccine_type == "live" and (v.route or "") != "oral"),
                 "obj": v,
@@ -1865,7 +1986,8 @@ def scan_due(dob, doses, today, agreed=None):
             continue
         mine = given.get(vaccine_id, {})
         if needs_clinical_review(dob, brand.get("doses"),
-                                 raw_doses.get(vaccine_id, [])):
+                                 raw_doses.get(vaccine_id, []),
+                                 repeatable=meta.get("repeatable", False)):
             continue        # same rule as the file: no guessing, no message
         if not mine and vaccine_id not in (agreed or ()):
             # A course nobody started **and** nobody agreed on is not "late".
@@ -1898,6 +2020,22 @@ def scan_due(dob, doses, today, agreed=None):
                                start_closed_after=start_closed_after)
 
         if meta["seasonal"]:
+            # A seasonal course is one dose a year for almost everybody, and
+            # the code here read that as "a seasonal course is one dose". It
+            # is not: a child under nine having their first influenza vaccine
+            # owes a second one four weeks later, in the same season. So the
+            # course is asked about first and the annual recall is what
+            # happens when the course has nothing pending — which for a
+            # returning patient is immediately, exactly as before.
+            pending = next((n for n, _age in rota
+                            if timings[n][1] in ("overdue", "due")), None)
+            if pending is not None:
+                due, status = timings[pending]
+                out.append({"vaccine": meta["obj"], "brand": brand["obj"],
+                            "dose_number": pending,
+                            "due_date": due.isoformat() if due else None,
+                            "status": status})
+                continue
             last = max((d for d in mine.values() if d), default=None)
             if last is None:
                 continue        # agreed, never given — no annual recall yet
