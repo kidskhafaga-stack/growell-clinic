@@ -116,6 +116,20 @@
         <div class="alert-pill danger" style="margin-top:6px;">
           <i class="bi bi-exclamation-octagon"></i> {{ t('settings.timezone_broken') }}</div>
         {% endif %}</div>
+      {# Which published guideline the vaccination engine follows. A policy,
+         not a code path: the same product can carry two positions — Bexsero's
+         course is the European label's from two months and the CDC's from ten
+         years — and changing this recomputes from the doses already on file
+         without re-entering a single one. #}
+      <div class="form-row"><label>{{ t('settings.guideline_profile') }}</label>
+        {% set gp = values.get('vaccine_guideline_profile') or 'manufacturer' %}
+        <select class="select" name="vaccine_guideline_profile">
+          {% for key in ['manufacturer', 'cdc', 'who'] %}
+          <option value="{{ key }}" {{ 'selected' if gp == key else '' }}>
+            {{ t('settings.guideline_' ~ key) }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint">{{ t('settings.guideline_profile_hint') }}</div></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
         <input class="input" name="clinic_name_ar" value="{{ values.get('clinic_name_ar','') }}"></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_en') }}</label>

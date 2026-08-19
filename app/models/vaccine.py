@@ -438,7 +438,17 @@ class VaccineScheduleTemplate(db.Model):
     is_seeded = db.Column(db.Boolean, default=False, nullable=False)
     sort_order = db.Column(db.Integer, default=0)
 
-    SOURCES = ["manufacturer", "who", "national", "custom"]
+    SOURCES = ["manufacturer", "cdc", "who", "national", "custom"]
+
+    # Which of those a clinic can *follow*. The national programme and a
+    # clinic's own edits are schedules in their own right; the three below are
+    # the published guidelines a clinic chooses between as a policy.
+    #
+    # The choice is a setting, not a fork in the code. Bexsero's course is the
+    # European label's from two months and the CDC's from ten years — the same
+    # product, two published positions — and a clinic changing which one it
+    # follows must not need a developer, or a re-entry of a single dose.
+    GUIDELINE_PROFILES = ["manufacturer", "cdc", "who"]
 
     vaccine = db.relationship("Vaccine", back_populates="schedule_templates")
     doses = db.relationship(
