@@ -888,13 +888,77 @@
         {% endif %}
       </div>
       {% set vdone = patient.patient_vaccines|length %}
-      {% if vdone %}
-      <p style="margin-top:14px;">{{ t('vaccinations.doses_recorded') }}: <strong>{{ vdone }}</strong></p>
-      <div class="gc-stagger" style="display:flex;flex-wrap:wrap;gap:8px;">
-        {% for pv in patient.patient_vaccines|sort(attribute='given_date', reverse=true) %}
-        <span class="badge badge--green"><i class="bi bi-check-circle"></i> {{ pv.vaccine.display_name(current_lang) }} ({{ pv.dose_number }}) · {{ pv.given_date.strftime('%Y-%m-%d') }}</span>
-        {% endfor %}
-      </div>
+      {% if vdone or vaccine_next %}
+
+      {# What is owed, first. A list of what already happened answers the one
+         question nobody is asking while they have the file open. #}
+      {% if vaccine_next %}
+        {% set nd = vaccine_next[3] %}
+        <div class="card gc-scale-in"
+             style="margin-top:14px;border-inline-start:4px solid var(--{{ 'danger' if nd.status == 'overdue' else 'accent' }});">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <i class="bi bi-calendar-event" style="font-size:1.4rem;opacity:.7;"></i>
+            <div style="flex:1;min-width:180px;">
+              <div class="hint" style="margin:0;">{{ t('vaccinations.next_due') }}</div>
+              <strong style="font-size:1.05rem;">
+                {{ vaccine_next[1].display_name(current_lang) }}
+                <span class="hint">— {{ t('vaccinations.dose') }} {{ nd.dose_number }}</span>
+              </strong>
+            </div>
+            <div style="text-align:end;">
+              <div><strong>{{ nd.due_date or '—' }}</strong></div>
+              <span class="badge badge--{{ 'danger' if nd.status == 'overdue' else 'role' }}">
+                {{ t('vstatus.' ~ nd.status) }}</span>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# One card per course, carrying its own "2/3" — the flat list it
+         replaced put the three doses of one vaccine pages apart, so "has this
+         child finished it?" could only be answered by counting. #}
+      {% if vaccine_cards %}
+        <div class="gc-stagger"
+             style="display:grid;gap:12px;margin-top:14px;
+                    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));">
+          {% for card in vaccine_cards %}
+            {% set item = (vaccine_plan | selectattr('vaccine.id', 'equalto', card.vaccine.id) | list | first) %}
+            <div class="card gc-lift" style="margin:0;">
+              <div style="display:flex;align-items:start;gap:8px;justify-content:space-between;">
+                <div>
+                  <strong>{{ card.vaccine.display_name(current_lang) }}</strong>
+                  {% if card.brand %}
+                    <div class="hint" style="margin-top:2px;">
+                      <i class="bi bi-box"></i> {{ card.brand.display_name(current_lang) }}</div>
+                  {% endif %}
+                </div>
+                <span class="badge badge--{{ 'green' if card.complete else 'role' }}">
+                  {{ card.given }}/{{ card.total }}</span>
+              </div>
+
+              {% if item and item.course %}
+                <div style="margin-top:8px;">
+                  <span class="badge badge--{{ 'green' if card.complete else 'muted' }}">
+                    {{ item.course.label }}</span>
+                </div>
+              {% endif %}
+
+              <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+                {% for d in card.doses %}
+                  <div class="hint" style="display:flex;justify-content:space-between;gap:8px;">
+                    <span><i class="bi bi-check-circle" style="color:var(--green);"></i>
+                      {{ t('vaccinations.dose') }} {{ d.dose_number }}</span>
+                    <span>{{ d.given_date }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p style="color:var(--muted);margin-top:14px;">{{ t('vaccinations.none_recorded') }}</p>
+      {% endif %}
+
       {% else %}
       <p style="color:var(--muted);margin-top:14px;">{{ t('vaccinations.none_recorded') }}</p>
       {% endif %}
