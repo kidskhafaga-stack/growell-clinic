@@ -30,6 +30,7 @@ ADDITIONS = [
     # is what stops a three-year-old being offered rotavirus, so it is the one
     # that must reach an existing clinic rather than only a fresh install.
     ("vaccine_brands", "max_age_final_dose_days", "INTEGER"),
+    ("vaccine_brands", "max_age_first_dose_days", "INTEGER"),
     ("vaccine_brands", "interchange_to", "VARCHAR(12)"),
     ("vaccine_brands", "interchange_flag_under_months", "INTEGER"),
     ("vaccine_brands", "valency", "VARCHAR(120)"),
@@ -238,6 +239,8 @@ ADDITIONS = [
     # The age band a schedule applies to, as numbers the program chooses by.
     ("vaccine_schedule_templates", "brand_id", "INTEGER"),
     ("vaccine_schedule_templates", "requires_previous_doses", "VARCHAR(10)"),
+    ("vaccine_schedule_templates", "first_gap_min_days", "INTEGER"),
+    ("vaccine_schedule_templates", "first_gap_max_days", "INTEGER"),
     ("vaccine_schedule_templates", "start_age_min_months", "INTEGER"),
     ("vaccine_schedule_templates", "start_age_max_months", "INTEGER"),
     ("vaccine_schedule_templates", "source", "VARCHAR(20) DEFAULT 'custom'"),

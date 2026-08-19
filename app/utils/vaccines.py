@@ -87,7 +87,8 @@ def _catalogue_load_flags():
 # its correction across a re-seed, which is the same promise the schedules
 # already make.
 _BRAND_FACTS = ("manufacturer", "valency", "dose_volume",
-                "max_age_final_dose_days", "registered_in_egypt",
+                "max_age_final_dose_days", "max_age_first_dose_days",
+                "registered_in_egypt",
                 "available_now", "doses_change_by_start_age",
                 "reminder_scope", "source_url",
                 "interchange_to", "interchange_flag_under_months")
@@ -320,9 +321,18 @@ _AGE_BANDED = {
     ],
     "HPV": [
         {"code": "HPV2", "min": 108, "max": 179, "sort_order": 0,
-         "label": "9–14 سنة: جرعتان (0 و6–12 شهر) — للمراجعة",
-         "doses": [(108, None), (114, 180)]},
-        {"code": "HPV3", "min": 180, "max": None, "sort_order": 1,
+         "gap_min": 150,
+         "label": "9–14 سنة: جرعتان (الثانية بعد 5–13 شهر) — للمراجعة",
+         "doses": [(108, None), (114, 150)]},
+        # The same age, and the second dose came too soon. The leaflet says
+        # such a course is not two doses but three — a rule about something
+        # that already happened, which no schedule chosen at the first dose
+        # could have known.
+        {"code": "HPV2-SHORT", "min": 108, "max": 179, "sort_order": 1,
+         "gap_max": 150,
+         "label": "9–14 سنة والفاصل أقل من 5 شهور: 3 جرعات — للمراجعة",
+         "doses": [(108, None), (110, 28), (114, 112)]},
+        {"code": "HPV3", "min": 180, "max": None, "sort_order": 2,
          "label": "15 سنة فأكثر: 3 جرعات (0، 2، 6 شهور) — للمراجعة",
          "doses": [(180, None), (182, 28), (186, 112)]},
     ],
@@ -349,7 +359,8 @@ _CATCH_UP_MIN_INTERVAL = 28
 def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    sort_order=0, start_age_min_months=None,
                    start_age_max_months=None, brand_id=None,
-                   requires_previous_doses=None):
+                   requires_previous_doses=None, first_gap_min_days=None,
+                   first_gap_max_days=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -364,6 +375,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         start_age_min_months=start_age_min_months,
         start_age_max_months=start_age_max_months, brand_id=brand_id,
         requires_previous_doses=requires_previous_doses,
+        first_gap_min_days=first_gap_min_days,
+        first_gap_max_days=first_gap_max_days,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -440,7 +453,9 @@ def seed_vaccine_schedules():
                 start_age_min_months=band.get("min"),
                 start_age_max_months=band.get("max"),
                 brand_id=brand_id,
-                requires_previous_doses=band.get("previous"))
+                requires_previous_doses=band.get("previous"),
+                first_gap_min_days=band.get("gap_min"),
+                first_gap_max_days=band.get("gap_max"))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -521,7 +536,7 @@ def chosen_brand(patient_id, vaccine, given=None):
 GIVEABLE = ("overdue", "due", "suggested")
 
 
-def _status(due_date, given, today, closed_after=None):
+def _status(due_date, given, today, closed_after=None, cannot_start=False):
     """What this dose is, for this child, today.
 
     ``closed_after`` is the last date the dose could still be given — the
@@ -534,6 +549,13 @@ def _status(due_date, given, today, closed_after=None):
     """
     if given:
         return "done"
+    # Never begun, and the window for beginning has shut. Distinct from
+    # `expired`, which is about finishing: a child can be inside the finish
+    # window and past the start one, and offering them a first dose then is
+    # asking a question the label has already answered. The program used to
+    # ask when to give a dose without ever asking whether it may.
+    if cannot_start:
+        return "not_eligible"
     if closed_after is not None and today > closed_after:
         return "expired"
     if due_date is None:
@@ -585,7 +607,7 @@ def _months_between(dob, when):
     return months - 1 if when.day < dob.day else months
 
 
-def _pick_band(bands, dob, start, previous, today):
+def _pick_band(bands, dob, start, previous, today, first_gap=None):
     """The first band whose age range and history condition both match.
 
     Both halves, because the leaflets name them together. "Unvaccinated 7 to
@@ -604,6 +626,25 @@ def _pick_band(bands, dob, start, previous, today):
             continue
         if needs == "some" and not previous:
             continue
+        # The gap actually achieved between the first two doses. Unknown until
+        # the second one happens, so a band that asks about it simply does not
+        # apply yet — the child stays on whichever band their age chose, and
+        # moves only when the answer exists.
+        low_gap, high_gap = band.get("gap_min"), band.get("gap_max")
+        if first_gap is None:
+            # The second dose has not happened, so the gap cannot disqualify
+            # anything yet. The **expectation** applies — a course is two
+            # doses until the second one arrives too early — so a band that
+            # exists to catch a short gap waits for the evidence, while the
+            # ordinary band applies now. Reversed, every child was shown the
+            # exception before anything had gone wrong.
+            if high_gap is not None:
+                continue
+        else:
+            if low_gap is not None and first_gap < low_gap:
+                continue
+            if high_gap is not None and first_gap >= high_gap:
+                continue
         return band["doses"]
     return None
 
@@ -643,6 +684,18 @@ def mixed_series_note(brand, previous_brand_ids, dob, switched_on):
                     "months": under}
         return None
     return {"level": "conditional", "reason": "review"}
+
+
+def _achieved_first_gap(given_dates):
+    """Days between the first two doses actually given, or None.
+
+    None means "not yet known", which is different from zero and is why the
+    band condition treats it as "this rule cannot decide anything".
+    """
+    dates = sorted(d for d in given_dates.values() if d)
+    if len(dates) < 2:
+        return None
+    return (dates[1] - dates[0]).days
 
 
 def schedule_for(vaccine, brand, dob, given_dates, today=None,
@@ -689,7 +742,8 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
     start = brand_first
     if start is None:
         start = min((d for d in given_dates.values() if d), default=None)
-    picked = _pick_band(bands, dob, start, previous, today or local_today())
+    picked = _pick_band(bands, dob, start, previous, today or local_today(),
+                        first_gap=_achieved_first_gap(given_dates))
     if picked is not None:
         return picked
     # The guideline speaks about this product and says nothing about a child
@@ -792,6 +846,8 @@ def _banded_templates():
                 "max": template.start_age_max_months,
                 "brand_id": template.brand_id,
                 "previous": template.requires_previous_doses,
+                "gap_min": template.first_gap_min_days,
+                "gap_max": template.first_gap_max_days,
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -800,7 +856,7 @@ def _banded_templates():
 
 
 def course_dates(dob, schedule, given, planned, min_interval,
-                 earliest_live, closed_after, today):
+                 earliest_live, closed_after, today, start_closed_after=None):
     """When each dose of one course falls due, and what it is today.
 
     The whole scheduling rule, in one place and over plain values: a birthday,
@@ -818,6 +874,14 @@ def course_dates(dob, schedule, given, planned, min_interval,
     """
     out = {}
     prev_date = None
+    # A series nobody has begun, whose window for beginning has shut. Judged
+    # once for the course rather than per dose: it is the *first* dose the
+    # label puts a deadline on, and once that is past none of the rest can
+    # happen either.
+    cannot_start = bool(
+        start_closed_after is not None
+        and not any(d for d in given.values())
+        and today > start_closed_after)
     for dose_number, age_months in schedule:
         given_date = given.get(dose_number)
         due = add_months(dob, age_months) if dob else None
@@ -842,7 +906,8 @@ def course_dates(dob, schedule, given, planned, min_interval,
             effective = due
         prev_date = effective
         out[dose_number] = (due, _status(due, given_date is not None, today,
-                                         closed_after=closed_after))
+                                         closed_after=closed_after,
+                                         cannot_start=cannot_start))
     return out
 
 
@@ -909,6 +974,10 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         closed_after = None
         if dob and brand.max_age_final_dose_days:
             closed_after = dob + timedelta(days=brand.max_age_final_dose_days)
+        start_closed_after = None
+        if dob and brand.max_age_first_dose_days:
+            start_closed_after = dob + timedelta(
+                days=brand.max_age_first_dose_days)
         # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
         # the child already got (can't co-administer with a past dose anymore).
         earliest_live = None
@@ -950,7 +1019,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                                or row.given_date < brand_first)}
         mixed = mixed_series_note(brand, earlier_brands, dob, brand_first)
         timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
-                               earliest_live, closed_after, today)
+                               earliest_live, closed_after, today,
+                               start_closed_after=start_closed_after)
 
         doses = []
         by_number = {d.dose_number: d for d in brand.doses}
@@ -1187,7 +1257,8 @@ def plan_summary(plan):
     promise is only broken on a course somebody started here.
     """
     s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
-         "expired": 0, "national": 0, "on_demand": 0, "total": 0}
+         "expired": 0, "not_eligible": 0, "national": 0, "on_demand": 0,
+         "total": 0}
     for v in plan:
         for d in v["doses"]:
             s[d["status"]] = s.get(d["status"], 0) + 1
@@ -1639,6 +1710,7 @@ def _catalogue_rows():
             brands[b.id] = {"id": b.id, "vaccine_id": b.vaccine_id,
                             "default": bool(b.is_default),
                             "ceiling": b.max_age_final_dose_days,
+                            "start_ceiling": b.max_age_first_dose_days,
                             "obj": b}
         for row in VaccineBrandDose.query.order_by(
                 VaccineBrandDose.dose_number).all():
@@ -1671,7 +1743,8 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     start = brand_first
     if start is None:
         start = min((d for d in given_dates.values() if d), default=None)
-    picked = _pick_band(bands, dob, start, previous, today)
+    picked = _pick_band(bands, dob, start, previous, today,
+                        first_gap=_achieved_first_gap(given_dates))
     if picked is None and any(b.get("authoritative") for b in bands):
         return []
     return picked
@@ -1729,6 +1802,8 @@ def scan_due(dob, doses, today, agreed=None):
             continue
         closed_after = (dob + timedelta(days=brand["ceiling"])
                         if dob and brand["ceiling"] else None)
+        start_closed_after = (dob + timedelta(days=brand["start_ceiling"])
+                              if dob and brand.get("start_ceiling") else None)
         earliest_live = None
         if meta["live"]:
             others = [d for vid, d in live_given.items() if vid != vaccine_id]
@@ -1746,7 +1821,8 @@ def scan_due(dob, doses, today, agreed=None):
         timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,
-                               closed_after, today)
+                               closed_after, today,
+                               start_closed_after=start_closed_after)
 
         if meta["seasonal"]:
             last = max((d for d in mine.values() if d), default=None)

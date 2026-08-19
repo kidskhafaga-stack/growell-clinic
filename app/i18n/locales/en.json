@@ -1062,7 +1062,8 @@
     "suggested": "Suggested for age",
     "expired": "Window closed",
     "national": "National schedule",
-    "on_demand": "On indication"
+    "on_demand": "On indication",
+    "not_eligible": "Too late to start"
   },
   "vtype": {
     "live": "Live attenuated",

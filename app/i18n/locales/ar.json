@@ -1062,7 +1062,8 @@
     "suggested": "مقترح لسنه",
     "expired": "انتهت مدته",
     "national": "الجدول القومي",
-    "on_demand": "عند الحاجة"
+    "on_demand": "عند الحاجة",
+    "not_eligible": "فات وقت البدء"
   },
   "vtype": {
     "live": "حي مُضعَّف",

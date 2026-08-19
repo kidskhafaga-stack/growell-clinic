@@ -175,6 +175,13 @@ class VaccineBrand(db.Model):
     # two weeks early or leaves it two weeks too long, on the one vaccine
     # where the window is the whole point.
     max_age_final_dose_days = db.Column(db.Integer)   # NULL = no ceiling
+    # The latest a **first** dose may be given, in days. A different question
+    # from the ceiling above and the one nobody was asking: rotavirus must be
+    # finished by 24 weeks on RotaRix, and it must also not be *started* after
+    # about 15. A child past the start window but inside the finish window was
+    # being offered a series that cannot be begun — the program asking when to
+    # give a dose without ever asking whether it may.
+    max_age_first_dose_days = db.Column(db.Integer)
     valency = db.Column(db.String(120))               # "13-valent PCV"
     dose_volume = db.Column(db.String(40))            # "0.5 mL"
     # Registered is not the same as obtainable, and conflating them puts a
@@ -425,6 +432,17 @@ class VaccineScheduleTemplate(db.Model):
     # pneumococcal dose when the next one is Vaxneuvance, which is the
     # clinical rule and also the one `dose_infer` already numbers by.
     requires_previous_doses = db.Column(db.String(10))
+    # The gap actually achieved between the first two doses, in days, for this
+    # schedule to apply. Same shape as the age band and for the same reason:
+    # a number the program compares, not prose a person reads.
+    #
+    # HPV is why it exists. Two doses are enough from nine to fourteen **if
+    # the second comes five to thirteen months after the first**; given
+    # sooner, the course becomes three. So the count depends on something that
+    # already happened rather than on anything known at the start, and a
+    # schedule chosen once at the first dose cannot express it.
+    first_gap_min_days = db.Column(db.Integer)
+    first_gap_max_days = db.Column(db.Integer)   # exclusive
 
     PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)

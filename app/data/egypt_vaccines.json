@@ -257,7 +257,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotarix"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotarix",
+          "max_age_first_dose_days": 105
         },
         {
           "name": "RotaTeq",
@@ -278,7 +279,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotateq"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotateq",
+          "max_age_first_dose_days": 105
         },
         {
           "name": "Rotasiil",
@@ -298,7 +300,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://extranet.who.int/prequal/vaccines/p/rotasiil"
+          "source_url": "https://extranet.who.int/prequal/vaccines/p/rotasiil",
+          "max_age_first_dose_days": 105
         }
       ],
       "route": "oral",
