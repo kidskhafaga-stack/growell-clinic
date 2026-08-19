@@ -257,7 +257,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotarix"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotarix",
+          "max_age_first_dose_days": 105
         },
         {
           "name": "RotaTeq",
@@ -278,7 +279,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotateq"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/rotateq",
+          "max_age_first_dose_days": 105
         },
         {
           "name": "Rotasiil",
@@ -298,7 +300,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://extranet.who.int/prequal/vaccines/p/rotasiil"
+          "source_url": "https://extranet.who.int/prequal/vaccines/p/rotasiil",
+          "max_age_first_dose_days": 105
         }
       ],
       "route": "oral",
@@ -398,7 +401,28 @@
           "source_url": "https://www.edaegypt.gov.eg/ar/",
           "interchange_to": "conditional",
           "interchange_flag_under_months": 15
-        },
+        }
+      ],
+      "route": "IM",
+      "min_interval_days": 28,
+      "booster": true,
+      "catch_up_ar": "جدول 3+0 أو 2+1 (روتيني 2/4/6 + منشّط 12 شهر). عدد الجرعات التعويضية يقل كلما كبر السن، والطفل السليم فوق 24 شهر غالباً لا يحتاجه. فاصل أدنى 4 أسابيع.",
+      "reference_ar": "WHO — نشرة موقف المكورات الرئوية + ACIP — للمراجعة",
+      "booster_from_dose": 4,
+      "booster_note_ar": "جدول 3+1: ثلاث جرعات أساسية (2/4/6 شهور) وجرعة منشّطة عند 12 شهر — ACIP/WHO، للمراجعة"
+    },
+    {
+      "code": "PPSV23",
+      "name_ar": "المكورات الرئوية عديدة السكاريد (PPSV23)",
+      "name_en": "Pneumococcal polysaccharide (PPSV23)",
+      "mandatory": false,
+      "on_demand": true,
+      "route": "IM",
+      "min_age_months": 24,
+      "min_interval_days": 1825,
+      "catch_up_ar": "عديد سكاريد 23 نوع — من عمر سنتين ولأصحاب الخطورة فقط. جرعة واحدة وتُعاد مرة بعد 5 سنوات عند اللزوم. ليس جزءاً من سلسلة المكورات المقترنة (PCV) ولا يُحتسب منها.",
+      "reference_ar": "نشرة المنتج — للمراجعة",
+      "brands": [
         {
           "name": "Pneumo 23",
           "name_en": "Pneumo 23 (PPSV23)",
@@ -414,16 +438,10 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "risk",
-          "source_url": "https://www.cdc.gov/pneumococcal/hcp/vaccine-recommendations/index.html"
+          "source_url": "https://www.cdc.gov/pneumococcal/hcp/vaccine-recommendations/index.html",
+          "default": true
         }
-      ],
-      "route": "IM",
-      "min_interval_days": 28,
-      "booster": true,
-      "catch_up_ar": "جدول 3+0 أو 2+1 (روتيني 2/4/6 + منشّط 12 شهر). عدد الجرعات التعويضية يقل كلما كبر السن، والطفل السليم فوق 24 شهر غالباً لا يحتاجه. فاصل أدنى 4 أسابيع.",
-      "reference_ar": "WHO — نشرة موقف المكورات الرئوية + ACIP — للمراجعة",
-      "booster_from_dose": 4,
-      "booster_note_ar": "جدول 3+1: ثلاث جرعات أساسية (2/4/6 شهور) وجرعة منشّطة عند 12 شهر — ACIP/WHO، للمراجعة"
+      ]
     },
     {
       "code": "VARICELLA",

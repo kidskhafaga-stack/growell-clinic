@@ -87,7 +87,8 @@ def _catalogue_load_flags():
 # its correction across a re-seed, which is the same promise the schedules
 # already make.
 _BRAND_FACTS = ("manufacturer", "valency", "dose_volume",
-                "max_age_final_dose_days", "registered_in_egypt",
+                "max_age_final_dose_days", "max_age_first_dose_days",
+                "registered_in_egypt",
                 "available_now", "doses_change_by_start_age",
                 "reminder_scope", "source_url",
                 "interchange_to", "interchange_flag_under_months")
@@ -159,6 +160,11 @@ def seed_vaccines():
                 is_seasonal=v.get("seasonal", False),
                 vaccine_type=vtype, reference=cu_ref,
                 min_interval_days=v.get("min_interval_days"),
+                # Both ends of the age range. `min_age_months` has been a
+                # column since the medical fields were added and nothing ever
+                # filled it from the catalogue — so "not before two years" was
+                # written down in prose and known to nobody.
+                min_age_months=v.get("min_age_months"),
                 max_age_months=v.get("max_age_months"),
                 booster_required=v.get("booster", False),
                 catch_up_notes=cu,
@@ -182,6 +188,8 @@ def seed_vaccines():
                 vaccine.catch_up_notes = cu
             if v.get("min_interval_days") and vaccine.min_interval_days is None:
                 vaccine.min_interval_days = v["min_interval_days"]
+            if v.get("min_age_months") and vaccine.min_age_months is None:
+                vaccine.min_age_months = v["min_age_months"]
             if v.get("max_age_months") and vaccine.max_age_months is None:
                 vaccine.max_age_months = v["max_age_months"]
             if v.get("booster") and not vaccine.booster_required:
@@ -260,6 +268,14 @@ _AGE_BANDED = {
     # Every band is 0.5 mL IM. The doses below are
     # ``(recommended_age_months, min_interval_days_from_previous)``.
     "MENB": [
+        # The CDC licenses the same product from ten years, with two doses.
+        # Stored beside the European bands rather than replacing them: the
+        # clinic picks which guideline it follows in settings, and switching
+        # recomputes from the doses already on file without re-entering one.
+        {"code": "MENB-CDC-10Y", "min": 120, "max": None, "sort_order": 0,
+         "brand": "Bexsero", "source": "cdc",
+         "label": "CDC: من 10 سنوات — جرعتان بفاصل 6 شهور — للمراجعة",
+         "doses": [(120, None), (126, 180)]},
         {"code": "MENB-2-5", "min": 2, "max": 5, "sort_order": 0,
          "brand": "Bexsero",
          "label": "بدء 2–5 شهور: 3 أساسية + منشّط 12–15 شهر — للمراجعة",
@@ -303,11 +319,104 @@ _AGE_BANDED = {
          "label": "Vaxneuvance — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
          "doses": [(24, None)]},
     ],
+    # MenACWY, where the three conjugates disagree with each other about
+    # nearly everything. They are licensed from different ages — 6 weeks for
+    # Nimenrix, 2 months for Menveo, 9 months for Menactra — and the number of
+    # doses a child needs depends on which product they are on as much as on
+    # how old they were when they started. One schedule on the vaccine could
+    # only ever be right for one of them, and the catalogue's Arabic prose
+    # said so in three different sentences that nothing read.
+    #
+    # Mencevax is deliberately absent. It is a polysaccharide, one dose from
+    # two years, and its `doses_change_by_start_age` is already False — so it
+    # falls through to the vaccine's own schedule, which is what it wants.
+    "MENACWY": [
+        # Menactra: 9–23 months is two doses, ≥3 months apart; from two years
+        # it is one.
+        {"code": "MCV4-MENACTRA-INF", "min": 9, "max": 23, "sort_order": 0,
+         "brand": "Menactra",
+         "label": "Menactra — بدء 9–23 شهر: جرعتان بفاصل ≥3 شهور — للمراجعة",
+         "doses": [(9, None), (12, 90)]},
+        {"code": "MCV4-MENACTRA-2Y", "min": 24, "max": None, "sort_order": 1,
+         "brand": "Menactra",
+         "label": "Menactra — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+
+        # Menveo: a four-dose infant series from two months, a two-dose
+        # catch-up for a child who reaches 7–23 months with nothing, and a
+        # single dose from two years. The catch-up asks for an empty record
+        # because that is what the leaflet asks: a nine-month-old already two
+        # doses into the infant series is not "unvaccinated 7–23 months", and
+        # moving them onto a two-dose course would shorten it by half.
+        {"code": "MCV4-MENVEO-INF", "min": 1, "max": 6, "sort_order": 2,
+         "brand": "Menveo",
+         "label": "Menveo — بدء 2–6 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
+         "doses": [(2, None), (4, 60), (6, 60), (12, 60)]},
+        {"code": "MCV4-MENVEO-CU7", "previous": "none",
+         "min": 7, "max": 23, "sort_order": 3,
+         "brand": "Menveo",
+         "label": "Menveo — بدء 7–23 شهر بدون جرعات سابقة: جرعتان، "
+                  "الثانية في السنة الثانية وبفاصل ≥3 شهور — للمراجعة",
+         "doses": [(7, None), (13, 90)]},
+        {"code": "MCV4-MENVEO-2Y", "min": 24, "max": None, "sort_order": 4,
+         "brand": "Menveo",
+         "label": "Menveo — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+
+        # Nimenrix: from 6 weeks, and the only one of the three whose infant
+        # course is two primary doses plus a booster in the second year.
+        {"code": "MCV4-NIMENRIX-INF", "min": 1, "max": 5, "sort_order": 5,
+         "brand": "Nimenrix",
+         "label": "Nimenrix — بدء 6 أسابيع–5 شهور: جرعتان بفاصل ≥شهرين "
+                  "+ منشّط عند 12 شهر — للمراجعة",
+         "doses": [(2, None), (4, 60), (12, 60)]},
+        {"code": "MCV4-NIMENRIX-6M", "previous": "none",
+         "min": 6, "max": 11, "sort_order": 6,
+         "brand": "Nimenrix",
+         "label": "Nimenrix — بدء 6–11 شهر: جرعة + منشّط عند 12 شهر "
+                  "بفاصل ≥شهرين — للمراجعة",
+         "doses": [(6, None), (12, 60)]},
+        {"code": "MCV4-NIMENRIX-12M", "min": 12, "max": None, "sort_order": 7,
+         "brand": "Nimenrix",
+         "label": "Nimenrix — بدء 12 شهر فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(12, None)]},
+    ],
+    # Influenza, where "one dose a year" is right for almost everybody and
+    # wrong for the child in front of you having their first ever flu shot: a
+    # first-time recipient under nine needs a second dose four weeks later, in
+    # the same season, and only then one a year for life.
+    #
+    # The catalogue said so in Arabic prose — "أول مرة تحت 9 سنوات: جرعتان
+    # بفاصل 4 أسابيع، ثم جرعة واحدة سنوياً" — and every seasonal code path in
+    # this module assumed a seasonal course was exactly one dose, so the
+    # second one had nowhere to appear.
+    #
+    # Matched on the age at the first dose, like every other band, which is
+    # also what the rule means: a child who begins at eight does not lose the
+    # second dose by turning nine four weeks later.
+    "FLU": [
+        {"code": "FLU-PRIME", "min": None, "max": 107, "sort_order": 0,
+         "label": "أول موسم تحت 9 سنوات: جرعتان بفاصل ≥4 أسابيع، "
+                  "ثم جرعة واحدة سنوياً — للمراجعة",
+         "doses": [(6, None), (7, 28)]},
+        {"code": "FLU-ANNUAL", "min": 108, "max": None, "sort_order": 1,
+         "label": "9 سنوات فأكثر: جرعة واحدة سنوياً — للمراجعة",
+         "doses": [(6, None)]},
+    ],
     "HPV": [
         {"code": "HPV2", "min": 108, "max": 179, "sort_order": 0,
-         "label": "9–14 سنة: جرعتان (0 و6–12 شهر) — للمراجعة",
-         "doses": [(108, None), (114, 180)]},
-        {"code": "HPV3", "min": 180, "max": None, "sort_order": 1,
+         "gap_min": 150,
+         "label": "9–14 سنة: جرعتان (الثانية بعد 5–13 شهر) — للمراجعة",
+         "doses": [(108, None), (114, 150)]},
+        # The same age, and the second dose came too soon. The leaflet says
+        # such a course is not two doses but three — a rule about something
+        # that already happened, which no schedule chosen at the first dose
+        # could have known.
+        {"code": "HPV2-SHORT", "min": 108, "max": 179, "sort_order": 1,
+         "gap_max": 150,
+         "label": "9–14 سنة والفاصل أقل من 5 شهور: 3 جرعات — للمراجعة",
+         "doses": [(108, None), (110, 28), (114, 112)]},
+        {"code": "HPV3", "min": 180, "max": None, "sort_order": 2,
          "label": "15 سنة فأكثر: 3 جرعات (0، 2، 6 شهور) — للمراجعة",
          "doses": [(180, None), (182, 28), (186, 112)]},
     ],
@@ -334,7 +443,8 @@ _CATCH_UP_MIN_INTERVAL = 28
 def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    sort_order=0, start_age_min_months=None,
                    start_age_max_months=None, brand_id=None,
-                   requires_previous_doses=None):
+                   requires_previous_doses=None, first_gap_min_days=None,
+                   first_gap_max_days=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -349,6 +459,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         start_age_min_months=start_age_min_months,
         start_age_max_months=start_age_max_months, brand_id=brand_id,
         requires_previous_doses=requires_previous_doses,
+        first_gap_min_days=first_gap_min_days,
+        first_gap_max_days=first_gap_max_days,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -418,13 +530,16 @@ def seed_vaccine_schedules():
                     continue        # the trade name is not stocked here
                 brand_id = match.id
             created += _seed_template(
-                vaccine, code=band["code"], source="manufacturer",
+                vaccine, code=band["code"],
+                source=band.get("source", "manufacturer"),
                 label=band["label"], doses=band["doses"],
                 sort_order=band.get("sort_order", 0),
                 start_age_min_months=band.get("min"),
                 start_age_max_months=band.get("max"),
                 brand_id=brand_id,
-                requires_previous_doses=band.get("previous"))
+                requires_previous_doses=band.get("previous"),
+                first_gap_min_days=band.get("gap_min"),
+                first_gap_max_days=band.get("gap_max"))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -504,8 +619,16 @@ def chosen_brand(patient_id, vaccine, given=None):
 # other screen looked fine.
 GIVEABLE = ("overdue", "due", "suggested")
 
+# The window has shut: this dose can never be given now. **Two** words,
+# because there are two deadlines — one for beginning a series and one for
+# finishing it — and the moment the second one was introduced, every place
+# that had written `== "expired"` went on offering the other half. The
+# certificate did exactly that: a two-year-old was printed a rotavirus
+# suggestion again, with a due date from when they were two months old.
+SHUT = ("expired", "not_eligible")
 
-def _status(due_date, given, today, closed_after=None):
+
+def _status(due_date, given, today, closed_after=None, cannot_start=False):
     """What this dose is, for this child, today.
 
     ``closed_after`` is the last date the dose could still be given — the
@@ -518,6 +641,13 @@ def _status(due_date, given, today, closed_after=None):
     """
     if given:
         return "done"
+    # Never begun, and the window for beginning has shut. Distinct from
+    # `expired`, which is about finishing: a child can be inside the finish
+    # window and past the start one, and offering them a first dose then is
+    # asking a question the label has already answered. The program used to
+    # ask when to give a dose without ever asking whether it may.
+    if cannot_start:
+        return "not_eligible"
     if closed_after is not None and today > closed_after:
         return "expired"
     if due_date is None:
@@ -569,7 +699,7 @@ def _months_between(dob, when):
     return months - 1 if when.day < dob.day else months
 
 
-def _pick_band(bands, dob, start, previous, today):
+def _pick_band(bands, dob, start, previous, today, first_gap=None):
     """The first band whose age range and history condition both match.
 
     Both halves, because the leaflets name them together. "Unvaccinated 7 to
@@ -588,6 +718,25 @@ def _pick_band(bands, dob, start, previous, today):
             continue
         if needs == "some" and not previous:
             continue
+        # The gap actually achieved between the first two doses. Unknown until
+        # the second one happens, so a band that asks about it simply does not
+        # apply yet — the child stays on whichever band their age chose, and
+        # moves only when the answer exists.
+        low_gap, high_gap = band.get("gap_min"), band.get("gap_max")
+        if first_gap is None:
+            # The second dose has not happened, so the gap cannot disqualify
+            # anything yet. The **expectation** applies — a course is two
+            # doses until the second one arrives too early — so a band that
+            # exists to catch a short gap waits for the evidence, while the
+            # ordinary band applies now. Reversed, every child was shown the
+            # exception before anything had gone wrong.
+            if high_gap is not None:
+                continue
+        else:
+            if low_gap is not None and first_gap < low_gap:
+                continue
+            if high_gap is not None and first_gap >= high_gap:
+                continue
         return band["doses"]
     return None
 
@@ -627,6 +776,18 @@ def mixed_series_note(brand, previous_brand_ids, dob, switched_on):
                     "months": under}
         return None
     return {"level": "conditional", "reason": "review"}
+
+
+def _achieved_first_gap(given_dates):
+    """Days between the first two doses actually given, or None.
+
+    None means "not yet known", which is different from zero and is why the
+    band condition treats it as "this rule cannot decide anything".
+    """
+    dates = sorted(d for d in given_dates.values() if d)
+    if len(dates) < 2:
+        return None
+    return (dates[1] - dates[0]).days
 
 
 def schedule_for(vaccine, brand, dob, given_dates, today=None,
@@ -673,8 +834,18 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
     start = brand_first
     if start is None:
         start = min((d for d in given_dates.values() if d), default=None)
-    return _pick_band(bands, dob, start, previous,
-                      today or local_today()) or default
+    picked = _pick_band(bands, dob, start, previous, today or local_today(),
+                        first_gap=_achieved_first_gap(given_dates))
+    if picked is not None:
+        return picked
+    # The guideline speaks about this product and says nothing about a child
+    # this age — under the CDC, Bexsero simply is not scheduled below ten
+    # years. Falling back to the brand's raw dose rows would answer with a
+    # number from no guideline at all, which is worse than either. An empty
+    # course is the honest reading: this reference does not schedule it.
+    if any(b.get("authoritative") for b in bands):
+        return []
+    return default
 
 
 def _bands_for(vaccine_id, brand_id):
@@ -694,24 +865,48 @@ def _bands_for(vaccine_id, brand_id):
             if b["doses"] and b["brand_id"] is None]
 
 
+def guideline_profile():
+    """Which published guideline this clinic follows, from settings.
+
+    A policy, not a code path. The same product can have two published
+    positions — Bexsero's course is the European label's from two months and
+    the CDC's from ten years — and a clinic changing which it follows should
+    change a setting, not a program.
+    """
+    from app.models import VaccineScheduleTemplate
+
+    try:
+        from app.models import Setting
+        chosen = (Setting.get("vaccine_guideline_profile", "") or "").strip()
+    except Exception:  # noqa: BLE001 - settings table not ready yet
+        chosen = ""
+    if chosen in VaccineScheduleTemplate.GUIDELINE_PROFILES:
+        return chosen
+    return "manufacturer"
+
+
 def _banded_templates():
     """``{vaccine_id: [{min, max, doses}]}`` for the schedules that carry a
     band, read once per request.
 
-    Only ``manufacturer`` schedules are followed. The clinic's decision, said
-    plainly: the leaflet is what the course follows, and the WHO row is kept
-    beside it as a reference to read rather than a schedule to run — which is
-    why `source` has always been on the template and why both are seeded.
+    Read for the profile the clinic follows, **falling back to the
+    manufacturer's** where that profile says nothing. The fallback is the load-
+    bearing part: no guideline covers every product a clinic stocks, and a
+    profile with a gap that silently left a vaccine unscheduled would turn
+    "we follow the CDC" into "we stopped following anything for half the
+    fridge". The leaflet is what a product always has.
     """
     from app.models import VaccineScheduleDose, VaccineScheduleTemplate
     from app.utils.request_cache import remember
 
     def load():
         out = {}
+        profile = guideline_profile()
+        wanted = {profile, "manufacturer"}
         rows = (VaccineScheduleTemplate.query
                 .filter(VaccineScheduleTemplate.is_active.is_(True),
                         VaccineScheduleTemplate.is_catch_up.is_(False),
-                        VaccineScheduleTemplate.source == "manufacturer")
+                        VaccineScheduleTemplate.source.in_(list(wanted)))
                 .filter(db.or_(
                     VaccineScheduleTemplate.start_age_min_months.isnot(None),
                     VaccineScheduleTemplate.start_age_max_months.isnot(None)))
@@ -726,12 +921,25 @@ def _banded_templates():
                     .order_by(VaccineScheduleDose.dose_number).all()):
             doses.setdefault(row.template_id, []).append(
                 (row.dose_number, row.recommended_age_months))
+        # The chosen profile wins wherever it speaks; the leaflet fills the
+        # rest. Grouped per (vaccine, brand) so a profile covering one product
+        # does not silence the leaflet's schedule for its neighbours.
+        speaks = {(t.vaccine_id, t.brand_id) for t in rows
+                  if t.source == profile}
         for template in rows:
+            if (template.source != profile
+                    and (template.vaccine_id, template.brand_id) in speaks):
+                continue
             out.setdefault(template.vaccine_id, []).append({
+                # This row came from the guideline the clinic follows, so its
+                # silence about an age is itself an answer.
+                "authoritative": template.source == profile != "manufacturer",
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
                 "brand_id": template.brand_id,
                 "previous": template.requires_previous_doses,
+                "gap_min": template.first_gap_min_days,
+                "gap_max": template.first_gap_max_days,
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -739,8 +947,67 @@ def _banded_templates():
     return remember("vaccines:banded_templates", load)
 
 
+# When the program will not answer.
+#
+# "Any case the engine cannot establish from age, history, intervals, brand,
+# guideline and eligibility — it will not guess. It returns Clinical Review
+# Required instead of producing an unverified medical reminder."
+#
+# Everything else in this module decides *what* to do. This decides when the
+# honest answer is that nobody here can decide, which is the one output a
+# schedule engine cannot produce by being clever.
+REVIEW_REASONS = {
+    # A dose exists with no date on it. Every interval, ceiling and window is
+    # computed from dates, so one missing makes the rest arithmetic on a hole.
+    # Common in imported history, which is exactly where nobody notices.
+    "undated_dose": "جرعة بدون تاريخ — الفواصل والحدود كلها بتتحسب من التواريخ",
+    # Two doses recorded under the same number. Either one is a duplicate or
+    # a number is wrong, and the course is a different length depending which.
+    "duplicate_dose": "جرعتان بنفس الرقم — الكورس طوله مختلف حسب أيهما الصحيح",
+    # More doses on file than the schedule has room for. Never asked about a
+    # vaccine that repeats — four influenza doses are four winters.
+    "more_than_scheduled": "جرعات أكثر مما يسمح به الجدول",
+    # The child's own record contradicts the order of the schedule.
+    "out_of_order": "تواريخ الجرعات مش بترتيب أرقامها",
+}
+
+
+def needs_clinical_review(dob, schedule, given_rows, repeatable=False):
+    """Why this course cannot be scheduled, or None.
+
+    ``given_rows`` are ``(dose_number, given_date)`` for the doses on file.
+    ``repeatable`` says this vaccine is given again and again rather than as a
+    course of fixed length — a seasonal one, or an on-demand one.
+
+    Deliberately narrow. It looks for records the arithmetic cannot be run on
+    at all — not for anything a doctor might want a second opinion about,
+    which would put the flag on everybody and teach the clinic to ignore it.
+
+    ``repeatable`` is that promise being kept rather than an exception to it.
+    Influenza is one dose in the catalogue and a child of five has had four,
+    which is not a contradiction — it is four winters. Measured before this
+    argument existed: every returning influenza patient in the register read
+    "clinical review required", and because the flag also stops the message,
+    their annual recall went silent. A flag that fires on the ordinary case is
+    worse than no flag, and here it was worse than that.
+    """
+    if dob is None:
+        return "undated_dose" if given_rows else None
+    numbers = [n for n, _d in given_rows]
+    if any(d is None for _n, d in given_rows):
+        return "undated_dose"
+    if len(numbers) != len(set(numbers)):
+        return "duplicate_dose"
+    if schedule and not repeatable and len(numbers) > len(schedule):
+        return "more_than_scheduled"
+    ordered = [d for _n, d in sorted(given_rows, key=lambda r: r[0] or 0)]
+    if any(b < a for a, b in zip(ordered, ordered[1:])):
+        return "out_of_order"
+    return None
+
+
 def course_dates(dob, schedule, given, planned, min_interval,
-                 earliest_live, closed_after, today):
+                 earliest_live, closed_after, today, start_closed_after=None):
     """When each dose of one course falls due, and what it is today.
 
     The whole scheduling rule, in one place and over plain values: a birthday,
@@ -758,6 +1025,14 @@ def course_dates(dob, schedule, given, planned, min_interval,
     """
     out = {}
     prev_date = None
+    # A series nobody has begun, whose window for beginning has shut. Judged
+    # once for the course rather than per dose: it is the *first* dose the
+    # label puts a deadline on, and once that is past none of the rest can
+    # happen either.
+    cannot_start = bool(
+        start_closed_after is not None
+        and not any(d for d in given.values())
+        and today > start_closed_after)
     for dose_number, age_months in schedule:
         given_date = given.get(dose_number)
         due = add_months(dob, age_months) if dob else None
@@ -782,7 +1057,8 @@ def course_dates(dob, schedule, given, planned, min_interval,
             effective = due
         prev_date = effective
         out[dose_number] = (due, _status(due, given_date is not None, today,
-                                         closed_after=closed_after))
+                                         closed_after=closed_after,
+                                         cannot_start=cannot_start))
     return out
 
 
@@ -849,6 +1125,10 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         closed_after = None
         if dob and brand.max_age_final_dose_days:
             closed_after = dob + timedelta(days=brand.max_age_final_dose_days)
+        start_closed_after = None
+        if dob and brand.max_age_first_dose_days:
+            start_closed_after = dob + timedelta(
+                days=brand.max_age_first_dose_days)
         # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
         # the child already got (can't co-administer with a past dose anymore).
         earliest_live = None
@@ -881,6 +1161,17 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                             or row.given_date < brand_first))
         rota = schedule_for(vaccine, brand, dob, given_dates, today,
                             brand_first=brand_first, previous=previous)
+        # Before anything is computed from these dates, whether they can be
+        # computed from at all.
+        # From the raw rows, not from `given_index`: that is keyed by
+        # (vaccine, dose number) and so a duplicated number collapses into one
+        # entry — the very thing being looked for disappears on the way in.
+        review = needs_clinical_review(
+            dob, rota,
+            [(pv.dose_number, pv.given_date) for pv in rows
+             if pv.vaccine_id == vaccine.id
+             and (pv.event_type or "given") == "given"],
+            repeatable=bool(vaccine.is_seasonal or vaccine.on_demand))
         # Did the course change product, and does the destination's leaflet
         # have anything to say about that?
         earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
@@ -890,7 +1181,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                                or row.given_date < brand_first)}
         mixed = mixed_series_note(brand, earlier_brands, dob, brand_first)
         timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
-                               earliest_live, closed_after, today)
+                               earliest_live, closed_after, today,
+                               start_closed_after=start_closed_after)
 
         doses = []
         by_number = {d.dose_number: d for d in brand.doses}
@@ -998,6 +1290,16 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # is exactly this set, and an agreed course belongs in it — that
             # is the table a family is handed.
             "mixed": mixed,
+            # Whether a schedule band actually answered for this course. The
+            # "doses vary with the starting age" warning exists to admit that
+            # the program does not know; once a band for this product has been
+            # read out of a leaflet and seeded, it does know, and going on
+            # warning turns a real caution into wallpaper.
+            "banded": bool(_bands_for(vaccine.id, brand.id)) if brand else False,
+            # Set when the record cannot be scheduled from. The screens show
+            # it in place of a due date, because a date computed from a
+            # contradiction is worse than no date.
+            "review": review,
             "agreed": vaccine.id in (agreed or ()),
             "committed": started or vaccine.id in (agreed or ()),
             "done": sum(1 for x in doses if x["status"] == "done"),
@@ -1127,7 +1429,8 @@ def plan_summary(plan):
     promise is only broken on a course somebody started here.
     """
     s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
-         "expired": 0, "national": 0, "on_demand": 0, "total": 0}
+         "expired": 0, "not_eligible": 0, "national": 0, "on_demand": 0,
+         "total": 0}
     for v in plan:
         for d in v["doses"]:
             s[d["status"]] = s.get(d["status"], 0) + 1
@@ -1193,9 +1496,25 @@ def patient_due_reminders(patient, lang="ar", today=None, doses=None,
         # Wiring the *status* without this left the file computing "overdue"
         # and then dropping it on the floor, which the sweep did not — caught
         # by the test that holds the two to the same answer.
+        if v.get("review"):
+            # The record cannot be scheduled from, so no date computed from it
+            # may go out as a reminder. The file shows the flag; nothing here
+            # sends anything. "It will not guess" has to mean the message too,
+            # or the guess simply travels further.
+            continue
         if not done and not v.get("agreed"):
             continue
         if vac.is_seasonal:
+            # The course before the recall — see the same split in `scan_due`.
+            # A first influenza dose under nine owes a second four weeks
+            # later, and until this was written no seasonal path could say so.
+            nxt = next((d for d in v["doses"]
+                        if d["status"] in ("overdue", "due")), None)
+            if nxt:
+                out.append({"vaccine": vac, "brand": brand,
+                            "dose_number": nxt["dose_number"],
+                            "due_date": nxt["due_date"], "status": nxt["status"]})
+                continue
             last_iso = max((d["given_date"] for d in done if d["given_date"]), default=None)
             if last_iso and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS:
                 out.append({"vaccine": vac, "brand": brand,
@@ -1519,7 +1838,12 @@ def visit_vaccine_panel(patient, lang="ar"):
             continue
         # Seasonal vaccines taken here recur every year instead of following the
         # fixed schedule — once ~11 months pass, offer the next yearly dose.
-        if vac.is_seasonal and given:
+        if vac.is_seasonal and given and not any(
+                d["status"] in GIVEABLE for d in v["doses"]):
+            # ...unless the course itself still owes a dose. The second
+            # influenza dose of a first season is four weeks after the first,
+            # not eleven months, and a nurse looking at this panel is the
+            # person who would otherwise never be told.
             last_iso = max((d["given_date"] for d in given if d["given_date"]), default=None)
             if (last_iso and brand is not None
                     and (today - date.fromisoformat(last_iso)).days >= SEASONAL_RECALL_DAYS):
@@ -1570,6 +1894,10 @@ def _catalogue_rows():
         for v in Vaccine.query.order_by(Vaccine.sort_order).all():
             vaccines[v.id] = {
                 "id": v.id, "code": v.code, "seasonal": bool(v.is_seasonal),
+                # Given again and again rather than as a course of fixed
+                # length, so "more doses than the schedule" is not a
+                # contradiction about it.
+                "repeatable": bool(v.is_seasonal or v.on_demand),
                 "min_interval": v.min_interval_days or _CATCH_UP_MIN_INTERVAL,
                 "live": (v.vaccine_type == "live" and (v.route or "") != "oral"),
                 "obj": v,
@@ -1579,6 +1907,7 @@ def _catalogue_rows():
             brands[b.id] = {"id": b.id, "vaccine_id": b.vaccine_id,
                             "default": bool(b.is_default),
                             "ceiling": b.max_age_final_dose_days,
+                            "start_ceiling": b.max_age_first_dose_days,
                             "obj": b}
         for row in VaccineBrandDose.query.order_by(
                 VaccineBrandDose.dose_number).all():
@@ -1611,7 +1940,11 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     start = brand_first
     if start is None:
         start = min((d for d in given_dates.values() if d), default=None)
-    return _pick_band(bands, dob, start, previous, today)
+    picked = _pick_band(bands, dob, start, previous, today,
+                        first_gap=_achieved_first_gap(given_dates))
+    if picked is None and any(b.get("authoritative") for b in bands):
+        return []
+    return picked
 
 
 def scan_due(dob, doses, today, agreed=None):
@@ -1632,6 +1965,7 @@ def scan_due(dob, doses, today, agreed=None):
 
     given = {}          # vaccine_id -> {dose_number: given_date}
     brand_doses = {}    # vaccine_id -> [(brand_id, given_date)]
+    raw_doses = {}      # vaccine_id -> [(dose_number, given_date)], duplicates kept
     planned = {}        # vaccine_id -> {dose_number: date}
     locked = {}         # vaccine_id -> brand_id of the earliest given dose
     live_given = {}
@@ -1639,6 +1973,7 @@ def scan_due(dob, doses, today, agreed=None):
         if (event_type or "given") == "given":
             given.setdefault(vaccine_id, {})[dose_number] = given_date
             brand_doses.setdefault(vaccine_id, []).append((brand_id, given_date))
+            raw_doses.setdefault(vaccine_id, []).append((dose_number, given_date))
             best = locked.get(vaccine_id)
             key = (given_date is not None, given_date or date.min,
                    dose_number or 0)
@@ -1658,6 +1993,10 @@ def scan_due(dob, doses, today, agreed=None):
         if brand is None or not brand.get("doses"):
             continue
         mine = given.get(vaccine_id, {})
+        if needs_clinical_review(dob, brand.get("doses"),
+                                 raw_doses.get(vaccine_id, []),
+                                 repeatable=meta.get("repeatable", False)):
+            continue        # same rule as the file: no guessing, no message
         if not mine and vaccine_id not in (agreed or ()):
             # A course nobody started **and** nobody agreed on is not "late".
             # The agreement is the other way in: it is what the doctor and the
@@ -1666,6 +2005,8 @@ def scan_due(dob, doses, today, agreed=None):
             continue
         closed_after = (dob + timedelta(days=brand["ceiling"])
                         if dob and brand["ceiling"] else None)
+        start_closed_after = (dob + timedelta(days=brand["start_ceiling"])
+                              if dob and brand.get("start_ceiling") else None)
         earliest_live = None
         if meta["live"]:
             others = [d for vid, d in live_given.items() if vid != vaccine_id]
@@ -1677,14 +2018,32 @@ def scan_due(dob, doses, today, agreed=None):
         previous = sum(1 for (_bid, d) in brand_doses.get(vaccine_id, [])
                        if d and (brand_first is None or d < brand_first))
         rota = _banded_for(vaccine_id, brand["id"], dob, mine, today,
-                           brand_first=brand_first, previous=previous) \
-            or brand["doses"]
+                           brand_first=brand_first, previous=previous)
+        if rota is None:
+            rota = brand["doses"]
         timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,
-                               closed_after, today)
+                               closed_after, today,
+                               start_closed_after=start_closed_after)
 
         if meta["seasonal"]:
+            # A seasonal course is one dose a year for almost everybody, and
+            # the code here read that as "a seasonal course is one dose". It
+            # is not: a child under nine having their first influenza vaccine
+            # owes a second one four weeks later, in the same season. So the
+            # course is asked about first and the annual recall is what
+            # happens when the course has nothing pending — which for a
+            # returning patient is immediately, exactly as before.
+            pending = next((n for n, _age in rota
+                            if timings[n][1] in ("overdue", "due")), None)
+            if pending is not None:
+                due, status = timings[pending]
+                out.append({"vaccine": meta["obj"], "brand": brand["obj"],
+                            "dose_number": pending,
+                            "due_date": due.isoformat() if due else None,
+                            "status": status})
+                continue
             last = max((d for d in mine.values() if d), default=None)
             if last is None:
                 continue        # agreed, never given — no annual recall yet

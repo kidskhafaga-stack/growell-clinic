@@ -8,6 +8,23 @@ from app.extensions import db, login_manager
 from app.models.permissions import ROLES, role_can_access, role_modules
 
 
+# The printed size of a doctor's signature and stamp at 100%, as
+# ``(max_height_px, max_width_px)``. These were two pairs of numbers written
+# into the prescription template; a clinic that wanted a bigger stamp had to
+# be told "that is not something the program does".
+PRINT_IMAGE_BOX = {"signature_file": (60, 200), "stamp_file": (90, 140)}
+PRINT_SCALE_MIN, PRINT_SCALE_MAX = 40, 250
+
+
+def clamp_print_scale(value, fallback=100):
+    """A percentage that cannot make an image vanish or eat the page."""
+    try:
+        pct = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(PRINT_SCALE_MIN, min(PRINT_SCALE_MAX, pct))
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 
@@ -50,6 +67,12 @@ class User(UserMixin, db.Model):
     license_no = db.Column(db.String(60))           # رقم الترخيص/النقابة
     signature_file = db.Column(db.String(255))      # التوقيع الرقمي
     stamp_file = db.Column(db.String(255))          # الختم الطبي
+    # How big each of those prints, as a percentage of the built-in size. A
+    # scan is whatever size the scanner made it, and the two that matter are
+    # the two nobody can retake: a signature that came out postage-stamp
+    # sized, and a stamp that swallows the bottom of the page.
+    signature_scale = db.Column(db.Integer, default=100)
+    stamp_scale = db.Column(db.Integer, default=100)
     personal_logo = db.Column(db.String(255))       # شعار شخصي (اختياري)
     accent_color = db.Column(db.String(20))         # لون مميز
     rx_template_id = db.Column(db.Integer, db.ForeignKey("rx_print_templates.id"), nullable=True)
@@ -226,6 +249,18 @@ class User(UserMixin, db.Model):
         table = self.HONORIFICS.get(self.professional_title or "",
                                     self.DEFAULT_HONORIFIC)
         return table.get(lang, table.get("ar", ""))
+
+    def print_image_box(self, field):
+        """``(max_height, max_width)`` in px for a signature or stamp.
+
+        Scaled in both directions, so the image keeps its shape — a box that
+        grew in height alone would squash a wide signature rather than
+        enlarge it, which is the failure this exists to fix.
+        """
+        base_h, base_w = PRINT_IMAGE_BOX[field]
+        pct = clamp_print_scale(
+            getattr(self, field.replace("_file", "_scale"), None) or 100)
+        return round(base_h * pct / 100), round(base_w * pct / 100)
 
     def doctor_print_name(self, lang="ar"):
         """Name shown on the doctor's prescriptions and printouts."""

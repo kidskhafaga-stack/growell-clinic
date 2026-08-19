@@ -1062,7 +1062,8 @@
     "suggested": "Suggested for age",
     "expired": "Window closed",
     "national": "National schedule",
-    "on_demand": "On indication"
+    "on_demand": "On indication",
+    "not_eligible": "Too late to start"
   },
   "vtype": {
     "live": "Live attenuated",
@@ -1410,7 +1411,12 @@
     "timezone_broken": "This machine cannot resolve that timezone. On Windows that means the tzdata package is missing — metrics needing local time will stay blank rather than showing wrong numbers.",
     "ai_test_unsaved": "The test succeeded — but these settings are not saved yet. Press save, or the assistant will keep reporting itself as not ready.",
     "plan_chips": "Plan phrases",
-    "plan_chips_hint": "The sentences that repeat in the plan box."
+    "plan_chips_hint": "The sentences that repeat in the plan box.",
+    "guideline_profile": "Vaccination guideline",
+    "guideline_manufacturer": "Manufacturer leaflet",
+    "guideline_cdc": "CDC",
+    "guideline_who": "WHO",
+    "guideline_profile_hint": "Which reference the schedule is computed from. Changing it recomputes from the same records with nothing re-entered. A product the chosen guideline does not cover keeps its leaflet."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2522,7 +2528,8 @@
     "theme_system": "System",
     "my_chips": "My quick phrases",
     "my_chips_hint": "Yours alone. Leave empty to use the clinic's list.",
-    "chips_ph": "One per line — بالعربي|English"
+    "chips_ph": "One per line — بالعربي|English",
+    "print_size": "Print size"
   },
   "rxtpl": {
     "title": "Prescription print templates",
@@ -4998,5 +5005,9 @@
     "under_age": "Switched under {months} months — not established in the label",
     "none": "Earlier product's doses do not count towards this one",
     "title": "Interchangeability note"
+  },
+  "vreview": {
+    "title": "Clinical review required",
+    "hint": "This record cannot be scheduled from — the program will not guess."
   }
 }

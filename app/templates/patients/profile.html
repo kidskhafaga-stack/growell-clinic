@@ -936,7 +936,12 @@
                   {{ card.given }}/{{ card.total }}</span>
               </div>
 
-              {% if item and item.course %}
+              {% if item and item.review %}
+                <div style="margin-top:8px;">
+                  <span class="badge badge--danger" title="{{ t('vreview.hint') }}">
+                    <i class="bi bi-question-octagon"></i> {{ t('vreview.title') }}</span>
+                </div>
+              {% elif item and item.course %}
                 <div style="margin-top:8px;">
                   <span class="badge badge--{{ 'green' if card.complete else 'muted' }}">
                     {{ item.course.label }}</span>

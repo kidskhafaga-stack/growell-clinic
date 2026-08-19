@@ -155,7 +155,7 @@
                 {{ t('vmix.' ~ item.mixed.level) }}
               {% endif %}</span>
           {% endif %}
-          {% if item.brand.doses_change_by_start_age and item.committed %}
+          {% if item.brand.doses_change_by_start_age and item.committed and not item.banded %}
             <span class="badge badge--danger" title="{{ item.brand.catch_up_notes or v.catch_up_ar or '' }}">
               <i class="bi bi-exclamation-triangle"></i> {{ t('vaccinations.varies_by_start_age') }}</span>
           {% endif %}

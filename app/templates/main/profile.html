@@ -2,7 +2,7 @@
 {% block title %}{{ t('profile.title') }}{% endblock %}
 {% block page_heading %}{{ t('profile.my_profile') }}{% endblock %}
 
-{% macro img_box(field, label, current) %}
+{% macro img_box(field, label, current, scale=none) %}
   <div class="form-row">
     <label>{{ label }}</label>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -19,6 +19,23 @@
       <button class="btn btn-outline btn-sm gc-press" type="submit" formaction="{{ url_for('main.profile_image_delete', field=field) }}" formnovalidate><i class="bi bi-trash"></i></button>
       {% endif %}
     </div>
+    {% if scale is not none %}{{ print_scale(field, scale) }}{% endif %}
+  </div>
+{% endmacro %}
+
+{# How big it comes out on paper. A scan is whatever size the scanner made
+   it, and the printed box was two numbers written into the prescription
+   template — so a signature that came out postage-stamp sized stayed that
+   way. Shown as a percentage because that is what the doctor is judging: not
+   "how many pixels" but "bigger than that". #}
+{% macro print_scale(field, value) %}
+  {% set key = field.replace('_file', '_scale') %}
+  <div style="display:flex;align-items:center;gap:10px;margin-top:8px;max-width:320px;">
+    <span style="color:var(--muted);font-size:.85rem;white-space:nowrap;">{{ t('profile.print_size') }}</span>
+    <input type="range" name="{{ key }}" min="40" max="250" step="5"
+           value="{{ value or 100 }}" style="flex:1;"
+           oninput="this.nextElementSibling.textContent = this.value + '%'">
+    <output style="min-width:46px;text-align:end;font-variant-numeric:tabular-nums;">{{ value or 100 }}%</output>
   </div>
 {% endmacro %}
 
@@ -101,8 +118,8 @@
     <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.phrases_screen') }}">
       <i class="bi bi-pencil-square"></i> {{ t('phrases.title') }}</a>
     <h3 style="margin:14px 0 6px;font-size:0.95rem;"><i class="bi bi-palette"></i> {{ t('profile.branding') }}</h3>
-    {{ img_box('signature_file', t('profile.signature'), current_user.signature_file) }}
-    {{ img_box('stamp_file', t('profile.stamp'), current_user.stamp_file) }}
+    {{ img_box('signature_file', t('profile.signature'), current_user.signature_file, scale=current_user.signature_scale) }}
+    {{ img_box('stamp_file', t('profile.stamp'), current_user.stamp_file, scale=current_user.stamp_scale) }}
     {{ img_box('personal_logo', t('profile.personal_logo'), current_user.personal_logo) }}
   </div>
   {% endif %}

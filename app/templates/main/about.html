@@ -18,6 +18,36 @@
   {% endif %}
 {% endmacro %}
 
+{# The same picker the profile and patient screens use: a thumbnail of what
+   is there now, one button, and the square cropper on pick. It was three
+   bare `<input type=file>` boxes — the browser's own control, which shows a
+   file name and no picture, and hands the server whatever shape the phone
+   took. These photographs are drawn in circles by `face()` above, so an
+   uncropped one is cropped anyway; the only question was whether the person
+   uploading it got to decide which part survived. #}
+{% macro photo_box(current, hint=false) %}
+  <label>{{ t('about.photo') }}</label>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    {% if current %}
+    <img src="{{ url_for('static', filename='uploads/about/' ~ current) }}" alt=""
+         style="width:64px;height:64px;border-radius:50%;object-fit:cover;
+                border:1px solid var(--line);background:#fff;">
+    {% endif %}
+    <label class="btn btn-outline btn-sm gc-press" style="cursor:pointer;">
+      <i class="bi bi-upload"></i> {{ t('profile.upload') }}
+      <input type="file" name="photo" accept="image/*" hidden data-crop="square"></label>
+  </div>
+  {% if current %}
+  <label style="display:flex;gap:8px;align-items:center;margin-top:8px;
+                color:var(--muted);font-size:.9rem;font-weight:400;">
+    <input type="checkbox" name="drop_photo" value="1"> {{ t('about.remove_photo') }}</label>
+  {% endif %}
+  {% if hint %}
+  <span style="color:var(--muted);font-size:.85rem;margin-top:6px;">
+    {{ t('about.photo_hint') }}</span>
+  {% endif %}
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
   <div>
@@ -222,14 +252,7 @@
           <textarea class="input" name="note_en" dir="ltr" rows="2">{{ person.note_en or '' }}</textarea></div>
         <div class="form-row"><label>{{ t('about.order') }}</label>
           <input class="input" type="number" name="sort_order" value="{{ person.sort_order }}"></div>
-        <div class="form-row"><label>{{ t('about.photo') }}</label>
-          <input class="input" type="file" name="photo" accept="image/*">
-          {% if person.photo %}
-          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;
-                        color:var(--muted);font-size:.9rem;font-weight:400;">
-            <input type="checkbox" name="drop_photo" value="1"> {{ t('about.remove_photo') }}</label>
-          {% endif %}
-        </div>
+        <div class="form-row">{{ photo_box(person.photo) }}</div>
       </div>
       <button class="btn btn-primary btn-sm gc-press" type="submit">
         <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
@@ -255,14 +278,7 @@
         <div class="form-row"><label>{{ t('about.contact') }}</label>
           <input class="input" name="about_developer_contact" dir="ltr"
                  value="{{ people.developer.contact }}"></div>
-        <div class="form-row"><label>{{ t('about.photo') }}</label>
-          <input class="input" type="file" name="photo" accept="image/*">
-          {% if people.developer.photo %}
-          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;
-                        color:var(--muted);font-size:.9rem;font-weight:400;">
-            <input type="checkbox" name="drop_photo" value="1"> {{ t('about.remove_photo') }}</label>
-          {% endif %}
-        </div>
+        <div class="form-row">{{ photo_box(people.developer.photo) }}</div>
       </div>
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
@@ -291,10 +307,7 @@
           <textarea class="input" name="note_en" dir="ltr" rows="2"></textarea></div>
         <div class="form-row"><label>{{ t('about.order') }}</label>
           <input class="input" type="number" name="sort_order" value="{{ people.doctors|length }}"></div>
-        <div class="form-row"><label>{{ t('about.photo') }}</label>
-          <input class="input" type="file" name="photo" accept="image/*">
-          <span style="color:var(--muted);font-size:.85rem;margin-top:6px;">
-            {{ t('about.photo_hint') }}</span></div>
+        <div class="form-row">{{ photo_box(none, hint=true) }}</div>
       </div>
       <button class="btn btn-primary gc-press gc-ripple" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('about.add_person') }}</button>

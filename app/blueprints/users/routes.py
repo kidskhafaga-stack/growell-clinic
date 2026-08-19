@@ -515,10 +515,18 @@ def doctor_rx(user_id):
     doc.rx_template_id = (chosen if chosen
                           and db.session.get(RxPrintTemplate, chosen) else None)
     from app.blueprints.main.routes import _save_image
+    from app.models.user import clamp_print_scale
     for field in RX_IMAGE_FIELDS:
         saved = _save_image(field)
         if saved:
             setattr(doc, field, saved)
+    # Set here as well as on the doctor's own profile, for the same reason the
+    # uploads are: the person setting a doctor up has the stamp in their hand
+    # on the first day and the doctor does not have a password yet.
+    for key in ("signature_scale", "stamp_scale"):
+        if key in request.form:
+            setattr(doc, key, clamp_print_scale(request.form.get(key),
+                                                getattr(doc, key) or 100))
     ActivityLog.record("doctor.rx_setup", user_id=current_user.id, entity="user",
                        entity_id=doc.id, detail=doc.username, ip_address=client_ip())
     db.session.commit()

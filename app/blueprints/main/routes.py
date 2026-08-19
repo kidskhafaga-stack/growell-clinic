@@ -12,6 +12,7 @@ from app.blueprints.main import main_bp
 from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog
+from app.models.user import clamp_print_scale
 
 ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
 PROFESSIONAL_TITLES = ["Professor", "Consultant", "Specialist", "Lecturer",
@@ -433,6 +434,15 @@ def profile():
             if saved:
                 _remove_image(getattr(u, field))
                 setattr(u, field, saved)
+
+        # How big the two that print come out on paper. What is already
+        # stored is the fallback, so a form that does not carry the slider —
+        # and there are several that post to this route — cannot return a
+        # doctor's stamp to the default by staying silent.
+        for key in ("signature_scale", "stamp_scale"):
+            if key in request.form:
+                setattr(u, key, clamp_print_scale(request.form.get(key),
+                                                  getattr(u, key) or 100))
 
         new_pw = request.form.get("password") or ""
         if new_pw:

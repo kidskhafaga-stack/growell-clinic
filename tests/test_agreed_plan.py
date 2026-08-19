@@ -132,15 +132,23 @@ def test_the_national_schedule_is_not_dragged_in(seeded):
 
 def test_a_shut_window_stays_shut(seeded):
     """Agreement is not a time machine. Rotavirus cannot be given to a
-    three-year-old whatever anybody agreed."""
-    from app.utils.vaccines import patient_plan
+    three-year-old whatever anybody agreed.
+
+    The exact status is `not_eligible` rather than `expired` — this child
+    never began, so it is the deadline for *starting* that stops them, not the
+    one for finishing. Asserted as "not on the giveable list" because the
+    promise being kept here is that agreement does not open a shut window, and
+    which of the two shut it is a different test's business.
+    """
+    from app.utils.vaccines import GIVEABLE, patient_plan
 
     with seeded["app"].app_context():
         kid = _child(seeded, days=1100, tag="A4")
         _agree(seeded, kid, "ROTA")
         rota = _states(patient_plan(kid), "ROTA")
 
-    assert set(rota) == {"expired"}, rota
+    assert not set(rota) & set(GIVEABLE), \
+        f"agreeing a course re-opened a window that had shut: {rota}"
 
 
 def test_removing_it_puts_the_course_back_where_it_was(seeded):

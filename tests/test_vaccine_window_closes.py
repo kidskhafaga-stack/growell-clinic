@@ -91,14 +91,22 @@ def test_a_baby_inside_the_window_is_still_offered_it(catalogue):
 
 
 def test_a_child_past_it_is_not_chased_for_ever(catalogue):
-    """The bug: every child over ~6 months read as overdue on rotavirus."""
-    from app.utils.vaccines import patient_plan
+    """The bug: every child over ~6 months read as overdue on rotavirus.
+
+    Asserted as "nothing giveable" rather than as one exact status. These
+    children never started, so what stops them is the deadline for beginning
+    and they read `not_eligible`; a child who *had* started and run out of
+    time reads `expired`. Both are shut windows and neither is chased, which
+    is what this test is about — pinning one of the two words made it fail on
+    the day the other one was introduced.
+    """
+    from app.utils.vaccines import GIVEABLE, patient_plan
 
     with catalogue["app"].app_context():
         for years, months in ((0, 7), (3, 0), (16, 0)):
             kid = _aged(catalogue, years, months, tag=f"{years}-{months}")
             _brand, states = _states(patient_plan(kid), "ROTA")
-            assert set(states) == {"expired"}, (
+            assert not set(states) & set(GIVEABLE), (
                 f"a child of {years}y {months}m is still offered rotavirus: "
                 f"{states}")
 
@@ -120,17 +128,32 @@ def test_the_window_shuts_on_the_right_day(catalogue):
 
     A child one day inside the window still has it; one day outside does not.
     Stored in months this pair would land on the same answer.
+
+    Measured on a child who **started** the series, deliberately. A child who
+    never started is decided earlier, by the deadline for beginning — so
+    testing the finish ceiling on one of those measures the wrong window, as
+    this test did until the start rule existed to separate them.
     """
+    from app.extensions import db
+    from app.models import PatientVaccine, Vaccine, VaccineBrand
     from app.utils.vaccines import patient_plan
 
     with catalogue["app"].app_context():
+        rota = Vaccine.query.filter_by(code="ROTA").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=rota.id,
+                                             name="RotaRix").first()
         for days, expect_open in ((24 * 7 - 1, True), (24 * 7 + 1, False)):
             kid = _aged(catalogue, tag=f"d{days}")
             kid.date_of_birth = local_today() - timedelta(days=days)
+            db.session.add(PatientVaccine(
+                patient_id=kid.id, vaccine_id=rota.id, brand_id=brand.id,
+                dose_number=1, event_type="given",
+                given_date=kid.date_of_birth + timedelta(weeks=8)))
+            db.session.commit()
             _brand, states = _states(patient_plan(kid), "ROTA")
-            shut = set(states) == {"expired"}
+            shut = "expired" in states
             assert shut is not expect_open, (
-                f"at {days} days old the window is "
+                f"at {days} days old the finish window is "
                 f"{'shut' if shut else 'open'}, expected the opposite")
 
 
