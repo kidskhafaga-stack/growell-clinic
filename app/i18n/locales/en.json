@@ -5004,5 +5004,9 @@
     "under_age": "Switched under {months} months — not established in the label",
     "none": "Earlier product's doses do not count towards this one",
     "title": "Interchangeability note"
+  },
+  "vreview": {
+    "title": "Clinical review required",
+    "hint": "This record cannot be scheduled from — the program will not guess."
   }
 }

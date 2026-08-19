@@ -855,6 +855,54 @@ def _banded_templates():
     return remember("vaccines:banded_templates", load)
 
 
+# When the program will not answer.
+#
+# "Any case the engine cannot establish from age, history, intervals, brand,
+# guideline and eligibility — it will not guess. It returns Clinical Review
+# Required instead of producing an unverified medical reminder."
+#
+# Everything else in this module decides *what* to do. This decides when the
+# honest answer is that nobody here can decide, which is the one output a
+# schedule engine cannot produce by being clever.
+REVIEW_REASONS = {
+    # A dose exists with no date on it. Every interval, ceiling and window is
+    # computed from dates, so one missing makes the rest arithmetic on a hole.
+    # Common in imported history, which is exactly where nobody notices.
+    "undated_dose": "جرعة بدون تاريخ — الفواصل والحدود كلها بتتحسب من التواريخ",
+    # Two doses recorded under the same number. Either one is a duplicate or
+    # a number is wrong, and the course is a different length depending which.
+    "duplicate_dose": "جرعتان بنفس الرقم — الكورس طوله مختلف حسب أيهما الصحيح",
+    # More doses on file than the schedule has room for.
+    "more_than_scheduled": "جرعات أكثر مما يسمح به الجدول",
+    # The child's own record contradicts the order of the schedule.
+    "out_of_order": "تواريخ الجرعات مش بترتيب أرقامها",
+}
+
+
+def needs_clinical_review(dob, schedule, given_rows):
+    """Why this course cannot be scheduled, or None.
+
+    ``given_rows`` are ``(dose_number, given_date)`` for the doses on file.
+
+    Deliberately narrow. It looks for records the arithmetic cannot be run on
+    at all — not for anything a doctor might want a second opinion about,
+    which would put the flag on everybody and teach the clinic to ignore it.
+    """
+    if dob is None:
+        return "undated_dose" if given_rows else None
+    numbers = [n for n, _d in given_rows]
+    if any(d is None for _n, d in given_rows):
+        return "undated_dose"
+    if len(numbers) != len(set(numbers)):
+        return "duplicate_dose"
+    if schedule and len(numbers) > len(schedule):
+        return "more_than_scheduled"
+    ordered = [d for _n, d in sorted(given_rows, key=lambda r: r[0] or 0)]
+    if any(b < a for a, b in zip(ordered, ordered[1:])):
+        return "out_of_order"
+    return None
+
+
 def course_dates(dob, schedule, given, planned, min_interval,
                  earliest_live, closed_after, today, start_closed_after=None):
     """When each dose of one course falls due, and what it is today.
@@ -1010,6 +1058,16 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                             or row.given_date < brand_first))
         rota = schedule_for(vaccine, brand, dob, given_dates, today,
                             brand_first=brand_first, previous=previous)
+        # Before anything is computed from these dates, whether they can be
+        # computed from at all.
+        # From the raw rows, not from `given_index`: that is keyed by
+        # (vaccine, dose number) and so a duplicated number collapses into one
+        # entry — the very thing being looked for disappears on the way in.
+        review = needs_clinical_review(
+            dob, rota,
+            [(pv.dose_number, pv.given_date) for pv in rows
+             if pv.vaccine_id == vaccine.id
+             and (pv.event_type or "given") == "given"])
         # Did the course change product, and does the destination's leaflet
         # have anything to say about that?
         earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
@@ -1128,6 +1186,10 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # is exactly this set, and an agreed course belongs in it — that
             # is the table a family is handed.
             "mixed": mixed,
+            # Set when the record cannot be scheduled from. The screens show
+            # it in place of a due date, because a date computed from a
+            # contradiction is worse than no date.
+            "review": review,
             "agreed": vaccine.id in (agreed or ()),
             "committed": started or vaccine.id in (agreed or ()),
             "done": sum(1 for x in doses if x["status"] == "done"),
@@ -1324,6 +1386,12 @@ def patient_due_reminders(patient, lang="ar", today=None, doses=None,
         # Wiring the *status* without this left the file computing "overdue"
         # and then dropping it on the floor, which the sweep did not — caught
         # by the test that holds the two to the same answer.
+        if v.get("review"):
+            # The record cannot be scheduled from, so no date computed from it
+            # may go out as a reminder. The file shows the flag; nothing here
+            # sends anything. "It will not guess" has to mean the message too,
+            # or the guess simply travels further.
+            continue
         if not done and not v.get("agreed"):
             continue
         if vac.is_seasonal:
@@ -1768,6 +1836,7 @@ def scan_due(dob, doses, today, agreed=None):
 
     given = {}          # vaccine_id -> {dose_number: given_date}
     brand_doses = {}    # vaccine_id -> [(brand_id, given_date)]
+    raw_doses = {}      # vaccine_id -> [(dose_number, given_date)], duplicates kept
     planned = {}        # vaccine_id -> {dose_number: date}
     locked = {}         # vaccine_id -> brand_id of the earliest given dose
     live_given = {}
@@ -1775,6 +1844,7 @@ def scan_due(dob, doses, today, agreed=None):
         if (event_type or "given") == "given":
             given.setdefault(vaccine_id, {})[dose_number] = given_date
             brand_doses.setdefault(vaccine_id, []).append((brand_id, given_date))
+            raw_doses.setdefault(vaccine_id, []).append((dose_number, given_date))
             best = locked.get(vaccine_id)
             key = (given_date is not None, given_date or date.min,
                    dose_number or 0)
@@ -1794,6 +1864,9 @@ def scan_due(dob, doses, today, agreed=None):
         if brand is None or not brand.get("doses"):
             continue
         mine = given.get(vaccine_id, {})
+        if needs_clinical_review(dob, brand.get("doses"),
+                                 raw_doses.get(vaccine_id, [])):
+            continue        # same rule as the file: no guessing, no message
         if not mine and vaccine_id not in (agreed or ()):
             # A course nobody started **and** nobody agreed on is not "late".
             # The agreement is the other way in: it is what the doctor and the
