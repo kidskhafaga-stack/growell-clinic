@@ -89,7 +89,8 @@ def _catalogue_load_flags():
 _BRAND_FACTS = ("manufacturer", "valency", "dose_volume",
                 "max_age_final_dose_days", "registered_in_egypt",
                 "available_now", "doses_change_by_start_age",
-                "reminder_scope", "source_url")
+                "reminder_scope", "source_url",
+                "interchange_to", "interchange_flag_under_months")
 
 
 # The one fact whose blank really is ``False``: the column is NOT NULL with a
@@ -591,6 +592,43 @@ def _pick_band(bands, dob, start, previous, today):
     return None
 
 
+def mixed_series_note(brand, previous_brand_ids, dob, switched_on):
+    """What to say about a course finished on a different product.
+
+    Returns ``None`` when there is nothing to say — no switch, or a
+    destination whose leaflet allows switching in without reservation — else
+    ``{"level": ..., "reason": ...}`` for the file to show.
+
+    Read **as destination**: the question is what *this* brand's leaflet says
+    about children arriving at it, not what the previous one said about
+    leaving. The labels are written that way and interchangeability is not
+    symmetric, so asking the source product would answer a different question.
+
+    The program never substitutes a brand on its own — the doctor records what
+    was given, and stock and billing follow that. So "no automatic
+    substitution" is not a restriction to enforce; what a thin evidence base
+    earns is a note where somebody is deciding, and never a silent yes.
+    """
+    if not previous_brand_ids or brand.id in previous_brand_ids:
+        return None                     # nothing switched
+    status = (brand.interchange_to or "full").strip().lower()
+    if status == "full":
+        return None
+    if status == "none":
+        return {"level": "none", "reason": "not_counted"}
+    if status == "limited":
+        return {"level": "limited", "reason": "thin_evidence"}
+    # conditional: a reservation that only bites under a stated age, measured
+    # at the switch because that is what the label describes.
+    under = brand.interchange_flag_under_months
+    if under and dob and switched_on:
+        if _months_between(dob, switched_on) < under:
+            return {"level": "conditional", "reason": "under_age",
+                    "months": under}
+        return None
+    return {"level": "conditional", "reason": "review"}
+
+
 def schedule_for(vaccine, brand, dob, given_dates, today=None,
                  brand_first=None, previous=0):
     """The dose ages this child's course actually follows.
@@ -615,8 +653,6 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
     doses, so this changes nothing for the catalogue as it stands. The bands
     are filled in one at a time, by somebody who has read the leaflet.
     """
-    from app.models import VaccineScheduleDose, VaccineScheduleTemplate
-
     default = [(d.dose_number, d.age_months) for d in brand.doses]
     if dob is None:
         return default
@@ -845,6 +881,14 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                             or row.given_date < brand_first))
         rota = schedule_for(vaccine, brand, dob, given_dates, today,
                             brand_first=brand_first, previous=previous)
+        # Did the course change product, and does the destination's leaflet
+        # have anything to say about that?
+        earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
+                          if vid == vaccine.id and row.brand_id
+                          and row.given_date
+                          and (brand_first is None
+                               or row.given_date < brand_first)}
+        mixed = mixed_series_note(brand, earlier_brands, dob, brand_first)
         timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
                                earliest_live, closed_after, today)
 
@@ -953,6 +997,7 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # one the doctor agreed to. The certificate's "what is left" table
             # is exactly this set, and an agreed course belongs in it — that
             # is the table a family is handed.
+            "mixed": mixed,
             "agreed": vaccine.id in (agreed or ()),
             "committed": started or vaccine.id in (agreed or ()),
             "done": sum(1 for x in doses if x["status"] == "done"),

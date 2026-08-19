@@ -4991,5 +4991,12 @@
     "undo": "Undo",
     "hidden_n": "{n} hidden",
     "show_hidden": "Show hidden"
+  },
+  "vmix": {
+    "limited": "Mixed series — limited data, clinician review preferred",
+    "conditional": "Conditional switch — check the product leaflet",
+    "under_age": "Switched under {months} months — not established in the label",
+    "none": "Earlier product's doses do not count towards this one",
+    "title": "Interchangeability note"
   }
 }

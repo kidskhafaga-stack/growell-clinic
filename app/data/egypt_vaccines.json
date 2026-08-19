@@ -333,7 +333,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.pfizer.com/products/product-detail/prevnar_13"
+          "source_url": "https://www.pfizer.com/products/product-detail/prevnar_13",
+          "interchange_to": "full"
         },
         {
           "name": "Synflorix",
@@ -354,7 +355,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/synflorix"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/synflorix",
+          "interchange_to": "limited"
         },
         {
           "name": "Vaxneuvance",
@@ -373,7 +375,8 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/vaxneuvance"
+          "source_url": "https://www.fda.gov/vaccines-blood-biologics/vaccines/vaxneuvance",
+          "interchange_to": "full"
         },
         {
           "name": "Prevenar 20",
@@ -392,7 +395,9 @@
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.edaegypt.gov.eg/ar/"
+          "source_url": "https://www.edaegypt.gov.eg/ar/",
+          "interchange_to": "conditional",
+          "interchange_flag_under_months": 15
         },
         {
           "name": "Pneumo 23",

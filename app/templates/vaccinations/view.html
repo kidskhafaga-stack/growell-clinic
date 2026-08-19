@@ -142,6 +142,19 @@
              row it is wallpaper: measured at eleven badges on one healthy
              child's file, which is the number at which a warning stops being
              read at all. #}
+          {# The course was finished on a different product, and this one's
+             leaflet has something to say about that. Shown where the decision
+             is being made rather than logged somewhere nobody reads. #}
+          {% if item.mixed %}
+            <span class="badge badge--danger"
+                  title="{{ t('vmix.title') }}">
+              <i class="bi bi-shuffle"></i>
+              {% if item.mixed.reason == 'under_age' %}
+                {{ t('vmix.under_age', months=item.mixed.months) }}
+              {% else %}
+                {{ t('vmix.' ~ item.mixed.level) }}
+              {% endif %}</span>
+          {% endif %}
           {% if item.brand.doses_change_by_start_age and item.committed %}
             <span class="badge badge--danger" title="{{ item.brand.catch_up_notes or v.catch_up_ar or '' }}">
               <i class="bi bi-exclamation-triangle"></i> {{ t('vaccinations.varies_by_start_age') }}</span>

@@ -195,6 +195,33 @@ class VaccineBrand(db.Model):
     reminder_scope = db.Column(db.String(40))         # see REMINDER_SCOPES
     source_url = db.Column(db.String(255))            # where the fact came from
 
+    # ── Switching **to** this product, never away from it ──────────────
+    #
+    # Read as: *the next dose is this brand and the earlier ones were not —
+    # what does this brand's leaflet say?* Destination, not source. Every SmPC
+    # is written that way, describing children arriving at its own product,
+    # and interchangeability is not symmetric — so one column only works if
+    # everybody reads it in the same direction. Hence the name.
+    #
+    #   full        — the leaflet allows switching in at any point
+    #   conditional — allowed with a stated reservation. Prevenar 20's is that
+    #                 safety and immunogenicity under 15 months, in a child who
+    #                 began another pneumococcal, have not been established.
+    #   limited     — the data are thin. Finishing on the same product is
+    #                 preferred and a mixed series is worth a second look.
+    #   none        — earlier doses of another product do not count here.
+    #
+    # ``none`` is deliberately **not** the value for "limited evidence".
+    # Turning a reservation into a prohibition is as wrong as turning it into
+    # silence, and four states exist so neither has to happen — the same
+    # reasoning that gave `available_now` three.
+    interchange_to = db.Column(db.String(12))
+    # The age in months below which `conditional` becomes a flag rather than a
+    # quiet yes. Measured at the switch, which is what the label describes.
+    interchange_flag_under_months = db.Column(db.Integer)
+
+    INTERCHANGE = ["full", "conditional", "limited", "none"]
+
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(
         "VaccineBrandDose", back_populates="brand", cascade="all, delete-orphan",
