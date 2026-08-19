@@ -360,7 +360,17 @@ class VaccineScheduleTemplate(db.Model):
     )
     code = db.Column(db.String(20), nullable=False)   # A / B / C / D / standard
     label = db.Column(db.String(120))                 # "Start at 2 months"
-    age_group = db.Column(db.String(120))             # "2-6 months"
+    age_group = db.Column(db.String(120))             # "2-6 months" (display)
+    # The same band, in numbers the program can choose by. `age_group` is free
+    # text for a human to read; these decide which schedule a child is on.
+    #
+    # Measured against the age **at the first dose**, never the age today.
+    # Raised by the doctor as the rule that matters most: a child who started
+    # HPV at fourteen and eleven months is on the two-dose schedule, and does
+    # not jump to three because a birthday passed between doses. So the band
+    # is matched once, when the course starts, and the answer stays.
+    start_age_min_months = db.Column(db.Integer)
+    start_age_max_months = db.Column(db.Integer)      # inclusive; NULL = open
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     # Where this schedule comes from: the manufacturer's leaflet (SmPC), the WHO

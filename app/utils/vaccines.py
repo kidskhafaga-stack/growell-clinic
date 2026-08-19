@@ -233,6 +233,33 @@ def seed_vaccines():
 # optional vaccines where WHO's routine schedule is well established and differs
 # from a common manufacturer leaflet. Authored *for the doctor to review* — the
 # seed only fills a blank WHO schedule and never overwrites the doctor's edits.
+# Schedules whose **number of doses** depends on the age at the first dose.
+#
+# Only entries a doctor has reviewed and stated go here. HPV is the one: the
+# rule was written out for this program and checked against the leaflet —
+# 9–14 years is two doses six to twelve months apart, and from 15 it is three
+# at 0, 2 and 6 months. The second half matters as much as the first: a child
+# who started at fourteen and completed two doses correctly does **not** need
+# a third for turning fifteen in between, which is why the band is matched on
+# the age at the first dose and never on the age today.
+#
+# Bexsero is deliberately absent. Its dose count also varies with starting age
+# and the exact bands need the GSK leaflet, so it keeps one standard course
+# and carries the warning until somebody reads it.
+#
+# ``doses`` are ``(recommended_age_months, min_interval_days_from_previous)``.
+_AGE_BANDED = {
+    "HPV": [
+        {"code": "HPV2", "min": 108, "max": 179, "sort_order": 0,
+         "label": "9–14 سنة: جرعتان (0 و6–12 شهر) — للمراجعة",
+         "doses": [(108, None), (114, 180)]},
+        {"code": "HPV3", "min": 180, "max": None, "sort_order": 1,
+         "label": "15 سنة فأكثر: 3 جرعات (0، 2، 6 شهور) — للمراجعة",
+         "doses": [(180, None), (182, 28), (186, 112)]},
+    ],
+}
+
+
 _WHO_ROUTINE = {
     "ROTA": [(2, None), (4, 28)],                 # 2 doses from 6 weeks, ≥4w apart
     "PCV": [(2, None), (4, 28), (9, None)],       # WHO 2p+1
@@ -251,7 +278,8 @@ _CATCH_UP_MIN_INTERVAL = 28
 
 
 def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
-                   sort_order=0):
+                   sort_order=0, start_age_min_months=None,
+                   start_age_max_months=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -263,6 +291,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
     tpl = VaccineScheduleTemplate(
         vaccine_id=vaccine.id, code=code, source=source, label=label,
         is_catch_up=is_catch_up, is_seeded=True, sort_order=sort_order,
+        start_age_min_months=start_age_min_months,
+        start_age_max_months=start_age_max_months,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -317,6 +347,19 @@ def seed_vaccine_schedules():
                 vaccine, code="WHO", source="who",
                 label="توصية منظمة الصحة العالمية — للمراجعة",
                 doses=who, sort_order=1)
+
+        # Age-banded schedules, where the dose count itself depends on how
+        # old the child was at the first dose. Seeded only where a doctor has
+        # reviewed the rule and stated it — everything else keeps the single
+        # standard course and shows the "varies by starting age" warning
+        # instead, which is honest about not knowing rather than picking.
+        for band in _AGE_BANDED.get(vaccine.code, []):
+            created += _seed_template(
+                vaccine, code=band["code"], source="manufacturer",
+                label=band["label"], doses=band["doses"],
+                sort_order=band.get("sort_order", 0),
+                start_age_min_months=band.get("min"),
+                start_age_max_months=band.get("max"))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -439,6 +482,99 @@ def doses_for(patient_ids):
     return out
 
 
+def schedule_for(vaccine, brand, dob, given_dates, today=None):
+    """The dose ages this child's course actually follows.
+
+    Returns ``[(dose_number, age_months)]`` — the brand's own dose rows unless
+    the vaccine carries **age-banded** schedules, in which case the band is
+    matched and its doses used instead.
+
+    Two rules, and the second is the one the doctor raised as mattering most.
+
+    **Matched on the age at the first dose, not the age today.** A child who
+    started HPV at fourteen years and eleven months is on the two-dose
+    schedule; they do not jump to three because a birthday passed before the
+    second one. Once a dose exists, that dose decides the band for good — so
+    the answer is stable in a way that recomputing from today's age never is.
+
+    **Before any dose, the band follows today's age**, because that is what
+    starting now would mean. It is a projection and changes as the child grows,
+    which is correct: nothing has been promised yet.
+
+    A vaccine with no banded schedules falls straight through to the brand's
+    doses, so this changes nothing for the catalogue as it stands. The bands
+    are filled in one at a time, by somebody who has read the leaflet.
+    """
+    from app.models import VaccineScheduleDose, VaccineScheduleTemplate
+
+    default = [(d.dose_number, d.age_months) for d in brand.doses]
+    if dob is None:
+        return default
+
+    bands = [t for t in _banded_templates().get(vaccine.id, [])
+             if t["doses"]]
+    if not bands:
+        return default
+
+    # The age the course started at, in months — the first dose given, else
+    # today for a course nobody has begun.
+    when = min((d for d in given_dates.values() if d), default=None) \
+        or (today or local_today())
+    months = (when.year - dob.year) * 12 + (when.month - dob.month)
+    if when.day < dob.day:
+        months -= 1
+
+    for band in bands:
+        low = band["min"] if band["min"] is not None else -10 ** 6
+        high = band["max"] if band["max"] is not None else 10 ** 6
+        if low <= months <= high:
+            return band["doses"]
+    return default
+
+
+def _banded_templates():
+    """``{vaccine_id: [{min, max, doses}]}`` for the schedules that carry a
+    band, read once per request.
+
+    Only ``manufacturer`` schedules are followed. The clinic's decision, said
+    plainly: the leaflet is what the course follows, and the WHO row is kept
+    beside it as a reference to read rather than a schedule to run — which is
+    why `source` has always been on the template and why both are seeded.
+    """
+    from app.models import VaccineScheduleDose, VaccineScheduleTemplate
+    from app.utils.request_cache import remember
+
+    def load():
+        out = {}
+        rows = (VaccineScheduleTemplate.query
+                .filter(VaccineScheduleTemplate.is_active.is_(True),
+                        VaccineScheduleTemplate.is_catch_up.is_(False),
+                        VaccineScheduleTemplate.source == "manufacturer")
+                .filter(db.or_(
+                    VaccineScheduleTemplate.start_age_min_months.isnot(None),
+                    VaccineScheduleTemplate.start_age_max_months.isnot(None)))
+                .order_by(VaccineScheduleTemplate.sort_order,
+                          VaccineScheduleTemplate.id).all())
+        if not rows:
+            return out
+        doses = {}
+        for row in (VaccineScheduleDose.query
+                    .filter(VaccineScheduleDose.template_id.in_(
+                        [t.id for t in rows]))
+                    .order_by(VaccineScheduleDose.dose_number).all()):
+            doses.setdefault(row.template_id, []).append(
+                (row.dose_number, row.recommended_age_months))
+        for template in rows:
+            out.setdefault(template.vaccine_id, []).append({
+                "min": template.start_age_min_months,
+                "max": template.start_age_max_months,
+                "doses": doses.get(template.id, []),
+            })
+        return out
+
+    return remember("vaccines:banded_templates", load)
+
+
 def course_dates(dob, schedule, given, planned, min_interval,
                  earliest_live, closed_after, today):
     """When each dose of one course falls due, and what it is today.
@@ -556,35 +692,43 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             others = [dt for vid2, dt in live_given.items() if vid2 != vaccine.id]
             if others:
                 earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
-        given_dates = {d.dose_number: (given_index[(vaccine.id, d.dose_number)]
-                                       .given_date)
-                       for d in brand.doses
-                       if (vaccine.id, d.dose_number) in given_index}
+        # Read from what the child actually has, not from the brand's dose
+        # rows: an age-banded course can carry a dose number the brand list
+        # does not, and building this from the rows would drop it.
+        given_dates = {number: row.given_date
+                       for (vid, number), row in given_index.items()
+                       if vid == vaccine.id}
         planned_dates = {}
-        for d in brand.doses:
-            ev = events_index.get((vaccine.id, d.dose_number))
-            if (ev is not None and d.dose_number not in given_dates
+        for (vid, number), ev in events_index.items():
+            if (vid == vaccine.id and number not in given_dates
                     and ev.event_type == "planned" and ev.given_date):
-                planned_dates[d.dose_number] = ev.given_date
-        timings = course_dates(
-            dob, [(d.dose_number, d.age_months) for d in brand.doses],
-            given_dates, planned_dates, min_iv, earliest_live, closed_after,
-            today)
+                planned_dates[number] = ev.given_date
+
+        rota = schedule_for(vaccine, brand, dob, given_dates, today)
+        timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
+                               earliest_live, closed_after, today)
 
         doses = []
-        for d in brand.doses:
-            pv = given_index.get((vaccine.id, d.dose_number))
-            ev = events_index.get((vaccine.id, d.dose_number))
-            due, status = timings[d.dose_number]
-            planned = planned_dates.get(d.dose_number)
+        by_number = {d.dose_number: d for d in brand.doses}
+        for dose_number, age_months in rota:
+            d = by_number.get(dose_number)
+            pv = given_index.get((vaccine.id, dose_number))
+            ev = events_index.get((vaccine.id, dose_number))
+            due, status = timings[dose_number]
+            planned = planned_dates.get(dose_number)
             doses.append({
-                "dose_number": d.dose_number,
-                "age_months": d.age_months,
-                "age_label": age_label(d.age_months, lang),
+                # From the chosen schedule, not the brand's rows: an
+                # age-banded course can have a dose the brand list does not —
+                # HPV is three doses started at fifteen and two before that,
+                # off one set of brand rows.
+                "dose_number": dose_number,
+                "age_months": age_months,
+                "age_label": age_label(age_months, lang),
                 # Carried so the card can say "the booster is what is left"
                 # rather than "3/4" and leave the reader to work out which of
                 # the two very different jobs that is.
-                "booster": is_booster(brand, d.dose_number),
+                "booster": (is_booster(brand, dose_number)
+                            if d is not None else False),
                 "due_date": due.isoformat() if due else None,
                 "given_date": pv.given_date.isoformat() if pv else None,
                 "lot_number": pv.lot_number if pv else None,
@@ -1265,6 +1409,31 @@ def _catalogue_rows():
     return remember("vaccines:catalogue_rows", load)
 
 
+def _banded_for(vaccine_id, dob, given_dates, today):
+    """The banded schedule for this course, from plain values.
+
+    The sweep's half of :func:`schedule_for`. Same rule, same table, same
+    answer — matched on the age at the first dose, today's age before there is
+    one — because a listing that picks a different schedule from the child's
+    own file is two programs disagreeing about a course.
+    """
+    if dob is None:
+        return None
+    bands = [b for b in _banded_templates().get(vaccine_id, []) if b["doses"]]
+    if not bands:
+        return None
+    when = min((d for d in given_dates.values() if d), default=None) or today
+    months = (when.year - dob.year) * 12 + (when.month - dob.month)
+    if when.day < dob.day:
+        months -= 1
+    for band in bands:
+        low = band["min"] if band["min"] is not None else -10 ** 6
+        high = band["max"] if band["max"] is not None else 10 ** 6
+        if low <= months <= high:
+            return band["doses"]
+    return None
+
+
 def scan_due(dob, doses, today, agreed=None):
     """Every pending dose for one child, from plain values.
 
@@ -1319,7 +1488,8 @@ def scan_due(dob, doses, today, agreed=None):
             if others:
                 earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
 
-        timings = course_dates(dob, brand["doses"], mine,
+        rota = _banded_for(vaccine_id, dob, mine, today) or brand["doses"]
+        timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,
                                closed_after, today)
@@ -1333,7 +1503,7 @@ def scan_due(dob, doses, today, agreed=None):
                             "dose_number": max(mine) + 1,
                             "due_date": None, "status": "seasonal"})
             continue
-        for dose_number, _age in brand["doses"]:
+        for dose_number, _age in rota:
             due, status = timings[dose_number]
             if status in ("overdue", "due"):
                 out.append({"vaccine": meta["obj"], "brand": brand["obj"],

@@ -233,6 +233,9 @@ ADDITIONS = [
     ("message_templates", "delay_days", "INTEGER DEFAULT 0"),
     ("message_templates", "delay_hours", "INTEGER DEFAULT 0"),
     ("message_templates", "send_hour", "INTEGER"),
+    # The age band a schedule applies to, as numbers the program chooses by.
+    ("vaccine_schedule_templates", "start_age_min_months", "INTEGER"),
+    ("vaccine_schedule_templates", "start_age_max_months", "INTEGER"),
     ("vaccine_schedule_templates", "source", "VARCHAR(20) DEFAULT 'custom'"),
     ("vaccine_schedule_templates", "is_seeded", "BOOLEAN DEFAULT 0"),
     ("patients", "archived_at", "DATETIME"),
