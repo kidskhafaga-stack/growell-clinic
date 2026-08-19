@@ -382,6 +382,94 @@ def register_commands(app):
         counts = reset_all()
         click.secho(f"Reset complete: {counts}", fg="green")
 
+    @app.cli.command("vaccine-review")
+    @click.option("--out", default="vaccine_brands_review.csv",
+                  help="Where to write the file.")
+    def vaccine_review_cmd(out):
+        """Export every brand in the catalogue against the scheduling rules.
+
+        For the clinical review: one row per trade name, showing what the
+        program actually holds for it — the age bands it follows, the ceiling
+        on its final dose, whether it is routine or given on indication, which
+        source its schedule came from — so a doctor can mark what is missing
+        against a leaflet rather than against somebody's memory of the
+        catalogue.
+
+        Generated rather than kept in the repository on purpose: a checked-in
+        copy is out of date the first time a brand is edited, and a stale
+        review table is worse than none because it reads as current.
+        """
+        import csv
+
+        from app.models import Vaccine, VaccineScheduleTemplate
+
+        bands = {}
+        for tpl in VaccineScheduleTemplate.query.filter(
+                VaccineScheduleTemplate.start_age_min_months.isnot(None)).all():
+            bands.setdefault((tpl.vaccine_id, tpl.brand_id), []).append(tpl)
+
+        three = {True: "yes", False: "no", None: "unknown"}
+        rows = []
+        for vaccine in Vaccine.query.order_by(Vaccine.is_mandatory.desc(),
+                                              Vaccine.sort_order).all():
+            has_who = VaccineScheduleTemplate.query.filter_by(
+                vaccine_id=vaccine.id, source="who").first() is not None
+            for brand in vaccine.brands:
+                own = bands.get((vaccine.id, brand.id), [])
+                wide = bands.get((vaccine.id, None), [])
+                rows.append({
+                    "vaccine_code": vaccine.code,
+                    "vaccine_ar": vaccine.name_ar,
+                    "brand": brand.name,
+                    "manufacturer": brand.manufacturer or "",
+                    "valency": brand.valency or "",
+                    "dose_volume": brand.dose_volume or "",
+                    "route": vaccine.route or "",
+                    "government": "yes" if vaccine.is_mandatory else "no",
+                    "doses": len(brand.doses),
+                    # 1. age at the first dose
+                    "R1_age_bands": (len(own) if own else
+                                     (f"{len(wide)} (vaccine-wide)" if wide else "")),
+                    # 2. previous doses — not modelled yet
+                    "R2_previous_doses": "",
+                    # 3. intervals
+                    "R3_min_interval_days": vaccine.min_interval_days or "",
+                    # 4. window / cutoff
+                    "R4_max_age_final_dose_days": brand.max_age_final_dose_days or "",
+                    "R4_vaccine_max_age_months": vaccine.max_age_months or "",
+                    # 5. booster
+                    "R5_booster": "yes" if vaccine.booster_required else "",
+                    # 6. indication
+                    "R6_indication": brand.reminder_scope or "",
+                    # 7. interchangeability — not modelled yet
+                    "R7_interchangeable": "",
+                    # 8. WHO kept beside the manufacturer
+                    "R8_who_template": "yes" if has_who else "",
+                    "doses_change_by_start_age":
+                        "yes" if brand.doses_change_by_start_age else "",
+                    "registered_eg": three[brand.registered_in_egypt],
+                    "available_now": three[brand.available_now],
+                    "discontinued": "yes" if brand.is_discontinued else "",
+                    "seasonal": "yes" if vaccine.is_seasonal else "",
+                    "on_demand": "yes" if vaccine.on_demand else "",
+                    "catch_up_note": (brand.catch_up_notes
+                                      or vaccine.catch_up_notes
+                                      or "").replace("\n", " ")[:300],
+                    "source_url": brand.source_url or "",
+                })
+
+        if not rows:
+            click.secho("The catalogue is empty — seed it first.", fg="yellow")
+            return
+        # utf-8-sig so Excel opens the Arabic without being told to.
+        with open(out, "w", encoding="utf-8-sig", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+        gov = sum(1 for r in rows if r["government"] == "yes")
+        click.secho(f"{len(rows)} brands -> {out} "
+                    f"({gov} government, {len(rows) - gov} optional)", fg="green")
+
     @app.cli.command("seed-vaccines")
     def seed_vaccines_cmd():
         """Load the bundled Egyptian vaccine catalogue into the database."""

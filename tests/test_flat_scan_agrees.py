@@ -116,6 +116,16 @@ def ward(clinic):
         i = kid("brand", 1000)
         dose(i, pcv, synflorix, 1, 940)
 
+        # A child who switched product mid-course. Added after the two paths
+        # were briefly allowed to disagree about which trade name a switched
+        # course follows — the file kept the first, the sweep took the latest —
+        # and every test here passed, because no child in this ward had ever
+        # changed brand.
+        j = kid("switch", 1000)
+        dose(j, pcv, prevenar, 1, 940)
+        dose(j, pcv, prevenar, 2, 880)
+        dose(j, pcv, synflorix, 3, 700)
+
         # Two live parenteral vaccines: MMR given a few days ago pushes the
         # varicella dose out by the 28-day spacing rule. Without a child like
         # this in here, a sweep that forgot the rule agreed with the file on

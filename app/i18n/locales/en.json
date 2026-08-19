@@ -1048,7 +1048,11 @@
     "back_sent": "{n} message(s) written to the families waiting.",
     "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above.",
     "varies_by_start_age": "Doses vary by starting age",
-    "varies_by_start_age_hint": "The schedule shown is the standard one. This product's dose count depends on the age at the first dose — check the leaflet before relying on the number."
+    "varies_by_start_age_hint": "The schedule shown is the standard one. This product's dose count depends on the age at the first dose — check the leaflet before relying on the number.",
+    "tpl_saved": "Saved",
+    "tpl_band": "Age at first dose (months)",
+    "tpl_brand": "Brand",
+    "tpl_all_brands": "All brands"
   },
   "vstatus": {
     "done": "Done",
@@ -4987,5 +4991,12 @@
     "undo": "Undo",
     "hidden_n": "{n} hidden",
     "show_hidden": "Show hidden"
+  },
+  "vmix": {
+    "limited": "Mixed series — limited data, clinician review preferred",
+    "conditional": "Conditional switch — check the product leaflet",
+    "under_age": "Switched under {months} months — not established in the label",
+    "none": "Earlier product's doses do not count towards this one",
+    "title": "Interchangeability note"
   }
 }

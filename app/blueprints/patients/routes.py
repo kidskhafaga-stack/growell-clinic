@@ -511,8 +511,25 @@ def view(patient_id):
     from app.utils import patient_flags as flags
     from app.utils import patient_meds as meds
 
+    # The vaccination tab asks a different question from the certificate.
+    # The certificate is a record to hand a family — what the child *had*.
+    # This is a glance while somebody is looking at the file: where does this
+    # child stand, and what is owed next. So it is built from the plan rather
+    # than from the raw dose rows, which could say what happened and never
+    # what is coming.
+    from app.utils.course_state import annotate as annotate_courses
+    from app.utils.vaccines import (certificate_cards, next_due_dose,
+                                    patient_plan)
+
+    vlang = getattr(g, "lang", "ar")
+    vaccine_plan = annotate_courses(patient_plan(patient, vlang))
+    vaccine_next = next_due_dose(vaccine_plan)
+
     return render_template(
         "patients/profile.html",
+        vaccine_cards=certificate_cards(vaccine_plan),
+        vaccine_plan=vaccine_plan,
+        vaccine_next=vaccine_next,
         studies=patient_studies(patient, getattr(g, "lang", "ar")),
         imported=imported,
         payment_flag=flags.active(patient.id),

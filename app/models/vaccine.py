@@ -195,6 +195,33 @@ class VaccineBrand(db.Model):
     reminder_scope = db.Column(db.String(40))         # see REMINDER_SCOPES
     source_url = db.Column(db.String(255))            # where the fact came from
 
+    # ── Switching **to** this product, never away from it ──────────────
+    #
+    # Read as: *the next dose is this brand and the earlier ones were not —
+    # what does this brand's leaflet say?* Destination, not source. Every SmPC
+    # is written that way, describing children arriving at its own product,
+    # and interchangeability is not symmetric — so one column only works if
+    # everybody reads it in the same direction. Hence the name.
+    #
+    #   full        — the leaflet allows switching in at any point
+    #   conditional — allowed with a stated reservation. Prevenar 20's is that
+    #                 safety and immunogenicity under 15 months, in a child who
+    #                 began another pneumococcal, have not been established.
+    #   limited     — the data are thin. Finishing on the same product is
+    #                 preferred and a mixed series is worth a second look.
+    #   none        — earlier doses of another product do not count here.
+    #
+    # ``none`` is deliberately **not** the value for "limited evidence".
+    # Turning a reservation into a prohibition is as wrong as turning it into
+    # silence, and four states exist so neither has to happen — the same
+    # reasoning that gave `available_now` three.
+    interchange_to = db.Column(db.String(12))
+    # The age in months below which `conditional` becomes a flag rather than a
+    # quiet yes. Measured at the switch, which is what the label describes.
+    interchange_flag_under_months = db.Column(db.Integer)
+
+    INTERCHANGE = ["full", "conditional", "limited", "none"]
+
     vaccine = db.relationship("Vaccine", back_populates="brands")
     doses = db.relationship(
         "VaccineBrandDose", back_populates="brand", cascade="all, delete-orphan",
@@ -360,7 +387,46 @@ class VaccineScheduleTemplate(db.Model):
     )
     code = db.Column(db.String(20), nullable=False)   # A / B / C / D / standard
     label = db.Column(db.String(120))                 # "Start at 2 months"
-    age_group = db.Column(db.String(120))             # "2-6 months"
+    age_group = db.Column(db.String(120))             # "2-6 months" (display)
+    # The same band, in numbers the program can choose by. `age_group` is free
+    # text for a human to read; these decide which schedule a child is on.
+    #
+    # Measured against the age **at the first dose**, never the age today.
+    # Raised by the doctor as the rule that matters most: a child who started
+    # HPV at fourteen and eleven months is on the two-dose schedule, and does
+    # not jump to three because a birthday passed between doses. So the band
+    # is matched once, when the course starts, and the answer stays.
+    start_age_min_months = db.Column(db.Integer)
+    start_age_max_months = db.Column(db.Integer)      # inclusive; NULL = open
+    # Whose schedule this is. NULL means the vaccine's own — every trade name
+    # follows it. Named brands exist because the leaflets genuinely differ:
+    # WHO speaks about pneumococcal conjugate as a class and never about
+    # Vaxneuvance, while Merck's own catch-up is Vaxneuvance's alone and would
+    # be wrong applied to Synflorix, which stops at five years.
+    #
+    # A brand's own schedule wins over the vaccine's; with none, the vaccine's
+    # applies. So the common case stays one schedule in one place, and the
+    # exception is one row rather than a fork.
+    brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
+                         nullable=True, index=True)
+    # What the child's record has to look like for this schedule to apply.
+    #
+    # The leaflets do not name a band by age alone. The category is
+    # "**Unvaccinated** 7 to <12 months", and the first word is half the
+    # definition: a child who already had two pneumococcal doses and is
+    # switching product is not unvaccinated, and handing them the catch-up
+    # course restarts a series they are most of the way through.
+    #
+    #   NULL   — any history; the ordinary routine schedule
+    #   "none" — nothing of this vaccine before this brand's first dose
+    #   "some" — had some, whatever the trade name
+    #
+    # Counted per **vaccine**, never per brand: a dose of Prevenar is a
+    # pneumococcal dose when the next one is Vaxneuvance, which is the
+    # clinical rule and also the one `dose_infer` already numbers by.
+    requires_previous_doses = db.Column(db.String(10))
+
+    PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     # Where this schedule comes from: the manufacturer's leaflet (SmPC), the WHO
