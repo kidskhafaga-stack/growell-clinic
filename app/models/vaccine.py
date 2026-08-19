@@ -371,6 +371,17 @@ class VaccineScheduleTemplate(db.Model):
     # is matched once, when the course starts, and the answer stays.
     start_age_min_months = db.Column(db.Integer)
     start_age_max_months = db.Column(db.Integer)      # inclusive; NULL = open
+    # Whose schedule this is. NULL means the vaccine's own — every trade name
+    # follows it. Named brands exist because the leaflets genuinely differ:
+    # WHO speaks about pneumococcal conjugate as a class and never about
+    # Vaxneuvance, while Merck's own catch-up is Vaxneuvance's alone and would
+    # be wrong applied to Synflorix, which stops at five years.
+    #
+    # A brand's own schedule wins over the vaccine's; with none, the vaccine's
+    # applies. So the common case stays one schedule in one place, and the
+    # exception is one row rather than a fork.
+    brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
+                         nullable=True, index=True)
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     # Where this schedule comes from: the manufacturer's leaflet (SmPC), the WHO

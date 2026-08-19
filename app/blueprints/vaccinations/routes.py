@@ -654,10 +654,19 @@ def template_new(vaccine_id):
         flash(t("common.required") + ": " + t("vaccinations.tpl_code"), "danger")
         return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
     source = (request.form.get("source") or "custom").strip()
+    # The band the program chooses by, and whose leaflet it came from. Both
+    # are settings rather than code on purpose: a schedule that needs a
+    # programmer to change is one the clinic cannot correct when a leaflet is
+    # revised, and leaflets are revised.
+    brand_id = request.form.get("brand_id", type=int)
+    if brand_id and not any(b.id == brand_id for b in vaccine.brands):
+        brand_id = None                 # not this vaccine's — ignore it
     tpl = VaccineScheduleTemplate(
-        vaccine_id=vaccine.id, code=code,
+        vaccine_id=vaccine.id, code=code, brand_id=brand_id,
         label=(request.form.get("label") or "").strip() or None,
         age_group=(request.form.get("age_group") or "").strip() or None,
+        start_age_min_months=request.form.get("start_age_min_months", type=int),
+        start_age_max_months=request.form.get("start_age_max_months", type=int),
         is_catch_up=bool(request.form.get("is_catch_up")),
         source=source if source in VaccineScheduleTemplate.SOURCES else "custom",
         sort_order=request.form.get("sort_order", type=int) or 0,
@@ -666,6 +675,41 @@ def template_new(vaccine_id):
     db.session.commit()
     flash(t("vaccinations.tpl_added"), "success")
     return redirect(url_for("vaccinations.schedule_templates", vaccine_id=vaccine.id))
+
+
+@vaccinations_bp.route("/manage/schedules/<int:template_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def template_edit(template_id):
+    """Correct a schedule in place.
+
+    Seeded bands arrive labelled "للمراجعة" and are meant to be corrected: a
+    leaflet is revised, a clinic follows the CDC rather than the European
+    label, a country's programme differs. Without this the only way to change
+    one is to delete it and rebuild its doses, which is how people end up
+    leaving a wrong schedule alone.
+    """
+    tpl = db.get_or_404(VaccineScheduleTemplate, template_id)
+    f = request.form
+    brand_id = f.get("brand_id", type=int)
+    if brand_id and not any(b.id == brand_id for b in tpl.vaccine.brands):
+        brand_id = None
+    tpl.brand_id = brand_id
+    tpl.label = (f.get("label") or "").strip() or None
+    tpl.age_group = (f.get("age_group") or "").strip() or None
+    tpl.start_age_min_months = f.get("start_age_min_months", type=int)
+    tpl.start_age_max_months = f.get("start_age_max_months", type=int)
+    tpl.is_catch_up = bool(f.get("is_catch_up"))
+    tpl.is_active = bool(f.get("is_active"))
+    source = (f.get("source") or tpl.source).strip()
+    if source in VaccineScheduleTemplate.SOURCES:
+        tpl.source = source
+    ActivityLog.record("vaccine.schedule_edit", user_id=current_user.id,
+                       entity="vaccine", entity_id=tpl.vaccine_id,
+                       detail=tpl.code, ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.tpl_saved"), "success")
+    return redirect(url_for("vaccinations.schedule_templates",
+                            vaccine_id=tpl.vaccine_id))
 
 
 @vaccinations_bp.route("/manage/schedules/<int:template_id>/delete", methods=["POST"])

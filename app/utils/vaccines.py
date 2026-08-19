@@ -248,7 +248,60 @@ def seed_vaccines():
 # and carries the warning until somebody reads it.
 #
 # ``doses`` are ``(recommended_age_months, min_interval_days_from_previous)``.
+# ``brand`` names the trade name a band belongs to; omitted, it is the
+# vaccine's own and every brand follows it.
 _AGE_BANDED = {
+    # Bexsero, from the European label the clinic follows. The FDA licenses
+    # the same product from ten years only, and a clinic following the CDC
+    # will want different bands — which is exactly why these are seeded rows
+    # on an editable screen and not a rule in code.
+    #
+    # Every band is 0.5 mL IM. The doses below are
+    # ``(recommended_age_months, min_interval_days_from_previous)``.
+    "MENB": [
+        {"code": "MENB-2-5", "min": 2, "max": 5, "sort_order": 0,
+         "brand": "Bexsero",
+         "label": "بدء 2–5 شهور: 3 أساسية + منشّط 12–15 شهر — للمراجعة",
+         "doses": [(2, None), (3, 28), (4, 28), (12, 180)]},
+        {"code": "MENB-6-11", "min": 6, "max": 11, "sort_order": 1,
+         "brand": "Bexsero",
+         "label": "بدء 6–11 شهر: جرعتان + منشّط في السنة الثانية — للمراجعة",
+         "doses": [(6, None), (8, 60), (13, 60)]},
+        {"code": "MENB-12-23", "min": 12, "max": 23, "sort_order": 2,
+         "brand": "Bexsero",
+         "label": "بدء 12–23 شهر: جرعتان + منشّط بعد 12–23 شهر — للمراجعة",
+         "doses": [(12, None), (14, 60), (26, 365)]},
+        {"code": "MENB-2-10Y", "min": 24, "max": 131, "sort_order": 3,
+         "brand": "Bexsero",
+         "label": "بدء 2–10 سنوات: جرعتان (المنشّط عند استمرار الخطر) — للمراجعة",
+         "doses": [(24, None), (25, 28)]},
+        {"code": "MENB-11Y", "min": 132, "max": None, "sort_order": 4,
+         "brand": "Bexsero",
+         "label": "بدء 11 سنة فأكثر: جرعتان بلا منشّط روتيني — للمراجعة",
+         "doses": [(132, None), (133, 28)]},
+    ],
+    # Vaxneuvance (PCV15), from Merck's own leaflet. On the brand and not the
+    # vaccine on purpose: WHO speaks about pneumococcal conjugate as a class
+    # and never about this product, and Merck's catch-up would be wrong
+    # applied to Synflorix, which stops at five years.
+    "PCV": [
+        {"code": "PCV15-INF", "min": 1, "max": 6, "sort_order": 0,
+         "brand": "Vaxneuvance",
+         "label": "Vaxneuvance — بدء 6 أسابيع–6 شهور: 4 جرعات — للمراجعة",
+         "doses": [(2, None), (4, 28), (6, 28), (12, 60)]},
+        {"code": "PCV15-CU7", "min": 7, "max": 11, "sort_order": 1,
+         "brand": "Vaxneuvance",
+         "label": "Vaxneuvance — بدء 7–11 شهر بدون PCV سابق: 3 جرعات — للمراجعة",
+         "doses": [(7, None), (8, 28), (12, 60)]},
+        {"code": "PCV15-CU12", "min": 12, "max": 23, "sort_order": 2,
+         "brand": "Vaxneuvance",
+         "label": "Vaxneuvance — بدء 12–23 شهر: جرعتان بفاصل ≥شهرين — للمراجعة",
+         "doses": [(12, None), (14, 60)]},
+        {"code": "PCV15-CU2Y", "min": 24, "max": None, "sort_order": 3,
+         "brand": "Vaxneuvance",
+         "label": "Vaxneuvance — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+    ],
     "HPV": [
         {"code": "HPV2", "min": 108, "max": 179, "sort_order": 0,
          "label": "9–14 سنة: جرعتان (0 و6–12 شهر) — للمراجعة",
@@ -279,7 +332,7 @@ _CATCH_UP_MIN_INTERVAL = 28
 
 def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    sort_order=0, start_age_min_months=None,
-                   start_age_max_months=None):
+                   start_age_max_months=None, brand_id=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -292,7 +345,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         vaccine_id=vaccine.id, code=code, source=source, label=label,
         is_catch_up=is_catch_up, is_seeded=True, sort_order=sort_order,
         start_age_min_months=start_age_min_months,
-        start_age_max_months=start_age_max_months,
+        start_age_max_months=start_age_max_months, brand_id=brand_id,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -354,12 +407,20 @@ def seed_vaccine_schedules():
         # standard course and shows the "varies by starting age" warning
         # instead, which is honest about not knowing rather than picking.
         for band in _AGE_BANDED.get(vaccine.code, []):
+            brand_id = None
+            if band.get("brand"):
+                match = next((b for b in vaccine.brands
+                              if b.name == band["brand"]), None)
+                if match is None:
+                    continue        # the trade name is not stocked here
+                brand_id = match.id
             created += _seed_template(
                 vaccine, code=band["code"], source="manufacturer",
                 label=band["label"], doses=band["doses"],
                 sort_order=band.get("sort_order", 0),
                 start_age_min_months=band.get("min"),
-                start_age_max_months=band.get("max"))
+                start_age_max_months=band.get("max"),
+                brand_id=brand_id)
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -511,8 +572,7 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None):
     if dob is None:
         return default
 
-    bands = [t for t in _banded_templates().get(vaccine.id, [])
-             if t["doses"]]
+    bands = _bands_for(vaccine.id, brand.id)
     if not bands:
         return default
 
@@ -530,6 +590,23 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None):
         if low <= months <= high:
             return band["doses"]
     return default
+
+
+def _bands_for(vaccine_id, brand_id):
+    """The bands this brand follows: its own if it has any, else the vaccine's.
+
+    A trade name with its own schedule is not merely *preferred* — it replaces
+    the vaccine's rather than adding to it, because a leaflet is a complete
+    statement about that product and mixing half of it with a generic one is
+    how a course ends up with a dose from neither.
+    """
+    banded = _banded_templates()
+    mine = [b for b in banded.get(vaccine_id, [])
+            if b["doses"] and b["brand_id"] == brand_id]
+    if mine:
+        return mine
+    return [b for b in banded.get(vaccine_id, [])
+            if b["doses"] and b["brand_id"] is None]
 
 
 def _banded_templates():
@@ -568,6 +645,7 @@ def _banded_templates():
             out.setdefault(template.vaccine_id, []).append({
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
+                "brand_id": template.brand_id,
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -1409,7 +1487,7 @@ def _catalogue_rows():
     return remember("vaccines:catalogue_rows", load)
 
 
-def _banded_for(vaccine_id, dob, given_dates, today):
+def _banded_for(vaccine_id, brand_id, dob, given_dates, today):
     """The banded schedule for this course, from plain values.
 
     The sweep's half of :func:`schedule_for`. Same rule, same table, same
@@ -1419,7 +1497,7 @@ def _banded_for(vaccine_id, dob, given_dates, today):
     """
     if dob is None:
         return None
-    bands = [b for b in _banded_templates().get(vaccine_id, []) if b["doses"]]
+    bands = _bands_for(vaccine_id, brand_id)
     if not bands:
         return None
     when = min((d for d in given_dates.values() if d), default=None) or today
@@ -1488,7 +1566,8 @@ def scan_due(dob, doses, today, agreed=None):
             if others:
                 earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
 
-        rota = _banded_for(vaccine_id, dob, mine, today) or brand["doses"]
+        rota = _banded_for(vaccine_id, brand["id"], dob, mine, today) \
+            or brand["doses"]
         timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,

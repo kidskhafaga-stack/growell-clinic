@@ -73,6 +73,16 @@
         {{ t('vaccinations.source_' ~ tpl.source) }}</span>
       {% if tpl.label %}<span style="color:var(--muted);font-weight:400;font-size:0.9rem;">— {{ tpl.label }}</span>{% endif %}
       {% if tpl.age_group %}<span class="badge badge--role">{{ tpl.age_group }}</span>{% endif %}
+      {% if tpl.start_age_min_months is not none or tpl.start_age_max_months is not none %}
+        <span class="badge badge--role" title="{{ t('vaccinations.tpl_band') }}">
+          <i class="bi bi-rulers"></i>
+          {{ tpl.start_age_min_months if tpl.start_age_min_months is not none else '—' }}
+          – {{ tpl.start_age_max_months if tpl.start_age_max_months is not none else '∞' }}</span>
+      {% endif %}
+      {% if tpl.brand_id %}
+        <span class="badge badge--role"><i class="bi bi-box"></i>
+          {{ tpl.brand.display_name(current_lang) if tpl.brand else tpl.brand_id }}</span>
+      {% endif %}
       {% if tpl.is_catch_up %}<span class="badge badge--muted">{{ t('vaccinations.catch_up') }}</span>{% endif %}
     </h3>
     <form method="post" action="{{ url_for('vaccinations.template_delete', template_id=tpl.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');">
@@ -136,6 +146,25 @@
         </select></div>
       <div class="form-row"><label>{{ t('vaccinations.tpl_label') }}</label><input class="input" name="label" placeholder="{{ t('vaccinations.tpl_label_ph') }}"></div>
       <div class="form-row"><label>{{ t('vaccinations.age_group') }}</label><input class="input" name="age_group" placeholder="2-6m"></div>
+      {# The band the program actually chooses by. `age_group` above is the
+         label a human reads; these two are the numbers, and leaving them
+         blank keeps the schedule as the plain course it always was. #}
+      <div class="form-row"><label>{{ t('vaccinations.tpl_band') }}</label>
+        <div style="display:flex;gap:6px;">
+          <input class="input" type="number" name="start_age_min_months"
+                 placeholder="{{ t('reports.from') }}" min="0" style="max-width:110px;">
+          <input class="input" type="number" name="start_age_max_months"
+                 placeholder="{{ t('reports.to') }}" min="0" style="max-width:110px;">
+        </div></div>
+      {# Whose leaflet. Blank = the vaccine's own schedule, which every trade
+         name follows; a named brand replaces it for that product alone. #}
+      <div class="form-row"><label>{{ t('vaccinations.tpl_brand') }}</label>
+        <select class="select" name="brand_id">
+          <option value="">{{ t('vaccinations.tpl_all_brands') }}</option>
+          {% for b in vaccine.brands %}
+            <option value="{{ b.id }}">{{ b.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('vaccinations.sort_order') }}</label><input class="input" type="number" name="sort_order" value="0"></div>
     </div>
     <label class="checkbox" style="font-weight:400;margin-bottom:10px;display:block;"><input type="checkbox" name="is_catch_up" value="1"> {{ t('vaccinations.catch_up') }}</label>
