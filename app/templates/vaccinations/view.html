@@ -129,6 +129,23 @@
           <span class="badge badge--{{ 'green' if v.is_mandatory else 'muted' }}">{{ t('vaccinations.mandatory') if v.is_mandatory else t('vaccinations.optional') }}</span>
           {% if v.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ v.route) }}</span>{% endif %}
           <span class="badge badge--role"><i class="bi bi-box"></i> {{ item.brand.display_name(current_lang) }}{% if item.locked %} 🔒{% endif %}</span>
+          {# The dose count for this trade name depends on how old the child
+             was at the first one — Bexsero is 2+1 from two months and fewer
+             later, Vaxneuvance is 3+1 on the leaflet and 2+1 on the WHO
+             schedule. The program computes one standard course and cannot
+             yet choose between them, so it says so here rather than letting a
+             number look more certain than it is. The wording carries the
+             brand's own note, which is where the real answer is written.
+
+             Only on courses this clinic has taken on — started or agreed —
+             because that is where somebody acts on a dose count. On every
+             row it is wallpaper: measured at eleven badges on one healthy
+             child's file, which is the number at which a warning stops being
+             read at all. #}
+          {% if item.brand.doses_change_by_start_age and item.committed %}
+            <span class="badge badge--danger" title="{{ item.brand.catch_up_notes or v.catch_up_ar or '' }}">
+              <i class="bi bi-exclamation-triangle"></i> {{ t('vaccinations.varies_by_start_age') }}</span>
+          {% endif %}
           {% if not v.is_mandatory %}
           <span class="badge {{ 'badge--green' if item.brand.stock > 5 else ('badge--danger' if item.brand.stock == 0 else 'badge--muted') }}">
             <i class="bi bi-boxes"></i>

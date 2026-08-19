@@ -1046,7 +1046,9 @@
     "back_send": "Tell them it arrived",
     "back_none": "Nobody is waiting for this one right now.",
     "back_sent": "{n} message(s) written to the families waiting.",
-    "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above."
+    "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above.",
+    "varies_by_start_age": "Doses vary by starting age",
+    "varies_by_start_age_hint": "The schedule shown is the standard one. This product's dose count depends on the age at the first dose — check the leaflet before relying on the number."
   },
   "vstatus": {
     "done": "Done",
