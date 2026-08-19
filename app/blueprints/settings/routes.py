@@ -25,6 +25,12 @@ TEXT_KEYS = [
     # Where the clinic is. Needed wherever a stored UTC moment has to be
     # compared with a time a person typed (see app/utils/clock.py).
     "clinic_timezone",
+    # Which published guideline the vaccination engine follows. A policy the
+    # clinic sets, not a code path: the same product can have two positions —
+    # Bexsero's course is the European label's from two months and the CDC's
+    # from ten years — and switching recomputes from the doses already on file
+    # without re-entering one.
+    "vaccine_guideline_profile",
     # NOTE: WhatsApp / CRM settings (crm_mode, wa_*, queue_mode, templates) now
     # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.

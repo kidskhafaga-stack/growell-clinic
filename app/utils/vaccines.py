@@ -159,6 +159,11 @@ def seed_vaccines():
                 is_seasonal=v.get("seasonal", False),
                 vaccine_type=vtype, reference=cu_ref,
                 min_interval_days=v.get("min_interval_days"),
+                # Both ends of the age range. `min_age_months` has been a
+                # column since the medical fields were added and nothing ever
+                # filled it from the catalogue — so "not before two years" was
+                # written down in prose and known to nobody.
+                min_age_months=v.get("min_age_months"),
                 max_age_months=v.get("max_age_months"),
                 booster_required=v.get("booster", False),
                 catch_up_notes=cu,
@@ -182,6 +187,8 @@ def seed_vaccines():
                 vaccine.catch_up_notes = cu
             if v.get("min_interval_days") and vaccine.min_interval_days is None:
                 vaccine.min_interval_days = v["min_interval_days"]
+            if v.get("min_age_months") and vaccine.min_age_months is None:
+                vaccine.min_age_months = v["min_age_months"]
             if v.get("max_age_months") and vaccine.max_age_months is None:
                 vaccine.max_age_months = v["max_age_months"]
             if v.get("booster") and not vaccine.booster_required:
@@ -260,6 +267,14 @@ _AGE_BANDED = {
     # Every band is 0.5 mL IM. The doses below are
     # ``(recommended_age_months, min_interval_days_from_previous)``.
     "MENB": [
+        # The CDC licenses the same product from ten years, with two doses.
+        # Stored beside the European bands rather than replacing them: the
+        # clinic picks which guideline it follows in settings, and switching
+        # recomputes from the doses already on file without re-entering one.
+        {"code": "MENB-CDC-10Y", "min": 120, "max": None, "sort_order": 0,
+         "brand": "Bexsero", "source": "cdc",
+         "label": "CDC: من 10 سنوات — جرعتان بفاصل 6 شهور — للمراجعة",
+         "doses": [(120, None), (126, 180)]},
         {"code": "MENB-2-5", "min": 2, "max": 5, "sort_order": 0,
          "brand": "Bexsero",
          "label": "بدء 2–5 شهور: 3 أساسية + منشّط 12–15 شهر — للمراجعة",
@@ -418,7 +433,8 @@ def seed_vaccine_schedules():
                     continue        # the trade name is not stocked here
                 brand_id = match.id
             created += _seed_template(
-                vaccine, code=band["code"], source="manufacturer",
+                vaccine, code=band["code"],
+                source=band.get("source", "manufacturer"),
                 label=band["label"], doses=band["doses"],
                 sort_order=band.get("sort_order", 0),
                 start_age_min_months=band.get("min"),
@@ -673,8 +689,17 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
     start = brand_first
     if start is None:
         start = min((d for d in given_dates.values() if d), default=None)
-    return _pick_band(bands, dob, start, previous,
-                      today or local_today()) or default
+    picked = _pick_band(bands, dob, start, previous, today or local_today())
+    if picked is not None:
+        return picked
+    # The guideline speaks about this product and says nothing about a child
+    # this age — under the CDC, Bexsero simply is not scheduled below ten
+    # years. Falling back to the brand's raw dose rows would answer with a
+    # number from no guideline at all, which is worse than either. An empty
+    # course is the honest reading: this reference does not schedule it.
+    if any(b.get("authoritative") for b in bands):
+        return []
+    return default
 
 
 def _bands_for(vaccine_id, brand_id):
@@ -694,24 +719,48 @@ def _bands_for(vaccine_id, brand_id):
             if b["doses"] and b["brand_id"] is None]
 
 
+def guideline_profile():
+    """Which published guideline this clinic follows, from settings.
+
+    A policy, not a code path. The same product can have two published
+    positions — Bexsero's course is the European label's from two months and
+    the CDC's from ten years — and a clinic changing which it follows should
+    change a setting, not a program.
+    """
+    from app.models import VaccineScheduleTemplate
+
+    try:
+        from app.models import Setting
+        chosen = (Setting.get("vaccine_guideline_profile", "") or "").strip()
+    except Exception:  # noqa: BLE001 - settings table not ready yet
+        chosen = ""
+    if chosen in VaccineScheduleTemplate.GUIDELINE_PROFILES:
+        return chosen
+    return "manufacturer"
+
+
 def _banded_templates():
     """``{vaccine_id: [{min, max, doses}]}`` for the schedules that carry a
     band, read once per request.
 
-    Only ``manufacturer`` schedules are followed. The clinic's decision, said
-    plainly: the leaflet is what the course follows, and the WHO row is kept
-    beside it as a reference to read rather than a schedule to run — which is
-    why `source` has always been on the template and why both are seeded.
+    Read for the profile the clinic follows, **falling back to the
+    manufacturer's** where that profile says nothing. The fallback is the load-
+    bearing part: no guideline covers every product a clinic stocks, and a
+    profile with a gap that silently left a vaccine unscheduled would turn
+    "we follow the CDC" into "we stopped following anything for half the
+    fridge". The leaflet is what a product always has.
     """
     from app.models import VaccineScheduleDose, VaccineScheduleTemplate
     from app.utils.request_cache import remember
 
     def load():
         out = {}
+        profile = guideline_profile()
+        wanted = {profile, "manufacturer"}
         rows = (VaccineScheduleTemplate.query
                 .filter(VaccineScheduleTemplate.is_active.is_(True),
                         VaccineScheduleTemplate.is_catch_up.is_(False),
-                        VaccineScheduleTemplate.source == "manufacturer")
+                        VaccineScheduleTemplate.source.in_(list(wanted)))
                 .filter(db.or_(
                     VaccineScheduleTemplate.start_age_min_months.isnot(None),
                     VaccineScheduleTemplate.start_age_max_months.isnot(None)))
@@ -726,8 +775,19 @@ def _banded_templates():
                     .order_by(VaccineScheduleDose.dose_number).all()):
             doses.setdefault(row.template_id, []).append(
                 (row.dose_number, row.recommended_age_months))
+        # The chosen profile wins wherever it speaks; the leaflet fills the
+        # rest. Grouped per (vaccine, brand) so a profile covering one product
+        # does not silence the leaflet's schedule for its neighbours.
+        speaks = {(t.vaccine_id, t.brand_id) for t in rows
+                  if t.source == profile}
         for template in rows:
+            if (template.source != profile
+                    and (template.vaccine_id, template.brand_id) in speaks):
+                continue
             out.setdefault(template.vaccine_id, []).append({
+                # This row came from the guideline the clinic follows, so its
+                # silence about an age is itself an answer.
+                "authoritative": template.source == profile != "manufacturer",
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
                 "brand_id": template.brand_id,
@@ -1611,7 +1671,10 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     start = brand_first
     if start is None:
         start = min((d for d in given_dates.values() if d), default=None)
-    return _pick_band(bands, dob, start, previous, today)
+    picked = _pick_band(bands, dob, start, previous, today)
+    if picked is None and any(b.get("authoritative") for b in bands):
+        return []
+    return picked
 
 
 def scan_due(dob, doses, today, agreed=None):
@@ -1677,8 +1740,9 @@ def scan_due(dob, doses, today, agreed=None):
         previous = sum(1 for (_bid, d) in brand_doses.get(vaccine_id, [])
                        if d and (brand_first is None or d < brand_first))
         rota = _banded_for(vaccine_id, brand["id"], dob, mine, today,
-                           brand_first=brand_first, previous=previous) \
-            or brand["doses"]
+                           brand_first=brand_first, previous=previous)
+        if rota is None:
+            rota = brand["doses"]
         timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,
