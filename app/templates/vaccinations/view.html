@@ -46,6 +46,7 @@
             {% endif %}
             <form method="post" style="display:inline;"
                   action="{{ url_for('vaccinations.plan_remove', item_id=item.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn-icon" type="submit" title="{{ t('vplan.remove') }}"
                       style="padding:0;border:0;background:none;cursor:pointer;">
                 <i class="bi bi-x-lg"></i></button>
@@ -60,6 +61,7 @@
     {% if offerable %}
       <form method="post" action="{{ url_for('vaccinations.plan_add', patient_id=patient.id) }}"
             style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-row" style="margin:0;flex:1;min-width:200px;">
           <select class="input" name="vaccine_id" required>
             {% for v in offerable %}

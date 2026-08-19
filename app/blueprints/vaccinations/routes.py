@@ -131,6 +131,68 @@ def _settle_paid_vaccines(patient, on_date):
         return []
 
 
+@vaccinations_bp.route("/reminder/act", methods=["POST"])
+@module_required(MODULE)
+def reminder_act():
+    """Record that somebody dealt with a reminder, so it stops asking.
+
+    The work list is rebuilt from birthdays and doses every time it opens, so
+    a row worked yesterday comes back this morning looking untouched.
+    Reception rings a family, the family says "next month", and tomorrow the
+    list says ring them. A list that cannot remember is one people stop
+    believing — quietly, by working the top of it and ignoring the rest.
+
+    Nothing is deleted. The row is held back and counted, and the screen will
+    show what it is holding, because a reminder that disappears for good is
+    how a child stops being followed without anybody deciding that.
+    """
+    from app.models.reminder_action import ACTIONS, ReminderAction, default_until
+    from app.utils.export import parse_date
+
+    action = (request.form.get("action") or "").strip()
+    patient_id = request.form.get("patient_id", type=int)
+    vaccine_id = request.form.get("vaccine_id", type=int)
+    if action not in ACTIONS or not patient_id or not vaccine_id:
+        flash(t("vact.bad"), "warning")
+        return redirect(request.referrer or url_for("vaccinations.reminders"))
+
+    until = default_until(action, parse_date(request.form.get("until")))
+    if action == "snoozed" and until is None:
+        # "Later" without a date is how a row goes quiet for ever by accident.
+        flash(t("vact.needs_date"), "warning")
+        return redirect(request.referrer or url_for("vaccinations.reminders"))
+
+    db.session.add(ReminderAction(
+        patient_id=patient_id, vaccine_id=vaccine_id,
+        dose_number=request.form.get("dose_number", type=int),
+        action=action, until=until,
+        note=(request.form.get("note") or "").strip()[:200] or None,
+        created_by_id=current_user.id))
+    ActivityLog.record("vaccine.reminder_act", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=f"{action} v={vaccine_id}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("vact." + action), "success")
+    return redirect(request.referrer or url_for("vaccinations.reminders"))
+
+
+@vaccinations_bp.route("/reminder/<int:action_id>/undo", methods=["POST"])
+@module_required(MODULE)
+def reminder_undo(action_id):
+    """Put a held-back reminder back on the list."""
+    from app.models.reminder_action import ReminderAction
+
+    row = db.get_or_404(ReminderAction, action_id)
+    patient_id = row.patient_id
+    db.session.delete(row)
+    ActivityLog.record("vaccine.reminder_undo", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vact.undone"), "info")
+    return redirect(request.referrer or url_for("vaccinations.plans"))
+
+
 @vaccinations_bp.route("/plans")
 @module_required(MODULE)
 def plans():
@@ -164,10 +226,15 @@ def plans():
     for item in VaccinePlanItem.query.all():
         on_plan.setdefault(item.patient_id, set()).add(item.vaccine_id)
     if not on_plan:
-        rows = []
+        found, rows = [], []
     else:
-        rows = [r for r in due_list(start=start, end=end,
-                                    vaccine_id=vaccine_id, lang=lang)
+        # Kept whole before filtering: `due_list` carries how many rows it
+        # held back on the object it returns, and a list comprehension makes
+        # an ordinary list that has forgotten. Measured — the "N hidden"
+        # notice rendered as zero and the way to see them never appeared.
+        found = due_list(start=start, end=end, vaccine_id=vaccine_id,
+                         lang=lang)
+        rows = [r for r in found
                 if r["vaccine"].id in on_plan.get(r["patient"].id, ())]
 
     people = {}
@@ -175,12 +242,28 @@ def plans():
         people.setdefault(row["patient"].id, {
             "patient": row["patient"], "rows": []})["rows"].append(row)
 
+    # What is being held back, and by what — so the screen can both say how
+    # many and offer them back. A count alone tells somebody a number they
+    # cannot act on.
+    from app.models.reminder_action import ReminderAction
+
+    show_hidden = request.args.get("hidden") == "1"
+    held = []
+    if show_hidden:
+        held = (ReminderAction.query
+                .filter(db.or_(ReminderAction.until.is_(None),
+                               ReminderAction.until > local_today()))
+                .order_by(ReminderAction.created_at.desc()).limit(100).all())
+
     return render_template(
         "vaccinations/plans.html",
         people=sorted(people.values(),
                       key=lambda p: p["patient"].display_name(lang)),
         rows=rows, counts=summarise(rows),
         order=order_suggestion(rows),
+        held_back=getattr(found, "held_back", 0),
+        held=held, show_hidden=show_hidden,
+        today=local_today().isoformat(),
         # How many children are on a plan at all, so an empty result reads as
         # "nothing due" rather than "nobody has a plan".
         total_on_plan=len(on_plan),

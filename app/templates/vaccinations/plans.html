@@ -31,6 +31,46 @@
   </form>
 </div>
 
+{% if held_back or show_hidden %}
+  <div class="card" style="margin-top:14px;display:flex;gap:10px;
+              align-items:center;flex-wrap:wrap;">
+    <span class="hint"><i class="bi bi-eye-slash"></i>
+      {{ t('vact.hidden_n', n=held_back) }}</span>
+    {% if not show_hidden %}
+      <a class="btn btn-outline btn-sm gc-press"
+         href="{{ url_for('vaccinations.plans', **dict(request.args, hidden='1')) }}">
+        {{ t('vact.show_hidden') }}</a>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if show_hidden and held %}
+  <div class="card" style="margin-top:12px;">
+    <div style="overflow-x:auto;">
+      <table class="table">
+        <tbody>
+          {% for row in held %}
+            <tr>
+              <td>{{ row.patient.display_name(current_lang) }}</td>
+              <td>{{ row.vaccine.display_name(current_lang) }}</td>
+              <td class="hint">{{ t('vact.' ~ row.action) }}</td>
+              <td class="hint">{{ row.until or '—' }}</td>
+              <td>
+                <form method="post" style="display:inline;"
+                      action="{{ url_for('vaccinations.reminder_undo', action_id=row.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline btn-sm gc-press" type="submit">
+                    <i class="bi bi-arrow-counterclockwise"></i> {{ t('vact.undo') }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
 {% if not total_on_plan %}
   <div class="card" style="margin-top:14px;text-align:center;">
     <p style="margin:0 0 6px;"><i class="bi bi-clipboard2-check"></i> {{ t('vplans.no_plans') }}</p>
@@ -103,6 +143,27 @@
                     {% if row.supplied_outside %}
                       <i class="bi bi-box-arrow-in-down"></i> {{ t('vplans.outside_note') }}
                     {% endif %}
+                  </td>
+                  <td>
+                    <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;
+                          align-items:center;"
+                          action="{{ url_for('vaccinations.reminder_act') }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="patient_id" value="{{ person.patient.id }}">
+                      <input type="hidden" name="vaccine_id" value="{{ row.vaccine.id }}">
+                      <input type="hidden" name="dose_number" value="{{ row.dose_number }}">
+                      <button class="btn btn-outline btn-sm gc-press" type="submit"
+                              name="action" value="called" title="{{ t('vact.call') }}">
+                        <i class="bi bi-telephone"></i></button>
+                      <input class="input" type="date" name="until" value="{{ today }}"
+                             style="max-width:150px;" aria-label="{{ t('vact.snooze') }}">
+                      <button class="btn btn-outline btn-sm gc-press" type="submit"
+                              name="action" value="snoozed" title="{{ t('vact.snooze') }}">
+                        <i class="bi bi-clock"></i></button>
+                      <button class="btn btn-outline btn-sm gc-press" type="submit"
+                              name="action" value="dismissed" title="{{ t('vact.dismiss') }}">
+                        <i class="bi bi-x-lg"></i></button>
+                    </form>
                   </td>
                 </tr>
               {% endfor %}

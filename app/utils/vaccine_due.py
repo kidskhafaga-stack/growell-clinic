@@ -23,7 +23,7 @@ from app.utils.clock import local_today
 
 
 def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
-             status=None, lang="ar", today=None):
+             status=None, lang="ar", today=None, include_silenced=False):
     """Every pending dose in the clinic, newest urgency first.
 
     ``[{patient, vaccine, brand, dose_number, due_date, status}]``.
@@ -85,7 +85,15 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
             (vid, bid, dose_number, given_date, event_type))
 
     agreed = planned_by_patient([r[0] for r in rows])
+    # What somebody already dealt with. Held back rather than deleted, and
+    # counted on the way past so a screen can say how many it is hiding —
+    # a row that disappears for good is how a child quietly stops being
+    # followed.
+    from app.models.reminder_action import silenced
 
+    quiet = set() if include_silenced else silenced([r[0] for r in rows], today)
+
+    held_back = 0
     found = []
     for patient_id, dob in rows:
         for row in scan_due(dob, by_patient.get(patient_id, []), today,
@@ -105,6 +113,10 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
             # Carried so the order screen can leave it out: a family who is
             # buying their own dose still needs the visit arranged, and the
             # clinic must not put a vial on the order for it.
+            if (patient_id, row["vaccine"].id,
+                    row["dose_number"]) in quiet:
+                held_back += 1
+                continue
             found.append((patient_id, {
                 **row, "due": when,
                 "supplied_outside": bool(
@@ -112,13 +124,30 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
             }))
 
     if not found:
-        return []
+        return _tagged([], held_back)
     people = {p.id: p for p in Patient.query.filter(
         Patient.id.in_({pid for pid, _ in found})).all()}
 
     out = [{**row, "patient": people[pid]} for pid, row in found
            if pid in people]
     out.sort(key=_urgency)
+    return _tagged(out, held_back)
+
+
+class _DueList(list):
+    """The due rows, carrying how many were held back.
+
+    A subclass rather than a second return value: every caller of `due_list`
+    treats it as a list and several unpack it into comprehensions, so changing
+    the shape would touch all of them to tell most of them nothing. The count
+    is for the one screen that wants to say "3 hidden".
+    """
+    held_back = 0
+
+
+def _tagged(rows, held_back):
+    out = _DueList(rows)
+    out.held_back = held_back
     return out
 
 

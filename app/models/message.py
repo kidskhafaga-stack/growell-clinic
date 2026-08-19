@@ -45,6 +45,12 @@ SKIP_REASONS = ["missing_phone", "opted_out", "type_off"]
 SYSTEM_TEMPLATE_TYPES = [
     "appointment_confirm", "doctor_schedule", "vaccine_given",
     "vaccine_due", "vaccine_seasonal", "vaccine_changed",
+    # The vaccine the child is now old enough for, that nobody has promised
+    # them. A different sentence from `vaccine_due` and deliberately so: that
+    # one chases a dose this clinic committed to, and this one asks whether
+    # the family would like to hear about something. Sent under the same
+    # rules — the same opt-out, the same log — and never worded as a debt.
+    "vaccine_suggested",
     # "It has arrived" — to the families who were told to come while the
     # shelf was empty. See app/utils/vaccine_back.py.
     "vaccine_back",
@@ -80,6 +86,10 @@ TEMPLATE_VARIABLES = {
     "doctor_schedule": ["doctor", "date", "count", "list"],
     "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
     "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
+    # `age` is what makes this message say something the family did not
+    # already know, and `about` is the vaccine's own one-line explanation, so
+    # the text is not the clinic's opinion of it.
+    "vaccine_suggested": ["patient", "vaccine", "age", "about", "clinic"],
     "vaccine_seasonal": ["patient", "vaccine", "year", "clinic"],
     "vaccine_changed": ["patient", "old_vaccine", "new_vaccine", "clinic"],
     "vaccine_back": ["patient", "vaccine", "clinic"],
@@ -131,6 +141,12 @@ TEMPLATE_DEFAULTS = {
     "vaccine_due": (
         "تذكير من {clinic}: تطعيم {patient} — {vaccine} ({dose}) "
         "مستحق بتاريخ {due_date}.\nبرجاء الحجز في الموعد المناسب."
+    ),
+    "vaccine_suggested": (
+        "من {clinic}: {patient} بقى في السن المناسب لتطعيم {vaccine}.\n"
+        "{about}\n"
+        "التطعيم ده اختياري ومش ضمن الجدول الحكومي — لو حابين تعرفوا "
+        "أكتر أو تسألوا عنه، إحنا موجودين."
     ),
     "vaccine_seasonal": (
         "تذكير موسمي من {clinic}: حان وقت تطعيم {vaccine} لـ{patient} "

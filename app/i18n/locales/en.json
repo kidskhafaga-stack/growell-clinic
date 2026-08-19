@@ -4971,5 +4971,19 @@
     "needed": "Needed",
     "in_stock": "In stock",
     "to_order": "Order"
+  },
+  "vact": {
+    "called": "Call recorded",
+    "snoozed": "Snoozed",
+    "dismissed": "Removed from the list",
+    "undone": "Back on the list",
+    "bad": "Missing details",
+    "needs_date": "Snoozing needs a date",
+    "call": "Called them",
+    "snooze": "Snooze until",
+    "dismiss": "Not happening",
+    "undo": "Undo",
+    "hidden_n": "{n} hidden",
+    "show_hidden": "Show hidden"
   }
 }
