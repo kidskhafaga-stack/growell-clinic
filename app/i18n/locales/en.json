@@ -2528,7 +2528,8 @@
     "theme_system": "System",
     "my_chips": "My quick phrases",
     "my_chips_hint": "Yours alone. Leave empty to use the clinic's list.",
-    "chips_ph": "One per line — بالعربي|English"
+    "chips_ph": "One per line — بالعربي|English",
+    "print_size": "Print size"
   },
   "rxtpl": {
     "title": "Prescription print templates",

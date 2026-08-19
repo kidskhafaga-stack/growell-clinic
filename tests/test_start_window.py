@@ -165,6 +165,113 @@ def test_a_vaccine_with_no_start_window_is_untouched(seeded):
     assert "not_eligible" not in [d["status"] for d in row["doses"]]
 
 
+# ------------------------------------------- one concept, and it has two words
+
+def test_neither_shut_window_is_printed_as_a_suggestion(seeded):
+    """The bug this section exists for, found a day after the split.
+
+    Splitting a shut window into two words left every place that had written
+    `== "expired"` offering the other half. The certificate did: a
+    two-year-old was handed a printed rotavirus suggestion, dated to when
+    they were two months old — a course no clinic on earth can give them.
+
+    Both children are built, because that is the only way this could have
+    caught it: one who never began (`not_eligible`) and one who began and ran
+    out of time (`expired`). Asserting either alone passes.
+
+    Read from the template's own context rather than by searching the page.
+    A child who *started* has rotavirus printed on the certificate as a
+    record — correctly — so grepping the HTML for the vaccine's name cannot
+    tell a record from a suggestion, and a test that cannot tell them apart
+    is a test that will be deleted the first time it fires.
+    """
+    from flask import template_rendered
+
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+
+    with seeded["app"].app_context():
+        rota = Vaccine.query.filter_by(code="ROTA").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=rota.id,
+                                             name="RotaRix").first()
+        made = {}
+        for tag, weeks, started in (("never", 104, None), ("ranout", 30, 8)):
+            dob = local_today() - timedelta(weeks=weeks)
+            kid = Patient(patient_number=f"SWc{tag}", full_name="رضيع",
+                          gender="male", date_of_birth=dob, is_active=True)
+            db.session.add(kid)
+            db.session.flush()
+            if started is not None:
+                db.session.add(PatientVaccine(
+                    patient_id=kid.id, vaccine_id=rota.id, brand_id=brand.id,
+                    dose_number=1, event_type="given",
+                    given_date=dob + timedelta(weeks=started)))
+            made[tag] = kid.id
+        db.session.commit()
+
+    client = seeded["sign_in"]("doc")
+    for tag, patient_id in made.items():
+        seen = []
+
+        def record(_sender, template, context, **_kw):
+            for key in ("suggested", "upcoming"):
+                if key in context:
+                    seen.append(context[key])
+
+        # **Both** tables. The certificate has two, and which one a child
+        # lands in depends on whether they ever started: the one who never
+        # began is in "what the age suggests", the one who ran out of time is
+        # in "what is left". Asking only the first is how the `expired` half
+        # of this filter stayed untested — measured, by removing it.
+        template_rendered.connect(record, seeded["app"])
+        try:
+            client.get(
+                f"/vaccinations/{patient_id}/certificate?suggest=1&schedule=1",
+                follow_redirects=True)
+        finally:
+            template_rendered.disconnect(record, seeded["app"])
+
+        assert seen, "the certificate rendered neither table"
+        offered = {r["vaccine"].code for rows in seen for r in rows}
+        assert "ROTA" not in offered, \
+            f"the certificate still prints a shut course ({tag}): {offered}"
+
+
+def test_the_filter_asks_the_named_set_rather_than_a_word(seeded):
+    """Written against the source because the failure was structural.
+
+    A literal status word in a filter is a filter that is correct until the
+    vocabulary grows, and then silently is not. The set is named once in
+    `vaccines.py`; a third shut status added there has to reach the paper
+    without anybody remembering this file.
+    """
+    import ast
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "..", "app/blueprints/vaccinations/routes.py"),
+              encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+
+    from app.utils.vaccines import SHUT
+
+    literals = [n for n in ast.walk(tree)
+                if isinstance(n, ast.Constant) and n.value in SHUT]
+
+    assert not literals, (
+        "a shut-window status is written as a literal in the vaccinations "
+        f"routes at line(s) {[n.lineno for n in literals]} — it should ask "
+        "`SHUT`")
+
+
+def test_shut_and_giveable_do_not_overlap(seeded):
+    """A status in both would make a dose simultaneously offerable and
+    impossible, which is the shape of the bug rather than a typo."""
+    from app.utils.vaccines import GIVEABLE, SHUT
+
+    assert not set(SHUT) & set(GIVEABLE)
+    assert set(SHUT) == {"expired", "not_eligible"}
+
+
 def test_the_wording_exists_in_both_languages(seeded):
     import json
 

@@ -94,6 +94,18 @@
           <i class="bi bi-upload"></i> {{ t('profile.upload') }}
           <input type="file" name="{{ field }}" accept="image/*" hidden></label>
       </div>
+      {# The signature and the stamp print; a personal logo goes in the
+         letterhead, which sizes itself. #}
+      {% if field in ('signature_file', 'stamp_file') %}
+      {% set key = field.replace('_file', '_scale') %}
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;max-width:320px;">
+        <span style="color:var(--muted);font-size:.85rem;white-space:nowrap;">{{ t('profile.print_size') }}</span>
+        <input type="range" name="{{ key }}" min="40" max="250" step="5"
+               value="{{ doc[key] or 100 }}" style="flex:1;"
+               oninput="this.nextElementSibling.textContent = this.value + '%'">
+        <output style="min-width:46px;text-align:end;font-variant-numeric:tabular-nums;">{{ doc[key] or 100 }}%</output>
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
     <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:12px;">

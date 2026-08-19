@@ -42,6 +42,7 @@ from app.utils.patients import apply_patient_search
 from app.utils.clock import local_today
 from app.utils.vaccine_notify import notify_dose
 from app.utils.vaccines import (
+    SHUT,
     administer_dose,
     interval_warning,
     chosen_brand,
@@ -927,7 +928,7 @@ def certificate(patient_id):
                 # deliberately switched on deletes the feature rather than
                 # fixing it; two older tests exist to say so, and caught this.
                 if (d["status"] == "done" or d.get("event_type") == "refused"
-                        or d["status"] == "expired"):
+                        or d["status"] in SHUT):
                     continue
                 rows.append({"vaccine": v["vaccine"], "brand": v["brand"],
                              "dose_number": d["dose_number"],

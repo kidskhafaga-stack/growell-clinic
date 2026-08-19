@@ -619,6 +619,14 @@ def chosen_brand(patient_id, vaccine, given=None):
 # other screen looked fine.
 GIVEABLE = ("overdue", "due", "suggested")
 
+# The window has shut: this dose can never be given now. **Two** words,
+# because there are two deadlines — one for beginning a series and one for
+# finishing it — and the moment the second one was introduced, every place
+# that had written `== "expired"` went on offering the other half. The
+# certificate did exactly that: a two-year-old was printed a rotavirus
+# suggestion again, with a due date from when they were two months old.
+SHUT = ("expired", "not_eligible")
+
 
 def _status(due_date, given, today, closed_after=None, cannot_start=False):
     """What this dose is, for this child, today.
