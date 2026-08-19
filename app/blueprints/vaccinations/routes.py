@@ -84,9 +84,22 @@ def view(patient_id):
     # missing is a primary dose the child is behind on or the booster that
     # falls due next year — a phone call and a diary note, not the same job.
     annotate(plan)
+    # The agreed plan, and what is left to agree on. Only the optional
+    # schedule is offered: the national one is given at the government unit
+    # and agreeing to it here would promise something this clinic does not do.
+    from app.models.vaccine_plan import VaccinePlanItem
+
+    agreed = (VaccinePlanItem.query.filter_by(patient_id=patient.id)
+              .join(Vaccine).order_by(Vaccine.sort_order).all())
+    on_plan = {row.vaccine_id for row in agreed}
+    offerable = [item["vaccine"] for item in plan
+                 if not item["vaccine"].is_mandatory
+                 and not item["vaccine"].on_demand
+                 and item["vaccine"].id not in on_plan]
     return render_template(
         "vaccinations/view.html",
         patient=patient, plan=plan, summary=summary, next_due=nxt,
+        agreed=agreed, offerable=offerable,
         groups=group_plan(plan), open_groups=OPEN_GROUPS,
         # Which dose is which, per vaccine — so the doctor picks "the second
         # dose" by name instead of typing a number and hoping.
@@ -116,6 +129,215 @@ def _settle_paid_vaccines(patient, on_date):
     except Exception:                                   # pragma: no cover
         current_app.logger.exception("vaccine settlement sync failed")
         return []
+
+
+@vaccinations_bp.route("/reminder/act", methods=["POST"])
+@module_required(MODULE)
+def reminder_act():
+    """Record that somebody dealt with a reminder, so it stops asking.
+
+    The work list is rebuilt from birthdays and doses every time it opens, so
+    a row worked yesterday comes back this morning looking untouched.
+    Reception rings a family, the family says "next month", and tomorrow the
+    list says ring them. A list that cannot remember is one people stop
+    believing — quietly, by working the top of it and ignoring the rest.
+
+    Nothing is deleted. The row is held back and counted, and the screen will
+    show what it is holding, because a reminder that disappears for good is
+    how a child stops being followed without anybody deciding that.
+    """
+    from app.models.reminder_action import ACTIONS, ReminderAction, default_until
+    from app.utils.export import parse_date
+
+    action = (request.form.get("action") or "").strip()
+    patient_id = request.form.get("patient_id", type=int)
+    vaccine_id = request.form.get("vaccine_id", type=int)
+    if action not in ACTIONS or not patient_id or not vaccine_id:
+        flash(t("vact.bad"), "warning")
+        return redirect(request.referrer or url_for("vaccinations.reminders"))
+
+    until = default_until(action, parse_date(request.form.get("until")))
+    if action == "snoozed" and until is None:
+        # "Later" without a date is how a row goes quiet for ever by accident.
+        flash(t("vact.needs_date"), "warning")
+        return redirect(request.referrer or url_for("vaccinations.reminders"))
+
+    db.session.add(ReminderAction(
+        patient_id=patient_id, vaccine_id=vaccine_id,
+        dose_number=request.form.get("dose_number", type=int),
+        action=action, until=until,
+        note=(request.form.get("note") or "").strip()[:200] or None,
+        created_by_id=current_user.id))
+    ActivityLog.record("vaccine.reminder_act", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=f"{action} v={vaccine_id}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("vact." + action), "success")
+    return redirect(request.referrer or url_for("vaccinations.reminders"))
+
+
+@vaccinations_bp.route("/reminder/<int:action_id>/undo", methods=["POST"])
+@module_required(MODULE)
+def reminder_undo(action_id):
+    """Put a held-back reminder back on the list."""
+    from app.models.reminder_action import ReminderAction
+
+    row = db.get_or_404(ReminderAction, action_id)
+    patient_id = row.patient_id
+    db.session.delete(row)
+    ActivityLog.record("vaccine.reminder_undo", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vact.undone"), "info")
+    return redirect(request.referrer or url_for("vaccinations.plans"))
+
+
+@vaccinations_bp.route("/plans")
+@module_required(MODULE)
+def plans():
+    """The cases the clinic agreed a plan with, and what they still owe them.
+
+    Its own screen rather than a filter on the dose reminders, because it
+    answers a different question. Reminders ask "who is late"; this asks "who
+    did we promise something to, and are we keeping it" — and the second is
+    the one somebody works through on a Sunday morning with the fridge open.
+
+    The filters are the ones every screen here should carry: a date range, a
+    vaccine, and nothing else to learn. The purchase order is built from
+    **whatever the filter is showing**, the same rule the reminders screen and
+    the invoice export already follow, so what you take away is what you were
+    looking at.
+
+    A dose the family is buying themselves is on the list and never in the
+    order. They still need the visit arranged and the dose recorded; putting a
+    vial on the order for it fills the fridge with stock nobody will pay for.
+    """
+    from app.models.vaccine_plan import VaccinePlanItem
+    from app.utils.export import parse_date
+    from app.utils.vaccine_due import due_list, order_suggestion, summarise
+
+    lang = getattr(g, "lang", "ar")
+    start = parse_date(request.args.get("from"))
+    end = parse_date(request.args.get("to"))
+    vaccine_id = request.args.get("vaccine_id", type=int)
+
+    on_plan = {}
+    for item in VaccinePlanItem.query.all():
+        on_plan.setdefault(item.patient_id, set()).add(item.vaccine_id)
+    if not on_plan:
+        found, rows = [], []
+    else:
+        # Kept whole before filtering: `due_list` carries how many rows it
+        # held back on the object it returns, and a list comprehension makes
+        # an ordinary list that has forgotten. Measured — the "N hidden"
+        # notice rendered as zero and the way to see them never appeared.
+        found = due_list(start=start, end=end, vaccine_id=vaccine_id,
+                         lang=lang)
+        rows = [r for r in found
+                if r["vaccine"].id in on_plan.get(r["patient"].id, ())]
+
+    people = {}
+    for row in rows:
+        people.setdefault(row["patient"].id, {
+            "patient": row["patient"], "rows": []})["rows"].append(row)
+
+    # What is being held back, and by what — so the screen can both say how
+    # many and offer them back. A count alone tells somebody a number they
+    # cannot act on.
+    from app.models.reminder_action import ReminderAction
+
+    show_hidden = request.args.get("hidden") == "1"
+    held = []
+    if show_hidden:
+        held = (ReminderAction.query
+                .filter(db.or_(ReminderAction.until.is_(None),
+                               ReminderAction.until > local_today()))
+                .order_by(ReminderAction.created_at.desc()).limit(100).all())
+
+    return render_template(
+        "vaccinations/plans.html",
+        people=sorted(people.values(),
+                      key=lambda p: p["patient"].display_name(lang)),
+        rows=rows, counts=summarise(rows),
+        order=order_suggestion(rows),
+        held_back=getattr(found, "held_back", 0),
+        held=held, show_hidden=show_hidden,
+        today=local_today().isoformat(),
+        # How many children are on a plan at all, so an empty result reads as
+        # "nothing due" rather than "nobody has a plan".
+        total_on_plan=len(on_plan),
+        vaccines=Vaccine.query.order_by(Vaccine.sort_order).all(),
+        f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
+        vaccine_id=vaccine_id,
+    )
+
+
+@vaccinations_bp.route("/<int:patient_id>/plan/add", methods=["POST"])
+@module_required(MODULE)
+def plan_add(patient_id):
+    """Agree a vaccine with this family, so the program starts following it.
+
+    One press per vaccine and nothing else to fill in. The doses and their
+    dates come from the schedule the child is already on — asking the doctor
+    to type them would be asking them to restate what the program computed,
+    and a date typed twice is a date that eventually disagrees with itself.
+    Any one of them can still be moved afterwards, which is what the pencilled
+    dates were always for.
+    """
+    from app.models import Vaccine
+    from app.models.vaccine_plan import VaccinePlanItem
+
+    patient = db.get_or_404(Patient, patient_id)
+    vaccine_id = request.form.get("vaccine_id", type=int)
+    vaccine = db.session.get(Vaccine, vaccine_id) if vaccine_id else None
+    if vaccine is None:
+        flash(t("vplan.pick_one"), "warning")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    existing = VaccinePlanItem.query.filter_by(
+        patient_id=patient.id, vaccine_id=vaccine.id).first()
+    if existing is not None:
+        flash(t("vplan.already"), "info")
+        return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+    item = VaccinePlanItem(
+        patient_id=patient.id, vaccine_id=vaccine.id,
+        brand_id=request.form.get("brand_id", type=int) or None,
+        # The family is bringing this one: still a plan, never an order.
+        supplied_outside=bool(request.form.get("supplied_outside")),
+        note=(request.form.get("note") or "").strip()[:200] or None,
+        added_by_id=current_user.id)
+    db.session.add(item)
+    ActivityLog.record("vaccine.plan_add", user_id=current_user.id,
+                       entity="patient", entity_id=patient.id,
+                       detail=vaccine.code or vaccine.name_ar,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vplan.added"), "success")
+    return redirect(url_for("vaccinations.view", patient_id=patient.id))
+
+
+@vaccinations_bp.route("/plan/<int:item_id>/remove", methods=["POST"])
+@module_required(MODULE)
+def plan_remove(item_id):
+    """Take a vaccine off the plan.
+
+    The course goes back to being a suggestion for the child's age rather than
+    disappearing — the family did not become younger, and the doctor may only
+    have changed their mind about the timing.
+    """
+    from app.models.vaccine_plan import VaccinePlanItem
+
+    item = db.get_or_404(VaccinePlanItem, item_id)
+    patient_id = item.patient_id
+    ActivityLog.record("vaccine.plan_remove", user_id=current_user.id,
+                       entity="patient", entity_id=patient_id,
+                       detail=str(item.vaccine_id), ip_address=client_ip())
+    db.session.delete(item)
+    db.session.commit()
+    flash(t("vplan.removed"), "info")
+    return redirect(url_for("vaccinations.view", patient_id=patient_id))
 
 
 @vaccinations_bp.route("/<int:patient_id>/record", methods=["POST"])
@@ -642,7 +864,26 @@ def certificate(patient_id):
         rows = []
         for v in items:
             for d in v["doses"]:
-                if d["status"] == "done" or d.get("event_type") == "refused":
+                # The national schedule and the on-demand vaccines belong on
+                # the certificate as a **record** — a dose given at a
+                # government unit is part of the child's history and is why a
+                # parent carries the paper at all. They do not belong in the
+                # *suggestions*: nobody here promised them, and a page telling
+                # a family they are behind on nine government vaccines is
+                # frightening, useless and not this clinic's to say.
+                # A shut window is not a suggestion at any time: the series
+                # can no longer be completed, so printing it asks a family for
+                # something no clinic can give them.
+                #
+                # The national schedule stays. This table prints only when the
+                # doctor asks for it (`?suggest=1`), and being "what the age
+                # suggests" rather than anything this clinic promised is the
+                # whole reason it is opt-in — which in Egypt is mostly the
+                # government schedule. Taking it out of a table somebody
+                # deliberately switched on deletes the feature rather than
+                # fixing it; two older tests exist to say so, and caught this.
+                if (d["status"] == "done" or d.get("event_type") == "refused"
+                        or d["status"] == "expired"):
                     continue
                 rows.append({"vaccine": v["vaccine"], "brand": v["brand"],
                              "dose_number": d["dose_number"],

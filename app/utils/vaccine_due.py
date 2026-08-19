@@ -23,7 +23,7 @@ from app.utils.clock import local_today
 
 
 def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
-             status=None, lang="ar", today=None):
+             status=None, lang="ar", today=None, include_silenced=False):
     """Every pending dose in the clinic, newest urgency first.
 
     ``[{patient, vaccine, brand, dose_number, due_date, status}]``.
@@ -33,26 +33,71 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
     will I need next month". A row with no due date — a seasonal recall — is
     kept whatever the range, because its whole point is that it is due now.
     """
+    from app.extensions import db
     from app.models import Patient, PatientVaccine
-    from app.utils.vaccines import patient_due_reminders
+    from app.utils.vaccines import scan_due
 
     today = today or local_today()
 
-    # Only patients who have actually had something here. One query, and it is
-    # what keeps this from being a plan computation for every patient on file.
-    started = {row[0] for row in (
-        PatientVaccine.query.filter(PatientVaccine.event_type == "given")
-        .with_entities(PatientVaccine.patient_id).distinct().all())}
-    if not started:
+    # ── Read flat, build objects for the survivors ────────────────────
+    #
+    # This walks every child who has ever had a dose here — on a clinic that
+    # imported its history, that is the whole register — and returns a few
+    # hundred rows. Loading it as model objects cost 22µs apiece in
+    # change-tracking and lazy-load machinery for records nothing here
+    # modifies: 15,000 patients and 75,000 doses is 90,000 objects and about
+    # four seconds, to answer a question about a few hundred.
+    #
+    # So the sweep reads columns, and the patients that actually come out of it
+    # are loaded properly in one more query. Callers still get a `Patient` and
+    # can ask it for the family's phone number; what changed is that we no
+    # longer build one for the fourteen thousand children with nothing due.
+    #
+    # The schedule itself is untouched: `scan_due` and the patient's own file
+    # both run `course_dates`, and `test_flat_scan_agrees` holds them to the
+    # same answer.
+    # Who the sweep has anything to say about: a child who has had a dose
+    # here, **or** one the doctor agreed a plan with. The second is the whole
+    # point of a plan — its first dose can be late before any dose exists.
+    from app.models.vaccine_plan import VaccinePlanItem, planned_by_patient
+
+    rows = db.session.query(
+        Patient.id, Patient.date_of_birth).filter(
+        Patient.is_active.is_(True),
+        db.or_(
+            Patient.id.in_(
+                db.session.query(PatientVaccine.patient_id)
+                .filter(PatientVaccine.event_type == "given").distinct()),
+            Patient.id.in_(
+                db.session.query(VaccinePlanItem.patient_id).distinct()))).all()
+    if not rows:
         return []
 
-    patients = (Patient.query
-                .filter(Patient.is_active.is_(True), Patient.id.in_(started))
-                .all())
+    doses = db.session.query(
+        PatientVaccine.patient_id, PatientVaccine.vaccine_id,
+        PatientVaccine.brand_id, PatientVaccine.dose_number,
+        PatientVaccine.given_date, PatientVaccine.event_type).filter(
+        PatientVaccine.patient_id.in_([r[0] for r in rows])).all()
 
-    out = []
-    for patient in patients:
-        for row in patient_due_reminders(patient, lang, today):
+    by_patient = {}
+    for pid, vid, bid, dose_number, given_date, event_type in doses:
+        by_patient.setdefault(pid, []).append(
+            (vid, bid, dose_number, given_date, event_type))
+
+    agreed = planned_by_patient([r[0] for r in rows])
+    # What somebody already dealt with. Held back rather than deleted, and
+    # counted on the way past so a screen can say how many it is hiding —
+    # a row that disappears for good is how a child quietly stops being
+    # followed.
+    from app.models.reminder_action import silenced
+
+    quiet = set() if include_silenced else silenced([r[0] for r in rows], today)
+
+    held_back = 0
+    found = []
+    for patient_id, dob in rows:
+        for row in scan_due(dob, by_patient.get(patient_id, []), today,
+                            agreed=agreed.get(patient_id, set())):
             if vaccine_id and row["vaccine"].id != int(vaccine_id):
                 continue
             if brand_id and (not row["brand"] or row["brand"].id != int(brand_id)):
@@ -65,9 +110,44 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
                     continue
                 if end and when > end:
                     continue
-            out.append({**row, "patient": patient, "due": when})
+            # Carried so the order screen can leave it out: a family who is
+            # buying their own dose still needs the visit arranged, and the
+            # clinic must not put a vial on the order for it.
+            if (patient_id, row["vaccine"].id,
+                    row["dose_number"]) in quiet:
+                held_back += 1
+                continue
+            found.append((patient_id, {
+                **row, "due": when,
+                "supplied_outside": bool(
+                    agreed.get(patient_id, {}).get(row["vaccine"].id)),
+            }))
 
+    if not found:
+        return _tagged([], held_back)
+    people = {p.id: p for p in Patient.query.filter(
+        Patient.id.in_({pid for pid, _ in found})).all()}
+
+    out = [{**row, "patient": people[pid]} for pid, row in found
+           if pid in people]
     out.sort(key=_urgency)
+    return _tagged(out, held_back)
+
+
+class _DueList(list):
+    """The due rows, carrying how many were held back.
+
+    A subclass rather than a second return value: every caller of `due_list`
+    treats it as a list and several unpack it into comprehensions, so changing
+    the shape would touch all of them to tell most of them nothing. The count
+    is for the one screen that wants to say "3 hidden".
+    """
+    held_back = 0
+
+
+def _tagged(rows, held_back):
+    out = _DueList(rows)
+    out.held_back = held_back
     return out
 
 
@@ -110,6 +190,10 @@ def order_suggestion(rows, cover_days=None, today=None):
         brand = row.get("brand")
         if brand is None:
             continue                # no brand chosen yet — nothing to order
+        if row.get("supplied_outside"):
+            # Agreed, followed, chased — and bought by the family. Counting it
+            # here fills the fridge with stock nobody is going to pay for.
+            continue
         if horizon and row["due"] and row["due"] > horizon:
             continue
         slot = needed.setdefault(brand.id, {

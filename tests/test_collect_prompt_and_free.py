@@ -292,3 +292,119 @@ def test_the_wording_exists_in_both_languages(clinic, key):
         with open(os.path.join(here, "..", "app/i18n/locales", f"{lang}.json"),
                   encoding="utf-8") as fh:
             assert key in json.load(fh)["appointments"], f"{lang} is missing {key}"
+
+
+# ------------------------------------------- when the price changes its mind
+
+def _override(clinic, service, doctor, amount):
+    """What this doctor charges for this service, overriding the price list."""
+    from app.extensions import db
+    from app.models.service import DoctorServiceCommission
+
+    row = DoctorServiceCommission.query.filter_by(
+        service_id=service.id, doctor_id=doctor.id).first()
+    if row is None:
+        row = DoctorServiceCommission(service_id=service.id,
+                                      doctor_id=doctor.id)
+        db.session.add(row)
+    row.price_override = amount
+    db.session.commit()
+    return row
+
+
+def test_a_doctor_who_starts_charging_gets_collected(clinic):
+    """Asked directly: the consultation was free, now it costs — will the desk
+    be told to collect it?
+
+    It will, and for the booking made *before* the price changed too, which is
+    the half worth pinning. Nothing about the price is copied onto the
+    appointment: `_checkout_lines` asks `price_for(doctor)` each time the till
+    is drawn. A snapshot taken at booking would answer zero here forever, and
+    the money would quietly never be asked for — the failure nobody reports,
+    because no screen looks wrong.
+    """
+    from app.extensions import db
+    from app.models import Appointment, User
+    from app.blueprints.finance.routes import booking_due
+
+    with clinic["app"].app_context():
+        exam = _service(clinic, "كشف", 200, "consultation")
+        doctor = User.query.filter_by(username="doc").first()
+        _override(clinic, exam, doctor, 0)          # this one is on the house
+        appt = _booking(clinic, "consultation")
+        appt_id = appt.id
+
+        assert booking_due(appt) == 0
+
+        _override(clinic, exam, doctor, 250)        # and now it is not
+        appt = db.session.get(Appointment, appt_id)
+
+        assert booking_due(appt) == 250, \
+            "the price changed and the booking is still worth what it was"
+
+
+def test_the_till_picks_it_up_without_rebooking(clinic):
+    """The end of the same story, on the screen reception actually reads."""
+    from app.models import User
+
+    with clinic["app"].app_context():
+        exam = _service(clinic, "كشف", 200, "consultation")
+        doctor = User.query.filter_by(username="doc").first()
+        _override(clinic, exam, doctor, 0)
+        appt_id = _booking(clinic, "consultation").id
+        exam_id, doctor_id = exam.id, doctor.id
+
+    page = clinic["sign_in"]("desk").get("/finance/cashier",
+                                         follow_redirects=True).data.decode()
+    assert f"/finance/checkout/{appt_id}" not in page, \
+        "a free consultation is on the chase list before the price changed"
+
+    with clinic["app"].app_context():
+        from app.extensions import db
+        from app.models import Service
+        # By id, not by name: the fixture ships a "كشف" of its own, and
+        # overriding that one instead would leave this test passing while
+        # measuring nothing.
+        _override(clinic, db.session.get(Service, exam_id),
+                  db.session.get(User, doctor_id), 250)
+
+    page = clinic["sign_in"]("desk").get("/finance/cashier",
+                                         follow_redirects=True).data.decode()
+    assert f"/finance/checkout/{appt_id}" in page, \
+        "the doctor started charging and the till never noticed"
+
+
+def test_it_goes_the_other_way_too(clinic):
+    """A doctor who stops charging drops off the list rather than sitting on
+    it as a debt nobody can collect."""
+    from app.models import User
+    from app.blueprints.finance.routes import booking_due
+
+    with clinic["app"].app_context():
+        exam = _service(clinic, "كشف", 200, "consultation")
+        doctor = User.query.filter_by(username="doc").first()
+        appt = _booking(clinic, "consultation")
+
+        assert booking_due(appt) == 200
+
+        _override(clinic, exam, doctor, 0)
+
+        assert booking_due(appt) == 0
+
+
+def test_the_price_list_alone_is_enough(clinic):
+    """No per-doctor override in sight — the plain price moving must carry
+    just as well, since most clinics never set an override at all."""
+    from app.extensions import db
+    from app.blueprints.finance.routes import booking_due
+
+    with clinic["app"].app_context():
+        exam = _service(clinic, "كشف مجاني", 0, "consultation")
+        appt = _booking(clinic, "consultation")
+
+        assert booking_due(appt) == 0
+
+        exam.price = 180
+        db.session.commit()
+
+        assert booking_due(appt) == 180

@@ -27,6 +27,58 @@
     </div>
   </div>
 
+  <!-- The agreed plan: what the doctor and the family settled on -->
+  <div class="card gc-scale-in" style="margin-top:18px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 style="margin:0;font-size:1.05rem;">
+        <i class="bi bi-clipboard2-check"></i> {{ t('vplan.title') }}</h2>
+      {% if agreed %}<span class="badge badge--role">{{ agreed|length }}</span>{% endif %}
+    </div>
+    <p class="hint" style="margin:6px 0 12px;">{{ t('vplan.hint') }}</p>
+
+    {% if agreed %}
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        {% for item in agreed %}
+          <span class="badge badge--role" style="display:inline-flex;align-items:center;gap:6px;">
+            {{ item.vaccine.display_name(current_lang) }}
+            {% if item.supplied_outside %}
+              <i class="bi bi-box-arrow-in-down" title="{{ t('vplan.supplied_hint') }}"></i>
+            {% endif %}
+            <form method="post" style="display:inline;"
+                  action="{{ url_for('vaccinations.plan_remove', item_id=item.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn-icon" type="submit" title="{{ t('vplan.remove') }}"
+                      style="padding:0;border:0;background:none;cursor:pointer;">
+                <i class="bi bi-x-lg"></i></button>
+            </form>
+          </span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="hint" style="margin:0 0 12px;">{{ t('vplan.none') }}</p>
+    {% endif %}
+
+    {% if offerable %}
+      <form method="post" action="{{ url_for('vaccinations.plan_add', patient_id=patient.id) }}"
+            style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+          <select class="input" name="vaccine_id" required>
+            {% for v in offerable %}
+              <option value="{{ v.id }}">{{ v.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <label class="hint" style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" name="supplied_outside" value="1">
+          {{ t('vplan.outside') }}
+        </label>
+        <button class="btn btn-primary gc-press" type="submit">
+          <i class="bi bi-plus-lg"></i> {{ t('vplan.add') }}</button>
+      </form>
+    {% endif %}
+  </div>
+
   <!-- Summary cards -->
   <div class="stat-grid gc-stagger" style="margin:18px 0;">
     <div class="stat-card edge-green gc-lift"><i class="bi bi-check-circle ico"></i>
@@ -77,6 +129,23 @@
           <span class="badge badge--{{ 'green' if v.is_mandatory else 'muted' }}">{{ t('vaccinations.mandatory') if v.is_mandatory else t('vaccinations.optional') }}</span>
           {% if v.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ v.route) }}</span>{% endif %}
           <span class="badge badge--role"><i class="bi bi-box"></i> {{ item.brand.display_name(current_lang) }}{% if item.locked %} 🔒{% endif %}</span>
+          {# The dose count for this trade name depends on how old the child
+             was at the first one — Bexsero is 2+1 from two months and fewer
+             later, Vaxneuvance is 3+1 on the leaflet and 2+1 on the WHO
+             schedule. The program computes one standard course and cannot
+             yet choose between them, so it says so here rather than letting a
+             number look more certain than it is. The wording carries the
+             brand's own note, which is where the real answer is written.
+
+             Only on courses this clinic has taken on — started or agreed —
+             because that is where somebody acts on a dose count. On every
+             row it is wallpaper: measured at eleven badges on one healthy
+             child's file, which is the number at which a warning stops being
+             read at all. #}
+          {% if item.brand.doses_change_by_start_age and item.committed %}
+            <span class="badge badge--danger" title="{{ item.brand.catch_up_notes or v.catch_up_ar or '' }}">
+              <i class="bi bi-exclamation-triangle"></i> {{ t('vaccinations.varies_by_start_age') }}</span>
+          {% endif %}
           {% if not v.is_mandatory %}
           <span class="badge {{ 'badge--green' if item.brand.stock > 5 else ('badge--danger' if item.brand.stock == 0 else 'badge--muted') }}">
             <i class="bi bi-boxes"></i>

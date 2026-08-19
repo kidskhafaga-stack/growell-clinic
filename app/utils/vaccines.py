@@ -82,6 +82,42 @@ def _catalogue_load_flags():
     return gov, optional
 
 
+# The regulatory / window facts the catalogue carries per trade name. Filled
+# only where blank: a clinic that corrected a ceiling for its own stock keeps
+# its correction across a re-seed, which is the same promise the schedules
+# already make.
+_BRAND_FACTS = ("manufacturer", "valency", "dose_volume",
+                "max_age_final_dose_days", "registered_in_egypt",
+                "available_now", "doses_change_by_start_age",
+                "reminder_scope", "source_url")
+
+
+# The one fact whose blank really is ``False``: the column is NOT NULL with a
+# default, so an untouched row and a deliberate "no" look identical. Nothing
+# reads it yet — it marks which brands still need an age-banded schedule — so
+# following the catalogue is right for it and wrong for all the others.
+_FACTS_FILLED_OVER_FALSE = {"doses_change_by_start_age"}
+
+
+def _fill_brand_facts(brand, data):
+    """Copy the catalogue's facts onto a brand without clobbering edits.
+
+    Blank means ``None``, not falsy. Counting ``False`` as blank meant a clinic
+    marking a product out of stock had it declared available again by the next
+    re-seed — the correction quietly undone by the thing meant to help.
+    """
+    for field in _BRAND_FACTS:
+        value = data.get(field)
+        if value is None:
+            continue
+        current = getattr(brand, field, None)
+        blank = current is None or current == ""
+        if field in _FACTS_FILLED_OVER_FALSE:
+            blank = blank or current is False
+        if blank:
+            setattr(brand, field, value)
+
+
 def seed_vaccines():
     """Idempotently load the bundled vaccine catalogue into the database.
 
@@ -164,6 +200,7 @@ def seed_vaccines():
                 # only when the clinic hasn't set one (never clobber edits).
                 if b.get("catch_up_ar") and not existing.catch_up_notes:
                     existing.catch_up_notes = b["catch_up_ar"]
+                _fill_brand_facts(existing, b)
                 if booster_from:
                     for row in existing.doses:
                         if row.dose_number >= booster_from and not row.is_booster:
@@ -174,7 +211,14 @@ def seed_vaccines():
                 manufacturer=b.get("manufacturer"), price=b.get("price"),
                 is_default=b.get("default", False),
                 catch_up_notes=b.get("catch_up_ar"),
+                # Set at creation and never backfilled: whether a trade name
+                # is still made is the catalogue's opening position, and the
+                # clinic owns it afterwards. Backfilling it would undo a
+                # clinic that brought one back, the same way counting False as
+                # blank once undid "out of stock".
+                is_discontinued=b.get("discontinued", False),
             )
+            _fill_brand_facts(brand, b)
             db.session.add(brand)
             db.session.flush()
             for i, age in enumerate(b["doses_age_months"], start=1):
@@ -288,18 +332,42 @@ def seed_vaccine_schedules():
 
 
 # -------------------------------------------------------- computation ------
-def chosen_brand(patient_id, vaccine):
+def _first_given(rows):
+    """The earliest given dose in ``rows``, ordered as the database orders it.
+
+    ``dose_number`` is NOT NULL, so the ordering is a plain ascending one; the
+    None arm is belt-and-braces for rows built in memory and never saved, and
+    places it where an ascending SQL order would — first.
+    """
+    return min(rows, key=lambda pv: (pv.dose_number is not None,
+                                     pv.dose_number or 0))
+
+
+def chosen_brand(patient_id, vaccine, given=None):
     """The brand locked for this patient/vaccine, or the default brand.
 
     Only an actually-given dose locks the brand; a refused/delayed event does
     not commit the patient to a brand.
+
+    ``given`` lets a caller that has already read the patient's doses hand them
+    over instead of paying for another query. `patient_plan` reads every one of
+    them on its first line and then asked again here, once per vaccine — which
+    is a query per patient per vaccine, for rows already sitting in memory.
+    Measured on the customer-service desk, whose work-list counts walk every
+    vaccinated patient on file: 6 queries per patient at 2,000 patients was
+    12,005 queries and 4.4 seconds, to draw a card that said zero.
     """
-    pv = (
-        PatientVaccine.query.filter_by(patient_id=patient_id, vaccine_id=vaccine.id,
-                                       event_type="given")
-        .order_by(PatientVaccine.dose_number)
-        .first()
-    )
+    if given is None:
+        pv = (
+            PatientVaccine.query.filter_by(patient_id=patient_id,
+                                           vaccine_id=vaccine.id,
+                                           event_type="given")
+            .order_by(PatientVaccine.dose_number)
+            .first()
+        )
+    else:
+        rows = given.get(vaccine.id) or []
+        pv = _first_given(rows) if rows else None
     if pv:
         return pv.brand, True  # locked
     return vaccine.default_brand, False
@@ -313,11 +381,27 @@ def chosen_brand(patient_id, vaccine):
 GIVEABLE = ("overdue", "due", "suggested")
 
 
-def _status(due_date, given, today):
+def _status(due_date, given, today, closed_after=None):
+    """What this dose is, for this child, today.
+
+    ``closed_after`` is the last date the dose could still be given — the
+    brand's ceiling projected onto this child's birthday. Past it the dose is
+    **expired**, not overdue: the difference is the whole point. "Overdue" asks
+    somebody to chase it, and the rotavirus series cannot be given to a
+    three-year-old at all, so chasing it is asking the desk to make a call that
+    ends in "no". Before this, every child past the window read as overdue on
+    rotavirus for the rest of their childhood.
+    """
     if given:
         return "done"
+    if closed_after is not None and today > closed_after:
+        return "expired"
     if due_date is None:
         return "upcoming"
+    # A dose whose own turn falls past the ceiling can never arrive in time,
+    # even though the child is still inside the window today.
+    if closed_after is not None and due_date > closed_after:
+        return "expired"
     if due_date < today:
         return "overdue"
     if (due_date - today).days <= DUE_WINDOW_DAYS:
@@ -325,7 +409,84 @@ def _status(due_date, given, today):
     return "upcoming"
 
 
-def patient_plan(patient, lang="ar"):
+def _all_vaccines():
+    """The vaccine catalogue, read once per request.
+
+    A dozen rows that do not change while a page is being built, re-read for
+    every patient the work list walks.
+    """
+    from app.utils.request_cache import remember
+
+    return remember("vaccines:all",
+                    lambda: Vaccine.query.order_by(Vaccine.sort_order).all())
+
+
+def doses_for(patient_ids):
+    """Every recorded dose for many patients, grouped by patient, in one query.
+
+    The batched feed for :func:`patient_plan`. Walking a list of patients and
+    letting each one read its own doses is a query apiece — fine for a file
+    screen, and the whole cost of the work-list counts on a clinic with a few
+    thousand vaccinated children.
+    """
+    if not patient_ids:
+        return {}
+    out = {}
+    rows = (PatientVaccine.query
+            .filter(PatientVaccine.patient_id.in_(list(patient_ids))).all())
+    for pv in rows:
+        out.setdefault(pv.patient_id, []).append(pv)
+    return out
+
+
+def course_dates(dob, schedule, given, planned, min_interval,
+                 earliest_live, closed_after, today):
+    """When each dose of one course falls due, and what it is today.
+
+    The whole scheduling rule, in one place and over plain values: a birthday,
+    ``[(dose_number, age_months)]``, and two ``{dose_number: date}`` maps for
+    what was given and what the doctor pencilled in.
+
+    It takes no model objects on purpose. The patient's own file wants the
+    doctor, the lot number and the batch a dose was imported in; a sweep over
+    every vaccinated child in the register wants none of that and cannot
+    afford to build it. Both need the *same* dates, and two implementations of
+    a schedule eventually disagree in front of a family — so the loading is
+    what differs between them and this is not.
+
+    Returns ``{dose_number: (due_date | None, status)}``.
+    """
+    out = {}
+    prev_date = None
+    for dose_number, age_months in schedule:
+        given_date = given.get(dose_number)
+        due = add_months(dob, age_months) if dob else None
+        if given_date is not None:
+            effective = given_date
+        else:
+            # Catch-up: a not-yet-given dose cannot fall due before the minimum
+            # gap after the previous one, so the chain runs forward from each
+            # dose's effective date — the real one where there is one, the
+            # projected one otherwise. A child who started late gets correctly
+            # spaced dates rather than the raw age dates.
+            if due and prev_date:
+                earliest = prev_date + timedelta(days=min_interval)
+                if earliest > due:
+                    due = earliest
+            if due and earliest_live and earliest_live > due:
+                due = earliest_live
+            # The doctor's explicit appointment for this dose wins over the
+            # computed schedule (their patient, their timing).
+            if planned.get(dose_number):
+                due = planned[dose_number]
+            effective = due
+        prev_date = effective
+        out[dose_number] = (due, _status(due, given_date is not None, today,
+                                         closed_after=closed_after))
+    return out
+
+
+def patient_plan(patient, lang="ar", doses=None, agreed=None):
     """Build the full vaccination plan for a patient.
 
     Returns a list of per-vaccine dicts with the chosen brand and a list of
@@ -336,13 +497,20 @@ def patient_plan(patient, lang="ar"):
     dob = patient.date_of_birth
     given_index = {}
     events_index = {}   # (vaccine_id, dose_number) -> refused/delayed event
-    for pv in PatientVaccine.query.filter_by(patient_id=patient.id).all():
+    given_by_vaccine = {}   # vaccine_id -> [given doses], for `chosen_brand`
+    rows = (PatientVaccine.query.filter_by(patient_id=patient.id).all()
+            if doses is None else doses)
+    if agreed is None:
+        from app.models.vaccine_plan import planned_vaccine_ids
+        agreed = planned_vaccine_ids(patient.id)
+    for pv in rows:
         if (pv.event_type or "given") == "given":
             given_index[(pv.vaccine_id, pv.dose_number)] = pv
+            given_by_vaccine.setdefault(pv.vaccine_id, []).append(pv)
         else:
             events_index[(pv.vaccine_id, pv.dose_number)] = pv
 
-    all_vaccines = Vaccine.query.order_by(Vaccine.sort_order).all()
+    all_vaccines = _all_vaccines()
     # Injectable/intranasal live vaccines (oral live are exempt) and the latest
     # date each was given — used for the 28-day live-vaccine spacing rule.
     live_ids = {v.id for v in all_vaccines
@@ -356,7 +524,8 @@ def patient_plan(patient, lang="ar"):
 
     plan = []
     for vaccine in all_vaccines:
-        brand, locked = chosen_brand(patient.id, vaccine)
+        brand, locked = chosen_brand(patient.id, vaccine,
+                                     given=given_by_vaccine)
         if brand is None:
             continue
         # Catch-up: a not-yet-given dose can't fall due before the minimum gap
@@ -373,6 +542,13 @@ def patient_plan(patient, lang="ar"):
         # floor the catch-up seeder already uses, so the program was carrying
         # the number and not applying it where it mattered most.
         min_iv = vaccine.min_interval_days or _CATCH_UP_MIN_INTERVAL
+        # The last day this brand's series may still be completed, on this
+        # child's birthday. Per brand, because that is where it differs:
+        # rotavirus finishes at 24 weeks on RotaRix and 32 on RotaTeq, and
+        # Synflorix stops at five years while the other pneumococcals do not.
+        closed_after = None
+        if dob and brand.max_age_final_dose_days:
+            closed_after = dob + timedelta(days=brand.max_age_final_dose_days)
         # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
         # the child already got (can't co-administer with a past dose anymore).
         earliest_live = None
@@ -380,29 +556,27 @@ def patient_plan(patient, lang="ar"):
             others = [dt for vid2, dt in live_given.items() if vid2 != vaccine.id]
             if others:
                 earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
-        prev_date = None
+        given_dates = {d.dose_number: (given_index[(vaccine.id, d.dose_number)]
+                                       .given_date)
+                       for d in brand.doses
+                       if (vaccine.id, d.dose_number) in given_index}
+        planned_dates = {}
+        for d in brand.doses:
+            ev = events_index.get((vaccine.id, d.dose_number))
+            if (ev is not None and d.dose_number not in given_dates
+                    and ev.event_type == "planned" and ev.given_date):
+                planned_dates[d.dose_number] = ev.given_date
+        timings = course_dates(
+            dob, [(d.dose_number, d.age_months) for d in brand.doses],
+            given_dates, planned_dates, min_iv, earliest_live, closed_after,
+            today)
+
         doses = []
         for d in brand.doses:
             pv = given_index.get((vaccine.id, d.dose_number))
             ev = events_index.get((vaccine.id, d.dose_number))
-            due = add_months(dob, d.age_months) if dob else None
-            planned = (ev.given_date if ev is not None and pv is None
-                       and ev.event_type == "planned" and ev.given_date else None)
-            if pv is not None:
-                effective = pv.given_date
-            else:
-                if due and prev_date:
-                    earliest = prev_date + timedelta(days=min_iv)
-                    if earliest > due:
-                        due = earliest
-                if due and earliest_live and earliest_live > due:
-                    due = earliest_live
-                # The doctor's explicit appointment for this dose wins over
-                # the computed schedule (their patient, their timing).
-                if planned:
-                    due = planned
-                effective = due
-            prev_date = effective
+            due, status = timings[d.dose_number]
+            planned = planned_dates.get(d.dose_number)
             doses.append({
                 "dose_number": d.dose_number,
                 "age_months": d.age_months,
@@ -427,7 +601,7 @@ def patient_plan(patient, lang="ar"):
                 "pv_id": pv.id if pv is not None else None,
                 "imported": bool(getattr(pv, "import_batch_id", None))
                 if pv is not None else False,
-                "status": _status(due, pv is not None, today),
+                "status": status,
                 "planned": planned is not None,
                 "event_type": (ev.event_type if (ev and not pv
                                and ev.event_type != "planned") else None),
@@ -450,12 +624,53 @@ def patient_plan(patient, lang="ar"):
         # be late.
         started = any(x["status"] == "done" for x in doses)
         if not started:
+            # Neither of these is a course this clinic ever promised, so
+            # neither can be late here **and neither is a suggestion by age**.
+            #
+            # The national schedule is given free at the government units. A
+            # healthy two-year-old whose family uses one was carrying nine
+            # government vaccines and seventeen doses in their plan — a third
+            # of it — for a schedule this clinic does not give, does not stock
+            # and cannot be measured on. The compliance screen already
+            # excluded them for exactly that reason, and the visit panel
+            # already declines to offer them; the plan and the certificate
+            # were the two places still counting them.
+            #
+            # On-demand vaccines are the same shape for a different reason:
+            # rabies is given because a dog bit somebody. Projected from a
+            # birthday it came out due at birth, so every child in the
+            # register was being suggested it.
+            #
+            # They stay in the plan rather than vanishing: the row is what the
+            # doctor clicks to record a dose given at a government unit, and
+            # that record is the point of the certificate.
+            fallback = "suggested"
+            if vaccine.is_mandatory:
+                fallback = "national"
+            elif vaccine.on_demand:
+                fallback = "on_demand"
+            # Unless the doctor and the family agreed on this one. An
+            # agreement is a promise, and a promise is what makes a dose
+            # capable of being late — the same rule that already applied once
+            # somebody had started the course, moved one step earlier so it
+            # counts from the conversation rather than from the first needle.
+            #
+            # It raises what was agreed and hides nothing: everything else
+            # stays a suggestion for the child's age, which is what it is.
+            if vaccine.id in (agreed or ()):
+                fallback = None
             for x in doses:
-                if x["status"] in ("overdue", "due"):
-                    x["status"] = "suggested"
+                if fallback and x["status"] in ("overdue", "due"):
+                    x["status"] = fallback
         plan.append({
             "vaccine": vaccine, "brand": brand, "locked": locked,
             "doses": doses, "started": started,
+            # What the clinic has taken on: a course somebody began here, or
+            # one the doctor agreed to. The certificate's "what is left" table
+            # is exactly this set, and an agreed course belongs in it — that
+            # is the table a family is handed.
+            "agreed": vaccine.id in (agreed or ()),
+            "committed": started or vaccine.id in (agreed or ()),
             "done": sum(1 for x in doses if x["status"] == "done"),
             "total": len(doses),
         })
@@ -583,7 +798,7 @@ def plan_summary(plan):
     promise is only broken on a course somebody started here.
     """
     s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
-         "total": 0}
+         "expired": 0, "national": 0, "on_demand": 0, "total": 0}
     for v in plan:
         for d in v["doses"]:
             s[d["status"]] = s.get(d["status"], 0) + 1
@@ -621,23 +836,35 @@ def seasonal_recall(patient, vaccine, today=None):
     return (today - last).days >= SEASONAL_RECALL_DAYS, last, nxt
 
 
-def patient_due_reminders(patient, lang="ar", today=None):
-    """Everything worth reminding this patient about, limited to courses started
-    *with us* (≥1 dose given) — we never chase a vaccine we never gave:
+def patient_due_reminders(patient, lang="ar", today=None, doses=None,
+                          agreed=None):
+    """Everything worth reminding this patient about — the courses this clinic
+    has taken on, which is either of two things:
 
-      * a late/due next dose of a started course (incl. boosters), and
+      * one somebody **started** here (≥1 dose given), or
+      * one the doctor and the family **agreed** on.
+
+    Never a vaccine that is merely age-appropriate: we do not chase a course
+    nobody promised.
+
+      * a late/due next dose of such a course (incl. boosters), and
       * a seasonal vaccine's annual recall once ~11 months have passed.
 
     Returns a list of dicts ``{vaccine, brand, dose_number, due_date, status}``
     sorted most-urgent first (``status`` is overdue / due / seasonal).
     """
     today = today or local_today()
-    plan = patient_plan(patient, lang)
+    plan = patient_plan(patient, lang, doses=doses, agreed=agreed)
     out = []
     for v in plan:
         vac, brand = v["vaccine"], v["brand"]
         done = [d for d in v["doses"] if d["status"] == "done"]
-        if not done:                       # course never started here
+        # An agreed course with nothing given yet is the case a plan exists
+        # for: its first dose can be late before any dose exists to start it.
+        # Wiring the *status* without this left the file computing "overdue"
+        # and then dropping it on the floor, which the sweep did not — caught
+        # by the test that holds the two to the same answer.
+        if not done and not v.get("agreed"):
             continue
         if vac.is_seasonal:
             last_iso = max((d["given_date"] for d in done if d["given_date"]), default=None)
@@ -994,3 +1221,145 @@ def visit_vaccine_panel(patient, lang="ar"):
                  "seasonal": False}
         (give_now if brand.stock > 0 else out_of_stock).append(entry)
     return {"received": received, "give_now": give_now, "out_of_stock": out_of_stock}
+
+
+# ─────────────────────────── the same schedule, read flat ───────────────────
+
+def _catalogue_rows():
+    """The vaccine catalogue as plain tuples, read once per request.
+
+    Forty-odd vaccines, a hundred-odd brands and their dose rows: small,
+    unchanging while a page is built, and re-read for every patient the sweep
+    walks. Loaded here as columns rather than objects for the same reason the
+    sweep itself is — nothing below needs a model, and building one per row is
+    the cost being removed.
+    """
+    from app.utils.request_cache import remember
+
+    def load():
+        vaccines = {}
+        for v in Vaccine.query.order_by(Vaccine.sort_order).all():
+            vaccines[v.id] = {
+                "id": v.id, "code": v.code, "seasonal": bool(v.is_seasonal),
+                "min_interval": v.min_interval_days or _CATCH_UP_MIN_INTERVAL,
+                "live": (v.vaccine_type == "live" and (v.route or "") != "oral"),
+                "obj": v,
+            }
+        brands = {}
+        for b in VaccineBrand.query.all():
+            brands[b.id] = {"id": b.id, "vaccine_id": b.vaccine_id,
+                            "default": bool(b.is_default),
+                            "ceiling": b.max_age_final_dose_days,
+                            "obj": b}
+        for row in VaccineBrandDose.query.order_by(
+                VaccineBrandDose.dose_number).all():
+            brand = brands.get(row.brand_id)
+            if brand is not None:
+                brand.setdefault("doses", []).append(
+                    (row.dose_number, row.age_months))
+        by_vaccine = {}
+        for brand in brands.values():
+            by_vaccine.setdefault(brand["vaccine_id"], []).append(brand)
+        return vaccines, brands, by_vaccine
+
+    return remember("vaccines:catalogue_rows", load)
+
+
+def scan_due(dob, doses, today, agreed=None):
+    """Every pending dose for one child, from plain values.
+
+    ``doses`` are ``(vaccine_id, brand_id, dose_number, given_date,
+    event_type)`` tuples — what the database holds, not what the ORM builds
+    from it.
+
+    The lean twin of :func:`patient_due_reminders`. It answers the same
+    question and must answer it identically; what it does not do is carry the
+    lot number, the doctor and the import batch that the patient's own file
+    needs and a register-wide sweep does not.
+
+    Returns ``[{vaccine, brand, dose_number, due_date, status}]``.
+    """
+    vaccines, brands, by_vaccine = _catalogue_rows()
+
+    given = {}          # vaccine_id -> {dose_number: given_date}
+    planned = {}        # vaccine_id -> {dose_number: date}
+    locked = {}         # vaccine_id -> brand_id of the earliest given dose
+    live_given = {}
+    for vaccine_id, brand_id, dose_number, given_date, event_type in doses:
+        if (event_type or "given") == "given":
+            given.setdefault(vaccine_id, {})[dose_number] = given_date
+            best = locked.get(vaccine_id)
+            if best is None or _earlier_dose(dose_number, best[0]):
+                locked[vaccine_id] = (dose_number, brand_id)
+            meta = vaccines.get(vaccine_id)
+            if meta and meta["live"] and given_date:
+                if live_given.get(vaccine_id) is None \
+                        or given_date > live_given[vaccine_id]:
+                    live_given[vaccine_id] = given_date
+        elif event_type == "planned" and given_date:
+            planned.setdefault(vaccine_id, {})[dose_number] = given_date
+
+    out = []
+    for vaccine_id, meta in vaccines.items():
+        brand = _brand_for(vaccine_id, locked, brands, by_vaccine)
+        if brand is None or not brand.get("doses"):
+            continue
+        mine = given.get(vaccine_id, {})
+        if not mine and vaccine_id not in (agreed or ()):
+            # A course nobody started **and** nobody agreed on is not "late".
+            # The agreement is the other way in: it is what the doctor and the
+            # family settled on, so its first dose can be overdue before any
+            # dose exists to start it.
+            continue
+        closed_after = (dob + timedelta(days=brand["ceiling"])
+                        if dob and brand["ceiling"] else None)
+        earliest_live = None
+        if meta["live"]:
+            others = [d for vid, d in live_given.items() if vid != vaccine_id]
+            if others:
+                earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
+
+        timings = course_dates(dob, brand["doses"], mine,
+                               planned.get(vaccine_id, {}),
+                               meta["min_interval"], earliest_live,
+                               closed_after, today)
+
+        if meta["seasonal"]:
+            last = max((d for d in mine.values() if d), default=None)
+            if last is None:
+                continue        # agreed, never given — no annual recall yet
+            if last and (today - last).days >= SEASONAL_RECALL_DAYS:
+                out.append({"vaccine": meta["obj"], "brand": brand["obj"],
+                            "dose_number": max(mine) + 1,
+                            "due_date": None, "status": "seasonal"})
+            continue
+        for dose_number, _age in brand["doses"]:
+            due, status = timings[dose_number]
+            if status in ("overdue", "due"):
+                out.append({"vaccine": meta["obj"], "brand": brand["obj"],
+                            "dose_number": dose_number,
+                            "due_date": due.isoformat() if due else None,
+                            "status": status})
+                break
+    out.sort(key=lambda r: (0 if r["status"] == "overdue" else 1,
+                            r["due_date"] or ""))
+    return out
+
+
+def _earlier_dose(candidate, current):
+    """Dose ordering as the database orders it — NULL first, then ascending."""
+    return ((candidate is not None, candidate or 0)
+            < (current is not None, current or 0))
+
+
+def _brand_for(vaccine_id, locked, brands, by_vaccine):
+    """The brand a given dose locked this patient to, else the default one."""
+    held = locked.get(vaccine_id)
+    if held is not None:
+        brand = brands.get(held[1])
+        if brand is not None:
+            return brand
+    for brand in by_vaccine.get(vaccine_id, []):
+        if brand["default"]:
+            return brand
+    return None

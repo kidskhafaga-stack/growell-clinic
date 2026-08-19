@@ -1046,14 +1046,19 @@
     "back_send": "Tell them it arrived",
     "back_none": "Nobody is waiting for this one right now.",
     "back_sent": "{n} message(s) written to the families waiting.",
-    "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above."
+    "showing_clinic_only": "These are the vaccines the clinic dispenses. The government set is on the “mandatory” tab above.",
+    "varies_by_start_age": "Doses vary by starting age",
+    "varies_by_start_age_hint": "The schedule shown is the standard one. This product's dose count depends on the age at the first dose — check the leaflet before relying on the number."
   },
   "vstatus": {
     "done": "Done",
     "due": "Due now",
     "overdue": "Overdue",
     "upcoming": "Upcoming",
-    "suggested": "Suggested for age"
+    "suggested": "Suggested for age",
+    "expired": "Window closed",
+    "national": "National schedule",
+    "on_demand": "On indication"
   },
   "vtype": {
     "live": "Live attenuated",
@@ -4942,5 +4947,45 @@
     "no_rooms_yet": "No clinics defined yet.",
     "none": "No nursing stations defined.",
     "none_hint": "Without stations the nursing screen shows the whole clinic — which is fine if you only have one."
+  },
+  "vplan": {
+    "title": "Agreed vaccination plan",
+    "add": "Add to plan",
+    "already": "Already on the plan",
+    "added": "Added to the plan",
+    "removed": "Removed from the plan",
+    "remove": "Remove",
+    "pick_one": "Choose a vaccine first",
+    "outside": "Family supplies it",
+    "none": "No agreed plan yet",
+    "hint": "What you agree here is followed and chased; everything else stays a suggestion by age.",
+    "supplied_hint": "Followed, but never counted into a purchase order."
+  },
+  "vplans": {
+    "title": "Cases on a plan",
+    "sub": "Who we agreed what with, and what is still owed.",
+    "none": "Nothing due in this range",
+    "no_plans": "No agreed plans yet",
+    "no_plans_hint": "Agree vaccines on any child's file and they appear here.",
+    "on_plan_n": "{n} cases on a plan",
+    "order": "Purchase order for what is shown",
+    "outside_note": "Family supplies it — not in the order",
+    "needed": "Needed",
+    "in_stock": "In stock",
+    "to_order": "Order"
+  },
+  "vact": {
+    "called": "Call recorded",
+    "snoozed": "Snoozed",
+    "dismissed": "Removed from the list",
+    "undone": "Back on the list",
+    "bad": "Missing details",
+    "needs_date": "Snoozing needs a date",
+    "call": "Called them",
+    "snooze": "Snooze until",
+    "dismiss": "Not happening",
+    "undo": "Undo",
+    "hidden_n": "{n} hidden",
+    "show_hidden": "Show hidden"
   }
 }

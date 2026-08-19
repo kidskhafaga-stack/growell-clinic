@@ -130,6 +130,11 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
     keys = [thread_key(m) for m in lasts]
     counts, unread = _thread_counts(keys)
     records = conversation_records(keys)
+    # Resolved once for the whole listing rather than per row: the provider is
+    # a settings read, and the last-inbound time was a query per conversation.
+    from app.utils import whatsapp as wa
+    provider = wa.resolve_provider(wa.get_config())
+    inbound_at = {} if provider == "web" else last_inbound_map(keys)
     out = []
     for last in lasts:
         key = thread_key(last)
@@ -163,7 +168,8 @@ def conversations(search=None, only_open=False, limit=200, assignee=None):
         if not _matches(conv, search):
             continue
         conv["waiting_hours"] = waiting_since(conv)
-        window = session_window(conv["key"])
+        window = session_window(conv["key"], provider=provider,
+                                last_inbound=inbound_at.get(conv["key"]))
         # How long the clinic may still answer for free. A thread with forty
         # minutes left is more urgent than one that has waited longer but has
         # a day in hand — after the window shuts, the reply costs money and
@@ -229,19 +235,81 @@ SESSION_HOURS = 24
 CLOSING_SOON_HOURS = 2
 
 
-def session_window(key, provider=None):
+_UNKNOWN = object()
+
+
+def last_inbound_map(keys):
+    """When the patient last wrote, for many threads at once.
+
+    The batched form of :func:`last_inbound_at`. Asking per thread is one
+    query per open conversation, which stays invisible until the clinic
+    actually switches WhatsApp on — with no provider configured there is no
+    session window to work out and the lookup never runs at all. Measured on a
+    seeded clinic with 150 open threads: 40 queries for the desk without a
+    provider, 190 with one.
+
+    Phone threads are folded back onto their key rather than their spelling,
+    because one number can be stored both ways and `phone_variants` is what
+    keeps those from splitting into two conversations.
+    """
+    if not keys:
+        return {}
+    pids, phones = [], []
+    for key in keys:
+        if key.startswith("p") and key[1:].isdigit():
+            pids.append(int(key[1:]))
+        else:
+            phones.append(key)
+
+    out = {}
+    inbound = MessageLog.direction == "in"
+    if pids:
+        rows = (db.session.query(MessageLog.patient_id,
+                                 db.func.max(MessageLog.created_at))
+                .filter(inbound, MessageLog.patient_id.in_(pids))
+                .group_by(MessageLog.patient_id).all())
+        for pid, when in rows:
+            out[f"p{pid}"] = when
+    if phones:
+        # Every spelling this thread may be stored under, mapped home.
+        spellings = {}
+        for key in phones:
+            for variant in phone_variants(key):
+                spellings[variant] = key
+        if spellings:
+            rows = (db.session.query(MessageLog.to_phone,
+                                     db.func.max(MessageLog.created_at))
+                    .filter(inbound, MessageLog.patient_id.is_(None),
+                            MessageLog.to_phone.in_(list(spellings)))
+                    .group_by(MessageLog.to_phone).all())
+            for phone, when in rows:
+                key = spellings.get(phone)
+                if key is None or when is None:
+                    continue
+                if out.get(key) is None or when > out[key]:
+                    out[key] = when
+    return out
+
+
+def session_window(key, provider=None, last_inbound=_UNKNOWN):
     """How long the clinic may still reply freely → dict, or None.
 
     Returns None when the rule doesn't apply: click-to-send links open the
     staff member's own WhatsApp, which is an ordinary conversation with no
     window at all.
+
+    ``last_inbound`` lets a caller that already knows the answer hand it over —
+    a listing works it out for every thread in one query. It is a sentinel
+    rather than ``None`` because "the patient never wrote" is a real answer
+    with its own branch below, and passing it must not silently mean "go and
+    look it up".
     """
     from app.utils import whatsapp as wa
 
     provider = provider or wa.resolve_provider(wa.get_config())
     if provider == "web":
         return None
-    last = last_inbound_at(key)
+    last = last_inbound_at(key) if last_inbound is _UNKNOWN else last_inbound
     if last is None:
         return {"open": False, "hours_left": 0, "expires_at": None,
                 "never_wrote": True}
