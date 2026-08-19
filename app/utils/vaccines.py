@@ -289,15 +289,15 @@ _AGE_BANDED = {
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء 6 أسابيع–6 شهور: 4 جرعات — للمراجعة",
          "doses": [(2, None), (4, 28), (6, 28), (12, 60)]},
-        {"code": "PCV15-CU7", "min": 7, "max": 11, "sort_order": 1,
+        {"code": "PCV15-CU7", "previous": "none", "min": 7, "max": 11, "sort_order": 1,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء 7–11 شهر بدون PCV سابق: 3 جرعات — للمراجعة",
          "doses": [(7, None), (8, 28), (12, 60)]},
-        {"code": "PCV15-CU12", "min": 12, "max": 23, "sort_order": 2,
+        {"code": "PCV15-CU12", "previous": "none", "min": 12, "max": 23, "sort_order": 2,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء 12–23 شهر: جرعتان بفاصل ≥شهرين — للمراجعة",
          "doses": [(12, None), (14, 60)]},
-        {"code": "PCV15-CU2Y", "min": 24, "max": None, "sort_order": 3,
+        {"code": "PCV15-CU2Y", "previous": "none", "min": 24, "max": None, "sort_order": 3,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
          "doses": [(24, None)]},
@@ -332,7 +332,8 @@ _CATCH_UP_MIN_INTERVAL = 28
 
 def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    sort_order=0, start_age_min_months=None,
-                   start_age_max_months=None, brand_id=None):
+                   start_age_max_months=None, brand_id=None,
+                   requires_previous_doses=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -346,6 +347,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         is_catch_up=is_catch_up, is_seeded=True, sort_order=sort_order,
         start_age_min_months=start_age_min_months,
         start_age_max_months=start_age_max_months, brand_id=brand_id,
+        requires_previous_doses=requires_previous_doses,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -420,7 +422,8 @@ def seed_vaccine_schedules():
                 sort_order=band.get("sort_order", 0),
                 start_age_min_months=band.get("min"),
                 start_age_max_months=band.get("max"),
-                brand_id=brand_id)
+                brand_id=brand_id,
+                requires_previous_doses=band.get("previous"))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -436,14 +439,23 @@ def seed_vaccine_schedules():
 
 
 # -------------------------------------------------------- computation ------
-def _first_given(rows):
-    """The earliest given dose in ``rows``, ordered as the database orders it.
+def _following_dose(rows):
+    """The dose whose trade name the course is following: the **latest**.
 
-    ``dose_number`` is NOT NULL, so the ordering is a plain ascending one; the
-    None arm is belt-and-braces for rows built in memory and never saved, and
-    places it where an ascending SQL order would — first.
+    It used to be the earliest, and that was wrong in the one case that
+    matters. A child who had two Prevenar and moved to Vaxneuvance is on
+    Vaxneuvance — the doses already given count, and the ones remaining follow
+    the product being used now. Locked to the first dose the record showed
+    them on a product they had stopped, and scheduled the wrong course with it.
+
+    On a course that never switched — nearly all of them — the first and last
+    dose are the same product and nothing changes.
+
+    Ordered by date, with the dose number as the tie-break for two doses
+    recorded on one day and for imported rows carrying no date at all.
     """
-    return min(rows, key=lambda pv: (pv.dose_number is not None,
+    return max(rows, key=lambda pv: (pv.given_date is not None,
+                                     pv.given_date or date.min,
                                      pv.dose_number or 0))
 
 
@@ -462,16 +474,23 @@ def chosen_brand(patient_id, vaccine, given=None):
     12,005 queries and 4.4 seconds, to draw a card that said zero.
     """
     if given is None:
+        # The same ordering as `_following_dose`, in SQL. Both paths have to
+        # name the same product: they were briefly allowed to differ — this
+        # one still took the earliest dose while the batched one had moved to
+        # the latest — and a child with two doses on one day came out on two
+        # different manufacturers depending on which screen asked.
         pv = (
             PatientVaccine.query.filter_by(patient_id=patient_id,
                                            vaccine_id=vaccine.id,
                                            event_type="given")
-            .order_by(PatientVaccine.dose_number)
+            .order_by(PatientVaccine.given_date.is_(None),
+                      PatientVaccine.given_date.desc(),
+                      PatientVaccine.dose_number.desc())
             .first()
         )
     else:
         rows = given.get(vaccine.id) or []
-        pv = _first_given(rows) if rows else None
+        pv = _following_dose(rows) if rows else None
     if pv:
         return pv.brand, True  # locked
     return vaccine.default_brand, False
@@ -543,7 +562,37 @@ def doses_for(patient_ids):
     return out
 
 
-def schedule_for(vaccine, brand, dob, given_dates, today=None):
+def _months_between(dob, when):
+    """Whole months from a birthday to a date."""
+    months = (when.year - dob.year) * 12 + (when.month - dob.month)
+    return months - 1 if when.day < dob.day else months
+
+
+def _pick_band(bands, dob, start, previous, today):
+    """The first band whose age range and history condition both match.
+
+    Both halves, because the leaflets name them together. "Unvaccinated 7 to
+    <12 months" is not an age; it is an age **and** an empty record, and a
+    child switching product at nine months with two doses behind them belongs
+    to neither half of it.
+    """
+    months = _months_between(dob, start or today)
+    for band in bands:
+        low = band["min"] if band["min"] is not None else -10 ** 6
+        high = band["max"] if band["max"] is not None else 10 ** 6
+        if not low <= months <= high:
+            continue
+        needs = band.get("previous")
+        if needs == "none" and previous:
+            continue
+        if needs == "some" and not previous:
+            continue
+        return band["doses"]
+    return None
+
+
+def schedule_for(vaccine, brand, dob, given_dates, today=None,
+                 brand_first=None, previous=0):
     """The dose ages this child's course actually follows.
 
     Returns ``[(dose_number, age_months)]`` — the brand's own dose rows unless
@@ -576,20 +625,20 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None):
     if not bands:
         return default
 
-    # The age the course started at, in months — the first dose given, else
-    # today for a course nobody has begun.
-    when = min((d for d in given_dates.values() if d), default=None) \
-        or (today or local_today())
-    months = (when.year - dob.year) * 12 + (when.month - dob.month)
-    if when.day < dob.day:
-        months -= 1
-
-    for band in bands:
-        low = band["min"] if band["min"] is not None else -10 ** 6
-        high = band["max"] if band["max"] is not None else 10 ** 6
-        if low <= months <= high:
-            return band["doses"]
-    return default
+    # When *this brand's* course started, not when the child's first ever dose
+    # was. Stated by the doctor and it is the whole correction: a child who
+    # had two Prevenar and moves to Vaxneuvance "moves to the Vaxneuvance
+    # schedule that suits their age and state at the point of switching" —
+    # they do not stay on the schedule their first needle put them on, and
+    # they do not start again either, because the doses already given count.
+    #
+    # For a course on one product throughout these are the same date, which is
+    # why HPV still locks at its first dose.
+    start = brand_first
+    if start is None:
+        start = min((d for d in given_dates.values() if d), default=None)
+    return _pick_band(bands, dob, start, previous,
+                      today or local_today()) or default
 
 
 def _bands_for(vaccine_id, brand_id):
@@ -646,6 +695,7 @@ def _banded_templates():
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
                 "brand_id": template.brand_id,
+                "previous": template.requires_previous_doses,
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -782,7 +832,19 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                     and ev.event_type == "planned" and ev.given_date):
                 planned_dates[number] = ev.given_date
 
-        rota = schedule_for(vaccine, brand, dob, given_dates, today)
+        # When this brand's own doses began, and how many of the vaccine came
+        # before that — a Prevenar dose is a pneumococcal dose when the next
+        # one is Vaxneuvance, so history is counted per vaccine and never per
+        # trade name.
+        brand_first = min((row.given_date for (vid, _n), row in given_index.items()
+                           if vid == vaccine.id and row.brand_id == brand.id
+                           and row.given_date), default=None)
+        previous = sum(1 for (vid, _n), row in given_index.items()
+                       if vid == vaccine.id and row.given_date
+                       and (brand_first is None
+                            or row.given_date < brand_first))
+        rota = schedule_for(vaccine, brand, dob, given_dates, today,
+                            brand_first=brand_first, previous=previous)
         timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
                                earliest_live, closed_after, today)
 
@@ -1487,7 +1549,8 @@ def _catalogue_rows():
     return remember("vaccines:catalogue_rows", load)
 
 
-def _banded_for(vaccine_id, brand_id, dob, given_dates, today):
+def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
+                brand_first=None, previous=0):
     """The banded schedule for this course, from plain values.
 
     The sweep's half of :func:`schedule_for`. Same rule, same table, same
@@ -1500,16 +1563,10 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today):
     bands = _bands_for(vaccine_id, brand_id)
     if not bands:
         return None
-    when = min((d for d in given_dates.values() if d), default=None) or today
-    months = (when.year - dob.year) * 12 + (when.month - dob.month)
-    if when.day < dob.day:
-        months -= 1
-    for band in bands:
-        low = band["min"] if band["min"] is not None else -10 ** 6
-        high = band["max"] if band["max"] is not None else 10 ** 6
-        if low <= months <= high:
-            return band["doses"]
-    return None
+    start = brand_first
+    if start is None:
+        start = min((d for d in given_dates.values() if d), default=None)
+    return _pick_band(bands, dob, start, previous, today)
 
 
 def scan_due(dob, doses, today, agreed=None):
@@ -1529,15 +1586,19 @@ def scan_due(dob, doses, today, agreed=None):
     vaccines, brands, by_vaccine = _catalogue_rows()
 
     given = {}          # vaccine_id -> {dose_number: given_date}
+    brand_doses = {}    # vaccine_id -> [(brand_id, given_date)]
     planned = {}        # vaccine_id -> {dose_number: date}
     locked = {}         # vaccine_id -> brand_id of the earliest given dose
     live_given = {}
     for vaccine_id, brand_id, dose_number, given_date, event_type in doses:
         if (event_type or "given") == "given":
             given.setdefault(vaccine_id, {})[dose_number] = given_date
+            brand_doses.setdefault(vaccine_id, []).append((brand_id, given_date))
             best = locked.get(vaccine_id)
-            if best is None or _earlier_dose(dose_number, best[0]):
-                locked[vaccine_id] = (dose_number, brand_id)
+            key = (given_date is not None, given_date or date.min,
+                   dose_number or 0)
+            if best is None or key > best[0]:
+                locked[vaccine_id] = (key, brand_id)
             meta = vaccines.get(vaccine_id)
             if meta and meta["live"] and given_date:
                 if live_given.get(vaccine_id) is None \
@@ -1566,7 +1627,12 @@ def scan_due(dob, doses, today, agreed=None):
             if others:
                 earliest_live = max(others) + timedelta(days=LIVE_SPACING_DAYS)
 
-        rota = _banded_for(vaccine_id, brand["id"], dob, mine, today) \
+        brand_first = min((d for (bid, d) in brand_doses.get(vaccine_id, [])
+                           if bid == brand["id"] and d), default=None)
+        previous = sum(1 for (_bid, d) in brand_doses.get(vaccine_id, [])
+                       if d and (brand_first is None or d < brand_first))
+        rota = _banded_for(vaccine_id, brand["id"], dob, mine, today,
+                           brand_first=brand_first, previous=previous) \
             or brand["doses"]
         timings = course_dates(dob, rota, mine,
                                planned.get(vaccine_id, {}),
@@ -1593,12 +1659,6 @@ def scan_due(dob, doses, today, agreed=None):
     out.sort(key=lambda r: (0 if r["status"] == "overdue" else 1,
                             r["due_date"] or ""))
     return out
-
-
-def _earlier_dose(candidate, current):
-    """Dose ordering as the database orders it — NULL first, then ascending."""
-    return ((candidate is not None, candidate or 0)
-            < (current is not None, current or 0))
 
 
 def _brand_for(vaccine_id, locked, brands, by_vaccine):

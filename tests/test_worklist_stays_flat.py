@@ -189,10 +189,17 @@ def test_the_batched_doses_give_the_same_plan(clinic):
 
 
 def test_the_locked_brand_is_the_one_sql_would_have_picked(clinic):
-    """`chosen_brand` takes the first given dose *ordered by dose number*, and
-    rows do not arrive in that order. Reproduced in Python rather than
-    approximated, because this decides which brand a child stays on: pick the
-    wrong row and the plan quietly switches them to another manufacturer.
+    """`chosen_brand` takes the **latest** given dose — the product the course
+    is on now — and rows do not arrive in that order. Reproduced in Python
+    rather than approximated, because this decides which brand a child is
+    followed on: pick the wrong row and the plan quietly switches them to
+    another manufacturer.
+
+    It caught exactly that. The rule changed from "the first dose" to "the
+    latest" when a child switching from Prevenar to Vaxneuvance had to be
+    followed on Vaxneuvance, and only the batched path was moved — so a child
+    with two doses recorded on one day came out on two different
+    manufacturers depending on which screen asked.
     """
     from app.extensions import db
     from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand

@@ -382,6 +382,24 @@ class VaccineScheduleTemplate(db.Model):
     # exception is one row rather than a fork.
     brand_id = db.Column(db.Integer, db.ForeignKey("vaccine_brands.id"),
                          nullable=True, index=True)
+    # What the child's record has to look like for this schedule to apply.
+    #
+    # The leaflets do not name a band by age alone. The category is
+    # "**Unvaccinated** 7 to <12 months", and the first word is half the
+    # definition: a child who already had two pneumococcal doses and is
+    # switching product is not unvaccinated, and handing them the catch-up
+    # course restarts a series they are most of the way through.
+    #
+    #   NULL   — any history; the ordinary routine schedule
+    #   "none" — nothing of this vaccine before this brand's first dose
+    #   "some" — had some, whatever the trade name
+    #
+    # Counted per **vaccine**, never per brand: a dose of Prevenar is a
+    # pneumococcal dose when the next one is Vaxneuvance, which is the
+    # clinical rule and also the one `dose_infer` already numbers by.
+    requires_previous_doses = db.Column(db.String(10))
+
+    PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     # Where this schedule comes from: the manufacturer's leaflet (SmPC), the WHO
