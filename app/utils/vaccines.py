@@ -831,9 +831,15 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
     #
     # For a course on one product throughout these are the same date, which is
     # why HPV still locks at its first dose.
-    start = brand_first
-    if start is None:
-        start = min((d for d in given_dates.values() if d), default=None)
+    # A vaccine given again every year does not have one lifelong course; it
+    # has a course a season, and the band has to be matched against the season
+    # being asked about. See :func:`_season_start`.
+    if vaccine.is_seasonal:
+        start = _season_start(given_dates, today or local_today())
+    else:
+        start = brand_first
+        if start is None:
+            start = min((d for d in given_dates.values() if d), default=None)
     picked = _pick_band(bands, dob, start, previous, today or local_today(),
                         first_gap=_achieved_first_gap(given_dates))
     if picked is not None:
@@ -1923,8 +1929,36 @@ def _catalogue_rows():
     return remember("vaccines:catalogue_rows", load)
 
 
+def _season_start(given_dates, today):
+    """The first dose of the **current** season, or None if there is none.
+
+    A repeating vaccine does not have one lifelong course; it has a course a
+    year. The band that decides how many doses a season needs therefore has to
+    be matched against the season being asked about, and "the first dose ever"
+    is the wrong date the moment a child has a winter behind them.
+
+    Measured on a real file: a boy of eleven with a single influenza dose from
+    January 2019 was told he owed *the second dose of his priming pair, due
+    February 2019*. He does owe a flu shot — seven winters of them — but the
+    priming pair belongs to the season it started in, and at eleven he needs
+    one dose, not the other half of something from when he was four.
+
+    "Current" is measured from the latest dose, using the same recall gap the
+    rest of the seasonal logic runs on: doses within a season of the newest
+    one are this season's, and if the newest is itself older than that, this
+    season has no doses at all.
+    """
+    dates = sorted(d for d in given_dates.values() if d)
+    if not dates:
+        return None
+    if (today - dates[-1]).days >= SEASONAL_RECALL_DAYS:
+        return None                 # last season's; this one has not begun
+    cutoff = dates[-1] - timedelta(days=SEASONAL_RECALL_DAYS)
+    return next((d for d in dates if d > cutoff), None)
+
+
 def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
-                brand_first=None, previous=0):
+                brand_first=None, previous=0, seasonal=False):
     """The banded schedule for this course, from plain values.
 
     The sweep's half of :func:`schedule_for`. Same rule, same table, same
@@ -1937,9 +1971,12 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     bands = _bands_for(vaccine_id, brand_id)
     if not bands:
         return None
-    start = brand_first
-    if start is None:
-        start = min((d for d in given_dates.values() if d), default=None)
+    if seasonal:
+        start = _season_start(given_dates, today)
+    else:
+        start = brand_first
+        if start is None:
+            start = min((d for d in given_dates.values() if d), default=None)
     picked = _pick_band(bands, dob, start, previous, today,
                         first_gap=_achieved_first_gap(given_dates))
     if picked is None and any(b.get("authoritative") for b in bands):
@@ -2018,7 +2055,8 @@ def scan_due(dob, doses, today, agreed=None):
         previous = sum(1 for (_bid, d) in brand_doses.get(vaccine_id, [])
                        if d and (brand_first is None or d < brand_first))
         rota = _banded_for(vaccine_id, brand["id"], dob, mine, today,
-                           brand_first=brand_first, previous=previous)
+                           brand_first=brand_first, previous=previous,
+                           seasonal=meta["seasonal"])
         if rota is None:
             rota = brand["doses"]
         timings = course_dates(dob, rota, mine,
