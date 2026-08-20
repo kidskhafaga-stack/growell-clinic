@@ -149,6 +149,51 @@ def test_too_soon_is_not_yet_owed(seeded):
     assert not [r for r in _chased(seeded, kid) if r["status"] == "overdue"]
 
 
+# ------------------------------------- the priming pair belongs to one season
+
+def test_a_dose_from_years_ago_does_not_hold_a_priming_pair_open(seeded):
+    """Found on a real file, on the first patient this ran against.
+
+    A boy of eleven with a single influenza dose from January 2019 was told he
+    owed *the second dose of his priming pair, due February 2019*. He does owe
+    a flu shot — seven winters of them — but the pair belongs to the season it
+    started in. At eleven he needs one dose, and a card offering him the other
+    half of something from when he was four is a date nobody can act on.
+
+    The cause: the band was matched on the first dose **ever**, which is right
+    for a course a child runs once and wrong for one they run every year.
+    """
+    kid = _child(seeded, 11, "old", doses=[(1, 2700)])
+
+    doses = _flu(seeded, kid)["doses"]
+
+    assert len(doses) == 1, \
+        f"a seven-year-old dose still holds the priming pair open: {doses}"
+    assert doses[0]["status"] == "done"
+
+    rows = _chased(seeded, kid)
+    assert rows and rows[0]["status"] == "seasonal", \
+        f"and then nobody called him in for this winter either: {rows}"
+
+
+def test_a_dose_from_this_season_still_holds_it_open(seeded):
+    """The other side. The fix must not be "a second dose is never owed" — it
+    is owed for exactly as long as the season it belongs to."""
+    kid = _child(seeded, 4, "same", doses=[(1, 40)])
+
+    doses = _flu(seeded, kid)["doses"]
+
+    assert len(doses) == 2 and doses[1]["status"] == "overdue", doses
+
+
+def test_a_child_who_had_two_winters_is_not_primed_again(seeded):
+    """Two doses well behind them: the course has nothing pending and the
+    annual recall is the whole of what they are owed."""
+    kid = _child(seeded, 6, "two", doses=[(1, 400), (2, 370)])
+
+    assert {d["status"] for d in _flu(seeded, kid)["doses"]} == {"done"}
+
+
 # ------------------------------------------------- ordinary years untouched
 
 def test_a_returning_patient_still_gets_the_annual_recall(seeded):
