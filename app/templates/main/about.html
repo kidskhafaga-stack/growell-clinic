@@ -101,6 +101,35 @@
   {% endif %}
 </div>
 
+<!-- The block a clinic copies into a message when something is wrong.
+     The counted-not-typed idea taken to the one place it does work: the first
+     three questions of every support conversation are "which version, what is
+     enabled, how much data", and nobody in a clinic can answer the last two.
+     The schema fingerprint is here because it is what tells somebody a
+     restored backup came from a build older than the code reading it — the
+     number exists, goes into every archive, and appeared on no screen. -->
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 class="section-title" style="margin:0;">
+      <i class="bi bi-life-preserver"></i> {{ t('about.support') }}</h2>
+    <button class="btn btn-outline btn-sm gc-press" type="button"
+            id="support-copy" data-copied="{{ t('about.copied') }}">
+      <i class="bi bi-clipboard"></i> <span>{{ t('about.copy') }}</span></button>
+  </div>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('about.support_hint') }}</p>
+  <pre id="support-block" dir="ltr" style="margin:0;padding:12px 14px;border-radius:12px;
+       background:var(--green-050);color:var(--ink);font-size:.85rem;line-height:1.7;
+       white-space:pre-wrap;word-break:break-word;overflow-x:auto;"
+  >{% for line in support_lines %}{{ line }}{{ '\n' if not loop.last }}{% endfor %}</pre>
+  {% if support.backup.days is not none and support.backup.days >= 7 %}
+  <p style="margin:10px 0 0;color:var(--danger);font-size:.88rem;">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('about.backup_stale') }}</p>
+  {% elif support.backup.at is none %}
+  <p style="margin:10px 0 0;color:var(--danger);font-size:.88rem;">
+    <i class="bi bi-exclamation-triangle"></i> {{ t('about.backup_never') }}</p>
+  {% endif %}
+</div>
+
 <!-- The clinic identity, as before -->
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title"><i class="bi bi-building"></i> {{ t('about.clinic') }}</h2>
@@ -333,4 +362,41 @@
      permanently and was read by nobody. #}
   <p dir="auto" style="line-height:1.9;margin:0;">{{ copyright_notice }}</p>
 </div>
+
+<script>
+  // Copy, not select-and-drag: the person doing this is on the phone with
+  // somebody and reading a screen aloud is how three of these seven lines
+  // arrive wrong.
+  (function () {
+    var button = document.getElementById("support-copy");
+    var block = document.getElementById("support-block");
+    if (!button || !block) return;
+    button.addEventListener("click", function () {
+      var label = button.querySelector("span");
+      var was = label.textContent;
+      function done() {
+        label.textContent = button.dataset.copied;
+        setTimeout(function () { label.textContent = was; }, 1600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(block.textContent).then(done, fallback);
+      } else {
+        fallback();
+      }
+      // http:// on the clinic's own machine is not a secure context, so the
+      // clipboard API is simply absent there — which is most installations.
+      function fallback() {
+        var area = document.createElement("textarea");
+        area.value = block.textContent;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        try { document.execCommand("copy"); done(); } catch (e) { /* nothing to offer */ }
+        document.body.removeChild(area);
+      }
+    });
+  })();
+</script>
 {% endblock %}

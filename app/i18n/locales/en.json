@@ -4632,7 +4632,13 @@
     "medical_supervision": "Medical supervision",
     "photo": "Photo",
     "remove_photo": "Remove the current photo",
-    "photo_hint": "A square picture works best — it is cropped to a circle."
+    "photo_hint": "A square picture works best — it is cropped to a circle.",
+    "support": "Support information",
+    "support_hint": "If something is wrong, copy this block and send it — it holds everything the first call asks for. No patient data and no passwords.",
+    "copy": "Copy",
+    "copied": "Copied ✓",
+    "backup_stale": "The last backup is more than a week old.",
+    "backup_never": "No backup has ever been taken."
   },
   "history_import": {
     "title": "Import case history",
