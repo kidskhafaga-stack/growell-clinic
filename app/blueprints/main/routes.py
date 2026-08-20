@@ -285,12 +285,18 @@ def about():
     """
     from app.utils import project
 
+    # Read once and handed to the template twice — the block a person copies
+    # and the warning under it have to be talking about the same backup.
+    support = project.support()
+
     return render_template(
         "main/about.html",
         summary=project.SUMMARY,
         principles=project.PRINCIPLES,
         people=project.people(),
         facts=project.facts(),
+        support=support,
+        support_lines=project.support_lines(support),
         plan=[("done", "منجز وشغّال", "Done and running", project.DONE),
               ("building", "شغّال دلوقتي", "In progress", project.BUILDING),
               ("next", "الجاي", "Next", project.NEXT),

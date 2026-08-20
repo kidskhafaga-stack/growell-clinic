@@ -393,6 +393,112 @@ def carry_over_supervisor():
     return True
 
 
+def support():
+    """What somebody needs to know before they can help — counted, never asked.
+
+    The first three questions in every support conversation are the same:
+    which version, what is enabled, how much data. Nobody in a clinic can
+    answer the second and third, and the answer to the first is usually "the
+    new one". So they are gathered here, on the screen a person is already
+    looking at when something is wrong, in a block they can copy into one
+    message.
+
+    The schema fingerprint is the reason this exists at all rather than being
+    a nicety. ``version.py`` was written because of a real report — *"I
+    restored a backup and got a load of problems"* — where the restore was
+    fine and the schema behind it was a version old. That number is computed,
+    goes into every archive, and until now appeared on no screen a person
+    opens when something has gone wrong.
+
+    Nothing here is a secret and nothing here is a patient. No filesystem
+    paths, no passphrase, no names — a block meant to be pasted into WhatsApp
+    has to be safe to paste into WhatsApp.
+
+    Every line is wrapped, because a support panel that raises is a support
+    panel that is missing exactly when it is needed.
+    """
+    import platform
+    import sys
+
+    from app.utils.version import (APP_VERSION, schema_generation,
+                                   schema_version)
+
+    def safe(fn, fallback=None):
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001 — see the docstring
+            return fallback
+
+    def db_size_mb():
+        import os
+
+        from app.utils.backups import db_path
+
+        path = db_path()
+        if not path or not os.path.isfile(path):
+            return None
+        return round(os.path.getsize(path) / (1024 * 1024), 1)
+
+    def backup():
+        from datetime import date
+
+        from app.utils.backups import last_backup_at
+
+        when = last_backup_at()
+        if when is None:
+            return {"at": None, "days": None}
+        return {"at": when.strftime("%Y-%m-%d"),
+                "days": (date.today() - when.date()).days}
+
+    def modules():
+        from app.models.permissions import MODULES
+        from app.utils.facility import enabled_modules
+
+        return f"{len(enabled_modules())}/{len(MODULES)}"
+
+    def counted(model_name):
+        from app import models
+
+        return getattr(models, model_name).query.count()
+
+    return {
+        "app_version": APP_VERSION,
+        "schema": safe(schema_version),
+        "generation": safe(schema_generation),
+        "python": sys.version.split()[0],
+        "platform": safe(lambda: f"{platform.system()} {platform.release()}"),
+        "db_mb": safe(db_size_mb),
+        "backup": safe(backup, {"at": None, "days": None}),
+        "modules": safe(modules),
+        "patients": safe(lambda: counted("Patient")),
+        "visits": safe(lambda: counted("Visit")),
+        "users": safe(lambda: counted("User")),
+    }
+
+
+def support_lines(data=None):
+    """The support block as plain text, one fact per line.
+
+    Built here rather than in the template so that what is copied and what is
+    shown cannot drift apart — they are the same list, rendered twice.
+    """
+    d = data or support()
+    backup = d.get("backup") or {}
+    if backup.get("at"):
+        when = f"{backup['at']} ({backup['days']}d ago)"
+    else:
+        when = "never"
+    return [
+        f"PediaPro {d['app_version']}",
+        f"schema {d['schema']} · gen {d['generation']}",
+        f"python {d['python']} · {d['platform']}",
+        f"modules {d['modules']}",
+        f"db {d['db_mb']} MB" if d['db_mb'] is not None else "db —",
+        f"last backup {when}",
+        f"patients {d['patients']} · visits {d['visits']} · users {d['users']}",
+    ]
+
+
 def facts():
     """Counted, never typed.
 

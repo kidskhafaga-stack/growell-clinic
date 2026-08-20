@@ -235,6 +235,31 @@ def list_backups():
     return out
 
 
+def last_backup_at():
+    """When the newest snapshot was taken, or None if there has never been one.
+
+    Deliberately not :func:`list_backups` — that one opens every archive to
+    read its manifest, which is right on the backup screen and wrong on a page
+    that only wants a date. This is a directory listing and a stat.
+    """
+    newest = None
+    try:
+        entries = os.listdir(backup_dir())
+    except OSError:                 # noqa: BLE001 — a fact never breaks a page
+        return None
+    for fn in entries:
+        if not _NAME_RE.match(fn):
+            continue
+        try:
+            when = datetime.fromtimestamp(
+                os.stat(os.path.join(backup_dir(), fn)).st_mtime)
+        except OSError:
+            continue
+        if newest is None or when > newest:
+            newest = when
+    return newest
+
+
 def _counts_files(path):
     """How many uploaded files this snapshot carries (0 for a bare ``.db``)."""
     if not path.endswith(".zip"):
