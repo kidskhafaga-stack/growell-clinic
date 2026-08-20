@@ -304,6 +304,13 @@ def _read_person(form, person, files=None):
     except (TypeError, ValueError):
         person.sort_order = 0
 
+    # Who they are in the program, when they are anybody. Blank is a real
+    # answer and the commonest one — a supervising professor, the clinic's
+    # owner, somebody who helped once — so it clears the link rather than
+    # being ignored. An id that names nobody clears it too, instead of
+    # leaving a row pointing at a user that is not there.
+    person.user_id = _staff_id(form.get("user_id"))
+
     # A new upload replaces the old file rather than orphaning it, and the
     # checkbox is the only way back to no photo at all — an empty file input
     # means "I did not choose a new one", never "remove the one there is".
@@ -315,6 +322,35 @@ def _read_person(form, person, files=None):
         drop_photo(person.photo)
         person.photo = None
     return person
+
+
+def _staff_id(value):
+    """A user id from the form, or None — and None for anything that is not
+    a user this installation actually has."""
+    from app.extensions import db
+    from app.models import User
+
+    try:
+        user_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return user_id if db.session.get(User, user_id) is not None else None
+
+
+def creditable_staff():
+    """Everybody who could be picked from the program's own users.
+
+    Deliberately not "doctors": a clinic credits its matron, its lab
+    supervisor and its manager as readily as its paediatricians, and a filter
+    that decided for them would send them back to typing.
+    """
+    from app.models import User
+
+    try:
+        return (User.query.filter_by(is_active=True)
+                .order_by(User.full_name).all())
+    except Exception:  # noqa: BLE001 — a credits form never breaks the page
+        return []
 
 
 def add_person(form, files=None):

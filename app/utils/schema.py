@@ -303,6 +303,7 @@ ADDITIONS = [
     # column did, so a clinic that already upgraded once has the table and
     # not this.
     ("about_people", "photo", "VARCHAR(255)"),
+    ("about_people", "user_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):

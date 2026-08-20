@@ -17,6 +17,25 @@ So: a row per person, a column per language, and an order the clinic chooses.
 The English side is optional throughout — when it is blank the Arabic is shown
 in both languages, which is the same fallback ``User.display_name`` uses, and
 means nobody is forced to type everything twice to get a working page.
+
+**Some of these people are staff and some of them are not**, and the row has
+to hold both without preferring either. A doctor who logs in already has a
+name in two languages, a title, a specialty and a photograph on their user
+record; typing all of that a second time here is a second copy that drifts —
+they are promoted from Specialist to Consultant, somebody updates the user,
+and this page goes on printing last year's title until a person notices.
+So a row may be *linked* to a user, and then the user is read at render time
+and there is no second copy to go stale.
+
+Equally: a supervising professor, the clinic's owner, somebody who helped and
+was thanked — none of them have logins, and none of them ever will. A design
+where being credited requires being a user is a design that cannot say what
+this page exists to say. The link is optional, the typed columns stay, and a
+row with no link behaves exactly as it always did.
+
+The typed name is kept even on a linked row, as the fallback for the day the
+user record is deleted. A credit must not vanish from the page because
+somebody tidied up a login.
 """
 from app.extensions import db
 
@@ -73,6 +92,14 @@ class AboutPerson(db.Model):
     # shuffling on every page load.
     sort_order = db.Column(db.Integer, default=0, nullable=False)
 
+    # The staff member this credit is for, when they are one. Nullable, and
+    # nullable is the point: see the note at the top of this file. `SET NULL`
+    # rather than a cascade — deleting a login is not a decision to remove
+    # somebody from the clinic's credits, so the row survives and falls back
+    # to whatever was typed into it.
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    staff = db.relationship("User", foreign_keys=[user_id])
+
     def _pick(self, arabic, english, lang):
         """The English column when it is asked for *and* filled in.
 
@@ -84,13 +111,50 @@ class AboutPerson(db.Model):
         return (arabic or "").strip() or (english or "").strip()
 
     def display_name(self, lang="ar"):
+        """The linked user's name when there is one, else what was typed.
+
+        Read every time rather than copied, which is the whole reason the
+        link exists: there is no stored second name to disagree with the
+        first.
+        """
+        if self.staff is not None:
+            return self.staff.display_name(lang)
         return self._pick(self.name, self.name_en, lang)
 
     def display_title(self, lang="ar"):
-        return self._pick(self.title, self.title_en, lang)
+        """What this person is, in the clinic's own words when it gave any.
+
+        The typed title wins over the user's even on a linked row, and
+        deliberately: a doctor's user record says what they are *to the
+        program* — their specialty — while this page says what they are *to
+        this clinic*, and "الإشراف الطبي" is not a specialty. Nothing is
+        duplicated by that, because the clinic only typed one of them.
+        """
+        typed = self._pick(self.title, self.title_en, lang)
+        if typed or self.staff is None:
+            return typed
+        lines = self.staff.doctor_title_lines(lang)
+        if lines:
+            return lines[0]
+        return (self.staff.job_title or "").strip()
 
     def display_note(self, lang="ar"):
         return self._pick(self.note, self.note_en, lang)
+
+    def photo_path(self):
+        """Where this person's picture lives under ``static/``, or None.
+
+        Two folders, because a staff photograph is already uploaded on their
+        profile and a credited outsider's is not. Returning the path rather
+        than the filename is what lets one macro draw both — the template used
+        to hard-code ``uploads/about/`` and would have shown a broken image
+        for every linked person.
+        """
+        if self.staff is not None and self.staff.photo:
+            return f"uploads/users/{self.staff.photo}"
+        if self.photo:
+            return f"uploads/about/{self.photo}"
+        return None
 
     def initial(self, lang="ar"):
         return initial_of(self.display_name(lang))

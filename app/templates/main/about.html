@@ -9,10 +9,14 @@
 {# One circle for everybody credited here. A photograph fills it; a person who
    has not been asked for one yet gets their initial, so the column still lines
    up before anybody has sent a picture. #}
-{% macro face(photo, letter) %}
-  {% if photo %}
+{% macro face(path, letter) %}
+  {# A **path** under static/, not a filename. A credited person's photograph
+     lives in one of two folders — their own, or the one they already uploaded
+     to their staff profile — and a macro that knew only about `uploads/about/`
+     drew a broken image for everybody linked to a user. #}
+  {% if path %}
   <img class="person-avatar" alt="" loading="lazy"
-       src="{{ url_for('static', filename='uploads/about/' ~ photo) }}">
+       src="{{ url_for('static', filename=path) }}">
   {% else %}
   <div class="person-avatar" aria-hidden="true">{{ letter }}</div>
   {% endif %}
@@ -196,7 +200,7 @@
   </div>
 
   <div style="margin-top:12px;display:flex;gap:14px;align-items:flex-start;">
-    {{ face(people.developer.photo, txt(people.developer.initial)|string) }}
+    {{ face('uploads/about/' ~ people.developer.photo if people.developer.photo else none, txt(people.developer.initial)|string) }}
     <div style="min-width:0;">
       <div style="font-weight:700;">{{ txt(people.developer.name) }}</div>
       <div style="color:var(--muted);">{{ txt(people.developer.role) }}</div>
@@ -226,7 +230,7 @@
          changes the block's alignment too, and pushes that one name across to
          the far side of a left-aligned list. #}
       <div style="display:flex;gap:14px;align-items:flex-start;min-width:0;">
-        {{ face(person.photo, person.initial(current_lang)) }}
+        {{ face(person.photo_path(), person.initial(current_lang)) }}
         <div style="min-width:0;">
           <div style="font-weight:700;unicode-bidi:isolate;">{{ person.display_name(current_lang) }}</div>
           <div style="color:var(--muted);unicode-bidi:isolate;">
@@ -267,6 +271,21 @@
       <input type="hidden" name="action" value="edit">
       <input type="hidden" name="id" value="{{ person.id }}">
       <div class="form-grid">
+        {# Two ways in, and neither is the default. A doctor who logs in
+           already has a name in both languages, a title and a photograph, and
+           typing them again here is a second copy that goes stale the day
+           they are promoted. A supervising professor has no login and never
+           will. So: pick a colleague, or write somebody in. #}
+        <div class="form-row"><label>{{ t('about.link_user') }}</label>
+          <select class="select" name="user_id">
+            <option value="">{{ t('about.not_a_user') }}</option>
+            {% for u in staff %}
+            <option value="{{ u.id }}" {{ 'selected' if person.user_id == u.id else '' }}>
+              {{ u.display_name(current_lang) }}{% if u.job_title %} · {{ u.job_title }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <span class="hint">{{ t('about.link_user_hint') }}</span>
+        </div>
         <div class="form-row"><label>{{ t('about.name_ar') }} *</label>
           <input class="input" name="name" value="{{ person.name }}" required></div>
         <div class="form-row"><label>{{ t('about.name_en') }}</label>
@@ -322,6 +341,21 @@
         <i class="bi bi-person-plus"></i> {{ t('about.add_person') }}</h3>
       <p style="color:var(--muted);margin:0 0 10px;font-size:.9rem;">{{ t('about.en_optional') }}</p>
       <div class="form-grid">
+        {# Two ways in, and neither is the default. A doctor who logs in
+           already has a name in both languages, a title and a photograph, and
+           typing them again here is a second copy that goes stale the day
+           they are promoted. A supervising professor has no login and never
+           will. So: pick a colleague, or write somebody in. #}
+        <div class="form-row"><label>{{ t('about.link_user') }}</label>
+          <select class="select" name="user_id">
+            <option value="">{{ t('about.not_a_user') }}</option>
+            {% for u in staff %}
+            <option value="{{ u.id }}" {{ 'selected' if none == u.id else '' }}>
+              {{ u.display_name(current_lang) }}{% if u.job_title %} · {{ u.job_title }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <span class="hint">{{ t('about.link_user_hint') }}</span>
+        </div>
         <div class="form-row"><label>{{ t('about.name_ar') }} *</label>
           <input class="input" name="name" required></div>
         <div class="form-row"><label>{{ t('about.name_en') }}</label>

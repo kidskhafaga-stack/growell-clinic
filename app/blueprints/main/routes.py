@@ -296,6 +296,7 @@ def about():
         people=project.people(),
         facts=project.facts(),
         support=support,
+        staff=project.creditable_staff(),
         support_lines=project.support_lines(support),
         plan=[("done", "منجز وشغّال", "Done and running", project.DONE),
               ("building", "شغّال دلوقتي", "In progress", project.BUILDING),
