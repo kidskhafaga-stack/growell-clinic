@@ -95,8 +95,23 @@ class Invoice(db.Model):
         return round(self.total - self.doctor_share_total, 2)
 
     def recalc_status(self):
+        """Settled, part-paid, or owing — from what is actually left.
+
+        The ``total > 0`` guard this used to open with meant a bill that came
+        to nothing was never settled. A staff member's child on a 100%
+        discount produced an invoice of 0.00 with 0.00 paid, which is not
+        "unpaid" — nobody owes anything on it — and it sat in the till's *who
+        still owes* list for ever, offering a Collect button that answered
+        "already fully settled" when pressed.
+
+        The same was true of an invoice whose last line had been deleted.
+
+        So the question is simply whether anything is left to collect. Nothing
+        left is settled, whether that is because the money came in or because
+        there was never any to come.
+        """
         paid, total = self.paid, self.total
-        if total > 0 and paid >= total:
+        if paid >= total:
             self.status = "paid"
         elif paid > 0:
             self.status = "partial"
@@ -106,6 +121,38 @@ class Invoice(db.Model):
 
     def __repr__(self):
         return f"<Invoice {self.invoice_number}>"
+
+
+def settle_what_has_nothing_left_to_collect():
+    """Repair invoices whose stored status outlived the rule that set it.
+
+    ``recalc_status`` only runs when something happens to an invoice, so
+    fixing it does nothing for the rows already written — a clinic upgrading
+    would still find last month's fully-discounted visits sitting in the till.
+    This is the same shape as the About page's carried-over supervisor: a
+    one-time data repair that runs from ``apply_schema``, is idempotent, and
+    can be run again without effect.
+
+    The candidates are narrowed in SQL and decided in Python. Deciding it in
+    SQL would mean writing the discount arithmetic a second time, in a second
+    language, where it could disagree with :meth:`InvoiceItem.net` — and an
+    invoice quietly marked settled by a formula that rounds differently is a
+    worse bug than the one being fixed. So the rows are loaded and asked.
+
+    Returns the number of invoices corrected.
+    """
+    from sqlalchemy.orm import selectinload
+
+    open_ones = (Invoice.query
+                 .options(selectinload(Invoice.items),
+                          selectinload(Invoice.payments))
+                 .filter(Invoice.status.in_(["unpaid", "partial"])).all())
+    fixed = 0
+    for invoice in open_ones:
+        before = invoice.status
+        if invoice.recalc_status() != before:
+            fixed += 1
+    return fixed
 
 
 class InvoiceItem(db.Model):

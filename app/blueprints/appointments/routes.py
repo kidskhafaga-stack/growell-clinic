@@ -313,7 +313,15 @@ def _payment_status(appointments, on_date):
             continue
         total = round(sum(i.total for i in ivs), 2)
         balance = round(sum(i.balance for i in ivs), 2)
-        if total > 0 and balance <= 0:
+        # The same rule as `Invoice.recalc_status`, and it used to carry the
+        # same fault: a `total > 0` guard meant a bill that came to nothing —
+        # a staff member's child on a 100% discount — could not reach "paid",
+        # so the board showed a red **Unpaid** and a Collect button beside a
+        # family who owed nothing and had nothing to hand over.
+        #
+        # Written out twice, in two files, and wrong in both. What decides it
+        # is the balance: nothing left to collect is settled.
+        if balance <= 0:
             state = "paid"
         elif balance < total:
             state = "partial"

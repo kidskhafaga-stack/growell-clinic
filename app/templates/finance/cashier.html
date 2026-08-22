@@ -254,7 +254,18 @@
 
 <!-- Outstanding dues with quick collect -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">
-  <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-exclamation-circle"></i> {{ t('cashier.who_owes') }}</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;
+              gap:10px;flex-wrap:wrap;padding:16px 18px 0;">
+    <h2 class="section-title" style="margin:0;"><i class="bi bi-exclamation-circle"></i> {{ t('cashier.who_owes') }}</h2>
+    {# The way to any invoice that is not today's. Reception has always been
+       allowed here — `/finance/invoices` takes the till capability, not the
+       finance module — and no screen they can open linked to it, so the list
+       and the refund form on each invoice were reachable only by typing the
+       address. Asked directly: "how will reception see the invoices, and
+       where do they do a refund from?" The answer existed; the door did not. #}
+    <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('finance.invoices') }}">
+      <i class="bi bi-receipt-cutoff"></i> {{ t('cashier.all_invoices') }}</a>
+  </div>
   {% if outstanding %}
   <table class="table">
     <thead><tr>

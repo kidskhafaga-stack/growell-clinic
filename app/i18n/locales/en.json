@@ -3026,7 +3026,8 @@
     "print_report": "Print report",
     "change_flash": "Give the patient {amount} change",
     "unbilled_title": "Booked today, not billed yet",
-    "unbilled_hint": "Bookings with no invoice against them — collect from here without leaving the till."
+    "unbilled_hint": "Bookings with no invoice against them — collect from here without leaving the till.",
+    "all_invoices": "All invoices & refunds"
   },
   "shifts": {
     "open_now": "Open shift",
