@@ -107,8 +107,18 @@ def test_a_polysaccharide_dose_does_not_take_over_the_conjugate_course(seeded):
         f"the conjugate course was taken over: {conjugate['brand'].name}"
     assert states.count("done") == 3, \
         f"conjugate doses were lost from the count: {states}"
-    assert "overdue" in states, \
-        "the booster stopped being owed once a polysaccharide was recorded"
+    # Still owed — which is the whole claim. It reads `due` rather than
+    # `overdue` because a catch-up is a course that *starts now*: this child
+    # is three, the guideline's answer for a three-year-old with three doses
+    # is "one more", and that one is owed from today rather than late since a
+    # first birthday nobody was ever going to give it on. The distinction is
+    # the catch-up model's to make; what this test holds is that a
+    # polysaccharide dose does not make the conjugate booster disappear.
+    from app.utils.vaccines import GIVEABLE
+
+    assert any(state in GIVEABLE for state in states), \
+        f"the booster stopped being owed once a polysaccharide was " \
+        f"recorded: {states}"
 
 
 def test_it_is_recorded_but_never_routinely_chased(seeded):

@@ -1074,6 +1074,12 @@ def guideline_profile():
     positions — Bexsero's course is the European label's from two months and
     the CDC's from ten years — and a clinic changing which it follows should
     change a setting, not a program.
+
+    Unset, it is the Egyptian programme: this is an Egyptian clinic, and the
+    reference it follows should not have to be chosen before the first child
+    is seen. An unrecognised value falls back the same way rather than
+    raising — a settings row edited by hand must not be able to stop the
+    vaccination screen from rendering.
     """
     from app.models import VaccineScheduleTemplate
 
@@ -1084,7 +1090,7 @@ def guideline_profile():
         chosen = ""
     if chosen in VaccineScheduleTemplate.GUIDELINE_PROFILES:
         return chosen
-    return "manufacturer"
+    return VaccineScheduleTemplate.DEFAULT_GUIDELINE_PROFILE
 
 
 def _banded_templates():

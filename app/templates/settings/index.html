@@ -122,9 +122,9 @@
          years — and changing this recomputes from the doses already on file
          without re-entering a single one. #}
       <div class="form-row"><label>{{ t('settings.guideline_profile') }}</label>
-        {% set gp = values.get('vaccine_guideline_profile') or 'manufacturer' %}
+        {% set gp = guideline_current %}
         <select class="select" name="vaccine_guideline_profile">
-          {% for key in ['manufacturer', 'cdc', 'who'] %}
+          {% for key in guideline_profiles %}
           <option value="{{ key }}" {{ 'selected' if gp == key else '' }}>
             {{ t('settings.guideline_' ~ key) }}</option>
           {% endfor %}

@@ -365,9 +365,17 @@ def index():
     from app.utils.icd import coverage as icd_coverage
     from app.utils.money import CURRENCIES
 
+    from app.models import VaccineScheduleTemplate
+    from app.utils.vaccines import guideline_profile
+
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        # Handed over rather than written into the template, so adding a
+        # reference is one edit and not two — a picker that has drifted from
+        # the list the engine reads offers a clinic a policy it will not get.
+        guideline_profiles=VaccineScheduleTemplate.GUIDELINE_PROFILES,
+        guideline_current=guideline_profile(),
         free_ai=free_providers(), trial_ai=trial_defaults(),
         # How many codes each classification actually holds, so the screen can
         # say "not loaded" rather than let a doctor's empty search say it.

@@ -81,20 +81,30 @@ def _bexsero(seeded, tag, start_years, age_years):
 
 # ------------------------------------------------------------- the setting
 
-def test_the_default_is_the_leaflet(seeded):
+def test_the_default_is_the_egyptian_programme(seeded):
+    """Unset, an Egyptian clinic follows the Egyptian programme.
+
+    Not merely "some default": this is the country the program is written for,
+    and a clinic should not have to choose a reference before it can read a
+    vaccination screen.
+    """
+    from app.models import VaccineScheduleTemplate
     from app.utils.vaccines import guideline_profile
 
     with seeded["app"].app_context():
-        assert guideline_profile() == "manufacturer"
+        assert guideline_profile() == "egypt"
+        assert (VaccineScheduleTemplate.DEFAULT_GUIDELINE_PROFILE
+                in VaccineScheduleTemplate.GUIDELINE_PROFILES), \
+            "the default is not one of the references that can be chosen"
 
 
-def test_nonsense_falls_back_to_the_leaflet(seeded):
+def test_nonsense_falls_back_to_the_default(seeded):
     """A typo in a settings row must not leave the engine with no reference."""
     from app.utils.vaccines import guideline_profile
 
     _follow(seeded, "whatever")
     with seeded["app"].app_context():
-        assert guideline_profile() == "manufacturer"
+        assert guideline_profile() == "egypt"
 
 
 def test_it_is_set_from_the_settings_screen(seeded):
@@ -239,11 +249,41 @@ def test_the_wording_exists_in_both_languages(seeded):
     import json
 
     here = os.path.dirname(os.path.abspath(__file__))
-    keys = ["guideline_profile", "guideline_profile_hint",
-            "guideline_manufacturer", "guideline_cdc", "guideline_who"]
+    # Read off the list the engine actually uses, so a reference cannot be
+    # added to the picker and reach a clinic as a blank line.
+    from app.models import VaccineScheduleTemplate
+
+    keys = ["guideline_profile", "guideline_profile_hint"] + [
+        f"guideline_{p}" for p in VaccineScheduleTemplate.GUIDELINE_PROFILES]
     for lang in ("ar", "en"):
         with open(os.path.join(here, "..", "app/i18n/locales", f"{lang}.json"),
                   encoding="utf-8") as fh:
             block = json.load(fh)["settings"]
         for key in keys:
             assert key in block, f"{lang} is missing settings.{key}"
+
+
+def test_every_reference_can_be_picked_and_every_source_can_be_written(seeded):
+    """The picker offers what the engine reads, and the editor can write it.
+
+    Both were hand-written lists once. The settings picker named three of the
+    references and the schedule editor named four of the sources, and `cdc`
+    was in neither — so a clinic could be handed a CDC schedule and had no way
+    to correct one.
+    """
+    from app.models import Vaccine, VaccineScheduleTemplate
+
+    client = seeded["sign_in"]("boss")
+    page = client.get("/settings/").get_data(as_text=True)
+    for profile in VaccineScheduleTemplate.GUIDELINE_PROFILES:
+        assert f'value="{profile}"' in page, \
+            f"the settings picker cannot choose {profile}"
+
+    with seeded["app"].app_context():
+        vaccine_id = Vaccine.query.first().id
+    editor = client.get(
+        f"/vaccinations/manage/vaccine/{vaccine_id}/schedules"
+    ).get_data(as_text=True)
+    for source in VaccineScheduleTemplate.SOURCES:
+        assert f'value="{source}"' in editor, \
+            f"the schedule editor cannot author a {source} row"

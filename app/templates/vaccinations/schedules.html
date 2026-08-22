@@ -68,8 +68,15 @@
 <div class="card gc-scale-in" style="margin-bottom:14px;">
   <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
     <h3 style="margin:0;">{{ t('vaccinations.schedule') }} {{ tpl.code }}
-      <span class="badge {{ 'badge--green' if tpl.source == 'who' else ('badge--role' if tpl.source == 'manufacturer' else 'badge--muted') }}">
-        <i class="bi bi-{{ 'globe2' if tpl.source == 'who' else ('building' if tpl.source == 'manufacturer' else ('flag' if tpl.source == 'national' else 'pencil')) }}"></i>
+      {# One row per source, so a new reference is an entry here and not a
+         nested conditional grown one arm longer each time. #}
+      {% set marks = {'who': ('badge--green', 'globe2'),
+                      'manufacturer': ('badge--role', 'building'),
+                      'egypt': ('badge--green', 'flag'),
+                      'cdc': ('badge--role', 'shield-check'),
+                      'national': ('badge--muted', 'flag')} %}
+      {% set mark = marks.get(tpl.source, ('badge--muted', 'pencil')) %}
+      <span class="badge {{ mark[0] }}"><i class="bi bi-{{ mark[1] }}"></i>
         {{ t('vaccinations.source_' ~ tpl.source) }}</span>
       {% if tpl.label %}<span style="color:var(--muted);font-weight:400;font-size:0.9rem;">— {{ tpl.label }}</span>{% endif %}
       {% if tpl.age_group %}<span class="badge badge--role">{{ tpl.age_group }}</span>{% endif %}
@@ -139,10 +146,10 @@
       <div class="form-row"><label>{{ t('vaccinations.tpl_code') }} *</label><input class="input" name="code" dir="ltr" placeholder="A / B / C / D" required></div>
       <div class="form-row"><label>{{ t('vaccinations.tpl_source') }}</label>
         <select class="select" name="source">
-          <option value="manufacturer">{{ t('vaccinations.source_manufacturer') }}</option>
-          <option value="who">{{ t('vaccinations.source_who') }}</option>
-          <option value="national">{{ t('vaccinations.source_national') }}</option>
-          <option value="custom" selected>{{ t('vaccinations.source_custom') }}</option>
+          {% for key in sources %}
+          <option value="{{ key }}" {{ 'selected' if key == 'custom' else '' }}>
+            {{ t('vaccinations.source_' ~ key) }}</option>
+          {% endfor %}
         </select></div>
       <div class="form-row"><label>{{ t('vaccinations.tpl_label') }}</label><input class="input" name="label" placeholder="{{ t('vaccinations.tpl_label_ph') }}"></div>
       <div class="form-row"><label>{{ t('vaccinations.age_group') }}</label><input class="input" name="age_group" placeholder="2-6m"></div>

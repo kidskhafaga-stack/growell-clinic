@@ -487,17 +487,34 @@ class VaccineScheduleTemplate(db.Model):
     is_seeded = db.Column(db.Boolean, default=False, nullable=False)
     sort_order = db.Column(db.Integer, default=0)
 
-    SOURCES = ["manufacturer", "cdc", "who", "national", "custom"]
+    SOURCES = ["egypt", "manufacturer", "cdc", "who", "national", "custom"]
 
-    # Which of those a clinic can *follow*. The national programme and a
-    # clinic's own edits are schedules in their own right; the three below are
-    # the published guidelines a clinic chooses between as a policy.
+    # Which of those a clinic can *follow*. The national EPI rows and a
+    # clinic's own edits are schedules in their own right; the four below are
+    # the published references a clinic chooses between as a policy.
     #
     # The choice is a setting, not a fork in the code. Bexsero's course is the
     # European label's from two months and the CDC's from ten years — the same
     # product, two published positions — and a clinic changing which one it
     # follows must not need a developer, or a re-entry of a single dose.
-    GUIDELINE_PROFILES = ["manufacturer", "cdc", "who"]
+    #
+    # `egypt` is first because it is the default, and it is a profile in the
+    # same sense as the other three: a set of rows tagged with it, seeded from
+    # the Egyptian programme, edited in the same editor. There is no code path
+    # that reads `egypt` and goes looking somewhere else — a profile that was
+    # a name for another profile's rules would be a lie told in a settings
+    # box, and the whole point of the setting is that the clinic can read what
+    # it is following.
+    #
+    # It is silent about the vaccines the Egyptian programme does not run, and
+    # silence is not a gap to be papered over: for those, the leaflet answers,
+    # which is exactly how a private-market vaccine is given here.
+    GUIDELINE_PROFILES = ["egypt", "manufacturer", "cdc", "who"]
+
+    # What a clinic follows until somebody says otherwise. Named here rather
+    # than spelled out at each reader, because a default that lives in three
+    # places is a default that will disagree with itself.
+    DEFAULT_GUIDELINE_PROFILE = "egypt"
 
     vaccine = db.relationship("Vaccine", back_populates="schedule_templates")
     doses = db.relationship(
