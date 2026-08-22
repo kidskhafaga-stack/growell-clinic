@@ -375,6 +375,23 @@ def apply_schema(report=None):
     except Exception:  # noqa: BLE001 — a credit line never blocks an upgrade
         db.session.rollback()
 
+    # An invoice that came to nothing — a 100% staff discount, or one whose
+    # last line was deleted — used to be written as "unpaid" and stayed in the
+    # till's *who still owes* list for ever. Fixing the rule does nothing for
+    # the rows already stored, so they are asked again here. Its own
+    # transaction, after the commit, for the same reason as the credit line
+    # above: a bookkeeping tidy-up must not be able to roll back the columns
+    # the program needs in order to start.
+    try:
+        from app.models.invoice import settle_what_has_nothing_left_to_collect
+
+        settled = settle_what_has_nothing_left_to_collect()
+        db.session.commit()
+        if settled and report:
+            report(f"  ~ invoices: settled {settled} with nothing left to collect")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
     return applied
 
 

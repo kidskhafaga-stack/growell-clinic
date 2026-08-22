@@ -1282,6 +1282,13 @@ def cashier():
                             selectinload(Invoice.patient))
                    .filter(Invoice.status.in_(["unpaid", "partial"]))
                    .order_by(Invoice.id.desc()).limit(100).all())
+    # The stored status is an index into this list, not the truth about it.
+    # It is written when something happens to an invoice, so any rule that was
+    # ever wrong leaves rows behind — and the symptom is a debtor with a
+    # balance of zero and a Collect button that answers "already fully
+    # settled". The balance is right here in the loaded rows, so the screen
+    # asks it rather than trusting a word written months ago.
+    outstanding = [i for i in outstanding if i.balance > 0]
     outstanding_total = round(sum(i.balance for i in outstanding), 2)
 
     from app.models import CashAccount
