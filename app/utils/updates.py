@@ -82,6 +82,11 @@ def remembered():
     """
     from app.models import Setting
 
+    # Off means off. A notice a launch stored earlier must not go on sitting
+    # on the bell after somebody switches the check off — the setting is about
+    # whether the clinic wants to be told, not only about whether it asks.
+    if not _enabled():
+        return None
     try:
         raw = Setting.get(STORED)
     except Exception:  # noqa: BLE001 — the settings table may not be ready
@@ -144,10 +149,52 @@ def installed_revision():
         return None
 
 
+def _revision_now_on_disk():
+    """What this copy is once an update has replaced its files.
+
+    A clone knows: `git` has already moved HEAD on, and asking it is exact.
+
+    A downloaded copy has nothing on disk that says so — and asking
+    :func:`installed_revision` returns the stamp written before *this* update,
+    which is the answer that was wrong. So it is asked of the branch instead,
+    which at the end of an update that has just finished downloading it is
+    what the files are.
+
+    Only ever the fallback. `update.bat` asks GitHub for the branch head
+    first and then downloads *that commit by name*, so the revision it hands
+    over is exactly what it fetched with no window for a commit to land in
+    between. This is for a clinic still running an older `update.bat`, which
+    is most of the reason it exists.
+
+    Nothing here reaches the network when the clinic has turned the check off.
+    """
+    if os.path.isdir(os.path.join(_root(), ".git")):
+        return installed_revision()
+    if not _enabled():
+        return installed_revision()
+    return latest_revision()
+
+
+def _is_revision(text):
+    """Whether this looks like a commit id at all.
+
+    The revision arrives from a PowerShell command inside a batch file, and a
+    warning line or a proxy's error page would arrive down the same pipe. A
+    stamp that says something other than a commit is worse than no stamp: it
+    can never match, so the clinic is told to update for ever.
+    """
+    text = (text or "").strip()
+    return 7 <= len(text) <= 40 and all(c in "0123456789abcdefABCDEF"
+                                        for c in text)
+
+
 def record_installed(revision=None):
     """Write down what this copy now is. Called at the end of an update."""
-    revision = (revision or "").strip() or installed_revision()
-    if not revision:
+    revision = (revision or "").strip()
+    if revision and not _is_revision(revision):
+        revision = ""      # not a commit id — work it out instead
+    revision = revision or _revision_now_on_disk()
+    if not revision or not _is_revision(revision):
         return None
     path = _stamp_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)

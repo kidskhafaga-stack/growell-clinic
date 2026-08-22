@@ -234,3 +234,126 @@ def test_the_program_still_never_updates_itself(clinic):
         assert danger not in stripped, \
             f"the update module can now change the copy it is running from " \
             f"({danger})"
+
+
+# ------------------------------------- and the copy that was downloaded
+
+@pytest.fixture()
+def downloaded(clinic, tmp_path, monkeypatch):
+    """A copy that was downloaded rather than cloned: no `.git` to ask.
+
+    Its stamp lives under the same temporary folder, so each test starts with
+    a copy that has never been stamped — otherwise one test's version is still
+    on disk for the next, and "it wrote nothing down" and "it wrote down what
+    was already there" look identical.
+    """
+    from app.utils import updates
+
+    monkeypatch.setattr(updates, "_root", lambda: str(tmp_path))
+    monkeypatch.setattr(updates, "_stamp_path",
+                        lambda: str(tmp_path / "instance" / updates.STAMP))
+    return clinic
+
+
+def test_a_downloaded_copy_stops_being_told_to_update(downloaded, monkeypatch):
+    """The case that made this worth chasing.
+
+    A `git clone` answers "which revision am I" from git, so an update moves it
+    on its own. A copy that was downloaded as a ZIP cannot, and reads the stamp
+    `update.bat` wrote instead — which means asking it what it is *after* an
+    update returns what it was *before* one.
+
+    `record-version` runs at the end of every update with no argument, so it
+    asked exactly that question and wrote the old answer straight back. The
+    stamp never moved. A clinic that updates by downloading was told there was
+    a newer version for ever, at every launch, with a badge on the bell that
+    never cleared — which is how a notice becomes something people learn to
+    ignore, and the one thing this feature cannot afford.
+    """
+    from app.utils import updates
+
+    old, new = "1" * 40, "2" * 40
+
+    with downloaded["app"].app_context():
+        updates.record_installed(old)
+        assert updates.installed_revision() == old
+
+        # The update ran: the files on disk are `new` now. Nothing about a
+        # downloaded copy says so, which is the whole problem.
+        monkeypatch.setattr(updates, "latest_revision", lambda: new)
+        updates.record_installed()
+
+        assert updates.installed_revision() == new, \
+            "a downloaded copy still calls itself the version it replaced"
+
+    _store(downloaded, json.dumps({"installed": old, "latest": new,
+                                   "notes": []}))
+    with downloaded["app"].app_context():
+        assert updates.remembered() is None, \
+            "the bell goes on telling a clinic to install what it just installed"
+
+
+def test_the_revision_it_was_handed_wins(downloaded):
+    """`update.bat` knows exactly which commit it downloaded, because it asks
+    for that commit by name. Nothing should second-guess it."""
+    from app.utils import updates
+
+    with downloaded["app"].app_context():
+        assert updates.record_installed("3" * 40) == "3" * 40
+        assert updates.installed_revision() == "3" * 40
+
+
+def test_it_never_invents_a_version_it_could_not_establish(downloaded,
+                                                           monkeypatch):
+    """Offline at the end of an update, with no revision given.
+
+    Writing anything down here would be a guess, and a wrong stamp is worse
+    than none: it tells a clinic they are current when they are not.
+    """
+    from app.utils import updates
+
+    with downloaded["app"].app_context():
+        monkeypatch.setattr(updates, "latest_revision", lambda: None)
+        assert updates.record_installed() is None
+        assert updates.installed_revision() is None
+
+
+def test_a_clinic_that_switched_the_check_off_is_not_shown_a_stale_one(clinic,
+                                                                      monkeypatch):
+    """Off means off. A notice stored by an earlier launch must not go on
+    sitting on the bell after somebody turns the check off."""
+    from app.utils import updates
+
+    _store(clinic, json.dumps(FOUND))
+    with clinic["app"].app_context():
+        assert updates.remembered() is not None
+        monkeypatch.setattr(updates, "_enabled", lambda: False)
+        assert updates.remembered() is None
+
+
+def test_something_that_is_not_a_commit_is_not_written_down(downloaded,
+                                                            monkeypatch):
+    """The revision reaches Python from a PowerShell command inside a batch
+    file. A warning line, or a proxy's error page, arrives down the same pipe.
+
+    A stamp that says something other than a commit can never match anything,
+    so the clinic would be told to update for ever — the same failure this
+    whole change exists to fix, arriving by a different door.
+    """
+    from app.utils import updates
+
+    with downloaded["app"].app_context():
+        monkeypatch.setattr(updates, "latest_revision", lambda: None)
+        for rubbish in ("WARNING: TLS is deprecated", "<html>404</html>",
+                        "not-a-sha", "", "   "):
+            assert updates.record_installed(rubbish) is None, rubbish
+            assert updates.installed_revision() is None
+
+
+def test_a_short_revision_is_still_a_revision(downloaded):
+    """git can be asked for an abbreviated one, and a clinic may have stamped
+    a copy by hand. Both are commits."""
+    from app.utils import updates
+
+    with downloaded["app"].app_context():
+        assert updates.record_installed("a1b2c3d") == "a1b2c3d"
