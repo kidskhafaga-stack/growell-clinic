@@ -25,7 +25,7 @@ change to make deliberately rather than to guess at.
 """
 import os
 import sys
-from datetime import timedelta
+from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -87,7 +87,10 @@ def test_a_sixteen_year_old_is_not_chased_for_a_babys_course(seeded):
 
     kid_id = _child(seeded, 16, "16")
 
-    assert _pcv(seeded, kid_id)["doses"] == []
+    # Nothing **owed** — not an empty course. The dose he had as a baby is
+    # still on his file, and must be: the record is not the schedule.
+    assert not [d for d in _pcv(seeded, kid_id)["doses"]
+                if d["status"] != "done"]
 
     with seeded["app"].app_context():
         chased = [r for r in due_list()
@@ -98,18 +101,23 @@ def test_a_sixteen_year_old_is_not_chased_for_a_babys_course(seeded):
 
 @pytest.mark.parametrize("years", [5.1, 6, 10, 16])
 def test_the_routine_course_is_over_from_five(seeded, years):
-    assert _pcv(seeded, _child(seeded, years, str(years)))["doses"] == []
+    row = _pcv(seeded, _child(seeded, years, str(years)))
+
+    assert not [d for d in row["doses"] if d["status"] != "done"]
 
 
 # --------------------------------------------- and nothing below it moved
 
-@pytest.mark.parametrize("years,expected", [(0.25, 4), (0.5, 4), (1.2, 4),
-                                            (3, 4), (4.9, 4)])
-def test_every_child_under_five_is_scheduled_exactly_as_before(seeded, years,
-                                                               expected):
+@pytest.mark.parametrize("years", [0.25, 0.5, 1.2, 1.9])
+def test_every_child_under_two_is_scheduled_exactly_as_before(seeded, years):
     """The half that matters most. A ceiling put one band too low silently
-    stops vaccinating toddlers, and it would look like a tidier screen."""
-    assert len(_pcv(seeded, _child(seeded, years, f"u{years}"))["doses"]) == expected
+    stops vaccinating toddlers, and it would look like a tidier screen.
+
+    Under two, and not under five, because two to four now has a catch-up of
+    its own — one dose, not the infant series — which is the change the
+    section below this one is about.
+    """
+    assert len(_pcv(seeded, _child(seeded, years, f"u{years}"))["doses"]) == 4
 
 
 def test_a_baby_is_still_chased_for_the_doses_they_owe(seeded):
@@ -134,8 +142,11 @@ def test_it_reads_the_age_now_and_not_the_age_they_started_at(seeded):
     four = _pcv(seeded, _child(seeded, 4, "m4"))
     six = _pcv(seeded, _child(seeded, 6, "m6"))
 
-    assert len(four["doses"]) == 4
-    assert six["doses"] == []
+    # The four-year-old is on a catch-up — one dose owed on top of the one
+    # they had. The six-year-old is past the routine course entirely and owes
+    # nothing, though the dose they *did* have is still on their file.
+    assert [d["status"] for d in four["doses"]] == ["done", "due"]
+    assert [d["status"] for d in six["doses"]] == ["done"]
 
 
 def test_hpv_still_locks_at_the_first_dose(seeded):
@@ -165,7 +176,146 @@ def test_hpv_still_locks_at_the_first_dose(seeded):
         "matching on today's age has reached HPV and added a third dose"
 
 
+# ------------------------------------------- a catch-up is doses still owed
+
+def test_a_toddler_with_one_infant_dose_is_owed_one_more(seeded):
+    """The case decided directly: *"a healthy child of two to four with an
+    earlier pneumococcal dose needs one additional dose — it must read 'one
+    catch-up dose owed', not 'complete, nothing due'."*
+
+    It read "nothing owed", and the reason is worth keeping: a course of one
+    dose has its single slot filled by the infant dose already on file, so
+    "one more" and "one in total" are the same sentence to a scheduler that
+    counts slots. A catch-up says how many are owed **now**.
+    """
+    row = _pcv(seeded, _child(seeded, 3, "cu1", doses=((1, 2),)))
+    owed = [d for d in row["doses"] if d["status"] != "done"]
+
+    assert len(owed) == 1, f"the catch-up dose is not owed: {row['doses']}"
+    assert owed[0]["due_date"] >= local_today().isoformat(), \
+        "the catch-up dose is dated in the past"
+
+
+def test_the_owed_dose_is_owed_now(seeded):
+    """The failure the counting version walks into. A dose worked out by
+    subtraction has no date, so something has to invent one — and the thing
+    that invents it is the child's age, which is how influenza came to say
+    "overdue since 2016". A catch-up is a short course that starts today.
+    """
+    row = _pcv(seeded, _child(seeded, 4, "cu2", doses=((1, 2),)))
+    owed = [d for d in row["doses"] if d["status"] != "done"]
+
+    assert owed[0]["due_date"] == local_today().isoformat()
+
+
+def test_a_child_who_never_had_one_is_owed_the_same_single_dose(seeded):
+    """Two to four and unvaccinated is one dose, the same as two to four and
+    partly vaccinated. The band is about the age, and how many they have had
+    only decides whether it applies at all."""
+    row = _pcv(seeded, _child(seeded, 3, "cu3", doses=()))
+
+    assert len([d for d in row["doses"] if d["status"] != "done"]) == 1
+
+
+def test_a_completed_series_is_not_asked_for_another(seeded):
+    """The half that stops a catch-up becoming a permanent extra dose. A child
+    with the full four is complete, no band matches them, and they fall back
+    to the product's own rows where every dose is already done."""
+    row = _pcv(seeded, _child(seeded, 3, "cu4",
+                              doses=((1, 2), (2, 4), (3, 6), (4, 12))))
+
+    assert [d["status"] for d in row["doses"]] == ["done"] * 4
+
+
+def test_the_doses_on_file_are_not_swallowed_by_the_catch_up(seeded):
+    """They are still on the record and still count — a catch-up changes what
+    is *owed*, not what happened."""
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine
+
+    patient_id = _child(seeded, 3, "cu5", doses=((1, 2), (2, 4)))
+
+    with seeded["app"].app_context():
+        kept = PatientVaccine.query.filter_by(patient_id=patient_id).count()
+
+    assert kept == 2
+
+
+def test_a_baby_is_not_given_a_catch_up_instead_of_a_series(seeded):
+    """Under two the infant series is the course, unchanged. A catch-up band
+    reaching them would replace four doses with one."""
+    row = _pcv(seeded, _child(seeded, 1.2, "cu6", doses=((1, 2),)))
+
+    assert len(row["doses"]) == 4
+
+
+def test_the_sweep_agrees_with_the_file_about_a_catch_up(seeded):
+    """The guarantee the register rests on, on the case that just changed
+    shape. The catch-up is decided in two places — over ORM rows and over flat
+    columns — and a rule added to one of them is a register that disagrees
+    with the file it came from."""
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine
+    from app.utils.vaccines import doses_for, patient_due_reminders, scan_due
+
+    patient_id = _child(seeded, 3, "cu7", doses=((1, 2),))
+    today = local_today()
+
+    with seeded["app"].app_context():
+        patient = db.session.get(Patient, patient_id)
+        by_orm = sorted(
+            (r["vaccine"].code, r["dose_number"], r["status"])
+            for r in patient_due_reminders(
+                patient, "ar", today,
+                doses=doses_for([patient_id]).get(patient_id, [])))
+
+        rows = db.session.query(
+            PatientVaccine.vaccine_id, PatientVaccine.brand_id,
+            PatientVaccine.dose_number, PatientVaccine.given_date,
+            PatientVaccine.event_type).filter(
+            PatientVaccine.patient_id == patient_id).all()
+        by_flat = sorted(
+            (r["vaccine"].code, r["dose_number"], r["status"])
+            for r in scan_due(patient.date_of_birth, rows, today))
+
+    assert by_orm == by_flat, f"file says {by_orm}, sweep says {by_flat}"
+
+
+def test_the_history_condition_counts_the_whole_record(seeded):
+    """`previous` alone is what came before *this brand*, which is zero for
+    nearly every child — a condition written against it would never fire. What
+    a catch-up asks about is how many doses the child has had."""
+    from app.utils.vaccines import _pick_band
+
+    band = [{"min": 24, "max": 59, "previous_max": 3, "match_on": "today",
+             "catch_up": True, "doses": [(24, None)]}]
+    dob = date(2023, 8, 22)
+    today = date(2026, 8, 22)
+
+    assert _pick_band(band, dob, None, 0, today, given_count=1) is not None
+    assert _pick_band(band, dob, None, 0, today, given_count=4) is None, \
+        "a child with a complete series was offered a catch-up dose"
+
+
 # ------------------------------------------------------- it is a row, editable
+
+def test_a_shut_course_still_shows_what_was_given(seeded):
+    """Found while making the catch-up work, and the same mistake twice.
+
+    An empty course dropped the child's doses off their own file, so a
+    six-year-old's certificate lost the pneumococcal dose they were actually
+    given. A course that is over must still show what happened in it — the
+    record is not the schedule.
+    """
+    row = _pcv(seeded, _child(seeded, 6, "shut", doses=((1, 2),)))
+
+    assert [d["status"] for d in row["doses"]] == ["done"]
+
+
+def test_a_child_past_it_with_nothing_on_file_has_nothing_to_show(seeded):
+    """The other side — an empty file stays empty rather than inventing a row."""
+    assert _pcv(seeded, _child(seeded, 6, "shutnone", doses=()))["doses"] == []
+
 
 def test_the_ceiling_is_a_row_a_clinic_can_change(seeded):
     """Every clinical number in this engine is data on a screen. A clinic that
@@ -200,7 +350,9 @@ def test_it_applies_whatever_guideline_the_clinic_follows(seeded):
             Setting.set("vaccine_guideline_profile", profile)
             db.session.commit()
 
-        assert _pcv(seeded, _child(seeded, 8, f"g{profile}"))["doses"] == [], \
+        row = _pcv(seeded, _child(seeded, 8, f"g{profile}"))
+
+        assert not [d for d in row["doses"] if d["status"] != "done"], \
             f"the ceiling disappears for a clinic following {profile}"
 
 

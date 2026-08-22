@@ -124,19 +124,27 @@ def test_before_any_dose_the_band_follows_todays_age(seeded):
 # ------------------------------------------------------ nothing else moved
 
 def test_a_vaccine_with_no_bands_is_untouched(seeded):
-    """The change has to be invisible everywhere it was not asked for."""
+    """The change has to be invisible everywhere it was not asked for.
+
+    Hepatitis A, because the control has to be a vaccine that genuinely has no
+    bands. This used to use the pneumococcal, and the day PCV was given an
+    age-based catch-up the test failed — on the feature working, which is the
+    least useful way for a test to fail. `_AGE_BANDED` is asked here so the
+    control cannot go stale the same way twice.
+    """
     from app.extensions import db
     from app.models import Patient, Vaccine, VaccineBrand
-    from app.utils.vaccines import patient_plan
+    from app.utils.vaccines import _AGE_BANDED, patient_plan
+
+    assert "HAV" not in _AGE_BANDED, \
+        "hepatitis A now has bands — this test needs a different control"
 
     patient_id = _girl(seeded, 3, "f")
     with seeded["app"].app_context():
-        pcv = Vaccine.query.filter_by(code="PCV").first()
-        brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
-                                             name="Prevenar 13").first()
-        expected = len(brand.doses)
+        hav = Vaccine.query.filter_by(code="HAV").first()
+        expected = len(hav.default_brand.doses)
         plan = patient_plan(db.session.get(Patient, patient_id))
-        row = next(v for v in plan if v["vaccine"].code == "PCV")
+        row = next(v for v in plan if v["vaccine"].code == "HAV")
 
     assert len(row["doses"]) == expected
 
@@ -316,7 +324,12 @@ def test_a_brands_schedule_does_not_leak_onto_its_siblings(seeded):
     """
     from app.models import VaccineBrand
 
-    theirs = _brand_kid(seeded, "PCV", "Prevenar 13", 2.0, "prev", 0.2)
+    # One year old, not two: from twenty-four months the pneumococcal has a
+    # catch-up of its own, so Prevenar 13's course is one dose there whatever
+    # its sibling says and a leak would be invisible again. The fixture keeps
+    # moving down as the schedule grows, which is the honest cost of testing a
+    # leak with real data.
+    theirs = _brand_kid(seeded, "PCV", "Prevenar 13", 1.0, "prev", 0.2)
 
     with seeded["app"].app_context():
         expected = len(VaccineBrand.query.filter_by(

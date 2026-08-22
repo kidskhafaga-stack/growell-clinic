@@ -385,8 +385,29 @@ _AGE_BANDED = {
         # teaching the engine that a catch-up's doses are *additional* to what
         # is on file, which is a change to make deliberately rather than to
         # guess at. Under five years nothing here changes.
-        {"code": "PCV-ROUTINE-END", "min": 60, "max": None, "sort_order": 5,
+        # "A healthy child of two to four with an earlier pneumococcal dose
+        # needs one additional dose" — stated directly, and it is a *catch-up*:
+        # the dose is owed on top of whatever is on file, not the whole of a
+        # course the child is judged against. `catch_up` is what says so, and
+        # without it a one-dose course has its single slot filled by the infant
+        # dose and "one more" reads as "nothing owed".
+        #
+        # Capped at three previous doses because a child who has had the full
+        # four is complete; no band matches them and they fall through to the
+        # product's own rows, where every dose is already done.
+        {"code": "PCV-CU-2Y", "min": 24, "max": 59, "sort_order": 4,
          "match_on": "today", "source": "manufacturer",
+         "catch_up": True, "previous_max": 3,
+         "label": "2–4 سنوات (سليم) وأقل من 4 جرعات: جرعة واحدة "
+                  "لاستكمال الناقص — للمراجعة",
+         "doses": [(24, None)]},
+        # Marked as a catch-up with nothing in it, which is exactly what it
+        # is: "how many are still owed" — none. That also keeps the doses the
+        # child did have on their file. A bare empty course dropped them, so a
+        # six-year-old's certificate lost the pneumococcal dose they were
+        # actually given — a shut course must still show what happened.
+        {"code": "PCV-ROUTINE-END", "min": 60, "max": None, "sort_order": 5,
+         "match_on": "today", "source": "manufacturer", "catch_up": True,
          "label": "5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
                   "لا جرعات إلا بقرار طبيب — للمراجعة",
          "doses": []},
@@ -545,7 +566,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    start_age_max_months=None, brand_id=None,
                    requires_previous_doses=None, first_gap_min_days=None,
                    first_gap_max_days=None, previous_doses_min=None,
-                   previous_doses_max=None, match_age_on="start"):
+                   previous_doses_max=None, match_age_on="start",
+                   starts_fresh=False):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -565,6 +587,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         previous_doses_min=previous_doses_min,
         previous_doses_max=previous_doses_max,
         match_age_on=match_age_on,
+        starts_fresh=starts_fresh,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -646,7 +669,8 @@ def seed_vaccine_schedules():
                 first_gap_max_days=band.get("gap_max"),
                 previous_doses_min=band.get("previous_min"),
                 previous_doses_max=band.get("previous_max"),
-                match_age_on=band.get("match_on", "start"))
+                match_age_on=band.get("match_on", "start"),
+                starts_fresh=band.get("catch_up", False))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -806,8 +830,13 @@ def _months_between(dob, when):
     return months - 1 if when.day < dob.day else months
 
 
-def _pick_band(bands, dob, start, previous, today, first_gap=None):
+def _pick_band(bands, dob, start, previous, today, first_gap=None,
+               given_count=0):
     """The first band whose age range and history condition both match.
+
+    Returns the **band**, not its doses: the caller needs to know whether it
+    is a catch-up, and asking twice is how the answer to two questions comes
+    from two different bands.
 
     Both halves, because the leaflets name them together. "Unvaccinated 7 to
     <12 months" is not an age; it is an age **and** an empty record, and a
@@ -831,10 +860,19 @@ def _pick_band(bands, dob, start, previous, today, first_gap=None):
         # "…and has had fewer than two before" is a real leaflet condition and
         # not expressible as none/some. Influenza needs it: under nine, a
         # child with no doses and a child with one both need two this season,
-        # and a child with two needs one.
-        if band.get("previous_max") is not None and previous > band["previous_max"]:
+        # and a child with two needs one. A pneumococcal catch-up needs it the
+        # other way — one dose to complete, but not for a child who is already
+        # complete.
+        #
+        # Counted over the child's whole record: `previous` alone is what came
+        # before *this brand*, which is zero for nearly everybody, so a
+        # condition written against it would never fire. `given_count` is what
+        # is on file for the course being scheduled, and the two together are
+        # how many doses this child has had.
+        total = previous + given_count
+        if band.get("previous_max") is not None and total > band["previous_max"]:
             continue
-        if band.get("previous_min") is not None and previous < band["previous_min"]:
+        if band.get("previous_min") is not None and total < band["previous_min"]:
             continue
         # The gap actually achieved between the first two doses. Unknown until
         # the second one happens, so a band that asks about it simply does not
@@ -855,7 +893,7 @@ def _pick_band(bands, dob, start, previous, today, first_gap=None):
                 continue
             if high_gap is not None and first_gap >= high_gap:
                 continue
-        return band["doses"]
+        return band
     return None
 
 
@@ -908,9 +946,38 @@ def _achieved_first_gap(given_dates):
     return (dates[1] - dates[0]).days
 
 
-def schedule_for(vaccine, brand, dob, given_dates, today=None,
+def _catch_up_course(rota, given_dates, default_doses):
+    """A catch-up's doses, numbered **after** what is already on file.
+
+    The first attempt at this emptied the slots, the way a season does. It
+    scheduled correctly and was wrong everywhere else: with no given doses in
+    the course, the child's file stopped showing the dose they had had, and
+    the reminder path — which will not chase a course nobody started here —
+    skipped them entirely. The two paths disagreed, and the test that holds
+    them to the same answer is what said so.
+
+    A season can empty its slots because last winter's dose belongs to last
+    winter. A catch-up cannot: the earlier doses are part of this same course
+    and stay on the record. So the catch-up's dose is simply the *next* one —
+    number three for a child who has had two — which is also what it is called
+    when somebody gives it.
+    """
+    if not given_dates:
+        return rota
+    offset = max(given_dates)
+    ages = dict(default_doses or ())
+    kept = [(number, ages.get(number, 0)) for number in sorted(given_dates)]
+    return kept + [(number + offset, age) for number, age in rota]
+
+
+def course_for(vaccine, brand, dob, given_dates, today=None,
                  brand_first=None, previous=0):
-    """The dose ages this child's course actually follows.
+    """``(dose ages, the band that decided them)`` for this child's course.
+
+    The band comes back because the caller has to know whether it is a
+    catch-up — a course whose doses are additional to what is on file — and
+    picking it twice is how the answer to two questions comes from two
+    different bands.
 
     Returns ``[(dose_number, age_months)]`` — the brand's own dose rows unless
     the vaccine carries **age-banded** schedules, in which case the band is
@@ -934,11 +1001,11 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
     """
     default = [(d.dose_number, d.age_months) for d in brand.doses]
     if dob is None:
-        return default
+        return default, None
 
     bands = _bands_for(vaccine.id, brand.id)
     if not bands:
-        return default
+        return default, None
 
     # When *this brand's* course started, not when the child's first ever dose
     # was. Stated by the doctor and it is the whole correction: a child who
@@ -959,17 +1026,25 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
         if start is None:
             start = min((d for d in given_dates.values() if d), default=None)
     picked = _pick_band(bands, dob, start, previous, today or local_today(),
-                        first_gap=_achieved_first_gap(given_dates))
+                        first_gap=_achieved_first_gap(given_dates),
+                        given_count=len(given_dates))
     if picked is not None:
-        return picked
+        return picked["doses"], picked
     # The guideline speaks about this product and says nothing about a child
     # this age — under the CDC, Bexsero simply is not scheduled below ten
     # years. Falling back to the brand's raw dose rows would answer with a
     # number from no guideline at all, which is worse than either. An empty
     # course is the honest reading: this reference does not schedule it.
     if any(b.get("authoritative") for b in bands):
-        return []
-    return default
+        return [], None
+    return default, None
+
+
+def schedule_for(vaccine, brand, dob, given_dates, today=None,
+                 brand_first=None, previous=0):
+    """The dose ages this child's course follows — see :func:`course_for`."""
+    return course_for(vaccine, brand, dob, given_dates, today,
+                      brand_first=brand_first, previous=previous)[0]
 
 
 def _bands_for(vaccine_id, brand_id):
@@ -1070,6 +1145,7 @@ def _banded_templates():
                 "previous_min": template.previous_doses_min,
                 "previous_max": template.previous_doses_max,
                 "match_on": template.match_age_on or "start",
+                "catch_up": bool(template.starts_fresh),
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -1303,8 +1379,17 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                 # their priming pair is genuinely late for the second dose,
                 # and that date is computed from the first one, this season.
                 earliest_live = max(earliest_live or today, today)
-        rota = schedule_for(vaccine, brand, dob, given_dates, today,
-                            brand_first=brand_first, previous=previous)
+        rota, band = course_for(vaccine, brand, dob, given_dates, today,
+                                brand_first=brand_first, previous=previous)
+        if band is not None and band.get("catch_up"):
+            # A catch-up says how many doses are owed **now**. Its doses are
+            # numbered after what is on file — see :func:`_catch_up_course` —
+            # and the floor below is what makes them due now rather than at an
+            # age this child passed years ago.
+            rota = _catch_up_course(
+                rota, given_dates,
+                [(d.dose_number, d.age_months) for d in brand.doses])
+            earliest_live = max(earliest_live or today, today)
         # Before anything is computed from these dates, whether they can be
         # computed from at all.
         # From the raw rows, not from `given_index`: that is keyed by
@@ -2142,10 +2227,10 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     own file is two programs disagreeing about a course.
     """
     if dob is None:
-        return None
+        return None, None
     bands = _bands_for(vaccine_id, brand_id)
     if not bands:
-        return None
+        return None, None
     if seasonal:
         start = _season_start(given_dates, today)
     else:
@@ -2153,10 +2238,11 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
         if start is None:
             start = min((d for d in given_dates.values() if d), default=None)
     picked = _pick_band(bands, dob, start, previous, today,
-                        first_gap=_achieved_first_gap(given_dates))
+                        first_gap=_achieved_first_gap(given_dates),
+                        given_count=len(given_dates))
     if picked is None and any(b.get("authoritative") for b in bands):
-        return []
-    return picked
+        return [], None
+    return (picked["doses"] if picked else None), picked
 
 
 def scan_due(dob, doses, today, agreed=None):
@@ -2233,9 +2319,12 @@ def scan_due(dob, doses, today, agreed=None):
             mine, previous = _this_season(mine, today)
             if not mine:
                 earliest_live = max(earliest_live or today, today)
-        rota = _banded_for(vaccine_id, brand["id"], dob, mine, today,
-                           brand_first=brand_first, previous=previous,
-                           seasonal=meta["seasonal"])
+        rota, band = _banded_for(vaccine_id, brand["id"], dob, mine, today,
+                                 brand_first=brand_first, previous=previous,
+                                 seasonal=meta["seasonal"])
+        if band is not None and band.get("catch_up"):
+            rota = _catch_up_course(rota, mine, brand["doses"])
+            earliest_live = max(earliest_live or today, today)
         if rota is None:
             rota = brand["doses"]
         timings = course_dates(dob, rota, mine,
