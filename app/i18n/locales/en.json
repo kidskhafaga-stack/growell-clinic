@@ -2995,6 +2995,17 @@
     "recall_after_months_hint": "The clinic decides. Keep it below the archiving window, or the file is archived before anybody recalls it."
   },
   "update": {
+    "do_it": "Close the program and update",
+    "do_it_hint": "The program closes, and a separate program does the update — no file changes while the clinic is running.",
+    "confirm": "The program will close now and the update starts once it has. Continue?",
+    "handoff_failed": "The update could not be started. The program is untouched and nothing has changed — close it and run update.bat yourself.",
+    "started_title": "The update has started",
+    "started_body": "The program is closing now. The updater window is open and is waiting for it to close before it touches a single file.",
+    "started_step_close": "It waits for the program to close completely.",
+    "started_step_backup": "It takes a full backup first.",
+    "started_step_files": "It updates the files and the database, and checks the program starts.",
+    "started_step_open": "When it finishes, open the program with",
+    "started_note": "If this window stays open, just close it — the program itself has already shut down. Watch the black updater window.",
     "title": "A newer version",
     "sub": "This copy is not the latest one. The upgrade is done with the program closed.",
     "whats_new": "What changed",

@@ -367,9 +367,52 @@ def update_available():
     updater would be a fair thing to build; it would still not be this page
     doing the updating, which is the part that matters.
     """
+    from app.utils.updates import can_hand_off, remembered
+
+    return render_template("main/update.html", update=remembered(),
+                           can_hand_off=can_hand_off())
+
+
+@main_bp.route("/update/start", methods=["POST"])
+@admin_required
+def update_start():
+    """Close the clinic and let a separate program do the update.
+
+    The distinction this route exists to keep: **the update does not happen
+    here.** It starts an external script, hands it this process's id, and that
+    script sits watching until this process is gone before it writes anything.
+    Then the program closes itself.
+
+    Replacing the files a running Python process is executing is not a
+    theoretical problem — half the modules on disk are the new version while
+    half of what is in memory is the old one, and nobody finds out until a
+    request lands on the seam. So nothing is replaced while anybody could be
+    served.
+
+    The exit is deferred by a couple of seconds so this page can actually be
+    delivered; a request that dies mid-response leaves the admin looking at a
+    browser error and no idea whether anything started. The updater takes a
+    full backup before it touches a file, which is the safety net under all
+    of this.
+    """
+    from app.utils import updates
     from app.utils.updates import remembered
 
-    return render_template("main/update.html", update=remembered())
+    if not remembered():
+        flash(t("update.none"), "info")
+        return redirect(url_for("main.update_available"))
+    if not updates.can_hand_off() or not updates.hand_off():
+        # Nothing was started, so nothing is closing. The clinic carries on
+        # and the admin is told to do it the way that always works.
+        flash(t("update.handoff_failed"), "danger")
+        return redirect(url_for("main.update_available"))
+
+    ActivityLog.record("app.update_started", user_id=current_user.id,
+                       entity="app", entity_id=None)
+    db.session.commit()
+
+    updates.close_after()
+    return render_template("main/update_started.html")
 
 
 @main_bp.route("/notifications/dismiss", methods=["POST"])

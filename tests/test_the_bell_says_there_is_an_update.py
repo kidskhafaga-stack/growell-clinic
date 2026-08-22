@@ -201,20 +201,133 @@ def test_it_is_not_a_page_anybody_can_open(clinic):
         "somebody who cannot act on it can open the update page"
 
 
-def test_nothing_on_the_page_can_start_an_update(clinic):
-    """The one thing this feature must never grow: a button that replaces the
-    files a running program is executing."""
+def test_the_page_never_updates_the_program_it_is_running_in(clinic,
+                                                              monkeypatch):
+    """The one line this feature must never cross.
+
+    The page *does* have a button now — deliberately, and it does not update
+    anything. It starts a separate program, hands it this process's id, and
+    closes the clinic; that program sits watching until this one is gone
+    before it writes a single file.
+
+    Replacing the files a running Python process is executing leaves half the
+    modules on disk new and half of what is in memory old, and nobody finds
+    out until a request lands on the seam. So the order is the contract: hand
+    off, then close, then write. This test holds the first two — nothing is
+    started without the hand-off going first, and the program only closes
+    once it has.
+    """
+    from app.utils import updates
+
+    order = []
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    monkeypatch.setattr(updates, "hand_off",
+                        lambda: order.append("hand_off") or True)
+    monkeypatch.setattr(updates, "close_after",
+                        lambda *a, **k: order.append("close"))
+
     _store(clinic, json.dumps(FOUND))
-    page = clinic["sign_in"]("boss").get("/update").get_data(as_text=True)
+    res = clinic["sign_in"]("boss").post(
+        "/update/start", data={"csrf_token": "x"}, follow_redirects=True)
 
-    # The page really rendered — otherwise "there is no form on it" is true
-    # of an error page too.
-    assert "update.bat" in page
+    assert res.status_code == 200
+    assert order == ["hand_off", "close"], \
+        f"the program closed without handing the job over first: {order}"
 
-    lowered = page.lower()
-    for danger in ("<form", "git pull", "method=\"post\"", "subprocess"):
-        assert danger not in lowered, \
-            f"the update page has grown a way to run something: {danger}"
+
+def test_a_hand_off_that_did_not_start_leaves_the_clinic_running(clinic,
+                                                                  monkeypatch):
+    """No updater, no shutdown. A program that closed itself and started
+    nothing is a clinic staring at a dead browser tab in the middle of a
+    working day, with no update and no way back except the power button."""
+    from app.utils import updates
+
+    closed = []
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    monkeypatch.setattr(updates, "hand_off", lambda: False)
+    monkeypatch.setattr(updates, "close_after",
+                        lambda *a, **k: closed.append(True))
+
+    _store(clinic, json.dumps(FOUND))
+    res = clinic["sign_in"]("boss").post(
+        "/update/start", data={"csrf_token": "x"}, follow_redirects=True)
+
+    assert res.status_code == 200
+    assert not closed, "the program shut itself down with no updater waiting"
+
+
+def test_it_will_not_close_the_clinic_for_an_update_that_is_not_there(
+        clinic, monkeypatch):
+    from app.utils import updates
+
+    closed = []
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    monkeypatch.setattr(updates, "hand_off", lambda: closed.append("started"))
+    monkeypatch.setattr(updates, "close_after",
+                        lambda *a, **k: closed.append("closed"))
+
+    _store(clinic, "")          # nothing pending
+    clinic["sign_in"]("boss").post("/update/start", data={"csrf_token": "x"},
+                                   follow_redirects=True)
+
+    assert not closed, f"the clinic was closed for nothing: {closed}"
+
+
+def test_only_an_admin_can_close_the_clinic(clinic, monkeypatch):
+    from app.utils import updates
+
+    closed = []
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    monkeypatch.setattr(updates, "hand_off", lambda: closed.append("started"))
+    monkeypatch.setattr(updates, "close_after",
+                        lambda *a, **k: closed.append("closed"))
+
+    _store(clinic, json.dumps(FOUND))
+    desk = clinic["sign_in"]("desk")
+    assert desk.get("/dashboard").status_code == 200
+    desk.post("/update/start", data={"csrf_token": "x"}, follow_redirects=True)
+
+    assert not closed, "a receptionist closed the clinic"
+
+
+def test_the_button_is_only_offered_where_it_can_work(clinic, monkeypatch):
+    """A copy without the hand-off script, or one not on Windows, gets the
+    instructions and no button — rather than a button that quietly does
+    nothing, which is the worse of the two by a distance."""
+    from app.utils import updates
+
+    _store(clinic, json.dumps(FOUND))
+    boss = clinic["sign_in"]("boss")
+
+    monkeypatch.setattr(updates, "can_hand_off", lambda: False)
+    page = boss.get("/update").get_data(as_text=True)
+    assert "update.bat" in page, "the page did not render at all"
+    assert "/update/start" not in page, \
+        "a button was offered on a copy that cannot use it"
+
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    assert "/update/start" in boss.get("/update").get_data(as_text=True)
+
+
+def test_the_hand_off_script_waits_before_it_writes(clinic):
+    """Read out of the script itself. Its whole job is the waiting; a version
+    of it that called `update.bat` first would look almost identical and would
+    be the bug this feature exists to avoid."""
+    path = os.path.join(HERE, "..", "update_now.bat")
+    with open(path, encoding="utf-8") as fh:
+        # `REM` lines explain at length why the waiting matters, and a search
+        # over them would match the explanation rather than the script.
+        lines = [ln for ln in fh.read().splitlines()
+                 if not ln.strip().lower().startswith("rem")]
+
+    body = "\n".join(lines).lower()
+    wait_at = body.index("tasklist")
+    call_at = body.index("call ")
+    assert wait_at < call_at, \
+        "the updater calls update.bat before it has waited for anything"
+    assert "%~1" in body, "it does not take the process id to wait for"
+    # It gives up rather than updating a program that would not close.
+    assert "exit /b 1" in body
 
 
 def test_the_program_still_never_updates_itself(clinic):

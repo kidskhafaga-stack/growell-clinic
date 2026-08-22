@@ -104,6 +104,80 @@ def remembered():
     return found
 
 
+# The script that waits for this process to die and then updates. Beside the
+# program, because that is where every other .bat a clinic uses already lives.
+HANDOFF = "update_now.bat"
+
+
+def can_hand_off():
+    """Whether this copy can start the external updater at all.
+
+    Windows only, and only where the script is actually on disk. A clinic
+    running from a checkout on Linux — which is where this is developed — gets
+    the same page without the button rather than a button that does nothing.
+    """
+    return os.name == "nt" and os.path.isfile(os.path.join(_root(), HANDOFF))
+
+
+def hand_off():
+    """Start the external updater, detached, and tell it which process to wait
+    for. Returns True if it was started.
+
+    **Nothing here updates anything.** It starts a separate process, hands it
+    this one's id, and returns; that process sits and watches until this one
+    is gone before it writes a single file. The order is the whole design.
+
+    Replacing the files a running Python process is executing is not a
+    theoretical problem — half the modules on disk are the new version while
+    half of what is in memory is the old one, and nobody finds out until a
+    request lands on the seam. `start.bat` used to `git pull` on every launch
+    and it cost a clinic a morning; a button that did it mid-consultation
+    would be the same failure with a nicer name on it.
+
+    Detached on purpose: the updater has to outlive the program that started
+    it, which is the one thing a child process must not be.
+    """
+    import subprocess
+
+    if not can_hand_off():
+        return False
+    script = os.path.join(_root(), HANDOFF)
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", "start", "", script, str(os.getpid())],
+            cwd=_root(), close_fds=True,
+            creationflags=(getattr(subprocess, "DETACHED_PROCESS", 0)
+                           | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)),
+        )
+    except Exception:  # noqa: BLE001 — a failed hand-off leaves the clinic up
+        return False
+    return True
+
+
+def close_after(seconds=3):
+    """Close this program, once the answer it is serving has gone out.
+
+    Named and separate so a test can watch it being asked for without being
+    killed by it, and because "the program shuts itself down" is a thing that
+    should be findable by looking for it.
+
+    `os._exit` rather than `sys.exit`: this runs on a worker thread, and
+    raising SystemExit there ends the thread while the server carries on
+    serving — which would leave the updater waiting for a process that is
+    never going to die, and after two minutes give up without updating.
+    Everything worth keeping is committed before this is called.
+    """
+    import threading
+
+    def _go():
+        import time
+
+        time.sleep(seconds)
+        os._exit(0)
+
+    threading.Thread(target=_go, daemon=True).start()
+
+
 def _enabled():
     """Whether the clinic wants this asked at all."""
     try:

@@ -38,6 +38,29 @@
   </ol>
   <p class="hint" style="margin-top:12px;">
     <i class="bi bi-shield-check"></i> {{ t('update.safety') }}</p>
+
+  {# The same three steps, done for you — and done in that order.
+
+     The button starts a *separate* program, hands it this one's process id,
+     and closes the clinic. Nothing on disk is touched until this process is
+     gone: replacing the files a running program is executing leaves half the
+     modules new and half of what is in memory old, and nobody finds out until
+     a request lands on the seam.
+
+     Only where it can actually work. A copy without the hand-off script, or
+     one not running on Windows, gets the instructions above and no button
+     rather than a button that quietly does nothing. #}
+  {% if can_hand_off %}
+  <form method="post" action="{{ url_for('main.update_start') }}"
+        style="margin-top:16px;"
+        onsubmit="return confirm({{ t('update.confirm') | tojson }});">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-power"></i> {{ t('update.do_it') }}</button>
+    <span class="hint" style="margin-inline-start:10px;">
+      {{ t('update.do_it_hint') }}</span>
+  </form>
+  {% endif %}
 </div>
 {% else %}
 <div class="card gc-scale-in">
