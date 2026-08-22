@@ -243,6 +243,8 @@ ADDITIONS = [
     ("vaccine_schedule_templates", "requires_previous_doses", "VARCHAR(10)"),
     ("vaccine_schedule_templates", "first_gap_min_days", "INTEGER"),
     ("vaccine_schedule_templates", "first_gap_max_days", "INTEGER"),
+    ("vaccine_schedule_templates", "previous_doses_min", "INTEGER"),
+    ("vaccine_schedule_templates", "previous_doses_max", "INTEGER"),
     ("vaccine_schedule_templates", "start_age_min_months", "INTEGER"),
     ("vaccine_schedule_templates", "start_age_max_months", "INTEGER"),
     ("vaccine_schedule_templates", "source", "VARCHAR(20) DEFAULT 'custom'"),
