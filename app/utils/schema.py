@@ -396,6 +396,24 @@ def apply_schema(report=None):
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 
+    # A schedule band that was tagged with the wrong reference. Seeding only
+    # ever adds — it keys on (vaccine, code, source) — so correcting a tag in
+    # the catalogue leaves the old row in place on every install that already
+    # has it, and the pneumococcal ceiling would have gone on being a rule
+    # every clinic got no matter which guideline it had chosen. Its own
+    # transaction for the same reason as the rest: a correction to seeded data
+    # must never be able to stop the program starting.
+    try:
+        from app.utils.vaccines import retag_moved_bands
+
+        moved = retag_moved_bands()
+        db.session.commit()
+        if moved and report:
+            report(f"  ~ vaccine schedules: retired {moved} band(s) that moved "
+                   f"to the guideline that states them")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
     # An invoice that came to nothing — a 100% staff discount, or one whose
     # last line was deleted — used to be written as "unpaid" and stayed in the
     # till's *who still owes* list for ever. Fixing the rule does nothing for
