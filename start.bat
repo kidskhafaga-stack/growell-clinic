@@ -92,6 +92,19 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM --- 5b) Is there a newer version? Say so; do not fetch it. ---
+REM
+REM A notice, not an action, and the difference is the whole reason this file
+REM stopped running "git pull". Opening the program must not change the
+REM program - not with a waiting room, and not without the snapshot and the
+REM schema upgrade that update.bat puts around it.
+REM
+REM It cannot fail loudly: no internet, no answer, or a copy whose version
+REM cannot be established all print nothing and carry on. Nothing is sent -
+REM one anonymous request to GitHub, carrying no clinic data at all - and a
+REM clinic that would rather not reach the internet turns it off in settings.
+flask --app run update-check
+
 REM --- 6) Work out the port: the argument wins, then clinic.env, then 5000 ---
 set "PORT_ARG=%~1"
 for /f "usebackq delims=" %%P in (`python -c "import sys;from app.settings_file import load_env;load_env();from run import chosen_port;print(chosen_port([a for a in sys.argv[1:] if a]))" "%PORT_ARG%"`) do set "APP_PORT=%%P"
