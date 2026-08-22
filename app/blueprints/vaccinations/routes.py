@@ -643,6 +643,12 @@ def vaccine_medical(vaccine_id):
 def schedule_templates(vaccine_id):
     vaccine = db.get_or_404(Vaccine, vaccine_id)
     return render_template("vaccinations/schedules.html", vaccine=vaccine,
+                           # The editor offers every source the engine knows,
+                           # read from the one list. It used to name four of
+                           # them by hand and `cdc` was not among them, so a
+                           # clinic following the CDC could read a CDC row and
+                           # not write one — half an editor for that policy.
+                           sources=VaccineScheduleTemplate.SOURCES,
                            vaccine_types=VACCINE_TYPES)
 
 

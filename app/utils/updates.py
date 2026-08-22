@@ -46,6 +46,138 @@ TIMEOUT_SECONDS = 3
 STAMP = "installed_revision.txt"
 
 
+# Where the answer is kept between the launch that asked and the screens that
+# show it.
+STORED = "update_pending"
+
+
+def remember(found):
+    """Store what the launch check found, so nothing else has to ask again."""
+    from app.extensions import db
+    from app.models import Setting
+
+    if not found:
+        return None
+    Setting.set(STORED, json.dumps(found))
+    db.session.commit()
+    return found
+
+
+def remembered():
+    """What the last launch check found, or None.
+
+    The bell reads this and never reaches the network itself. Computing the
+    notice on the bell's own schedule would have turned one request per launch
+    into one every ninety seconds — on a program whose whole promise about this
+    feature is that it does not talk to anybody about the clinic — and would
+    have put a three-second timeout in front of pages a receptionist opens all
+    day.
+
+    It goes stale on its own. The stored answer names the revision that was
+    newest when somebody last launched; once this copy *is* that revision there
+    is nothing to say, and a clinic that has already updated must not go on
+    being told to. Which is also why nothing ever writes an empty value here:
+    a launch with no internet returns "no news" exactly like a launch that is
+    up to date, and clearing on that would delete a notice that is still true.
+    """
+    from app.models import Setting
+
+    # Off means off. A notice a launch stored earlier must not go on sitting
+    # on the bell after somebody switches the check off — the setting is about
+    # whether the clinic wants to be told, not only about whether it asks.
+    if not _enabled():
+        return None
+    try:
+        raw = Setting.get(STORED)
+    except Exception:  # noqa: BLE001 — the settings table may not be ready
+        return None
+    if not raw:
+        return None
+    try:
+        found = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(found, dict) or not found.get("latest"):
+        return None
+    if found.get("latest") == installed_revision():
+        return None
+    return found
+
+
+# The script that waits for this process to die and then updates. Beside the
+# program, because that is where every other .bat a clinic uses already lives.
+HANDOFF = "update_now.bat"
+
+
+def can_hand_off():
+    """Whether this copy can start the external updater at all.
+
+    Windows only, and only where the script is actually on disk. A clinic
+    running from a checkout on Linux — which is where this is developed — gets
+    the same page without the button rather than a button that does nothing.
+    """
+    return os.name == "nt" and os.path.isfile(os.path.join(_root(), HANDOFF))
+
+
+def hand_off():
+    """Start the external updater, detached, and tell it which process to wait
+    for. Returns True if it was started.
+
+    **Nothing here updates anything.** It starts a separate process, hands it
+    this one's id, and returns; that process sits and watches until this one
+    is gone before it writes a single file. The order is the whole design.
+
+    Replacing the files a running Python process is executing is not a
+    theoretical problem — half the modules on disk are the new version while
+    half of what is in memory is the old one, and nobody finds out until a
+    request lands on the seam. `start.bat` used to `git pull` on every launch
+    and it cost a clinic a morning; a button that did it mid-consultation
+    would be the same failure with a nicer name on it.
+
+    Detached on purpose: the updater has to outlive the program that started
+    it, which is the one thing a child process must not be.
+    """
+    import subprocess
+
+    if not can_hand_off():
+        return False
+    script = os.path.join(_root(), HANDOFF)
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", "start", "", script, str(os.getpid())],
+            cwd=_root(), close_fds=True,
+            creationflags=(getattr(subprocess, "DETACHED_PROCESS", 0)
+                           | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)),
+        )
+    except Exception:  # noqa: BLE001 — a failed hand-off leaves the clinic up
+        return False
+    return True
+
+
+def close_after(seconds=3):
+    """Close this program, once the answer it is serving has gone out.
+
+    Named and separate so a test can watch it being asked for without being
+    killed by it, and because "the program shuts itself down" is a thing that
+    should be findable by looking for it.
+
+    `os._exit` rather than `sys.exit`: this runs on a worker thread, and
+    raising SystemExit there ends the thread while the server carries on
+    serving — which would leave the updater waiting for a process that is
+    never going to die, and after two minutes give up without updating.
+    Everything worth keeping is committed before this is called.
+    """
+    import threading
+
+    def _go():
+        import time
+
+        time.sleep(seconds)
+        os._exit(0)
+
+    threading.Thread(target=_go, daemon=True).start()
+
+
 def _enabled():
     """Whether the clinic wants this asked at all."""
     try:
@@ -91,10 +223,52 @@ def installed_revision():
         return None
 
 
+def _revision_now_on_disk():
+    """What this copy is once an update has replaced its files.
+
+    A clone knows: `git` has already moved HEAD on, and asking it is exact.
+
+    A downloaded copy has nothing on disk that says so — and asking
+    :func:`installed_revision` returns the stamp written before *this* update,
+    which is the answer that was wrong. So it is asked of the branch instead,
+    which at the end of an update that has just finished downloading it is
+    what the files are.
+
+    Only ever the fallback. `update.bat` asks GitHub for the branch head
+    first and then downloads *that commit by name*, so the revision it hands
+    over is exactly what it fetched with no window for a commit to land in
+    between. This is for a clinic still running an older `update.bat`, which
+    is most of the reason it exists.
+
+    Nothing here reaches the network when the clinic has turned the check off.
+    """
+    if os.path.isdir(os.path.join(_root(), ".git")):
+        return installed_revision()
+    if not _enabled():
+        return installed_revision()
+    return latest_revision()
+
+
+def _is_revision(text):
+    """Whether this looks like a commit id at all.
+
+    The revision arrives from a PowerShell command inside a batch file, and a
+    warning line or a proxy's error page would arrive down the same pipe. A
+    stamp that says something other than a commit is worse than no stamp: it
+    can never match, so the clinic is told to update for ever.
+    """
+    text = (text or "").strip()
+    return 7 <= len(text) <= 40 and all(c in "0123456789abcdefABCDEF"
+                                        for c in text)
+
+
 def record_installed(revision=None):
     """Write down what this copy now is. Called at the end of an update."""
-    revision = (revision or "").strip() or installed_revision()
-    if not revision:
+    revision = (revision or "").strip()
+    if revision and not _is_revision(revision):
+        revision = ""      # not a commit id — work it out instead
+    revision = revision or _revision_now_on_disk()
+    if not revision or not _is_revision(revision):
         return None
     path = _stamp_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)

@@ -143,7 +143,10 @@ function aiChat() {
         if (data.ok) {
           this.messages.push({ role: 'assistant', content: data.text });
         } else {
-          this.error = {{ t('ai.error') | tojson }} + ' (' + (data.error || res.status) + ')';
+          {# The sentence the server already put into words. It used to be
+             built here out of `data.error`, which for a clinic that had run
+             out of credit was the provider's raw JSON. #}
+          this.error = data.message || {{ t('ai.error') | tojson }};
         }
       } catch (e) {
         this.error = {{ t('ai.error') | tojson }};

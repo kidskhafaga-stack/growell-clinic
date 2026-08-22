@@ -120,6 +120,57 @@ def _fill_brand_facts(brand, data):
             setattr(brand, field, value)
 
 
+# Seeded bands that were tagged with the wrong reference, and where they
+# belong. `_seed_template` keys on (vaccine, code, source), so re-tagging a
+# band in the catalogue only ever *adds* the corrected row and leaves the old
+# one applying to every clinic exactly as before — which for these two would
+# have meant the five-year ceiling going on being a rule everybody got,
+# whichever guideline they had chosen. A rule that moved has to move on the
+# installs that already have it.
+#
+# Keyed by the code as it was seeded, so a clinic that renamed or edited its
+# copy is left alone: only rows the program wrote are touched.
+_RETAGGED_BANDS = {
+    # The pneumococcal catch-up and the end of the routine course. Both were
+    # tagged `manufacturer` for a mechanical reason the old comment admitted
+    # to — it was the only tag every clinic would read — and both are
+    # statements by a guideline, not by a leaflet. They are seeded again under
+    # the references that make them; these two rows are retired.
+    "PCV-CU-2Y": None,
+    "PCV-ROUTINE-END": None,
+    # And the CDC's MenB row, which said "from ten years" — the age the
+    # *risk-based* recommendation begins, not the routine one. Its replacement
+    # is seeded under a new code, so the old row has to stop applying or a
+    # healthy twelve-year-old goes on being scheduled from it.
+    "MENB-CDC-10Y": None,
+}
+
+
+def retag_moved_bands():
+    """Retire seeded schedule bands whose reference was corrected.
+
+    Returns how many rows were changed. Deactivates rather than deletes: a
+    clinic that has been scheduling from one of these can still see it in the
+    editor, and a doctor who wants it back has a switch rather than a support
+    call.
+
+    Never touches a row a doctor authored or edited — only the ones this
+    program seeded, still carrying the source it seeded them with.
+    """
+    changed = 0
+    for code, moved_to in _RETAGGED_BANDS.items():
+        for tpl in VaccineScheduleTemplate.query.filter_by(
+                code=code, is_seeded=True).all():
+            if moved_to is None:
+                if tpl.is_active:
+                    tpl.is_active = False
+                    changed += 1
+            elif tpl.source != moved_to:
+                tpl.source = moved_to
+                changed += 1
+    return changed
+
+
 def backfill_brand_facts():
     """Fill the blank regulatory facts on trade names that already exist.
 
@@ -311,14 +362,38 @@ _AGE_BANDED = {
     # Every band is 0.5 mL IM. The doses below are
     # ``(recommended_age_months, min_interval_days_from_previous)``.
     "MENB": [
-        # The CDC licenses the same product from ten years, with two doses.
+        # The CDC's routine position, which is a conversation rather than a
+        # date: for a **healthy** adolescent of sixteen to twenty-three, MenB
+        # is shared clinical decision-making — two doses six months apart,
+        # preferred at sixteen to eighteen.
+        #
+        # It needs no status of its own. A course this clinic never began and
+        # nobody agreed to is already a *suggestion by age*: offerable at a
+        # visit, never late, because "late" is a broken promise and there is
+        # no promise until the doctor and the family make one. Agreeing to it
+        # is what turns it into a due date — which is what shared decision-
+        # making is, written down.
+        #
+        # This row used to say "from ten years", and ten is where the *risk-
+        # based* recommendation begins — a different thing, and not one this
+        # program may compute. That schedule depends on the indication and on
+        # the product and can be a three-dose primary series; the catalogue
+        # cannot know why a child is at risk, and a confident dated course for
+        # a child who needed something else is the worst way to be wrong. So
+        # ten to fifteen is deliberately unscheduled here, and a child that age
+        # with a dose already on file reaches the doctor as a question.
+        #
         # Stored beside the European bands rather than replacing them: the
         # clinic picks which guideline it follows in settings, and switching
         # recomputes from the doses already on file without re-entering one.
-        {"code": "MENB-CDC-10Y", "min": 120, "max": None, "sort_order": 0,
+        # An Egyptian clinic is not covered by this row at all — MenB is not
+        # in the national programme, so the label answers, and the label
+        # schedules Bexsero from two months.
+        {"code": "MENB-CDC-16Y", "min": 192, "max": 287, "sort_order": 0,
          "brand": "Bexsero", "source": "cdc",
-         "label": "CDC: من 10 سنوات — جرعتان بفاصل 6 شهور — للمراجعة",
-         "doses": [(120, None), (126, 180)]},
+         "label": "CDC — 16–23 سنة (يُفضّل 16–18): قرار طبي مشترك — "
+                  "جرعتان بفاصل 6 شهور — للمراجعة",
+         "doses": [(192, None), (198, 180)]},
         {"code": "MENB-2-5", "min": 2, "max": 5, "sort_order": 0,
          "brand": "Bexsero",
          "label": "بدء 2–5 شهور: 3 أساسية + منشّط 12–15 شهر — للمراجعة",
@@ -347,56 +422,104 @@ _AGE_BANDED = {
     "PCV": [
         # ------------------------------------------------ the catch-up rule
         #
-        # Decided explicitly: *"PCV → age-based catch-up rule, not PCV →
+        # Decided explicitly: *"PCV -> age-based catch-up rule, not PCV ->
         # continue the infant series up to sixteen years."* A healthy child who
         # reaches two years after an earlier dose is no longer in a baby's
         # course, and the number of doses they owe is read from the age they
         # are **now** and what they have already had.
         #
-        # So this is matched on today's age (`match_on`), which is the
+        # These rows are on the vaccine and not a trade name: a catch-up is
+        # the guideline's, and it applies to whichever pneumococcal is in the
+        # fridge. What a *product* licenses — its own age range and doses —
+        # stays on the brand, further down, where a clinic's correction
+        # already lives. Keeping those two apart was the instruction.
+        #
+        # **Every one of them is tagged with the guideline that says it.** The
+        # ceiling used to be tagged `manufacturer`, and the comment that stood
+        # here admitted why: the engine loads the leaflet set plus the chosen
+        # profile's, so a row tagged `cdc` is invisible to a clinic following
+        # anything else, and tagging it honestly would have changed nothing on
+        # the screen that reported the bug. That was a rule about five-year-
+        # olds smuggled in as a fact about a leaflet, and it applied to clinics
+        # that had never chosen it. It is stated by the CDC below and by the
+        # Egyptian set above it, because both references say it — and if one
+        # of them ever stops saying it, one table changes and the other does
+        # not, which is the entire point of a profile.
+        #
+        # ### Why each set is a *whole* table
+        #
+        # A band whose source is the chosen profile makes that profile
+        # authoritative for the product, and its silence about an age then
+        # means "no course at this age" rather than "ask the leaflet". Measured
+        # twice: seeding the ceiling alone under `cdc` blanked the infant
+        # series for every baby in a CDC clinic. So a profile that says
+        # anything here has to say everything here — from the first infant
+        # dose to the age the routine course ends. There is no half-table.
+        #
+        # ### Which age each band is matched on
+        #
+        # The infant series is matched on the age at the **first dose** and
+        # sits last, and both halves of that are load-bearing. A nine-month-old
+        # two doses into the series started at two months is not a catch-up
+        # case — they are mid-course, and matching on their age today would
+        # move them onto a shorter one. Matching on the start keeps them where
+        # they are. Sitting last keeps a three-year-old who started at two
+        # months *off* it: the catch-up bands are read first and one of them
+        # answers for them.
+        #
+        # The catch-up bands are matched on the age **today**, which is the
         # opposite of HPV and deliberately: HPV locks at the first dose so a
         # birthday between doses cannot add a third, and a catch-up re-reads
         # the child every time, because that is what a catch-up is.
         #
-        # On the vaccine and not a trade name: this is the national/
-        # international catch-up and it applies to whichever pneumococcal is
-        # in the fridge. What the *product* licenses — its own age range and
-        # doses — stays on the brand, where a clinic's correction already
-        # lives. Keeping those two apart was the instruction.
+        # ### What is deliberately not here
         #
-        # **Only the ceiling is here**, and it is tagged `manufacturer` for a
-        # mechanical reason worth stating: the engine always loads the
-        # leaflet set *plus* the chosen profile's, so a row tagged with a
-        # profile is invisible to every clinic that follows a different one —
-        # and this clinic follows the default. Tagged the other way, the fix
-        # would have changed nothing on the screen that reported it. The row
-        # is seeded, editable and deletable like every other band.
+        # The two late-start courses are matched on the age at the **first
+        # dose**, and read as "this is the course a child who started here
+        # follows" rather than "this is what a child of this age with an empty
+        # record needs". With no doses on file that is the same thing, because
+        # the age at a first dose that has not happened is the age today.
         #
-        # It is a lone band on purpose. A band whose source *is* the chosen
-        # profile makes that profile authoritative for the whole vaccine, and
-        # then its silence about an age means "no course" — so seeding this
-        # one under `cdc` blanked the infant series for every baby in a clinic
-        # following the CDC. Measured, not reasoned about.
+        # Written the other way first — matched on today's age and capped at
+        # zero previous doses — and it broke the commonest case there is: a
+        # child given the first dose of the 7–11 month catch-up stopped
+        # matching the band the moment they had it, fell through every other
+        # one, and came back as "clinical review required" for the ordinary
+        # act of starting a course. Three existing tests caught it. A child
+        # halfway through a course the reference plainly describes is not a
+        # case the reference is silent about.
         #
-        # The middle of the catch-up — one dose to complete for a healthy
-        # child of two to four — is deliberately absent. A one-dose course has
-        # its single slot filled by the infant dose the child already had, so
-        # "one more" comes out as "nothing owed". Making that work means
-        # teaching the engine that a catch-up's doses are *additional* to what
-        # is on file, which is a change to make deliberately rather than to
-        # guess at. Under five years nothing here changes.
-        # "A healthy child of two to four with an earlier pneumococcal dose
-        # needs one additional dose" — stated directly, and it is a *catch-up*:
-        # the dose is owed on top of whatever is on file, not the whole of a
-        # course the child is judged against. `catch_up` is what says so, and
-        # without it a one-dose course has its single slot filled by the infant
-        # dose and "one more" reads as "nothing owed".
+        # A record the reference genuinely does not reach — a first dose at an
+        # age no band begins at — still falls through, and the profile being
+        # authoritative turns that into clinical review by name rather than a
+        # guess. That is the instruction kept where it belongs: *do not invent
+        # a dose count the reference did not state.*
         #
-        # Capped at three previous doses because a child who has had the full
-        # four is complete; no band matches them and they fall through to the
-        # product's own rows, where every dose is already done.
-        {"code": "PCV-CU-2Y", "min": 24, "max": 59, "sort_order": 4,
-         "match_on": "today", "source": "manufacturer",
+        # Nor is a dose ever computed as "required minus recorded". Every band
+        # below reads the age now, the doses on file and the intervals between
+        # them, and a catch-up's doses are numbered **after** what the child
+        # already has — see :func:`_catch_up_course`.
+
+        # -------- the Egyptian programme, which is what this clinic follows
+        #
+        # Pneumococcal is not in Egypt's national schedule; it is a private-
+        # market vaccine, and the reference the catalogue has always named for
+        # it here is the WHO pneumococcal position paper together with ACIP.
+        # These rows say that, at the ages the Egyptian catalogue's own brands
+        # are dosed at. Every one is "للمراجعة" — seeded for the doctor to
+        # confirm or correct, in the schedule editor, under this profile.
+        {"code": "PCV-EG-CU7", "min": 7, "max": 11, "sort_order": 0,
+         "source": "egypt",
+         "label": "7–11 شهر بدون جرعات سابقة: 3 جرعات، الأخيرة بعد "
+                  "إتمام 12 شهر — للمراجعة",
+         "doses": [(7, None), (8, 28), (12, 56)]},
+        {"code": "PCV-EG-CU12", "min": 12, "max": 23, "sort_order": 1,
+         "source": "egypt",
+         "label": "12–23 شهر بدون جرعات سابقة: جرعتان بفاصل ≥8 أسابيع "
+                  "— للمراجعة",
+         "doses": [(12, None), (14, 56)]},
+        {"code": "PCV-EG-CU2Y", "min": 24, "max": 59, "sort_order": 2,
+         "match_on": "today", "source": "egypt",
          "catch_up": True, "previous_max": 3,
          "label": "2–4 سنوات (سليم) وأقل من 4 جرعات: جرعة واحدة "
                   "لاستكمال الناقص — للمراجعة",
@@ -406,10 +529,169 @@ _AGE_BANDED = {
         # child did have on their file. A bare empty course dropped them, so a
         # six-year-old's certificate lost the pneumococcal dose they were
         # actually given — a shut course must still show what happened.
-        {"code": "PCV-ROUTINE-END", "min": 60, "max": None, "sort_order": 5,
-         "match_on": "today", "source": "manufacturer", "catch_up": True,
+        {"code": "PCV-EG-END", "min": 60, "max": None, "sort_order": 3,
+         "match_on": "today", "source": "egypt", "catch_up": True,
          "label": "5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
                   "لا جرعات إلا بقرار طبيب — للمراجعة",
+         "doses": []},
+        # Last, and matched on the age at the first dose. See above.
+        {"code": "PCV-EG-INF", "min": None, "max": 6, "sort_order": 4,
+         "source": "egypt",
+         "label": "بدء قبل 7 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
+         "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
+
+        # ------------------------------------------------- and the WHO's
+        #
+        # WHO's routine is **2p+1** — two primary doses and a booster — which
+        # is a genuinely different course from the CDC's 3p+1, and the reason
+        # a clinic gets to choose between them at all. The ages are the ones
+        # already reviewed and seeded as this program's WHO routine; they are
+        # not re-decided here.
+        #
+        # The end of the course is what this set was added for. The position
+        # paper is *"Pneumococcal conjugate vaccines in infants and children
+        # under 5 years of age"* — five is where its scope stops, and a clinic
+        # following it was being handed a fourth infant dose for a healthy
+        # ten-year-old because the rule lived somewhere else.
+        #
+        # **What is deliberately missing is the catch-up, and WHO is the one
+        # who says so.** On a child of 12–23 months the position paper's own
+        # words are that "current data are insufficient for a firm
+        # recommendation on the optimal number of doses (1 or 2) required".
+        # It recommends catch-up in the one-to-five year range and does not
+        # fix the number. There is no honest way to write "1 or 2" as a course,
+        # and writing either of them would be this program inventing a
+        # clinical number and attributing it to WHO — which is the one thing
+        # every band in this file exists not to do.
+        #
+        # So a child who starts in that range reaches the doctor instead: with
+        # doses on file the record is marked for clinical review by name, and
+        # without any it is an empty course rather than a guess. That is a
+        # real gap and it is WHO's gap, not the program's.
+        {"code": "PCV-WHO-END", "min": 60, "max": None, "sort_order": 0,
+         "match_on": "today", "source": "who", "catch_up": True,
+         "label": "WHO — 5 سنوات فأكثر: خارج نطاق التوصية (الوثيقة عن "
+                  "الأطفال أقل من 5 سنوات) — للمراجعة",
+         "doses": []},
+        # Read **after** the infant series, which is the opposite of the two
+        # sets above and follows from what the bands are. Theirs are catch-ups
+        # with dose counts, so a child of three who began at two months has to
+        # be caught by the catch-up before the infant band can put them back on
+        # a baby's course. This one has no count at all — it is a question —
+        # and a child who began under a year is not a question: they are on
+        # WHO's 2p+1 and the booster is stated. So the series answers first,
+        # and this catches only the children it did not reach.
+        #
+        # One to five years, which WHO recommends and does not quantify. The
+        # band carries no doses and asks for the doctor — see `needs_review`.
+        # Writing "1" or writing "2" here would be this program inventing a
+        # clinical number and putting WHO's name on it.
+        {"code": "PCV-WHO-CU", "min": 12, "max": 59, "sort_order": 2,
+         "match_on": "today", "source": "who",
+         "catch_up": True, "review": True,
+         "label": "WHO — 12–59 شهر: التطعيم التعويضي موصى به، والعدد "
+                  "(جرعة أو جرعتان) لم تحسمه الوثيقة — قرار الطبيب",
+         "doses": []},
+        {"code": "PCV-WHO-INF", "min": None, "max": 11, "sort_order": 1,
+         "source": "who",
+         "label": "WHO — بدء قبل 12 شهر: جرعتان أساسيتان ومنشّط "
+                  "(2p+1، المنشّط 9–18 شهر) — للمراجعة",
+         "doses": [(2, None), (4, 28), (9, None)]},
+
+        # ------------------------------------------------------- the CDC's
+        #
+        # ACIP's catch-up for a healthy child, as supplied: three doses from
+        # 7–11 months with no valid doses (≥4 weeks, then ≥8 weeks, and the
+        # last of them not before the first birthday); two doses from 12–23
+        # months with none (≥8 weeks); one dose from 24–59 months to complete;
+        # and no routine course from five years.
+        {"code": "PCV-CDC-CU7", "min": 7, "max": 11, "sort_order": 0,
+         "source": "cdc",
+         "label": "CDC — 7–11 شهر بدون جرعات صحيحة: 3 جرعات "
+                  "(≥4 أسابيع ثم ≥8 أسابيع)، والأخيرة بعد إتمام 12 شهر "
+                  "— للمراجعة",
+         "doses": [(7, None), (8, 28), (12, 56)]},
+        {"code": "PCV-CDC-CU12", "min": 12, "max": 23, "sort_order": 1,
+         "source": "cdc",
+         "label": "CDC — 12–23 شهر بدون جرعات صحيحة: جرعتان بفاصل "
+                  "≥8 أسابيع — للمراجعة",
+         "doses": [(12, None), (14, 56)]},
+        {"code": "PCV-CDC-CU2Y", "min": 24, "max": 59, "sort_order": 2,
+         "match_on": "today", "source": "cdc",
+         "catch_up": True, "previous_max": 3,
+         "label": "CDC — 2–4 سنوات (سليم) وأقل من 4 جرعات: جرعة واحدة "
+                  "لاستكمال الناقص — للمراجعة",
+         "doses": [(24, None)]},
+        {"code": "PCV-CDC-END", "min": 60, "max": None, "sort_order": 3,
+         "match_on": "today", "source": "cdc", "catch_up": True,
+         "label": "CDC — 5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
+                  "لا جرعات إلا بقرار طبيب — للمراجعة",
+         "doses": []},
+        {"code": "PCV-CDC-INF", "min": None, "max": 6, "sort_order": 4,
+         "source": "cdc",
+         "label": "CDC — بدء قبل 7 شهور: 4 جرعات (2، 4، 6، 12–15 شهر) "
+                  "— للمراجعة",
+         "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
+
+        # ----------------------------------- Prevenar 13's own catch-up
+        #
+        # Measured as a hole this branch opened, and the worst kind: moving
+        # the guideline rules out of the leaflet set left a clinic that
+        # explicitly follows the leaflet with **no** pneumococcal catch-up at
+        # all, so it fell back to the brand's raw dose rows and started
+        # chasing a six-year-old for three more infant doses. That is the
+        # screen this whole line of work began with, arriving again by the
+        # door the fix opened.
+        #
+        # The leaflet has never been silent about it. Pfizer's own catch-up
+        # table for a previously unvaccinated child is three doses from 7–11
+        # months, two from 12–23 at least two months apart, and one from two
+        # years — the same table the FDA prints, and the same shape Merck
+        # gives for Vaxneuvance below. It simply was not written down here.
+        #
+        # On the brand and not the vaccine, because that is what it is: a
+        # statement about this product, in this leaflet. Synflorix stops at
+        # five years and says something different, and a rule copied across
+        # them would be wrong for one of them.
+        #
+        # The SmPC adds a sentence worth repeating: schedules for Prevenar 13
+        # "should be based on official recommendations". The leaflet is what a
+        # product can do, not what a country has decided to do — which is
+        # exactly why these rows are tagged `manufacturer` and are not
+        # borrowed by `egypt`.
+        {"code": "PCV13-CU7", "previous": "none", "min": 7, "max": 11,
+         "sort_order": 10, "brand": "Prevenar 13",
+         "label": "Prevenar 13 — بدء 7–11 شهر بدون جرعات سابقة: 3 جرعات، "
+                  "الأخيرة في السنة الثانية — للمراجعة",
+         "doses": [(7, None), (8, 28), (12, 56)]},
+        {"code": "PCV13-CU12", "previous": "none", "min": 12, "max": 23,
+         "sort_order": 11, "brand": "Prevenar 13",
+         "label": "Prevenar 13 — بدء 12–23 شهر بدون جرعات سابقة: جرعتان "
+                  "بفاصل ≥شهرين — للمراجعة",
+         "doses": [(12, None), (14, 56)]},
+        # Two years and over, and matched on today's age with a cap on what
+        # is already on file rather than on `previous: none`.
+        #
+        # The leaflet's row says "previously unvaccinated", and read that
+        # narrowly a six-year-old with a single infant dose matches nothing —
+        # and falls straight back to the four-dose infant series, which is the
+        # bug. Read as what the leaflet actually does and does not ask for, it
+        # is clearer: nowhere does this label tell anybody to give a
+        # six-year-old the rest of a baby's course. One dose is the most it
+        # asks of a child this age, and a child who has already had four is
+        # complete and matches nothing here.
+        {"code": "PCV13-CU2Y", "min": 24, "max": 215, "sort_order": 12,
+         "match_on": "today", "brand": "Prevenar 13",
+         "catch_up": True, "previous_max": 3,
+         "label": "Prevenar 13 — سنتين فأكثر (حتى 17 سنة) وأقل من 4 جرعات: "
+                  "جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+        # Beyond the licensed age the label has nothing to say, and saying
+        # nothing is the honest answer rather than the infant series.
+        {"code": "PCV13-END", "min": 216, "max": None, "sort_order": 13,
+         "match_on": "today", "brand": "Prevenar 13", "catch_up": True,
+         "label": "Prevenar 13 — 18 سنة فأكثر: خارج العمر المرخّص للمستحضر "
+                  "— للمراجعة",
          "doses": []},
 
         # ------------------------------------- and the product's own leaflet
@@ -567,7 +849,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    requires_previous_doses=None, first_gap_min_days=None,
                    first_gap_max_days=None, previous_doses_min=None,
                    previous_doses_max=None, match_age_on="start",
-                   starts_fresh=False):
+                   starts_fresh=False, needs_review=False):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -588,6 +870,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         previous_doses_max=previous_doses_max,
         match_age_on=match_age_on,
         starts_fresh=starts_fresh,
+        needs_review=needs_review,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -670,7 +953,8 @@ def seed_vaccine_schedules():
                 previous_doses_min=band.get("previous_min"),
                 previous_doses_max=band.get("previous_max"),
                 match_age_on=band.get("match_on", "start"),
-                starts_fresh=band.get("catch_up", False))
+                starts_fresh=band.get("catch_up", False),
+                needs_review=band.get("review", False))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -828,6 +1112,49 @@ def _months_between(dob, when):
     """Whole months from a birthday to a date."""
     months = (when.year - dob.year) * 12 + (when.month - dob.month)
     return months - 1 if when.day < dob.day else months
+
+
+# Returned in place of a band when the guideline the clinic follows speaks
+# about this product and none of its bands reaches this child.
+#
+# It is not the same as "no course", which is what an empty band says on
+# purpose — the routine schedule ends at five and nothing more is owed. This
+# is the other thing entirely: the reference was asked and did not answer.
+# Fourteen months old with a single dose given at thirteen is the case that
+# named it; ACIP's catch-up table states what a child of that age with **no**
+# valid doses needs and says nothing about that one.
+#
+# Both readings come out as an empty course, and telling them apart is the
+# whole point. "Nothing is owed" is an answer a family can be given. "The
+# reference does not reach this child" is a question for the doctor, and it
+# reaches them as Clinical Review Required rather than as a quiet blank.
+SILENT = {"silent": True, "doses": []}
+
+
+def _course_start(bands, brand_first, given_dates):
+    """Which "first dose" these bands are matched against.
+
+    A **leaflet's** bands are about a product, so the date that decides them is
+    the first dose *of that product*. A child who had two Prevenar and moved to
+    Vaxneuvance moves onto the Vaxneuvance schedule that suits their age at the
+    switch — they neither stay on the schedule their first needle put them on
+    nor start again, because the doses already given count.
+
+    A **guideline's** bands are about the vaccine, and the date that decides
+    them is the child's first pneumococcal dose whatever was in the vial.
+    Reading a guideline band against the brand's first dose is how that same
+    child — two Prevenar at two and four months, Vaxneuvance at nine — came out
+    as "started at nine months", matched none of the guideline's bands, and
+    was handed a clinical-review flag for the ordinary act of changing
+    product. Measured: three existing tests, and the case is a common one.
+
+    For a course on one product throughout the two dates are the same, which is
+    why HPV still locks at its own first dose.
+    """
+    course_first = min((d for d in given_dates.values() if d), default=None)
+    if bands and bands[0]["brand_id"] is not None and brand_first is not None:
+        return brand_first
+    return course_first
 
 
 def _pick_band(bands, dob, start, previous, today, first_gap=None,
@@ -1022,9 +1349,7 @@ def course_for(vaccine, brand, dob, given_dates, today=None,
     if vaccine.is_seasonal:
         start = _season_start(given_dates, today or local_today())
     else:
-        start = brand_first
-        if start is None:
-            start = min((d for d in given_dates.values() if d), default=None)
+        start = _course_start(bands, brand_first, given_dates)
     picked = _pick_band(bands, dob, start, previous, today or local_today(),
                         first_gap=_achieved_first_gap(given_dates),
                         given_count=len(given_dates))
@@ -1036,7 +1361,7 @@ def course_for(vaccine, brand, dob, given_dates, today=None,
     # number from no guideline at all, which is worse than either. An empty
     # course is the honest reading: this reference does not schedule it.
     if any(b.get("authoritative") for b in bands):
-        return [], None
+        return [], SILENT
     return default, None
 
 
@@ -1048,23 +1373,50 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
 
 
 def _bands_for(vaccine_id, brand_id):
-    """The bands this brand follows: its own if it has any, else the vaccine's.
+    """The bands this child's course follows, in the order that decides them.
 
-    A trade name with its own schedule is not merely *preferred* — it replaces
-    the vaccine's rather than adding to it, because a leaflet is a complete
-    statement about that product and mixing half of it with a generic one is
-    how a course ends up with a dose from neither.
+    Four pools, most specific first:
+
+      1. the chosen guideline, about this trade name;
+      2. the chosen guideline, about the vaccine;
+      3. the leaflet, about this trade name;
+      4. the leaflet, about the vaccine.
+
+    **The guideline comes before the leaflet**, and that ordering is the fix
+    for a bug measured rather than argued about. It used to be brand before
+    vaccine and nothing else — a trade name's schedule replaced the vaccine's,
+    because a leaflet is a complete statement about that product and mixing
+    half of it with a generic one is how a course ends up with a dose from
+    neither. That is sound between two leaflets. It is not sound between a
+    leaflet and the reference the clinic has chosen.
+
+    Writing Pfizer's pneumococcal catch-up down — which belongs on the brand,
+    and which a clinic following the leaflet needs — silently replaced the
+    Egyptian and CDC tables for every child on that vial, because it is the
+    default one. The five-year ceiling vanished, and a partial record the
+    reference deliberately declines to guess at came back with an invented
+    date. A clinic that follows the CDC wants the CDC's catch-up whichever
+    vial is in the fridge; the leaflet is what answers where its reference
+    says nothing about the product at all.
+
+    Within a pool, a band with no doses is kept, and that is what makes "no
+    routine course at this age" sayable. An active row with an age range and
+    nothing in it has exactly one meaning — this reference schedules nothing
+    here — and dropping it as malformed is what left a healthy sixteen-year-
+    old being chased for the rest of a baby's pneumococcal series.
     """
-    # A band with no doses is kept, and that is the change that makes "no
-    # routine course at this age" sayable. An active row with an age range and
-    # nothing in it has exactly one meaning — this guideline schedules nothing
-    # here — and dropping it as malformed is what left a healthy sixteen-year-
-    # old being chased for the rest of a baby's pneumococcal series.
-    banded = _banded_templates()
-    mine = [b for b in banded.get(vaccine_id, []) if b["brand_id"] == brand_id]
-    if mine:
-        return mine
-    return [b for b in banded.get(vaccine_id, []) if b["brand_id"] is None]
+    banded = _banded_templates().get(vaccine_id, [])
+    if not banded:
+        return []
+    profile = guideline_profile()
+    for ours in (True, False):
+        for want_brand in (brand_id, None):
+            picked = [b for b in banded
+                      if (b["source"] == profile) is ours
+                      and b["brand_id"] == want_brand]
+            if picked:
+                return picked
+    return []
 
 
 def guideline_profile():
@@ -1074,6 +1426,12 @@ def guideline_profile():
     positions — Bexsero's course is the European label's from two months and
     the CDC's from ten years — and a clinic changing which it follows should
     change a setting, not a program.
+
+    Unset, it is the Egyptian programme: this is an Egyptian clinic, and the
+    reference it follows should not have to be chosen before the first child
+    is seen. An unrecognised value falls back the same way rather than
+    raising — a settings row edited by hand must not be able to stop the
+    vaccination screen from rendering.
     """
     from app.models import VaccineScheduleTemplate
 
@@ -1084,7 +1442,7 @@ def guideline_profile():
         chosen = ""
     if chosen in VaccineScheduleTemplate.GUIDELINE_PROFILES:
         return chosen
-    return "manufacturer"
+    return VaccineScheduleTemplate.DEFAULT_GUIDELINE_PROFILE
 
 
 def _banded_templates():
@@ -1135,6 +1493,11 @@ def _banded_templates():
             out.setdefault(template.vaccine_id, []).append({
                 # This row came from the guideline the clinic follows, so its
                 # silence about an age is itself an answer.
+                # Which reference this band came from. Carried through rather
+                # than inferred later: "which guideline is this clinic
+                # actually being scheduled by" is a question worth being able
+                # to answer from the answer itself.
+                "source": template.source,
                 "authoritative": template.source == profile != "manufacturer",
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
@@ -1146,6 +1509,7 @@ def _banded_templates():
                 "previous_max": template.previous_doses_max,
                 "match_on": template.match_age_on or "start",
                 "catch_up": bool(template.starts_fresh),
+                "review": bool(template.needs_review),
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -1401,6 +1765,20 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
              if pv.vaccine_id == vaccine.id
              and (pv.event_type or "given") == "given"],
             repeatable=bool(vaccine.is_seasonal or vaccine.on_demand))
+        # The reference was asked about this child and did not answer — see
+        # :data:`SILENT`. Only once there is something on file: a child with no
+        # doses at an age their guideline does not schedule is not a puzzle,
+        # they are simply not due anything, and the vaccine already reads as a
+        # suggestion for their age. It is the doses already given that make an
+        # empty answer a question rather than a statement.
+        if band is SILENT and given_dates and not review:
+            review = "guideline_silent"
+        # The reference speaks about a child this age and does not say how
+        # much — see `needs_review` on the model. Unlike the silence above
+        # this one applies with an empty record too, because the whole point
+        # is that the guideline *does* recommend something here.
+        if band is not None and band.get("review") and not review:
+            review = "guideline_unsettled"
         # Did the course change product, and does the destination's leaflet
         # have anything to say about that?
         earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
@@ -1472,6 +1850,26 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # dose is given here, the course is ours and the next dose really can
         # be late.
         started = any(x["status"] == "done" for x in doses)
+        # A seasonal course is begun once, not once a winter.
+        #
+        # The doses above are **this** season's — see :func:`_this_season` —
+        # so a child who had influenza last winter and has not come yet this
+        # one has nothing marked `done`, and read from that alone their annual
+        # recall came out as a suggestion by age rather than something owed.
+        # It is owed. They are this clinic's patient for it, the promise was
+        # made the first time somebody vaccinated them here, and a new season
+        # does not unmake it.
+        #
+        # Measured as a disagreement between the two paths: the register-wide
+        # sweep asks whether anything is on file *before* the season is
+        # narrowed and so has always listed these children, while the child's
+        # own file said nothing about them. Two answers to "does this child
+        # need a flu vaccine", one on the work-list and one on the record the
+        # family is shown.
+        if not started and vaccine.is_seasonal:
+            started = any(row.given_date
+                          for (vid, _n), row in given_index.items()
+                          if vid == vaccine.id)
         if not started:
             # Neither of these is a course this clinic ever promised, so
             # neither can be late here **and neither is a suggestion by age**.
@@ -1731,7 +2129,13 @@ def patient_due_reminders(patient, lang="ar", today=None, doses=None,
             # sends anything. "It will not guess" has to mean the message too,
             # or the guess simply travels further.
             continue
-        if not done and not v.get("agreed"):
+        # "Did this clinic take this course on" — asked of the plan, which
+        # knows, rather than recomputed from the doses left in front of us.
+        # For a seasonal vaccine those are **this** season's, so a child who
+        # had influenza last winter had nothing marked `done` and was dropped
+        # here before the annual recall below could ever be reached. For every
+        # other vaccine the two questions have the same answer.
+        if not v.get("committed"):
             continue
         if vac.is_seasonal:
             # The course before the recall — see the same split in `scan_due`.
@@ -2234,14 +2638,12 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     if seasonal:
         start = _season_start(given_dates, today)
     else:
-        start = brand_first
-        if start is None:
-            start = min((d for d in given_dates.values() if d), default=None)
+        start = _course_start(bands, brand_first, given_dates)
     picked = _pick_band(bands, dob, start, previous, today,
                         first_gap=_achieved_first_gap(given_dates),
                         given_count=len(given_dates))
     if picked is None and any(b.get("authoritative") for b in bands):
-        return [], None
+        return [], SILENT
     return (picked["doses"] if picked else None), picked
 
 

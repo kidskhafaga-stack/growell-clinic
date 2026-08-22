@@ -320,40 +320,71 @@ def test_a_child_past_it_with_nothing_on_file_has_nothing_to_show(seeded):
 def test_the_ceiling_is_a_row_a_clinic_can_change(seeded):
     """Every clinical number in this engine is data on a screen. A clinic that
     vaccinates a child of six on indication edits or deletes this row; nobody
-    recompiles anything."""
+    recompiles anything.
+
+    There is one per reference now. It used to be a single row tagged with the
+    leaflet set, which is how it reached every clinic whichever guideline it
+    had chosen — see the test below, which is where that stopped.
+    """
     from app.models import Vaccine, VaccineScheduleTemplate
 
     with seeded["app"].app_context():
         pcv = Vaccine.query.filter_by(code="PCV").first()
-        row = VaccineScheduleTemplate.query.filter_by(
-            vaccine_id=pcv.id, code="PCV-ROUTINE-END").first()
+        rows = {r.source: r for r in VaccineScheduleTemplate.query.filter_by(
+            vaccine_id=pcv.id, is_active=True, brand_id=None).all()
+            if r.start_age_min_months == 60}
 
-        assert row is not None, "the ceiling is not a row at all"
-        assert row.start_age_min_months == 60
-        assert row.match_age_on == "today"
-        assert row.doses == []
+        assert set(rows) == {"egypt", "cdc", "who"}, \
+            f"the ceiling is not a row under each reference that states it: {rows}"
+        for source, row in rows.items():
+            assert row.match_age_on == "today", source
+            assert row.doses == [], source
 
 
-def test_it_applies_whatever_guideline_the_clinic_follows(seeded):
-    """Tagged with the leaflet set on purpose, and this is why.
+def test_it_is_the_rule_of_the_references_that_state_it(seeded):
+    """It used to be everybody's, and that was the bug rather than the design.
 
-    The engine loads the leaflet set *plus* the chosen profile's, so a row
-    tagged with one profile is invisible to every clinic following another —
-    and this clinic follows the default. Tagged the other way, the fix would
-    have changed nothing on the screen that reported it.
+    The engine loads the leaflet set *plus* whichever profile the clinic
+    follows, so a row tagged with a guideline is invisible to a clinic
+    following another one — and `manufacturer` was the only tag they would all
+    read. Tagging the end of the routine course that way made a statement by
+    one reference into a rule applied to clinics that had never chosen it.
+
+    So it now lives in the references that make it, and this test holds both
+    halves: it applies where those references are followed, and it does not
+    apply where they are not. The second half is a real consequence and is
+    written down rather than glossed — a clinic that has explicitly chosen the
+    manufacturer's leaflet gets the leaflet, and no leaflet ends the course at
+    five.
+
+    Three of the four say it. WHO's position paper is about children under
+    five, the CDC's schedule ends the routine course there, and the Egyptian
+    set follows the reference this catalogue names for pneumococcal here. Only
+    the leaflet does not, because a leaflet is a licence and not a policy.
     """
     from app.extensions import db
-    from app.models import Setting
+    from app.models import Setting, VaccineScheduleTemplate
 
-    for profile in ("manufacturer", "cdc", "who"):
+    def owing(profile):
         with seeded["app"].app_context():
             Setting.set("vaccine_guideline_profile", profile)
             db.session.commit()
-
         row = _pcv(seeded, _child(seeded, 8, f"g{profile}"))
+        return [d for d in row["doses"] if d["status"] != "done"]
 
-        assert not [d for d in row["doses"] if d["status"] != "done"], \
+    for profile in ("egypt", "cdc", "who"):
+        assert not owing(profile), \
             f"the ceiling disappears for a clinic following {profile}"
+
+    assert owing("manufacturer"), \
+        ("the leaflet does not end the routine course at five, and a clinic "
+         "that chose it is being given a rule from elsewhere")
+
+    # Named against the list the engine reads, so a reference added later is
+    # either given a ceiling or is a deliberate, visible omission here.
+    assert set(VaccineScheduleTemplate.GUIDELINE_PROFILES) == {
+        "egypt", "cdc", "who", "manufacturer"}, \
+        "a reference was added without deciding whether it ends the course"
 
 
 def test_a_profile_band_does_not_blank_the_babies(seeded):

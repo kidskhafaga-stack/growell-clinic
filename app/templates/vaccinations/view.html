@@ -129,6 +129,29 @@
           <span class="badge badge--{{ 'green' if v.is_mandatory else 'muted' }}">{{ t('vaccinations.mandatory') if v.is_mandatory else t('vaccinations.optional') }}</span>
           {% if v.route %}<span class="badge badge--role"><i class="bi bi-syringe"></i> {{ t('vaccine_routes.' ~ v.route) }}</span>{% endif %}
           <span class="badge badge--role"><i class="bi bi-box"></i> {{ item.brand.display_name(current_lang) }}{% if item.locked %} 🔒{% endif %}</span>
+          {# When the program will not answer, said on the screen the doctor
+             works from. It was only ever on the certificate cards of the
+             patient profile — and those list what a child *had*, so a child
+             with none of this vaccine had no card and the flag had nowhere to
+             appear at all. This card exists either way.
+
+             Two different sentences wear it. A record the arithmetic cannot
+             be run on — a duplicated dose, a dose with no date — is a problem
+             with the file. A guideline that recommends vaccinating at this
+             age and does not fix the number of doses is not: the file is
+             fine, the vaccine *is* recommended, and what is missing is a
+             schedule the program is allowed to compute. Both end at "ask the
+             doctor" and they are not the same question. #}
+          {% if item.review %}
+            {% set unsettled = item.review == 'guideline_unsettled' %}
+            {% set why = t('vreview.why_' ~ item.review) %}
+            <span class="badge badge--{{ 'role' if unsettled else 'danger' }}"
+                  title="{{ t('vreview.hint') if why.startswith('vreview.') else why }}">
+              <i class="bi bi-{{ 'clipboard-pulse' if unsettled
+                                 else 'question-octagon' }}"></i>
+              {{ t('vreview.unsettled_title') if unsettled
+                 else t('vreview.title') }}</span>
+          {% endif %}
           {# The dose count for this trade name depends on how old the child
              was at the first one — Bexsero is 2+1 from two months and fewer
              later, Vaxneuvance is 3+1 on the leaflet and 2+1 on the WHO

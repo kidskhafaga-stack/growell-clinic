@@ -1315,12 +1315,17 @@
           const data = await r.json();
           if (data.ok) { this.text = (data.text || '').trim(); }
           else {
+            {# This screen's own wording for the two cases it can fix from
+               here; the server's sentence for everything else. The fallback
+               used to append `data.error`, which is how a provider's raw JSON
+               reached a doctor mid-consultation. #}
             const map = {
               not_configured: "{{ t('visits.ai_not_configured') }}",
               empty: "{{ t('visits.ai_empty') }}",
               disabled: "{{ t('visits.ai_not_configured') }}",
             };
-            this.error = map[data.error] || ("{{ t('visits.ai_error') }}" + ' ' + (data.error || ''));
+            this.error = map[data.error] || data.message
+                         || "{{ t('visits.ai_error') }}";
           }
         } catch (e) { this.error = "{{ t('visits.ai_error') }}"; }
         finally { this.loading = false; }

@@ -248,6 +248,7 @@ ADDITIONS = [
     ("vaccine_schedule_templates", "previous_doses_max", "INTEGER"),
     ("vaccine_schedule_templates", "match_age_on", "VARCHAR(8) DEFAULT 'start'"),
     ("vaccine_schedule_templates", "starts_fresh", "BOOLEAN DEFAULT 0 NOT NULL"),
+    ("vaccine_schedule_templates", "needs_review", "BOOLEAN DEFAULT 0 NOT NULL"),
     ("vaccine_schedule_templates", "start_age_min_months", "INTEGER"),
     ("vaccine_schedule_templates", "start_age_max_months", "INTEGER"),
     ("vaccine_schedule_templates", "source", "VARCHAR(20) DEFAULT 'custom'"),
@@ -393,6 +394,24 @@ def apply_schema(report=None):
         db.session.commit()
         if filled and report:
             report(f"  ~ vaccine_brands: filled the facts on {filled}")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
+    # A schedule band that was tagged with the wrong reference. Seeding only
+    # ever adds — it keys on (vaccine, code, source) — so correcting a tag in
+    # the catalogue leaves the old row in place on every install that already
+    # has it, and the pneumococcal ceiling would have gone on being a rule
+    # every clinic got no matter which guideline it had chosen. Its own
+    # transaction for the same reason as the rest: a correction to seeded data
+    # must never be able to stop the program starting.
+    try:
+        from app.utils.vaccines import retag_moved_bands
+
+        moved = retag_moved_bands()
+        db.session.commit()
+        if moved and report:
+            report(f"  ~ vaccine schedules: retired {moved} band(s) that moved "
+                   f"to the guideline that states them")
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 

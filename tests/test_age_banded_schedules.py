@@ -173,8 +173,15 @@ def test_only_reviewed_products_carry_bands(seeded):
     assert "Bexsero" in banded_brands and "Vaxneuvance" in banded_brands
     assert "Trumenba" not in banded_brands, \
         "Trumenba was given bands nobody stated"
-    assert "Prevenar 13" not in banded_brands
-    assert "Synflorix" not in banded_brands
+    # Prevenar 13 has its own now, and it earns them the same way every other
+    # entry here does: its label states a catch-up in numbers — three doses
+    # from 7–11 months, two from 12–23, one from two years — and a clinic that
+    # follows the leaflet needs them written down. It used to be the control
+    # for "no bands", which stopped being a fair control the moment the label
+    # was read rather than assumed silent.
+    assert "Prevenar 13" in banded_brands
+    assert "Synflorix" not in banded_brands, \
+        "Synflorix was given a catch-up from another product's leaflet"
 
 
 # --------------------------------------------------------- which source wins
@@ -301,6 +308,21 @@ def test_bexsero_follows_the_european_label_bands(seeded, start_years, expected)
     (5.0, 1),       # 5 years   -> one
 ])
 def test_vaxneuvance_follows_its_own_leaflet(seeded, start_years, expected):
+    """Under a clinic that follows the leaflet, which is now the condition.
+
+    A trade name's schedule outranks the vaccine's *among leaflets*. It does
+    not outrank the reference a clinic has chosen — a clinic following the CDC
+    wants the CDC's pneumococcal catch-up whichever vial is in the fridge —
+    and the default reference has a pneumococcal table of its own. So the
+    leaflet's own bands are measured where the leaflet is what is followed.
+    """
+    from app.extensions import db
+    from app.models import Setting
+
+    with seeded["app"].app_context():
+        Setting.set("vaccine_guideline_profile", "manufacturer")
+        db.session.commit()
+
     row = _brand_kid(seeded, "PCV", "Vaxneuvance", start_years + 1.0,
                      f"vax{int(start_years * 100)}", start_years)
 

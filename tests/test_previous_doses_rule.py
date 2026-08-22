@@ -201,6 +201,18 @@ def test_the_band_is_matched_at_the_switch_not_at_the_first_needle(seeded):
                                            name="Vaxneuvance").first()
         vaccine_id, brand_id = pcv.id, vax.id
 
+    # A leaflet band, so the clinic has to be following the leaflet for it to
+    # be read at all: the guideline a clinic chooses outranks a trade name's
+    # schedule, and the default one has a pneumococcal table of its own. The
+    # property under test is the leaflet's — that its band is matched at the
+    # switch — so this is where it has to be measured.
+    from app.extensions import db as _db
+    from app.models import Setting
+
+    with seeded["app"].app_context():
+        Setting.set("vaccine_guideline_profile", "manufacturer")
+        _db.session.commit()
+
     client = seeded["sign_in"]("boss")
     client.post(f"/vaccinations/manage/vaccine/{vaccine_id}/schedules/new",
                 data={"code": "PCV15-SWITCH", "source": "manufacturer",

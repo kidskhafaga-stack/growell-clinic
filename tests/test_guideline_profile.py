@@ -81,20 +81,30 @@ def _bexsero(seeded, tag, start_years, age_years):
 
 # ------------------------------------------------------------- the setting
 
-def test_the_default_is_the_leaflet(seeded):
+def test_the_default_is_the_egyptian_programme(seeded):
+    """Unset, an Egyptian clinic follows the Egyptian programme.
+
+    Not merely "some default": this is the country the program is written for,
+    and a clinic should not have to choose a reference before it can read a
+    vaccination screen.
+    """
+    from app.models import VaccineScheduleTemplate
     from app.utils.vaccines import guideline_profile
 
     with seeded["app"].app_context():
-        assert guideline_profile() == "manufacturer"
+        assert guideline_profile() == "egypt"
+        assert (VaccineScheduleTemplate.DEFAULT_GUIDELINE_PROFILE
+                in VaccineScheduleTemplate.GUIDELINE_PROFILES), \
+            "the default is not one of the references that can be chosen"
 
 
-def test_nonsense_falls_back_to_the_leaflet(seeded):
+def test_nonsense_falls_back_to_the_default(seeded):
     """A typo in a settings row must not leave the engine with no reference."""
     from app.utils.vaccines import guideline_profile
 
     _follow(seeded, "whatever")
     with seeded["app"].app_context():
-        assert guideline_profile() == "manufacturer"
+        assert guideline_profile() == "egypt"
 
 
 def test_it_is_set_from_the_settings_screen(seeded):
@@ -114,8 +124,8 @@ def test_it_is_set_from_the_settings_screen(seeded):
 def test_switching_the_profile_recomputes_the_same_records(seeded):
     """The whole point: one policy change, no data re-entered.
 
-    A twelve-year-old starting Bexsero is two doses either way — the reference
-    they agree on. A three-month-old is where they part.
+    A sixteen-year-old starting Bexsero is two doses either way — the age the
+    references agree on. A three-month-old is where they part.
     """
     _follow(seeded, "manufacturer")
     assert _bexsero(seeded, "a", 0.25, 1.0) == 4
@@ -127,12 +137,20 @@ def test_switching_the_profile_recomputes_the_same_records(seeded):
 
 def test_where_the_references_agree_nothing_moves(seeded):
     """Otherwise "it changed" would mean nothing — it has to change only where
-    the guidelines actually differ."""
+    the guidelines actually differ.
+
+    Measured at sixteen. It used to be measured at twelve, which was a place
+    the two references agreed only because the CDC's row said "from ten
+    years" — the age its *risk-based* recommendation begins, not its routine
+    one. Its routine position for a healthy adolescent starts at sixteen, and
+    that is where the two now meet: the European label's two doses from eleven
+    years, and the CDC's two doses from sixteen.
+    """
     _follow(seeded, "manufacturer")
-    leaflet = _bexsero(seeded, "c", 12.0, 13.0)
+    leaflet = _bexsero(seeded, "c", 16.2, 17.0)
 
     _follow(seeded, "cdc")
-    cdc = _bexsero(seeded, "d", 12.0, 13.0)
+    cdc = _bexsero(seeded, "d", 16.2, 17.0)
 
     assert leaflet == cdc == 2
 
@@ -143,11 +161,18 @@ def test_a_product_the_guideline_ignores_keeps_its_leaflet(seeded):
     """No guideline covers a whole fridge. Silence about a *product* is not a
     decision to stop scheduling it.
 
-    Measured on Vaxneuvance rather than on a plain course, deliberately. Its
-    leaflet bands say a child starting at nine months gets **three** doses
-    while the brand's own dose rows say four — so dropping the leaflet from
-    the query is visible here and invisible anywhere the two agree. The first
-    version of this test used such a place and passed under the mutation.
+    Measured on Menveo rather than on a plain course, deliberately. Its
+    leaflet bands give a child starting at nine months **two** doses while the
+    brand's own dose rows give one — so dropping the leaflet from the query is
+    visible here and invisible anywhere the two agree. An early version of
+    this test used such a place and passed under the mutation.
+
+    It used to be measured on Vaxneuvance, and that stopped being a fair
+    example the moment the CDC's pneumococcal table was written down: the CDC
+    does not ignore pneumococcal any more, so a Vaxneuvance child under the
+    CDC now gets the CDC's catch-up, which is the whole point of following it.
+    Meningococcal ACWY is the honest example now — every band it has comes
+    from a leaflet, and no guideline set in this catalogue speaks about it.
     """
     from app.extensions import db
     from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
@@ -155,24 +180,76 @@ def test_a_product_the_guideline_ignores_keeps_its_leaflet(seeded):
 
     _follow(seeded, "cdc")
     with seeded["app"].app_context():
-        pcv = Vaccine.query.filter_by(code="PCV").first()
-        brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
-                                             name="Vaxneuvance").first()
+        mcv = Vaccine.query.filter_by(code="MENACWY").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=mcv.id,
+                                             name="Menveo").first()
         dob = local_today() - timedelta(days=int(1.2 * 365.25))
-        kid = Patient(patient_number="GLvax", full_name="طفل", gender="male",
+        kid = Patient(patient_number="GLmen", full_name="طفل", gender="male",
                       date_of_birth=dob, is_active=True)
         db.session.add(kid)
         db.session.flush()
         db.session.add(PatientVaccine(
-            patient_id=kid.id, vaccine_id=pcv.id, brand_id=brand.id,
+            patient_id=kid.id, vaccine_id=mcv.id, brand_id=brand.id,
             dose_number=1, event_type="given",
             given_date=dob + timedelta(days=int(9 * 30.4))))
         db.session.commit()
-        row = next(v for v in patient_plan(kid) if v["vaccine"].code == "PCV")
+        row = next(v for v in patient_plan(kid)
+                   if v["vaccine"].code == "MENACWY")
 
-    assert row["brand"].name == "Vaxneuvance"
-    assert len(row["doses"]) == 3, \
+    assert row["brand"].name == "Menveo"
+    assert len(row["doses"]) == 2, \
         "the leaflet's own bands were dropped for a product the CDC ignores"
+
+
+def test_the_guideline_wins_over_the_leaflet_for_the_same_product(seeded):
+    """And the rule that decides between them when both speak.
+
+    Measured, after writing Pfizer's pneumococcal catch-up down where it
+    belongs — on the brand — silently replaced the chosen guideline's table
+    for every child on that vial, because it is the default one. The five-year
+    ceiling vanished and a partial record the reference declines to guess at
+    came back with an invented date.
+
+    A trade name's schedule replacing the vaccine's is right *between two
+    leaflets*. Between a leaflet and the reference the clinic has chosen, the
+    reference wins: a clinic following the CDC wants the CDC's catch-up
+    whichever vial is in the fridge.
+    """
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+    from app.utils.vaccines import patient_plan
+
+    def ten_year_old(profile, tag):
+        _follow(seeded, profile)
+        with seeded["app"].app_context():
+            pcv = Vaccine.query.filter_by(code="PCV").first()
+            brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
+                                                 name="Prevenar 13").first()
+            dob = local_today() - timedelta(days=int(10 * 365.25))
+            kid = Patient(patient_number=f"GLw{tag}", full_name="طفل",
+                          gender="male", date_of_birth=dob, is_active=True)
+            db.session.add(kid)
+            db.session.flush()
+            for number, months in ((1, 2), (2, 4), (3, 6)):
+                db.session.add(PatientVaccine(
+                    patient_id=kid.id, vaccine_id=pcv.id, brand_id=brand.id,
+                    dose_number=number, event_type="given",
+                    given_date=dob + timedelta(days=int(months * 30.4))))
+            db.session.commit()
+            row = next(v for v in patient_plan(kid)
+                       if v["vaccine"].code == "PCV")
+            return [d for d in row["doses"] if d["status"] != "done"]
+
+    # Prevenar 13's own label offers a single dose to a child of this age.
+    assert ten_year_old("manufacturer", "m"), \
+        "the leaflet stopped answering for a clinic that follows the leaflet"
+
+    # The CDC ends the routine course at five, and says so about pneumococcal
+    # rather than about a trade name — so it wins here.
+    assert not ten_year_old("cdc", "c"), \
+        "a brand's leaflet overruled the guideline the clinic follows"
+    assert not ten_year_old("egypt", "e"), \
+        "a brand's leaflet overruled the guideline the clinic follows"
 
 
 def test_silence_about_an_age_is_an_answer(seeded):
@@ -239,11 +316,41 @@ def test_the_wording_exists_in_both_languages(seeded):
     import json
 
     here = os.path.dirname(os.path.abspath(__file__))
-    keys = ["guideline_profile", "guideline_profile_hint",
-            "guideline_manufacturer", "guideline_cdc", "guideline_who"]
+    # Read off the list the engine actually uses, so a reference cannot be
+    # added to the picker and reach a clinic as a blank line.
+    from app.models import VaccineScheduleTemplate
+
+    keys = ["guideline_profile", "guideline_profile_hint"] + [
+        f"guideline_{p}" for p in VaccineScheduleTemplate.GUIDELINE_PROFILES]
     for lang in ("ar", "en"):
         with open(os.path.join(here, "..", "app/i18n/locales", f"{lang}.json"),
                   encoding="utf-8") as fh:
             block = json.load(fh)["settings"]
         for key in keys:
             assert key in block, f"{lang} is missing settings.{key}"
+
+
+def test_every_reference_can_be_picked_and_every_source_can_be_written(seeded):
+    """The picker offers what the engine reads, and the editor can write it.
+
+    Both were hand-written lists once. The settings picker named three of the
+    references and the schedule editor named four of the sources, and `cdc`
+    was in neither — so a clinic could be handed a CDC schedule and had no way
+    to correct one.
+    """
+    from app.models import Vaccine, VaccineScheduleTemplate
+
+    client = seeded["sign_in"]("boss")
+    page = client.get("/settings/").get_data(as_text=True)
+    for profile in VaccineScheduleTemplate.GUIDELINE_PROFILES:
+        assert f'value="{profile}"' in page, \
+            f"the settings picker cannot choose {profile}"
+
+    with seeded["app"].app_context():
+        vaccine_id = Vaccine.query.first().id
+    editor = client.get(
+        f"/vaccinations/manage/vaccine/{vaccine_id}/schedules"
+    ).get_data(as_text=True)
+    for source in VaccineScheduleTemplate.SOURCES:
+        assert f'value="{source}"' in editor, \
+            f"the schedule editor cannot author a {source} row"

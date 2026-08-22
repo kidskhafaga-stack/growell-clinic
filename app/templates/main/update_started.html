@@ -1,0 +1,23 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('update.started_title') }}{% endblock %}
+{% block page_heading %}{{ t('update.started_title') }}{% endblock %}
+
+{# The last page this copy of the program serves. It is closing as this is
+   read, and the updater is already waiting for it to finish doing so. #}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('update.started_title') }}</h1>
+
+<div class="card gc-scale-in">
+  <p style="margin:0 0 10px;">{{ t('update.started_body') }}</p>
+  <ol style="margin:0;padding-inline-start:20px;line-height:1.9;">
+    <li>{{ t('update.started_step_close') }}</li>
+    <li>{{ t('update.started_step_backup') }}</li>
+    <li>{{ t('update.started_step_files') }}</li>
+    <li>{{ t('update.started_step_open') }} <code dir="ltr">start.bat</code></li>
+  </ol>
+  <p class="hint" style="margin-top:12px;">
+    <i class="bi bi-info-circle"></i> {{ t('update.started_note') }}</p>
+</div>
+{% endblock %}

@@ -76,6 +76,20 @@ def index():
     )
 
 
+def _reply(result, status=None):
+    """One JSON shape for every answer, with the failure already in words.
+
+    `message` is what the screen shows. It exists because the screen used to
+    build its own sentence out of whatever `error` happened to hold, and what
+    `error` held for a clinic that had run out of credit was the provider's
+    raw JSON — an English object quoting a vendor's field names, rendered into
+    a right-to-left Arabic page. `error` is still there and still the machine-
+    readable key; it is no longer the thing anybody reads.
+    """
+    return (jsonify(ai_utils.as_json(result)),
+            status or (200 if result.get("ok") else 502))
+
+
 @ai_bp.route("/chat", methods=["POST"])
 @module_required(MODULE)
 def chat():
@@ -90,11 +104,10 @@ def chat():
             messages.append({"role": role, "content": content[:MAX_CHARS]})
 
     if not messages:
-        return jsonify({"ok": False, "error": "empty"}), 400
+        return _reply({"ok": False, "error": "empty"}, 400)
 
     result = ai_utils.chat(messages, feature="chat")
-    status = 200 if result.get("ok") else 502
-    return jsonify(result), status
+    return _reply(result)
 
 
 @ai_bp.route("/patient/<int:patient_id>/chat", methods=["POST"])
@@ -102,7 +115,7 @@ def chat():
 def patient_chat(patient_id):
     """Ask the assistant about a specific patient (opt-in, privacy-aware)."""
     if not ai_utils.patient_context_enabled():
-        return jsonify({"ok": False, "error": "patient_context_disabled"}), 403
+        return _reply({"ok": False, "error": "patient_context_disabled"}, 403)
     patient = db.get_or_404(Patient, patient_id)
 
     data = request.get_json(silent=True) or {}
@@ -114,7 +127,7 @@ def patient_chat(patient_id):
         if role in ("user", "assistant") and content:
             messages.append({"role": role, "content": content[:MAX_CHARS]})
     if not messages:
-        return jsonify({"ok": False, "error": "empty"}), 400
+        return _reply({"ok": False, "error": "empty"}, 400)
 
     # The same fact sheet the lookup screen builds, and the same prohibition.
     # The old wording asked the model not to invent data as one clause among
@@ -128,5 +141,4 @@ def patient_chat(patient_id):
               + ai_lookup.fact_sheet(facts,
                                      anonymize=ai_utils.anonymize_enabled()))
     result = ai_utils.chat(messages, system=system, feature="patient_chat")
-    status = 200 if result.get("ok") else 502
-    return jsonify(result), status
+    return _reply(result)

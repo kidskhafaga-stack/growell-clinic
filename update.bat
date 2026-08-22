@@ -82,6 +82,10 @@ echo [2/5] Fetching the new version...
 
 set "PP_REPO=kidskhafaga-stack/growell-clinic"
 set "PP_BRANCH=main"
+REM Emptied here rather than left undefined, so the git path - which never
+REM reaches the block that fills it - hands "record-version" nothing at all
+REM and lets git answer, which it can do exactly.
+set "PP_SHA="
 
 set "PP_MODE=zip"
 where git >nul 2>nul
@@ -158,7 +162,15 @@ REM A clone can answer that itself; a downloaded copy cannot, so it is
 REM recorded in the instance folder - the one place a file survives being
 REM replaced by the next update. Without it, start.bat has nothing to compare
 REM against and its notice can never fire.
-flask --app run record-version
+REM
+REM The revision is handed over rather than worked out, because this script is
+REM the only thing that knows it for certain: it asked for that commit by
+REM name. Left to work it out, a downloaded copy would read the stamp written
+REM before this update and write the same thing back - so the stamp never
+REM moved, and a clinic that updates by downloading was told there was a newer
+REM version at every launch, for ever. PP_SHA is empty on the git path, where
+REM git has already moved HEAD on and knows better than this script does.
+flask --app run record-version %PP_SHA%
 
 echo.
 echo ============================================================
@@ -181,9 +193,31 @@ set "PP_TMP=%TEMP%\pediapro-update"
 if exist "%PP_TMP%" rmdir /s /q "%PP_TMP%"
 mkdir "%PP_TMP%"
 
+REM Which commit, by name, before anything is downloaded.
+REM
+REM Downloading "the head of main" and then asking separately what the head of
+REM main is leaves a window for a commit to land between the two, and the copy
+REM would then be stamped as something it is not. Asking first and fetching
+REM that commit by name closes it: what arrives is exactly what was asked for.
+REM
+REM It is allowed to fail. An unreachable API, a rate limit, an old Windows
+REM without TLS 1.2 - none of those are a reason to refuse a clinic an update.
+REM The branch is downloaded instead and the program works the revision out
+REM for itself at the end.
+set "PP_SHA="
+for /f "usebackq delims=" %%S in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
+  "(Invoke-RestMethod -Uri 'https://api.github.com/repos/%PP_REPO%/commits/%PP_BRANCH%' -Headers @{'User-Agent'='PediaPro-update'}).sha } catch { '' }"`) do set "PP_SHA=%%S"
+
+if defined PP_SHA (
+  set "PP_ZIP_REF=%PP_SHA%"
+) else (
+  set "PP_ZIP_REF=refs/heads/%PP_BRANCH%"
+)
+
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
-  "$u='https://codeload.github.com/%PP_REPO%/zip/refs/heads/%PP_BRANCH%';" ^
+  "$u='https://codeload.github.com/%PP_REPO%/zip/%PP_ZIP_REF%';" ^
   "Invoke-WebRequest -Uri $u -OutFile '%PP_TMP%\src.zip';" ^
   "Expand-Archive -Path '%PP_TMP%\src.zip' -DestinationPath '%PP_TMP%' -Force"
 if errorlevel 1 (

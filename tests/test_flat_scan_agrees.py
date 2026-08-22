@@ -282,3 +282,39 @@ def test_the_sweep_is_flat_and_stays_flat(ward):
 
     assert counts[1] <= counts[0] + 2, (
         f"the sweep costs more queries as the clinic grows: {counts}")
+
+
+def test_a_returning_influenza_patient_is_on_their_own_file_too(ward):
+    """The disagreement this ward caught, named so it cannot come back quietly.
+
+    A seasonal course is one winter's — that is the whole point of
+    :func:`_this_season`, and it is right. The price is that last winter's
+    dose is not among *this* winter's, so anything that asks "has this clinic
+    begun this course" by looking at the doses in front of it gets `no` for a
+    child who has been coming for years.
+
+    Two places asked it that way, and between them the child's own file said
+    nothing at all about a flu vaccine while the register-wide sweep — which
+    asks before it narrows the season — listed them as due. One answer on the
+    work-list, a different one on the record a family is handed.
+    """
+    from app.models import Patient
+    from app.utils.vaccines import patient_due_reminders, patient_plan
+
+    today = local_today()
+    with ward["app"].app_context():
+        # The child who had one influenza dose over a year ago and has not
+        # been back this season.
+        person = Patient.query.filter_by(patient_number="Fseason").one()
+
+        row = next(v for v in patient_plan(person, "ar")
+                   if v["vaccine"].code == "FLU")
+        assert row["started"], \
+            "a new season made a returning patient a stranger to the course"
+        assert any(d["status"] in ("due", "overdue") for d in row["doses"]), \
+            f"this winter's dose is not owed: {row['doses']}"
+
+        told = [r for r in patient_due_reminders(person, "ar", today)
+                if r["vaccine"].code == "FLU"]
+
+    assert told, "the annual influenza recall never reached the patient's file"

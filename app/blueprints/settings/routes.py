@@ -122,9 +122,9 @@ def ai_models():
     """
     from flask import jsonify
 
-    from app.utils.ai import list_models
+    from app.utils.ai import as_json, list_models
 
-    return jsonify(list_models(_ai_form_config()))
+    return jsonify(as_json(list_models(_ai_form_config())))
 
 
 @settings_bp.route("/ai/test", methods=["POST"])
@@ -155,8 +155,13 @@ def ai_test():
         if not same_as_saved(tested):
             flash(t("settings.ai_test_unsaved"), "warning")
     else:
-        flash(t("settings.ai_test_failed").replace("{e}", str(result.get("error"))),
-              "danger")
+        # The sentence, never the provider's own words. A clinic out of
+        # credit used to be handed a JSON object quoting a vendor's field
+        # names — see :func:`app.utils.ai._http_error`.
+        from app.utils.ai import error_sentence
+
+        flash(t("settings.ai_test_failed").replace(
+            "{e}", error_sentence(result.get("error"))), "danger")
     return redirect(url_for("settings.index") + "#ai")
 
 
@@ -365,9 +370,17 @@ def index():
     from app.utils.icd import coverage as icd_coverage
     from app.utils.money import CURRENCIES
 
+    from app.models import VaccineScheduleTemplate
+    from app.utils.vaccines import guideline_profile
+
     values = {row.key: row.value for row in Setting.query.all()}
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        # Handed over rather than written into the template, so adding a
+        # reference is one edit and not two — a picker that has drifted from
+        # the list the engine reads offers a clinic a policy it will not get.
+        guideline_profiles=VaccineScheduleTemplate.GUIDELINE_PROFILES,
+        guideline_current=guideline_profile(),
         free_ai=free_providers(), trial_ai=trial_defaults(),
         # How many codes each classification actually holds, so the screen can
         # say "not loaded" rather than let a doctor's empty search say it.

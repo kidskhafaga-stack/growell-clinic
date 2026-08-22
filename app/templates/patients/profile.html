@@ -938,8 +938,33 @@
 
               {% if item and item.review %}
                 <div style="margin-top:8px;">
-                  <span class="badge badge--danger" title="{{ t('vreview.hint') }}">
-                    <i class="bi bi-question-octagon"></i> {{ t('vreview.title') }}</span>
+                  {# Why, in this record's own terms. The general hint says
+                     "this record cannot be scheduled from", which is true of a
+                     duplicated dose and false of a guideline that recommends
+                     something without saying how much — and a flag that
+                     explains itself wrongly is one people stop reading. An
+                     unknown reason falls back to the general sentence. #}
+                  {% set why = t('vreview.why_' ~ item.review) %}
+                  {# Two different sentences wear this badge, and telling a
+                     doctor which one they are looking at is most of its
+                     value.
+
+                     A record the arithmetic cannot be run on — a duplicated
+                     dose, a dose with no date — is a problem with the file.
+                     A guideline that recommends vaccinating at this age and
+                     does not fix the number of doses is not: the file is
+                     fine, the vaccine *is* recommended, and what is missing
+                     is a schedule the program is allowed to compute. Both
+                     end at "ask the doctor" and they are not the same
+                     question, and a card that only ever says "cannot be
+                     scheduled" quietly turns the second into the first. #}
+                  {% set unsettled = item.review == 'guideline_unsettled' %}
+                  <span class="badge badge--{{ 'role' if unsettled else 'danger' }}"
+                        title="{{ t('vreview.hint') if why.startswith('vreview.') else why }}">
+                    <i class="bi bi-{{ 'clipboard-pulse' if unsettled
+                                       else 'question-octagon' }}"></i>
+                    {{ t('vreview.unsettled_title') if unsettled
+                       else t('vreview.title') }}</span>
                 </div>
               {% elif item and item.course %}
                 <div style="margin-top:8px;">
@@ -1203,7 +1228,7 @@
           var res=await fetch(this.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:this.messages})});
           var data=await res.json();
           if(data.ok){ this.messages.push({role:'assistant',content:data.text}); }
-          else { this.error={{ t('ai.error') | tojson }}+' ('+(data.error||res.status)+')'; }
+          else { this.error = data.message || {{ t('ai.error') | tojson }}; }
         }catch(e){ this.error={{ t('ai.error') | tojson }}; }
         finally{ this.busy=false; this.scroll(); }
       }
