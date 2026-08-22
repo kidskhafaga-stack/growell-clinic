@@ -375,6 +375,22 @@ def apply_schema(report=None):
     except Exception:  # noqa: BLE001 — a credit line never blocks an upgrade
         db.session.rollback()
 
+    # The columns above are added empty, and the facts that belong in them
+    # live in the bundled catalogue. Nothing filled them until somebody
+    # re-seeded, which a clinic that pulls the new code and restarts never
+    # does — so rotavirus kept no finish ceiling and children of ten sat in
+    # the reminder list for a course that cannot be given. A column a
+    # migration adds is a column that migration should fill.
+    try:
+        from app.utils.vaccines import backfill_brand_facts
+
+        filled = backfill_brand_facts()
+        db.session.commit()
+        if filled and report:
+            report(f"  ~ vaccine_brands: filled the facts on {filled}")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
     # An invoice that came to nothing — a 100% staff discount, or one whose
     # last line was deleted — used to be written as "unpaid" and stayed in the
     # till's *who still owes* list for ever. Fixing the rule does nothing for

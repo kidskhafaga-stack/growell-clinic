@@ -120,6 +120,49 @@ def _fill_brand_facts(brand, data):
             setattr(brand, field, value)
 
 
+def backfill_brand_facts():
+    """Fill the blank regulatory facts on trade names that already exist.
+
+    A column added by a migration is created empty, and nothing fills these
+    until somebody re-seeds the catalogue — which happens from ``upgrade-db``
+    and from a button on the vaccinations screen, and therefore not at all in
+    a clinic that pulls the new code and restarts.
+
+    Measured on a real register, and it is not cosmetic: with
+    ``max_age_final_dose_days`` blank, rotavirus has no finish ceiling, so a
+    child of ten who had one dose as an infant reads *overdue* instead of
+    *expired* and joins the reminder list. Forty-eight of them, on one screen,
+    for a course no clinic on earth can still give them.
+
+    Narrower than :func:`seed_vaccines` on purpose. It creates nothing — no
+    vaccine, no trade name, no schedule — so it cannot re-add a product a
+    clinic deleted or ignore the catalogue toggles by the back door. It only
+    answers the question the migration left open: this column is empty, and
+    the catalogue knows what belongs in it.
+
+    Blanks only, so a clinic that corrected a ceiling for its own stock keeps
+    the correction. Returns the number of brands touched.
+    """
+    with open(os.path.abspath(_DATA_PATH), encoding="utf-8") as fh:
+        data = json.load(fh)
+
+    filled = 0
+    for v in data["vaccines"]:
+        vaccine = Vaccine.query.filter_by(code=v["code"]).first()
+        if vaccine is None:
+            continue                # this clinic does not carry it
+        for b in v["brands"]:
+            brand = next((br for br in vaccine.brands if br.name == b["name"]),
+                         None)
+            if brand is None:
+                continue            # not stocked here, and not ours to add
+            before = {f: getattr(brand, f, None) for f in _BRAND_FACTS}
+            _fill_brand_facts(brand, b)
+            if any(getattr(brand, f, None) != before[f] for f in _BRAND_FACTS):
+                filled += 1
+    return filled
+
+
 def seed_vaccines():
     """Idempotently load the bundled vaccine catalogue into the database.
 
