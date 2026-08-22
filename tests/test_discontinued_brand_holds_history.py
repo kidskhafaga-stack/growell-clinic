@@ -47,10 +47,25 @@ def seeded(clinic):
     return clinic
 
 
-def _brand(name):
-    from app.models import VaccineBrand
+def _brand(name, vaccine="PENTA"):
+    """A trade name, on the vaccine it belongs to.
 
-    return VaccineBrand.query.filter_by(name=name).first()
+    The vaccine is not optional decoration. Nine vaccines in the catalogue
+    carry a brand called "حكومي" — the government supply of each — and asking
+    for that name alone returned BCG's, which is one dose at birth. This test
+    then filed three pentavalent doses against a BCG brand, the course took
+    BCG's shape, and two of the child's doses vanished from the plan. The
+    program was reading impossible data correctly; the test had built it.
+    """
+    from app.models import Vaccine, VaccineBrand
+
+    found = (VaccineBrand.query
+             .join(Vaccine, Vaccine.id == VaccineBrand.vaccine_id)
+             .filter(VaccineBrand.name == name, Vaccine.code == vaccine)
+             .all())
+    assert len(found) == 1, \
+        f"{name} is not one brand on {vaccine}: {found}"
+    return found[0]
 
 
 def test_the_brand_exists_to_be_named(seeded):
