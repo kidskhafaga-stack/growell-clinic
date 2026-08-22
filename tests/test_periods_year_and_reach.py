@@ -219,9 +219,23 @@ def test_no_page_is_left_without_a_link(boss, clinic):
     # The sidebar builds its links from a map in the app factory.
     import app as app_pkg
 
-    source = open(os.path.join(os.path.dirname(app_pkg.__file__), "__init__.py"),
-                  encoding="utf-8").read()
+    here = os.path.dirname(app_pkg.__file__)
+    source = open(os.path.join(here, "__init__.py"), encoding="utf-8").read()
     linked |= set(re.findall(r"""['"]([a-z_]+\.index)['"]""", source))
+
+    # And the bell is a way in. Its alerts carry the endpoint they open, the
+    # panel calls `url_for` on it, and a person clicking one is navigating
+    # exactly as they are from the sidebar — the endpoint name simply lives in
+    # a Python module instead of a template.
+    #
+    # It went unnoticed until a screen was reached from the bell and from
+    # nowhere else. Every alert before that pointed somewhere the sidebar or a
+    # card already reached, so scanning templates alone happened to find them
+    # all, and this file's rule was being kept by luck rather than by reading.
+    feed = open(os.path.join(here, "utils", "notifications.py"),
+                encoding="utf-8").read()
+    linked |= set(re.findall(r"""["']endpoint["']:\s*["']([a-z_]+\.[a-z_0-9]+)["']""",
+                             feed))
 
     skip = ("search", "slots", "export", "print", "download", "healthz",
             "webhook", "verify", "qr", "logout", "static", "api", "_json",
