@@ -1665,6 +1665,26 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # dose is given here, the course is ours and the next dose really can
         # be late.
         started = any(x["status"] == "done" for x in doses)
+        # A seasonal course is begun once, not once a winter.
+        #
+        # The doses above are **this** season's — see :func:`_this_season` —
+        # so a child who had influenza last winter and has not come yet this
+        # one has nothing marked `done`, and read from that alone their annual
+        # recall came out as a suggestion by age rather than something owed.
+        # It is owed. They are this clinic's patient for it, the promise was
+        # made the first time somebody vaccinated them here, and a new season
+        # does not unmake it.
+        #
+        # Measured as a disagreement between the two paths: the register-wide
+        # sweep asks whether anything is on file *before* the season is
+        # narrowed and so has always listed these children, while the child's
+        # own file said nothing about them. Two answers to "does this child
+        # need a flu vaccine", one on the work-list and one on the record the
+        # family is shown.
+        if not started and vaccine.is_seasonal:
+            started = any(row.given_date
+                          for (vid, _n), row in given_index.items()
+                          if vid == vaccine.id)
         if not started:
             # Neither of these is a course this clinic ever promised, so
             # neither can be late here **and neither is a suggestion by age**.
@@ -1924,7 +1944,13 @@ def patient_due_reminders(patient, lang="ar", today=None, doses=None,
             # sends anything. "It will not guess" has to mean the message too,
             # or the guess simply travels further.
             continue
-        if not done and not v.get("agreed"):
+        # "Did this clinic take this course on" — asked of the plan, which
+        # knows, rather than recomputed from the doses left in front of us.
+        # For a seasonal vaccine those are **this** season's, so a child who
+        # had influenza last winter had nothing marked `done` and was dropped
+        # here before the annual recall below could ever be reached. For every
+        # other vaccine the two questions have the same answer.
+        if not v.get("committed"):
             continue
         if vac.is_seasonal:
             # The course before the recall — see the same split in `scan_due`.
