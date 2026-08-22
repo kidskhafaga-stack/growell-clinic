@@ -449,6 +449,18 @@ class VaccineScheduleTemplate(db.Model):
     # child with two owes one. Inclusive bounds; blank means no condition.
     previous_doses_min = db.Column(db.Integer)
     previous_doses_max = db.Column(db.Integer)
+    # Which age decides this band: "start" (the age at the first dose) or
+    # "today" (the age now). Two different clinical shapes, and using one for
+    # both is wrong in opposite directions.
+    #
+    # HPV locks at the first dose: a child who begins at fourteen and eleven
+    # months keeps the two-dose course when they turn fifteen between doses.
+    # A pneumococcal catch-up does the opposite — it reads the age *now* and
+    # the doses already given, and a healthy child who reaches two years after
+    # an infant dose is no longer in the infant series at all. Matched on the
+    # first dose, that child is chased for the rest of a baby's course until
+    # they are sixteen.
+    match_age_on = db.Column(db.String(8), default="start")
 
     PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
