@@ -532,7 +532,8 @@
     "booked_now": "Booked for {name}",
     "collect_now_hint": "Collect now, or later? You can collect any time from the same row.",
     "collect_now": "Collect now",
-    "collect_later": "Later"
+    "collect_later": "Later",
+    "pay_free": "No charge"
   },
   "appt_types": {
     "new": "New visit",
@@ -1607,7 +1608,8 @@
     "history_hint": "The accounting period is still open, so this invoice can be corrected — and every correction is recorded here with who made it and when, for the accountant to review.",
     "history_locked": "The accounting period is closed, so this invoice can no longer be edited. The record below is for review.",
     "history_none": "This invoice has not been changed.",
-    "invoice_number": "Invoice no."
+    "invoice_number": "Invoice no.",
+    "st_free": "No charge"
   },
   "expenses": {
     "title": "Expenses",
@@ -2807,7 +2809,9 @@
     "campaign_queued": "{n} messages queued — they will go out under the daily cap",
     "occ_away": "Out-of-hours reply",
     "occ_vaccine_back": "Vaccine back in stock",
-    "occ_rx_copy": "Prescription copy"
+    "occ_rx_copy": "Prescription copy",
+    "body_female": "Wording for a girl (optional)",
+    "body_female_hint": "Leave it empty when one wording is enough. Fill it in and girls get this one; everybody else gets the first."
   },
   "feedback": {
     "title": "Rate your visit",

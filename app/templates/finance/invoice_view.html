@@ -58,7 +58,7 @@
     <div class="info-item"><div class="k">{{ t('invoices.patient') }}</div><div class="v">{{ invoice.patient.display_name(current_lang) }} ({{ invoice.patient.patient_number }})</div></div>
     <div class="info-item"><div class="k">{{ t('invoices.doctor') }}</div><div class="v">{{ invoice.doctor.display_name(current_lang) if invoice.doctor else '—' }}</div></div>
     <div class="info-item"><div class="k">{{ t('invoices.status') }}</div><div class="v">
-      <span class="status-badge {{ 'st-completed' if invoice.status=='paid' else ('st-waiting' if invoice.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ invoice.status) }}</span></div></div>
+      <span class="status-badge {{ 'st-completed' if invoice.status=='paid' else ('st-waiting' if invoice.status=='partial' else 'st-no_show') }}">{{ t(invoice.status_label) }}</span></div></div>
   </div>
 
   <table class="table">

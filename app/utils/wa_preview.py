@@ -18,6 +18,9 @@ import re
 # sentence pass review because nobody reads them as a sentence.
 SAMPLES = {
     "patient": "محمد أحمد",
+    # The greeting name, so a preview of "{first_name} كل سنة وانت طيب" reads
+    # as the sentence it will be rather than as a gap.
+    "first_name": "محمد",
     "clinic": "العيادة",
     "date": "2026-07-10",
     "time": "10:30 ص",

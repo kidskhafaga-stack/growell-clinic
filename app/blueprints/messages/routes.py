@@ -1258,6 +1258,9 @@ def system_template_save(tpl_id):
     """Edit a canonical notification type: body, image, auto/manual, on/off."""
     tpl = db.get_or_404(MessageTemplate, tpl_id)
     tpl.body = (request.form.get("body") or "").strip()
+    # Blank clears it: an empty second box means "one wording is enough here",
+    # which is the ordinary answer and has to be sayable.
+    tpl.body_female = (request.form.get("body_female") or "").strip() or None
     mode = (request.form.get("send_mode") or tpl.send_mode).strip()
     tpl.send_mode = mode if mode in SEND_MODES else tpl.send_mode
     tpl.is_active = bool(request.form.get("is_active"))
@@ -1337,7 +1340,7 @@ def send_birthday(patient_id):
         return redirect(url_for("messages.occasions"))
 
     lang = getattr(g, "lang", "ar")
-    body = wa.render(wa.template_body("birthday"), {
+    body = wa.render(wa.template_body("birthday", patient.gender), {
         "patient": patient.display_name(lang),
         "clinic": Setting.get("clinic_name_ar") or Setting.get("clinic_name") or "",
     })
@@ -1364,6 +1367,7 @@ def occasion_template_new():
     repeat = (request.form.get("repeat_rule") or "once").strip()
     db.session.add(MessageTemplate(
         name=name, body=body,
+        body_female=(request.form.get("body_female") or "").strip() or None,
         occasion=occ if occ in OCCASION_TYPES else "custom",
         occasion_date=_parse_form_date("occasion_date"),
         repeat_rule=repeat if repeat in ("once", "yearly") else "once",
@@ -1381,6 +1385,9 @@ def occasion_template_edit(tpl_id):
     tpl = db.get_or_404(MessageTemplate, tpl_id)
     tpl.name = (request.form.get("name") or tpl.name).strip()
     tpl.body = (request.form.get("body") or tpl.body).strip()
+    # Blank clears it: an empty second box means "one wording is enough here",
+    # which is the ordinary answer and has to be sayable.
+    tpl.body_female = (request.form.get("body_female") or "").strip() or None
     occ = (request.form.get("occasion") or tpl.occasion).strip()
     tpl.occasion = occ if occ in OCCASION_TYPES else tpl.occasion
     new_date = _parse_form_date("occasion_date")
