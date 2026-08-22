@@ -1,19 +1,19 @@
-Flask==3.0.3
+Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 # CSRF protection for every form in the clinic
 Flask-WTF==1.2.1
-Werkzeug==3.0.3
-python-dotenv==1.0.1
+Werkzeug==3.1.6
+python-dotenv==1.2.2
 # Serves the clinic instead of Werkzeug's development server
-waitress==3.0.0
+waitress==3.0.1
 # AES-256 ZIP for encrypted backups — the archive is every patient the clinic
 # has seen, and its whole job is to leave the building. WinZip-AES so 7-Zip can
 # open it: a backup only this program can restore fails you on the day the
 # computer doesn't.
 pyzipper==0.4.0
 openpyxl==3.1.5
-requests==2.32.3
+requests==2.33.0
 segno==1.6.1
 # Offline RCPCH UK growth reference (UK-WHO / UK90) — local Z-score/centile math
 rcpchgrowth==4.5.0
