@@ -945,9 +945,26 @@
                      explains itself wrongly is one people stop reading. An
                      unknown reason falls back to the general sentence. #}
                   {% set why = t('vreview.why_' ~ item.review) %}
-                  <span class="badge badge--danger"
+                  {# Two different sentences wear this badge, and telling a
+                     doctor which one they are looking at is most of its
+                     value.
+
+                     A record the arithmetic cannot be run on — a duplicated
+                     dose, a dose with no date — is a problem with the file.
+                     A guideline that recommends vaccinating at this age and
+                     does not fix the number of doses is not: the file is
+                     fine, the vaccine *is* recommended, and what is missing
+                     is a schedule the program is allowed to compute. Both
+                     end at "ask the doctor" and they are not the same
+                     question, and a card that only ever says "cannot be
+                     scheduled" quietly turns the second into the first. #}
+                  {% set unsettled = item.review == 'guideline_unsettled' %}
+                  <span class="badge badge--{{ 'role' if unsettled else 'danger' }}"
                         title="{{ t('vreview.hint') if why.startswith('vreview.') else why }}">
-                    <i class="bi bi-question-octagon"></i> {{ t('vreview.title') }}</span>
+                    <i class="bi bi-{{ 'clipboard-pulse' if unsettled
+                                       else 'question-octagon' }}"></i>
+                    {{ t('vreview.unsettled_title') if unsettled
+                       else t('vreview.title') }}</span>
                 </div>
               {% elif item and item.course %}
                 <div style="margin-top:8px;">

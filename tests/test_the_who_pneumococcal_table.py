@@ -237,3 +237,70 @@ def test_every_reason_a_record_can_be_flagged_for_says_why(who):
         for reason in reasons:
             assert f"why_{reason}" in block, \
                 f"{lang} does not say why a record is flagged for {reason}"
+
+
+def test_the_card_says_which_of_the_two_questions_this_is(who):
+    """Both wear the same badge and they are not the same question.
+
+    A record the arithmetic cannot be run on — a duplicated dose, a dose with
+    no date — is a problem with the file. A guideline that recommends
+    vaccinating at this age and does not fix the number of doses is not: the
+    file is fine, the vaccine *is* recommended, and what is missing is a
+    schedule the program is allowed to compute.
+
+    Both end at "ask the doctor", which is why one flag carries them. A card
+    that says only "this record cannot be scheduled from" turns the second
+    into the first, and a doctor reading it has been told the wrong thing
+    about their own file.
+    """
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+
+    with who["app"].app_context():
+        pcv = Vaccine.query.filter_by(code="PCV").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
+                                             name="Prevenar 13").first()
+        # Two years old and unvaccinated: WHO recommends catch-up here and
+        # does not say how much.
+        dob = local_today() - timedelta(days=int(24 * 30.44))
+        kid = Patient(patient_number="WCARD", full_name="طفل", gender="male",
+                      date_of_birth=dob, is_active=True)
+        db.session.add(kid)
+        db.session.flush()
+        kid_id = kid.id
+
+        # And one whose record genuinely cannot be read: the same dose number
+        # twice.
+        dob2 = local_today() - timedelta(days=int(24 * 30.44))
+        broken = Patient(patient_number="WBROK", full_name="طفل", gender="male",
+                         date_of_birth=dob2, is_active=True)
+        db.session.add(broken)
+        db.session.flush()
+        for when in (2, 4):
+            db.session.add(PatientVaccine(
+                patient_id=broken.id, vaccine_id=pcv.id, brand_id=brand.id,
+                dose_number=1, event_type="given",
+                given_date=dob2 + timedelta(days=int(when * 30.44))))
+        db.session.commit()
+        broken_id = broken.id
+
+    # The vaccination screen, not the certificate: the certificate lists what
+    # a child *had*, so a child with none of this vaccine has no card there
+    # and the flag has nowhere to appear. This screen shows every course.
+    boss = who["sign_in"]("boss")
+    unsettled = boss.get(
+        f"/vaccinations/{kid_id}").get_data(as_text=True)
+    unreadable = boss.get(
+        f"/vaccinations/{broken_id}").get_data(as_text=True)
+
+    import json as _json
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "..", "app/i18n/locales/ar.json"),
+              encoding="utf-8") as fh:
+        words = _json.load(fh)["vreview"]
+
+    assert words["unsettled_title"] in unsettled, \
+        "a recommendation with no schedule reads as an unreadable record"
+    assert words["unsettled_title"] not in unreadable, \
+        "an unreadable record is being called a recommendation"
+    assert words["title"] in unreadable

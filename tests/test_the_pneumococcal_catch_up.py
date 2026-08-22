@@ -219,21 +219,74 @@ def test_a_child_who_started_as_an_infant_stays_on_the_infant_series(
 # ------------------------------------------------ and where it does not reach
 
 @pytest.mark.parametrize("profile", ["egypt", "cdc"])
-def test_a_partial_record_the_reference_does_not_cover_is_not_guessed(
-        seeded, profile):
-    """Fourteen months old, one dose, given at thirteen months.
+def test_a_child_who_began_a_catch_up_is_owed_the_rest_of_it(seeded, profile):
+    """Fourteen months old, one dose, given at thirteen.
 
-    Not an infant series — it never began before seven months. Not the
-    catch-up either — that states what a child with no valid doses needs. The
-    reference was asked and did not answer, and the honest result is the
-    doctor's, not a number.
+    This one was written the other way round first, and the reversal is worth
+    recording rather than quietly rewriting. The instruction was *do not guess
+    the partial case*, and the bands were built to match on the age **today**
+    with a cap of zero doses already given — read as "this is what a child of
+    this age with an empty record needs".
+
+    That broke the commonest case there is. A child given the first dose of
+    the 7–11 month catch-up stopped matching the band the moment they had it,
+    matched nothing else, and came back as *clinical review required* for the
+    ordinary act of beginning a course. Three older tests caught it.
+
+    And there is no honest line between the two: a nine-month-old with one
+    dose given at nine months and a fourteen-month-old with one dose given at
+    thirteen are the same shape. Either both are mid-course or both are
+    unknowable, and flagging every child who has started is not a defensible
+    reading of "do not guess".
+
+    So the bands are matched on the age at the **first dose** — the course a
+    child who started here follows — which with an empty record is the same
+    thing, because the age at a first dose that has not happened is the age
+    today. Not guessing still means something: a record no band can reach at
+    all comes back as clinical review by name, which is what the next test
+    holds.
     """
     review, doses = _child(seeded, profile, 14, [13])
 
-    assert review == "guideline_silent", \
-        f"a case the reference does not cover was answered anyway: {doses}"
-    assert _owed(doses) == [], \
-        f"doses were invented for a case nobody stated: {doses}"
+    assert review is None, \
+        f"a child part-way through a stated course was flagged: {review}"
+    assert [n for n, status, _d in doses if status == "done"] == [1]
+    assert len(_owed(doses)) == 1, \
+        f"not the rest of the two-dose course: {doses}"
+
+
+def test_a_record_no_band_can_reach_is_still_a_question(seeded):
+    """"Do not guess" kept where it belongs.
+
+    The CDC does speak about Bexsero and does not schedule a healthy
+    twelve-year-old for it, so a twelve-year-old with a dose on file is a
+    record its reference cannot carry forward. That comes back as clinical
+    review rather than as a number from no guideline at all.
+    """
+    from app.extensions import db
+    from app.models import (Patient, PatientVaccine, Setting, Vaccine,
+                            VaccineBrand)
+    from app.utils.vaccines import patient_plan
+
+    with seeded["app"].app_context():
+        Setting.set("vaccine_guideline_profile", "cdc")
+        menb = Vaccine.query.filter_by(code="MENB").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=menb.id,
+                                             name="Bexsero").first()
+        dob = local_today() - timedelta(days=int(12 * 365.25))
+        kid = Patient(patient_number="CUsilent", full_name="طفل",
+                      gender="male", date_of_birth=dob, is_active=True)
+        db.session.add(kid)
+        db.session.flush()
+        db.session.add(PatientVaccine(
+            patient_id=kid.id, vaccine_id=menb.id, brand_id=brand.id,
+            dose_number=1, event_type="given",
+            given_date=dob + timedelta(days=int(11 * 365.25))))
+        db.session.commit()
+        row = next(v for v in patient_plan(kid) if v["vaccine"].code == "MENB")
+
+    assert row.get("review") == "guideline_silent", \
+        f"a record the reference cannot reach was answered anyway: {row}"
 
 
 def test_an_unstarted_course_at_an_unscheduled_age_is_not_a_puzzle(seeded):

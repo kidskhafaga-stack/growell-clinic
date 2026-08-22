@@ -474,16 +474,26 @@ _AGE_BANDED = {
         #
         # ### What is deliberately not here
         #
-        # A child in a catch-up band who already has doses that did not begin
-        # the infant series — fourteen months old with one dose given at
-        # thirteen — matches nothing, and that is the instruction: *do not
-        # guess a partial case the reference does not cover.* The reference
-        # states the catch-up for a child with **no** valid doses, and states
-        # nothing about that one. Falling through is not silence; the profile
-        # is authoritative, so the course comes back empty and the record is
-        # marked for clinical review by name. Guessing is the failure mode this
-        # avoids, and inventing a dose count for a child is worse than saying
-        # the reference does not reach them.
+        # The two late-start courses are matched on the age at the **first
+        # dose**, and read as "this is the course a child who started here
+        # follows" rather than "this is what a child of this age with an empty
+        # record needs". With no doses on file that is the same thing, because
+        # the age at a first dose that has not happened is the age today.
+        #
+        # Written the other way first — matched on today's age and capped at
+        # zero previous doses — and it broke the commonest case there is: a
+        # child given the first dose of the 7–11 month catch-up stopped
+        # matching the band the moment they had it, fell through every other
+        # one, and came back as "clinical review required" for the ordinary
+        # act of starting a course. Three existing tests caught it. A child
+        # halfway through a course the reference plainly describes is not a
+        # case the reference is silent about.
+        #
+        # A record the reference genuinely does not reach — a first dose at an
+        # age no band begins at — still falls through, and the profile being
+        # authoritative turns that into clinical review by name rather than a
+        # guess. That is the instruction kept where it belongs: *do not invent
+        # a dose count the reference did not state.*
         #
         # Nor is a dose ever computed as "required minus recorded". Every band
         # below reads the age now, the doses on file and the intervals between
@@ -499,14 +509,12 @@ _AGE_BANDED = {
         # are dosed at. Every one is "للمراجعة" — seeded for the doctor to
         # confirm or correct, in the schedule editor, under this profile.
         {"code": "PCV-EG-CU7", "min": 7, "max": 11, "sort_order": 0,
-         "match_on": "today", "source": "egypt",
-         "catch_up": True, "previous_max": 0,
+         "source": "egypt",
          "label": "7–11 شهر بدون جرعات سابقة: 3 جرعات، الأخيرة بعد "
                   "إتمام 12 شهر — للمراجعة",
          "doses": [(7, None), (8, 28), (12, 56)]},
         {"code": "PCV-EG-CU12", "min": 12, "max": 23, "sort_order": 1,
-         "match_on": "today", "source": "egypt",
-         "catch_up": True, "previous_max": 0,
+         "source": "egypt",
          "label": "12–23 شهر بدون جرعات سابقة: جرعتان بفاصل ≥8 أسابيع "
                   "— للمراجعة",
          "doses": [(12, None), (14, 56)]},
@@ -598,15 +606,13 @@ _AGE_BANDED = {
         # months with none (≥8 weeks); one dose from 24–59 months to complete;
         # and no routine course from five years.
         {"code": "PCV-CDC-CU7", "min": 7, "max": 11, "sort_order": 0,
-         "match_on": "today", "source": "cdc",
-         "catch_up": True, "previous_max": 0,
+         "source": "cdc",
          "label": "CDC — 7–11 شهر بدون جرعات صحيحة: 3 جرعات "
                   "(≥4 أسابيع ثم ≥8 أسابيع)، والأخيرة بعد إتمام 12 شهر "
                   "— للمراجعة",
          "doses": [(7, None), (8, 28), (12, 56)]},
         {"code": "PCV-CDC-CU12", "min": 12, "max": 23, "sort_order": 1,
-         "match_on": "today", "source": "cdc",
-         "catch_up": True, "previous_max": 0,
+         "source": "cdc",
          "label": "CDC — 12–23 شهر بدون جرعات صحيحة: جرعتان بفاصل "
                   "≥8 أسابيع — للمراجعة",
          "doses": [(12, None), (14, 56)]},
@@ -1125,6 +1131,32 @@ def _months_between(dob, when):
 SILENT = {"silent": True, "doses": []}
 
 
+def _course_start(bands, brand_first, given_dates):
+    """Which "first dose" these bands are matched against.
+
+    A **leaflet's** bands are about a product, so the date that decides them is
+    the first dose *of that product*. A child who had two Prevenar and moved to
+    Vaxneuvance moves onto the Vaxneuvance schedule that suits their age at the
+    switch — they neither stay on the schedule their first needle put them on
+    nor start again, because the doses already given count.
+
+    A **guideline's** bands are about the vaccine, and the date that decides
+    them is the child's first pneumococcal dose whatever was in the vial.
+    Reading a guideline band against the brand's first dose is how that same
+    child — two Prevenar at two and four months, Vaxneuvance at nine — came out
+    as "started at nine months", matched none of the guideline's bands, and
+    was handed a clinical-review flag for the ordinary act of changing
+    product. Measured: three existing tests, and the case is a common one.
+
+    For a course on one product throughout the two dates are the same, which is
+    why HPV still locks at its own first dose.
+    """
+    course_first = min((d for d in given_dates.values() if d), default=None)
+    if bands and bands[0]["brand_id"] is not None and brand_first is not None:
+        return brand_first
+    return course_first
+
+
 def _pick_band(bands, dob, start, previous, today, first_gap=None,
                given_count=0):
     """The first band whose age range and history condition both match.
@@ -1317,9 +1349,7 @@ def course_for(vaccine, brand, dob, given_dates, today=None,
     if vaccine.is_seasonal:
         start = _season_start(given_dates, today or local_today())
     else:
-        start = brand_first
-        if start is None:
-            start = min((d for d in given_dates.values() if d), default=None)
+        start = _course_start(bands, brand_first, given_dates)
     picked = _pick_band(bands, dob, start, previous, today or local_today(),
                         first_gap=_achieved_first_gap(given_dates),
                         given_count=len(given_dates))
@@ -2608,9 +2638,7 @@ def _banded_for(vaccine_id, brand_id, dob, given_dates, today,
     if seasonal:
         start = _season_start(given_dates, today)
     else:
-        start = brand_first
-        if start is None:
-            start = min((d for d in given_dates.values() if d), default=None)
+        start = _course_start(bands, brand_first, given_dates)
     picked = _pick_band(bands, dob, start, previous, today,
                         first_gap=_achieved_first_gap(given_dates),
                         given_count=len(given_dates))

@@ -5075,6 +5075,7 @@
     "why_out_of_order": "The dose dates do not run in the order of their numbers.",
     "why_guideline_silent": "The reference this clinic follows does not cover this case, and the program will not guess.",
     "why_guideline_unsettled": "The reference recommends vaccinating at this age but does not fix the number of doses — the doctor decides.",
+    "unsettled_title": "Recommended — schedule not specified",
     "hint": "This record cannot be scheduled from — the program will not guess."
   },
   "vlate": {
