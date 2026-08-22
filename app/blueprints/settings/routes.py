@@ -64,7 +64,13 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                # Workflow policies: doctor privacy + refund manager sign-off
                # + the cashier shift gate (no open shift, no collection).
                "doctors_see_own_only", "refund_approval_required",
-               "require_shift_to_collect"]
+               "require_shift_to_collect",
+               # Whether the program looks for a newer version when it starts.
+               # It only ever *says*; updating stays a decision somebody makes
+               # in update.bat. One anonymous request to GitHub carrying no
+               # clinic data, and a clinic that would rather not reach the
+               # internet at all turns it off here.
+               "update_check"]
 
 
 def _logo_dir():

@@ -87,6 +87,53 @@ def register_commands(app):
             f"{counts['investigations']} investigations · "
             f"{counts['store_items']} store items", fg="green")
 
+    @app.cli.command("update-check")
+    def update_check():
+        """Say whether a newer version exists. Never fetch it.
+
+        Called by ``start.bat`` on the way past. It prints a short notice or
+        nothing at all, and it exits 0 either way — a clinic must never be
+        stopped from opening the program because a check about the program
+        could not be made.
+
+        The distinction from ``update.bat`` is the point. Updating is a
+        decision somebody makes, with a snapshot before it and a schema
+        upgrade after it. This only knocks on the door.
+        """
+        from app.utils.updates import pending
+
+        try:
+            found = pending()
+        except Exception:  # noqa: BLE001 — a notice never blocks a launch
+            return
+        if not found:
+            return
+        click.secho("", err=False)
+        click.secho("  " + "-" * 56, fg="yellow")
+        click.secho("   There is a newer version of the program.", fg="yellow")
+        for line in found["notes"]:
+            click.secho(f"     - {line}", fg="yellow")
+        click.secho("   Close the clinic and run update.bat when convenient.",
+                    fg="yellow")
+        click.secho("  " + "-" * 56, fg="yellow")
+
+    @app.cli.command("record-version")
+    @click.argument("revision", required=False)
+    def record_version(revision):
+        """Write down which revision this copy is now running.
+
+        A `git clone` can answer that itself. A copy that was downloaded as a
+        ZIP cannot, so the update writes it into the instance folder — the one
+        place a file survives being replaced by the next update.
+        """
+        from app.utils.updates import record_installed
+
+        written = record_installed(revision)
+        if written:
+            click.secho(f"Recorded version {written[:12]}.", fg="green")
+        else:
+            click.secho("Could not work out which version this is.", fg="yellow")
+
     @app.cli.command("sync-db")
     def sync_db():
         """Bring the database's *shape* up to the code's. Nothing else.

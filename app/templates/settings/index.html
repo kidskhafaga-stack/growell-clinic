@@ -388,6 +388,12 @@
       <label for="require_shift_to_collect" style="margin:0;font-weight:400;">{{ t('settings.require_shift_to_collect') }}</label>
     </div>
     <p class="hint">{{ t('settings.require_shift_to_collect_hint') }}</p>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="update_check" name="update_check" value="1"
+             {{ 'checked' if values.get('update_check','1') != '0' else '' }}>
+      <label for="update_check" style="margin:0;font-weight:400;">{{ t('settings.update_check') }}</label>
+    </div>
+    <p class="hint">{{ t('settings.update_check_hint') }}</p>
 
     <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-lock"></i> {{ t('settings.login_security') }}</h3>

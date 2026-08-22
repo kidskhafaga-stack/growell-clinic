@@ -153,6 +153,13 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM --- 7) Write down what this copy now is ---------------------
+REM A clone can answer that itself; a downloaded copy cannot, so it is
+REM recorded in the instance folder - the one place a file survives being
+REM replaced by the next update. Without it, start.bat has nothing to compare
+REM against and its notice can never fire.
+flask --app run record-version
+
 echo.
 echo ============================================================
 echo    Update finished. The backup taken first is in the
