@@ -443,6 +443,12 @@ class VaccineScheduleTemplate(db.Model):
     # schedule chosen once at the first dose cannot express it.
     first_gap_min_days = db.Column(db.Integer)
     first_gap_max_days = db.Column(db.Integer)   # exclusive
+    # "…and has had fewer than two before" — a count, which `requires_previous_
+    # doses` (none / some) cannot say. Influenza needs it: under nine, a child
+    # with none and a child with one both owe two doses this season, and a
+    # child with two owes one. Inclusive bounds; blank means no condition.
+    previous_doses_min = db.Column(db.Integer)
+    previous_doses_max = db.Column(db.Integer)
 
     PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)

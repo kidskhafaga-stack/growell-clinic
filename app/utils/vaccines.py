@@ -438,11 +438,21 @@ _AGE_BANDED = {
     # also what the rule means: a child who begins at eight does not lose the
     # second dose by turning nine four weeks later.
     "FLU": [
-        {"code": "FLU-PRIME", "min": None, "max": 107, "sort_order": 0,
-         "label": "أول موسم تحت 9 سنوات: جرعتان بفاصل ≥4 أسابيع، "
-                  "ثم جرعة واحدة سنوياً — للمراجعة",
+        # Under nine and already has two doses behind them from earlier
+        # seasons: primed, and one dose a year from here. Ordered first
+        # because it is the exception to the band below it.
+        {"code": "FLU-PRIMED", "min": None, "max": 107, "sort_order": 0,
+         "previous_min": 2,
+         "label": "تحت 9 سنوات وسبق أخذ جرعتين: جرعة واحدة سنوياً — للمراجعة",
+         "doses": [(6, None)]},
+        # Under nine with fewer than two doses in their whole life — none, or
+        # one from any season. Two doses **this** season, four weeks apart.
+        {"code": "FLU-PRIME", "min": None, "max": 107, "sort_order": 1,
+         "previous_max": 1,
+         "label": "تحت 9 سنوات وأقل من جرعتين في حياته: جرعتان بفاصل "
+                  "≥4 أسابيع هذا الموسم — للمراجعة",
          "doses": [(6, None), (7, 28)]},
-        {"code": "FLU-ANNUAL", "min": 108, "max": None, "sort_order": 1,
+        {"code": "FLU-ANNUAL", "min": 108, "max": None, "sort_order": 2,
          "label": "9 سنوات فأكثر: جرعة واحدة سنوياً — للمراجعة",
          "doses": [(6, None)]},
     ],
@@ -487,7 +497,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    sort_order=0, start_age_min_months=None,
                    start_age_max_months=None, brand_id=None,
                    requires_previous_doses=None, first_gap_min_days=None,
-                   first_gap_max_days=None):
+                   first_gap_max_days=None, previous_doses_min=None,
+                   previous_doses_max=None):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -504,6 +515,8 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         requires_previous_doses=requires_previous_doses,
         first_gap_min_days=first_gap_min_days,
         first_gap_max_days=first_gap_max_days,
+        previous_doses_min=previous_doses_min,
+        previous_doses_max=previous_doses_max,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -582,7 +595,9 @@ def seed_vaccine_schedules():
                 brand_id=brand_id,
                 requires_previous_doses=band.get("previous"),
                 first_gap_min_days=band.get("gap_min"),
-                first_gap_max_days=band.get("gap_max"))
+                first_gap_max_days=band.get("gap_max"),
+                previous_doses_min=band.get("previous_min"),
+                previous_doses_max=band.get("previous_max"))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -760,6 +775,14 @@ def _pick_band(bands, dob, start, previous, today, first_gap=None):
         if needs == "none" and previous:
             continue
         if needs == "some" and not previous:
+            continue
+        # "…and has had fewer than two before" is a real leaflet condition and
+        # not expressible as none/some. Influenza needs it: under nine, a
+        # child with no doses and a child with one both need two this season,
+        # and a child with two needs one.
+        if band.get("previous_max") is not None and previous > band["previous_max"]:
+            continue
+        if band.get("previous_min") is not None and previous < band["previous_min"]:
             continue
         # The gap actually achieved between the first two doses. Unknown until
         # the second one happens, so a band that asks about it simply does not
@@ -989,6 +1012,8 @@ def _banded_templates():
                 "previous": template.requires_previous_doses,
                 "gap_min": template.first_gap_min_days,
                 "gap_max": template.first_gap_max_days,
+                "previous_min": template.previous_doses_min,
+                "previous_max": template.previous_doses_max,
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -1208,6 +1233,20 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                        if vid == vaccine.id and row.given_date
                        and (brand_first is None
                             or row.given_date < brand_first))
+        if vaccine.is_seasonal:
+            # A winter's course is that winter's. See :func:`_this_season`.
+            given_dates, previous = _this_season(given_dates, today)
+            if not given_dates:
+                # …and a season nobody has begun begins now. Without this the
+                # first dose is dated from the child's *age* — dob plus six
+                # months — so a sixteen-year-old reads "dose 1, overdue since
+                # 2016". Nobody can act on a missed 2016 flu season; what is
+                # true is that this child needs one this winter.
+                #
+                # Only when the season is empty. A child half-way through
+                # their priming pair is genuinely late for the second dose,
+                # and that date is computed from the first one, this season.
+                earliest_live = max(earliest_live or today, today)
         rota = schedule_for(vaccine, brand, dob, given_dates, today,
                             brand_first=brand_first, previous=previous)
         # Before anything is computed from these dates, whether they can be
@@ -1972,6 +2011,43 @@ def _catalogue_rows():
     return remember("vaccines:catalogue_rows", load)
 
 
+def _this_season(given_dates, today):
+    """The doses that belong to the season being scheduled, and the count of
+    those that came before it.
+
+    Returns ``(this_season, earlier)``.
+
+    A course a child runs once in a lifetime accumulates: dose 1 is dose 1 for
+    ever. A course they run every winter does not, and treating it the same
+    way is what put *"dose 2 — overdue since 2024"* on the file of a
+    five-year-old whose only flu shot was two and a half years ago. Their
+    2022 dose had been dropped into slot 1 of **this** season's pair, and slot
+    2 dated four weeks after it.
+
+    That child does need two doses — under nine with fewer than two in their
+    life — but they need them now, four weeks apart, not a slot filled by a
+    dose from before they could talk.
+
+    So the season's slots start empty each season, and the earlier doses do
+    the one job that is theirs: deciding whether this season is one dose or
+    two.
+    """
+    dated = sorted(d for d in given_dates.values() if d)
+    if not dated:
+        return given_dates, 0
+    if (today - dated[-1]).days >= SEASONAL_RECALL_DAYS:
+        return {}, len(dated)       # last season's; this one has not begun
+    cutoff = dated[-1] - timedelta(days=SEASONAL_RECALL_DAYS)
+    mine = sorted(d for d in dated if d > cutoff)
+    # **Renumbered.** The record numbers doses across a lifetime — a fifth
+    # winter is dose 5 — while the season's course has slots one and two. Keyed
+    # by the stored number, this season's dose 5 matches no slot, and a child
+    # who had their flu shot three weeks ago is told they still need one. That
+    # is a worse failure than the stale date this function exists to fix: it
+    # sends a family in for an injection they have already had.
+    return {i: d for i, d in enumerate(mine, start=1)}, len(dated) - len(mine)
+
+
 def _season_start(given_dates, today):
     """The first dose of the **current** season, or None if there is none.
 
@@ -2097,6 +2173,10 @@ def scan_due(dob, doses, today, agreed=None):
                            if bid == brand["id"] and d), default=None)
         previous = sum(1 for (_bid, d) in brand_doses.get(vaccine_id, [])
                        if d and (brand_first is None or d < brand_first))
+        if meta["seasonal"]:
+            mine, previous = _this_season(mine, today)
+            if not mine:
+                earliest_live = max(earliest_live or today, today)
         rota = _banded_for(vaccine_id, brand["id"], dob, mine, today,
                            brand_first=brand_first, previous=previous,
                            seasonal=meta["seasonal"])

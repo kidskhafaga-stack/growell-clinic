@@ -169,11 +169,15 @@ def test_a_dose_from_years_ago_does_not_hold_a_priming_pair_open(seeded):
 
     assert len(doses) == 1, \
         f"a seven-year-old dose still holds the priming pair open: {doses}"
-    assert doses[0]["status"] == "done"
+    # And the dose he is owed is owed **now**. The date used to be computed
+    # from his age — birth plus six months — so the file said "overdue since
+    # 2016". Nobody can act on a missed 2016 season; what is true is that he
+    # needs one this winter.
+    assert doses[0]["due_date"] >= local_today().isoformat(), \
+        f"his flu shot is dated in the past: {doses[0]['due_date']}"
 
     rows = _chased(seeded, kid)
-    assert rows and rows[0]["status"] == "seasonal", \
-        f"and then nobody called him in for this winter either: {rows}"
+    assert rows, "and then nobody called him in for this winter either"
 
 
 def test_a_dose_from_this_season_still_holds_it_open(seeded):
@@ -191,7 +195,31 @@ def test_a_child_who_had_two_winters_is_not_primed_again(seeded):
     annual recall is the whole of what they are owed."""
     kid = _child(seeded, 6, "two", doses=[(1, 400), (2, 370)])
 
-    assert {d["status"] for d in _flu(seeded, kid)["doses"]} == {"done"}
+    doses = _flu(seeded, kid)["doses"]
+
+    assert len(doses) == 1, \
+        f"a child with two winters behind them is being primed again: {doses}"
+
+
+def test_a_child_who_has_had_this_seasons_shot_is_not_called_again(seeded):
+    """Caught while making the change above, and it would have been worse than
+    the bug being fixed.
+
+    The record numbers doses across a lifetime — a fifth winter is dose 5 —
+    while the season's course has slots one and two. Keyed by the stored
+    number, this season's dose 5 matched no slot, and a child who had their
+    flu shot three weeks ago was told they still needed one. A stale date
+    wastes a phone call; this sends a family in for an injection they have
+    already had.
+    """
+    kid = _child(seeded, 5, "already",
+                 doses=[(1, 700), (2, 670), (3, 20)])
+
+    doses = _flu(seeded, kid)["doses"]
+
+    assert [d["status"] for d in doses] == ["done"], \
+        f"a child vaccinated three weeks ago is being called in again: {doses}"
+    assert not _chased(seeded, kid)
 
 
 # ------------------------------------------------- ordinary years untouched
@@ -206,7 +234,14 @@ def test_a_returning_patient_still_gets_the_annual_recall(seeded):
 
     rows = _chased(seeded, kid)
 
-    assert rows and rows[0]["status"] == "seasonal", rows
+    assert rows, "a returning patient was not called in for this winter"
+    # Asserted as "called in, for a date somebody can act on" rather than as
+    # the word `seasonal`. That status was the old mechanism: a recall with no
+    # date, fired eleven months after the last dose. This season's dose is now
+    # a real dose in a real course, so it carries a real date — and pinning
+    # the word made this test fail on the improvement.
+    assert rows[0]["due_date"] is None \
+        or rows[0]["due_date"] >= local_today().isoformat(), rows
 
 
 def test_an_older_child_is_not_asked_for_a_second_dose(seeded):
@@ -247,6 +282,39 @@ def test_the_two_paths_agree_about_a_primed_child(seeded):
             for r in scan_due(patient.date_of_birth, rows, today))
 
     assert by_orm == by_flat, f"file says {by_orm}, sweep says {by_flat}"
+
+
+def test_each_band_states_its_own_history_condition(seeded):
+    """`_pick_band` directly, because one of these is not reachable any other
+    way.
+
+    Measured: strip `previous_max` off and every other test in this file still
+    passes, because the band above it asks for two or more and the ordering
+    does the rest. That makes it redundant — and redundant is not the same as
+    wrong. A band that only works while its neighbour sorts first is a band
+    that breaks silently the day somebody reorders them, and reordering rows
+    on a screen is exactly what these are for.
+
+    So both conditions are asked here, on the function, where the ordering
+    cannot answer for them.
+    """
+    from datetime import date
+
+    from app.utils.vaccines import _pick_band
+
+    dob = date(2020, 1, 1)
+    today = date(2026, 8, 22)
+    primed = [{"min": None, "max": 107, "previous_min": 2, "doses": [(6, None)]}]
+    priming = [{"min": None, "max": 107, "previous_max": 1,
+                "doses": [(6, None), (7, 28)]}]
+
+    assert _pick_band(primed, dob, None, 2, today) is not None
+    assert _pick_band(primed, dob, None, 1, today) is None, \
+        "a band asking for two previous doses accepted a child with one"
+
+    assert _pick_band(priming, dob, None, 1, today) is not None
+    assert _pick_band(priming, dob, None, 2, today) is None, \
+        "a band capped at one previous dose accepted a child with two"
 
 
 # ------------------------------------------------------- it is data, not code
