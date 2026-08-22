@@ -46,6 +46,59 @@ TIMEOUT_SECONDS = 3
 STAMP = "installed_revision.txt"
 
 
+# Where the answer is kept between the launch that asked and the screens that
+# show it.
+STORED = "update_pending"
+
+
+def remember(found):
+    """Store what the launch check found, so nothing else has to ask again."""
+    from app.extensions import db
+    from app.models import Setting
+
+    if not found:
+        return None
+    Setting.set(STORED, json.dumps(found))
+    db.session.commit()
+    return found
+
+
+def remembered():
+    """What the last launch check found, or None.
+
+    The bell reads this and never reaches the network itself. Computing the
+    notice on the bell's own schedule would have turned one request per launch
+    into one every ninety seconds — on a program whose whole promise about this
+    feature is that it does not talk to anybody about the clinic — and would
+    have put a three-second timeout in front of pages a receptionist opens all
+    day.
+
+    It goes stale on its own. The stored answer names the revision that was
+    newest when somebody last launched; once this copy *is* that revision there
+    is nothing to say, and a clinic that has already updated must not go on
+    being told to. Which is also why nothing ever writes an empty value here:
+    a launch with no internet returns "no news" exactly like a launch that is
+    up to date, and clearing on that would delete a notice that is still true.
+    """
+    from app.models import Setting
+
+    try:
+        raw = Setting.get(STORED)
+    except Exception:  # noqa: BLE001 — the settings table may not be ready
+        return None
+    if not raw:
+        return None
+    try:
+        found = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(found, dict) or not found.get("latest"):
+        return None
+    if found.get("latest") == installed_revision():
+        return None
+    return found
+
+
 def _enabled():
     """Whether the clinic wants this asked at all."""
     try:

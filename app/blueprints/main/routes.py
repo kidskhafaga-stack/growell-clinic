@@ -13,6 +13,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import ActivityLog
 from app.models.user import clamp_print_scale
+from app.utils.decorators import admin_required
 
 ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
 PROFESSIONAL_TITLES = ["Professor", "Consultant", "Specialist", "Lecturer",
@@ -348,6 +349,27 @@ def set_sidebar():
     current_user.sidebar = "rail" if mode == "rail" else "full"
     db.session.commit()
     return {"sidebar": current_user.sidebar}
+
+
+@main_bp.route("/update")
+@admin_required
+def update_available():
+    """What the newer version is, and how to install it.
+
+    The program does not install it. Not as a matter of taste: replacing the
+    files a running process is executing, on the machine a clinic is seeing
+    patients on, is the failure that cost a morning when `start.bat` used to
+    run `git pull` on every launch. So this page ends at a sentence — close
+    the program and run `update.bat` — and the update happens with nothing
+    running, with a snapshot before it and a schema upgrade after it.
+
+    A button that closed the program safely and handed the job to a separate
+    updater would be a fair thing to build; it would still not be this page
+    doing the updating, which is the part that matters.
+    """
+    from app.utils.updates import remembered
+
+    return render_template("main/update.html", update=remembered())
 
 
 @main_bp.route("/notifications/dismiss", methods=["POST"])

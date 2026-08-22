@@ -2994,10 +2994,23 @@
     "recall_after_months": "Treat a patient as lapsed after (months)",
     "recall_after_months_hint": "The clinic decides. Keep it below the archiving window, or the file is archived before anybody recalls it."
   },
+  "update": {
+    "title": "A newer version",
+    "sub": "This copy is not the latest one. The upgrade is done with the program closed.",
+    "whats_new": "What changed",
+    "no_notes": "No details about the changes are available.",
+    "how": "How to install it",
+    "step_close": "Close the program (close the server window).",
+    "step_run": "Run",
+    "step_start": "When it finishes, open the program with",
+    "safety": "update.bat takes a backup first, then replaces the files, then brings the database up to date. The program never updates itself while it is running.",
+    "none": "This copy is up to date."
+  },
   "notif": {
     "title": "Notifications",
     "empty": "All caught up — no alerts.",
     "appointments_today": "{count} appointment(s) today",
+    "update_available": "A newer version of the program",
     "unpaid_invoices": "{count} unpaid / partial invoice(s)",
     "stock_expiry": "{count} expired / near-expiry stock item(s)",
     "low_stock": "{count} low-stock item(s)",

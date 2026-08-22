@@ -243,6 +243,20 @@ def _compute():
     except Exception:  # noqa: BLE001
         pass
 
+    # A newer version of the program, as the last launch found it. Read from
+    # what was stored rather than asked here: see `updates.remembered`. Under
+    # `settings`, which is admin-only — updating is not a receptionist's
+    # decision, and a notice they cannot act on is noise.
+    try:
+        from app.utils.updates import remembered
+        if remembered():
+            items.append({"key": "update_available", "module": "settings",
+                          "icon": "arrow-up-circle", "severity": "info",
+                          "count": 1, "endpoint": "main.update_available",
+                          "kwargs": {}})
+    except Exception:  # noqa: BLE001
+        pass
+
     return items
 
 

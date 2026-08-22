@@ -99,11 +99,16 @@ def register_commands(app):
         The distinction from ``update.bat`` is the point. Updating is a
         decision somebody makes, with a snapshot before it and a schema
         upgrade after it. This only knocks on the door.
+
+        What it finds is also written down, because the console it prints to
+        scrolls past in a window nobody is looking at. The bell reads what was
+        stored, so the notice survives until somebody acts on it — and so that
+        showing it costs no request of its own.
         """
-        from app.utils.updates import pending
+        from app.utils.updates import pending, remember
 
         try:
-            found = pending()
+            found = remember(pending())
         except Exception:  # noqa: BLE001 — a notice never blocks a launch
             return
         if not found:

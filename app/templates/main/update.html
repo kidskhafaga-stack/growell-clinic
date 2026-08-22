@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('update.title') }}{% endblock %}
+{% block page_heading %}{{ t('update.title') }}{% endblock %}
+
+{# The page the bell points at. It says what is new and how to install it, and
+   it does not install it: replacing the files of a running program, on the
+   machine a clinic is seeing patients on, is the failure that cost a morning
+   when start.bat used to pull on every launch. #}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('update.title') }}</h1>
+
+{% if update %}
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('update.sub') }}</p>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-list-ul"></i> {{ t('update.whats_new') }}</h2>
+  {% if update.notes %}
+  <ul style="margin:0;padding-inline-start:20px;line-height:1.8;">
+    {% for line in update.notes %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+  {% else %}
+  <p style="color:var(--muted);margin:0;">{{ t('update.no_notes') }}</p>
+  {% endif %}
+  <p class="hint" style="margin-top:12px;" dir="ltr">
+    {{ update.installed[:12] }} → {{ update.latest[:12] }}</p>
+</div>
+
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-box-arrow-in-down"></i> {{ t('update.how') }}</h2>
+  <ol style="margin:0;padding-inline-start:20px;line-height:1.9;">
+    <li>{{ t('update.step_close') }}</li>
+    <li>{{ t('update.step_run') }} <code dir="ltr">update.bat</code></li>
+    <li>{{ t('update.step_start') }} <code dir="ltr">start.bat</code></li>
+  </ol>
+  <p class="hint" style="margin-top:12px;">
+    <i class="bi bi-shield-check"></i> {{ t('update.safety') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  <p style="margin:0;color:var(--muted);">
+    <i class="bi bi-check-circle"></i> {{ t('update.none') }}</p>
+</div>
+{% endif %}
+{% endblock %}
