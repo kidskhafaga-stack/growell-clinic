@@ -627,6 +627,67 @@ _AGE_BANDED = {
                   "— للمراجعة",
          "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
 
+        # ----------------------------------- Prevenar 13's own catch-up
+        #
+        # Measured as a hole this branch opened, and the worst kind: moving
+        # the guideline rules out of the leaflet set left a clinic that
+        # explicitly follows the leaflet with **no** pneumococcal catch-up at
+        # all, so it fell back to the brand's raw dose rows and started
+        # chasing a six-year-old for three more infant doses. That is the
+        # screen this whole line of work began with, arriving again by the
+        # door the fix opened.
+        #
+        # The leaflet has never been silent about it. Pfizer's own catch-up
+        # table for a previously unvaccinated child is three doses from 7–11
+        # months, two from 12–23 at least two months apart, and one from two
+        # years — the same table the FDA prints, and the same shape Merck
+        # gives for Vaxneuvance below. It simply was not written down here.
+        #
+        # On the brand and not the vaccine, because that is what it is: a
+        # statement about this product, in this leaflet. Synflorix stops at
+        # five years and says something different, and a rule copied across
+        # them would be wrong for one of them.
+        #
+        # The SmPC adds a sentence worth repeating: schedules for Prevenar 13
+        # "should be based on official recommendations". The leaflet is what a
+        # product can do, not what a country has decided to do — which is
+        # exactly why these rows are tagged `manufacturer` and are not
+        # borrowed by `egypt`.
+        {"code": "PCV13-CU7", "previous": "none", "min": 7, "max": 11,
+         "sort_order": 10, "brand": "Prevenar 13",
+         "label": "Prevenar 13 — بدء 7–11 شهر بدون جرعات سابقة: 3 جرعات، "
+                  "الأخيرة في السنة الثانية — للمراجعة",
+         "doses": [(7, None), (8, 28), (12, 56)]},
+        {"code": "PCV13-CU12", "previous": "none", "min": 12, "max": 23,
+         "sort_order": 11, "brand": "Prevenar 13",
+         "label": "Prevenar 13 — بدء 12–23 شهر بدون جرعات سابقة: جرعتان "
+                  "بفاصل ≥شهرين — للمراجعة",
+         "doses": [(12, None), (14, 56)]},
+        # Two years and over, and matched on today's age with a cap on what
+        # is already on file rather than on `previous: none`.
+        #
+        # The leaflet's row says "previously unvaccinated", and read that
+        # narrowly a six-year-old with a single infant dose matches nothing —
+        # and falls straight back to the four-dose infant series, which is the
+        # bug. Read as what the leaflet actually does and does not ask for, it
+        # is clearer: nowhere does this label tell anybody to give a
+        # six-year-old the rest of a baby's course. One dose is the most it
+        # asks of a child this age, and a child who has already had four is
+        # complete and matches nothing here.
+        {"code": "PCV13-CU2Y", "min": 24, "max": 215, "sort_order": 12,
+         "match_on": "today", "brand": "Prevenar 13",
+         "catch_up": True, "previous_max": 3,
+         "label": "Prevenar 13 — سنتين فأكثر (حتى 17 سنة) وأقل من 4 جرعات: "
+                  "جرعة واحدة — للمراجعة",
+         "doses": [(24, None)]},
+        # Beyond the licensed age the label has nothing to say, and saying
+        # nothing is the honest answer rather than the infant series.
+        {"code": "PCV13-END", "min": 216, "max": None, "sort_order": 13,
+         "match_on": "today", "brand": "Prevenar 13", "catch_up": True,
+         "label": "Prevenar 13 — 18 سنة فأكثر: خارج العمر المرخّص للمستحضر "
+                  "— للمراجعة",
+         "doses": []},
+
         # ------------------------------------- and the product's own leaflet
         {"code": "PCV15-INF", "min": 1, "max": 6, "sort_order": 6,
          "brand": "Vaxneuvance",
@@ -1282,23 +1343,50 @@ def schedule_for(vaccine, brand, dob, given_dates, today=None,
 
 
 def _bands_for(vaccine_id, brand_id):
-    """The bands this brand follows: its own if it has any, else the vaccine's.
+    """The bands this child's course follows, in the order that decides them.
 
-    A trade name with its own schedule is not merely *preferred* — it replaces
-    the vaccine's rather than adding to it, because a leaflet is a complete
-    statement about that product and mixing half of it with a generic one is
-    how a course ends up with a dose from neither.
+    Four pools, most specific first:
+
+      1. the chosen guideline, about this trade name;
+      2. the chosen guideline, about the vaccine;
+      3. the leaflet, about this trade name;
+      4. the leaflet, about the vaccine.
+
+    **The guideline comes before the leaflet**, and that ordering is the fix
+    for a bug measured rather than argued about. It used to be brand before
+    vaccine and nothing else — a trade name's schedule replaced the vaccine's,
+    because a leaflet is a complete statement about that product and mixing
+    half of it with a generic one is how a course ends up with a dose from
+    neither. That is sound between two leaflets. It is not sound between a
+    leaflet and the reference the clinic has chosen.
+
+    Writing Pfizer's pneumococcal catch-up down — which belongs on the brand,
+    and which a clinic following the leaflet needs — silently replaced the
+    Egyptian and CDC tables for every child on that vial, because it is the
+    default one. The five-year ceiling vanished, and a partial record the
+    reference deliberately declines to guess at came back with an invented
+    date. A clinic that follows the CDC wants the CDC's catch-up whichever
+    vial is in the fridge; the leaflet is what answers where its reference
+    says nothing about the product at all.
+
+    Within a pool, a band with no doses is kept, and that is what makes "no
+    routine course at this age" sayable. An active row with an age range and
+    nothing in it has exactly one meaning — this reference schedules nothing
+    here — and dropping it as malformed is what left a healthy sixteen-year-
+    old being chased for the rest of a baby's pneumococcal series.
     """
-    # A band with no doses is kept, and that is the change that makes "no
-    # routine course at this age" sayable. An active row with an age range and
-    # nothing in it has exactly one meaning — this guideline schedules nothing
-    # here — and dropping it as malformed is what left a healthy sixteen-year-
-    # old being chased for the rest of a baby's pneumococcal series.
-    banded = _banded_templates()
-    mine = [b for b in banded.get(vaccine_id, []) if b["brand_id"] == brand_id]
-    if mine:
-        return mine
-    return [b for b in banded.get(vaccine_id, []) if b["brand_id"] is None]
+    banded = _banded_templates().get(vaccine_id, [])
+    if not banded:
+        return []
+    profile = guideline_profile()
+    for ours in (True, False):
+        for want_brand in (brand_id, None):
+            picked = [b for b in banded
+                      if (b["source"] == profile) is ours
+                      and b["brand_id"] == want_brand]
+            if picked:
+                return picked
+    return []
 
 
 def guideline_profile():

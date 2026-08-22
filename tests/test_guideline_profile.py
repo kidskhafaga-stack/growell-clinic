@@ -161,11 +161,18 @@ def test_a_product_the_guideline_ignores_keeps_its_leaflet(seeded):
     """No guideline covers a whole fridge. Silence about a *product* is not a
     decision to stop scheduling it.
 
-    Measured on Vaxneuvance rather than on a plain course, deliberately. Its
-    leaflet bands say a child starting at nine months gets **three** doses
-    while the brand's own dose rows say four — so dropping the leaflet from
-    the query is visible here and invisible anywhere the two agree. The first
-    version of this test used such a place and passed under the mutation.
+    Measured on Menveo rather than on a plain course, deliberately. Its
+    leaflet bands give a child starting at nine months **two** doses while the
+    brand's own dose rows give one — so dropping the leaflet from the query is
+    visible here and invisible anywhere the two agree. An early version of
+    this test used such a place and passed under the mutation.
+
+    It used to be measured on Vaxneuvance, and that stopped being a fair
+    example the moment the CDC's pneumococcal table was written down: the CDC
+    does not ignore pneumococcal any more, so a Vaxneuvance child under the
+    CDC now gets the CDC's catch-up, which is the whole point of following it.
+    Meningococcal ACWY is the honest example now — every band it has comes
+    from a leaflet, and no guideline set in this catalogue speaks about it.
     """
     from app.extensions import db
     from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
@@ -173,24 +180,76 @@ def test_a_product_the_guideline_ignores_keeps_its_leaflet(seeded):
 
     _follow(seeded, "cdc")
     with seeded["app"].app_context():
-        pcv = Vaccine.query.filter_by(code="PCV").first()
-        brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
-                                             name="Vaxneuvance").first()
+        mcv = Vaccine.query.filter_by(code="MENACWY").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=mcv.id,
+                                             name="Menveo").first()
         dob = local_today() - timedelta(days=int(1.2 * 365.25))
-        kid = Patient(patient_number="GLvax", full_name="طفل", gender="male",
+        kid = Patient(patient_number="GLmen", full_name="طفل", gender="male",
                       date_of_birth=dob, is_active=True)
         db.session.add(kid)
         db.session.flush()
         db.session.add(PatientVaccine(
-            patient_id=kid.id, vaccine_id=pcv.id, brand_id=brand.id,
+            patient_id=kid.id, vaccine_id=mcv.id, brand_id=brand.id,
             dose_number=1, event_type="given",
             given_date=dob + timedelta(days=int(9 * 30.4))))
         db.session.commit()
-        row = next(v for v in patient_plan(kid) if v["vaccine"].code == "PCV")
+        row = next(v for v in patient_plan(kid)
+                   if v["vaccine"].code == "MENACWY")
 
-    assert row["brand"].name == "Vaxneuvance"
-    assert len(row["doses"]) == 3, \
+    assert row["brand"].name == "Menveo"
+    assert len(row["doses"]) == 2, \
         "the leaflet's own bands were dropped for a product the CDC ignores"
+
+
+def test_the_guideline_wins_over_the_leaflet_for_the_same_product(seeded):
+    """And the rule that decides between them when both speak.
+
+    Measured, after writing Pfizer's pneumococcal catch-up down where it
+    belongs — on the brand — silently replaced the chosen guideline's table
+    for every child on that vial, because it is the default one. The five-year
+    ceiling vanished and a partial record the reference declines to guess at
+    came back with an invented date.
+
+    A trade name's schedule replacing the vaccine's is right *between two
+    leaflets*. Between a leaflet and the reference the clinic has chosen, the
+    reference wins: a clinic following the CDC wants the CDC's catch-up
+    whichever vial is in the fridge.
+    """
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+    from app.utils.vaccines import patient_plan
+
+    def ten_year_old(profile, tag):
+        _follow(seeded, profile)
+        with seeded["app"].app_context():
+            pcv = Vaccine.query.filter_by(code="PCV").first()
+            brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
+                                                 name="Prevenar 13").first()
+            dob = local_today() - timedelta(days=int(10 * 365.25))
+            kid = Patient(patient_number=f"GLw{tag}", full_name="طفل",
+                          gender="male", date_of_birth=dob, is_active=True)
+            db.session.add(kid)
+            db.session.flush()
+            for number, months in ((1, 2), (2, 4), (3, 6)):
+                db.session.add(PatientVaccine(
+                    patient_id=kid.id, vaccine_id=pcv.id, brand_id=brand.id,
+                    dose_number=number, event_type="given",
+                    given_date=dob + timedelta(days=int(months * 30.4))))
+            db.session.commit()
+            row = next(v for v in patient_plan(kid)
+                       if v["vaccine"].code == "PCV")
+            return [d for d in row["doses"] if d["status"] != "done"]
+
+    # Prevenar 13's own label offers a single dose to a child of this age.
+    assert ten_year_old("manufacturer", "m"), \
+        "the leaflet stopped answering for a clinic that follows the leaflet"
+
+    # The CDC ends the routine course at five, and says so about pneumococcal
+    # rather than about a trade name — so it wins here.
+    assert not ten_year_old("cdc", "c"), \
+        "a brand's leaflet overruled the guideline the clinic follows"
+    assert not ten_year_old("egypt", "e"), \
+        "a brand's leaflet overruled the guideline the clinic follows"
 
 
 def test_silence_about_an_age_is_an_answer(seeded):
