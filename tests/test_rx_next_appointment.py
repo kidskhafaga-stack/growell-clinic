@@ -62,15 +62,38 @@ def _book(clinic, when, at=time(9, 0), status="scheduled", doctor=None,
 
 
 def _page(clinic, build):
-    """Build the world inside one app context, then fetch the paper."""
+    """Build the world inside one app context, then fetch **the paper**.
+
+    The printable sheet only, not the screen around it. The page's own chrome
+    carries today's date in its bar, and a test asking "is this appointment on
+    the paper?" by searching the whole document finds that instead on any day
+    the two happen to be equal.
+
+    Which is not hypothetical: this file books its follow-up for a fixed
+    2026-08-23, and on 2026-08-23 the negative test — *the doctor switched it
+    off, so it must not be printed* — went red against the date in the
+    topbar. One day in the calendar, and it would have been read as a bug in
+    the prescription.
+    """
     from app.extensions import db
 
     with clinic["app"].app_context():
         rx, tpl = build()
         db.session.commit()
         rx_id, tpl_id = rx.id, tpl.id
-    return clinic["sign_in"]("boss").get(
+    page = clinic["sign_in"]("boss").get(
         f"/prescriptions/{rx_id}?template={tpl_id}").data.decode()
+    return _sheet(page)
+
+
+def _sheet(page):
+    """The printable area of a prescription page, or the whole thing if the
+    marker ever moves — a helper that silently returns nothing would turn
+    every assertion here green."""
+    marker = 'id="rxPaper"'
+    at = page.find(marker)
+    assert at != -1, "the printable sheet is not on the page any more"
+    return page[at:]
 
 
 # --------------------------------------------------------------- it prints
