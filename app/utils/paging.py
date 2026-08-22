@@ -59,6 +59,66 @@ def paginate(query, default=DEFAULT_PER_PAGE):
                           error_out=False)
 
 
+class ListPage:
+    """A page of an in-memory list, shaped like the query pagination.
+
+    Some screens do not have a query to page. The vaccination reminder list is
+    computed — a sweep over the whole register that returns rows, not a
+    ``Query`` — so `paginate` cannot touch it, and it was the one long screen
+    in the program that showed every row it had. On a real register that is
+    thousands of rows drawn at once: slow to render, and impossible to work
+    from.
+
+    Rather than a second way of paging with a second look, this presents the
+    same surface the template macro already speaks to, so the bar under the
+    reminder list is the bar under the patient list and nobody has to learn
+    it twice.
+    """
+
+    def __init__(self, items, page, per_page):
+        self.total = len(items)
+        self.per_page = max(1, per_page)
+        self.pages = max(1, -(-self.total // self.per_page)) if self.total else 0
+        self.page = min(max(1, page), self.pages) if self.pages else 1
+        start = (self.page - 1) * self.per_page
+        self.items = items[start:start + self.per_page]
+
+    @property
+    def has_prev(self):
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        return self.page < self.pages
+
+    @property
+    def prev_num(self):
+        return self.page - 1 if self.has_prev else None
+
+    @property
+    def next_num(self):
+        return self.page + 1 if self.has_next else None
+
+    def iter_pages(self, left_edge=1, left_current=2, right_current=2,
+                   right_edge=1):
+        """The same windowing Flask-SQLAlchemy does, so the bar looks the same."""
+        last = 0
+        for num in range(1, self.pages + 1):
+            if (num <= left_edge
+                    or (self.page - left_current - 1 < num
+                        < self.page + right_current)
+                    or num > self.pages - right_edge):
+                if last + 1 != num:
+                    yield None
+                yield num
+                last = num
+
+
+def paginate_list(items, default=DEFAULT_PER_PAGE):
+    """Page a computed list the way every list screen pages a query."""
+    return ListPage(items, page_number(), per_page(default))
+
+
 def page_window(pagination):
     """``(first, last)`` row numbers on this page, for "showing 51–75 of 312".
 

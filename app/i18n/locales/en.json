@@ -5023,5 +5023,11 @@
   "vreview": {
     "title": "Clinical review required",
     "hint": "This record cannot be scheduled from — the program will not guess."
+  },
+  "vlate": {
+    "due": "Due now",
+    "recent": "Late under a month",
+    "year": "Late under a year",
+    "old": "Late over a year"
   }
 }

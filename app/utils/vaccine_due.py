@@ -128,9 +128,10 @@ def due_list(start=None, end=None, vaccine_id=None, brand_id=None,
     people = {p.id: p for p in Patient.query.filter(
         Patient.id.in_({pid for pid, _ in found})).all()}
 
-    out = [{**row, "patient": people[pid]} for pid, row in found
-           if pid in people]
-    out.sort(key=_urgency)
+    out = [{**row, "patient": people[pid],
+            "lateness": lateness_of(row["status"], row["due"], today)}
+           for pid, row in found if pid in people]
+    out.sort(key=lambda r: _urgency(r, today))
     return _tagged(out, held_back)
 
 
@@ -162,11 +163,56 @@ def _as_date(value):
     return None
 
 
-_ORDER = {"overdue": 0, "due": 1, "seasonal": 2}
+# How late, in the only bands a clinic acts on differently.
+#
+# The screen this exists for is a calling list, and "overdue" was carrying two
+# unlike things: a one-year-old three weeks late for a pneumococcal dose, and a
+# sixteen-year-old whose second hepatitis A has been outstanding since 2012.
+# Both are true. One of them is a phone call today.
+#
+# Ordered by that, rather than by the date, because sorting by the date alone
+# put the least actionable rows at the very top of the screen — the oldest
+# misses first, for pages, before anything anybody could do anything about.
+LATENESS = ("due", "recent", "year", "old")
+
+# The edges, in days late. Round numbers on purpose: a clinic reads "within a
+# month" and "within a year", and nobody can act on the difference between 30
+# and 31.
+_RECENT_DAYS = 30
+_YEAR_DAYS = 365
 
 
-def _urgency(row):
-    return (_ORDER.get(row["status"], 3), row["due"] or date.max)
+def lateness_of(status, due, today=None):
+    """Which band a row belongs in — see :data:`LATENESS`."""
+    if status != "overdue":
+        return "due"            # due now, or a seasonal recall: not late yet
+    when = _as_date(due)
+    if when is None:
+        return "due"
+    days = ((today or local_today()) - when).days
+    if days <= _RECENT_DAYS:
+        return "recent"
+    if days <= _YEAR_DAYS:
+        return "year"
+    return "old"
+
+
+def _urgency(row, today=None):
+    """Most actionable first.
+
+    Within "not late yet", the soonest. Within a late band, the **most
+    recently** missed — a family three weeks late is far more likely to be
+    reachable, and to benefit, than one fourteen years late, and a list that
+    opens with 2012 is a list nobody scrolls.
+    """
+    today = today or local_today()
+    band = row.get("lateness") or lateness_of(row["status"], row["due"], today)
+    rank = LATENESS.index(band) if band in LATENESS else len(LATENESS)
+    when = _as_date(row.get("due"))
+    if band == "due":
+        # No date at all is a seasonal recall: owed now, so it sorts with now.
+        return (rank, (when or today).toordinal())
+    return (rank, -(when or today).toordinal())
 
 
 def order_suggestion(rows, cover_days=None, today=None):
@@ -217,4 +263,6 @@ def summarise(rows):
             counts[row["status"]] += 1
     counts["patients"] = len({row["patient"].id for row in rows})
     counts["total"] = len(rows)
+    for band in LATENESS:
+        counts[band] = sum(1 for row in rows if row.get("lateness") == band)
     return counts
