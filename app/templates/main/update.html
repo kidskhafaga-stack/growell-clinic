@@ -53,7 +53,10 @@
   {% if can_hand_off %}
   <form method="post" action="{{ url_for('main.update_start') }}"
         style="margin-top:16px;"
-        onsubmit="return confirm({{ t('update.confirm') | tojson }});">
+        {# `|forceescape` after `|tojson`, or the quotes JSON puts round the
+           string close this attribute at the first one and the rest of the
+           sentence lands in the markup. The repo-wide rule caught this. #}
+        onsubmit="return confirm({{ t('update.confirm') | tojson | forceescape }});">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-power"></i> {{ t('update.do_it') }}</button>
