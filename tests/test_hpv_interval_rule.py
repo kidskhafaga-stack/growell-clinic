@@ -126,7 +126,9 @@ def test_a_vaccine_with_no_gap_rule_is_untouched(seeded):
         pcv = Vaccine.query.filter_by(code="PCV").first()
         brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
                                              name="Prevenar 13").first()
-        dob = local_today() - timedelta(days=900)
+        # Under a year: from two the pneumococcal has an age-based catch-up,
+        # and a control that has moved onto it is no longer a control.
+        dob = local_today() - timedelta(days=300)
         kid = Patient(patient_number="HVpcv", full_name="طفل", gender="male",
                       date_of_birth=dob, is_active=True)
         db.session.add(kid)

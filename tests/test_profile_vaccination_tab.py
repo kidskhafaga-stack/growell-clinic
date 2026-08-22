@@ -47,7 +47,12 @@ def child(clinic):
         brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
                                              name="Prevenar 13").first()
         kid = Patient(patient_number="VT1", full_name="طفل", gender="female",
-                      date_of_birth=local_today() - timedelta(days=900),
+                      # Under two, so the course is the infant series and this
+                      # file measures the *display* rather than the schedule.
+                      # At two and a half the pneumococcal catch-up applies and
+                      # "2/4" becomes "2/3" — a true change that has nothing to
+                      # do with what this test is about.
+                      date_of_birth=local_today() - timedelta(days=400),
                       is_active=True)
         db.session.add(kid)
         db.session.flush()

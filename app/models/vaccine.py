@@ -461,6 +461,19 @@ class VaccineScheduleTemplate(db.Model):
     # first dose, that child is chased for the rest of a baby's course until
     # they are sixteen.
     match_age_on = db.Column(db.String(8), default="start")
+    # A catch-up: this band's doses are **additional** to what is on file
+    # rather than the whole course, so the earlier doses do not fill its slots.
+    #
+    # Without it a catch-up cannot be written down at all. "One dose to
+    # complete, for a healthy child of two to four" is a one-dose course, and
+    # a one-dose course has its single slot filled by the infant dose the
+    # child already had — so "one more" comes out as "nothing owed", which is
+    # the opposite of what it says.
+    #
+    # The same shape as a season: the slots start empty, and the doses already
+    # given decide how *long* the course is rather than filling it. That
+    # machinery was built for influenza and is reused here.
+    starts_fresh = db.Column(db.Boolean, default=False, nullable=False)
 
     PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)
