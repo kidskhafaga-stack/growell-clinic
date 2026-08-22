@@ -345,19 +345,66 @@ _AGE_BANDED = {
     # and never about this product, and Merck's catch-up would be wrong
     # applied to Synflorix, which stops at five years.
     "PCV": [
-        {"code": "PCV15-INF", "min": 1, "max": 6, "sort_order": 0,
+        # ------------------------------------------------ the catch-up rule
+        #
+        # Decided explicitly: *"PCV → age-based catch-up rule, not PCV →
+        # continue the infant series up to sixteen years."* A healthy child who
+        # reaches two years after an earlier dose is no longer in a baby's
+        # course, and the number of doses they owe is read from the age they
+        # are **now** and what they have already had.
+        #
+        # So this is matched on today's age (`match_on`), which is the
+        # opposite of HPV and deliberately: HPV locks at the first dose so a
+        # birthday between doses cannot add a third, and a catch-up re-reads
+        # the child every time, because that is what a catch-up is.
+        #
+        # On the vaccine and not a trade name: this is the national/
+        # international catch-up and it applies to whichever pneumococcal is
+        # in the fridge. What the *product* licenses — its own age range and
+        # doses — stays on the brand, where a clinic's correction already
+        # lives. Keeping those two apart was the instruction.
+        #
+        # **Only the ceiling is here**, and it is tagged `manufacturer` for a
+        # mechanical reason worth stating: the engine always loads the
+        # leaflet set *plus* the chosen profile's, so a row tagged with a
+        # profile is invisible to every clinic that follows a different one —
+        # and this clinic follows the default. Tagged the other way, the fix
+        # would have changed nothing on the screen that reported it. The row
+        # is seeded, editable and deletable like every other band.
+        #
+        # It is a lone band on purpose. A band whose source *is* the chosen
+        # profile makes that profile authoritative for the whole vaccine, and
+        # then its silence about an age means "no course" — so seeding this
+        # one under `cdc` blanked the infant series for every baby in a clinic
+        # following the CDC. Measured, not reasoned about.
+        #
+        # The middle of the catch-up — one dose to complete for a healthy
+        # child of two to four — is deliberately absent. A one-dose course has
+        # its single slot filled by the infant dose the child already had, so
+        # "one more" comes out as "nothing owed". Making that work means
+        # teaching the engine that a catch-up's doses are *additional* to what
+        # is on file, which is a change to make deliberately rather than to
+        # guess at. Under five years nothing here changes.
+        {"code": "PCV-ROUTINE-END", "min": 60, "max": None, "sort_order": 5,
+         "match_on": "today", "source": "manufacturer",
+         "label": "5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
+                  "لا جرعات إلا بقرار طبيب — للمراجعة",
+         "doses": []},
+
+        # ------------------------------------- and the product's own leaflet
+        {"code": "PCV15-INF", "min": 1, "max": 6, "sort_order": 6,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء 6 أسابيع–6 شهور: 4 جرعات — للمراجعة",
          "doses": [(2, None), (4, 28), (6, 28), (12, 60)]},
-        {"code": "PCV15-CU7", "previous": "none", "min": 7, "max": 11, "sort_order": 1,
+        {"code": "PCV15-CU7", "previous": "none", "min": 7, "max": 11, "sort_order": 7,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء 7–11 شهر بدون PCV سابق: 3 جرعات — للمراجعة",
          "doses": [(7, None), (8, 28), (12, 60)]},
-        {"code": "PCV15-CU12", "previous": "none", "min": 12, "max": 23, "sort_order": 2,
+        {"code": "PCV15-CU12", "previous": "none", "min": 12, "max": 23, "sort_order": 8,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء 12–23 شهر: جرعتان بفاصل ≥شهرين — للمراجعة",
          "doses": [(12, None), (14, 60)]},
-        {"code": "PCV15-CU2Y", "previous": "none", "min": 24, "max": None, "sort_order": 3,
+        {"code": "PCV15-CU2Y", "previous": "none", "min": 24, "max": None, "sort_order": 9,
          "brand": "Vaxneuvance",
          "label": "Vaxneuvance — بدء سنتين فأكثر: جرعة واحدة — للمراجعة",
          "doses": [(24, None)]},
@@ -498,7 +545,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    start_age_max_months=None, brand_id=None,
                    requires_previous_doses=None, first_gap_min_days=None,
                    first_gap_max_days=None, previous_doses_min=None,
-                   previous_doses_max=None):
+                   previous_doses_max=None, match_age_on="start"):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -517,6 +564,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         first_gap_max_days=first_gap_max_days,
         previous_doses_min=previous_doses_min,
         previous_doses_max=previous_doses_max,
+        match_age_on=match_age_on,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -597,7 +645,8 @@ def seed_vaccine_schedules():
                 first_gap_min_days=band.get("gap_min"),
                 first_gap_max_days=band.get("gap_max"),
                 previous_doses_min=band.get("previous_min"),
-                previous_doses_max=band.get("previous_max"))
+                previous_doses_max=band.get("previous_max"),
+                match_age_on=band.get("match_on", "start"))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -765,8 +814,11 @@ def _pick_band(bands, dob, start, previous, today, first_gap=None):
     child switching product at nine months with two doses behind them belongs
     to neither half of it.
     """
-    months = _months_between(dob, start or today)
+    at_start = _months_between(dob, start or today)
+    now = _months_between(dob, today)
     for band in bands:
+        # Which age this band is matched on — see `match_age_on` on the model.
+        months = now if band.get("match_on") == "today" else at_start
         low = band["min"] if band["min"] is not None else -10 ** 6
         high = band["max"] if band["max"] is not None else 10 ** 6
         if not low <= months <= high:
@@ -928,13 +980,16 @@ def _bands_for(vaccine_id, brand_id):
     statement about that product and mixing half of it with a generic one is
     how a course ends up with a dose from neither.
     """
+    # A band with no doses is kept, and that is the change that makes "no
+    # routine course at this age" sayable. An active row with an age range and
+    # nothing in it has exactly one meaning — this guideline schedules nothing
+    # here — and dropping it as malformed is what left a healthy sixteen-year-
+    # old being chased for the rest of a baby's pneumococcal series.
     banded = _banded_templates()
-    mine = [b for b in banded.get(vaccine_id, [])
-            if b["doses"] and b["brand_id"] == brand_id]
+    mine = [b for b in banded.get(vaccine_id, []) if b["brand_id"] == brand_id]
     if mine:
         return mine
-    return [b for b in banded.get(vaccine_id, [])
-            if b["doses"] and b["brand_id"] is None]
+    return [b for b in banded.get(vaccine_id, []) if b["brand_id"] is None]
 
 
 def guideline_profile():
@@ -1014,6 +1069,7 @@ def _banded_templates():
                 "gap_max": template.first_gap_max_days,
                 "previous_min": template.previous_doses_min,
                 "previous_max": template.previous_doses_max,
+                "match_on": template.match_age_on or "start",
                 "doses": doses.get(template.id, []),
             })
         return out

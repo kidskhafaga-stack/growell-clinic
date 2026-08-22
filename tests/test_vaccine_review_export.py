@@ -85,7 +85,11 @@ def test_a_banded_brand_says_how_many_bands(catalogue):
             f"{name} lost its age bands: {count!r}"
     # HPV's bands are the vaccine's, so both trade names follow them.
     assert "vaccine-wide" in rows["Gardasil 9"]["R1_age_bands"]
-    assert rows["Prevenar 13"]["R1_age_bands"] == ""
+    # Prevenar 13 carries the pneumococcal ceiling — one vaccine-wide row
+    # saying the routine childhood course ends at five — and no leaflet bands
+    # of its own. Asserted as "vaccine-wide", not as a count: the count is
+    # exactly what the docstring above says a test must not pin.
+    assert "vaccine-wide" in rows["Prevenar 13"]["R1_age_bands"]
 
 
 def test_rabies_is_marked_as_given_on_an_event(catalogue):

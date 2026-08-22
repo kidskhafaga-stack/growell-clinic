@@ -307,10 +307,16 @@ def test_a_brands_schedule_does_not_leak_onto_its_siblings(seeded):
     nothing about any of them by name; it speaks about pneumococcal conjugate
     as a class, which is exactly why the class-level row is not what a course
     runs on.
+
+    A toddler, because this is now the age at which the question is live: the
+    routine pneumococcal course ends at five, so a six-year-old has an empty
+    course whatever product they are on and the leak could not be seen. The
+    fixture used to be six, which made this test pass for the wrong reason the
+    moment that ceiling existed.
     """
     from app.models import VaccineBrand
 
-    theirs = _brand_kid(seeded, "PCV", "Prevenar 13", 6.0, "prev", 5.0)
+    theirs = _brand_kid(seeded, "PCV", "Prevenar 13", 2.0, "prev", 0.2)
 
     with seeded["app"].app_context():
         expected = len(VaccineBrand.query.filter_by(
