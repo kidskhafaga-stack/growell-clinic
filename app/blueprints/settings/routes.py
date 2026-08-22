@@ -122,9 +122,9 @@ def ai_models():
     """
     from flask import jsonify
 
-    from app.utils.ai import list_models
+    from app.utils.ai import as_json, list_models
 
-    return jsonify(list_models(_ai_form_config()))
+    return jsonify(as_json(list_models(_ai_form_config())))
 
 
 @settings_bp.route("/ai/test", methods=["POST"])
@@ -155,8 +155,13 @@ def ai_test():
         if not same_as_saved(tested):
             flash(t("settings.ai_test_unsaved"), "warning")
     else:
-        flash(t("settings.ai_test_failed").replace("{e}", str(result.get("error"))),
-              "danger")
+        # The sentence, never the provider's own words. A clinic out of
+        # credit used to be handed a JSON object quoting a vendor's field
+        # names — see :func:`app.utils.ai._http_error`.
+        from app.utils.ai import error_sentence
+
+        flash(t("settings.ai_test_failed").replace(
+            "{e}", error_sentence(result.get("error"))), "danger")
     return redirect(url_for("settings.index") + "#ai")
 
 

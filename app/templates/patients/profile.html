@@ -1203,7 +1203,7 @@
           var res=await fetch(this.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:this.messages})});
           var data=await res.json();
           if(data.ok){ this.messages.push({role:'assistant',content:data.text}); }
-          else { this.error={{ t('ai.error') | tojson }}+' ('+(data.error||res.status)+')'; }
+          else { this.error = data.message || {{ t('ai.error') | tojson }}; }
         }catch(e){ this.error={{ t('ai.error') | tojson }}; }
         finally{ this.busy=false; this.scroll(); }
       }

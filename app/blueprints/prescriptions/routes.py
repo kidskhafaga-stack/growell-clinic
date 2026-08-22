@@ -705,7 +705,7 @@ def ai_dose():
     result = ai_utils.chat([{"role": "user", "content": prompt}], system=system,
                            feature="rx_review")
     if not result.get("ok"):
-        return jsonify({"ok": False, "error": result.get("error", "ai_error")}), 502
+        return jsonify(ai_utils.as_json(result)), 502
 
     text = (result.get("text") or "").strip()
     parsed = None

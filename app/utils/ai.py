@@ -333,7 +333,7 @@ def chat(messages, system=None, config=None, feature=None):
     try:
         import requests
     except ImportError:  # pragma: no cover - requests is in requirements
-        return {"ok": False, "error": "requests library not installed"}
+        return {"ok": False, "error": "err_library"}
 
     api = AI_PROVIDERS[cfg["provider"]]["api"]
     system_prompt = system or cfg["system_prompt"] or None
@@ -345,9 +345,9 @@ def chat(messages, system=None, config=None, feature=None):
         else:
             result = _chat_openai(requests, cfg, messages, system_prompt)
     except requests.exceptions.RequestException as exc:  # network/timeout
-        return {"ok": False, "error": f"network: {exc}"}
+        return {"ok": False, "error": _network_error(exc)}
     except (KeyError, ValueError, IndexError) as exc:  # unexpected payload
-        return {"ok": False, "error": f"bad response: {exc}"}
+        return {"ok": False, "error": _reply_error(exc)}
     _record_usage(cfg, result, feature)
     return result
 
@@ -489,7 +489,7 @@ def list_models(config=None):
     try:
         import requests
     except ImportError:  # pragma: no cover - requests is in requirements
-        return {"ok": False, "error": "requests library not installed"}
+        return {"ok": False, "error": "err_library"}
 
     api = AI_PROVIDERS[cfg["provider"]]["api"]
     try:
@@ -499,9 +499,9 @@ def list_models(config=None):
             return _models_anthropic(requests, cfg)
         return _models_openai(requests, cfg)
     except requests.exceptions.RequestException as exc:
-        return {"ok": False, "error": f"network: {exc}"}
+        return {"ok": False, "error": _network_error(exc)}
     except (KeyError, ValueError, IndexError, TypeError) as exc:
-        return {"ok": False, "error": f"bad response: {exc}"}
+        return {"ok": False, "error": _reply_error(exc)}
 
 
 def _models_gemini(requests, cfg):
@@ -561,12 +561,145 @@ def _sibling_url(base_url, leaf):
     return trimmed + "/" + leaf
 
 
+# What a provider's HTTP status actually means for the clinic.
+#
+# Not "compact and user-safe", which is what the old wording claimed and what
+# it was not. A clinic whose account ran out of credit was shown, in the
+# middle of an Arabic right-to-left screen:
+#
+#     HTTP 429: {"error": {"message": "You exceeded your current quota,
+#     please check your plan and billing details", "type":
+#     "insufficient_quota", "param": null, "code": "insufficient_quota"}}
+#
+# — a JSON object, in English, quoting a vendor's internal field names, saying
+# something the person reading it could do nothing about. Truncating it to 300
+# characters made it shorter; it never made it a sentence.
+_STATUS_MEANING = {
+    400: "err_request",
+    401: "err_key",
+    403: "err_key",
+    404: "err_model",
+    408: "err_timeout",
+    413: "err_too_long",
+    429: "err_rate",
+    500: "err_provider",
+    502: "err_provider",
+    503: "err_provider",
+    504: "err_provider",
+}
+
+# 429 is two completely different problems wearing one status code, and the
+# difference is the only thing the clinic can act on. "Too many requests just
+# now" fixes itself in a minute. "Your account has no credit left" never fixes
+# itself, and telling somebody to wait and try again sends them back to the
+# same screen for a week. Every provider says which it is in the body.
+_OUT_OF_CREDIT = ("quota", "insufficient", "billing", "credit", "balance",
+                  "payment", "exceeded your current")
+
+
+def _network_error(exc):
+    """Could not reach the provider at all. The exception text names a host
+    and a port and belongs in the log, not on a screen."""
+    _log_provider_error("network", str(exc))
+    return "err_network"
+
+
+def _reply_error(exc):
+    """The provider answered with something this program could not read."""
+    _log_provider_error("reply", str(exc))
+    return "err_reply"
+
+
 def _http_error(resp):
-    """Compact, user-safe error string from a failed HTTP response."""
-    snippet = (resp.text or "").strip()
-    if len(snippet) > 300:
-        snippet = snippet[:300] + "…"
-    return f"HTTP {resp.status_code}: {snippet}"
+    """Why the provider refused, as a key the screen can put in a sentence.
+
+    The body still goes to the program log — somebody debugging a firewall or
+    a wrong endpoint wants the vendor's exact words, and that is the place for
+    them.
+    """
+    body = (resp.text or "").strip()
+    key = _STATUS_MEANING.get(resp.status_code, "err_http")
+    if key == "err_rate" and any(p in body.lower() for p in _OUT_OF_CREDIT):
+        key = "err_quota"
+    _log_provider_error(resp.status_code, body)
+    return key
+
+
+def _log_provider_error(status, body):
+    """The vendor's own words, for the log and not for the screen."""
+    try:
+        from flask import current_app
+
+        current_app.logger.warning(
+            "AI provider refused: HTTP %s %s", status, (body or "")[:500])
+    except Exception:  # noqa: BLE001 - a log line never breaks an answer
+        pass
+
+
+# Every failure the assistant can report, and the sentence it becomes.
+#
+# A map rather than a prefix rule, so that adding a failure without adding its
+# wording is a test failure and not a screen showing a bare identifier to a
+# receptionist. `test_the_assistant_speaks_in_sentences` walks this module and
+# checks that every error it can return is listed here.
+ERROR_KEYS = {
+    "disabled": "ai.err_disabled",
+    "not_configured": "ai.err_not_configured",
+    "no_key": "ai.err_no_key",
+    "empty": "ai.err_empty",
+    "patient_context_disabled": "ai.err_patient_context",
+    "err_request": "ai.err_request",
+    "err_key": "ai.err_key",
+    "err_model": "ai.err_model",
+    "err_timeout": "ai.err_timeout",
+    "err_too_long": "ai.err_too_long",
+    "err_rate": "ai.err_rate",
+    "err_quota": "ai.err_quota",
+    "err_provider": "ai.err_provider",
+    "err_http": "ai.err_http",
+    "err_network": "ai.err_network",
+    "err_reply": "ai.err_reply",
+    "err_library": "ai.err_library",
+    "unknown": "ai.err_unknown",
+}
+
+
+def as_json(result):
+    """A result dict with its failure already in words, ready for a browser.
+
+    Every screen that talks to the assistant used to build its own sentence
+    out of whatever `error` happened to hold, in five slightly different ways,
+    and all five printed the provider's raw body when it held one. The key
+    stays on the wire for anything that wants to branch on it; `message` is
+    what a person reads.
+    """
+    if result.get("ok"):
+        return result
+    return dict(result, message=error_sentence(result.get("error")))
+
+
+def error_sentence(error):
+    """The clinic-facing sentence for whatever the layer below returned.
+
+    Anything unrecognised becomes the general sentence rather than being shown
+    as itself: a string that reaches here unlisted is a bug in this module,
+    and the person in front of the screen is not the one who can fix it.
+    """
+    from app.i18n import translate
+
+    key = ERROR_KEYS.get(str(error or ""), "ai.err_unknown")
+    try:
+        return translate(key)
+    except RuntimeError:
+        # Resolving a language needs a request, and this is also called from
+        # a background job and a command line. Falling back to the clinic's
+        # default is better than an unhandled error in a path whose whole
+        # purpose is reporting one.
+        from app.i18n import _load_translations, _lookup, default_language
+
+        loaded = _load_translations()
+        return (_lookup(loaded, default_language(), key)
+                or _lookup(loaded, "en", key) or key)
 
 
 def why_not_ready(cfg=None):

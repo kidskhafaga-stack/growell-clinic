@@ -517,7 +517,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
         if(d.ok){
           if(d.dose) l.dose=d.dose; if(d.frequency) l.frequency=d.frequency; if(d.duration) l.duration=d.duration;
           l.aiNote=d.note || '';
-        } else { l.aiNote={{ t('ai.error') | tojson }}+' ('+(d.error||res.status)+')'; }
+        } else { l.aiNote = d.message || {{ t('ai.error') | tojson }}; }
       }catch(e){ l.aiNote={{ t('ai.error') | tojson }}; }
       finally{ l.aiBusy=false; }
     },

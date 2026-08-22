@@ -410,7 +410,7 @@ def ai_summary(visit_id):
         ActivityLog.record("visit.ai_summary", user_id=current_user.id,
                            entity="visit", entity_id=visit.id, ip_address=client_ip())
         db.session.commit()
-    return jsonify(res)
+    return jsonify(ai.as_json(res))
 
 
 # ------------------------------------------------------- nurse station -----

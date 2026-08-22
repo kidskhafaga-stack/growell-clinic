@@ -671,11 +671,17 @@ def inbox_ai_suggest(key):
     patient = next((m.patient for m in msgs if m.patient), None)
     result = draft_reply(msgs, patient, getattr(g, "lang", "ar"))
     if not result.get("ok"):
+        # This screen's own wording where the inbox has one — "there is
+        # nothing here to answer" is about a thread, not about a provider —
+        # and the assistant's sentence for everything else, so a clinic out of
+        # credit is told that rather than "the assistant failed".
+        from app.utils.ai import error_sentence
+
         reason = result.get("error") or "failed"
         known = {"not_configured", "nothing_to_answer", "disabled", "empty"}
         return {"ok": False,
                 "error": t("inbox.ai_" + reason) if reason in known
-                else t("inbox.ai_failed"),
+                else error_sentence(reason),
                 "detail": str(reason)[:200]}, 200
     return {"ok": True, "text": result["text"],
             # The message asked the model to change its behaviour. The draft is

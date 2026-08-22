@@ -496,7 +496,7 @@
                this.syncPick();
                this.fetchNote = d.models.length + ' ✓';
              } else {
-               this.fetchNote = d.error || '—';
+               this.fetchNote = d.message || d.error || '—';
              }
            } catch (e) { this.fetchNote = String(e); }
            this.loading = false;
