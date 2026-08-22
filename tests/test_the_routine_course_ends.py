@@ -334,7 +334,7 @@ def test_the_ceiling_is_a_row_a_clinic_can_change(seeded):
             vaccine_id=pcv.id, is_active=True, brand_id=None).all()
             if r.start_age_min_months == 60}
 
-        assert set(rows) == {"egypt", "cdc"}, \
+        assert set(rows) == {"egypt", "cdc", "who"}, \
             f"the ceiling is not a row under each reference that states it: {rows}"
         for source, row in rows.items():
             assert row.match_age_on == "today", source
@@ -354,10 +354,16 @@ def test_it_is_the_rule_of_the_references_that_state_it(seeded):
     halves: it applies where those references are followed, and it does not
     apply where they are not. The second half is a real consequence and is
     written down rather than glossed — a clinic that has explicitly chosen the
-    leaflet gets the leaflet, which does not end the course at five.
+    manufacturer's leaflet gets the leaflet, and no leaflet ends the course at
+    five.
+
+    Three of the four say it. WHO's position paper is about children under
+    five, the CDC's schedule ends the routine course there, and the Egyptian
+    set follows the reference this catalogue names for pneumococcal here. Only
+    the leaflet does not, because a leaflet is a licence and not a policy.
     """
     from app.extensions import db
-    from app.models import Setting
+    from app.models import Setting, VaccineScheduleTemplate
 
     def owing(profile):
         with seeded["app"].app_context():
@@ -366,14 +372,19 @@ def test_it_is_the_rule_of_the_references_that_state_it(seeded):
         row = _pcv(seeded, _child(seeded, 8, f"g{profile}"))
         return [d for d in row["doses"] if d["status"] != "done"]
 
-    for profile in ("egypt", "cdc"):
+    for profile in ("egypt", "cdc", "who"):
         assert not owing(profile), \
             f"the ceiling disappears for a clinic following {profile}"
 
-    for profile in ("manufacturer", "who"):
-        assert owing(profile), \
-            (f"{profile} does not end the routine course at five, and a clinic "
-             f"that chose it is being given a rule from elsewhere")
+    assert owing("manufacturer"), \
+        ("the leaflet does not end the routine course at five, and a clinic "
+         "that chose it is being given a rule from elsewhere")
+
+    # Named against the list the engine reads, so a reference added later is
+    # either given a ceiling or is a deliberate, visible omission here.
+    assert set(VaccineScheduleTemplate.GUIDELINE_PROFILES) == {
+        "egypt", "cdc", "who", "manufacturer"}, \
+        "a reference was added without deciding whether it ends the course"
 
 
 def test_a_profile_band_does_not_blank_the_babies(seeded):

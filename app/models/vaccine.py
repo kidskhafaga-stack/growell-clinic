@@ -474,6 +474,25 @@ class VaccineScheduleTemplate(db.Model):
     # given decide how *long* the course is rather than filling it. That
     # machinery was built for influenza and is reused here.
     starts_fresh = db.Column(db.Boolean, default=False, nullable=False)
+    # The reference recommends *something* here and does not say how much.
+    #
+    # A real category, and one nothing in the engine could express. WHO's
+    # pneumococcal position paper recommends catch-up between one and five
+    # years and then says, in as many words, that "current data are
+    # insufficient for a firm recommendation on the optimal number of doses
+    # (1 or 2) required" in a child of 12–23 months.
+    #
+    # Neither of the two answers the engine had was true of that. An empty
+    # course says "nothing is owed", which is the opposite of what the
+    # reference says. No band at all says "this age is not scheduled", and
+    # left an unvaccinated two-year-old with a blank card in a clinic whose
+    # guideline recommends vaccinating them.
+    #
+    # So the band exists, carries no number, and asks for the doctor. It is
+    # the same discipline as everywhere else in this engine — the program will
+    # not invent a clinical number — said about a gap in the guideline rather
+    # than a contradiction in the record.
+    needs_review = db.Column(db.Boolean, default=False, nullable=False)
 
     PREVIOUS_STATES = ["none", "some"]
     is_catch_up = db.Column(db.Boolean, default=False, nullable=False)

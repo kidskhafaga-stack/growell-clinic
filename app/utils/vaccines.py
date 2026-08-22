@@ -532,6 +532,64 @@ _AGE_BANDED = {
          "label": "بدء قبل 7 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
          "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
 
+        # ------------------------------------------------- and the WHO's
+        #
+        # WHO's routine is **2p+1** — two primary doses and a booster — which
+        # is a genuinely different course from the CDC's 3p+1, and the reason
+        # a clinic gets to choose between them at all. The ages are the ones
+        # already reviewed and seeded as this program's WHO routine; they are
+        # not re-decided here.
+        #
+        # The end of the course is what this set was added for. The position
+        # paper is *"Pneumococcal conjugate vaccines in infants and children
+        # under 5 years of age"* — five is where its scope stops, and a clinic
+        # following it was being handed a fourth infant dose for a healthy
+        # ten-year-old because the rule lived somewhere else.
+        #
+        # **What is deliberately missing is the catch-up, and WHO is the one
+        # who says so.** On a child of 12–23 months the position paper's own
+        # words are that "current data are insufficient for a firm
+        # recommendation on the optimal number of doses (1 or 2) required".
+        # It recommends catch-up in the one-to-five year range and does not
+        # fix the number. There is no honest way to write "1 or 2" as a course,
+        # and writing either of them would be this program inventing a
+        # clinical number and attributing it to WHO — which is the one thing
+        # every band in this file exists not to do.
+        #
+        # So a child who starts in that range reaches the doctor instead: with
+        # doses on file the record is marked for clinical review by name, and
+        # without any it is an empty course rather than a guess. That is a
+        # real gap and it is WHO's gap, not the program's.
+        {"code": "PCV-WHO-END", "min": 60, "max": None, "sort_order": 0,
+         "match_on": "today", "source": "who", "catch_up": True,
+         "label": "WHO — 5 سنوات فأكثر: خارج نطاق التوصية (الوثيقة عن "
+                  "الأطفال أقل من 5 سنوات) — للمراجعة",
+         "doses": []},
+        # Read **after** the infant series, which is the opposite of the two
+        # sets above and follows from what the bands are. Theirs are catch-ups
+        # with dose counts, so a child of three who began at two months has to
+        # be caught by the catch-up before the infant band can put them back on
+        # a baby's course. This one has no count at all — it is a question —
+        # and a child who began under a year is not a question: they are on
+        # WHO's 2p+1 and the booster is stated. So the series answers first,
+        # and this catches only the children it did not reach.
+        #
+        # One to five years, which WHO recommends and does not quantify. The
+        # band carries no doses and asks for the doctor — see `needs_review`.
+        # Writing "1" or writing "2" here would be this program inventing a
+        # clinical number and putting WHO's name on it.
+        {"code": "PCV-WHO-CU", "min": 12, "max": 59, "sort_order": 2,
+         "match_on": "today", "source": "who",
+         "catch_up": True, "review": True,
+         "label": "WHO — 12–59 شهر: التطعيم التعويضي موصى به، والعدد "
+                  "(جرعة أو جرعتان) لم تحسمه الوثيقة — قرار الطبيب",
+         "doses": []},
+        {"code": "PCV-WHO-INF", "min": None, "max": 11, "sort_order": 1,
+         "source": "who",
+         "label": "WHO — بدء قبل 12 شهر: جرعتان أساسيتان ومنشّط "
+                  "(2p+1، المنشّط 9–18 شهر) — للمراجعة",
+         "doses": [(2, None), (4, 28), (9, None)]},
+
         # ------------------------------------------------------- the CDC's
         #
         # ACIP's catch-up for a healthy child, as supplied: three doses from
@@ -724,7 +782,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
                    requires_previous_doses=None, first_gap_min_days=None,
                    first_gap_max_days=None, previous_doses_min=None,
                    previous_doses_max=None, match_age_on="start",
-                   starts_fresh=False):
+                   starts_fresh=False, needs_review=False):
     """Create one seeded schedule template if a seeded one of the same
     (code, source) isn't already there. ``doses`` is a list of
     ``(recommended_age_months, min_interval_days)`` tuples. Returns 1 if a new
@@ -745,6 +803,7 @@ def _seed_template(vaccine, *, code, source, label, doses, is_catch_up=False,
         previous_doses_max=previous_doses_max,
         match_age_on=match_age_on,
         starts_fresh=starts_fresh,
+        needs_review=needs_review,
     )
     db.session.add(tpl)
     db.session.flush()
@@ -827,7 +886,8 @@ def seed_vaccine_schedules():
                 previous_doses_min=band.get("previous_min"),
                 previous_doses_max=band.get("previous_max"),
                 match_age_on=band.get("match_on", "start"),
-                starts_fresh=band.get("catch_up", False))
+                starts_fresh=band.get("catch_up", False),
+                needs_review=band.get("review", False))
 
         # Catch-up skeleton for multi-dose, non-seasonal, non-on-demand vaccines.
         if len(ages) > 1 and not vaccine.is_seasonal and not vaccine.on_demand:
@@ -1331,6 +1391,7 @@ def _banded_templates():
                 "previous_max": template.previous_doses_max,
                 "match_on": template.match_age_on or "start",
                 "catch_up": bool(template.starts_fresh),
+                "review": bool(template.needs_review),
                 "doses": doses.get(template.id, []),
             })
         return out
@@ -1594,6 +1655,12 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         # empty answer a question rather than a statement.
         if band is SILENT and given_dates and not review:
             review = "guideline_silent"
+        # The reference speaks about a child this age and does not say how
+        # much — see `needs_review` on the model. Unlike the silence above
+        # this one applies with an empty record too, because the whole point
+        # is that the guideline *does* recommend something here.
+        if band is not None and band.get("review") and not review:
+            review = "guideline_unsettled"
         # Did the course change product, and does the destination's leaflet
         # have anything to say about that?
         earlier_brands = {row.brand_id for (vid, _n), row in given_index.items()
