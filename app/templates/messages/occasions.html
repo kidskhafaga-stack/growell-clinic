@@ -210,6 +210,11 @@ function crmTabs(){
                   </template>
                 </div>
               </div>
+              <div class="form-row" style="margin-bottom:8px;">
+                <label>{{ t('occasions.body_female') }}</label>
+                <textarea class="input" name="body_female" rows="5" dir="auto">{{ tp.body_female or '' }}</textarea>
+                <div class="hint">{{ t('occasions.body_female_hint') }}</div>
+              </div>
 
               <div class="form-grid">
                 <div class="form-row"><label>{{ t('crm.send_mode') }}</label>
@@ -305,6 +310,10 @@ function crmTabs(){
             </template>
           </div>
         </div>
+        <div class="form-row"><label>{{ t('occasions.body_female') }}</label>
+          <textarea class="input" name="body_female" rows="3" dir="auto"></textarea>
+          <div class="hint">{{ t('occasions.body_female_hint') }}</div>
+        </div>
         <div class="form-row"><label>{{ t('crm.image') }}</label><input class="input" type="file" name="image" accept="image/*" x-on:change="onFile($event)"></div>
         <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
       </div>
@@ -373,6 +382,9 @@ function crmTabs(){
                   <button type="button" class="var-chip" x-on:click="insert(v)" x-text="'{'+v+'}'"></button>
                 </template>
               </div></div>
+            <div class="form-row"><label>{{ t('occasions.body_female') }}</label>
+              <textarea class="input" name="body_female" rows="3" dir="auto">{{ tp.body_female or '' }}</textarea>
+              <div class="hint">{{ t('occasions.body_female_hint') }}</div></div>
             <div class="form-row"><label>{{ t('crm.image') }}</label>
               {% if tp.image_url %}
               <label class="checkbox" style="display:flex;align-items:center;gap:6px;margin:0 0 6px;font-weight:400;color:var(--danger);">

@@ -78,27 +78,32 @@ OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback", "seasonal", "g
 
 # Variables each template type understands. Surfaced in the templates UI so
 # staff can compose messages without guessing the tokens.
+#
+# `patient` is the full name and `first_name` is the one a greeting uses — a
+# birthday card addressed to a child by all four of their names reads like a
+# summons, and a prescription heading wants every one of them. Both, so the
+# clinic picks per template rather than the program picking for it.
 TEMPLATE_VARIABLES = {
-    "appointment_confirm": ["patient", "clinic", "date", "time", "doctor", "queue"],
-    "appointment_reminder": ["patient", "clinic", "date", "time", "doctor"],
-    "no_show_followup": ["patient", "clinic", "date", "doctor"],
-    "patient_recall": ["patient", "clinic", "date", "months"],
+    "appointment_confirm": ["patient", "first_name", "clinic", "date", "time", "doctor", "queue"],
+    "appointment_reminder": ["patient", "first_name", "clinic", "date", "time", "doctor"],
+    "no_show_followup": ["patient", "first_name", "clinic", "date", "doctor"],
+    "patient_recall": ["patient", "first_name", "clinic", "date", "months"],
     "doctor_schedule": ["doctor", "date", "count", "list"],
-    "vaccine_given": ["patient", "vaccine", "dose", "next_date", "clinic"],
-    "vaccine_due": ["patient", "vaccine", "dose", "due_date", "clinic"],
+    "vaccine_given": ["patient", "first_name", "vaccine", "dose", "next_date", "clinic"],
+    "vaccine_due": ["patient", "first_name", "vaccine", "dose", "due_date", "clinic"],
     # `age` is what makes this message say something the family did not
     # already know, and `about` is the vaccine's own one-line explanation, so
     # the text is not the clinic's opinion of it.
-    "vaccine_suggested": ["patient", "vaccine", "age", "about", "clinic"],
-    "vaccine_seasonal": ["patient", "vaccine", "year", "clinic"],
-    "vaccine_changed": ["patient", "old_vaccine", "new_vaccine", "clinic"],
-    "vaccine_back": ["patient", "vaccine", "clinic"],
-    "rx_copy": ["patient", "doctor", "clinic", "link"],
-    "birthday": ["patient", "clinic"],
-    "feedback": ["patient", "clinic", "doctor", "link"],
-    "seasonal": ["patient", "clinic"],
-    "greeting": ["patient", "clinic"],
-    "custom": ["patient", "clinic"],
+    "vaccine_suggested": ["patient", "first_name", "vaccine", "age", "about", "clinic"],
+    "vaccine_seasonal": ["patient", "first_name", "vaccine", "year", "clinic"],
+    "vaccine_changed": ["patient", "first_name", "old_vaccine", "new_vaccine", "clinic"],
+    "vaccine_back": ["patient", "first_name", "vaccine", "clinic"],
+    "rx_copy": ["patient", "first_name", "doctor", "clinic", "link"],
+    "birthday": ["patient", "first_name", "clinic"],
+    "feedback": ["patient", "first_name", "clinic", "doctor", "link"],
+    "seasonal": ["patient", "first_name", "clinic"],
+    "greeting": ["patient", "first_name", "clinic"],
+    "custom": ["patient", "first_name", "clinic"],
 }
 
 # Built-in defaults used to seed the registry / fall back when none exists.
@@ -217,6 +222,13 @@ class MessageTemplate(db.Model):
     name = db.Column(db.String(120), nullable=False)
     occasion = db.Column(db.String(20), default="custom", nullable=False)
     body = db.Column(db.Text, nullable=False)
+    # The same message written for a girl. Optional, and blank is the ordinary
+    # answer — most templates need no second version. Arabic has no
+    # gender-neutral second person, so one body forces either wrong grammar for
+    # half the register or "طيب/طيبة" in the middle of a greeting. A second
+    # column is the idiom this program already uses for `name`/`name_en` and
+    # `title`/`title_en`, and it falls back the same way.
+    body_female = db.Column(db.Text)
     image_url = db.Column(db.String(300))          # optional attached image
     send_mode = db.Column(db.String(10), default="manual", nullable=False)
     # Occasion campaigns (عيد الفطر، عيد الأم، ذكرى العيادة…): the date the
@@ -235,6 +247,20 @@ class MessageTemplate(db.Model):
     is_system = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def body_for(self, gender=None):
+        """The wording to send this patient.
+
+        Falls back to ``body`` whenever the feminine version is blank, which
+        is what lets the second box stay empty on every template that does not
+        need one. A clinic that writes only the first keeps exactly the
+        behaviour it had before this column existed.
+        """
+        if (gender or "").strip().lower() in ("female", "f", "أنثى"):
+            alt = (self.body_female or "").strip()
+            if alt:
+                return alt
+        return self.body
 
     def __repr__(self):
         return f"<MessageTemplate {self.name}>"

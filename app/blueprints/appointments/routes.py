@@ -329,6 +329,8 @@ def _payment_status(appointments, on_date):
             state = "unpaid"
         out[a.id] = {
             "state": state, "total": total, "balance": balance,
+            # Settled with no money — see the badge on the invoice itself.
+            "free": total <= 0 and balance <= 0,
             "invoice_id": ivs[0].id if len(ivs) == 1 else None,
         }
     return out

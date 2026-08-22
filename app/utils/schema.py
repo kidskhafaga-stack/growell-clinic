@@ -201,6 +201,7 @@ ADDITIONS = [
     ("users", "print_title_ar", "TEXT"),
     ("users", "print_title_en", "TEXT"),
     ("message_templates", "image_url", "VARCHAR(300)"),
+    ("message_templates", "body_female", "TEXT"),
     ("message_templates", "send_mode", "VARCHAR(10) DEFAULT 'manual'"),
     ("message_templates", "is_system", "BOOLEAN DEFAULT 0"),
     ("message_logs", "image_url", "VARCHAR(300)"),

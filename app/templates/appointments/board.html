@@ -16,7 +16,13 @@
 
 {% macro payment_cell(appt) %}
   {% set p = pay.get(appt.id, {'state': 'none'}) %}
-  {% if p.state == 'paid' %}
+  {# "Paid" is true about the collection and misleading about the money when
+     the bill came to nothing — a 100% staff discount, or a service priced at
+     zero. The family handed over nothing, and the tag should not imply they
+     did. Same distinction as the invoice badge, and the same reason. #}
+  {% if p.state == 'paid' and p.free %}
+    <span class="pay-tag pay-paid"><i class="bi bi-gift"></i> {{ t('appointments.pay_free') }}</span>
+  {% elif p.state == 'paid' %}
     <span class="pay-tag pay-paid"><i class="bi bi-check-circle-fill"></i> {{ t('appointments.pay_paid') }}</span>
   {% elif p.state == 'partial' %}
     <span class="pay-tag pay-partial"><i class="bi bi-dash-circle"></i> {{ t('appointments.pay_partial') }}</span>

@@ -150,14 +150,20 @@ def template_image(template_type):
     return tpl.image_url if tpl else None
 
 
-def template_body(template_type):
+def template_body(template_type, gender=None):
     """Resolve a message body for a type from the single template registry,
-    falling back to the legacy setting and then a built-in default."""
+    falling back to the legacy setting and then a built-in default.
+
+    ``gender`` picks the feminine wording when the clinic wrote one. Arabic
+    has no gender-neutral second person: "كل سنة وانت طيب" is wrong for half
+    the children in the register, and "طيب/طيبة" in the middle of a greeting
+    reads like a form.
+    """
     from app.models import TEMPLATE_DEFAULTS
 
     tpl = template_for(template_type)
     if tpl:
-        return tpl.body
+        return tpl.body_for(gender)
     key = _SETTING_FALLBACK.get(template_type)
     if key:
         val = Setting.get(key, "")
@@ -225,8 +231,28 @@ def normalize_phone(raw, country_code=DEFAULT_COUNTRY_CODE):
     return digits
 
 
+def first_name_of(full):
+    """The name a greeting should use. ``"عمر محمد السيد خفاجة"`` → ``"عمر"``.
+
+    A birthday card addressed to a child by all four of their names reads like
+    a summons. The full name is still available as ``{patient}`` — a
+    prescription heading wants it — so this is an extra token and never a
+    replacement.
+    """
+    return (full or "").strip().split(" ")[0] if (full or "").strip() else ""
+
+
 def render(template, mapping):
-    """Substitute ``{placeholder}`` tokens in a template string."""
+    """Substitute ``{placeholder}`` tokens in a template string.
+
+    ``{first_name}`` is derived here rather than at each of the twelve places
+    that build one of these mappings. Adding it to twelve call sites is adding
+    it to eleven and forgetting one, and the one forgotten is the message that
+    goes out with an empty gap where a child's name should be.
+    """
+    mapping = dict(mapping)
+    if "patient" in mapping and "first_name" not in mapping:
+        mapping["first_name"] = first_name_of(mapping.get("patient"))
     out = template or ""
     for key, value in mapping.items():
         out = out.replace("{" + key + "}", "" if value is None else str(value))

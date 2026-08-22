@@ -76,7 +76,10 @@ def enqueue_occasion(tpl, user_id=None, on_date=None):
         when = now if day == 0 else (
             (now + timedelta(days=day)).replace(hour=win_start, minute=0,
                                                 second=0, microsecond=0))
-        body = wa.render(tpl.body, {
+        # `body_for` and not `body`: a campaign greets every child in the
+        # register by name, so it is the one place where getting the Arabic
+        # wrong is wrong hundreds of times in an afternoon.
+        body = wa.render(tpl.body_for(p.gender), {
             "patient": p.display_name("ar"), "clinic": clinic})
         db.session.add(MessageLog(
             patient_id=p.id, to_phone=p.contact_phone, body=body,

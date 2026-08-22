@@ -372,3 +372,165 @@ def test_the_till_capability_really_opens_that_list(clinic):
 
     assert answer.status_code == 200, \
         f"reception is refused the invoice list ({answer.status_code})"
+
+
+# ------------------------------------- settled, and settled without money
+
+def test_a_bill_that_came_to_nothing_does_not_claim_money_moved(clinic):
+    """Asked directly, about services priced at zero: *"will they be like the
+    full discount, or do we put 'free' next to them?"*
+
+    Both. They are settled the same way — there is nothing left to collect, so
+    they leave the debtors' list — and the word on the screen says which kind
+    of settled it is. "Paid" is true about the collection and misleading about
+    the money, because none moved.
+
+    The **status** stays `paid`, so every filter, report and query keeps
+    working unchanged. Only the label differs, and it is computed in one place
+    because three screens render this idea.
+    """
+    staff = _bill(clinic, "INV-STAFF2", price=480, discount=100)
+    free = _bill(clinic, "INV-FREE", price=0)
+    real = _bill(clinic, "INV-REAL2", price=480, paid=480)
+
+    with clinic["app"].app_context():
+        assert _read(clinic, staff).status == "paid"
+        assert _read(clinic, staff).status_label == "invoices.st_free"
+        assert _read(clinic, free).status_label == "invoices.st_free"
+        assert _read(clinic, real).status_label == "invoices.st_paid", \
+            "an invoice somebody actually paid is being called free"
+
+
+def test_a_part_paid_bill_is_not_free(clinic):
+    """Money moved and money is still owed — neither half is "no charge"."""
+    invoice_id = _bill(clinic, "INV-PART2", price=480, paid=240)
+
+    with clinic["app"].app_context():
+        assert _read(clinic, invoice_id).status_label == "invoices.st_partial"
+
+
+def test_the_invoice_screen_says_no_charge(clinic):
+    from app.i18n import t
+
+    invoice_id = _bill(clinic, "INV-SHOW", price=480, discount=100)
+
+    page = clinic["sign_in"]("boss").get(
+        f"/finance/invoices/{invoice_id}", follow_redirects=True).data.decode()
+
+    with clinic["app"].test_request_context("/"):
+        assert t("invoices.st_free") in page
+        assert t("invoices.st_paid") not in page
+
+
+def test_the_appointment_board_says_it_too(clinic):
+    """The same distinction where reception actually looks."""
+    from datetime import time
+
+    from app.extensions import db
+    from app.models import Appointment, Invoice, InvoiceItem, Patient, User
+
+    with clinic["app"].app_context():
+        from app.utils.clock import local_today
+
+        doctor = User.query.filter_by(role="doctor").first()
+        kid = Patient(patient_number="FREE1", full_name="عمر", gender="male",
+                      date_of_birth=date(2015, 1, 1), is_active=True)
+        db.session.add(kid)
+        db.session.flush()
+
+        today = local_today()
+        invoice = Invoice(invoice_number="INV-BFREE", patient_id=kid.id,
+                          invoice_date=today)
+        db.session.add(invoice)
+        db.session.flush()
+        db.session.add(InvoiceItem(invoice_id=invoice.id, description="كشف",
+                                   unit_price=480, quantity=1,
+                                   discount_value=100,
+                                   discount_is_percent=True))
+        appt = Appointment(patient_id=kid.id, doctor_id=doctor.id,
+                           appt_date=today, appt_time=time(16, 0),
+                           status="scheduled")
+        db.session.add(appt)
+        db.session.commit()
+        invoice.recalc_status()
+        db.session.commit()
+
+        from app.blueprints.appointments.routes import _payment_status
+
+        state = _payment_status([appt], today)[appt.id]
+
+    assert state["state"] == "paid"
+    assert state["free"] is True, \
+        "the board would tell reception this family paid"
+
+
+def test_a_real_payment_is_not_marked_free_on_the_board(clinic):
+    from datetime import time
+
+    from app.extensions import db
+    from app.models import (Appointment, Invoice, InvoiceItem, Patient,
+                            Payment, User)
+
+    with clinic["app"].app_context():
+        from app.utils.clock import local_today
+
+        doctor = User.query.filter_by(role="doctor").first()
+        kid = Patient(patient_number="FREE2", full_name="سارة",
+                      gender="female", date_of_birth=date(2016, 1, 1),
+                      is_active=True)
+        db.session.add(kid)
+        db.session.flush()
+
+        today = local_today()
+        invoice = Invoice(invoice_number="INV-BPAID", patient_id=kid.id,
+                          invoice_date=today)
+        db.session.add(invoice)
+        db.session.flush()
+        db.session.add(InvoiceItem(invoice_id=invoice.id, description="كشف",
+                                   unit_price=480, quantity=1))
+        db.session.add(Payment(invoice_id=invoice.id, amount=480))
+        appt = Appointment(patient_id=kid.id, doctor_id=doctor.id,
+                           appt_date=today, appt_time=time(16, 30),
+                           status="scheduled")
+        db.session.add(appt)
+        db.session.commit()
+        invoice.recalc_status()
+        db.session.commit()
+
+        from app.blueprints.appointments.routes import _payment_status
+
+        state = _payment_status([appt], today)[appt.id]
+
+    assert state["state"] == "paid" and state["free"] is False
+
+
+def test_the_label_is_worked_out_in_one_place(clinic):
+    """Three screens render this idea. Written out three times it would be
+    right in two of them."""
+    import re
+
+    # Narrowed to the key built **from an invoice**. The list screen also
+    # builds `invoices.st_` from its filter tabs, where the value is a status
+    # name and not a row — measured, because the first version of this test
+    # failed on that and would have been "fixed" by weakening it to nothing.
+    pattern = re.compile(r"invoices\.st_'\s*~\s*(inv|invoice)\.status")
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for name in ("finance/invoice_view.html", "finance/invoices.html"):
+        with open(os.path.join(here, "..", "app/templates", name),
+                  encoding="utf-8") as fh:
+            source = fh.read()
+        assert not pattern.search(source), \
+            f"{name} still builds an invoice's status wording key itself"
+
+
+def test_the_free_wording_exists_in_both_languages(clinic):
+    import json
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for lang in ("ar", "en"):
+        with open(os.path.join(here, "..", "app/i18n/locales", f"{lang}.json"),
+                  encoding="utf-8") as fh:
+            data = json.load(fh)
+        assert "st_free" in data["invoices"], lang
+        assert "pay_free" in data["appointments"], lang

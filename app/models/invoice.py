@@ -94,6 +94,29 @@ class Invoice(db.Model):
     def clinic_share_total(self):
         return round(self.total - self.doctor_share_total, 2)
 
+    @property
+    def no_charge(self):
+        """Settled because there was nothing to charge, not because money came.
+
+        A 100% staff discount and a service priced at zero both produce an
+        invoice that is closed the moment it exists. Calling that "paid" is
+        true about the *collection* — there is nothing left to collect — and
+        misleading about the money, because none moved. The status stays
+        "paid" so every filter, report and query keeps working; only the word
+        on the screen changes.
+        """
+        return self.total <= 0 and self.paid == 0
+
+    @property
+    def status_label(self):
+        """The wording key for this invoice's state.
+
+        One place, because two screens render this badge and a third renders
+        the same idea on the appointment board. Written out three times it
+        would be right in two of them.
+        """
+        return "invoices.st_free" if self.no_charge else f"invoices.st_{self.status}"
+
     def recalc_status(self):
         """Settled, part-paid, or owing — from what is actually left.
 
