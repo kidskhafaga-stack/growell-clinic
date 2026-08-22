@@ -1,5 +1,6 @@
 {% extends "shell.html" %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
+{% from "_pagination.html" import render_pagination with context %}
 {% set active_module = 'vaccinations' %}
 {% block title %}{{ t('vaccinations.reminders_title') }}{% endblock %}
 {% block page_heading %}{{ t('vaccinations.reminders_title') }}{% endblock %}
@@ -48,6 +49,28 @@
     <span style="color:var(--danger);"><strong dir="ltr">{{ counts.overdue }}</strong> {{ t('vstatus.overdue') }}</span>
     <span><strong dir="ltr">{{ counts.due }}</strong> {{ t('vstatus.due') }}</span>
     {% if counts.seasonal %}<span><strong dir="ltr">{{ counts.seasonal }}</strong> {{ t('vaccinations.seasonal') }}</span>{% endif %}
+  </div>
+
+  {# How late, which is the split this screen was missing. "Overdue" was
+     carrying a one-year-old three weeks behind and a sixteen-year-old
+     outstanding since 2012 in the same red badge — both true, one of them a
+     phone call today. #}
+  {% set base = request.args.to_dict() %}
+  {% set _ = base.pop('late', None) %}
+  {% set _ = base.pop('page', None) %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+    <a class="badge {{ 'badge--role' if not f_late else 'badge--muted' }}"
+       style="text-decoration:none;"
+       href="{{ url_for('vaccinations.reminders', **base) }}">
+      {{ t('common.all') }} <strong dir="ltr">{{ counts.total }}</strong></a>
+    {% for band in lateness_bands %}
+      {% if counts[band] %}
+      <a class="badge {{ 'badge--role' if f_late == band else 'badge--muted' }}"
+         style="text-decoration:none;"
+         href="{{ url_for('vaccinations.reminders', late=band, **base) }}">
+        {{ t('vlate.' ~ band) }} <strong dir="ltr">{{ counts[band] }}</strong></a>
+      {% endif %}
+    {% endfor %}
   </div>
 </div>
 
@@ -129,6 +152,7 @@
         <td dir="ltr">{{ r.due_date or '—' }}</td>
         <td>
           {% if r.status == 'overdue' %}<span class="badge badge--danger">{{ t('vstatus.overdue') }}</span>
+          {% if r.lateness != 'recent' %}<span class="badge badge--muted">{{ t('vlate.' ~ r.lateness) }}</span>{% endif %}
           {% elif r.status == 'seasonal' %}<span class="badge badge--muted"><i class="bi bi-arrow-repeat"></i> {{ t('vaccinations.seasonal') }}</span>
           {% else %}<span class="badge badge--role">{{ t('vstatus.due') }}</span>{% endif %}
         </td>
@@ -153,4 +177,6 @@
   <div class="empty-state"><i class="bi bi-check2-circle"></i>{{ t('vaccinations.reminders_empty') }}</div>
   {% endif %}
 </div>
+
+{{ render_pagination(pagination) }}
 {% endblock %}

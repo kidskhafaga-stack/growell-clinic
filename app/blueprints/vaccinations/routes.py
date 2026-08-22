@@ -998,19 +998,37 @@ def reminders():
     if status not in ("overdue", "due", "seasonal"):
         status = ""
 
+    from app.utils.paging import paginate_list
+    from app.utils.vaccine_due import LATENESS
+
+    late = (request.args.get("late") or "").strip()
+    if late not in LATENESS:
+        late = ""
+
     found = due_list(start=start, end=end, vaccine_id=vaccine_id,
                      brand_id=brand_id, status=status or None, lang=lang)
+    shown = [r for r in found if not late or r.get("lateness") == late]
     rows = [{"patient": r["patient"], "vaccine": r["vaccine"],
              "brand": r["brand"], "dose_number": r["dose_number"],
              "due_date": r["due_date"], "status": r["status"],
-             "phone": r["patient"].contact_phone} for r in found]
+             "lateness": r.get("lateness", "due"),
+             "phone": r["patient"].contact_phone} for r in shown]
+    # Paged like every other long list in the program. This was the one screen
+    # that drew every row it had: on a real register that is thousands at
+    # once, slow to render and impossible to work from. The counts and the
+    # purchase order are still built from the **whole** filtered set, because
+    # what you order is what you were looking at — not what happened to fit on
+    # the page you were standing on.
+    page = paginate_list(rows)
 
     from app.models import Vaccine, VaccineBrand
     from app.utils import vaccine_back
 
     return render_template(
-        "vaccinations/reminders.html", rows=rows,
-        counts=summarise(found), order=order_suggestion(found),
+        "vaccinations/reminders.html", rows=page.items, pagination=page,
+        counts=summarise(found), lateness_counts=summarise(shown),
+        f_late=late, lateness_bands=LATENESS,
+        order=order_suggestion(shown),
         # The families who were told to come while the shelf was empty, for
         # every item that now has stock again.
         back=vaccine_back.brands_with_people_waiting(),
