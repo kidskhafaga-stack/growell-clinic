@@ -54,17 +54,10 @@ def _follow(seeded, profile):
 def _sources_in_play(seeded):
     """Every `source` the banded engine actually loaded, for this clinic."""
     from app.utils.vaccines import _banded_templates
-    from app.models import VaccineScheduleTemplate
 
     with seeded["app"].app_context():
         loaded = _banded_templates()
-        wanted = {(v, b["min"], b["max"], b["brand_id"])
-                  for v, bands in loaded.items() for b in bands}
-        rows = VaccineScheduleTemplate.query.filter(
-            VaccineScheduleTemplate.is_active.is_(True)).all()
-        return {r.source for r in rows
-                if (r.vaccine_id, r.start_age_min_months,
-                    r.start_age_max_months, r.brand_id) in wanted}
+        return {band["source"] for bands in loaded.values() for band in bands}
 
 
 def test_it_is_one_of_the_references_a_clinic_can_follow(seeded):

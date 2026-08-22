@@ -138,6 +138,11 @@ _RETAGGED_BANDS = {
     # the references that make them; these two rows are retired.
     "PCV-CU-2Y": None,
     "PCV-ROUTINE-END": None,
+    # And the CDC's MenB row, which said "from ten years" — the age the
+    # *risk-based* recommendation begins, not the routine one. Its replacement
+    # is seeded under a new code, so the old row has to stop applying or a
+    # healthy twelve-year-old goes on being scheduled from it.
+    "MENB-CDC-10Y": None,
 }
 
 
@@ -357,14 +362,38 @@ _AGE_BANDED = {
     # Every band is 0.5 mL IM. The doses below are
     # ``(recommended_age_months, min_interval_days_from_previous)``.
     "MENB": [
-        # The CDC licenses the same product from ten years, with two doses.
+        # The CDC's routine position, which is a conversation rather than a
+        # date: for a **healthy** adolescent of sixteen to twenty-three, MenB
+        # is shared clinical decision-making — two doses six months apart,
+        # preferred at sixteen to eighteen.
+        #
+        # It needs no status of its own. A course this clinic never began and
+        # nobody agreed to is already a *suggestion by age*: offerable at a
+        # visit, never late, because "late" is a broken promise and there is
+        # no promise until the doctor and the family make one. Agreeing to it
+        # is what turns it into a due date — which is what shared decision-
+        # making is, written down.
+        #
+        # This row used to say "from ten years", and ten is where the *risk-
+        # based* recommendation begins — a different thing, and not one this
+        # program may compute. That schedule depends on the indication and on
+        # the product and can be a three-dose primary series; the catalogue
+        # cannot know why a child is at risk, and a confident dated course for
+        # a child who needed something else is the worst way to be wrong. So
+        # ten to fifteen is deliberately unscheduled here, and a child that age
+        # with a dose already on file reaches the doctor as a question.
+        #
         # Stored beside the European bands rather than replacing them: the
         # clinic picks which guideline it follows in settings, and switching
         # recomputes from the doses already on file without re-entering one.
-        {"code": "MENB-CDC-10Y", "min": 120, "max": None, "sort_order": 0,
+        # An Egyptian clinic is not covered by this row at all — MenB is not
+        # in the national programme, so the label answers, and the label
+        # schedules Bexsero from two months.
+        {"code": "MENB-CDC-16Y", "min": 192, "max": 287, "sort_order": 0,
          "brand": "Bexsero", "source": "cdc",
-         "label": "CDC: من 10 سنوات — جرعتان بفاصل 6 شهور — للمراجعة",
-         "doses": [(120, None), (126, 180)]},
+         "label": "CDC — 16–23 سنة (يُفضّل 16–18): قرار طبي مشترك — "
+                  "جرعتان بفاصل 6 شهور — للمراجعة",
+         "doses": [(192, None), (198, 180)]},
         {"code": "MENB-2-5", "min": 2, "max": 5, "sort_order": 0,
          "brand": "Bexsero",
          "label": "بدء 2–5 شهور: 3 أساسية + منشّط 12–15 شهر — للمراجعة",
@@ -1286,6 +1315,11 @@ def _banded_templates():
             out.setdefault(template.vaccine_id, []).append({
                 # This row came from the guideline the clinic follows, so its
                 # silence about an age is itself an answer.
+                # Which reference this band came from. Carried through rather
+                # than inferred later: "which guideline is this clinic
+                # actually being scheduled by" is a question worth being able
+                # to answer from the answer itself.
+                "source": template.source,
                 "authoritative": template.source == profile != "manufacturer",
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,

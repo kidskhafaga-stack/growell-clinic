@@ -124,8 +124,8 @@ def test_it_is_set_from_the_settings_screen(seeded):
 def test_switching_the_profile_recomputes_the_same_records(seeded):
     """The whole point: one policy change, no data re-entered.
 
-    A twelve-year-old starting Bexsero is two doses either way — the reference
-    they agree on. A three-month-old is where they part.
+    A sixteen-year-old starting Bexsero is two doses either way — the age the
+    references agree on. A three-month-old is where they part.
     """
     _follow(seeded, "manufacturer")
     assert _bexsero(seeded, "a", 0.25, 1.0) == 4
@@ -137,12 +137,20 @@ def test_switching_the_profile_recomputes_the_same_records(seeded):
 
 def test_where_the_references_agree_nothing_moves(seeded):
     """Otherwise "it changed" would mean nothing — it has to change only where
-    the guidelines actually differ."""
+    the guidelines actually differ.
+
+    Measured at sixteen. It used to be measured at twelve, which was a place
+    the two references agreed only because the CDC's row said "from ten
+    years" — the age its *risk-based* recommendation begins, not its routine
+    one. Its routine position for a healthy adolescent starts at sixteen, and
+    that is where the two now meet: the European label's two doses from eleven
+    years, and the CDC's two doses from sixteen.
+    """
     _follow(seeded, "manufacturer")
-    leaflet = _bexsero(seeded, "c", 12.0, 13.0)
+    leaflet = _bexsero(seeded, "c", 16.2, 17.0)
 
     _follow(seeded, "cdc")
-    cdc = _bexsero(seeded, "d", 12.0, 13.0)
+    cdc = _bexsero(seeded, "d", 16.2, 17.0)
 
     assert leaflet == cdc == 2
 
