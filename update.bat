@@ -218,12 +218,45 @@ if defined PP_SHA (
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
   "$u='https://codeload.github.com/%PP_REPO%/zip/%PP_ZIP_REF%';" ^
-  "Invoke-WebRequest -Uri $u -OutFile '%PP_TMP%\src.zip';" ^
+  "try { Invoke-WebRequest -Uri $u -OutFile '%PP_TMP%\src.zip' }" ^
+  "catch { if ($_.Exception.Response.StatusCode.value__ -eq 404)" ^
+  "        { exit 44 } else { exit 1 } };" ^
   "Expand-Archive -Path '%PP_TMP%\src.zip' -DestinationPath '%PP_TMP%' -Force"
+
+REM 404 is not "offline", and saying it was is what sent somebody hunting for
+REM a network fault that did not exist.
+REM
+REM GitHub answers 404 - not 403 - for a repository the caller may not read,
+REM so a private repository and a deleted one look identical from here. The
+REM download is anonymous by design: this script carries no token, because a
+REM token that can read the source would then be sitting in plain text on
+REM every clinic PC that has ever been updated.
+REM
+REM Which leaves three real causes, and the message names all three rather
+REM than guessing at one.
+if errorlevel 44 (
+  echo.
+  echo [ERROR] GitHub answered "not found" for this project.
+  echo.
+  echo         That is one of three things, and none of them is your internet:
+  echo           - the repository is private, and this download carries no
+  echo             sign-in (on purpose - a password here would sit on every
+  echo             clinic PC);
+  echo           - the branch was renamed or removed;
+  echo           - the project was moved.
+  echo.
+  echo         Nothing was changed. Your backup is untouched.
+  echo         Until it is sorted: sign in on github.com, download the ZIP
+  echo         yourself, and copy it over this folder WITHOUT touching
+  echo         instance\, uploads\ or clinic.env - then run:
+  echo             flask --app run upgrade-db
+  exit /b 1
+)
 if errorlevel 1 (
   echo.
-  echo [ERROR] Could not download the update - offline, or GitHub is not
-  echo         reachable. Nothing was changed. Your backup is untouched.
+  echo [ERROR] Could not reach GitHub to download the update - the machine
+  echo         is offline, or something between here and it is blocking the
+  echo         connection. Nothing was changed. Your backup is untouched.
   exit /b 1
 )
 

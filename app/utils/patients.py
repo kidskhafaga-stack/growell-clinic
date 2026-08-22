@@ -67,7 +67,11 @@ def generate_patient_number(scheme=None, prefix=None):
 
 def _digits_norm(col):
     """SQL expression that strips spaces, dashes and a leading + from a phone
-    column, so a stored ``0109 508-2412`` still matches a typed ``01095082412``."""
+    column, so a stored ``0100 000-0000`` still matches a typed ``01000000000``.
+
+    The example is deliberately a number nobody has. It used to be a real one,
+    which mattered the moment this repository stopped being private.
+    """
     from sqlalchemy import func
     return func.replace(func.replace(func.replace(col, " ", ""), "-", ""), "+", "")
 

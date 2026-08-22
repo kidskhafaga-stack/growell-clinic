@@ -172,3 +172,57 @@ def test_the_download_path_still_reaches_the_upgrade(script):
 
     assert script.index("upgrade-db") > fetched
     assert script.index("pip install -r requirements.txt") > fetched
+
+
+# ------------------------------------------ what it says when it cannot fetch
+
+def test_not_found_is_not_reported_as_being_offline(code):
+    """The message that sent somebody hunting for a network fault.
+
+    GitHub answers **404** — not 403 — for a repository the caller may not
+    read, so a private repository, a renamed branch and a deleted project all
+    arrive here looking identical. What arrived instead was "offline, or
+    GitHub is not reachable", which is the one thing it was not: the machine's
+    connection was fine and the repository was simply private.
+
+    The download is anonymous on purpose and stays that way — a token able to
+    read the source would then sit in plain text on every clinic PC that has
+    ever been updated — so 404 is a state this script has to be able to
+    describe rather than one it can sign its way out of.
+    """
+    assert "errorlevel 44" in code, \
+        "the download no longer separates 'not found' from any other failure"
+
+    at_404 = code.index("errorlevel 44")
+    at_other = code.index("errorlevel 1", at_404)
+    assert at_404 < at_other, (
+        "`if errorlevel N` means 'N or more', so the 404 branch has to be "
+        "tested before the catch-all or it can never be reached")
+
+    tail = code[at_404:at_other]
+    assert "not found" in tail.lower(), "the 404 branch does not say what it is"
+    assert "offline" not in tail.lower(), \
+        "the 404 branch is still calling a private repository an outage"
+
+
+def test_it_says_what_to_do_instead(code):
+    """A clinic told only that something failed is a clinic that stops
+    updating. The way that always works is written down next to the error."""
+    at_404 = code.index("errorlevel 44")
+    tail = code[at_404:code.index("errorlevel 1", at_404)]
+
+    assert "upgrade-db" in tail, \
+        "it does not say how to finish an update done by hand"
+    for kept in ("instance", "uploads", "clinic.env"):
+        assert kept in tail, \
+            f"the manual route does not warn about {kept}"
+
+
+def test_the_real_outage_still_says_so(code):
+    """And the other half: an actual network failure must not be described as
+    a private repository either."""
+    at_other = code.index("errorlevel 1", code.index("errorlevel 44"))
+    tail = code[at_other:at_other + 500]
+
+    assert "offline" in tail.lower()
+    assert "not found" not in tail.lower()
