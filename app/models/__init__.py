@@ -29,6 +29,7 @@ from app.models.lookup import Lookup
 from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
+from app.models.measurement import Measurement
 from app.models.parent import (
     CLIENT_CATEGORIES,
     PARENT_RELATIONS,
@@ -234,6 +235,7 @@ __all__ = [
     "VitalSigns",
     "Diagnosis",
     "GrowthRecord",
+    "Measurement",
     "ROLES",
     "Role",
     "FLAG_LEVELS",

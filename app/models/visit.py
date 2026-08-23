@@ -59,6 +59,12 @@ class Visit(db.Model):
     # Sent to emergency. Recorded rather than remembered: the child leaves the
     # clinic mid-encounter, and the visit that stays behind has to say where
     # they went and why, or it reads as a consultation somebody abandoned.
+    # Which specialty panel was on the screen. Recorded rather than derived,
+    # because the readings taken belong to the panel that was open — a visit
+    # whose doctor later changes specialty must not have its measurements
+    # re-labelled underneath it. See app/utils/panels.py.
+    specialty_panel = db.Column(db.String(40))
+
     referred_at = db.Column(db.DateTime)
     referred_to = db.Column(db.String(120))
     referral_note = db.Column(db.Text)

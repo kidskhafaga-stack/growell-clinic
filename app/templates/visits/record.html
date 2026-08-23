@@ -247,6 +247,85 @@
           <input class="input" type="number" name="spo2" x-model="vSpo2"
                  :class="vitalClass('spo2', vSpo2)"
                  value="{{ visit.vitals.spo2 if visit.vitals and visit.vitals.spo2 is not none else '' }}"></div>
+        {# Blood pressure sits with the vitals, not on a specialty panel: the
+           cardiologist, the endocrinologist and the nephrologist all asked for
+           it, and the nurse measures it here with the pulse. #}
+        <div class="form-row"><label>{{ t('visits.bp_systolic') }}</label>
+          <input class="input" type="number" name="bp_systolic" dir="ltr"
+                 value="{{ visit.vitals.bp_systolic if visit.vitals and visit.vitals.bp_systolic is not none else '' }}"></div>
+        <div class="form-row"><label>{{ t('visits.bp_diastolic') }}</label>
+          <input class="input" type="number" name="bp_diastolic" dir="ltr"
+                 value="{{ visit.vitals.bp_diastolic if visit.vitals and visit.vitals.bp_diastolic is not none else '' }}"></div>
+        <div class="form-row"><label>{{ t('visits.bp_arm') }}</label>
+          <select class="select" name="bp_arm">
+            <option value="">—</option>
+            {% for arm in ('right', 'left') %}
+            <option value="{{ arm }}" {{ 'selected' if visit.vitals and visit.vitals.bp_arm == arm else '' }}>
+              {{ t('visits.bp_arm_' ~ arm) }}</option>
+            {% endfor %}
+          </select></div>
+      </div>
+
+      {# ---- The specialty panel -------------------------------------------
+         One visit screen with a panel on it, not a screen per specialty: the
+         file is one, and a child with asthma and caries is one visit. The
+         panel follows the doctor by default and the visit can change it,
+         because the panel is a property of what this visit is about rather
+         than of who is typing. See app/utils/panels.py. #}
+      <div class="card gc-scale-in" style="margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 class="section-title" style="margin:0;">
+            <i class="bi bi-{{ panel.icon if panel else 'clipboard-data' }}"></i>
+            {{ t('panels.title') }}</h3>
+          <select class="select" name="specialty_panel" style="max-width:220px;">
+            <option value="">{{ t('panels.none') }}</option>
+            {% for key, label in panel_choices %}
+            <option value="{{ key }}" {{ 'selected' if key == panel_key else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if panel %}
+          {% if panel_vitals %}
+          {# Read, not asked again. A second weight box would mean two weights
+             for one visit and no way to know which is the real one. #}
+          <div class="info-grid" style="margin-top:10px;">
+            {% for code, value in panel_vitals %}
+            <div class="info-item"><div class="k">{{ t('panels.read_' ~ code) }}</div>
+              <div class="v" dir="ltr">{{ value }}</div></div>
+            {% endfor %}
+          </div>
+          <p class="hint" style="margin:4px 0 0;"><i class="bi bi-info-circle"></i>
+            {{ t('panels.reads_hint') }}</p>
+          {% endif %}
+
+          <div class="form-grid" style="margin-top:10px;">
+            {% for f in panel.fields %}
+            {% set row = panel_readings.get(f.code) %}
+            <div class="form-row">
+              <label>{{ f['label_' ~ current_lang] or f.label_ar }}{% if f.unit %}
+                <span class="hint" dir="ltr">({{ f.unit }})</span>{% endif %}</label>
+              {% if f.type == 'choice' %}
+              <select class="select" name="m_{{ f.code }}">
+                <option value="">—</option>
+                {% for opt in f.options %}
+                <option value="{{ opt }}" {{ 'selected' if row and row.value_text == opt else '' }}>{{ opt }}</option>
+                {% endfor %}
+              </select>
+              {% elif f.type == 'date' %}
+              <input class="input" type="date" name="m_{{ f.code }}" dir="ltr"
+                     value="{{ row.value_text if row else '' }}">
+              {% else %}
+              <input class="input" type="number" step="any" dir="ltr" name="m_{{ f.code }}"
+                     value="{{ row.value_num if row and row.value_num is not none else '' }}">
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        {% elif panel_key %}
+          <p class="info-note" style="margin:10px 0 0;"><i class="bi bi-exclamation-triangle"></i>
+            {{ t('panels.unknown', key=panel_key) }}</p>
+        {% endif %}
       </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:2px;">
         <p class="hint" style="margin:0;"><i class="bi bi-graph-up"></i> {{ t('visits.growth_note') }}</p>

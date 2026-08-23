@@ -60,6 +60,13 @@ class User(UserMixin, db.Model):
     professional_title = db.Column(db.String(40))   # Professor/Consultant/...
     specialty = db.Column(db.String(160))           # التخصص الرئيسي
     sub_specialties = db.Column(db.String(255))     # التخصصات الفرعية
+
+    # The coded panel this doctor's visits open on — a key from
+    # app/data/specialty_panels.json, and a different thing from `specialty`
+    # above. That one is free text and prints on the prescription; a doctor has
+    # typed anything into it, and matching a panel against prose is a lookup
+    # that works in testing and fails on a real clinic.
+    specialty_panel = db.Column(db.String(40))
     # Free multi-line titles printed under the doctor's name on the Rx — one
     # qualification per line (consultant / hospital / fellowship…), AR & EN.
     print_title_ar = db.Column(db.Text)

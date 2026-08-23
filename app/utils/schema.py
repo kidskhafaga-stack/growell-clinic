@@ -159,6 +159,14 @@ ADDITIONS = [
     ("visit_investigations", "result_low", "FLOAT"),
     ("visit_investigations", "result_high", "FLOAT"),
     ("investigations", "unit", "VARCHAR(20)"),
+    # Blood pressure is a vital sign, not a cardiology field: three specialties
+    # asked for it, which is the argument against giving it to any of them.
+    ("vital_signs", "bp_systolic", "INTEGER"),
+    ("vital_signs", "bp_diastolic", "INTEGER"),
+    ("vital_signs", "bp_arm", "VARCHAR(10)"),
+    # Which specialty panel a visit was recorded under, and a doctor's default.
+    ("visits", "specialty_panel", "VARCHAR(40)"),
+    ("users", "specialty_panel", "VARCHAR(40)"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

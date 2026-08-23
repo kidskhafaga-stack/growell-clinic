@@ -766,7 +766,12 @@
     "inv_unit": "Unit",
     "inv_ref_low": "Normal range — from",
     "inv_ref_high": "to",
-    "inv_number_hint": "Fill in the number so this test can be drawn as a curve across visits. Copy the normal range from the lab's own report — the program assumes none, because it moves with age and with the lab."
+    "inv_number_hint": "Fill in the number so this test can be drawn as a curve across visits. Copy the normal range from the lab's own report — the program assumes none, because it moves with age and with the lab.",
+    "bp_systolic": "Blood pressure — systolic",
+    "bp_diastolic": "diastolic",
+    "bp_arm": "Arm",
+    "bp_arm_right": "Right",
+    "bp_arm_left": "Left"
   },
   "diagnosis_types": {
     "working": "Working",
@@ -5106,5 +5111,17 @@
     "none": "No test yet has a number recorded twice or more.",
     "latest": "Latest",
     "out": "outside range"
+  },
+  "panels": {
+    "title": "Specialty panel",
+    "none": "— none —",
+    "reads_hint": "Read from the vitals above — not asked again.",
+    "unknown": "This visit was recorded under a panel named \\u201c{key}\\u201d that this program no longer has. Its readings are kept.",
+    "read_weight_kg": "Weight",
+    "read_height_cm": "Height",
+    "read_pulse_bpm": "Pulse",
+    "read_resp_rate": "Respiratory rate",
+    "read_spo2": "SpO2",
+    "read_blood_pressure": "Blood pressure"
   }
 }

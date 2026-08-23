@@ -1,0 +1,79 @@
+{
+  "version": "2026.08",
+  "effective_date": "2026-08-23",
+  "_note_ar": "لوح التخصص على شاشة الزيارة. البيانات هنا مش في الكود — إضافة تخصص = إضافة هنا، من غير أي تعديل برمجي. الحقول اتاخدت من استبيان التخصصات (questions.ts + الإجابات المقترحة).",
+  "_note_en": "The specialty panel on the visit screen. Data, not code: adding a specialty is an edit here. Fields come from the specialties survey.",
+  "_sources": [
+    "PediaPro specialties survey — questions.ts, section `cardiology`",
+    "PediaPro_Survey_Answers.xlsx — الإجابات المقترحة, قلب الأطفال"
+  ],
+
+  "panels": {
+    "cardiology": {
+      "name_ar": "قلب الأطفال",
+      "name_en": "Paediatric cardiology",
+      "icon": "heart-pulse",
+
+      "_reads_note_ar": "دي بتتقرا من العلامات الحيوية اللي التمريض سجّلها — اللوح بيعرضها ومش بيسأل عنها تاني. خانة وزن تانية معناها وزنين لنفس الزيارة ومحدش يعرف أنهي واحد الصح.",
+      "reads": [
+        "weight_kg", "height_cm", "pulse_bpm", "resp_rate", "spo2",
+        "blood_pressure"
+      ],
+
+      "fields": [
+        {
+          "code": "nyha_ross",
+          "label_ar": "درجة القصور NYHA / Ross",
+          "label_en": "Heart failure class (NYHA / Ross)",
+          "type": "choice",
+          "options": ["I", "II", "III", "IV"]
+        },
+        {
+          "code": "ef_pct",
+          "label_ar": "كسر القذف EF",
+          "label_en": "Ejection fraction",
+          "type": "number", "unit": "%"
+        },
+        {
+          "code": "lvedd_mm",
+          "label_ar": "قطر البطين الأيسر LVEDD",
+          "label_en": "LV end-diastolic diameter",
+          "type": "number", "unit": "mm"
+        },
+        {
+          "code": "defect_size_mm",
+          "label_ar": "حجم الفتحة",
+          "label_en": "Defect size",
+          "type": "number", "unit": "mm"
+        },
+        {
+          "code": "valve_gradient_mmhg",
+          "label_ar": "فرق الضغط عبر الصمام",
+          "label_en": "Valve gradient",
+          "type": "number", "unit": "mmHg"
+        },
+        {
+          "code": "pap_mmhg",
+          "label_ar": "ضغط الشريان الرئوي المقدَّر",
+          "label_en": "Estimated pulmonary artery pressure",
+          "type": "number", "unit": "mmHg"
+        },
+        {
+          "code": "coronary_z",
+          "label_ar": "قطر الشريان التاجي Z-score",
+          "label_en": "Coronary artery Z-score",
+          "type": "number"
+        },
+        {
+          "code": "last_penicillin",
+          "label_ar": "تاريخ آخر حقنة بنسلين",
+          "label_en": "Last penicillin injection",
+          "type": "date"
+        }
+      ],
+
+      "_control_note_ar": "الاستبيان بيسأل عن «رقم السيطرة» كحقل إلزامي رقمي (SpO2 و EF)، وإجابته المقترحة في نفس الملف هي حرفياً: «لا يوجد رقم موحّد لـSpO2 أو EF لكل مرض قلبي؛ تُترك القيم قابلة للتخصيص حسب التشخيص». فمفيش رقم مكتوب هنا. المراجعة الكاملة في SPECIALTIES_SURVEY_REVIEW.md.",
+      "control_number": null
+    }
+  }
+}
