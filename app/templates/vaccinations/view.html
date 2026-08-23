@@ -142,6 +142,19 @@
              fine, the vaccine *is* recommended, and what is missing is a
              schedule the program is allowed to compute. Both end at "ask the
              doctor" and they are not the same question. #}
+          {# Which rule produced these dates, in its own words. The engine has
+             always known and never said, and it matters most where the answer
+             is borrowed: the Egyptian profile states no pneumococcal schedule,
+             so those dates come from the vial's leaflet — a sound answer, and
+             one a doctor should be able to see is the leaflet's rather than
+             their own reference's. A fallback the reader cannot see is a
+             number from nowhere. #}
+          {% if item.rule %}
+            <span class="badge badge--muted" title="{{ item.rule }}">
+              <i class="bi bi-journal-text"></i>
+              {{ t('vaccinations.source_' ~ item.rule_source)
+                 if item.rule_source else '' }}</span>
+          {% endif %}
           {% if item.review %}
             {% set unsettled = item.review == 'guideline_unsettled' %}
             {% set why = t('vreview.why_' ~ item.review) %}

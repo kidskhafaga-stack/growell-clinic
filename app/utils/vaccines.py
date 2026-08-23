@@ -143,6 +143,17 @@ _RETAGGED_BANDS = {
     # is seeded under a new code, so the old row has to stop applying or a
     # healthy twelve-year-old goes on being scheduled from it.
     "MENB-CDC-10Y": None,
+    # The Egyptian pneumococcal table. Its numbers were ACIP's, under this
+    # profile's name — see the note where it used to be. Retired rather than
+    # merely deleted from the catalogue: seeding only ever adds, so a clinic
+    # created last month would otherwise go on being scheduled by rows a
+    # clinic created tomorrow never gets. Same program, same settings, two
+    # answers depending on the install date, and no way to reproduce either.
+    "PCV-EG-CU7": None,
+    "PCV-EG-CU12": None,
+    "PCV-EG-CU2Y": None,
+    "PCV-EG-END": None,
+    "PCV-EG-INF": None,
 }
 
 
@@ -502,43 +513,29 @@ _AGE_BANDED = {
 
         # -------- the Egyptian programme, which is what this clinic follows
         #
-        # Pneumococcal is not in Egypt's national schedule; it is a private-
-        # market vaccine, and the reference the catalogue has always named for
-        # it here is the WHO pneumococcal position paper together with ACIP.
-        # These rows say that, at the ages the Egyptian catalogue's own brands
-        # are dosed at. Every one is "للمراجعة" — seeded for the doctor to
-        # confirm or correct, in the schedule editor, under this profile.
-        {"code": "PCV-EG-CU7", "min": 7, "max": 11, "sort_order": 0,
-         "source": "egypt",
-         "label": "7–11 شهر بدون جرعات سابقة: 3 جرعات، الأخيرة بعد "
-                  "إتمام 12 شهر — للمراجعة",
-         "doses": [(7, None), (8, 28), (12, 56)]},
-        {"code": "PCV-EG-CU12", "min": 12, "max": 23, "sort_order": 1,
-         "source": "egypt",
-         "label": "12–23 شهر بدون جرعات سابقة: جرعتان بفاصل ≥8 أسابيع "
-                  "— للمراجعة",
-         "doses": [(12, None), (14, 56)]},
-        {"code": "PCV-EG-CU2Y", "min": 24, "max": 59, "sort_order": 2,
-         "match_on": "today", "source": "egypt",
-         "catch_up": True, "previous_max": 3,
-         "label": "2–4 سنوات (سليم) وأقل من 4 جرعات: جرعة واحدة "
-                  "لاستكمال الناقص — للمراجعة",
-         "doses": [(24, None)]},
-        # Marked as a catch-up with nothing in it, which is exactly what it
-        # is: "how many are still owed" — none. That also keeps the doses the
-        # child did have on their file. A bare empty course dropped them, so a
-        # six-year-old's certificate lost the pneumococcal dose they were
-        # actually given — a shut course must still show what happened.
-        {"code": "PCV-EG-END", "min": 60, "max": None, "sort_order": 3,
-         "match_on": "today", "source": "egypt", "catch_up": True,
-         "label": "5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
-                  "لا جرعات إلا بقرار طبيب — للمراجعة",
-         "doses": []},
-        # Last, and matched on the age at the first dose. See above.
-        {"code": "PCV-EG-INF", "min": None, "max": 6, "sort_order": 4,
-         "source": "egypt",
-         "label": "بدء قبل 7 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
-         "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
+        # It has no pneumococcal rows here, and that is the whole entry.
+        #
+        # Pneumococcal is not in the national programme, and no Egyptian
+        # clinical reference states a catch-up — the Drug Authority's
+        # assessment of a marketing application carries the manufacturer's own
+        # table, reviewed and approved, which is the leaflet with a different
+        # letterhead. So the profile does not invent one, and it does not
+        # borrow another body's under its own name either. It says nothing,
+        # and the loader's ordinary fallback hands the question to the
+        # product's leaflet — which is what an Egyptian paediatrician is
+        # working from in any case.
+        #
+        # **And that is not a silent fallback, which is the thing worth being
+        # careful about.** Every band the leaflet answers with opens with the
+        # trade name — "Prevenar 13 — بدء 7–11 شهر…" — so a doctor reading
+        # "3 doses" can see whose three, on the card, without being told to go
+        # and check a setting.
+        #
+        # An earlier version of this file put ACIP's numbers here under a bare
+        # Egyptian label. That is the failure this note exists to prevent: a
+        # settings screen reading "you follow the Egyptian programme" over
+        # another body's rules leaves a clinic unable to audit its own
+        # practice.
 
         # ------------------------------------------------- and the WHO's
         #
@@ -1498,6 +1495,11 @@ def _banded_templates():
                 # actually being scheduled by" is a question worth being able
                 # to answer from the answer itself.
                 "source": template.source,
+                # And what the rule says, in the words it was written in. The
+                # loader carried everything needed to *apply* a band and
+                # nothing needed to *explain* one, so the screens could show a
+                # dose count and never whose.
+                "label": template.label,
                 "authoritative": template.source == profile != "manufacturer",
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
@@ -1923,6 +1925,23 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # read out of a leaflet and seeded, it does know, and going on
             # warning turns a real caution into wallpaper.
             "banded": bool(_bands_for(vaccine.id, brand.id)) if brand else False,
+            # **Which rule produced these dates, in its own words.**
+            #
+            # The engine has always known and never said. A doctor looking at
+            # "3 doses" could not tell whether that came from the reference
+            # their clinic follows, from the vial's leaflet because the
+            # reference is silent about the product, or from the brand's own
+            # rows because nothing banded applies — three different degrees of
+            # authority, one identical number on the card.
+            #
+            # It matters most exactly where this program is least certain. The
+            # Egyptian profile states no pneumococcal schedule, so a child's
+            # pneumococcal dates come from the product's leaflet; that is a
+            # sound answer and a *borrowed* one, and a fallback the reader
+            # cannot see is a number from nowhere.
+            "rule": (band or {}).get("label") if isinstance(band, dict) else None,
+            "rule_source": ((band or {}).get("source")
+                            if isinstance(band, dict) else None),
             # Set when the record cannot be scheduled from. The screens show
             # it in place of a due date, because a date computed from a
             # contradiction is worse than no date.
