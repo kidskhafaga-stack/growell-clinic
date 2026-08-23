@@ -15,6 +15,9 @@
       "icon": "heart-pulse",
 
       "_reads_note_ar": "دي بتتقرا من العلامات الحيوية اللي التمريض سجّلها — اللوح بيعرضها ومش بيسأل عنها تاني. خانة وزن تانية معناها وزنين لنفس الزيارة ومحدش يعرف أنهي واحد الصح.",
+
+      "_from_study_note_ar": "«from_study» = أسماء القياس في تقرير الجهاز اللي بيقول نفس الحاجة. بتعمل حاجتين: (١) آخر قراءة من الإيكو بتظهر جنب الخانة بتاريخها وزرار «استخدم» — بتظهر ومش بتتحط لوحدها، لأن إيكو من تلات شهور مش قراءة النهارده؛ (٢) قراءات الجهاز وقراءات اللوح بتتجمع في منحنى واحد بدل منحنيين لنفس القياس. الربط بالاسم، يعني عيادة غيّرت اسم الحقل في الجهاز بيتفك الربط والخانة بترجع تسأل — ده أحسن من ربط بيخمّن.",
+      "_from_study_note_en": "`from_study` lists the device-report field names that mean the same reading: the last one is shown beside the box with its date and a one-click fill (shown, never auto-filled), and device and panel readings join one curve instead of two.",
       "reads": [
         "weight_kg", "height_cm", "pulse_bpm", "resp_rate", "spo2",
         "blood_pressure"
@@ -32,13 +35,15 @@
           "code": "ef_pct",
           "label_ar": "كسر القذف EF",
           "label_en": "Ejection fraction",
-          "type": "number", "unit": "%"
+          "type": "number", "unit": "%",
+          "from_study": ["الكسر القذفي (EF)", "Ejection fraction (EF)", "EF"]
         },
         {
           "code": "lvedd_mm",
           "label_ar": "قطر البطين الأيسر LVEDD",
           "label_en": "LV end-diastolic diameter",
-          "type": "number", "unit": "mm"
+          "type": "number", "unit": "mm",
+          "from_study": ["LVEDD"]
         },
         {
           "code": "defect_size_mm",

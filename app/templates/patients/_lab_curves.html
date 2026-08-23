@@ -20,6 +20,10 @@
   {% set top = hi + pad %}
   {% set bottom = lo - pad %}
   {% set range_ = (top - bottom) if (top - bottom) > 0 else 1 %}
+  {# The x of a point is *when* it was taken, not which number of reading it
+     is: a fall over twelve months and a fall over four days must not be drawn
+     with the same slope. `offset` is 0..1 along the time axis, worked out in
+     app/utils/series.py; the fallback keeps an older caller drawing. #}
   {% set step = (width - 16) / ((points|length - 1) if points|length > 1 else 1) %}
 
   <svg viewBox="0 0 {{ width }} {{ height }}" width="100%" height="{{ height }}"
@@ -37,7 +41,7 @@
 
     {% set coords = [] %}
     {% for p in points %}
-      {% set x = 8 + loop.index0 * step %}
+      {% set x = 8 + (p.offset * (width - 16) if p.offset is defined and p.offset is not none else loop.index0 * step) %}
       {% set y = height - ((p.value - bottom) / range_) * height %}
       {% set _ = coords.append('%.1f,%.1f'|format(x, y)) %}
     {% endfor %}
@@ -45,11 +49,11 @@
               stroke="var(--green-700, #1e7e46)" stroke-width="2"
               stroke-linejoin="round" stroke-linecap="round"></polyline>
     {% for p in points %}
-      {% set x = 8 + loop.index0 * step %}
+      {% set x = 8 + (p.offset * (width - 16) if p.offset is defined and p.offset is not none else loop.index0 * step) %}
       {% set y = height - ((p.value - bottom) / range_) * height %}
       <circle cx="{{ '%.1f'|format(x) }}" cy="{{ '%.1f'|format(y) }}" r="3.2"
               fill="{{ '#c0392b' if p.out_of_range else 'var(--green-700, #1e7e46)' }}">
-        <title>{{ p.value }}{% if p.date %} · {{ p.date.strftime('%Y-%m-%d') }}{% endif %}</title>
+        <title>{{ p.value }}{% if p.date %} · {{ p.date.strftime('%Y-%m-%d') }}{% endif %}{% if p.source %} · {{ t('curves.src_' ~ p.source) }}{% endif %}</title>
       </circle>
     {% endfor %}
   </svg>
@@ -79,7 +83,13 @@
     {% for s in series %}
     <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
-        <strong>{{ s.name }}{% if s.unit %} <span class="hint" dir="ltr">({{ s.unit }})</span>{% endif %}</strong>
+        <strong>{{ s.name }}{% if s.unit %} <span class="hint" dir="ltr">({{ s.unit }})</span>{% endif %}
+          {# Where the numbers came from. Shown whenever it is not simply the
+             lab, because "the machine measured it" and "the doctor wrote it
+             down" are different claims and a merged line hides which. #}
+          {% if s.sources and s.sources != ['lab'] %}
+            {% for src in s.sources %}<span class="badge">{{ t('curves.src_' ~ src) }}</span>{% endfor %}
+          {% endif %}</strong>
         <span class="hint" dir="ltr">{{ s.points|length }} ×</span>
       </div>
       {{ sparkline(s.points) }}

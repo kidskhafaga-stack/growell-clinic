@@ -167,6 +167,11 @@ ADDITIONS = [
     # Which specialty panel a visit was recorded under, and a doctor's default.
     ("visits", "specialty_panel", "VARCHAR(40)"),
     ("users", "specialty_panel", "VARCHAR(40)"),
+    # An echo's EF as a number, and the range it was judged against, so a
+    # device reading can be a point on a curve like a lab result.
+    ("device_study_values", "value_num", "FLOAT"),
+    ("device_study_values", "normal_low", "FLOAT"),
+    ("device_study_values", "normal_high", "FLOAT"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),
