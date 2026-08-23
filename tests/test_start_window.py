@@ -265,11 +265,19 @@ def test_the_filter_asks_the_named_set_rather_than_a_word(seeded):
 
 def test_shut_and_giveable_do_not_overlap(seeded):
     """A status in both would make a dose simultaneously offerable and
-    impossible, which is the shape of the bug rather than a typo."""
+    impossible, which is the shape of the bug rather than a typo.
+
+    The set is pinned as well as checked for overlap, so a status joining or
+    leaving it is a deliberate edit here. `out_of_scope` joined when the
+    schedule's range became a thing separate from the product's licence: it
+    shuts a course for the same practical purpose — nothing owed, nothing
+    offered, nothing reprinted on a certificate as outstanding — while saying
+    something different about why.
+    """
     from app.utils.vaccines import GIVEABLE, SHUT
 
     assert not set(SHUT) & set(GIVEABLE)
-    assert set(SHUT) == {"expired", "not_eligible"}
+    assert set(SHUT) == {"expired", "not_eligible", "out_of_scope"}
 
 
 def test_the_wording_exists_in_both_languages(seeded):
