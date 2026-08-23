@@ -214,7 +214,8 @@
       "min_interval_days": 28,
       "booster": false,
       "catch_up_ar": "جرعتان بفاصل أدنى 4 أسابيع (الروتيني 12 و18 شهر). لقاح حي: باعده 4 أسابيع عن أي لقاح حي حقني آخر إن لم يُعطَ في نفس اليوم.",
-      "reference_ar": "WHO — نشرة موقف الحصبة/MMR — للمراجعة"
+      "reference_ar": "WHO — نشرة موقف الحصبة/MMR — للمراجعة",
+      "scope_max_age_days": 6575
     },
     {
       "code": "VIT_A",
@@ -841,7 +842,8 @@
       "min_interval_days": 28,
       "booster": false,
       "catch_up_ar": "يختلف حسب المنتج والسن: Menactra من 9 شهور، Nimenrix من 6 أسابيع، Menveo من شهرين. جرعة أو جرعتان حسب السن والخطورة — راجع نشرة الشركة.",
-      "reference_ar": "نشرة الشركة + ACIP — للمراجعة"
+      "reference_ar": "نشرة الشركة + ACIP — للمراجعة",
+      "scope_max_age_days": 6575
     },
     {
       "code": "MENB",

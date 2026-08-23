@@ -152,6 +152,7 @@ ADDITIONS = [
     ("vaccines", "diseases_covered", "VARCHAR(255)"),
     ("vaccines", "min_age_months", "INTEGER"),
     ("vaccines", "max_age_months", "INTEGER"),
+    ("vaccines", "scope_max_age_days", "INTEGER"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

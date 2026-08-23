@@ -271,6 +271,7 @@ def seed_vaccines():
                 # written down in prose and known to nobody.
                 min_age_months=v.get("min_age_months"),
                 max_age_months=v.get("max_age_months"),
+                scope_max_age_days=v.get("scope_max_age_days"),
                 booster_required=v.get("booster", False),
                 catch_up_notes=cu,
             )
@@ -297,6 +298,9 @@ def seed_vaccines():
                 vaccine.min_age_months = v["min_age_months"]
             if v.get("max_age_months") and vaccine.max_age_months is None:
                 vaccine.max_age_months = v["max_age_months"]
+            if (v.get("scope_max_age_days")
+                    and vaccine.scope_max_age_days is None):
+                vaccine.scope_max_age_days = v["scope_max_age_days"]
             if v.get("booster") and not vaccine.booster_required:
                 vaccine.booster_required = True
         # Which dose of this course is the booster rather than a primary dose.
@@ -1037,10 +1041,15 @@ GIVEABLE = ("overdue", "due", "suggested")
 # that had written `== "expired"` went on offering the other half. The
 # certificate did exactly that: a two-year-old was printed a rotavirus
 # suggestion again, with a due date from when they were two months old.
-SHUT = ("expired", "not_eligible")
+# `out_of_scope` joins them because it shuts a course for the same practical
+# purpose — nothing is owed and nothing is offered — while saying something
+# different about why. A certificate that reprinted either as outstanding
+# would be asking a family for a dose nobody can act on.
+SHUT = ("expired", "not_eligible", "out_of_scope")
 
 
-def _status(due_date, given, today, closed_after=None, cannot_start=False):
+def _status(due_date, given, today, closed_after=None, cannot_start=False,
+            scope_after=None):
     """What this dose is, for this child, today.
 
     ``closed_after`` is the last date the dose could still be given — the
@@ -1050,6 +1059,13 @@ def _status(due_date, given, today, closed_after=None, cannot_start=False):
     three-year-old at all, so chasing it is asking the desk to make a call that
     ends in "no". Before this, every child past the window read as overdue on
     rotavirus for the rest of their childhood.
+
+    ``scope_after`` is the different sentence: the last date this *schedule*
+    still describes the patient — see :attr:`Vaccine.scope_max_age_days`. Past
+    it a dose is **out of scope**, which is not a claim that it cannot be
+    given. It says the reference this clinic follows stops here and the
+    question belongs to the doctor, which for MMR and an adult is the true
+    answer where "expired" would be a false one.
     """
     if given:
         return "done"
@@ -1062,6 +1078,11 @@ def _status(due_date, given, today, closed_after=None, cannot_start=False):
         return "not_eligible"
     if closed_after is not None and today > closed_after:
         return "expired"
+    # Read after the product's own ceiling and before everything else. A
+    # patient past both is past the stronger of the two, and "this vial may
+    # not be given to you" is the more useful thing to be told.
+    if scope_after is not None and today > scope_after:
+        return "out_of_scope"
     if due_date is None:
         return "upcoming"
     # A dose whose own turn falls past the ceiling can never arrive in time,
@@ -1579,7 +1600,8 @@ def needs_clinical_review(dob, schedule, given_rows, repeatable=False):
 
 
 def course_dates(dob, schedule, given, planned, min_interval,
-                 earliest_live, closed_after, today, start_closed_after=None):
+                 earliest_live, closed_after, today, start_closed_after=None,
+                 scope_after=None):
     """When each dose of one course falls due, and what it is today.
 
     The whole scheduling rule, in one place and over plain values: a birthday,
@@ -1601,10 +1623,20 @@ def course_dates(dob, schedule, given, planned, min_interval,
     # once for the course rather than per dose: it is the *first* dose the
     # label puts a deadline on, and once that is past none of the rest can
     # happen either.
+    started = any(d for d in given.values())
     cannot_start = bool(
         start_closed_after is not None
-        and not any(d for d in given.values())
+        and not started
         and today > start_closed_after)
+    # Scope cannot un-promise a course somebody began. "Our schedule does not
+    # describe you" is a true thing to say to an adult with an empty record;
+    # said to an adult whose first MMR was given here at five it would be this
+    # clinic dropping the second dose of its own series, and CDC's position is
+    # that the two-dose series is completed at any age. The same line the
+    # stale-date rule draws, drawn once more: a promise outlives the scope of
+    # the reference that suggested it.
+    if started:
+        scope_after = None
     for dose_number, age_months in schedule:
         given_date = given.get(dose_number)
         due = add_months(dob, age_months) if dob else None
@@ -1630,7 +1662,8 @@ def course_dates(dob, schedule, given, planned, min_interval,
         prev_date = effective
         out[dose_number] = (due, _status(due, given_date is not None, today,
                                          closed_after=closed_after,
-                                         cannot_start=cannot_start))
+                                         cannot_start=cannot_start,
+                                         scope_after=scope_after))
     return out
 
 
@@ -1701,6 +1734,20 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         if dob and brand.max_age_first_dose_days:
             start_closed_after = dob + timedelta(
                 days=brand.max_age_first_dose_days)
+        # And the other kind of ceiling: how far this schedule describes
+        # anybody at all. Per vaccine and not per brand, because it is a
+        # property of the reference rather than of what is in the fridge —
+        # CDC's child-and-adolescent schedule ends at eighteen whichever MMR
+        # a clinic stocks.
+        scope_after = None
+        if dob and vaccine.scope_max_age_days:
+            scope_after = dob + timedelta(days=vaccine.scope_max_age_days)
+        # And an agreement is a promise too — the same rule that lets an
+        # agreed course be *late* before a single dose exists. The doctor and
+        # the family settled on this one; the reference's range is not a
+        # reason to stop carrying it.
+        if vaccine.id in (agreed or ()):
+            scope_after = None
         # Live-vaccine spacing: keep 28 days from another live parenteral vaccine
         # the child already got (can't co-administer with a past dose anymore).
         earliest_live = None
@@ -1791,7 +1838,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
         mixed = mixed_series_note(brand, earlier_brands, dob, brand_first)
         timings = course_dates(dob, rota, given_dates, planned_dates, min_iv,
                                earliest_live, closed_after, today,
-                               start_closed_after=start_closed_after)
+                               start_closed_after=start_closed_after,
+                               scope_after=scope_after)
 
         doses = []
         by_number = {d.dose_number: d for d in brand.doses}
@@ -2099,8 +2147,8 @@ def plan_summary(plan):
     promise is only broken on a course somebody started here.
     """
     s = {"done": 0, "due": 0, "overdue": 0, "upcoming": 0, "suggested": 0,
-         "expired": 0, "not_eligible": 0, "national": 0, "on_demand": 0,
-         "total": 0}
+         "expired": 0, "not_eligible": 0, "out_of_scope": 0, "national": 0,
+         "on_demand": 0, "total": 0}
     for v in plan:
         for d in v["doses"]:
             s[d["status"]] = s.get(d["status"], 0) + 1
@@ -2625,6 +2673,7 @@ def _catalogue_rows():
                 # contradiction about it.
                 "repeatable": bool(v.is_seasonal or v.on_demand),
                 "min_interval": v.min_interval_days or _CATCH_UP_MIN_INTERVAL,
+                "scope_max_age": v.scope_max_age_days,
                 "live": (v.vaccine_type == "live" and (v.route or "") != "oral"),
                 "obj": v,
             }
@@ -2800,6 +2849,12 @@ def scan_due(dob, doses, today, agreed=None):
                         if dob and brand["ceiling"] else None)
         start_closed_after = (dob + timedelta(days=brand["start_ceiling"])
                               if dob and brand.get("start_ceiling") else None)
+        # The same scope ceiling the patient's own file reads. Both paths or
+        # neither: a work-list that chases what the file says is nobody's to
+        # chase is exactly the disagreement this pair of functions exists to
+        # avoid.
+        scope_after = (dob + timedelta(days=meta["scope_max_age"])
+                       if dob and meta.get("scope_max_age") else None)
         earliest_live = None
         if meta["live"]:
             others = [d for vid, d in live_given.items() if vid != vaccine_id]
@@ -2826,7 +2881,8 @@ def scan_due(dob, doses, today, agreed=None):
                                planned.get(vaccine_id, {}),
                                meta["min_interval"], earliest_live,
                                closed_after, today,
-                               start_closed_after=start_closed_after)
+                               start_closed_after=start_closed_after,
+                               scope_after=scope_after)
 
         if meta["seasonal"]:
             # A seasonal course is one dose a year for almost everybody, and
