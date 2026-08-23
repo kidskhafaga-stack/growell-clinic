@@ -189,6 +189,7 @@ def record(visit_id):
         visit.notes = (request.form.get("notes") or "").strip()
 
         _save_vitals(visit)
+        _save_panel(visit)
         ActivityLog.record(
             "visit.update", user_id=current_user.id, entity="visit",
             entity_id=visit.id, ip_address=client_ip(),
@@ -298,8 +299,20 @@ def record(visit_id):
     from app.utils.red_flags import assess_visit
     red_flag = assess_visit(visit)
     from app.utils import ai
+    # The specialty panel: this visit's own, else the doctor's default. One
+    # screen with a panel on it rather than a screen per specialty — see
+    # app/utils/panels.py for why.
+    from app.utils import panels as _panels
+
+    panel_key, panel_meta = _panels.for_visit(visit, visit.doctor,
+                                              getattr(g, "lang", "ar"))
+
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
+        panel_key=panel_key, panel=panel_meta,
+        panel_choices=_panels.choices(getattr(g, "lang", "ar")),
+        panel_readings=_panels.readings(visit, panel_key),
+        panel_vitals=_panels.vitals_shown(panel_meta, visit.vitals),
         red_flag=red_flag,
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,
@@ -532,6 +545,58 @@ def station_vitals(appointment_id):
     return redirect(url_for("visits.station"))
 
 
+def _save_panel(visit):
+    """Store what the specialty panel was given, and only what it describes.
+
+    Every field name is checked against the catalogue before anything is
+    written. A form posts names; without that check a crafted request could
+    invent a code and the child's file would carry a reading no catalogue
+    describes and no screen can label.
+
+    A blank clears the reading rather than leaving the previous one attached.
+    Correcting a visit by emptying a box is exactly the moment a stale value
+    would survive, and a stale measurement on a chart is worse than a gap
+    because a gap is visible.
+    """
+    from app.models import Measurement
+    from app.utils import panels
+
+    chosen = (request.form.get("specialty_panel") or "").strip()[:40]
+    if chosen and panels.panel(chosen) is None:
+        chosen = ""                       # a key nothing answers to is not one
+    visit.specialty_panel = chosen or None
+    if not chosen:
+        return
+
+    fields = panels.field_map(chosen)
+    existing = {row.code: row for row in
+                Measurement.query.filter_by(visit_id=visit.id).all()}
+
+    for code, field in fields.items():
+        raw = (request.form.get(f"m_{code}") or "").strip()
+        row = existing.get(code)
+        if not raw:
+            if row is not None:
+                db.session.delete(row)
+            continue
+        if row is None:
+            row = Measurement(patient_id=visit.patient_id, visit_id=visit.id,
+                              code=code, panel=chosen,
+                              recorded_by=current_user.id)
+            db.session.add(row)
+        row.panel = chosen
+        row.unit = field.get("unit")
+        # A number where the catalogue says number, a word where it says word.
+        # `_number` returns None for prose rather than zero — the same rule the
+        # lab results follow, and for the same reason: zero is a reading.
+        if field.get("type") == "number":
+            row.value_num = _number(raw)
+            row.value_text = None if row.value_num is not None else raw[:80]
+        else:
+            row.value_num = None
+            row.value_text = raw[:80]
+
+
 def _save_vitals(visit):
     """Upsert the visit's vitals and mirror growth measurements."""
     vitals = visit.vitals or VitalSigns(visit_id=visit.id)
@@ -542,6 +607,9 @@ def _save_vitals(visit):
     vitals.pulse_bpm = _int("pulse_bpm")
     vitals.resp_rate = _int("resp_rate")
     vitals.spo2 = _int("spo2")
+    vitals.bp_systolic = _int("bp_systolic")
+    vitals.bp_diastolic = _int("bp_diastolic")
+    vitals.bp_arm = (request.form.get("bp_arm") or "").strip()[:10] or None
     if visit.vitals is None:
         db.session.add(vitals)
         visit.vitals = vitals

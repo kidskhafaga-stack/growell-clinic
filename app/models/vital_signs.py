@@ -21,6 +21,23 @@ class VitalSigns(db.Model):
     resp_rate = db.Column(db.Integer)
     spo2 = db.Column(db.Integer)
 
+    # **Blood pressure, and it lives here rather than in a specialty panel.**
+    #
+    # Three of the survey's specialties asked for it — cardiology, endocrine
+    # and nephrology — which is the argument against giving it to any of them.
+    # It is a vital sign: the nurse measures it before the child goes in, with
+    # the pulse and the temperature, and putting it on the cardiology panel
+    # would mean a nephrologist typing it into a screen headed "cardiology" or
+    # a second copy of it existing somewhere else.
+    #
+    # Which arm, because the survey asked for *"ضغط الدم الذراعان"* and it is
+    # not a detail: a difference between the arms is the finding, in coarctation
+    # especially, and a reading with no arm recorded cannot be compared with the
+    # next one.
+    bp_systolic = db.Column(db.Integer)
+    bp_diastolic = db.Column(db.Integer)
+    bp_arm = db.Column(db.String(10))          # right | left
+
     visit = db.relationship("Visit", back_populates="vitals")
 
     @property
@@ -30,6 +47,17 @@ class VitalSigns(db.Model):
             m = self.height_cm / 100.0
             if m > 0:
                 return round(self.weight_kg / (m * m), 1)
+        return None
+
+    @property
+    def blood_pressure(self):
+        """``"110/70"`` or ``None`` — both halves or neither.
+
+        A systolic with no diastolic is not half a reading, it is a typing
+        accident, and showing it as one invites somebody to act on it.
+        """
+        if self.bp_systolic and self.bp_diastolic:
+            return f"{self.bp_systolic}/{self.bp_diastolic}"
         return None
 
     @property
