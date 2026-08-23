@@ -1,0 +1,21 @@
+# Windows scripts are stored with CRLF, byte for byte, and git is told never
+# to touch them.
+#
+# Reported from a clinic, and it is the worst shape a bug can take: the update
+# ran, succeeded, replaced the updater with a copy Windows could not run, and
+# left the machine with no way to update again. `update.bat` opened and shut.
+#
+# cmd.exe reads a batch file expecting CRLF. With LF alone it mangles labels,
+# `goto` and `^` line continuations — and the evidence was in which files broke
+# and which did not: `start.bat` has none of the three and still ran, while
+# `update.bat` has six labels, two gotos and eleven continuations and did not.
+# `tools.bat` has fourteen labels, which is how a clinic loses the screen that
+# restores a backup.
+#
+# `-text` rather than `eol=crlf` deliberately. `eol=crlf` fixes a checkout and
+# does nothing for a ZIP downloaded from the web page — which is the copy most
+# clinics have, and the copy this whole failure happened on. `-text` means the
+# bytes in the repository are the bytes everybody gets, by every route.
+*.bat -text
+*.cmd -text
+*.ps1 -text

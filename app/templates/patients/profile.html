@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "patients/_lab_curves.html" as lab_curves with context %}
 {% from "patients/_macros.html" import patient_avatar, age_label with context %}
 {% set active_module = 'patients' %}
 {% block title %}{{ patient.display_name(current_lang) }}{% endblock %}
@@ -743,6 +744,8 @@
           <i class="bi bi-plus-circle"></i> {{ t('visits.start_visit') }}</a>
         {% endif %}
       </div>
+      {{ lab_curves.panel(lab_series, lab_latest) }}
+
       {% set pvisits = patient.visits|sort(attribute='created_at', reverse=true) %}
       {% if pvisits %}
       <div class="gc-stagger" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">

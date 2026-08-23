@@ -470,6 +470,7 @@ def create():
 def view(patient_id):
     from app.models import Invoice, PayerEntity, Prescription
     from app.utils import ai as ai_utils
+    from app.utils import lab_series
 
     patient = db.get_or_404(Patient, patient_id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
@@ -549,6 +550,10 @@ def view(patient_id):
         ai_patient=ai_patient, ai_discuss=ai_discuss,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
         growth_alert=_growth_concern(patient),
+        # One test across every visit. Only possible since a result could be
+        # a number; see app/utils/lab_series.py.
+        lab_series=lab_series.series_for(patient.id, getattr(g, "lang", "ar")),
+        lab_latest=lab_series.latest_values(patient.id, getattr(g, "lang", "ar")),
     )
 
 

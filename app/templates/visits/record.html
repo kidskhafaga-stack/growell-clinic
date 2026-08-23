@@ -176,6 +176,22 @@
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-grid">
+              <div class="form-row"><label>{{ t('visits.inv_value') }}</label>
+                <input class="input" name="result_value" type="number" step="any" dir="ltr"
+                       value="{{ x.result_value if x.result_value is not none else '' }}"></div>
+              <div class="form-row"><label>{{ t('visits.inv_unit') }}</label>
+                <input class="input" name="result_unit" dir="ltr" maxlength="20"
+                       value="{{ x.result_unit or (x.investigation.unit if x.investigation else '') or '' }}"></div>
+              <div class="form-row"><label>{{ t('visits.inv_ref_low') }}</label>
+                <input class="input" name="result_low" type="number" step="any" dir="ltr"
+                       value="{{ x.result_low if x.result_low is not none else '' }}"></div>
+              <div class="form-row"><label>{{ t('visits.inv_ref_high') }}</label>
+                <input class="input" name="result_high" type="number" step="any" dir="ltr"
+                       value="{{ x.result_high if x.result_high is not none else '' }}"></div>
+            </div>
+            <p class="hint" style="margin:2px 0 8px;"><i class="bi bi-info-circle"></i>
+              {{ t('visits.inv_number_hint') }}</p>
+            <div class="form-grid">
               <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label><input class="input" name="result_text" dir="auto"></div>
               <div class="form-row"><label>{{ t('visits.inv_comment') }}</label><input class="input" name="result_comment" dir="auto"></div>
             </div>
@@ -505,6 +521,22 @@
           <summary style="cursor:pointer;color:var(--green-800);font-size:0.9rem;"><i class="bi bi-pencil-square"></i> {{ t('visits.inv_result') }}</summary>
           <form method="post" action="{{ url_for('visits.result_investigation', inv_id=x.id) }}" style="margin-top:8px;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('visits.inv_value') }}</label>
+                <input class="input" name="result_value" type="number" step="any" dir="ltr"
+                       value="{{ x.result_value if x.result_value is not none else '' }}"></div>
+              <div class="form-row"><label>{{ t('visits.inv_unit') }}</label>
+                <input class="input" name="result_unit" dir="ltr" maxlength="20"
+                       value="{{ x.result_unit or (x.investigation.unit if x.investigation else '') or '' }}"></div>
+              <div class="form-row"><label>{{ t('visits.inv_ref_low') }}</label>
+                <input class="input" name="result_low" type="number" step="any" dir="ltr"
+                       value="{{ x.result_low if x.result_low is not none else '' }}"></div>
+              <div class="form-row"><label>{{ t('visits.inv_ref_high') }}</label>
+                <input class="input" name="result_high" type="number" step="any" dir="ltr"
+                       value="{{ x.result_high if x.result_high is not none else '' }}"></div>
+            </div>
+            <p class="hint" style="margin:2px 0 8px;"><i class="bi bi-info-circle"></i>
+              {{ t('visits.inv_number_hint') }}</p>
             <div class="form-row"><label>{{ t('visits.inv_result_text') }}</label>
               <textarea class="input" name="result_text" rows="2" dir="auto">{{ x.result_text or '' }}</textarea></div>
             <div class="form-row"><label>{{ t('visits.inv_comment') }}</label>
