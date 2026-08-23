@@ -217,11 +217,31 @@ REM well enough by asking the branch itself, and a race that narrow is not
 REM worth a line of batch nobody can read.
 set "PP_ZIP_REF=refs/heads/%PP_BRANCH%"
 
+REM TLS 1.2, said out loud, and this line is why the download stopped working.
+REM
+REM Windows PowerShell 5.1 - which is what ships with Windows and what a
+REM clinic PC is running - still negotiates TLS 1.0 by default, and GitHub has
+REM refused that for years. The failure is "Could not create SSL/TLS secure
+REM channel", which arrives as an exception carrying no HTTP response at all,
+REM so the 404 test below reads `$null -eq 404`, decides it is not a 404, and
+REM the script reports a network fault on a machine whose network is fine.
+REM
+REM It was here once. It went out with the commit-id lookup it happened to be
+REM sitting inside - the lookup was the bug, this line was not, and both were
+REM removed together. Twice now this file has lost a correct line because it
+REM stood next to a wrong one.
+REM
+REM And the error itself is printed rather than swallowed. Every failure here
+REM was being flattened into two exit codes, so a clinic could report only
+REM which of two sentences it saw - which is how a TLS failure spent two
+REM rounds being diagnosed as a missing repository.
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
+  "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
   "$u='https://codeload.github.com/%PP_REPO%/zip/%PP_ZIP_REF%';" ^
   "try { Invoke-WebRequest -Uri $u -OutFile '%PP_TMP%\src.zip' }" ^
-  "catch { if ($_.Exception.Response.StatusCode.value__ -eq 404)" ^
+  "catch { Write-Host ('      ' + $_.Exception.Message);" ^
+  "        if ($_.Exception.Response.StatusCode.value__ -eq 404)" ^
   "        { exit 44 } else { exit 1 } };" ^
   "Expand-Archive -Path '%PP_TMP%\src.zip' -DestinationPath '%PP_TMP%' -Force"
 
@@ -236,31 +256,55 @@ REM every clinic PC that has ever been updated.
 REM
 REM Which leaves three real causes, and the message names all three rather
 REM than guessing at one.
-if errorlevel 44 (
-  echo.
-  echo [ERROR] GitHub answered "not found" for this project.
-  echo.
-  echo         That is one of three things, and none of them is your internet:
-  echo           - the repository is private, and this download carries no
-  echo             sign-in (on purpose - a password here would sit on every
-  echo             clinic PC);
-  echo           - the branch was renamed or removed;
-  echo           - the project was moved.
-  echo.
-  echo         Nothing was changed. Your backup is untouched.
-  echo         Until it is sorted: sign in on github.com, download the ZIP
-  echo         yourself, and copy it over this folder WITHOUT touching
-  echo         instance\, uploads\ or clinic.env - then run:
-  echo             flask --app run upgrade-db
-  exit /b 1
-)
-if errorlevel 1 (
-  echo.
-  echo [ERROR] Could not reach GitHub to download the update - the machine
-  echo         is offline, or something between here and it is blocking the
-  echo         connection. Nothing was changed. Your backup is untouched.
-  exit /b 1
-)
+REM No brackets in any of the text below, and that is not a style choice.
+REM
+REM An unescaped `)` inside a parenthesised block closes the block where it
+REM stands. This message used to explain that the download carries no sign-in
+REM "(on purpose - a password here would sit on every clinic PC);" and that
+REM closing bracket ended the `if` four lines into it: everything after it ran
+REM on every outcome, and the half before it ran only on a 404.
+REM
+REM Which is exactly what a clinic saw. The report showed the *tail* of this
+REM message with its first lines missing - so the failure was never a 404 at
+REM all, and the script had been printing the wrong diagnosis at full
+REM confidence. The message written to stop somebody chasing the wrong fault
+REM was itself the wrong fault.
+REM
+REM `goto` rather than a block, so there is no bracket to escape and nothing
+REM to get wrong the next time a sentence needs a comma.
+if errorlevel 44 goto :not_found
+if errorlevel 1 goto :no_network
+goto :got_zip
+
+:not_found
+echo.
+echo [ERROR] GitHub answered "not found" for this project.
+echo.
+echo         That is one of three things, and none of them is your internet:
+echo           - the repository is private, and this download carries no
+echo             sign-in. That is deliberate - a password here would sit on
+echo             every clinic PC that has ever been updated.
+echo           - the branch was renamed or removed.
+echo           - the project was moved.
+echo.
+echo         Nothing was changed. Your backup is untouched.
+echo         Until it is sorted: sign in on github.com, download the ZIP
+echo         yourself, and copy it over this folder WITHOUT touching
+echo         instance\, uploads\ or clinic.env - then run:
+echo             flask --app run upgrade-db
+exit /b 1
+
+:no_network
+echo.
+echo [ERROR] Could not reach GitHub to download the update - the machine
+echo         is offline, or something between here and it is blocking the
+echo         connection.
+echo.
+echo         The exact error is above this line. Nothing was changed and
+echo         your backup is untouched.
+exit /b 1
+
+:got_zip
 
 REM The archive unpacks into a single folder named after the repo and branch.
 set "PP_SRC="
