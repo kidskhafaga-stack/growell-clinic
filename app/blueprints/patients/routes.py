@@ -474,6 +474,9 @@ def view(patient_id):
     patient = db.get_or_404(Patient, patient_id)
     ai_patient = (current_user.can_access("ai") and ai_utils.is_ready()
                   and ai_utils.patient_context_enabled())
+    # The discussion card needs both: the record still leaves the building, and
+    # a differential is its own decision on top of that.
+    ai_discuss = ai_patient and ai_utils.discussion_enabled()
 
     prescriptions = (Prescription.query.filter_by(patient_id=patient.id)
                      .order_by(Prescription.rx_date.desc(), Prescription.id.desc()).all())
@@ -543,7 +546,7 @@ def view(patient_id):
         consent_statements=all_statements(),
         categories=CLIENT_CATEGORIES,
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
-        ai_patient=ai_patient,
+        ai_patient=ai_patient, ai_discuss=ai_discuss,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
         growth_alert=_growth_concern(patient),
     )

@@ -291,6 +291,24 @@ def patient_context_enabled():
     return Setting.get("ai_patient_context") == "1"
 
 
+def discussion_enabled():
+    """Whether the clinic switched the discussion mode on. Off until it does.
+
+    Its own switch, separate from ``ai_patient_context``, because they are
+    different decisions. A clinic can want its own records read back and
+    written up — letters, summaries, "when did he last come" — without wanting
+    a machine to offer differentials. Folding the two together would mean a
+    clinic that turned the first one on for correspondence got the second one
+    as a side effect, which is not a thing anybody should acquire by accident.
+
+    Default off for the same reason: a suggestion about what a child might
+    have is not a feature to arrive switched on.
+    """
+    from app.models import Setting
+
+    return Setting.get("ai_discussion") == "1"
+
+
 def anonymize_enabled():
     from app.models import Setting
 
@@ -695,6 +713,10 @@ ERROR_KEYS = {
     "no_key": "ai.err_no_key",
     "empty": "ai.err_empty",
     "patient_context_disabled": "ai.err_patient_context",
+    # Its own sentence rather than sharing the one above, because the two
+    # switches are two decisions and pointing somebody at the wrong one costs
+    # them a settings screen and a guess.
+    "discussion_disabled": "ai.err_discussion_off",
     "err_request": "ai.err_request",
     "err_key": "ai.err_key",
     "err_model": "ai.err_model",
