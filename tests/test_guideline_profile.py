@@ -214,6 +214,12 @@ def test_the_guideline_wins_over_the_leaflet_for_the_same_product(seeded):
     leaflets*. Between a leaflet and the reference the clinic has chosen, the
     reference wins: a clinic following the CDC wants the CDC's catch-up
     whichever vial is in the fridge.
+
+    `egypt` is not one of the profiles tested here, and that is not an
+    oversight. It states no pneumococcal rule at all, so there is no contest
+    for this ordering to settle — the leaflet answers because nothing else
+    does, which is a different mechanism and is held in
+    `test_the_pneumococcal_catch_up.py`.
     """
     from app.extensions import db
     from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
@@ -248,7 +254,7 @@ def test_the_guideline_wins_over_the_leaflet_for_the_same_product(seeded):
     # rather than about a trade name — so it wins here.
     assert not ten_year_old("cdc", "c"), \
         "a brand's leaflet overruled the guideline the clinic follows"
-    assert not ten_year_old("egypt", "e"), \
+    assert not ten_year_old("who", "w"), \
         "a brand's leaflet overruled the guideline the clinic follows"
 
 
