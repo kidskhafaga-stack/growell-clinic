@@ -137,7 +137,16 @@ def chat():
     if not messages:
         return _reply({"ok": False, "error": "empty"}, 400)
 
-    result = ai_utils.chat(messages, feature="chat")
+    # Told who it is working for. Asked "معلومات العيادة" with no system
+    # prompt at all, it invented a whole clinic — an address, a phone, opening
+    # hours, an insurer list and an email at a domain belonging to nobody —
+    # and every line of it was the sort of thing somebody reads out to a
+    # parent. See :mod:`app.utils.ai_clinic`.
+    from app.utils import ai_clinic
+
+    result = ai_utils.chat(messages,
+                           system=ai_clinic.system_prompt(getattr(g, "lang", "ar")),
+                           feature="chat")
     return _reply(result)
 
 
