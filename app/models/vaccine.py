@@ -58,6 +58,35 @@ class Vaccine(db.Model):
     precautions = db.Column(db.Text)                  # الاحتياطات
     reference = db.Column(db.String(255))             # المصدر / المرجع للمعلومات
 
+    # **How far this schedule describes people — not how old is too old.**
+    #
+    # These are two different sentences and conflating them is the mistake
+    # this column exists to make impossible. `VaccineBrand.max_age_final_dose_days`
+    # is a fact about a *product*: past it the vial may not be given, and a
+    # dose there reads `expired`. This one is a fact about a *reference*: past
+    # it the schedule simply stops covering the patient, and a dose reads
+    # `out_of_scope`.
+    #
+    # The distinction came out of a review of the four vaccines still without
+    # an upper age. It proposed eighteen years for MMR, IPV and MenACWY from
+    # CDC's child-and-adolescent schedule — and said so itself: that is the
+    # ceiling of a *paediatric catch-up engine*, not a limit on the vaccine.
+    # It is right. CDC's position on MMR is that anyone twelve months or older
+    # who is due one should have it, so writing eighteen into the product
+    # column would tell a twenty-year-old their window had shut. Same number,
+    # opposite meaning, and the wrong column costs somebody a vaccine.
+    #
+    # The precedent is already in the schedule catalogue: WHO's pneumococcal
+    # table stops at five because the position paper is titled *"…children
+    # under 5 years of age"*. Scope, not licensing. This column is that idea
+    # given a name.
+    #
+    # Left NULL almost everywhere on purpose. It is written only where a named
+    # source states a range narrower than the product's own licence, so a
+    # blank means "nothing published says where this stops" and never "nobody
+    # got round to it".
+    scope_max_age_days = db.Column(db.Integer)
+
     brands = db.relationship(
         "VaccineBrand", back_populates="vaccine", cascade="all, delete-orphan",
         order_by="VaccineBrand.id",

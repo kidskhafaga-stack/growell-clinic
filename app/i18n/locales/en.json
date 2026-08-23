@@ -1057,7 +1057,7 @@
     "tpl_brand": "Brand",
     "tpl_all_brands": "All brands",
     "group_closed": "Window closed — not for this age",
-    "group_closed_hint": "The product itself is not licensed at this age, so no dose is offered. Kept so a dose given elsewhere can still be recorded."
+    "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded."
   },
   "vstatus": {
     "done": "Done",
@@ -1068,7 +1068,8 @@
     "expired": "Window closed",
     "national": "National schedule",
     "on_demand": "On indication",
-    "not_eligible": "Too late to start"
+    "not_eligible": "Too late to start",
+    "out_of_scope": "Outside the schedule"
   },
   "vtype": {
     "live": "Live attenuated",

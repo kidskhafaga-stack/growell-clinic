@@ -104,16 +104,32 @@ def test_an_adult_is_not_offered_an_infant_course(seeded):
 def test_and_is_still_offered_what_she_can_actually_have(seeded):
     """The other half, and the one that keeps this honest.
 
-    An adult can be given varicella, meningococcal ACWY, Bexsero, HPV to
-    forty-five, typhoid and influenza — none of those labels carries an upper
-    age. A change that quietly emptied the screen would look like a fix and
-    would be a clinic no longer offering vaccines it should.
+    An adult can be given varicella, Bexsero to fifty, HPV to forty-five,
+    typhoid and influenza — none of those labels carries an upper age. A change
+    that quietly emptied the screen would look like a fix and would be a clinic
+    no longer offering vaccines it should.
+
+    Meningococcal ACWY was on this list when it was written and is not any
+    more, which is worth recording rather than editing away. Nothing about its
+    *licence* changed — Menactra runs to fifty-five and still does. What
+    changed is that the schedule grew a second kind of ceiling: CDC's
+    child-and-adolescent schedule ends at eighteen, and beyond it the adult
+    recommendation is risk-based rather than routine, so a paediatric clinic
+    offering it to a twenty-nine-year-old by default was answering a question
+    no reference had asked. It reads `out_of_scope` now, which is a different
+    sentence from `expired` — see
+    `test_the_schedule_has_a_range_and_the_product_has_a_limit.py`.
     """
     offered = _offered(seeded, 29)
 
-    for code in ("VARICELLA", "FLU", "MENACWY", "MENB", "HPV", "TYPHOID"):
+    for code in ("VARICELLA", "FLU", "MENB", "HPV", "TYPHOID"):
         assert code in offered, \
             f"{code} has no upper age on its label and stopped being offered"
+
+    assert "MENACWY" not in offered, \
+        ("meningococcal ACWY is offered to an adult by default again — its "
+         "licence allows it, the paediatric schedule this clinic follows does "
+         "not describe it")
 
 
 # ------------------------------------------ and the ordinary child is untouched
