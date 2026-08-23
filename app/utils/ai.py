@@ -79,6 +79,53 @@ AI_PROVIDERS = {
         "models": ["mistral-large-latest", "mistral-small-latest"],
         "keys_url": "https://console.mistral.ai/api-keys",
     },
+    "groq": {
+        "label": "Groq (fast, free key)",
+        "api": "openai",
+        # Groq speaks the OpenAI shape at an /openai/v1 path, so it needs no
+        # code of its own — this entry is the whole integration.
+        "base_url": "https://api.groq.com/openai/v1/chat/completions",
+        "default_model": "llama-3.3-70b-versatile",
+        # Suggestions, not a catalogue. Groq retires model ids faster than any
+        # list written here survives — `llama-3.1-70b-versatile` was the
+        # obvious name and is already gone — so the settings screen's
+        # "refresh" button asks the key what it may actually use, and that
+        # answer beats this one.
+        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant",
+                   "openai/gpt-oss-120b", "openai/gpt-oss-20b",
+                   "qwen/qwen3-32b"],
+        "keys_url": "https://console.groq.com/keys",
+        # Free in the sense this flag means: the key costs nothing and asks
+        # for no card. There is a rate limit, it is Groq's, and it changes —
+        # which is exactly why nothing here quotes a number.
+        "free": True,
+    },
+    "github": {
+        # **This is the one to read carefully if you came looking for
+        # "Copilot".** The Copilot in an editor and the Copilot at
+        # copilot.microsoft.com have no API a program like this may call —
+        # they are products, not endpoints, and no amount of configuration
+        # here reaches them. What Microsoft *does* publish for this is GitHub
+        # Models: the same families of model, an OpenAI-shaped endpoint, and a
+        # plain GitHub personal access token for a key.
+        #
+        # So a clinic that wants "Copilot" gets this, and the label says
+        # GitHub Models rather than Copilot on purpose. A settings screen that
+        # offered "Copilot" and quietly meant something else is the kind of
+        # small lie that costs an afternoon when the token does not work.
+        "label": "GitHub Models (Copilot models, GitHub token)",
+        "api": "openai",
+        "base_url": "https://models.github.ai/inference/chat/completions",
+        "default_model": "openai/gpt-4o-mini",
+        # Publisher-prefixed ids, which is this endpoint's own convention and
+        # not a typo: `openai/gpt-4o-mini`, not `gpt-4o-mini`.
+        "models": ["openai/gpt-4o-mini", "openai/gpt-4o",
+                   "meta/Llama-3.3-70B-Instruct", "microsoft/Phi-4",
+                   "mistral-ai/Mistral-Large-2411",
+                   "deepseek/DeepSeek-V3-0324"],
+        "keys_url": "https://github.com/settings/personal-access-tokens",
+        "free": True,
+    },
     "aihubmix": {
         "label": "AiHubMix (many models, one key)",
         "api": "openai",
