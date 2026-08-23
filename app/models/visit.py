@@ -145,6 +145,34 @@ class VisitInvestigation(db.Model):
     status = db.Column(db.String(12), default="requested", nullable=False)
     result_text = db.Column(db.Text)        # the doctor's recorded result
     result_comment = db.Column(db.Text)     # the doctor's interpretation
+
+    # **The number, when there is one.**
+    #
+    # The result has always been Text, which is right for an X-ray report and
+    # useless for HbA1c. "Show me this as a curve" is asked for by every
+    # specialty in the survey — ferritin, eGFR, INR, IgE, drug levels, eye
+    # pressure — and not one of them could be drawn, because you cannot plot
+    # prose.
+    #
+    # Added beside the text rather than instead of it. A culture result and a
+    # radiology report are not numbers and never will be; the value is filled
+    # where a value exists, and the curve is drawn from the visits that have
+    # one.
+    result_value = db.Column(db.Float)
+    result_unit = db.Column(db.String(20))
+
+    # The reference range **this lab printed on this report**, and that is the
+    # whole reason it lives on the result and not in the catalogue.
+    #
+    # A paediatric range moves with age, and often with the assay the lab
+    # happens to run. One range stored centrally and shown for every child
+    # would be the program inventing a clinical number — the failure the
+    # vaccine tables exist to avoid — so nothing is defaulted here. The doctor
+    # copies what the report says, or leaves it blank and the curve simply has
+    # no band.
+    result_low = db.Column(db.Float)
+    result_high = db.Column(db.Float)
+
     resulted_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -155,7 +183,28 @@ class VisitInvestigation(db.Model):
 
     @property
     def has_result(self):
-        return bool((self.result_text or "").strip() or (self.result_comment or "").strip())
+        return bool((self.result_text or "").strip()
+                    or (self.result_comment or "").strip()
+                    or self.result_value is not None)
+
+    @property
+    def has_number(self):
+        """Whether this one can be a point on a curve."""
+        return self.result_value is not None
+
+    @property
+    def out_of_range(self):
+        """Outside the range the report itself gave — or ``None`` if it gave
+        none. Three answers, not two: "we were not told" is not "normal"."""
+        if self.result_value is None:
+            return None
+        if self.result_low is None and self.result_high is None:
+            return None
+        if self.result_low is not None and self.result_value < self.result_low:
+            return True
+        if self.result_high is not None and self.result_value > self.result_high:
+            return True
+        return False
 
     @property
     def result_state(self):

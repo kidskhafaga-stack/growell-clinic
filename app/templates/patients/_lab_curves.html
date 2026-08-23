@@ -1,0 +1,100 @@
+{# One test across every visit, drawn.
+
+   Inline SVG rather than a charting library, deliberately: this runs on a
+   clinic PC that is often offline, the whole program already refuses CDN
+   scripts, and a sparkline is thirty lines of arithmetic. The growth charts
+   made the same choice for the same reasons.
+
+   The band is drawn only where the report gave one. A chart that shaded a
+   "normal" range it had assumed would be the program stating a clinical fact
+   nobody told it — and a paediatric range moves with age and with the lab. #}
+
+{% macro sparkline(points, width=280, height=64) %}
+  {% set values = points | map(attribute='value') | list %}
+  {% set lows = points | map(attribute='low') | select('!=', None) | list %}
+  {% set highs = points | map(attribute='high') | select('!=', None) | list %}
+  {% set lo = ([values | min] + lows) | min %}
+  {% set hi = ([values | max] + highs) | max %}
+  {% set span = (hi - lo) if (hi - lo) > 0 else 1 %}
+  {% set pad = span * 0.12 %}
+  {% set top = hi + pad %}
+  {% set bottom = lo - pad %}
+  {% set range_ = (top - bottom) if (top - bottom) > 0 else 1 %}
+  {% set step = (width - 16) / ((points|length - 1) if points|length > 1 else 1) %}
+
+  <svg viewBox="0 0 {{ width }} {{ height }}" width="100%" height="{{ height }}"
+       preserveAspectRatio="none" role="img" style="overflow:visible;">
+    {# The reference band, from the most recent report that stated one. #}
+    {% set last_low = (points | selectattr('low', '!=', None) | map(attribute='low') | list | last) %}
+    {% set last_high = (points | selectattr('high', '!=', None) | map(attribute='high') | list | last) %}
+    {% if last_low is not none and last_high is not none %}
+      {% set y1 = height - ((last_high - bottom) / range_) * height %}
+      {% set y2 = height - ((last_low - bottom) / range_) * height %}
+      <rect x="0" y="{{ '%.1f'|format(y1) }}" width="{{ width }}"
+            height="{{ '%.1f'|format(y2 - y1) }}"
+            fill="var(--green-100, #e6f4ea)" opacity="0.75"></rect>
+    {% endif %}
+
+    {% set coords = [] %}
+    {% for p in points %}
+      {% set x = 8 + loop.index0 * step %}
+      {% set y = height - ((p.value - bottom) / range_) * height %}
+      {% set _ = coords.append('%.1f,%.1f'|format(x, y)) %}
+    {% endfor %}
+    <polyline points="{{ coords | join(' ') }}" fill="none"
+              stroke="var(--green-700, #1e7e46)" stroke-width="2"
+              stroke-linejoin="round" stroke-linecap="round"></polyline>
+    {% for p in points %}
+      {% set x = 8 + loop.index0 * step %}
+      {% set y = height - ((p.value - bottom) / range_) * height %}
+      <circle cx="{{ '%.1f'|format(x) }}" cy="{{ '%.1f'|format(y) }}" r="3.2"
+              fill="{{ '#c0392b' if p.out_of_range else 'var(--green-700, #1e7e46)' }}">
+        <title>{{ p.value }}{% if p.date %} · {{ p.date.strftime('%Y-%m-%d') }}{% endif %}</title>
+      </circle>
+    {% endfor %}
+  </svg>
+{% endmacro %}
+
+
+{% macro panel(series, latest) %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h3 class="section-title"><i class="bi bi-graph-up-arrow"></i> {{ t('labs.curve') }}</h3>
+
+  {% if latest %}
+  <div class="info-grid" style="margin-bottom:12px;">
+    {% for row in latest %}
+    <div class="info-item">
+      <div class="k">{{ row.name }}</div>
+      <div class="v" dir="ltr">{{ row.value }}{% if row.unit %} {{ row.unit }}{% endif %}
+        {% if row.out_of_range %}
+        <span class="badge badge--danger">{{ t('labs.out') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if series %}
+    {% for s in series %}
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <strong>{{ s.name }}{% if s.unit %} <span class="hint" dir="ltr">({{ s.unit }})</span>{% endif %}</strong>
+        <span class="hint" dir="ltr">{{ s.points|length }} ×</span>
+      </div>
+      {{ sparkline(s.points) }}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+        {% for p in s.points %}
+        <span class="hint" dir="ltr">
+          {% if p.date %}{{ p.date.strftime('%Y-%m-%d') }}:{% endif %}
+          <strong style="color:{{ '#c0392b' if p.out_of_range else 'inherit' }};">{{ p.value }}</strong>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  {% elif not latest %}
+    <p class="hint" style="margin:0;"><i class="bi bi-info-circle"></i> {{ t('labs.none') }}</p>
+  {% endif %}
+</div>
+{% endmacro %}

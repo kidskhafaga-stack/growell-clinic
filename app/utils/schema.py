@@ -153,6 +153,12 @@ ADDITIONS = [
     ("vaccines", "min_age_months", "INTEGER"),
     ("vaccines", "max_age_months", "INTEGER"),
     ("vaccines", "scope_max_age_days", "INTEGER"),
+    # A lab result that is a number, so it can be a point on a curve.
+    ("visit_investigations", "result_value", "FLOAT"),
+    ("visit_investigations", "result_unit", "VARCHAR(20)"),
+    ("visit_investigations", "result_low", "FLOAT"),
+    ("visit_investigations", "result_high", "FLOAT"),
+    ("investigations", "unit", "VARCHAR(20)"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

@@ -761,7 +761,12 @@
     "referral_undo": "Undo the referral",
     "referral_undone": "The referral was undone.",
     "icd11_not_loaded": "ICD-11 has not been imported, so it is not offered here.",
-    "icd11_load_it": "Import it from settings"
+    "icd11_load_it": "Import it from settings",
+    "inv_value": "Value (number)",
+    "inv_unit": "Unit",
+    "inv_ref_low": "Normal range — from",
+    "inv_ref_high": "to",
+    "inv_number_hint": "Fill in the number so this test can be drawn as a curve across visits. Copy the normal range from the lab's own report — the program assumes none, because it moves with age and with the lab."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -5095,5 +5100,11 @@
     "recent": "Late under a month",
     "year": "Late under a year",
     "old": "Late over a year"
+  },
+  "labs": {
+    "curve": "Tests over time",
+    "none": "No test yet has a number recorded twice or more.",
+    "latest": "Latest",
+    "out": "outside range"
   }
 }

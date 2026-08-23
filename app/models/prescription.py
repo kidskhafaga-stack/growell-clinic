@@ -343,6 +343,14 @@ class Investigation(db.Model):
     category = db.Column(db.String(80))     # grouping (e.g. Hematology, X-ray)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
+    # The unit this test is reported in, so nobody types "%" beside every
+    # HbA1c for the rest of the clinic's life. A unit is a fact about the
+    # measurement and is safe to hold centrally — which is exactly why the
+    # *reference range* is not here. That moves with the child's age and with
+    # the assay the lab ran, and one number shown for every child would be
+    # this program inventing a clinical fact.
+    unit = db.Column(db.String(20))
+
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar
 

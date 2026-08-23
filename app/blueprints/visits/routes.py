@@ -933,6 +933,24 @@ def plan_dose(visit_id):
     return redirect(url_for("visits.record", visit_id=visit.id) + "#vac")
 
 
+def _number(raw):
+    """A form field as a float, or ``None``.
+
+    ``None`` for blank *and* for anything that is not a number, deliberately.
+    A doctor who types "7.2 %" into the value box has said something true and
+    the program does not have to guess which half is the number: the text box
+    beside it holds exactly that sentence, and a value parsed out of prose is
+    a point on a chart nobody checked.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
 @visits_bp.route("/investigations/<int:inv_id>/result", methods=["POST"])
 @module_required(MODULE)
 def result_investigation(inv_id):
@@ -940,6 +958,18 @@ def result_investigation(inv_id):
     inv = db.get_or_404(VisitInvestigation, inv_id)
     inv.result_text = (request.form.get("result_text") or "").strip() or None
     inv.result_comment = (request.form.get("result_comment") or "").strip() or None
+
+    # The number, where the result is one. Blank clears it rather than
+    # leaving the old reading attached to a new report — a stale value on a
+    # curve is worse than a gap in it, because a gap is visible.
+    inv.result_value = _number(request.form.get("result_value"))
+    inv.result_low = _number(request.form.get("result_low"))
+    inv.result_high = _number(request.form.get("result_high"))
+    inv.result_unit = (request.form.get("result_unit") or "").strip()[:20] or None
+    if inv.result_value is None:
+        # A range with nothing to compare it to is a band on an empty chart.
+        inv.result_low = inv.result_high = None
+
     if inv.has_result:
         inv.status = "resulted"
         inv.resulted_at = datetime.utcnow()
