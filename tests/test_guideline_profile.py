@@ -81,18 +81,24 @@ def _bexsero(seeded, tag, start_years, age_years):
 
 # ------------------------------------------------------------- the setting
 
-def test_the_default_is_the_egyptian_programme(seeded):
-    """Unset, an Egyptian clinic follows the Egyptian programme.
+def test_the_default_is_the_leaflet(seeded):
+    """Unset, a clinic follows the product's own label.
 
-    Not merely "some default": this is the country the program is written for,
-    and a clinic should not have to choose a reference before it can read a
-    vaccination screen.
+    Not merely "some default", and it used to be `egypt` for a reason that
+    turned out to be the wrong one: the country the program is written for.
+    The reference a doctor here is actually weighing is the leaflet — it is
+    what a company's representative quotes across the desk — and the Egyptian
+    profile states nothing outside the national programme in any case, so
+    naming it as the default described a policy nobody was following.
+
+    Measured before it was changed: `egypt → manufacturer` moves not one dose
+    on one child. It is a change of what the settings screen honestly says.
     """
     from app.models import VaccineScheduleTemplate
     from app.utils.vaccines import guideline_profile
 
     with seeded["app"].app_context():
-        assert guideline_profile() == "egypt"
+        assert guideline_profile() == "manufacturer"
         assert (VaccineScheduleTemplate.DEFAULT_GUIDELINE_PROFILE
                 in VaccineScheduleTemplate.GUIDELINE_PROFILES), \
             "the default is not one of the references that can be chosen"
@@ -104,7 +110,7 @@ def test_nonsense_falls_back_to_the_default(seeded):
 
     _follow(seeded, "whatever")
     with seeded["app"].app_context():
-        assert guideline_profile() == "egypt"
+        assert guideline_profile() == "manufacturer"
 
 
 def test_it_is_set_from_the_settings_screen(seeded):
@@ -214,6 +220,12 @@ def test_the_guideline_wins_over_the_leaflet_for_the_same_product(seeded):
     leaflets*. Between a leaflet and the reference the clinic has chosen, the
     reference wins: a clinic following the CDC wants the CDC's catch-up
     whichever vial is in the fridge.
+
+    `egypt` is not one of the profiles tested here, and that is not an
+    oversight. It states no pneumococcal rule at all, so there is no contest
+    for this ordering to settle — the leaflet answers because nothing else
+    does, which is a different mechanism and is held in
+    `test_the_pneumococcal_catch_up.py`.
     """
     from app.extensions import db
     from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
@@ -248,7 +260,7 @@ def test_the_guideline_wins_over_the_leaflet_for_the_same_product(seeded):
     # rather than about a trade name — so it wins here.
     assert not ten_year_old("cdc", "c"), \
         "a brand's leaflet overruled the guideline the clinic follows"
-    assert not ten_year_old("egypt", "e"), \
+    assert not ten_year_old("who", "w"), \
         "a brand's leaflet overruled the guideline the clinic follows"
 
 

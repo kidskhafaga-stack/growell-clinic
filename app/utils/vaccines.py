@@ -143,6 +143,17 @@ _RETAGGED_BANDS = {
     # is seeded under a new code, so the old row has to stop applying or a
     # healthy twelve-year-old goes on being scheduled from it.
     "MENB-CDC-10Y": None,
+    # The Egyptian pneumococcal table. Its numbers were ACIP's, under this
+    # profile's name — see the note where it used to be. Retired rather than
+    # merely deleted from the catalogue: seeding only ever adds, so a clinic
+    # created last month would otherwise go on being scheduled by rows a
+    # clinic created tomorrow never gets. Same program, same settings, two
+    # answers depending on the install date, and no way to reproduce either.
+    "PCV-EG-CU7": None,
+    "PCV-EG-CU12": None,
+    "PCV-EG-CU2Y": None,
+    "PCV-EG-END": None,
+    "PCV-EG-INF": None,
 }
 
 
@@ -502,43 +513,29 @@ _AGE_BANDED = {
 
         # -------- the Egyptian programme, which is what this clinic follows
         #
-        # Pneumococcal is not in Egypt's national schedule; it is a private-
-        # market vaccine, and the reference the catalogue has always named for
-        # it here is the WHO pneumococcal position paper together with ACIP.
-        # These rows say that, at the ages the Egyptian catalogue's own brands
-        # are dosed at. Every one is "للمراجعة" — seeded for the doctor to
-        # confirm or correct, in the schedule editor, under this profile.
-        {"code": "PCV-EG-CU7", "min": 7, "max": 11, "sort_order": 0,
-         "source": "egypt",
-         "label": "7–11 شهر بدون جرعات سابقة: 3 جرعات، الأخيرة بعد "
-                  "إتمام 12 شهر — للمراجعة",
-         "doses": [(7, None), (8, 28), (12, 56)]},
-        {"code": "PCV-EG-CU12", "min": 12, "max": 23, "sort_order": 1,
-         "source": "egypt",
-         "label": "12–23 شهر بدون جرعات سابقة: جرعتان بفاصل ≥8 أسابيع "
-                  "— للمراجعة",
-         "doses": [(12, None), (14, 56)]},
-        {"code": "PCV-EG-CU2Y", "min": 24, "max": 59, "sort_order": 2,
-         "match_on": "today", "source": "egypt",
-         "catch_up": True, "previous_max": 3,
-         "label": "2–4 سنوات (سليم) وأقل من 4 جرعات: جرعة واحدة "
-                  "لاستكمال الناقص — للمراجعة",
-         "doses": [(24, None)]},
-        # Marked as a catch-up with nothing in it, which is exactly what it
-        # is: "how many are still owed" — none. That also keeps the doses the
-        # child did have on their file. A bare empty course dropped them, so a
-        # six-year-old's certificate lost the pneumococcal dose they were
-        # actually given — a shut course must still show what happened.
-        {"code": "PCV-EG-END", "min": 60, "max": None, "sort_order": 3,
-         "match_on": "today", "source": "egypt", "catch_up": True,
-         "label": "5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
-                  "لا جرعات إلا بقرار طبيب — للمراجعة",
-         "doses": []},
-        # Last, and matched on the age at the first dose. See above.
-        {"code": "PCV-EG-INF", "min": None, "max": 6, "sort_order": 4,
-         "source": "egypt",
-         "label": "بدء قبل 7 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
-         "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
+        # It has no pneumococcal rows here, and that is the whole entry.
+        #
+        # Pneumococcal is not in the national programme, and no Egyptian
+        # clinical reference states a catch-up — the Drug Authority's
+        # assessment of a marketing application carries the manufacturer's own
+        # table, reviewed and approved, which is the leaflet with a different
+        # letterhead. So the profile does not invent one, and it does not
+        # borrow another body's under its own name either. It says nothing,
+        # and the loader's ordinary fallback hands the question to the
+        # product's leaflet — which is what an Egyptian paediatrician is
+        # working from in any case.
+        #
+        # **And that is not a silent fallback, which is the thing worth being
+        # careful about.** Every band the leaflet answers with opens with the
+        # trade name — "Prevenar 13 — بدء 7–11 شهر…" — so a doctor reading
+        # "3 doses" can see whose three, on the card, without being told to go
+        # and check a setting.
+        #
+        # An earlier version of this file put ACIP's numbers here under a bare
+        # Egyptian label. That is the failure this note exists to prevent: a
+        # settings screen reading "you follow the Egyptian programme" over
+        # another body's rules leaves a clinic unable to audit its own
+        # practice.
 
         # ------------------------------------------------- and the WHO's
         #
@@ -1498,6 +1495,11 @@ def _banded_templates():
                 # actually being scheduled by" is a question worth being able
                 # to answer from the answer itself.
                 "source": template.source,
+                # And what the rule says, in the words it was written in. The
+                # loader carried everything needed to *apply* a band and
+                # nothing needed to *explain* one, so the screens could show a
+                # dose count and never whose.
+                "label": template.label,
                 "authoritative": template.source == profile != "manufacturer",
                 "min": template.start_age_min_months,
                 "max": template.start_age_max_months,
@@ -1923,6 +1925,23 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             # read out of a leaflet and seeded, it does know, and going on
             # warning turns a real caution into wallpaper.
             "banded": bool(_bands_for(vaccine.id, brand.id)) if brand else False,
+            # **Which rule produced these dates, in its own words.**
+            #
+            # The engine has always known and never said. A doctor looking at
+            # "3 doses" could not tell whether that came from the reference
+            # their clinic follows, from the vial's leaflet because the
+            # reference is silent about the product, or from the brand's own
+            # rows because nothing banded applies — three different degrees of
+            # authority, one identical number on the card.
+            #
+            # It matters most exactly where this program is least certain. The
+            # Egyptian profile states no pneumococcal schedule, so a child's
+            # pneumococcal dates come from the product's leaflet; that is a
+            # sound answer and a *borrowed* one, and a fallback the reader
+            # cannot see is a number from nowhere.
+            "rule": (band or {}).get("label") if isinstance(band, dict) else None,
+            "rule_source": ((band or {}).get("source")
+                            if isinstance(band, dict) else None),
             # Set when the record cannot be scheduled from. The screens show
             # it in place of a due date, because a date computed from a
             # contradiction is worse than no date.
@@ -1932,12 +1951,19 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             "done": sum(1 for x in doses if x["status"] == "done"),
             "total": len(doses),
         })
+    # Which dose dates the screens may print. Marked here rather than worked
+    # out in the template so the banner and the dose rows cannot drift apart —
+    # the same rule read twice in two languages is how this file has already
+    # once had one screen disagree with another about the same child.
+    for item in plan:
+        for d in item["doses"]:
+            d["stale_date"] = stale_projection(d, today)
     return plan
 
 
-# The four shelves a vaccination plan actually falls onto, in the order a
-# doctor works through them. Order matters: it is the whole feature.
-PLAN_GROUPS = ("started", "ready", "complete", "later")
+# The shelves a vaccination plan actually falls onto, in the order a doctor
+# works through them. Order matters: it is the whole feature.
+PLAN_GROUPS = ("started", "ready", "complete", "later", "closed")
 
 
 def group_plan(plan, today=None):
@@ -1962,6 +1988,11 @@ def group_plan(plan, today=None):
                        a question, but collapsed: it is history, not a task.
       * ``later``    — never began and not yet due. Also collapsed, for the
                        same reason in the other direction.
+      * ``closed``   — never began and the product's own licensed age has
+                       passed. Split out of ``later`` because that shelf is
+                       headed *"too early"* and these are the opposite: a
+                       patient of twenty-nine was reading "not yet time" over
+                       the infant hexavalent.
 
     Returns ``[(key, items), …]`` in :data:`PLAN_GROUPS` order, skipping empty
     shelves so a headed section is never a heading over nothing.
@@ -1975,6 +2006,9 @@ def group_plan(plan, today=None):
             shelves["started" if len(given) < len(doses) else "complete"].append(item)
         elif any(d["status"] in GIVEABLE for d in doses):
             shelves["ready"].append(item)
+        elif doses and all(d["status"] in SHUT for d in doses):
+            # Every dose past the product's own licensed age. Not "not yet".
+            shelves["closed"].append(item)
         else:
             shelves["later"].append(item)
     return [(key, shelves[key]) for key in PLAN_GROUPS if shelves[key]]
@@ -1982,7 +2016,16 @@ def group_plan(plan, today=None):
 
 # Which shelves open on arrival. History and not-yet-due are both true and
 # both noise at the moment somebody is deciding what to give today.
-OPEN_GROUPS = {"started", "ready"}
+#
+# `ready` joined them on request, and the file that prompted it shows why: a
+# patient with no doses on this clinic's record has *every* age-appropriate
+# course on that shelf — nineteen of them on the screen reported — so the one
+# thing the doctor came for, the courses already under way and owing a dose
+# today, was pushed off the bottom of a wall of suggestions. Nothing is
+# hidden: the counter at the top of the page still says how many there are,
+# and the heading carries the count next to it. It just no longer opens over
+# the answer.
+OPEN_GROUPS = {"started"}
 
 
 def certificate_cards(plan):
@@ -2065,12 +2108,62 @@ def plan_summary(plan):
     return s
 
 
+# The statuses that mean somebody actually promised this dose: a course
+# started at this clinic, or one the doctor and the family agreed on. Only
+# these have a due date that is an appointment; everything else has a date
+# that is an age projected onto a birthday.
+PROMISED = ("due", "overdue", "upcoming")
+
+
+def stale_projection(dose, today=None):
+    """Is this dose's date an age projected onto a birthday, already gone by?
+
+    Every unpromised status — ``suggested``, ``national``, ``on_demand``, and
+    the two shut windows — means, in this file's own words, that *neither is a
+    course this clinic ever promised*. Its due date is not an appointment;
+    nobody agreed to it. It is the age the schedule states, run through the
+    patient's birthday. Which is a true fact about arithmetic and, once the
+    date is behind us, a useless one about medicine.
+
+    Reported from a real file: a woman of twenty-nine, never vaccinated at
+    this clinic, whose screen offered nineteen doses and announced the next
+    one as the hexavalent's first — *"at 2 months"*, dated **1997**.
+
+    **Nothing about what is offered turns on this.** A three-year-old who
+    never had varicella is still owed a catch-up, and withdrawing the offer on
+    the strength of a passed date would be this program inventing an upper age
+    it does not know: thirty-seven of the catalogue's forty-eight products
+    carry no finish ceiling at all, and guessing one for each is exactly the
+    kind of clinical number nothing in this file is allowed to make up. What
+    changes is only whether a screen prints the projected date, and whether
+    the "next due" banner is allowed to answer with one. The age band stays on
+    every row, and it is the sentence the schedule actually makes.
+
+    :data:`PROMISED` is the exception and it is the whole distinction. A dose
+    somebody started a course for, or agreed to, has a real appointment, and
+    an appointment missed in March is still an appointment — the date is
+    exactly what the doctor needs.
+    """
+    if dose.get("given_date") or dose.get("status") in PROMISED:
+        return False
+    due = dose.get("due_date")
+    if not due:
+        return False
+    return str(due) < (today or local_today()).isoformat()
+
+
 def next_due_dose(plan):
-    """Return the most urgent not-yet-given dose (overdue first, then due)."""
+    """Return the most urgent not-yet-given dose (overdue first, then due).
+
+    A suggestion whose recommended age has already passed is never the answer.
+    The banner over this reads *"the next due vaccination"*, and a dose from
+    1997 is neither next nor due; with nothing else to name, the honest line is
+    the one that says nothing is outstanding.
+    """
     candidates = []
     for v in plan:
         for d in v["doses"]:
-            if d["status"] in GIVEABLE:
+            if d["status"] in GIVEABLE and not stale_projection(d):
                 candidates.append((d["due_date"], v["vaccine"], v["brand"], d))
     if not candidates:
         return None

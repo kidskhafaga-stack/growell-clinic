@@ -100,14 +100,24 @@ def _pending(doses):
 
 # ------------------------------------------------- the end of the course
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc", "who"])
 @pytest.mark.parametrize("age_months", [72, 120, 192])
 def test_the_routine_course_has_ended_by_five(seeded, profile, age_months):
-    """The reported bug, in the two profiles that now state the rule.
+    """The reported bug, in the two profiles that state the rule.
 
     A child of ten with three infant doses was being carried in the reminder
     list owing a fourth. Nobody gives a healthy ten-year-old the rest of a
     baby's pneumococcal series.
+
+    `egypt` is deliberately not here, and the reason is the whole shape of
+    this branch. The five-year ceiling is a *guideline's* sentence — ACIP
+    states it and WHO's position paper stops at five — and no Egyptian
+    reference states anything about pneumococcal at all. So the Egyptian
+    profile says nothing, the product's leaflet answers, and what the leaflet
+    says about a ten-year-old is one dose, not a fourth infant one. That is a
+    different answer, held by name in
+    :func:`test_the_leaflet_offers_one_dose_where_the_guidelines_offer_none`
+    below rather than smuggled in here as an equal.
     """
     review, doses = _child(seeded, profile, age_months, [2, 4, 6])
 
@@ -116,7 +126,7 @@ def test_the_routine_course_has_ended_by_five(seeded, profile, age_months):
         f"a healthy {age_months // 12}-year-old is still being chased: {doses}"
 
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc", "who"])
 def test_the_doses_already_given_survive_the_end_of_the_course(seeded, profile):
     """A shut course still has to show what happened.
 
@@ -297,10 +307,69 @@ def test_an_unstarted_course_at_an_unscheduled_age_is_not_a_puzzle(seeded):
     put the clinical-review badge on every teenager in the register, and a
     flag that fires on the ordinary case is worse than no flag.
     """
-    review, doses = _child(seeded, "egypt", 192, [])
+    review, doses = _child(seeded, "cdc", 192, [])
 
     assert review is None, f"an empty record was flagged: {review}"
     assert _owed(doses) == []
+
+
+@pytest.mark.parametrize("age_months", [72, 120, 192])
+def test_the_leaflet_offers_one_dose_where_the_guidelines_offer_none(
+        seeded, age_months):
+    """The consequence of the Egyptian profile stating nothing, written down
+    rather than discovered on a screen.
+
+    A clinic on the default profile has no Egyptian pneumococcal rule to
+    follow, so Prevenar 13's own label answers — and the label does cover a
+    child of two to seventeen with an incomplete record: **one** dose. Not the
+    remainder of an infant series, which is the bug this whole file was opened
+    for, and not nothing, which is what a clinic following the CDC or WHO
+    gets.
+
+    So the two answers differ, and the difference is the point of choosing a
+    reference at all. It is held here so that a change to either side is a
+    failing test rather than a surprise: if this ever reads as three or four
+    doses the old bug is back, and if it reads as none then something has
+    quietly given `egypt` a table again.
+    """
+    from app.utils.vaccines import GIVEABLE
+
+    review, doses = _child(seeded, "egypt", age_months, [2, 4, 6])
+
+    assert review is None, f"a plain record was flagged instead of read: {review}"
+    assert len(_owed(doses)) == 1, \
+        f"the leaflet's single top-up is not what came back: {doses}"
+    assert [n for n, status, _d in doses if status == "done"] == [1, 2, 3]
+    assert all(status in GIVEABLE or status == "done"
+               for _n, status, _d in doses)
+
+
+def test_the_card_names_the_product_when_the_leaflet_is_answering(seeded):
+    """And it is not a silent fallback.
+
+    A doctor reading "one dose" on a child whose clinic follows the Egyptian
+    programme has to be able to see, on the card, that the sentence is
+    Prevenar 13's and not Egypt's. The plan carries the rule that produced the
+    dates and the reference that states it; here that reference is the
+    leaflet.
+    """
+    from app.extensions import db
+    from app.models import Patient, Setting, Vaccine
+    from app.utils.vaccines import patient_plan
+
+    with seeded["app"].app_context():
+        Setting.set("vaccine_guideline_profile", "egypt")
+        dob = local_today() - timedelta(days=int(10 * 365.25))
+        kid = Patient(patient_number="CUleaflet", full_name="طفل",
+                      gender="male", date_of_birth=dob, is_active=True)
+        db.session.add(kid)
+        db.session.commit()
+        row = next(v for v in patient_plan(kid) if v["vaccine"].code == "PCV")
+
+    assert row.get("rule_source") == "manufacturer", \
+        f"the leaflet's answer is not labelled as the leaflet's: {row.get('rule_source')}"
+    assert "Prevenar 13" in (row.get("rule") or ""), \
+        f"the rule on the card does not name the product: {row.get('rule')}"
 
 
 # ------------------------------------------------------- whose rule it is
@@ -322,7 +391,10 @@ def test_the_five_year_rule_is_no_longer_everybody_s(seeded):
 
     assert "manufacturer" not in sources, \
         f"a guideline's rule is still tagged as a leaflet's: {sources}"
-    assert {"egypt", "cdc"} <= sources
+    assert {"cdc", "who"} <= sources, \
+        f"the references that state the ceiling are not stating it: {sources}"
+    assert "egypt" not in sources, \
+        "the Egyptian profile is asserting a pneumococcal schedule again"
 
 
 def test_a_clinic_that_already_had_the_old_rows_stops_reading_them(seeded):

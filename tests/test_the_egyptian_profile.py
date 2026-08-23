@@ -103,14 +103,146 @@ def test_following_it_never_reads_another_guideline_s_rows(seeded):
     assert "cdc" in _sources_in_play(seeded)
 
 
-def test_the_leaflet_still_fills_what_the_programme_does_not_run(seeded):
-    """PCV is not in the Egyptian national schedule, and that is a fact about
-    Egypt rather than a hole in the program.
+# ------------------------------- pneumococcal: the leaflet, and it says so
 
-    A private-market vaccine here is given on its leaflet, which is what the
-    catalogue has always said in prose. So `egypt` says nothing about it and
-    the manufacturer's rows answer — the same fallback every profile has, not
-    a special case written for this one.
+def _pcv(seeded, age_months, dose_ages=()):
+    """Returns ``(review, [(number, status)], the band's label)``."""
+    from datetime import timedelta
+
+    from app.extensions import db
+    from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
+    from app.utils.clock import local_today
+    from app.utils.vaccines import patient_plan
+
+    _EG[0] += 1
+    with seeded["app"].app_context():
+        pcv = Vaccine.query.filter_by(code="PCV").first()
+        brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,
+                                             name="Prevenar 13").first()
+        dob = local_today() - timedelta(days=int(age_months * 30.44))
+        kid = Patient(patient_number=f"EG{_EG[0]}", full_name="طفل",
+                      gender="male", date_of_birth=dob, is_active=True)
+        db.session.add(kid)
+        db.session.flush()
+        for number, age in enumerate(dose_ages, start=1):
+            db.session.add(PatientVaccine(
+                patient_id=kid.id, vaccine_id=pcv.id, brand_id=brand.id,
+                dose_number=number, event_type="given",
+                given_date=dob + timedelta(days=int(age * 30.44))))
+        db.session.commit()
+        row = next(v for v in patient_plan(kid) if v["vaccine"].code == "PCV")
+        return (row.get("review"),
+                [(d["dose_number"], d["status"]) for d in row["doses"]],
+                row.get("rule"))
+
+
+_EG = [0]
+
+
+def test_it_states_no_pneumococcal_schedule_of_its_own(seeded):
+    """Pneumococcal is not in the national programme and no Egyptian clinical
+    reference states a catch-up. The Drug Authority's assessment of a
+    marketing application is not one: it carries the manufacturer's table,
+    reviewed and approved — the leaflet with a different letterhead.
+
+    So the profile has no rows here. It neither invents a schedule nor borrows
+    another body's under its own name.
     """
-    _follow(seeded, "egypt")
-    assert "manufacturer" in _sources_in_play(seeded)
+    from app.models import Vaccine, VaccineScheduleTemplate
+
+    with seeded["app"].app_context():
+        pcv = Vaccine.query.filter_by(code="PCV").first()
+        mine = VaccineScheduleTemplate.query.filter_by(
+            vaccine_id=pcv.id, source="egypt", is_active=True).count()
+
+    assert mine == 0, \
+        "the Egyptian profile is asserting a pneumococcal schedule again"
+
+
+def test_the_leaflet_answers_and_the_child_still_gets_a_schedule(seeded):
+    """Saying nothing is not the same as computing nothing. The loader's
+    ordinary fallback hands the question to the product's leaflet, which is
+    what an Egyptian paediatrician is working from in any case."""
+    from app.utils.vaccines import GIVEABLE
+
+    review, doses, _label = _pcv(seeded, 2)
+
+    assert review is None, f"a two-month-old was handed a question: {review}"
+    assert len(doses) == 4, f"not the leaflet's infant series: {doses}"
+    assert [n for n, status in doses if status in GIVEABLE], \
+        "nothing is offerable for a child due their first dose"
+
+
+def test_the_answer_says_whose_it_is(seeded):
+    """The line worth being careful about: a fallback the doctor cannot see is
+    a number from nowhere.
+
+    It was not visible at all until this was written. The engine knew which
+    band produced a child's dates and said nothing, so "3 doses" looked the
+    same whether it came from the reference the clinic follows, from the
+    vial's leaflet because the reference is silent about the product, or from
+    the brand's raw rows because nothing banded applies. Three different
+    degrees of authority, one identical number.
+
+    An earlier version of this file put ACIP's numbers under a bare Egyptian
+    label, and a settings screen reading "you follow the Egyptian programme"
+    over another body's rules leaves a clinic unable to audit its own
+    practice. Naming the rule is what makes a borrowing a statement rather
+    than a disguise.
+    """
+    _review, _doses, rule = _pcv(seeded, 36)
+
+    assert rule, "the plan does not say which rule produced these dates"
+    assert "Prevenar" in rule, \
+        f"the schedule does not say which product it came from: {rule!r}"
+
+
+def test_the_screen_shows_it_too(seeded):
+    """In the plan is not on the card. This is the screen a doctor works from.
+
+    Asserted against the rule's **own text**, not against the product name:
+    the first version of this looked for "Prevenar" and passed with the badge
+    deleted, because the trade name is already on the card as the brand. A
+    check that cannot fail is not a check.
+    """
+    from datetime import timedelta
+
+    from app.extensions import db
+    from app.models import Patient
+    from app.utils.clock import local_today
+    from app.utils.vaccines import patient_plan
+
+    with seeded["app"].app_context():
+        kid = Patient(patient_number="EGscreen", full_name="طفل",
+                      gender="male", is_active=True,
+                      date_of_birth=local_today() - timedelta(days=1100))
+        db.session.add(kid)
+        db.session.commit()
+        kid_id = kid.id
+        rule = next(v for v in patient_plan(kid)
+                    if v["vaccine"].code == "PCV")["rule"]
+
+    assert rule, "there is no rule to show"
+    page = seeded["sign_in"]("boss").get(
+        f"/vaccinations/{kid_id}").get_data(as_text=True)
+
+    # The dash the labels are built with survives templating; the rest of the
+    # sentence is what identifies the rule.
+    fragment = rule.split("—")[-1].strip()[:24]
+    assert fragment and fragment in page, (
+        f"the vaccination screen does not carry the rule that produced these "
+        f"dates: {rule!r}")
+
+
+def test_the_old_egyptian_rows_are_retired_on_a_clinic_that_has_them(seeded):
+    """Seeding only ever adds — it keys on (vaccine, code, source) — so
+    deleting rows from the catalogue does nothing to an install that already
+    has them. A clinic created last month would go on being scheduled by rows
+    a clinic created tomorrow never gets: same program, same settings, two
+    answers depending on the install date."""
+    from app.utils.vaccines import _RETAGGED_BANDS
+
+    for code in ("PCV-EG-CU7", "PCV-EG-CU12", "PCV-EG-CU2Y",
+                 "PCV-EG-END", "PCV-EG-INF"):
+        assert _RETAGGED_BANDS.get(code, "absent") is None, \
+            f"{code} is not retired by the upgrade"

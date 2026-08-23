@@ -517,23 +517,35 @@ class VaccineScheduleTemplate(db.Model):
     # product, two published positions — and a clinic changing which one it
     # follows must not need a developer, or a re-entry of a single dose.
     #
-    # `egypt` is first because it is the default, and it is a profile in the
-    # same sense as the other three: a set of rows tagged with it, seeded from
-    # the Egyptian programme, edited in the same editor. There is no code path
-    # that reads `egypt` and goes looking somewhere else — a profile that was
-    # a name for another profile's rules would be a lie told in a settings
-    # box, and the whole point of the setting is that the clinic can read what
-    # it is following.
+    # `egypt` is a profile in the same sense as the other three: a set of rows
+    # tagged with it, seeded from the Egyptian programme, edited in the same
+    # editor. There is no code path that reads `egypt` and goes looking
+    # somewhere else — a profile that was a name for another profile's rules
+    # would be a lie told in a settings box, and the whole point of the
+    # setting is that the clinic can read what it is following.
     #
     # It is silent about the vaccines the Egyptian programme does not run, and
     # silence is not a gap to be papered over: for those, the leaflet answers,
     # which is exactly how a private-market vaccine is given here.
-    GUIDELINE_PROFILES = ["egypt", "manufacturer", "cdc", "who"]
+    GUIDELINE_PROFILES = ["manufacturer", "egypt", "cdc", "who"]
 
     # What a clinic follows until somebody says otherwise. Named here rather
     # than spelled out at each reader, because a default that lives in three
     # places is a default that will disagree with itself.
-    DEFAULT_GUIDELINE_PROFILE = "egypt"
+    #
+    # The leaflet, on the doctor's instruction and for the doctor's reason:
+    # *"من المصنع، لأن الطبيب بيختار ويرجحه اللي مندوب الأدوية بيقوله."* The
+    # product's own label is what is actually being quoted across the desk,
+    # and a default that names it is a default that describes the practice.
+    #
+    # And it costs nothing to switch to, which is why this is a change of
+    # label more than of behaviour. `egypt` states no schedule outside the
+    # national programme, and for the national programme the rows are the
+    # leaflet's anyway — measured child by child, `egypt → manufacturer` moves
+    # nothing at all (see IMPROVEMENTS_BACKLOG). What changes is that a clinic
+    # reading its own settings screen sees the reference it is really on,
+    # instead of one that quietly hands most of the fridge to the leaflet.
+    DEFAULT_GUIDELINE_PROFILE = "manufacturer"
 
     vaccine = db.relationship("Vaccine", back_populates="schedule_templates")
     doses = db.relationship(

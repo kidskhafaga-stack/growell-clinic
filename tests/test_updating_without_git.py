@@ -176,30 +176,52 @@ def test_the_download_path_still_reaches_the_upgrade(script):
 
 # ------------------------------------------ what it says when it cannot fetch
 
+def _section(code, label):
+    """The lines under a `:label`, up to the next one.
+
+    By label line, not by first occurrence: `goto :not_found` mentions the
+    name several lines before the label itself, and slicing from that picks up
+    the wrong half of the file.
+    """
+    out, inside = [], False
+    for line in code.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(":"):
+            inside = stripped == ":" + label
+            continue
+        if inside:
+            out.append(line)
+    return "\n".join(out)
+
+
 def test_not_found_is_not_reported_as_being_offline(code):
     """The message that sent somebody hunting for a network fault.
 
     GitHub answers **404** — not 403 — for a repository the caller may not
     read, so a private repository, a renamed branch and a deleted project all
     arrive here looking identical. What arrived instead was "offline, or
-    GitHub is not reachable", which is the one thing it was not: the machine's
-    connection was fine and the repository was simply private.
+    GitHub is not reachable", which is the one thing it was not.
 
     The download is anonymous on purpose and stays that way — a token able to
-    read the source would then sit in plain text on every clinic PC that has
-    ever been updated — so 404 is a state this script has to be able to
-    describe rather than one it can sign its way out of.
+    read the source would sit in plain text on every clinic PC that has ever
+    been updated — so 404 is a state this script has to describe rather than
+    one it can sign its way out of.
+
+    Read against labels rather than blocks. The two messages were `if (…)`
+    blocks until an unescaped bracket in one of them closed it four lines in;
+    they are `goto` targets now, where a sentence can contain any punctuation
+    it likes.
     """
-    assert "errorlevel 44" in code, \
+    assert "goto :not_found" in code and ":not_found" in code, \
         "the download no longer separates 'not found' from any other failure"
 
-    at_404 = code.index("errorlevel 44")
-    at_other = code.index("errorlevel 1", at_404)
+    at_404 = code.index("if errorlevel 44")
+    at_other = code.index("if errorlevel 1", at_404)
     assert at_404 < at_other, (
         "`if errorlevel N` means 'N or more', so the 404 branch has to be "
         "tested before the catch-all or it can never be reached")
 
-    tail = code[at_404:at_other]
+    tail = _section(code, "not_found")
     assert "not found" in tail.lower(), "the 404 branch does not say what it is"
     assert "offline" not in tail.lower(), \
         "the 404 branch is still calling a private repository an outage"
@@ -208,8 +230,7 @@ def test_not_found_is_not_reported_as_being_offline(code):
 def test_it_says_what_to_do_instead(code):
     """A clinic told only that something failed is a clinic that stops
     updating. The way that always works is written down next to the error."""
-    at_404 = code.index("errorlevel 44")
-    tail = code[at_404:code.index("errorlevel 1", at_404)]
+    tail = _section(code, "not_found")
 
     assert "upgrade-db" in tail, \
         "it does not say how to finish an update done by hand"
@@ -221,8 +242,118 @@ def test_it_says_what_to_do_instead(code):
 def test_the_real_outage_still_says_so(code):
     """And the other half: an actual network failure must not be described as
     a private repository either."""
-    at_other = code.index("errorlevel 1", code.index("errorlevel 44"))
-    tail = code[at_other:at_other + 500]
+    tail = _section(code, "no_network")
 
     assert "offline" in tail.lower()
     assert "not found" not in tail.lower()
+
+
+# ---------------------------------------- the trap that broke a real update
+
+def test_no_command_is_spread_over_lines_inside_a_for_block(code):
+    """The bug a clinic hit, and the shape of it rather than the instance.
+
+    A `for /f` that captured PowerShell's output had its command spread over
+    three lines with `^` continuations **inside** the block. The caret does not
+    mean there what it means everywhere else: the command reached PowerShell in
+    pieces, PowerShell complained, and the complaint was captured as the value
+    — which was then used as a commit id in a download URL.
+
+    The result was `zip/<an error message>`, and GitHub answered 404 on a
+    public repository with the branch sitting right there. The error message
+    named three causes and the real one was a fourth the script had invented.
+
+    Held as a rule about the shape, not about that line: a command inside a
+    `for /f` capture is one line or it is not trusted.
+    """
+    lines = code.splitlines()
+    offenders = []
+    depth_open = False
+    for number, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if "for /f" in stripped.lower() and "(`" in stripped:
+            depth_open = not stripped.rstrip().endswith("`)") \
+                and "`)" not in stripped
+            if depth_open and stripped.endswith("^"):
+                offenders.append(number)
+            continue
+        if depth_open:
+            if stripped.endswith("^"):
+                offenders.append(number)
+            if "`)" in stripped:
+                depth_open = False
+
+    assert not offenders, (
+        "a `for /f` capture continues across lines with `^`, which is how the "
+        f"update download came to ask GitHub for an error message: {offenders}")
+
+
+def test_the_download_asks_for_the_branch_by_name(code):
+    """One URL, and one that cannot be assembled wrongly.
+
+    What the removed pre-lookup bought was a seconds-wide window in which a
+    commit could land between the download and the stamp. `record-version`
+    closes that by asking the branch itself, and a race that narrow does not
+    justify a line of batch nobody can read.
+    """
+    assert "refs/heads/%PP_BRANCH%" in code, \
+        "the download no longer names the branch it wants"
+    assert "PP_SHA" not in code, \
+        "the commit-id lookup is back — see the test above for why it went"
+
+
+# ------------------------------ two ways a batch file lies about what failed
+
+def test_no_message_carries_a_bracket_inside_a_block(script):
+    """A clinic saw the tail of an error message with its first lines missing,
+    and the message was the wrong one anyway.
+
+    An unescaped `)` inside a parenthesised block closes the block where it
+    stands. This file explained that the download carries no sign-in
+    "(on purpose - a password here would sit on every clinic PC);" and that
+    bracket ended the `if` four lines in: the half before it ran only on a
+    404, the half after it ran on every outcome. So a failure that was not a
+    404 printed most of the 404 message, at full confidence, and sent the
+    diagnosis two rounds in the wrong direction.
+
+    Held over the whole file rather than that one message, because the next
+    sentence someone writes will want a comma too.
+    """
+    import re
+
+    depth, offenders = 0, []
+    for number, line in enumerate(script.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.upper().startswith("REM"):
+            continue
+        if depth and ")" in stripped and stripped != ")":
+            offenders.append((number, stripped[:60]))
+        if re.search(r"\($", stripped):
+            depth += 1
+        elif stripped == ")":
+            depth = max(0, depth - 1)
+
+    assert not offenders, (
+        "a bracket inside a block will close it early, and the message after "
+        f"it will print on every outcome: {offenders}")
+
+
+def test_the_download_negotiates_tls_12(code):
+    """Windows PowerShell 5.1 is what a clinic PC runs, and it still offers
+    TLS 1.0 by default. GitHub has refused that for years.
+
+    The failure is "Could not create SSL/TLS secure channel" — an exception
+    carrying no HTTP response at all, so the 404 test reads `$null -eq 404`,
+    decides it is not a 404, and the script reports a network fault on a
+    machine whose network is fine.
+    """
+    assert "Tls12" in code, \
+        "the download no longer asks for TLS 1.2 and will fail on Windows"
+
+
+def test_the_real_error_is_printed_and_not_swallowed(code):
+    """Every failure here was being flattened into two exit codes, so a clinic
+    could report only which of two sentences it saw. That is how a TLS failure
+    spent two rounds being diagnosed as a missing repository."""
+    assert "$_.Exception.Message" in code, \
+        "the provider's own error is discarded before anybody can read it"

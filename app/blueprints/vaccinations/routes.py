@@ -938,7 +938,16 @@ def certificate(patient_id):
                     continue
                 rows.append({"vaccine": v["vaccine"], "brand": v["brand"],
                              "dose_number": d["dose_number"],
-                             "due_date": d["due_date"],
+                             # A date nobody promised, once it has gone
+                             # by, keeps its age and loses its date — see
+                             # :func:`stale_projection`. The column beside it
+                             # already says "from 2 months", which is the
+                             # sentence the schedule makes; the date is that
+                             # sentence run through a birthday, and printing
+                             # "1997" on a certificate handed to a family says
+                             # nothing either of them can act on.
+                             "due_date": (None if d.get("stale_date")
+                                          else d["due_date"]),
                              "planned": d.get("planned"),
                              "age_label": d["age_label"]})
         rows.sort(key=lambda r: r["due_date"] or "9999")

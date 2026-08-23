@@ -115,7 +115,7 @@
   <details class="card gc-scale-in vac-group" style="animation-delay:0.1s;"
            {{ 'open' if key in open_groups else '' }}>
     <summary class="section-title" style="cursor:pointer;">
-      <i class="bi bi-{{ {'started':'hourglass-split','ready':'shield-plus','complete':'check2-circle','later':'calendar3'}[key] }}"></i>
+      <i class="bi bi-{{ {'started':'hourglass-split','ready':'shield-plus','complete':'check2-circle','later':'calendar3','closed':'lock'}[key] }}"></i>
       {{ t('vaccinations.group_' ~ key) }}
       <span class="badge badge--muted">{{ items|length }}</span>
       <div class="hint" style="margin:4px 0 0;font-weight:400;">{{ t('vaccinations.group_' ~ key ~ '_hint') }}</div>
@@ -142,6 +142,19 @@
              fine, the vaccine *is* recommended, and what is missing is a
              schedule the program is allowed to compute. Both end at "ask the
              doctor" and they are not the same question. #}
+          {# Which rule produced these dates, in its own words. The engine has
+             always known and never said, and it matters most where the answer
+             is borrowed: the Egyptian profile states no pneumococcal schedule,
+             so those dates come from the vial's leaflet — a sound answer, and
+             one a doctor should be able to see is the leaflet's rather than
+             their own reference's. A fallback the reader cannot see is a
+             number from nowhere. #}
+          {% if item.rule %}
+            <span class="badge badge--muted" title="{{ item.rule }}">
+              <i class="bi bi-journal-text"></i>
+              {{ t('vaccinations.source_' ~ item.rule_source)
+                 if item.rule_source else '' }}</span>
+          {% endif %}
           {% if item.review %}
             {% set unsettled = item.review == 'guideline_unsettled' %}
             {% set why = t('vreview.why_' ~ item.review) %}
@@ -227,7 +240,7 @@
         <div class="dose-pill">
           <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span>
             {% if d.event_type %}<span class="badge badge--{{ 'danger' if d.event_type=='refused' else 'muted' }}">{{ t('vaccinations.ev_' ~ d.event_type) }}</span>{% endif %}</span>
-          <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date %} · {{ d.due_date }}{% endif %}</span>
+          <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date and not d.stale_date %} · {{ d.due_date }}{% endif %}</span>
           {% if d.event_reason %}<span class="dd" style="color:var(--muted);">{{ d.event_reason }}</span>{% endif %}
           {% if d.lot_number %}<span class="dd">Lot: {{ d.lot_number }}</span>{% endif %}
           {% if d.outside %}<span class="badge badge--muted"><i class="bi bi-box-arrow-up-right"></i> {{ t('vaccinations.given_outside') }}{% if d.outside_place %} — {{ d.outside_place }}{% endif %}</span>{% endif %}
