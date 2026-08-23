@@ -115,7 +115,7 @@
   <details class="card gc-scale-in vac-group" style="animation-delay:0.1s;"
            {{ 'open' if key in open_groups else '' }}>
     <summary class="section-title" style="cursor:pointer;">
-      <i class="bi bi-{{ {'started':'hourglass-split','ready':'shield-plus','complete':'check2-circle','later':'calendar3'}[key] }}"></i>
+      <i class="bi bi-{{ {'started':'hourglass-split','ready':'shield-plus','complete':'check2-circle','later':'calendar3','closed':'lock'}[key] }}"></i>
       {{ t('vaccinations.group_' ~ key) }}
       <span class="badge badge--muted">{{ items|length }}</span>
       <div class="hint" style="margin:4px 0 0;font-weight:400;">{{ t('vaccinations.group_' ~ key ~ '_hint') }}</div>

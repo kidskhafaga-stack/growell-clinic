@@ -1055,7 +1055,9 @@
     "tpl_saved": "Saved",
     "tpl_band": "Age at first dose (months)",
     "tpl_brand": "Brand",
-    "tpl_all_brands": "All brands"
+    "tpl_all_brands": "All brands",
+    "group_closed": "Window closed — not for this age",
+    "group_closed_hint": "The product itself is not licensed at this age, so no dose is offered. Kept so a dose given elsewhere can still be recorded."
   },
   "vstatus": {
     "done": "Done",

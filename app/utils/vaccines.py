@@ -1961,9 +1961,9 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
     return plan
 
 
-# The four shelves a vaccination plan actually falls onto, in the order a
-# doctor works through them. Order matters: it is the whole feature.
-PLAN_GROUPS = ("started", "ready", "complete", "later")
+# The shelves a vaccination plan actually falls onto, in the order a doctor
+# works through them. Order matters: it is the whole feature.
+PLAN_GROUPS = ("started", "ready", "complete", "later", "closed")
 
 
 def group_plan(plan, today=None):
@@ -1988,6 +1988,11 @@ def group_plan(plan, today=None):
                        a question, but collapsed: it is history, not a task.
       * ``later``    — never began and not yet due. Also collapsed, for the
                        same reason in the other direction.
+      * ``closed``   — never began and the product's own licensed age has
+                       passed. Split out of ``later`` because that shelf is
+                       headed *"too early"* and these are the opposite: a
+                       patient of twenty-nine was reading "not yet time" over
+                       the infant hexavalent.
 
     Returns ``[(key, items), …]`` in :data:`PLAN_GROUPS` order, skipping empty
     shelves so a headed section is never a heading over nothing.
@@ -2001,6 +2006,9 @@ def group_plan(plan, today=None):
             shelves["started" if len(given) < len(doses) else "complete"].append(item)
         elif any(d["status"] in GIVEABLE for d in doses):
             shelves["ready"].append(item)
+        elif doses and all(d["status"] in SHUT for d in doses):
+            # Every dose past the product's own licensed age. Not "not yet".
+            shelves["closed"].append(item)
         else:
             shelves["later"].append(item)
     return [(key, shelves[key]) for key in PLAN_GROUPS if shelves[key]]

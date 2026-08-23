@@ -104,7 +104,9 @@
             2,
             4,
             6
-          ]
+          ],
+          "max_age_final_dose_days": 2557,
+          "max_age_final_dose_label": "أقل من 7 سنوات"
         },
         {
           "name": "Quinvaxem",
@@ -120,7 +122,9 @@
           "discontinued": true,
           "available_now": false,
           "reminder_scope": "routine",
-          "catch_up_ar": "خماسي خلوي متوقف الإنتاج. موجود في الكتالوج عشان الحالات اللي أخدته قديماً تتربط على اسمه الصحيح بدل الحكومي — لا يُعرض لجرعة جديدة."
+          "catch_up_ar": "خماسي خلوي متوقف الإنتاج. موجود في الكتالوج عشان الحالات اللي أخدته قديماً تتربط على اسمه الصحيح بدل الحكومي — لا يُعرض لجرعة جديدة.",
+          "max_age_final_dose_days": 2557,
+          "max_age_final_dose_label": "أقل من 7 سنوات"
         }
       ],
       "route": "IM",
@@ -142,7 +146,9 @@
           "default": true,
           "doses_age_months": [
             18
-          ]
+          ],
+          "max_age_final_dose_days": 2557,
+          "max_age_final_dose_label": "أقل من 7 سنوات"
         }
       ],
       "route": "IM",
@@ -644,12 +650,13 @@
           "manufacturer": "Sanofi",
           "valency": "6-valent DTaP-IPV-HepB-Hib",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "أقل من 7 سنوات",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.sanofi.com/en/products/vaccines"
+          "source_url": "https://www.sanofi.com/en/products/vaccines",
+          "max_age_final_dose_days": 2557
         },
         {
           "name": "Infanrix Hexa",
@@ -661,12 +668,13 @@
           "manufacturer": "GSK",
           "valency": "6-valent DTaP-IPV-HepB-Hib",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "أقل من 7 سنوات",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://assets.gskstatic.com/pharma/PM-PI_portal/Jordan/infanrix_hexa_pil_jo.pdf"
+          "source_url": "https://assets.gskstatic.com/pharma/PM-PI_portal/Jordan/infanrix_hexa_pil_jo.pdf",
+          "max_age_final_dose_days": 2557
         }
       ],
       "min_interval_days": 28,
@@ -693,12 +701,13 @@
           "manufacturer": "Sanofi",
           "valency": "5-valent DTaP-IPV-Hib",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "أقل من 7 سنوات",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.sanofi.com/en/products/vaccines"
+          "source_url": "https://www.sanofi.com/en/products/vaccines",
+          "max_age_final_dose_days": 2557
         }
       ],
       "min_interval_days": 28,
@@ -724,12 +733,13 @@
           "manufacturer": "GSK",
           "valency": "MMR + varicella; live attenuated",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "غير محدد",
+          "max_age_final_dose_label": "حتى 12 سنة (شاملة)",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "routine",
-          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/priorix"
+          "source_url": "https://www.ema.europa.eu/en/medicines/human/EPAR/priorix",
+          "max_age_final_dose_days": 4748
         },
         {
           "name": "ProQuad",
@@ -1099,12 +1109,13 @@
           "manufacturer": "Manufacturer varies by presentation",
           "valency": "Diphtheria toxoid + tetanus toxoid",
           "dose_volume": "0.5 mL",
-          "max_age_final_dose_label": "حسب العمر/المنتج",
+          "max_age_final_dose_label": "أقل من 7 سنوات",
           "registered_in_egypt": true,
           "available_now": true,
           "doses_change_by_start_age": true,
           "reminder_scope": "risk",
-          "source_url": "https://www.edaegypt.gov.eg/ar/"
+          "source_url": "https://www.edaegypt.gov.eg/ar/",
+          "max_age_final_dose_days": 2557
         }
       ],
       "route": "IM",

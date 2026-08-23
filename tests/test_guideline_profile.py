@@ -81,18 +81,24 @@ def _bexsero(seeded, tag, start_years, age_years):
 
 # ------------------------------------------------------------- the setting
 
-def test_the_default_is_the_egyptian_programme(seeded):
-    """Unset, an Egyptian clinic follows the Egyptian programme.
+def test_the_default_is_the_leaflet(seeded):
+    """Unset, a clinic follows the product's own label.
 
-    Not merely "some default": this is the country the program is written for,
-    and a clinic should not have to choose a reference before it can read a
-    vaccination screen.
+    Not merely "some default", and it used to be `egypt` for a reason that
+    turned out to be the wrong one: the country the program is written for.
+    The reference a doctor here is actually weighing is the leaflet — it is
+    what a company's representative quotes across the desk — and the Egyptian
+    profile states nothing outside the national programme in any case, so
+    naming it as the default described a policy nobody was following.
+
+    Measured before it was changed: `egypt → manufacturer` moves not one dose
+    on one child. It is a change of what the settings screen honestly says.
     """
     from app.models import VaccineScheduleTemplate
     from app.utils.vaccines import guideline_profile
 
     with seeded["app"].app_context():
-        assert guideline_profile() == "egypt"
+        assert guideline_profile() == "manufacturer"
         assert (VaccineScheduleTemplate.DEFAULT_GUIDELINE_PROFILE
                 in VaccineScheduleTemplate.GUIDELINE_PROFILES), \
             "the default is not one of the references that can be chosen"
@@ -104,7 +110,7 @@ def test_nonsense_falls_back_to_the_default(seeded):
 
     _follow(seeded, "whatever")
     with seeded["app"].app_context():
-        assert guideline_profile() == "egypt"
+        assert guideline_profile() == "manufacturer"
 
 
 def test_it_is_set_from_the_settings_screen(seeded):
