@@ -143,6 +143,13 @@ _RETAGGED_BANDS = {
     # is seeded under a new code, so the old row has to stop applying or a
     # healthy twelve-year-old goes on being scheduled from it.
     "MENB-CDC-10Y": None,
+    # And the Egyptian pneumococcal table. Its numbers were another body's,
+    # under this profile's name — see the note beside `PCV-EG-UNSET`.
+    "PCV-EG-CU7": None,
+    "PCV-EG-CU12": None,
+    "PCV-EG-CU2Y": None,
+    "PCV-EG-END": None,
+    "PCV-EG-INF": None,
 }
 
 
@@ -502,43 +509,42 @@ _AGE_BANDED = {
 
         # -------- the Egyptian programme, which is what this clinic follows
         #
-        # Pneumococcal is not in Egypt's national schedule; it is a private-
-        # market vaccine, and the reference the catalogue has always named for
-        # it here is the WHO pneumococcal position paper together with ACIP.
-        # These rows say that, at the ages the Egyptian catalogue's own brands
-        # are dosed at. Every one is "للمراجعة" — seeded for the doctor to
-        # confirm or correct, in the schedule editor, under this profile.
-        {"code": "PCV-EG-CU7", "min": 7, "max": 11, "sort_order": 0,
-         "source": "egypt",
-         "label": "7–11 شهر بدون جرعات سابقة: 3 جرعات، الأخيرة بعد "
-                  "إتمام 12 شهر — للمراجعة",
-         "doses": [(7, None), (8, 28), (12, 56)]},
-        {"code": "PCV-EG-CU12", "min": 12, "max": 23, "sort_order": 1,
-         "source": "egypt",
-         "label": "12–23 شهر بدون جرعات سابقة: جرعتان بفاصل ≥8 أسابيع "
-                  "— للمراجعة",
-         "doses": [(12, None), (14, 56)]},
-        {"code": "PCV-EG-CU2Y", "min": 24, "max": 59, "sort_order": 2,
+        # And which does not state a pneumococcal schedule that this program
+        # may compute from.
+        #
+        # It had one here, and the numbers in it were sound — they were
+        # ACIP's. That was the objection, and it was right: writing another
+        # body's table down and putting `egypt` on it makes the settings
+        # screen say something untrue, and a clinic told it follows the
+        # Egyptian programme cannot then audit its own practice.
+        #
+        # The Egyptian Drug Authority's assessment of Prevenar 13 is a real
+        # document and does not fill the gap either. A public assessment
+        # report is the regulator reading the *manufacturer's* dossier, and
+        # the schedule inside it is the leaflet's, reviewed and approved. A
+        # product being registered in Egypt is not the same thing as Egypt
+        # having stated a catch-up: one is permission to sell, the other is a
+        # decision about what to give a child.
+        #
+        # So this profile says the true thing instead: pneumococcal is
+        # recommended, and there is no Egyptian schedule the program is
+        # entitled to compute — the doctor decides. Not silence, which would
+        # let the leaflet answer without anybody being told whose answer it
+        # was; the question said out loud.
+        #
+        # A doctor who wants Prevenar 13's own numbers can have them, by
+        # following the leaflet — under its own source, named as the
+        # manufacturer's, which is what it is.
+        #
+        # `min` is 0 rather than None because the loader only reads bands that
+        # carry an age bound, and a band with neither would be invisible to it
+        # — which is silence again, arrived at by accident.
+        {"code": "PCV-EG-UNSET", "min": 0, "max": None, "sort_order": 0,
          "match_on": "today", "source": "egypt",
-         "catch_up": True, "previous_max": 3,
-         "label": "2–4 سنوات (سليم) وأقل من 4 جرعات: جرعة واحدة "
-                  "لاستكمال الناقص — للمراجعة",
-         "doses": [(24, None)]},
-        # Marked as a catch-up with nothing in it, which is exactly what it
-        # is: "how many are still owed" — none. That also keeps the doses the
-        # child did have on their file. A bare empty course dropped them, so a
-        # six-year-old's certificate lost the pneumococcal dose they were
-        # actually given — a shut course must still show what happened.
-        {"code": "PCV-EG-END", "min": 60, "max": None, "sort_order": 3,
-         "match_on": "today", "source": "egypt", "catch_up": True,
-         "label": "5 سنوات فأكثر (سليم): انتهى الجدول الروتيني — "
-                  "لا جرعات إلا بقرار طبيب — للمراجعة",
+         "catch_up": True, "review": True,
+         "label": "لا يوجد جدول مصري معتمد للمكورات الرئوية — التطعيم موصى "
+                  "به وتحديد الجرعات قرار الطبيب",
          "doses": []},
-        # Last, and matched on the age at the first dose. See above.
-        {"code": "PCV-EG-INF", "min": None, "max": 6, "sort_order": 4,
-         "source": "egypt",
-         "label": "بدء قبل 7 شهور: 4 جرعات (2، 4، 6، 12 شهر) — للمراجعة",
-         "doses": [(2, None), (4, 28), (6, 28), (12, 56)]},
 
         # ------------------------------------------------- and the WHO's
         #

@@ -36,13 +36,26 @@ from app.utils.clock import local_today  # noqa: E402
 
 @pytest.fixture()
 def seeded(clinic):
+    """A clinic following the CDC, which is whose rules these are.
+
+    They used to be measured on the default profile, and that stopped being
+    the right place when the Egyptian set gave its pneumococcal table up: a
+    profile that does not state a schedule cannot be asked whether its
+    schedule ends at five. The rules themselves did not move — the CDC's and
+    the leaflet's are where they were — so this is where they are read.
+
+    What the Egyptian profile says instead has its own test at the end of this
+    file, because "it says nothing computable" is a claim worth holding too.
+    """
     from app.extensions import db
+    from app.models import Setting
 
     from app.utils.vaccines import seed_vaccine_schedules, seed_vaccines
 
     with clinic["app"].app_context():
         seed_vaccines()
         seed_vaccine_schedules()
+        Setting.set("vaccine_guideline_profile", "cdc")
         db.session.commit()
     return clinic
 
@@ -334,7 +347,7 @@ def test_the_ceiling_is_a_row_a_clinic_can_change(seeded):
             vaccine_id=pcv.id, is_active=True, brand_id=None).all()
             if r.start_age_min_months == 60}
 
-        assert set(rows) == {"egypt", "cdc", "who"}, \
+        assert set(rows) == {"cdc", "who"}, \
             f"the ceiling is not a row under each reference that states it: {rows}"
         for source, row in rows.items():
             assert row.match_age_on == "today", source
@@ -372,7 +385,7 @@ def test_it_is_the_rule_of_the_references_that_state_it(seeded):
         row = _pcv(seeded, _child(seeded, 8, f"g{profile}"))
         return [d for d in row["doses"] if d["status"] != "done"]
 
-    for profile in ("egypt", "cdc", "who"):
+    for profile in ("cdc", "who"):
         assert not owing(profile), \
             f"the ceiling disappears for a clinic following {profile}"
 

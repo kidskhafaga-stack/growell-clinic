@@ -100,7 +100,7 @@ def _pending(doses):
 
 # ------------------------------------------------- the end of the course
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 @pytest.mark.parametrize("age_months", [72, 120, 192])
 def test_the_routine_course_has_ended_by_five(seeded, profile, age_months):
     """The reported bug, in the two profiles that now state the rule.
@@ -116,7 +116,7 @@ def test_the_routine_course_has_ended_by_five(seeded, profile, age_months):
         f"a healthy {age_months // 12}-year-old is still being chased: {doses}"
 
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 def test_the_doses_already_given_survive_the_end_of_the_course(seeded, profile):
     """A shut course still has to show what happened.
 
@@ -132,7 +132,7 @@ def test_the_doses_already_given_survive_the_end_of_the_course(seeded, profile):
 
 # ------------------------------------------------------- the catch-up itself
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 def test_a_child_of_seven_to_eleven_months_with_nothing_needs_three(
         seeded, profile):
     review, doses = _child(seeded, profile, 9, [])
@@ -141,7 +141,7 @@ def test_a_child_of_seven_to_eleven_months_with_nothing_needs_three(
     assert len(doses) == 3, f"the 7–11 month catch-up is not three doses: {doses}"
 
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 @pytest.mark.parametrize("age_months", [7, 9, 11])
 def test_the_last_dose_of_that_catch_up_is_never_before_the_first_birthday(
         seeded, profile, age_months):
@@ -166,7 +166,7 @@ def test_the_last_dose_of_that_catch_up_is_never_before_the_first_birthday(
          f"birthday on {first_birthday}")
 
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 def test_a_child_of_twelve_to_twenty_three_months_with_nothing_needs_two(
         seeded, profile):
     review, doses = _child(seeded, profile, 14, [])
@@ -175,7 +175,7 @@ def test_a_child_of_twelve_to_twenty_three_months_with_nothing_needs_two(
     assert len(doses) == 2, f"the 12–23 month catch-up is not two doses: {doses}"
 
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 def test_two_to_four_years_and_incomplete_is_one_more_dose(seeded, profile):
     """And *one more* — added to what is on file, not a one-dose course whose
     single slot the child's infant dose already fills, which reads as nothing
@@ -187,7 +187,7 @@ def test_two_to_four_years_and_incomplete_is_one_more_dose(seeded, profile):
     assert [n for n, status, _d in doses if status == "done"] == [1, 2, 3]
 
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 def test_a_complete_four_dose_child_is_owed_nothing(seeded, profile):
     review, doses = _child(seeded, profile, 36, [2, 4, 6, 12])
 
@@ -197,7 +197,7 @@ def test_a_complete_four_dose_child_is_owed_nothing(seeded, profile):
 
 # ------------------------------------------- mid-series is not a catch-up
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 @pytest.mark.parametrize("age_months,given", [(9, [2, 4]), (14, [2])])
 def test_a_child_who_started_as_an_infant_stays_on_the_infant_series(
         seeded, profile, age_months, given):
@@ -218,7 +218,7 @@ def test_a_child_who_started_as_an_infant_stays_on_the_infant_series(
 
 # ------------------------------------------------ and where it does not reach
 
-@pytest.mark.parametrize("profile", ["egypt", "cdc"])
+@pytest.mark.parametrize("profile", ["cdc"])
 def test_a_child_who_began_a_catch_up_is_owed_the_rest_of_it(seeded, profile):
     """Fourteen months old, one dose, given at thirteen.
 
@@ -297,7 +297,7 @@ def test_an_unstarted_course_at_an_unscheduled_age_is_not_a_puzzle(seeded):
     put the clinical-review badge on every teenager in the register, and a
     flag that fires on the ordinary case is worse than no flag.
     """
-    review, doses = _child(seeded, "egypt", 192, [])
+    review, doses = _child(seeded, "cdc", 192, [])
 
     assert review is None, f"an empty record was flagged: {review}"
     assert _owed(doses) == []
