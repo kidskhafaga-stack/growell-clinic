@@ -650,6 +650,17 @@
     <p class="info-note" style="margin:10px 0 0;"><i class="bi bi-shield-lock"></i> {{ t('settings.ai_privacy') }}</p>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_patient_hint') }}</p>
 
+    {# Its own switch, and default off. Wanting your own notes written up is
+       not the same decision as wanting a machine to offer a differential, and
+       a clinic that turned the first one on for correspondence should not
+       acquire the second one as a side effect. #}
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-chat-square-text"></i> {{ t('settings.ai_discuss_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_discussion" name="ai_discussion" value="1" {{ 'checked' if values.get('ai_discussion')=='1' else '' }}>
+      <label for="ai_discussion" style="margin:0;font-weight:400;">{{ t('settings.ai_discussion') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_discussion_hint') }}</p>
+
     {# ICD-11 sits on the AI tab because it is the other thing on this screen
        that needs credentials from an outside body — not because WHO has
        anything to do with the assistant. It is imported once and then the

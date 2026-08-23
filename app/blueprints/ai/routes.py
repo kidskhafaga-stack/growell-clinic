@@ -56,6 +56,37 @@ def lookup():
     )
 
 
+@ai_bp.route("/lookup/search")
+@module_required(MODULE)
+def lookup_search():
+    """The same lookup, answered as you type.
+
+    Pressing a button and waiting for a page was the whole interaction, and on
+    a phone number shared by three siblings that is three round trips to find
+    out which Khafaga you meant. Typing narrows it in place.
+
+    **It calls the same** :func:`ai_lookup.find_patients` **the page does.** Two
+    searches that disagree — one while typing, one after Enter — would be a
+    child appearing and then vanishing, and this file has learned that lesson
+    on schedules already: one question, one function.
+
+    Returns only what the list shows: the name, the file number, and where
+    clicking goes. Not the phone it may have matched on, not the address, not
+    an age. A search box is not a reason to put a row of the register on the
+    wire, and the URL is built here so the page never assembles one itself.
+    """
+    from app.utils import ai_lookup
+
+    term = (request.args.get("q") or "").strip()
+    lang = getattr(g, "lang", "ar")
+    return jsonify({"patients": [
+        {"id": p.id,
+         "name": p.display_name(lang),
+         "number": p.patient_number,
+         "url": url_for("ai.lookup", q=term, patient_id=p.id)}
+        for p in ai_lookup.find_patients(term)]})
+
+
 @ai_bp.route("/")
 @module_required(MODULE)
 def index():
@@ -106,7 +137,16 @@ def chat():
     if not messages:
         return _reply({"ok": False, "error": "empty"}, 400)
 
-    result = ai_utils.chat(messages, feature="chat")
+    # Told who it is working for. Asked "معلومات العيادة" with no system
+    # prompt at all, it invented a whole clinic — an address, a phone, opening
+    # hours, an insurer list and an email at a domain belonging to nobody —
+    # and every line of it was the sort of thing somebody reads out to a
+    # parent. See :mod:`app.utils.ai_clinic`.
+    from app.utils import ai_clinic
+
+    result = ai_utils.chat(messages,
+                           system=ai_clinic.system_prompt(getattr(g, "lang", "ar")),
+                           feature="chat")
     return _reply(result)
 
 
@@ -141,4 +181,63 @@ def patient_chat(patient_id):
               + ai_lookup.fact_sheet(facts,
                                      anonymize=ai_utils.anonymize_enabled()))
     result = ai_utils.chat(messages, system=system, feature="patient_chat")
+    return _reply(result)
+
+
+@ai_bp.route("/patient/<int:patient_id>/discuss", methods=["POST"])
+@module_required(MODULE)
+def patient_discuss(patient_id):
+    """Discuss a case: differential and plan, as a colleague and not a record.
+
+    A separate route from :func:`patient_chat` rather than a flag on it, and
+    the reason is the prompt each carries. That one is locked to the file —
+    *never estimate, infer or fill in a diagnosis that is not written here* —
+    because its job is letters and summaries, and a rounded date in a letter
+    reads as competence. This one is asked to reason past the file on purpose.
+    Those two instructions cannot live in one place, and a doctor has to be
+    able to tell which of them answered.
+
+    Two switches, both required. ``ai_patient_context`` because the record
+    still leaves the building, and ``ai_discussion`` because wanting your own
+    notes written up is not the same as wanting a machine to offer a
+    differential — see :func:`ai.discussion_enabled`.
+    """
+    if not ai_utils.patient_context_enabled():
+        return _reply({"ok": False, "error": "patient_context_disabled"}, 403)
+    if not ai_utils.discussion_enabled():
+        return _reply({"ok": False, "error": "discussion_disabled"}, 403)
+    patient = db.get_or_404(Patient, patient_id)
+
+    data = request.get_json(silent=True) or {}
+    raw = data.get("messages") or []
+    messages = []
+    for item in raw[-MAX_MESSAGES:]:
+        role = item.get("role")
+        content = (item.get("content") or "").strip()
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content[:MAX_CHARS]})
+    if not messages:
+        return _reply({"ok": False, "error": "empty"}, 400)
+
+    from app.utils import ai_discuss
+
+    system = ai_discuss.SYSTEM + ai_discuss.brief(
+        patient, getattr(g, "lang", "ar"),
+        anonymize=ai_utils.anonymize_enabled())
+    result = ai_utils.chat(messages, system=system, feature="discussion")
+
+    # Recorded like the visit summary is. A clinic ought to be able to answer
+    # "was the assistant consulted about this child, and when" from its own
+    # log rather than from somebody's memory — and a mode that offers
+    # differentials is the one where that question gets asked.
+    if result.get("ok"):
+        from flask_login import current_user
+
+        from app.models import ActivityLog
+        from app.utils.decorators import client_ip
+
+        ActivityLog.record("ai.discuss", user_id=current_user.id,
+                           entity="patient", entity_id=patient.id,
+                           ip_address=client_ip())
+        db.session.commit()
     return _reply(result)

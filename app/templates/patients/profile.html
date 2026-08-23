@@ -1237,6 +1237,33 @@
   </script>
   {% endif %}
 
+  {% if ai_discuss %}
+  <!-- Clinical discussion (differential + plan) — a separate mode on purpose.
+       The card above is locked to the record and writes from it; this one is
+       asked to reason past it. Two cards so a doctor is never in doubt about
+       which of the two answered, and a disclaimer that is on the screen rather
+       than trusted to the model. -->
+  <div class="card gc-scale-in" x-data="patientAI('{{ url_for('ai.patient_discuss', patient_id=patient.id) }}')">
+    <h3 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('ai.discuss_title') }}</h3>
+    <p class="info-note" style="margin:0 0 10px;"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('ai.discuss_disclaimer') }}</p>
+    <div x-ref="log" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;">
+      <template x-for="(m,i) in messages" :key="i">
+        <div :style="m.role==='user' ? 'align-self:flex-end;background:var(--green-100,#e6f4ea);' : 'align-self:flex-start;background:var(--surface-2,#f3f4f6);'"
+             style="max-width:82%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.5;" x-text="m.content"></div>
+      </template>
+      <div x-show="busy" style="align-self:flex-start;color:var(--muted);font-size:0.85rem;">{{ t('ai.thinking') }}</div>
+      <div x-show="error" x-text="error" x-cloak style="align-self:flex-start;color:var(--danger,#c0392b);font-size:0.85rem;"></div>
+    </div>
+    <form x-on:submit.prevent="send()" style="display:flex;gap:8px;margin-top:10px;">
+      <input class="input" x-model="draft" :disabled="busy" dir="auto" style="flex:1;" autocomplete="off"
+             placeholder="{{ t('ai.discuss_placeholder') }}">
+      <button class="btn btn-primary gc-press" type="submit" :disabled="busy || !draft.trim()"><i class="bi bi-send"></i></button>
+    </form>
+    <p class="hint" style="margin-top:8px;"><i class="bi bi-shield-lock"></i> {{ t('patients.ai_privacy') }}</p>
+  </div>
+  {% endif %}
+
   <!-- Add parent modal -->
   <div class="gc-overlay" x-show="showParent" x-cloak x-transition.opacity
        x-on:click.self="showParent=false">

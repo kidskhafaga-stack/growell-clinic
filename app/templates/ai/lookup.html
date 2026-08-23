@@ -12,18 +12,45 @@
 <h1 class="page-title gc-animate">{{ t('ai.lookup_title') }}</h1>
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('ai.lookup_sub') }}</p>
 
+{# The search box and everything that answers it, under one Alpine scope so
+   that typing can put the server's answer away. The form is still a real GET
+   form: with no JavaScript this page behaves exactly as it did — type, press,
+   read — and the live list is an addition on top of it, not a replacement for
+   it. #}
+<div x-data="lookupLive('{{ url_for('ai.lookup_search') }}',
+                        {{ term | tojson | forceescape }})">
+
 <div class="card gc-scale-in" style="margin-top:14px;">
   <form method="get" action="{{ url_for('ai.lookup') }}"
         style="display:flex;gap:8px;flex-wrap:wrap;">
-    <input class="input" name="q" value="{{ term }}" style="flex:1;min-width:220px;"
+    <input class="input" name="q" type="search" autocomplete="off"
+           x-model="q" x-on:input.debounce.250ms="find()"
+           value="{{ term }}" style="flex:1;min-width:220px;"
            placeholder="{{ t('ai.lookup_placeholder') }}" autofocus>
     <button class="btn btn-primary gc-press gc-ripple" type="submit">
       <i class="bi bi-search"></i> {{ t('common.search') }}</button>
   </form>
+
+  {# Deliberately the same rows the server draws below: one look for one
+     thing. A live list styled as a dropdown and a submitted list styled as a
+     card read as two different features answering the same question. #}
+  <div x-show="typing()" x-cloak style="margin-top:12px;">
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <template x-for="p in results" :key="p.id">
+        <a class="btn btn-outline gc-press" style="justify-content:space-between;"
+           :href="p.url">
+          <span x-text="p.name"></span>
+          <span class="badge badge--muted" dir="ltr" x-text="p.number"></span></a>
+      </template>
+    </div>
+    <p class="info-note" style="margin:0;"
+       x-show="!searching && results.length === 0"><i class="bi bi-search"></i>
+      {{ t('ai.lookup_live_none') }}</p>
+  </div>
 </div>
 
 {% if term and not matches and not chosen %}
-<div class="card gc-animate" style="margin-top:14px;">
+<div class="card gc-animate" style="margin-top:14px;" x-show="!typing()">
   {# Said plainly rather than dressed up. "No record" is a real answer and a
      useful one; a screen that hedges here is a screen somebody argues with. #}
   <p class="info-note" style="margin:0;"><i class="bi bi-search"></i>
@@ -32,7 +59,7 @@
 {% endif %}
 
 {% if matches|length > 1 and not chosen %}
-<div class="card gc-scale-in" style="margin-top:14px;">
+<div class="card gc-scale-in" style="margin-top:14px;" x-show="!typing()">
   <h2 class="section-title"><i class="bi bi-people"></i> {{ t('ai.lookup_which') }}</h2>
   {# Never resolved automatically. "أحمد" is half the register, and a lookup
      that silently picks one Ahmed will eventually report the wrong child's
@@ -47,6 +74,8 @@
   </div>
 </div>
 {% endif %}
+
+</div>
 
 {% if chosen and data %}
 <div class="card gc-scale-in" style="margin-top:14px;">
@@ -131,4 +160,53 @@
   {% endif %}
 </div>
 {% endif %}
+
+<script>
+  // Asks the same endpoint the page asks, and shows the same rows the page
+  // shows. Nothing here decides who matches — that is the register's job and
+  // it is answered in one function on the server.
+  function lookupLive(searchUrl, initial) {
+    return {
+      searchUrl,
+      q: initial || '',
+      initial: initial || '',
+      results: [],
+      searching: false,
+      // Every request carries a number and only the newest one may write to
+      // the list. Without it a slow answer for "ع" lands after a fast answer
+      // for "عمر" and the screen shows half the register under a name that is
+      // no longer in the box — the kind of wrong that looks like a working
+      // feature.
+      seq: 0,
+
+      // Whether the box has moved on from whatever the server was asked. Until
+      // it has, the server's own answer stands: reloading a page and having
+      // its results blink out because JavaScript woke up is worse than no
+      // live search at all.
+      typing() {
+        const term = this.q.trim();
+        return term.length >= 2 && term !== this.initial.trim();
+      },
+
+      async find() {
+        if (!this.typing()) { this.results = []; this.searching = false; return; }
+        const mine = ++this.seq;
+        this.searching = true;
+        try {
+          const res = await fetch(
+            `${this.searchUrl}?q=${encodeURIComponent(this.q.trim())}`);
+          const data = await res.json();
+          if (mine !== this.seq) return;
+          this.results = data.patients || [];
+        } catch (e) {
+          // A dropped request is not an empty register. Say nothing rather
+          // than "nobody matches", which is a claim about the records.
+          if (mine === this.seq) this.results = [];
+        } finally {
+          if (mine === this.seq) this.searching = false;
+        }
+      },
+    };
+  }
+</script>
 {% endblock %}

@@ -362,7 +362,26 @@ def apply_schema(report=None):
     # difference is precisely what has to be added. So the list stays — it
     # carries deliberate DDL and the backfills above, which cannot be derived —
     # and this catches whatever was left out of it.
-    applied += _add_columns_the_models_expect(inspector, existing_tables, report)
+    #
+    # Asked with a **fresh** inspector, and that word is the whole of a bug
+    # reported from a clinic mid-upgrade:
+    #
+    #     + vaccines.scope_max_age_days
+    #     ! vaccines.scope_max_age_days: duplicate column name
+    #
+    # An `Inspector` caches what it reflected. The one built at the top of this
+    # function read the table before the loop above altered it, so every column
+    # the explicit list had just added still looked missing here and was added
+    # a second time. The database was fine — SQLite refused the duplicate and
+    # the error was caught — but a doctor watching their clinic upgrade was
+    # shown a red line about their own patient database, which is a thing to
+    # be sure about at that particular moment.
+    #
+    # Committed first so the fresh inspector cannot be looking at a different
+    # connection from the one that ran the ALTERs.
+    db.session.commit()
+    applied += _add_columns_the_models_expect(
+        inspect(db.engine), existing_tables, report)
     db.session.commit()
 
     # A new table can hold what an old settings key used to. The About page

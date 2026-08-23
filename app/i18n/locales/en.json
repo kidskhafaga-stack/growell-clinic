@@ -1425,7 +1425,10 @@
     "guideline_who": "WHO",
     "guideline_profile_hint": "Which reference the schedule is computed from. Changing it recomputes from the same records with nothing re-entered. A product the chosen guideline does not cover keeps its leaflet. Note: this is a clinic-wide choice — it changes every vaccine at once, not one of them.",
     "update_check": "Tell me when a newer version exists",
-    "update_check_hint": "On start-up it asks GitHub whether there is a newer version and **only says so** — updating stays a decision you make in update.bat, with a backup before it. No clinic data is sent, and switching this off stops it reaching the internet at all."
+    "update_check_hint": "On start-up it asks GitHub whether there is a newer version and **only says so** — updating stays a decision you make in update.bat, with a backup before it. No clinic data is sent, and switching this off stops it reaching the internet at all.",
+    "ai_discuss_section": "Clinical discussion mode",
+    "ai_discussion": "Enable discussion mode (differential and plan)",
+    "ai_discussion_hint": "Different from the above. That one reads the file and writes from it only. This one reasons beyond the file — it suggests possible diagnoses and a plan, as a discussion and not a diagnosis. It also needs \"allow the assistant to read patient files\", and it is off by default. No doses are given here; the prescription screen has its own dose tool."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2365,7 +2368,13 @@
     "lookup_next_dose": "Next dose",
     "lookup_ask_assistant": "Ask the assistant about this case",
     "lookup_facts_only": "The assistant will not be asked about this case — sharing patient data is switched off in Settings. Everything above is from the record itself.",
-    "lookup_link": "Look up a patient"
+    "lookup_link": "Look up a patient",
+    "lookup_live_none": "Nobody matches.",
+    "discuss_title": "Discuss the case",
+    "discuss_placeholder": "Ask about this case…",
+    "discuss_disclaimer": "A suggestion for discussion — not a diagnosis. The doctor who examined the child decides, and no doses are given here.",
+    "discuss_off": "Discussion mode is switched off in Settings.",
+    "err_discussion_off": "Discussion mode is off. Switch it on in Settings → AI."
   },
   "rx": {
     "title": "Drugs & Prescriptions",
