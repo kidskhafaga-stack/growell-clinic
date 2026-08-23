@@ -240,7 +240,7 @@
         <div class="dose-pill">
           <span class="dn">{{ t('vaccinations.dose') }} {{ d.dose_number }} <span class="vst vst-{{ d.status }}">{{ t('vstatus.' ~ d.status) }}</span>
             {% if d.event_type %}<span class="badge badge--{{ 'danger' if d.event_type=='refused' else 'muted' }}">{{ t('vaccinations.ev_' ~ d.event_type) }}</span>{% endif %}</span>
-          <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date %} · {{ d.due_date }}{% endif %}</span>
+          <span class="dd">{{ d.age_label }}{% if d.given_date %} · ✓ {{ d.given_date }}{% elif d.due_date and not d.stale_date %} · {{ d.due_date }}{% endif %}</span>
           {% if d.event_reason %}<span class="dd" style="color:var(--muted);">{{ d.event_reason }}</span>{% endif %}
           {% if d.lot_number %}<span class="dd">Lot: {{ d.lot_number }}</span>{% endif %}
           {% if d.outside %}<span class="badge badge--muted"><i class="bi bi-box-arrow-up-right"></i> {{ t('vaccinations.given_outside') }}{% if d.outside_place %} — {{ d.outside_place }}{% endif %}</span>{% endif %}

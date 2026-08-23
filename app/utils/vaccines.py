@@ -1951,6 +1951,13 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             "done": sum(1 for x in doses if x["status"] == "done"),
             "total": len(doses),
         })
+    # Which dose dates the screens may print. Marked here rather than worked
+    # out in the template so the banner and the dose rows cannot drift apart —
+    # the same rule read twice in two languages is how this file has already
+    # once had one screen disagree with another about the same child.
+    for item in plan:
+        for d in item["doses"]:
+            d["stale_date"] = stale_projection(d, today)
     return plan
 
 
@@ -2001,7 +2008,16 @@ def group_plan(plan, today=None):
 
 # Which shelves open on arrival. History and not-yet-due are both true and
 # both noise at the moment somebody is deciding what to give today.
-OPEN_GROUPS = {"started", "ready"}
+#
+# `ready` joined them on request, and the file that prompted it shows why: a
+# patient with no doses on this clinic's record has *every* age-appropriate
+# course on that shelf — nineteen of them on the screen reported — so the one
+# thing the doctor came for, the courses already under way and owing a dose
+# today, was pushed off the bottom of a wall of suggestions. Nothing is
+# hidden: the counter at the top of the page still says how many there are,
+# and the heading carries the count next to it. It just no longer opens over
+# the answer.
+OPEN_GROUPS = {"started"}
 
 
 def certificate_cards(plan):
@@ -2084,12 +2100,62 @@ def plan_summary(plan):
     return s
 
 
+# The statuses that mean somebody actually promised this dose: a course
+# started at this clinic, or one the doctor and the family agreed on. Only
+# these have a due date that is an appointment; everything else has a date
+# that is an age projected onto a birthday.
+PROMISED = ("due", "overdue", "upcoming")
+
+
+def stale_projection(dose, today=None):
+    """Is this dose's date an age projected onto a birthday, already gone by?
+
+    Every unpromised status — ``suggested``, ``national``, ``on_demand``, and
+    the two shut windows — means, in this file's own words, that *neither is a
+    course this clinic ever promised*. Its due date is not an appointment;
+    nobody agreed to it. It is the age the schedule states, run through the
+    patient's birthday. Which is a true fact about arithmetic and, once the
+    date is behind us, a useless one about medicine.
+
+    Reported from a real file: a woman of twenty-nine, never vaccinated at
+    this clinic, whose screen offered nineteen doses and announced the next
+    one as the hexavalent's first — *"at 2 months"*, dated **1997**.
+
+    **Nothing about what is offered turns on this.** A three-year-old who
+    never had varicella is still owed a catch-up, and withdrawing the offer on
+    the strength of a passed date would be this program inventing an upper age
+    it does not know: thirty-seven of the catalogue's forty-eight products
+    carry no finish ceiling at all, and guessing one for each is exactly the
+    kind of clinical number nothing in this file is allowed to make up. What
+    changes is only whether a screen prints the projected date, and whether
+    the "next due" banner is allowed to answer with one. The age band stays on
+    every row, and it is the sentence the schedule actually makes.
+
+    :data:`PROMISED` is the exception and it is the whole distinction. A dose
+    somebody started a course for, or agreed to, has a real appointment, and
+    an appointment missed in March is still an appointment — the date is
+    exactly what the doctor needs.
+    """
+    if dose.get("given_date") or dose.get("status") in PROMISED:
+        return False
+    due = dose.get("due_date")
+    if not due:
+        return False
+    return str(due) < (today or local_today()).isoformat()
+
+
 def next_due_dose(plan):
-    """Return the most urgent not-yet-given dose (overdue first, then due)."""
+    """Return the most urgent not-yet-given dose (overdue first, then due).
+
+    A suggestion whose recommended age has already passed is never the answer.
+    The banner over this reads *"the next due vaccination"*, and a dose from
+    1997 is neither next nor due; with nothing else to name, the honest line is
+    the one that says nothing is outstanding.
+    """
     candidates = []
     for v in plan:
         for d in v["doses"]:
-            if d["status"] in GIVEABLE:
+            if d["status"] in GIVEABLE and not stale_projection(d):
                 candidates.append((d["due_date"], v["vaccine"], v["brand"], d))
     if not candidates:
         return None
