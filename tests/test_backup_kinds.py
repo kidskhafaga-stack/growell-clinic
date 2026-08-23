@@ -290,9 +290,31 @@ def test_a_junk_number_does_not_delete_everything(clinic_db):
 
 # ============================================== two schedules, independently =
 def _due(clinic_db, **settings):
-    """Run the scheduler with the clock at midday and given settings."""
+    """Run the scheduler with the clock at midday and given settings.
+
+    The clock is now actually held there. This said "with the clock at
+    midday" and did nothing of the kind — it read the wall clock — so
+    `test_nothing_is_taken_before_the_chosen_hour`, which picks hour 23
+    precisely because 23 is later than midday, was true for twenty-three hours
+    a day and false for the twenty-fourth. It went red on CI at 23:34.
+
+    Only the hour is pinned, and the date is left alone. Every other test here
+    measures the *age* of a backup in days against today, and freezing the
+    date would quietly rewrite what those ages mean.
+    """
+    from unittest import mock
+
     from app.models import Setting
+    from app.utils import backups as _backups
     from app.utils.backups import _AUTO, auto_backup_if_due
+
+    real = _backups.datetime
+
+    class _AtMidday(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real.now(tz).replace(hour=12, minute=0, second=0,
+                                        microsecond=0)
 
     with clinic_db["app"].app_context():
         for key, value in settings.items():
@@ -300,7 +322,8 @@ def _due(clinic_db, **settings):
         clinic_db["db"].session.commit()
         clinic_db["db"].engine.dispose()
         _AUTO["checked_at"] = 0.0
-        return auto_backup_if_due()
+        with mock.patch.object(_backups, "datetime", _AtMidday):
+            return auto_backup_if_due()
 
 
 def test_the_full_copy_runs_on_its_own_rhythm(clinic_db):

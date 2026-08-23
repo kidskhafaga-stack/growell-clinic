@@ -1,0 +1,41 @@
+GROWELL CLINIC / PediaPro
+Copyright (c) 2026 Mohammed Khafaga. All rights reserved.
+
+The source of this program is published so that the clinics running it can
+read it, check what it does with their records, and satisfy themselves that a
+schedule on a screen came from a reference and not from a guess. Being able
+to read it is the point. It is not an offer of the rights below.
+
+PERMITTED
+
+  * Reading, and quoting from it for study, review or discussion.
+  * Reporting faults, and proposing changes to this repository.
+  * Running it, and modifying your own copy, only under a written licence
+    from the copyright holder.
+
+NOT PERMITTED WITHOUT WRITTEN PERMISSION
+
+  * Using it, in whole or in part, to run a clinic or any other service.
+  * Copying, redistributing, publishing or sublicensing it.
+  * Selling it, or any product or service derived from it.
+  * Removing or altering this notice, the copyright notices, or the licence
+    verification the program performs.
+
+CONTRIBUTIONS
+
+  Anything contributed to this repository is offered under these same terms,
+  and the copyright holder may use it here without further permission.
+
+NO WARRANTY
+
+  This program is provided "as is", without warranty of any kind, express or
+  implied. It does not practise medicine. Every schedule, dose, interval and
+  reminder it produces is a computation over data somebody entered, offered to
+  a qualified clinician to check. The treating doctor is responsible for every
+  clinical decision. In no event shall the copyright holder be liable for any
+  claim, damage or other liability arising from the program or its use.
+
+  Nothing here limits any liability that the law does not allow to be limited.
+
+Enquiries about a licence to run or distribute this program should be
+addressed to the copyright holder through this repository.
