@@ -226,3 +226,57 @@ def test_the_real_outage_still_says_so(code):
 
     assert "offline" in tail.lower()
     assert "not found" not in tail.lower()
+
+
+# ---------------------------------------- the trap that broke a real update
+
+def test_no_command_is_spread_over_lines_inside_a_for_block(code):
+    """The bug a clinic hit, and the shape of it rather than the instance.
+
+    A `for /f` that captured PowerShell's output had its command spread over
+    three lines with `^` continuations **inside** the block. The caret does not
+    mean there what it means everywhere else: the command reached PowerShell in
+    pieces, PowerShell complained, and the complaint was captured as the value
+    — which was then used as a commit id in a download URL.
+
+    The result was `zip/<an error message>`, and GitHub answered 404 on a
+    public repository with the branch sitting right there. The error message
+    named three causes and the real one was a fourth the script had invented.
+
+    Held as a rule about the shape, not about that line: a command inside a
+    `for /f` capture is one line or it is not trusted.
+    """
+    lines = code.splitlines()
+    offenders = []
+    depth_open = False
+    for number, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if "for /f" in stripped.lower() and "(`" in stripped:
+            depth_open = not stripped.rstrip().endswith("`)") \
+                and "`)" not in stripped
+            if depth_open and stripped.endswith("^"):
+                offenders.append(number)
+            continue
+        if depth_open:
+            if stripped.endswith("^"):
+                offenders.append(number)
+            if "`)" in stripped:
+                depth_open = False
+
+    assert not offenders, (
+        "a `for /f` capture continues across lines with `^`, which is how the "
+        f"update download came to ask GitHub for an error message: {offenders}")
+
+
+def test_the_download_asks_for_the_branch_by_name(code):
+    """One URL, and one that cannot be assembled wrongly.
+
+    What the removed pre-lookup bought was a seconds-wide window in which a
+    commit could land between the download and the stamp. `record-version`
+    closes that by asking the branch itself, and a race that narrow does not
+    justify a line of batch nobody can read.
+    """
+    assert "refs/heads/%PP_BRANCH%" in code, \
+        "the download no longer names the branch it wants"
+    assert "PP_SHA" not in code, \
+        "the commit-id lookup is back — see the test above for why it went"

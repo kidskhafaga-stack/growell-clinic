@@ -82,10 +82,6 @@ echo [2/5] Fetching the new version...
 
 set "PP_REPO=kidskhafaga-stack/growell-clinic"
 set "PP_BRANCH=main"
-REM Emptied here rather than left undefined, so the git path - which never
-REM reaches the block that fills it - hands "record-version" nothing at all
-REM and lets git answer, which it can do exactly.
-set "PP_SHA="
 
 set "PP_MODE=zip"
 where git >nul 2>nul
@@ -168,9 +164,14 @@ REM the only thing that knows it for certain: it asked for that commit by
 REM name. Left to work it out, a downloaded copy would read the stamp written
 REM before this update and write the same thing back - so the stamp never
 REM moved, and a clinic that updates by downloading was told there was a newer
-REM version at every launch, for ever. PP_SHA is empty on the git path, where
-REM git has already moved HEAD on and knows better than this script does.
-flask --app run record-version %PP_SHA%
+REM version at every launch, for ever.
+REM
+REM Nothing is passed. This script used to work the commit id out for itself
+REM before downloading, and the line that did it was the bug that stopped the
+REM download working at all - see the note beside the fetch. `record-version`
+REM asks the branch when there is no git to ask, which is the same answer by a
+REM route that cannot be mangled by a batch file.
+flask --app run record-version
 
 echo.
 echo ============================================================
@@ -193,27 +194,28 @@ set "PP_TMP=%TEMP%\pediapro-update"
 if exist "%PP_TMP%" rmdir /s /q "%PP_TMP%"
 mkdir "%PP_TMP%"
 
-REM Which commit, by name, before anything is downloaded.
+REM The branch, by name, and nothing cleverer than that.
 REM
-REM Downloading "the head of main" and then asking separately what the head of
-REM main is leaves a window for a commit to land between the two, and the copy
-REM would then be stamped as something it is not. Asking first and fetching
-REM that commit by name closes it: what arrives is exactly what was asked for.
+REM This asked GitHub for the head commit first and downloaded that commit by
+REM name, so the copy could be stamped with exactly what it fetched. The idea
+REM was sound and the code was not: the PowerShell call was spread over three
+REM lines with `^` continuations **inside** a `for /f` block, where the caret
+REM does not mean what it means anywhere else. The command arrived at
+REM PowerShell in pieces, PowerShell complained, and the complaint was
+REM captured as the commit id — so the download asked for
+REM `zip/<an error message>` and GitHub answered 404.
 REM
-REM It is allowed to fail. An unreachable API, a rate limit, an old Windows
-REM without TLS 1.2 - none of those are a reason to refuse a clinic an update.
-REM The branch is downloaded instead and the program works the revision out
-REM for itself at the end.
-set "PP_SHA="
-for /f "usebackq delims=" %%S in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
-  "(Invoke-RestMethod -Uri 'https://api.github.com/repos/%PP_REPO%/commits/%PP_BRANCH%' -Headers @{'User-Agent'='PediaPro-update'}).sha } catch { '' }"`) do set "PP_SHA=%%S"
-
-if defined PP_SHA (
-  set "PP_ZIP_REF=%PP_SHA%"
-) else (
-  set "PP_ZIP_REF=refs/heads/%PP_BRANCH%"
-)
+REM Reported from a real clinic, on a public repository, with the branch
+REM sitting there: "[2/5] Fetching the new version..." then not found. The new
+REM error message did its job and named three causes, and the true cause was
+REM a fourth one this script had invented for itself.
+REM
+REM So it fetches the branch, which is one URL and cannot be mangled. What the
+REM pre-lookup bought was a seconds-wide window in which a commit could land
+REM between the download and the stamp; `record-version` already closes that
+REM well enough by asking the branch itself, and a race that narrow is not
+REM worth a line of batch nobody can read.
+set "PP_ZIP_REF=refs/heads/%PP_BRANCH%"
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
