@@ -2365,7 +2365,8 @@
     "lookup_next_dose": "Next dose",
     "lookup_ask_assistant": "Ask the assistant about this case",
     "lookup_facts_only": "The assistant will not be asked about this case — sharing patient data is switched off in Settings. Everything above is from the record itself.",
-    "lookup_link": "Look up a patient"
+    "lookup_link": "Look up a patient",
+    "lookup_live_none": "Nobody matches."
   },
   "rx": {
     "title": "Drugs & Prescriptions",

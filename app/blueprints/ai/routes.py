@@ -56,6 +56,37 @@ def lookup():
     )
 
 
+@ai_bp.route("/lookup/search")
+@module_required(MODULE)
+def lookup_search():
+    """The same lookup, answered as you type.
+
+    Pressing a button and waiting for a page was the whole interaction, and on
+    a phone number shared by three siblings that is three round trips to find
+    out which Khafaga you meant. Typing narrows it in place.
+
+    **It calls the same** :func:`ai_lookup.find_patients` **the page does.** Two
+    searches that disagree — one while typing, one after Enter — would be a
+    child appearing and then vanishing, and this file has learned that lesson
+    on schedules already: one question, one function.
+
+    Returns only what the list shows: the name, the file number, and where
+    clicking goes. Not the phone it may have matched on, not the address, not
+    an age. A search box is not a reason to put a row of the register on the
+    wire, and the URL is built here so the page never assembles one itself.
+    """
+    from app.utils import ai_lookup
+
+    term = (request.args.get("q") or "").strip()
+    lang = getattr(g, "lang", "ar")
+    return jsonify({"patients": [
+        {"id": p.id,
+         "name": p.display_name(lang),
+         "number": p.patient_number,
+         "url": url_for("ai.lookup", q=term, patient_id=p.id)}
+        for p in ai_lookup.find_patients(term)]})
+
+
 @ai_bp.route("/")
 @module_required(MODULE)
 def index():
