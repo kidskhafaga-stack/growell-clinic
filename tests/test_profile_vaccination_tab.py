@@ -37,11 +37,20 @@ def child(clinic):
     from app.extensions import db
     from app.models import Patient, PatientVaccine, Vaccine, VaccineBrand
 
+    from app.models import Setting
+
     from app.utils.vaccines import seed_vaccines, seed_vaccine_schedules
 
     with clinic["app"].app_context():
         seed_vaccines()
         seed_vaccine_schedules()
+        # These use pneumococcal as the vehicle for something else — a
+        # duplicated dose, an interval rule, a progress bar — and the Egyptian
+        # profile deliberately computes no pneumococcal schedule at all, so
+        # there would be no course here to measure any of it against. The
+        # leaflet is followed instead: the vehicle has to be a course that
+        # exists.
+        Setting.set("vaccine_guideline_profile", "manufacturer")
         db.session.commit()
         pcv = Vaccine.query.filter_by(code="PCV").first()
         brand = VaccineBrand.query.filter_by(vaccine_id=pcv.id,

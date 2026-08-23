@@ -37,11 +37,18 @@ from app.utils.clock import local_today  # noqa: E402
 def seeded(clinic):
     from app.extensions import db
 
+    from app.models import Setting
+
     from app.utils.vaccines import seed_vaccines, seed_vaccine_schedules
 
     with clinic["app"].app_context():
         seed_vaccines()
         seed_vaccine_schedules()
+        # Pneumococcal is the vehicle here, for a leaflet's own bands and for
+        # dose numbering across trade names. The Egyptian profile computes no
+        # pneumococcal schedule at all — deliberately — so the leaflet is what
+        # these are read against, which is also whose rules they are.
+        Setting.set("vaccine_guideline_profile", "manufacturer")
         db.session.commit()
     return clinic
 
