@@ -242,3 +242,40 @@ def test_the_retired_rows_stop_applying_on_a_clinic_that_has_them(seeded):
             VaccineScheduleTemplate.code.like("PCV-EG-%"),
             VaccineScheduleTemplate.code != "PCV-EG-UNSET",
             VaccineScheduleTemplate.is_active.is_(True)).count()
+
+
+def test_the_limitation_is_written_down_where_it_will_be_found(seeded):
+    """A deliberate gap that only lives in a commit message is a gap the next
+    person reads as a bug.
+
+    Two places, because they answer different questions. The backlog says why
+    the profile computes nothing and what closes it; the settings screen says
+    the thing a doctor needs at the moment they are about to act on it — that
+    the reference is a choice for the whole clinic and not for one vaccine.
+    """
+    import json
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "..", "IMPROVEMENTS_BACKLOG.md"),
+              encoding="utf-8") as fh:
+        backlog = fh.read()
+
+    assert "PCV" in backlog and "egypt" in backlog, \
+        "the pneumococcal limitation is not in the backlog at all"
+    for needed in ("قرار الطبيب", "نشرة الشركة", "Clinical Override"):
+        assert needed in backlog, \
+            f"the backlog does not say {needed!r} — the way out is missing"
+
+    for lang in ("ar", "en"):
+        with open(os.path.join(here, "..", "app/i18n/locales", f"{lang}.json"),
+                  encoding="utf-8") as fh:
+            hint = json.load(fh)["settings"]["guideline_profile_hint"]
+        assert len(hint) > 120, f"{lang}: the hint lost its warning"
+        # `عيادة كلها` rather than `العيادة كلها`: the sentence reads
+        # "للعيادة كلها", where the definite article contracts into the
+        # preposition and the alif is written away. Searching for the
+        # uncontracted form finds nothing, which is a way to fail a test about
+        # wording on the wording itself.
+        assert ("عيادة كلها" in hint or "clinic-wide" in hint), (
+            f"{lang}: the settings hint does not say the reference is chosen "
+            f"for the whole clinic")
