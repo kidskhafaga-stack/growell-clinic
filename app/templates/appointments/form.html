@@ -14,216 +14,280 @@
 </div>
 {% endif %}
 
-<div class="card gc-scale-in" style="max-width:760px;animation-delay:0.1s;"
+<div class="md" style="max-width:820px;"
      x-data="slotPicker('{{ url_for('appointments.slots') }}', '{{ form.appt_time or '' }}', '{{ url_for('appointments.next_available_slot') }}', '{{ url_for('appointments.first_available') }}')">
   <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
-    <div class="form-grid">
-      <div class="form-row" style="position:relative;"
-           x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson | forceescape) if selected_patient else 'null' }})">
-        <label>{{ t('appointments.patient') }} *</label>
-        <input type="hidden" name="patient_id" :value="chosen ? chosen.id : ''" required>
+    {# `gap: 0 18px` on `.form-grid` means no row gap at all, so rows of very
+       different heights — the patient picker with its results list open, and
+       a plain date box — ran into each other. Row spacing is set here rather
+       than in the shared class because every other form in the program is
+       laid out on it and this is the one with a search box in a cell. #}
+    {# Three sections, in the order the job has: who is coming, when they are
+       coming, and what the visit is for. It was one flat grid of seven
+       controls — a list of fields rather than a description of a task — with
+       the slot picker, the only thing the screen exists to choose, last of
+       all under the extra services.
 
-        <!-- Chosen patient chip -->
-        <template x-if="chosen">
-          <div class="chosen-patient">
+       The numbering is honest here and would not be on most forms: a slot
+       cannot be picked before a doctor and a date, so these really are steps
+       in an order. See app/static/css/material.css. #}
+    <section class="md-section gc-scale-in">
+      <div class="md-section-head">
+        <span class="md-step">1</span>
+        <h3>{{ t('appointments.step_who') }}</h3>
+      </div>
+      <div class="form-grid" style="row-gap:14px;align-items:start;">
+        <div class="form-row" style="position:relative;"
+             x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson | forceescape) if selected_patient else 'null' }})">
+          <label>{{ t('appointments.patient') }} *</label>
+          <input type="hidden" name="patient_id" :value="chosen ? chosen.id : ''" required>
+
+          <!-- Chosen patient chip -->
+          <template x-if="chosen">
+            <div class="chosen-patient">
+              <div>
+                <strong x-text="chosen.name"></strong>
+                <span class="muted" x-text="'— ' + chosen.number + ' · ' + chosen.age"></span>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="clear()">
+                <i class="bi bi-x-lg"></i> {{ t('appointments.change_patient') }}</button>
+            </div>
+          </template>
+
+          <!-- Search box -->
+          <template x-if="!chosen">
             <div>
-              <strong x-text="chosen.name"></strong>
-              <span class="muted" x-text="'— ' + chosen.number + ' · ' + chosen.age"></span>
-            </div>
-            <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="clear()">
-              <i class="bi bi-x-lg"></i> {{ t('appointments.change_patient') }}</button>
-          </div>
-        </template>
+              <input class="input" type="search" autocomplete="off"
+                     x-model="q" x-on:input.debounce.250ms="search()"
+                     placeholder="{{ t('appointments.search_patient_ph') }}">
+              <div class="patient-results" x-show="q.length >= 2 && (results.length || !searching)" x-cloak>
+                <template x-for="p in results" :key="p.id">
+                  <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
+                    <span x-text="p.name"></span>
+                    <span class="muted" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
+                  </button>
+                </template>
+                <div x-show="!searching && results.length === 0" class="patient-result muted" style="cursor:default;">
+                  {{ t('appointments.no_patient_found') }}
+                </div>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
+                      x-on:click="quick.open = !quick.open">
+                <i class="bi bi-person-plus"></i> {{ t('appointments.quick_add_patient') }}</button>
 
-        <!-- Search box -->
-        <template x-if="!chosen">
-          <div>
-            <input class="input" type="search" autocomplete="off"
-                   x-model="q" x-on:input.debounce.250ms="search()"
-                   placeholder="{{ t('appointments.search_patient_ph') }}">
-            <div class="patient-results" x-show="q.length >= 2 && (results.length || !searching)" x-cloak>
-              <template x-for="p in results" :key="p.id">
-                <button type="button" class="patient-result gc-press" x-on:click="pick(p)">
-                  <span x-text="p.name"></span>
-                  <span class="muted" x-text="p.number + ' · ' + p.age + (p.phone ? ' · ' + p.phone : '')"></span>
-                </button>
-              </template>
-              <div x-show="!searching && results.length === 0" class="patient-result muted" style="cursor:default;">
-                {{ t('appointments.no_patient_found') }}
+              <!-- Quick create -->
+              <div class="quick-add" x-show="quick.open" x-cloak>
+                <div class="form-grid">
+                  <div class="form-row"><label>{{ t('patients.full_name') }} *</label>
+                    <input class="input" x-model="quick.full_name"></div>
+                  <div class="form-row"><label>{{ t('patients.dob') }} *</label>
+                    <input class="input" type="date" x-model="quick.date_of_birth"></div>
+                  <div class="form-row"><label>{{ t('patients.gender') }} *</label>
+                    <select class="select" x-model="quick.gender">
+                      <option value="">—</option>
+                      <option value="male">{{ t('genders.male') }}</option>
+                      <option value="female">{{ t('genders.female') }}</option>
+                    </select></div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button type="button" class="btn btn-primary btn-sm gc-press"
+                          x-on:click="createQuick()" :disabled="quick.busy">
+                    <i class="bi bi-check-lg"></i> {{ t('appointments.quick_add_save') }}</button>
+                  <span class="muted" x-text="quick.error" style="color:var(--danger,#c0392b);font-size:0.85rem;"></span>
+                </div>
               </div>
             </div>
-            <button type="button" class="btn btn-outline btn-sm gc-press" style="margin-top:8px;"
-                    x-on:click="quick.open = !quick.open">
-              <i class="bi bi-person-plus"></i> {{ t('appointments.quick_add_patient') }}</button>
-
-            <!-- Quick create -->
-            <div class="quick-add" x-show="quick.open" x-cloak>
-              <div class="form-grid">
-                <div class="form-row"><label>{{ t('patients.full_name') }} *</label>
-                  <input class="input" x-model="quick.full_name"></div>
-                <div class="form-row"><label>{{ t('patients.dob') }} *</label>
-                  <input class="input" type="date" x-model="quick.date_of_birth"></div>
-                <div class="form-row"><label>{{ t('patients.gender') }} *</label>
-                  <select class="select" x-model="quick.gender">
-                    <option value="">—</option>
-                    <option value="male">{{ t('genders.male') }}</option>
-                    <option value="female">{{ t('genders.female') }}</option>
-                  </select></div>
-              </div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <button type="button" class="btn btn-primary btn-sm gc-press"
-                        x-on:click="createQuick()" :disabled="quick.busy">
-                  <i class="bi bi-check-lg"></i> {{ t('appointments.quick_add_save') }}</button>
-                <span class="muted" x-text="quick.error" style="color:var(--danger,#c0392b);font-size:0.85rem;"></span>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-      <div class="form-row" style="position:relative;">
-        <label>{{ t('appointments.doctor') }} *</label>
-        <input type="hidden" id="doctor_id" name="doctor_id" :value="doctorId" required>
-        <!-- Chosen doctor chip -->
-        <template x-if="doctorId">
-          <div class="chosen-patient">
-            <strong x-text="doctorName()"></strong>
-            <button type="button" class="btn btn-outline btn-sm gc-press"
-                    x-show="doctors.length > 1" x-on:click="clearDoctor()">
-              <i class="bi bi-x-lg"></i> {{ t('appointments.change_doctor') }}</button>
-          </div>
-        </template>
-        <!-- Searchable list -->
-        <template x-if="!doctorId">
-          <div>
-            <input class="input" type="search" autocomplete="off" x-model="docQ"
-                   x-on:focus="docOpen = true" x-on:input="docOpen = true"
-                   placeholder="{{ t('appointments.search_doctor_ph') }}">
-            <div class="patient-results" x-show="docOpen" x-cloak>
-              <template x-for="d in doctorMatches()" :key="d.id">
-                <button type="button" class="patient-result gc-press" x-on:click="pickDoctor(d)">
-                  <span x-text="d.name"></span>
-                </button>
-              </template>
-              <div x-show="doctorMatches().length === 0" class="patient-result muted" style="cursor:default;">
-                {{ t('appointments.no_doctor_found') }}
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-      <div class="form-row">
-        <label for="appt_date">{{ t('appointments.date') }} *</label>
-        <input class="input" type="date" id="appt_date" name="appt_date" required
-               value="{{ form.appt_date or '' }}" x-model="date" x-on:change="loadSlots()">
-      </div>
-      <div class="form-row">
-        <label for="appt_type">{{ t('appointments.visit_type') }}</label>
-        <select class="select" id="appt_type" name="appt_type">
-          {% for vt in visit_types %}
-            <option value="{{ vt.key }}" {{ 'selected' if (form.appt_type or 'new') == vt.key else '' }}>{{ vt.display_name(current_lang) }}</option>
-          {% endfor %}
-        </select>
-        <div id="consultBanner" class="info-note" style="display:none;margin-top:8px;font-size:0.88rem;"></div>
-      </div>
-      <!-- Vaccination booking: which vaccine + dose (shown for type = vaccination) -->
-      <div class="form-row" id="vaccineRow" style="display:none;">
-        <label>{{ t('appointments.vaccine') }}</label>
-        <select class="select" name="vaccine_brand_id">
-          <option value="">{{ t('appointments.choose_vaccine') }}</option>
-          {% for b in vaccine_brands %}
-          <option value="{{ b.id }}" {{ 'selected' if form.vaccine_brand_id|string == b.id|string else '' }}>
-            {{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}
-            · {{ t('appointments.in_stock') ~ ' ' ~ b.stock if b.stock > 0 else t('appointments.out_of_stock') }}
-          </option>
-          {% endfor %}
-        </select>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
-          <label style="margin:0;">{{ t('appointments.dose_number') }}</label>
-          <input class="input" type="number" min="1" name="vaccine_dose" value="{{ form.vaccine_dose or '' }}" style="width:90px;">
-          <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchases') }}" target="_blank">
-            <i class="bi bi-cart-plus"></i> {{ t('appointments.order_vaccine') }}</a>
+          </template>
         </div>
-        <p class="hint" style="margin-top:4px;">{{ t('appointments.vaccine_hint') }}</p>
-      </div>
-      <div class="form-row">
-        <label for="reason">{{ t('appointments.reason') }}</label>
-        <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
-      </div>
-    </div>
-
-    <!-- Extra services requested at booking (billed at checkout) -->
-    {% if services %}
-    <div class="form-row" x-data="{open: false}">
-      <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open" style="align-self:start;">
-        <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-plus-lg'"></i> {{ t('appointments.extra_services') }}
-      </button>
-      {# The services this doctor performs float to the front and are ticked
-         with a small mark. Ordering only — nothing is hidden and nothing is
-         disabled, because somebody booking an unusual case must still be able
-         to pick it.
-
-         Done with flex `order` rather than by rebuilding the list, so the
-         chips stay server-rendered and the reordering follows the doctor as
-         they are chosen in this same form. A doctor nobody has marked is
-         absent from the map, `mine()` is false for every chip, and this reads
-         exactly as it did before the feature existed. #}
-      <div x-show="open" x-cloak style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
-        {% for s in services %}
-        <label :style="mine({{ s.id }}) ? 'order:0' : 'order:1'"
-               style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:.88rem;">
-          <input type="checkbox" name="extra_services" value="{{ s.id }}"
-                 {% if vaccination_service_id and s.id == vaccination_service_id %}data-opens-vaccine="1"{% endif %}>
-          <i class="bi bi-person-check" style="color:var(--green-700);"
-             x-show="mine({{ s.id }})" x-cloak
-             title="{{ t('doctors.provides') }}"></i>
-          {{ s.display_name(current_lang) }} <span class="muted" style="color:var(--muted);">({{ s.price }})</span>
-        </label>
-        {% endfor %}
-      </div>
-      <p class="hint" x-show="open" x-cloak style="margin-top:6px;">{{ t('appointments.extra_services_hint') }}</p>
-    </div>
-    {% endif %}
-
-    <!-- Smart available slots -->
-    <div class="form-row">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-        <label style="margin:0;">{{ t('appointments.available_slots') }} *</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="nextAvailable()" :disabled="!doctorId">
-            <i class="bi bi-lightning-charge"></i> {{ t('appointments.find_next_available') }}</button>
-          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="firstAvailable()">
-            <i class="bi bi-stars"></i> {{ t('appointments.find_first_available') }}</button>
+        <div class="form-row" style="position:relative;">
+          <label>{{ t('appointments.doctor') }} *</label>
+          <input type="hidden" id="doctor_id" name="doctor_id" :value="doctorId" required>
+          <!-- Chosen doctor chip -->
+          <template x-if="doctorId">
+            <div class="chosen-patient">
+              <strong x-text="doctorName()"></strong>
+              <button type="button" class="btn btn-outline btn-sm gc-press"
+                      x-show="doctors.length > 1" x-on:click="clearDoctor()">
+                <i class="bi bi-x-lg"></i> {{ t('appointments.change_doctor') }}</button>
+            </div>
+          </template>
+          <!-- Searchable list -->
+          <template x-if="!doctorId">
+            <div>
+              <input class="input" type="search" autocomplete="off" x-model="docQ"
+                     x-on:focus="docOpen = true" x-on:input="docOpen = true"
+                     placeholder="{{ t('appointments.search_doctor_ph') }}">
+              <div class="patient-results" x-show="docOpen" x-cloak>
+                <template x-for="d in doctorMatches()" :key="d.id">
+                  <button type="button" class="patient-result gc-press" x-on:click="pickDoctor(d)">
+                    <span x-text="d.name"></span>
+                  </button>
+                </template>
+                <div x-show="doctorMatches().length === 0" class="patient-result muted" style="cursor:default;">
+                  {{ t('appointments.no_doctor_found') }}
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
-      <input type="hidden" name="appt_time" x-model="selected" required>
-      <div x-show="finderMsg" x-text="finderMsg" x-cloak class="placeholder-soft" style="color:#b45309;"></div>
-      <div x-show="!doctorId || !date" class="placeholder-soft"><i class="bi bi-info-circle"></i> {{ t('appointments.pick_doctor_date') }}</div>
-      <div x-show="loading" class="placeholder-soft"><span class="gc-spinner" style="border-color:var(--green-100);border-top-color:var(--green-600);"></span> {{ t('common.loading') }}</div>
-      <div x-show="doctorId && date && !loading && slots.length === 0" class="placeholder-soft" style="color:#b45309;"><i class="bi bi-exclamation-triangle"></i> {{ t('appointments.no_slots') }}</div>
-      <div class="slot-grid" x-show="slots.length > 0">
-        <template x-for="s in slots" :key="s">
-          <button type="button" class="slot-chip gc-press" :class="selected===s && 'active'" x-text="s" x-on:click="selected=s"></button>
-        </template>
-      </div>
-    </div>
+    </section>
 
-    <div style="display:flex;gap:10px;margin-top:14px;">
-      <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('appointments.book') }}</button>
-      <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index') }}">{{ t('common.cancel') }}</a>
+    {# The date and the slots together, because the slot list is *about* the
+       date: choosing a day and then scrolling past four more fields to see
+       what it offered is the same decision split in two. #}
+    <section class="md-section gc-scale-in" style="animation-delay:.05s;">
+      <div class="md-section-head">
+        <span class="md-step">2</span>
+        <h3>{{ t('appointments.step_when') }}</h3>
+      </div>
+      <div class="form-grid" style="row-gap:14px;align-items:start;">
+        <div class="form-row">
+          <label for="appt_date">{{ t('appointments.date') }} *</label>
+          {# `min` so the picker greys out the days the server will refuse.
+             The server refuses them too — `min` is a hint a browser honours and
+             nothing more — but a date that cannot be clicked is better than an
+             error after the fact. #}
+          <input class="input" type="date" id="appt_date" name="appt_date" required
+                 min="{{ today }}" value="{{ form.appt_date or '' }}"
+                 x-model="date" x-on:change="loadSlots()">
+          {# Which day that is, in words. A desk reads "2026-09-03" and cannot
+             tell it is a Thursday, and Thursday is the thing they are actually
+             deciding about. Worked out in the browser from the box's own value,
+             so it follows every change without a round trip. #}
+          <div class="hint" x-show="date" x-cloak x-text="dayLabel()"
+               style="margin-top:4px;"></div>
+        </div>
+      </div>
+      <!-- Smart available slots -->
+      <div class="form-row">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <label style="margin:0;">{{ t('appointments.available_slots') }} *</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="md-btn md-btn--tonal gc-press" style="padding:8px 16px;font-size:.85rem;" x-on:click="nextAvailable()" :disabled="!doctorId">
+              <i class="bi bi-lightning-charge"></i> {{ t('appointments.find_next_available') }}</button>
+            <button type="button" class="md-btn md-btn--tonal gc-press" style="padding:8px 16px;font-size:.85rem;" x-on:click="firstAvailable()">
+              <i class="bi bi-stars"></i> {{ t('appointments.find_first_available') }}</button>
+          </div>
+        </div>
+        <input type="hidden" name="appt_time" x-model="selected" required>
+        <div x-show="finderMsg" x-text="finderMsg" x-cloak class="placeholder-soft" style="color:#b45309;"></div>
+        <div x-show="!doctorId || !date" class="placeholder-soft"><i class="bi bi-info-circle"></i> {{ t('appointments.pick_doctor_date') }}</div>
+        <div x-show="loading" class="placeholder-soft"><span class="gc-spinner" style="border-color:var(--green-100);border-top-color:var(--green-600);"></span> {{ t('common.loading') }}</div>
+        <div x-show="doctorId && date && !loading && slots.length === 0" class="placeholder-soft" style="color:#b45309;"><i class="bi bi-exclamation-triangle"></i> {{ t('appointments.no_slots') }}</div>
+        <div class="slot-grid" x-show="slots.length > 0">
+          <template x-for="s in slots" :key="s">
+            <button type="button" class="md-chip gc-press" :class="selected===s && 'is-selected'" x-text="s" x-on:click="selected=s"></button>
+          </template>
+        </div>
+      </div>
+    </section>
+
+    <section class="md-section gc-scale-in" style="animation-delay:.1s;">
+      <div class="md-section-head">
+        <span class="md-step">3</span>
+        <h3>{{ t('appointments.step_what') }}</h3>
+        <span class="md-sub">{{ t('appointments.step_what_sub') }}</span>
+      </div>
+      <div class="form-grid" style="row-gap:14px;align-items:start;">
+        <div class="form-row">
+          <label for="appt_type">{{ t('appointments.visit_type') }}</label>
+          <select class="select" id="appt_type" name="appt_type">
+            {% for vt in visit_types %}
+              <option value="{{ vt.key }}" {{ 'selected' if (form.appt_type or 'new') == vt.key else '' }}>{{ vt.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select>
+          <div id="consultBanner" class="info-note" style="display:none;margin-top:8px;font-size:0.88rem;"></div>
+        </div>
+        {# Full width, and that is not decoration. `.form-grid` is a rigid two
+           column grid, so a cell that appears and disappears pushes whatever
+           follows it across to the other column: picking "vaccination" moved
+           `reason` from the left to the right in front of the person filling
+           the form in. A row that spans both columns has nothing to swap with. #}
+        <!-- Vaccination booking: which vaccine + dose (shown for type = vaccination) -->
+        <div class="form-row" id="vaccineRow" style="display:none;grid-column:1/-1;">
+          <label>{{ t('appointments.vaccine') }}</label>
+          <select class="select" name="vaccine_brand_id">
+            <option value="">{{ t('appointments.choose_vaccine') }}</option>
+            {% for b in vaccine_brands %}
+            <option value="{{ b.id }}" {{ 'selected' if form.vaccine_brand_id|string == b.id|string else '' }}>
+              {{ b.vaccine.display_name(current_lang) }} — {{ b.display_name(current_lang) }}
+              · {{ t('appointments.in_stock') ~ ' ' ~ b.stock if b.stock > 0 else t('appointments.out_of_stock') }}
+            </option>
+            {% endfor %}
+          </select>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+            <label style="margin:0;">{{ t('appointments.dose_number') }}</label>
+            <input class="input" type="number" min="1" name="vaccine_dose" value="{{ form.vaccine_dose or '' }}" style="width:90px;">
+            <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('inventory.purchases') }}" target="_blank">
+              <i class="bi bi-cart-plus"></i> {{ t('appointments.order_vaccine') }}</a>
+          </div>
+          <p class="hint" style="margin-top:4px;">{{ t('appointments.vaccine_hint') }}</p>
+        </div>
+        <div class="form-row" style="grid-column:1/-1;">
+          <label for="reason">{{ t('appointments.reason') }}</label>
+          <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
+        </div>
+      </div>
+      {% if services %}
+      <div class="form-row" x-data="{open: false}">
+        <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="open = !open" style="align-self:start;">
+          <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-plus-lg'"></i> {{ t('appointments.extra_services') }}
+        </button>
+        {# The services this doctor performs float to the front and are ticked
+           with a small mark. Ordering only — nothing is hidden and nothing is
+           disabled, because somebody booking an unusual case must still be able
+           to pick it.
+
+           Done with flex `order` rather than by rebuilding the list, so the
+           chips stay server-rendered and the reordering follows the doctor as
+           they are chosen in this same form. A doctor nobody has marked is
+           absent from the map, `mine()` is false for every chip, and this reads
+           exactly as it did before the feature existed. #}
+        <div x-show="open" x-cloak style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
+          {% for s in services %}
+          <label :style="mine({{ s.id }}) ? 'order:0' : 'order:1'"
+                 style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:.88rem;">
+            <input type="checkbox" name="extra_services" value="{{ s.id }}"
+                   {% if vaccination_service_id and s.id == vaccination_service_id %}data-opens-vaccine="1"{% endif %}>
+            <i class="bi bi-person-check" style="color:var(--green-700);"
+               x-show="mine({{ s.id }})" x-cloak
+               title="{{ t('doctors.provides') }}"></i>
+            {{ s.display_name(current_lang) }} <span class="muted" style="color:var(--muted);">({{ s.price }})</span>
+          </label>
+          {% endfor %}
+        </div>
+        <p class="hint" x-show="open" x-cloak style="margin-top:6px;">{{ t('appointments.extra_services_hint') }}</p>
+      </div>
+      {% endif %}
+    </section>
+
+    {# Sticky, because this form is now tall enough to scroll and a primary
+       action that scrolls away is one somebody has to go looking for. #}
+    <div class="md-bar">
+      <button class="md-btn md-btn--filled gc-press gc-ripple" type="submit">
+        <i class="bi bi-check-lg"></i> {{ t('appointments.book') }}</button>
+      <a class="md-btn md-btn--text gc-press"
+         href="{{ url_for('appointments.index') }}">{{ t('common.cancel') }}</a>
+      <span class="md-summary" x-show="selected" x-cloak
+            x-text="dayLabel() + ' · ' + selected"></span>
     </div>
   </form>
 </div>
 {% endblock %}
 
 {% block head %}
+{# Opt-in, and only here. Seventy-odd screens are laid out on theme.css, and a
+   design language that rewrote them all at once would be a clinic finding
+   every screen changed on a Tuesday morning. See the file's own note. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/material.css') }}">
 <style>
   .slot-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-  .slot-chip { padding:8px 14px; border:1px solid var(--line); border-radius:10px; background:#fff;
-    font-family:inherit; font-size:0.88rem; cursor:pointer; transition:all .15s ease; font-variant-numeric:tabular-nums; }
-  .slot-chip:hover { border-color:var(--green-500); color:var(--green-700); }
-  .slot-chip.active { background:var(--green-700); color:#fff; border-color:var(--green-700); }
+  /* `.slot-chip` lived here and hard-coded `background:#fff`, so every slot on
+     this screen stayed white in dark mode. It is `.md-chip` now, which reads
+     the theme's tokens like everything else. */
   .chosen-patient { display:flex; justify-content:space-between; align-items:center; gap:10px;
     flex-wrap:wrap; padding:10px 12px; border:1px solid var(--green-200,var(--line)); border-radius:10px;
     background:var(--green-050,#f3faf5); }
@@ -242,6 +306,10 @@
 
 {% block scripts %}
 <script>
+  const DAY_LOCALE = '{{ "ar-EG" if current_lang == "ar" else "en-GB" }}';
+  const DAY_WORDS = {today: '{{ t('appointments.day_today') }}',
+                     tomorrow: '{{ t('appointments.day_tomorrow') }}'};
+
   function slotPicker(url, preselected, nextUrl, firstUrl) {
     return {
       url, nextUrl, firstUrl,
@@ -249,6 +317,23 @@
       doctors: {{ doctor_options | tojson }},
       docQ: '', docOpen: false,
       slots: [], selected: preselected, loading: false, finderMsg: '',
+      // Which day the chosen date is, in words, and whether it is today or
+      // tomorrow. Built from the box's own value so it follows every change
+      // without a round trip. The date is parsed as *local* — `new Date("…")`
+      // on a bare YYYY-MM-DD reads it as UTC, which lands on the previous day
+      // for anyone west of Greenwich and would name the wrong weekday.
+      dayLabel() {
+        if (!this.date) return '';
+        const p = this.date.split('-').map(Number);
+        const d = new Date(p[0], p[1] - 1, p[2]);
+        if (isNaN(d)) return '';
+        const t = new Date(); t.setHours(0, 0, 0, 0);
+        const days = Math.round((d - t) / 86400000);
+        const name = d.toLocaleDateString(DAY_LOCALE, {weekday: 'long'});
+        if (days === 0) return name + ' — ' + DAY_WORDS.today;
+        if (days === 1) return name + ' — ' + DAY_WORDS.tomorrow;
+        return name;
+      },
       // {doctor_id: [service_id]}, for doctors somebody has marked. A doctor
       // who is absent has said nothing, so nothing about the list changes.
       marks: {{ doctor_marks | tojson }},

@@ -522,6 +522,7 @@ def create():
             chosen = db.session.get(Patient, patient_id) if patient_id else None
             return render_template(
                 "appointments/form.html", doctors=doctors, form=request.form,
+                today=local_today().isoformat(),
                 selected_patient=_patient_brief(chosen) if chosen else None,
                 appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
                 doctor_options=_doctor_options(doctors),
@@ -602,9 +603,18 @@ def create():
         "doctor_id": request.args.get("doctor_id", ""),
         "appt_type": _appt_type(request.args.get("appt_type", "")),
         "from_waitlist": request.args.get("from_waitlist", ""),
+        # Opens on today rather than empty. Almost every booking a desk makes
+        # is for today or the next few days, and an empty date box means the
+        # slot list below it can say nothing at all until somebody fills it —
+        # so the screen's first state is one where its main control is inert
+        # and does not say why. A date arriving in the query string wins: that
+        # is somebody booking *from* a particular day on the board.
+        "appt_date": (request.args.get("date")
+                      or local_today().isoformat()),
     }
     return render_template(
         "appointments/form.html", doctors=doctors, form=form,
+        today=local_today().isoformat(),
         selected_patient=_patient_brief(chosen) if chosen else None,
         appt_types=APPOINTMENT_TYPES, vaccine_brands=_vaccine_brands(),
         doctor_options=_doctor_options(doctors),
@@ -745,6 +755,12 @@ def reschedule(appt_id):
 
     if new_date is None or not new_slot:
         flash(t("appointments.reschedule_need_slot"), "danger")
+        return _back_to_board(appt)
+    # Same rule as booking. Moving an appointment *backwards* past today is
+    # the same slip wearing different clothes, and here it also destroys the
+    # date it came from — `rescheduled_from` keeps one previous value.
+    if new_date < local_today():
+        flash(t("appointments.date_in_past"), "danger")
         return _back_to_board(appt)
     # The slot must be free (ignoring this appointment itself).
     if new_slot not in available_slots(new_doctor, new_date, exclude_id=appt.id):
@@ -1162,6 +1178,21 @@ def _validate_booking(patient_id, doctor_id, on_date, slot):
         return t("common.required") + ": " + t("appointments.doctor")
     if on_date is None:
         return t("common.required") + ": " + t("appointments.date")
+    # A booking in the past, which nothing stopped. Found by accident:
+    # *"لاقيت نفسي ممكن احجز بتاريخ قبل اليوم — هل احنا عاملينه عن قصد؟"* — no.
+    #
+    # It is a slip, essentially always: a year typed as 2025, or a month
+    # picked one column left. And it is a slip that hides, because the booking
+    # lands on a day nobody is going to open again — the family is expected on
+    # a date that has been and gone, and the first anybody hears of it is when
+    # they do not arrive.
+    #
+    # Today itself stays bookable. A slot that has already gone by today is
+    # refused a step further down, by `available_slots`, which has been doing
+    # that all along — so this check is only about the whole day, and it is
+    # the only part that was missing.
+    if on_date < local_today():
+        return t("appointments.date_in_past")
     if not slot:
         return t("common.required") + ": " + t("appointments.time")
     try:

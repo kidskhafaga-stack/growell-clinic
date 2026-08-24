@@ -288,6 +288,15 @@
       <div style="color:var(--muted);" dir="ltr">({{ picture.record.record_date }})</div>
       {% endif %}
     </div>
+    {# This paper leaves the building and another doctor reads it. A percentile
+       computed against a corrected age, printed without saying so, is a number
+       they cannot reproduce and will read as disagreeing with their own. #}
+    {% if growth_rows | selectattr('corrected') | list %}
+    <div style="color:var(--muted);font-size:0.9em;margin-top:0.3em;">
+      <i class="bi bi-info-circle"></i> {{ t('patients.corrected_age') }}
+      {% if rx.patient.gestation %}<span dir="ltr">({{ rx.patient.gestation }})</span>{% endif %}
+    </div>
+    {% endif %}
   </div>
   {% endif %}
   {% endif %}

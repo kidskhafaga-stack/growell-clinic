@@ -9,6 +9,25 @@
   [x-cloak]{display:none!important;}
 </style>{{ chip_editor_assets() }}{% endblock %}
 
+{# A saved secret is never handed back to the page. The box renders empty, a
+   badge says one is stored, and a tick removes it — because with blank
+   meaning "keep", nothing else could. See SECRET_KEYS in the settings
+   blueprint for what was wrong before. #}
+{% macro secret_state(key) %}
+  {% if key in (saved_secrets or {}) %}
+  <div class="hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+    {# The tail, and nothing else. Four characters cannot be worked back into a
+       key — it is what the vendors who issue them show on their own dashboards
+       — and it is what tells one key from another when somebody is holding
+       two. See `_secret_tail`. #}
+    <span class="badge badge--green"><i class="bi bi-key"></i> {{ t('settings.secret_saved') }}
+      {% if saved_secrets[key] %}<span dir="ltr">····{{ saved_secrets[key] }}</span>{% endif %}</span>
+    <label class="checkbox" style="font-weight:400;margin:0;">
+      <input type="checkbox" name="clear_{{ key }}" value="1"> {{ t('settings.secret_clear') }}</label>
+  </div>
+  {% endif %}
+{% endmacro %}
+
 {% block content %}
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
   <div>
@@ -448,8 +467,14 @@
       <summary style="cursor:pointer;color:var(--green-800);"><i class="bi bi-key"></i> {{ t('settings.eta_client_id') }} / {{ t('settings.eta_tax_number') }}</summary>
       <div class="form-grid" style="margin-top:10px;">
         <div class="form-row"><label>{{ t('settings.eta_client_id') }}</label><input class="input" name="eta_client_id" dir="ltr" value="{{ values.get('eta_client_id','') }}"></div>
-        <div class="form-row"><label>{{ t('settings.eta_client_secret') }} 1</label><input class="input" name="eta_client_secret" dir="ltr" value="{{ values.get('eta_client_secret','') }}"></div>
-        <div class="form-row"><label>{{ t('settings.eta_client_secret') }} 2</label><input class="input" name="eta_client_secret2" dir="ltr" value="{{ values.get('eta_client_secret2','') }}"></div>
+        <div class="form-row"><label>{{ t('settings.eta_client_secret') }} 1</label>
+          <input class="input" type="password" name="eta_client_secret" dir="ltr"
+                 autocomplete="new-password" value="">
+          {{ secret_state('eta_client_secret') }}</div>
+        <div class="form-row"><label>{{ t('settings.eta_client_secret') }} 2</label>
+          <input class="input" type="password" name="eta_client_secret2" dir="ltr"
+                 autocomplete="new-password" value="">
+          {{ secret_state('eta_client_secret2') }}</div>
         <div class="form-row"><label>{{ t('settings.eta_tax_number') }}</label><input class="input" name="eta_tax_number" dir="ltr" value="{{ values.get('eta_tax_number','') }}"></div>
         <div class="form-row"><label>{{ t('settings.eta_activity_code') }}</label><input class="input" name="eta_activity_code" dir="ltr" value="{{ values.get('eta_activity_code','') }}"></div>
         <div class="form-row"><label>{{ t('settings.eta_company_name') }}</label><input class="input" name="eta_company_name" value="{{ values.get('eta_company_name','') }}"></div>
@@ -606,8 +631,9 @@
         <div class="hint">{{ t('settings.ai_fetch_hint') }}</div></div>
 
       <div class="form-row"><label>{{ t('settings.ai_api_key') }}</label>
-        <input class="input" name="ai_api_key" type="password" dir="ltr" autocomplete="off"
-               value="{{ values.get('ai_api_key','') }}" placeholder="sk-…">
+        <input class="input" name="ai_api_key" type="password" dir="ltr"
+               autocomplete="new-password" value="" placeholder="sk-…">
+        {{ secret_state('ai_api_key') }}
         {% for pid, meta in ai_providers.items() %}{% if meta.keys_url %}
         <div class="hint" x-show="provider==='{{ pid }}'" x-cloak>
           <a href="{{ meta.keys_url }}" target="_blank" rel="noopener">{{ t('settings.ai_get_key') }} — {{ meta.label }}</a></div>
@@ -687,8 +713,8 @@
                value="{{ values.get('icd11_client_id','') }}"></div>
       <div class="form-row"><label>{{ t('icd11.client_secret') }}</label>
         <input class="input" type="password" name="icd11_client_secret" dir="ltr"
-               autocomplete="new-password"
-               value="{{ values.get('icd11_client_secret','') }}"></div>
+               autocomplete="new-password" value="">
+        {{ secret_state('icd11_client_secret') }}</div>
       <div class="form-row"><label>{{ t('icd11.release') }}</label>
         <input class="input" name="icd11_release" dir="ltr" placeholder="2024-01"
                value="{{ values.get('icd11_release','') }}">

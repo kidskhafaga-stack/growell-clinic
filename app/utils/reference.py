@@ -16,9 +16,19 @@ from app.extensions import db
 
 # The devices a paediatric clinic runs studies on. Catalogue data, so it
 # belongs with the rest of the reference rather than only in the CLI.
+# The one list. It was two — the same seven devices written out again in
+# `app/cli.py` — and the two install paths would have drifted the first time
+# somebody added a device to whichever file they had open. `cli.py` imports
+# this now.
 DEFAULT_DEVICES = [
     ("جهاز وظائف تنفس", "Spirometer", "MIR", "Spirobank II", "spirometry", "WinSpiroPRO"),
     ("جهاز رسم قلب", "ECG", None, None, "ecg", None),
+    # The two the cardiologist asked after. The Holter's *field template* was
+    # already written and no Holter device was ever seeded, so it existed in
+    # the program and not in any clinic — a template with nothing to attach to
+    # is a feature nobody can reach. The exercise test was missing outright.
+    ("جهاز رسم قلب بالمجهود", "Exercise ECG", None, None, "stress_ecg", None),
+    ("جهاز رسم قلب مطوّل (هولتر)", "Holter monitor", None, None, "holter", None),
     ("جهاز إيكو", "Echocardiography", None, None, "echo", None),
     ("جهاز رسم مخ", "EEG", None, None, "eeg", None),
     ("جهاز موجات صوتية", "Ultrasound", None, None, "ultrasound", None),

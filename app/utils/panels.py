@@ -101,6 +101,53 @@ def readings(visit, key):
     return {row.code: row for row in rows if row.code in wanted}
 
 
+def all_readings(visit):
+    """``{code: Measurement}`` for everything recorded on this visit.
+
+    Not filtered to one panel, because the screen now renders them all: a
+    reading taken under cardiology must still be in its box when the doctor
+    flicks the menu back to cardiology, without a round trip to find out — and
+    a visit whose panel was later put away must not appear to have lost the
+    readings it took.
+    """
+    from app.models import Measurement
+
+    if not visit or not getattr(visit, "id", None):
+        return {}
+    return {row.code: row
+            for row in Measurement.query.filter_by(visit_id=visit.id).all()}
+
+
+def every_panel_for(visit, vitals, lang="ar"):
+    """Every panel, ready to render, so choosing one costs nothing.
+
+    The screen used to say *"choose one and save the visit to see its
+    fields"* — and it was reported exactly as it reads: *"علشان ده يظهر لازم
+    ادوس حفظ وده مش منطقي"*. It is not. Picking a specialty is how a doctor
+    says what this visit is about, and answering with a round trip through the
+    server puts a save between the question and the fields — on a screen that
+    is filled in forty times a day, and before there is anything worth saving.
+
+    The catalogue is a small data file already read once per request, so the
+    honest fix is to hand the screen all of it and let the choice be a choice.
+    Nothing else about the save changes: the server still writes only the
+    fields belonging to the panel the visit was actually recorded under, so a
+    hidden panel's boxes are ignored exactly as an invented field name is.
+
+    Returns ``[{key, meta, label, reads}]`` in catalogue order.
+    """
+    out = []
+    name_key = "name_en" if lang == "en" else "name_ar"
+    for key, meta in all_panels().items():
+        out.append({
+            "key": key,
+            "meta": meta,
+            "label": meta.get(name_key) or meta.get("name_ar") or key,
+            "reads": vitals_shown(meta, vitals),
+        })
+    return out
+
+
 def vitals_shown(meta, vitals):
     """What the panel *reads* rather than asks for.
 

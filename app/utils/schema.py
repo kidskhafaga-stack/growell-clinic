@@ -172,6 +172,11 @@ ADDITIONS = [
     ("device_study_values", "value_num", "FLOAT"),
     ("device_study_values", "normal_low", "FLOAT"),
     ("device_study_values", "normal_high", "FLOAT"),
+    # What the child arrived with — and the gestation is what makes a
+    # corrected age possible for a premature child on a growth chart.
+    ("patients", "birth_weight_kg", "FLOAT"),
+    ("patients", "gestation_weeks", "INTEGER"),
+    ("patients", "gestation_days", "INTEGER"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),
@@ -471,7 +476,30 @@ def apply_schema(report=None):
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 
+    # What was looked at, when nothing had to change.
+    #
+    # "Database upgraded (0 column(s) added)" is the right answer for a
+    # database that is already current *and* the symptom of new code that
+    # never arrived — and a clinic asked which of the two it was, because
+    # nothing on the screen told them apart. Answering it took opening folders
+    # and pasting commands.
+    #
+    # Zero is now zero out of a number. A clinic that reads "every one of 240
+    # columns the program expects is already there" knows the shape matched;
+    # if the count looks wrong for the version they think they installed, that
+    # is a question worth having, and they could not ask it before.
+    if not applied and report:
+        report(f"  ~ nothing missing: {_columns_the_models_expect()} column(s) "
+               f"across {len(db.metadata.tables)} table(s) checked")
+
     return applied
+
+
+def _columns_the_models_expect():
+    """How many columns the loaded models declare, in total."""
+    from app.extensions import db
+
+    return sum(len(table.columns) for table in db.metadata.tables.values())
 
 
 def _add_columns_the_models_expect(inspector, existing_tables, report=None):

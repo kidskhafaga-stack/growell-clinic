@@ -73,6 +73,68 @@ TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled"
                "update_check"]
 
 
+# The settings a clinic types once and must never have handed back to it.
+#
+# Every one of these was rendered into the page as `value="…"`. Three of them
+# behind `type="password"`, which draws dots and is not a secret: the real
+# string sits in the HTML, readable in "view source", in the browser's own
+# element inspector, in a page saved to disk, and in any screenshot of the
+# source somebody sends for help. The two ETA secrets were not even that —
+# they were plain text boxes with the key on screen.
+#
+# Held here rather than checked one by one at each use, so a fifth secret
+# added next year is one line and not a thing somebody has to remember.
+SECRET_KEYS = {"ai_api_key", "icd11_client_secret",
+               "eta_client_secret", "eta_client_secret2"}
+
+
+def _secret_tail(value, keep=4, floor=12):
+    """The last few characters of a saved secret, or ``""``.
+
+    Asked directly: *"ليه ما نسبهوش معروض ومشفر بنقط؟"* — because dots over a
+    value are not encryption, they are a rendering instruction, and the real
+    string sits in the page underneath them. But the *need* behind the question
+    is real: a clinic with two keys, or one that has just pasted a new one,
+    wants to know **which** key is saved, and "a key is saved" does not say.
+
+    So: the tail, and nothing else. Four characters cannot be worked back into
+    a key — it is what every vendor that issues these shows on its own
+    dashboard, for the same reason — and it is enough to tell one key from
+    another when somebody is holding both.
+
+    Nothing at all below ``floor``. On a short secret four characters is a
+    third of it, and a third of a secret is a different kind of number from a
+    thirtieth.
+    """
+    value = (value or "").strip()
+    if len(value) < floor:
+        return ""
+    return value[-keep:]
+
+
+def _keep_or_clear_secrets():
+    """What to write for each secret, given what the form sent.
+
+    A blank box means **keep what is saved**, not "delete it". The box renders
+    empty by design now, so treating blank as a deletion would wipe the AI key
+    every time somebody saved the clinic's name from another tab of the same
+    form — and the first sign of it would be the assistant quietly refusing to
+    answer.
+
+    Which leaves no way to remove one, so there is an explicit way: a tick
+    beside the box. Deleting a credential should take an action, not the
+    absence of one.
+    """
+    out = {}
+    for key in SECRET_KEYS:
+        if request.form.get(f"clear_{key}"):
+            out[key] = ""
+            continue
+        typed = (request.form.get(key) or "").strip()
+        out[key] = typed if typed else (Setting.get(key) or "")
+    return out
+
+
 def _logo_dir():
     return os.path.join(current_app.static_folder, "uploads", "clinic")
 
@@ -318,6 +380,9 @@ def index():
         # Worked out before anything is written, because it compares what was
         # posted against what is still saved.
         overrides = _provider_switch_fixups()
+        # A blank secret box means "keep it", so it cannot be folded into the
+        # plain text loop below — that one writes whatever was posted.
+        overrides.update(_keep_or_clear_secrets())
         for key in TEXT_KEYS:
             if key in overrides:
                 Setting.set(key, overrides[key])
@@ -374,8 +439,14 @@ def index():
     from app.utils.vaccines import guideline_profile
 
     values = {row.key: row.value for row in Setting.query.all()}
+    # Which secrets exist, and just enough of each to recognise it.
+    saved_secrets = {k: _secret_tail(values.get(k)) for k in SECRET_KEYS
+                     if (values.get(k) or "").strip()}
+    for key in SECRET_KEYS:
+        values[key] = ""
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
+        saved_secrets=saved_secrets,
         # Handed over rather than written into the template, so adding a
         # reference is one edit and not two — a picker that has drifted from
         # the list the engine reads offers a clinic a policy it will not get.

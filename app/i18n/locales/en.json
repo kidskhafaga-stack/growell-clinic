@@ -272,7 +272,20 @@
     "family_delete_confirm": "The family will be removed; the patient files stay exactly as they are. Continue?",
     "family_deleted": "Family removed. {n} file(s) kept, now without a family.",
     "new_family_hint": "If that name already exists the patient joins it — no second record is made.",
-    "name_ar": "Name (Arabic)"
+    "name_ar": "Name (Arabic)",
+    "birth_weight": "Birth weight (kg)",
+    "birth_weight_hint": "Record it even if the mother's figure is approximate — it becomes the first point on the weight curve, marked as coming from birth.",
+    "birth_weight_range": "Birth weight must be between 0.3 and 7 kg.",
+    "gestation": "Gestation at birth",
+    "gestation_weeks": "weeks",
+    "gestation_days": "days",
+    "gestation_hint": "As the discharge summary writes it: 36+4. For a preterm child the program corrects the age used on growth charts.",
+    "gestation_range": "Gestation must be between 22 and 45 weeks.",
+    "gestation_days_range": "Gestation days must be 0 to 6.",
+    "preterm": "Preterm",
+    "corrected_age": "corrected age",
+    "corrected_age_hint": "This child was born early, so the percentile is computed against the corrected age rather than the age since birth.",
+    "at_birth": "at birth"
   },
   "import": {
     "title": "Import patient data",
@@ -533,7 +546,14 @@
     "collect_now_hint": "Collect now, or later? You can collect any time from the same row.",
     "collect_now": "Collect now",
     "collect_later": "Later",
-    "pay_free": "No charge"
+    "pay_free": "No charge",
+    "date_in_past": "That date has passed. A booking is for today or later.",
+    "day_today": "today",
+    "day_tomorrow": "tomorrow",
+    "step_who": "Who, and with whom",
+    "step_when": "When",
+    "step_what": "The visit",
+    "step_what_sub": "optional"
   },
   "appt_types": {
     "new": "New visit",
@@ -1067,7 +1087,9 @@
     "tpl_brand": "Brand",
     "tpl_all_brands": "All brands",
     "group_closed": "Window closed — not for this age",
-    "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded."
+    "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded.",
+    "tpl_edit": "Edit this schedule and its source",
+    "tpl_dose_saved": "Dose updated."
   },
   "vstatus": {
     "done": "Done",
@@ -1438,7 +1460,10 @@
     "update_check_hint": "On start-up it asks GitHub whether there is a newer version and **only says so** — updating stays a decision you make in update.bat, with a backup before it. No clinic data is sent, and switching this off stops it reaching the internet at all.",
     "ai_discuss_section": "Clinical discussion mode",
     "ai_discussion": "Enable discussion mode (differential and plan)",
-    "ai_discussion_hint": "Different from the above. That one reads the file and writes from it only. This one reasons beyond the file — it suggests possible diagnoses and a plan, as a discussion and not a diagnosis. It also needs \"allow the assistant to read patient files\", and it is off by default. No doses are given here; the prescription screen has its own dose tool."
+    "ai_discussion_hint": "Different from the above. That one reads the file and writes from it only. This one reasons beyond the file — it suggests possible diagnoses and a plan, as a discussion and not a diagnosis. It also needs \"allow the assistant to read patient files\", and it is off by default. No doses are given here; the prescription screen has its own dose tool.",
+    "secret_saved": "a key is saved",
+    "secret_clear": "remove the saved key",
+    "secret_hint": "A saved key is never sent back to this page. Leave the box empty to keep it."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -3351,8 +3376,9 @@
     "ultrasound": "Ultrasound",
     "audiometry": "Audiometry",
     "tympanometry": "Tympanometry",
-    "holter": "Holter",
-    "other": "Other"
+    "holter": "Holter (prolonged ECG)",
+    "other": "Other",
+    "stress_ecg": "Exercise ECG"
   },
   "connection_types": {
     "usb": "USB",
@@ -5126,7 +5152,8 @@
     "add": "Add a specialty panel",
     "pick_then_save": "Choose one and save the visit to see its fields.",
     "from_study": "Last device reading:",
-    "use_study": "Use it"
+    "use_study": "Use it",
+    "optional": "optional"
   },
   "curves": {
     "src_lab": "Lab",

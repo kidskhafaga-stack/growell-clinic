@@ -62,9 +62,30 @@
   background: #3a2a12 !important; border-color: #7c5a24 !important; color: #fcd9a6 !important;
 }
 :root[data-theme="dark"] body { background: var(--bg); color: var(--ink); }
-/* Deep-green sidebar so it sits with the slate body instead of glowing bright. */
+/* Deep sidebar so it sits with the slate body instead of glowing bright — and
+   in the *clinic's* colour, not in green whatever the clinic chose.
+ *
+ * Reported: *"الوضع الليلي ليه مسبتين الأخضر؟"* — a clinic that had set a blue
+ * accent got a blue sidebar in light mode and a green one in dark, because
+ * light mode reads `--green-800`/`--green-600` (which the accent rewrites) and
+ * dark mode had two literal greens typed into it. The whole family below had
+ * the same fault.
+ *
+ * **Brand tints follow the accent; semantic ones never do.** That is the line
+ * this file now draws out loud. The sidebar, links and the brand badges are
+ * "this is PediaPro" and must change when a clinic recolours the program.
+ * Success green, danger red and warning amber are "this went well / this went
+ * wrong" — they are meanings, not branding, and a clinic that picks a red
+ * accent must not end up with red as its success colour. Those stay literal on
+ * purpose, and are marked as such where they sit.
+ *
+ * Mixed toward near-black rather than dimmed, so the hue survives: a colour
+ * reduced in lightness alone goes muddy, while a colour mixed into a dark
+ * neutral keeps its identity at any depth. */
 :root[data-theme="dark"] .sidebar {
-  background: linear-gradient(180deg, #123726 0%, #0e2119 100%);
+  background: linear-gradient(180deg,
+              color-mix(in srgb, var(--green-800) 44%, #06090d) 0%,
+              color-mix(in srgb, var(--green-900) 30%, #05080b) 100%);
   border-inline-end: 1px solid var(--line);
 }
 /* A handful of surfaces that don't already read the tokens. */
@@ -83,11 +104,14 @@
 :root[data-theme="dark"] .table tbody tr:hover td { background: #1c2632; }
 :root[data-theme="dark"] h1, :root[data-theme="dark"] h2,
 :root[data-theme="dark"] h3, :root[data-theme="dark"] .page-title { color: var(--ink); }
-:root[data-theme="dark"] a { color: #4ade80; }
+:root[data-theme="dark"] a { color: color-mix(in srgb, var(--green-500) 82%, white); }
 :root[data-theme="dark"] .btn-outline:hover { color: var(--green-500); border-color: var(--green-600); }
 :root[data-theme="dark"] .info-note,
 :root[data-theme="dark"] .notice,
-:root[data-theme="dark"] .dropzone { background: #14251c; border-color: var(--line); color: var(--ink); }
+:root[data-theme="dark"] .dropzone {
+  background: color-mix(in srgb, var(--green-500) 9%, var(--card));
+  border-color: var(--line); color: var(--ink);
+}
 /* Neutral colour-tints. */
 :root[data-theme="dark"] .badge--muted,
 :root[data-theme="dark"] .st-cancelled,
@@ -100,9 +124,14 @@
    the desk's birthday card, where "today" and "tomorrow" both read as empty
    pills. `.badge--muted` and `.badge--danger` beside them already carry dark
    variants; these two were missed, in 195 places across 78 templates. */
-:root[data-theme="dark"] .badge--green { background: #17352a; color: #6ee7b7; }
+:root[data-theme="dark"] .badge--green {
+  background: color-mix(in srgb, var(--green-500) 17%, var(--card));
+  color: color-mix(in srgb, var(--green-500) 74%, white);
+}
 :root[data-theme="dark"] .badge--role {
-  background: #16281f; color: #86efac; border-color: #24503a;
+  background: color-mix(in srgb, var(--green-500) 13%, var(--card));
+  color: color-mix(in srgb, var(--green-500) 78%, white);
+  border-color: color-mix(in srgb, var(--green-500) 30%, var(--card));
 }
 /* Danger / warning / success tints — dark, readable versions. */
 :root[data-theme="dark"] .badge--danger,
@@ -114,6 +143,9 @@
 :root[data-theme="dark"] .st-waiting,
 :root[data-theme="dark"] .vst-due,
 :root[data-theme="dark"] .flash--warning { background: #392f16; color: #fcd34d; border-color: #5b4a1f; }
+/* Semantic, and therefore literal on purpose: "this went well" is green
+   whatever colour the clinic painted its sidebar. A clinic with a red accent
+   must not end up reading red as its success colour. */
 :root[data-theme="dark"] .flash--success { background: #143221; color: #86efac; border-color: #1f5b37; }
 :root[data-theme="dark"] .flash--info { background: #12303a; color: #7dd3fc; border-color: #1f4d5b; }
 

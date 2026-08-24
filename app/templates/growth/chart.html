@@ -90,6 +90,15 @@
     <div x-show="loadError" class="empty-state" style="color:var(--danger);">
       <i class="bi bi-wifi-off"></i>{{ t('growth.chart_unavailable') }}
     </div>
+    {# Said out loud, above the chart. A percentile computed against an age
+       nobody can see is a number the parent and the next doctor cannot
+       reproduce — and the day the correction window ends, an unexplained jump
+       looks like the child fell off the chart. #}
+    <div x-show="corrected" x-cloak class="info-note" style="margin-bottom:10px;">
+      <i class="bi bi-info-circle"></i>
+      <strong>{{ t('patients.corrected_age') }}</strong> —
+      {{ t('patients.corrected_age_hint') }}
+    </div>
     <!-- Canvas stays in the layout (display kept) so Chart.js measures it
          correctly; we just collapse its height when there is no data. -->
     <div x-bind:style="hasData ? 'position:relative;height:460px;' : 'height:0;overflow:hidden;'">
@@ -168,7 +177,8 @@
     status_unknown: "{{ t('growth.status_unknown') }}",
     percentile: "{{ t('growth.percentile') }}",
     zscore: "{{ t('growth.zscore') }}",
-    age: "{{ t('growth.age_months') }}"
+    age: "{{ t('growth.age_months') }}",
+    at_birth: "{{ t('patients.at_birth') }}"
   };
   // Z-scores for every percentile line we may draw (WHO/CDC 5-line set and the
   // RCPCH 9-line two-thirds-SD set). Used to order lines and find the median.
@@ -185,7 +195,7 @@
   function growthChart(pid, dataUrl, defaultRef, gender) {
     return {
       ref: defaultRef, indicator: 'wfa', unit: '', chart: null, gender: gender,
-      latest: null, hasData: false, loadError: false,
+      latest: null, hasData: false, loadError: false, corrected: false,
       statusLabel: '', statusEdge: 'edge-green',
       init() {
         this.load();
@@ -197,6 +207,7 @@
         const d = await res.json();
         this.unit = d.unit || '';
         const pts = d.points || [];
+        this.corrected = !!d.corrected;
         this.hasData = pts.length > 0;
         this.latest = pts.length ? pts[pts.length - 1] : null;
         this.updateStatus();
@@ -240,10 +251,17 @@
         // Patient line on top, themed by gender.
         datasets.push({
           label: '{{ patient.display_name(current_lang)|e }}',
-          data: d.points.map(p => ({ x: p.age_months, y: p.value, p: p.percentile, z: p.z })),
+          data: d.points.map(p => ({ x: p.age_months, y: p.value, p: p.percentile,
+                                     z: p.z, birth: p.source === 'birth' })),
           borderColor: theme.line, backgroundColor: theme.line,
-          borderWidth: 3, pointRadius: 5, pointHoverRadius: 8,
-          pointBackgroundColor: '#fff', pointBorderColor: theme.line, pointBorderWidth: 2.5,
+          borderWidth: 3, pointHoverRadius: 8,
+          // The birth weight is filled and triangular: it is usually the
+          // mother's memory rather than something this clinic measured, and a
+          // point that looks like the others would claim it was.
+          pointStyle: d.points.map(p => p.source === 'birth' ? 'triangle' : 'circle'),
+          pointRadius: d.points.map(p => p.source === 'birth' ? 6 : 5),
+          pointBackgroundColor: d.points.map(p => p.source === 'birth' ? theme.line : '#fff'),
+          pointBorderColor: theme.line, pointBorderWidth: 2.5,
           showLine: true, tension: 0.25, order: 1,
         });
         // Inline plugin: label the latest patient point with its percentile.
@@ -292,8 +310,9 @@
                 filter: (it) => !/^P/.test(it.text) || it.text === 'P50' } },
               tooltip: { callbacks: { label: (ctx) => {
                 const r = ctx.raw;
+                const tag = r.birth ? ` · ${GROWTH_LABELS.at_birth}` : '';
                 if (r.p !== undefined && r.p !== null)
-                  return `${r.y} ${this.unit} · ${GROWTH_LABELS.percentile} P${r.p} · ${GROWTH_LABELS.zscore} ${r.z}`;
+                  return `${r.y} ${this.unit}${tag} · ${GROWTH_LABELS.percentile} P${r.p} · ${GROWTH_LABELS.zscore} ${r.z}`;
                 return `${ctx.dataset.label}: ${r.y}`;
               } } }
             }

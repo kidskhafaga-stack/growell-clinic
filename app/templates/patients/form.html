@@ -88,6 +88,36 @@
           </div>
         </div>
 
+        {# What the child arrived with. Both optional, both usually the
+           parent's memory rather than a discharge summary — so a blank one
+           means nobody said, and the program never fills it in. The gestation
+           is what makes a corrected age possible for a premature child; see
+           app/utils/growth.py. #}
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="birth_weight_kg">{{ t('patients.birth_weight') }}</label>
+            <input class="input" id="birth_weight_kg" name="birth_weight_kg" type="number"
+                   step="0.01" min="0.3" max="7" dir="ltr"
+                   value="{{ form.birth_weight_kg if form.birth_weight_kg not in (None, '') else '' }}">
+            <div class="hint">{{ t('patients.birth_weight_hint') }}</div>
+          </div>
+          <div class="form-row">
+            <label for="gestation_weeks">{{ t('patients.gestation') }}</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="input" id="gestation_weeks" name="gestation_weeks" type="number"
+                     min="22" max="45" dir="ltr" style="max-width:110px;"
+                     placeholder="{{ t('patients.gestation_weeks') }}"
+                     value="{{ form.gestation_weeks if form.gestation_weeks not in (None, '') else '' }}">
+              <span aria-hidden="true">+</span>
+              <input class="input" id="gestation_days" name="gestation_days" type="number"
+                     min="0" max="6" dir="ltr" style="max-width:90px;"
+                     placeholder="{{ t('patients.gestation_days') }}"
+                     value="{{ form.gestation_days if form.gestation_days not in (None, '') else '' }}">
+            </div>
+            <div class="hint">{{ t('patients.gestation_hint') }}</div>
+          </div>
+        </div>
+
         <!-- File numbers: system (auto) + reference (legacy) -->
         <div class="form-grid">
           <div class="form-row">

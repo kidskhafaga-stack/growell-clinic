@@ -27,7 +27,7 @@ from app.utils import rcpch
 from app.utils.clock import local_today
 from app.utils.growth import (
     INDICATORS,
-    age_in_months,
+    age_for,
     compute_at_age,
     compute_point,
     reference_curves,
@@ -122,26 +122,73 @@ def data(patient_id):
         rng = reference_range(ref)
 
     points = []
+    corrected_any = False
     for rec in _records(patient):
         value = getattr(rec, field, None)
+        # The age this child is scored at — corrected while they are inside the
+        # window for how early they were born. See app/utils/growth.py.
+        age = age_for(patient, rec.record_date)
+        months = age["months"]
         # Don't plot/score measurements outside the reference's valid ages.
-        months = age_in_months(patient.date_of_birth, rec.record_date)
         if months is None or (rng and (months < rng[0] - 0.5 or months > rng[1] + 0.5)):
             continue
         if is_rcpch:
             pt = rcpch.compute_point(ref, indicator, patient.gender, months, value)
         else:
             pt = compute_point(ref, indicator, patient.gender, patient.date_of_birth,
-                               rec.record_date, value)
+                               rec.record_date, value, age_months=months)
         if pt:
             pt["date"] = rec.record_date.isoformat()
             pt["status"] = status_for_z(pt["z"])
+            pt["corrected"] = age["corrected"]
+            corrected_any = corrected_any or age["corrected"]
             points.append(pt)
 
+    # The weight the child was born with is a weight-for-age reading at age
+    # zero, and it is the one point that says where the line started. It is
+    # marked `birth` because it is usually the parent's memory rather than a
+    # measurement this clinic took — the same rule as every other curve here:
+    # a point carries where it came from.
+    birth = _birth_point(patient, indicator, ref, is_rcpch, rng)
+    if birth:
+        points.insert(0, birth)
+
     return jsonify({
-        "curves": curves, "points": points,
+        "curves": curves, "points": points, "corrected": corrected_any,
         "unit": INDICATORS[indicator]["unit"], "gender": patient.gender,
     })
+
+
+def _birth_point(patient, indicator, ref, is_rcpch, rng):
+    """The birth weight as the age-zero point on weight-for-age, or ``None``.
+
+    Only weight, and only at age zero. A birth weight is not a height and not
+    a head circumference, and putting it anywhere else on the chart would be
+    the program plotting a measurement nobody took.
+
+    Scored at zero months even for a premature child: the reference's zero *is*
+    birth at term, so a 32-weeker's birth weight genuinely belongs off the
+    bottom of it — correcting the point would move a real measurement to hide
+    that. It is drawn where it happened and marked for what it is.
+    """
+    if indicator != "wfa" or not patient.birth_weight_kg:
+        return None
+    if rng and rng[0] > 0.5:              # a reference that starts after birth
+        return None
+    if is_rcpch:
+        pt = rcpch.compute_point(ref, indicator, patient.gender, 0.0,
+                                 patient.birth_weight_kg)
+    else:
+        pt = compute_point(ref, indicator, patient.gender,
+                           patient.date_of_birth, patient.date_of_birth,
+                           patient.birth_weight_kg, age_months=0.0)
+    if not pt:
+        return None
+    pt["date"] = patient.date_of_birth.isoformat() if patient.date_of_birth else None
+    pt["status"] = status_for_z(pt["z"])
+    pt["source"] = "birth"
+    pt["corrected"] = False
+    return pt
 
 
 @growth_bp.route("/api/calculate", methods=["POST"])

@@ -79,6 +79,89 @@ def age_in_months(dob, on_date):
     return days / 30.4375 if days >= 0 else None
 
 
+# ---------------------------------------------------------- corrected age --
+#
+# A baby born at 32 weeks and measured at six months has been outside for six
+# months and alive for eight. The growth standard's zero is birth *at term*,
+# so scoring that child against a six-month reference reads them as small when
+# they are on course — and "small" on a growth chart is what starts a workup.
+#
+# Correction is arithmetic on days: subtract how early they were born.
+
+FULL_TERM_DAYS = 40 * 7        # the reference's own zero: 40+0
+PRETERM_DAYS = 37 * 7          # below this, the child was born early
+
+# How long to keep correcting, in months. There is no single universal rule,
+# which is exactly why these are settings and not constants in an expression:
+# common practice is two years, and three for the very preterm. A clinic that
+# follows its own protocol changes a number instead of the program.
+CORRECT_UNTIL_MONTHS = 24
+CORRECT_UNTIL_MONTHS_VERY_PRETERM = 36
+VERY_PRETERM_DAYS = 28 * 7
+
+
+def _setting_int(key, default):
+    """A clinic's own number for a policy, or ours. Never raises on rubbish."""
+    try:
+        from app.models import Setting
+
+        raw = Setting.get(key)
+        return int(raw) if raw not in (None, "") else default
+    except Exception:                                       # pragma: no cover
+        return default
+
+
+def correction_days(gestation_days):
+    """How many days early this child was born — ``0`` for term or unknown.
+
+    Zero rather than ``None`` for the unknown case, because the caller's next
+    move is a subtraction either way, and a term baby and a baby nobody
+    recorded a gestation for are both corrected by nothing.
+    """
+    if not gestation_days or gestation_days >= PRETERM_DAYS:
+        return 0
+    return FULL_TERM_DAYS - gestation_days
+
+
+def correct_until_months(gestation_days):
+    """How long correction lasts for a child born this early."""
+    if gestation_days and gestation_days < VERY_PRETERM_DAYS:
+        return _setting_int("growth.correct_until_months_very_preterm",
+                            CORRECT_UNTIL_MONTHS_VERY_PRETERM)
+    return _setting_int("growth.correct_until_months", CORRECT_UNTIL_MONTHS)
+
+
+def age_for(patient, on_date):
+    """The age to score this child at, and whether it was corrected.
+
+    Returns ``{months, raw_months, corrected, days_early}``. ``corrected`` is
+    what the screen must say out loud: a percentile computed against a
+    different age than the one printed beside it is a number the parent and
+    the next doctor cannot reproduce, and an unexplained jump the day the
+    correction stops looks like the child fell off the chart.
+
+    Correction stops at the window's end rather than fading out. A tapering
+    rule is used in some units, but it means the age the program scored a
+    child at cannot be worked out from the file — and the discontinuity a
+    hard stop leaves is smaller than the one it hides.
+    """
+    dob = getattr(patient, "date_of_birth", None)
+    raw = age_in_months(dob, on_date)
+    if raw is None:
+        return {"months": None, "raw_months": None,
+                "corrected": False, "days_early": 0}
+
+    early = correction_days(getattr(patient, "gestation_total_days", None))
+    if not early or raw > correct_until_months(
+            getattr(patient, "gestation_total_days", None)):
+        return {"months": raw, "raw_months": raw,
+                "corrected": False, "days_early": early}
+
+    months = max(raw - early / 30.4375, 0.0)
+    return {"months": months, "raw_months": raw,
+            "corrected": True, "days_early": early}
+
+
 def _lms(table, month):
     """Interpolated (L, M, S) for ``month`` from a sorted LMS table."""
     if not table:
@@ -122,9 +205,15 @@ def percentile_from_z(z):
     return max(0.1, min(99.9, round(p, 1)))
 
 
-def compute_point(ref, indicator, gender, dob, on_date, value):
-    """Return {age_months, value, z, percentile} for one measurement."""
-    months = age_in_months(dob, on_date)
+def compute_point(ref, indicator, gender, dob, on_date, value, age_months=None):
+    """Return {age_months, value, z, percentile} for one measurement.
+
+    ``age_months`` overrides the age worked out from the dates — that is how a
+    corrected age reaches the calculation, computed once by :func:`age_for` and
+    passed in, rather than every caller re-deriving it and one of them getting
+    it wrong.
+    """
+    months = age_months if age_months is not None else age_in_months(dob, on_date)
     if months is None or value is None:
         return None
     table = _table(ref, indicator, gender)
@@ -215,18 +304,24 @@ def summarise(patient, record):
     if patient is None or record is None:
         return []
     ref = reference_for(patient)
+    age = age_for(patient, record.record_date)
     out = []
     for indicator, meta in INDICATORS.items():
         value = getattr(record, meta["field"], None)
         if not value:
             continue
         point = compute_point(ref, indicator, patient.gender,
-                              patient.date_of_birth, record.record_date, value)
+                              patient.date_of_birth, record.record_date, value,
+                              age_months=age["months"])
         z = point.get("z") if point else None
         out.append({
             "indicator": indicator,
             "value": round(value, 2),
             "unit": meta["unit"],
+            # Said out loud wherever the number is printed. A percentile
+            # against an age nobody can see is a number the parent and the
+            # next doctor cannot reproduce.
+            "corrected": age["corrected"],
             # A measurement off the end of the reference (a 21-year-old, a
             # birth date nobody filled in) still prints its value. Dropping
             # the row would hide a real measurement because the standard has
