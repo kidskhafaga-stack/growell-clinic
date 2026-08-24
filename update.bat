@@ -333,10 +333,24 @@ REM
 REM /E adds and overwrites and never deletes. A file dropped from the project
 REM is left behind rather than risking a mistyped exclusion taking something
 REM real with it, and a stale file costs far less than a lost record.
+REM /NJS dropped, and that is the whole of this change.
+REM
+REM Every listing switch was on, so this step printed one sentence and then
+REM nothing at all - and the next line a clinic saw was "[4/5] Database
+REM upgraded (0 column(s) added)". Those two together are unreadable: "0" is
+REM the correct answer for a database that is already current AND the
+REM symptom of files that never arrived, and nothing on the screen told them
+REM apart. A clinic asked exactly that, and answering it took opening folders
+REM and pasting commands to find out whether an update had happened.
+REM
+REM The job summary is four lines and names how many files were copied. /NFL
+REM and /NDL stay: the per-file list on a first-time copy is thousands of
+REM lines and would push everything else off the screen, which is its own way
+REM of telling somebody nothing.
 robocopy "%PP_SRC%" "%~dp0." /E ^
   /XD instance .venv .git uploads __pycache__ backups ^
   /XF clinic.env *.db *.sqlite *.sqlite3 ^
-  /NFL /NDL /NJH /NJS /NP
+  /NFL /NDL /NJH /NP
 REM robocopy reports 0-7 for success (0 = nothing to do, 1 = files copied).
 REM Anything from 8 up is a real failure, so this cannot be `if errorlevel 1`.
 if errorlevel 8 (

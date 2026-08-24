@@ -1460,7 +1460,10 @@
     "update_check_hint": "On start-up it asks GitHub whether there is a newer version and **only says so** — updating stays a decision you make in update.bat, with a backup before it. No clinic data is sent, and switching this off stops it reaching the internet at all.",
     "ai_discuss_section": "Clinical discussion mode",
     "ai_discussion": "Enable discussion mode (differential and plan)",
-    "ai_discussion_hint": "Different from the above. That one reads the file and writes from it only. This one reasons beyond the file — it suggests possible diagnoses and a plan, as a discussion and not a diagnosis. It also needs \"allow the assistant to read patient files\", and it is off by default. No doses are given here; the prescription screen has its own dose tool."
+    "ai_discussion_hint": "Different from the above. That one reads the file and writes from it only. This one reasons beyond the file — it suggests possible diagnoses and a plan, as a discussion and not a diagnosis. It also needs \"allow the assistant to read patient files\", and it is off by default. No doses are given here; the prescription screen has its own dose tool.",
+    "secret_saved": "a key is saved",
+    "secret_clear": "remove the saved key",
+    "secret_hint": "A saved key is never sent back to this page. Leave the box empty to keep it."
   },
   "errors": {
     "403_title": "Forbidden",
