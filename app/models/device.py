@@ -141,8 +141,20 @@ class DeviceStudy(db.Model):
 
 
 class DeviceStudyValue(db.Model):
-    """One measured value in a study. The field name/unit are snapshotted so the
-    record stays readable even if the device's template later changes."""
+    """One measured value in a study.
+
+    The field name, unit and range are snapshotted so the record stays readable
+    even if the device's template later changes — a report reprinted next year
+    must say what it said when it was signed.
+
+    **A value is kept twice: as typed, and as a number.** ``value`` is verbatim
+    — a doctor writes "58" for EF and "لا يوجد ارتشاح" for the pericardium in
+    boxes that look identical, and the typed sentence is the record. ``value_num``
+    is the same reading as a float when it *is* one, and ``None`` when it is
+    prose, so an EF can be a point on a curve without the words being parsed
+    into a number nobody checked. The same two-column shape as a lab result, for
+    the same reason and with the same rule: no guessing.
+    """
 
     __tablename__ = "device_study_values"
 
@@ -154,10 +166,31 @@ class DeviceStudyValue(db.Model):
     name = db.Column(db.String(120), nullable=False)   # snapshot
     unit = db.Column(db.String(30))                    # snapshot
     value = db.Column(db.String(60))                   # free text (numeric or note)
+    value_num = db.Column(db.Float)                    # the same reading, when numeric
+    # The range this reading was judged against, snapshotted with it. Without
+    # it a curve drawn next year would shade the band the device template holds
+    # *then* — a chart quietly restating history.
+    normal_low = db.Column(db.Float)
+    normal_high = db.Column(db.Float)
     flag = db.Column(db.String(10))                    # low|high|normal|'' snapshot
 
     study = db.relationship("DeviceStudy", back_populates="values")
     measurement = db.relationship("DeviceMeasurement")
+
+    @property
+    def out_of_range(self):
+        """``True`` / ``False`` / ``None`` — the third answer being "no range".
+
+        Read from the flag snapshotted at save time rather than recomputed, so
+        it agrees with the report that was printed. ``None`` where the template
+        stated no range, which in paediatrics is most of them on purpose.
+        """
+        flag = (self.flag or "").strip()
+        if flag in ("low", "high"):
+            return True
+        if flag == "normal":
+            return False
+        return None
 
     def __repr__(self):
         return f"<DeviceStudyValue {self.name}={self.value}>"

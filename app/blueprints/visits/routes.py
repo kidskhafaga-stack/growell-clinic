@@ -303,6 +303,7 @@ def record(visit_id):
     # screen with a panel on it rather than a screen per specialty — see
     # app/utils/panels.py for why.
     from app.utils import panels as _panels
+    from app.utils import series as _series
 
     panel_key, panel_meta = _panels.for_visit(visit, visit.doctor,
                                               getattr(g, "lang", "ar"))
@@ -313,6 +314,11 @@ def record(visit_id):
         panel_choices=_panels.choices(getattr(g, "lang", "ar")),
         panel_readings=_panels.readings(visit, panel_key),
         panel_vitals=_panels.vitals_shown(panel_meta, visit.vitals),
+        # The last echo/device reading for the fields the catalogue links to
+        # one. Shown beside the box and never filled into it: the vitals were
+        # taken minutes ago, an echo was taken whenever it was taken.
+        panel_last_study=_series.last_study_readings(
+            visit.patient_id, panel_meta, getattr(g, "lang", "ar")),
         red_flag=red_flag,
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,
@@ -1548,9 +1554,14 @@ def study_new(patient_id):
             raw = (request.form.get(f"value_{m.id}") or "").strip()
             if raw == "":
                 continue
+            # Kept twice: the sentence as typed, and the number when it is
+            # one. `_number` returns None for prose rather than zero — the same
+            # rule as a lab result, so "لا يوجد ارتشاح" never becomes a point.
             study.values.append(DeviceStudyValue(
                 measurement_id=m.id, name=m.name, unit=m.unit,
-                value=raw, flag=m.flag(raw)))
+                value=raw, value_num=_number(raw),
+                normal_low=m.normal_low, normal_high=m.normal_high,
+                flag=m.flag(raw)))
         db.session.add(study)
         # Running a device costs money: the study charges its device's service
         # on the visit (once), and the cashier collects it like any other

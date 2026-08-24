@@ -5122,6 +5122,15 @@
     "read_pulse_bpm": "Pulse",
     "read_resp_rate": "Respiratory rate",
     "read_spo2": "SpO2",
-    "read_blood_pressure": "Blood pressure"
+    "read_blood_pressure": "Blood pressure",
+    "add": "Add a specialty panel",
+    "pick_then_save": "Choose one and save the visit to see its fields.",
+    "from_study": "Last device reading:",
+    "use_study": "Use it"
+  },
+  "curves": {
+    "src_lab": "Lab",
+    "src_study": "Device",
+    "src_panel": "Panel"
   }
 }
