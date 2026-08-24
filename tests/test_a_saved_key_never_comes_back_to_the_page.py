@@ -28,11 +28,16 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import pytest  # noqa: E402
 
+# Key-shaped, not sentence-shaped, and that is not cosmetic: the first version
+# of these ended in the word "rendered", so "is the tail on the page?" matched
+# ordinary English elsewhere in the HTML and the test failed on its own fixture.
+# A value used to prove a string is absent has to be a string nothing else
+# would produce.
 SECRETS = {
-    "ai_api_key": "sk-live-must-never-be-rendered",
-    "icd11_client_secret": "who-secret-must-never-be-rendered",
-    "eta_client_secret": "eta-one-must-never-be-rendered",
-    "eta_client_secret2": "eta-two-must-never-be-rendered",
+    "ai_api_key": "sk-live-9f3a7c21b8e40d6512aa",
+    "icd11_client_secret": "who-4b71e0c9a2fd8e35760b",
+    "eta_client_secret": "eta1-6c082dfb14a97e3d5502",
+    "eta_client_secret2": "eta2-3e59a0bd7c14f826910d",
 }
 
 
@@ -211,3 +216,38 @@ def test_the_who_download_still_finds_its_credentials(desk):
 
     with desk["app"].app_context():
         assert who_settings()["client_secret"] == SECRETS["icd11_client_secret"]
+
+
+# ----------------------------------------- enough to recognise, no more
+
+def test_the_screen_shows_the_last_four_and_no_more(desk):
+    """Asked directly: *"ليه ما نسبهوش معروض ومشفر بنقط؟"* — because dots over a
+    value are not encryption. But the need behind it is real: somebody holding
+    two keys wants to know which one is saved, and "a key is saved" does not
+    say. Four characters cannot be worked back into a key, which is why every
+    vendor that issues them shows exactly this on its own dashboard."""
+    page = _page(desk)
+    key = SECRETS["ai_api_key"]
+
+    assert key[-4:] in page, "there is no way to tell which key is saved"
+    assert key[:-4] not in page
+    assert key[-8:] not in page, "more of the key is on the page than the tail"
+
+
+def test_a_short_secret_shows_nothing_at_all(desk):
+    """Four characters of a twelve-character secret is a third of it, and a
+    third of a secret is a different kind of number from a thirtieth."""
+    from app.blueprints.settings.routes import _secret_tail
+
+    assert _secret_tail("sk-abcdefghijklmnop") == "mnop"
+    assert _secret_tail("short") == ""
+    assert _secret_tail("") == "" and _secret_tail(None) == ""
+
+
+def test_the_tail_is_not_what_gets_saved(desk):
+    """The obvious way to get this wrong: showing the tail and then writing it
+    back on the next save, so a key becomes four characters long and the
+    provider starts refusing it."""
+    _save(desk)
+
+    assert _saved(desk, "ai_api_key") == SECRETS["ai_api_key"]

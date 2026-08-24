@@ -14,9 +14,14 @@
    meaning "keep", nothing else could. See SECRET_KEYS in the settings
    blueprint for what was wrong before. #}
 {% macro secret_state(key) %}
-  {% if key in (saved_secrets or []) %}
+  {% if key in (saved_secrets or {}) %}
   <div class="hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px;">
-    <span class="badge badge--green"><i class="bi bi-key"></i> {{ t('settings.secret_saved') }}</span>
+    {# The tail, and nothing else. Four characters cannot be worked back into a
+       key — it is what the vendors who issue them show on their own dashboards
+       — and it is what tells one key from another when somebody is holding
+       two. See `_secret_tail`. #}
+    <span class="badge badge--green"><i class="bi bi-key"></i> {{ t('settings.secret_saved') }}
+      {% if saved_secrets[key] %}<span dir="ltr">····{{ saved_secrets[key] }}</span>{% endif %}</span>
     <label class="checkbox" style="font-weight:400;margin:0;">
       <input type="checkbox" name="clear_{{ key }}" value="1"> {{ t('settings.secret_clear') }}</label>
   </div>

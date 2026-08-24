@@ -88,6 +88,30 @@ SECRET_KEYS = {"ai_api_key", "icd11_client_secret",
                "eta_client_secret", "eta_client_secret2"}
 
 
+def _secret_tail(value, keep=4, floor=12):
+    """The last few characters of a saved secret, or ``""``.
+
+    Asked directly: *"ليه ما نسبهوش معروض ومشفر بنقط؟"* — because dots over a
+    value are not encryption, they are a rendering instruction, and the real
+    string sits in the page underneath them. But the *need* behind the question
+    is real: a clinic with two keys, or one that has just pasted a new one,
+    wants to know **which** key is saved, and "a key is saved" does not say.
+
+    So: the tail, and nothing else. Four characters cannot be worked back into
+    a key — it is what every vendor that issues these shows on its own
+    dashboard, for the same reason — and it is enough to tell one key from
+    another when somebody is holding both.
+
+    Nothing at all below ``floor``. On a short secret four characters is a
+    third of it, and a third of a secret is a different kind of number from a
+    thirtieth.
+    """
+    value = (value or "").strip()
+    if len(value) < floor:
+        return ""
+    return value[-keep:]
+
+
 def _keep_or_clear_secrets():
     """What to write for each secret, given what the form sent.
 
@@ -415,11 +439,9 @@ def index():
     from app.utils.vaccines import guideline_profile
 
     values = {row.key: row.value for row in Setting.query.all()}
-    # Which secrets exist, and none of what they are. The screen needs to say
-    # "there is a key here" — otherwise an empty box reads as "no key" and
-    # somebody types a new one over a working setup — and that is the whole of
-    # what it needs.
-    saved_secrets = {k for k in SECRET_KEYS if (values.get(k) or "").strip()}
+    # Which secrets exist, and just enough of each to recognise it.
+    saved_secrets = {k: _secret_tail(values.get(k)) for k in SECRET_KEYS
+                     if (values.get(k) or "").strip()}
     for key in SECRET_KEYS:
         values[key] = ""
     return render_template(
