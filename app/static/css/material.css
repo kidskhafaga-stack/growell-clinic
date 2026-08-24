@@ -1,0 +1,339 @@
+/* Material 3, in this program's own colours.
+ *
+ * Asked for by name — *"بص على التنسيق ده: Material Design"* — and adopted as
+ * a set of rules rather than a skin. The three that do the work:
+ *
+ *   **Depth means something.** Material's whole premise is that a surface sits
+ *   above another one, and that shadow tells you what you can act on. So
+ *   elevation here is a scale with meaning attached — a section rests at
+ *   level 1, the thing you are currently filling in lifts to 2, and a menu
+ *   floating over the page is 3 — not a shadow sprinkled for looks.
+ *
+ *   **The surface is tinted by the primary colour.** This is the single detail
+ *   that makes M3 look like M3 rather than like a card with a shadow: a raised
+ *   surface picks up a few percent of the brand colour, so the page reads as
+ *   one material lit from one direction. Ours is the clinic's green, so the
+ *   result is PediaPro in Material's grammar rather than Google's palette
+ *   dropped on top of a medical program.
+ *
+ *   **State is a layer, not a repaint.** Hover, focus and press are a
+ *   translucent film of the primary colour over whatever is underneath, which
+ *   is why a Material control feels the same whether it sits on white, on a
+ *   tinted card, or on dark.
+ *
+ * Deliberately its own file, and deliberately opt-in: nothing here applies
+ * until a template asks for `.md`. Seventy-odd screens are laid out on
+ * `theme.css`, and a design language that rewrote them all at once would be a
+ * clinic finding every screen changed on a Tuesday morning.
+ *
+ * It reads `theme.css`'s tokens rather than declaring colours of its own, so
+ * dark mode, the per-user accent, and any future palette change reach it
+ * without a second edit.
+ */
+
+.md {
+  /* ---- Elevation ---------------------------------------------------------
+     Two shadows per level, which is not decoration: a tight dark one for the
+     contact edge and a wide soft one for the ambient cast. One shadow reads
+     as a sticker; two read as an object above a surface. */
+  --md-elev-0: none;
+  --md-elev-1: 0 1px 2px rgba(16, 81, 50, .16), 0 2px 6px 1px rgba(16, 81, 50, .10);
+  --md-elev-2: 0 2px 4px rgba(16, 81, 50, .16), 0 6px 14px 2px rgba(16, 81, 50, .13);
+  --md-elev-3: 0 6px 12px 4px rgba(16, 81, 50, .14), 0 2px 5px rgba(16, 81, 50, .18);
+
+  /* ---- Surface tint ------------------------------------------------------ */
+  --md-surface-1: color-mix(in srgb, var(--green-700) 5%, var(--card));
+  --md-surface-2: color-mix(in srgb, var(--green-700) 8%, var(--card));
+  --md-outline: color-mix(in srgb, var(--muted) 40%, transparent);
+
+  /* ---- Shape -------------------------------------------------------------
+     Material's shape scale. The 4px top-only radius on a filled field is not
+     arbitrary — it is what makes the field read as a surface resting on its
+     underline rather than a floating pill. */
+  --md-shape-sm: 8px;
+  --md-shape-md: 12px;
+  --md-shape-lg: 16px;
+  --md-shape-full: 999px;
+
+  --md-motion: 180ms cubic-bezier(.2, 0, 0, 1);
+}
+
+:root[data-theme="dark"] .md {
+  /* Dark surfaces carry *more* tint, not less. Elevation cannot be read from
+     a shadow on a dark ground — there is nothing for it to fall on — so
+     Material raises the surface's lightness instead, and the tint is what
+     makes one level distinguishable from the next. */
+  --md-surface-1: color-mix(in srgb, var(--green-500) 7%, var(--card));
+  --md-surface-2: color-mix(in srgb, var(--green-500) 12%, var(--card));
+  --md-elev-1: 0 1px 3px rgba(0, 0, 0, .5);
+  --md-elev-2: 0 2px 8px rgba(0, 0, 0, .55);
+  --md-elev-3: 0 6px 18px rgba(0, 0, 0, .6);
+}
+
+/* ============================================================ sections === */
+
+/* A step in a task, as its own surface.
+ *
+ * The booking form was one flat grid of seven controls, which is a list of
+ * fields rather than a description of a job. These group it into the questions
+ * a person actually answers — who, with whom and when, what for — and each
+ * group is a surface you can point at. */
+.md-section {
+  background: var(--md-surface-1);
+  border-radius: var(--md-shape-lg);
+  box-shadow: var(--md-elev-1);
+  padding: 18px 20px;
+  transition: box-shadow var(--md-motion), background var(--md-motion);
+}
+.md-section + .md-section { margin-top: 14px; }
+
+/* The section being filled in lifts. `:focus-within` rather than `:hover`:
+   the point is to show where you *are*, and on a form that is wherever the
+   cursor is — which is also the only version of this that works for somebody
+   moving through the form on a keyboard. */
+.md-section:focus-within {
+  background: var(--md-surface-2);
+  box-shadow: var(--md-elev-2);
+}
+
+.md-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+/* The step number. Numbering is honest here and would not be on most forms:
+   a slot cannot be picked before a doctor and a date, so these really are
+   steps in an order rather than three boxes wearing digits. */
+.md-step {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--md-shape-full);
+  background: var(--green-700);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: .82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.md-section-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.md-section-head .md-sub {
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 400;
+}
+
+/* ============================================================== fields === */
+
+/* Material's filled text field: a tinted container on a line that thickens and
+   takes the primary colour on focus. The line is the whole idea — it is the
+   cheapest possible way to show which of nine boxes is live, and it costs no
+   layout shift, which an outline that changes width does. */
+.md-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.md-field > label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color var(--md-motion);
+}
+.md-field:focus-within > label { color: var(--green-700); }
+
+.md .input,
+.md .select {
+  background: color-mix(in srgb, var(--muted) 13%, var(--card));
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-sm) var(--md-shape-sm) 2px 2px;
+  transition: border-color var(--md-motion), background var(--md-motion),
+              box-shadow var(--md-motion);
+}
+.md .input:hover,
+.md .select:hover { background: color-mix(in srgb, var(--muted) 18%, var(--card)); }
+.md .input:focus,
+.md .select:focus {
+  outline: none;
+  border-bottom: 2px solid var(--green-700);
+  background: color-mix(in srgb, var(--green-700) 6%, var(--card));
+  /* No box-shadow ring: the underline already says "here", and two focus
+     signals at once read as an error state. Keyboard users still get the
+     underline, which is why it is 2px and the brand colour rather than a
+     hairline nobody would notice. */
+}
+
+/* ============================================================= buttons === */
+
+/* A state layer, not a repaint — the reason a Material button feels identical
+   on white, on a tinted card and on dark. */
+.md-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--md-shape-full);
+  padding: 10px 22px;
+  font-family: inherit;
+  font-size: .92rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  transition: box-shadow var(--md-motion), background var(--md-motion);
+}
+.md-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--md-motion);
+  pointer-events: none;
+}
+.md-btn:hover::after { opacity: .08; }
+.md-btn:focus-visible::after { opacity: .12; }
+.md-btn:active::after { opacity: .16; }
+
+.md-btn--filled {
+  background: var(--green-700);
+  color: #fff;
+  box-shadow: var(--md-elev-1);
+}
+.md-btn--filled:hover { box-shadow: var(--md-elev-2); }
+.md-btn--text {
+  background: transparent;
+  color: var(--green-700);
+  padding-inline: 14px;
+}
+.md-btn--tonal {
+  background: var(--green-100);
+  color: var(--green-900);
+}
+/* The dark palette redefines `--green-100` to a dark surface and leaves
+   `--green-900` at its light-mode dark, so this pair rendered dark on dark and
+   the two "find me a slot" buttons were invisible. theme.css carries a note
+   about `.badge--green` doing exactly this in 195 places; a new component is
+   not an excuse to make it 196. */
+:root[data-theme="dark"] .md-btn--tonal {
+  background: color-mix(in srgb, var(--green-500) 18%, var(--card));
+  color: color-mix(in srgb, var(--green-500) 80%, white);
+}
+.md-btn[disabled] {
+  opacity: .38;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.md-btn[disabled]::after { opacity: 0; }
+
+/* ============================================================== chips ==== */
+
+/* Material's filter chip. The slot picker is a set of choices of equal weight
+   where exactly one gets selected, which is precisely what a chip set is for —
+   and what it was already doing by hand with a bespoke `.slot-chip`. */
+.md-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  padding: 8px 16px;
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-sm);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: .88rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--md-motion), border-color var(--md-motion),
+              color var(--md-motion);
+}
+.md-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--md-motion);
+  pointer-events: none;
+}
+.md-chip:hover::after { opacity: .08; }
+.md-chip:active::after { opacity: .12; }
+.md-chip.is-selected {
+  background: var(--green-100);
+  border-color: transparent;
+  color: var(--green-900);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .md-chip.is-selected {
+  background: color-mix(in srgb, var(--green-500) 22%, var(--card));
+  color: color-mix(in srgb, var(--green-500) 85%, white);
+}
+.md-chip.is-selected::before {
+  content: "\F26E";              /* bootstrap-icons check */
+  font-family: bootstrap-icons;
+  font-size: .8rem;
+}
+
+/* ============================================================== bar ====== */
+
+/* The commit bar. Material puts the primary action somewhere it cannot be
+   scrolled away from, and on a form long enough to scroll that is the
+   difference between "save" being available and being *findable*. */
+.md-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 14px 4px;
+  background: linear-gradient(to top,
+              var(--bg) 55%, color-mix(in srgb, var(--bg) 70%, transparent));
+}
+.md-bar .md-summary {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+/* ============================================================ motion ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .md *,
+  .md-section,
+  .md-btn,
+  .md-btn::after,
+  .md-chip,
+  .md-chip::after { transition: none !important; }
+}
+
+
+/* The chosen patient and the chosen doctor. Each is the *answer* to the
+   section it sits in, so it reads as a settled card rather than as another
+   empty control — and the green edge is the same "this is decided" signal the
+   selected chip uses. */
+.md .chosen-patient {
+  background: color-mix(in srgb, var(--green-700) 8%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--green-700) 24%, transparent);
+  border-radius: var(--md-shape-md);
+  box-shadow: none;
+}
+:root[data-theme="dark"] .md .chosen-patient {
+  background: color-mix(in srgb, var(--green-500) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--green-500) 30%, transparent);
+}

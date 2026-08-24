@@ -234,3 +234,65 @@ def test_a_row_that_appears_does_not_shove_its_neighbour_sideways(desk):
     row = page.split('id="vaccineRow"')[1][:120]
     assert "grid-column:1/-1" in row, \
         "the vaccine row still reflows the fields after it"
+
+
+# ------------------------------------------------- the Material treatment
+
+def test_the_stylesheet_is_actually_linked(desk):
+    """This repo has the scar: `app.css` existed and nothing linked it, so
+    every rule in it had never once applied — the عيادات cards read as plain
+    text and a family's wait never turned amber. A design language nobody
+    loads is a design language that does not exist."""
+    page = desk["sign_in"]("boss").get("/appointments/new").get_data(as_text=True)
+
+    assert "css/material.css" in page
+    assert 'class="md' in page, "nothing on the page opts in to it"
+
+
+def test_the_slots_come_before_the_optional_details(desk):
+    """The ordering decision, pinned. Choosing which appointment is what the
+    screen exists for, and it used to sit last — under the reason box and the
+    extra services, below the fold."""
+    page = desk["sign_in"]("boss").get("/appointments/new").get_data(as_text=True)
+
+    slots = page.index("slot-grid")
+    extras = page.index("extra_services")
+    assert slots < extras, "the slot picker is buried under the optional fields"
+
+
+def test_the_date_and_its_slots_are_in_one_section(desk):
+    """They are one decision. Choosing a day and then scrolling past four
+    fields to see what it offered is that decision split in two."""
+    page = desk["sign_in"]("boss").get("/appointments/new").get_data(as_text=True)
+
+    when = page.index('<span class="md-step">2</span>')
+    after = page.index('<span class="md-step">3</span>')
+    section = page[when:after]
+
+    assert 'name="appt_date"' in section and "slot-grid" in section
+
+
+def test_no_colour_in_the_material_layer_is_hard_coded_light(desk):
+    """The trap theme.css already wrote a note about, in its own words: the
+    dark palette redefines `--green-100` to a dark surface and leaves
+    `--green-900` at its light-mode dark, so that pair renders dark on dark.
+    It caught 195 places across 78 templates. A new stylesheet is not an
+    excuse to make it 196 — both tints that use the pair carry a dark
+    variant, and this checks they still do."""
+    import os
+
+    path = os.path.join(os.path.dirname(__file__), "..", "app", "static",
+                        "css", "material.css")
+    with open(os.path.abspath(path), encoding="utf-8") as fh:
+        css = fh.read()
+
+    for rule in (".md-btn--tonal", ".md-chip.is-selected"):
+        assert f':root[data-theme="dark"] {rule}' in css, \
+            f"{rule} uses --green-100/--green-900 with no dark variant"
+
+    # A literal light background would survive the theme switch and sit white
+    # on a dark page. `#fff` on *text* over a filled primary is fine.
+    for line in css.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("background") and "#fff" in stripped:
+            raise AssertionError(f"a hard-coded white background: {stripped}")

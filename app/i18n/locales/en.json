@@ -549,7 +549,11 @@
     "pay_free": "No charge",
     "date_in_past": "That date has passed. A booking is for today or later.",
     "day_today": "today",
-    "day_tomorrow": "tomorrow"
+    "day_tomorrow": "tomorrow",
+    "step_who": "Who, and with whom",
+    "step_when": "When",
+    "step_what": "The visit",
+    "step_what_sub": "optional"
   },
   "appt_types": {
     "new": "New visit",

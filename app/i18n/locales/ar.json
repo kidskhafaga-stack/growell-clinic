@@ -549,7 +549,11 @@
     "pay_free": "بدون رسوم",
     "date_in_past": "التاريخ ده عدّى. الحجز بيبقى من النهارده وطالع.",
     "day_today": "النهارده",
-    "day_tomorrow": "بكره"
+    "day_tomorrow": "بكره",
+    "step_who": "مين وعند مين",
+    "step_when": "إمتى",
+    "step_what": "الزيارة",
+    "step_what_sub": "اختياري"
   },
   "appt_types": {
     "new": "كشف جديد",
