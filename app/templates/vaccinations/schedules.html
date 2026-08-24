@@ -98,6 +98,60 @@
     </form>
   </div>
 
+  {# Where this schedule says it came from, and everything else about it.
+     `template_edit` was written for exactly this — seeded bands arrive
+     labelled "للمراجعة" and are meant to be corrected — and no screen ever
+     called it, so the only verb the header offered was delete. #}
+  <details style="margin-top:8px;">
+    <summary style="cursor:pointer;color:var(--muted);font-size:0.9rem;">
+      <i class="bi bi-pencil"></i> {{ t('vaccinations.tpl_edit') }}</summary>
+    <form method="post" style="margin-top:10px;"
+          action="{{ url_for('vaccinations.template_edit', template_id=tpl.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-grid">
+        <div class="form-row"><label>{{ t('vaccinations.tpl_source') }}</label>
+          <select class="select" name="source">
+            {% for key in sources %}
+            <option value="{{ key }}" {{ 'selected' if key == tpl.source else '' }}>
+              {{ t('vaccinations.source_' ~ key) }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="form-row"><label>{{ t('vaccinations.tpl_label') }}</label>
+          <input class="input" name="label" value="{{ tpl.label or '' }}"></div>
+        <div class="form-row"><label>{{ t('vaccinations.age_group') }}</label>
+          <input class="input" name="age_group" value="{{ tpl.age_group or '' }}"></div>
+        <div class="form-row"><label>{{ t('vaccinations.tpl_band') }}</label>
+          <div style="display:flex;gap:6px;">
+            <input class="input" type="number" name="start_age_min_months" min="0"
+                   placeholder="{{ t('reports.from') }}" style="max-width:110px;"
+                   value="{{ tpl.start_age_min_months if tpl.start_age_min_months is not none else '' }}">
+            <input class="input" type="number" name="start_age_max_months" min="0"
+                   placeholder="{{ t('reports.to') }}" style="max-width:110px;"
+                   value="{{ tpl.start_age_max_months if tpl.start_age_max_months is not none else '' }}">
+          </div></div>
+        <div class="form-row"><label>{{ t('vaccinations.tpl_brand') }}</label>
+          <select class="select" name="brand_id">
+            <option value="">{{ t('vaccinations.tpl_all_brands') }}</option>
+            {% for b in vaccine.brands %}
+              <option value="{{ b.id }}" {{ 'selected' if b.id == tpl.brand_id else '' }}>
+                {{ b.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select></div>
+      </div>
+      {# `is_active` is posted from here, so it has to be *on* this form: the
+         route reads it as a checkbox, and a form that omitted it would switch
+         a working schedule off every time somebody corrected its label. #}
+      <label class="checkbox" style="font-weight:400;display:block;margin-bottom:6px;">
+        <input type="checkbox" name="is_catch_up" value="1"
+               {{ 'checked' if tpl.is_catch_up else '' }}> {{ t('vaccinations.catch_up') }}</label>
+      <label class="checkbox" style="font-weight:400;display:block;margin-bottom:10px;">
+        <input type="checkbox" name="is_active" value="1"
+               {{ 'checked' if tpl.is_active else '' }}> {{ t('common.active') }}</label>
+      <button class="btn btn-primary btn-sm gc-press" type="submit">
+        <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+    </form>
+  </details>
+
   <table class="table" style="margin-top:10px;">
     <thead><tr>
       <th>{{ t('vaccinations.dose_no') }}</th><th>{{ t('vaccinations.reco_age') }}</th>
@@ -105,15 +159,42 @@
       <th>{{ t('vaccinations.booster') }}</th><th></th>
     </tr></thead>
     <tbody>
+      {# Every row here was written by the seeder, and this screen used to
+         offer two verbs: add a row and delete a row. Changing "2 months" to
+         "3" meant deleting the row and retyping it — which also loses its
+         place in the course — so a clinic that believed a schedule was wrong
+         left it alone. The boxes are the row now.
+
+         `form=` rather than a form wrapping the cells: a <form> may not span
+         <td> elements, and this is the markup that lets one submit button
+         carry the whole row without a line of script. #}
       {% for d in tpl.doses %}
       <tr>
-        <td><strong>{{ d.dose_number }}</strong></td>
-        <td>{{ (d.recommended_age_months ~ ' ' ~ t('vaccinations.months_short')) if d.recommended_age_months is not none else '—' }}</td>
-        <td>{{ (d.min_interval_days ~ ' ' ~ t('vaccinations.days_short')) if d.min_interval_days is not none else '—' }}</td>
-        <td>{{ (d.max_interval_days ~ ' ' ~ t('vaccinations.days_short')) if d.max_interval_days is not none else '—' }}</td>
-        <td>{% if d.booster_required %}<i class="bi bi-check-lg" style="color:var(--green-600);"></i>{% else %}—{% endif %}</td>
-        <td style="text-align:end;">
-          <form method="post" action="{{ url_for('vaccinations.template_dose_delete', dose_id=d.id) }}" style="display:inline;">
+        <td><input class="input" type="number" min="1" style="width:70px;"
+                   form="dose{{ d.id }}" name="dose_number" value="{{ d.dose_number }}"></td>
+        <td><input class="input" type="number" min="0" style="width:95px;"
+                   form="dose{{ d.id }}" name="recommended_age_months"
+                   placeholder="{{ t('vaccinations.months_short') }}"
+                   value="{{ d.recommended_age_months if d.recommended_age_months is not none else '' }}"></td>
+        <td><input class="input" type="number" min="0" style="width:95px;"
+                   form="dose{{ d.id }}" name="min_interval_days"
+                   placeholder="{{ t('vaccinations.days_short') }}"
+                   value="{{ d.min_interval_days if d.min_interval_days is not none else '' }}"></td>
+        <td><input class="input" type="number" min="0" style="width:95px;"
+                   form="dose{{ d.id }}" name="max_interval_days"
+                   placeholder="{{ t('vaccinations.days_short') }}"
+                   value="{{ d.max_interval_days if d.max_interval_days is not none else '' }}"></td>
+        <td><input type="checkbox" form="dose{{ d.id }}" name="booster_required"
+                   value="1" {{ 'checked' if d.booster_required else '' }}></td>
+        <td style="text-align:end;white-space:nowrap;">
+          <form id="dose{{ d.id }}" method="post" style="display:inline;"
+                action="{{ url_for('vaccinations.template_dose_edit', dose_id=d.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit"
+                    title="{{ t('common.save') }}"><i class="bi bi-check-lg"></i></button>
+          </form>
+          <form method="post" action="{{ url_for('vaccinations.template_dose_delete', dose_id=d.id) }}"
+                style="display:inline;" onsubmit="return confirm('{{ t('common.confirm') }}?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-x" type="submit"><i class="bi bi-x"></i></button></form>
         </td>

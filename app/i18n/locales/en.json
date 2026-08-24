@@ -1080,7 +1080,9 @@
     "tpl_brand": "Brand",
     "tpl_all_brands": "All brands",
     "group_closed": "Window closed — not for this age",
-    "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded."
+    "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded.",
+    "tpl_edit": "Edit this schedule and its source",
+    "tpl_dose_saved": "Dose updated."
   },
   "vstatus": {
     "done": "Done",

@@ -750,6 +750,51 @@ def template_dose_add(template_id):
     return redirect(url_for("vaccinations.schedule_templates", vaccine_id=tpl.vaccine_id))
 
 
+@vaccinations_bp.route("/manage/schedules/dose/<int:dose_id>/edit", methods=["POST"])
+@module_required(MODULE)
+def template_dose_edit(dose_id):
+    """Correct one dose row in place.
+
+    The gap this closes, reported from a clinic looking at a screen full of
+    seeded pneumococcal schedules: *"ليه مش بقدر أعدل على البيانات المزروعة
+    وفيه حاجات مش متعلّم عليها أصلاً بوستر؟"*
+
+    Every row on that screen was written by the seeder, and the screen offered
+    exactly two verbs — add a row and delete a row. So changing "2 months" to
+    "3", or ticking a booster the catalogue did not tick, meant deleting the
+    row and retyping it, which also loses its place in the course unless the
+    number is retyped too. Faced with that, the honest thing a clinic does is
+    leave a schedule it believes is wrong exactly where it is.
+
+    `booster_required` in particular could only ever be set while *adding* a
+    row, which is why it read "—" down the whole column: nothing seeded ticks
+    it, and nothing afterwards could.
+
+    A blank box clears the value rather than keeping the old one. "No maximum
+    interval" is a real statement about a schedule, and an editor that could
+    only ever add numbers could not express it.
+    """
+    dose = db.get_or_404(VaccineScheduleDose, dose_id)
+    f = request.form
+
+    number = f.get("dose_number", type=int)
+    if number:
+        dose.dose_number = number
+    dose.recommended_age_months = f.get("recommended_age_months", type=int)
+    dose.min_interval_days = f.get("min_interval_days", type=int)
+    dose.max_interval_days = f.get("max_interval_days", type=int)
+    dose.booster_required = bool(f.get("booster_required"))
+
+    ActivityLog.record("vaccine.schedule_dose_edit", user_id=current_user.id,
+                       entity="vaccine", entity_id=dose.template.vaccine_id,
+                       detail=f"{dose.template.code}#{dose.dose_number}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.tpl_dose_saved"), "success")
+    return redirect(url_for("vaccinations.schedule_templates",
+                            vaccine_id=dose.template.vaccine_id))
+
+
 @vaccinations_bp.route("/manage/schedules/dose/<int:dose_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def template_dose_delete(dose_id):

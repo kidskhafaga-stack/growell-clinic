@@ -222,6 +222,24 @@ SECTIONS = [
              "الزمنية — كلها من الشاشة.",
              "<b>Manage vaccinations</b>: vaccines, brands and schedules — all "
              "from the screen."),
+            ("<b>الجداول المزروعة تتعدّل.</b> البرنامج بيزرع جداول من "
+             "المرجع، وبيعلّم عليها «للمراجعة» لأنها <u>متوقّع</u> إنها "
+             "تحتاج تظبيط: النشرة بتتغيّر، والعيادة ممكن تمشي على CDC مش "
+             "على نشرة الشركة. من شاشة الجداول تقدر تعدّل كل جرعة في مكانها "
+             "— السن، الحد الأدنى والأقصى للفاصل، وعلامة البوستر — وتقدر "
+             "تفتح «تعديل الجدول ومصدره» عشان تغيّر <b>مصدر المعلومة</b> "
+             "نفسه والاسم ونطاق السن والصنف التجاري. خانة فاضية معناها «مفيش "
+             "قيمة»، مش «سيبها زي ما هي».",
+             "<b>Seeded schedules are meant to be corrected.</b> The program "
+             "seeds schedules from the reference and marks them "
+             "\u201cfor review\u201d because they are <u>expected</u> to need "
+             "it: leaflets are revised, and a clinic may follow the CDC rather "
+             "than the manufacturer's label. On the schedules screen each dose "
+             "row is edited in place \u2014 age, minimum and maximum interval, "
+             "and the booster tick \u2014 and \u201cEdit this schedule and its "
+             "source\u201d changes <b>where the information came from</b>, "
+             "along with the name, age band and brand. An empty box means "
+             "\u201cno value\u201d, not \u201cleave it alone\u201d."),
         ],
     },
     {
