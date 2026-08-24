@@ -5,9 +5,28 @@
 
 {% from "_chip_editor.html" import chip_editor, chip_editor_assets with context %}
 
-{% block head %}<style>
+{% block head %}
+{# The update panel is built in Material's grammar — the first screen outside
+   the booking form to opt in. Nothing else on this page changes: `.md` only
+   applies inside the element that asks for it. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/material.css') }}">
+<style>
   [x-cloak]{display:none!important;}
 </style>{{ chip_editor_assets() }}{% endblock %}
+
+{% block scripts %}
+<script>
+  // The four answers the check can give, in the clinic's language. "Offline"
+  // and "up to date" are different facts and must not share a sentence: one
+  // means there is nothing new, the other means nobody could find out.
+  const UPD = {
+    behind:  "{{ t('update.said_behind') }}",
+    current: "{{ t('update.said_current') }}",
+    offline: "{{ t('update.said_offline') }}",
+    unknown: "{{ t('update.said_unknown') }}"
+  };
+</script>
+{% endblock %}
 
 {# A saved secret is never handed back to the page. The box renders empty, a
    badge says one is stored, and a tick removes it — because with blank
@@ -56,7 +75,7 @@
    was open or it answers by redrawing the first one. The hash is never sent to
    a server, hence the hidden field; the hash is still kept in step so a
    refresh, a back button or a bookmarked #eta all land where they say. #}
-{% set tab_ids = ['clinic','logo','numbering','board','phrases','policies','eta','ai'] %}
+{% set tab_ids = ['clinic','logo','numbering','board','phrases','policies','eta','ai','update'] %}
 <form method="post" enctype="multipart/form-data"
       x-data="{
         {# `forceescape` is not decoration. `tojson` emits double quotes, this
@@ -91,7 +110,8 @@
         ('phrases','chat-square-text', t('settings.visit_chips_title')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
-        ('ai','robot', t('settings.ai_title'))] %}
+        ('ai','robot', t('settings.ai_title')),
+        ('update','arrow-up-circle', t('update.tab'))] %}
     <button type="button" class="btn btn-sm gc-press"
             :class="tab==='{{ tid }}' ? 'btn-primary' : 'btn-outline'"
             x-on:click="tab='{{ tid }}'"><i class="bi bi-{{ icon }}"></i> {{ label }}</button>
@@ -801,4 +821,85 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </div>
 </form>
+  <!-- The version, and asking about it ------------------------------------ -->
+  {# Reported: *"مبقتش بشوف الإشعار"*. The check ran in exactly one place — the
+     launch hook — so a clinic that leaves the program open all week hears
+     about a release the following Monday, and one that was offline at nine
+     is not told at all. This is the missing verb: ask now.
+
+     What it does *not* do is update. That stays one decision somebody makes
+     in update.bat, with a backup in front of it and a schema upgrade after —
+     the whole reason the launch check only ever says. #}
+  <div class="card gc-scale-in md" x-show="tab==='update'" x-cloak id="update"
+       x-data="{ busy: false, said: '', tone: '' ,
+                 async check() {
+                   this.busy = true; this.said = '';
+                   try {
+                     const r = await fetch('{{ url_for('settings.update_check_now') }}',
+                                           {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}});
+                     const d = await r.json();
+                     if (d.ok && d.behind) { this.tone = 'warn'; this.said = UPD.behind; }
+                     else if (d.ok) { this.tone = 'ok'; this.said = UPD.current; }
+                     else if (d.reason === 'unreachable') { this.tone = 'warn'; this.said = UPD.offline; }
+                     else { this.tone = 'warn'; this.said = UPD.unknown; }
+                   } catch (e) { this.tone = 'warn'; this.said = UPD.offline; }
+                   this.busy = false;
+                 } }">
+    <h2 class="section-title"><i class="bi bi-arrow-up-circle"></i> {{ t('update.tab') }}</h2>
+
+    <div class="info-grid" style="margin-bottom:12px;">
+      <div class="info-item">
+        <div class="k">{{ t('update.installed') }}</div>
+        <div class="v" dir="ltr">
+          {{ installed_revision.short or '—' }}
+          {% if installed_revision.source == 'git' %}
+            <span class="badge badge--muted">git</span>
+          {% elif installed_revision.source == 'stamp' %}
+            <span class="badge badge--muted">{{ t('update.from_stamp') }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="info-item">
+        <div class="k">{{ t('update.state') }}</div>
+        <div class="v">
+          {% if update_pending %}
+            <span class="badge badge--role">{{ t('update.behind') }}</span>
+          {% elif installed_revision.revision %}
+            <span class="badge badge--green">{{ t('update.current_short') }}</span>
+          {% else %}—{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if installed_revision.source == 'none' %}
+    <p class="info-note"><i class="bi bi-question-circle"></i> {{ t('update.no_version') }}</p>
+    {% endif %}
+
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button type="button" class="md-btn md-btn--tonal gc-press"
+              x-on:click="check()" :disabled="busy">
+        <i class="bi bi-arrow-repeat"></i>
+        <span x-text="busy ? '…' : '{{ t('update.check_now') }}'">{{ t('update.check_now') }}</span></button>
+      <a class="md-btn md-btn--text gc-press" href="{{ url_for('main.update_available') }}">
+        <i class="bi bi-box-arrow-up-right"></i> {{ t('update.open_page') }}</a>
+      <span class="hint" x-show="said" x-cloak x-text="said"
+            :style="tone === 'ok' ? 'color:var(--green-700)' : 'color:#b45309'"></span>
+    </div>
+
+    {% if update_pending and update_pending.notes %}
+    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
+      <strong style="font-size:.92rem;">{{ t('update.whats_new') }}</strong>
+      <ul style="margin:6px 0 0;padding-inline-start:20px;">
+        {% for line in update_pending.notes %}<li class="hint">{{ line }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <label class="checkbox" style="font-weight:400;margin-top:14px;display:block;">
+      <input type="checkbox" name="update_check" value="1"
+             {{ 'checked' if values.get('update_check','1') != '0' else '' }}>
+      {{ t('update.ask_at_launch') }}</label>
+    <div class="hint">{{ t('update.privacy') }}</div>
+  </div>
+
 {% endblock %}

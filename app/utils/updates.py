@@ -63,6 +63,29 @@ def remember(found):
     return found
 
 
+def forget():
+    """Drop a stored notice, because something *confirmed* there is none.
+
+    Deliberately not folded into `remember(None)`. `pending()` answers None to
+    "up to date" and to "offline" alike — which is right for a launch check,
+    where every silent case looks the same to somebody opening the program.
+    Clearing on that would mean one blip in the connection at nine o'clock
+    wipes a real notice the clinic had not acted on yet.
+
+    So forgetting is its own verb, called only where the difference is known:
+    the settings button asks GitHub a second time to tell the two apart before
+    it decides there is nothing to remember.
+    """
+    from app.extensions import db
+    from app.models import Setting
+
+    try:
+        Setting.set(STORED, "")
+        db.session.commit()
+    except Exception:  # noqa: BLE001 — a notice never blocks anything
+        db.session.rollback()
+
+
 def remembered():
     """What the last launch check found, or None.
 

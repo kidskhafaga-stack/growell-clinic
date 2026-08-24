@@ -2,8 +2,8 @@
 import os
 import uuid
 
-from flask import (current_app, flash, g, redirect, render_template, request,
-                   url_for)
+from flask import (current_app, flash, g, jsonify, redirect, render_template,
+                   request, url_for)
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 
@@ -88,6 +88,34 @@ SECRET_KEYS = {"ai_api_key", "icd11_client_secret",
                "eta_client_secret", "eta_client_secret2"}
 
 
+def _installed_now():
+    """``{"revision", "short", "source"}`` for the copy that is running."""
+    import os
+
+    from app.utils.updates import _root, installed_revision
+
+    revision = installed_revision()
+    is_clone = os.path.isdir(os.path.join(_root(), ".git"))
+    return {"revision": revision or "",
+            "short": (revision or "")[:12],
+            "source": "git" if is_clone else ("stamp" if revision else "none")}
+
+
+def _update_pending():
+    """What the last check found, without asking again.
+
+    Reading rather than asking, because this renders on every settings page
+    load and a network call there would put GitHub between an admin and their
+    own clinic's name.
+    """
+    try:
+        from app.utils.updates import remembered
+
+        return remembered()
+    except Exception:  # noqa: BLE001 — a notice never blocks a screen
+        return None
+
+
 def _secret_tail(value, keep=4, floor=12):
     """The last few characters of a saved secret, or ``""``.
 
@@ -166,6 +194,54 @@ def _ai_form_config():
     if typed:
         cfg["api_key"] = typed
     return cfg
+
+
+@settings_bp.route("/update/check", methods=["POST"])
+@admin_required
+def update_check_now():
+    """Ask GitHub whether there is a newer version, now, because somebody asked.
+
+    Reported: *"مبقتش بشوف الإشعار"* — and the reason is that the check ran in
+    exactly one place, the launch hook in `app/cli.py`. Once, at start-up, and
+    never again. A clinic that leaves the program open all week is told about
+    a release the following Monday, and one that was offline at nine o'clock is
+    not told at all until the next restart.
+
+    Nothing about *what* is checked changes: the same anonymous GET to GitHub's
+    public API, carrying no clinic data of any kind, and the same rule that the
+    program only ever **says** — updating stays a decision somebody makes in
+    `update.bat`, with a backup in front of it. This only removes "wait until
+    you next restart" from the list of things standing between a person and the
+    answer.
+    """
+    from app.utils.updates import (forget, installed_revision,
+                                   latest_revision, pending, remember)
+
+    installed = installed_revision()
+    if not installed:
+        # A copy that cannot say what it is. Saying "up to date" here would be
+        # a guess, and a wrong one is how a notice becomes noise.
+        return jsonify({"ok": False, "reason": "unknown_version"})
+
+    found = pending()
+    remember(found)
+    if found:
+        return jsonify({"ok": True, "behind": True, "installed": installed,
+                        "latest": found["latest"], "notes": found["notes"]})
+
+    # `pending()` answers None for "up to date" and for "could not reach
+    # GitHub" alike — which are different things to tell somebody who just
+    # pressed a button and is waiting for an answer.
+    if latest_revision() is None:
+        # Offline. Whatever notice is stored stays stored — a clinic that has
+        # not acted on one yet must not lose it to a blip in the connection.
+        return jsonify({"ok": False, "reason": "unreachable",
+                        "installed": installed})
+    # Confirmed up to date, which is the one case that may clear the bell.
+    # Somebody who has just updated presses this to check, and a notice left
+    # sitting there afterwards is the program contradicting itself.
+    forget()
+    return jsonify({"ok": True, "behind": False, "installed": installed})
 
 
 @settings_bp.route("/ai/models", methods=["POST"])
@@ -365,7 +441,7 @@ def _provider_switch_fixups():
 # looked up in this list rather than trusted: it lands in a redirect URL, and a
 # name arriving from a form is not somewhere to put unchecked text.
 SETTINGS_TABS = ["clinic", "logo", "numbering", "board", "phrases", "policies",
-                 "eta", "ai"]
+                 "eta", "ai", "update"]
 
 
 def _saved_tab():
@@ -447,6 +523,10 @@ def index():
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
         saved_secrets=saved_secrets,
+        # What this copy is, and how it knows. A clone can answer for itself;
+        # a downloaded copy reads the stamp `update.bat` wrote.
+        installed_revision=_installed_now(),
+        update_pending=_update_pending(),
         # Handed over rather than written into the template, so adding a
         # reference is one edit and not two — a picker that has drifted from
         # the list the engine reads offers a clinic a policy it will not get.
