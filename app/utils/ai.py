@@ -85,15 +85,19 @@ AI_PROVIDERS = {
         # Groq speaks the OpenAI shape at an /openai/v1 path, so it needs no
         # code of its own — this entry is the whole integration.
         "base_url": "https://api.groq.com/openai/v1/chat/completions",
-        "default_model": "llama-3.3-70b-versatile",
-        # Suggestions, not a catalogue. Groq retires model ids faster than any
-        # list written here survives — `llama-3.1-70b-versatile` was the
-        # obvious name and is already gone — so the settings screen's
-        # "refresh" button asks the key what it may actually use, and that
-        # answer beats this one.
-        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant",
-                   "openai/gpt-oss-120b", "openai/gpt-oss-20b",
-                   "qwen/qwen3-32b"],
+        "default_model": "openai/gpt-oss-20b",
+        # Suggestions, not a catalogue, and this entry is the proof.
+        #
+        # `llama-3.1-70b-versatile` was the obvious name and went. The comment
+        # written when it went said `llama-3.3-70b-versatile` would survive;
+        # it did not, and a clinic met it as `HTTP 404 — the model does not
+        # exist or you do not have access to it` on a setup that had been
+        # working. So this list is only ever what fills the box before anybody
+        # has a key: the settings screen's "fetch the available models" button
+        # asks the key what it may actually use, and that answer beats this
+        # one every time.
+        "models": ["openai/gpt-oss-20b", "openai/gpt-oss-120b",
+                   "llama-3.1-8b-instant", "qwen/qwen3-32b"],
         "keys_url": "https://console.groq.com/keys",
         # Free in the sense this flag means: the key costs nothing and asks
         # for no card. There is a rate limit, it is Groq's, and it changes —

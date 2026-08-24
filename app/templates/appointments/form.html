@@ -19,7 +19,12 @@
   <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if form.from_waitlist %}<input type="hidden" name="from_waitlist" value="{{ form.from_waitlist }}">{% endif %}
-    <div class="form-grid">
+    {# `gap: 0 18px` on `.form-grid` means no row gap at all, so rows of very
+       different heights — the patient picker with its results list open, and
+       a plain date box — ran into each other. Row spacing is set here rather
+       than in the shared class because every other form in the program is
+       laid out on it and this is the one with a search box in a cell. #}
+    <div class="form-grid" style="row-gap:14px;align-items:start;">
       <div class="form-row" style="position:relative;"
            x-data="patientPicker('{{ url_for('appointments.patient_search') }}', '{{ url_for('appointments.patient_quick') }}', {{ (selected_patient | tojson | forceescape) if selected_patient else 'null' }})">
         <label>{{ t('appointments.patient') }} *</label>
@@ -115,8 +120,19 @@
       </div>
       <div class="form-row">
         <label for="appt_date">{{ t('appointments.date') }} *</label>
+        {# `min` so the picker greys out the days the server will refuse.
+           The server refuses them too — `min` is a hint a browser honours and
+           nothing more — but a date that cannot be clicked is better than an
+           error after the fact. #}
         <input class="input" type="date" id="appt_date" name="appt_date" required
-               value="{{ form.appt_date or '' }}" x-model="date" x-on:change="loadSlots()">
+               min="{{ today }}" value="{{ form.appt_date or '' }}"
+               x-model="date" x-on:change="loadSlots()">
+        {# Which day that is, in words. A desk reads "2026-09-03" and cannot
+           tell it is a Thursday, and Thursday is the thing they are actually
+           deciding about. Worked out in the browser from the box's own value,
+           so it follows every change without a round trip. #}
+        <div class="hint" x-show="date" x-cloak x-text="dayLabel()"
+             style="margin-top:4px;"></div>
       </div>
       <div class="form-row">
         <label for="appt_type">{{ t('appointments.visit_type') }}</label>
@@ -127,8 +143,13 @@
         </select>
         <div id="consultBanner" class="info-note" style="display:none;margin-top:8px;font-size:0.88rem;"></div>
       </div>
+      {# Full width, and that is not decoration. `.form-grid` is a rigid two
+         column grid, so a cell that appears and disappears pushes whatever
+         follows it across to the other column: picking "vaccination" moved
+         `reason` from the left to the right in front of the person filling
+         the form in. A row that spans both columns has nothing to swap with. #}
       <!-- Vaccination booking: which vaccine + dose (shown for type = vaccination) -->
-      <div class="form-row" id="vaccineRow" style="display:none;">
+      <div class="form-row" id="vaccineRow" style="display:none;grid-column:1/-1;">
         <label>{{ t('appointments.vaccine') }}</label>
         <select class="select" name="vaccine_brand_id">
           <option value="">{{ t('appointments.choose_vaccine') }}</option>
@@ -147,7 +168,7 @@
         </div>
         <p class="hint" style="margin-top:4px;">{{ t('appointments.vaccine_hint') }}</p>
       </div>
-      <div class="form-row">
+      <div class="form-row" style="grid-column:1/-1;">
         <label for="reason">{{ t('appointments.reason') }}</label>
         <input class="input" id="reason" name="reason" value="{{ form.reason or '' }}">
       </div>
@@ -242,6 +263,10 @@
 
 {% block scripts %}
 <script>
+  const DAY_LOCALE = '{{ "ar-EG" if current_lang == "ar" else "en-GB" }}';
+  const DAY_WORDS = {today: '{{ t('appointments.day_today') }}',
+                     tomorrow: '{{ t('appointments.day_tomorrow') }}'};
+
   function slotPicker(url, preselected, nextUrl, firstUrl) {
     return {
       url, nextUrl, firstUrl,
@@ -249,6 +274,23 @@
       doctors: {{ doctor_options | tojson }},
       docQ: '', docOpen: false,
       slots: [], selected: preselected, loading: false, finderMsg: '',
+      // Which day the chosen date is, in words, and whether it is today or
+      // tomorrow. Built from the box's own value so it follows every change
+      // without a round trip. The date is parsed as *local* — `new Date("…")`
+      // on a bare YYYY-MM-DD reads it as UTC, which lands on the previous day
+      // for anyone west of Greenwich and would name the wrong weekday.
+      dayLabel() {
+        if (!this.date) return '';
+        const p = this.date.split('-').map(Number);
+        const d = new Date(p[0], p[1] - 1, p[2]);
+        if (isNaN(d)) return '';
+        const t = new Date(); t.setHours(0, 0, 0, 0);
+        const days = Math.round((d - t) / 86400000);
+        const name = d.toLocaleDateString(DAY_LOCALE, {weekday: 'long'});
+        if (days === 0) return name + ' — ' + DAY_WORDS.today;
+        if (days === 1) return name + ' — ' + DAY_WORDS.tomorrow;
+        return name;
+      },
       // {doctor_id: [service_id]}, for doctors somebody has marked. A doctor
       // who is absent has said nothing, so nothing about the list changes.
       marks: {{ doctor_marks | tojson }},

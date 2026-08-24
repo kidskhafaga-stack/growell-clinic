@@ -546,7 +546,10 @@
     "collect_now_hint": "Collect now, or later? You can collect any time from the same row.",
     "collect_now": "Collect now",
     "collect_later": "Later",
-    "pay_free": "No charge"
+    "pay_free": "No charge",
+    "date_in_past": "That date has passed. A booking is for today or later.",
+    "day_today": "today",
+    "day_tomorrow": "tomorrow"
   },
   "appt_types": {
     "new": "New visit",
