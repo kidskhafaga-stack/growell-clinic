@@ -58,6 +58,21 @@ class Patient(db.Model):
     # so we can reach the teen directly rather than only through a guardian.
     own_phone = db.Column(db.String(20))
     blood_type = db.Column(db.String(5))
+
+    # ---- What the child arrived with -----------------------------------
+    #
+    # Both are usually the parent's memory rather than a discharge summary —
+    # *"غالباً سن الحمل عند الولادة والوزن عند الولادة تقريباً بيعوزوها"* — so
+    # neither is required and neither is ever inferred. A blank one means
+    # nobody said, which is a different thing from a normal one.
+    #
+    # Gestation is kept as weeks *and* days because that is how it is said and
+    # written: "36+4", not "36.57". Storing the fraction would make the screen
+    # show a number no discharge summary ever printed, and correcting a
+    # premature child's age is arithmetic on days.
+    birth_weight_kg = db.Column(db.Float)
+    gestation_weeks = db.Column(db.Integer)
+    gestation_days = db.Column(db.Integer)
     photo = db.Column(db.String(255))
 
     # Medical alerts surfaced prominently on the profile.
@@ -125,6 +140,33 @@ class Patient(db.Model):
             years -= 1
             months += 12
         return (max(years, 0), max(months, 0))
+
+    @property
+    def gestation(self):
+        """``"36+4"`` — the way it is written, or ``None`` if nobody said."""
+        if self.gestation_weeks is None:
+            return None
+        return f"{self.gestation_weeks}+{self.gestation_days or 0}"
+
+    @property
+    def gestation_total_days(self):
+        """Gestation in days, or ``None``. 37+0 is 259."""
+        if self.gestation_weeks is None:
+            return None
+        return self.gestation_weeks * 7 + (self.gestation_days or 0)
+
+    @property
+    def is_preterm(self):
+        """Born before 37 completed weeks — or ``None`` when nobody said.
+
+        Three-valued deliberately. "We do not know" and "no, they were term"
+        lead to different conversations, and a screen that showed the second
+        when it meant the first would be the program answering a question it
+        was never told the answer to.
+        """
+        if self.gestation_weeks is None:
+            return None
+        return self.gestation_total_days < 37 * 7
 
     @property
     def age_days(self):

@@ -264,6 +264,14 @@
         <div class="info-item"><div class="k">{{ t('patients.gender') }}</div><div class="v">{{ t('genders.' ~ patient.gender) }}</div></div>
         <div class="info-item"><div class="k">{{ t('patients.national_id') }}</div><div class="v">{{ patient.national_id or '—' }}</div></div>
         <div class="info-item"><div class="k">{{ t('patients.blood_type') }}</div><div class="v">{{ patient.blood_type or '—' }}</div></div>
+        {# Shown even when empty: a blank birth weight is somebody still to ask,
+           and hiding the row makes it a question nobody remembers to ask. #}
+        <div class="info-item"><div class="k">{{ t('patients.birth_weight') }}</div>
+          <div class="v" dir="ltr">{{ patient.birth_weight_kg ~ ' kg' if patient.birth_weight_kg else '—' }}</div></div>
+        <div class="info-item"><div class="k">{{ t('patients.gestation') }}</div>
+          <div class="v" dir="ltr">{{ patient.gestation or '—' }}
+            {% if patient.is_preterm %}<span class="badge badge--muted">{{ t('patients.preterm') }}</span>{% endif %}
+          </div></div>
         <div class="info-item"><div class="k">{{ t('patients.registered_on') }}</div><div class="v">{{ patient.created_at.strftime('%Y-%m-%d') }}</div></div>
       </div>
 

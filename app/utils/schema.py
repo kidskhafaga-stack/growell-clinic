@@ -172,6 +172,11 @@ ADDITIONS = [
     ("device_study_values", "value_num", "FLOAT"),
     ("device_study_values", "normal_low", "FLOAT"),
     ("device_study_values", "normal_high", "FLOAT"),
+    # What the child arrived with — and the gestation is what makes a
+    # corrected age possible for a premature child on a growth chart.
+    ("patients", "birth_weight_kg", "FLOAT"),
+    ("patients", "gestation_weeks", "INTEGER"),
+    ("patients", "gestation_days", "INTEGER"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

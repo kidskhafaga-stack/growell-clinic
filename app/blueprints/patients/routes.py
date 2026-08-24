@@ -434,6 +434,9 @@ def create():
             national_id=form["national_id"],
             own_phone=form["own_phone"] or None,
             blood_type=form["blood_type"],
+            birth_weight_kg=form["birth_weight_kg"],
+            gestation_weeks=form["gestation_weeks"],
+            gestation_days=form["gestation_days"],
             allergies=form["allergies"],
             chronic_diseases=form["chronic_diseases"],
             notes=form["notes"],
@@ -597,7 +600,7 @@ def _growth_concern(patient):
     (|z|>2), return a compact dict so the profile can flag it prominently."""
     from app.models import GrowthRecord
     from app.utils.growth import (
-        INDICATORS, age_in_months, compute_point, reference_for, status_for_z,
+        INDICATORS, age_for, compute_point, reference_for, status_for_z,
     )
 
     rec = (GrowthRecord.query.filter_by(patient_id=patient.id)
@@ -605,19 +608,24 @@ def _growth_concern(patient):
     if rec is None:
         return None
     ref = reference_for(patient)
+    # A premature child scored at their birthday age reads as small when they
+    # are on course, and "small" on a growth chart is what starts a workup.
+    age = age_for(patient, rec.record_date)
     worst = None
     for ind, meta in INDICATORS.items():
         value = getattr(rec, meta["field"], None)
         if not value:
             continue
         pt = compute_point(ref, ind, patient.gender,
-                           patient.date_of_birth, rec.record_date, value)
+                           patient.date_of_birth, rec.record_date, value,
+                           age_months=age["months"])
         if not pt or pt.get("z") is None:
             continue
         status = status_for_z(pt["z"])
         if status in ("caution", "alert"):
             cand = {"indicator": ind, "z": pt["z"], "percentile": pt["percentile"],
-                    "status": status, "date": rec.record_date.isoformat()}
+                    "status": status, "date": rec.record_date.isoformat(),
+                    "corrected": age["corrected"]}
             if worst is None or abs(pt["z"]) > abs(worst["z"]):
                 worst = cand
     return worst
@@ -652,6 +660,9 @@ def edit(patient_id):
         patient.national_id = form["national_id"]
         patient.own_phone = form["own_phone"] or None
         patient.blood_type = form["blood_type"]
+        patient.birth_weight_kg = form["birth_weight_kg"]
+        patient.gestation_weeks = form["gestation_weeks"]
+        patient.gestation_days = form["gestation_days"]
         patient.allergies = form["allergies"]
         patient.chronic_diseases = form["chronic_diseases"]
         patient.notes = form["notes"]
@@ -682,6 +693,9 @@ def edit(patient_id):
         "national_id": patient.national_id or "",
         "own_phone": patient.own_phone or "",
         "blood_type": patient.blood_type or "",
+        "birth_weight_kg": patient.birth_weight_kg if patient.birth_weight_kg is not None else "",
+        "gestation_weeks": patient.gestation_weeks if patient.gestation_weeks is not None else "",
+        "gestation_days": patient.gestation_days if patient.gestation_days is not None else "",
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
         "notes": patient.notes or "",
@@ -1028,6 +1042,11 @@ def _read_patient_form():
         "national_id": (request.form.get("national_id") or "").strip(),
         "own_phone": (request.form.get("own_phone") or "").strip(),
         "blood_type": (request.form.get("blood_type") or "").strip(),
+        # What the child arrived with. Blank stays blank — an unrecorded birth
+        # weight is not a zero, and an unrecorded gestation is not "term".
+        "birth_weight_kg": (request.form.get("birth_weight_kg") or "").strip(),
+        "gestation_weeks": (request.form.get("gestation_weeks") or "").strip(),
+        "gestation_days": (request.form.get("gestation_days") or "").strip(),
         "allergies": (request.form.get("allergies") or "").strip(),
         "chronic_diseases": (request.form.get("chronic_diseases") or "").strip(),
         "notes": (request.form.get("notes") or "").strip(),
@@ -1055,6 +1074,13 @@ def _validate_patient(form, existing):
     except ValueError:
         return t("patients.invalid_date")
 
+    # Birth weight and gestation. Both optional; both refused rather than
+    # silently coerced, because a birth weight of 32 is a gestation typed into
+    # the wrong box and a chart would plot it without complaint.
+    error = _read_birth_facts(form)
+    if error:
+        return error
+
     # File number: auto-generate or validate uniqueness of the manual one.
     if form["auto_number"] or not form["patient_number"]:
         if existing is not None:
@@ -1069,6 +1095,56 @@ def _validate_patient(form, existing):
             return t("patients.number_taken")
 
     return None
+
+
+def _read_birth_facts(form, ranges=((0.3, 7.0), (22, 45))):
+    """Parse birth weight and gestation into the form, or return an error.
+
+    The bounds are deliberately wide and deliberately present. Wide, because a
+    400-gram survivor and a 6-kilo baby are both real and a program that
+    refused them would be wrong about a child who exists. Present, because the
+    two boxes sit next to each other: "36" typed into the weight box is a
+    gestation, and a growth chart would plot it as a six-year-old's weight at
+    birth without a murmur.
+    """
+    (w_lo, w_hi), (g_lo, g_hi) = ranges
+
+    form["birth_weight_kg"] = None if not form.get("birth_weight_kg") else \
+        _float_or(form["birth_weight_kg"])
+    if form["birth_weight_kg"] is not None and \
+            not (w_lo <= form["birth_weight_kg"] <= w_hi):
+        return t("patients.birth_weight_range")
+
+    form["gestation_weeks"] = None if not form.get("gestation_weeks") else \
+        _int_or(form["gestation_weeks"])
+    form["gestation_days"] = None if not form.get("gestation_days") else \
+        _int_or(form["gestation_days"])
+
+    if form["gestation_weeks"] is not None and \
+            not (g_lo <= form["gestation_weeks"] <= g_hi):
+        return t("patients.gestation_range")
+    if form["gestation_days"] is not None and not (0 <= form["gestation_days"] <= 6):
+        return t("patients.gestation_days_range")
+    # Days without weeks is half a gestation and means nothing on its own.
+    if form["gestation_weeks"] is None:
+        form["gestation_days"] = None
+    elif form["gestation_days"] is None:
+        form["gestation_days"] = 0
+    return None
+
+
+def _float_or(raw, default=None):
+    try:
+        return float(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _int_or(raw, default=None):
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
 
 
 def _resolve_family(form):
