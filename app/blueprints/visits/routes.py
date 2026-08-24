@@ -312,13 +312,16 @@ def record(visit_id):
         "visits/record.html", visit=visit, recent_visits=recent_visits,
         panel_key=panel_key, panel=panel_meta,
         panel_choices=_panels.choices(getattr(g, "lang", "ar")),
-        panel_readings=_panels.readings(visit, panel_key),
-        panel_vitals=_panels.vitals_shown(panel_meta, visit.vitals),
+        panel_readings=_panels.all_readings(visit),
+        # Every panel, so picking one from the menu shows its fields at once
+        # instead of asking for a save first. See panels.every_panel_for.
+        panel_all=_panels.every_panel_for(visit, visit.vitals,
+                                          getattr(g, "lang", "ar")),
         # The last echo/device reading for the fields the catalogue links to
         # one. Shown beside the box and never filled into it: the vitals were
         # taken minutes ago, an echo was taken whenever it was taken.
-        panel_last_study=_series.last_study_readings(
-            visit.patient_id, panel_meta, getattr(g, "lang", "ar")),
+        panel_last_study=_series.last_study_readings_everywhere(
+            visit.patient_id, getattr(g, "lang", "ar")),
         red_flag=red_flag,
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,

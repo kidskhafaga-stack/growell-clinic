@@ -704,24 +704,20 @@ def _seed_client_categories_safe():
         pass
 
 
-# Default medical-device catalogue (from the project's device discussion).
-# name, name_en, manufacturer, model, device_type
-_DEFAULT_DEVICES = [
-    ("جهاز وظائف تنفس", "Spirometer", "MIR", "Spirobank II", "spirometry", "WinSpiroPRO"),
-    ("جهاز رسم قلب", "ECG", None, None, "ecg", None),
-    ("جهاز إيكو", "Echocardiography", None, None, "echo", None),
-    ("جهاز رسم مخ", "EEG", None, None, "eeg", None),
-    ("جهاز موجات صوتية", "Ultrasound", None, None, "ultrasound", None),
-    ("جهاز سمعيات", "Audiometer", None, None, "audiometry", None),
-    ("جهاز ضغط الأذن", "Tympanometer", None, None, "tympanometry", None),
-]
+# The default medical-device catalogue lives in app/utils/reference.py, which
+# is the other place that seeds it. It was written out here as well, and two
+# copies of a list are two lists the moment somebody edits the file they happen
+# to have open — the seeder a fresh install runs and the seeder an upgrade runs
+# would then hand out different catalogues.
 
 
 def _seed_devices_safe():
     """Seed the default medical-device catalogue (idempotent, best-effort)."""
     try:
         from app.models import MedicalDevice
-        for name, name_en, manuf, model, dtype, sw in _DEFAULT_DEVICES:
+        from app.utils.reference import DEFAULT_DEVICES
+
+        for name, name_en, manuf, model, dtype, sw in DEFAULT_DEVICES:
             if MedicalDevice.query.filter_by(name=name).first() is None:
                 db.session.add(MedicalDevice(
                     name=name, name_en=name_en, manufacturer=manuf, model=model,

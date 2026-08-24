@@ -3376,8 +3376,9 @@
     "ultrasound": "Ultrasound",
     "audiometry": "Audiometry",
     "tympanometry": "Tympanometry",
-    "holter": "Holter",
-    "other": "Other"
+    "holter": "Holter (prolonged ECG)",
+    "other": "Other",
+    "stress_ecg": "Exercise ECG"
   },
   "connection_types": {
     "usb": "USB",
@@ -5151,7 +5152,8 @@
     "add": "Add a specialty panel",
     "pick_then_save": "Choose one and save the visit to see its fields.",
     "from_study": "Last device reading:",
-    "use_study": "Use it"
+    "use_study": "Use it",
+    "optional": "optional"
   },
   "curves": {
     "src_lab": "Lab",

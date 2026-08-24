@@ -55,6 +55,29 @@ DEFAULT_MEASUREMENTS = {
         ("المحور", "Axis", "°", None, None),
         ("ملاحظات", "Notes", None, None, None),
     ],
+    "stress_ecg": [
+        # The exercise test. Its numbers are almost all age- or
+        # protocol-dependent, which is why so few carry a range — the same rule
+        # the rest of this file follows.
+        ("البروتوكول", "Protocol", None, None, None),          # Bruce / modified
+        ("مدة المجهود", "Exercise duration", "min", None, None),
+        ("أقصى معدل ضربات", "Peak heart rate", "bpm", None, None),
+        # Deliberately no range, and this one is worth explaining because it
+        # looks like it should have one. 85% of predicted maximum is the usual
+        # threshold for calling a test *adequate*, and it is age-independent by
+        # construction. But falling below it means "the child did not push hard
+        # enough", not "the child is abnormal" — and this column prints as
+        # "out of range" on a report that goes home with a parent. A number
+        # that reads as a diagnosis when it means an incomplete test is worse
+        # than a blank.
+        ("النسبة من الأقصى المتوقع", "% of predicted max HR", "%", None, None),
+        ("أقصى ضغط انقباضي", "Peak systolic BP", "mmHg", None, None),
+        ("سبب الإيقاف", "Reason for stopping", None, None, None),
+        ("تغيّرات ST", "ST changes", None, None, None),
+        ("اضطراب النظم مع المجهود", "Arrhythmia on exercise", None, None, None),
+        ("زمن الاستشفاء", "Recovery", None, None, None),
+        ("الانطباع", "Impression", None, None, None),
+    ],
     "echo": [
         # Ejection fraction is a ratio, so it does not move with body size.
         ("الكسر القذفي (EF)", "Ejection fraction (EF)", "%", 55, 70),

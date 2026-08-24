@@ -10,8 +10,14 @@ from datetime import date, datetime
 from app.extensions import db
 
 DEVICE_TYPES = [
-    "spirometry", "ecg", "echo", "eeg", "ultrasound", "audiometry",
-    "tympanometry", "holter", "other",
+    # `holter` is the prolonged ECG and `stress_ecg` the exercise one. Asked
+    # while checking what cardiology still lacked — *"فى القلب فى رسم قلب
+    # بالمجهود ورسم القلب المطول، احنا معانا الحاجات دي؟"* — and the answer was
+    # half: the Holter was here with its full template, the exercise test was
+    # not here at all. They are different studies asking different questions,
+    # so they are different types rather than one with a note on it.
+    "spirometry", "ecg", "stress_ecg", "echo", "eeg", "ultrasound",
+    "audiometry", "tympanometry", "holter", "other",
 ]
 CONNECTION_TYPES = ["usb", "serial", "lan", "wifi", "bluetooth", "manual"]
 # How results come in — manual entry is the default; the rest are for later

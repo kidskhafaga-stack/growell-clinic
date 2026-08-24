@@ -202,6 +202,21 @@ def curves_for(patient_id, lang="ar"):
     return out
 
 
+def last_study_readings_everywhere(patient_id, lang="ar"):
+    """``{field code: reading}`` across *every* panel in the catalogue.
+
+    The visit screen offers all the panels at once now, so the "last echo"
+    hint has to exist for whichever one the doctor picks — and asking per
+    panel would be one query per specialty on a screen opened forty times a
+    day. Field codes are unique across the catalogue, so one dictionary holds
+    them all without a key per panel.
+    """
+    merged = {}
+    for meta in panels.all_panels().values():
+        merged.update(last_study_readings(patient_id, meta, lang))
+    return merged
+
+
 def last_study_readings(patient_id, meta, lang="ar"):
     """The most recent device reading for each panel field that has one.
 

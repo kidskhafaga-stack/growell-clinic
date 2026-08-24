@@ -3376,8 +3376,9 @@
     "ultrasound": "موجات صوتية",
     "audiometry": "سمعيات",
     "tympanometry": "ضغط الأذن",
-    "holter": "هولتر",
-    "other": "أخرى"
+    "holter": "رسم قلب مطوّل (هولتر)",
+    "other": "أخرى",
+    "stress_ecg": "رسم قلب بالمجهود"
   },
   "connection_types": {
     "usb": "USB",
@@ -5151,7 +5152,8 @@
     "add": "أضف لوح تخصص",
     "pick_then_save": "اختار واحفظ الزيارة علشان الخانات تظهر.",
     "from_study": "آخر قراءة من الجهاز:",
-    "use_study": "استخدمها"
+    "use_study": "استخدمها",
+    "optional": "اختياري"
   },
   "curves": {
     "src_lab": "تحليل",
