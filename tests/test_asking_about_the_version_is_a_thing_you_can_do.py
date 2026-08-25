@@ -215,3 +215,44 @@ def test_forgetting_is_a_verb_of_its_own(admin, monkeypatch):
     assert "forget" not in remember_src
     assert callable(getattr(updates, "forget", None)), \
         "clearing a notice has no verb of its own"
+
+
+# ------------------------------- the panel is inside the scope that shows it
+
+def _settings_page(admin):
+    return admin["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+
+
+def test_every_tab_panel_sits_inside_the_form_that_owns_the_tab(admin):
+    """The bug this file shipped with, and the reason a string check was not
+    enough to find it.
+
+    The whole screen is one `<form>` carrying `x-data="{ tab: 'clinic', … }"`,
+    and each panel shows itself with `x-show="tab==='…'"`. This panel was
+    appended *after* `</form>`, where `tab` is not in scope — so Alpine threw
+    "tab is not defined" on every page load and the card stayed `display:none`
+    for good. Pressing the tab highlighted it and showed an empty screen.
+
+    Nothing in the markup looks wrong; every string the old tests asked for was
+    present. Only where the element sits relative to the form decides it."""
+    page = _settings_page(admin)
+
+    # Anchored on the card's own id, not on `tab==='update'`: that string also
+    # appears in the tab *button* much earlier in the page, so the first
+    # version of this compared the wrong occurrence and passed against a
+    # deliberately reintroduced bug.
+    assert page.count('id="update"') == 1, "the anchor is not unique"
+
+    assert page.index('id="update"') < page.index("</form>"), \
+        "the update panel is outside the form, so `tab` is not in scope"
+
+
+def test_the_launch_toggle_is_one_control_and_not_two(admin):
+    """It lived on the policies tab as well. Two checkboxes posting the same
+    name into one form means `request.form.get` reads whichever comes first —
+    so a clinic unticking the one beside the version would watch the setting
+    not change, with nothing on screen to explain it."""
+    page = _settings_page(admin)
+
+    assert page.count('name="update_check"') == 1, \
+        "there is more than one control for the launch check"
