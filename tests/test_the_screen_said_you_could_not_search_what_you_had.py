@@ -138,14 +138,18 @@ def test_it_does_not_read_a_global_that_is_not_there(clinic):
     always taken the other branch — the kind of fault that shows as "the
     Arabic name never fills in" and nothing in a log."""
     import pathlib
+    import re
 
     root = pathlib.Path(__file__).resolve().parent.parent
     markup = (root / "app/templates/patients/profile.html").read_text(encoding="utf-8")
 
-    code = "\n".join(line for line in markup.splitlines()
-                     if "window.current_lang" in line and "#}" not in line
-                     and not line.strip().startswith("`"))
-    assert not code.strip(), f"the profile reads a global it does not set: {code}"
+    # The notes explain why the global is not read, so they name it. Strip the
+    # comment blocks and look at what is left — a line-by-line heuristic
+    # flagged the explanation as the offence.
+    code = re.sub(r"\{#.*?#\}", "", markup, flags=re.S)
+
+    assert "window.current_lang" not in code, \
+        "the profile reads a global it does not set"
 
 
 # ------------------------------------- one question, one answer

@@ -349,7 +349,18 @@
          here and the identical one picked in a visit ended up spelled two
          ways with the code on only one of them — and the problem list is the
          thing a locum reads first. Same component, same endpoint, so there is
-         one ICD search in the program rather than one per screen. #}
+         one ICD search in the program rather than one per screen.
+
+         `pick` fills both titles and the code together: filling one and
+         leaving the others is how a list ends up with an Arabic name and an
+         English one that are not the same diagnosis. The language comes from
+         the server rather than from `window.current_lang`, which is set
+         inside the visit screen's own script block and is undefined here.
+
+         These notes sit outside the attribute deliberately. A Jinja comment
+         inside one is invisible to the browser and not to the guard that
+         reads these attributes as source — and an apostrophe in it reads
+         there as the start of a string. #}
       <form method="post" action="{{ url_for('patients.add_problem', patient_id=patient.id) }}"
             style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;"
             x-data="{
@@ -357,13 +368,6 @@
               q: '',
               pick(r) {
                 this.icd.close();
-                {# Both titles and the code together. Filling one and leaving
-                   the others is how a list ends up with an Arabic name and an
-                   English one that are not the same diagnosis. #}
-                {# The language comes from the server, not from a global:
-                   `window.current_lang` is set inside the visit screen's own
-                   script block and is undefined everywhere else, so reading
-                   it here would silently always take the other branch. #}
                 const en = {{ 'true' if current_lang == 'en' else 'false' }};
                 this.$refs.title.value = (en && r.en) ? r.en : (r.ar || r.en || '');
                 this.$refs.titleEn.value = r.en || '';
