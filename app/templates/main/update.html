@@ -1,7 +1,12 @@
 {% extends "shell.html" %}
 {% set active_module = 'settings' %}
-{% block title %}{{ t('update.title') }}{% endblock %}
-{% block page_heading %}{{ t('update.title') }}{% endblock %}
+{# The heading has to know whether there is one. It said "a newer version"
+   unconditionally, so a clinic that was already current opened a page
+   announcing a newer version and then telling them there wasn't — the screen
+   contradicting itself in two lines. Reported from a real machine. #}
+{% set page_name = t('update.title') if update else t('update.title_none') %}
+{% block title %}{{ page_name }}{% endblock %}
+{% block page_heading %}{{ page_name }}{% endblock %}
 
 {# **The screen that acts.** Not the screen that informs — that is the settings
    tab, which holds the installed version, the check button, what is in the
@@ -15,7 +20,7 @@
    below starts a separate updater and closes the clinic first. #}
 
 {% block content %}
-<h1 class="page-title gc-animate">{{ t('update.title') }}</h1>
+<h1 class="page-title gc-animate">{{ page_name }}</h1>
 
 {% if update %}
 <p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('update.sub') }}</p>
@@ -71,9 +76,16 @@
   {% endif %}
 </div>
 {% else %}
+{# Nothing to do here, so this screen has nothing to be. It points at the
+   one that does — arriving somewhere that only says "no" and offers no way
+   on is how a clinic decides a screen is broken. #}
 <div class="card gc-scale-in">
-  <p style="margin:0;color:var(--muted);">
+  <p style="margin:0 0 10px;color:var(--muted);">
     <i class="bi bi-check-circle"></i> {{ t('update.none') }}</p>
+  <p class="hint" style="margin:0 0 12px;">{{ t('update.none_go_back') }}</p>
+  <a class="btn btn-outline btn-sm gc-press"
+     href="{{ url_for('settings.index', _anchor='update') }}">
+    <i class="bi bi-gear"></i> {{ t('settings.title') }} ← {{ t('update.tab') }}</a>
 </div>
 {% endif %}
 {% endblock %}

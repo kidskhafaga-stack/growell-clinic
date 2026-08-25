@@ -3067,6 +3067,8 @@
     "started_step_open": "When it finishes it opens the program again by itself.",
     "started_note": "If this window stays open, just close it — the program itself has already shut down. Watch the black updater window.",
     "title": "A newer version",
+    "title_none": "Nothing to install",
+    "none_go_back": "The version, and the button to check again, are on the settings screen.",
     "sub": "This copy is not the latest one. The upgrade is done with the program closed.",
     "whats_new": "What's new",
     "no_notes": "No details about the changes are available.",

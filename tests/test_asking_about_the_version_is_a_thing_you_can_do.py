@@ -337,3 +337,43 @@ def test_the_install_route_is_still_its_own_screen(behind):
 
     assert "update/start" not in settings, \
         "the button that closes the program is on the settings form"
+
+
+# ------------------------------------- the page does not contradict itself
+
+def test_a_current_copy_is_not_greeted_with_there_is_a_newer_version(admin,
+                                                                     monkeypatch):
+    """Reported from a real machine, with a screenshot: the page's heading said
+    "A newer version" and the body underneath said "This copy is up to date".
+
+    The heading was outside the `{% if %}` that knows, so it announced one
+    whether or not there was one. Two lines of the same screen disagreeing is
+    how somebody stops trusting the screen."""
+    _patch(monkeypatch, installed=HERE, latest=HERE)
+    _check(admin)
+
+    page = _update_page(admin)
+    heading = page[:page.index("</h1>")] if "</h1>" in page else page
+
+    assert "up to date" in page or "محدّثة" in page, "the body lost its answer"
+    assert "newer version" not in heading and "نسخة أحدث" not in heading, \
+        "the page announces an update it then says does not exist"
+
+
+def test_a_dead_end_offers_a_way_on(admin, monkeypatch):
+    """Arriving somewhere that only says "no" and offers nothing is how a
+    clinic decides a screen is broken. The version and the check button are
+    one click away, so say so."""
+    _patch(monkeypatch, installed=HERE, latest=HERE)
+    _check(admin)
+
+    assert "/settings/#update" in _update_page(admin), \
+        "the page says there is nothing to do and offers nowhere to go"
+
+
+def test_the_heading_still_announces_a_real_one(behind):
+    """The other side: when there *is* an update, the page has to say so."""
+    page = _update_page(behind)
+    heading = page[:page.index("</h1>")]
+
+    assert "newer version" in heading or "نسخة أحدث" in heading
