@@ -302,6 +302,7 @@ def record(visit_id):
     # The specialty panel: this visit's own, else the doctor's default. One
     # screen with a panel on it rather than a screen per specialty — see
     # app/utils/panels.py for why.
+    from app.utils import cardio as _cardio
     from app.utils import panels as _panels
     from app.utils import series as _series
 
@@ -322,6 +323,14 @@ def record(visit_id):
         # taken minutes ago, an echo was taken whenever it was taken.
         panel_last_study=_series.last_study_readings_everywhere(
             visit.patient_id, getattr(g, "lang", "ar")),
+        # The two paediatric-cardiology subtractions: arm-to-leg gradient and
+        # the pre/post-ductal pair. Computed and shown, never stored — they
+        # are a function of readings that *are* stored, and a saved copy would
+        # be a second answer able to disagree with the numbers above it.
+        cardio=_cardio.read(
+            {code: row.value_num
+             for code, row in _panels.all_readings(visit).items()},
+            visit.patient, visit.visit_date),
         red_flag=red_flag,
         med_safety=med_safety, prescribed_names=prescribed_names,
         study_devices=study_devices, consent=consent,
