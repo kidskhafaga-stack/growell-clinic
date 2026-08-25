@@ -212,6 +212,13 @@ def _finance_summary(doctor_id, on_date):
     }
 
 
+# The live picture of the clinic — one card per عيادة, the red-flag map and
+# the day's room assignments. Moved out to `app/utils/clinic_now` when the
+# doctor's dashboard needed the same answer: it was private to this module,
+# so the only other way to have it there was a second copy of it.
+from app.utils.clinic_now import _clinics_now, _red_flags  # noqa: E402
+
+
 def _visit_breakdown(doctor_id, on_date):
     """Visit-type breakdown for the board (doctor + reception): how many of each
     visit type (كشف / متابعة / تطعيم …) and how many new vs returning patients —
@@ -334,96 +341,6 @@ def _payment_status(appointments, on_date):
             "invoice_id": ivs[0].id if len(ivs) == 1 else None,
         }
     return out
-
-
-def _red_flags(appointments):
-    """``{appointment_id: flag}`` for the children who have vitals recorded.
-
-    Only the ones still waiting or in the room: a completed visit's flag is
-    history, and history on a live board is noise that teaches people to stop
-    reading the colour.
-    """
-    from app.models import Visit
-    from app.utils.red_flags import assess
-
-    live = [a for a in appointments if a.status in ("waiting", "in_progress")]
-    if not live:
-        return {}
-    # Newest first, so a child with more than one open visit is judged on the
-    # one the nurse just filled rather than on whichever row the database
-    # happened to return — which is an older, empty visit as often as not, and
-    # produces a board that is silently blank about a feverish infant.
-    visits = {}
-    for visit in (Visit.query
-                  .filter(Visit.patient_id.in_([a.patient_id for a in live]),
-                          Visit.status == "open")
-                  .order_by(Visit.created_at.desc(), Visit.id.desc()).all()):
-        visits.setdefault(visit.patient_id, visit)
-
-    out = {}
-    for appt in live:
-        visit = visits.get(appt.patient_id)
-        flag = assess(appt.patient, getattr(visit, "vitals", None),
-                      " ".join(filter(None, [
-                          appt.reason, getattr(visit, "chief_complaint", "")])))
-        if flag["level"]:
-            out[appt.id] = flag
-    return out
-
-
-def _clinics_now(appointments, on_date, flags=None):
-    """One card per عيادة that is running today — the whole-clinic view.
-
-    Reception's question is never "who is the current patient"; there is no
-    such person once two doctors are working. Their question is "what is the
-    state of every عيادة right now", and the part of the answer nobody has
-    today is the second line: how many are waiting for each doctor and **how
-    long the worst of them has been sitting there**. That is the number that
-    turns a complaint at the desk into something the clinic saw coming.
-
-    Doctors with nothing booked today are left out — an empty card for a
-    doctor who is off is noise on a screen that has to be read at a glance.
-    """
-    rooms = _rooms_on(on_date)
-    by_doctor = {}
-    for appt in appointments:
-        by_doctor.setdefault(appt.doctor_id, []).append(appt)
-
-    out = []
-    for doctor_id, rows in by_doctor.items():
-        waiting = [a for a in rows if a.status in ("waiting", "scheduled")]
-        current = next((a for a in rows if a.status == "in_progress"), None)
-        # The earliest check-in still waiting *is* the longest wait — handing
-        # the screen that moment rather than a number of minutes lets the
-        # counter keep ticking instead of freezing at whatever it said when
-        # the page was drawn.
-        checked_in = [a.checked_in_at for a in waiting if a.checked_in_at]
-        out.append({
-            "doctor": rows[0].doctor,
-            "room": rooms.get(doctor_id),
-            "current": current,
-            "waiting": len(waiting),
-            "longest_since": min(checked_in) if checked_in else None,
-            # How many in this عيادة's queue should not be waiting. Reception
-            # watches the whole clinic and is the one who can go and knock.
-            "urgent": sum(1 for a in rows
-                          if (flags or {}).get(a.id, {}).get("level") == "urgent"),
-            "done": sum(1 for a in rows if a.status == "completed"),
-        })
-    # Busy عيادات first — the ones with somebody inside, then by queue length,
-    # so the screen puts what needs attention where the eye lands.
-    out.sort(key=lambda c: (c["current"] is None, -c["waiting"],
-                            c["doctor"].display_name() if c["doctor"] else ""))
-    return out
-
-
-def _rooms_on(on_date):
-    """``{doctor_id: ClinicRoom}`` for one day, from the daily assignments."""
-    from app.models import RoomAssignment
-
-    rows = (RoomAssignment.query.filter(RoomAssignment.on_date == on_date)
-            .join(RoomAssignment.room).all())
-    return {row.doctor_id: row.room for row in rows}
 
 
 def _current_summary(patient):

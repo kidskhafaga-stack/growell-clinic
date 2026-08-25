@@ -3,6 +3,8 @@
 {% block title %}{{ t('dashboard.title') }}{% endblock %}
 {% block page_heading %}{{ t('dashboard.title') }}{% endblock %}
 
+{% from "_clinics_strip.html" import clinics_strip with context %}
+
 {% block content %}
 {# Setup is unfinished and this person can fix it. Shown once, dismissible,
    and it disappears by itself the moment the last essential step is done. #}
@@ -129,6 +131,52 @@
     <p class="placeholder-soft" style="margin:6px 0;">{{ t('dashboard.queue_empty') }}</p>
     {% endfor %}
   </div>
+</div>
+{% endif %}
+
+{% if clinic %}
+{# ---------------- The clinic, for whoever runs it ------------------------
+   Separate from the panel above and deliberately so. That one answers "who
+   is my next patient"; this one answers "what is my clinic doing", and the
+   person who owns the place is usually asking both. They used to get only
+   the first: `_doctor_home` is pinned to their own id, so a doctor holding
+   full admin saw the same four numbers as the newest locum, with nothing on
+   the screen about the other three عيادات running down the corridor.
+
+   An admin who is not a practitioner had it worse — the panel above is
+   conditioned on being a doctor, so the manager of a four-doctor clinic
+   opened the program to a dashboard that said nothing about the clinic. #}
+<div class="card gc-scale-in" style="animation-delay:0.12s;margin-bottom:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <h2 style="margin:0;font-size:1.1rem;">
+      <i class="bi bi-hospital"></i> {{ t('dashboard.clinic_now') }}</h2>
+    <a class="btn btn-outline btn-sm gc-press"
+       href="{{ url_for('appointments.index', date=clinic.date.isoformat()) }}">
+      <i class="bi bi-calendar2-week"></i> {{ t('dashboard.open_whole_board') }}</a>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+    <span class="stat-chip"><strong>{{ clinic.counts.doctors }}</strong> {{ t('dashboard.doctors_in') }}</span>
+    <span class="stat-chip"><strong>{{ clinic.counts.waiting }}</strong> {{ t('appointments.stat_waiting') }}</span>
+    <span class="stat-chip"><strong>{{ clinic.counts.in_progress }}</strong> {{ t('appointments.stat_in_progress') }}</span>
+    <span class="stat-chip"><strong>{{ clinic.counts.completed }}</strong> {{ t('appointments.stat_done') }}</span>
+    <span class="stat-chip"><strong>{{ clinic.counts.total }}</strong> {{ t('appointments.stat_total') }}</span>
+    {# Not a count among counts. A child who should not be sitting in a
+       waiting room is the one thing on this card worth interrupting for. #}
+    {% if clinic.urgent %}
+    <span class="stat-chip" style="background:#fdecea;color:#b42318;border-color:#f5c2c7;">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+      <strong>{{ clinic.urgent }}</strong> {{ t('redflags.in_queue') }}</span>
+    {% endif %}
+  </div>
+
+  {% if clinic.clinics %}
+  <div style="margin-top:14px;">
+    {{ clinics_strip(clinic.clinics, clinic.date.isoformat()) }}
+  </div>
+  {% else %}
+  <p class="placeholder-soft" style="margin:12px 0 0;">{{ t('dashboard.clinic_quiet') }}</p>
+  {% endif %}
 </div>
 {% endif %}
 

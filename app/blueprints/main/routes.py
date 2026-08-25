@@ -116,6 +116,62 @@ def _doctor_home(user):
     return {"queue": queue, "current": current, "counts": counts, "date": today}
 
 
+def _clinic_now(user):
+    """What the whole clinic is doing, for whoever runs it.
+
+    **The gap this closes.** `_doctor_home` is pinned to
+    ``doctor_id == user.id``, which is right for a doctor and wrong for the
+    one who owns the place: a doctor holding full admin saw the same four
+    numbers and the same single queue as the newest locum, and nothing on the
+    dashboard said what the clinic was doing. The whole-clinic view already
+    existed — it is what the board draws when no doctor is picked — so this
+    reaches for that rather than growing a second version of it.
+
+    Two audiences, and they are not the same person twice. A doctor who runs
+    the clinic gets this **as well as** their own queue, because they are
+    still seeing patients. An admin who is not a practitioner gets only this,
+    and used to get nothing at all: the condition on the dashboard panel asked
+    whether you were a doctor, so the manager of a four-doctor clinic opened
+    the program to a screen that told them nothing about it.
+
+    Returns ``None`` for anybody who is not an admin, so the caller does not
+    have to know the rule twice.
+    """
+    from app.models import Appointment
+    from app.utils.clinic_now import _clinics_now, _red_flags
+    from app.utils.clock import local_today
+
+    if not getattr(user, "is_admin", False):
+        return None
+    if not user.can_access("appointments"):
+        return None
+
+    today = local_today()
+    appts = (Appointment.query
+             .filter(Appointment.appt_date == today)
+             .order_by(Appointment.appt_time).all())
+    flags = _red_flags(appts)
+    live = [a for a in appts if a.status not in ("cancelled", "no_show")]
+    return {
+        "clinics": _clinics_now(appts, today, flags),
+        "counts": {
+            "waiting": sum(1 for a in live if a.status in ("waiting", "scheduled")),
+            "in_progress": sum(1 for a in live if a.status == "in_progress"),
+            "completed": sum(1 for a in live if a.status == "completed"),
+            "total": len(live),
+            # Counted rather than inferred from the cards: a doctor with an
+            # empty day has no card, and "how many doctors are in today" is
+            # not the same question as "how many cards are on the screen".
+            "doctors": len({a.doctor_id for a in live if a.doctor_id}),
+        },
+        # The children nobody should be leaving in a waiting room. Reception
+        # watches this on the board; the person running the clinic has had no
+        # way to see it without going and looking.
+        "urgent": sum(1 for f in flags.values() if f.get("level") == "urgent"),
+        "date": today,
+    }
+
+
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
@@ -142,9 +198,12 @@ def dashboard():
     # booking, watched their own screen say so, and reception carried on with no
     # idea. The person the pause is aimed at was the one person not told.
     ctx["booking_open"] = Setting.get("clinic_booking_open", "1") != "0"
-    # Doctors (and practitioners standing in as one) get a live home panel.
+    # Doctors (and practitioners standing in as one) get a live home panel of
+    # their own queue. Whoever runs the clinic also gets the clinic — the two
+    # are separate questions and the same person often has both.
     if current_user.role == "doctor" or getattr(current_user, "is_practitioner", False):
         ctx["home"] = _doctor_home(current_user)
+    ctx["clinic"] = _clinic_now(current_user)
     return render_template("main/dashboard.html", **ctx)
 
 

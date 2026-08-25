@@ -456,7 +456,7 @@ def test_a_doctor_can_be_in_a_different_clinic_tomorrow(clinic):
                                       room_id=two.id))
         db.session.commit()
 
-        from app.blueprints.appointments.routes import _rooms_on
+        from app.utils.clinic_now import _rooms_on
         assert _rooms_on(today - timedelta(days=1))[clinic["ids"]["doctor"]].code == 1
         assert _rooms_on(today)[clinic["ids"]["doctor"]].code == 2
 
