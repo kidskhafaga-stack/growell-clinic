@@ -473,7 +473,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     }),
     weight: prefillWeight || '',
     dx: prefillDx || '', dxCode: prefillDxCode || '',
-    dxPicker: window.gcPicker({ url: "{{ url_for('prescriptions.icd_search') }}" }),
+    dxPicker: window.gcPicker({ url: "{{ url_for('main.icd_search') }}" }),
     askDx(){
       // Typing past a chosen diagnosis clears its code — otherwise the
       // prescription carries an ICD-10 code for wording nobody chose.

@@ -611,7 +611,7 @@
     "icd_version": "إصدار ICD",
     "code": "الكود",
     "search_icd": "بحث ICD",
-    "search_icd_placeholder": "ابحث بالاسم أو الكود (ICD-10)...",
+    "search_icd_placeholder": "ابحث بالاسم أو الكود…",
     "manual_dx_hint": "للـ ICD-11 أو أي تشخيص غير موجود بالقائمة، اكتب الكود والاسم يدوياً واختر الإصدار 11",
     "no_dx": "لم يتم تسجيل تشخيصات بعد",
     "section_clinical": "البيانات السريرية",
@@ -795,7 +795,8 @@
     "bp_diastolic": "الانبساطي",
     "bp_arm": "الذراع",
     "bp_arm_right": "يمين",
-    "bp_arm_left": "شمال"
+    "bp_arm_left": "شمال",
+    "icd_loaded": "البحث في {v}. أي حاجة مش في القايمة: اكتب الكود والاسم بإيدك واختار الإصدار."
   },
   "diagnosis_types": {
     "working": "أولي",

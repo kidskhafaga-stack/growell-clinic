@@ -723,15 +723,6 @@ def ai_dose():
     return jsonify({"ok": True, "note": text})
 
 
-@prescriptions_bp.route("/icd/search")
-@module_required(MODULE)
-def icd_search():
-    """ICD-10 autocomplete for the prescription diagnosis field."""
-    from app.utils.icd import search_icd
-
-    return jsonify(search_icd(request.args.get("q"), limit=12))
-
-
 @prescriptions_bp.route("/investigations/search")
 @module_required(MODULE)
 def investigation_search():

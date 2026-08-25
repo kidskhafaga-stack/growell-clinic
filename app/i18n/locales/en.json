@@ -611,7 +611,7 @@
     "icd_version": "ICD version",
     "code": "Code",
     "search_icd": "ICD search",
-    "search_icd_placeholder": "Search by name or code (ICD-10)...",
+    "search_icd_placeholder": "Search by name or code…",
     "manual_dx_hint": "For ICD-11 or any diagnosis not listed, type the code and name manually and choose version 11",
     "no_dx": "No diagnoses recorded yet",
     "section_clinical": "Clinical data",
@@ -795,7 +795,8 @@
     "bp_diastolic": "diastolic",
     "bp_arm": "Arm",
     "bp_arm_right": "Right",
-    "bp_arm_left": "Left"
+    "bp_arm_left": "Left",
+    "icd_loaded": "Searching {v}. Anything not listed: type the code and name yourself and pick the version."
   },
   "diagnosis_types": {
     "working": "Working",
