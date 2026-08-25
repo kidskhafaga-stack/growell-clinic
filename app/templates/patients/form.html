@@ -146,14 +146,46 @@
   <!-- Medical alerts -->
   <div class="card gc-scale-in" style="animation-delay:0.16s;">
     <h2 class="section-title"><i class="bi bi-exclamation-triangle"></i> {{ t('patients.medical_alerts') }}</h2>
-    <div class="form-grid">
+    {# One-click, and for the allergies it is not a convenience: the words on
+       these chips are the words `app/utils/allergy.py` recognises when a
+       medicine is written, so a chip is what makes the prescription check
+       actually fire. A mother says "حساسيه من البنسلن"; a chip says what the
+       matcher knows. See app/utils/patient_chips.py. #}
+    {% macro chip_row(target, rows) %}
+    <div class="smart-chips" style="margin-top:6px;">
+      {% for c in rows %}
+      {% set label = (c.en if (current_lang == 'en' and c.en) else c.ar) %}
+      <button type="button" class="chip{% if c.checked %} chip--checked{% endif %}"
+              x-on:click="add('{{ target }}', {{ label|tojson|forceescape }})"
+              {% if c.en and current_lang != 'en' %}title="{{ c.en }}"{% endif %}>{{ label }}</button>
+      {% endfor %}
+    </div>
+    {% endmacro %}
+
+    <div class="form-grid"
+         x-data="{
+           add(id, text) {
+             const box = document.getElementById(id);
+             if (!box) return;
+             {# Appended with the separator the matcher already splits on, and
+                never twice: clicking a chip that is already there should feel
+                like nothing happened, not like the file now says it twice. #}
+             const parts = box.value.split(/[,،;\n]/).map(s => s.trim()).filter(Boolean);
+             if (!parts.includes(text)) parts.push(text);
+             box.value = parts.join('، ');
+             box.dispatchEvent(new Event('input'));
+             box.focus();
+           }
+         }">
       <div class="form-row">
         <label for="allergies">{{ t('patients.allergies') }}</label>
         <textarea class="input" id="allergies" name="allergies" rows="2">{{ form.allergies or '' }}</textarea>
+        {{ chip_row('allergies', allergy_chips or []) }}
       </div>
       <div class="form-row">
         <label for="chronic_diseases">{{ t('patients.chronic_diseases') }}</label>
         <textarea class="input" id="chronic_diseases" name="chronic_diseases" rows="2">{{ form.chronic_diseases or '' }}</textarea>
+        {{ chip_row('chronic_diseases', chronic_chips or []) }}
       </div>
     </div>
     <div class="form-row">

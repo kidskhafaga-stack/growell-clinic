@@ -116,6 +116,70 @@ def _doctor_home(user):
     return {"queue": queue, "current": current, "counts": counts, "date": today}
 
 
+def _clinic_now(user):
+    """What the whole clinic is doing, for whoever runs it.
+
+    **The gap this closes.** `_doctor_home` is pinned to
+    ``doctor_id == user.id``, which is right for a doctor and wrong for the
+    one who owns the place: a doctor holding full admin saw the same four
+    numbers and the same single queue as the newest locum, and nothing on the
+    dashboard said what the clinic was doing. The whole-clinic view already
+    existed — it is what the board draws when no doctor is picked — so this
+    reaches for that rather than growing a second version of it.
+
+    Two audiences, and they are not the same person twice. A doctor who runs
+    the clinic gets this **as well as** their own queue, because they are
+    still seeing patients. An admin who is not a practitioner gets only this,
+    and used to get nothing at all: the condition on the dashboard panel asked
+    whether you were a doctor, so the manager of a four-doctor clinic opened
+    the program to a screen that told them nothing about it.
+
+    Returns ``None`` for anybody who is not an admin, so the caller does not
+    have to know the rule twice.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Appointment
+    from app.utils.clinic_now import _clinics_now, _red_flags
+    from app.utils.clock import local_today
+
+    if not getattr(user, "is_admin", False):
+        return None
+    if not user.can_access("appointments"):
+        return None
+
+    today = local_today()
+    # Both loaded up front. Each card names its doctor and the child in the
+    # room, so without this it is two lazy loads per عيادة on the screen the
+    # program opens to — the shape the query-ceiling test exists to catch, and
+    # it caught this one.
+    appts = (Appointment.query
+             .options(selectinload(Appointment.doctor),
+                      selectinload(Appointment.patient))
+             .filter(Appointment.appt_date == today)
+             .order_by(Appointment.appt_time).all())
+    flags = _red_flags(appts)
+    live = [a for a in appts if a.status not in ("cancelled", "no_show")]
+    return {
+        "clinics": _clinics_now(appts, today, flags),
+        "counts": {
+            "waiting": sum(1 for a in live if a.status in ("waiting", "scheduled")),
+            "in_progress": sum(1 for a in live if a.status == "in_progress"),
+            "completed": sum(1 for a in live if a.status == "completed"),
+            "total": len(live),
+            # Counted rather than inferred from the cards: a doctor with an
+            # empty day has no card, and "how many doctors are in today" is
+            # not the same question as "how many cards are on the screen".
+            "doctors": len({a.doctor_id for a in live if a.doctor_id}),
+        },
+        # The children nobody should be leaving in a waiting room. Reception
+        # watches this on the board; the person running the clinic has had no
+        # way to see it without going and looking.
+        "urgent": sum(1 for f in flags.values() if f.get("level") == "urgent"),
+        "date": today,
+    }
+
+
 @main_bp.route("/dashboard")
 @login_required
 def dashboard():
@@ -142,9 +206,12 @@ def dashboard():
     # booking, watched their own screen say so, and reception carried on with no
     # idea. The person the pause is aimed at was the one person not told.
     ctx["booking_open"] = Setting.get("clinic_booking_open", "1") != "0"
-    # Doctors (and practitioners standing in as one) get a live home panel.
+    # Doctors (and practitioners standing in as one) get a live home panel of
+    # their own queue. Whoever runs the clinic also gets the clinic — the two
+    # are separate questions and the same person often has both.
     if current_user.role == "doctor" or getattr(current_user, "is_practitioner", False):
         ctx["home"] = _doctor_home(current_user)
+    ctx["clinic"] = _clinic_now(current_user)
     return render_template("main/dashboard.html", **ctx)
 
 
@@ -352,25 +419,21 @@ def set_sidebar():
 
 
 @main_bp.route("/update")
+@main_bp.route("/update/install")
 @admin_required
 def update_available():
-    """What the newer version is, and how to install it.
+    """The old addresses, both pointing at the one screen.
 
-    The program does not install it. Not as a matter of taste: replacing the
-    files a running process is executing, on the machine a clinic is seeing
-    patients on, is the failure that cost a morning when `start.bat` used to
-    run `git pull` on every launch. So this page ends at a sentence — close
-    the program and run `update.bat` — and the update happens with nothing
-    running, with a snapshot before it and a schema upgrade after it.
+    There used to be a second screen here. The version, the check button and
+    the release notes were in settings; the steps and the install button were
+    on this page; and for a while both were called "update" in the address
+    bar, so history and bookmarks could not tell them apart. Asked for after
+    living with it: *"خليها كلها من مكان واحد وخلاص علشان ما نتهش"*.
 
-    A button that closed the program safely and handed the job to a separate
-    updater would be a fair thing to build; it would still not be this page
-    doing the updating, which is the part that matters.
+    Kept as redirects rather than removed: a clinic that bookmarked either
+    name should land on the screen, not on a 404.
     """
-    from app.utils.updates import can_hand_off, remembered
-
-    return render_template("main/update.html", update=remembered(),
-                           can_hand_off=can_hand_off())
+    return redirect(url_for("settings.index", _anchor="update"))
 
 
 @main_bp.route("/update/start", methods=["POST"])
@@ -400,12 +463,12 @@ def update_start():
 
     if not remembered():
         flash(t("update.none"), "info")
-        return redirect(url_for("main.update_available"))
+        return redirect(url_for("settings.index", _anchor="update"))
     if not updates.can_hand_off() or not updates.hand_off():
         # Nothing was started, so nothing is closing. The clinic carries on
         # and the admin is told to do it the way that always works.
         flash(t("update.handoff_failed"), "danger")
-        return redirect(url_for("main.update_available"))
+        return redirect(url_for("settings.index", _anchor="update"))
 
     ActivityLog.record("app.update_started", user_id=current_user.id,
                        entity="app", entity_id=None)

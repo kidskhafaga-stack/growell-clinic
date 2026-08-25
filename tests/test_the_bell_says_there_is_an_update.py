@@ -180,13 +180,27 @@ def test_the_bell_never_reaches_the_network(clinic):
 
 # ------------------------------------------------------- and what it points at
 
-def test_the_page_says_what_changed_and_how_to_install_it(clinic):
-    _store(clinic, json.dumps(FOUND))
-    page = clinic["sign_in"]("boss").get("/update").get_data(as_text=True)
+def test_the_page_says_how_to_install_it_and_which_version(clinic):
+    """This used to also assert the page listed what changed, and it did.
 
+    So did the settings tab — which left a clinic with the version, the check
+    button and the launch toggle on one screen, the steps and the install
+    button on another, and the release notes on both. Half the facts on each,
+    and you had to know which half was where.
+
+    There is one screen now — asked for after living with the split, because
+    finding your way was worth more than whatever the separation bought. So
+    everything about the version is on it: what is installed, what is waiting,
+    what is in it, and how to put it on."""
+    _store(clinic, json.dumps(FOUND))
+    page = clinic["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+
+    assert "update.bat" in page, "the screen does not say how to install it"
+    assert FOUND["latest"][:12] in page, \
+        "the screen does not say which version it is installing"
     for note in FOUND["notes"]:
-        assert note in page, "the page does not say what changed"
-    assert "update.bat" in page, "the page does not say how to install it"
+        assert note in page, \
+            "the one screen does not say what is in the release"
 
 
 def test_it_is_not_a_page_anybody_can_open(clinic):
@@ -196,9 +210,12 @@ def test_it_is_not_a_page_anybody_can_open(clinic):
     # page, and this would pass while proving nothing.
     assert desk.get("/dashboard").status_code == 200
 
-    res = desk.get("/update", follow_redirects=False)
+    res = desk.get("/update/install", follow_redirects=False)
     assert res.status_code in (302, 403), \
         "somebody who cannot act on it can open the update page"
+    # And the screen it now redirects to is admin-only in its own right, so
+    # the redirect is not a way round the door.
+    assert desk.get("/settings/", follow_redirects=False).status_code in (302, 403)
 
 
 def test_the_page_never_updates_the_program_it_is_running_in(clinic,
@@ -300,13 +317,13 @@ def test_the_button_is_only_offered_where_it_can_work(clinic, monkeypatch):
     boss = clinic["sign_in"]("boss")
 
     monkeypatch.setattr(updates, "can_hand_off", lambda: False)
-    page = boss.get("/update").get_data(as_text=True)
-    assert "update.bat" in page, "the page did not render at all"
+    page = boss.get("/settings/").get_data(as_text=True)
+    assert "update.bat" in page, "the steps did not render at all"
     assert "/update/start" not in page, \
         "a button was offered on a copy that cannot use it"
 
     monkeypatch.setattr(updates, "can_hand_off", lambda: True)
-    assert "/update/start" in boss.get("/update").get_data(as_text=True)
+    assert "/update/start" in boss.get("/settings/").get_data(as_text=True)
 
 
 def test_the_hand_off_script_waits_before_it_writes(clinic):

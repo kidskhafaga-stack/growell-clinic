@@ -35,6 +35,11 @@ TEXT_KEYS = [
     # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.
     "visit_complaint_chips", "visit_exam_chips", "visit_plan_chips",
+    # The patient file's chips: other allergies (foods, environment) and long
+    # illnesses. The *drug* allergy chips are not here and cannot be — they are
+    # derived from the prescription matcher's own families, so that a chip and
+    # the check it has to fire cannot drift apart. See app/utils/patient_chips.
+    "patient_allergy_chips", "patient_chronic_chips",
     # ETA e-invoicing.
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",
@@ -99,6 +104,16 @@ def _installed_now():
     return {"revision": revision or "",
             "short": (revision or "")[:12],
             "source": "git" if is_clone else ("stamp" if revision else "none")}
+
+
+def _can_hand_off():
+    """Read through the module rather than imported by name, so a test that
+    patches `updates.can_hand_off` patches what this reads. Importing the
+    function up front would bind the original and the patch would do nothing —
+    which is a test that passes while proving the opposite."""
+    from app.utils import updates
+
+    return updates.can_hand_off()
 
 
 def _update_pending():
@@ -505,7 +520,7 @@ def index():
         return redirect(url_for("settings.index", _anchor=_saved_tab()))
 
     from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
-    from app.utils import phrases
+    from app.utils import patient_chips, phrases
 
     from app.utils.clock import COMMON_ZONES, DEFAULT_TZ, valid_zone
     from app.utils.icd import coverage as icd_coverage
@@ -527,6 +542,11 @@ def index():
         # a downloaded copy reads the stamp `update.bat` wrote.
         installed_revision=_installed_now(),
         update_pending=_update_pending(),
+        # Whether this copy can start the external updater at all: Windows,
+        # and the hand-off script actually on disk. Without it the template's
+        # `{% if can_hand_off %}` is an undefined name — falsy, silent, and
+        # the button simply never appears on the machines that can use it.
+        can_hand_off=_can_hand_off(),
         # Handed over rather than written into the template, so adding a
         # reference is one edit and not two — a picker that has drifted from
         # the list the engine reads offers a clinic a policy it will not get.
@@ -548,6 +568,12 @@ def index():
         complaint_chips=phrases.clinic_phrases("complaint"),
         exam_chips=phrases.clinic_phrases("exam"),
         plan_chips=phrases.clinic_phrases("plan"),
+        # `editable`, never `chips`: this screen saves back what it renders,
+        # and the drug allergy chips are derived from the matcher rather than
+        # stored. Handing them to an editor would freeze a copy of them.
+        allergy_chips=patient_chips.editable("allergy"),
+        chronic_chips=patient_chips.editable("chronic"),
+        drug_allergy_chips=patient_chips.drug_allergy_chips(),
     )
 
 

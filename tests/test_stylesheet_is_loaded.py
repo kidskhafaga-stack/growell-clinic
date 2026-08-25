@@ -97,14 +97,17 @@ def test_the_clinic_cards_are_styled(clinic):
     A renamed class on either side leaves the card unstyled again, and an
     unstyled card is not an error anybody sees in a log.
     """
-    with open(os.path.join(ROOT, "app/templates/appointments/board.html"),
+    # The strip moved out of the board into a partial when the dashboard
+    # needed the same cards. The claim is unchanged — markup and rules must
+    # agree — so it follows the markup rather than staying where it was.
+    with open(os.path.join(ROOT, "app/templates/_clinics_strip.html"),
               encoding="utf-8") as fh:
         markup = fh.read()
     with open(os.path.join(CSS_DIR, "app.css"), encoding="utf-8") as fh:
         css = fh.read()
 
     for cls in ("clinic-card", "cl-edge", "cl-orb", "cl-rail", "cl-pips"):
-        assert cls in markup, f"the board no longer uses .{cls}"
+        assert cls in markup, f"the strip no longer uses .{cls}"
         assert f".{cls}" in css, f"nothing styles .{cls}"
 
 

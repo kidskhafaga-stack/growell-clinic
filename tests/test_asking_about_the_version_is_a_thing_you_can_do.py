@@ -215,3 +215,181 @@ def test_forgetting_is_a_verb_of_its_own(admin, monkeypatch):
     assert "forget" not in remember_src
     assert callable(getattr(updates, "forget", None)), \
         "clearing a notice has no verb of its own"
+
+
+# ------------------------------- the panel is inside the scope that shows it
+
+def _settings_page(admin):
+    return admin["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+
+
+def test_every_tab_panel_sits_inside_the_form_that_owns_the_tab(admin):
+    """The bug this file shipped with, and the reason a string check was not
+    enough to find it.
+
+    The whole screen is one `<form>` carrying `x-data="{ tab: 'clinic', … }"`,
+    and each panel shows itself with `x-show="tab==='…'"`. This panel was
+    appended *after* `</form>`, where `tab` is not in scope — so Alpine threw
+    "tab is not defined" on every page load and the card stayed `display:none`
+    for good. Pressing the tab highlighted it and showed an empty screen.
+
+    Nothing in the markup looks wrong; every string the old tests asked for was
+    present. Only where the element sits relative to the form decides it."""
+    page = _settings_page(admin)
+
+    # Anchored on the card's own id, not on `tab==='update'`: that string also
+    # appears in the tab *button* much earlier in the page, so the first
+    # version of this compared the wrong occurrence and passed against a
+    # deliberately reintroduced bug.
+    assert page.count('id="update"') == 1, "the anchor is not unique"
+
+    assert page.index('id="update"') < page.index("</form>"), \
+        "the update panel is outside the form, so `tab` is not in scope"
+
+
+def test_the_launch_toggle_is_one_control_and_not_two(admin):
+    """It lived on the policies tab as well. Two checkboxes posting the same
+    name into one form means `request.form.get` reads whichever comes first —
+    so a clinic unticking the one beside the version would watch the setting
+    not change, with nothing on screen to explain it."""
+    page = _settings_page(admin)
+
+    assert page.count('name="update_check"') == 1, \
+        "there is more than one control for the launch check"
+
+
+# ------------------------------ one screen to look at, one screen to act on
+
+def _update_page(admin):
+    """There is one screen, so this is the same page as `_settings_page`. Kept
+    as a name because the tests below are about what the *update* part of it
+    says, and reading them should not require remembering that."""
+    return _settings_page(admin)
+
+
+@pytest.fixture()
+def behind(admin, monkeypatch):
+    """A clinic that has been told there is a release waiting."""
+    _patch(monkeypatch, installed=HERE, latest=THERE,
+           notes=["A thing a clinic found by using the program"])
+    _check(admin)
+    return admin
+
+
+def test_everything_about_the_version_is_on_one_screen(behind):
+    """Asked for twice, and the second answer replaced the first.
+
+    It began as two screens because the install button closes the clinic and
+    that felt like it deserved its own room. Living with it said otherwise:
+    *"خليها كلها من مكان واحد وخلاص علشان ما نتهش"*. The version, what is in
+    the release, how to install it and the button are one panel now.
+
+    The button still cannot be reached by aiming badly — it is in its own
+    block below everything that only reads, and it asks before it closes the
+    program — but it is *here*."""
+    page = _settings_page(behind)
+
+    assert "A thing a clinic found by using the program" in page, \
+        "the release notes are not on the screen"
+    assert "update.bat" in page, "the screen does not say how to install it"
+    assert THERE[:12] in page, "the screen does not say which version"
+
+
+def test_a_current_copy_is_not_shown_how_to_install_nothing(admin, monkeypatch):
+    """The steps and the button appear because there is something waiting. On
+    a copy that is already current they are an answer to a question nobody
+    asked, and the panel should read as "you are fine"."""
+    _patch(monkeypatch, installed=HERE, latest=HERE)
+    _check(admin)
+
+    page = _settings_page(admin)
+
+    # Matched on the block, not on "update.bat": the privacy sentence names
+    # the script too ("updating stays in update.bat"), so the bare string is
+    # on the panel whatever state it is in.
+    assert "update-do" not in page, \
+        "a copy that is up to date is being told how to update"
+    assert "/update/start" not in page
+
+
+def test_the_bell_lands_on_the_screen_that_explains(behind):
+    """It used to point at the acting screen. Somebody who clicks a notice
+    wants to know what it is about before being asked to close the program."""
+    from app.utils import notifications
+
+    with behind["app"].app_context():
+        notifications.invalidate()
+        items = [i for i in notifications._compute()
+                 if i["key"] == "update_available"]
+
+    assert items, "the bell has no update item"
+    assert items[0]["endpoint"] == "settings.index"
+    assert items[0]["kwargs"].get("_anchor") == "update"
+
+
+def test_a_current_copy_is_not_offered_somewhere_to_install_from(admin,
+                                                                monkeypatch):
+    """The link is the *act*, so it appears when there is something to act on.
+    Offering it on a copy that is already current is what made the two screens
+    read as two halves of one."""
+    _patch(monkeypatch, installed=HERE, latest=HERE)
+    _check(admin)
+
+    # Matched on the href, not on the substring "/update": the panel also
+    # carries "/settings/update/check", which contains it.
+    assert 'href="/update/install"' not in _settings_page(admin), \
+        "a copy that is already current was offered somewhere to install from"
+
+
+def test_the_button_that_closes_the_clinic_is_kept_apart(behind, monkeypatch):
+    """It is on the settings form now, by request — one place, so nobody gets
+    lost. What has to stay true is that reaching it is a decision: its own
+    block, below everything that only reads, and a confirmation in front of
+    it. The failure worth designing against is somebody aiming for "Save" and
+    shutting down a working morning.
+
+    `can_hand_off` is patched because it is false everywhere but Windows, and
+    the version of this test that did not patch it asserted the button was
+    absent and passed for that reason instead of the one it claimed."""
+    import re
+
+    from app.utils import updates
+
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    page = _settings_page(behind)
+
+    assert "update-do" in page, "the install block is not set apart"
+    assert page.index("update-do") < page.index("/update/start"), \
+        "the button is outside the block meant to hold it"
+
+    # Scoped to the button's own markup. `confirm(` appears elsewhere on this
+    # screen, so asking whether the *page* contains it passes against a
+    # deliberately unguarded button — which is what happened.
+    button = re.search(r"<button[^>]*update/start[^>]*>", page, re.S)
+    assert button, "the install button is not on the screen"
+    assert "confirm(" in button.group(0), \
+        "the button closes the program without asking first"
+
+
+def test_there_is_only_one_screen_left(admin):
+    """`/update` and `/settings/#update` were two screens wearing one word —
+    spotted from two screenshots of them. The fix was not better names in the
+    end; it was one screen."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+
+    assert not (root / "app/templates/main/update.html").exists(), \
+        "the second screen is still there"
+
+
+def test_the_old_address_lands_on_the_screen_that_explains(admin):
+    """Not a 404 and not the acting screen. Somebody who bookmarked the old
+    name should arrive where the version is, which is the same rule the bell
+    follows: know what it is before being asked to close the clinic."""
+    for old in ("/update", "/update/install"):
+        answer = admin["sign_in"]("boss").get(old)
+
+        assert answer.status_code == 302, f"{old} is a dead end"
+        assert "/settings/" in answer.headers["Location"]
+        assert answer.headers["Location"].endswith("#update")

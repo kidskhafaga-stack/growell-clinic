@@ -1436,17 +1436,9 @@
   @media (prefers-reduced-motion: reduce) { .vtab-pill { transition:opacity .15s ease; } }
   .vtab-count { background:rgba(0,0,0,.12); border-radius:999px; padding:0 7px; font-size:0.75rem; }
   .vtab.active .vtab-count { background:rgba(255,255,255,.25); }
-  /* Smart-phrase chips */
-  .smart-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
-  .chip { border:1px dashed var(--line); background:var(--surface,#fff); color:var(--muted);
-    border-radius:999px; padding:4px 11px; font-size:0.8rem; cursor:pointer; font-family:inherit;
-    transition:all .15s ease; }
-  .chip:hover { border-style:solid; border-color:var(--green-600); color:var(--green-800); }
-  .chip-code { margin-inline-start:5px; padding:0 4px; border-radius:5px; font-size:.72rem;
-    background:var(--green-050,#eef7f0); color:var(--green-800,#1f6b3b); font-family:var(--mono,monospace); }
-  .chip--link { text-decoration:none; }
-  .chip--primary { border-style:solid; border-color:var(--green-600); color:var(--green-800);
-    background:var(--green-050,#f3faf5); font-weight:600; }
+  /* Smart-phrase chips now live in theme.css, with the other primitives.
+     They were here, which is why the patient file's chips arrived unstyled:
+     a screen cannot inherit another screen's <style> block. */
   /* Sticky action bar */
   .visit-actionbar { position:sticky; bottom:0; z-index:30; margin:18px -4px 0;
     background:linear-gradient(to top, var(--bg,#f6f8f7) 70%, transparent);

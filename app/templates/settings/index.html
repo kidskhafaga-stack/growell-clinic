@@ -101,13 +101,15 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="active_tab" :value="tab">
   <!-- Tabs -->
+  {# The `phrases` tab holds two lists now — the visit's phrases and the patient
+     file's chips — so it is named for both rather than for the first. #}
   <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
     {% for tid, icon, label in [
         ('clinic','hospital', t('settings.clinic_identity')),
         ('logo','image', t('settings.logo')),
         ('numbering','123', t('settings.numbering_title')),
         ('board','bar-chart-line', t('settings.board_title')),
-        ('phrases','chat-square-text', t('settings.visit_chips_title')),
+        ('phrases','chat-square-text', t('settings.lists_tab')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title')),
@@ -334,6 +336,40 @@
       {{ t('phrases.clinic_is_a_start') }}
       <a href="{{ url_for('visits.phrases_screen') }}">{{ t('phrases.mine_link') }}</a></p>
     <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('settings.visit_chips_lang_hint') }}</p>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0;">
+
+    <h2 class="section-title"><i class="bi bi-person-vcard"></i> {{ t('settings.patient_chips_title') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('settings.patient_chips_hint') }}</p>
+
+    {# The drug allergy chips are shown and not edited. They are derived from
+       the prescription matcher's own drug families, and an editor stores what
+       it renders — so putting them in one would freeze a copy the first time
+       anybody pressed save, and from then on the button and the check it has
+       to fire would be two lists that drift. See app/utils/patient_chips.py. #}
+    <div class="form-row">
+      <label><i class="bi bi-capsule"></i> {{ t('settings.drug_allergy_chips') }}</label>
+      <div class="smart-chips" style="margin:4px 0 6px;">
+        {% for ar, en in drug_allergy_chips %}
+        <span class="chip chip--checked chip--static"
+              {% if en %}title="{{ en }}"{% endif %}>{{ en if (current_lang == 'en' and en) else ar }}</span>
+        {% endfor %}
+      </div>
+      <div class="hint"><i class="bi bi-shield-check"></i> {{ t('settings.drug_allergy_chips_hint') }}</div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row">
+        <label><i class="bi bi-egg-fried"></i> {{ t('settings.allergy_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.allergy_chips_hint') }}</div>
+        {{ chip_editor('patient_allergy_chips', allergy_chips) }}
+      </div>
+      <div class="form-row">
+        <label><i class="bi bi-clipboard2-heart"></i> {{ t('settings.chronic_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.chronic_chips_hint') }}</div>
+        {{ chip_editor('patient_chronic_chips', chronic_chips) }}
+      </div>
+    </div>
   </div>
 
   <!-- Document numbering (F1) -->
@@ -427,13 +463,6 @@
       <label for="require_shift_to_collect" style="margin:0;font-weight:400;">{{ t('settings.require_shift_to_collect') }}</label>
     </div>
     <p class="hint">{{ t('settings.require_shift_to_collect_hint') }}</p>
-    <div class="form-row checkbox">
-      <input type="checkbox" id="update_check" name="update_check" value="1"
-             {{ 'checked' if values.get('update_check','1') != '0' else '' }}>
-      <label for="update_check" style="margin:0;font-weight:400;">{{ t('settings.update_check') }}</label>
-    </div>
-    <p class="hint">{{ t('settings.update_check_hint') }}</p>
-
     <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
     <h3 class="section-title" style="font-size:1rem;"><i class="bi bi-lock"></i> {{ t('settings.login_security') }}</h3>
     <p class="hint" style="margin-top:-6px;">{{ t('settings.login_security_hint') }}</p>
@@ -816,11 +845,6 @@
       };
     }
   </script>
-
-  <div class="gc-animate" style="margin-top:16px;">
-    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
-  </div>
-</form>
   <!-- The version, and asking about it ------------------------------------ -->
   {# Reported: *"مبقتش بشوف الإشعار"*. The check ran in exactly one place — the
      launch hook — so a clinic that leaves the program open all week hears
@@ -880,8 +904,6 @@
               x-on:click="check()" :disabled="busy">
         <i class="bi bi-arrow-repeat"></i>
         <span x-text="busy ? '…' : '{{ t('update.check_now') }}'">{{ t('update.check_now') }}</span></button>
-      <a class="md-btn md-btn--text gc-press" href="{{ url_for('main.update_available') }}">
-        <i class="bi bi-box-arrow-up-right"></i> {{ t('update.open_page') }}</a>
       <span class="hint" x-show="said" x-cloak x-text="said"
             :style="tone === 'ok' ? 'color:var(--green-700)' : 'color:#b45309'"></span>
     </div>
@@ -895,11 +917,66 @@
     </div>
     {% endif %}
 
+    {# ---- Installing it, in the same place as everything else about it ----
+
+       Asked for after living with the split: *"خليها كلها من مكان واحد وخلاص
+       علشان ما نتهش"*. There were two screens and, briefly, two addresses
+       wearing one word; whatever the split bought, finding your way was worth
+       more.
+
+       So the act comes here too — but not as another button in the row. It
+       closes the clinic's program. It sits in its own block, below everything
+       that merely reads, with the three manual steps beside it and a
+       confirmation in front of it, because the failure worth designing against
+       is somebody aiming for "Save" and shutting down a working morning.
+
+       `formaction` rather than a nested `<form>`: every tab on this screen is
+       one form, and a form inside a form is dropped by the browser. The same
+       pattern the ICD-11 buttons above already use. #}
+    {% if update_pending %}
+    <div class="update-do">
+      <div class="update-do__head">
+        <i class="bi bi-box-arrow-in-down"></i>
+        <strong>{{ t('update.how') }}</strong>
+        <span class="hint" style="margin:0;" dir="ltr">
+          {{ update_pending.installed[:12] }} → {{ update_pending.latest[:12] }}</span>
+      </div>
+      <ol class="update-do__steps">
+        <li>{{ t('update.step_close') }}</li>
+        <li>{{ t('update.step_run') }} <code dir="ltr">update.bat</code></li>
+        <li>{{ t('update.step_start') }}</li>
+      </ol>
+      <p class="hint" style="margin:0 0 10px;">
+        <i class="bi bi-shield-check"></i> {{ t('update.safety') }}</p>
+
+      {# Only where it can actually work. A copy without the hand-off script,
+         or one not on Windows, gets the steps above and no button rather than
+         a button that quietly does nothing. #}
+      {% if can_hand_off %}
+      <button type="submit" class="btn btn-danger gc-press"
+              formaction="{{ url_for('main.update_start') }}" formmethod="post"
+              onclick="return confirm({{ t('update.confirm') | tojson | forceescape }});">
+        <i class="bi bi-power"></i> {{ t('update.do_it') }}</button>
+      <div class="hint" style="margin-top:8px;">{{ t('update.do_it_hint') }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# One control, and only one. This toggle used to live on the policies tab
+       as well; two checkboxes posting the same name into the same form means
+       `request.form.get` reads whichever comes first, so unticking the other
+       one did nothing. It belongs beside the version it governs. #}
     <label class="checkbox" style="font-weight:400;margin-top:14px;display:block;">
-      <input type="checkbox" name="update_check" value="1"
+      <input type="checkbox" id="update_check" name="update_check" value="1"
              {{ 'checked' if values.get('update_check','1') != '0' else '' }}>
       {{ t('update.ask_at_launch') }}</label>
     <div class="hint">{{ t('update.privacy') }}</div>
   </div>
+
+
+  <div class="gc-animate" style="margin-top:16px;">
+    <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
+</form>
 
 {% endblock %}

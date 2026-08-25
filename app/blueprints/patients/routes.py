@@ -415,7 +415,7 @@ def create():
         if error:
             flash(error, "danger")
             return render_template(
-                "patients/form.html",
+                "patients/form.html", **_patient_chips(),
                 patient=None, form=form, families=families,
                 genders=GENDERS, blood_types=BLOOD_TYPES,
                 suggested_number=form.get("patient_number"),
@@ -459,7 +459,7 @@ def create():
         return redirect(url_for("patients.view", patient_id=patient.id))
 
     return render_template(
-        "patients/form.html",
+        "patients/form.html", **_patient_chips(),
         patient=None, form={"is_active": True}, families=families,
         genders=GENDERS, blood_types=BLOOD_TYPES,
         suggested_number=generate_patient_number(),
@@ -644,7 +644,7 @@ def edit(patient_id):
         if error:
             flash(error, "danger")
             return render_template(
-                "patients/form.html",
+                "patients/form.html", **_patient_chips(),
                 patient=patient, form=form, families=families,
                 genders=GENDERS, blood_types=BLOOD_TYPES,
                 suggested_number=form.get("patient_number"),
@@ -702,7 +702,7 @@ def edit(patient_id):
         "is_active": patient.is_active,
     }
     return render_template(
-        "patients/form.html",
+        "patients/form.html", **_patient_chips(),
         patient=patient, form=form, families=families,
         genders=GENDERS, blood_types=BLOOD_TYPES,
         suggested_number=patient.patient_number,
@@ -1030,6 +1030,19 @@ def family_update(family_id):
 
 
 # --------------------------------------------------------------- helpers ---
+def _patient_chips():
+    """The one-click allergy and chronic-illness lists, for the form.
+
+    Handed to every render of it rather than to one: the create screen and the
+    edit screen are the same template, and a helper that reached only the
+    first is how a feature ends up existing on half the paths that show it.
+    """
+    from app.utils import patient_chips
+
+    return {"allergy_chips": patient_chips.chips("allergy"),
+            "chronic_chips": patient_chips.chips("chronic")}
+
+
 def _read_patient_form():
     return {
         "patient_number": (request.form.get("patient_number") or "").strip(),

@@ -250,10 +250,16 @@ def _compute():
     try:
         from app.utils.updates import remembered
         if remembered():
+            # Lands on the settings tab, not on `/update`. There is one
+            # place a person *looks* at the version — what is installed, what
+            # is new, whether to ask at launch — and `/update` is the place
+            # they *act*, reached from there with its own confirmation. The
+            # bell used to point at the acting screen, which is how a clinic
+            # ended up with half the facts on each of two screens.
             items.append({"key": "update_available", "module": "settings",
                           "icon": "arrow-up-circle", "severity": "info",
-                          "count": 1, "endpoint": "main.update_available",
-                          "kwargs": {}})
+                          "count": 1, "endpoint": "settings.index",
+                          "kwargs": {"_anchor": "update"}})
     except Exception:  # noqa: BLE001
         pass
 

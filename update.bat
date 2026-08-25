@@ -179,7 +179,27 @@ echo    Update finished. The backup taken first is in the
 echo    backups folder, named "preupgrade".
 echo ============================================================
 echo.
-pause
+
+REM --- 8) Open the clinic again --------------------------------
+REM Reachable only from here, and that is the whole condition: every
+REM failure above exits with `pause` still in front of it, so a broken
+REM update leaves a window somebody has to read rather than a program
+REM that quietly reopens on top of it. [5/5] has already loaded the app
+REM and asked it for a page, so by this line "it starts" is measured
+REM rather than assumed.
+REM
+REM `start` so this window does not become the clinic: start.bat runs
+REM the server in the foreground of whatever window calls it, and
+REM holding it here would leave the updater and the clinic sharing one
+REM window and one Ctrl-C.
+REM
+REM And no `pause` on the way out. It was there to tell somebody to go
+REM and run start.bat, and there is nothing left to tell them; a window
+REM waiting for a keypress it does not need is a window a clinic learns
+REM to ignore.
+echo    Opening GROWELL CLINIC...
+start "" "%~dp0start.bat"
+timeout /t 5 /nobreak >nul
 
 exit /b 0
 

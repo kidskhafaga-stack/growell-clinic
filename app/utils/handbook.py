@@ -118,6 +118,25 @@ SECTIONS = [
              "والتحصيل — ومايشوفش الملف الطبي.",
              "Reception sees the basic details needed to register, book and "
              "collect — and not the clinical file."),
+            ("<b>الحساسية والأمراض المزمنة بالدوسة</b>: أزرار جاهزة تحت كل "
+             "خانة. وأزرار حساسية الأدوية مهمة بشكل خاص — بتكتب بالظبط الكلام "
+             "اللي فاحص الروشتة بيعرفه، فالدوسة عليها هي اللي بتخلّي التحذير "
+             "يظهر لما يتكتب دوا من نفس العائلة. الكتابة باليد ممكن الفاحص "
+             "مايفهمهاش.",
+             "<b>Allergies and long illnesses in one click</b>: ready chips "
+             "under each box. The drug-allergy chips matter most — they write "
+             "exactly the words the prescription checker recognises, so "
+             "clicking one is what makes the warning appear when a medicine "
+             "from that family is written. Typed by hand, the checker may not "
+             "recognise it."),
+            ("قوايم الحساسية غير الدوائية والأمراض المزمنة العيادة تقدر "
+             "تعدّلها من «الإعدادات ← عبارات». حساسية الأدوية مابتتعدّلش من "
+             "هناك عن قصد: بتيجي من الفاحص نفسه علشان الزرار والفحص عمرهم ما "
+             "يبعدوا عن بعض.",
+             "The non-drug allergy and long-illness lists are yours to edit "
+             "under Settings → Phrases. The drug allergies are deliberately "
+             "not editable there: they come from the checker itself, so the "
+             "chip and the check can never drift apart."),
         ],
     },
     {

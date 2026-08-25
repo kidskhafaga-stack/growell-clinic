@@ -1,0 +1,105 @@
+{# The timer macro the cards use. Imported here rather than relied on from
+   whichever template includes this one — a macro that works only because
+   the caller happened to import it is a macro that breaks on the second
+   caller. #}
+{% from "_timer.html" import live_timer with context %}
+{# The live strip of عيادات — one card per doctor working today.
+
+   Shared by the appointments board and the dashboard of whoever runs the
+   clinic. It lived only in the board, so the second screen that needed it
+   could only have had a copy, and two strips that must agree about how many
+   children are waiting eventually do not.
+
+   `link_date` is passed rather than read: the board is looking at a chosen
+   day and the dashboard is always looking at today, and a card that linked to
+   the wrong one would quietly open an empty board. #}
+{% macro clinics_strip(clinics, link_date) %}
+{# Foldable, because four عيادات of cards push the day's list below the fold
+   on a laptop and reception spends most of the day in the list.
+
+   The summary line is the point: folded, it still answers "is anything wrong
+   out there" — how many rooms are working, how many are waiting, and whether
+   anybody has waited too long. A fold that hides the answer is one people
+   unfold every time, which is the same as not having it. #}
+{% set busy_rooms = clinics | selectattr('current') | list | length %}
+{% set queue_total = clinics | sum(attribute='waiting') %}
+{% set urgent_total = clinics | sum(attribute='urgent') %}
+<details class="clinics-fold gc-scale-in" style="margin-bottom:18px;" data-fold="clinics" open>
+  <summary class="clinics-sum">
+    <i class="bi bi-chevron-down clinics-caret"></i>
+    <strong>{{ t('rooms.title') }}</strong>
+    <span class="clinics-facts">
+      <span><i class="bi bi-door-open"></i> {{ t('rooms.busy_n', n=busy_rooms) }}</span>
+      <span><i class="bi bi-people"></i> {{ t('rooms.waiting_n', n=queue_total) }}</span>
+      {% if urgent_total %}
+      <span class="clinics-urgent"><i class="bi bi-exclamation-octagon-fill"></i> {{ urgent_total }}</span>
+      {% endif %}
+    </span>
+  </summary>
+<div class="clinics-strip">
+  {% for c in clinics %}
+  {# Three tiers, because the old card put the room, the patient and every
+     number at one weight and the eye had nowhere to land — you had to *read*
+     it instead of glancing at it.
+
+     The card takes its state from the timer inside it (`:has`), so the
+     escalation that `app.js` already computes every thirty seconds drives the
+     whole tile rather than only the digits. One rule for "this wait is too
+     long", in the place that already owned it. #}
+  <a class="clinic-card{{ ' is-busy' if c.current else ' is-free' }}{{ ' is-urgent' if c.urgent else '' }}"
+     href="{{ url_for('appointments.index', date=link_date, doctor_id=c.doctor.id) }}">
+    <span class="cl-edge" aria-hidden="true"></span>
+
+    <div class="cl-head">
+      <span class="cl-room">{{ c.room.display_name(current_lang) if c.room else t('rooms.unassigned') }}</span>
+      <span class="cl-doc">{{ c.doctor.display_name(current_lang) }}</span>
+    </div>
+
+    {# The hero line. Who is in the room is the one thing worth reading from
+       across the desk, so it is the largest thing on the card. #}
+    <div class="cl-now">
+      {% if c.current %}
+        <span class="cl-orb busy" aria-hidden="true"></span>
+        <span class="cl-name">{{ c.current.patient.display_name(current_lang) }}</span>
+        <span class="cl-elapsed">{{ live_timer(c.current.started_at) }}</span>
+      {% else %}
+        <span class="cl-orb free" aria-hidden="true"></span>
+        <span class="cl-empty">{{ t('rooms.free') }}</span>
+      {% endif %}
+    </div>
+
+    {% if c.urgent %}
+    <div class="cl-alarm">
+      <i class="bi bi-exclamation-octagon-fill"></i> {{ c.urgent }} {{ t('redflags.in_queue') }}
+    </div>
+    {% endif %}
+
+    <div class="cl-rail">
+      <div class="cl-stat">
+        <span class="cl-num">{{ c.waiting }}</span>
+        <span class="cl-lab">{{ t('rooms.waiting') }}</span>
+        {# The queue as a shape. Five bars reads before "5" does, and the
+           overflow marker keeps a twenty-deep queue from drawing twenty. #}
+        <span class="cl-pips" aria-hidden="true">
+          {% for _ in range([c.waiting, 6]|min) %}<i></i>{% endfor %}
+          {% if c.waiting > 6 %}<em>+{{ c.waiting - 6 }}</em>{% endif %}
+        </span>
+      </div>
+
+      {% if c.longest_since %}
+      <div class="cl-stat cl-stat--wait">
+        <span class="cl-num">{{ live_timer(c.longest_since, 'wait') }}</span>
+        <span class="cl-lab">{{ t('rooms.longest') }}</span>
+      </div>
+      {% endif %}
+
+      <div class="cl-stat cl-stat--done">
+        <span class="cl-num">{{ c.done }}</span>
+        <span class="cl-lab"><i class="bi bi-check2"></i> {{ t('rooms.done') }}</span>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+</details>
+{% endmacro %}
