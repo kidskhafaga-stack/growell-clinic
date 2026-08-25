@@ -413,6 +413,24 @@ def set_sidebar():
 @main_bp.route("/update")
 @admin_required
 def update_available():
+    """The old address, kept pointing at the screen that explains.
+
+    ``/update`` and ``/settings/#update`` were two different screens wearing
+    one word. The split they exist for — one says what the version is, the
+    other installs it — was in the code and in the headings and nowhere in the
+    address bar, so browser history, a typed URL and a bookmark could not tell
+    them apart. Reported by somebody looking at two screenshots of them.
+
+    Anybody arriving at the old name lands on the screen that answers, which
+    is the same rule the bell already follows: know what it is before being
+    asked to close the clinic.
+    """
+    return redirect(url_for("settings.index", _anchor="update"))
+
+
+@main_bp.route("/update/install")
+@admin_required
+def update_install():
     """What the newer version is, and how to install it.
 
     The program does not install it. Not as a matter of taste: replacing the
@@ -459,12 +477,12 @@ def update_start():
 
     if not remembered():
         flash(t("update.none"), "info")
-        return redirect(url_for("main.update_available"))
+        return redirect(url_for("main.update_install"))
     if not updates.can_hand_off() or not updates.hand_off():
         # Nothing was started, so nothing is closing. The clinic carries on
         # and the admin is told to do it the way that always works.
         flash(t("update.handoff_failed"), "danger")
-        return redirect(url_for("main.update_available"))
+        return redirect(url_for("main.update_install"))
 
     ActivityLog.record("app.update_started", user_id=current_user.id,
                        entity="app", entity_id=None)

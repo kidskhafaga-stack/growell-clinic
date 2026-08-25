@@ -261,7 +261,11 @@ def test_the_launch_toggle_is_one_control_and_not_two(admin):
 # ------------------------------ one screen to look at, one screen to act on
 
 def _update_page(admin):
-    return admin["sign_in"]("boss").get("/update").get_data(as_text=True)
+    """The screen that installs. `/update` is now the old name and redirects
+    to the screen that explains, so this asks for the acting screen by its
+    own address."""
+    return (admin["sign_in"]("boss")
+            .get("/update/install").get_data(as_text=True))
 
 
 @pytest.fixture()
@@ -325,7 +329,7 @@ def test_a_current_copy_is_not_offered_somewhere_to_install_from(admin,
 
     # Matched on the href, not on the substring "/update": the panel also
     # carries "/settings/update/check", which contains it.
-    assert 'href="/update"' not in _settings_page(admin), \
+    assert 'href="/update/install"' not in _settings_page(admin), \
         "a copy that is already current was offered somewhere to install from"
 
 
@@ -377,3 +381,32 @@ def test_the_heading_still_announces_a_real_one(behind):
     heading = page[:page.index("</h1>")]
 
     assert "newer version" in heading or "نسخة أحدث" in heading
+
+
+# ------------------------------- the two screens do not share one address
+
+def test_the_two_screens_are_not_the_same_word(admin):
+    """Reported by somebody holding two screenshots: one was `#update` and the
+    other was `update`.
+
+    The whole point of the split is that one screen says what the version is
+    and the other installs it — and both were called "update" in the address
+    bar, so browser history, a typed URL and a bookmark could not tell them
+    apart. The split was in the code and in the headings and nowhere a person
+    actually looks."""
+    from flask import url_for
+
+    with admin["app"].test_request_context():
+        assert url_for("main.update_install") == "/update/install"
+        assert url_for("settings.index", _anchor="update") == "/settings/#update"
+
+
+def test_the_old_address_lands_on_the_screen_that_explains(admin):
+    """Not a 404 and not the acting screen. Somebody who bookmarked the old
+    name should arrive where the version is, which is the same rule the bell
+    follows: know what it is before being asked to close the clinic."""
+    answer = admin["sign_in"]("boss").get("/update")
+
+    assert answer.status_code == 302
+    assert "/settings/" in answer.headers["Location"]
+    assert answer.headers["Location"].endswith("#update")

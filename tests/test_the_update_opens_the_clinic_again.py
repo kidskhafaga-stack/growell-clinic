@@ -106,7 +106,7 @@ def test_the_screen_no_longer_tells_people_to_start_it_themselves(clinic):
             {"installed": "a" * 40, "latest": "b" * 40, "notes": []}))
         db.session.commit()
 
-    page = clinic["sign_in"]("boss").get("/update").get_data(as_text=True)
+    page = clinic["sign_in"]("boss").get("/update/install").get_data(as_text=True)
 
     assert "update.bat" in page, "the manual route is no longer explained"
     assert "لوحده" in page or "by itself" in page, \

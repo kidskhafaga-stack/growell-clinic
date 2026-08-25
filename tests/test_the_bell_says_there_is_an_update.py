@@ -192,7 +192,7 @@ def test_the_page_says_how_to_install_it_and_which_version(clinic):
     on, so it names the two versions and gets out of the way. What it must
     still say is how, because somebody standing here is about to do it."""
     _store(clinic, json.dumps(FOUND))
-    page = clinic["sign_in"]("boss").get("/update").get_data(as_text=True)
+    page = clinic["sign_in"]("boss").get("/update/install").get_data(as_text=True)
 
     assert "update.bat" in page, "the page does not say how to install it"
     assert FOUND["latest"][:12] in page, \
@@ -209,7 +209,7 @@ def test_it_is_not_a_page_anybody_can_open(clinic):
     # page, and this would pass while proving nothing.
     assert desk.get("/dashboard").status_code == 200
 
-    res = desk.get("/update", follow_redirects=False)
+    res = desk.get("/update/install", follow_redirects=False)
     assert res.status_code in (302, 403), \
         "somebody who cannot act on it can open the update page"
 
@@ -313,13 +313,13 @@ def test_the_button_is_only_offered_where_it_can_work(clinic, monkeypatch):
     boss = clinic["sign_in"]("boss")
 
     monkeypatch.setattr(updates, "can_hand_off", lambda: False)
-    page = boss.get("/update").get_data(as_text=True)
+    page = boss.get("/update/install").get_data(as_text=True)
     assert "update.bat" in page, "the page did not render at all"
     assert "/update/start" not in page, \
         "a button was offered on a copy that cannot use it"
 
     monkeypatch.setattr(updates, "can_hand_off", lambda: True)
-    assert "/update/start" in boss.get("/update").get_data(as_text=True)
+    assert "/update/start" in boss.get("/update/install").get_data(as_text=True)
 
 
 def test_the_hand_off_script_waits_before_it_writes(clinic):
