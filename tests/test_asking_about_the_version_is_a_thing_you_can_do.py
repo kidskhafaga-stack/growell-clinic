@@ -261,11 +261,10 @@ def test_the_launch_toggle_is_one_control_and_not_two(admin):
 # ------------------------------ one screen to look at, one screen to act on
 
 def _update_page(admin):
-    """The screen that installs. `/update` is now the old name and redirects
-    to the screen that explains, so this asks for the acting screen by its
-    own address."""
-    return (admin["sign_in"]("boss")
-            .get("/update/install").get_data(as_text=True))
+    """There is one screen, so this is the same page as `_settings_page`. Kept
+    as a name because the tests below are about what the *update* part of it
+    says, and reading them should not require remembering that."""
+    return _settings_page(admin)
 
 
 @pytest.fixture()
@@ -277,31 +276,40 @@ def behind(admin, monkeypatch):
     return admin
 
 
-def test_the_release_notes_live_in_one_place(behind):
-    """Asked directly: *"كنا عاملين صفحة تانية للاب ديت وانت قلت ان ده تكرار"*.
+def test_everything_about_the_version_is_on_one_screen(behind):
+    """Asked for twice, and the second answer replaced the first.
 
-    It was, and the shape of it was worse than a plain copy: the version, the
-    check button and the launch toggle were only in settings, the steps and
-    the install button only on the page, and "what's new" was on both. A
-    clinic had half the facts on each screen and had to know which half.
+    It began as two screens because the install button closes the clinic and
+    that felt like it deserved its own room. Living with it said otherwise:
+    *"خليها كلها من مكان واحد وخلاص علشان ما نتهش"*. The version, what is in
+    the release, how to install it and the button are one panel now.
 
-    So the notes belong to the screen you *read*, and the page you reach to
-    *act* names the two versions and points back."""
-    settings = _settings_page(behind)
-    page = _update_page(behind)
+    The button still cannot be reached by aiming badly — it is in its own
+    block below everything that only reads, and it asks before it closes the
+    program — but it is *here*."""
+    page = _settings_page(behind)
 
-    assert "A thing a clinic found by using the program" in settings, \
-        "the release notes are not on the screen a person looks at"
-    assert "A thing a clinic found by using the program" not in page, \
-        "the acting screen repeats the notes; that is the duplication itself"
+    assert "A thing a clinic found by using the program" in page, \
+        "the release notes are not on the screen"
+    assert "update.bat" in page, "the screen does not say how to install it"
+    assert THERE[:12] in page, "the screen does not say which version"
 
 
-def test_the_acting_screen_still_says_what_it_is_installing(behind):
-    """Removing the notes must not leave somebody about to close their clinic
-    with no idea which version they are moving to."""
-    page = _update_page(behind)
+def test_a_current_copy_is_not_shown_how_to_install_nothing(admin, monkeypatch):
+    """The steps and the button appear because there is something waiting. On
+    a copy that is already current they are an answer to a question nobody
+    asked, and the panel should read as "you are fine"."""
+    _patch(monkeypatch, installed=HERE, latest=HERE)
+    _check(admin)
 
-    assert HERE[:12] in page and THERE[:12] in page
+    page = _settings_page(admin)
+
+    # Matched on the block, not on "update.bat": the privacy sentence names
+    # the script too ("updating stays in update.bat"), so the bare string is
+    # on the panel whatever state it is in.
+    assert "update-do" not in page, \
+        "a copy that is up to date is being told how to update"
+    assert "/update/start" not in page
 
 
 def test_the_bell_lands_on_the_screen_that_explains(behind):
@@ -333,80 +341,55 @@ def test_a_current_copy_is_not_offered_somewhere_to_install_from(admin,
         "a copy that is already current was offered somewhere to install from"
 
 
-def test_the_install_route_is_still_its_own_screen(behind):
-    """Deliberately not folded into the settings form. The button closes the
-    program; sitting it beside "Save" is how somebody shuts a clinic down
-    mid-morning by aiming badly."""
-    settings = _settings_page(behind)
+def test_the_button_that_closes_the_clinic_is_kept_apart(behind, monkeypatch):
+    """It is on the settings form now, by request — one place, so nobody gets
+    lost. What has to stay true is that reaching it is a decision: its own
+    block, below everything that only reads, and a confirmation in front of
+    it. The failure worth designing against is somebody aiming for "Save" and
+    shutting down a working morning.
 
-    assert "update/start" not in settings, \
-        "the button that closes the program is on the settings form"
+    `can_hand_off` is patched because it is false everywhere but Windows, and
+    the version of this test that did not patch it asserted the button was
+    absent and passed for that reason instead of the one it claimed."""
+    import re
 
+    from app.utils import updates
 
-# ------------------------------------- the page does not contradict itself
+    monkeypatch.setattr(updates, "can_hand_off", lambda: True)
+    page = _settings_page(behind)
 
-def test_a_current_copy_is_not_greeted_with_there_is_a_newer_version(admin,
-                                                                     monkeypatch):
-    """Reported from a real machine, with a screenshot: the page's heading said
-    "A newer version" and the body underneath said "This copy is up to date".
+    assert "update-do" in page, "the install block is not set apart"
+    assert page.index("update-do") < page.index("/update/start"), \
+        "the button is outside the block meant to hold it"
 
-    The heading was outside the `{% if %}` that knows, so it announced one
-    whether or not there was one. Two lines of the same screen disagreeing is
-    how somebody stops trusting the screen."""
-    _patch(monkeypatch, installed=HERE, latest=HERE)
-    _check(admin)
-
-    page = _update_page(admin)
-    heading = page[:page.index("</h1>")] if "</h1>" in page else page
-
-    assert "up to date" in page or "محدّثة" in page, "the body lost its answer"
-    assert "newer version" not in heading and "نسخة أحدث" not in heading, \
-        "the page announces an update it then says does not exist"
-
-
-def test_a_dead_end_offers_a_way_on(admin, monkeypatch):
-    """Arriving somewhere that only says "no" and offers nothing is how a
-    clinic decides a screen is broken. The version and the check button are
-    one click away, so say so."""
-    _patch(monkeypatch, installed=HERE, latest=HERE)
-    _check(admin)
-
-    assert "/settings/#update" in _update_page(admin), \
-        "the page says there is nothing to do and offers nowhere to go"
+    # Scoped to the button's own markup. `confirm(` appears elsewhere on this
+    # screen, so asking whether the *page* contains it passes against a
+    # deliberately unguarded button — which is what happened.
+    button = re.search(r"<button[^>]*update/start[^>]*>", page, re.S)
+    assert button, "the install button is not on the screen"
+    assert "confirm(" in button.group(0), \
+        "the button closes the program without asking first"
 
 
-def test_the_heading_still_announces_a_real_one(behind):
-    """The other side: when there *is* an update, the page has to say so."""
-    page = _update_page(behind)
-    heading = page[:page.index("</h1>")]
+def test_there_is_only_one_screen_left(admin):
+    """`/update` and `/settings/#update` were two screens wearing one word —
+    spotted from two screenshots of them. The fix was not better names in the
+    end; it was one screen."""
+    import pathlib
 
-    assert "newer version" in heading or "نسخة أحدث" in heading
+    root = pathlib.Path(__file__).resolve().parent.parent
 
-
-# ------------------------------- the two screens do not share one address
-
-def test_the_two_screens_are_not_the_same_word(admin):
-    """Reported by somebody holding two screenshots: one was `#update` and the
-    other was `update`.
-
-    The whole point of the split is that one screen says what the version is
-    and the other installs it — and both were called "update" in the address
-    bar, so browser history, a typed URL and a bookmark could not tell them
-    apart. The split was in the code and in the headings and nowhere a person
-    actually looks."""
-    from flask import url_for
-
-    with admin["app"].test_request_context():
-        assert url_for("main.update_install") == "/update/install"
-        assert url_for("settings.index", _anchor="update") == "/settings/#update"
+    assert not (root / "app/templates/main/update.html").exists(), \
+        "the second screen is still there"
 
 
 def test_the_old_address_lands_on_the_screen_that_explains(admin):
     """Not a 404 and not the acting screen. Somebody who bookmarked the old
     name should arrive where the version is, which is the same rule the bell
     follows: know what it is before being asked to close the clinic."""
-    answer = admin["sign_in"]("boss").get("/update")
+    for old in ("/update", "/update/install"):
+        answer = admin["sign_in"]("boss").get(old)
 
-    assert answer.status_code == 302
-    assert "/settings/" in answer.headers["Location"]
-    assert answer.headers["Location"].endswith("#update")
+        assert answer.status_code == 302, f"{old} is a dead end"
+        assert "/settings/" in answer.headers["Location"]
+        assert answer.headers["Location"].endswith("#update")

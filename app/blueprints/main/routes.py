@@ -411,43 +411,21 @@ def set_sidebar():
 
 
 @main_bp.route("/update")
-@admin_required
-def update_available():
-    """The old address, kept pointing at the screen that explains.
-
-    ``/update`` and ``/settings/#update`` were two different screens wearing
-    one word. The split they exist for — one says what the version is, the
-    other installs it — was in the code and in the headings and nowhere in the
-    address bar, so browser history, a typed URL and a bookmark could not tell
-    them apart. Reported by somebody looking at two screenshots of them.
-
-    Anybody arriving at the old name lands on the screen that answers, which
-    is the same rule the bell already follows: know what it is before being
-    asked to close the clinic.
-    """
-    return redirect(url_for("settings.index", _anchor="update"))
-
-
 @main_bp.route("/update/install")
 @admin_required
-def update_install():
-    """What the newer version is, and how to install it.
+def update_available():
+    """The old addresses, both pointing at the one screen.
 
-    The program does not install it. Not as a matter of taste: replacing the
-    files a running process is executing, on the machine a clinic is seeing
-    patients on, is the failure that cost a morning when `start.bat` used to
-    run `git pull` on every launch. So this page ends at a sentence — close
-    the program and run `update.bat` — and the update happens with nothing
-    running, with a snapshot before it and a schema upgrade after it.
+    There used to be a second screen here. The version, the check button and
+    the release notes were in settings; the steps and the install button were
+    on this page; and for a while both were called "update" in the address
+    bar, so history and bookmarks could not tell them apart. Asked for after
+    living with it: *"خليها كلها من مكان واحد وخلاص علشان ما نتهش"*.
 
-    A button that closed the program safely and handed the job to a separate
-    updater would be a fair thing to build; it would still not be this page
-    doing the updating, which is the part that matters.
+    Kept as redirects rather than removed: a clinic that bookmarked either
+    name should land on the screen, not on a 404.
     """
-    from app.utils.updates import can_hand_off, remembered
-
-    return render_template("main/update.html", update=remembered(),
-                           can_hand_off=can_hand_off())
+    return redirect(url_for("settings.index", _anchor="update"))
 
 
 @main_bp.route("/update/start", methods=["POST"])
@@ -477,12 +455,12 @@ def update_start():
 
     if not remembered():
         flash(t("update.none"), "info")
-        return redirect(url_for("main.update_install"))
+        return redirect(url_for("settings.index", _anchor="update"))
     if not updates.can_hand_off() or not updates.hand_off():
         # Nothing was started, so nothing is closing. The clinic carries on
         # and the admin is told to do it the way that always works.
         flash(t("update.handoff_failed"), "danger")
-        return redirect(url_for("main.update_install"))
+        return redirect(url_for("settings.index", _anchor="update"))
 
     ActivityLog.record("app.update_started", user_id=current_user.id,
                        entity="app", entity_id=None)

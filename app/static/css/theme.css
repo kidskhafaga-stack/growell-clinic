@@ -978,3 +978,20 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
 .chip--static { cursor:default; }
 .chip--static:hover { border-color:var(--green-600); background:var(--green-050);
   color:var(--green-800); }
+
+/* ---------- The one destructive thing on the settings screen ----------
+ *
+ * "Close the program and update" now lives on the same panel as everything
+ * else about the version, because a clinic asked for one place rather than
+ * two. It is still the only control here that stops the clinic working, so it
+ * is drawn apart from the reading above it: its own inset block, its own
+ * edge, and enough space that reaching for it is a decision rather than a
+ * near miss on the way to "Save".
+ */
+.update-do { margin-top:16px; padding:14px 16px; border-radius:12px;
+  border:1px solid var(--line); border-inline-start:4px solid #b45309;
+  background:var(--surface-2); }
+.update-do__head { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-bottom:8px; }
+.update-do__steps { margin:0 0 10px; padding-inline-start:20px; line-height:1.9;
+  color:var(--ink); }

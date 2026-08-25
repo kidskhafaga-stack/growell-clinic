@@ -188,18 +188,19 @@ def test_the_page_says_how_to_install_it_and_which_version(clinic):
     button on another, and the release notes on both. Half the facts on each,
     and you had to know which half was where.
 
-    The notes now belong to the screen you read; this is the screen you act
-    on, so it names the two versions and gets out of the way. What it must
-    still say is how, because somebody standing here is about to do it."""
+    There is one screen now — asked for after living with the split, because
+    finding your way was worth more than whatever the separation bought. So
+    everything about the version is on it: what is installed, what is waiting,
+    what is in it, and how to put it on."""
     _store(clinic, json.dumps(FOUND))
-    page = clinic["sign_in"]("boss").get("/update/install").get_data(as_text=True)
+    page = clinic["sign_in"]("boss").get("/settings/").get_data(as_text=True)
 
-    assert "update.bat" in page, "the page does not say how to install it"
+    assert "update.bat" in page, "the screen does not say how to install it"
     assert FOUND["latest"][:12] in page, \
-        "the page does not say which version it is installing"
+        "the screen does not say which version it is installing"
     for note in FOUND["notes"]:
-        assert note not in page, \
-            "the acting screen repeats the release notes; that is the duplication"
+        assert note in page, \
+            "the one screen does not say what is in the release"
 
 
 def test_it_is_not_a_page_anybody_can_open(clinic):
@@ -212,6 +213,9 @@ def test_it_is_not_a_page_anybody_can_open(clinic):
     res = desk.get("/update/install", follow_redirects=False)
     assert res.status_code in (302, 403), \
         "somebody who cannot act on it can open the update page"
+    # And the screen it now redirects to is admin-only in its own right, so
+    # the redirect is not a way round the door.
+    assert desk.get("/settings/", follow_redirects=False).status_code in (302, 403)
 
 
 def test_the_page_never_updates_the_program_it_is_running_in(clinic,
@@ -313,13 +317,13 @@ def test_the_button_is_only_offered_where_it_can_work(clinic, monkeypatch):
     boss = clinic["sign_in"]("boss")
 
     monkeypatch.setattr(updates, "can_hand_off", lambda: False)
-    page = boss.get("/update/install").get_data(as_text=True)
-    assert "update.bat" in page, "the page did not render at all"
+    page = boss.get("/settings/").get_data(as_text=True)
+    assert "update.bat" in page, "the steps did not render at all"
     assert "/update/start" not in page, \
         "a button was offered on a copy that cannot use it"
 
     monkeypatch.setattr(updates, "can_hand_off", lambda: True)
-    assert "/update/start" in boss.get("/update/install").get_data(as_text=True)
+    assert "/update/start" in boss.get("/settings/").get_data(as_text=True)
 
 
 def test_the_hand_off_script_waits_before_it_writes(clinic):

@@ -106,6 +106,16 @@ def _installed_now():
             "source": "git" if is_clone else ("stamp" if revision else "none")}
 
 
+def _can_hand_off():
+    """Read through the module rather than imported by name, so a test that
+    patches `updates.can_hand_off` patches what this reads. Importing the
+    function up front would bind the original and the patch would do nothing —
+    which is a test that passes while proving the opposite."""
+    from app.utils import updates
+
+    return updates.can_hand_off()
+
+
 def _update_pending():
     """What the last check found, without asking again.
 
@@ -532,6 +542,11 @@ def index():
         # a downloaded copy reads the stamp `update.bat` wrote.
         installed_revision=_installed_now(),
         update_pending=_update_pending(),
+        # Whether this copy can start the external updater at all: Windows,
+        # and the hand-off script actually on disk. Without it the template's
+        # `{% if can_hand_off %}` is an undefined name — falsy, silent, and
+        # the button simply never appears on the machines that can use it.
+        can_hand_off=_can_hand_off(),
         # Handed over rather than written into the template, so adding a
         # reference is one edit and not two — a picker that has drifted from
         # the list the engine reads offers a clinic a policy it will not get.

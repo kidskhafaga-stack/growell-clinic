@@ -904,16 +904,6 @@
               x-on:click="check()" :disabled="busy">
         <i class="bi bi-arrow-repeat"></i>
         <span x-text="busy ? '…' : '{{ t('update.check_now') }}'">{{ t('update.check_now') }}</span></button>
-      {# The way to the *acting* screen, and only when there is something to
-         act on. `/update` closes the program and hands the job to a separate
-         updater, so it keeps its own screen and its own confirmation rather
-         than sitting as a button beside "Save". When the copy is current
-         there is nothing to install, and offering the link anyway is what
-         made two screens feel like two halves of one. #}
-      {% if update_pending %}
-      <a class="md-btn md-btn--filled gc-press" href="{{ url_for('main.update_install') }}">
-        <i class="bi bi-box-arrow-in-down"></i> {{ t('update.install_it') }}</a>
-      {% endif %}
       <span class="hint" x-show="said" x-cloak x-text="said"
             :style="tone === 'ok' ? 'color:var(--green-700)' : 'color:#b45309'"></span>
     </div>
@@ -924,6 +914,51 @@
       <ul style="margin:6px 0 0;padding-inline-start:20px;">
         {% for line in update_pending.notes %}<li class="hint">{{ line }}</li>{% endfor %}
       </ul>
+    </div>
+    {% endif %}
+
+    {# ---- Installing it, in the same place as everything else about it ----
+
+       Asked for after living with the split: *"خليها كلها من مكان واحد وخلاص
+       علشان ما نتهش"*. There were two screens and, briefly, two addresses
+       wearing one word; whatever the split bought, finding your way was worth
+       more.
+
+       So the act comes here too — but not as another button in the row. It
+       closes the clinic's program. It sits in its own block, below everything
+       that merely reads, with the three manual steps beside it and a
+       confirmation in front of it, because the failure worth designing against
+       is somebody aiming for "Save" and shutting down a working morning.
+
+       `formaction` rather than a nested `<form>`: every tab on this screen is
+       one form, and a form inside a form is dropped by the browser. The same
+       pattern the ICD-11 buttons above already use. #}
+    {% if update_pending %}
+    <div class="update-do">
+      <div class="update-do__head">
+        <i class="bi bi-box-arrow-in-down"></i>
+        <strong>{{ t('update.how') }}</strong>
+        <span class="hint" style="margin:0;" dir="ltr">
+          {{ update_pending.installed[:12] }} → {{ update_pending.latest[:12] }}</span>
+      </div>
+      <ol class="update-do__steps">
+        <li>{{ t('update.step_close') }}</li>
+        <li>{{ t('update.step_run') }} <code dir="ltr">update.bat</code></li>
+        <li>{{ t('update.step_start') }}</li>
+      </ol>
+      <p class="hint" style="margin:0 0 10px;">
+        <i class="bi bi-shield-check"></i> {{ t('update.safety') }}</p>
+
+      {# Only where it can actually work. A copy without the hand-off script,
+         or one not on Windows, gets the steps above and no button rather than
+         a button that quietly does nothing. #}
+      {% if can_hand_off %}
+      <button type="submit" class="btn btn-danger gc-press"
+              formaction="{{ url_for('main.update_start') }}" formmethod="post"
+              onclick="return confirm({{ t('update.confirm') | tojson | forceescape }});">
+        <i class="bi bi-power"></i> {{ t('update.do_it') }}</button>
+      <div class="hint" style="margin-top:8px;">{{ t('update.do_it_hint') }}</div>
+      {% endif %}
     </div>
     {% endif %}
 

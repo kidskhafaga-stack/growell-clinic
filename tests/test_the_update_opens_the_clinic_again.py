@@ -93,9 +93,12 @@ def test_the_hand_off_still_waits_for_the_program_to_die_first():
 
 
 def test_the_screen_no_longer_tells_people_to_start_it_themselves(clinic):
-    """The instructions and the script have to agree. A page still saying "now
-    run start.bat" after the script does it is how a clinic ends up with two
-    copies of the program open on one port."""
+    """The instructions and the script have to agree. A screen still saying
+    "now run start.bat" after the script does it is how a clinic ends up with
+    two copies of the program open on one port.
+
+    Read from the settings panel, which is where all of this lives now — there
+    was a second screen for the steps and the button, and it was folded in."""
     import json
 
     from app.extensions import db
@@ -106,8 +109,8 @@ def test_the_screen_no_longer_tells_people_to_start_it_themselves(clinic):
             {"installed": "a" * 40, "latest": "b" * 40, "notes": []}))
         db.session.commit()
 
-    page = clinic["sign_in"]("boss").get("/update/install").get_data(as_text=True)
+    page = clinic["sign_in"]("boss").get("/settings/").get_data(as_text=True)
 
     assert "update.bat" in page, "the manual route is no longer explained"
     assert "لوحده" in page or "by itself" in page, \
-        "the page does not say the program comes back on its own"
+        "the screen does not say the program comes back on its own"
