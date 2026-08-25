@@ -1,0 +1,178 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('shiftsum.title') }}{% endblock %}
+{% block page_heading %}{{ t('shiftsum.title') }}{% endblock %}
+
+{# Shifts added up two ways over a window. The history screen lists sessions
+   one by one and the end-of-day screen covers a day; neither answers "is this
+   person short every week" or "does this desk only balance when one particular
+   person is on it".
+
+   Read-only on purpose. Nothing here closes a shift, counts a drawer or writes
+   a difference off — those are acts with their own screens and their own
+   permissions, and a summary that could perform them would be a summary
+   somebody uses to make a shortage disappear. #}
+
+{% macro money_cell(value, kind='') %}
+<td class="num {{ kind }}">{{ value | money if value else '—' }}</td>
+{% endmacro %}
+
+{# `kind` rather than a callable: Jinja has no lambda, and the two
+   tables differ only in which object carries the name. #}
+{% macro rollup_table(rows, label_head, kind) %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>{{ label_head }}</th>
+        <th class="num">{{ t('shiftsum.shifts') }}</th>
+        <th class="num">{{ t('shiftsum.collected') }}</th>
+        <th class="num">{{ t('shiftsum.cash') }}</th>
+        <th class="num">{{ t('shiftsum.short') }}</th>
+        <th class="num">{{ t('shiftsum.over') }}</th>
+        <th class="num">{{ t('shiftsum.off') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          {%- if kind == 'person' -%}
+            {{ row.who.display_name(current_lang) if row.who else t('shiftsum.nobody') }}
+          {%- else -%}
+            {{ row.till.display_name(current_lang) if row.till else t('shiftsum.no_till') }}
+          {%- endif %}
+          {% if row.open %}
+          <span class="badge badge--muted">{{ t('shiftsum.still_open', n=row.open) }}</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ row.shifts }}</td>
+        <td class="num">{{ row.collected | money }}</td>
+        <td class="num">{{ row.cash | money }}</td>
+        {{ money_cell(row.short, 'sum-short') }}
+        {{ money_cell(row.over, 'sum-over') }}
+        <td class="num">{{ row.off or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('shiftsum.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('shiftsum.sub') }}</p>
+
+<form class="card gc-scale-in" method="get" style="margin-bottom:16px;">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-row" style="margin:0;min-width:150px;">
+      <label for="date_from">{{ t('reports.from') }}</label>
+      <input class="input" type="date" id="date_from" name="date_from"
+             value="{{ date_from.isoformat() }}">
+    </div>
+    <div class="form-row" style="margin:0;min-width:150px;">
+      <label for="date_to">{{ t('reports.to') }}</label>
+      <input class="input" type="date" id="date_to" name="date_to"
+             value="{{ date_to.isoformat() }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-funnel"></i> {{ t('common.apply') }}</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <a class="chip chip--link" href="{{ url_for('finance.shift_summary',
+         date_from=today.isoformat(), date_to=today.isoformat()) }}">{{ t('mine.today') }}</a>
+    <a class="chip chip--link" href="{{ url_for('finance.shift_summary',
+         date_from=month_start.isoformat(), date_to=today.isoformat()) }}">{{ t('mine.this_month') }}</a>
+  </div>
+</form>
+
+{% if totals.shifts %}
+{# The headline. Short and over stand apart because netting them is how a desk
+   that is 200 out twice reads as a desk that is fine. #}
+<div class="sum-grid gc-scale-in" style="animation-delay:0.08s;">
+  <div class="sum-stat">
+    <div class="sum-k">{{ t('shiftsum.shifts') }}</div>
+    <div class="sum-v">{{ totals.shifts }}</div>
+  </div>
+  <div class="sum-stat">
+    <div class="sum-k">{{ t('shiftsum.collected') }}</div>
+    <div class="sum-v">{{ totals.collected | money }}</div>
+    <div class="hint" style="margin:0;">{{ t('shiftsum.of_which_cash', v=totals.cash | money) }}</div>
+  </div>
+  <div class="sum-stat sum-stat--short">
+    <div class="sum-k">{{ t('shiftsum.short') }}</div>
+    <div class="sum-v">{{ totals.short | money }}</div>
+  </div>
+  <div class="sum-stat sum-stat--over">
+    <div class="sum-k">{{ t('shiftsum.over') }}</div>
+    <div class="sum-v">{{ totals.over | money }}</div>
+  </div>
+</div>
+
+<p class="hint" style="margin:-6px 0 16px;"><i class="bi bi-info-circle"></i>
+  {{ t('shiftsum.net_note', v=totals.net | money, n=totals.off) }}</p>
+
+{# The finding the report was asked for. Where one desk was worked by more than
+   one person, "who is short" and "which drawer is short" stop being the same
+   question — and if the money is handed over at the end of every shift rather
+   than left in the drawer, they never should have been. #}
+{% if shared %}
+<div class="card gc-scale-in edge-yellow" style="margin-bottom:16px;">
+  <p style="margin:0;"><i class="bi bi-people"></i>
+    <strong>{{ t('shiftsum.shared_title', n=shared|length) }}</strong></p>
+  <p class="hint" style="margin:6px 0 0;">{{ t('shiftsum.shared_note') }}</p>
+</div>
+{% endif %}
+
+<details class="card sum-fold gc-scale-in" data-fold="sum-people"
+         style="animation-delay:0.12s;margin-bottom:16px;" open>
+  <summary class="sum-sum">
+    <i class="bi bi-chevron-down sum-caret"></i>
+    <strong>{{ t('shiftsum.by_person') }}</strong>
+    <span class="hint" style="margin:0;">{{ t('shiftsum.people_n', n=people|length) }}</span>
+  </summary>
+  {{ rollup_table(people, t('shiftsum.person'), 'person') }}
+</details>
+
+<details class="card sum-fold gc-scale-in" data-fold="sum-tills"
+         style="animation-delay:0.16s;" open>
+  <summary class="sum-sum">
+    <i class="bi bi-chevron-down sum-caret"></i>
+    <strong>{{ t('shiftsum.by_till') }}</strong>
+    <span class="hint" style="margin:0;">{{ t('shiftsum.tills_n', n=tills|length) }}</span>
+  </summary>
+  {{ rollup_table(tills, t('shiftsum.till'), 'till') }}
+  <p class="hint" style="margin-top:12px;"><i class="bi bi-credit-card-2-front"></i>
+    {{ t('shiftsum.cash_only_note') }}</p>
+</details>
+{% else %}
+<div class="card gc-scale-in">
+  <p class="placeholder-soft" style="margin:0;">{{ t('shiftsum.nothing') }}</p>
+</div>
+{% endif %}
+
+<style>
+  .sum-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+    margin-bottom:16px; }
+  .sum-stat { border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+    background:var(--card); }
+  /* Short and over are the two things somebody is scanning for, so they carry
+     the only colour on the row — and different colours, because they are not
+     the same news. */
+  .sum-stat--short { border-inline-start:4px solid #b42318; }
+  .sum-stat--over { border-inline-start:4px solid #b45309; }
+  .sum-k { color:var(--muted); font-size:.82rem; margin-bottom:4px; }
+  .sum-v { font-size:1.5rem; font-weight:800; font-variant-numeric:tabular-nums; }
+  .sum-short { color:#b42318; font-weight:700; }
+  .sum-over { color:#b45309; font-weight:700; }
+
+  .sum-fold .table { margin-top:12px; }
+  .sum-sum { display:flex; align-items:center; gap:10px; cursor:pointer;
+    list-style:none; }
+  .sum-sum::-webkit-details-marker { display:none; }
+  .sum-caret { transition:transform .15s ease; color:var(--muted); }
+  .sum-fold:not([open]) .sum-caret { transform:rotate(-90deg); }
+
+  @media (max-width:880px){ .sum-grid { grid-template-columns:repeat(2,1fr); } }
+</style>
+{% endblock %}

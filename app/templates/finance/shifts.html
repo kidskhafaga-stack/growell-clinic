@@ -10,7 +10,12 @@
     <h1 class="page-title">{{ t('shifts.history') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('shifts.history_sub') }}</p>
   </div>
+  {# The rollup of the list below. Somebody scanning shift after shift for a
+     pattern is the person who wants it, so it sits on the list. #}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.shift_summary') }}"><i class="bi bi-people"></i> {{ t('shiftsum.title') }}</a>
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.cashier') }}"><i class="bi bi-cash-coin"></i> {{ t('cashier.title') }}</a>
+  </div>
 </div>
 
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;">

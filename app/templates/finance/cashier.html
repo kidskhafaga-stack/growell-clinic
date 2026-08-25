@@ -92,6 +92,7 @@
       <span class="hint">{{ t('shifts.label_hint') }}</span></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-play-fill"></i> {{ t('shifts.open') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.shifts') }}"><i class="bi bi-clock-history"></i> {{ t('shifts.history') }}</a>
+      <a class="btn btn-outline gc-press" href="{{ url_for('finance.shift_summary') }}"><i class="bi bi-people"></i> {{ t('shiftsum.title') }}</a>
   </form>
   {% endif %}
 </div>
