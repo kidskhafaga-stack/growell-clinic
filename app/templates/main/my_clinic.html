@@ -1,0 +1,197 @@
+{% extends "shell.html" %}
+{% set active_module = 'my_clinic' %}
+{% block title %}{{ t('mine.title') }}{% endblock %}
+{% block page_heading %}{{ t('mine.title') }}{% endblock %}
+
+{# A doctor's own screen. The dashboard answers "right now" at a glance; this
+   answers "how am I doing", which needs a window of time and room to read —
+   which is why it is a screen and not another card up there.
+
+   Folded sections, asked for: *"ويبقى قابل للطي"*. The headline numbers stay
+   open because they are the question; the detail behind each one opens when
+   somebody wants it. Each fold keeps its own state in the browser, so a doctor
+   who only ever looks at the money is not re-collapsing three panels a day. #}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('mine.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">
+  {{ subject.display_name(current_lang) }}</p>
+
+{# ---- The window, and whose work it is ---------------------------------- #}
+<form class="card gc-scale-in" method="get" style="margin-bottom:16px;">
+  <div class="mine-controls">
+    {% if doctors %}
+    {# Only for whoever runs the clinic. A doctor has no picker because there
+       is nothing for them to pick: their own work is the only work this
+       screen will answer about, and the route enforces that rather than
+       trusting the absence of a control. #}
+    <div class="form-row" style="margin:0;">
+      <label for="doctor_id">{{ t('appointments.doctor') }}</label>
+      <select class="input" id="doctor_id" name="doctor_id">
+        {% for d in doctors %}
+        <option value="{{ d.id }}" {{ 'selected' if d.id == subject.id else '' }}>
+          {{ d.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="form-row" style="margin:0;">
+      <label for="date_from">{{ t('reports.from') }}</label>
+      <input class="input" type="date" id="date_from" name="date_from"
+             value="{{ date_from.isoformat() }}">
+    </div>
+    <div class="form-row" style="margin:0;">
+      <label for="date_to">{{ t('reports.to') }}</label>
+      <input class="input" type="date" id="date_to" name="date_to"
+             value="{{ date_to.isoformat() }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-funnel"></i> {{ t('common.apply') }}</button>
+  </div>
+  {# The two windows people actually ask for, so the commonest question is not
+     a date-picker exercise. #}
+  <div class="mine-quick">
+    <a class="chip chip--link" href="{{ url_for('main.my_clinic',
+         doctor_id=subject.id, date_from=today.isoformat(),
+         date_to=today.isoformat()) }}">{{ t('mine.today') }}</a>
+    <a class="chip chip--link" href="{{ url_for('main.my_clinic',
+         doctor_id=subject.id, date_from=month_start.isoformat(),
+         date_to=today.isoformat()) }}">{{ t('mine.this_month') }}</a>
+  </div>
+</form>
+
+{# ---- The headline. Four numbers, and each one opens ---------------------- #}
+<div class="mine-grid gc-scale-in" style="animation-delay:0.08s;">
+  <div class="mine-stat">
+    <div class="mine-k">{{ t('mine.seen') }}</div>
+    <div class="mine-v">{{ work.seen }}</div>
+  </div>
+  <div class="mine-stat">
+    <div class="mine-k">{{ t('mine.new_patients') }}</div>
+    <div class="mine-v">{{ work.patients.new }}</div>
+    <div class="hint" style="margin:0;">{{ t('mine.of_n', n=work.patients.total) }}</div>
+  </div>
+  <div class="mine-stat">
+    <div class="mine-k">{{ t('mine.collected') }}</div>
+    <div class="mine-v">{{ work.money.collected | money }}</div>
+  </div>
+  <div class="mine-stat mine-stat--share">
+    <div class="mine-k">{{ t('mine.share') }}</div>
+    <div class="mine-v">{{ work.money.share | money }}</div>
+  </div>
+</div>
+
+{# ---- What the cases were ------------------------------------------------ #}
+<details class="card mine-fold gc-scale-in" data-fold="mine-types"
+         style="animation-delay:0.12s;" open>
+  <summary class="mine-sum">
+    <i class="bi bi-chevron-down mine-caret"></i>
+    <strong>{{ t('mine.by_type') }}</strong>
+    <span class="hint" style="margin:0;">{{ t('mine.seen_n', n=work.seen) }}</span>
+  </summary>
+  <div class="mine-types">
+    {% for row in work.types %}
+    {# Types with none of them in the window are still drawn, quietly. A
+       missing row reads as "this does not exist here"; a zero reads as "none
+       this month", which is the true and more useful answer. #}
+    <div class="mine-type{{ ' is-zero' if not row.count else '' }}">
+      <span class="mine-dot vt-{{ row.color }}"></span>
+      <span class="mine-type__label">{{ row.label }}</span>
+      <span class="mine-type__n">{{ row.count }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="mine-newold">
+    <div><strong>{{ work.patients.new }}</strong> {{ t('mine.new_patients') }}</div>
+    <div><strong>{{ work.patients.returning }}</strong> {{ t('mine.returning') }}</div>
+    <div class="hint" style="margin:0;">{{ t('mine.newold_hint') }}</div>
+  </div>
+</details>
+
+{# ---- What it earned, per thing ------------------------------------------ #}
+<details class="card mine-fold gc-scale-in" data-fold="mine-money"
+         style="animation-delay:0.16s;" open>
+  <summary class="mine-sum">
+    <i class="bi bi-chevron-down mine-caret"></i>
+    <strong>{{ t('mine.by_service') }}</strong>
+    <span class="hint" style="margin:0;">{{ t('mine.cases_n', n=work.cases) }}</span>
+  </summary>
+
+  {% if work.services %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>{{ t('mine.service') }}</th>
+          <th class="num">{{ t('mine.count') }}</th>
+          <th class="num">{{ t('mine.gross') }}</th>
+          <th class="num">{{ t('mine.share') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in work.services %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td class="num">{{ row.count }}</td>
+          <td class="num">{{ row.gross | money }}</td>
+          <td class="num"><strong>{{ row.share | money }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>{{ t('common.total') }}</th>
+          <th class="num">{{ work.cases }}</th>
+          <th class="num">{{ work.money.billed | money }}</th>
+          <th class="num">{{ work.money.share | money }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  {# Said once, on the screen, rather than left for somebody to work out from a
+     number that looks like it should be the answer. The program can total what
+     a doctor has earned; nothing in it records money handed to a doctor, so
+     "what am I still owed" has no honest subtrahend and is not offered. #}
+  <p class="hint" style="margin-top:12px;">
+    <i class="bi bi-info-circle"></i> {{ t('mine.no_payouts_yet') }}</p>
+  {% else %}
+  <p class="placeholder-soft" style="margin:10px 0 0;">{{ t('mine.nothing_billed') }}</p>
+  {% endif %}
+</details>
+
+<style>
+  .mine-controls { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .mine-controls .form-row { min-width:150px; }
+  .mine-quick { display:flex; gap:8px; margin-top:10px; }
+
+  .mine-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+    margin-bottom:16px; }
+  .mine-stat { border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+    background:var(--card); }
+  /* The doctor's own number, given the one accent on the screen. */
+  .mine-stat--share { border-inline-start:4px solid var(--green-600); }
+  .mine-k { color:var(--muted); font-size:.82rem; margin-bottom:4px; }
+  .mine-v { font-size:1.6rem; font-weight:800; font-variant-numeric:tabular-nums; }
+
+  .mine-fold { margin-bottom:16px; }
+  .mine-sum { display:flex; align-items:center; gap:10px; cursor:pointer;
+    list-style:none; }
+  .mine-sum::-webkit-details-marker { display:none; }
+  .mine-caret { transition:transform .15s ease; color:var(--muted); }
+  .mine-fold:not([open]) .mine-caret { transform:rotate(-90deg); }
+
+  .mine-types { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+  .mine-type { display:flex; align-items:center; gap:8px; padding:8px 12px;
+    border:1px solid var(--line); border-radius:999px; background:var(--surface); }
+  .mine-type.is-zero { opacity:.5; }
+  .mine-type__n { font-weight:800; font-variant-numeric:tabular-nums; }
+  .mine-dot { width:9px; height:9px; border-radius:50%; background:var(--green-600); }
+
+  .mine-newold { display:flex; gap:18px; flex-wrap:wrap; align-items:center;
+    margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+
+  @media (max-width:880px){ .mine-grid { grid-template-columns:repeat(2,1fr); } }
+</style>
+{% endblock %}

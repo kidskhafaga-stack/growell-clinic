@@ -3,7 +3,7 @@ import os
 import uuid
 
 from flask import (
-    current_app, flash, redirect, render_template, request, url_for,
+    abort, current_app, flash, g, redirect, render_template, request, url_for,
 )
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 from app.blueprints.main import main_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import ActivityLog
+from app.models import ActivityLog, User
 from app.models.user import clamp_print_scale
 from app.utils.decorators import admin_required
 
@@ -416,6 +416,83 @@ def set_sidebar():
     current_user.sidebar = "rail" if mode == "rail" else "full"
     db.session.commit()
     return {"sidebar": current_user.sidebar}
+
+
+@main_bp.route("/my-clinic")
+@login_required
+def my_clinic():
+    """A doctor's own screen: what they saw, and what it earned.
+
+    Asked for by name — *"عايز أعمل شاشة الطبيب يشوف فيها حالاته… نصيبه قد إيه
+    النهارده، على مدار الشهر… شاف كام حالة جديدة، شاف كام حالة بأنواعها"* — and
+    then asked again why it was a card on the dashboard instead of a screen.
+    Fairly: the dashboard answers *right now*, at a glance, and this answers
+    *how am I doing*, which needs a window of time and room to read.
+
+    **Two audiences, one screen.** A doctor sees their own work and cannot ask
+    about anybody else's. Whoever runs the clinic can ask about any of them,
+    from the same screen — because the alternative is the difference between
+    the two living in three places that have to agree.
+
+    The window is any two dates, defaulting to this month so the commonest
+    question — "what have I done this month" — costs no clicks.
+    """
+    from datetime import datetime
+
+    from app.utils import doctor_work
+    from app.utils.appointments import list_doctors
+    from app.utils.clock import local_today
+
+    today = local_today()
+
+    def _date(name, fallback):
+        raw = (request.args.get(name) or "").strip()
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            return fallback
+
+    date_from = _date("date_from", today.replace(day=1))
+    date_to = _date("date_to", today)
+    # A range typed backwards is a mistake, not a request for nothing: the
+    # screen would answer with zeros and look like a clinic that did nothing.
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    doctors = list_doctors() if current_user.is_admin else []
+    # The scope rule, in one place. A doctor is their own subject and cannot
+    # ask about another's earnings by editing the address; whoever runs the
+    # clinic may pick anybody. Checked against the list rather than trusted,
+    # so an id that is not a practitioner cannot be asked about either.
+    asked = request.args.get("doctor_id", type=int)
+    if current_user.is_admin and asked in {d.id for d in doctors}:
+        subject_id = asked
+    elif current_user.is_admin and doctors:
+        subject_id = current_user.id if any(
+            d.id == current_user.id for d in doctors) else doctors[0].id
+    else:
+        subject_id = current_user.id
+
+    subject = db.session.get(User, subject_id)
+    if subject is None:
+        abort(404)
+    # Somebody who is neither a practitioner nor an admin has no work of this
+    # kind to show, and an empty screen would read as a broken one.
+    if not (current_user.is_admin
+            or current_user.role == "doctor"
+            or getattr(current_user, "is_practitioner", False)):
+        abort(403)
+
+    work = doctor_work.summary(subject_id, date_from, date_to,
+                               getattr(g, "lang", "ar"))
+    return render_template(
+        "main/my_clinic.html", work=work, subject=subject,
+        doctors=doctors, date_from=date_from, date_to=date_to,
+        today=today,
+        # The shortcuts a person actually asks for, so the commonest windows
+        # are not a date-picker exercise.
+        month_start=today.replace(day=1),
+    )
 
 
 @main_bp.route("/update")

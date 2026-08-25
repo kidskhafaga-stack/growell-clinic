@@ -87,6 +87,19 @@
           </a>
         {% endif %}
       {% endfor %}
+      {# A doctor's own screen. Not a module — it is one person's view of work
+         they already have access to, so it needs no permission of its own and
+         gets none. Whoever runs the clinic reaches the same screen and can ask
+         it about any doctor; the route decides that, not this link. #}
+      {% if current_user.is_admin or current_user.role == 'doctor'
+            or current_user.is_practitioner %}
+      <a class="nav-item gc-press {{ 'active' if active_module == 'my_clinic' else '' }}"
+         href="{{ url_for('main.my_clinic') }}">
+        <i class="bi bi-person-badge"></i>
+        <span>{{ t('mine.nav') }}</span>
+        <span class="nav-tip">{{ t('mine.nav') }}</span>
+      </a>
+      {% endif %}
       {# Till operator (reception) without full finance access: a direct link to
          the cashier, so collecting money never needs the whole finance module. #}
       {% if current_user.can('cashier') and not current_user.can_access('finance') and module_enabled('finance') %}

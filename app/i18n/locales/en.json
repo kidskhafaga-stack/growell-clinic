@@ -5193,5 +5193,27 @@
     "src_lab": "Lab",
     "src_study": "Device",
     "src_panel": "Panel"
+  },
+  "mine": {
+    "title": "My clinic",
+    "nav": "My clinic",
+    "today": "Today",
+    "this_month": "This month",
+    "seen": "Patients seen",
+    "seen_n": "{n} seen",
+    "cases_n": "{n} billed items",
+    "new_patients": "New patients",
+    "returning": "Returning",
+    "of_n": "of {n} patients",
+    "newold_hint": "New means the child's first-ever visit to the clinic falls in this window — not their first with you.",
+    "collected": "Collected",
+    "share": "My share",
+    "by_type": "What the cases were",
+    "by_service": "What it earned",
+    "count": "Count",
+    "gross": "Billed",
+    "nothing_billed": "Nothing was billed in this window.",
+    "no_payouts_yet": "This is what you have earned in the window. The program does not yet record money paid out to a doctor, so it cannot say what is still owed — that would be a guess, not a figure.",
+    "service": "Service"
   }
 }
