@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'my_clinic' %}
 {% block title %}{{ t('mine.title') }}{% endblock %}
 {% block page_heading %}{{ t('mine.title') }}{% endblock %}
@@ -24,16 +25,16 @@
     {# Only for whoever runs the clinic. A doctor has no picker because there
        is nothing for them to pick: their own work is the only work this
        screen will answer about, and the route enforces that rather than
-       trusting the absence of a control. #}
-    <div class="form-row" style="margin:0;">
-      <label for="doctor_id">{{ t('appointments.doctor') }}</label>
-      <select class="input" id="doctor_id" name="doctor_id">
-        {% for d in doctors %}
-        <option value="{{ d.id }}" {{ 'selected' if d.id == subject.id else '' }}>
-          {{ d.display_name(current_lang) }}</option>
-        {% endfor %}
-      </select>
-    </div>
+       trusting the absence of a control.
+
+       The shared picker rather than a `<select>` of my own — a clinic with
+       forty doctors is a dropdown nobody can use, which is why this component
+       exists and why a test sweeps the templates for anyone who forgot it.
+       `autosubmit` is off here: the dates are chosen in the same form, and a
+       picker that submitted on choosing would throw away a half-typed range. #}
+    {{ pickers.doctor_picker('doctor_id', subject.id,
+                             t('appointments.doctor'), doctors=doctors,
+                             autosubmit=False) }}
     {% endif %}
     <div class="form-row" style="margin:0;">
       <label for="date_from">{{ t('reports.from') }}</label>
