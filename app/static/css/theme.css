@@ -933,3 +933,48 @@ img.patient-avatar.gender-female { border: 2px solid #ec4899; }
   .bday-when, .bday-act { grid-column: 2; }
   .bday-act { justify-self: start; }
 }
+
+/* ---------- Quick-phrase chips ----------
+ *
+ * These lived inside the `<style>` block of `visits/record.html` — which was
+ * fine while the visit screen was the only screen with chips on it. The moment
+ * the patient file grew its own, they arrived unstyled: a `<button>` with no
+ * rules is a native control, light grey with dark text, and it looks the same
+ * in both themes. That reads as "fine" in light mode by luck and as a row of
+ * white pills on a dark card at night.
+ *
+ * The same half-wired shape this program keeps finding in itself, so the fix
+ * is the general one: the primitive lives with the other primitives, and every
+ * screen that writes `class="chip"` gets it. Built from the theme tokens, so
+ * dark mode and the clinic's accent both reach it without a second rule.
+ */
+.smart-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+.chip { border:1px dashed var(--line); background:var(--surface); color:var(--muted);
+  border-radius:999px; padding:4px 11px; font-size:0.8rem; cursor:pointer;
+  font-family:inherit; line-height:1.5; transition:all .15s ease; }
+.chip:hover { border-style:solid; border-color:var(--green-600); color:var(--green-800); }
+.chip:focus-visible { outline:2px solid var(--green-600); outline-offset:2px; }
+.chip-code { margin-inline-start:5px; padding:0 4px; border-radius:5px; font-size:.72rem;
+  background:var(--green-050); color:var(--green-800); font-family:var(--mono,monospace); }
+.chip--link { text-decoration:none; }
+.chip--primary { border-style:solid; border-color:var(--green-600); color:var(--green-800);
+  background:var(--green-050); font-weight:600; }
+
+/* A chip the prescription checker knows.
+ *
+ * Not decoration and not a severity colour: these six write the exact words
+ * `app/utils/allergy.py` matches on, so clicking one is what makes the warning
+ * fire when a medicine from that family is written. Beside a peanut, that is a
+ * different kind of button, and drawing them identically hides it. Solid edge
+ * rather than dashed — the dash means "a suggestion", and this is not one. */
+.chip--checked { border-style:solid; border-color:var(--green-600);
+  color:var(--green-800); background:var(--green-050); }
+.chip--checked:hover { background:var(--surface); }
+
+/* Shown, not offered: the settings screen lists the checker's own chips so a
+ * clinic can see what the file already records, and they are not editable
+ * there. A cursor that says "click me" on something that does nothing is the
+ * screen making a promise it will not keep. */
+.chip--static { cursor:default; }
+.chip--static:hover { border-color:var(--green-600); background:var(--green-050);
+  color:var(--green-800); }

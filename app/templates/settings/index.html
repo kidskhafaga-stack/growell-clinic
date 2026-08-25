@@ -101,13 +101,15 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="active_tab" :value="tab">
   <!-- Tabs -->
+  {# The `phrases` tab holds two lists now — the visit's phrases and the patient
+     file's chips — so it is named for both rather than for the first. #}
   <div class="gc-animate" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
     {% for tid, icon, label in [
         ('clinic','hospital', t('settings.clinic_identity')),
         ('logo','image', t('settings.logo')),
         ('numbering','123', t('settings.numbering_title')),
         ('board','bar-chart-line', t('settings.board_title')),
-        ('phrases','chat-square-text', t('settings.visit_chips_title')),
+        ('phrases','chat-square-text', t('settings.lists_tab')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
         ('ai','robot', t('settings.ai_title')),
@@ -334,6 +336,40 @@
       {{ t('phrases.clinic_is_a_start') }}
       <a href="{{ url_for('visits.phrases_screen') }}">{{ t('phrases.mine_link') }}</a></p>
     <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i> {{ t('settings.visit_chips_lang_hint') }}</p>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0;">
+
+    <h2 class="section-title"><i class="bi bi-person-vcard"></i> {{ t('settings.patient_chips_title') }}</h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('settings.patient_chips_hint') }}</p>
+
+    {# The drug allergy chips are shown and not edited. They are derived from
+       the prescription matcher's own drug families, and an editor stores what
+       it renders — so putting them in one would freeze a copy the first time
+       anybody pressed save, and from then on the button and the check it has
+       to fire would be two lists that drift. See app/utils/patient_chips.py. #}
+    <div class="form-row">
+      <label><i class="bi bi-capsule"></i> {{ t('settings.drug_allergy_chips') }}</label>
+      <div class="smart-chips" style="margin:4px 0 6px;">
+        {% for ar, en in drug_allergy_chips %}
+        <span class="chip chip--checked chip--static"
+              {% if en %}title="{{ en }}"{% endif %}>{{ en if (current_lang == 'en' and en) else ar }}</span>
+        {% endfor %}
+      </div>
+      <div class="hint"><i class="bi bi-shield-check"></i> {{ t('settings.drug_allergy_chips_hint') }}</div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row">
+        <label><i class="bi bi-egg-fried"></i> {{ t('settings.allergy_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.allergy_chips_hint') }}</div>
+        {{ chip_editor('patient_allergy_chips', allergy_chips) }}
+      </div>
+      <div class="form-row">
+        <label><i class="bi bi-clipboard2-heart"></i> {{ t('settings.chronic_chips') }}</label>
+        <div class="hint" style="margin:2px 0 6px;">{{ t('settings.chronic_chips_hint') }}</div>
+        {{ chip_editor('patient_chronic_chips', chronic_chips) }}
+      </div>
+    </div>
   </div>
 
   <!-- Document numbering (F1) -->

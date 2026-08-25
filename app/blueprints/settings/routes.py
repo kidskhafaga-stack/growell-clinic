@@ -35,6 +35,11 @@ TEXT_KEYS = [
     # live in the unified Patient Customer Service hub (messages.occasions).
     # Visit quick-chips (one per line) — common complaints + exam findings.
     "visit_complaint_chips", "visit_exam_chips", "visit_plan_chips",
+    # The patient file's chips: other allergies (foods, environment) and long
+    # illnesses. The *drug* allergy chips are not here and cannot be — they are
+    # derived from the prescription matcher's own families, so that a chip and
+    # the check it has to fire cannot drift apart. See app/utils/patient_chips.
+    "patient_allergy_chips", "patient_chronic_chips",
     # ETA e-invoicing.
     "eta_mode", "eta_environment", "eta_client_id", "eta_client_secret",
     "eta_tax_number", "eta_activity_code", "eta_company_name",
@@ -505,7 +510,7 @@ def index():
         return redirect(url_for("settings.index", _anchor=_saved_tab()))
 
     from app.utils.ai import AI_PROVIDERS, free_providers, trial_defaults
-    from app.utils import phrases
+    from app.utils import patient_chips, phrases
 
     from app.utils.clock import COMMON_ZONES, DEFAULT_TZ, valid_zone
     from app.utils.icd import coverage as icd_coverage
@@ -548,6 +553,12 @@ def index():
         complaint_chips=phrases.clinic_phrases("complaint"),
         exam_chips=phrases.clinic_phrases("exam"),
         plan_chips=phrases.clinic_phrases("plan"),
+        # `editable`, never `chips`: this screen saves back what it renders,
+        # and the drug allergy chips are derived from the matcher rather than
+        # stored. Handing them to an editor would freeze a copy of them.
+        allergy_chips=patient_chips.editable("allergy"),
+        chronic_chips=patient_chips.editable("chronic"),
+        drug_allergy_chips=patient_chips.drug_allergy_chips(),
     )
 
 

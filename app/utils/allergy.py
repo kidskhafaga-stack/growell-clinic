@@ -23,8 +23,16 @@ import unicodedata
 
 # Families whose members cross-react. ``sure`` = same family (treat as a real
 # allergy), ``caution`` = related family (flag, don't claim).
+#
+# ``chip_ar`` / ``chip_en`` are what the patient screen offers as a one-click
+# allergy, and they live **here** rather than in a list beside the form on
+# purpose. A chip whose words this matcher does not recognise would be worse
+# than typing: it looks like the allergy was recorded properly, and then no
+# prescription is ever checked against it. Keeping the two in one place means
+# adding a family adds its chip, and a test proves every chip still fires.
 FAMILIES = {
     "penicillin": {
+        "chip_ar": "بنسلين", "chip_en": "Penicillin",
         "words": ["penicillin", "بنسلين", "بنسيلين", "amoxicillin", "أموكسيسيللين",
                   "اموكسيسيللين", "ampicillin", "أمبيسيللين", "flucloxacillin",
                   "augmentin", "clavulanate", "كلافولانيك"],
@@ -32,6 +40,7 @@ FAMILIES = {
         "note_ar": "حساسية من عائلة البنسلين",
     },
     "cephalosporin": {
+        "chip_ar": "سيفالوسبورين", "chip_en": "Cephalosporin",
         "words": ["cephalosporin", "سيفالوسبورين", "cefixime", "سيفيكسيم",
                   "ceftriaxone", "سيفترياكسون", "cefuroxime", "سيفوروكسيم",
                   "cephalexin", "سيفاليكسين", "cefaclor", "سيفاكلور",
@@ -40,22 +49,26 @@ FAMILIES = {
         "note_ar": "حساسية من عائلة السيفالوسبورين",
     },
     "macrolide": {
+        "chip_ar": "ماكروليد", "chip_en": "Macrolide",
         "words": ["macrolide", "ماكروليد", "azithromycin", "أزيثروميسين",
                   "clarithromycin", "كلاريثروميسين", "erythromycin", "إريثروميسين"],
         "note_ar": "حساسية من عائلة الماكروليد",
     },
     "sulfa": {
+        "chip_ar": "سلفا", "chip_en": "Sulfa",
         "words": ["sulfa", "سلفا", "سالفا", "co-trimoxazole", "cotrimoxazole",
                   "sulfamethoxazole", "trimethoprim", "septrin", "سبترين"],
         "note_ar": "حساسية من مركبات السلفا",
     },
     "nsaid": {
+        "chip_ar": "مضادات الالتهاب", "chip_en": "NSAIDs",
         "words": ["nsaid", "مضادات الالتهاب", "ibuprofen", "إيبوبروفين",
                   "ايبوبروفين", "diclofenac", "ديكلوفيناك", "aspirin", "أسبرين",
                   "mefenamic", "ميفيناميك"],
         "note_ar": "حساسية من مضادات الالتهاب غير الستيرويدية",
     },
     "paracetamol": {
+        "chip_ar": "باراسيتامول", "chip_en": "Paracetamol",
         "words": ["paracetamol", "باراسيتامول", "acetaminophen", "بنادول", "cetal"],
         "note_ar": "حساسية من الباراسيتامول",
     },
