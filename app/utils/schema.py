@@ -44,6 +44,12 @@ ADDITIONS = [
     ("vaccine_brands", "max_discount", "FLOAT"),
     ("vaccine_brands", "doses_per_vial", "INTEGER DEFAULT 1"),
     ("vaccine_brands", "doctor_fee", "FLOAT"),
+    # Which classification a problem's code came from. The list held the
+    # code alone, and "CA23" and "J45" are each just a string until something
+    # says which book they belong to — which started mattering the moment a
+    # clinic could have both loaded. Nullable: rows written before this
+    # column have an answer nobody recorded, and a default would invent it.
+    ("patient_problems", "icd_version", "VARCHAR(2)"),
     ("patient_vaccines", "doctor_id", "INTEGER"),
     ("patient_vaccines", "invoice_id", "INTEGER"),
     ("patient_vaccines", "given_outside", "BOOLEAN DEFAULT 0"),
