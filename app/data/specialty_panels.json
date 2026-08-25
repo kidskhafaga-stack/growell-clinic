@@ -7,61 +7,121 @@
     "PediaPro specialties survey — questions.ts, section `cardiology`",
     "PediaPro_Survey_Answers.xlsx — الإجابات المقترحة, قلب الأطفال"
   ],
-
   "panels": {
     "cardiology": {
       "name_ar": "قلب الأطفال",
       "name_en": "Paediatric cardiology",
       "icon": "heart-pulse",
-
       "_reads_note_ar": "دي بتتقرا من العلامات الحيوية اللي التمريض سجّلها — اللوح بيعرضها ومش بيسأل عنها تاني. خانة وزن تانية معناها وزنين لنفس الزيارة ومحدش يعرف أنهي واحد الصح.",
-
       "_from_study_note_ar": "«from_study» = أسماء القياس في تقرير الجهاز اللي بيقول نفس الحاجة. بتعمل حاجتين: (١) آخر قراءة من الإيكو بتظهر جنب الخانة بتاريخها وزرار «استخدم» — بتظهر ومش بتتحط لوحدها، لأن إيكو من تلات شهور مش قراءة النهارده؛ (٢) قراءات الجهاز وقراءات اللوح بتتجمع في منحنى واحد بدل منحنيين لنفس القياس. الربط بالاسم، يعني عيادة غيّرت اسم الحقل في الجهاز بيتفك الربط والخانة بترجع تسأل — ده أحسن من ربط بيخمّن.",
       "_from_study_note_en": "`from_study` lists the device-report field names that mean the same reading: the last one is shown beside the box with its date and a one-click fill (shown, never auto-filled), and device and panel readings join one curve instead of two.",
       "reads": [
-        "weight_kg", "height_cm", "pulse_bpm", "resp_rate", "spo2",
+        "weight_kg",
+        "height_cm",
+        "pulse_bpm",
+        "resp_rate",
+        "spo2",
         "blood_pressure"
       ],
-
       "fields": [
+        {
+          "code": "bp_right_arm",
+          "label_ar": "الضغط الانقباضي — الذراع اليمنى",
+          "label_en": "Systolic BP — right arm",
+          "type": "number",
+          "unit": "mmHg",
+          "_note_ar": "الذراع اليمنى هي المرجع: الشريان تحت الترقوة الأيمن بيخرج من الأورطى قبل مكان أغلب حالات ضيق الأورطى."
+        },
+        {
+          "code": "bp_left_arm",
+          "label_ar": "الضغط الانقباضي — الذراع اليسرى",
+          "label_en": "Systolic BP — left arm",
+          "type": "number",
+          "unit": "mmHg"
+        },
+        {
+          "code": "bp_right_leg",
+          "label_ar": "الضغط الانقباضي — الساق اليمنى",
+          "label_en": "Systolic BP — right leg",
+          "type": "number",
+          "unit": "mmHg"
+        },
+        {
+          "code": "bp_left_leg",
+          "label_ar": "الضغط الانقباضي — الساق اليسرى",
+          "label_en": "Systolic BP — left leg",
+          "type": "number",
+          "unit": "mmHg"
+        },
+        {
+          "code": "spo2_pre_ductal",
+          "label_ar": "التشبّع قبل القناة — اليد اليمنى",
+          "label_en": "Pre-ductal SpO₂ — right hand",
+          "type": "number",
+          "unit": "%",
+          "_note_ar": "اليد اليمنى تحديداً: هي الطرف اللي بيتغذّى من قبل القناة الشريانية."
+        },
+        {
+          "code": "spo2_post_ductal",
+          "label_ar": "التشبّع بعد القناة — القدم",
+          "label_en": "Post-ductal SpO₂ — foot",
+          "type": "number",
+          "unit": "%"
+        },
         {
           "code": "nyha_ross",
           "label_ar": "درجة القصور NYHA / Ross",
           "label_en": "Heart failure class (NYHA / Ross)",
           "type": "choice",
-          "options": ["I", "II", "III", "IV"]
+          "options": [
+            "I",
+            "II",
+            "III",
+            "IV"
+          ]
         },
         {
           "code": "ef_pct",
           "label_ar": "كسر القذف EF",
           "label_en": "Ejection fraction",
-          "type": "number", "unit": "%",
-          "from_study": ["الكسر القذفي (EF)", "Ejection fraction (EF)", "EF"]
+          "type": "number",
+          "unit": "%",
+          "from_study": [
+            "الكسر القذفي (EF)",
+            "Ejection fraction (EF)",
+            "EF"
+          ]
         },
         {
           "code": "lvedd_mm",
           "label_ar": "قطر البطين الأيسر LVEDD",
           "label_en": "LV end-diastolic diameter",
-          "type": "number", "unit": "mm",
-          "from_study": ["LVEDD"]
+          "type": "number",
+          "unit": "mm",
+          "from_study": [
+            "LVEDD"
+          ]
         },
         {
           "code": "defect_size_mm",
           "label_ar": "حجم الفتحة",
           "label_en": "Defect size",
-          "type": "number", "unit": "mm"
+          "type": "number",
+          "unit": "mm"
         },
         {
           "code": "valve_gradient_mmhg",
           "label_ar": "فرق الضغط عبر الصمام",
           "label_en": "Valve gradient",
-          "type": "number", "unit": "mmHg"
+          "type": "number",
+          "unit": "mmHg"
         },
         {
           "code": "pap_mmhg",
           "label_ar": "ضغط الشريان الرئوي المقدَّر",
           "label_en": "Estimated pulmonary artery pressure",
-          "type": "number", "unit": "mmHg"
+          "type": "number",
+          "unit": "mmHg"
         },
         {
           "code": "coronary_z",
@@ -76,9 +136,9 @@
           "type": "date"
         }
       ],
-
       "_control_note_ar": "الاستبيان بيسأل عن «رقم السيطرة» كحقل إلزامي رقمي (SpO2 و EF)، وإجابته المقترحة في نفس الملف هي حرفياً: «لا يوجد رقم موحّد لـSpO2 أو EF لكل مرض قلبي؛ تُترك القيم قابلة للتخصيص حسب التشخيص». فمفيش رقم مكتوب هنا. المراجعة الكاملة في SPECIALTIES_SURVEY_REVIEW.md.",
-      "control_number": null
+      "control_number": null,
+      "_cardio_note_ar": "الضغط في الأربع أطراف والتشبّع قبل/بعد القناة قياسات مقصودة، مش العلامات الحيوية الروتينية — علشان كده لهم خانات هنا مش بيتقروا من التمريض. البرنامج بيحسب الفرق وبيقول العتبة المنشورة اللي الرقم واقع عندها، وبس: التشخيص والإيكو قرار الطبيب."
     }
   }
 }

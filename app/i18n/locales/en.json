@@ -5215,5 +5215,21 @@
     "nothing_billed": "Nothing was billed in this window.",
     "no_payouts_yet": "This is what you have earned in the window. The program does not yet record money paid out to a doctor, so it cannot say what is still owed — that would be a guess, not a figure.",
     "service": "Service"
+  },
+  "cardio": {
+    "gradient_title": "Arm-to-leg difference",
+    "gradient_from": "{arm} {arm_v} − {leg} {leg_v} mmHg",
+    "gradient_over": "Above the {n} mmHg usually taken as the threshold for looking further at the aorta. The program has subtracted two readings — it has not made a diagnosis.",
+    "arms_differ": "The arms differ by {n} mmHg, which is itself worth a second look.",
+    "arm_right": "Right arm",
+    "arm_left": "Left arm",
+    "leg_right": "right leg",
+    "leg_left": "left leg",
+    "ductal_title": "Pre- and post-ductal SpO₂",
+    "screen_pass": "Passes the newborn screen: ≥95% in one limb and no more than 3% between them.",
+    "screen_repeat": "Repeat in one hour. Either both readings are 90–94%, or they are more than 3% apart. Three of these counts as a fail.",
+    "screen_fail": "Fails the newborn screen — under 90%. This needs assessment now, not a repeat.",
+    "screen_rule": "Newborn CCHD screening rule: pass at ≥95% with ≤3% between limbs, fail under 90%, otherwise repeat.",
+    "not_a_newborn": "The difference is shown; the newborn screening result is not, because that algorithm is for babies in their first days and this child is past it."
   }
 }

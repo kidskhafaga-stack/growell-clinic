@@ -362,6 +362,69 @@
           </div>
           {% endfor %}
 
+          {# ---- The two cardiology subtractions -------------------------
+             Shown only on the cardiology panel and only when the readings
+             behind them exist. Computed at render and never stored: they are
+             a function of the numbers in the boxes above, and a saved copy
+             would be a second answer able to disagree with them.
+
+             The wording is the point. The program subtracts and names the
+             published threshold the answer falls on. It does not say
+             "coarctation" and it does not say "critical heart disease" —
+             those are the doctor's words after an echo, not a screen's after
+             a subtraction. #}
+          <div x-show="panelKey === 'cardiology'" x-cloak>
+            {% if cardio and cardio.four_limb %}
+            {% set g4 = cardio.four_limb %}
+            <div class="cardio-calc{{ ' is-flagged' if g4.flags else '' }}">
+              <div class="cardio-calc__head">
+                <i class="bi bi-arrow-left-right"></i>
+                <strong>{{ t('cardio.gradient_title') }}</strong>
+                <span class="cardio-calc__n" dir="ltr">{{ g4.gradient }} mmHg</span>
+              </div>
+              <p class="hint" style="margin:0;">
+                {{ t('cardio.gradient_from',
+                     arm=t('cardio.arm_' ~ g4.arm_side), arm_v=g4.arm,
+                     leg=t('cardio.leg_' ~ g4.leg_side), leg_v=g4.leg) }}
+              </p>
+              {% if 'gradient' in g4.flags %}
+              <p class="cardio-calc__say"><i class="bi bi-exclamation-triangle"></i>
+                {{ t('cardio.gradient_over', n=g4.threshold) }}</p>
+              {% endif %}
+              {% if 'arms' in g4.flags %}
+              <p class="cardio-calc__say"><i class="bi bi-exclamation-triangle"></i>
+                {{ t('cardio.arms_differ', n=g4.arm_difference|abs) }}</p>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            {% if cardio and (cardio.ductal.difference is not none
+                              or cardio.ductal.result) %}
+            {% set d = cardio.ductal %}
+            <div class="cardio-calc{{ ' is-flagged' if d.result in ('fail','repeat') else '' }}">
+              <div class="cardio-calc__head">
+                <i class="bi bi-droplet-half"></i>
+                <strong>{{ t('cardio.ductal_title') }}</strong>
+                {% if d.difference is not none %}
+                <span class="cardio-calc__n" dir="ltr">{{ d.difference }}%</span>
+                {% endif %}
+              </div>
+              {% if d.result %}
+              <p class="cardio-calc__say cardio-{{ d.result }}">
+                <i class="bi bi-{{ 'exclamation-octagon-fill' if d.result == 'fail'
+                                   else ('arrow-repeat' if d.result == 'repeat'
+                                         else 'check-circle') }}"></i>
+                {{ t('cardio.screen_' ~ d.result) }}</p>
+              <p class="hint" style="margin:6px 0 0;">{{ t('cardio.screen_rule') }}</p>
+              {% else %}
+              {# Past the newborn window the difference still means something,
+                 but the screening words do not apply to it. #}
+              <p class="hint" style="margin:0;">{{ t('cardio.not_a_newborn') }}</p>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+
           {# A panel this visit was recorded under that the catalogue no longer
              has. Its readings are kept; the screen says so rather than
              pretending they came from nowhere. #}
@@ -1439,6 +1502,22 @@
   /* Smart-phrase chips now live in theme.css, with the other primitives.
      They were here, which is why the patient file's chips arrived unstyled:
      a screen cannot inherit another screen's <style> block. */
+  /* The two cardiology subtractions. Set apart from the boxes above because
+     they are the program's arithmetic rather than anybody's measurement, and
+     a computed number sitting in the same visual row as a typed one invites
+     somebody to think it was measured. */
+  .cardio-calc { margin-top:12px; padding:12px 14px; border-radius:12px;
+    border:1px solid var(--line); border-inline-start:4px solid var(--green-600);
+    background:var(--surface-2); }
+  .cardio-calc.is-flagged { border-inline-start-color:#b45309; }
+  .cardio-calc__head { display:flex; align-items:center; gap:10px;
+    flex-wrap:wrap; margin-bottom:6px; }
+  .cardio-calc__n { margin-inline-start:auto; font-size:1.15rem; font-weight:800;
+    font-variant-numeric:tabular-nums; }
+  .cardio-calc__say { margin:8px 0 0; font-size:.9rem; color:#b45309; }
+  .cardio-calc__say.cardio-pass { color:var(--green-800); }
+  .cardio-calc__say.cardio-fail { color:#b42318; font-weight:700; }
+
   /* Sticky action bar */
   .visit-actionbar { position:sticky; bottom:0; z-index:30; margin:18px -4px 0;
     background:linear-gradient(to top, var(--bg,#f6f8f7) 70%, transparent);
