@@ -180,13 +180,26 @@ def test_the_bell_never_reaches_the_network(clinic):
 
 # ------------------------------------------------------- and what it points at
 
-def test_the_page_says_what_changed_and_how_to_install_it(clinic):
+def test_the_page_says_how_to_install_it_and_which_version(clinic):
+    """This used to also assert the page listed what changed, and it did.
+
+    So did the settings tab — which left a clinic with the version, the check
+    button and the launch toggle on one screen, the steps and the install
+    button on another, and the release notes on both. Half the facts on each,
+    and you had to know which half was where.
+
+    The notes now belong to the screen you read; this is the screen you act
+    on, so it names the two versions and gets out of the way. What it must
+    still say is how, because somebody standing here is about to do it."""
     _store(clinic, json.dumps(FOUND))
     page = clinic["sign_in"]("boss").get("/update").get_data(as_text=True)
 
-    for note in FOUND["notes"]:
-        assert note in page, "the page does not say what changed"
     assert "update.bat" in page, "the page does not say how to install it"
+    assert FOUND["latest"][:12] in page, \
+        "the page does not say which version it is installing"
+    for note in FOUND["notes"]:
+        assert note not in page, \
+            "the acting screen repeats the release notes; that is the duplication"
 
 
 def test_it_is_not_a_page_anybody_can_open(clinic):

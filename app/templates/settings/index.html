@@ -904,8 +904,16 @@
               x-on:click="check()" :disabled="busy">
         <i class="bi bi-arrow-repeat"></i>
         <span x-text="busy ? '…' : '{{ t('update.check_now') }}'">{{ t('update.check_now') }}</span></button>
-      <a class="md-btn md-btn--text gc-press" href="{{ url_for('main.update_available') }}">
-        <i class="bi bi-box-arrow-up-right"></i> {{ t('update.open_page') }}</a>
+      {# The way to the *acting* screen, and only when there is something to
+         act on. `/update` closes the program and hands the job to a separate
+         updater, so it keeps its own screen and its own confirmation rather
+         than sitting as a button beside "Save". When the copy is current
+         there is nothing to install, and offering the link anyway is what
+         made two screens feel like two halves of one. #}
+      {% if update_pending %}
+      <a class="md-btn md-btn--filled gc-press" href="{{ url_for('main.update_available') }}">
+        <i class="bi bi-box-arrow-in-down"></i> {{ t('update.install_it') }}</a>
+      {% endif %}
       <span class="hint" x-show="said" x-cloak x-text="said"
             :style="tone === 'ok' ? 'color:var(--green-700)' : 'color:#b45309'"></span>
     </div>

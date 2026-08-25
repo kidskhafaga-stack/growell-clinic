@@ -256,3 +256,84 @@ def test_the_launch_toggle_is_one_control_and_not_two(admin):
 
     assert page.count('name="update_check"') == 1, \
         "there is more than one control for the launch check"
+
+
+# ------------------------------ one screen to look at, one screen to act on
+
+def _update_page(admin):
+    return admin["sign_in"]("boss").get("/update").get_data(as_text=True)
+
+
+@pytest.fixture()
+def behind(admin, monkeypatch):
+    """A clinic that has been told there is a release waiting."""
+    _patch(monkeypatch, installed=HERE, latest=THERE,
+           notes=["A thing a clinic found by using the program"])
+    _check(admin)
+    return admin
+
+
+def test_the_release_notes_live_in_one_place(behind):
+    """Asked directly: *"كنا عاملين صفحة تانية للاب ديت وانت قلت ان ده تكرار"*.
+
+    It was, and the shape of it was worse than a plain copy: the version, the
+    check button and the launch toggle were only in settings, the steps and
+    the install button only on the page, and "what's new" was on both. A
+    clinic had half the facts on each screen and had to know which half.
+
+    So the notes belong to the screen you *read*, and the page you reach to
+    *act* names the two versions and points back."""
+    settings = _settings_page(behind)
+    page = _update_page(behind)
+
+    assert "A thing a clinic found by using the program" in settings, \
+        "the release notes are not on the screen a person looks at"
+    assert "A thing a clinic found by using the program" not in page, \
+        "the acting screen repeats the notes; that is the duplication itself"
+
+
+def test_the_acting_screen_still_says_what_it_is_installing(behind):
+    """Removing the notes must not leave somebody about to close their clinic
+    with no idea which version they are moving to."""
+    page = _update_page(behind)
+
+    assert HERE[:12] in page and THERE[:12] in page
+
+
+def test_the_bell_lands_on_the_screen_that_explains(behind):
+    """It used to point at the acting screen. Somebody who clicks a notice
+    wants to know what it is about before being asked to close the program."""
+    from app.utils import notifications
+
+    with behind["app"].app_context():
+        notifications.invalidate()
+        items = [i for i in notifications._compute()
+                 if i["key"] == "update_available"]
+
+    assert items, "the bell has no update item"
+    assert items[0]["endpoint"] == "settings.index"
+    assert items[0]["kwargs"].get("_anchor") == "update"
+
+
+def test_a_current_copy_is_not_offered_somewhere_to_install_from(admin,
+                                                                monkeypatch):
+    """The link is the *act*, so it appears when there is something to act on.
+    Offering it on a copy that is already current is what made the two screens
+    read as two halves of one."""
+    _patch(monkeypatch, installed=HERE, latest=HERE)
+    _check(admin)
+
+    # Matched on the href, not on the substring "/update": the panel also
+    # carries "/settings/update/check", which contains it.
+    assert 'href="/update"' not in _settings_page(admin), \
+        "a copy that is already current was offered somewhere to install from"
+
+
+def test_the_install_route_is_still_its_own_screen(behind):
+    """Deliberately not folded into the settings form. The button closes the
+    program; sitting it beside "Save" is how somebody shuts a clinic down
+    mid-morning by aiming badly."""
+    settings = _settings_page(behind)
+
+    assert "update/start" not in settings, \
+        "the button that closes the program is on the settings form"
