@@ -22,6 +22,8 @@ def _red_flags(appointments):
     history, and history on a live board is noise that teaches people to stop
     reading the colour.
     """
+    from sqlalchemy.orm import selectinload
+
     from app.models import Visit
     from app.utils.red_flags import assess
 
@@ -33,7 +35,12 @@ def _red_flags(appointments):
     # happened to return — which is an older, empty visit as often as not, and
     # produces a board that is silently blank about a feverish infant.
     visits = {}
+    # The vitals come with the visit. `assess` reads them for every child in
+    # the queue, so leaving them lazy is one query per waiting patient — on the
+    # board, and now on the screen the program opens to. Caught by the
+    # query-ceiling test, which is exactly the shape it was written for.
     for visit in (Visit.query
+                  .options(selectinload(Visit.vitals))
                   .filter(Visit.patient_id.in_([a.patient_id for a in live]),
                           Visit.status == "open")
                   .order_by(Visit.created_at.desc(), Visit.id.desc()).all()):

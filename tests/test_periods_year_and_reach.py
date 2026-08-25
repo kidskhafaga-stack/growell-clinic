@@ -243,7 +243,13 @@ def test_no_page_is_left_without_a_link(boss, clinic):
             # The prescription a family opens from the link sent to them.
             # There is deliberately no way in from the program: it is the
             # parent's copy, reached by a token and nothing else.
-            "public_copy")
+            "public_copy",
+            # `/update` and `/update/install` — the addresses the update screen
+            # used to have, kept so a bookmark does not become a 404. They
+            # redirect to the settings tab that replaced them, and nothing
+            # links to them on purpose: a way in would be a second way in to
+            # one screen, which is the thing they were consolidated to stop.
+            "update_available")
     missing = []
     for rule in clinic["app"].url_map.iter_rules():
         endpoint = rule.endpoint

@@ -137,6 +137,8 @@ def _clinic_now(user):
     Returns ``None`` for anybody who is not an admin, so the caller does not
     have to know the rule twice.
     """
+    from sqlalchemy.orm import selectinload
+
     from app.models import Appointment
     from app.utils.clinic_now import _clinics_now, _red_flags
     from app.utils.clock import local_today
@@ -147,7 +149,13 @@ def _clinic_now(user):
         return None
 
     today = local_today()
+    # Both loaded up front. Each card names its doctor and the child in the
+    # room, so without this it is two lazy loads per عيادة on the screen the
+    # program opens to — the shape the query-ceiling test exists to catch, and
+    # it caught this one.
     appts = (Appointment.query
+             .options(selectinload(Appointment.doctor),
+                      selectinload(Appointment.patient))
              .filter(Appointment.appt_date == today)
              .order_by(Appointment.appt_time).all())
     flags = _red_flags(appts)
