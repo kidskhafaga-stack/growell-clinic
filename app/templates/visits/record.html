@@ -27,7 +27,7 @@
     'age_days': (visit.patient.age_days or 0),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
-<div x-data="visitPage('{{ url_for('visits.icd') }}',
+<div x-data="visitPage('{{ url_for('main.icd_search') }}',
         {{ visit.vitals.weight_kg if (visit.vitals and visit.vitals.weight_kg) else 'null' }}, {{ visit.vitals.height_cm if (visit.vitals and visit.vitals.height_cm) else 'null' }})"
      x-init="restore()" style="padding-bottom:78px;">
 
@@ -634,6 +634,7 @@
                     x-on:mouseenter="icd.active = idx"
                     x-on:click="icd.close(); applyIcd(r)">
               <span class="badge badge--role" x-text="r.code"></span>
+              <span class="badge badge--muted" x-text="'ICD-' + r.version"></span>
               <span x-text="(current_lang==='ar' ? r.ar : r.en)"></span>
             </button>
           </template>
@@ -680,7 +681,14 @@
         </div>
         {% endif %}
       </div>
-      <p class="hint">{{ t('visits.manual_dx_hint') }}</p>
+      {# Named for what this machine actually holds. The sentence here used to
+         say "for ICD-11 … type the code and name manually", which was true
+         before anything was imported and a lie afterwards — a clinic that had
+         downloaded ICD-11 was being told by its own screen that it could not
+         search it, and believed the screen. #}
+      <p class="hint">{{ t('visits.icd_loaded',
+           v=icd_versions | map('string') | map('replace', '10', 'ICD-10')
+                          | map('replace', '11', 'ICD-11') | join(' + ')) }}</p>
       <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.add_diagnosis') }}</button>
     </form>
   </div>
@@ -1736,7 +1744,11 @@
         // Keep both languages: title is the Arabic primary, title_en the English.
         this.code = r.code; this.titleAr = r.ar; this.titleEn = r.en;
         this.title = (current_lang === 'ar' ? r.ar : r.en);
-        this.version = '10'; this.q = '';
+        // The picked code's own classification, not a constant. This said
+        // `'10'`, so choosing an ICD-11 code filed it as ICD-10 — the search
+        // reaches both books and the row knows which one it came from, and
+        // the one place that mattered threw the answer away.
+        this.version = r.version || '10'; this.q = '';
       },
       onIcdEnter(ev) {
         const r = this.icd.take();
@@ -1805,7 +1817,14 @@
 <script>
   if (window.gcLiveNotify)
     window.gcLiveNotify("{{ url_for('main.live_fingerprint', kind='visit', ident=visit.id) }}",
-      { text: {{ t('live.changed')|tojson|forceescape }},
-        action: {{ t('live.refresh')|tojson|forceescape }} });
+      {# `tojson` alone, and the missing `forceescape` is the point. The
+         repo-wide rule pairs them *inside an attribute*, where the quotes
+         `tojson` emits would end it. There is no attribute here — and a
+         browser does not decode HTML entities inside `<script>`, so the
+         `&#34;` it produced was literally those characters and the parser
+         stopped at the `&`. This block has never run. Flask's `tojson` is
+         already script-safe on its own: it escapes `<`, `>` and `&`. #}
+      { text: {{ t('live.changed')|tojson }},
+        action: {{ t('live.refresh')|tojson }} });
 </script>
 {% endblock %}

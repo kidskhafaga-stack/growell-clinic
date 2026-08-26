@@ -885,6 +885,14 @@ def _parse_date(name):
         return None
 
 
+def _icd_version(raw):
+    """One of the classifications this program knows, or None."""
+    from app.utils.icd import VERSIONS
+
+    value = (raw or "").strip()
+    return value if value in VERSIONS else None
+
+
 @patients_bp.route("/<int:patient_id>/problems", methods=["POST"])
 @module_required(MODULE)
 def add_problem(patient_id):
@@ -897,6 +905,10 @@ def add_problem(patient_id):
         patient_id=patient.id, title=title,
         title_en=(request.form.get("title_en") or "").strip() or None,
         icd_code=(request.form.get("icd_code") or "").strip() or None,
+        # Checked against the versions the program knows rather than trusted:
+        # the picker fills it, but the code box beside it can be typed by
+        # hand, and a version nobody recognises is worse than none.
+        icd_version=_icd_version(request.form.get("icd_version")),
         onset_date=_parse_date("onset_date"),
         notes=(request.form.get("notes") or "").strip() or None,
     ))

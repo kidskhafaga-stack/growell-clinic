@@ -316,6 +316,13 @@ class PatientProblem(db.Model):
     title = db.Column(db.String(255), nullable=False)   # Arabic primary
     title_en = db.Column(db.String(255))
     icd_code = db.Column(db.String(20))
+    # Which classification that code is from. The list held the code alone,
+    # and a code alone is ambiguous the moment a clinic has both books
+    # loaded: "CA23" and "J45" are each just a string until something says
+    # which one it belongs to. Nullable, because every problem recorded
+    # before this column existed has an answer nobody wrote down, and
+    # guessing "10" for them would be inventing it.
+    icd_version = db.Column(db.String(2))
     status = db.Column(db.String(12), default="active", nullable=False)
     onset_date = db.Column(db.Date)                     # when it started
     noted_date = db.Column(db.Date, default=date.today) # when added to the list

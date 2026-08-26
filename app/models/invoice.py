@@ -417,14 +417,34 @@ class CashierShift(db.Model):
         expense carries a date and a shift carries a time: two shifts on the
         same day would each have been charged the other's payments.
         """
+        return self.paid_out_for([self.id]).get(self.id, 0.0)
+
+    @classmethod
+    def paid_out_for(cls, shift_ids):
+        """``{shift_id: cash out}`` for many shifts in two queries.
+
+        The property above used to do its own two queries, which is fine for
+        one shift and is sixty shifts × two on a month's summary. Batched here
+        and called with a single id from the property, so there is one
+        definition of "cash that left this drawer" rather than a fast copy
+        beside a slow one — a rollup that disagreed with the shift report it
+        totals would be worse than a slow rollup.
+        """
         from app.models.expense import Expense
         from app.models.payable import SupplierPayment
 
-        out = sum(e.amount or 0 for e in
-                  Expense.query.filter_by(shift_id=self.id).all())
-        out += sum(p.amount or 0 for p in
-                   SupplierPayment.query.filter_by(shift_id=self.id).all())
-        return round(out, 2)
+        ids = [i for i in (shift_ids or []) if i]
+        if not ids:
+            return {}
+        out = {i: 0.0 for i in ids}
+        for model in (Expense, SupplierPayment):
+            for shift_id, total in (
+                    db.session.query(model.shift_id,
+                                     db.func.sum(model.amount))
+                    .filter(model.shift_id.in_(ids))
+                    .group_by(model.shift_id).all()):
+                out[shift_id] = round(out.get(shift_id, 0.0) + (total or 0), 2)
+        return out
 
     @property
     def expected_cash(self):

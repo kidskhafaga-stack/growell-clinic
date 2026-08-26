@@ -294,6 +294,35 @@ def set_theme():
     return {"theme": theme}
 
 
+@main_bp.route("/icd-search")
+@login_required
+def icd_search():
+    """JSON: the ICD classification, for every screen that records a diagnosis.
+
+    The same question already had two answers — ``visits.icd`` and
+    ``prescriptions.icd_search`` — and a comment in the first one saying so.
+    A third screen needed it (the patient file's problem list, which had no
+    search at all and three text boxes instead), and the honest way to give it
+    one is to stop having two.
+
+    Here rather than in ``visits`` for the reason ``doctor_search`` is here: a
+    clinic can switch the prescriptions module off, and the diagnosis picker
+    on the patient file must not go with it. Behind the ordinary login and no
+    module gate, because a classification is not patient data — it is the same
+    published list on every machine, and the query carries nothing about
+    anybody.
+
+    **Searches every version that has codes on this machine.** It never took a
+    version and never should: a doctor typing "asthma" wants the code, not a
+    quiz about which classification it is in.
+    """
+    from flask import jsonify
+
+    from app.utils.icd import search_icd
+
+    return jsonify(search_icd(request.args.get("q"), limit=15))
+
+
 @main_bp.route("/doctor-search")
 @login_required
 def doctor_search():

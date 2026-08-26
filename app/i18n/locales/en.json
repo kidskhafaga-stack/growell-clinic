@@ -611,7 +611,7 @@
     "icd_version": "ICD version",
     "code": "Code",
     "search_icd": "ICD search",
-    "search_icd_placeholder": "Search by name or code (ICD-10)...",
+    "search_icd_placeholder": "Search by name or code…",
     "manual_dx_hint": "For ICD-11 or any diagnosis not listed, type the code and name manually and choose version 11",
     "no_dx": "No diagnoses recorded yet",
     "section_clinical": "Clinical data",
@@ -795,7 +795,8 @@
     "bp_diastolic": "diastolic",
     "bp_arm": "Arm",
     "bp_arm_right": "Right",
-    "bp_arm_left": "Left"
+    "bp_arm_left": "Left",
+    "icd_loaded": "Searching {v}. Anything not listed: type the code and name yourself and pick the version."
   },
   "diagnosis_types": {
     "working": "Working",
@@ -5231,5 +5232,30 @@
     "screen_fail": "Fails the newborn screen — under 90%. This needs assessment now, not a repeat.",
     "screen_rule": "Newborn CCHD screening rule: pass at ≥95% with ≤3% between limbs, fail under 90%, otherwise repeat.",
     "not_a_newborn": "The difference is shown; the newborn screening result is not, because that algorithm is for babies in their first days and this child is past it."
+  },
+  "shiftsum": {
+    "title": "Shifts — by person and by till",
+    "sub": "Every shift in the window, added up two ways. Read-only: nothing here closes a shift or writes a difference off.",
+    "shifts": "Shifts",
+    "collected": "Collected",
+    "cash": "In cash",
+    "of_which_cash": "{v} of it in cash",
+    "short": "Short",
+    "over": "Over",
+    "off": "Shifts out",
+    "still_open": "{n} not counted yet",
+    "net_note": "Net {v} across {n} shift(s) that came out wrong. Short and over are shown apart on purpose: 200 over one day and 200 short the next nets to nothing and is not nothing.",
+    "by_person": "By person",
+    "by_till": "By till",
+    "person": "Person",
+    "till": "Till",
+    "people_n": "{n} people",
+    "tills_n": "{n} tills",
+    "nobody": "(no cashier recorded)",
+    "no_till": "(no till recorded)",
+    "shared_title": "{n} till(s) were worked by more than one person",
+    "shared_note": "Where one drawer is worked by two people, \"who is short\" and \"which drawer is short\" stop being the same question. If the money is handed over at the end of every shift rather than left in the drawer, they never should have been.",
+    "cash_only_note": "The difference is a cash difference. Card takings never sit in a drawer and are never counted, so a till that mostly takes cards shows small differences against large collections.",
+    "nothing": "No shifts were opened in this window."
   }
 }

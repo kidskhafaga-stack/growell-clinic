@@ -1502,6 +1502,51 @@ def shifts():
                            open_shift=CashierShift.open_for(current_user.id))
 
 
+@finance_bp.route("/shifts/summary")
+@cashier_access
+def shift_summary():
+    """Shifts added up per person and per till over a window.
+
+    Asked for while the design of the safe was still open: a clinic deciding
+    how the drawer should work is better off looking at what its own shifts
+    actually did than at a diagram. The history screen lists sessions one by
+    one, and the end-of-day screen covers a day; neither answers "is this
+    person short every week" or "does this desk only balance when one
+    particular person is on it".
+
+    Read-only, and deliberately so — every number is the shift's own. Nothing
+    here closes, adjusts or writes anything off.
+    """
+    from datetime import datetime
+
+    from app.utils import shift_rollup
+    from app.utils.clock import local_today
+
+    today = local_today()
+
+    def _date(name, fallback):
+        raw = (request.args.get(name) or "").strip()
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            return fallback
+
+    date_from = _date("date_from", today.replace(day=1))
+    date_to = _date("date_to", today)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    result = shift_rollup.summary(date_from, date_to)
+    return render_template(
+        "finance/shift_summary.html", date_from=date_from, date_to=date_to,
+        today=today, month_start=today.replace(day=1),
+        people=result["people"], tills=result["tills"],
+        totals=result["totals"],
+        # Which desks more than one person worked. The report's own finding,
+        # and the reason it was asked for.
+        shared=shift_rollup.shared_tills(result))
+
+
 @finance_bp.route("/eod")
 @cashier_access
 def eod_report():

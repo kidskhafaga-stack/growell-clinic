@@ -304,7 +304,9 @@
           <span class="badge badge--danger"><i class="bi bi-record-circle"></i></span>
           <div style="flex:1;min-width:180px;">
             <strong>{{ pr.display_title(current_lang) }}</strong>
-            {% if pr.icd_code %}<span class="badge badge--muted" dir="ltr">{{ pr.icd_code }}</span>{% endif %}
+            {# The code with its classification. Problems recorded before the
+               version was stored show the code alone rather than a guess. #}
+            {% if pr.icd_code %}<span class="badge badge--muted" dir="ltr">{{ pr.icd_code }}{% if pr.icd_version %} · ICD-{{ pr.icd_version }}{% endif %}</span>{% endif %}
             <div style="font-size:0.78rem;color:var(--muted);">
               {% if pr.onset_date %}{{ t('problems.onset') }}: <span dir="ltr">{{ pr.onset_date }}</span> · {% endif %}{{ t('problems.noted') }}: <span dir="ltr">{{ pr.noted_date }}</span>
               {% if pr.notes %} · {{ pr.notes }}{% endif %}
@@ -341,16 +343,77 @@
       </details>
       {% endif %}
 
+      {# The same search the visit screen has, on the same three boxes.
+
+         It had none: a problem was three text fields, so a diagnosis typed
+         here and the identical one picked in a visit ended up spelled two
+         ways with the code on only one of them — and the problem list is the
+         thing a locum reads first. Same component, same endpoint, so there is
+         one ICD search in the program rather than one per screen.
+
+         `pick` fills both titles and the code together: filling one and
+         leaving the others is how a list ends up with an Arabic name and an
+         English one that are not the same diagnosis. The language comes from
+         the server rather than from `window.current_lang`, which is set
+         inside the visit screen's own script block and is undefined here.
+
+         These notes sit outside the attribute deliberately. A Jinja comment
+         inside one is invisible to the browser and not to the guard that
+         reads these attributes as source — and an apostrophe in it reads
+         there as the start of a string. #}
       <form method="post" action="{{ url_for('patients.add_problem', patient_id=patient.id) }}"
-            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;">
+            style="margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;"
+            x-data="{
+              icd: window.gcPicker({ url: '{{ url_for('main.icd_search') }}' }),
+              q: '',
+              pick(r) {
+                this.icd.close();
+                const en = {{ 'true' if current_lang == 'en' else 'false' }};
+                this.$refs.title.value = (en && r.en) ? r.en : (r.ar || r.en || '');
+                this.$refs.titleEn.value = r.en || '';
+                this.$refs.code.value = r.code || '';
+                this.$refs.version.value = r.version || '';
+                this.q = '';
+              }
+            }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="icd-search" style="position:relative;margin-bottom:10px;">
+          <label>{{ t('visits.search_icd') }}</label>
+          <input class="input" type="text" autocomplete="off"
+                 placeholder="{{ t('visits.search_icd_placeholder') }}"
+                 x-model="q" role="combobox" aria-autocomplete="list"
+                 :aria-expanded="icd.open ? 'true' : 'false'"
+                 x-on:input.debounce.250ms="icd.q = q; icd.search()"
+                 x-on:keydown.arrow-down.prevent="icd.move(1)"
+                 x-on:keydown.arrow-up.prevent="icd.move(-1)"
+                 x-on:keydown.escape="icd.close()"
+                 x-on:blur="setTimeout(() => icd.close(), 150)">
+          <div class="gc-picker" x-show="icd.open" x-cloak role="listbox">
+            <template x-for="(r, idx) in icd.items" :key="idx">
+              <button type="button" class="gc-picker-item" role="option"
+                      :aria-selected="idx === icd.active ? 'true' : 'false'"
+                      x-on:mouseenter="icd.active = idx"
+                      x-on:click="pick(r)">
+                <span class="badge badge--role" x-text="r.code"></span>
+                <span class="badge badge--muted" x-text="'ICD-' + r.version"></span>
+                <span x-text="{{ 'r.ar' if current_lang == 'ar' else 'r.en' }}"></span>
+              </button>
+            </template>
+            <div class="gc-picker-empty" x-show="icd.searched && !icd.items.length">
+              {{ t('rx.no_dx_match') }}</div>
+          </div>
+        </div>
         <div class="form-grid">
           <div class="form-row"><label>{{ t('problems.title') }} *</label>
-            <input class="input" name="title" required></div>
+            <input class="input" name="title" x-ref="title" required></div>
           <div class="form-row"><label>{{ t('problems.title') }} (EN)</label>
-            <input class="input" name="title_en" dir="ltr"></div>
+            <input class="input" name="title_en" x-ref="titleEn" dir="ltr"></div>
           <div class="form-row"><label>{{ t('problems.icd') }}</label>
-            <input class="input" name="icd_code" dir="ltr"></div>
+            <input class="input" name="icd_code" x-ref="code" dir="ltr">
+            {# Which book the code is from. A problem list held the code and
+               nothing else, and "CA23" and "J45" are both just codes until
+               something says which classification they belong to. #}
+            <input type="hidden" name="icd_version" x-ref="version"></div>
           <div class="form-row"><label>{{ t('problems.onset') }}</label>
             <input class="input" type="date" name="onset_date"></div>
           <div class="form-row" style="grid-column:1/-1;"><label>{{ t('problems.notes') }}</label>
@@ -1351,7 +1414,14 @@
 <script>
   if (window.gcLiveNotify)
     window.gcLiveNotify("{{ url_for('main.live_fingerprint', kind='patient', ident=patient.id) }}",
-      { text: {{ t('live.changed')|tojson|forceescape }},
-        action: {{ t('live.refresh')|tojson|forceescape }} });
+      {# `tojson` alone, and the missing `forceescape` is the point. The
+         repo-wide rule pairs them *inside an attribute*, where the quotes
+         `tojson` emits would end it. There is no attribute here — and a
+         browser does not decode HTML entities inside `<script>`, so the
+         `&#34;` it produced was literally those characters and the parser
+         stopped at the `&`. This block has never run. Flask's `tojson` is
+         already script-safe on its own: it escapes `<`, `>` and `&`. #}
+      { text: {{ t('live.changed')|tojson }},
+        action: {{ t('live.refresh')|tojson }} });
 </script>
 {% endblock %}

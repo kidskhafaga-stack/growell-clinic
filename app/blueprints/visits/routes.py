@@ -41,7 +41,7 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
-from app.utils.icd import available_versions, search_icd
+from app.utils.icd import available_versions
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
 from app.utils.clock import local_today
@@ -1469,16 +1469,6 @@ def phrases_screen():
                  "mine": bool(getattr(current_user, phrases.key_for(f), None))}
                 for f in phrases.FIELDS],
     )
-
-
-# -------------------------------------------------------- icd search -------
-@visits_bp.route("/icd")
-@module_required(MODULE)
-def icd():
-    # A bare list, like ``prescriptions.icd_search``. One question asked from
-    # two screens was answered in two shapes, which is the same drift that put
-    # a missing ``strength`` in the drug list.
-    return jsonify(search_icd(request.args.get("q", "")))
 
 
 @visits_bp.route("/<int:visit_id>/consent", methods=["POST"])

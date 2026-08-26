@@ -306,13 +306,24 @@ def test_the_diagnosis_search_answers_in_one_shape(pharmacy):
     """The same drift, one screen over: the visit room's ICD search wrapped
     its list in {"results": [...]} and the prescription writer's returned the
     list. One question, two shapes, and a picker that has to know which screen
-    it is on is a picker that will be wrong on the third."""
+    it is on is a picker that will be wrong on the third.
+
+    **The third screen arrived** — the patient file's problem list, which had
+    no search at all — and the two shapes were made one by making the two
+    endpoints one. So this now asserts what it always wanted: a single
+    address, answering with a bare list. Two shapes are no longer something a
+    test has to watch for; they are no longer possible.
+    """
     doc = pharmacy["sign_in"]("doc")
-    a = doc.get("/visits/icd", query_string={"q": "fever"})
-    b = doc.get("/prescriptions/icd/search", query_string={"q": "fever"})
-    assert a.status_code == b.status_code == 200
-    assert isinstance(a.get_json(), list)
-    assert isinstance(b.get_json(), list)
+    reply = doc.get("/icd-search", query_string={"q": "fever"})
+
+    assert reply.status_code == 200
+    assert isinstance(reply.get_json(), list)
+
+    # And the two it replaced are gone rather than quietly still there.
+    for retired in ("/visits/icd", "/prescriptions/icd/search"):
+        assert doc.get(retired, query_string={"q": "fever"}).status_code == 404, \
+            f"{retired} still answers; there are two shapes again"
 
 
 def test_no_dropdown_on_these_screens_is_painted_white(pharmacy):
