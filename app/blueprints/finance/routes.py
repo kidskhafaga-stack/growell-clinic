@@ -4651,6 +4651,93 @@ def supplier_pay(supplier_id):
     return redirect(url_for("finance.supplier_statement", supplier_id=supplier_id))
 
 
+@finance_bp.route("/doctor-payouts")
+@module_required(MODULE)
+def doctor_payouts():
+    """What each doctor has earned, been paid, and is still owed.
+
+    The screen the doctor's own one could not have until now: earning and
+    being paid were two different events and only the first was written down,
+    so "what am I still owed" had no subtrahend.
+
+    Earned is over all time, because a balance is. The list beside it is the
+    payments themselves, newest first, because the question after "how much"
+    is always "when, and out of which drawer".
+    """
+    from app.models import DOCTOR_PAYOUT_METHODS, CashAccount, DoctorPayout
+    from app.utils import doctor_work
+    from app.utils.appointments import list_doctors
+
+    rows = []
+    for doctor in list_doctors():
+        standing = doctor_work.account(doctor.id)
+        if standing["earned"] or standing["paid"]:
+            rows.append(dict(standing, doctor=doctor))
+    # Most owed first: the list is opened to answer "who is waiting".
+    rows.sort(key=lambda r: -r["balance"])
+
+    recent = (DoctorPayout.query
+              .order_by(DoctorPayout.paid_on.desc(), DoctorPayout.id.desc())
+              .limit(50).all())
+    return render_template(
+        "finance/doctor_payouts.html", rows=rows, recent=recent,
+        tills=CashAccount.active(), methods=DOCTOR_PAYOUT_METHODS,
+        totals={"earned": round(sum(r["earned"] for r in rows), 2),
+                "paid": round(sum(r["paid"] for r in rows), 2),
+                "balance": round(sum(r["balance"] for r in rows), 2)})
+
+
+@finance_bp.route("/doctor-payouts/pay", methods=["POST"])
+@module_required(MODULE)
+def doctor_pay():
+    """Record money handed to a doctor.
+
+    It comes out of a till and belongs to a shift, for the reason an expense
+    does: pay 2,000 from the reception drawer without saying so and the drawer
+    is 2,000 short at close, with the variance on the cashier.
+
+    It also posts — Dr doctor shares / Cr the till. Money that left the drawer
+    and never reached the income statement makes a clinic's profit read higher
+    than it is by exactly what it pays its doctors.
+    """
+    from app.models import DoctorPayout, User
+    from app.utils.accounting import post_doctor_payout
+    from app.utils.appointments import list_doctors
+
+    doctor = db.get_or_404(User, request.form.get("doctor_id", type=int) or 0)
+    # Checked against the list the screen was drawn from, not trusted. A payout
+    # to somebody who is not a practitioner would leave the till and reach the
+    # ledger, and then never appear on this screen again — money out of the
+    # drawer with nowhere in the program that shows it.
+    if doctor.id not in {d.id for d in list_doctors()}:
+        flash(t("payouts.not_a_doctor"), "danger")
+        return redirect(url_for("finance.doctor_payouts"))
+
+    amount = round(request.form.get("amount", type=float) or 0, 2)
+    if amount <= 0:
+        flash(t("payouts.need_amount"), "danger")
+        return redirect(url_for("finance.doctor_payouts"))
+
+    method = (request.form.get("method") or "cash").strip()
+    payout = DoctorPayout(
+        doctor_id=doctor.id, amount=amount, method=method,
+        account_id=_out_of_till(request.form.get("account_id", type=int), method),
+        shift_id=_current_shift_id() if method == "cash" else None,
+        paid_on=parse_date_or_today(request.form.get("paid_on")),
+        reference=(request.form.get("reference") or "").strip() or None,
+        notes=(request.form.get("notes") or "").strip() or None,
+        created_by=current_user.id)
+    db.session.add(payout)
+    db.session.flush()
+    post_doctor_payout(payout, user_id=current_user.id)
+    ActivityLog.record("doctor.pay", user_id=current_user.id, entity="user",
+                       entity_id=doctor.id, detail=f"{amount:.2f}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("payouts.paid_ok"), "success")
+    return redirect(url_for("finance.doctor_payouts"))
+
+
 @finance_bp.route("/documents/<int:doc_id>/terms", methods=["POST"])
 @module_required(MODULE)
 def document_terms(doc_id):

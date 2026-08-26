@@ -1,0 +1,178 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('payouts.title') }}{% endblock %}
+{% block page_heading %}{{ t('payouts.title') }}{% endblock %}
+
+{# Earned, paid, and still owed — the three numbers a doctor's own screen could
+   not show until money handed over was written down anywhere.
+
+   Earned is over all time and says so, because a balance is: subtracting every
+   payment ever made from one month's earnings produces a number that means
+   nothing and looks authoritative. #}
+
+{% block content %}
+<h1 class="page-title gc-animate">{{ t('payouts.title') }}</h1>
+<p class="page-sub gc-animate" style="animation-delay:0.05s;">{{ t('payouts.sub') }}</p>
+
+{% if rows %}
+<div class="po-grid gc-scale-in" style="animation-delay:0.08s;">
+  <div class="po-stat">
+    <div class="po-k">{{ t('payouts.earned') }}</div>
+    <div class="po-v">{{ totals.earned | money }}</div>
+  </div>
+  <div class="po-stat">
+    <div class="po-k">{{ t('payouts.paid') }}</div>
+    <div class="po-v">{{ totals.paid | money }}</div>
+  </div>
+  <div class="po-stat po-stat--owed">
+    <div class="po-k">{{ t('payouts.owed') }}</div>
+    <div class="po-v">{{ totals.balance | money }}</div>
+  </div>
+</div>
+
+<div class="card gc-scale-in" style="animation-delay:0.12s;margin-bottom:16px;">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>{{ t('appointments.doctor') }}</th>
+          <th class="num">{{ t('payouts.earned') }}</th>
+          <th class="num">{{ t('payouts.paid') }}</th>
+          <th class="num">{{ t('payouts.owed') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.doctor.display_name(current_lang) }}</td>
+          <td class="num">{{ row.earned | money }}</td>
+          <td class="num">{{ row.paid | money }}</td>
+          {# The only figure that carries weight on the row: it is the one
+             somebody is scanning the list for. A negative balance is a doctor
+             paid ahead of what they have earned, which is a real state and not
+             an error — it reads as a minus rather than being hidden. #}
+          <td class="num"><strong class="{{ 'po-owed' if row.balance > 0 else 'po-ahead' }}">
+            {{ row.balance | money }}</strong></td>
+          <td class="num">
+            <button type="button" class="btn btn-outline btn-sm gc-press"
+                    x-on:click="$dispatch('pay-doctor', { id: {{ row.doctor.id }},
+                                 name: {{ row.doctor.display_name(current_lang)|tojson|forceescape }},
+                                 owed: {{ row.balance }} })">
+              <i class="bi bi-cash"></i> {{ t('payouts.pay') }}</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint" style="margin-top:12px;"><i class="bi bi-info-circle"></i>
+    {{ t('payouts.earned_note') }}</p>
+</div>
+
+{# The form fills itself from whichever row was pressed. Amount is left for a
+   person to type rather than defaulted to the balance: paying exactly what is
+   owed is one case among several, and a prefilled figure is one somebody
+   confirms without reading. #}
+<div class="card gc-scale-in" style="animation-delay:0.16s;"
+     x-data="{ id: null, name: '', owed: 0 }"
+     x-on:pay-doctor.window="id = $event.detail.id; name = $event.detail.name;
+                             owed = $event.detail.owed;
+                             $nextTick(() => $refs.amount.focus())">
+  <h2 class="section-title"><i class="bi bi-cash-stack"></i> {{ t('payouts.record') }}</h2>
+
+  <form method="post" action="{{ url_for('finance.doctor_pay') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="doctor_id" :value="id">
+    <p x-show="id" x-cloak style="margin:0 0 10px;">
+      <strong x-text="name"></strong>
+      <span class="hint" style="margin:0;"
+            x-text="'{{ t('payouts.owed') }}: ' + owed"></span></p>
+    <p x-show="!id" class="placeholder-soft" style="margin:0 0 10px;">
+      {{ t('payouts.pick_first') }}</p>
+
+    <div class="form-grid">
+      <div class="form-row"><label>{{ t('payouts.amount') }} *</label>
+        <input class="input" type="number" step="0.01" min="0.01"
+               name="amount" x-ref="amount" required></div>
+      <div class="form-row"><label>{{ t('payouts.method') }}</label>
+        <select class="select" name="method">
+          {# The supplier list rather than one of my own: a doctor paid by
+             transfer and a supplier paid by transfer are the same act, and two
+             lists that mean the same thing drift. #}
+          {% for m in methods %}
+          <option value="{{ m }}">{{ t('supplier_pay_methods.' ~ m) }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('payouts.out_of') }}</label>
+        <select class="select" name="account_id">
+          <option value="">—</option>
+          {% for a in tills %}
+          <option value="{{ a.id }}">{{ a.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row"><label>{{ t('payouts.paid_on') }}</label>
+        <input class="input" type="date" name="paid_on"></div>
+      <div class="form-row"><label>{{ t('payouts.reference') }}</label>
+        <input class="input" name="reference" dir="ltr"></div>
+      <div class="form-row" style="grid-column:1/-1;"><label>{{ t('payouts.notes') }}</label>
+        <input class="input" name="notes"></div>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit" :disabled="!id">
+      <i class="bi bi-check-lg"></i> {{ t('payouts.record') }}</button>
+  </form>
+</div>
+
+{% if recent %}
+<details class="card gc-scale-in" data-fold="payout-history"
+         style="animation-delay:0.20s;margin-top:16px;" open>
+  <summary style="display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;">
+    <i class="bi bi-clock-history"></i>
+    <strong>{{ t('payouts.history') }}</strong></summary>
+  <div class="table-wrap" style="margin-top:12px;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('payouts.paid_on') }}</th>
+        <th>{{ t('appointments.doctor') }}</th>
+        <th class="num">{{ t('payouts.amount') }}</th>
+        <th>{{ t('payouts.method') }}</th>
+        <th>{{ t('payouts.out_of') }}</th>
+        <th>{{ t('payouts.reference') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for p in recent %}
+        <tr>
+          <td dir="ltr">{{ p.paid_on }}</td>
+          <td>{{ p.doctor.display_name(current_lang) if p.doctor else '—' }}</td>
+          <td class="num">{{ p.amount | money }}</td>
+          <td>{{ t('supplier_pay_methods.' ~ p.method) }}</td>
+          <td>{{ p.account.display_name(current_lang) if p.account else '—' }}</td>
+          <td dir="ltr">{{ p.reference or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+
+{% else %}
+<div class="card gc-scale-in">
+  <p class="placeholder-soft" style="margin:0;">{{ t('payouts.nothing') }}</p>
+</div>
+{% endif %}
+
+<style>
+  .po-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
+    margin-bottom:16px; }
+  .po-stat { border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+    background:var(--card); }
+  /* The one figure the screen exists for. */
+  .po-stat--owed { border-inline-start:4px solid var(--green-600); }
+  .po-k { color:var(--muted); font-size:.82rem; margin-bottom:4px; }
+  .po-v { font-size:1.5rem; font-weight:800; font-variant-numeric:tabular-nums; }
+  .po-owed { color:var(--green-800); }
+  .po-ahead { color:var(--muted); }
+  @media (max-width:880px){ .po-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}

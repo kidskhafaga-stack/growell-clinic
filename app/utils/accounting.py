@@ -38,6 +38,10 @@ CHART = [
     ("5000", "المصروفات", "Expenses", "expense", None),
     ("5010", "مصروفات تشغيل", "Operating expenses", "expense", "5000"),
     ("5020", "تكلفة المبيعات", "Cost of goods sold", "expense", "5000"),
+    # Doctor shares are a cost of running the clinic and not an operating
+    # expense among the rent and the electricity: it is the largest single
+    # line in most clinics and the one an owner asks about by itself.
+    ("5030", "أنصبة الأطباء", "Doctor shares", "expense", "5000"),
 ]
 
 
@@ -209,6 +213,23 @@ def post_expense(expense, user_id=None):
              (till_code(expense), 0, expense.amount, memo)]
     return post_entry("expense", expense.id, memo, lines,
                       entry_date=expense.expense_date, user_id=user_id)
+
+
+def post_doctor_payout(payout, user_id=None):
+    """Doctor paid: Dr doctor shares / Cr the till it left.
+
+    Without this the money is gone from the drawer and absent from the income
+    statement, so a clinic's profit reads higher than it is by exactly what it
+    paid its doctors — which in most clinics is the biggest number on the page.
+    """
+    if not payout or (payout.amount or 0) <= 0:
+        return None
+    who = payout.doctor.display_name("ar") if payout.doctor else ""
+    memo = f"صرف نصيب طبيب — {who}".strip(" —")
+    lines = [("5030", payout.amount, 0, memo),
+             (till_code(payout), 0, payout.amount, memo)]
+    return post_entry("doctor_payout", payout.id, memo, lines,
+                      entry_date=payout.paid_on, user_id=user_id)
 
 
 def post_claim_payment(claim, user_id=None):

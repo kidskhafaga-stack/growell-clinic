@@ -151,15 +151,37 @@
     </table>
   </div>
 
-  {# Said once, on the screen, rather than left for somebody to work out from a
-     number that looks like it should be the answer. The program can total what
-     a doctor has earned; nothing in it records money handed to a doctor, so
-     "what am I still owed" has no honest subtrahend and is not offered. #}
-  <p class="hint" style="margin-top:12px;">
-    <i class="bi bi-info-circle"></i> {{ t('mine.no_payouts_yet') }}</p>
   {% else %}
   <p class="placeholder-soft" style="margin:10px 0 0;">{{ t('mine.nothing_billed') }}</p>
   {% endif %}
+
+  {# "فاضلي قد إيه" — the question this screen used to answer with a sentence
+     explaining why it could not. It can now, because money handed to a doctor
+     is written down.
+
+     Kept apart from the table above, and labelled all-time, because it is a
+     different question. The table is this window; the balance is since the
+     beginning. Subtracting every payment ever made from one month's earnings
+     would give a number that means nothing and looks authoritative — and it
+     sits outside the `if` above, because a doctor who billed nothing this
+     month still has a balance. #}
+  <div class="mine-account">
+    <div class="mine-ai">
+      <span class="mine-ak">{{ t('mine.earned_ever') }}</span>
+      <strong>{{ work.account.earned | money }}</strong></div>
+    <div class="mine-ai">
+      <span class="mine-ak">{{ t('mine.paid_ever') }}</span>
+      <strong>{{ work.account.paid | money }}</strong>
+      {% if work.money.paid %}
+      <span class="hint" style="margin:0;">{{ t('mine.paid_in_window',
+        v=work.money.paid | money) }}</span>
+      {% endif %}</div>
+    <div class="mine-ai mine-ai--owed">
+      <span class="mine-ak">{{ t('mine.owed') }}</span>
+      <strong>{{ work.account.balance | money }}</strong></div>
+  </div>
+  <p class="hint" style="margin:10px 0 0;">
+    <i class="bi bi-info-circle"></i> {{ t('mine.account_note') }}</p>
 </details>
 
 <style>
@@ -192,6 +214,14 @@
 
   .mine-newold { display:flex; gap:18px; flex-wrap:wrap; align-items:center;
     margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+
+  .mine-account { display:flex; gap:18px; flex-wrap:wrap; align-items:baseline;
+    margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .mine-ai { display:flex; flex-direction:column; gap:2px; }
+  .mine-ai strong { font-size:1.15rem; font-variant-numeric:tabular-nums; }
+  .mine-ak { color:var(--muted); font-size:.82rem; }
+  /* The one the doctor opened the screen for. */
+  .mine-ai--owed strong { color:var(--green-800); font-size:1.35rem; }
 
   @media (max-width:880px){ .mine-grid { grid-template-columns:repeat(2,1fr); } }
 </style>

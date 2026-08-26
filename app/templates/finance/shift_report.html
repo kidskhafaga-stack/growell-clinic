@@ -49,6 +49,12 @@
     <table class="table"><tbody>
       <tr><td>{{ t('cashier.opening_float') }}</td><td style="text-align:end;">{{ shift.opening_float }}</td></tr>
       <tr><td>{{ t('cashier.cash_collected') }}</td><td style="text-align:end;">{{ shift.cash_collected }}</td></tr>
+      {# Cash that left the drawer during the shift — an expense, a supplier,
+         a doctor's share. It was always subtracted from the expected figure
+         and never shown, so the three rows did not add up on screen and a
+         cashier reading them had no way to see why. #}
+      <tr><td>{{ t('cashier.cash_paid_out') }}</td>
+        <td style="text-align:end;">−{{ shift.cash_paid_out }}</td></tr>
       <tr style="font-weight:700;"><td>{{ t('cashier.expected_cash') }}</td><td style="text-align:end;">{{ shift.expected_cash }}</td></tr>
       <tr><td>{{ t('shifts.counted_cash') }}</td><td style="text-align:end;">{{ shift.counted_cash if shift.counted_cash is not none else '—' }}</td></tr>
       {% if shift.variance is not none %}

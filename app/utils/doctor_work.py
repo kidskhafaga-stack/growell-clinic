@@ -34,6 +34,12 @@ from collections import Counter
 from app.extensions import db
 
 
+def _paid_in(doctor_id, date_from, date_to):
+    from app.models import DoctorPayout
+
+    return DoctorPayout.paid_to(doctor_id, date_from, date_to)
+
+
 def _appointments(doctor_id, date_from, date_to):
     """Real visits in the window. A cancelled or no-show slot is not a patient
     seen, and counting one is a doctor told they were busier than they were."""
@@ -161,6 +167,44 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
     return rows, share, invoices
 
 
+def earned_ever(doctor_id):
+    """Everything this doctor has ever earned, in two aggregate queries.
+
+    Summed in SQL rather than by loading the invoices: a balance is made of
+    every invoice since the clinic opened, and :func:`by_service` builds row
+    objects it does not need here. On a clinic three years in, the difference
+    is a screen that opens and a screen that hangs.
+    """
+    from app.models import Invoice, InvoiceItem, PatientVaccine, VaccineBrand
+
+    lines = (db.session.query(db.func.sum(InvoiceItem.commission_amount))
+             .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
+             .filter(Invoice.doctor_id == doctor_id).scalar()) or 0
+    doses = (db.session.query(db.func.sum(VaccineBrand.doctor_fee))
+             .join(PatientVaccine, PatientVaccine.brand_id == VaccineBrand.id)
+             .filter(PatientVaccine.doctor_id == doctor_id,
+                     PatientVaccine.event_type == "given",
+                     PatientVaccine.given_outside.is_(False)).scalar()) or 0
+    return round(lines + doses, 2)
+
+
+def account(doctor_id):
+    """``{earned, paid, balance}`` over all time — what is still owed.
+
+    **All time, and deliberately not the window the screen is showing.** A
+    balance is what has happened since the beginning; subtracting every payment
+    ever made from one month's earnings would produce a number that means
+    nothing and looks authoritative. The window answers "how was this month";
+    this answers "where do we stand".
+    """
+    from app.models import DoctorPayout
+
+    earned = earned_ever(doctor_id)
+    paid = DoctorPayout.paid_to(doctor_id)
+    return {"earned": earned, "paid": paid,
+            "balance": round(earned - paid, 2)}
+
+
 def summary(doctor_id, date_from, date_to, lang="ar"):
     """Everything one doctor's screen shows for one window.
 
@@ -181,7 +225,13 @@ def summary(doctor_id, date_from, date_to, lang="ar"):
             "billed": round(sum(i.total for i in invoices), 2),
             "collected": round(sum(i.paid for i in invoices), 2),
             "share": share,
+            # What was handed over *in this window* — activity, beside the
+            # activity it sits next to.
+            "paid": _paid_in(doctor_id, date_from, date_to),
         },
+        # And where the account stands overall. Never mixed with the window
+        # above: earned-this-month minus paid-ever is not a number.
+        "account": account(doctor_id),
         # Two different counts on purpose. `seen` is appointments kept — the
         # doctor's day. `cases` is billed items, which is larger whenever one
         # visit carried an ECG as well as the consultation, and it is the

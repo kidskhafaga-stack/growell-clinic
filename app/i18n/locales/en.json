@@ -3134,6 +3134,7 @@
     "nothing_to_collect": "Nothing to collect for this appointment (no priced service or unbilled vaccine).",
     "subtitle": "Today's till — collect dues and reconcile the drawer",
     "opening_float": "Opening float",
+    "cash_paid_out": "Cash paid out",
     "cash_collected": "Cash collected",
     "expected_cash": "Expected in drawer",
     "collected_total": "Collected (all methods)",
@@ -4579,6 +4580,7 @@
     "mv_refund": "Refund",
     "mv_expense": "Expense",
     "mv_supplier": "Supplier payment",
+    "mv_doctor": "Doctor share paid",
     "landed_in": "{method}: this money landed in \\u201c{till}\\u201d, not in the cash drawer.",
     "choose": "Till",
     "default_for_method": "Default for the method",
@@ -5213,8 +5215,12 @@
     "by_service": "What it earned",
     "count": "Count",
     "gross": "Billed",
+    "earned_ever": "Earned, all time",
+    "paid_ever": "Paid, all time",
+    "owed": "Still owed",
+    "paid_in_window": "{v} of it in this window",
+    "account_note": "These three are over all time, not the window above: a balance is what has happened since the beginning. Earned is your share on every invoice line plus the fee on every dose you gave here; paid is money recorded as handed to you.",
     "nothing_billed": "Nothing was billed in this window.",
-    "no_payouts_yet": "This is what you have earned in the window. The program does not yet record money paid out to a doctor, so it cannot say what is still owed — that would be a guess, not a figure.",
     "service": "Service"
   },
   "cardio": {
@@ -5257,5 +5263,27 @@
     "shared_note": "Where one drawer is worked by two people, \"who is short\" and \"which drawer is short\" stop being the same question. If the money is handed over at the end of every shift rather than left in the drawer, they never should have been.",
     "cash_only_note": "The difference is a cash difference. Card takings never sit in a drawer and are never counted, so a till that mostly takes cards shows small differences against large collections.",
     "nothing": "No shifts were opened in this window."
+  },
+  "payouts": {
+    "title": "Doctors — earned, paid, and owed",
+    "sub": "What each doctor has earned since the clinic opened, what has been handed to them, and the difference.",
+    "earned": "Earned",
+    "paid": "Paid",
+    "owed": "Still owed",
+    "pay": "Pay",
+    "earned_note": "Earned is over all time, because a balance is. It is the doctor's share on every invoice line plus the fee on every dose given here — the same figures the doctor's own screen shows for a window.",
+    "record": "Record a payment",
+    "pick_first": "Pick a doctor from the list above.",
+    "amount": "Amount",
+    "method": "Method",
+    "out_of": "Out of till",
+    "paid_on": "Paid on",
+    "reference": "Reference",
+    "notes": "Notes",
+    "history": "Payments made",
+    "nothing": "No doctor has earned anything yet, and nothing has been paid out.",
+    "not_a_doctor": "That user is not a doctor, so there is no share to pay.",
+    "need_amount": "Enter an amount greater than zero.",
+    "paid_ok": "Payment recorded."
   }
 }

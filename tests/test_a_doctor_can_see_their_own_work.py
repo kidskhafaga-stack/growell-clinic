@@ -16,9 +16,12 @@ again. So the arithmetic moved to one module that the report and the screen
 both read: a doctor's pay is the one number two calculations must never
 disagree about.
 
-**And one number is deliberately absent.** The program totals what a doctor has
-earned; nothing in it records money handed to a doctor. "What am I still owed"
-has no honest subtrahend, so the screen says so instead of showing a figure.
+**And one number was deliberately absent**, until it could be honest. The
+program totalled what a doctor had earned; nothing in it recorded money handed
+to a doctor, so "what am I still owed" had no subtrahend and the screen said so
+rather than showing a figure. It has one now — see
+test_what_the_doctor_was_actually_handed — and it is an all-time balance sitting
+beside the window, never subtracted from it.
 """
 import os
 import sys
@@ -388,14 +391,25 @@ def test_the_report_and_the_screen_read_the_same_function(worked):
         "the report is summing invoice lines again"
 
 
-def test_the_screen_says_it_cannot_say_what_is_still_owed(worked):
-    """The absent number, said out loud. Nothing in the program records money
-    handed to a doctor, so "what am I still owed" has no honest subtrahend —
-    and a screen that showed one would be inventing it."""
-    page = _mine(worked).get_data(as_text=True)
+def test_the_balance_is_all_time_and_says_so(worked):
+    """This screen used to carry a sentence explaining why it could not answer
+    *"فاضلي قد إيه"*. It can now — money handed to a doctor is recorded — and
+    the answer comes with the one thing that keeps it honest: it is over all
+    time, not over the window above it. Earned-this-month minus paid-ever is
+    not a number, and it looks exactly like one.
 
-    assert ("لسه مابيسجّلش صرف" in page or "does not yet record money paid"
-            in page), "the screen is silent about the number it cannot give"
+    See test_what_the_doctor_was_actually_handed for the arithmetic itself."""
+    from app.utils.clock import local_today
+
+    today = local_today()
+    page = _mine(worked, date_from=today.isoformat(),
+                 date_to=today.isoformat()).get_data(as_text=True)
+
+    assert "mine.owed" not in page, "the strings are keys, not translations"
+    assert "لسه مابيسجّلش صرف" not in page, \
+        "the screen still says the program cannot record a payout"
+    assert ("من أول يوم" in page or "all time" in page), \
+        "the balance does not say which period it covers"
 
 
 def test_it_is_reachable_from_the_sidebar(worked):

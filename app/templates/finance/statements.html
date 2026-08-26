@@ -8,8 +8,15 @@
 {% block content %}
 <div class="no-print gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
   <h1 class="page-title">{{ t('statements.title') }}</h1>
-  <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}">
-    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  <div style="display:flex;gap:8px;">
+    {# The other half of the same account. A settlement that says a doctor is
+       owed 12,000 is read next to the question "how much of that did we
+       already give him", and that answer lives one screen away. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.doctor_payouts') }}">
+      <i class="bi bi-cash-coin"></i> {{ t('payouts.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.index') }}">
+      <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+  </div>
 </div>
 
 <!-- Filters -->
