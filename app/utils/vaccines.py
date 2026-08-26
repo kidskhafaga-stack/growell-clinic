@@ -2583,12 +2583,21 @@ def visit_vaccine_panel(patient, lang="ar"):
       * ``received``  — vaccines the child already has doses of (neutral history)
       * ``give_now``  — optional, age-appropriate vaccines in stock (administer)
       * ``out_of_stock`` — optional, age-appropriate but no stock (schedule / PO)
+      * ``next_optional`` — the soonest optional dose still ahead, or None
     Mandatory (EPI) and on-demand (rabies/travel) vaccines are excluded from the
     suggestions; the doctor adds those deliberately.
+
+    **``next_optional`` exists because "nothing to give" is not an answer.** A
+    two-day-old genuinely has no optional vaccine within reach — the first ones
+    fall due at six weeks, and the due window is thirty days — but a panel that
+    says only *no optional vaccine matches this age* reads as a program that
+    lost the schedule. It names the next one and its date instead, which is
+    what the parent is about to ask anyway.
     """
     today = local_today()
     plan = patient_plan(patient, lang)
     received, give_now, out_of_stock = [], [], []
+    ahead = []
     for v in plan:
         vac, brand = v["vaccine"], v["brand"]
         given = [d for d in v["doses"] if d["status"] == "done"]
@@ -2634,6 +2643,14 @@ def visit_vaccine_panel(patient, lang="ar"):
         # (its recommended age has arrived / is within the due window).
         nxt = next((d for d in v["doses"] if d["status"] in GIVEABLE), None)
         if not nxt or brand is None:
+            # Not giveable today — but if it is merely early rather than over,
+            # remember when it opens. This is the whole answer for a newborn,
+            # and the panel used to throw it away.
+            soon = next((d for d in v["doses"]
+                         if d["status"] == "upcoming" and d["due_date"]), None)
+            if soon:
+                ahead.append({"vaccine": vac, "dose_number": soon["dose_number"],
+                              "due_date": soon["due_date"]})
             continue
         batch = brand.available_batches[0] if brand.available_batches else None
         entry = {"vaccine": vac, "brand": brand, "dose": nxt,
@@ -2647,7 +2664,9 @@ def visit_vaccine_panel(patient, lang="ar"):
                  "overdue": len(given) > 0 and nxt["status"] == "overdue",
                  "seasonal": False}
         (give_now if brand.stock > 0 else out_of_stock).append(entry)
-    return {"received": received, "give_now": give_now, "out_of_stock": out_of_stock}
+    return {"received": received, "give_now": give_now,
+            "out_of_stock": out_of_stock,
+            "next_optional": min(ahead, key=lambda e: e["due_date"]) if ahead else None}
 
 
 # ─────────────────────────── the same schedule, read flat ───────────────────

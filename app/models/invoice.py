@@ -430,6 +430,7 @@ class CashierShift(db.Model):
         beside a slow one — a rollup that disagreed with the shift report it
         totals would be worse than a slow rollup.
         """
+        from app.models.doctor_payout import DoctorPayout
         from app.models.expense import Expense
         from app.models.payable import SupplierPayment
 
@@ -437,7 +438,10 @@ class CashierShift(db.Model):
         if not ids:
             return {}
         out = {i: 0.0 for i in ids}
-        for model in (Expense, SupplierPayment):
+        # A doctor paid out of the drawer is cash that left the drawer. Leave
+        # it out and the shift expects money that is not there, and the cashier
+        # is short by exactly what the clinic told them to hand over.
+        for model in (Expense, SupplierPayment, DoctorPayout):
             for shift_id, total in (
                     db.session.query(model.shift_id,
                                      db.func.sum(model.amount))

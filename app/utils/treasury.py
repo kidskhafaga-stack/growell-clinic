@@ -75,7 +75,8 @@ def movements(account, since=None, upto=None, limit=None):
     question anybody asks of a till statement.
     """
     from app.extensions import db
-    from app.models import CashMovement, Expense, Payment, SupplierPayment
+    from app.models import (CashMovement, DoctorPayout, Expense, Payment,
+                            SupplierPayment)
 
     rows = []
     for payment in _scoped(Payment.query.filter(Payment.account_id == account.id),
@@ -114,6 +115,19 @@ def movements(account, since=None, upto=None, limit=None):
             "label": sp.reference or "",
             "who": sp.supplier.name if sp.supplier else "",
             "id": sp.id,
+        })
+
+    for payout in _scoped(
+            DoctorPayout.query.filter(DoctorPayout.account_id == account.id),
+            DoctorPayout.paid_on, since, upto).all():
+        rows.append({
+            "at": _as_datetime(payout.paid_on),
+            "kind": "doctor",
+            "amount": -(payout.amount or 0),
+            "method": payout.method,
+            "label": payout.reference or "",
+            "who": payout.doctor.display_name("ar") if payout.doctor else "",
+            "id": payout.id,
         })
 
     # Deliberate movements: banking a drawer, topping up change, a card
