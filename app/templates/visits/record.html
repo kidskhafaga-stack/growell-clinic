@@ -1224,10 +1224,17 @@
     </div>
     <p class="hint" style="margin-top:-2px;">{{ t('visits.vac_intro') }}</p>
 
-    <!-- Search across every section (name, trade name, dose) -->
+    {# Search across every section. It walks the text of the cards on the page,
+       so it can only find what the page renders — which is why the whole
+       catalogue is rendered below, collapsed. Before that, this box promised
+       "scientific or trade name" and searched three sections that were empty
+       for any child with nothing due: typing a trade name found nothing, on a
+       clinic that stocked it. #}
     <input class="input" type="search" id="vacSearch" autocomplete="off"
            placeholder="{{ t('visits.vac_search_ph') }}" style="max-width:340px;margin:6px 0 4px;"
            oninput="gcVacFilter(this.value)">
+    <p id="vacNoHit" class="hint" style="display:none;">
+      <i class="bi bi-search"></i> {{ t('visits.vac_no_match') }}</p>
 
     <!-- What the child already received — first, with the upcoming doses -->
     <details open class="vac-section">
@@ -1329,7 +1336,18 @@
     </form>
     {% endfor %}
     {% else %}
-    <p style="color:var(--muted);">{{ t('visits.vac_none_available') }}</p>
+    {# "Nothing to give" is not an answer. A two-day-old genuinely has no
+       optional vaccine within reach — the first fall due at six weeks — but a
+       panel that says only *nothing matches this age* reads as a program that
+       lost the schedule. It names the next one and its date. #}
+    <p style="color:var(--muted);">{{ t('visits.vac_none_available') }}
+      {% if vac_panel.next_optional %}<br>
+      <span style="color:var(--green-800);"><i class="bi bi-calendar-event"></i>
+        {{ t('visits.vac_next_optional',
+             v=vac_panel.next_optional.vaccine.display_name(current_lang),
+             n=vac_panel.next_optional.dose_number) }}
+        <span dir="ltr">{{ vac_panel.next_optional.due_date }}</span></span>
+      {% endif %}</p>
     {% endif %}
     </details>
 
@@ -1366,25 +1384,49 @@
     </details>
     {% endif %}
 
-    <!-- Add a mandatory vaccine deliberately (give here or document a gov dose) -->
-    {% if mandatory_vaccines %}
-    <details style="margin-top:18px;" class="vac-section">
+    <!-- Give any vaccine deliberately: the panel only suggests what is due and
+         in stock, and everything else had no way in from this tab. -->
+    {% if addable_vaccines %}
+    <details style="margin-top:18px;" class="vac-section" id="vacAddAny" data-collapsed>
       <summary style="cursor:pointer;color:var(--green-800);font-size:0.92rem;font-weight:600;">
-        <i class="bi bi-plus-circle"></i> {{ t('visits.vac_add_mandatory') }}</summary>
-      <p class="hint" style="margin:6px 0 8px;">{{ t('visits.vac_add_mandatory_hint') }}</p>
+        <i class="bi bi-plus-circle"></i> {{ t('visits.vac_add_any') }}
+        ({{ addable_vaccines|length }})</summary>
+      <p class="hint" style="margin:6px 0 8px;">{{ t('visits.vac_add_any_hint') }}</p>
+      {% for av in addable_vaccines %}
+      {# The brand names are on the row on purpose: they are what a doctor
+         types. The search box walks the text of every card, so a trade name
+         only finds its vaccine if the trade name is written here. #}
       <form method="post" action="{{ url_for('visits.give_vaccine', visit_id=visit.id) }}"
-            style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            class="vac-card gc-lift vac-add-row">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <select name="vaccine_id" class="select" required style="max-width:260px;">
-          <option value="" disabled selected>{{ t('visits.vac_choose_vaccine') }}</option>
-          {% for mv in mandatory_vaccines %}
-          <option value="{{ mv.id }}">{{ mv.display_name(current_lang) }}</option>
-          {% endfor %}
-        </select>
-        <label class="checkbox" style="margin:0;font-weight:400;font-size:0.85rem;">
-          <input type="checkbox" name="given_outside" value="1"> {{ t('visits.vac_given_outside') }}</label>
-        <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('visits.vac_add') }}</button>
+        <input type="hidden" name="vaccine_id" value="{{ av.id }}">
+        <div class="vac-head">
+          <div>
+            <strong>{{ av.display_name(current_lang) }}</strong>
+            <span class="badge badge--muted" dir="ltr">{{ av.code }}</span>
+            {% if av.is_mandatory %}
+            <span class="badge badge--role">{{ t('visits.vac_gov') }}</span>{% endif %}
+            {% if av.on_demand %}
+            <span class="badge badge--muted">{{ t('visits.vac_on_demand') }}</span>{% endif %}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            {% if av.active_brands %}
+            <select name="brand_id" class="select" style="max-width:200px;height:32px;padding:2px 8px;font-size:0.82rem;">
+              <option value="">{{ t('visits.vac_brand_default') }}</option>
+              {% for b in av.active_brands %}
+              <option value="{{ b.id }}">{{ b.display_name(current_lang) }}{% if b.stock <= 0 %} · {{ t('vaccinations.out_of_stock') }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+            <label class="checkbox" style="margin:0;font-weight:400;font-size:0.8rem;">
+              <input type="checkbox" name="given_outside" value="1"> {{ t('visits.vac_given_outside') }}</label>
+            <button class="btn btn-outline btn-sm gc-press" type="submit"
+                    style="height:32px;padding:2px 10px;">
+              <i class="bi bi-plus-lg"></i> {{ t('visits.vac_add') }}</button>
+          </div>
+        </div>
       </form>
+      {% endfor %}
     </details>
     {% endif %}
   </div>
@@ -1579,18 +1621,26 @@
   // (scientific name, trade name, dose) and hide sections left empty.
   function gcVacFilter(q) {
     q = (q || '').trim().toLowerCase();
+    var found = 0;
     document.querySelectorAll('#vac .vac-section').forEach(function (sec) {
       var any = false;
       sec.querySelectorAll('.vac-card').forEach(function (card) {
         var hit = !q || card.textContent.toLowerCase().indexOf(q) !== -1;
         card.style.display = hit ? '' : 'none';
-        if (hit) any = true;
+        if (hit) { any = true; found++; }
       });
       if (sec.querySelectorAll('.vac-card').length) {
         sec.style.display = any ? '' : 'none';
+        // A hit inside a collapsed section is a hit nobody can see.
         if (q && any) sec.setAttribute('open', '');
+        // ...and a section that is only open because of a search closes again
+        // when the search is cleared, or the whole catalogue stays unrolled.
+        if (!q && sec.hasAttribute('data-collapsed')) sec.removeAttribute('open');
       }
     });
+    // Said out loud. Every section hiding at once looks like a broken tab.
+    var none = document.getElementById('vacNoHit');
+    if (none) none.style.display = (q && !found) ? '' : 'none';
   }
   function visitPage(icdUrl, w, h) {
     let cfg = {};

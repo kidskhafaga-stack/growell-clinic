@@ -248,11 +248,25 @@ def record(visit_id):
     from app.models import Vaccine
     from app.utils.vaccines import visit_vaccine_panel
     vac_panel = visit_vaccine_panel(visit.patient, getattr(g, "lang", "ar"))
-    # Mandatory (EPI) vaccines aren't suggested, but the doctor can add one
-    # deliberately (e.g. recording a government-unit dose).
-    mandatory_vaccines = (Vaccine.query
-                          .filter_by(is_mandatory=True, is_discontinued=False)
-                          .order_by(Vaccine.sort_order).all())
+    # **Every vaccine, not only the mandatory ones.** The panel suggests what
+    # is age-appropriate and in stock; everything else — an optional vaccine
+    # given early or late, a travel or rabies dose, a brand the clinic carries
+    # for one family — had no way in from this tab at all. The endpoint behind
+    # it always accepted any vaccine and any brand; only the dropdown was
+    # narrow, so a doctor searching for a trade name here found nothing and
+    # had to leave the visit to give a jab.
+    from sqlalchemy.orm import selectinload
+
+    from app.models import VaccineBrand
+
+    # The batches come with the brands because the row shows whether each one
+    # is in stock, and `brand.stock` sums its batches: without this the tab
+    # costs one query per brand on a page a doctor opens all day.
+    addable_vaccines = (Vaccine.query
+                        .options(selectinload(Vaccine.brands)
+                                 .selectinload(VaccineBrand.batches))
+                        .filter_by(is_discontinued=False)
+                        .order_by(Vaccine.sort_order).all())
     # Medication reconciliation reference: the patient's recent meds.
     from app.utils.meds import recent_medications
     recent_meds = recent_medications(visit.patient_id)
@@ -345,7 +359,7 @@ def record(visit_id):
         reviewed_meds=_meds.reviewed_ids(visit.patient, visit),
         meds_reconciled=_meds.reconciled(visit.patient, visit),
         my_services=my_services, other_services=other_services,
-        vac_panel=vac_panel, mandatory_vaccines=mandatory_vaccines,
+        vac_panel=vac_panel, addable_vaccines=addable_vaccines,
         complaint_chips=_visit_chips("complaint"),
         exam_chips=_visit_chips("exam"),
         plan_chips=_visit_chips("plan"),
