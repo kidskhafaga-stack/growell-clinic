@@ -1885,6 +1885,7 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                 "event_reason": (ev.refusal_reason if (ev and not pv
                                  and ev.event_type != "planned") else None),
             })
+        doses.extend(_doses_off_the_schedule(vaccine, brand, rows, doses, lang))
         # Has this clinic actually begun this course? Everything about
         # "late" hangs on the answer.
         #
@@ -2573,6 +2574,77 @@ def visit_given_summary(patient, on_date, lang="ar"):
                         "dose_number": d["dose_number"], "total": v["total"],
                         "next": nxt})
     return out
+
+
+def _doses_off_the_schedule(vaccine, brand, rows, rendered, lang="ar"):
+    """Recorded doses whose number the course does not contain.
+
+    **The schedule decides what to offer; the record decides what to show.**
+    The loop above walks the course — the brand's dose rows, or the age band
+    that replaced them — and looks each number up among what was given. A dose
+    recorded outside that range is never looked up, so it is never drawn: the
+    row sits in the database and no screen in the program mentions it.
+
+    Reported from a clinic, on the hexavalent: a booster recorded as dose 4
+    against a three-dose schedule. The program had first filed it as dose 1,
+    which is wrong but visible; corrected to 4, it **disappeared entirely** —
+    from the file, the certificate and the panel — and adding a fourth row to
+    the catalogue afterwards did not bring it back, because the course for a
+    child who already started is the one their band or their brand fixed.
+
+    A vaccination that happened is not the schedule's to disown. These rows
+    carry ``off_schedule`` so a screen can say what they are — a booster, an
+    extra dose, or a number somebody typed wrongly and can now see to fix —
+    rather than the program deciding for itself that it never happened.
+
+    **Not for a course that repeats.** Influenza numbers doses across a
+    lifetime — a fifth winter is dose 5 — while the season's course has slots
+    one and two, and :func:`_this_season` deliberately renumbers into them. On
+    a repeatable course "a number the schedule does not contain" is the normal
+    state of every past winter, not a booster; sweeping them in listed three
+    previous seasons as this season's doses and told a child who had their
+    shot three weeks ago that they still needed one. Caught by the flu tests,
+    which is what they are for.
+    """
+    if vaccine.is_seasonal or vaccine.on_demand:
+        return []
+    seen = {row["dose_number"] for row in rendered}
+    extra = []
+    for pv in rows:
+        if pv.vaccine_id != vaccine.id:
+            continue
+        if (pv.event_type or "given") != "given":
+            continue
+        if pv.dose_number in seen:
+            continue
+        seen.add(pv.dose_number)
+        extra.append({
+            "dose_number": pv.dose_number,
+            # The course says nothing about this dose, so neither does this:
+            # an age label invented for it would be the program guessing at a
+            # schedule it has just been told it does not have.
+            "age_months": None,
+            "age_label": "",
+            "booster": is_booster(brand, pv.dose_number),
+            "due_date": None,
+            "given_date": pv.given_date.isoformat() if pv.given_date else None,
+            "lot_number": pv.lot_number,
+            "doctor": pv.doctor.display_name(lang) if pv.doctor else None,
+            "outside": bool(pv.given_outside),
+            "outside_place": pv.outside_place,
+            "pv_id": pv.id,
+            "imported": bool(getattr(pv, "import_batch_id", None)),
+            # It happened. Whatever the schedule thinks of the number, the
+            # child had this dose and every screen reads this word.
+            "status": "done",
+            "planned": False,
+            "event_type": None,
+            "event_reason": None,
+            # The one thing that separates it from the rest, so a screen can
+            # mark it instead of quietly showing a fourth dose of three.
+            "off_schedule": True,
+        })
+    return sorted(extra, key=lambda row: row["dose_number"])
 
 
 def visit_vaccine_panel(patient, lang="ar"):

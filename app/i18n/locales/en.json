@@ -1076,6 +1076,8 @@
     "order_hint": "Totalled from exactly the list in front of you - change the filter and this changes with it. “To order” is what is missing, not what is needed: nine on the shelf and eleven children due means buy two.",
     "correct": "Correct this dose",
     "imported": "Imported",
+    "off_schedule": "Outside the schedule",
+    "off_schedule_hint": "This dose was recorded with a number the course does not contain — a booster beyond the schedule, or a number entered by mistake. It is shown because it happened; correct the number here if it is wrong.",
     "imported_hint": "This dose came from the old program's history, and its number was worked out from the order of the dates rather than recorded. If the child had a dose somewhere else, that order is missing one — correct it here.",
     "dose_corrected": "Dose corrected",
     "course_booster_left": "Booster outstanding",
