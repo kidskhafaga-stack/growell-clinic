@@ -228,6 +228,34 @@ def test_the_repair_leaves_an_account_the_clinic_renamed_alone(clinic):
             code="1078").one().name == "اسم اختاره العميل"
 
 
+def test_asking_twice_for_the_same_account_makes_one(clinic):
+    """The guard the repair's own guard hides.
+
+    Mutation testing walked straight past this: `repair_till_accounts` checks
+    for itself before calling, and `till_new` calls it on a till that has no
+    account yet, so nothing ever reached the second call. It is still the
+    thing standing between a double-submitted form and an IntegrityError —
+    `Account.code` is unique, so making a second one does not produce a
+    duplicate, it produces a crash.
+    """
+    from app.models import Account, CashAccount
+    from app.utils.accounting import ensure_till_account
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        till = CashAccount(code="1081", name="خزنة", kind="cash")
+        db.session.add(till)
+        db.session.commit()
+
+        first = ensure_till_account(till)
+        db.session.commit()
+        again = ensure_till_account(till)
+        db.session.commit()
+
+        assert again.id == first.id
+        assert Account.query.filter_by(code="1081").count() == 1
+
+
 def test_running_the_repair_twice_creates_nothing_the_second_time(clinic):
     """It runs on every upgrade."""
     from app.models import Account, CashAccount

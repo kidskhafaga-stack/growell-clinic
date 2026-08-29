@@ -147,11 +147,36 @@ def test_the_profile_shows_both_products(clinic, mixed):
     assert "Prevenar 13" in page
 
 
-def test_the_profile_does_not_label_a_single_product_course_twice(clinic,
-                                                                  single):
-    """One product belongs in the header, not repeated on all four rows."""
+def test_every_dose_names_its_product_even_on_a_single_product_course(
+        clinic, single):
+    """Asked for directly by the doctor: the trade name on every dose, the
+    generic name at the top.
+
+    The trade name is a fact about the dose, not about the course, and it is
+    the level a doctor reads it at — which of these four was Synflorix is a
+    question the row has to answer on its own, whether or not the course
+    happened to change product.
+    """
     vaccine_id, _brands = single
     boss = clinic["sign_in"]("boss")
     page = boss.get(
         f"/patients/{clinic['ids']['child']}").get_data(as_text=True)
-    assert page.count("Synflorix") == 1
+    assert page.count("Synflorix") == 4
+
+
+def test_the_certificate_prints_a_mixed_course_without_breaking(clinic, mixed):
+    """The page a family is handed.
+
+    Its card header read the course's single product with no guard, so the
+    moment a mixed course stopped having one, printing the certificate for
+    this child would have failed outright — a fix to a cosmetic untruth
+    turning into a page that will not open.
+    """
+    vaccine_id, _brands = mixed
+    boss = clinic["sign_in"]("boss")
+    reply = boss.get(
+        f"/vaccinations/{clinic['ids']['child']}/certificate")
+    assert reply.status_code == 200
+    page = reply.get_data(as_text=True)
+    assert "Synflorix" in page
+    assert "Prevenar 13" in page

@@ -1001,18 +1001,11 @@
               <div style="display:flex;align-items:start;gap:8px;justify-content:space-between;">
                 <div>
                   <strong>{{ card.vaccine.display_name(current_lang) }}</strong>
-                  {# One product is named at the top only when one product is
-                     the truth. A course given as three Synflorix and a
-                     Prevenar booster used to print the latest over all four,
-                     which is the card stating something the record does not
-                     say. When it is mixed the doses name themselves. #}
-                  {% if card.brand %}
-                    <div class="hint" style="margin-top:2px;">
-                      <i class="bi bi-box"></i> {{ card.brand.display_name(current_lang) }}</div>
-                  {% elif card.mixed %}
-                    <div class="hint" style="margin-top:2px;">
-                      <i class="bi bi-box"></i> {{ card.brands | join(' + ') }}</div>
-                  {% endif %}
+                  {# The generic name heads the card; the trade name belongs
+                     to the dose, because that is the level it is true at. A
+                     single name at the top was printing the latest product
+                     over the whole course — three Synflorix and a Prevenar
+                     booster read as four Prevenar. #}
                 </div>
                 <span class="badge badge--{{ 'green' if card.complete else 'role' }}">
                   {{ card.given }}/{{ card.total }}</span>
@@ -1060,10 +1053,7 @@
                   <div class="hint" style="display:flex;justify-content:space-between;gap:8px;">
                     <span><i class="bi bi-check-circle" style="color:var(--green);"></i>
                       {{ t('vaccinations.dose') }} {{ d.dose_number }}
-                      {# Named on the dose whenever the card is not naming it
-                         for everybody — otherwise the same word is printed on
-                         every row for no reason. #}
-                      {% if card.mixed and d.brand_name %}
+                      {% if d.brand_name %}
                         <span class="badge badge--muted">{{ d.brand_name }}</span>
                       {% endif %}</span>
                     <span>{{ d.given_date }}</span>

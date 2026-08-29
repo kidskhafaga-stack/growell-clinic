@@ -63,8 +63,11 @@
     <div class="cert-card">
       <div class="cert-card-head">
         <div>
+          {# Generic name here, trade name on each dose below. This line used
+             to print one product over a whole course, and it read `c.brand`
+             with no guard — which a course given as two products now leaves
+             empty. #}
           <strong>{{ c.vaccine.display_name(current_lang) }}</strong>
-          <span class="cert-brand">{{ c.brand.display_name(current_lang) }}</span>
         </div>
         <div class="cert-progress-wrap">
           <span class="cert-count {{ 'is-complete' if c.complete else '' }}">{{ c.given }}/{{ c.total }}</span>
@@ -77,6 +80,7 @@
       <table class="table cert-doses">
         <thead><tr>
           <th style="width:70px;">{{ t('vaccinations.dose') }}</th>
+          <th>{{ t('vaccinations.brand') }}</th>
           <th>{{ t('vaccinations.given_date') }}</th>
           <th>{{ t('vaccinations.cert_doctor_col') }}</th>
           <th>{{ t('vaccinations.lot_number') }}</th>
@@ -85,6 +89,7 @@
           {% for d in c.doses %}
           <tr>
             <td>{{ d.dose_number }}</td>
+            <td>{{ d.brand_name or '—' }}</td>
             <td dir="ltr">{{ d.given_date }}</td>
             <td>
               {%- if d.outside -%}
