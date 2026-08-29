@@ -96,10 +96,16 @@ class Vaccine(db.Model):
         cascade="all, delete-orphan", order_by="VaccineScheduleTemplate.sort_order",
     )
     # What else counts toward this vaccine's course. See `VaccineCredit`.
+    #
+    # Loaded on access, not eagerly. `selectin` here cost a second query on
+    # every read of the catalogue — which is every page — and the repo's own
+    # performance guard caught it. Nothing in the hot path wants it: the plan
+    # reads all the credits once, in one query, and this relationship is for
+    # the catalogue screen, which is looking at a single vaccine.
     credits = db.relationship(
         "VaccineCredit", back_populates="vaccine",
         foreign_keys="VaccineCredit.vaccine_id",
-        cascade="all, delete-orphan", lazy="selectin",
+        cascade="all, delete-orphan",
     )
 
     def display_name(self, lang="ar"):
