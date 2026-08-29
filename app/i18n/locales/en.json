@@ -4583,6 +4583,10 @@
     }
   },
   "tills": {
+    "add": "Add a till",
+    "add_hint": "A second drawer, a branch's drawer, or the safe that receives the shift handover. The code is allocated for you.",
+    "add_title": "New till",
+    "err_no_name": "The till needs a name.",
     "sweeps_into": "Hands over to",
     "sweeps_into_hint": "The safe this drawer is handed to at the end of a shift. Blank = the money stays in the drawer.",
     "sweeps_none": "— nowhere —",
