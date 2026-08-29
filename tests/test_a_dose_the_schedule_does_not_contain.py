@@ -255,6 +255,37 @@ def test_a_course_that_repeats_every_winter_is_left_alone(hexa):
             setattr(vaccine, flag, False)
 
 
+def test_a_band_that_narrowed_the_course_is_left_alone(hexa):
+    """The second regression this fix caused on its way in, pinned here.
+
+    An age band is a deliberate statement about which doses a child's course
+    consists of — "switching in at 12–23 months is two doses", or a guideline
+    that schedules nothing for a product at three months. The doses outside it
+    are not lost; they are the history that *picked* the band. Adding them
+    back as course slots turned a two-dose switch course into three and put a
+    dose under a guideline that schedules none.
+
+    So the rule applies where the fault was: a course taken straight from the
+    brand's own dose rows, where a number past the end of that list has
+    nowhere else in the program to live.
+    """
+    from app.extensions import db
+    from app.models import PatientVaccine, Vaccine
+    from app.utils.vaccines import _doses_off_the_schedule
+
+    with hexa["app"].app_context():
+        vaccine = db.session.get(Vaccine, hexa["vaccine"])
+        brand = vaccine.brands[0]
+        rows = PatientVaccine.query.filter_by(patient_id=hexa["child"]).all()
+
+        # Same vaccine, same rows: only whether a band decided the course.
+        assert _doses_off_the_schedule(vaccine, brand, rows, [], band=None), \
+            "the brand's own course lost its off-schedule dose"
+        assert _doses_off_the_schedule(vaccine, brand, rows, [],
+                                       band={"catch_up": False}) == [], \
+            "a band's narrowed course had a dose swept back into it"
+
+
 def test_a_dose_of_a_different_vaccine_is_not_borrowed(hexa):
     """The rows this child has are *every* vaccine they ever had. A course
     that swept them all in would file a pneumococcal dose under the

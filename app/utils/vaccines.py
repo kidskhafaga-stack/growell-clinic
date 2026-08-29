@@ -1885,7 +1885,8 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                 "event_reason": (ev.refusal_reason if (ev and not pv
                                  and ev.event_type != "planned") else None),
             })
-        doses.extend(_doses_off_the_schedule(vaccine, brand, rows, doses, lang))
+        doses.extend(_doses_off_the_schedule(vaccine, brand, rows, doses,
+                                             lang, band=band))
         # Has this clinic actually begun this course? Everything about
         # "late" hangs on the answer.
         #
@@ -2576,7 +2577,8 @@ def visit_given_summary(patient, on_date, lang="ar"):
     return out
 
 
-def _doses_off_the_schedule(vaccine, brand, rows, rendered, lang="ar"):
+def _doses_off_the_schedule(vaccine, brand, rows, rendered, lang="ar",
+                            band=None):
     """Recorded doses whose number the course does not contain.
 
     **The schedule decides what to offer; the record decides what to show.**
@@ -2605,7 +2607,22 @@ def _doses_off_the_schedule(vaccine, brand, rows, rendered, lang="ar"):
     previous seasons as this season's doses and told a child who had their
     shot three weeks ago that they still needed one. Caught by the flu tests,
     which is what they are for.
+
+    **And not when a band chose the course.** An age band is a deliberate
+    statement about which doses this child's course consists of — "switching
+    in at 12–23 months is two doses", or a guideline saying nothing at all
+    about a product at three months. The doses outside it are not lost: they
+    are the history that *picked* the band, counted as ``previous``. Adding
+    them back as course slots turned a two-dose switch course into three and
+    put a dose under a guideline that schedules none. Caught by the band tests
+    in CI, which is what they are for.
+
+    So this applies where the fault was: a course taken straight from the
+    brand's own dose rows, where a number past the end of that list has
+    nowhere else in the program to live.
     """
+    if band is not None:
+        return []
     if vaccine.is_seasonal or vaccine.on_demand:
         return []
     seen = {row["dose_number"] for row in rendered}
