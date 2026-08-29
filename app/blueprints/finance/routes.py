@@ -2441,6 +2441,14 @@ def _checkout_screen(appt, patient):
 
     lines = (_checkout_lines(appt, lang) if appt
              else _patient_checkout_lines(patient, doctor_id, lang))
+    # **Why the screen can come up empty, said out loud.** Every charge this
+    # visit would raise is skipped once it is already on today's invoice — so
+    # a patient billed earlier today (a second appointment, or reception
+    # re-opening the same one) gets a checkout with no lines, a total of zero,
+    # and a confirm button that writes nothing and takes no money. Reported
+    # exactly that way: *"بحصّل خلاص مش بتسمع مع إن كل الإجراءات صح"*. The
+    # screen now names the invoice that already carries it.
+    already = _todays_invoice(patient_id) if not lines else None
     suggested, suggested_amount = _discount_preview(patient, doctor_id, lines)
     # The doctor is already settled by the time anybody reaches the till, so
     # this splits on the server — unlike booking, where the doctor is being
@@ -2467,6 +2475,7 @@ def _checkout_screen(appt, patient):
         # live only on the invoice view, which reception reaches by knowing an
         # invoice number.
         refundable=_refundable(patient_id),
+        already_billed=already,
         refund_needs_approval=(Setting.get("refund_approval_required", "1") != "0"
                                and not current_user.is_admin),
         services=_services,

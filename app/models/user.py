@@ -269,22 +269,56 @@ class User(UserMixin, db.Model):
             getattr(self, field.replace("_file", "_scale"), None) or 100)
         return round(base_h * pct / 100), round(base_w * pct / 100)
 
+    # A name that already carries its own title. Checked before one is added,
+    # so "د/ أحمد" never prints as "د/ د/ أحمد" — which is how this sort of
+    # rule usually announces itself.
+    CARRIES_TITLE = ("د/", "د.", "د ", "أ.د", "أ/", "Dr", "Prof", "Pr.")
+
     def doctor_print_name(self, lang="ar"):
-        """Name shown on the doctor's prescriptions and printouts."""
-        # A name typed specifically for prescriptions is somebody's deliberate
-        # wording — it carries whatever title they wanted and is left alone.
-        if self.rx_display_name:
-            return self.rx_display_name
-        base = self.display_name(lang)
+        """Name shown on the doctor's prescriptions and printouts, with title.
+
+        **The title is added here so nobody has to type it into their name.**
+        Asked for in exactly those terms: *"المستخدم دكتور يحط ده جنب اسمه، مش
+        لازم أكتب في اسمه د.أحمد"*.
+
+        ``rx_display_name`` — the prescription-specific name — used to be
+        returned untouched on the reasoning that somebody who typed there had
+        chosen their exact wording. That is true of the clinics who put their
+        *practice* name on the paper ("العيادة التخصصية للأطفال"), which must
+        never be addressed as a doctor. It was not true of the doctor who
+        typed their own plain name into a box labelled "the name shown on the
+        prescription", and silently lost their title on every sheet.
+
+        So the two are told apart rather than guessed at: when that field
+        holds **this person's own name**, it is a name and gets the title;
+        when it holds anything else, it is somebody's exact wording and is
+        printed as written.
+        """
+        chosen = (self.rx_display_name or "").strip()
+        base = chosen or self.display_name(lang)
         honorific = self.doctor_honorific(lang)
         if not honorific:
             return base
-        # Names entered as "د/ أحمد" already carry it; adding another would
-        # print "د/ د/ أحمد", which is how this sort of rule usually shows up.
-        if any(base.strip().startswith(known)
-               for known in ("د/", "د.", "أ.د", "Dr.", "Prof.")):
+        if chosen and not self._is_own_name(chosen):
+            return chosen
+        if any(base.strip().startswith(known) for known in self.CARRIES_TITLE):
             return base
         return f"{honorific} {base}"
+
+    def _is_own_name(self, text):
+        """Is this the doctor's own name, or a different piece of wording?
+
+        The one question that separates a doctor who typed their name into the
+        prescription-name box from a clinic that put its practice name there.
+        Compared on the whitespace-collapsed strings, because the difference
+        that matters is never a double space.
+        """
+        def flat(value):
+            return " ".join((value or "").split()).casefold()
+
+        needle = flat(text)
+        return bool(needle) and needle in {flat(self.full_name),
+                                           flat(self.full_name_en)}
 
     def doctor_title_lines(self, lang="ar"):
         """Qualification lines printed under the name (one per line).

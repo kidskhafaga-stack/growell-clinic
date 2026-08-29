@@ -203,9 +203,30 @@
         {{ t('checkout.change_hint') }}</p>
     </div>
 
+    {# Nothing left to charge. The screen used to look identical to a normal
+       one — an empty table, a zero total, and a confirm button that saved
+       nothing and collected nothing, so the cashier pressed it, saw no change
+       anywhere, and went hunting for the row again. It says which invoice
+       already carries the visit, and offers the way to it. #}
+    {% if already_billed %}
+    <div class="card gc-scale-in edge-yellow" style="margin-bottom:14px;">
+      <p style="margin:0;"><i class="bi bi-info-circle"></i>
+        <strong>{{ t('checkout.nothing_left') }}</strong></p>
+      <p class="hint" style="margin:6px 0 10px;">
+        {{ t('checkout.nothing_left_hint', number=already_billed.invoice_number) }}</p>
+      <a class="btn btn-outline btn-sm gc-press"
+         href="{{ url_for('finance.invoice_view', invoice_id=already_billed.id) }}">
+        <i class="bi bi-receipt"></i> {{ t('checkout.open_that_invoice') }}</a>
+    </div>
+    {% endif %}
+
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
       <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) if appt else url_for('finance.cashier') }}">{{ t('common.cancel') }}</a>
-      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
+      {# Still submittable when a line is added by hand — the block above says
+         nothing was *proposed*, not that nothing may be charged. #}
+      <button class="btn btn-primary gc-press" type="submit"
+              x-bind:disabled="!lines.length && !payments.some(p => +p.amount > 0)">
+        <i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
     </div>
   </form>
 
