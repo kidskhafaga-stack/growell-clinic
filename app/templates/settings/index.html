@@ -457,6 +457,16 @@
       <label for="refund_approval_required" style="margin:0;font-weight:400;">{{ t('settings.refund_approval_required') }}</label>
     </div>
     <p class="hint">{{ t('settings.refund_approval_required_hint') }}</p>
+    {# The line between "hand back fifty pounds of a vaccine difference" and
+       "hand back the whole visit". A full refund always waits; zero here
+       makes every refund wait, which is how it behaved before. #}
+    <div class="form-row" style="max-width:260px;">
+      <label for="refund_no_approval_under">{{ t('refunds.no_approval_under') }}</label>
+      <input class="input" type="number" step="0.01" min="0"
+             id="refund_no_approval_under" name="refund_no_approval_under"
+             value="{{ values.get('refund_no_approval_under', '100') }}">
+    </div>
+    <p class="hint">{{ t('refunds.no_approval_under_hint') }}</p>
     <div class="form-row checkbox">
       <input type="checkbox" id="require_shift_to_collect" name="require_shift_to_collect" value="1"
              {{ 'checked' if values.get('require_shift_to_collect','1') != '0' else '' }}>

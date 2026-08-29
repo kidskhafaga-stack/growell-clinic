@@ -258,13 +258,25 @@
             {{ inv.invoice_date.strftime('%Y-%m-%d') }} ·
             {{ t('checkout.paid') }} {{ '%.2f'|format(inv.paid) }} {{ currency_symbol() }}</div>
         </div>
-        <div class="form-row" style="margin:0;max-width:130px;">
+        <div class="form-row" style="margin:0;max-width:130px;"
+             x-data="{ full: false, paid: {{ '%.2f'|format(inv.paid) }} }">
           <label style="font-size:.85rem;">{{ t('invoices.amount') }} *</label>
           {# Capped at what was actually collected, so the field cannot ask for
              money that never came in. The route clamps it too — a max attribute
              is a courtesy, not a control. #}
           <input class="input" type="number" step="0.01" min="0.01"
-                 max="{{ '%.2f'|format(inv.paid) }}" name="amount" required>
+                 max="{{ '%.2f'|format(inv.paid) }}" name="amount" required
+                 x-ref="amt" x-on:input="full = (+$event.target.value === paid)">
+          {# "All of it" as a button rather than a figure to copy out of the
+             line above. Typing the total by hand is how a refund of 480 goes
+             out as 48 — and the whole-invoice case is the one that closes the
+             invoice, so it is the one worth naming. #}
+          <button type="button" class="btn btn-outline btn-sm gc-press"
+                  style="margin-top:6px;"
+                  x-on:click="$refs.amt.value = paid.toFixed(2); full = true">
+            {{ t('refunds.all_of_it') }}</button>
+          <p class="hint" style="margin:6px 0 0;" x-show="full" x-cloak>
+            <i class="bi bi-exclamation-triangle"></i> {{ t('refunds.will_close') }}</p>
         </div>
         <div class="form-row" style="margin:0;max-width:150px;">
           <label style="font-size:.85rem;">{{ t('invoices.method') }}</label>

@@ -50,6 +50,10 @@ ADDITIONS = [
     # clinic could have both loaded. Nullable: rows written before this
     # column have an answer nobody recorded, and a default would invent it.
     ("patient_problems", "icd_version", "VARCHAR(2)"),
+    # A refunded invoice is closed. Without this column on an existing
+    # clinic, a full refund would leave the invoice reading "unpaid" and
+    # collectable again — the exact thing it exists to stop.
+    ("invoices", "refunded_at", "DATETIME"),
     ("patient_vaccines", "doctor_id", "INTEGER"),
     ("patient_vaccines", "invoice_id", "INTEGER"),
     ("patient_vaccines", "given_outside", "BOOLEAN DEFAULT 0"),

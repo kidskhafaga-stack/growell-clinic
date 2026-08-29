@@ -167,6 +167,27 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
     return rows, share, invoices
 
 
+
+def _refunded_share(doctor_id, date_from=None, date_to=None):
+    """The doctor's share of every refund on their invoices.
+
+    Proportional to what went back, per invoice — see
+    :func:`app.utils.refunds.doctor_share_of`. Read off the notices rather
+    than recomputed from today's invoice, because the notice carries the
+    figure the doctor was told at the time and an invoice can be edited after
+    a refund.
+    """
+    from app.models import RefundNotice
+
+    query = db.session.query(db.func.sum(RefundNotice.doctor_amount)).filter(
+        RefundNotice.doctor_id == doctor_id)
+    if date_from is not None:
+        query = query.filter(db.func.date(RefundNotice.created_at) >= date_from)
+    if date_to is not None:
+        query = query.filter(db.func.date(RefundNotice.created_at) <= date_to)
+    return round(query.scalar() or 0, 2)
+
+
 def earned_ever(doctor_id):
     """Everything this doctor has ever earned, in two aggregate queries.
 
@@ -180,6 +201,11 @@ def earned_ever(doctor_id):
     lines = (db.session.query(db.func.sum(InvoiceItem.commission_amount))
              .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
              .filter(Invoice.doctor_id == doctor_id).scalar()) or 0
+    # And the money that went back out takes its share with it. Without this,
+    # a clinic that refunded a visit still owed the doctor their cut of money
+    # it no longer had: `commission_amount` is the snapshot written when the
+    # line was billed, and nothing had ever subtracted from it.
+    lines -= _refunded_share(doctor_id)
     doses = (db.session.query(db.func.sum(VaccineBrand.doctor_fee))
              .join(PatientVaccine, PatientVaccine.brand_id == VaccineBrand.id)
              .filter(PatientVaccine.doctor_id == doctor_id,

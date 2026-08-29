@@ -22,6 +22,10 @@ TEXT_KEYS = [
     "product_name", "product_name_en",
     "program_slogan_ar", "program_slogan_en", "thermal_footer_text",
     "clinic_accent",
+    # Under this, a partial refund does not wait for a manager. A full refund
+    # always does. Zero makes every refund wait, which is how it behaved
+    # before there was a line between them.
+    "refund_no_approval_under",
     # Where the clinic is. Needed wherever a stored UTC moment has to be
     # compared with a time a person typed (see app/utils/clock.py).
     "clinic_timezone",

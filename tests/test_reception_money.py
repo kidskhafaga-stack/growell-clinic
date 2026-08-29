@@ -81,6 +81,23 @@ def _refund(client, invoice_id, amount, method="cash"):
                        follow_redirects=True)
 
 
+def _every_refund_needs_approval(clinic):
+    """Turn off the small-refund shortcut for the tests about approval.
+
+    A partial refund under the clinic's threshold now goes straight through —
+    handing back fifty pounds of a vaccine difference should not stop the
+    queue while a manager is found. The tests below are about the *approval*
+    path, not about that line, so they pin the threshold at zero: every refund
+    waits, which is exactly how the program behaved before the line existed.
+    """
+    from app.extensions import db
+    from app.models import Setting
+
+    with clinic["app"].app_context():
+        Setting.set("refund_no_approval_under", "0")
+        db.session.commit()
+
+
 # ------------------------------------------------------------ the invoice --
 def test_the_bill_carries_the_doctors_share(clinic):
     """The commission is snapshotted when the line is billed, so changing the
@@ -255,6 +272,7 @@ def test_staff_below_the_manager_file_a_request_instead(clinic):
     refund becomes a request; nothing moves until a manager decides."""
     from app.models import RefundRequest
 
+    _every_refund_needs_approval(clinic)
     boss = clinic["sign_in"]("boss")
     _open_shift(boss)
     _bill(boss, clinic["ids"])
@@ -272,6 +290,7 @@ def test_staff_below_the_manager_file_a_request_instead(clinic):
 def test_approving_the_request_is_what_moves_the_money(clinic):
     from app.models import RefundRequest
 
+    _every_refund_needs_approval(clinic)
     boss = clinic["sign_in"]("boss")
     _open_shift(boss)
     _bill(boss, clinic["ids"])
@@ -292,6 +311,7 @@ def test_approving_the_request_is_what_moves_the_money(clinic):
 def test_rejecting_it_leaves_the_money_where_it_was(clinic):
     from app.models import RefundRequest
 
+    _every_refund_needs_approval(clinic)
     boss = clinic["sign_in"]("boss")
     _open_shift(boss)
     _bill(boss, clinic["ids"])
