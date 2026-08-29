@@ -248,6 +248,31 @@ def test_a_drawer_holding_only_its_float_hands_over_nothing(desk, clinic):
     assert _balance(clinic, safe) == 0.0
 
 
+def test_a_quiet_evening_is_not_reported_as_an_error(desk, clinic):
+    """And the cashier is not told off for it.
+
+    ``record_movement`` refuses a zero transfer, correctly — but reaching it
+    at all means the close ends on a red *"the amount must be over zero"*,
+    every evening a drawer takes no cash. Having nothing to hand over is not
+    a mistake, so it is decided before anything is asked to refuse it.
+    """
+    from app.utils import treasury
+
+    drawer, _safe = _tills(clinic)
+    _open(desk, "100", drawer)
+    shift = _the_shift(clinic)
+    page = _close(desk, shift, counted="100").get_data(as_text=True)
+
+    assert "المبلغ لازم يكون أكبر من صفر" not in page
+
+    with clinic["app"].app_context():
+        from app.models import CashierShift
+
+        # Returns, rather than raising: the caller has nothing to handle.
+        assert treasury.hand_over(
+            clinic["db"].session.get(CashierShift, shift)) is None
+
+
 def test_an_inactive_safe_is_not_swept_into(desk, clinic):
     """A till switched off is a till nobody is watching. Money sent to one
     would be out of the drawer and out of sight."""
@@ -275,10 +300,21 @@ def test_a_till_cannot_hand_over_to_itself(desk, clinic):
     _open(desk, "100", drawer)
     _bill_and_pay(desk, clinic["ids"], "200")
     shift = _the_shift(clinic)
-    _close(desk, shift, counted="300")
+    page = _close(desk, shift, counted="300").get_data(as_text=True)
 
     assert _shift_state(clinic, shift)["handover_id"] is None
     assert _balance(clinic, drawer) == 200.0
+    # A misconfigured till is the admin's problem, not something to put in
+    # front of the cashier at the end of every shift.
+    assert "مش هينفع تحوّل الخزنة لنفسها" not in page
+
+    from app.utils import treasury
+
+    with clinic["app"].app_context():
+        from app.models import CashierShift
+
+        assert treasury.hand_over(
+            clinic["db"].session.get(CashierShift, shift)) is None
 
 
 # ------------------------------------------------- counted, not expected ----
