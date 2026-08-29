@@ -82,6 +82,12 @@ ADDITIONS = [
     ("supplier_payments", "account_id", "INTEGER"),
     ("cashier_shifts", "account_id", "INTEGER"),
     ("cash_accounts", "settles_into_id", "INTEGER"),
+    # The safe a drawer is handed over to when a shift closes, and the
+    # handover it produced. Both nullable, and deliberately left null on an
+    # existing clinic: a till that swept nowhere yesterday must not start
+    # moving money tonight because a column appeared.
+    ("cash_accounts", "sweeps_into_id", "INTEGER"),
+    ("cashier_shifts", "handover_id", "INTEGER"),
     ("cash_accounts", "fee_percent", "FLOAT"),
     ("cash_accounts", "settle_after_days", "INTEGER"),
     ("expenses", "shift_id", "INTEGER"),
