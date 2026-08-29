@@ -203,9 +203,30 @@
         {{ t('checkout.change_hint') }}</p>
     </div>
 
+    {# Nothing left to charge. The screen used to look identical to a normal
+       one — an empty table, a zero total, and a confirm button that saved
+       nothing and collected nothing, so the cashier pressed it, saw no change
+       anywhere, and went hunting for the row again. It says which invoice
+       already carries the visit, and offers the way to it. #}
+    {% if already_billed %}
+    <div class="card gc-scale-in edge-yellow" style="margin-bottom:14px;">
+      <p style="margin:0;"><i class="bi bi-info-circle"></i>
+        <strong>{{ t('checkout.nothing_left') }}</strong></p>
+      <p class="hint" style="margin:6px 0 10px;">
+        {{ t('checkout.nothing_left_hint', number=already_billed.invoice_number) }}</p>
+      <a class="btn btn-outline btn-sm gc-press"
+         href="{{ url_for('finance.invoice_view', invoice_id=already_billed.id) }}">
+        <i class="bi bi-receipt"></i> {{ t('checkout.open_that_invoice') }}</a>
+    </div>
+    {% endif %}
+
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:40px;">
       <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) if appt else url_for('finance.cashier') }}">{{ t('common.cancel') }}</a>
-      <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
+      {# Still submittable when a line is added by hand — the block above says
+         nothing was *proposed*, not that nothing may be charged. #}
+      <button class="btn btn-primary gc-press" type="submit"
+              x-bind:disabled="!lines.length && !payments.some(p => +p.amount > 0)">
+        <i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
     </div>
   </form>
 
@@ -237,13 +258,25 @@
             {{ inv.invoice_date.strftime('%Y-%m-%d') }} ·
             {{ t('checkout.paid') }} {{ '%.2f'|format(inv.paid) }} {{ currency_symbol() }}</div>
         </div>
-        <div class="form-row" style="margin:0;max-width:130px;">
+        <div class="form-row" style="margin:0;max-width:130px;"
+             x-data="{ full: false, paid: {{ '%.2f'|format(inv.paid) }} }">
           <label style="font-size:.85rem;">{{ t('invoices.amount') }} *</label>
           {# Capped at what was actually collected, so the field cannot ask for
              money that never came in. The route clamps it too — a max attribute
              is a courtesy, not a control. #}
           <input class="input" type="number" step="0.01" min="0.01"
-                 max="{{ '%.2f'|format(inv.paid) }}" name="amount" required>
+                 max="{{ '%.2f'|format(inv.paid) }}" name="amount" required
+                 x-ref="amt" x-on:input="full = (+$event.target.value === paid)">
+          {# "All of it" as a button rather than a figure to copy out of the
+             line above. Typing the total by hand is how a refund of 480 goes
+             out as 48 — and the whole-invoice case is the one that closes the
+             invoice, so it is the one worth naming. #}
+          <button type="button" class="btn btn-outline btn-sm gc-press"
+                  style="margin-top:6px;"
+                  x-on:click="$refs.amt.value = paid.toFixed(2); full = true">
+            {{ t('refunds.all_of_it') }}</button>
+          <p class="hint" style="margin:6px 0 0;" x-show="full" x-cloak>
+            <i class="bi bi-exclamation-triangle"></i> {{ t('refunds.will_close') }}</p>
         </div>
         <div class="form-row" style="margin:0;max-width:150px;">
           <label style="font-size:.85rem;">{{ t('invoices.method') }}</label>

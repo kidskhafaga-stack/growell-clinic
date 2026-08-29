@@ -184,6 +184,67 @@
     <i class="bi bi-info-circle"></i> {{ t('mine.account_note') }}</p>
 </details>
 
+{# ---- Money that went back out of this doctor's work --------------------
+   Here rather than in a feed of its own: it is a number coming off the
+   account this screen exists to show. The objection stops nothing — the money
+   went back over the counter before this row existed — it puts the
+   disagreement in front of the desk that made it. #}
+{% if refund_notices %}
+<details class="card mine-fold gc-scale-in" data-fold="mine-refunds"
+         style="animation-delay:0.20s;" open>
+  <summary class="mine-sum">
+    <i class="bi bi-chevron-down mine-caret"></i>
+    <strong>{{ t('refunds.notices_title') }}</strong>
+    <span class="hint" style="margin:0;">{{ refund_notices|length }}</span>
+  </summary>
+  <div class="table-wrap" style="margin-top:12px;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('reports.date') }}</th>
+        <th>{{ t('invoices.title') }}</th>
+        <th>{{ t('invoices.amount') }}</th>
+        <th>{{ t('common.notes') }}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        {% for n in refund_notices %}
+        <tr>
+          <td dir="ltr">{{ n.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>
+            <span dir="ltr" style="font-family:monospace;font-size:.85rem;">
+              {{ n.invoice.invoice_number if n.invoice else '—' }}</span>
+            <span class="badge badge--{{ 'danger' if n.scope == 'full' else 'muted' }}">
+              {{ t('refunds.scope_' ~ n.scope) }}</span></td>
+          <td>{{ t('refunds.notice_line', v=n.amount|money,
+                   d=n.doctor_amount|money) }}</td>
+          <td>{{ n.reason or '—' }}</td>
+          <td>
+            {% if n.objected %}
+            <span class="badge badge--role"><i class="bi bi-hand-index"></i>
+              {{ t('refunds.objected_on') }}</span>
+            {% if n.objection_note %}
+            <div class="hint" style="margin:2px 0 0;">{{ n.objection_note }}</div>
+            {% endif %}
+            {% elif may_object %}
+            <form method="post" style="display:flex;gap:6px;align-items:center;"
+                  action="{{ url_for('main.refund_object', notice_id=n.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="input" name="note" style="height:30px;font-size:.8rem;"
+                     placeholder="{{ t('refunds.object_note') }}">
+              <button class="btn btn-outline btn-sm gc-press" type="submit"
+                      style="height:30px;padding:2px 10px;">
+                {{ t('refunds.object') }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+
 <style>
   .mine-controls { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
   .mine-controls .form-row { min-width:150px; }

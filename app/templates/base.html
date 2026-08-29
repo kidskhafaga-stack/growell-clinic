@@ -30,6 +30,35 @@
         return original.call(this, input, init);
       };
     })();
+
+    // The other way a screen posts by script: building a <form> and
+    // submitting it, which is a navigation and never goes through fetch — so
+    // the wrapper above never sees it and the token never gets attached.
+    // Every one of those posts was answered with "The CSRF token is missing":
+    // cancelling an appointment, marking a no-show, rescheduling, walk-ins,
+    // the waitlist, and saving a prescription preset. One helper, so the next
+    // screen that posts this way cannot forget again.
+    window.gcPostForm = function (action, fields) {
+      var token = document.querySelector('meta[name="csrf-token"]');
+      var form = document.createElement('form');
+      form.method = 'post';
+      form.action = action;
+      var add = function (name, value) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value == null ? '' : value;
+        form.appendChild(input);
+      };
+      if (token) add('csrf_token', token.content);
+      for (var key in fields) {
+        if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
+        var values = Array.isArray(fields[key]) ? fields[key] : [fields[key]];
+        for (var i = 0; i < values.length; i++) add(key, values[i]);
+      }
+      document.body.appendChild(form);
+      form.submit();
+    };
   </script>
   <!-- Resolve theme before paint (light / dark / follow-system) — no flash. -->
   <script>

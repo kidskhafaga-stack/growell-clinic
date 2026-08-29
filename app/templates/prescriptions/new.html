@@ -659,19 +659,17 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
     savePreset(){
       const name = window.prompt({{ t('presets.prompt_name') | tojson }});
       if(!name) return;
-      const form = document.createElement('form');
-      form.method = 'post';
-      form.action = "{{ url_for('prescriptions.preset_save') }}";
-      const add = (k, v) => { const i = document.createElement('input');
-                              i.type='hidden'; i.name=k; i.value=v||''; form.appendChild(i); };
-      add('name', name);
-      add('diagnosis', this.diagnosis);
-      this.lines.filter(l => l.name).forEach(l => {
-        add('item_name', l.name); add('item_drug_id', l.drug_id);
-        add('item_dose', l.dose); add('item_frequency', l.frequency);
-        add('item_duration', l.duration); add('item_instructions', l.instructions);
-      });
-      document.body.appendChild(form); form.submit();
+      // Through the shared helper: this built its own form too, without the
+      // CSRF token, so saving a preset had never once worked.
+      const fields = { name: name, diagnosis: this.diagnosis };
+      const lines = this.lines.filter(l => l.name);
+      fields.item_name = lines.map(l => l.name);
+      fields.item_drug_id = lines.map(l => l.drug_id || '');
+      fields.item_dose = lines.map(l => l.dose || '');
+      fields.item_frequency = lines.map(l => l.frequency || '');
+      fields.item_duration = lines.map(l => l.duration || '');
+      fields.item_instructions = lines.map(l => l.instructions || '');
+      window.gcPostForm("{{ url_for('prescriptions.preset_save') }}", fields);
     }
   };
 }

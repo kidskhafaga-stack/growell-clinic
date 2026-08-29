@@ -575,20 +575,12 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
         patient_id: this.chosen.id, doctor_id: this.f.doctorId, appt_type: this.f.appt_type,
         reason: this.f.reason, preferred_from: this.f.preferred_from, preferred_to: this.f.preferred_to });
     },
-    // Helper: submit a hidden form (full page nav keeps existing flash UX) --
-    postForm(action, fields) {
-      const form = document.createElement('form');
-      form.method = 'post'; form.action = action;
-      for (const k in fields) {
-        const vals = Array.isArray(fields[k]) ? fields[k] : [fields[k]];
-        for (const v of vals) {
-          const i = document.createElement('input');
-          i.type = 'hidden'; i.name = k; i.value = v == null ? '' : v;
-          form.appendChild(i);
-        }
-      }
-      document.body.appendChild(form); form.submit();
-    }
+    // Helper: submit a hidden form (full page nav keeps existing flash UX).
+    // Shared with every other screen that posts this way, because this one
+    // built the form itself and left the CSRF token off it — so cancelling,
+    // no-show, rescheduling, walk-ins and the waitlist all answered
+    // "The CSRF token is missing" instead of doing anything.
+    postForm(action, fields) { window.gcPostForm(action, fields); }
   };
 }
 

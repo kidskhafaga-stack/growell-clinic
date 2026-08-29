@@ -185,6 +185,7 @@ from app.models.payable import (
     SupplierPayment,
 )
 from app.models.doctor_payout import DOCTOR_PAYOUT_METHODS, DoctorPayout
+from app.models.refund_notice import REFUND_SCOPES, RefundNotice
 from app.models.discount import (DISCOUNT_TYPES, VACCINE_SCOPE,
                                  DiscountMember, NamedDiscount)
 from app.models.accounting import (
@@ -374,6 +375,8 @@ __all__ = [
     "SupplierPayment",
     "DOCTOR_PAYOUT_METHODS",
     "DoctorPayout",
+    "REFUND_SCOPES",
+    "RefundNotice",
     "SupplierInstallment",
     "SUPPLIER_PAYMENT_METHODS",
     "PO_STATUSES",

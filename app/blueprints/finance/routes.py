@@ -70,8 +70,14 @@ def refund_requests():
                .order_by(RefundRequest.created_at).all())
     history = (RefundRequest.query.filter(RefundRequest.status != "pending")
                .order_by(RefundRequest.decided_at.desc()).limit(50).all())
+    from app.models import RefundNotice
+
     return render_template("finance/refund_requests.html",
-                           pending=pending, history=history)
+                           pending=pending, history=history,
+                           # The other half of a refund: the doctor's answer
+                           # to one that already went out. It stops nothing,
+                           # so it has to be somewhere a person reads.
+                           objections=RefundNotice.open_objections())
 
 
 @finance_bp.route("/refund-requests/<int:req_id>/decide", methods=["POST"])
@@ -94,12 +100,12 @@ def refund_request_decide(req_id):
     decision = (request.form.get("decision") or "").strip()
     if decision == "approve":
         invoice = req.invoice
-        refund_pay = Payment(
-            amount=round(min(req.amount, invoice.paid), 2), kind="refund",
-            method=req.method, received_by=current_user.id,
-            shift_id=_current_shift_id(), notes=req.reason)
-        invoice.payments.append(refund_pay)
-        invoice.recalc_status()
+        refund_pay, _scope, closed = _post_refund(
+            invoice, req.amount, req.method, req.reason,
+            user_id=current_user.id)
+        if closed:
+            flash(t("refunds.invoice_closed", number=invoice.invoice_number),
+                  "info")
         req.status = "approved"
         req.decided_by = current_user.id
         req.decided_at = _dt.utcnow()
@@ -120,6 +126,31 @@ def refund_request_decide(req_id):
         db.session.commit()
         flash(t("refunds.rejected"), "info")
     return redirect(url_for("finance.refund_requests"))
+
+
+def _post_refund(invoice, amount, method, reason, *, user_id):
+    """Put a refund on an invoice: the money, the closing, the doctor's copy.
+
+    Both ways money goes back — an admin refunding at the desk and a manager
+    approving somebody's request — end here, because the three things that
+    have to happen alongside the payment are the three that used to happen in
+    neither place. See :mod:`app.utils.refunds`.
+    """
+    from app.utils import refunds
+
+    amount = round(min(amount, invoice.paid), 2)
+    scope = refunds.scope_of(invoice, amount)
+    refund_pay = Payment(
+        amount=amount, kind="refund",
+        method=method if method in PAYMENT_METHODS else "cash",
+        received_by=user_id, shift_id=_current_shift_id(), notes=reason)
+    invoice.payments.append(refund_pay)
+    db.session.flush()
+    closed = refunds.close_if_emptied(invoice)
+    invoice.recalc_status()
+    refunds.notify_doctor(invoice, refund_pay, amount, scope=scope,
+                          reason=reason, user_id=user_id)
+    return refund_pay, scope, closed
 
 
 @finance_bp.route("/journal")
@@ -2307,6 +2338,11 @@ def _checkout_screen(appt, patient):
         # (exam collected first, then a procedure/vaccine added later) instead
         # of raising a new invoice for every collection step.
         invoice = _todays_invoice(patient_id)
+        # A refunded invoice is closed. Appending to it would put a new charge
+        # on a bill whose money went back — and the day's one-invoice rule
+        # would quietly reopen it. A new decision gets a new invoice.
+        if invoice is not None and invoice.status == "refunded":
+            invoice = None
         if invoice is None:
             invoice = Invoice(invoice_number=generate_invoice_number(),
                               patient_id=patient_id, doctor_id=doctor_id,
@@ -2441,6 +2477,14 @@ def _checkout_screen(appt, patient):
 
     lines = (_checkout_lines(appt, lang) if appt
              else _patient_checkout_lines(patient, doctor_id, lang))
+    # **Why the screen can come up empty, said out loud.** Every charge this
+    # visit would raise is skipped once it is already on today's invoice — so
+    # a patient billed earlier today (a second appointment, or reception
+    # re-opening the same one) gets a checkout with no lines, a total of zero,
+    # and a confirm button that writes nothing and takes no money. Reported
+    # exactly that way: *"بحصّل خلاص مش بتسمع مع إن كل الإجراءات صح"*. The
+    # screen now names the invoice that already carries it.
+    already = _todays_invoice(patient_id) if not lines else None
     suggested, suggested_amount = _discount_preview(patient, doctor_id, lines)
     # The doctor is already settled by the time anybody reaches the till, so
     # this splits on the server — unlike booking, where the doctor is being
@@ -2467,6 +2511,7 @@ def _checkout_screen(appt, patient):
         # live only on the invoice view, which reception reaches by knowing an
         # invoice number.
         refundable=_refundable(patient_id),
+        already_billed=already,
         refund_needs_approval=(Setting.get("refund_approval_required", "1") != "0"
                                and not current_user.is_admin),
         services=_services,
@@ -3095,9 +3140,9 @@ def invoice_refund(invoice_id):
 
     # F4 approval workflow: unless the setting is off, only admins refund
     # directly — everyone else files a request a manager must approve.
-    needs_approval = (Setting.get("refund_approval_required", "1") != "0"
-                      and not current_user.is_admin)
-    if needs_approval:
+    from app.utils import refunds
+
+    if refunds.needs_approval(invoice, amount, current_user):
         method = (request.form.get("method") or "cash").strip()
         db.session.add(RefundRequest(
             invoice_id=invoice.id, amount=round(min(amount, invoice.paid), 2),
@@ -3113,17 +3158,15 @@ def invoice_refund(invoice_id):
     if amount > invoice.paid:  # can't refund more than was actually collected
         amount = invoice.paid
     method = (request.form.get("method") or "cash").strip()
-    refund_pay = Payment(
-        amount=round(amount, 2), kind="refund",
-        method=method if method in PAYMENT_METHODS else "cash",
-        received_by=current_user.id, shift_id=_current_shift_id(),
-        notes=(request.form.get("notes") or "").strip() or None,
-    )
-    invoice.payments.append(refund_pay)
-    invoice.recalc_status()
+    refund_pay, _scope, closed = _post_refund(
+        invoice, amount, method,
+        (request.form.get("notes") or "").strip() or None,
+        user_id=current_user.id)
     ActivityLog.record("invoice.refund", user_id=current_user.id, entity="invoice",
                        detail=f"{invoice.invoice_number}:-{amount}", ip_address=client_ip())
     db.session.commit()
+    if closed:
+        flash(t("refunds.invoice_closed", number=invoice.invoice_number), "info")
     _post_journal_safe("payment", refund_pay)
     flash(t("invoices.refund_added"), "success")
     return redirect(_after_refund(invoice))

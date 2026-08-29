@@ -78,7 +78,13 @@
   <div class="card gc-scale-in" style="animation-delay:0.1s;">
     <h2 class="section-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('profile.doctor_profile') }}</h2>
     <div class="form-grid">
-      <div class="form-row"><label>{{ t('profile.rx_name') }}</label><input class="input" name="rx_display_name" value="{{ current_user.rx_display_name or '' }}" placeholder="{{ current_user.display_name(current_lang) }}"></div>
+      <div class="form-row"><label>{{ t('profile.rx_name') }}</label><input class="input" name="rx_display_name" value="{{ current_user.rx_display_name or '' }}" placeholder="{{ current_user.display_name(current_lang) }}">
+        {# What will actually print. The title is added by a rule — and the
+           rule declines when this box holds something that is not this
+           person's name, because some clinics put the practice name here. A
+           doctor whose title is missing could not otherwise tell why. #}
+        <p class="hint" style="margin:6px 0 0;"><i class="bi bi-eye"></i>
+          {{ t('profile.rx_name_preview', v=current_user.doctor_print_name(current_lang)) }}</p></div>
       <div class="form-row"><label>{{ t('profile.prof_title') }}</label>
         <select class="select" name="professional_title"><option value="">—</option>
           {% for ti in titles %}<option value="{{ ti }}" {{ 'selected' if current_user.professional_title==ti else '' }}>{{ ti }}</option>{% endfor %}

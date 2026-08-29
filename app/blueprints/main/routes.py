@@ -514,14 +514,57 @@ def my_clinic():
 
     work = doctor_work.summary(subject_id, date_from, date_to,
                                getattr(g, "lang", "ar"))
+    from app.models import RefundNotice
+
     return render_template(
         "main/my_clinic.html", work=work, subject=subject,
         doctors=doctors, date_from=date_from, date_to=date_to,
         today=today,
+        # Money that went back out of this doctor's work, and the place they
+        # answer it. Here rather than in a feed of its own because it is a
+        # number off the account this screen exists to show — see
+        # app/models/refund_notice.py.
+        refund_notices=RefundNotice.for_doctor(subject_id, limit=20),
+        # A doctor answers their own notices; an owner reading somebody
+        # else's screen is looking, not objecting on their behalf.
+        may_object=(subject_id == current_user.id),
         # The shortcuts a person actually asks for, so the commonest windows
         # are not a date-picker exercise.
         month_start=today.replace(day=1),
     )
+
+
+
+@main_bp.route("/my-clinic/refund/<int:notice_id>/object", methods=["POST"])
+@login_required
+def refund_object(notice_id):
+    """The doctor's answer to a refund on their work.
+
+    **It stops nothing, and that is deliberate.** The money went back over the
+    counter before this row existed; a disagreement cannot un-hand it, and a
+    program that pretended otherwise would hold a family at the desk waiting
+    for somebody who is with a patient. What it does is put the disagreement
+    on the record, in front of the desk that made it and the manager who reads
+    the day.
+    """
+    from datetime import datetime
+
+    from app.models import RefundNotice
+    from app.utils.decorators import client_ip
+
+    notice = db.get_or_404(RefundNotice, notice_id)
+    # Their own notice, not somebody else's. Checked rather than trusted to
+    # the absence of a button.
+    if notice.doctor_id != current_user.id:
+        abort(403)
+    notice.objected_at = datetime.utcnow()
+    notice.objection_note = (request.form.get("note") or "").strip()[:300] or None
+    ActivityLog.record("refund.object", user_id=current_user.id,
+                       entity="invoice", entity_id=notice.invoice_id,
+                       detail=f"{notice.amount}", ip_address=client_ip())
+    db.session.commit()
+    flash(t("refunds.objection_sent"), "info")
+    return redirect(url_for("main.my_clinic"))
 
 
 @main_bp.route("/update")

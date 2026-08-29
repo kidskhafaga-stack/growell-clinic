@@ -11,7 +11,10 @@ from datetime import datetime
 from app.extensions import db
 from app.utils.clock import local_today
 
-INVOICE_STATUSES = ["unpaid", "partial", "paid"]
+# "refunded" is terminal: every collection path refuses it, and it drops
+# out of the "who still owes" filters on its own, which is right — nobody
+# owes anything on an invoice whose money went back.
+INVOICE_STATUSES = ["unpaid", "partial", "paid", "refunded"]
 PAYMENT_METHODS = ["cash", "card", "instapay", "transfer", "wallet"]
 
 
@@ -59,6 +62,29 @@ class Invoice(db.Model):
     @property
     def total(self):
         return round(sum(i.net for i in self.items), 2)
+
+    # When the whole of this invoice's money went back. Set once, by the
+    # refund that empties it; it is what makes `recalc_status` say "refunded"
+    # instead of "unpaid" for ever afterwards.
+    refunded_at = db.Column(db.DateTime)
+
+    @property
+    def fully_refunded(self):
+        """The whole of this invoice's money has gone back — not merely all of
+        what happened to be collected so far.
+
+        **Measured against the total, and the difference is a real case.** A
+        patient who paid 80 of a 200 bill and had that 80 returned has an
+        invoice with nothing collected on it and 200 still owed. Closing that
+        would wipe a debt the clinic is owed, on the strength of a returned
+        deposit. Caught by the test that refunds more than was collected.
+
+        So closing means the invoice was made whole: everything it charged has
+        gone back. Read off the payments rather than the flag, so it is still
+        true of an invoice refunded before the flag existed.
+        """
+        total = round(self.total or 0, 2)
+        return total > 0 and round(self.refunded, 2) >= total
 
     @property
     def paid(self):
@@ -133,6 +159,18 @@ class Invoice(db.Model):
         left is settled, whether that is because the money came in or because
         there was never any to come.
         """
+        # Settled by a refund is a different sentence from never paid, and the
+        # program used to say the second one. A fully refunded invoice has
+        # `paid == 0`, so it read as **unpaid** — back in the "who still owes"
+        # list, offering a Collect button, with the money already handed back
+        # over the counter. That is how one invoice ends up carrying a
+        # collection, a refund, a collection, a refund.
+        #
+        # The service was cancelled. Charging for it again is a new decision
+        # and belongs on a new invoice.
+        if self.refunded_at is not None:
+            self.status = "refunded"
+            return self.status
         paid, total = self.paid, self.total
         if paid >= total:
             self.status = "paid"

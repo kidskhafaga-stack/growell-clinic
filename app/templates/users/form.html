@@ -123,6 +123,11 @@
           <div class="form-row">
             <label for="rx_display_name">{{ t('profile.rx_name') }}</label>
             <input class="input" id="rx_display_name" name="rx_display_name" value="{{ form.rx_display_name or '' }}">
+            {# What will actually print — see main/profile.html. #}
+            {% if user %}
+            <p class="hint" style="margin:6px 0 0;"><i class="bi bi-eye"></i>
+              {{ t('profile.rx_name_preview', v=user.doctor_print_name(current_lang)) }}</p>
+            {% endif %}
           </div>
           <div class="form-row">
             <label for="professional_title">{{ t('profile.prof_title') }}</label>

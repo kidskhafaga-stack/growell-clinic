@@ -236,17 +236,24 @@ def test_a_cashiers_refund_becomes_a_request_and_comes_back_here(desk, clinic,
                                                                  paid_invoice):
     """Unless the clinic turned approval off, cash does not leave the drawer on
     a cashier's say-so — but they still must not be thrown onto another screen
-    for asking."""
+    for asking.
+
+    The whole 150 rather than a token 50: a partial refund under the clinic's
+    threshold now goes straight through, so a small one would no longer be a
+    request and this test would be measuring nothing. A cashier handing back
+    everything they took is the act this screen is about.
+    """
     from app.models import Invoice, RefundRequest
 
     reply = desk.post(f"/finance/invoices/{paid_invoice}/refund", data={
-        "amount": "50", "method": "cash", "next": "collect"})
+        "amount": "150", "method": "cash", "next": "collect"})
     assert f"/finance/collect/{clinic['ids']['child']}" in reply.headers["Location"]
 
     with clinic["app"].app_context():
         assert RefundRequest.query.filter_by(invoice_id=paid_invoice).count() == 1
         inv = clinic["db"].session.get(Invoice, paid_invoice)
         assert inv.paid == 150, "money left the drawer without approval"
+        assert inv.status != "refunded", "the invoice closed before approval"
 
 
 def test_the_cashier_is_told_before_typing_that_it_needs_approval(desk, owing,

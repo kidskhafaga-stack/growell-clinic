@@ -12,6 +12,44 @@
   <a class="btn btn-outline gc-press" href="{{ url_for('finance.cashier') }}"><i class="bi bi-cash-stack"></i> {{ t('cashier.title') }}</a>
 </div>
 
+{# The doctor disagreed, after the fact. It stops nothing — the money was
+   handed back before the objection existed — so the only thing that makes it
+   worth recording is that somebody reads it. It sits above the pending queue
+   because a refund already out of the drawer is the more urgent of the two. #}
+{% if objections %}
+<div class="card gc-scale-in edge-yellow" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-hand-index"></i>
+    {{ t('refunds.objections_title', n=objections|length) }}</h2>
+  <p class="hint" style="margin:-4px 0 10px;">{{ t('refunds.objections_hint') }}</p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('reports.date') }}</th>
+        <th>{{ t('appointments.doctor') }}</th>
+        <th>{{ t('invoices.title') }}</th>
+        <th class="num">{{ t('invoices.amount') }}</th>
+        <th>{{ t('common.notes') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for o in objections %}
+        <tr>
+          <td dir="ltr">{{ o.objected_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ o.doctor.display_name(current_lang) if o.doctor else '—' }}</td>
+          <td><a dir="ltr" style="font-family:monospace;font-size:.85rem;"
+                 href="{{ url_for('finance.invoice_view', invoice_id=o.invoice_id) }}">
+            {{ o.invoice.invoice_number if o.invoice else o.invoice_id }}</a>
+            <span class="badge badge--{{ 'danger' if o.scope == 'full' else 'muted' }}">
+              {{ t('refunds.scope_' ~ o.scope) }}</span></td>
+          <td class="num">{{ o.amount | money }}</td>
+          <td>{{ o.objection_note or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Pending -->
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;margin-bottom:16px;">
   <h2 class="section-title" style="padding:16px 18px 0;"><i class="bi bi-hourglass-split"></i> {{ t('refunds.pending') }} ({{ pending|length }})</h2>
