@@ -1864,6 +1864,14 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                             if d is not None else False),
                 "due_date": due.isoformat() if due else None,
                 "given_date": pv.given_date.isoformat() if pv else None,
+                # The product **this dose** was given as, which is not always
+                # the card's product. A course can change brand halfway — a
+                # child with three Synflorix and a Prevenar booster has one of
+                # each on file — and the card named only the latest, so the
+                # record read as four Prevenar. The dose knows; it was simply
+                # never asked.
+                "brand_name": (pv.brand.display_name(lang)
+                               if pv is not None and pv.brand else None),
                 "lot_number": pv.lot_number if pv else None,
                 # Who gave it, and whether it was given here at all — a
                 # certificate row saying only "given" leaves the family to
@@ -2101,8 +2109,22 @@ def certificate_cards(plan):
         given = [d for d in item["doses"] if d["status"] == "done"]
         if not given:
             continue
+        # Which products this course was actually given as, in the order they
+        # were used. `item["brand"]` is the *chosen* brand — the latest dose's
+        # — and printing it over the whole card is how three Synflorix and a
+        # Prevenar booster came to read as four Prevenar. A card names one
+        # product only when one product is the truth; otherwise the doses say
+        # it themselves, each for itself.
+        names = []
+        for dose in given:
+            name = dose.get("brand_name")
+            if name and name not in names:
+                names.append(name)
         cards.append({
-            "vaccine": item["vaccine"], "brand": item["brand"],
+            "vaccine": item["vaccine"],
+            "brand": item["brand"] if len(names) < 2 else None,
+            "brands": names,
+            "mixed": len(names) > 1,
             "doses": given, "given": len(given), "total": item["total"],
             "complete": len(given) >= item["total"],
         })
