@@ -61,6 +61,21 @@ def series(clinic):
             "hexa": hexa, "hexa_brand": hexa_brand}
 
 
+def _add_dose_row(clinic, brand_id, dose_number, age_months):
+    """Give the source vaccine a dose past the cap.
+
+    Without one, every cap mutant survives: a credit that ignored its limit
+    had nothing beyond dose 3 to wrongly reach for, so "the cap is obeyed"
+    and "the cap is ignored" produced identical cards.
+    """
+    from app.models import VaccineBrandDose
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(VaccineBrandDose(
+            brand_id=brand_id, dose_number=dose_number, age_months=age_months))
+        clinic["db"].session.commit()
+
+
 def _credit(clinic, series, up_to_dose=3):
     from app.models import VaccineCredit
 
@@ -193,6 +208,27 @@ def test_a_credit_does_not_reach_past_the_dose_it_names(clinic, series):
     assert doses[3]["status"] != "done"
 
 
+def test_a_source_dose_past_the_cap_is_not_credited(clinic, series):
+    """The safety property, tested where it can actually fail.
+
+    A pentavalent given four times does not discharge the hexavalent's fourth
+    dose, because the clinic said the credit stops at three. This is the case
+    that separates "the cap is obeyed" from "the cap is ignored" — and from
+    "the cap is off by one", which reaches exactly one dose too far and is the
+    likeliest way to write it wrongly.
+    """
+    _add_dose_row(clinic, series["penta_brand"], 4, 18)
+    start = date(2024, 1, 17)
+    for number, day in ((1, 0), (2, 59), (3, 143), (4, 480)):
+        _give(clinic, series["penta"], series["penta_brand"], number,
+              start + timedelta(days=day))
+    _credit(clinic, series, up_to_dose=3)
+
+    doses = _plan(clinic, series["hexa"])
+    assert [d["status"] for d in doses[:3]] == ["done"] * 3
+    assert doses[3]["status"] != "done"
+
+
 def test_a_credit_with_no_cap_reaches_the_whole_course(clinic, series):
     """Right for a straight rename, and the reason the cap is asked for
     rather than assumed."""
@@ -261,6 +297,14 @@ def test_stating_it_on_the_screen_credits_the_child(clinic, series):
     assert [d["status"] for d in _plan(clinic, series["hexa"])] == ["done"] * 4
     assert _next_due(clinic) is None
 
+    # The cap the doctor typed is the cap that was stored. Read back rather
+    # than inferred from the card: with three pentavalent doses on file, a
+    # form that dropped the figure entirely produced the same four ticks.
+    from app.models import VaccineCredit
+
+    with clinic["app"].app_context():
+        assert VaccineCredit.query.one().up_to_dose == 3
+
 
 def test_a_vaccine_cannot_continue_itself(clinic, series):
     """It would credit every dose with itself and read as complete from the
@@ -306,10 +350,24 @@ def test_an_equivalence_can_be_withdrawn(clinic, series):
 
 
 def test_the_screen_lists_what_was_already_stated(clinic, series):
-    """A rule that cannot be read back is a rule nobody can check or undo."""
-    _credit(clinic, series)
+    """A rule that cannot be read back is a rule nobody can check or undo.
+
+    Asserted on the note and the withdraw button, not on the vaccine's name:
+    the name is in the add form's dropdown too, so looking for it passed
+    whether or not anything was listed at all.
+    """
+    from app.models import VaccineCredit
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(VaccineCredit(
+            vaccine_id=series["hexa"], from_vaccine_id=series["penta"],
+            up_to_dose=3, note="الخماسي الحكومي — بدون IPV"))
+        clinic["db"].session.commit()
+        credit_id = VaccineCredit.query.one().id
+
     boss = clinic["sign_in"]("boss")
     page = boss.get(
         f"/vaccinations/manage/vaccine/{series['hexa']}/schedules"
     ).get_data(as_text=True)
-    assert "الخماسي" in page
+    assert "الخماسي الحكومي — بدون IPV" in page
+    assert f"/vaccinations/manage/credits/{credit_id}/delete" in page
