@@ -327,3 +327,47 @@ def test_a_title_somebody_typed_themselves_is_left_alone(clinic):
             doctor.rx_display_name = typed
             assert doctor.doctor_print_name("ar") == typed
             assert doctor.doctor_print_name("en") == typed
+
+
+def test_the_screen_shows_what_will_actually_print(clinic):
+    """The rule declines to add a title when the box holds something that is
+    not this person's name — a practice name, or a name spelled differently
+    from either of their own. Without this, a doctor whose title is missing
+    has no way to tell whether the program is broken or their own field is
+    the reason. So the screen says what will print, next to the box that
+    decides it."""
+    from app.extensions import db
+    from app.models import User
+
+    with clinic["app"].app_context():
+        doctor = db.session.get(User, clinic["ids"]["doctor"])
+        doctor.full_name = "أحمد جمال قنديل"
+        doctor.rx_display_name = "العيادة التخصصية للأطفال"
+        db.session.commit()
+
+    page = clinic["sign_in"]("boss").get(
+        f"/users/{clinic['ids']['doctor']}/edit").get_data(as_text=True)
+
+    assert "profile.rx_name_preview" not in page, \
+        "the strings are keys, not translations"
+    assert "العيادة التخصصية للأطفال" in page
+    # And the preview tells the truth: no title on a practice name.
+    assert "د/ العيادة" not in page
+
+
+def test_the_doctors_own_profile_shows_it_too(clinic):
+    """Where the doctor themselves would go looking."""
+    from app.extensions import db
+    from app.models import User
+
+    with clinic["app"].app_context():
+        doctor = db.session.get(User, clinic["ids"]["doctor"])
+        doctor.full_name = "أحمد جمال قنديل"
+        doctor.rx_display_name = None
+        db.session.commit()
+
+    page = clinic["sign_in"]("doc").get("/profile").get_data(as_text=True)
+
+    assert "profile.rx_name_preview" not in page
+    assert "د/ أحمد جمال قنديل" in page, \
+        "the profile does not show the doctor what their prescription says"

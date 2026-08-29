@@ -2586,6 +2586,7 @@
     "branch": "Branch",
     "accent": "Accent color",
     "doctor_profile": "Doctor details (shown on prescriptions & printouts)",
+    "rx_name_preview": "Prints as: {v}",
     "rx_name": "Prescription display name",
     "prof_title": "Professional title",
     "specialty": "Main specialty",

@@ -21,7 +21,10 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid">
       <div class="form-row"><label>{{ t('doctors.rx_display_name') }}</label>
-        <input class="input" name="rx_display_name" value="{{ doc.rx_display_name or '' }}"></div>
+        <input class="input" name="rx_display_name" value="{{ doc.rx_display_name or '' }}">
+        {# What will actually print — see main/profile.html. #}
+        <p class="hint" style="margin:6px 0 0;"><i class="bi bi-eye"></i>
+          {{ t('profile.rx_name_preview', v=doc.doctor_print_name(current_lang)) }}</p></div>
       <div class="form-row"><label>{{ t('doctors.title') }}</label>
         <select class="select" name="professional_title">
           <option value="">—</option>
