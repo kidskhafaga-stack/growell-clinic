@@ -1667,6 +1667,40 @@ def course_dates(dob, schedule, given, planned, min_interval,
     return out
 
 
+
+def _credit_other_courses(given_index):
+    """Add the doses one vaccine's course borrows from another. See
+    :class:`VaccineCredit`.
+
+    A doctor reported a child with the three government pentavalent doses and
+    a hexavalent booster reading as *"Hexavalent — Dose 1, overdue since
+    2024"*. The two vaccines are separate rows and nothing said one continues
+    the other, so three doses that happened counted for nothing.
+
+    The credited entry is **the real record of the dose that was given** —
+    the pentavalent row, with its own date and its own product — not a
+    stand-in. So the card shows what actually happened, and the fix cannot
+    become the other kind of lie, a course reading as complete with nothing
+    behind it.
+
+    A dose recorded against the vaccine itself always wins. The credit fills
+    a gap; it never covers something that is already there.
+    """
+    from app.models import VaccineCredit
+
+    credits = VaccineCredit.query.all()
+    if not credits:
+        return given_index
+    by_source = {}
+    for credit in credits:
+        by_source.setdefault(credit.from_vaccine_id, []).append(credit)
+    for (vaccine_id, dose_number), pv in list(given_index.items()):
+        for credit in by_source.get(vaccine_id, ()):
+            if not credit.covers(dose_number):
+                continue
+            given_index.setdefault((credit.vaccine_id, dose_number), pv)
+    return given_index
+
 def patient_plan(patient, lang="ar", doses=None, agreed=None):
     """Build the full vaccination plan for a patient.
 
@@ -1690,6 +1724,13 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             given_by_vaccine.setdefault(pv.vaccine_id, []).append(pv)
         else:
             events_index[(pv.vaccine_id, pv.dose_number)] = pv
+
+    # Doses given as another vaccine that this clinic has said continue this
+    # one's course — the government pentavalent before a hexavalent booster.
+    # Filled in after the real rows so a dose actually recorded against this
+    # vaccine always wins: a credit stands in for a dose that is missing, and
+    # must never overwrite one that is there.
+    given_index = _credit_other_courses(given_index)
 
     all_vaccines = _all_vaccines()
     # Injectable/intranasal live vaccines (oral live are exempt) and the latest

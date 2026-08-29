@@ -259,6 +259,67 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
+
+{# Which other vaccines continue this one's course.
+
+   Reported by a doctor: a child on the government pentavalent with a
+   hexavalent booster was told "Hexavalent — Dose 1, overdue since 2024".
+   Recording those doses against the hexavalent would have made the screen
+   right by making the record false, so the fact belongs here, about the
+   vaccines, once — and the child's file keeps saying what was really given. #}
+<div class="card gc-scale-in" style="margin-top:16px;">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-link-45deg"></i>
+    {{ t('vaccinations.credits_title') }}</h2>
+  <p class="hint" style="margin:6px 0 12px;">{{ t('vaccinations.credits_hint') }}</p>
+
+  {% if vaccine.credits %}
+  <table class="table" style="margin-bottom:12px;">
+    <tbody>
+      {% for c in vaccine.credits %}
+      <tr>
+        <td>{{ c.from_vaccine.display_name(current_lang) }}</td>
+        <td>{{ t('vaccinations.credit_up_to') }}:
+          <strong>{{ c.up_to_dose if c.up_to_dose else t('vaccinations.credit_all_doses') }}</strong>
+          {% if c.note %}<span class="hint">— {{ c.note }}</span>{% endif %}</td>
+        <td style="text-align:end;">
+          <form method="post" style="display:inline;"
+                action="{{ url_for('vaccinations.credit_delete', credit_id=c.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-x" type="submit" title="{{ t('common.delete') }}">
+              <i class="bi bi-x-lg"></i></button>
+          </form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="hint" style="margin:0 0 12px;">{{ t('vaccinations.credit_none') }}</p>
+  {% endif %}
+
+  <form method="post"
+        action="{{ url_for('vaccinations.credit_new', vaccine_id=vaccine.id) }}"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:2;min-width:200px;">
+      <label>{{ t('vaccinations.credit_from') }}</label>
+      <select class="select" name="from_vaccine_id" required>
+        <option value="">—</option>
+        {% for v in others %}
+        <option value="{{ v.id }}">{{ v.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:150px;">
+      <label>{{ t('vaccinations.credit_up_to') }}</label>
+      <input class="input" type="number" min="1" step="1" name="up_to_dose"
+             placeholder="{{ t('vaccinations.credit_all_doses') }}">
+      <span class="hint">{{ t('vaccinations.credit_up_to_hint') }}</span></div>
+    <div class="form-row" style="margin:0;flex:2;min-width:180px;">
+      <label>{{ t('common.notes') }}</label>
+      <input class="input" name="note"></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('vaccinations.credit_add') }}</button>
+  </form>
+</div>
 {% endblock %}
 
 {% block head %}

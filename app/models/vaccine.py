@@ -95,6 +95,12 @@ class Vaccine(db.Model):
         "VaccineScheduleTemplate", back_populates="vaccine",
         cascade="all, delete-orphan", order_by="VaccineScheduleTemplate.sort_order",
     )
+    # What else counts toward this vaccine's course. See `VaccineCredit`.
+    credits = db.relationship(
+        "VaccineCredit", back_populates="vaccine",
+        foreign_keys="VaccineCredit.vaccine_id",
+        cascade="all, delete-orphan", lazy="selectin",
+    )
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar
@@ -715,3 +721,64 @@ class VaccineSettlement(db.Model):
 
     def __repr__(self):
         return f"<VaccineSettlement {self.reason} {self.amount}>"
+
+
+class VaccineCredit(db.Model):
+    """Doses of one vaccine that count toward another's course.
+
+    Reported by a doctor: a child had the three government **pentavalent**
+    doses and then a **hexavalent** booster, and the program said *"Hexavalent
+    — Dose 1, overdue since 2024"*. It was right about what it had been told
+    and wrong about the child: the two are separate rows in the catalogue and
+    nothing said that one continues the other, so three doses that happened
+    counted for nothing and the course started again from one.
+
+    Recording the pentavalent doses on the hexavalent instead would have made
+    the screen right by making the record false — a child's file saying they
+    were given a product they were never given. So the fact lives where it is
+    true: in the catalogue, once, about the vaccines.
+
+    **``up_to_dose`` is the whole safety of this.** A credit is a clinical
+    statement with a limit, and the limits differ: Egypt's government
+    pentavalent has no IPV in it, so it continues the hexavalent's primary
+    series and does not discharge everything the hexavalent covers. Capping
+    the credit at the primary doses says exactly that much and no more. NULL
+    means every dose, which is right for a straight rename and wrong for
+    almost anything else — so it is asked for rather than assumed.
+
+    Nothing here is seeded. Which vaccine covers which is a decision a clinic
+    makes against the schedule it follows, and a program that shipped its own
+    answers would be practising medicine from a migration.
+    """
+
+    __tablename__ = "vaccine_credits"
+    __table_args__ = (
+        db.UniqueConstraint("vaccine_id", "from_vaccine_id",
+                            name="uq_vaccine_credit_pair"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    # The course being credited — the hexavalent, in the report above.
+    vaccine_id = db.Column(db.Integer, db.ForeignKey("vaccines.id"),
+                           nullable=False, index=True)
+    # Where the doses actually came from — the pentavalent.
+    from_vaccine_id = db.Column(db.Integer, db.ForeignKey("vaccines.id"),
+                                nullable=False, index=True)
+    # The highest dose number this credit reaches. NULL = the whole course.
+    up_to_dose = db.Column(db.Integer)
+    note = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    vaccine = db.relationship("Vaccine", foreign_keys=[vaccine_id],
+                              back_populates="credits")
+    from_vaccine = db.relationship("Vaccine", foreign_keys=[from_vaccine_id])
+
+    def covers(self, dose_number):
+        """Whether this credit reaches ``dose_number``."""
+        if not dose_number:
+            return False
+        return self.up_to_dose is None or dose_number <= self.up_to_dose
+
+    def __repr__(self):
+        return (f"<VaccineCredit {self.from_vaccine_id}->{self.vaccine_id} "
+                f"up_to={self.up_to_dose}>")
