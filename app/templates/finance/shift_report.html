@@ -61,6 +61,18 @@
       <tr style="font-weight:700;{% if shift.variance < 0 %}color:var(--danger);{% elif shift.variance > 0 %}color:var(--green-700);{% endif %}">
         <td>{{ t('shifts.variance') }}</td><td style="text-align:end;">{{ shift.variance }}</td></tr>
       {% endif %}
+      {# Where the money went. A closed shift whose report stops at the count
+         leaves the reader to guess whether the takings are still in the
+         drawer, which is the one thing the report exists to say. #}
+      {% if shift.handover %}
+      <tr><td>{{ t('shifts.handover') }}
+        <span class="hint">— {{ shift.handover.to_account.display_name(current_lang) }}</span></td>
+        <td style="text-align:end;">−{{ shift.handed_over }}</td></tr>
+      <tr style="font-weight:700;"><td>{{ t('shifts.left_in_drawer') }}</td>
+        <td style="text-align:end;">{{ shift.left_in_drawer }}</td></tr>
+      {% elif shift.status == 'closed' and shift.account and not shift.account.sweeps_into %}
+      <tr><td colspan="2"><span class="hint">{{ t('shifts.no_safe') }}</span></td></tr>
+      {% endif %}
     </tbody></table>
     {% if shift.notes %}<p class="hint"><i class="bi bi-sticky"></i> {{ shift.notes }}</p>{% endif %}
 
@@ -71,6 +83,12 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('shifts.counted_cash') }}</label>
         <input class="input" type="number" step="0.01" name="counted_cash" placeholder="{{ shift.expected_cash }}"></div>
+      {% if shift.account and shift.account.sweeps_into %}
+      <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('shifts.keep_float') }}</label>
+        <input class="input" type="number" step="0.01" min="0" name="keep_float"
+               placeholder="{{ shift.opening_float }}">
+        <span class="hint">{{ t('shifts.keep_float_hint') }}</span></div>
+      {% endif %}
       <div class="form-row" style="margin:0;flex:2;min-width:160px;"><label>{{ t('common.notes') }}</label>
         <input class="input" type="text" name="notes"></div>
       <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-door-closed"></i> {{ t('shifts.close') }}</button>

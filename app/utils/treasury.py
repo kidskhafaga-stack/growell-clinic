@@ -521,11 +521,19 @@ def shift_till(requested_id=None, user=None):
 
 
 def suggested_float(account_id=None, user_id=None):
-    """What the last shift on this till was counted at when it closed.
+    """What the last shift left in this drawer when it closed.
 
     Offered in the box, **never applied on its own**: the float is what the
     cashier counted this morning, and a number the program filled in for them
     makes the closing variance a measurement against something nobody saw.
+
+    What is left is not what was counted. Once a drawer hands its takings to
+    the safe, the counted figure is the whole evening's money and the drawer
+    holds the change float — so suggesting the count would open tomorrow
+    expecting several thousand pounds that went to the safe last night, and
+    every shift after it would look short by the same amount. Reading it off
+    the handover keeps the suggestion true for both kinds of till: a drawer
+    that sweeps nowhere hands over nothing, and the count is what is left.
     """
     from app.models import CashierShift
 
@@ -534,7 +542,52 @@ def suggested_float(account_id=None, user_id=None):
     if account_id:
         query = query.filter(CashierShift.account_id == account_id)
     last = query.order_by(CashierShift.closed_at.desc()).first()
-    return round(last.counted_cash, 2) if last else None
+    return last.left_in_drawer if last else None
+
+
+def hand_over(shift, keep=None, user_id=None):
+    """Send a closing shift's takings to the safe. Returns the movement, or None.
+
+    The act this records is the one that happens at the counter every evening:
+    the cashier counts the drawer, keeps enough change to open tomorrow, and
+    hands the rest over. Until this existed the program watched that happen
+    and wrote none of it down — the drawer's balance grew for ever, and the
+    safe, which is where the clinic's money actually is, never saw a single
+    day's takings.
+
+    **What moves is what was counted, not what was expected.** The cashier
+    hands over the notes in their hand. If the drawer is short, the shortage
+    stays behind in the drawer's book balance, where it is somebody's open
+    question — moving the expected figure instead would quietly paper over a
+    difference by transferring money that is not there.
+
+    Returns None, without complaint, in the three cases that all mean *the
+    money stays in the drawer*: the till has no safe to hand over to, the
+    drawer holds no more than the float it is keeping, or the shift was never
+    counted. None of those is an error, and a clinic that keeps its cash where
+    it was taken must not be told off for it every evening.
+    """
+    if shift is None or shift.counted_cash is None:
+        return None
+    till = shift.account
+    if till is None:
+        return None
+    safe = till.sweeps_into
+    if safe is None or not safe.is_active or safe.id == till.id:
+        return None
+    # What stays behind. The float this shift opened on is the right default —
+    # a drawer opens tomorrow on the change it closed with — but the cashier
+    # decides, because they are the one who can see whether it is in usable
+    # notes.
+    keep = shift.opening_float or 0 if keep is None else keep
+    keep = max(round(float(keep or 0), 2), 0.0)
+    amount = round(round(shift.counted_cash, 2) - keep, 2)
+    if amount <= 0:
+        return None
+    return record_movement(
+        "transfer", till, amount, to_account=safe,
+        reference=shift.shift_number or f"وردية #{shift.id}",
+        notes=f"توريد الوردية إلى {safe.name}"[:255], user_id=user_id)
 
 
 def stale_shifts(hours=STALE_SHIFT_HOURS, now=None):

@@ -404,11 +404,19 @@ class CashierShift(db.Model):
     closed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     closed_at = db.Column(db.DateTime)
     notes = db.Column(db.String(255))
+    # The handover to the safe this close produced, when the drawer has a safe
+    # to hand over to. Null covers three different situations on purpose —
+    # the till sweeps nowhere, the drawer held only its float, or the transfer
+    # could not be posted — because all three mean the same thing to anybody
+    # reading it: the money is still in the drawer.
+    handover_id = db.Column(db.Integer, db.ForeignKey("cash_movements.id"),
+                            nullable=True)
 
     account = db.relationship("CashAccount")
     opener = db.relationship("User", foreign_keys=[opened_by])
     closer = db.relationship("User", foreign_keys=[closed_by])
     payments = db.relationship("Payment", back_populates="shift")
+    handover = db.relationship("CashMovement")
 
     # --- lookups -------------------------------------------------------
     @classmethod
@@ -500,6 +508,26 @@ class CashierShift(db.Model):
         if self.counted_cash is None:
             return None
         return round(self.counted_cash - self.expected_cash, 2)
+
+    @property
+    def handed_over(self):
+        """What went to the safe when this shift closed. 0 when nothing did."""
+        return round(self.handover.amount, 2) if self.handover else 0.0
+
+    @property
+    def left_in_drawer(self):
+        """What stayed behind for the next session — the change float.
+
+        Counted minus handed over, rather than the float that was typed in:
+        the two are the same figure when everything goes to plan, and when
+        they are not, the drawer holds what it holds. This is the number the
+        next shift is offered as its opening float, so reading it off the
+        count is the difference between offering what is really there and
+        offering what somebody meant to leave.
+        """
+        if self.counted_cash is None:
+            return None
+        return round(self.counted_cash - self.handed_over, 2)
 
     @property
     def duration_minutes(self):

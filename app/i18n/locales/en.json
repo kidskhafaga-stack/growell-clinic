@@ -3174,6 +3174,12 @@
     "all_invoices": "All invoices & refunds"
   },
   "shifts": {
+    "handed_over": "{amount} handed over to {safe}",
+    "handover": "Handed to the safe",
+    "keep_float": "Left in the drawer",
+    "keep_float_hint": "Change float for the next shift — the rest goes to the safe",
+    "left_in_drawer": "Left in the drawer",
+    "no_safe": "No safe is set for this drawer — the money stays in it",
     "open_now": "Open shift",
     "open_title": "Open a collection shift",
     "open_hint": "Open a shift with a change float; every collection from now is booked to it until you close it.",
@@ -4577,6 +4583,9 @@
     }
   },
   "tills": {
+    "sweeps_into": "Hands over to",
+    "sweeps_into_hint": "The safe this drawer is handed to at the end of a shift. Blank = the money stays in the drawer.",
+    "sweeps_none": "— nowhere —",
     "title": "Cash tills",
     "subtitle": "Where the clinic's money is right now, and how each till is checked.",
     "name": "Till",

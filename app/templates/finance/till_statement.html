@@ -89,6 +89,18 @@
             {{ o.display_name(current_lang) }}</option>{% endfor %}
         </select>
         <div class="hint">{{ t('tills.settles_hint') }}</div></div>
+      {# Where this drawer is handed over at the end of a shift. Only cash
+         is counted by hand and handed across a counter, so only a cash till
+         is asked. Blank is a real answer: the money stays in the drawer. #}
+      {% if account.counts_by_hand %}
+      <div class="form-row"><label>{{ t('tills.sweeps_into') }}</label>
+        <select class="select" name="sweeps_into_id">
+          <option value="">{{ t('tills.sweeps_none') }}</option>
+          {% for o in others %}<option value="{{ o.id }}" {{ 'selected' if account.sweeps_into_id == o.id else '' }}>
+            {{ o.display_name(current_lang) }}</option>{% endfor %}
+        </select>
+        <div class="hint">{{ t('tills.sweeps_into_hint') }}</div></div>
+      {% endif %}
       {# A window, not a schedule: it decides when the screen says "late",
          never when the program posts a settlement. #}
       <div class="form-row"><label>{{ t('tills.settle_after') }}</label>

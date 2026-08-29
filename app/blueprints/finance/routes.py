@@ -1519,6 +1519,31 @@ def shift_close(shift_id):
     ActivityLog.record("shift.close", user_id=current_user.id, entity="cashier_shift",
                        detail=f"{shift.id}:{shift.variance}", ip_address=client_ip())
     db.session.commit()
+
+    # The takings go to the safe. This is the second half of closing a shift
+    # and it used to be missing entirely: the drawer was counted, the variance
+    # was written down, and the money stayed in reception's books for ever.
+    #
+    # The shift is already closed and committed by the time this runs, on
+    # purpose. Closing a shift is a fact about a drawer that has been counted;
+    # if the transfer cannot be posted the clinic still closed their till, and
+    # a program that reopened the shift because the safe was misconfigured
+    # would be arguing with something that already happened.
+    from app.utils import treasury
+
+    keep = request.form.get("keep_float", type=float)
+    try:
+        movement = treasury.hand_over(shift, keep=keep, user_id=current_user.id)
+    except treasury.MovementError as exc:
+        movement = None
+        flash(t(f"tills.err_{exc}"), "warning")
+    if movement is not None:
+        shift.handover_id = movement.id
+        db.session.commit()
+        flash(t("shifts.handed_over")
+              .replace("{amount}", format_money(movement.amount))
+              .replace("{safe}", movement.to_account.display_name(
+                  getattr(g, "lang", "ar"))), "success")
     flash(t("shifts.closed"), "success")
     return redirect(url_for("finance.shift_report", shift_id=shift.id))
 
@@ -4364,6 +4389,11 @@ def till_save(account_id):
     till.is_active = bool(request.form.get("is_active"))
     target = request.form.get("settles_into_id", type=int)
     till.settles_into_id = target if target and target != till.id else None
+    # The safe this drawer is handed over to when a shift closes. A till that
+    # sweeps into itself is the one answer that cannot mean anything, so it
+    # reads as "nowhere" rather than being saved and refused every evening.
+    safe = request.form.get("sweeps_into_id", type=int)
+    till.sweeps_into_id = safe if safe and safe != till.id else None
     methods = [m.strip() for m in request.form.getlist("methods") if m.strip()]
     till.default_methods = ",".join(methods) or None
     # How long this machine's money normally takes to land. A window, not a

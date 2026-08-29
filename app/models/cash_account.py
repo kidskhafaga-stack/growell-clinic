@@ -87,6 +87,19 @@ class CashAccount(db.Model):
     # label now is honest; a fake foreign key would not be.
     branch = db.Column(db.String(60))
 
+    # Where this drawer is handed over at the end of a shift. The cashier
+    # counts the till, keeps the change float for the next session, and the
+    # takings go to the safe — which is what happens over the counter, and
+    # what the program used to have no way to record: the drawer's balance
+    # simply grew for ever and the safe never saw a day's money.
+    #
+    # Null means nothing moves, and that is the default for every till that
+    # already exists. A clinic that keeps its cash in the drawer it was taken
+    # in is not doing anything wrong, and turning the sweep on for them
+    # because the column appeared would move their money without being asked.
+    sweeps_into_id = db.Column(db.Integer, db.ForeignKey("cash_accounts.id"),
+                               nullable=True)
+
     # Where a `clearing` till settles: card takings land in the bank days
     # later, minus a fee. Without this, the card account grows forever and
     # nobody can clear it to zero.
@@ -115,7 +128,10 @@ class CashAccount(db.Model):
     notes = db.Column(db.String(255))
 
     owner = db.relationship("User", foreign_keys=[owner_id])
-    settles_into = db.relationship("CashAccount", remote_side=[id])
+    settles_into = db.relationship("CashAccount", remote_side=[id],
+                                   foreign_keys=[settles_into_id])
+    sweeps_into = db.relationship("CashAccount", remote_side=[id],
+                                  foreign_keys=[sweeps_into_id])
     # Who is allowed to work this till. Empty = anyone with the permission.
     users = db.relationship("User", secondary=till_users, lazy="selectin")
 
