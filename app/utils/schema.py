@@ -492,6 +492,22 @@ def apply_schema(report=None):
     except Exception:  # noqa: BLE001 — never blocks an upgrade
         db.session.rollback()
 
+    # A till with no account in the chart moves money on every treasury
+    # screen and posts none of it to the ledger, because ``post_entry`` looks
+    # its lines up by code and skips quietly when a code is not there. Tills
+    # created from here on get their account with them; this is for any that
+    # a clinic already has without one. Same shape as the repair above, and
+    # its own transaction for the same reason.
+    try:
+        from app.utils.accounting import repair_till_accounts
+
+        linked = repair_till_accounts()
+        db.session.commit()
+        if linked and report:
+            report(f"  ~ tills: gave {linked} an account in the chart")
+    except Exception:  # noqa: BLE001 — never blocks an upgrade
+        db.session.rollback()
+
     # What was looked at, when nothing had to change.
     #
     # "Database upgraded (0 column(s) added)" is the right answer for a

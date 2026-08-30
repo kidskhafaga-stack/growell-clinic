@@ -649,7 +649,70 @@ def schedule_templates(vaccine_id):
                            # clinic following the CDC could read a CDC row and
                            # not write one — half an editor for that policy.
                            sources=VaccineScheduleTemplate.SOURCES,
+                           others=(Vaccine.query
+                                   .filter(Vaccine.id != vaccine.id)
+                                   .order_by(Vaccine.is_mandatory.desc(),
+                                             Vaccine.sort_order).all()),
                            vaccine_types=VACCINE_TYPES)
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/credits/new",
+                       methods=["POST"])
+@module_required(MODULE)
+def credit_new(vaccine_id):
+    """State that another vaccine's doses continue this one's course.
+
+    Reported by a doctor: a child on the government pentavalent with a
+    hexavalent booster was told *"Hexavalent — Dose 1, overdue since 2024"*.
+    Three doses that happened counted for nothing, because nothing in the
+    catalogue said one vaccine continues the other.
+
+    The cap is the point, not a detail. Egypt's government pentavalent has no
+    IPV in it: it continues the primary series and does not discharge the
+    whole course. So the dose it reaches is asked for, and a blank means the
+    whole course — which is right for a rename and wrong for almost anything
+    else.
+    """
+    from app.models import VaccineCredit
+
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    source_id = request.form.get("from_vaccine_id", type=int)
+    source = db.session.get(Vaccine, source_id) if source_id else None
+    if source is None or source.id == vaccine.id:
+        flash(t("vaccinations.credit_pick_one"), "danger")
+        return redirect(url_for("vaccinations.schedule_templates",
+                                vaccine_id=vaccine.id))
+    if VaccineCredit.query.filter_by(vaccine_id=vaccine.id,
+                                     from_vaccine_id=source.id).first():
+        flash(t("vaccinations.credit_exists"), "warning")
+        return redirect(url_for("vaccinations.schedule_templates",
+                                vaccine_id=vaccine.id))
+    up_to = request.form.get("up_to_dose", type=int)
+    db.session.add(VaccineCredit(
+        vaccine_id=vaccine.id, from_vaccine_id=source.id,
+        up_to_dose=up_to if up_to and up_to > 0 else None,
+        note=(request.form.get("note") or "").strip()[:200] or None))
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("vaccinations.schedule_templates",
+                            vaccine_id=vaccine.id))
+
+
+@vaccinations_bp.route("/manage/credits/<int:credit_id>/delete",
+                       methods=["POST"])
+@module_required(MODULE)
+def credit_delete(credit_id):
+    """Withdraw an equivalence. A clinical statement somebody must be able to
+    take back as easily as they made it."""
+    from app.models import VaccineCredit
+
+    credit = db.get_or_404(VaccineCredit, credit_id)
+    vaccine_id = credit.vaccine_id
+    db.session.delete(credit)
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("vaccinations.schedule_templates",
+                            vaccine_id=vaccine_id))
 
 
 @vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/schedules/new", methods=["POST"])

@@ -867,6 +867,16 @@
     "6": "Sunday"
   },
   "vaccinations": {
+    "credit_add": "Add",
+    "credit_all_doses": "the whole course",
+    "credit_exists": "That vaccine is already listed.",
+    "credit_from": "The vaccine that was given",
+    "credit_none": "No vaccine continues this course.",
+    "credit_pick_one": "Choose the vaccine that was given.",
+    "credit_up_to": "Covers up to dose",
+    "credit_up_to_hint": "Blank means the whole course. Set it when the other vaccine only continues part of this one — the government pentavalent has no IPV, so it covers the primary series and not the booster.",
+    "credits_hint": "If a child had doses of another vaccine that continue this series — the government pentavalent before a hexavalent booster — say so here. The doses stay recorded against the vaccine that was actually given.",
+    "credits_title": "Vaccines that continue this course",
     "title": "Vaccinations",
     "subtitle": "Egyptian schedule + brands + dose tracking",
     "select_patient": "Select a patient to view their vaccination schedule",
@@ -4583,6 +4593,10 @@
     }
   },
   "tills": {
+    "add": "Add a till",
+    "add_hint": "A second drawer, a branch's drawer, or the safe that receives the shift handover. The code is allocated for you.",
+    "add_title": "New till",
+    "err_no_name": "The till needs a name.",
     "sweeps_into": "Hands over to",
     "sweeps_into_hint": "The safe this drawer is handed to at the end of a shift. Blank = the money stays in the drawer.",
     "sweeps_none": "— nowhere —",

@@ -15,6 +15,7 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineCredit,
     VaccineScheduleDose,
     VaccineScheduleTemplate,
 )
@@ -1667,6 +1668,40 @@ def course_dates(dob, schedule, given, planned, min_interval,
     return out
 
 
+
+def _credit_other_courses(given_index):
+    """Add the doses one vaccine's course borrows from another. See
+    :class:`VaccineCredit`.
+
+    A doctor reported a child with the three government pentavalent doses and
+    a hexavalent booster reading as *"Hexavalent — Dose 1, overdue since
+    2024"*. The two vaccines are separate rows and nothing said one continues
+    the other, so three doses that happened counted for nothing.
+
+    The credited entry is **the real record of the dose that was given** —
+    the pentavalent row, with its own date and its own product — not a
+    stand-in. So the card shows what actually happened, and the fix cannot
+    become the other kind of lie, a course reading as complete with nothing
+    behind it.
+
+    A dose recorded against the vaccine itself always wins. The credit fills
+    a gap; it never covers something that is already there.
+    """
+    from app.models import VaccineCredit
+
+    credits = VaccineCredit.query.all()
+    if not credits:
+        return given_index
+    by_source = {}
+    for credit in credits:
+        by_source.setdefault(credit.from_vaccine_id, []).append(credit)
+    for (vaccine_id, dose_number), pv in list(given_index.items()):
+        for credit in by_source.get(vaccine_id, ()):
+            if not credit.covers(dose_number):
+                continue
+            given_index.setdefault((credit.vaccine_id, dose_number), pv)
+    return given_index
+
 def patient_plan(patient, lang="ar", doses=None, agreed=None):
     """Build the full vaccination plan for a patient.
 
@@ -1690,6 +1725,13 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
             given_by_vaccine.setdefault(pv.vaccine_id, []).append(pv)
         else:
             events_index[(pv.vaccine_id, pv.dose_number)] = pv
+
+    # Doses given as another vaccine that this clinic has said continue this
+    # one's course — the government pentavalent before a hexavalent booster.
+    # Filled in after the real rows so a dose actually recorded against this
+    # vaccine always wins: a credit stands in for a dose that is missing, and
+    # must never overwrite one that is there.
+    given_index = _credit_other_courses(given_index)
 
     all_vaccines = _all_vaccines()
     # Injectable/intranasal live vaccines (oral live are exempt) and the latest
@@ -1864,6 +1906,14 @@ def patient_plan(patient, lang="ar", doses=None, agreed=None):
                             if d is not None else False),
                 "due_date": due.isoformat() if due else None,
                 "given_date": pv.given_date.isoformat() if pv else None,
+                # The product **this dose** was given as, which is not always
+                # the card's product. A course can change brand halfway — a
+                # child with three Synflorix and a Prevenar booster has one of
+                # each on file — and the card named only the latest, so the
+                # record read as four Prevenar. The dose knows; it was simply
+                # never asked.
+                "brand_name": (pv.brand.display_name(lang)
+                               if pv is not None and pv.brand else None),
                 "lot_number": pv.lot_number if pv else None,
                 # Who gave it, and whether it was given here at all — a
                 # certificate row saying only "given" leaves the family to
@@ -2101,8 +2151,22 @@ def certificate_cards(plan):
         given = [d for d in item["doses"] if d["status"] == "done"]
         if not given:
             continue
+        # Which products this course was actually given as, in the order they
+        # were used. `item["brand"]` is the *chosen* brand — the latest dose's
+        # — and printing it over the whole card is how three Synflorix and a
+        # Prevenar booster came to read as four Prevenar. A card names one
+        # product only when one product is the truth; otherwise the doses say
+        # it themselves, each for itself.
+        names = []
+        for dose in given:
+            name = dose.get("brand_name")
+            if name and name not in names:
+                names.append(name)
         cards.append({
-            "vaccine": item["vaccine"], "brand": item["brand"],
+            "vaccine": item["vaccine"],
+            "brand": item["brand"] if len(names) < 2 else None,
+            "brands": names,
+            "mixed": len(names) > 1,
             "doses": given, "given": len(given), "total": item["total"],
             "complete": len(given) >= item["total"],
         })
@@ -2801,7 +2865,16 @@ def _catalogue_rows():
         by_vaccine = {}
         for brand in brands.values():
             by_vaccine.setdefault(brand["vaccine_id"], []).append(brand)
-        return vaccines, brands, by_vaccine
+        # Which vaccines continue which. Read here, with the rest of the
+        # catalogue, because the sweep walks every vaccinated patient on file
+        # and a table this small must not be asked for once per child — the
+        # exact shape of the work-list slowness this cache exists to hold
+        # down.
+        credits = {}
+        for credit in VaccineCredit.query.all():
+            credits.setdefault(credit.from_vaccine_id, []).append(
+                (credit.vaccine_id, credit.up_to_dose))
+        return vaccines, brands, by_vaccine, credits
 
     return remember("vaccines:catalogue_rows", load)
 
@@ -2911,7 +2984,7 @@ def scan_due(dob, doses, today, agreed=None):
 
     Returns ``[{vaccine, brand, dose_number, due_date, status}]``.
     """
-    vaccines, brands, by_vaccine = _catalogue_rows()
+    vaccines, brands, by_vaccine, credits = _catalogue_rows()
 
     given = {}          # vaccine_id -> {dose_number: given_date}
     brand_doses = {}    # vaccine_id -> [(brand_id, given_date)]
@@ -2922,6 +2995,17 @@ def scan_due(dob, doses, today, agreed=None):
     for vaccine_id, brand_id, dose_number, given_date, event_type in doses:
         if (event_type or "given") == "given":
             given.setdefault(vaccine_id, {})[dose_number] = given_date
+            # A dose given as one vaccine that continues another's course —
+            # the government pentavalent before a hexavalent booster. This
+            # path is the lean twin of `patient_plan` and **must answer
+            # identically**: crediting only there would leave the child's own
+            # file saying "done" while the desk's work-list still called the
+            # same dose overdue. `setdefault` so a dose actually recorded
+            # against the target vaccine always wins.
+            for target_id, up_to in credits.get(vaccine_id, ()):
+                if up_to is None or (dose_number and dose_number <= up_to):
+                    given.setdefault(target_id, {}).setdefault(
+                        dose_number, given_date)
             brand_doses.setdefault(vaccine_id, []).append((brand_id, given_date))
             raw_doses.setdefault(vaccine_id, []).append((dose_number, given_date))
             best = locked.get(vaccine_id)

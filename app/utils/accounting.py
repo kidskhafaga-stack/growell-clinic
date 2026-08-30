@@ -15,6 +15,7 @@ from datetime import date
 
 from app.extensions import db
 from app.models.accounting import Account, JournalEntry, JournalLine
+from app.models.cash_account import CashAccount
 from app.utils.clock import local_today
 
 # (code, name_ar, name_en, type, parent_code)
@@ -74,6 +75,78 @@ def ensure_seeded():
 
 def _account(code):
     return Account.query.filter_by(code=code).first()
+
+
+# Where a clinic's own tills are numbered. The seeded chart runs 1010–1040 and
+# a clinic adding a drawer must not land on 1030 (patients) or 1040 (stock),
+# so its tills start well clear of the block the program reserves for itself.
+FIRST_TILL_CODE = 1050
+
+
+def next_till_code():
+    """The next free code for a till the clinic is creating.
+
+    Reads both books before answering. A code free in the chart of accounts
+    but already worn by a till would post that till's money into somebody
+    else's account, and a code free among the tills but taken in the chart
+    cannot be created at all — so a code is free only when neither has it.
+    """
+    taken = {a.code for a in Account.query.all()}
+    taken |= {a.code for a in CashAccount.query.all()}
+    code = FIRST_TILL_CODE
+    while str(code) in taken:
+        code += 1
+    return str(code)
+
+
+def ensure_till_account(till):
+    """Give a till its account in the chart of accounts. Returns it.
+
+    **This is what makes a till's money reach the books.** ``post_entry``
+    looks its lines up by code and returns None — quietly, by design, so a
+    half-installed database does not crash — when a code is not in the chart.
+    A till created without this would move money on every screen in the
+    treasury and post not one line of it to the ledger: the drawer visibly
+    holding cash, the trial balance certain it does not exist, and nothing
+    anywhere saying which to believe.
+
+    Idempotent, and it never touches an account that is already there. A
+    clinic may have renamed the account the seeded chart gave it, and a
+    rename is not a mistake to correct on the next upgrade.
+    """
+    if till is None or not till.code:
+        return None
+    existing = _account(till.code)
+    if existing is not None:
+        return existing
+    # The chart is seeded first so the till has a parent to hang under. An
+    # account with no parent is not in the tree: it never rolls up into
+    # Assets, so the balance sheet omits the till's money and still balances
+    # — wrong in the way that is hardest to find. `ensure_seeded` is
+    # idempotent and leaves a clinic's own edits alone.
+    ensure_seeded()
+    account = Account(code=till.code, name=till.name,
+                      name_en=till.name_en, type="asset",
+                      parent=_account("1000"), is_system=False)
+    db.session.add(account)
+    db.session.flush()
+    return account
+
+
+def repair_till_accounts():
+    """Give a chart account to every till that has none. Returns how many.
+
+    Runs on upgrade, alongside the other repairs, because the rule above
+    fixes what happens from now on and does nothing for a till already
+    sitting in a clinic's database without an account behind it. Idempotent
+    and safe to run again — a till that has one is passed over.
+    """
+    made = 0
+    for till in CashAccount.query.all():
+        if till.code and _account(till.code) is None:
+            ensure_till_account(till)
+            made += 1
+    return made
 
 
 def _je_number():

@@ -260,7 +260,13 @@ def test_the_figures_are_counted_at_render_time_not_typed(clinic):
 
     after = text_of(client.get("/about").data.decode())
     assert before != after, "the page did not notice a new patient file"
-    assert " 2 " in after and " 2 " not in before
+    # Asserted on the figure and its own label, not on the digit anywhere on
+    # the page. This looked for " 2 " in the whole text, and the page is full
+    # of other numbers — the notification badge, the date, the module count.
+    # It failed on a day the badge happened to read 2, having never once
+    # checked the figure it is named after.
+    assert "1 ملف مريض" in before
+    assert "2 ملف مريض" in after
 
 
 def test_the_page_states_what_this_installation_actually_ships(clinic):

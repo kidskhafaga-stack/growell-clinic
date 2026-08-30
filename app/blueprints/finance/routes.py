@@ -4322,6 +4322,7 @@ def tills():
                            can_adjust=current_user.can("treasury_adjust"),
                            kinds=CASH_MOVEMENT_KINDS,
                            can_move=current_user.can("treasury_move"),
+                           can_add=current_user.role == "admin",
                            today=local_today())
 
 
@@ -4358,6 +4359,55 @@ def till_statement(account_id):
         can_reconcile=(account.kind in bank_import.RECONCILABLE_KINDS
                        and current_user.can("treasury_move")),
         can_edit=current_user.role == "admin")
+
+
+@finance_bp.route("/tills/new", methods=["POST"])
+@admin_required
+def till_new():
+    """Create a till: a second drawer, a branch's drawer, the safe.
+
+    Until this existed a clinic had the five tills the installer made and no
+    way to have a sixth. That is fine for a one-room clinic and wrong for
+    every other shape: reception on two floors is two drawers, and a clinic
+    that hands its takings to a safe at the end of the evening had nowhere to
+    hand them to — the seeded "الخزنة الرئيسية" *is* the reception drawer.
+
+    The code is allocated, not typed. It is the till's account in the chart of
+    accounts, so a clinic choosing one by hand is being asked to know that
+    1030 is patients and 1040 is stock, and a wrong answer posts their money
+    into somebody else's account for as long as nobody notices.
+
+    And the chart account is created with it, in the same transaction. A till
+    without one moves money on every treasury screen and posts none of it to
+    the ledger.
+    """
+    from app.models import ACCOUNT_KINDS, CashAccount
+    from app.utils import accounting
+
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("tills.err_no_name"), "danger")
+        return redirect(url_for("finance.tills"))
+    kind = (request.form.get("kind") or "cash").strip()
+    till = CashAccount(
+        code=accounting.next_till_code(), name=name,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        kind=kind if kind in ACCOUNT_KINDS else "cash",
+        branch=(request.form.get("branch") or "").strip() or None,
+        opening_balance=request.form.get("opening_balance", type=float) or 0,
+        is_active=True,
+        sort_order=(db.session.query(db.func.max(CashAccount.sort_order))
+                    .scalar() or 0) + 1)
+    db.session.add(till)
+    db.session.flush()
+    accounting.ensure_till_account(till)
+    db.session.commit()
+    ActivityLog.record("till.new", user_id=current_user.id, entity="till",
+                       entity_id=till.id, detail=f"{till.code} {till.name}",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("settings.saved"), "success")
+    return redirect(url_for("finance.till_statement", account_id=till.id))
 
 
 @finance_bp.route("/tills/<int:account_id>/save", methods=["POST"])

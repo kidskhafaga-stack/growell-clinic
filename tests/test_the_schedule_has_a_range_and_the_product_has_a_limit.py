@@ -260,7 +260,7 @@ def test_the_register_wide_sweep_reads_the_same_column(seeded):
     from app.utils.vaccines import _catalogue_rows
 
     with seeded["app"].app_context():
-        vaccines, _brands, _by_vaccine = _catalogue_rows()
+        vaccines, _brands, _by_vaccine, _credits = _catalogue_rows()
         mmr = Vaccine.query.filter_by(code="MMR").first()
         assert vaccines[mmr.id]["scope_max_age"] == EIGHTEEN_YEARS, \
             "the sweep's loader does not carry the schedule's range"

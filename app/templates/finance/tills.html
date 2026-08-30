@@ -223,6 +223,32 @@
 {% else %}
 <div class="empty-state">{{ t('tills.none') }}</div>
 {% endif %}
+
+{# Adding a till. Admin-only, and the code is not asked for: it is the till's
+   account in the chart of accounts, so typing one means knowing that 1030 is
+   patients and 1040 is stock — and a wrong answer posts the clinic's money
+   into somebody else's account. #}
+{% if can_add %}
+<div class="card gc-scale-in" style="margin-top:16px;">
+  <h2 class="section-title" style="margin:0;"><i class="bi bi-plus-circle"></i> {{ t('tills.add_title') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('tills.add_hint') }}</p>
+  <form method="post" action="{{ url_for('finance.till_new') }}"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:2;min-width:180px;"><label>{{ t('tills.name') }}</label>
+      <input class="input" name="name" required></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:150px;"><label>{{ t('tills.kind') }}</label>
+      <select class="select" name="kind">
+        {% for k in ['cash', 'bank', 'wallet', 'clearing'] %}
+        <option value="{{ k }}">{{ t('tills.kind_' ~ k) }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:140px;"><label>{{ t('tills.opening') }}</label>
+      <input class="input" type="number" step="0.01" name="opening_balance" value="0"></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('tills.add') }}</button>
+  </form>
+</div>
+{% endif %}
 {% endblock %}
 
 <script>
