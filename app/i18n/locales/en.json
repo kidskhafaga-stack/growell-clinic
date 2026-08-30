@@ -3736,6 +3736,7 @@
     "empty": "No outstanding balances — everything is collected 🎉"
   },
   "statement": {
+    "kind_cancelled": "Invoice cancelled",
     "title": "Patient statement",
     "date": "Date",
     "doc": "Document",

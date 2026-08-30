@@ -110,6 +110,23 @@ class Invoice(db.Model):
 
     @property
     def balance(self):
+        """What is still owed on this invoice.
+
+        **Zero once the invoice is closed by a refund**, and that is not a
+        rounding detail. A cancelled visit that was paid for and refunded has
+        ``total`` 200 and ``paid`` 0, so the subtraction says the patient owes
+        200 — for a service they did not receive and money the clinic already
+        handed back. The invoice's own status said "refunded" while this said
+        "owes 200", on the same row, and every screen that adds balances up
+        believed this one: the profile card, the appointment board, the
+        exports, and the statement printed for the family.
+
+        The status filters got it right by accident — they ask for `unpaid`
+        or `partial` and a closed invoice is neither. Anything that reached
+        for the number itself got the wrong answer.
+        """
+        if self.refunded_at is not None:
+            return 0.0
         return round(self.total - self.paid, 2)
 
     @property
