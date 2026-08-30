@@ -1070,9 +1070,17 @@ def certificate(patient_id):
     patient.ensure_qr_token()
     db.session.commit()
     verify_url = url_for("vaccinations.verify", token=patient.qr_token, _external=True)
+    # Whether the doctor and lot columns have anything to say on this paper.
+    # A record built from what a family brought in carries neither, and two
+    # rulings of em-dashes down a certificate read as a document nobody
+    # finished.
+    every_dose = [d for card in cards for d in card["doses"]]
+    show_doctor = any(d.get("doctor") or d.get("outside") for d in every_dose)
+    show_lot = any(d.get("lot_number") for d in every_dose)
     return render_template(
         "vaccinations/certificate.html", patient=patient,
         cards=cards, totals=totals,
+        show_doctor=show_doctor, show_lot=show_lot,
         upcoming=upcoming, suggested=suggested, with_schedule=request.args.get("schedule") == "1",
         with_suggestions=request.args.get("suggest") == "1",
         now_date=local_today().isoformat(),

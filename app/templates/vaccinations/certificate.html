@@ -77,27 +77,39 @@
           </div>
         </div>
       </div>
+      {# Two columns on this paper are usually empty from top to bottom: a
+         record built from what a family brought in carries no lot number and
+         names no doctor. Printed anyway they are two rulings of em-dashes
+         down a certificate, which reads as a document nobody finished. So
+         each is drawn only if some dose on the page has something to put in
+         it. #}
       <table class="table cert-doses">
         <thead><tr>
           <th style="width:70px;">{{ t('vaccinations.dose') }}</th>
           <th>{{ t('vaccinations.brand') }}</th>
           <th>{{ t('vaccinations.given_date') }}</th>
-          <th>{{ t('vaccinations.cert_doctor_col') }}</th>
-          <th>{{ t('vaccinations.lot_number') }}</th>
+          {% if show_doctor %}<th>{{ t('vaccinations.cert_doctor_col') }}</th>{% endif %}
+          {% if show_lot %}<th>{{ t('vaccinations.lot_number') }}</th>{% endif %}
         </tr></thead>
         <tbody>
           {% for d in c.doses %}
           <tr>
-            <td>{{ d.dose_number }}</td>
+            {# The booster is the one distinction a doctor reads this table
+               for, and the program worked it out and never printed it: a
+               fourth dose of a three-dose course arrived as a bare "4". #}
+            <td>{{ d.dose_number }}
+              {% if d.booster %}<span class="badge badge--muted">{{ t('vaccinations.booster') }}</span>{% endif %}</td>
             <td>{{ d.brand_name or '—' }}</td>
             <td dir="ltr">{{ d.given_date }}</td>
+            {% if show_doctor %}
             <td>
               {%- if d.outside -%}
                 <span class="badge badge--muted">{{ t('vaccinations.given_elsewhere') }}</span>
                 {% if d.outside_place %}<span style="color:var(--muted);"> {{ d.outside_place }}</span>{% endif %}
               {%- else -%}{{ d.doctor or '—' }}{%- endif -%}
             </td>
-            <td class="num" dir="ltr">{{ d.lot_number or '—' }}</td>
+            {% endif %}
+            {% if show_lot %}<td class="num" dir="ltr">{{ d.lot_number or '—' }}</td>{% endif %}
           </tr>
           {% endfor %}
         </tbody>

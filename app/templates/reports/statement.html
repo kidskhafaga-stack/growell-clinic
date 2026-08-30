@@ -83,7 +83,9 @@
           <td>{{ t('statement.kind_' ~ e.kind) }}</td>
           <td dir="ltr">{{ e.ref }}</td>
           <td style="text-align:end;">{% if e.kind in ('invoice','refund') %}{{ e.amount|money }}{% else %}—{% endif %}</td>
-          <td style="text-align:end;">{% if e.kind == 'payment' %}{{ e.amount|money }}{% else %}—{% endif %}</td>
+          {# A cancellation is a credit like a payment: both take the charge
+             back off what is owed. #}
+          <td style="text-align:end;">{% if e.kind in ('payment', 'cancelled') %}{{ e.amount|money }}{% else %}—{% endif %}</td>
           <td style="text-align:end;font-weight:700;" class="{{ 'neg' if e.balance > 0 else '' }}">{{ e.balance|money }}</td>
         </tr>
         {% else %}

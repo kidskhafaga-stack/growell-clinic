@@ -38,7 +38,17 @@ def is_booster(brand, dose_number):
         return False
     match = next((d for d in doses if d.dose_number == dose_number), None)
     if match is None:
-        return False
+        # A dose numbered past the end of the course. Reported on the
+        # hexavalent: a three-dose schedule with a fourth dose recorded, and
+        # the certificate printed it as an unexplained "4" — *"لازم نميز
+        # البوستر، والجرعة الرابعة دي بوستر بتاعت السداسي"*.
+        #
+        # On a fixed course there is nothing else an extra dose can be: the
+        # primary series is the numbered doses, and anything after it is a
+        # booster. Courses that repeat — seasonal and on-demand — never reach
+        # here; the caller refuses them before asking, because a fifth winter
+        # of influenza is a fifth season and not a booster at all.
+        return dose_number > doses[-1].dose_number
     if getattr(match, "is_booster", False):
         return True
     if match is not doses[-1]:

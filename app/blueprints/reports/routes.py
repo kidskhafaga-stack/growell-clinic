@@ -336,7 +336,11 @@ def _apply_print_lang():
 
 
 def _delta(e):
-    """Signed effect of an event on the running balance (owed by the patient)."""
+    """Signed effect of an event on the running balance (owed by the patient).
+
+    A cancellation takes the charge back off, which is what makes a fully
+    refunded invoice settle at nothing instead of reading as a debt.
+    """
     return e["amount"] if e["kind"] in ("invoice", "refund") else -e["amount"]
 
 
@@ -368,6 +372,19 @@ def patient_statement(patient_id):
     for inv in Invoice.query.filter_by(patient_id=patient.id).all():
         events.append({"date": inv.invoice_date, "kind": "invoice",
                        "ref": inv.invoice_number, "amount": inv.total})
+        # An invoice closed by a refund was cancelled, and the statement has
+        # to say so or its own arithmetic demands the money back: charge 200,
+        # pay 200, refund 200 adds to 200 owed, which is how a family came to
+        # be handed a bill for a visit that was called off and repaid.
+        #
+        # Shown as its own line rather than by dropping the three rows above.
+        # A statement is a history as well as a total — "this was billed,
+        # paid, refunded and cancelled" is the thing the reader needs, and
+        # silently removing it leaves them unable to see why.
+        if inv.refunded_at is not None:
+            events.append({
+                "date": inv.refunded_at.date(), "kind": "cancelled",
+                "ref": inv.invoice_number, "amount": inv.total})
         for pay in inv.payments:
             events.append({
                 "date": pay.paid_at.date() if pay.paid_at else inv.invoice_date,
@@ -391,7 +408,9 @@ def patient_statement(patient_id):
         balance = round(balance + _delta(e), 2)
         e["balance"] = balance
     summary = {
-        "billed": round(sum(e["amount"] for e in shown if e["kind"] == "invoice"), 2),
+        "billed": round(sum(e["amount"] for e in shown if e["kind"] == "invoice")
+                        - sum(e["amount"] for e in shown
+                              if e["kind"] == "cancelled"), 2),
         "paid": round(sum(e["amount"] for e in shown if e["kind"] == "payment"), 2),
         "refunded": round(sum(e["amount"] for e in shown if e["kind"] == "refund"), 2),
         "balance": balance,
