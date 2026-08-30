@@ -133,6 +133,7 @@ def create_app(config_name="default"):
     from app.blueprints.feedback import feedback_bp
     from app.blueprints.webhooks import webhooks_bp
     from app.blueprints.finance import finance_bp
+    from app.blueprints.dentistry import dentistry_bp
     from app.blueprints.growth import growth_bp
     from app.blueprints.inventory import inventory_bp
     from app.blueprints.main import main_bp
@@ -151,6 +152,7 @@ def create_app(config_name="default"):
     app.register_blueprint(appointments_bp)
     app.register_blueprint(visits_bp)
     app.register_blueprint(growth_bp)
+    app.register_blueprint(dentistry_bp)
     app.register_blueprint(vaccinations_bp)
     app.register_blueprint(prescriptions_bp)
     app.register_blueprint(inventory_bp)

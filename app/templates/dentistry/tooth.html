@@ -1,0 +1,45 @@
+{% extends "shell.html" %}
+{% set active_module = 'dentistry' %}
+{% block title %}{{ t('dental.tooth') }} {{ tooth }}{% endblock %}
+{% block page_heading %}{{ t('dental.tooth') }} {{ tooth }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:16px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clock-history"></i>
+      {{ t('dental.tooth') }} <span dir="ltr">{{ tooth }}</span>
+      <span class="badge badge--muted">{{ t('dental.primary') if primary else t('dental.permanent') }}</span></h1>
+    <p class="page-sub" style="margin:0;">{{ patient.display_name(current_lang) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('dentistry.chart', patient_id=patient.id) }}">
+    <i class="bi bi-arrow-{{ 'right' if direction=='rtl' else 'left' }}"></i> {{ t('common.back') }}</a>
+</div>
+
+{# The chart says what is true now; this says how it got there. A tooth
+   filled last year and decayed again this year is the argument for a crown,
+   and the chart alone cannot make it. #}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if rows %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('dental.found_on') }}</th><th>{{ t('dental.surface') }}</th>
+      <th>{{ t('dental.condition') }}</th><th>{{ t('common.notes') }}</th>
+      <th>{{ t('dental.recorded_by') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td dir="ltr">{{ r.found_on }}</td>
+        <td>{{ t('dental.s_' ~ r.surface) if r.surface != 'whole' else '—' }}</td>
+        <td>{{ t('dental.c_' ~ r.condition) }}</td>
+        <td>{{ r.note or '—' }}</td>
+        <td>{{ r.recorder.display_name(current_lang) if r.recorder else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">{{ t('dental.tooth_empty') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

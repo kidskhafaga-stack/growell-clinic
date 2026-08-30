@@ -68,8 +68,49 @@
     "hour_short": "س",
     "clear": "مسح الفلتر"
   },
+  "dental": {
+    "c_caries": "تسوس",
+    "c_crown": "تلبيس",
+    "c_discoloured": "تغير لون",
+    "c_erupting": "في مرحلة البزوغ",
+    "c_extracted": "مخلوع",
+    "c_filled": "حشو",
+    "c_missing": "مفقود",
+    "c_mobile": "مخلخل",
+    "c_pulpotomy": "بتر عصب",
+    "c_root_canal": "علاج جذور",
+    "c_sealant": "حشو وقائي",
+    "c_sound": "سليم",
+    "c_trauma": "كسر أو إصابة",
+    "c_unerupted": "لم يبزغ",
+    "chart": "خريطة الأسنان",
+    "chart_hint": "الأسنان اللبنية والدائمة على صفحة واحدة — الطفل بين ٦ و١٢ سنة عنده الاتنين.",
+    "condition": "الحالة",
+    "err_condition": "اختار حالة من القائمة.",
+    "err_surface": "السن ده مالوش السطح ده.",
+    "err_tooth": "رقم سن غير معروف.",
+    "found_on": "التاريخ",
+    "lower": "الفك السفلي",
+    "permanent": "الأسنان الدائمة",
+    "primary": "الأسنان اللبنية",
+    "record": "تسجيل حالة سن",
+    "record_hint": "كل تسجيل بيتحفظ بتاريخه — القديم ما بيتمسحش، والخريطة بتوري الأحدث.",
+    "recorded_by": "سجّلها",
+    "s_buccal": "شدقي",
+    "s_distal": "وحشي",
+    "s_incisal": "قاطع",
+    "s_lingual": "لساني",
+    "s_mesial": "إنسي",
+    "s_occlusal": "طاحن",
+    "s_whole": "السن كله",
+    "surface": "السطح",
+    "tooth": "السن",
+    "tooth_empty": "مفيش حاجة متسجلة على السن ده.",
+    "upper": "الفك العلوي"
+  },
   "nav": {
     "dashboard": "لوحة التحكم",
+    "dentistry": "الأسنان",
     "patients": "المرضى والأسر",
     "appointments": "المواعيد",
     "visits": "الزيارات",
@@ -3331,6 +3372,7 @@
     "inpatient": "خدمات التنويم"
   },
   "capabilities": {
+    "dentistry": "أسنان الأطفال",
     "general_consultation": "كشف عام",
     "followup": "إعادة/متابعة",
     "vaccination": "تطعيمات",
@@ -3361,6 +3403,7 @@
   "templates": {
     "pediatric_clinic": "عيادة أطفال",
     "cardiology_clinic": "عيادة قلب",
+    "pediatric_dental_clinic": "عيادة أسنان أطفال",
     "vaccination_center": "مركز تطعيمات",
     "medical_center": "مركز طبي"
   },
@@ -4455,6 +4498,7 @@
     "away_manual_note": "شغّال بس لما الإرسال التلقائي مفعّل. في الوضع اليدوي كل رسالة بتبقى رابط، والرابط محدش هيدوس عليه الساعة ١ بالليل."
   },
   "presets": {
+    "pediatric_dental_clinic": "عيادة أسنان أطفال",
     "title": "روشتات جاهزة",
     "subtitle": "الحالات اللي بتتكرر كل يوم — نزلة برد، التهاب حلق، نزلة معوية — مكتوبة مرة وبتتطبّق بضغطة.",
     "name": "الاسم",
