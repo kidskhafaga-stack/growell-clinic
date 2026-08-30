@@ -1,14 +1,18 @@
 # Lint and test the clinic on every pull request, and on main.
 #
 # This workflow is metered: the repository is private, so every minute it
-# spends is billed against the account's Actions allowance. Measured from this
-# repository's own successful runs, a run took a median of 22 minutes of wall
-# clock — and GitHub bills each matrix job separately, so a two-job run cost
-# about 45 minutes per push. At 2,000 minutes a month that is roughly 45
-# pushes, which a single day of iterative work can spend.
+# spends is billed against the account's Actions allowance, and GitHub bills
+# each matrix job separately. At 2,000 minutes a month, a suite that takes an
+# hour is about thirty pushes — which a single day of iterative work can spend.
 #
-# Three things below exist to keep that under control. None of them reduces
-# what is checked before a merge.
+# Four things below keep that under control. None of them reduces what is
+# checked before a merge.
+#
+# The suite had grown to 4,097 tests and was taking 38 to 59 minutes on one
+# core — the same commit, the same day, a 54% spread on GitHub's shared
+# runners. Splitting it across parallel *jobs* was the obvious answer and the
+# wrong one: every job pays its own checkout and install, so the billed total
+# goes up. The runner already has four cores and was using one of them.
 
 name: Python package
 
@@ -54,7 +58,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
+        python -m pip install flake8 pytest pytest-xdist
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with flake8
       run: |
@@ -62,6 +66,16 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    # 4. Use the cores the runner already has. `-n auto` is one job on four
+    #    workers, so the wall clock falls and the *billed* minutes fall with
+    #    it — a job is charged for how long it runs. Measured on this suite:
+    #    15 minutes against 38–59, and every one of the 4,097 tests still
+    #    runs.
+    #
+    #    `--dist loadfile` keeps every test in a file on the same worker.
+    #    Tests within a file are the ones most likely to share a fixture or a
+    #    path, and this costs nothing to be safe about: it measured 15:09
+    #    against 15:29 for the free-for-all default.
     - name: Test with pytest
       run: |
-        pytest
+        pytest -n auto --dist loadfile
