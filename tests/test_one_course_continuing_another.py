@@ -371,3 +371,55 @@ def test_the_screen_lists_what_was_already_stated(clinic, series):
     ).get_data(as_text=True)
     assert "الخماسي الحكومي — بدون IPV" in page
     assert f"/vaccinations/manage/credits/{credit_id}/delete" in page
+
+
+# ---------------------------------------- the desk must say the same thing --
+def _scan(clinic, vaccine_id):
+    """The lean path the work-list and the reminder sweep actually run."""
+    from app.models import Patient, PatientVaccine
+    from app.utils.clock import local_today
+    from app.utils.vaccines import scan_due
+
+    with clinic["app"].app_context():
+        patient = clinic["db"].session.get(Patient, clinic["ids"]["child"])
+        rows = [(pv.vaccine_id, pv.brand_id, pv.dose_number, pv.given_date,
+                 pv.event_type)
+                for pv in PatientVaccine.query.filter_by(
+                    patient_id=patient.id).all()]
+        pending = scan_due(patient.date_of_birth, rows, local_today())
+    return [r for r in pending if r["vaccine"].id == vaccine_id]
+
+
+def test_the_desk_list_credits_the_doses_too(clinic, series):
+    """`scan_due` is the lean twin of `patient_plan` and says so in its own
+    docstring: *it must answer identically*.
+
+    Crediting in one and not the other is the worst of both — the child's own
+    file reads "done" while the desk's work-list and the reminder sweep keep
+    calling the same dose overdue, and the two screens argue about one child
+    with nobody able to say which is right.
+    """
+    _the_reported_child(clinic, series)
+    _credit(clinic, series)
+    assert _scan(clinic, series["hexa"]) == []
+
+
+def test_the_desk_list_still_chases_an_uncredited_child(clinic, series):
+    """And it has not simply gone quiet: without the equivalence stated, the
+    same child is still chased for the doses that are genuinely missing."""
+    _the_reported_child(clinic, series)
+    assert _scan(clinic, series["hexa"]) != []
+
+
+def test_the_desk_list_obeys_the_cap(clinic, series):
+    """The safety property, on the path that generates the reminders a family
+    is actually sent."""
+    _add_dose_row(clinic, series["penta_brand"], 4, 18)
+    start = date(2024, 1, 17)
+    for number, day in ((1, 0), (2, 59), (3, 143), (4, 480)):
+        _give(clinic, series["penta"], series["penta_brand"], number,
+              start + timedelta(days=day))
+    _credit(clinic, series, up_to_dose=3)
+
+    still_due = [r["dose_number"] for r in _scan(clinic, series["hexa"])]
+    assert still_due == [4]

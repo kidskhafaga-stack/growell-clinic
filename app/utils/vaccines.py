@@ -15,6 +15,7 @@ from app.models import (
     Vaccine,
     VaccineBrand,
     VaccineBrandDose,
+    VaccineCredit,
     VaccineScheduleDose,
     VaccineScheduleTemplate,
 )
@@ -2864,7 +2865,16 @@ def _catalogue_rows():
         by_vaccine = {}
         for brand in brands.values():
             by_vaccine.setdefault(brand["vaccine_id"], []).append(brand)
-        return vaccines, brands, by_vaccine
+        # Which vaccines continue which. Read here, with the rest of the
+        # catalogue, because the sweep walks every vaccinated patient on file
+        # and a table this small must not be asked for once per child — the
+        # exact shape of the work-list slowness this cache exists to hold
+        # down.
+        credits = {}
+        for credit in VaccineCredit.query.all():
+            credits.setdefault(credit.from_vaccine_id, []).append(
+                (credit.vaccine_id, credit.up_to_dose))
+        return vaccines, brands, by_vaccine, credits
 
     return remember("vaccines:catalogue_rows", load)
 
@@ -2974,7 +2984,7 @@ def scan_due(dob, doses, today, agreed=None):
 
     Returns ``[{vaccine, brand, dose_number, due_date, status}]``.
     """
-    vaccines, brands, by_vaccine = _catalogue_rows()
+    vaccines, brands, by_vaccine, credits = _catalogue_rows()
 
     given = {}          # vaccine_id -> {dose_number: given_date}
     brand_doses = {}    # vaccine_id -> [(brand_id, given_date)]
@@ -2985,6 +2995,17 @@ def scan_due(dob, doses, today, agreed=None):
     for vaccine_id, brand_id, dose_number, given_date, event_type in doses:
         if (event_type or "given") == "given":
             given.setdefault(vaccine_id, {})[dose_number] = given_date
+            # A dose given as one vaccine that continues another's course —
+            # the government pentavalent before a hexavalent booster. This
+            # path is the lean twin of `patient_plan` and **must answer
+            # identically**: crediting only there would leave the child's own
+            # file saying "done" while the desk's work-list still called the
+            # same dose overdue. `setdefault` so a dose actually recorded
+            # against the target vaccine always wins.
+            for target_id, up_to in credits.get(vaccine_id, ()):
+                if up_to is None or (dose_number and dose_number <= up_to):
+                    given.setdefault(target_id, {}).setdefault(
+                        dose_number, given_date)
             brand_doses.setdefault(vaccine_id, []).append((brand_id, given_date))
             raw_doses.setdefault(vaccine_id, []).append((dose_number, given_date))
             best = locked.get(vaccine_id)
