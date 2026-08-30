@@ -2709,6 +2709,13 @@ def _doses_off_the_schedule(vaccine, brand, rows, rendered, lang="ar",
             "booster": is_booster(brand, pv.dose_number),
             "due_date": None,
             "given_date": pv.given_date.isoformat() if pv.given_date else None,
+            # The product this dose was given as. There are two places a dose
+            # dict is built and the first version of the per-dose brand went
+            # into the other one, so the doses this function returns — the
+            # boosters past the end of a course, exactly the rows a doctor
+            # looks at hardest — printed a dash where the product goes.
+            "brand_name": (pv.brand.display_name(lang)
+                           if pv.brand is not None else None),
             "lot_number": pv.lot_number,
             "doctor": pv.doctor.display_name(lang) if pv.doctor else None,
             "outside": bool(pv.given_outside),
