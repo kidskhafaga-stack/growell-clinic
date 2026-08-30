@@ -229,10 +229,28 @@ def test_the_update_backs_up_before_it_changes_anything():
 
 def test_the_update_stops_if_the_backup_fails():
     """Continuing without one is precisely the situation this file exists to
-    prevent."""
+    prevent.
+
+    Either way out counts. The failure paths were routed through a `:die`
+    label so that each of them hands the watchdog back before stopping —
+    asking for the literal `exit /b 1` would have failed that change while
+    the behaviour it guards was intact, which is a test measuring the
+    spelling rather than the rule.
+    """
     body = _read("update.bat")
     after = body[body.index("backup-now"):]
-    assert "exit /b 1" in after[:after.index("git pull")]
+    stops = after[:after.index("git pull")]
+    assert "exit /b 1" in stops or "goto :die" in stops
+
+
+def test_the_way_out_actually_stops():
+    """And `:die` is a stop, not a label that falls through into the rest of
+    the file. A failure path that carried on would be worse than the one
+    above ever was."""
+    body = _read("update.bat")
+    assert ":die" in body
+    tail = body[body.index("\n:die"):]
+    assert "exit /b 1" in tail[:200]
 
 
 def test_the_update_checks_the_program_still_starts():

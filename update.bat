@@ -38,14 +38,25 @@ where python >nul 2>nul
 if errorlevel 1 (
   echo [ERROR] Python is not installed or not on PATH.
   pause
-  exit /b 1
+  goto :die
 )
 if not exist ".venv\Scripts\activate.bat" (
   echo [ERROR] No virtual environment yet. Run start.bat once first.
   pause
-  exit /b 1
+  goto :die
 )
 call ".venv\Scripts\activate.bat"
+
+REM --- Tell the watchdog to stand down ------------------------
+REM The clinic is deliberately closed for all of what follows, and the
+REM watchdog asks every five minutes whether it is answering and
+REM restarts it when it is not. The backup alone can outlast that. So
+REM without this the watchdog relaunches the program into the middle of
+REM the file copy - reading modules that are being overwritten under it.
+REM
+REM The marker expires by itself, so an update that dies here cannot
+REM leave a clinic unwatched for ever; every exit below clears it anyway.
+python -m app.update_guard start >nul 2>nul
 
 REM --- 2) Back up BEFORE touching anything ---------------------
 REM Everything below is reversible only because this ran first.
@@ -57,7 +68,7 @@ if errorlevel 1 (
   echo         Nothing has been changed. Fix the backup first - updating
   echo         without one is the thing this file exists to prevent.
   pause
-  exit /b 1
+  goto :die
 )
 
 REM --- 3) Fetch the new code ----------------------------------
@@ -97,7 +108,7 @@ REM followed by an update that silently did not happen.
 call :fetch_zip
 if errorlevel 1 (
   pause
-  exit /b 1
+  goto :die
 )
 goto :fetched
 
@@ -108,7 +119,7 @@ if errorlevel 1 (
   echo [ERROR] Could not fetch the update - offline, or this copy has local
   echo         changes. Nothing was changed. Your backup is untouched.
   pause
-  exit /b 1
+  goto :die
 )
 
 :fetched
@@ -121,7 +132,7 @@ pip install -r requirements.txt
 if errorlevel 1 (
   echo [ERROR] Dependencies failed to install. Do not use the app yet.
   pause
-  exit /b 1
+  goto :die
 )
 
 REM --- 5) Bring the database's shape up to the new code --------
@@ -136,7 +147,7 @@ if errorlevel 1 (
   echo         Your data has not been deleted. Run tools.bat and choose
   echo         "Restore a backup" to go back to the preupgrade snapshot.
   pause
-  exit /b 1
+  goto :die
 )
 
 REM --- 6) Does it actually start? -----------------------------
@@ -150,7 +161,7 @@ if errorlevel 1 (
   echo [ERROR] The app did not start cleanly after the update.
   echo         Restore the preupgrade backup from tools.bat before using it.
   pause
-  exit /b 1
+  goto :die
 )
 
 REM --- 7) Write down what this copy now is ---------------------
@@ -197,11 +208,36 @@ REM And no `pause` on the way out. It was there to tell somebody to go
 REM and run start.bat, and there is nothing left to tell them; a window
 REM waiting for a keypress it does not need is a window a clinic learns
 REM to ignore.
-echo    Opening GROWELL CLINIC...
-start "" "%~dp0start.bat"
+python -m app.update_guard done >nul 2>nul
+
+REM --- Bring the clinic back, the way this machine actually runs it ---
+REM A clinic installed as a service is started by the Task Scheduler, and
+REM this used to run start.bat regardless: a second, hand-run copy beside
+REM the service, both wanting the same port. So the task is asked first,
+REM and start.bat is what a machine without one gets.
+schtasks /Query /TN "GrowellClinic" >nul 2>nul
+if errorlevel 1 (
+  echo    Opening GROWELL CLINIC...
+  start "" "%~dp0start.bat"
+) else (
+  echo    Restarting the GROWELL CLINIC service...
+  schtasks /End /TN "GrowellClinic" >nul 2>nul
+  schtasks /Run /TN "GrowellClinic" >nul 2>nul
+)
 timeout /t 5 /nobreak >nul
 
 exit /b 0
+
+
+REM ============================================================
+REM   Every way this stops without finishing
+REM ============================================================
+REM One way out, so the watchdog is handed back on all of them. An update
+REM that gave up is over, and the clinic should be watched again from that
+REM moment rather than from whenever the marker happens to expire.
+:die
+python -m app.update_guard done >nul 2>nul
+exit /b 1
 
 
 REM ============================================================
@@ -312,7 +348,7 @@ echo         Until it is sorted: sign in on github.com, download the ZIP
 echo         yourself, and copy it over this folder WITHOUT touching
 echo         instance\, uploads\ or clinic.env - then run:
 echo             flask --app run upgrade-db
-exit /b 1
+goto :die
 
 :no_network
 echo.
@@ -322,7 +358,7 @@ echo         connection.
 echo.
 echo         The exact error is above this line. Nothing was changed and
 echo         your backup is untouched.
-exit /b 1
+goto :die
 
 :got_zip
 
@@ -331,11 +367,11 @@ set "PP_SRC="
 for /d %%D in ("%PP_TMP%\*") do set "PP_SRC=%%~fD"
 if not defined PP_SRC (
   echo [ERROR] The download arrived but was empty. Nothing was changed.
-  exit /b 1
+  goto :die
 )
 if not exist "%PP_SRC%\run.py" (
   echo [ERROR] The download does not look like PediaPro. Nothing was changed.
-  exit /b 1
+  goto :die
 )
 
 REM Copy the program over the top, and nothing else.
@@ -377,7 +413,7 @@ if errorlevel 8 (
   echo.
   echo [ERROR] Copying the new files failed. Restore the preupgrade backup
   echo         from tools.bat before using the program.
-  exit /b 1
+  goto :die
 )
 
 rmdir /s /q "%PP_TMP%"
