@@ -119,8 +119,13 @@ def everyone(clinic):
     from app.cli import _ensure_default_roles
 
     with clinic["app"].app_context():
+        # The key `module_enabled` actually reads. This said `module_{name}`
+        # and so had never switched anything on — invisible while every module
+        # defaulted to on, and exposed by the first opt-in one, whose routes
+        # then answered 404 for *being off* rather than 403 for the permission
+        # this file is about.
         for module in MODULES:
-            Setting.set(f"module_{module}", "1")
+            Setting.set(f"mod_enabled:{module}", "1")
         _ensure_default_roles()
         for role in ROLES:
             if User.query.filter_by(username=f"sweep_{role}").first():

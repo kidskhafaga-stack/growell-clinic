@@ -78,7 +78,7 @@
     {# A finding about the whole tooth has no surface: a tooth is not missing
        "on the buccal side". #}
     <div class="form-row" style="margin:0;flex:1;min-width:150px;"
-         x-show="!{{ whole_only|tojson }}.includes(condition)">
+         x-show="!{{ whole_only|tojson|forceescape }}.includes(condition)">
       <label>{{ t('dental.surface') }}</label>
       <select class="select" name="surface">
         {% for s in ['mesial','distal','buccal','lingual','occlusal','incisal'] %}

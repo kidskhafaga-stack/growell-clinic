@@ -215,14 +215,23 @@ REM A clinic installed as a service is started by the Task Scheduler, and
 REM this used to run start.bat regardless: a second, hand-run copy beside
 REM the service, both wanting the same port. So the task is asked first,
 REM and start.bat is what a machine without one gets.
+REM Answered into a variable first. `errorlevel` is rewritten by the very
+REM next command, so a second `if errorlevel` after a block has run is
+REM asking about the echo, not about schtasks. And no `) else (`: a
+REM bracket inside a block closes it where it stands, which is a bug this
+REM file has already had once and now has a test against.
+set "PP_TASK="
 schtasks /Query /TN "GrowellClinic" >nul 2>nul
-if errorlevel 1 (
-  echo    Opening GROWELL CLINIC...
-  start "" "%~dp0start.bat"
-) else (
+if not errorlevel 1 set "PP_TASK=1"
+
+if defined PP_TASK (
   echo    Restarting the GROWELL CLINIC service...
   schtasks /End /TN "GrowellClinic" >nul 2>nul
   schtasks /Run /TN "GrowellClinic" >nul 2>nul
+)
+if not defined PP_TASK (
+  echo    Opening GROWELL CLINIC...
+  start "" "%~dp0start.bat"
 )
 timeout /t 5 /nobreak >nul
 

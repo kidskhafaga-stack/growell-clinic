@@ -84,6 +84,10 @@ ROLE_PERMISSIONS = {
         "visits",
         "growth",
         "vaccinations",
+        # A paediatric dentist is a doctor. Granting it costs a clinic that
+        # does not do dentistry nothing — the module is off for them, and an
+        # off module is unreachable whoever asks.
+        "dentistry",
         "prescriptions",
         "ai",
     ],
