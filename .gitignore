@@ -45,3 +45,14 @@ app/static/uploads/**
 # Imported at runtime by a clinic (WHO ICD-11 needs their own credentials),
 # never shipped — and a test that wrote one here used to dirty the tree.
 app/data/icd11_full.json.gz
+
+# The licence signing key, and anything shaped like it. Nothing here is ever
+# meant to be in this repository: the private key issues licences for every
+# copy of the program ever sold, and `instance/` (already ignored above) is
+# where a clinic's own licence file, its high-water date mark and its copy of
+# the vendor's *public* key live. This block is the belt to that folder's
+# braces — a key that gets left in the project root by mistake still cannot be
+# committed by a hurried `git add .`.
+vendor_private.key
+*.pem
+licence_tool.py

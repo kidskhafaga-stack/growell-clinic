@@ -1269,3 +1269,67 @@ def wizard_seed_drugs():
     db.session.commit()
     flash(t("wizard.drugs_seeded").replace("{n}", str(added)), "success")
     return redirect(url_for("settings.wizard"))
+
+
+# ---------------------------------------------------------------- licence ---
+# The screen a clinic reaches when the program has gone read-only, and the one
+# it uses to renew before that happens. Owner-only: the licence is the
+# practice's commercial relationship with whoever sold them the program, not
+# something a receptionist should be able to replace.
+#
+# Every endpoint here begins `settings.licence`, which is what
+# `app.utils.read_only.ALLOWED_PREFIXES` allows through — the way out of
+# read-only must not itself be read-only.
+@settings_bp.route("/licence")
+@owner_required
+def licence():
+    from app.utils import licensing
+
+    verdict = licensing.status()
+    return render_template(
+        "settings/licence.html", verdict=verdict,
+        fingerprint=licensing.machine_fingerprint(),
+        installed=licensing.read_licence(),
+        warn_days=licensing.WARN_WITHIN_DAYS)
+
+
+@settings_bp.route("/licence/install", methods=["POST"])
+@owner_required
+def licence_install():
+    """Save a licence sent by the vendor.
+
+    Pasted or uploaded, because both are how it actually arrives — a WhatsApp
+    message somebody copies, or an attachment they save. The file wins when
+    both are given, since choosing a file is the more deliberate act.
+    """
+    from app.utils import licensing
+
+    raw = (request.form.get("licence") or "").strip()
+    upload = request.files.get("file")
+    if upload and upload.filename:
+        try:
+            raw = upload.read().decode("utf-8", "ignore").strip()
+        except Exception:  # noqa: BLE001
+            raw = ""
+
+    try:
+        verdict = licensing.install(raw)
+    except licensing.LicenceError as error:
+        flash(t(f"licence.err_{error}"), "danger")
+        return redirect(url_for("settings.licence"))
+
+    # Recorded like any other change to how the clinic runs. The licence's
+    # text is not written to the log — the serial says which one it was, and
+    # the log is read by people who should not be able to lift a licence out
+    # of it.
+    ActivityLog.record("settings.licence", user_id=current_user.id,
+                       entity="settings",
+                       detail=(verdict.serial or verdict.state)[:80],
+                       ip_address=client_ip())
+    db.session.commit()
+
+    if verdict.ok:
+        flash(t("licence.saved"), "success")
+    else:
+        flash(t(f"licence.state_{verdict.state}"), "warning")
+    return redirect(url_for("settings.licence"))

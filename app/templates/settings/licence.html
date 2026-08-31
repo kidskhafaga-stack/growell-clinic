@@ -1,0 +1,91 @@
+{% extends "shell.html" %}
+{% set active_module = 'settings' %}
+{% block title %}{{ t('licence.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div>
+    <h1 class="page-title">{{ t('licence.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('licence.subtitle') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('settings.index') }}">
+    <i class="bi bi-arrow-right"></i> {{ t('nav.settings') }}</a>
+</div>
+
+{# --- what this copy's licence says right now ---------------------------- #}
+<div class="card" style="margin-top:16px;">
+  <div class="card-body">
+    <h2 class="section-title"><i class="bi bi-patch-check"></i> {{ t('licence.state') }}</h2>
+    <p style="margin:0 0 10px;">
+      {% if verdict.ok %}<span class="badge badge--green">{{ t('licence.state_valid') }}</span>
+      {% elif verdict.state == 'dormant' %}<span class="badge badge--muted">{{ t('licence.state_dormant') }}</span>
+      {% else %}<span class="badge badge--danger">{{ t('licence.state_' ~ verdict.state) }}</span>{% endif %}
+    </p>
+
+    {% if verdict.issued_to %}
+    <div class="hint">{{ t('licence.issued_to') }}: <strong>{{ verdict.issued_to }}</strong></div>
+    {% endif %}
+    {% if verdict.serial %}
+    <div class="hint">{{ t('licence.serial') }}: <span dir="ltr">{{ verdict.serial }}</span></div>
+    {% endif %}
+    {% if verdict.expires %}
+    <div class="hint">{{ t('licence.expires_on') }}:
+      <span dir="ltr">{{ verdict.expires.isoformat() }}</span>
+      {% if verdict.days_left is not none and verdict.days_left >= 0 %}
+        — {{ t('licence.days_left').replace('{n}', verdict.days_left|string) }}
+      {% endif %}
+    </div>
+    {% elif verdict.ok %}
+    <div class="hint">{{ t('licence.perpetual') }}</div>
+    {% endif %}
+
+    {% if verdict.locked %}
+    <p class="hint" style="margin-top:10px;">{{ t('licence.read_only_note') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{# --- the number the vendor needs to make one ---------------------------- #}
+<div class="card" style="margin-top:16px;">
+  <div class="card-body">
+    <h2 class="section-title"><i class="bi bi-pc-display"></i> {{ t('licence.machine') }}</h2>
+    {% if fingerprint %}
+    <p class="licence-fp">{{ fingerprint }}</p>
+    <p class="hint">{{ t('licence.machine_note') }}</p>
+    {% else %}
+    {# Not a failure the clinic can do anything about, and not one that should
+       cost them the program. The vendor issues a site licence instead. #}
+    <p class="hint">{{ t('licence.machine_unknown') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{# --- installing one ----------------------------------------------------- #}
+<div class="card" style="margin-top:16px;">
+  <div class="card-body">
+    <h2 class="section-title"><i class="bi bi-key"></i> {{ t('licence.install') }}</h2>
+    <form method="post" action="{{ url_for('settings.licence_install') }}"
+          enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label for="licence">{{ t('licence.paste') }}</label>
+        <textarea id="licence" name="licence" rows="5" dir="ltr"
+                  style="font-family:ui-monospace,Consolas,monospace;font-size:.8rem;"
+                  placeholder="eyJ2Ijox….AbCd"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="file">{{ t('licence.or_file') }}</label>
+        <input type="file" id="file" name="file" accept=".lic,.txt">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-save"></i> {{ t('licence.save') }}</button>
+    </form>
+    {% if installed %}
+    <details style="margin-top:14px;">
+      <summary class="hint">{{ t('licence.show_installed') }}</summary>
+      <p dir="ltr" style="word-break:break-all;font-family:ui-monospace,Consolas,monospace;font-size:.72rem;color:var(--muted);">{{ installed }}</p>
+    </details>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
