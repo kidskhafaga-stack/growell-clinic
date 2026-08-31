@@ -39,7 +39,7 @@ if not exist "%PY%" (
 :menu
 echo.
 echo ============================================================
-echo    GROWELL CLINIC  ^|  Windows service
+echo    PediaPro  ^|  Windows service
 echo ============================================================
 echo.
 echo   [1] Install  - start with the server, keep it running

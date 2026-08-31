@@ -26,7 +26,7 @@ REM ============================================================
 cd /d "%~dp0"
 
 echo ============================================================
-echo    GROWELL CLINIC  ^|  Update
+echo    PediaPro  ^|  Update
 echo ============================================================
 echo.
 echo   The clinic should not be in use while this runs.
@@ -225,12 +225,12 @@ schtasks /Query /TN "GrowellClinic" >nul 2>nul
 if not errorlevel 1 set "PP_TASK=1"
 
 if defined PP_TASK (
-  echo    Restarting the GROWELL CLINIC service...
+  echo    Restarting the PediaPro service...
   schtasks /End /TN "GrowellClinic" >nul 2>nul
   schtasks /Run /TN "GrowellClinic" >nul 2>nul
 )
 if not defined PP_TASK (
-  echo    Opening GROWELL CLINIC...
+  echo    Opening PediaPro...
   start "" "%~dp0start.bat"
 )
 timeout /t 5 /nobreak >nul
@@ -300,15 +300,31 @@ REM And the error itself is printed rather than swallowed. Every failure here
 REM was being flattened into two exit codes, so a clinic could report only
 REM which of two sentences it saw - which is how a TLS failure spent two
 REM rounds being diagnosed as a missing repository.
+REM `$ProgressPreference` off, and this is not tidying.
+REM
+REM Windows PowerShell 5.1 redraws Invoke-WebRequest's progress bar on every
+REM chunk, and the redraw costs more than the download does - a ten-second
+REM fetch takes minutes with it on. It is also what put "Writing request
+REM stream... (Number of bytes written: 35105)" on a clinic's screen and left
+REM it sitting there, so an update that was working looked hung.
+REM
+REM `Expand-Archive` is replaced for the same reason at the other end. This
+REM project is 763 files, which is that cmdlet's worst case: it is slow per
+REM *file* rather than per byte, and it prints nothing while it goes. The
+REM .NET call underneath does the same job in seconds.
+echo       Downloading (a few MB, usually under a minute)...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
+  "$ProgressPreference='SilentlyContinue';" ^
   "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
   "$u='https://codeload.github.com/%PP_REPO%/zip/%PP_ZIP_REF%';" ^
   "try { Invoke-WebRequest -Uri $u -OutFile '%PP_TMP%\src.zip' }" ^
   "catch { Write-Host ('      ' + $_.Exception.Message);" ^
   "        if ($_.Exception.Response.StatusCode.value__ -eq 404)" ^
   "        { exit 44 } else { exit 1 } };" ^
-  "Expand-Archive -Path '%PP_TMP%\src.zip' -DestinationPath '%PP_TMP%' -Force"
+  "Write-Host '      Unpacking...';" ^
+  "Add-Type -AssemblyName System.IO.Compression.FileSystem;" ^
+  "[System.IO.Compression.ZipFile]::ExtractToDirectory('%PP_TMP%\src.zip', '%PP_TMP%')"
 
 REM 404 is not "offline", and saying it was is what sent somebody hunting for
 REM a network fault that did not exist.

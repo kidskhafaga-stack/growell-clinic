@@ -21,27 +21,27 @@ call ".venv\Scripts\activate.bat"
 :menu
 cls
 echo ============================================================
-echo    GROWELL CLINIC  ^|  Maintenance / الصيانة
+echo    PediaPro  ^|  Maintenance
 echo ============================================================
 echo.
-echo   AFTER AN UPDATE / بعد التحديث
+echo   AFTER AN UPDATE
 echo     1  Apply database upgrades        (flask upgrade-db)
 echo     2  Refresh the clinic catalogues  (vaccines, services, drugs)
 echo.
-echo   BACKUP / النسخ الاحتياطي
+echo   BACKUP
 echo     3  Take a backup now              (database + photos)
 echo     4  List backups
 echo.
-echo   DATA / البيانات
+echo   DATA
 echo     5  Import a drug list             (CSV or JSON)
 echo     6  Load the drug reference again
 echo     7  Load the demo dataset          (for a presentation)
 echo     8  Delete all operational data    (KEEPS users and catalogues)
 echo.
-echo   ACCOUNTS / الحسابات
+echo   ACCOUNTS
 echo     9  Create an administrator
 echo.
-echo   SETTINGS / الإعدادات
+echo   SETTINGS
 echo    10  Open clinic.env (port, language)
 echo    11  Show all available commands
 echo.
