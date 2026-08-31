@@ -26,7 +26,7 @@ import re
 import pytest
 
 # The classes that do nothing without material.css.
-GRAMMAR = re.compile(r'class="[^"]*\bmd-(section|section-head|step|sub|field|btn)\b')
+GRAMMAR = re.compile(r'class="[^"]*\bmd-(section|section-head|step|badge|sub|field|btn)\b')
 STYLESHEET = "css/material.css"
 
 _CLASS_ATTR = re.compile(r'class="([^"]*)"')
