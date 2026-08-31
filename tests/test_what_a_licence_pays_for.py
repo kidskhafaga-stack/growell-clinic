@@ -357,3 +357,62 @@ def test_a_dormant_verdict_carries_nothing(licensed, vendor, monkeypatch):
         assert verdict.payload == {}, \
             "a dormant verdict now carries a payload; the guards in limit() " \
             "and licensed_modules() are live branches and need their own tests"
+
+
+# ------------------------------------------------ saying so before refusing -
+def test_the_screen_says_what_the_licence_pays_for(licensed, vendor):
+    """A rule you only meet by breaking it is a rule the person experiences
+    as a fault in the program.
+
+    Without this the limit was invisible until somebody filled in a whole new
+    user, pressed save, and had it refused with no warning that it was coming.
+    """
+    _install(licensed, vendor, limits={"users": 6, "doctors": 2})
+    page = _admin(licensed).get("/users/").get_data(as_text=True)
+    assert "4 / 6" in page, "the user seats are not shown"
+    assert "1 / 2" in page, "the doctor seats are not shown"
+
+
+def test_it_says_when_there_is_no_room_left(licensed, vendor):
+    """Marked at the limit, not after it — the point is to be read by
+    somebody about to add a person, not by somebody who already failed."""
+    _install(licensed, vendor, limits={"users": 4})
+    page = _admin(licensed).get("/users/").get_data(as_text=True)
+    assert "4 / 4" in page
+    assert "badge--danger" in page
+
+
+def test_an_uncapped_licence_says_nothing(licensed, vendor):
+    """"4 of unlimited" is noise on a screen somebody reads every day."""
+    _install(licensed, vendor, limits={"users": 0})
+    page = _admin(licensed).get("/users/").get_data(as_text=True)
+    assert "licence.seats" not in page
+    assert " / " not in page.split('class="page-sub"')[1][:400]
+
+
+def test_an_unlicensed_build_says_nothing_either(clinic):
+    """Nothing is enforced, so there is nothing to report."""
+    page = clinic["sign_in"]("boss").get("/users/").get_data(as_text=True)
+    assert " / " not in page.split('class="page-sub"')[1][:400]
+
+
+def test_a_disabled_account_is_not_a_seat(licensed, vendor):
+    """It is not costing the clinic a licence and it is not costing them a
+    person — nobody is signing in with it.
+
+    Counted the same way the refusal counts, because a screen saying "4 / 6"
+    beside a rule that would refuse the fifth is worse than no screen: the
+    two have to be answering the same question.
+    """
+    from app.models import User
+
+    with licensed["app"].app_context():
+        sleeper = User(username="mowaqaf", full_name="موقوف", role="reception",
+                       is_active=False)
+        sleeper.set_password("secret123")
+        licensed["db"].session.add(sleeper)
+        licensed["db"].session.commit()
+
+    _install(licensed, vendor, limits={"users": 6})
+    page = _admin(licensed).get("/users/").get_data(as_text=True)
+    assert "4 / 6" in page, "a disabled account was counted as a seat"

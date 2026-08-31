@@ -5471,6 +5471,9 @@
     "err_no_crypto": "The verification library is not installed",
     "no_room_users": "This licence does not pay for more users. Everyone already here keeps working — renew to add more.",
     "no_room_doctors": "This licence does not pay for more doctors. Everyone already here keeps working — renew to add more.",
-    "no_room_services": "This licence does not pay for more services. What is already here stays."
+    "no_room_services": "This licence does not pay for more services. What is already here stays.",
+    "seats_users": "Users",
+    "seats_doctors": "Doctors",
+    "seats_full": "licence limit reached"
   }
 }

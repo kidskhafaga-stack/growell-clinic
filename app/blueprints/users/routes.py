@@ -52,7 +52,33 @@ def index():
     users = User.query.order_by(User.created_at.desc()).all()
     last_ip = _last_login_ip_map([u.id for u in users])
     return render_template("users/list.html", users=users, roles=_roles(),
-                           last_ip=last_ip)
+                           last_ip=last_ip, seats=_seats(users))
+
+
+def _seats(users):
+    """What the licence pays for against what is in use, or ``None``.
+
+    Shown because the limit was otherwise invisible until somebody filled in
+    a whole form and had it refused. A rule you only meet by breaking it is a
+    rule the person experiences as a fault in the program.
+
+    Empty when nothing is limited — an unlicensed build, or a licence sold
+    without caps. A row reading "4 of unlimited" is noise on every screen it
+    appears on, and an empty map is already falsy where the template asks.
+    """
+    from app.utils.licensing import limit
+
+    active = [u for u in users if u.is_active]
+    out = {}
+    for key, used in (("users", len(active)),
+                      ("doctors", sum(1 for u in active
+                                      if User.sees_patients(u.role,
+                                                            u.is_practitioner)))):
+        allowed = limit(key)
+        if allowed:
+            out[key] = {"used": used, "allowed": allowed,
+                        "full": used >= allowed}
+    return out
 
 
 # ----------------------------------------------------------- audit ---------
