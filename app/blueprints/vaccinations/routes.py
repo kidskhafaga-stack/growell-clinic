@@ -96,6 +96,7 @@ def view(patient_id):
     offerable = [item["vaccine"] for item in plan
                  if not item["vaccine"].is_mandatory
                  and not item["vaccine"].on_demand
+                 and item["vaccine"].is_offered
                  and item["vaccine"].id not in on_plan]
     return render_template(
         "vaccinations/view.html",
@@ -505,8 +506,15 @@ def manage():
     # schedule — a different screen — still shows every dose, government
     # included, because that is where a dose given elsewhere gets recorded.
     cat = (request.args.get("cat") or "optional").strip()
-    all_vaccines = (Vaccine.query
-                    .order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all())
+    every = (Vaccine.query
+             .order_by(Vaccine.is_mandatory.desc(), Vaccine.sort_order).all())
+    # Vaccines this clinic has said it does not give. Out of the way rather
+    # than gone: the count is shown and one click brings them back, because a
+    # list that silently drops rows is one somebody re-adds a duplicate into.
+    put_away = [v for v in every if not v.is_offered]
+    showing_put_away = request.args.get("put_away") == "1"
+    all_vaccines = every if showing_put_away else [v for v in every
+                                                   if v.is_offered]
     counts = {
         "all": len(all_vaccines),
         "mandatory": sum(1 for v in all_vaccines if v.is_mandatory),
@@ -524,6 +532,8 @@ def manage():
 
     return render_template("vaccinations/manage.html", vaccines=vaccines,
                            routes=VACCINE_ROUTES, cat=cat, counts=counts,
+                           put_away=len(put_away),
+                           showing_put_away=showing_put_away,
                            # Which published guideline this clinic follows.
                            # Shown here because this is where somebody looks
                            # for it — see `guideline`.
@@ -531,6 +541,34 @@ def manage():
                            guideline_current=guideline_profile(),
                            load_gov=Setting.get("load_gov_vaccines", "1") != "0",
                            load_optional=Setting.get("load_optional_vaccines", "1") != "0")
+
+
+@vaccinations_bp.route("/manage/vaccine/<int:vaccine_id>/offered",
+                       methods=["POST"])
+@module_required(MODULE)
+def vaccine_offered(vaccine_id):
+    """Put a vaccine away, or bring it back.
+
+    **It hides; it does not delete and it does not stop anything clinical.**
+    The child's card still shows it, what is due still says so, the reminders
+    still go and the certificate still prints it. A dose given at the
+    government unit still has somewhere to be recorded, and a child halfway
+    through a course does not lose the rest of it because of a decision about
+    this clinic's shelf.
+
+    What it does is take forty-seven rows out of the way of somebody whose
+    business here is the handful their clinic actually gives.
+    """
+    vaccine = db.get_or_404(Vaccine, vaccine_id)
+    vaccine.is_offered = not bool(request.form.get("put_away"))
+    ActivityLog.record("vaccine.offered", user_id=current_user.id,
+                       entity="vaccine", entity_id=vaccine.id,
+                       detail="on" if vaccine.is_offered else "off",
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("vaccinations.offered_saved" if vaccine.is_offered
+            else "vaccinations.put_away_saved"), "info")
+    return redirect(request.referrer or url_for("vaccinations.manage"))
 
 
 @vaccinations_bp.route("/manage/guideline", methods=["POST"])

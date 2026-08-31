@@ -109,6 +109,21 @@
   </form>
 </details>
 
+{# What has been put away, and one click back to it. A list that silently
+   drops rows is a list somebody re-adds a duplicate into. #}
+{% if put_away or showing_put_away %}
+<p class="hint" style="margin:10px 0 0;">
+  {% if showing_put_away %}
+  <i class="bi bi-eye"></i> {{ t('vaccinations.showing_put_away') }} —
+  <a href="{{ url_for('vaccinations.manage', cat=cat) }}">{{ t('vaccinations.hide_put_away') }}</a>
+  {% else %}
+  <i class="bi bi-eye-slash"></i>
+  {{ t('vaccinations.put_away_count').replace('{n}', put_away|string) }} —
+  <a href="{{ url_for('vaccinations.manage', cat=cat, put_away=1) }}">{{ t('vaccinations.show_put_away') }}</a>
+  {% endif %}
+</p>
+{% endif %}
+
 <!-- حكومي / اختياري filter -->
 <div class="vseg gc-animate" style="animation-delay:0.06s;">
   {% for key in ['all', 'mandatory', 'optional'] %}
@@ -198,6 +213,18 @@
         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
         <button class="btn btn-outline btn-sm gc-press" type="button" x-on:click="edit = false">{{ t('common.cancel') }}</button>
       </div>
+      </form>
+      {# Its own form, outside the edit form: a nested form is invalid HTML and
+         the browser drops one of them. Hiding is not editing — it changes
+         nothing about the vaccine, only whether this clinic is shown it. #}
+      <form method="post" style="margin-top:10px;"
+            action="{{ url_for('vaccinations.vaccine_offered', vaccine_id=vaccine.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if vaccine.is_offered %}<input type="hidden" name="put_away" value="1">{% endif %}
+        <button class="btn btn-outline btn-sm gc-press" type="submit">
+          <i class="bi bi-{{ 'eye-slash' if vaccine.is_offered else 'eye' }}"></i>
+          {{ t('vaccinations.put_away' if vaccine.is_offered else 'vaccinations.bring_back') }}</button>
+        <div class="hint" style="margin-top:6px;">{{ t('vaccinations.put_away_hint') }}</div>
     </form>
   </div>
 

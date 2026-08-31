@@ -119,6 +119,8 @@ ADDITIONS = [
     ("services", "eta_item_type", "VARCHAR(8) DEFAULT 'EGS'"),
     ("vaccines", "route", "VARCHAR(20)"),
     ("vaccines", "on_demand", "BOOLEAN DEFAULT 0"),
+    # Default 1: every vaccine an existing clinic already has stays offered.
+    ("vaccines", "is_offered", "BOOLEAN DEFAULT 1"),
     ("vaccines", "vaccine_type", "VARCHAR(40)"),
     ("vaccines", "min_interval_days", "INTEGER"),
     ("vaccines", "catch_up_notes", "TEXT"),

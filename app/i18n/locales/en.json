@@ -1201,7 +1201,16 @@
     "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded.",
     "tpl_edit": "Edit this schedule and its source",
     "tpl_dose_saved": "Dose updated.",
-    "err_guideline": "Unknown guideline"
+    "err_guideline": "Unknown guideline",
+    "put_away": "Put away",
+    "bring_back": "Bring back",
+    "put_away_hint": "Hidden from this list and from what a family is offered. The child's card, what is due, the reminders and the certificate are unchanged.",
+    "put_away_saved": "Put away",
+    "offered_saved": "Back on the list",
+    "put_away_count": "{n} vaccine(s) put away",
+    "show_put_away": "show them",
+    "hide_put_away": "hide them",
+    "showing_put_away": "Showing the ones put away"
   },
   "vstatus": {
     "done": "Done",

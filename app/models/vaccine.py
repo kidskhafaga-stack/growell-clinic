@@ -33,6 +33,22 @@ class Vaccine(db.Model):
     route = db.Column(db.String(20))  # طريقة الإعطاء: IM/SC/ID/oral/intranasal
     sort_order = db.Column(db.Integer, default=0)
 
+    # Whether this clinic offers it at all.
+    #
+    # Deliberately *not* `is_discontinued`, which means the manufacturer
+    # stopped making it. A government EPI vaccine is in full production; this
+    # clinic simply does not give it, and the two facts need different answers
+    # — a clinic that hid the national schedule under "discontinued" would be
+    # telling every future reader of that file something untrue.
+    #
+    # It hides the vaccine from the catalogue and from what a family can be
+    # offered. It does **not** touch the child's card, what is due, the
+    # reminders or the certificate: a dose given at the government unit still
+    # has to have somewhere to be recorded, and a child halfway through a
+    # course must not lose the rest of it because of a decision about the
+    # clinic's own shelf.
+    is_offered = db.Column(db.Boolean, default=True, nullable=False)
+
     # Lifecycle: a vaccine may stop production and be replaced by a newer one.
     is_discontinued = db.Column(db.Boolean, default=False, nullable=False)
     replaced_by_id = db.Column(
