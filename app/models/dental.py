@@ -109,6 +109,36 @@ CONDITIONS = [
 WHOLE_TOOTH_CONDITIONS = {"extracted", "missing", "unerupted", "erupting",
                           "mobile", "crown", "root_canal", "pulpotomy"}
 
+# Findings that mean somebody has to do something about this tooth.
+#
+# **This is not a treatment plan and must never become one.** It says the
+# tooth is outstanding, not what to do to it: caries can be a filling, a
+# pulpotomy or an extraction depending on how deep it has gone and how long
+# the tooth has left, and that is the dentist's call in front of the child.
+# A program that read "caries" and wrote "filling" onto a plan would be
+# prescribing from a keyword, and would be wrong on the cases that matter
+# most.
+#
+# What it earns is one thing: the chart can offer a tooth to the plan with
+# the finding attached, so the fact is carried across instead of typed twice.
+NEEDS_WORK = {"caries", "trauma", "mobile", "discoloured"}
+
+
+def outstanding(chart):
+    """Teeth with something on them that has not been dealt with.
+
+    ``chart`` is what :func:`chart_for` returns. The latest finding per
+    surface decides: a surface that was decayed and is now filled is settled,
+    because the newer row replaced the older one in the chart.
+    """
+    out = {}
+    for tooth, surfaces in chart.items():
+        hits = [(surface, row) for surface, row in surfaces.items()
+                if row.condition in NEEDS_WORK]
+        if hits:
+            out[tooth] = hits
+    return out
+
 
 class ToothFinding(db.Model):
     """One thing observed about one surface of one tooth, on one day."""

@@ -26,18 +26,34 @@
     {% for tooth in teeth %}
     {% set found = chart.get(tooth, {}) %}
     {% set worst = found.get('whole') or (found.values()|list|first if found else None) %}
-    <a class="gc-lift" href="{{ url_for('dentistry.tooth_history', patient_id=patient.id, tooth=tooth) }}"
-       title="{{ t('dental.tooth') }} {{ tooth }}"
-       style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-              width:46px;height:52px;border:1px solid var(--line);border-radius:8px;
-              text-decoration:none;color:inherit;
-              background:{{ 'var(--green-050)' if not found else 'var(--warning-050,#fff7ed)' }};">
-      <span style="font-weight:700;font-size:0.85rem;" dir="ltr">{{ tooth }}</span>
-      {% if worst %}
-      <span class="hint" style="font-size:0.6rem;line-height:1;text-align:center;">
-        {{ t('dental.c_' ~ worst.condition) }}</span>
+    {% set needs = tooth in outstanding %}
+    {% set on_plan = tooth in planned %}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <a class="gc-lift" href="{{ url_for('dentistry.tooth_history', patient_id=patient.id, tooth=tooth) }}"
+         title="{{ t('dental.tooth') }} {{ tooth }}"
+         style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                width:46px;height:52px;border-radius:8px;text-decoration:none;color:inherit;
+                border:1px solid {{ 'var(--danger)' if needs and not on_plan else 'var(--line)' }};
+                background:{{ 'var(--green-050)' if not found else 'var(--warning-050,#fff7ed)' }};">
+        <span style="font-weight:700;font-size:0.85rem;" dir="ltr">{{ tooth }}</span>
+        {% if worst %}
+        <span class="hint" style="font-size:0.6rem;line-height:1;text-align:center;">
+          {{ t('dental.c_' ~ worst.condition) }}</span>
+        {% endif %}
+      </a>
+      {# The link the chart and the plan were missing. It carries the tooth
+         and the face across; it never names a procedure, because which
+         treatment a decayed tooth needs is a judgement made in front of the
+         child and not one to infer from the word "caries". #}
+      {% if needs and not on_plan and draft %}
+      <a class="btn btn-sm gc-press" style="padding:0 6px;font-size:.65rem;"
+         href="{{ url_for('dentistry.plan', plan_id=draft.id, tooth=tooth,
+                          surface=outstanding[tooth][0][0]) }}">
+        <i class="bi bi-plus-lg"></i> {{ t('dental.to_plan') }}</a>
+      {% elif on_plan %}
+      <span class="badge badge--green" style="font-size:.6rem;">{{ t('dental.on_plan') }}</span>
       {% endif %}
-    </a>
+    </div>
     {% endfor %}
   </div>
 </div>
