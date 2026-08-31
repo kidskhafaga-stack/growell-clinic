@@ -676,4 +676,40 @@ def _validate(form, existing):
         query = query.filter(User.id != existing.id)
     if query.first() is not None:
         return t("users.username_taken")
+    return _licence_room(form, existing)
+
+
+def _licence_room(form, existing):
+    """Whether the licence pays for one more of what this save would add.
+
+    Asked here rather than in the create route because **editing adds people
+    too**: switching a disabled account back on is one more user on the
+    clinic's payroll as far as a licence is concerned, and ticking
+    "practitioner" on an existing receptionist is one more doctor. A check
+    that only guarded the new-user form would be walked round by two clicks
+    on a screen nobody thought of as adding anybody.
+
+    Only the *transition* counts. Saving an edit to a doctor who is already
+    a doctor is not adding one, and a clinic sitting on or over its limit has
+    to be able to fix a phone number.
+    """
+    from app.utils.licensing import room_for_another
+
+    was_active = existing is not None and existing.is_active
+    if form["is_active"] and not was_active:
+        if not room_for_another("users",
+                                User.query.filter_by(is_active=True).count()):
+            return t("licence.no_room_users")
+
+    was_doctor = was_active and User.sees_patients(
+        existing.role, existing.is_practitioner)
+    will_be_doctor = form["is_active"] and User.sees_patients(
+        form["role"], form["is_practitioner"])
+    if will_be_doctor and not was_doctor:
+        doctors = User.query.filter(
+            User.is_active.is_(True),
+            db.or_(User.role == "doctor",
+                   User.is_practitioner.is_(True))).count()
+        if not room_for_another("doctors", doctors):
+            return t("licence.no_room_doctors")
     return None
