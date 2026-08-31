@@ -3,8 +3,16 @@
 {% block title %}{{ t('checkout.title') }}{% endblock %}
 {% block page_heading %}{{ t('checkout.title') }}{% endblock %}
 
+{# The Material grammar this screen is laid out in. Loaded here because
+   `.md` scopes it: nothing outside this page changes, and the classes below
+   do nothing at all without it — which is exactly how they shipped the first
+   time, markup present and inert. See tests/test_the_material_rollout.py. #}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/material.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="gc-animate" style="max-width:760px;margin:0 auto;"
+<div class="md gc-animate" style="max-width:760px;margin:0 auto;"
      x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }}, {{ suggested_amount or 0 }}, {{ (vaccine_offers_json or [])|tojson }}, {{ ({"id": vaccine_fee.id, "name": vaccine_fee.display_name(current_lang), "price": vaccine_fee.price or 0} if vaccine_fee else None)|tojson }})'>
   <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
     <div>
@@ -73,7 +81,7 @@
        total cannot be read before the charges are picked, and money cannot
        be taken before the total is known. These really are steps in an
        order, not three boxes wearing digits. #}
-    <section class="md-section card gc-scale-in" style="margin-bottom:14px;">
+    <section class="md-section gc-scale-in" style="margin-bottom:14px;">
       <div class="md-section-head">
         <span class="md-step">1</span>
         <h3>{{ t('checkout.step_what') }}</h3>
@@ -163,7 +171,7 @@
       </details>
     </template>
 
-    <section class="md-section card gc-scale-in" style="margin-bottom:14px;">
+    <section class="md-section gc-scale-in" style="margin-bottom:14px;">
       <div class="md-section-head">
         <span class="md-step">2</span>
         <h3>{{ t('checkout.step_total') }}</h3>
@@ -186,7 +194,7 @@
       </tbody></table>
     </section>
 
-    <section class="md-section card gc-scale-in" style="margin-bottom:14px;">
+    <section class="md-section gc-scale-in" style="margin-bottom:14px;">
       <div class="md-section-head">
         <span class="md-step">3</span>
         <h3>{{ t('checkout.collect') }}</h3>
