@@ -164,11 +164,15 @@ def module_enabled(module):
     """
     if module in ALWAYS_ON:
         return True
+    # One read for every module rather than one per module. The sidebar asks
+    # this about all of them while drawing any page, so this was fifteen
+    # queries on every screen in the program.
+    switches = Setting.group("mod_enabled")
     if module in OPT_IN_MODULES:
-        return Setting.get(f"mod_enabled:{module}") == "1"
+        return switches.get(f"mod_enabled:{module}") == "1"
     if not is_configured():
         return True
-    return Setting.get(f"mod_enabled:{module}") != "0"
+    return switches.get(f"mod_enabled:{module}") != "0"
 
 
 def enabled_modules():

@@ -102,3 +102,156 @@ def tooth_history(patient_id, tooth):
     return render_template("dentistry/tooth.html", patient=patient,
                            tooth=tooth, primary=is_primary(tooth),
                            rows=history_for(patient.id, tooth))
+
+
+# ======================================================================
+#   Treatment plans, and the money they commit a family to
+# ======================================================================
+@dentistry_bp.route("/patient/<int:patient_id>/plans")
+@module_required(MODULE)
+def plans(patient_id):
+    """Every plan this child has had, newest first."""
+    from app.models import TreatmentPlan
+
+    patient = db.get_or_404(Patient, patient_id)
+    rows = (TreatmentPlan.query.filter_by(patient_id=patient.id)
+            .order_by(TreatmentPlan.id.desc()).all())
+    return render_template("dentistry/plans.html", patient=patient, plans=rows)
+
+
+@dentistry_bp.route("/patient/<int:patient_id>/plans/new", methods=["POST"])
+@module_required(MODULE)
+def plan_new(patient_id):
+    """Start a draft. Costs nothing and commits nobody."""
+    from app.models import TreatmentPlan
+
+    patient = db.get_or_404(Patient, patient_id)
+    plan = TreatmentPlan(
+        patient_id=patient.id,
+        title=(request.form.get("title") or "").strip()[:120] or None,
+        doctor_id=request.form.get("doctor_id", type=int) or None,
+        created_by=current_user.id)
+    db.session.add(plan)
+    db.session.commit()
+    return redirect(url_for("dentistry.plan", plan_id=plan.id))
+
+
+@dentistry_bp.route("/plan/<int:plan_id>")
+@module_required(MODULE)
+def plan(plan_id):
+    """One plan: what was agreed, how far it has got, and what is owed."""
+    from app.models import Service, TreatmentPlan
+    from app.utils.dental_money import minimum_deposit
+
+    row = db.get_or_404(TreatmentPlan, plan_id)
+    return render_template(
+        "dentistry/plan.html", plan=row, patient=row.patient,
+        teeth=ALL_TEETH,
+        services=(Service.query.filter_by(is_active=True)
+                  .order_by(Service.name).all()),
+        minimum=minimum_deposit(row.total))
+
+
+@dentistry_bp.route("/plan/<int:plan_id>/item", methods=["POST"])
+@module_required(MODULE)
+def plan_item(plan_id):
+    """Add a line. Only to a draft — see `TreatmentPlan.editable`."""
+    from app.models import Service, TreatmentPlan, TreatmentPlanItem
+
+    row = db.get_or_404(TreatmentPlan, plan_id)
+    if not row.editable:
+        flash(t("dental.err_accepted"), "warning")
+        return redirect(url_for("dentistry.plan", plan_id=row.id))
+
+    tooth = request.form.get("tooth", type=int)
+    if tooth and tooth not in ALL_TEETH:
+        flash(t("dental.err_tooth"), "danger")
+        return redirect(url_for("dentistry.plan", plan_id=row.id))
+
+    service_id = request.form.get("service_id", type=int) or None
+    service = db.session.get(Service, service_id) if service_id else None
+    description = (request.form.get("description") or "").strip()
+    if service is not None and not description:
+        description = service.name
+    if not description:
+        flash(t("dental.err_description"), "danger")
+        return redirect(url_for("dentistry.plan", plan_id=row.id))
+
+    price = request.form.get("price", type=float)
+    if price is None and service is not None:
+        price = service.price
+    db.session.add(TreatmentPlanItem(
+        plan_id=row.id, tooth=tooth or None,
+        surface=(request.form.get("surface") or "").strip() or None,
+        service_id=service_id, description=description[:200],
+        price=max(round(price or 0, 2), 0)))
+    db.session.commit()
+    return redirect(url_for("dentistry.plan", plan_id=row.id))
+
+
+@dentistry_bp.route("/plan/<int:plan_id>/accept", methods=["POST"])
+@module_required(MODULE)
+def plan_accept(plan_id):
+    """Turn the agreed plan into a bill.
+
+    The one moment a plan becomes money. Refusals come back as a message on
+    the plan rather than an error page — the person pressing this is at a desk
+    with a family in front of them.
+    """
+    from app.models import TreatmentPlan
+    from app.utils import dental_money
+
+    row = db.get_or_404(TreatmentPlan, plan_id)
+    try:
+        dental_money.accept(row, user_id=current_user.id)
+    except dental_money.DentalMoneyError as exc:
+        db.session.rollback()
+        flash(t(f"dental.err_{exc}"), "danger")
+        return redirect(url_for("dentistry.plan", plan_id=row.id))
+    db.session.commit()
+    flash(t("dental.accepted"), "success")
+    return redirect(url_for("dentistry.plan", plan_id=row.id))
+
+
+@dentistry_bp.route("/plan/<int:plan_id>/deposit", methods=["POST"])
+@module_required(MODULE)
+def plan_deposit(plan_id):
+    """Take money against an accepted plan."""
+    from app.models import TreatmentPlan
+    from app.utils import dental_money
+
+    row = db.get_or_404(TreatmentPlan, plan_id)
+    if not current_user.can_collect:
+        abort(403)
+    try:
+        dental_money.take_deposit(
+            row, request.form.get("amount"),
+            method=(request.form.get("method") or "cash"),
+            user_id=current_user.id)
+    except dental_money.DentalMoneyError as exc:
+        db.session.rollback()
+        flash(t(f"dental.err_{exc}"), "danger")
+        return redirect(url_for("dentistry.plan", plan_id=row.id))
+    db.session.commit()
+    flash(t("dental.deposit_taken"), "success")
+    return redirect(url_for("dentistry.plan", plan_id=row.id))
+
+
+@dentistry_bp.route("/plan/item/<int:item_id>/done", methods=["POST"])
+@module_required(MODULE)
+def item_done(item_id):
+    """Mark one procedure carried out. Does not bill — the plan already did."""
+    from app.models import TreatmentPlanItem
+
+    item = db.get_or_404(TreatmentPlanItem, item_id)
+    item.status = "done"
+    item.done_on = local_today()
+    item.visit_id = request.form.get("visit_id", type=int) or item.visit_id
+    # A plan whose every line is carried out is finished. Said here rather
+    # than left for somebody to notice, so the list of open plans is the list
+    # of work outstanding.
+    plan_row = item.plan
+    if plan_row.accepted and all(i.status == "done" for i in plan_row.live_items):
+        plan_row.status = "done"
+    db.session.commit()
+    return redirect(url_for("dentistry.plan", plan_id=item.plan_id))

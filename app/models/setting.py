@@ -8,6 +8,10 @@ from datetime import datetime
 
 from app.extensions import db
 
+# Prefixes read as a group by `Setting.group`. Writing any key under one
+# has to drop that group's cached read as well as its own.
+GROUPED_PREFIXES = ("mod_enabled:",)
+
 
 class Setting(db.Model):
     __tablename__ = "settings"
@@ -33,6 +37,22 @@ class Setting(db.Model):
         return default if value is None else value
 
     @classmethod
+    def group(cls, prefix):
+        """Every setting under ``prefix:``, as one query, cached per request.
+
+        `module_enabled` is asked once per module while a page is drawn, and
+        the sidebar draws every module — so fifteen keys meant fifteen round
+        trips on every screen in the program. They are one table read.
+        """
+        from app.utils.request_cache import remember
+
+        def load():
+            rows = cls.query.filter(cls.key.like(f"{prefix}:%")).all()
+            return {r.key: r.value for r in rows}
+
+        return remember(f"settings:group:{prefix}", load)
+
+    @classmethod
     def _read(cls, key):
         row = cls.query.filter_by(key=key).first()
         return row.value if row else None
@@ -49,6 +69,13 @@ class Setting(db.Model):
             row.value = str(value)
         # A settings screen has to show what it just saved.
         forget(f"setting:{key}")
+        # And any grouped read that would still be holding the old value —
+        # `module_enabled` reads every `mod_enabled:` row in one query and
+        # caches the lot, so forgetting the single key alone would leave the
+        # module switch you just flipped reading its previous answer for the
+        # rest of the request.
+        if key.startswith(GROUPED_PREFIXES):
+            forget("settings:group:" + key.split(":", 1)[0])
         return row
 
     def __repr__(self):

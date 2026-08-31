@@ -26,6 +26,8 @@ from app.models.nursing_station import NursingStation
 from app.models.vaccine_plan import VaccinePlanItem
 from app.models.dental import (ALL_TEETH, CONDITIONS, PRIMARY_TEETH,
                                PERMANENT_TEETH, SURFACES, ToothFinding)
+from app.models.dental_plan import (ITEM_STATUSES, PLAN_STATUSES,
+                                    TreatmentPlan, TreatmentPlanItem)
 from app.models.reminder_action import ReminderAction
 from app.models.lookup import Lookup
 from app.models.family import Family
@@ -283,6 +285,10 @@ __all__ = [
     "VaccineBrand",
     "VaccineCredit",
     "ToothFinding",
+    "TreatmentPlan",
+    "TreatmentPlanItem",
+    "PLAN_STATUSES",
+    "ITEM_STATUSES",
     "ALL_TEETH",
     "PRIMARY_TEETH",
     "PERMANENT_TEETH",

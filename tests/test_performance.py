@@ -120,8 +120,17 @@ def count_queries(busy, path):
 
 # Ceilings with headroom. One query per row would blow through every one of
 # them by an order of magnitude, which is the point.
+#
+# The home page went from 40 to 41 when the first **opt-in** module arrived.
+# That one is not slack: a module that is off until somebody switches it on
+# cannot know it is off without reading whether anybody did, and every page
+# draws the sidebar. It is one constant read, not a read per row — which is
+# the distinction these numbers exist to hold. The same change made the
+# switches cheaper everywhere it matters: a configured clinic asked one key
+# per module and now asks one query for all of them (see
+# `test_the_module_switches_are_one_query`).
 @pytest.mark.parametrize("path,ceiling", [
-    ("/", 40),
+    ("/", 41),
     ("/patients/", 60),
     ("/appointments/", 90),
     ("/visits/", 40),
@@ -263,3 +272,44 @@ def test_listing_invoices_does_not_load_each_ones_lines(busy):
 def test_the_live_poll_stays_cheap(busy):
     """Every open screen runs this every twelve seconds, all day."""
     assert count_queries(busy, "/appointments/poll") <= 12
+
+
+def test_the_module_switches_are_one_query(clinic):
+    """Fifteen modules, one read.
+
+    The sidebar asks `module_enabled` about every module while drawing any
+    page, and each answer used to be its own cached key — so a configured
+    clinic paid one query per module on every screen in the program. They are
+    one table read, and the first opt-in module is what made anybody look.
+    """
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    from app.models import Setting
+    from app.models.permissions import MODULES
+    from app.utils.facility import module_enabled
+
+    with clinic["app"].app_context():
+        Setting.set("facility_type", "pediatric_center")
+        for module in MODULES:
+            Setting.set(f"mod_enabled:{module}", "1")
+        clinic["db"].session.commit()
+
+    hits = []
+
+    def record(conn, cursor, statement, params, context, many):
+        if "settings" in statement.lower():
+            hits.append(statement)
+
+    with clinic["app"].test_request_context("/"):
+        event.listen(Engine, "before_cursor_execute", record)
+        try:
+            for module in MODULES:
+                module_enabled(module)
+        finally:
+            event.remove(Engine, "before_cursor_execute", record)
+
+    # One for the group of switches, one for `is_configured`. Never one each.
+    assert len(hits) <= 2, (
+        f"{len(hits)} settings queries for {len(MODULES)} modules — the "
+        f"switches are being read one at a time again")
