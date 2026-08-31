@@ -444,6 +444,26 @@ def locked():
         return False
 
 
+def looks_like_a_licence(text):
+    """Whether this is shaped like a licence, without asking who signed it.
+
+    Only used where there is no key to ask with — see :func:`install`. It
+    rejects the paste that went wrong (an empty box, a WhatsApp message, half
+    a line) and nothing else; a signature is what says a licence is genuine,
+    and this cannot and does not try to say that.
+    """
+    text = (text or "").strip()
+    if text.count(".") != 1:
+        return False
+    body, signature = text.split(".")
+    try:
+        payload = json.loads(_b64d(body).decode("utf-8"))
+        _b64d(signature)
+    except Exception:  # noqa: BLE001
+        return False
+    return isinstance(payload, dict)
+
+
 def install(raw):
     """Save a licence, after proving it is one. Returns the verdict.
 
@@ -452,6 +472,21 @@ def install(raw):
     already-expired one is still *saved* — it is genuine, the clinic should be
     able to see what it says, and the screen explains what is wrong with it
     better than a refusal would.
+
+    **A dormant build accepts one too**, and that is not the hole it looks
+    like. It exists because of the order a clinic is switched on in. The
+    public key is what turns enforcement on, so a build with no key that also
+    refused to store a licence could only be licensed key-first — and the
+    moment the key lands the clinic is read-only, staying that way until
+    somebody gets the licence in after it. On a clinic that is already open
+    and working, that window is the middle of a Tuesday.
+
+    Storing it first closes the window: the licence goes in while nothing is
+    enforced, the key follows, and the program comes up licensed. Nothing is
+    trusted any earlier than before — the file is verified on every single
+    read, so an unverifiable one saved now is refused later exactly as it
+    would have been. What is skipped here is a check there was no key to
+    perform.
     """
     text = (raw or "").strip()
     if not text:
@@ -459,8 +494,8 @@ def install(raw):
     verdict = check(text)
     if verdict.state in ("malformed", "bad_signature"):
         raise LicenceError(verdict.state)
-    if verdict.state == "dormant":
-        raise LicenceError("no_vendor_key")
+    if verdict.state == "dormant" and not looks_like_a_licence(text):
+        raise LicenceError("malformed")
     path = licence_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:

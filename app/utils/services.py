@@ -61,6 +61,58 @@ CAPABILITY_SERVICES = {
     "nicu": [("SVC-NICU", "حضّانة (يوم)", "NICU (day)", 1500, "other", "none", 0)],
     "icu": [("SVC-ICU", "رعاية مركزة (يوم)", "ICU (day)", 2000, "other", "none", 0)],
     "ward": [("SVC-WARD", "إقامة داخلية (يوم)", "Inpatient ward (day)", 800, "other", "none", 0)],
+
+    # Paediatric dentistry, and the word paediatric is doing work here. A
+    # general dental list carries implants, bridges and dentures; a
+    # five-year-old has none of them, and every row like that is a row
+    # somebody scrolls past to reach the one they want. What a child's mouth
+    # actually needs is on this list and nothing else is: the pulpotomy, the
+    # stainless steel crown and the space maintainer are here precisely
+    # because the patient is a child.
+    #
+    # Filling, pulp treatment and crown are priced **per tooth**, because that
+    # is how they are agreed and how a treatment plan is built — one line per
+    # tooth, which is what lets a parent hold the statement against their
+    # child's mouth.
+    #
+    # The commission is 40% rather than the 30% every other procedure here
+    # carries. A nebulizer session is set up by a nurse; a filling is the
+    # dentist's own hands for its whole length, and a default that paid it
+    # like a nebulizer would be visibly wrong to the first dentist who read
+    # it. Every figure below is a starting point the clinic edits on the
+    # services screen, the same as the rest of this file.
+    "dentistry": [
+        ("SVC-DENT-EXAM", "كشف أسنان", "Dental examination",
+         300, "consultation", "percent", 40),
+        ("SVC-DENT-EMERG", "علاج ألم طارئ", "Emergency pain relief",
+         400, "procedure", "percent", 40),
+        ("SVC-DENT-CLEAN", "تنظيف وتلميع", "Scale and polish",
+         500, "procedure", "percent", 40),
+        ("SVC-DENT-FLUOR", "تفلور", "Fluoride application",
+         350, "procedure", "percent", 40),
+        ("SVC-DENT-SEAL", "حشو وقائي (سيلانت) — للسن", "Fissure sealant (per tooth)",
+         350, "procedure", "percent", 40),
+        ("SVC-DENT-FILLP", "حشو سن لبني — للسن", "Filling, primary tooth (per tooth)",
+         600, "procedure", "percent", 40),
+        ("SVC-DENT-FILL", "حشو سن دائم — للسن", "Filling, permanent tooth (per tooth)",
+         750, "procedure", "percent", 40),
+        ("SVC-DENT-PULPO", "بتر عصب — للسن", "Pulpotomy (per tooth)",
+         1100, "procedure", "percent", 40),
+        ("SVC-DENT-PULPE", "علاج عصب لبني — للسن", "Pulpectomy, primary tooth (per tooth)",
+         1400, "procedure", "percent", 40),
+        ("SVC-DENT-SSC", "تلبيسة ستانلس — للسن", "Stainless steel crown (per tooth)",
+         1300, "procedure", "percent", 40),
+        ("SVC-DENT-ZR", "تلبيسة تجميلية أمامية — للسن", "Aesthetic anterior crown (per tooth)",
+         1800, "procedure", "percent", 40),
+        ("SVC-DENT-EXTP", "خلع سن لبني", "Extraction, primary tooth",
+         400, "procedure", "percent", 40),
+        ("SVC-DENT-EXT", "خلع سن دائم", "Extraction, permanent tooth",
+         700, "procedure", "percent", 40),
+        ("SVC-DENT-SPACE", "حافظ مسافة", "Space maintainer",
+         1800, "procedure", "percent", 40),
+        ("SVC-DENT-XRAY", "أشعة أسنان", "Dental radiograph",
+         200, "radiology", "percent", 30),
+    ],
 }
 
 
