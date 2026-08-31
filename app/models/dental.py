@@ -67,6 +67,19 @@ def is_anterior(tooth):
 SURFACES = ["mesial", "distal", "buccal", "lingual", "occlusal", "incisal"]
 WHOLE_TOOTH = "whole"
 
+# And a seventh, for the one finding that is not about the tooth at all.
+#
+# A space maintainer is fitted where a tooth **is not**. Filed under "whole"
+# it would be the latest whole-tooth finding on that position and would
+# replace the extraction in the chart — so a tooth that is gone, and is being
+# held open precisely because it is gone, would read as neither extracted nor
+# missing. Two facts, one slot, and the more important one loses.
+#
+# Mutation testing found this: the check that a fitted maintainer settles the
+# question could be deleted with nothing failing, because the maintainer had
+# already overwritten the extraction that raised it.
+SPACE = "space"
+
 # A molar has a biting table; an incisor has an edge. Offering both on every
 # tooth is how a chart ends up holding an occlusal finding on a lower incisor,
 # which is not a place that exists.
@@ -75,9 +88,28 @@ POSTERIOR_SURFACES = ["mesial", "distal", "buccal", "lingual", "occlusal"]
 
 
 def surfaces_of(tooth):
-    """The faces this tooth actually has, plus the whole-tooth entry."""
+    """The faces this tooth actually has, plus the whole-tooth entry.
+
+    ``SPACE`` is not offered here. It is not a face a dentist picks — it is
+    where the program files a space maintainer, and it files it there itself.
+    """
     faces = ANTERIOR_SURFACES if is_anterior(tooth) else POSTERIOR_SURFACES
     return faces + [WHOLE_TOOTH]
+
+
+# Conditions that live in their own slot rather than on a face or on the
+# whole tooth. Kept as a map so the rule is stated once and read by both the
+# chart form and anything else that writes a finding.
+SLOT_CONDITIONS = {"space_maintainer": SPACE}
+
+
+def slot_for(condition, surface):
+    """Where a finding of this condition belongs."""
+    if condition in SLOT_CONDITIONS:
+        return SLOT_CONDITIONS[condition]
+    if condition in WHOLE_TOOTH_CONDITIONS:
+        return WHOLE_TOOTH
+    return surface
 
 
 # --- what can be true of a surface ----------------------------------------
@@ -103,11 +135,13 @@ CONDITIONS = [
     "mobile",           # مخلخل — the baby tooth about to come out
     "trauma",           # كسر / إصابة
     "discoloured",      # تغير لون
+    "space_maintainer",  # حافظ مسافة — see below
 ]
 
 # Conditions that describe the whole tooth and cannot sit on one face.
 WHOLE_TOOTH_CONDITIONS = {"extracted", "missing", "unerupted", "erupting",
-                          "mobile", "crown", "root_canal", "pulpotomy"}
+                          "mobile", "crown", "root_canal", "pulpotomy",
+                          "space_maintainer"}
 
 # Findings that mean somebody has to do something about this tooth.
 #
@@ -122,6 +156,82 @@ WHOLE_TOOTH_CONDITIONS = {"extracted", "missing", "unerupted", "erupting",
 # What it earns is one thing: the chart can offer a tooth to the plan with
 # the finding attached, so the fact is carried across instead of typed twice.
 NEEDS_WORK = {"caries", "trauma", "mobile", "discoloured"}
+
+
+# --- the space a baby tooth leaves behind --------------------------------
+#
+# A primary molar taken out early does not just leave a gap. The teeth beside
+# it drift into it, and by the time the premolar underneath is ready to come
+# through there is nowhere for it to go — so it comes in crooked, or does not
+# come in at all. A space maintainer holds the gap open until it does. This is
+# one of the defining jobs of paediatric dentistry and the reason the chart
+# has to know about it at all.
+#
+# **Which teeth.** The primary molars — positions 4 and 5 in each primary
+# quadrant. Not the incisors: a child who loses an upper front baby tooth
+# early loses very little space, and fitting an appliance for it is a
+# cosmetic decision rather than a space one. Putting them on this list would
+# raise the question on every toddler who fell over, which is how a warning
+# becomes something people click past.
+SPACE_KEEPING_POSITIONS = (4, 5)
+
+# Teeth whose position is no longer being held by anything.
+GONE = {"extracted", "missing"}
+
+# The successor is up and taking the space itself, so nothing needs holding.
+COMING_THROUGH = {"erupting"}
+
+
+def successor_of(tooth):
+    """The permanent tooth that replaces this primary one, or ``None``.
+
+    The numbering does the work: primary quadrants 5–8 sit directly over
+    permanent quadrants 1–4 at the same position, so 55 is replaced by 15 and
+    75 by 35. Only meaningful for primary teeth — a permanent tooth has no
+    successor, which is the whole reason losing one matters more.
+    """
+    if not is_primary(tooth):
+        return None
+    return (tooth // 10 - 4) * 10 + tooth_position(tooth)
+
+
+def spaces_to_decide(chart):
+    """Primary molar spaces with nothing holding them and no decision on file.
+
+    Returns ``{tooth: successor}``.
+
+    **This raises a question; it does not answer one.** Whether a space
+    maintainer goes in depends on how close the premolar underneath is to
+    erupting, on the child's age, and on whether the successor is there at
+    all — read off an X-ray, in front of the child. A program that saw
+    "extracted" and wrote "fit a space maintainer" would be prescribing from a
+    keyword, exactly as one that read "caries" and wrote "filling" would be.
+
+    What it earns is that nobody has to notice. A molar taken out in March is
+    a space that closes quietly over the summer, and the visit where somebody
+    would have spotted it is the one where the child came in about something
+    else.
+    """
+    out = {}
+    for tooth, surfaces in chart.items():
+        if not is_primary(tooth):
+            continue
+        if tooth_position(tooth) not in SPACE_KEEPING_POSITIONS:
+            continue
+        conditions = {row.condition for row in surfaces.values()}
+        if not conditions & GONE:
+            continue
+        # Already answered — something is holding it.
+        if "space_maintainer" in conditions:
+            continue
+        successor = successor_of(tooth)
+        # And answered the other way: the permanent tooth is on its way, so
+        # the space is being taken rather than lost.
+        below = chart.get(successor) or {}
+        if {row.condition for row in below.values()} & COMING_THROUGH:
+            continue
+        out[tooth] = successor
+    return out
 
 
 def outstanding(chart):
@@ -167,6 +277,22 @@ class ToothFinding(db.Model):
     patient = db.relationship("Patient")
     visit = db.relationship("Visit")
     recorder = db.relationship("User")
+
+    @classmethod
+    def record(cls, patient_id, tooth, condition, surface=None, **rest):
+        """Write a finding, placed where that condition belongs.
+
+        The placement rule lives here rather than in the route that happens to
+        call it. It had been in the route, and the test helper wrote rows
+        straight to the model — two ways of doing the same thing, and the one
+        the tests used did not know that a space maintainer goes in its own
+        slot. Mutation testing showed it up: the check that a fitted
+        maintainer settles the space could be deleted with nothing failing,
+        because in the tests the maintainer was still landing on top of the
+        extraction.
+        """
+        return cls(patient_id=patient_id, tooth=tooth, condition=condition,
+                   surface=slot_for(condition, surface or WHOLE_TOOTH), **rest)
 
     @property
     def primary(self):

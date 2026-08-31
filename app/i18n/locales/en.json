@@ -149,7 +149,10 @@
     "to_plan": "To plan",
     "tooth": "Tooth",
     "tooth_empty": "Nothing recorded on this tooth yet.",
-    "upper": "Upper arch"
+    "upper": "Upper arch",
+    "space_open": "space open →",
+    "space_open_note": "A primary tooth is gone and nothing is holding the space. The permanent tooth due here is {n} — whether a maintainer goes in is an X-ray and the child's age.",
+    "c_space_maintainer": "Space maintainer"
   },
   "nav": {
     "dashboard": "Dashboard",
