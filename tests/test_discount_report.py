@@ -16,6 +16,17 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the screens filter by.
+#
+# These built their world with `local_today()` while the report they check
+# filters on `local_today()`, and the two disagree for the three hours a day
+# when it is already tomorrow in Cairo and still today in UTC. The suite went
+# green at 23:28 Cairo and red at 00:20, on the same commit, with nothing
+# changed in between. conftest.py warns about exactly this at the top of the
+# file.
+from app.utils.clock import local_today  # noqa: E402
+
+
 
 def _invoice(clinic, *, gross=200, discount=0, percent=False, rule=None,
              when=None, by=None, status="unpaid"):
@@ -25,7 +36,7 @@ def _invoice(clinic, *, gross=200, discount=0, percent=False, rule=None,
     db = clinic["db"]
     invoice = Invoice(patient_id=clinic["ids"]["child"],
                       invoice_number=f"INV-{Invoice.query.count() + 1:04d}",
-                      invoice_date=when or date.today(), status=status,
+                      invoice_date=when or local_today(), status=status,
                       discount_name=rule,
                       created_by=by or clinic["ids"]["admin"])
     db.session.add(invoice)
@@ -123,11 +134,11 @@ def test_the_period_is_honoured(clinic):
     showed everything would be read as this month's."""
     with clinic["app"].app_context():
         _invoice(clinic, gross=200, discount=50,
-                 when=date.today() - timedelta(days=90))
+                 when=local_today() - timedelta(days=90))
 
-    inside = date.today().replace(day=1)
+    inside = local_today().replace(day=1)
     page = _report(clinic, date_from=inside.isoformat(),
-                   date_to=date.today().isoformat())
+                   date_to=local_today().isoformat())
     assert _word("disc_none") in page
 
 

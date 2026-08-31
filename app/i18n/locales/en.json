@@ -3595,9 +3595,7 @@
     "pick_hint": "This is the only collection screen. If the patient is in front of you from an appointment or a visit, go in from there — this door is for starting without knowing who.",
     "pick_search": "Search by name, code or phone…",
     "pick_none": "No patient by that name",
-    "pick_owing": "Owing money",
-    "step_what": "What for",
-    "step_total": "The total"
+    "pick_owing": "Owing money"
   },
   "report": {
     "title": "Comprehensive medical report",

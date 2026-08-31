@@ -11,14 +11,7 @@
    into the prescriptions tab — without this line the redirect would ask for a
    tab called "meds", nothing would match, and the person would land on a page
    with every panel hidden, having just saved something. #}
-{# No step numbers on this screen, and that is a decision rather than an
-   omission. The booking form and the till are tasks with an order — a slot
-   cannot be picked before a doctor, a total cannot be read before the
-   charges — so numbering them says something true. A patient file is read,
-   not worked through: somebody opens it at the tab they need. Numbering the
-   tabs would put an order on a screen that has none, and a number that
-   describes nothing is a number that misleads. #}
-<div class="md" x-data="{
+<div x-data="{
         inside: { meds: 'prescriptions' },
         tab: 'overview',
         showParent: false,
@@ -168,11 +161,7 @@
   </div>
 
   <!-- Tabs -->
-  {# The tab bar on the page, each panel its own surface below it. It was one
-     card wrapped around the bar and all ten panels, which made the whole file
-     read as a single object — and left nowhere to put a surface without
-     stacking one background on another. #}
-  <div class="gc-animate" style="animation-delay:0.08s;">
+  <div class="card gc-animate" style="animation-delay:0.08s;">
     <div class="gc-tabs">
       {% set ns = namespace(tabs=[
         ('overview','tab_overview','clipboard2-data'),
@@ -209,9 +198,9 @@
        the plain services — كشف, إستشارة — which are most of a real export and
        previously had nowhere to appear at all. #}
     {% if imported %}
-    <div class="gc-tab-panel md-section" x-show="tab==='history'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='history'" x-cloak>
       <div class="card gc-scale-in">
-        <div class="md-section-head"><h2><i class="bi bi-database-down"></i> {{ t('history_import.in_file') }}</h2></div>
+        <h2 class="section-title"><i class="bi bi-database-down"></i> {{ t('history_import.in_file') }}</h2>
         <p class="hint" style="margin:-4px 0 12px;">{{ t('history_import.in_file_hint') }}</p>
         <div style="overflow-x:auto;">
           <table class="table" style="min-width:600px;">
@@ -264,8 +253,8 @@
     {% endif %}
 
     <!-- Overview -->
-    <div class="gc-tab-panel md-section" x-show="tab==='overview'" x-cloak>
-      <div class="md-section-head"><h3><i class="bi bi-person-lines-fill"></i> {{ t('patients.basic_info') }}</h3></div>
+    <div class="gc-tab-panel" x-show="tab==='overview'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-person-lines-fill"></i> {{ t('patients.basic_info') }}</h3>
       <div class="info-grid">
         <div class="info-item"><div class="k">{{ t('patients.file_number') }}</div><div class="v">{{ patient.patient_number }}</div></div>
         <div class="info-item"><div class="k">{{ t('patients.reference_number') }}</div><div class="v">{{ patient.reference_number or '—' }}</div></div>
@@ -287,7 +276,7 @@
       </div>
 
       {% if current_user.can('patient_medical') %}
-      <div class="md-section-head" style="margin-top:24px;"><h3><i class="bi bi-exclamation-triangle"></i> {{ t('patients.medical_alerts') }}</h3></div>
+      <h3 class="section-title" style="margin-top:24px;"><i class="bi bi-exclamation-triangle"></i> {{ t('patients.medical_alerts') }}</h3>
       {% if patient.has_alerts or patient.notes %}
         {% if patient.allergies %}
         <div style="margin-bottom:10px;"><span class="alert-pill danger">{{ t('patients.allergies') }}</span>
@@ -305,7 +294,7 @@
       {% endif %}
 
       <!-- Problem list (GAHAR): structured ongoing/past problems across visits -->
-      <div class="md-section-head" style="margin-top:24px;" id="problems"><h3><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3></div>
+      <h3 class="section-title" style="margin-top:24px;" id="problems"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3>
       {% set active_problems = patient.problems | selectattr('status', 'equalto', 'active') | list %}
       {% set resolved_problems = patient.problems | selectattr('status', 'equalto', 'resolved') | list %}
       {% if active_problems %}
@@ -434,7 +423,7 @@
       </form>
 
       <!-- Consent (GAHAR): guardian-signed documented consents -->
-      <div class="md-section-head" style="margin-top:24px;" id="consent"><h3><i class="bi bi-file-earmark-check"></i> {{ t('consent.title_list') }}</h3></div>
+      <h3 class="section-title" style="margin-top:24px;" id="consent"><i class="bi bi-file-earmark-check"></i> {{ t('consent.title_list') }}</h3>
       {% if patient.consents %}
       <div style="display:flex;flex-direction:column;gap:8px;">
         {% for cs in patient.consents %}
@@ -494,7 +483,7 @@
     </div>
 
     <!-- Family -->
-    <div class="gc-tab-panel md-section" x-show="tab==='family'" x-cloak x-data="{ editFamily: false }">
+    <div class="gc-tab-panel" x-show="tab==='family'" x-cloak x-data="{ editFamily: false }">
       {% if patient.family %}
       <div class="card" style="box-shadow:none;border:1px solid var(--line);margin-bottom:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -537,7 +526,7 @@
       </div>
       {% endif %}
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-people"></i> {{ t('patients.parents') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-people"></i> {{ t('patients.parents') }}</h3>
         <button class="btn btn-primary btn-sm gc-press gc-ripple" x-on:click="showParent=true">
           <i class="bi bi-person-plus"></i> {{ t('patients.add_parent') }}
         </button>
@@ -818,9 +807,9 @@
 
     {% if current_user.can('patient_medical') %}
     <!-- Visits -->
-    <div class="gc-tab-panel md-section" x-show="tab==='visits'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='visits'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.title') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.title') }}</h3>
         {% if current_user.can_access('visits') %}
         <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('visits.start', patient_id=patient.id) }}">
           <i class="bi bi-plus-circle"></i> {{ t('visits.start_visit') }}</a>
@@ -858,9 +847,9 @@
        spirometry rows out of the echoes by eye — and a study with three values
        out of range looked exactly like one with none, because the row showed
        only a date and a device name. #}
-    <div class="gc-tab-panel md-section" x-show="tab==='studies'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='studies'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-activity"></i> {{ t('study.title_list') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-activity"></i> {{ t('study.title_list') }}</h3>
         {% if current_user.can_access('visits') %}
         <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('visits.study_new', patient_id=patient.id) }}">
           <i class="bi bi-plus-circle"></i> {{ t('study.new') }}</a>
@@ -941,9 +930,9 @@
     </div>
 
     <!-- Growth -->
-    <div class="gc-tab-panel md-section" x-show="tab==='growth'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='growth'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-graph-up"></i> {{ t('growth.title') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-graph-up"></i> {{ t('growth.title') }}</h3>
         {% if current_user.can_access('growth') %}
         <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('growth.view', patient_id=patient.id) }}">
           <i class="bi bi-graph-up-arrow"></i> {{ t('growth.open_chart') }}</a>
@@ -964,9 +953,9 @@
     </div>
 
     <!-- Vaccinations -->
-    <div class="gc-tab-panel md-section" x-show="tab==='vaccinations'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='vaccinations'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-shield-plus"></i> {{ t('nav.vaccinations') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-shield-plus"></i> {{ t('nav.vaccinations') }}</h3>
         {% if current_user.can_access('vaccinations') %}
         <a class="btn btn-primary btn-sm gc-press gc-ripple" href="{{ url_for('vaccinations.view', patient_id=patient.id) }}">
           <i class="bi bi-shield-check"></i> {{ t('vaccinations.open_schedule') }}</a>
@@ -1084,8 +1073,8 @@
     </div>
 
     <!-- Documents / attachments -->
-    <div class="gc-tab-panel md-section" x-show="tab==='documents'" x-cloak>
-      <div class="md-section-head"><h3><i class="bi bi-folder2-open"></i> {{ t('patients.documents_title') }}</h3></div>
+    <div class="gc-tab-panel" x-show="tab==='documents'" x-cloak>
+      <h3 class="section-title"><i class="bi bi-folder2-open"></i> {{ t('patients.documents_title') }}</h3>
       {% set docs = patient.attachments | sort(attribute='created_at', reverse=true) %}
       {% if docs %}
       <table class="table">
@@ -1113,7 +1102,7 @@
       <p style="color:var(--muted);">{{ t('visits.no_attachments') }}</p>
       {% endif %}
 
-      <div class="md-section-head" style="margin-top:18px;"><h4><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</h4></div>
+      <h4 class="section-title" style="margin-top:18px;"><i class="bi bi-upload"></i> {{ t('visits.att_upload') }}</h4>
       <form method="post" action="{{ url_for('patients.upload_document', patient_id=patient.id) }}" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="info-grid">
@@ -1132,9 +1121,9 @@
     </div>
 
     <!-- Prescriptions -->
-    <div class="gc-tab-panel md-section" x-show="tab==='prescriptions'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='prescriptions'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-capsule"></i> {{ t('patients.tab_prescriptions') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-capsule"></i> {{ t('patients.tab_prescriptions') }}</h3>
         {% if current_user.can_access('prescriptions') %}
         <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}"><i class="bi bi-plus-lg"></i> {{ t('rx.new') }}</a>
         {% endif %}
@@ -1160,7 +1149,7 @@
          letting the screen imply a check that cannot happen. #}
       {% if current_user.can('patient_medical') %}
       <div class="card gc-scale-in no-print" id="meds" style="scroll-margin-top:80px;">
-        <div class="md-section-head"><h2><i class="bi bi-capsule"></i> {{ t('meds.title') }}</h2></div>
+        <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('meds.title') }}</h2>
         <p class="hint" style="margin-top:-6px;">{{ t('meds.hint') }}</p>
 
         {% set ongoing = medications | selectattr('is_current') | list %}
@@ -1249,9 +1238,9 @@
 
     {% if current_user.can('cashier') or current_user.can_access('finance') %}
     <!-- Finance -->
-    <div class="gc-tab-panel md-section" x-show="tab==='finance'" x-cloak>
+    <div class="gc-tab-panel" x-show="tab==='finance'" x-cloak>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div class="md-section-head" style="margin:0;"><h3><i class="bi bi-cash-coin"></i> {{ t('patients.tab_finance') }}</h3></div>
+        <h3 class="section-title" style="margin:0;"><i class="bi bi-cash-coin"></i> {{ t('patients.tab_finance') }}</h3>
         {% if current_user.can_access('reports') %}
         <a class="btn btn-outline btn-sm gc-press" target="_blank"
            href="{{ url_for('reports.patient_statement', patient_id=patient.id) }}">
@@ -1289,7 +1278,7 @@
   {% if ai_patient %}
   <!-- AI assistant (reads this patient's file — opt-in, privacy-aware) -->
   <div class="card gc-scale-in" x-data="patientAI('{{ url_for('ai.patient_chat', patient_id=patient.id) }}')">
-    <div class="md-section-head"><h3><i class="bi bi-robot"></i> {{ t('patients.ai_title') }}</h3></div>
+    <h3 class="section-title"><i class="bi bi-robot"></i> {{ t('patients.ai_title') }}</h3>
     <div x-ref="log" style="max-height:40vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;">
       <template x-for="(m,i) in messages" :key="i">
         <div :style="m.role==='user' ? 'align-self:flex-end;background:var(--green-100,#e6f4ea);' : 'align-self:flex-start;background:var(--surface-2,#f3f4f6);'"
@@ -1333,7 +1322,7 @@
        which of the two answered, and a disclaimer that is on the screen rather
        than trusted to the model. -->
   <div class="card gc-scale-in" x-data="patientAI('{{ url_for('ai.patient_discuss', patient_id=patient.id) }}')">
-    <div class="md-section-head"><h3><i class="bi bi-chat-square-text"></i> {{ t('ai.discuss_title') }}</h3></div>
+    <h3 class="section-title"><i class="bi bi-chat-square-text"></i> {{ t('ai.discuss_title') }}</h3>
     <p class="info-note" style="margin:0 0 10px;"><i class="bi bi-exclamation-triangle"></i>
       {{ t('ai.discuss_disclaimer') }}</p>
     <div x-ref="log" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;">
@@ -1420,11 +1409,6 @@
 {% endblock %}
 
 {% block head %}
-{# The clinic's visual language, arriving here as the roll-out reaches the
-   patient file. `.md` scopes it, so this page opts in and no other screen
-   changes on the way. See tests/test_the_material_rollout.py, which refuses
-   the markup without the link. #}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/material.css') }}">
 <style>[x-cloak]{ display:none !important; }</style>
 {% endblock %}
 
