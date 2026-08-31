@@ -3,8 +3,16 @@
 {% block title %}{{ t('checkout.title') }}{% endblock %}
 {% block page_heading %}{{ t('checkout.title') }}{% endblock %}
 
+{# The Material grammar this screen is laid out in. Loaded here because
+   `.md` scopes it: nothing outside this page changes, and the classes below
+   do nothing at all without it — which is exactly how they shipped the first
+   time, markup present and inert. See tests/test_the_material_rollout.py. #}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/material.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="gc-animate" style="max-width:760px;margin:0 auto;"
+<div class="md gc-animate" style="max-width:760px;margin:0 auto;"
      x-data='checkout({{ lines|tojson }}, {{ payment_methods|tojson }}, {{ suggested_amount or 0 }}, {{ (vaccine_offers_json or [])|tojson }}, {{ ({"id": vaccine_fee.id, "name": vaccine_fee.display_name(current_lang), "price": vaccine_fee.price or 0} if vaccine_fee else None)|tojson }})'>
   <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
     <div>
@@ -64,9 +72,20 @@
        *while billing it* — the answer comes back empty and the invoice is
        saved with no doctor and no commission. #}
     {% if doctor %}<input type="hidden" name="doctor_id" value="{{ doctor.id }}">{% endif %}
-    <!-- Services / charges -->
-    <div class="card gc-scale-in" style="margin-bottom:14px;">
-      <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('checkout.services') }}</h2>
+    {# Three sections, in the order the job has: what is being charged, what
+       it comes to, and the money. It was a flat stack of cards — a list of
+       controls rather than a description of a task — which is the same shape
+       the booking form was in before it was laid out this way.
+
+       The numbering is honest here for the same reason it is there: the
+       total cannot be read before the charges are picked, and money cannot
+       be taken before the total is known. These really are steps in an
+       order, not three boxes wearing digits. #}
+    <section class="md-section gc-scale-in" style="margin-bottom:14px;">
+      <div class="md-section-head">
+        <span class="md-step">1</span>
+        <h3>{{ t('checkout.step_what') }}</h3>
+      </div>
       {% if lines|selectattr('dose_id', 'defined')|list %}
       <p class="hint" style="margin-top:-6px;"><i class="bi bi-info-circle"></i> {{ t('checkout.includes_carryover') }}</p>
       {% endif %}
@@ -112,48 +131,56 @@
         </select>
         <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
       </div>
-    </div>
+      {# Selling a vaccine forward, on reception's own screen. It went
+         onto the invoice builder first — which is the screen this change
+         exists to keep them off.
 
-    {# Selling a vaccine forward, on reception's own screen. It went onto the
-       invoice builder first — which is the screen this change exists to keep
-       them off. #}
-    <template x-if="offers.length">
-      <details class="card gc-scale-in" style="margin-bottom:14px;">
-        <summary class="section-title" style="cursor:pointer;">
-          <i class="bi bi-shield-plus"></i> {{ t('invoices.add_vaccine') }}</summary>
-        <p class="hint" style="margin-top:8px;">{{ t('invoices.add_vaccine_hint') }}</p>
-        <div class="form-grid" style="margin-top:6px;">
-          <div class="form-row"><label>{{ t('vaccinations.cert_vaccine') }}</label>
-            <select class="select" x-model="vac.vaccineId" x-on:change="onVaccine()">
-              <option value="">—</option>
-              <template x-for="v in offers" :key="v.id">
-                <option :value="v.id" x-text="v.name"></option>
-              </template>
-            </select></div>
-          <div class="form-row"><label>{{ t('vaccinations.brand') }}</label>
-            <select class="select" x-model="vac.brandId" x-on:change="onBrand()" :disabled="!vac.vaccineId">
-              <option value="">—</option>
-              <template x-for="b in brands()" :key="b.id">
-                <option :value="b.id" x-text="b.name + ' — ' + b.price + ' · ' + '{{ t('vaccinations.stock_available') }}: ' + b.stock"></option>
-              </template>
-            </select></div>
-          <div class="form-row"><label>{{ t('vaccinations.dose') }}</label>
-            <select class="select" x-model.number="vac.dose" :disabled="!vac.brandId">
-              <template x-for="d in doses()" :key="d.number">
-                <option :value="d.number" :disabled="d.given"
-                        x-text="d.label + (d.given ? ' — {{ t('vaccinations.already_given') }}' : '')"></option>
-              </template>
-            </select></div>
-        </div>
-        <button type="button" class="btn btn-primary btn-sm gc-press"
-                @click="addVaccine()" :disabled="!vac.brandId || !vac.dose">
-          <i class="bi bi-plus-lg"></i> {{ t('invoices.add_to_bill') }}</button>
-        <p class="hint" style="margin-top:8px;">{{ t('invoices.fee_once_hint') }}</p>
-      </details>
-    </template>
+         Inside step one, because it is a charge on this invoice and step
+         one is what is being charged for. It sat between steps one and
+         two, belonging to neither — which reads as the refund's kind of
+         thing, and it is not: the refund is money going the other way,
+         this is another line on the same bill. #}
+      <template x-if="offers.length">
+        <details class="gc-scale-in" style="margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;">
+          <summary class="section-title" style="cursor:pointer;">
+            <i class="bi bi-shield-plus"></i> {{ t('invoices.add_vaccine') }}</summary>
+          <p class="hint" style="margin-top:8px;">{{ t('invoices.add_vaccine_hint') }}</p>
+          <div class="form-grid" style="margin-top:6px;">
+            <div class="form-row"><label>{{ t('vaccinations.cert_vaccine') }}</label>
+              <select class="select" x-model="vac.vaccineId" x-on:change="onVaccine()">
+                <option value="">—</option>
+                <template x-for="v in offers" :key="v.id">
+                  <option :value="v.id" x-text="v.name"></option>
+                </template>
+              </select></div>
+            <div class="form-row"><label>{{ t('vaccinations.brand') }}</label>
+              <select class="select" x-model="vac.brandId" x-on:change="onBrand()" :disabled="!vac.vaccineId">
+                <option value="">—</option>
+                <template x-for="b in brands()" :key="b.id">
+                  <option :value="b.id" x-text="b.name + ' — ' + b.price + ' · ' + '{{ t('vaccinations.stock_available') }}: ' + b.stock"></option>
+                </template>
+              </select></div>
+            <div class="form-row"><label>{{ t('vaccinations.dose') }}</label>
+              <select class="select" x-model.number="vac.dose" :disabled="!vac.brandId">
+                <template x-for="d in doses()" :key="d.number">
+                  <option :value="d.number" :disabled="d.given"
+                          x-text="d.label + (d.given ? ' — {{ t('vaccinations.already_given') }}' : '')"></option>
+                </template>
+              </select></div>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm gc-press"
+                  @click="addVaccine()" :disabled="!vac.brandId || !vac.dose">
+            <i class="bi bi-plus-lg"></i> {{ t('invoices.add_to_bill') }}</button>
+          <p class="hint" style="margin-top:8px;">{{ t('invoices.fee_once_hint') }}</p>
+        </details>
+      </template>
+    </section>
 
-    <!-- Discount + totals -->
-    <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <section class="md-section gc-scale-in" style="margin-bottom:14px;">
+      <div class="md-section-head">
+        <span class="md-step">2</span>
+        <h3>{{ t('checkout.step_total') }}</h3>
+      </div>
       <div class="form-row" style="margin:0 0 10px;"><label>{{ t('checkout.discount') }}</label>
         <select class="select" name="discount_id" x-model="discountId" @change="recalc()">
           <option value="">— {{ t('discounts.auto_mode') }} —</option>
@@ -170,12 +197,14 @@
         <tr x-show="discountAmt>0"><td>{{ t('checkout.discount') }}</td><td style="text-align:end;color:var(--danger);"><span x-text="'−'+discountAmt.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
         <tr style="font-weight:800;font-size:1.05rem;border-top:2px solid var(--line);"><td>{{ t('invoices.total') }}</td><td style="text-align:end;"><span x-text="total.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
       </tbody></table>
-    </div>
+    </section>
 
-    <!-- Payment (split) -->
-    <div class="card gc-scale-in" style="margin-bottom:14px;">
-      <h2 class="section-title"><i class="bi bi-wallet2"></i> {{ t('checkout.collect') }}</h2>
-      <p class="hint" style="margin-top:-6px;">{{ t('checkout.collect_hint') }}</p>
+    <section class="md-section gc-scale-in" style="margin-bottom:14px;">
+      <div class="md-section-head">
+        <span class="md-step">3</span>
+        <h3>{{ t('checkout.collect') }}</h3>
+        <span class="md-sub">{{ t('checkout.collect_hint') }}</span>
+      </div>
       <template x-for="(p, i) in payments" :key="i">
         <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
           <input class="input" type="number" step="0.01" min="0" name="amount" x-model.number="p.amount" @input="recalc()" style="flex:1;" :placeholder="remaining.toFixed(2)">
@@ -201,7 +230,7 @@
       </tbody></table>
       <p class="hint" style="margin:6px 0 0;color:var(--danger);" x-show="change>0.001" x-cloak>
         {{ t('checkout.change_hint') }}</p>
-    </div>
+    </section>
 
     {# Nothing left to charge. The screen used to look identical to a normal
        one — an empty table, a zero total, and a confirm button that saved

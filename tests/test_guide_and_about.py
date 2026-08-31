@@ -183,6 +183,68 @@ def test_every_section_points_at_a_module_that_exists():
     assert unknown_modules() == []
 
 
+def test_every_module_has_a_section():
+    """The mirror of the test above, and the one that was missing.
+
+    That one catches a section pointing at a module that does not exist. This
+    one catches a **module the guide has never heard of** — which is how
+    dentistry arrived: a tooth chart, treatment plans and deposits shipped
+    while the handbook said nothing about any of it, and a dentist opened the
+    guide to find the screens they spend the day in were not in it.
+
+    It is the same shape of gap as the dental price list: a module added
+    without being added to the map beside it. This is the thing that notices
+    the next one.
+    """
+    from app.utils.handbook import modules_without_a_section
+
+    assert modules_without_a_section() == []
+
+
+def test_a_dentist_is_told_about_the_money_and_the_line_it_does_not_cross():
+    """The two things a dental guide has to say, spot-checked on content.
+
+    That a plan bills **once**, at acceptance — a dentist who thinks each
+    visit bills will collect twice. And that the chart does not choose the
+    treatment, which is the promise the code makes and the guide has to
+    make with it, or a dentist will expect the program to suggest one and
+    read its silence as a fault.
+    """
+    from app.utils.handbook import SECTIONS
+
+    dentistry = next(s for s in SECTIONS if s["key"] == "dentistry")
+    arabic = " ".join(ar for ar, _ in dentistry["lines"])
+    english = " ".join(en for _, en in dentistry["lines"])
+
+    assert "فاتورة واحدة" in arabic
+    assert "one invoice for the agreed total" in english
+    # And the space maintainer, which is why this section exists at all in
+    # the shape it does: it says what the chart asks, and that it does not
+    # answer it.
+    assert "حافظ المسافة" in arabic or "حافظ مسافة" in arabic
+    assert "Space maintainer" in english
+
+
+def test_the_vaccination_guide_says_what_a_doctor_can_change():
+    """A guide that lists screens is a menu. What a doctor needs is which of
+    the program's own answers they are allowed to overrule — because every one
+    of them is a guess the program made and marked as a guess.
+
+    All four are things this program infers and a doctor corrects: a seeded
+    schedule, an inferred dose number, an interval warning that does not
+    block, and two products that continue one course.
+    """
+    from app.utils.handbook import SECTIONS
+
+    section = next(s for s in SECTIONS if s["key"] == "vaccinations")
+    arabic = " ".join(ar for ar, _ in section["lines"])
+
+    assert "الجداول المزروعة تتعدّل" in arabic          # the schedule
+    assert "رقم الجرعة" in arabic                        # the dose number
+    assert "تحذير مش منع" in arabic                      # the interval
+    assert "بيكمّلوا بعض" in arabic                       # the equivalence
+
+
 def test_every_bullet_is_written_in_both_languages():
     """Half of this program's users read English and half read Arabic.
 

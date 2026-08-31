@@ -259,6 +259,183 @@ SECTIONS = [
              "source\u201d changes <b>where the information came from</b>, "
              "along with the name, age band and brand. An empty box means "
              "\u201cno value\u201d, not \u201cleave it alone\u201d."),
+
+            ("<b>قبل ما تدّي الجرعة، البرنامج بيتأكد من 4 حاجات وبيقولك</b>: "
+             "إن الجرعة دي مش متسجّلة قبل كده، إن الكورس مش خلص، إن الفاصل "
+             "الزمني عن الجرعة اللي قبلها كفاية (بيطلع تحذير بالأيام والحد "
+             "الأدنى)، وإنه بيخصم من <u>أقرب أمبولة انتهاءً</u>. التحذير "
+             "بتاع الفاصل <b>تحذير مش منع</b> — القرار قرارك.",
+             "<b>Before a dose is given the program checks four things and "
+             "tells you</b>: that this dose is not already recorded, that the "
+             "course is not finished, that enough time has passed since the "
+             "previous dose (a warning naming the days and the minimum), and "
+             "it deducts from the <u>nearest-expiry</u> vial. The interval "
+             "warning is a <b>warning, not a block</b> — the call is yours."),
+
+            ("<b>معلومات كل لقاح طبياً</b> — الأمراض اللي بيغطيها، السن "
+             "الأدنى والأقصى، موانع الاستعمال، الاحتياطات، الأعراض الجانبية، "
+             "أقل فاصل بين الجرعات، ملاحظات التطعيم مع لقاحات تانية، "
+             "وملاحظات اللحاق (catch-up)، والمصدر. كلها بتتكتب من شاشة "
+             "اللقاح وبتظهر للي بيدّي الجرعة.",
+             "<b>Each vaccine's medical information</b> — diseases covered, "
+             "minimum and maximum age, contraindications, precautions, adverse "
+             "events, minimum interval, co-administration and catch-up notes, "
+             "and the source. All entered on the vaccine's screen and shown to "
+             "whoever gives the dose."),
+
+            ("<b>جرعة اتاخدت برّه العيادة</b> بتتسجّل بعلامة «خارج العيادة» "
+             "ومكانها. ده بيخلّي الجرعة في ملف الطفل — فالكورس ما بيبتديش من "
+             "الأول — من غير ما تتخصم من مخزنك ولا تدخل في فلوسك.",
+             "<b>A dose given elsewhere</b> is recorded as \u201cgiven "
+             "outside\u201d with the place. That keeps it in the child's "
+             "record \u2014 so the course is not restarted \u2014 without "
+             "touching your stock or your books."),
+
+            ("<b>الجرعة المسجّلة غلط بتتصلّح، مش بتتمسح وتتكتب تاني.</b> من "
+             "الملف تقدر تغيّر <b>رقم الجرعة</b> وتاريخها وهل كانت برّه "
+             "العيادة. ده موجود عشان تاريخ متنقول من برنامج قديم بيرقّم "
+             "الجرعات بترتيب تواريخها هو شايفها — طفل خد اتنين عندك وواحدة "
+             "برّه والبوستر عندك بيطلع 1 و2 و3 وهو في الحقيقة 1 و3 و4. "
+             "البرنامج بيخمّن، وانت بتصحّح.",
+             "<b>A dose recorded wrongly is corrected, not deleted and "
+             "re-entered.</b> From the file you can change its <b>dose "
+             "number</b>, its date, and whether it was given outside. This "
+             "exists because a history imported from an old program numbers "
+             "doses by the order of the dates it can see \u2014 a child who "
+             "had two here, one elsewhere and the booster here comes out 1, 2, "
+             "3 when they are really 1, 3, 4. The program infers; you "
+             "correct."),
+
+            ("<b>لقاحين مختلفين لنفس المرض بيكمّلوا بعض.</b> طفل خد 3 جرعات "
+             "سينفلوريكس وبعدين بريفينار مش بيبتدي من الأول. من شاشة اللقاح "
+             "تقول «الجرعات دي بتُحتسب من الكورس ده» وتحدد لحد أنهي جرعة. "
+             "من غير ده الشهادة بتقول إنه واخد الكورس كله من صنف واحد، وده "
+             "مش صحيح.",
+             "<b>Two different products can continue one course.</b> A child "
+             "who had three Synflorix and then a Prevenar does not start "
+             "again. On the vaccine's screen you say \u201cdoses of this one "
+             "count towards that course\u201d, up to a dose number you set. "
+             "Without it the certificate reads as a whole course of one "
+             "brand, which is not what happened."),
+
+            ("<b>الشهادة بتقول الاسم التجاري لكل جرعة</b> والاسم العام فوقه، "
+             "وبتميّز الجرعة المنشطة. وفيها كود QR بيفتح صفحة تحقق — الجهة "
+             "اللي استلمت الشهادة تقدر تتأكد إنها طالعة من عندك.",
+             "<b>The certificate names the brand on every dose</b> with the "
+             "generic name above it, and marks a booster as a booster. It "
+             "carries a QR code opening a verification page, so whoever "
+             "receives it can check it came from you."),
+        ],
+    },
+    {
+        # Dentistry is opt-in, so `visible_to` hides this from every clinic
+        # that has not switched the module on — which is most of them. A
+        # paediatric practice is not shown a guide to a tooth chart it does
+        # not have.
+        "key": "dentistry",
+        "module": "dentistry",
+        "icon": "emoji-smile",
+        "title": ("عيادة الأسنان", "The dental clinic"),
+        "lines": [
+            ("<b>خريطة الأسنان بترقيم FDI</b> — الرقم نفسه بيقول لبني ولا "
+             "دائم: 16 ضرس دائم و55 اللبني اللي فوقه. الفكّين بيتعرضوا مع "
+             "بعض على طول، لإن الطفل من 6 لـ12 سنة بيبقى عنده الاتنين، "
+             "وخريطة بتوري واحد بس بتوري نص الفم.",
+             "<b>An FDI tooth chart</b> \u2014 the number itself says primary "
+             "or permanent: 16 is the adult molar, 55 the baby one above it. "
+             "Both dentitions are always on one page, because between six and "
+             "twelve a child has both and a chart showing one shows half a "
+             "mouth."),
+
+            ("<b>الملاحظة بتتسجّل على سطح، مش على سن.</b> تسوس على سطح "
+             "العض في 55 وحشو على السطح اللي بينه وبين 54 دول حاجتين. "
+             "الأسنان الأمامية ملهاش سطح عض والضروس ملهاش حرف قاطع — "
+             "البرنامج بيرفض سطح مش موجود في السن ده بدل ما يخزّنه.",
+             "<b>A finding belongs to a surface, not to a tooth.</b> Caries on "
+             "the biting surface of 55 and a filling between 55 and 54 are two "
+             "different facts. Front teeth have no biting table and molars no "
+             "incisal edge \u2014 a surface the tooth does not have is refused "
+             "rather than stored."),
+
+            ("<b>مفيش حاجة بتتمسح.</b> سن اتحشى السنة اللي فاتت وبيتسوّس "
+             "تاني السنة دي ليه تاريخ، والتاريخ ده هو الحجة للتلبيسة. "
+             "الخريطة بتوري الأحدث لكل سطح، والملف ماسك الباقي.",
+             "<b>Nothing is deleted.</b> A tooth filled last year and decayed "
+             "again this year has a history, and that history is the argument "
+             "for a crown. The chart shows the latest per surface; the file "
+             "keeps the rest."),
+
+            ("<b>الخطة هي الفلوس.</b> المسوّدة بتتكتب وتتسعّر وتترمي من غير "
+             "أي أثر في الدفاتر. لما الأهل يوافقوا، «قبول الخطة» بيطلع "
+             "<u>فاتورة واحدة بإجمالي متفق عليه</u> — مش فاتورة لكل خطوة — "
+             "وكل بند فيها مكتوب عليه السن، عشان الأب يقدر يقارن الكشف "
+             "بفم ابنه. بعد القبول الخطة ما بتتعدّلش: ده اللي الأهل "
+             "وافقوا عليه.",
+             "<b>The plan is the money.</b> A draft is written, priced and "
+             "thrown away with nothing in the books. When the family agrees, "
+             "\u201caccept\u201d raises <u>one invoice for the agreed "
+             "total</u> \u2014 not one per step \u2014 and every line names "
+             "its tooth so a parent can hold the statement against their "
+             "child's mouth. An accepted plan is not editable: it is what the "
+             "family agreed to."),
+
+            ("<b>الدفعة المقدمة دفعة عادية على الفاتورة دي</b> — نفس الرصيد "
+             "المتبقي، ونفس كشف الحساب، ونفس تقرير الأعمار. تقدر تحدد نسبة "
+             "مقدم في الإعدادات (<b>dental_deposit_percent</b>) والشاشة "
+             "هتقولها، <b>بس مش هتمنع أقل منها</b>: أهل بيدفعوا النص "
+             "النهاردة والباقي الأحد ده يوم عادي، وبرنامج بيرفض فلوسهم "
+             "برنامج الناس بتلفّ حواليه. وتنفيذ بند من الخطة <b>ما بيحاسبش "
+             "تاني</b> — الخطة اتحاسبت مرة واحدة عند القبول.",
+             "<b>A deposit is an ordinary payment on that invoice</b> "
+             "\u2014 same running balance, same statement, same aging report. "
+             "You can set an asking percentage in settings "
+             "(<b>dental_deposit_percent</b>) and the screen will show it, "
+             "<b>but it never refuses less</b>: a parent paying half today and "
+             "the rest on Sunday is a normal afternoon, and a program that "
+             "refuses their money is one the desk works around. Carrying out a "
+             "planned item <b>does not bill again</b> \u2014 the plan was "
+             "billed once, at acceptance."),
+
+            ("<b>الخريطة بتناول السن للخطة، ومش بتقترح العلاج.</b> السن "
+             "اللي عليه حاجة بيتعلّم، وبيتبعت للمسوّدة برقمه والسطح بتاعه "
+             "والملاحظة — <u>من غير إجراء ولا سعر</u>. التسوس ممكن يكون حشو "
+             "أو بتر عصب أو خلع حسب عمقه وعمر السن، وده حكمك انت قدام "
+             "الطفل. برنامج يقرا «تسوس» ويكتب «حشو» بيوصف علاج من كلمة.",
+             "<b>The chart hands a tooth to the plan; it does not suggest the "
+             "treatment.</b> A tooth with something on it is marked and can be "
+             "sent to the draft with its number, its surface and the finding "
+             "\u2014 <u>and no procedure and no price</u>. Caries can be a "
+             "filling, a pulpotomy or an extraction depending on how deep it "
+             "has gone and how long the tooth has left, and that is your call "
+             "in front of the child."),
+
+            ("<b>حافظ المسافة.</b> ضرس لبني راح بدري بيسيب مكان بتزحف عليه "
+             "الأسنان اللي جنبه، والضاحك اللي تحته بيلاقي المكان قافل. "
+             "الخريطة <b>بترفع السؤال</b> على الضروس اللبنية (المكان 4 و5) "
+             "اللي اتخلعت أو مفقودة ومفيش حاجة ماسكة مكانها، وبتقولك السن "
+             "الدائم الجاي رقم كام عشان تبص على الأشعة الصح. <u>البرنامج "
+             "ما بيقولش «ركّب حافظ»</u> — القرار على الأشعة وعمر الطفل، "
+             "والقواطع الأمامية أصلاً بتفقد مسافة قليلة. لما تركّب واحد "
+             "بتسجّله على السن (<b>حافظ مسافة</b>) والتنبيه بيقفل.",
+             "<b>Space maintainers.</b> A primary molar lost early leaves a "
+             "gap the neighbouring teeth drift into, and the premolar "
+             "underneath arrives to find it closed. The chart <b>raises the "
+             "question</b> on primary molars (positions 4 and 5) that are gone "
+             "with nothing holding the space, and names the permanent tooth "
+             "due there so you know which X-ray to read. <u>It never says "
+             "\u201cfit one\u201d</u> \u2014 that is the X-ray and the "
+             "child's age, and front teeth lose very little space anyway. "
+             "Recording a fitted maintainer on the tooth closes the prompt."),
+
+            ("<b>الأسعار بتاعتك انت.</b> تعليم «أسنان» في تصطيب البرنامج "
+             "بيزرع قائمة أسعار أسنان أطفال — حشو وبتر عصب وتلبيسة ستانلس "
+             "وحافظ مسافة وخلع، واللبني متسعّر غير الدائم. كل سعر وكل "
+             "نسبة عمولة بتتعدّل من شاشة الخدمات.",
+             "<b>The prices are yours.</b> Ticking \u201cdentistry\u201d in "
+             "the setup wizard seeds a paediatric dental price list "
+             "\u2014 fillings, pulpotomy, stainless steel crown, space "
+             "maintainer, extraction, with primary and permanent priced apart. "
+             "Every price and commission is editable on the services screen."),
         ],
     },
     {
@@ -631,6 +808,23 @@ def visible_to(user, section, module_enabled=None):
 def sections_for(user, module_enabled=None):
     """The sections this user's role can act on."""
     return [s for s in SECTIONS if visible_to(user, s, module_enabled)]
+
+
+def modules_without_a_section():
+    """Modules the guide says nothing about.
+
+    The mirror of :func:`unknown_modules`, and the one that was missing.
+    That function catches a section pointing at a module that does not exist;
+    nothing caught a **module with no section**, so dentistry was added — a
+    tooth chart, treatment plans, deposits — and the guide stayed silent about
+    all of it. A dentist opened the handbook and found nothing about the
+    screens they spend the day in.
+
+    ``ALWAYS_ON`` members that are pure plumbing are not excused: `settings`
+    and `users` both have sections, and `dashboard` does too.
+    """
+    covered = {s["module"] for s in SECTIONS if s.get("module")}
+    return [m for m in MODULES if m not in covered]
 
 
 def unknown_modules():

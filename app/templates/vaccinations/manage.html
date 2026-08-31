@@ -63,6 +63,35 @@
   </form>
 </details>
 
+{# What this clinic follows, first on the screen it governs.
+
+   It used to be in the settings page, in the *clinic identity* tab, between
+   the timezone and the clinic's Arabic name — reported as not being there at
+   all, which is the right reading of a screen that files a clinical policy
+   under the phone number. Every other answer about how this clinic
+   vaccinates is decided on this page; this is the one that decides which of
+   them the program believes by default. #}
+<div class="card gc-scale-in" style="animation-delay:0.05s;margin-bottom:14px;
+     border-inline-start:4px solid var(--primary,#0d6efd);">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-journal-medical"></i>
+    {{ t('settings.guideline_profile') }}</h2>
+  <form method="post" action="{{ url_for('vaccinations.guideline') }}"
+        style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:240px;flex:1 1 240px;">
+      <select class="select" name="vaccine_guideline_profile">
+        {% for key in guideline_profiles %}
+        <option value="{{ key }}" {{ 'selected' if guideline_current == key else '' }}>
+          {{ t('settings.guideline_' ~ key) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press gc-ripple" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  <div class="hint" style="margin-top:8px;">{{ t('settings.guideline_profile_hint') }}</div>
+</div>
+
 <!-- Default catalogue loader (government EPI / optional sets) -->
 <details class="card gc-scale-in" style="animation-delay:0.055s;">
   <summary class="section-title" style="cursor:pointer;"><i class="bi bi-cloud-download"></i> {{ t('vaccinations.catalogue_settings') }}</summary>

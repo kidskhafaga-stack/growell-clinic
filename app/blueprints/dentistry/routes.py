@@ -17,7 +17,7 @@ from app.models import Patient
 from app.models.dental import (ALL_TEETH, CONDITIONS, PERMANENT_TEETH,
                                PRIMARY_TEETH, WHOLE_TOOTH,
                                WHOLE_TOOTH_CONDITIONS, ToothFinding, chart_for,
-                               history_for, is_primary, surfaces_of)
+                               history_for, is_primary, slot_for, surfaces_of)
 from app.utils.clock import local_today
 from app.utils.decorators import module_required
 
@@ -33,7 +33,7 @@ def chart(patient_id):
     both and a chart that shows one of them is showing half a mouth.
     """
     from app.models import TreatmentPlan
-    from app.models.dental import outstanding
+    from app.models.dental import outstanding, spaces_to_decide
 
     patient = db.get_or_404(Patient, patient_id)
     drawn = chart_for(patient.id)
@@ -54,6 +54,10 @@ def chart(patient_id):
     return render_template(
         "dentistry/chart.html", patient=patient,
         chart=drawn, outstanding=outstanding(drawn),
+        # Primary molar spaces with nothing holding them and no decision on
+        # file. A question for the dentist, never an instruction — see
+        # `spaces_to_decide`.
+        spaces=spaces_to_decide(drawn),
         draft=draft, planned=planned,
         permanent=PERMANENT_TEETH, primary=PRIMARY_TEETH,
         conditions=CONDITIONS, whole=WHOLE_TOOTH,
@@ -88,14 +92,18 @@ def record(patient_id):
 
     surface = (request.form.get("surface") or WHOLE_TOOTH).strip()
     # Some findings are about the tooth, not one of its faces: a tooth is not
-    # missing "on the buccal side".
-    if condition in WHOLE_TOOTH_CONDITIONS:
-        surface = WHOLE_TOOTH
-    if surface not in surfaces_of(tooth):
+    # missing "on the buccal side". And a space maintainer is about neither —
+    # it is fitted where a tooth is not, so it gets its own slot rather than
+    # overwriting the extraction that made the space.
+    # Where the finding belongs is the model's rule, not this route's — see
+    # `ToothFinding.record`. Asked here only so a surface the tooth does not
+    # have is refused before anything is written.
+    placed = slot_for(condition, surface)
+    if placed == surface and surface not in surfaces_of(tooth):
         flash(t("dental.err_surface"), "danger")
         return redirect(url_for("dentistry.chart", patient_id=patient.id))
 
-    db.session.add(ToothFinding(
+    db.session.add(ToothFinding.record(
         patient_id=patient.id, tooth=tooth, surface=surface,
         condition=condition,
         note=(request.form.get("note") or "").strip()[:300] or None,
