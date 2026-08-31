@@ -1200,7 +1200,8 @@
     "group_closed": "Window closed — not for this age",
     "group_closed_hint": "Either the product itself is not licensed at this age, or the reference this clinic follows does not describe it. No dose is offered; the row is kept so one given elsewhere can be recorded.",
     "tpl_edit": "Edit this schedule and its source",
-    "tpl_dose_saved": "Dose updated."
+    "tpl_dose_saved": "Dose updated.",
+    "err_guideline": "Unknown guideline"
   },
   "vstatus": {
     "done": "Done",
@@ -1583,7 +1584,8 @@
     "ai_discussion_hint": "Different from the above. That one reads the file and writes from it only. This one reasons beyond the file — it suggests possible diagnoses and a plan, as a discussion and not a diagnosis. It also needs \"allow the assistant to read patient files\", and it is off by default. No doses are given here; the prescription screen has its own dose tool.",
     "secret_saved": "a key is saved",
     "secret_clear": "remove the saved key",
-    "secret_hint": "A saved key is never sent back to this page. Leave the box empty to keep it."
+    "secret_hint": "A saved key is never sent back to this page. Leave the box empty to keep it.",
+    "guideline_moved": "Set on the vaccination management screen, where it belongs."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -3584,7 +3586,9 @@
     "pick_hint": "This is the only collection screen. If the patient is in front of you from an appointment or a visit, go in from there — this door is for starting without knowing who.",
     "pick_search": "Search by name, code or phone…",
     "pick_none": "No patient by that name",
-    "pick_owing": "Owing money"
+    "pick_owing": "Owing money",
+    "step_what": "What for",
+    "step_total": "The total"
   },
   "report": {
     "title": "Comprehensive medical report",

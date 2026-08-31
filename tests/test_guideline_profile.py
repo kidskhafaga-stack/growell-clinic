@@ -345,18 +345,24 @@ def test_the_wording_exists_in_both_languages(seeded):
 def test_every_reference_can_be_picked_and_every_source_can_be_written(seeded):
     """The picker offers what the engine reads, and the editor can write it.
 
-    Both were hand-written lists once. The settings picker named three of the
+    Both were hand-written lists once. The picker named three of the
     references and the schedule editor named four of the sources, and `cdc`
     was in neither — so a clinic could be handed a CDC schedule and had no way
     to correct one.
+
+    The picker is read on the vaccination management screen rather than in
+    settings, which is where it moved to. It had been in the settings page's
+    **clinic identity** tab, between the timezone and the clinic's Arabic
+    name, and was reported as not being there at all — a fair reading of a
+    screen that files a clinical policy under the phone number.
     """
     from app.models import Vaccine, VaccineScheduleTemplate
 
     client = seeded["sign_in"]("boss")
-    page = client.get("/settings/").get_data(as_text=True)
+    page = client.get("/vaccinations/manage").get_data(as_text=True)
     for profile in VaccineScheduleTemplate.GUIDELINE_PROFILES:
         assert f'value="{profile}"' in page, \
-            f"the settings picker cannot choose {profile}"
+            f"the picker cannot choose {profile}"
 
     with seeded["app"].app_context():
         vaccine_id = Vaccine.query.first().id
@@ -366,3 +372,46 @@ def test_every_reference_can_be_picked_and_every_source_can_be_written(seeded):
     for source in VaccineScheduleTemplate.SOURCES:
         assert f'value="{source}"' in editor, \
             f"the schedule editor cannot author a {source} row"
+
+
+def test_the_guideline_is_set_where_it_is_read(seeded):
+    """On the screen it governs, and it saves from there.
+
+    Reported as missing: *"vaccine_guideline_profile — ده فين فى الاعدادات مش
+    لاقيه اصلاً"*. It was in the settings page all along, in the clinic
+    identity tab between the timezone and the clinic name — findable only by
+    somebody who already knew where to look, which is not what a settings
+    screen is for.
+    """
+    from app.models import Setting
+    from app.utils.vaccines import guideline_profile
+
+    client = seeded["sign_in"]("boss")
+    client.post("/vaccinations/manage/guideline",
+                data={"vaccine_guideline_profile": "who"},
+                follow_redirects=True)
+    with seeded["app"].app_context():
+        assert Setting.get("vaccine_guideline_profile") == "who"
+        assert guideline_profile() == "who"
+
+
+def test_a_guideline_nobody_publishes_is_refused(seeded):
+    """The value arrives from a form anybody can retype, and an unknown one
+    stored here would send the whole engine looking for schedules tagged with
+    a name nothing wrote."""
+    from app.models import Setting
+
+    client = seeded["sign_in"]("boss")
+    client.post("/vaccinations/manage/guideline",
+                data={"vaccine_guideline_profile": "whatever"},
+                follow_redirects=True)
+    with seeded["app"].app_context():
+        assert Setting.get("vaccine_guideline_profile") != "whatever"
+
+
+def test_settings_still_points_at_it(seeded):
+    """People will look in settings, because that is where it was. A control
+    that moved and left nothing behind is a control somebody hunts for
+    twice."""
+    page = seeded["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+    assert "/vaccinations/manage" in page

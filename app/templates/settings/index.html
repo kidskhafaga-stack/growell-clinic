@@ -161,20 +161,20 @@
         <div class="alert-pill danger" style="margin-top:6px;">
           <i class="bi bi-exclamation-octagon"></i> {{ t('settings.timezone_broken') }}</div>
         {% endif %}</div>
-      {# Which published guideline the vaccination engine follows. A policy,
-         not a code path: the same product can carry two positions — Bexsero's
-         course is the European label's from two months and the CDC's from ten
-         years — and changing this recomputes from the doses already on file
-         without re-entering a single one. #}
+      {# The vaccination guideline used to be here, between the timezone and
+         the clinic's name — a clinical policy filed under the clinic's phone
+         number, and reported as simply not being findable. It is on the
+         vaccination management screen now, which is where every other answer
+         about how this clinic vaccinates is decided. `/settings/` still
+         accepts the key; only the control moved. #}
+      {% if module_enabled('vaccinations') %}
       <div class="form-row"><label>{{ t('settings.guideline_profile') }}</label>
-        {% set gp = guideline_current %}
-        <select class="select" name="vaccine_guideline_profile">
-          {% for key in guideline_profiles %}
-          <option value="{{ key }}" {{ 'selected' if gp == key else '' }}>
-            {{ t('settings.guideline_' ~ key) }}</option>
-          {% endfor %}
-        </select>
-        <div class="hint">{{ t('settings.guideline_profile_hint') }}</div></div>
+        <a class="btn btn-outline btn-sm gc-press"
+           href="{{ url_for('vaccinations.manage') }}">
+          <i class="bi bi-box-arrow-up-right" ></i>
+          {{ t('settings.guideline_' ~ guideline_current) }}</a>
+        <div class="hint">{{ t('settings.guideline_moved') }}</div></div>
+      {% endif %}
       <div class="form-row"><label>{{ t('settings.clinic_name_ar') }}</label>
         <input class="input" name="clinic_name_ar" value="{{ values.get('clinic_name_ar','') }}"></div>
       <div class="form-row"><label>{{ t('settings.clinic_name_en') }}</label>

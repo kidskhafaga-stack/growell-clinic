@@ -519,10 +519,52 @@ def manage():
     else:
         cat = "all"
         vaccines = all_vaccines
+    from app.models.vaccine import VaccineScheduleTemplate
+    from app.utils.vaccines import guideline_profile
+
     return render_template("vaccinations/manage.html", vaccines=vaccines,
                            routes=VACCINE_ROUTES, cat=cat, counts=counts,
+                           # Which published guideline this clinic follows.
+                           # Shown here because this is where somebody looks
+                           # for it — see `guideline`.
+                           guideline_profiles=VaccineScheduleTemplate.GUIDELINE_PROFILES,
+                           guideline_current=guideline_profile(),
                            load_gov=Setting.get("load_gov_vaccines", "1") != "0",
                            load_optional=Setting.get("load_optional_vaccines", "1") != "0")
+
+
+@vaccinations_bp.route("/manage/guideline", methods=["POST"])
+@module_required(MODULE)
+def guideline():
+    """Which published guideline the whole engine follows.
+
+    It lived in the settings screen, in the **clinic identity** tab, between
+    the timezone and the clinic's Arabic name. Reported as simply not being
+    there: *"vaccine_guideline_profile — ده فين فى الاعدادات مش لاقيه اصلاً"*,
+    which is the correct reading of a screen that files a clinical policy
+    under the clinic's phone number.
+
+    It belongs on the screen it governs. Every other answer about how this
+    clinic vaccinates — which vaccines, which brands, which schedule, which
+    dose at which age — is decided here, and this is the one that decides
+    which of them the program believes by default.
+
+    ``/settings/`` still accepts the key. Somebody's bookmark, an import, and
+    the setup wizard all post there, and taking it away would break them to
+    make a point about where a control is drawn.
+    """
+    from app.models.vaccine import VaccineScheduleTemplate
+
+    chosen = (request.form.get("vaccine_guideline_profile") or "").strip()
+    if chosen not in VaccineScheduleTemplate.GUIDELINE_PROFILES:
+        flash(t("vaccinations.err_guideline"), "danger")
+        return redirect(url_for("vaccinations.manage"))
+    Setting.set("vaccine_guideline_profile", chosen)
+    ActivityLog.record("vaccine.guideline", user_id=current_user.id,
+                       entity="settings", detail=chosen, ip_address=client_ip())
+    db.session.commit()
+    flash(t("common.saved"), "success")
+    return redirect(url_for("vaccinations.manage"))
 
 
 @vaccinations_bp.route("/manage/catalogue", methods=["POST"])

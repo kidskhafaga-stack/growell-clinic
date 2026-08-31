@@ -64,9 +64,20 @@
        *while billing it* — the answer comes back empty and the invoice is
        saved with no doctor and no commission. #}
     {% if doctor %}<input type="hidden" name="doctor_id" value="{{ doctor.id }}">{% endif %}
-    <!-- Services / charges -->
-    <div class="card gc-scale-in" style="margin-bottom:14px;">
-      <h2 class="section-title"><i class="bi bi-list-check"></i> {{ t('checkout.services') }}</h2>
+    {# Three sections, in the order the job has: what is being charged, what
+       it comes to, and the money. It was a flat stack of cards — a list of
+       controls rather than a description of a task — which is the same shape
+       the booking form was in before it was laid out this way.
+
+       The numbering is honest here for the same reason it is there: the
+       total cannot be read before the charges are picked, and money cannot
+       be taken before the total is known. These really are steps in an
+       order, not three boxes wearing digits. #}
+    <section class="md-section card gc-scale-in" style="margin-bottom:14px;">
+      <div class="md-section-head">
+        <span class="md-step">1</span>
+        <h3>{{ t('checkout.step_what') }}</h3>
+      </div>
       {% if lines|selectattr('dose_id', 'defined')|list %}
       <p class="hint" style="margin-top:-6px;"><i class="bi bi-info-circle"></i> {{ t('checkout.includes_carryover') }}</p>
       {% endif %}
@@ -112,7 +123,7 @@
         </select>
         <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
       </div>
-    </div>
+    </section>
 
     {# Selling a vaccine forward, on reception's own screen. It went onto the
        invoice builder first — which is the screen this change exists to keep
@@ -152,8 +163,11 @@
       </details>
     </template>
 
-    <!-- Discount + totals -->
-    <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <section class="md-section card gc-scale-in" style="margin-bottom:14px;">
+      <div class="md-section-head">
+        <span class="md-step">2</span>
+        <h3>{{ t('checkout.step_total') }}</h3>
+      </div>
       <div class="form-row" style="margin:0 0 10px;"><label>{{ t('checkout.discount') }}</label>
         <select class="select" name="discount_id" x-model="discountId" @change="recalc()">
           <option value="">— {{ t('discounts.auto_mode') }} —</option>
@@ -170,12 +184,14 @@
         <tr x-show="discountAmt>0"><td>{{ t('checkout.discount') }}</td><td style="text-align:end;color:var(--danger);"><span x-text="'−'+discountAmt.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
         <tr style="font-weight:800;font-size:1.05rem;border-top:2px solid var(--line);"><td>{{ t('invoices.total') }}</td><td style="text-align:end;"><span x-text="total.toFixed(2)"></span> {{ currency_symbol() }}</td></tr>
       </tbody></table>
-    </div>
+    </section>
 
-    <!-- Payment (split) -->
-    <div class="card gc-scale-in" style="margin-bottom:14px;">
-      <h2 class="section-title"><i class="bi bi-wallet2"></i> {{ t('checkout.collect') }}</h2>
-      <p class="hint" style="margin-top:-6px;">{{ t('checkout.collect_hint') }}</p>
+    <section class="md-section card gc-scale-in" style="margin-bottom:14px;">
+      <div class="md-section-head">
+        <span class="md-step">3</span>
+        <h3>{{ t('checkout.collect') }}</h3>
+        <span class="md-sub">{{ t('checkout.collect_hint') }}</span>
+      </div>
       <template x-for="(p, i) in payments" :key="i">
         <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
           <input class="input" type="number" step="0.01" min="0" name="amount" x-model.number="p.amount" @input="recalc()" style="flex:1;" :placeholder="remaining.toFixed(2)">
@@ -201,7 +217,7 @@
       </tbody></table>
       <p class="hint" style="margin:6px 0 0;color:var(--danger);" x-show="change>0.001" x-cloak>
         {{ t('checkout.change_hint') }}</p>
-    </div>
+    </section>
 
     {# Nothing left to charge. The screen used to look identical to a normal
        one — an empty table, a zero total, and a confirm button that saved
