@@ -102,3 +102,75 @@ def test_the_money_step_still_takes_money(booked):
     page = _screen(booked)
     assert 'name="amount"' in page
     assert 'name="method"' in page
+
+
+def test_selling_a_vaccine_is_part_of_what_is_being_charged(booked):
+    """It is a line on this bill, so it belongs to step one.
+
+    It sat between steps one and two, inside neither, which reads as the
+    refund's kind of thing — a separate act parked on the same screen. It is
+    not: the refund is money going the other way, this is another charge on
+    the same invoice, and reception adds it in the same breath as the
+    consultation fee.
+
+    Asserted on position, because "the block is on the page" was already true
+    while it was in the wrong place.
+    """
+    page = _screen(booked)
+    opens_one = page.find('md-step">1<')
+    vaccine = page.find('x-if="offers.length"')
+    assert opens_one > -1
+    assert vaccine > -1, "the vaccine block is not on the screen at all"
+
+    # Before step one's *closing tag* — not merely before step two's number.
+    # The first version of this asserted `step1 < vaccine < step2`, which is
+    # true of the bug it was written for: the block sat between the two
+    # sections, inside neither, and still fell between their two markers.
+    # Mutation testing put it back there and nothing failed.
+    closes_one = page.find("</section>", opens_one)
+    assert closes_one > -1
+    assert vaccine < closes_one, \
+        "the vaccine block is not inside step one, only near it"
+
+
+def test_the_refund_still_sits_outside_the_steps(booked):
+    """The other half of that judgement, so moving one did not move both.
+
+    Money going out is a different act from money coming in, and numbering it
+    would read as the last thing you do when collecting.
+    """
+    # The panel only appears for a patient who has actually paid something —
+    # refunding an unpaid invoice is a discount, not a refund. So there has to
+    # be a paid invoice, or this test skips and proves nothing.
+    _a_paid_invoice(booked)
+
+    page = _screen(booked)
+    # The rendered URL, not the endpoint name. `invoice_refund` is what
+    # `url_for` is *given*; what reaches the browser is the path, and a test
+    # searching for the endpoint name finds nothing and skips itself into
+    # meaninglessness — which is what the first version of this did.
+    refund = page.find("/refund")
+    last_step = page.find('md-step">3<')
+    assert refund > -1, "the refund panel is not on the screen at all"
+    assert refund > last_step
+    assert 'md-step">4<' not in page
+
+
+def _a_paid_invoice(clinic):
+    """Something collected from this child, so the refund panel is drawn."""
+    from app.models import Invoice, InvoiceItem, Payment
+    from app.utils.finance import generate_invoice_number
+
+    with clinic["app"].app_context():
+        invoice = Invoice(invoice_number=generate_invoice_number(),
+                          patient_id=clinic["ids"]["child"])
+        clinic["db"].session.add(invoice)
+        clinic["db"].session.flush()
+        clinic["db"].session.add(InvoiceItem(
+            invoice_id=invoice.id, service_id=clinic["ids"]["exam"],
+            description="كشف", unit_price=200, quantity=1))
+        clinic["db"].session.add(Payment(
+            invoice_id=invoice.id, amount=200, method="cash", kind="payment"))
+        clinic["db"].session.flush()
+        invoice.recalc_status()
+        clinic["db"].session.commit()

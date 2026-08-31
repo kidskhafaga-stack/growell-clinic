@@ -131,45 +131,50 @@
         </select>
         <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
       </div>
-    </section>
+      {# Selling a vaccine forward, on reception's own screen. It went
+         onto the invoice builder first — which is the screen this change
+         exists to keep them off.
 
-    {# Selling a vaccine forward, on reception's own screen. It went onto the
-       invoice builder first — which is the screen this change exists to keep
-       them off. #}
-    <template x-if="offers.length">
-      <details class="card gc-scale-in" style="margin-bottom:14px;">
-        <summary class="section-title" style="cursor:pointer;">
-          <i class="bi bi-shield-plus"></i> {{ t('invoices.add_vaccine') }}</summary>
-        <p class="hint" style="margin-top:8px;">{{ t('invoices.add_vaccine_hint') }}</p>
-        <div class="form-grid" style="margin-top:6px;">
-          <div class="form-row"><label>{{ t('vaccinations.cert_vaccine') }}</label>
-            <select class="select" x-model="vac.vaccineId" x-on:change="onVaccine()">
-              <option value="">—</option>
-              <template x-for="v in offers" :key="v.id">
-                <option :value="v.id" x-text="v.name"></option>
-              </template>
-            </select></div>
-          <div class="form-row"><label>{{ t('vaccinations.brand') }}</label>
-            <select class="select" x-model="vac.brandId" x-on:change="onBrand()" :disabled="!vac.vaccineId">
-              <option value="">—</option>
-              <template x-for="b in brands()" :key="b.id">
-                <option :value="b.id" x-text="b.name + ' — ' + b.price + ' · ' + '{{ t('vaccinations.stock_available') }}: ' + b.stock"></option>
-              </template>
-            </select></div>
-          <div class="form-row"><label>{{ t('vaccinations.dose') }}</label>
-            <select class="select" x-model.number="vac.dose" :disabled="!vac.brandId">
-              <template x-for="d in doses()" :key="d.number">
-                <option :value="d.number" :disabled="d.given"
-                        x-text="d.label + (d.given ? ' — {{ t('vaccinations.already_given') }}' : '')"></option>
-              </template>
-            </select></div>
-        </div>
-        <button type="button" class="btn btn-primary btn-sm gc-press"
-                @click="addVaccine()" :disabled="!vac.brandId || !vac.dose">
-          <i class="bi bi-plus-lg"></i> {{ t('invoices.add_to_bill') }}</button>
-        <p class="hint" style="margin-top:8px;">{{ t('invoices.fee_once_hint') }}</p>
-      </details>
-    </template>
+         Inside step one, because it is a charge on this invoice and step
+         one is what is being charged for. It sat between steps one and
+         two, belonging to neither — which reads as the refund's kind of
+         thing, and it is not: the refund is money going the other way,
+         this is another line on the same bill. #}
+      <template x-if="offers.length">
+        <details class="gc-scale-in" style="margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;">
+          <summary class="section-title" style="cursor:pointer;">
+            <i class="bi bi-shield-plus"></i> {{ t('invoices.add_vaccine') }}</summary>
+          <p class="hint" style="margin-top:8px;">{{ t('invoices.add_vaccine_hint') }}</p>
+          <div class="form-grid" style="margin-top:6px;">
+            <div class="form-row"><label>{{ t('vaccinations.cert_vaccine') }}</label>
+              <select class="select" x-model="vac.vaccineId" x-on:change="onVaccine()">
+                <option value="">—</option>
+                <template x-for="v in offers" :key="v.id">
+                  <option :value="v.id" x-text="v.name"></option>
+                </template>
+              </select></div>
+            <div class="form-row"><label>{{ t('vaccinations.brand') }}</label>
+              <select class="select" x-model="vac.brandId" x-on:change="onBrand()" :disabled="!vac.vaccineId">
+                <option value="">—</option>
+                <template x-for="b in brands()" :key="b.id">
+                  <option :value="b.id" x-text="b.name + ' — ' + b.price + ' · ' + '{{ t('vaccinations.stock_available') }}: ' + b.stock"></option>
+                </template>
+              </select></div>
+            <div class="form-row"><label>{{ t('vaccinations.dose') }}</label>
+              <select class="select" x-model.number="vac.dose" :disabled="!vac.brandId">
+                <template x-for="d in doses()" :key="d.number">
+                  <option :value="d.number" :disabled="d.given"
+                          x-text="d.label + (d.given ? ' — {{ t('vaccinations.already_given') }}' : '')"></option>
+                </template>
+              </select></div>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm gc-press"
+                  @click="addVaccine()" :disabled="!vac.brandId || !vac.dose">
+            <i class="bi bi-plus-lg"></i> {{ t('invoices.add_to_bill') }}</button>
+          <p class="hint" style="margin-top:8px;">{{ t('invoices.fee_once_hint') }}</p>
+        </details>
+      </template>
+    </section>
 
     <section class="md-section gc-scale-in" style="margin-bottom:14px;">
       <div class="md-section-head">
