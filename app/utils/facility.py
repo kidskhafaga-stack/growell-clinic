@@ -164,6 +164,15 @@ def module_enabled(module):
     """
     if module in ALWAYS_ON:
         return True
+    # The licence narrows, it never widens. A clinic that has not switched a
+    # specialty on does not get it because a licence mentions it, and one
+    # that has switched it on loses it if the licence does not — so both
+    # questions are asked and both have to say yes. A licence that says
+    # nothing about modules (every one issued before the field existed)
+    # answers yes to all of them.
+    from app.utils.licensing import module_licensed
+    if not module_licensed(module):
+        return False
     # One read for every module rather than one per module. The sidebar asks
     # this about all of them while drawing any page, so this was fifteen
     # queries on every screen in the program.

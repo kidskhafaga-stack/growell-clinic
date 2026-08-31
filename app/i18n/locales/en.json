@@ -5468,6 +5468,12 @@
     "err_malformed": "That file is not a licence",
     "err_bad_signature": "Not signed by this program's publisher",
     "err_no_vendor_key": "This build does not check licences",
-    "err_no_crypto": "The verification library is not installed"
+    "err_no_crypto": "The verification library is not installed",
+    "no_room_users": "This licence does not pay for more users. Everyone already here keeps working — renew to add more.",
+    "no_room_doctors": "This licence does not pay for more doctors. Everyone already here keeps working — renew to add more.",
+    "no_room_services": "This licence does not pay for more services. What is already here stays.",
+    "seats_users": "Users",
+    "seats_doctors": "Doctors",
+    "seats_full": "licence limit reached"
   }
 }

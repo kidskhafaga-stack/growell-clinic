@@ -45,6 +45,18 @@ class User(UserMixin, db.Model):
     # practitioners so they appear in the appointments / doctor pickers without
     # every admin showing up as a doctor.
     is_practitioner = db.Column(db.Boolean, default=False, nullable=False)
+
+    @staticmethod
+    def sees_patients(role, is_practitioner):
+        """Whether somebody with this role and flag consults.
+
+        Stated once because two things ask it and they must not drift: the
+        licence counts these as doctor seats, and the pickers show them. A
+        doctor is `role == "doctor"`; the flag is what lets a non-doctor role
+        — an admin who also sees patients — join them without every admin
+        being counted as a doctor.
+        """
+        return role == "doctor" or bool(is_practitioner)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(30))
     # Preferred UI language, applied on login (doctors default to English).

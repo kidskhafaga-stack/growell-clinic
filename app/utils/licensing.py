@@ -464,6 +464,87 @@ def looks_like_a_licence(text):
     return isinstance(payload, dict)
 
 
+# --- how much of the program a licence pays for -----------------------------
+#
+# Three numbers and a list, all optional. A licence that says nothing about
+# them buys the whole program, which is what every licence issued before this
+# existed says — so adding this cannot narrow anything already in the field.
+#
+# **Zero means no limit, and absent means no limit.** Not "none allowed". A
+# clinic whose licence forgot to mention doctors must not find it cannot add
+# one; the failure of an unspecified field has to fall on the side of the
+# clinic keeping working.
+COUNTED = ("doctors", "users", "services")
+
+
+def limit(name):
+    """How many of ``name`` this licence allows. ``0`` means no limit.
+
+    The dormant check below is belt to the braces of an invariant rather than
+    a live branch: :func:`check` returns before it parses anything when there
+    is no vendor key, so a dormant verdict carries an empty payload and this
+    would answer 0 regardless. It is kept because the invariant is not
+    visible from here, and a later change that gave a dormant verdict a
+    payload would otherwise start enforcing limits on builds that enforce
+    nothing. The invariant itself is pinned by a test.
+    """
+    verdict = status()
+    if not verdict.enforced:
+        return 0
+    limits = verdict.payload.get("limits")
+    if not isinstance(limits, dict):
+        return 0
+    try:
+        return max(0, int(limits.get(name) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def room_for_another(name, current):
+    """Whether one more ``name`` may be added, given ``current`` of them.
+
+    **Nothing existing is ever touched.** A clinic running five doctors that
+    renews onto a three-doctor licence keeps all five: they are already on the
+    rota, already seeing children, and already in last month's figures.
+    What it cannot do is add a sixth.
+
+    That is the same shape as read-only, and for the same reason. A commercial
+    limit that reached backwards and switched off two doctors would be
+    settling a billing question by closing a clinic in the middle of a
+    Tuesday.
+    """
+    allowed = limit(name)
+    return allowed == 0 or current < allowed
+
+
+def licensed_modules():
+    """The modules this licence pays for, or ``None`` when it says nothing.
+
+    ``None`` is not "no modules" — it is "this licence does not talk about
+    modules", which every licence issued before this field existed does not.
+    """
+    verdict = status()
+    if not verdict.enforced:
+        return None
+    modules = verdict.payload.get("modules")
+    if not isinstance(modules, list):
+        return None
+    return {str(m) for m in modules}
+
+
+def module_licensed(module):
+    """Whether the licence permits ``module``.
+
+    The licence **narrows**; it never widens. A clinic that has not switched
+    dentistry on does not get it because a licence mentions it, and a clinic
+    that has switched it on loses it if the licence does not. The two
+    questions are asked separately and both have to say yes — see
+    ``facility.module_enabled``.
+    """
+    allowed = licensed_modules()
+    return allowed is None or module in allowed
+
+
 def install(raw):
     """Save a licence, after proving it is one. Returns the verdict.
 

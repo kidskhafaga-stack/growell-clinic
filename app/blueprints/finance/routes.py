@@ -490,6 +490,14 @@ def service_new():
     if not name:
         flash(t("common.required") + ": " + t("services.name"), "danger")
         return redirect(url_for("finance.services"))
+    # What the licence pays for. The refusal is on adding one more, never on
+    # the catalogue the clinic already has — a price list that shrank because
+    # of a billing question would be a clinic that cannot charge for work it
+    # does.
+    from app.utils.licensing import room_for_another
+    if not room_for_another("services", Service.query.count()):
+        flash(t("licence.no_room_services"), "warning")
+        return redirect(url_for("finance.services"))
     ctype, cval = _clean_commission()
     category = (request.form.get("category") or "other").strip()
     svc = Service(

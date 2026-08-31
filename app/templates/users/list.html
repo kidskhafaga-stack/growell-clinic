@@ -8,6 +8,22 @@
   <div>
     <h1 class="page-title">{{ t('users.title') }}</h1>
     <p class="page-sub" style="margin:0;">{{ t('users.list') }}</p>
+    {# What the licence pays for, beside what is in use. Shown only when
+       something is actually capped: "4 of unlimited" is noise. It turns red
+       at the limit rather than after it, so the person adding somebody finds
+       out before they fill in a form rather than by having one refused. #}
+    {% if seats %}
+    <p style="margin:6px 0 0;display:flex;gap:8px;flex-wrap:wrap;">
+      {% for key, seat in seats.items() %}
+      <span class="badge {{ 'badge--danger' if seat.full else 'badge--muted' }}">
+        <i class="bi bi-{{ 'person-badge' if key == 'doctors' else 'people' }}"></i>
+        {{ t('licence.seats_' ~ key) }}:
+        <span dir="ltr">{{ seat.used }} / {{ seat.allowed }}</span>
+        {% if seat.full %} — {{ t('licence.seats_full') }}{% endif %}
+      </span>
+      {% endfor %}
+    </p>
+    {% endif %}
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a class="btn btn-outline gc-press" href="{{ url_for('users.doctors') }}">

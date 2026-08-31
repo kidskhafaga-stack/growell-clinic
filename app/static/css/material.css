@@ -120,6 +120,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The same circle without the claim. A step number says "this is the second
+   of four things you do in order"; a screen with no order still sometimes
+   wants the shape, to hang an icon on a heading. Sharing `.md-step` for that
+   is how a vocabulary stops meaning anything: the class is documented as a
+   step number and was already holding an icon on a screen that is not a
+   sequence. */
+.md-badge {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--md-shape-full);
+  background: var(--green-700);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: .82rem;
+}
+
 .md-section-head h3 {
   margin: 0;
   font-size: 1rem;

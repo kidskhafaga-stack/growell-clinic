@@ -254,8 +254,11 @@ def test_every_panel_that_adds_something_can_be_updated_in_place(clinic):
     import re
 
     source = _record_source()
-    panels = re.findall(
-        r'<div class="card[^"]*" data-add-panel id="(\w+)"', source)
+    # Matched on `data-add-panel`, which is the marker this is about, rather
+    # than on the panel's class attribute. It read `class="card…"` and broke
+    # when the roll-out gave the panels a different class — a test about
+    # inline updating, failing over a restyle that changed nothing it checks.
+    panels = re.findall(r'data-add-panel id="(\w+)"', source)
     assert len(panels) >= 4, "the inline-add panels lost their markers"
 
     for pid in panels:
