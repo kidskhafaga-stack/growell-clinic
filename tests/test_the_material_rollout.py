@@ -54,14 +54,46 @@ def _templates_using_the_grammar():
             yield path.relative_to(TEMPLATES), text
 
 
+def _hosts_of(partial):
+    """Every template that includes or imports ``partial``.
+
+    A partial cannot load a stylesheet or open a scope — it has no head and
+    no outer element. Asking it to would be asking the wrong file, and
+    skipping it would leave the grammar unguarded exactly where it is hardest
+    to see. So the question is put to whoever renders it: `_lab_curves.html`
+    is only ever drawn inside the patient file, and it is the patient file
+    that has to carry the stylesheet.
+    """
+    name = partial.name
+    for path in sorted(TEMPLATES.rglob("*.html")):
+        if path.name == name:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if re.search(r'{%-?\s*(?:include|import|from)\s+["\'][^"\']*'
+                     + re.escape(name), text):
+            yield path.relative_to(TEMPLATES), text
+
+
+def _responsible(name, text):
+    """(who has to satisfy the rule, their text). A partial hands it up."""
+    if name.name.startswith("_"):
+        hosts = list(_hosts_of(name))
+        if hosts:
+            return hosts
+    return [(name, text)]
+
+
 def test_every_screen_written_in_the_grammar_loads_it():
     """The static half: a template using the classes must link the file.
 
     Cheap, total, and it catches the mistake at the moment somebody makes it
     rather than when a person opens the screen and says it looks wrong.
     """
-    unwired = [str(name) for name, text in _templates_using_the_grammar()
-               if STYLESHEET not in text]
+    unwired = []
+    for name, text in _templates_using_the_grammar():
+        for who, body in _responsible(name, text):
+            if STYLESHEET not in body:
+                unwired.append(f"{name} (via {who})" if who != name else str(name))
     assert unwired == [], (
         "these use the Material grammar without loading material.css, "
         f"so none of it applies: {unwired}")
@@ -75,8 +107,11 @@ def test_every_screen_written_in_the_grammar_opens_the_scope():
     with the link but no `.md` ancestor gets sections with no background and
     no shadow, which reads as a styling bug rather than a missing class.
     """
-    scopeless = [str(name) for name, text in _templates_using_the_grammar()
-                 if not opens_the_scope(text)]
+    scopeless = []
+    for name, text in _templates_using_the_grammar():
+        for who, body in _responsible(name, text):
+            if not opens_the_scope(body):
+                scopeless.append(f"{name} (via {who})" if who != name else str(name))
     assert scopeless == [], (
         "these carry Material markup with no `.md` scope, so the tokens it "
         f"is built from are undefined: {scopeless}")

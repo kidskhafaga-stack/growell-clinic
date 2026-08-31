@@ -34,12 +34,26 @@ def test_it_is_inside_the_prescriptions_tab(clinic):
 
     # The panel, not the tab button — both carry ``tab==='prescriptions'``,
     # and the button comes first.
-    panel = page.index('gc-tab-panel" x-show="tab===\'prescriptions\'"')
+    #
+    # Matched with a pattern rather than the exact class string. It used to
+    # read `gc-tab-panel" x-show=…`, which pinned the panel's class attribute
+    # to exactly one class: adding a second one to it — as the Material
+    # roll-out did — broke a test about where the medicines block sits, which
+    # is not a thing that had changed.
+    import re
+
+    found = re.search(r'class="[^"]*\bgc-tab-panel\b[^"]*"[^>]*'
+                      r"x-show=\"tab==='prescriptions'\"", page)
+    assert found is not None, "the prescriptions panel is not on the page"
+    panel = found.start()
     meds = page.index('id="meds"')
     # Between this panel's opening and whichever panel opens next — the tabs
     # are not written in the order they are listed, so "after prescriptions"
     # alone would also be true of every panel that follows it.
-    following = page.find("gc-tab-panel", panel + 1)
+    # From the end of *this* panel's opening tag. Searching from `panel + 1`
+    # finds this panel's own class text again, because `panel` now points at
+    # the start of the class attribute rather than at the word itself.
+    following = page.find("gc-tab-panel", found.end())
 
     assert meds > panel, "the medicines block is not in the prescriptions tab"
     assert following == -1 or meds < following, \
