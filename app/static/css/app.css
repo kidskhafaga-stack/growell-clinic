@@ -313,3 +313,30 @@
   border: 1px solid var(--line); border-top: 0;
   border-radius: 0 0 12px 12px; padding: 12px;
 }
+
+/* The licence bar. Mixed against --card rather than given fixed colours, so
+   it reads on both themes without a second rule — the pattern the badges on
+   this page already use. */
+.licence-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 12px; margin-bottom: 14px;
+  border: 1px solid var(--line); font-size: .92rem;
+}
+.licence-bar > div { flex: 1 1 260px; }
+.licence-bar strong { display: block; }
+.licence-bar--stop {
+  background: color-mix(in srgb, var(--danger) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--card));
+}
+.licence-bar--warn {
+  background: color-mix(in srgb, var(--warning) 16%, var(--card));
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--card));
+}
+/* The machine's number is read down a phone. Spaced, monospaced and
+   left-to-right even on an Arabic page, because a fingerprint that reverses
+   in an RTL paragraph is one the vendor cannot use. */
+.licence-fp {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 1.15rem; letter-spacing: .08em; direction: ltr; unicode-bidi: isolate;
+  user-select: all;
+}

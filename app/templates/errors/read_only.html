@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ t('licence.read_only') }}{% endblock %}
+{% block body %}
+{# What a blocked write lands on. It says which of the five things is wrong,
+   because "not licensed" sends somebody to the phone with nothing useful to
+   say, and it offers the way back rather than only the way home. #}
+<div class="error-wrap">
+  <div>
+    <div class="error-code"><i class="bi bi-lock"></i></div>
+    <h1>{{ t('licence.read_only') }}</h1>
+    <p style="color:var(--muted);">{{ t('licence.state_' ~ licence.state) }}</p>
+    <p style="color:var(--muted);">{{ t('licence.read_only_note') }}</p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      {% if current_user.is_authenticated and current_user.is_owner %}
+      <a class="btn btn-primary" href="{{ url_for('settings.licence') }}">
+        {{ t('licence.open') }}</a>
+      {% endif %}
+      <a class="btn btn-outline" href="{{ url_for('main.index') }}">{{ t('errors.go_home') }}</a>
+    </div>
+    <div class="copyright" style="margin-top:20px;">{{ copyright_notice }}</div>
+  </div>
+</div>
+{% endblock %}

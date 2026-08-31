@@ -1,0 +1,30 @@
+{# The one line that says why nothing can be saved, on every screen.
+
+   Two different messages, because they are two different situations. Lapsed
+   is a wall the clinic is standing at; expiring is a wall it can still walk
+   round, and telling somebody in advance is the whole point of having a date.
+
+   Nothing here is dismissible. A banner explaining why the save button did
+   nothing is not decoration. #}
+{% if licence.locked %}
+<div class="licence-bar licence-bar--stop" role="alert">
+  <i class="bi bi-lock-fill"></i>
+  <div>
+    <strong>{{ t('licence.read_only') }}</strong>
+    <span>{{ t('licence.state_' ~ licence.state) }}</span>
+  </div>
+  {% if current_user.is_authenticated and current_user.is_owner %}
+  <a class="btn btn-sm btn-primary" href="{{ url_for('settings.licence') }}">
+    {{ t('licence.open') }}</a>
+  {% endif %}
+</div>
+{% elif licence.expiring_soon %}
+<div class="licence-bar licence-bar--warn" role="status">
+  <i class="bi bi-clock-history"></i>
+  <div>{{ t('licence.expires_in').replace('{n}', licence.days_left|string) }}</div>
+  {% if current_user.is_authenticated and current_user.is_owner %}
+  <a class="btn btn-sm btn-outline" href="{{ url_for('settings.licence') }}">
+    {{ t('licence.open') }}</a>
+  {% endif %}
+</div>
+{% endif %}

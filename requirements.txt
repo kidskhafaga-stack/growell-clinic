@@ -22,3 +22,6 @@ rcpchgrowth==4.5.0
 # and the clinic's local time (and anything compared against a typed time)
 # cannot be worked out at all.
 tzdata==2025.2
+# Ed25519, for checking the signature on a licence file. Verification only —
+# nothing in this repository can sign one, and the key that can is not in it.
+cryptography==46.0.3

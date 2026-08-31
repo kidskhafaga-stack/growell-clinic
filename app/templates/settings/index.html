@@ -68,6 +68,10 @@
       <i class="bi bi-file-earmark-medical"></i> {{ t('rxtpl.manage') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('settings.data_tools') }}">
       <i class="bi bi-database-gear"></i> {{ t('data_tools.open') }}</a>
+    {% if current_user.is_owner %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('settings.licence') }}">
+      <i class="bi bi-patch-check"></i> {{ t('licence.title') }}</a>
+    {% endif %}
   </div>
 </div>
 

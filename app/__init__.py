@@ -121,6 +121,11 @@ def create_app(config_name="default"):
     i18n.init_app(app)
     from app.utils import money as _money
     _money.init_app(app)
+    # The licence guard. Armed here rather than in a before_request, because
+    # what it protects is the database session and not the request: eighteen
+    # of this program's screens write on a plain GET.
+    from app.utils import read_only as _read_only
+    _read_only.install(app, db)
 
     # Make sure models are imported so tables are registered.
     with app.app_context():
@@ -216,6 +221,22 @@ def create_app(config_name="default"):
             ),
             "app_version": "0.1",
         }
+
+    @app.context_processor
+    def inject_licence():
+        """What the banner and the hidden buttons read.
+
+        Wrapped, because a program that cannot start because its licence check
+        raised is worse than an unlicensed one — and this runs on every page.
+        """
+        from app.utils.licensing import Licence
+
+        try:
+            from app.utils.licensing import status
+            verdict = status()
+        except Exception:  # noqa: BLE001
+            verdict = Licence("dormant")
+        return {"licence": verdict}
 
     @app.context_processor
     def inject_paging():
@@ -398,7 +419,13 @@ def create_app(config_name="default"):
         # that *explains* what setup is still missing, so trapping it behind
         # the very step it is meant to introduce leaves a new owner with a
         # single form and no map.
+        # `settings.licence` is here for the same reason the others are: a
+        # locked-out owner who has not finished the setup wizard would
+        # otherwise be redirected to a form that cannot save — the licence
+        # blocks the write, the wizard blocks the licence screen, and there is
+        # no way round the loop from inside the program.
         allowed = ("static", "settings.setup", "settings.wizard",
+                   "settings.licence", "settings.licence_install",
                    "auth.logout", "auth.login", "main.set_theme")
         # `settings.wizard*` covers the checklist's own actions too — a POST
         # that gets swallowed by this redirect looks to the user like a button
