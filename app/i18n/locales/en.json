@@ -114,6 +114,7 @@
     "lower": "Lower arch",
     "mark_done": "Done",
     "minimum": "The clinic asks for {amount} up front — anything less is a person's decision, not a refusal.",
+    "on_plan": "On plan",
     "permanent": "Permanent teeth",
     "plan": "Treatment plan",
     "plan_empty": "The plan is still empty.",
@@ -145,6 +146,7 @@
     "still_owed": "Still owed",
     "surface": "Surface",
     "take": "Take",
+    "to_plan": "To plan",
     "tooth": "Tooth",
     "tooth_empty": "Nothing recorded on this tooth yet.",
     "upper": "Upper arch"

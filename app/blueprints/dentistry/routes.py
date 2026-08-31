@@ -32,10 +32,29 @@ def chart(patient_id):
     Both dentitions on one page, because between six and twelve a child has
     both and a chart that shows one of them is showing half a mouth.
     """
+    from app.models import TreatmentPlan
+    from app.models.dental import outstanding
+
     patient = db.get_or_404(Patient, patient_id)
+    drawn = chart_for(patient.id)
+    # The draft this chart can send a tooth to, if there is one. A chart that
+    # offered "add to plan" with nowhere to add it would be a button that
+    # opens a form; one that silently started a plan would leave drafts behind
+    # every time somebody clicked to see what it did.
+    draft = (TreatmentPlan.query
+             .filter_by(patient_id=patient.id, status="draft")
+             .order_by(TreatmentPlan.id.desc()).first())
+    # Teeth already spoken for, so the chart does not offer the same tooth
+    # twice and a doctor can see at a glance what is already accounted for.
+    planned = set()
+    for plan_row in TreatmentPlan.query.filter(
+            TreatmentPlan.patient_id == patient.id,
+            TreatmentPlan.status.in_(("draft", "accepted"))).all():
+        planned |= {i.tooth for i in plan_row.live_items if i.tooth}
     return render_template(
         "dentistry/chart.html", patient=patient,
-        chart=chart_for(patient.id),
+        chart=drawn, outstanding=outstanding(drawn),
+        draft=draft, planned=planned,
         permanent=PERMANENT_TEETH, primary=PRIMARY_TEETH,
         conditions=CONDITIONS, whole=WHOLE_TOOTH,
         whole_only=sorted(WHOLE_TOOTH_CONDITIONS),
@@ -144,9 +163,27 @@ def plan(plan_id):
     from app.utils.dental_money import minimum_deposit
 
     row = db.get_or_404(TreatmentPlan, plan_id)
+    # Arrived from a tooth on the chart. The fact travels — which tooth, which
+    # face, what was found — and the procedure does not: caries can be a
+    # filling, a pulpotomy or an extraction depending on how deep it has gone,
+    # and that is the dentist's call in front of the child rather than
+    # something to infer from a keyword.
+    from_tooth = request.args.get("tooth", type=int)
+    if from_tooth not in ALL_TEETH:
+        from_tooth = None
+    # The face only travels with the tooth it is a face of. Carried
+    # separately, `?tooth=99&surface=occlusal` puts a surface into the form
+    # with no tooth chosen — and it then submits against whichever tooth the
+    # dentist picks by hand, which is a fact half-carried and worse than one
+    # not carried at all.
+    from_surface = (request.args.get("surface") or "").strip() or None
+    if from_tooth is None or from_surface not in surfaces_of(from_tooth):
+        from_surface = None
     return render_template(
         "dentistry/plan.html", plan=row, patient=row.patient,
-        teeth=ALL_TEETH,
+        teeth=ALL_TEETH, from_tooth=from_tooth, from_surface=from_surface,
+        found=(chart_for(row.patient_id).get(from_tooth) or {})
+        if from_tooth else {},
         services=(Service.query.filter_by(is_active=True)
                   .order_by(Service.name).all()),
         minimum=minimum_deposit(row.total))
