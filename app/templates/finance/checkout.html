@@ -224,9 +224,33 @@
       <a class="btn btn-outline gc-press" href="{{ url_for('appointments.index', date=appt.appt_date.isoformat()) if appt else url_for('finance.cashier') }}">{{ t('common.cancel') }}</a>
       {# Still submittable when a line is added by hand — the block above says
          nothing was *proposed*, not that nothing may be charged. #}
+      {#
+         And the button says which of the two things it is about to do.
+
+         Reported from the clinic: pressed "collect now" on the board, walked
+         through this screen, printed the receipt — and the row still said
+         collect. It had done exactly as told: the amount box starts at zero,
+         so the path of least resistance through a screen every entry point
+         calls *collect* is to touch nothing and press the big button, and
+         get an invoice with nothing paid on it.
+
+         The fix is not to prefill the total. That turns the mistake into the
+         worse one: a cashier who meant "collect later", and did not notice a
+         figure they never typed, records money that never entered the
+         drawer. A wrong number in the till is worse than an unpaid invoice,
+         because the invoice is visible and the cash is not.
+
+         So the amount stays as typed and the button stops being ambiguous.
+         "Confirm and collect" and "Issue without collecting" are two
+         sentences, and which one is under the cursor is now readable before
+         it is pressed rather than discovered on the next screen. #}
       <button class="btn btn-primary gc-press" type="submit"
               x-bind:disabled="!lines.length && !payments.some(p => +p.amount > 0)">
-        <i class="bi bi-check2-circle"></i> {{ t('checkout.confirm') }}</button>
+        <i class="bi" x-bind:class="collecting ? 'bi-cash-coin' : 'bi-file-earmark-text'"></i>
+        <span x-show="collecting" x-cloak>{{ t('checkout.confirm_collect') }}</span>
+        <span x-show="!collecting" x-cloak>{{ t('checkout.confirm_unpaid') }}</span>
+        <noscript>{{ t('checkout.confirm') }}</noscript>
+      </button>
     </div>
   </form>
 
@@ -350,6 +374,11 @@
       addId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,
+      // Whether this confirm is going to take money. Read off the amounts
+      // rather than off which button opened the screen: the cashier can
+      // change their mind after arriving, and the label has to follow what
+      // is typed, not what was intended a minute ago.
+      get collecting() { return this.payments.some(p => Number(p.amount) > 0); },
       addLine() {
         if (!this.addId) return;
         var opt = document.querySelector('option[value="'+this.addId+'"][data-name]');

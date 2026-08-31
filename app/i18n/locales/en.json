@@ -3544,6 +3544,8 @@
     "api": "API"
   },
   "checkout": {
+    "confirm_collect": "Confirm and collect",
+    "confirm_unpaid": "Issue without collecting",
     "title": "Checkout",
     "services": "Services",
     "add_service": "Add service",

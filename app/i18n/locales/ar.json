@@ -3544,6 +3544,8 @@
     "api": "API"
   },
   "checkout": {
+    "confirm_collect": "تأكيد وتحصيل",
+    "confirm_unpaid": "إصدار فاتورة من غير تحصيل",
     "title": "شاشة التحصيل",
     "services": "الخدمات",
     "add_service": "أضف خدمة",
