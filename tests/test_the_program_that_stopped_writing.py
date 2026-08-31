@@ -650,3 +650,72 @@ def test_installing_a_licence_changes_the_answer_immediately(licensed, vendor):
         assert licensing.status().state == "expired"
         licensing.install(_sign(vendor, _for_this_machine(licensed, days=365)))
         assert licensing.status().state == "valid"
+
+
+# ------------------------------------------- switching a clinic on safely ---
+def test_a_licence_can_be_stored_before_the_key_arrives(licensed, monkeypatch):
+    """The order a working clinic is switched on in.
+
+    The public key is what turns enforcement on. A build with no key that also
+    refused to store a licence could only be licensed key-first — and the
+    moment the key lands the clinic is read-only, and stays that way until
+    somebody gets the licence in behind it. On a clinic that is already open,
+    that window is the middle of a Tuesday.
+
+    So the licence goes in while nothing is enforced, the key follows, and the
+    program comes up licensed with no gap at all.
+    """
+    from app.utils import licensing
+
+    private, public = _keypair()
+    text = _sign(private, _for_this_machine(licensed))
+
+    monkeypatch.delenv("PEDIAPRO_LICENCE_KEY", raising=False)
+    with licensed["app"].app_context():
+        assert licensing.check().state == "dormant"
+        licensing.install(text)                      # stored with no key
+        assert licensing.check().state == "dormant"  # and still enforcing nothing
+
+    monkeypatch.setenv("PEDIAPRO_LICENCE_KEY", public)
+    with licensed["app"].app_context():
+        assert licensing.check().state == "valid"
+
+
+def test_a_dormant_build_still_refuses_what_is_not_a_licence(licensed,
+                                                             monkeypatch):
+    """Storing it early is not storing anything. The paste that went wrong —
+    an empty box, a WhatsApp message, half a line — is still refused, so the
+    screen says so at the moment somebody is looking at it rather than months
+    later when the key is switched on."""
+    from app.utils import licensing
+
+    monkeypatch.delenv("PEDIAPRO_LICENCE_KEY", raising=False)
+    with licensed["app"].app_context():
+        # "MTIz.AAAA" is the awkward one: valid base64, and the payload is
+        # valid JSON — the number 123. A licence is an object with fields in
+        # it, and a check that stopped at "it parses" would store that.
+        for junk in ("", "  ", "السلام عليكم", "abc.def", "a.b.c",
+                     "eyJhIjoxfQ", "MTIz.AAAA", "WzEsMl0.AAAA"):
+            with pytest.raises(licensing.LicenceError):
+                licensing.install(junk)
+        assert licensing.read_licence() is None
+
+
+def test_what_was_stored_early_is_still_verified(licensed, monkeypatch):
+    """Nothing is trusted any earlier than it was.
+
+    A licence saved while dormant is checked on every read like any other, so
+    one that was never signed by this vendor is refused the moment a key
+    exists — it is not grandfathered in by having arrived first.
+    """
+    from app.utils import licensing
+
+    other, _ = _keypair()
+    _, ours = _keypair()
+    monkeypatch.delenv("PEDIAPRO_LICENCE_KEY", raising=False)
+    with licensed["app"].app_context():
+        licensing.install(_sign(other, _for_this_machine(licensed)))
+
+    monkeypatch.setenv("PEDIAPRO_LICENCE_KEY", ours)
+    with licensed["app"].app_context():
+        assert licensing.check().state == "bad_signature"
