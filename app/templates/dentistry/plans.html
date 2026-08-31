@@ -1,0 +1,63 @@
+{% extends "shell.html" %}
+{% set active_module = 'dentistry' %}
+{% block title %}{{ t('dental.plans') }}{% endblock %}
+{% block page_heading %}{{ t('dental.plans') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-list-check"></i> {{ t('dental.plans') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ patient.display_name(current_lang) }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('dentistry.chart', patient_id=patient.id) }}">
+    <i class="bi bi-emoji-smile"></i> {{ t('dental.chart') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;"><i class="bi bi-plus-circle"></i>
+    {{ t('dental.plan_new') }}</h2>
+  <p class="hint" style="margin:6px 0 10px;">{{ t('dental.plan_new_hint') }}</p>
+  <form method="post" action="{{ url_for('dentistry.plan_new', patient_id=patient.id) }}"
+        style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;flex:2;min-width:200px;">
+      <label>{{ t('dental.plan_title') }}</label>
+      <input class="input" name="title" placeholder="{{ t('dental.plan_title_ph') }}"></div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('dental.plan_start') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  {% if plans %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('dental.plan_title') }}</th><th>{{ t('common.status') }}</th>
+      <th>{{ t('dental.progress') }}</th><th>{{ t('invoices.total') }}</th>
+      <th>{{ t('invoices.balance') }}</th><th style="text-align:end;"></th>
+    </tr></thead>
+    <tbody>
+      {% for p in plans %}
+      {% set done, of = p.progress %}
+      <tr>
+        <td>{{ p.title or ('#' ~ p.id) }}<div class="hint" dir="ltr">{{ p.created_on }}</div></td>
+        <td><span class="badge badge--{{ 'green' if p.status == 'done' else ('role' if p.accepted else 'muted') }}">
+          {{ t('dental.st_' ~ p.status) }}</span></td>
+        <td>{{ done }}/{{ of }}</td>
+        <td>{{ p.total|money }}</td>
+        {# What is owed comes from the invoice, not from the plan. One place
+           computes what a family owes this clinic, and a second copy of that
+           arithmetic is a second place for it to be wrong. #}
+        <td>{{ p.invoice.balance|money if p.invoice else '—' }}</td>
+        <td style="text-align:end;">
+          <a class="btn btn-sm btn-outline gc-press" href="{{ url_for('dentistry.plan', plan_id=p.id) }}">
+            {{ t('common.edit') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">{{ t('dental.plans_empty') }}</div>
+  {% endif %}
+</div>
+{% endblock %}

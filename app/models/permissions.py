@@ -21,6 +21,9 @@ MODULES = [
     "visits",
     "growth",
     "vaccinations",
+    # A specialty, not part of the paediatric core. Off until a clinic says
+    # otherwise — see `facility.OPT_IN_MODULES`.
+    "dentistry",
     "prescriptions",
     "inventory",
     "finance",
@@ -59,6 +62,7 @@ MODULE_ICONS = {
     "visits": "clipboard2-pulse",
     "growth": "graph-up",
     "vaccinations": "shield-plus",
+    "dentistry": "emoji-smile",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -80,6 +84,10 @@ ROLE_PERMISSIONS = {
         "visits",
         "growth",
         "vaccinations",
+        # A paediatric dentist is a doctor. Granting it costs a clinic that
+        # does not do dentistry nothing — the module is off for them, and an
+        # off module is unreachable whoever asks.
+        "dentistry",
         "prescriptions",
         "ai",
     ],

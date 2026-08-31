@@ -19,6 +19,20 @@ from app.models.permissions import MODULES
 # Modules that make no sense to disable — the app can't run without them.
 ALWAYS_ON = {"dashboard", "settings", "users"}
 
+# Modules that are **off until a clinic switches them on**, even on a copy
+# that has never run the setup wizard.
+#
+# Everything else is on by default, and that is right for the paediatric core:
+# it is what the program was before the wizard existed, and a clinic upgrading
+# into a version that added the wizard must not lose screens it was using
+# yesterday. A specialty is the opposite case. A paediatric clinic is not a
+# dental clinic, and turning dentistry on for every existing clinic because
+# the module now exists would put a tooth chart on their patients' files and
+# a dental price list in their books without anybody asking for either.
+#
+# So the default runs the other way here: nothing until somebody says so.
+OPT_IN_MODULES = {"dentistry"}
+
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
 
@@ -54,7 +68,8 @@ DEFAULT_FACILITY_TYPE = "pediatric_center"
 # --- Layer 2: capabilities (services & specialties), grouped ---------------
 CAPABILITY_GROUPS = {
     "clinical":   ["general_consultation", "followup", "vaccination",
-                   "growth_monitoring", "emergency_care", "home_care"],
+                   "growth_monitoring", "emergency_care", "home_care",
+                   "dentistry"],
     "diagnostic": ["ecg", "echo", "eeg", "spirometry", "audiology",
                    "vision_screening"],
     "imaging":    ["ultrasound", "xray", "ct", "mri"],
@@ -70,6 +85,7 @@ CAPABILITY_MODULES = {
     "followup": {"visits"},
     "vaccination": {"vaccinations", "inventory"},
     "growth_monitoring": {"growth"},
+    "dentistry": {"dentistry", "visits"},
     "emergency_care": {"visits"},
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
@@ -87,6 +103,10 @@ TEMPLATES = {
     "pediatric_clinic":   {"icon": "emoji-smile", "type": "pediatric_center",
                            "caps": ["general_consultation", "followup",
                                     "vaccination", "growth_monitoring"]},
+    "pediatric_dental_clinic": {"icon": "emoji-smile",
+                                "type": "specialized_center",
+                                "caps": ["general_consultation", "followup",
+                                         "dentistry"]},
     "cardiology_clinic":  {"icon": "heart-pulse", "type": "specialized_center",
                            "caps": ["general_consultation", "followup",
                                     "ecg", "echo"]},
@@ -134,13 +154,25 @@ def derive_modules(caps):
 
 
 def module_enabled(module):
-    """Is ``module`` switched on? Everything is on until the wizard runs
-    (backward compatible); ALWAYS_ON modules are never disabled."""
+    """Is ``module`` switched on?
+
+    ``ALWAYS_ON`` modules are never disabled. The rest are on until the wizard
+    runs, which keeps a clinic upgrading into the wizard from losing screens
+    it used yesterday — except the opt-in specialties, which are off until
+    somebody asks for them however configured this copy is. See
+    :data:`OPT_IN_MODULES`.
+    """
     if module in ALWAYS_ON:
         return True
+    # One read for every module rather than one per module. The sidebar asks
+    # this about all of them while drawing any page, so this was fifteen
+    # queries on every screen in the program.
+    switches = Setting.group("mod_enabled")
+    if module in OPT_IN_MODULES:
+        return switches.get(f"mod_enabled:{module}") == "1"
     if not is_configured():
         return True
-    return Setting.get(f"mod_enabled:{module}") != "0"
+    return switches.get(f"mod_enabled:{module}") != "0"
 
 
 def enabled_modules():
