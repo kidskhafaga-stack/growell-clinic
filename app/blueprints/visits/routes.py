@@ -41,6 +41,7 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
+from app.utils import vital_bands
 from app.utils.icd import available_versions
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
@@ -376,6 +377,11 @@ def record(visit_id):
         # only when both are true and says nothing when either is not — there
         # is nothing a doctor mid-consultation could do about either.
         ai_dx_suggest=ai.is_ready() and ai.dx_suggestion_enabled(),
+        # The age-banded ranges the vitals boxes colour themselves by. Sent
+        # rather than written into the template, so this screen and anything
+        # on the server that judges a reading are reading the same table.
+        vital_bands=vital_bands.BY_AGE,
+        vital_fixed=vital_bands.FIXED,
     )
 
 

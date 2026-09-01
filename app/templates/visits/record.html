@@ -19,12 +19,20 @@
       diagnosis_code=(_dxlist[0].code if _dxlist and _dxlist[0].code else '')) %}
 <!-- Visit config kept in a JSON script tag (NOT in the x-data attribute, whose
      double quotes would clash with JSON's) so Alpine parses the component
-     reliably. -->
+     reliably.
+
+     `vitalBands` / `vitalFixed` are the age-banded normal ranges, sent from
+     the server. They used to be written out again below as a JavaScript
+     object, which was fine while this screen was the only thing that judged a
+     reading — and became a second copy free to disagree with the first the
+     moment anything on the server needed the same judgement. One table now,
+     in app/utils/vital_bands.py, with a test that it is the only one. -->
 <script type="application/json" id="visitCfg">
 {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
     'normal': t('visits.normal_exam_text'),
     'codes': phrase_codes,
     'age_days': (visit.patient.age_days or 0),
+    'vitalBands': vital_bands, 'vitalFixed': vital_fixed,
     'dxSuggestUrl': (url_for('ai.suggest_dx', visit_id=visit.id) if ai_dx_suggest else ''),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
@@ -1717,15 +1725,12 @@
       vSpo2: '{{ visit.vitals.spo2 if visit.vitals and visit.vitals.spo2 is not none else '' }}',
       // Age-banded normal (ok) and tolerated (warn) ranges. Outside warn = red.
       // Each HR/RR row: [maxAgeMonths, okLow, okHigh, warnLow, warnHigh].
-      _peds: {
-        hr: [[3,100,160,90,180],[12,90,160,80,180],[36,80,140,70,160],
-             [72,70,120,60,140],[144,65,110,55,130],[9999,60,100,50,120]],
-        rr: [[12,30,55,25,65],[36,24,40,20,50],[72,22,34,18,42],
-             [144,18,30,14,36],[9999,12,20,10,26]],
-      },
+      // Both come from the server — see the note beside `vitalBands` in the
+      // config blob above. Nothing in this file states a clinical number.
+      _peds: cfg.vitalBands || {},
+      _fixed: cfg.vitalFixed || {},
       vitalRange(kind) {
-        if (kind === 'temp') return [36.0, 37.5, 35.5, 38.0];
-        if (kind === 'spo2') return [95, 100, 91, 100];
+        if (this._fixed[kind]) return this._fixed[kind];
         const table = this._peds[kind] || [];
         for (const b of table) if (this.ageMonths <= b[0]) return [b[1], b[2], b[3], b[4]];
         return null;
