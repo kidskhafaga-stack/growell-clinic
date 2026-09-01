@@ -882,15 +882,51 @@
      in update.bat, with a backup in front of it and a schema upgrade after —
      the whole reason the launch check only ever says. #}
   <div class="card gc-scale-in md" x-show="tab==='update'" x-cloak id="update"
-       x-data="{ busy: false, said: '', tone: '' ,
+       x-data="{ busy: false, said: '', tone: '',
+                 // What a live check found, or null while nothing has been
+                 // pressed. The whole card reads this when it is set and the
+                 // server's own answer when it is not.
+                 //
+                 // Reported with a screenshot: the badge said **أحدث إصدار**
+                 // while the sentence beside it said **فيه إصدار أجدد — شوف
+                 // «الجديد» تحت**, and there was no «الجديد» anywhere on the
+                 // screen. One card, contradicting itself, pointing at a
+                 // section that did not exist.
+                 //
+                 // The cause was that the check updated exactly one sentence.
+                 // Everything else on this card — the badge, the notes, the
+                 // block that installs it — was rendered by the server when
+                 // the page loaded and never heard that the answer had
+                 // changed. The endpoint has always returned the version and
+                 // the notes; the screen threw them away.
+                 //
+                 // Not fixed by reloading the page, which would have been
+                 // simpler: every tab on this screen is one form, and
+                 // somebody halfway through typing an API key on another tab
+                 // must not lose it for having pressed «اتأكد دلوقتي».
+                 live: null,
+                 behind() { return this.live ? this.live.behind : {{ 'true' if update_pending else 'false' }}; },
+                 latest() { return this.live ? this.live.latest : '{{ (update_pending.latest if update_pending else '')[:12] }}'; },
+                 notes() { return this.live ? this.live.notes : {{ (update_pending.notes if update_pending else []) | tojson }}; },
                  async check() {
                    this.busy = true; this.said = '';
                    try {
                      const r = await fetch('{{ url_for('settings.update_check_now') }}',
                                            {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}});
                      const d = await r.json();
-                     if (d.ok && d.behind) { this.tone = 'warn'; this.said = UPD.behind; }
-                     else if (d.ok) { this.tone = 'ok'; this.said = UPD.current; }
+                     if (d.ok && d.behind) {
+                       this.tone = 'warn'; this.said = UPD.behind;
+                       this.live = { behind: true, latest: (d.latest || '').slice(0, 12),
+                                     notes: d.notes || [] };
+                     }
+                     else if (d.ok) {
+                       this.tone = 'ok'; this.said = UPD.current;
+                       this.live = { behind: false, latest: '', notes: [] };
+                     }
+                     // Offline and "cannot tell" leave `live` alone on
+                     // purpose: neither is an answer about the version, and
+                     // overwriting a real one with them would turn a blip in
+                     // the connection into "you are up to date".
                      else if (d.reason === 'unreachable') { this.tone = 'warn'; this.said = UPD.offline; }
                      else { this.tone = 'warn'; this.said = UPD.unknown; }
                    } catch (e) { this.tone = 'warn'; this.said = UPD.offline; }
@@ -913,10 +949,13 @@
       <div class="info-item">
         <div class="k">{{ t('update.state') }}</div>
         <div class="v">
-          {% if update_pending %}
-            <span class="badge badge--role">{{ t('update.behind') }}</span>
-          {% elif installed_revision.revision %}
-            <span class="badge badge--green">{{ t('update.current_short') }}</span>
+          {% if installed_revision.revision %}
+            <span class="badge badge--role" x-show="behind()" x-cloak>{{ t('update.behind') }}</span>
+            <span class="badge badge--green" x-show="!behind()" x-cloak>{{ t('update.current_short') }}</span>
+            {# Alpine has not run yet on the first paint. Without this the
+               badge is briefly absent on every load, which on a slow machine
+               reads as a card that failed to render. #}
+            <noscript><span class="badge badge--muted">{{ t('update.state') }}</span></noscript>
           {% else %}—{% endif %}
         </div>
       </div>
@@ -935,14 +974,20 @@
             :style="tone === 'ok' ? 'color:var(--green-700)' : 'color:#b45309'"></span>
     </div>
 
-    {% if update_pending and update_pending.notes %}
-    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
+    {# «الجديد» — the section the sentence above points at. It has to appear
+       when a live check finds something, not only when the page happened to
+       load already knowing. #}
+    <div x-show="behind() && notes().length" x-cloak
+         style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
       <strong style="font-size:.92rem;">{{ t('update.whats_new') }}</strong>
       <ul style="margin:6px 0 0;padding-inline-start:20px;">
-        {% for line in update_pending.notes %}<li class="hint">{{ line }}</li>{% endfor %}
+        <template x-for="(line, i) in notes()" :key="i">
+          <li class="hint" x-text="line"></li>
+        </template>
       </ul>
     </div>
-    {% endif %}
+    <p class="hint" x-show="behind() && !notes().length" x-cloak
+       style="margin-top:12px;">{{ t('update.no_notes') }}</p>
 
     {# ---- Installing it, in the same place as everything else about it ----
 
@@ -960,13 +1005,16 @@
        `formaction` rather than a nested `<form>`: every tab on this screen is
        one form, and a form inside a form is dropped by the browser. The same
        pattern the ICD-11 buttons above already use. #}
-    {% if update_pending %}
-    <div class="update-do">
+    {# Rendered always and shown when there is something to install, so a live
+       check reveals it. It used to exist only when the page happened to load
+       already knowing — which is how the sentence above could announce a new
+       version with no way to act on it anywhere on the screen. #}
+    <div class="update-do" x-show="behind()" x-cloak>
       <div class="update-do__head">
         <i class="bi bi-box-arrow-in-down"></i>
         <strong>{{ t('update.how') }}</strong>
         <span class="hint" style="margin:0;" dir="ltr">
-          {{ update_pending.installed[:12] }} → {{ update_pending.latest[:12] }}</span>
+          {{ installed_revision.short or '—' }} &rarr; <span x-text="latest()"></span></span>
       </div>
       <ol class="update-do__steps">
         <li>{{ t('update.step_close') }}</li>
@@ -987,7 +1035,6 @@
       <div class="hint" style="margin-top:8px;">{{ t('update.do_it_hint') }}</div>
       {% endif %}
     </div>
-    {% endif %}
 
     {# One control, and only one. This toggle used to live on the policies tab
        as well; two checkboxes posting the same name into the same form means
