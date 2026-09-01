@@ -9,7 +9,7 @@ was run, a vaccine was given) and reports what is signed and what is missing,
 so the visit can say it while the guardian is still in front of you. It warns;
 it never blocks a doctor from treating a child.
 """
-from datetime import date, timedelta
+from datetime import timedelta
 
 from app.models import Consent
 from app.utils.clock import local_today
@@ -111,6 +111,55 @@ def default_guardian(patient, lang=None):
     }
 
 
+# Where a clinic's own wording is kept. One key per kind **per language**,
+# because a consent is signed in the language it was read in and the two are
+# not translations of each other once a clinic has edited them.
+def setting_key(kind, lang):
+    return f"consent_text_{kind}_{lang}"
+
+
+def default_statement(kind, lang):
+    """The wording this program ships for one kind, in one language.
+
+    Read from the locale files, which is where it has always lived. Kept as a
+    function rather than inlined because everything below depends on the
+    default remaining reachable after a clinic has overridden it: a default
+    that can be edited *away* is a default the clinic can never get back.
+    """
+    # Asked of a *named* language, not the active one. The editor shows the
+    # Arabic and the English of the same consent side by side, and `t()`
+    # answers only about whichever language the request is in — so it cannot
+    # be used to fill both boxes on one screen.
+    from app.i18n import _load_translations, _lookup
+
+    tables = _load_translations()
+    text = _lookup(tables, lang, f"consent.statements.{kind}")
+    if text is None:
+        text = _lookup(tables, lang, "consent.default_statement")
+    return text or ""
+
+
+def clinic_statement(kind, lang):
+    """The clinic's own wording for one kind, or ``""`` if it uses ours."""
+    from app.models import Setting
+
+    try:
+        return (Setting.get(setting_key(kind, lang)) or "").strip()
+    except Exception:  # noqa: BLE001 — a settings table that is not ready yet
+        return ""
+
+
+def statement_in(kind, lang):
+    """What would be signed for this kind, in this language: theirs or ours.
+
+    Overrides sit **beside** the default rather than replacing it, so a clinic
+    that has rewritten every consent can still be shown what the program says
+    and put it back in one press. The same rule the clinical thresholds
+    follow: editable, and not losable.
+    """
+    return clinic_statement(kind, lang) or default_statement(kind, lang)
+
+
 def statement_for(kind):
     """The wording for one kind of consent, in the language in use.
 
@@ -128,11 +177,9 @@ def statement_for(kind):
     Falls back to the general wording for a kind with no text of its own, so a
     new consent type is never signed under a blank.
     """
-    from app.i18n import t
+    from flask import g
 
-    key = f"consent.statements.{kind}"
-    text = t(key)
-    return t("consent.default_statement") if text == key else text
+    return statement_in(kind, getattr(g, "lang", "ar"))
 
 
 def all_statements():

@@ -1613,7 +1613,14 @@
     "guideline_moved": "Set on the vaccination management screen, where it belongs.",
     "ai_dx_section": "Diagnosis suggestions on the visit screen",
     "ai_dx_suggest": "Let the assistant suggest diagnoses from the complaint and examination",
-    "ai_dx_hint": "Suggestions appear beside the ICD search, not instead of it, and nothing is saved until the doctor adds it. The name comes from the assistant; the code comes from the program's own classification — the assistant is never asked for a code."
+    "ai_dx_hint": "Suggestions appear beside the ICD search, not instead of it, and nothing is saved until the doctor adds it. The name comes from the assistant; the code comes from the program's own classification — the assistant is never asked for a code.",
+    "consent_title": "Consent wording",
+    "consent_hint": "The text the guardian signs, for each kind of consent and in both languages. Leave a box empty to use the program's own wording. What has already been signed does not change — the text is stored on the consent itself at the moment of signing.",
+    "consent_default": "using the program's wording",
+    "consent_edited": "the clinic's own wording",
+    "consent_clear_to_restore": "clear the box to restore the default",
+    "lang_ar": "Arabic",
+    "lang_en": "English"
   },
   "errors": {
     "403_title": "Forbidden",

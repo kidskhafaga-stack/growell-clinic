@@ -116,6 +116,7 @@
         ('phrases','chat-square-text', t('settings.lists_tab')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
+        ('consent','file-earmark-check', t('settings.consent_title')),
         ('ai','robot', t('settings.ai_title')),
         ('update','arrow-up-circle', t('update.tab'))] %}
     <button type="button" class="btn btn-sm gc-press"
@@ -548,6 +549,55 @@
   </div>
 
   <!-- AI assistant -->
+  {# The wording every consent is signed under. It lived in the locale files,
+     which meant a clinic could not change a word of it — and a consent form's
+     entire job is to say what is being agreed to, in words the clinic stands
+     behind.
+
+     Both languages side by side, because a consent is signed in the language
+     it was read in and the two stop being translations of each other the
+     moment a clinic edits one. What is signed is snapshotted onto the row, so
+     editing here never changes a consent somebody has already given.
+
+     Overrides sit beside the default rather than on top of it: the box shows
+     what the clinic wrote, the text under it shows what this program says,
+     and clearing the box puts it back. A default that can be edited away is a
+     default nobody can ever get back. #}
+  <div class="card gc-scale-in" x-show="tab==='consent'" x-cloak id="consent-text">
+    <h2 class="section-title"><i class="bi bi-file-earmark-check"></i> {{ t('settings.consent_title') }}</h2>
+    <p class="hint">{{ t('settings.consent_hint') }}</p>
+
+    {% for kind in consent_types %}
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;">
+      <h3 style="font-size:0.95rem;margin:0 0 10px;">
+        <span class="badge badge--role">{{ t('consent.types.' ~ kind) }}</span></h3>
+      <div class="form-grid">
+        {% for lang in ('ar', 'en') %}
+        <div class="form-row">
+          <label for="consent_text_{{ kind }}_{{ lang }}">
+            {{ t('settings.lang_' ~ lang) }}</label>
+          <textarea class="input" rows="4" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"
+                    id="consent_text_{{ kind }}_{{ lang }}"
+                    name="consent_text_{{ kind }}_{{ lang }}"
+                    placeholder="{{ consent_defaults[kind][lang] }}"
+                    >{{ consent_own[kind][lang] }}</textarea>
+          <div class="hint">
+            {% if consent_own[kind][lang] %}
+              <i class="bi bi-pencil"></i> {{ t('settings.consent_edited') }}
+              — {{ t('settings.consent_clear_to_restore') }}
+            {% else %}
+              <i class="bi bi-check2"></i> {{ t('settings.consent_default') }}
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
+
   <div class="card gc-scale-in" x-show="tab==='ai'" x-cloak id="ai"
        x-data="{
          provider: '{{ values.get('ai_provider','claude') }}',
