@@ -93,7 +93,8 @@ def test_the_scan_would_notice_a_missing_key():
 
 # ``t('a.b.' ~ something)`` — the leaf is built at render time, but everything
 # before the last dot is a literal and has to exist as a section.
-BUILT_PREFIX = re.compile(r"""\bt\(\s*['"]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.['"]\s*~""")
+BUILT_PREFIX = re.compile(
+    r"""\bt\(\s*['"]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.['"]\s*~""")
 
 
 def _sections_in_templates():
