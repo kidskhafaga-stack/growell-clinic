@@ -86,7 +86,7 @@ def _invoice(env, lines, number="T-INV"):
 
     db = env["db"]
     inv = Invoice(invoice_number=number, patient_id=env["child"].id,
-                  doctor_id=env["doctor"].id, invoice_date=date.today())
+                  doctor_id=env["doctor"].id, invoice_date=local_today())
     db.session.add(inv)
     db.session.flush()
     for service, price in lines:
@@ -162,9 +162,9 @@ def test_the_club_card_reaches_the_sibling(clinic):
     child, member = clinic["child"], clinic["member"]
     with clinic["app"].test_request_context("/"):
         assert not any(c.payer_id == clinic["club"].id for c in child.coverages)
-        assert member.applies_to(child, clinic["doctor"].id, date.today())
+        assert member.applies_to(child, clinic["doctor"].id, local_today())
         member.family_wide = False          # a genuinely personal card
-        assert not member.applies_to(child, clinic["doctor"].id, date.today())
+        assert not member.applies_to(child, clinic["doctor"].id, local_today())
 
 
 def test_a_discount_can_target_one_service(clinic):

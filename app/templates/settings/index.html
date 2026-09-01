@@ -617,6 +617,60 @@
 
     <p class="hint" style="margin-top:10px;">
       <i class="bi bi-info-circle"></i> {{ t('settings.clinical_note') }}</p>
+
+    {# The jaundice table, and the reason it has a box in front of it.
+
+       The numbers were transcribed by hand rather than read from a
+       machine-readable source, and a transcribed clinical table that a
+       program presents as authoritative is the thing this whole screen exists
+       to prevent. So it ships, it is shown here in full, and the calculator
+       answers nothing until a clinician has read it and said yes.
+
+       The same shape as the ICD-11 picker, which does not offer a
+       classification it has not loaded. #}
+    <h3 style="margin:22px 0 6px;font-size:0.95rem;" id="jaundice">
+      <i class="bi bi-droplet-half"></i> {{ t('settings.jaundice_title') }}</h3>
+    <p class="hint" style="margin:0 0 8px;">{{ t('settings.jaundice_hint') }}</p>
+    <p class="hint" style="margin:0 0 8px;">
+      <i class="bi bi-journal-text"></i> {{ jaundice_table.source }}
+      · <span dir="ltr">{{ jaundice_table.unit }}</span></p>
+
+    <div style="overflow-x:auto;margin-bottom:10px;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('settings.j_weeks') }}</th>
+        {% for hours, _v in jaundice_table.phototherapy.no_risk['38'] %}
+        <th dir="ltr">{{ hours }}h</th>
+        {% endfor %}
+      </tr></thead>
+      <tbody>
+      {% for band, label in (('no_risk', t('settings.j_no_risk')),
+                             ('risk', t('settings.j_risk'))) %}
+      <tr><td colspan="7" class="hint"
+              style="background:var(--surface-2,transparent);">{{ label }}</td></tr>
+      {% for weeks in ('35', '36', '37', '38') %}
+      <tr>
+        <td dir="ltr">{{ weeks }}{{ '+' if weeks == '38' else '' }}w</td>
+        {% for hours, value in jaundice_table.phototherapy[band][weeks] %}
+        <td dir="ltr">{{ value }}
+          <span class="hint" style="display:block;margin:0;">
+            {{ jaundice_table.exchange[band][weeks][loop.index0][1] }}</span></td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin:0 0 8px;">{{ t('settings.j_legend') }}</p>
+
+    <label class="checkbox" style="font-weight:400;display:block;">
+      <input type="checkbox" id="jaundice_table_confirmed"
+             name="jaundice_table_confirmed" value="1"
+             {{ 'checked' if values.get('jaundice_table_confirmed')=='1' else '' }}>
+      {{ t('settings.jaundice_confirm') }}</label>
+    <p class="hint" style="margin:6px 0 0;">
+      <i class="bi bi-exclamation-triangle"></i> {{ t('settings.jaundice_until') }}</p>
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </div>

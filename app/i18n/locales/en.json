@@ -1636,7 +1636,15 @@
     "cr_clear": "clear the box to restore it",
     "cr_weaker": "this catches fewer children than the program's number",
     "cr_p_temperature": "Temperature",
-    "cr_p_spo2": "Oxygen saturation"
+    "cr_p_spo2": "Oxygen saturation",
+    "jaundice_title": "Newborn jaundice table",
+    "jaundice_hint": "The thresholds the calculator compares a bilirubin against, by gestational age and hours of life. Read it against your own guideline before ticking the box.",
+    "jaundice_confirm": "I have reviewed this table and accept the program using it",
+    "jaundice_until": "Without this the calculator produces no numbers at all — not a formality: these values were transcribed by hand and need a clinician's eye.",
+    "j_weeks": "Gestation",
+    "j_no_risk": "No neurotoxicity risk factors",
+    "j_risk": "With neurotoxicity risk factors",
+    "j_legend": "The larger number is the phototherapy threshold; the smaller one beneath it is the exchange transfusion threshold."
   },
   "errors": {
     "403_title": "Forbidden",

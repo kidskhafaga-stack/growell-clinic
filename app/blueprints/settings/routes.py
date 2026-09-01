@@ -14,6 +14,7 @@ from app.models import CONSENT_TYPES as _CONSENT_TYPES
 from app.models import ActivityLog, Setting
 from app.utils import clinical_rules as _clinical
 from app.utils import consent as _consent
+from app.utils import jaundice as _jaundice
 from app.utils.decorators import admin_required, client_ip, owner_required
 
 ALLOWED_LOGO = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
@@ -71,6 +72,9 @@ TEXT_KEYS = [
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",
                "ai_dx_suggest",
+               # The clinician has read the jaundice table and accepted it.
+               # Until then the calculator answers nothing.
+               "jaundice_table_confirmed",
                # Appointments board: visit-type breakdown panel + its parts.
                "board_show_breakdown", "board_breakdown_month",
                "board_breakdown_newold",
@@ -588,6 +592,10 @@ def index():
         # the default came from, and whether the current value is weaker than
         # it. See app/utils/clinical_rules.py.
         clinical_rules=_clinical.for_screen(),
+        # Shown in full on the settings screen, because the box in front of it
+        # asks a clinician to accept these numbers and nobody can accept a
+        # table they cannot see.
+        jaundice_table=_jaundice.table(),
         consent_types=_CONSENT_TYPES,
         consent_defaults={kind: {lang: _consent.default_statement(kind, lang)
                                  for lang in ("ar", "en")}
