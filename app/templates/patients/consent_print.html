@@ -36,7 +36,7 @@
   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:36px;gap:20px;flex-wrap:wrap;">
     <div style="min-width:240px;">
       <div><strong>{{ t('consent.guardian_name') }}:</strong> {{ c.guardian_name }}
-        {% if c.guardian_relation %}<span style="color:var(--muted);">({{ t('parent_relations.' ~ c.guardian_relation) }})</span>{% endif %}</div>
+        {% if c.guardian_relation %}<span style="color:var(--muted);">({{ t('relations.' ~ c.guardian_relation) }})</span>{% endif %}</div>
       {% if c.guardian_id_no %}<div><strong>{{ t('consent.guardian_id') }}:</strong> <span dir="ltr">{{ c.guardian_id_no }}</span></div>{% endif %}
       <div style="border-top:1px solid var(--ink);width:220px;padding-top:6px;margin-top:34px;">{{ t('consent.guardian_signature') }}</div>
     </div>

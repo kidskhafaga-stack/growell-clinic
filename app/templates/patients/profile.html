@@ -431,7 +431,7 @@
           <span class="badge badge--role">{{ t('consent.types.' ~ cs.consent_type) }}</span>
           <div style="flex:1;min-width:180px;">
             <strong>{{ cs.guardian_name }}</strong>
-            {% if cs.guardian_relation %}<span style="color:var(--muted);font-size:0.8rem;">({{ t('parent_relations.' ~ cs.guardian_relation) }})</span>{% endif %}
+            {% if cs.guardian_relation %}<span style="color:var(--muted);font-size:0.8rem;">({{ t('relations.' ~ cs.guardian_relation) }})</span>{% endif %}
             <div style="font-size:0.78rem;color:var(--muted);"><span dir="ltr">{{ cs.signed_date }}</span>{% if cs.statement %} · {{ cs.statement[:80] }}{% endif %}</div>
           </div>
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.print_consent', consent_id=cs.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
@@ -462,7 +462,7 @@
           <div class="form-row"><label>{{ t('consent.relation') }}</label>
             <select class="select" name="guardian_relation">
               <option value="">—</option>
-              {% for r in relations %}<option value="{{ r }}" {{ 'selected' if g and g.relation == r else '' }}>{{ t('parent_relations.' ~ r) }}</option>{% endfor %}
+              {% for r in relations %}<option value="{{ r }}" {{ 'selected' if g and g.relation == r else '' }}>{{ t('relations.' ~ r) }}</option>{% endfor %}
             </select></div>
           <div class="form-row"><label>{{ t('consent.guardian_id') }}</label>
             <input class="input" name="guardian_id_no" dir="ltr" value="{{ g.national_id if g else '' }}"></div>
