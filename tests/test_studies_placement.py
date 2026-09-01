@@ -28,7 +28,7 @@ date and a device name, and the one that matters is the one nobody clicks.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -186,7 +186,7 @@ def test_the_device_used_most_recently_comes_first(scanned):
 def test_within_a_device_the_newest_is_first(scanned):
     data = _grouped(scanned)
     rows = data["groups"][0]["rows"]
-    assert rows[0]["date"] == date.today()
+    assert rows[0]["date"] == local_today()
     assert rows[0]["date"] > rows[1]["date"]
 
 
@@ -229,7 +229,7 @@ def test_a_study_with_no_date_sorts_oldest_rather_than_crashing(scanned):
     with scanned["app"].test_request_context("/"):
         data = patient_studies(patient)
     rows = data["groups"][0]["rows"]
-    assert rows[0]["date"] == date.today()
+    assert rows[0]["date"] == local_today()
     assert rows[-1]["date"] is None
 
 
