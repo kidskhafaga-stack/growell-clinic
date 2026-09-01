@@ -19,12 +19,21 @@
       diagnosis_code=(_dxlist[0].code if _dxlist and _dxlist[0].code else '')) %}
 <!-- Visit config kept in a JSON script tag (NOT in the x-data attribute, whose
      double quotes would clash with JSON's) so Alpine parses the component
-     reliably. -->
+     reliably.
+
+     `vitalBands` / `vitalFixed` are the age-banded normal ranges, sent from
+     the server. They used to be written out again below as a JavaScript
+     object, which was fine while this screen was the only thing that judged a
+     reading — and became a second copy free to disagree with the first the
+     moment anything on the server needed the same judgement. One table now,
+     in app/utils/vital_bands.py, with a test that it is the only one. -->
 <script type="application/json" id="visitCfg">
 {{ {'cc': visit.chief_complaint or '', 'exam': visit.clinical_exam or '', 'plan': visit.plan or '',
     'normal': t('visits.normal_exam_text'),
     'codes': phrase_codes,
     'age_days': (visit.patient.age_days or 0),
+    'vitalBands': vital_bands, 'vitalFixed': vital_fixed,
+    'dxSuggestUrl': (url_for('ai.suggest_dx', visit_id=visit.id) if ai_dx_suggest else ''),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
 <div x-data="visitPage('{{ url_for('main.icd_search') }}',
@@ -300,6 +309,20 @@
               {% endfor %}
             </select>
           </div>
+
+          {# The chart lives on its own screen and belongs there — a mouth is
+             not a form field. What was missing was any way to reach it from
+             the room: the dental panel here records the history and the risk,
+             and the tooth-by-tooth findings and the plan are next door with
+             nothing pointing at them. Shown with the dental panel, because
+             that is when a doctor wants it. #}
+          {% if dental_chart_url %}
+          <div class="md-row" x-show="panelKey === 'dentistry'" x-cloak
+               style="justify-content:flex-end;">
+            <a class="btn btn-outline gc-press" href="{{ dental_chart_url }}">
+              <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
+          </div>
+          {% endif %}
 
           {% for p in panel_all %}
           <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak>
@@ -613,6 +636,44 @@
     {% endif %}
     </div>
 
+    {# The assistant's suggestions. Above the search and not instead of it:
+       the search is how a doctor who knows the term finds it, and that path
+       is unchanged. This is for the other case — *"لو الدكتور مش حافظ
+       الاكواد او التشخيص مظبوط"* — where the term itself is what is wanted.
+
+       Deliberately quiet: no accent colour, no percentages. A confidence
+       number would be read as measurement, and this is not one. Sorted with
+       the dangerous ones first, because an ordinary-looking case is exactly
+       where the dangerous possibility gets read last. #}
+    {% if ai_dx_suggest %}
+    <div class="dx-ai" x-data>
+      <div class="dx-ai__head">
+        <button type="button" class="btn btn-ghost btn-sm" x-on:click="suggestDx()"
+                :disabled="dxs.busy">
+          <i class="bi" :class="dxs.busy ? 'bi-hourglass-split' : 'bi-lightbulb'"></i>
+          <span x-text="dxs.busy ? '{{ t('ai.dx_thinking') }}' : '{{ t('ai.dx_suggest') }}'"></span>
+        </button>
+        <span class="hint" style="margin:0;">{{ t('ai.dx_note') }}</span>
+      </div>
+
+      <p class="hint dx-ai__err" x-show="dxs.error" x-cloak x-text="dxs.error"></p>
+
+      <div class="dx-ai__list" x-show="dxs.items.length" x-cloak>
+        <template x-for="(s, i) in dxs.items" :key="i">
+          <button type="button" class="dx-ai__item" x-on:click="applySuggestion(s)">
+            <span class="badge badge--red" x-show="s.danger">{{ t('ai.dx_danger') }}</span>
+            <span class="dx-ai__name" x-text="s.ar"></span>
+            <span class="badge badge--role" x-show="s.code" x-text="s.code"></span>
+            <span class="badge badge--muted" x-show="!s.code">{{ t('ai.dx_no_code') }}</span>
+            <span class="dx-ai__why" x-text="s.why"></span>
+          </button>
+        </template>
+      </div>
+      <p class="hint" x-show="dxs.asked && !dxs.items.length && !dxs.busy && !dxs.error"
+         x-cloak>{{ t('ai.dx_none') }}</p>
+    </div>
+    {% endif %}
+
     <!-- Add diagnosis with ICD search -->
     <form method="post" data-add-form data-inline data-added-label="{{ t('visits.added_ok') }}" action="{{ url_for('visits.add_diagnosis', visit_id=visit.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -645,7 +706,13 @@
       <div class="form-grid" style="margin-top:12px;">
         <div class="form-row"><label>{{ t('visits.code') }}</label>
           <input class="input" name="code" dir="ltr" x-model="code"></div>
-        <div class="form-row"><label>{{ t('visits.diagnosis') }} *</label>
+        <div class="form-row"><label>{{ t('visits.diagnosis') }} *
+          {# The mark survives the click. A suggestion that fills the box and
+             then looks exactly like something the doctor typed is the one
+             outcome this feature must not have. #}
+          <span class="badge badge--muted" x-show="fromAi" x-cloak
+                style="font-weight:400;"><i class="bi bi-lightbulb"></i>
+            {{ t('ai.dx_from_ai') }}</span></label>
           <input class="input" name="title" x-model="title" x-on:input="onTitleInput()" required>
           <input type="hidden" name="title_ar" :value="titleAr">
           <input type="hidden" name="title_en" :value="titleEn"></div>
@@ -1513,8 +1580,22 @@
   .vt-dot { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-inline-end:2px; }
   .vt-dot.vt-ok { background:#16a34a; } .vt-dot.vt-warn { background:#d97706; } .vt-dot.vt-bad { background:#dc2626; }
   .dx-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; }
-  .btn-x { border:none; background:none; cursor:pointer; color:var(--muted); padding:0 4px; }
-  .btn-x:hover { color:var(--danger); }
+  /* The assistant's suggestions. Kept visually quieter than the diagnoses
+     already on the visit (`.dx-row`) and than the search below it: this is
+     the least authoritative thing in the panel and it should not be the most
+     eye-catching. Dashed border, muted ground, no accent colour. */
+  .dx-ai { border:1px dashed var(--line); border-radius:10px; padding:10px 12px;
+    margin-bottom:14px; background:var(--surface-2,transparent); }
+  .dx-ai__head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .dx-ai__err { color:var(--danger); margin:8px 0 0; }
+  .dx-ai__list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .dx-ai__item { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    width:100%; text-align:start; padding:8px 10px; border:1px solid var(--line);
+    border-radius:8px; background:var(--surface,#fff); color:var(--ink);
+    font-family:inherit; font-size:0.88rem; cursor:pointer; transition:border-color .15s ease; }
+  .dx-ai__item:hover { border-color:var(--green-600); }
+  .dx-ai__name { font-weight:600; }
+  .dx-ai__why { flex-basis:100%; color:var(--muted); font-size:0.8rem; }
   [x-cloak]{ display:none !important; }
   /* Workflow tabs */
   .visit-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:14px 0; }
@@ -1656,15 +1737,12 @@
       vSpo2: '{{ visit.vitals.spo2 if visit.vitals and visit.vitals.spo2 is not none else '' }}',
       // Age-banded normal (ok) and tolerated (warn) ranges. Outside warn = red.
       // Each HR/RR row: [maxAgeMonths, okLow, okHigh, warnLow, warnHigh].
-      _peds: {
-        hr: [[3,100,160,90,180],[12,90,160,80,180],[36,80,140,70,160],
-             [72,70,120,60,140],[144,65,110,55,130],[9999,60,100,50,120]],
-        rr: [[12,30,55,25,65],[36,24,40,20,50],[72,22,34,18,42],
-             [144,18,30,14,36],[9999,12,20,10,26]],
-      },
+      // Both come from the server — see the note beside `vitalBands` in the
+      // config blob above. Nothing in this file states a clinical number.
+      _peds: cfg.vitalBands || {},
+      _fixed: cfg.vitalFixed || {},
       vitalRange(kind) {
-        if (kind === 'temp') return [36.0, 37.5, 35.5, 38.0];
-        if (kind === 'spo2') return [95, 100, 91, 100];
+        if (this._fixed[kind]) return this._fixed[kind];
         const table = this._peds[kind] || [];
         for (const b of table) if (this.ageMonths <= b[0]) return [b[1], b[2], b[3], b[4]];
         return null;
@@ -1679,6 +1757,13 @@
         return 'vt-bad';
       },
       q: '', code: '', title: '', titleAr: '', titleEn: '', version: '10',
+      // Whether what is in the diagnosis box came from the assistant. Kept
+      // after the click so the badge can stay: a machine's suggestion that
+      // becomes indistinguishable from the doctor's own wording the instant
+      // it lands is the failure mode this whole feature has to avoid.
+      fromAi: false,
+      dxs: { url: cfg.dxSuggestUrl || '', busy: false, asked: false,
+             items: [], error: '' },
       // "Write less" helpers: clinical fields are Alpine-bound so smart phrases
       // and carry-forward can fill them with one click.
       cc: cfg.cc || '', exam: cfg.exam || '', planTxt: cfg.plan || '',
@@ -1790,7 +1875,54 @@
         return '';
       },
       askIcd() { this.icd.q = this.q; this.icd.search(); },
+      async suggestDx() {
+        if (!this.dxs.url || this.dxs.busy) return;
+        this.dxs.busy = true; this.dxs.error = ''; this.dxs.items = [];
+        try {
+          // The boxes as they are right now, not as they were saved. The
+          // doctor presses this while still writing, and a suggestion built
+          // from the stored row would silently ignore the three lines they
+          // just typed.
+          // No CSRF header here: base.html wraps fetch and adds it to every
+          // same-origin POST. A second one set by hand would be one more place
+          // to get it wrong.
+          const res = await fetch(this.dxs.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cc: this.cc, exam: this.exam })
+          });
+          const data = await res.json();
+          if (data.ok) { this.dxs.items = data.suggestions || []; }
+          else { this.dxs.error = this.dxError(data.error); }
+        } catch (e) {
+          this.dxs.error = '{{ t('ai.dx_failed') }}';
+        } finally { this.dxs.busy = false; this.dxs.asked = true; }
+      },
+      dxError(code) {
+        // "Too thin" is not an error, it is an instruction, and it is the one
+        // a doctor will hit most: pressing the button before writing
+        // anything. Saying "failed" there would send them looking for a
+        // broken program.
+        if (code === 'too_thin') return '{{ t('ai.dx_too_thin') }}';
+        if (code === 'disabled' || code === 'not_configured'
+            || code === 'dx_suggest_disabled') return '{{ t('ai.dx_off') }}';
+        return '{{ t('ai.dx_failed') }}';
+      },
+      applySuggestion(s) {
+        // Fills the same form the doctor was already filling — the type stays
+        // whatever the select says, and its default is `working`. Nothing here
+        // saves: they still press add.
+        this.code = s.code || '';
+        this.titleAr = s.ar || ''; this.titleEn = s.en || '';
+        this.title = (current_lang === 'ar' ? (s.ar || s.en) : (s.en || s.ar));
+        this.version = s.icd_version || '10';
+        this.fromAi = true;
+        this.q = '';
+      },
       applyIcd(r) {
+        // A code picked by hand is the doctor's, whatever was in the box
+        // before it.
+        this.fromAi = false;
         // Keep both languages: title is the Arabic primary, title_en the English.
         this.code = r.code; this.titleAr = r.ar; this.titleEn = r.en;
         this.title = (current_lang === 'ar' ? r.ar : r.en);
@@ -1805,7 +1937,7 @@
         if (r) { ev.preventDefault(); this.applyIcd(r); }
       },
       // Manual edit overrides a previous pick (clear the bilingual snapshot).
-      onTitleInput() { this.titleAr = ''; this.titleEn = ''; }
+      onTitleInput() { this.titleAr = ''; this.titleEn = ''; this.fromAi = false; }
     };
   }
 

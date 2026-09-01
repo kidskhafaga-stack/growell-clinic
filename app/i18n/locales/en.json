@@ -159,7 +159,11 @@
     "drafts": "Drafts",
     "drafts_hint": "Written and not yet put to the family — nothing is billed.",
     "items": "items",
-    "open_a_chart": "Open a child's chart"
+    "open_a_chart": "Open a child's chart",
+    "open_chart": "Open the tooth chart",
+    "teeth_recorded": "Teeth recorded",
+    "needs_work": "Needing work",
+    "no_plans": "No treatment plan yet — open the chart and record the findings first."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -383,7 +387,11 @@
     "preterm": "Preterm",
     "corrected_age": "corrected age",
     "corrected_age_hint": "This child was born early, so the percentile is computed against the corrected age rather than the age since birth.",
-    "at_birth": "at birth"
+    "at_birth": "at birth",
+    "birth_time": "Time of birth",
+    "birth_time_hint": "Only matters in the first days — jaundice thresholds move by the hour. Leave blank if nobody said.",
+    "birth_time_bad": "The time of birth is not a valid time",
+    "tab_dental": "Teeth"
   },
   "import": {
     "title": "Import patient data",
@@ -1602,7 +1610,17 @@
     "secret_saved": "a key is saved",
     "secret_clear": "remove the saved key",
     "secret_hint": "A saved key is never sent back to this page. Leave the box empty to keep it.",
-    "guideline_moved": "Set on the vaccination management screen, where it belongs."
+    "guideline_moved": "Set on the vaccination management screen, where it belongs.",
+    "ai_dx_section": "Diagnosis suggestions on the visit screen",
+    "ai_dx_suggest": "Let the assistant suggest diagnoses from the complaint and examination",
+    "ai_dx_hint": "Suggestions appear beside the ICD search, not instead of it, and nothing is saved until the doctor adds it. The name comes from the assistant; the code comes from the program's own classification — the assistant is never asked for a code.",
+    "consent_title": "Consent wording",
+    "consent_hint": "The text the guardian signs, for each kind of consent and in both languages. Leave a box empty to use the program's own wording. What has already been signed does not change — the text is stored on the consent itself at the moment of signing.",
+    "consent_default": "using the program's wording",
+    "consent_edited": "the clinic's own wording",
+    "consent_clear_to_restore": "clear the box to restore the default",
+    "lang_ar": "Arabic",
+    "lang_en": "English"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2227,7 +2245,16 @@
       "data_privacy": "I consent to the clinic keeping the child's medical data in their file and using it to follow up their treatment and to issue the reports and invoices required. This data is not shared with any outside party except with my consent or where the law requires it. I have the right to see the file and to ask for anything in it to be corrected.",
       "photography": "I consent to the child's condition being photographed or filmed for the medical purpose explained to me, and to it being kept in the child's file. It is not used for teaching or publication except with separate written consent and after removing anything identifying the child. I may withdraw this consent at any time, and that applies to anything not yet published."
     },
-    "statement_hint": "This is the text that will be signed — read it to the guardian; you can add to it if the case needs it."
+    "statement_hint": "This is the text that will be signed — read it to the guardian; you can add to it if the case needs it.",
+    "withdraw": "Withdraw",
+    "withdraw_undo": "Undo withdrawal",
+    "withdraw_reason": "Reason (optional)",
+    "withdraw_confirm": "Record that the guardian withdrew this consent? It stays in the file, marked as withdrawn.",
+    "withdrawn": "The consent is recorded as withdrawn.",
+    "withdraw_undone": "The consent stands again.",
+    "withdrawn_badge": "withdrawn",
+    "withdrawn_on": "Withdrawn on",
+    "delete_confirm": "Delete permanently? This is for a consent written on the wrong child. If the guardian withdrew it, use Withdraw instead."
   },
   "roles_mgmt": {
     "title": "Roles & permissions",
@@ -2548,7 +2575,17 @@
     "discuss_placeholder": "Ask about this case…",
     "discuss_disclaimer": "A suggestion for discussion — not a diagnosis. The doctor who examined the child decides, and no doses are given here.",
     "discuss_off": "Discussion mode is switched off in Settings.",
-    "err_discussion_off": "Discussion mode is off. Switch it on in Settings → AI."
+    "err_discussion_off": "Discussion mode is off. Switch it on in Settings → AI.",
+    "dx_suggest": "Suggest diagnoses",
+    "dx_thinking": "Thinking…",
+    "dx_note": "Suggested by the assistant — the code comes from the program's own classification",
+    "dx_danger": "Must not miss",
+    "dx_no_code": "no code",
+    "dx_none": "Nothing to suggest from these notes — add the complaint or the examination",
+    "dx_too_thin": "Write the complaint or the examination first",
+    "dx_failed": "The suggestion did not arrive — try again",
+    "dx_off": "Diagnosis suggestions are off — Settings → AI",
+    "dx_from_ai": "suggested"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -3223,7 +3260,10 @@
     "said_behind": "There is a newer version — see What's new below.",
     "said_current": "You are on the newest version.",
     "said_offline": "Could not reach GitHub. Try again when the connection is up.",
-    "said_unknown": "This copy does not know its own version, so there is nothing to compare."
+    "said_unknown": "This copy does not know its own version, so there is nothing to compare.",
+    "notes_new": "New",
+    "notes_improved": "Improvements",
+    "notes_fixed": "Fixes"
   },
   "notif": {
     "title": "Notifications",

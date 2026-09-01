@@ -116,6 +116,7 @@
         ('phrases','chat-square-text', t('settings.lists_tab')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
+        ('consent','file-earmark-check', t('settings.consent_title')),
         ('ai','robot', t('settings.ai_title')),
         ('update','arrow-up-circle', t('update.tab'))] %}
     <button type="button" class="btn btn-sm gc-press"
@@ -548,6 +549,55 @@
   </div>
 
   <!-- AI assistant -->
+  {# The wording every consent is signed under. It lived in the locale files,
+     which meant a clinic could not change a word of it — and a consent form's
+     entire job is to say what is being agreed to, in words the clinic stands
+     behind.
+
+     Both languages side by side, because a consent is signed in the language
+     it was read in and the two stop being translations of each other the
+     moment a clinic edits one. What is signed is snapshotted onto the row, so
+     editing here never changes a consent somebody has already given.
+
+     Overrides sit beside the default rather than on top of it: the box shows
+     what the clinic wrote, the text under it shows what this program says,
+     and clearing the box puts it back. A default that can be edited away is a
+     default nobody can ever get back. #}
+  <div class="card gc-scale-in" x-show="tab==='consent'" x-cloak id="consent-text">
+    <h2 class="section-title"><i class="bi bi-file-earmark-check"></i> {{ t('settings.consent_title') }}</h2>
+    <p class="hint">{{ t('settings.consent_hint') }}</p>
+
+    {% for kind in consent_types %}
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;">
+      <h3 style="font-size:0.95rem;margin:0 0 10px;">
+        <span class="badge badge--role">{{ t('consent.types.' ~ kind) }}</span></h3>
+      <div class="form-grid">
+        {% for lang in ('ar', 'en') %}
+        <div class="form-row">
+          <label for="consent_text_{{ kind }}_{{ lang }}">
+            {{ t('settings.lang_' ~ lang) }}</label>
+          <textarea class="input" rows="4" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"
+                    id="consent_text_{{ kind }}_{{ lang }}"
+                    name="consent_text_{{ kind }}_{{ lang }}"
+                    placeholder="{{ consent_defaults[kind][lang] }}"
+                    >{{ consent_own[kind][lang] }}</textarea>
+          <div class="hint">
+            {% if consent_own[kind][lang] %}
+              <i class="bi bi-pencil"></i> {{ t('settings.consent_edited') }}
+              — {{ t('settings.consent_clear_to_restore') }}
+            {% else %}
+              <i class="bi bi-check2"></i> {{ t('settings.consent_default') }}
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
+
   <div class="card gc-scale-in" x-show="tab==='ai'" x-cloak id="ai"
        x-data="{
          provider: '{{ values.get('ai_provider','claude') }}',
@@ -750,6 +800,19 @@
     </div>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_discussion_hint') }}</p>
 
+    {# A third switch rather than a fold into the one above, because the two
+       appear in different places to different people. The discussion is a
+       doctor asking a colleague, on the patient's screen, deliberately. This
+       one appears inside the consultation at the moment the diagnosis is
+       being chosen — the most useful place for it and the place where a
+       suggestion has the most power to become the answer. #}
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-lightbulb"></i> {{ t('settings.ai_dx_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_dx_suggest" name="ai_dx_suggest" value="1" {{ 'checked' if values.get('ai_dx_suggest')=='1' else '' }}>
+      <label for="ai_dx_suggest" style="margin:0;font-weight:400;">{{ t('settings.ai_dx_suggest') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_dx_hint') }}</p>
+
     {# ICD-11 sits on the AI tab because it is the other thing on this screen
        that needs credentials from an outside body — not because WHO has
        anything to do with the assistant. It is imported once and then the
@@ -869,15 +932,66 @@
      in update.bat, with a backup in front of it and a schema upgrade after —
      the whole reason the launch check only ever says. #}
   <div class="card gc-scale-in md" x-show="tab==='update'" x-cloak id="update"
-       x-data="{ busy: false, said: '', tone: '' ,
+       x-data="{ busy: false, said: '', tone: '',
+                 // What a live check found, or null while nothing has been
+                 // pressed. The whole card reads this when it is set and the
+                 // server's own answer when it is not.
+                 //
+                 // Reported with a screenshot: the badge said **أحدث إصدار**
+                 // while the sentence beside it said **فيه إصدار أجدد — شوف
+                 // «الجديد» تحت**, and there was no «الجديد» anywhere on the
+                 // screen. One card, contradicting itself, pointing at a
+                 // section that did not exist.
+                 //
+                 // The cause was that the check updated exactly one sentence.
+                 // Everything else on this card — the badge, the notes, the
+                 // block that installs it — was rendered by the server when
+                 // the page loaded and never heard that the answer had
+                 // changed. The endpoint has always returned the version and
+                 // the notes; the screen threw them away.
+                 //
+                 // Not fixed by reloading the page, which would have been
+                 // simpler: every tab on this screen is one form, and
+                 // somebody halfway through typing an API key on another tab
+                 // must not lose it for having pressed «اتأكد دلوقتي».
+                 live: null,
+                 behind() { return this.live ? this.live.behind : {{ 'true' if update_pending else 'false' }}; },
+                 latest() { return this.live ? this.live.latest : '{{ (update_pending.latest if update_pending else '')[:12] }}'; },
+                 notes() { return this.live ? this.live.notes : {{ ((update_pending.notes if update_pending else []) or []) | tojson }}; },
+                 // What the vendor wrote, grouped. Preferred over the
+                 // commit subjects where it exists: a line filed under
+                 // «fixed» tells a clinic what kind of release this is, and
+                 // the subject the change was committed under does not.
+                 // (No double quotes in here — this whole block is inside a
+                 // double-quoted attribute, and one would end it.)
+                 // `or []` is not decoration. A notice stored by a launch
+                 // before this field existed — which is every clinic that has
+                 // one right now — has no `release_notes` key, and Jinja's
+                 // Undefined raises inside `tojson`. That is a 500 on the
+                 // settings screen of an install that upgraded.
+                 groups() { return this.live ? this.live.release_notes
+                            : {{ ((update_pending.release_notes if update_pending else []) or []) | tojson }}; },
                  async check() {
                    this.busy = true; this.said = '';
                    try {
                      const r = await fetch('{{ url_for('settings.update_check_now') }}',
                                            {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}});
                      const d = await r.json();
-                     if (d.ok && d.behind) { this.tone = 'warn'; this.said = UPD.behind; }
-                     else if (d.ok) { this.tone = 'ok'; this.said = UPD.current; }
+                     if (d.ok && d.behind) {
+                       this.tone = 'warn'; this.said = UPD.behind;
+                       this.live = { behind: true, latest: (d.latest || '').slice(0, 12),
+                                     notes: d.notes || [],
+                                     release_notes: d.release_notes || [] };
+                     }
+                     else if (d.ok) {
+                       this.tone = 'ok'; this.said = UPD.current;
+                       this.live = { behind: false, latest: '', notes: [],
+                                     release_notes: [] };
+                     }
+                     // Offline and «cannot tell» leave `live` alone on
+                     // purpose: neither is an answer about the version, and
+                     // overwriting a real one with them would turn a blip in
+                     // the connection into «you are up to date».
                      else if (d.reason === 'unreachable') { this.tone = 'warn'; this.said = UPD.offline; }
                      else { this.tone = 'warn'; this.said = UPD.unknown; }
                    } catch (e) { this.tone = 'warn'; this.said = UPD.offline; }
@@ -900,10 +1014,13 @@
       <div class="info-item">
         <div class="k">{{ t('update.state') }}</div>
         <div class="v">
-          {% if update_pending %}
-            <span class="badge badge--role">{{ t('update.behind') }}</span>
-          {% elif installed_revision.revision %}
-            <span class="badge badge--green">{{ t('update.current_short') }}</span>
+          {% if installed_revision.revision %}
+            <span class="badge badge--role" x-show="behind()" x-cloak>{{ t('update.behind') }}</span>
+            <span class="badge badge--green" x-show="!behind()" x-cloak>{{ t('update.current_short') }}</span>
+            {# Alpine has not run yet on the first paint. Without this the
+               badge is briefly absent on every load, which on a slow machine
+               reads as a card that failed to render. #}
+            <noscript><span class="badge badge--muted">{{ t('update.state') }}</span></noscript>
           {% else %}—{% endif %}
         </div>
       </div>
@@ -922,14 +1039,48 @@
             :style="tone === 'ok' ? 'color:var(--green-700)' : 'color:#b45309'"></span>
     </div>
 
-    {% if update_pending and update_pending.notes %}
-    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
+    {# «الجديد» — the section the sentence above points at. It has to appear
+       when a live check finds something, not only when the page happened to
+       load already knowing. #}
+    <div x-show="behind() && (groups().length || notes().length)" x-cloak
+         style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
       <strong style="font-size:.92rem;">{{ t('update.whats_new') }}</strong>
-      <ul style="margin:6px 0 0;padding-inline-start:20px;">
-        {% for line in update_pending.notes %}<li class="hint">{{ line }}</li>{% endfor %}
+
+      {# What the vendor actually wrote, when they wrote any: a release at a
+         time, and inside it what is new, what improved and what was fixed.
+         A clinic decides whether to close for five minutes now or after lunch
+         on this, and a list of commit subject lines does not tell them
+         whether the release is a feature or a bug they have been hitting. #}
+      <template x-for="(rel, ri) in groups()" :key="ri">
+        <div style="margin-top:8px;">
+          <div class="hint" style="font-weight:600;" x-text="rel.heading"></div>
+          <template x-for="g in [
+              {k:'new',      label:{{ t('update.notes_new') | tojson }}},
+              {k:'improved', label:{{ t('update.notes_improved') | tojson }}},
+              {k:'fixed',    label:{{ t('update.notes_fixed') | tojson }}}]" :key="g.k">
+            <div x-show="(rel[g.k] || []).length" style="margin-top:4px;">
+              <span class="badge badge--muted" x-text="g.label"></span>
+              <ul style="margin:4px 0 0;padding-inline-start:20px;">
+                <template x-for="(line, i) in (rel[g.k] || [])" :key="i">
+                  <li class="hint" x-text="line"></li>
+                </template>
+              </ul>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      {# The fallback, and it only appears when nothing was written: the
+         subject lines the changes were committed under. Worse than the above
+         and better than the nothing a clinic used to get. #}
+      <ul x-show="!groups().length" style="margin:6px 0 0;padding-inline-start:20px;">
+        <template x-for="(line, i) in notes()" :key="i">
+          <li class="hint" x-text="line"></li>
+        </template>
       </ul>
     </div>
-    {% endif %}
+    <p class="hint" x-show="behind() && !groups().length && !notes().length"
+       x-cloak style="margin-top:12px;">{{ t('update.no_notes') }}</p>
 
     {# ---- Installing it, in the same place as everything else about it ----
 
@@ -947,13 +1098,28 @@
        `formaction` rather than a nested `<form>`: every tab on this screen is
        one form, and a form inside a form is dropped by the browser. The same
        pattern the ICD-11 buttons above already use. #}
+    {# A live check that finds one when the page did not know: the block below
+       is not on the page, because a copy that is up to date must not carry
+       instructions for installing nothing — hidden markup is still markup, and
+       there is a test that says so.
+
+       So it offers the way to it rather than a copy of it. Opening the link
+       reloads this screen, which is the user's own choice to make: everything
+       here is one form, and losing a half-typed API key to a button press
+       would not have been. #}
+    <p class="hint" x-show="behind() && !{{ 'true' if update_pending else 'false' }}"
+       x-cloak style="margin-top:12px;">
+      <i class="bi bi-box-arrow-in-down"></i>
+      <a href="{{ url_for('settings.index') }}#update">{{ t('update.open_page') }}</a>
+    </p>
+
     {% if update_pending %}
     <div class="update-do">
       <div class="update-do__head">
         <i class="bi bi-box-arrow-in-down"></i>
         <strong>{{ t('update.how') }}</strong>
         <span class="hint" style="margin:0;" dir="ltr">
-          {{ update_pending.installed[:12] }} → {{ update_pending.latest[:12] }}</span>
+          {{ installed_revision.short or '—' }} &rarr; <span x-text="latest()"></span></span>
       </div>
       <ol class="update-do__steps">
         <li>{{ t('update.step_close') }}</li>

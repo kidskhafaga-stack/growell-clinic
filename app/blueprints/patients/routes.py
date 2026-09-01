@@ -11,6 +11,7 @@ from datetime import time as dtime
 
 from flask import (
     Response,
+    abort,
     current_app,
     flash,
     g,
@@ -437,6 +438,7 @@ def create():
             birth_weight_kg=form["birth_weight_kg"],
             gestation_weeks=form["gestation_weeks"],
             gestation_days=form["gestation_days"],
+            birth_time=form["birth_time"],
             allergies=form["allergies"],
             chronic_diseases=form["chronic_diseases"],
             notes=form["notes"],
@@ -546,6 +548,12 @@ def view(patient_id):
         sibling_hints=suggest_siblings(patient),
         patient=patient,
         relations=PARENT_RELATIONS,
+        # The child's mouth, when the clinic does dentistry. A summary and a
+        # way in — the chart itself is a screen of its own and belongs there,
+        # not copied into this file. Everything about dentistry was built and
+        # nothing linked to it: the chart, the plans and the per-tooth history
+        # all existed, and no screen in the program pointed at any of them.
+        dental=_dental_summary(patient),
         consent_types=CONSENT_TYPES,
         consent_statements=all_statements(),
         categories=CLIENT_CATEGORIES,
@@ -663,6 +671,7 @@ def edit(patient_id):
         patient.birth_weight_kg = form["birth_weight_kg"]
         patient.gestation_weeks = form["gestation_weeks"]
         patient.gestation_days = form["gestation_days"]
+        patient.birth_time = form["birth_time"]
         patient.allergies = form["allergies"]
         patient.chronic_diseases = form["chronic_diseases"]
         patient.notes = form["notes"]
@@ -696,6 +705,10 @@ def edit(patient_id):
         "birth_weight_kg": patient.birth_weight_kg if patient.birth_weight_kg is not None else "",
         "gestation_weeks": patient.gestation_weeks if patient.gestation_weeks is not None else "",
         "gestation_days": patient.gestation_days if patient.gestation_days is not None else "",
+        # `HH:MM` — what an <input type="time"> round-trips. Blank when
+        # nobody recorded it, so re-saving an edit form does not invent one.
+        "birth_time": (patient.birth_time.strftime("%H:%M")
+                       if patient.birth_time else ""),
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
         "notes": patient.notes or "",
@@ -980,12 +993,60 @@ def add_consent(patient_id):
 @patients_bp.route("/consents/<int:consent_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def delete_consent(consent_id):
+    """Remove a consent entirely. Admin only, and it is not the ordinary path.
+
+    Withdrawing is what a guardian does and what :func:`withdraw_consent`
+    records. This is for the other thing: a consent written on the wrong
+    child, which is not a fact about anybody and must not sit in their file
+    being true. Anyone who can edit a patient could do this before, which
+    meant the difference between the two was a button label.
+    """
+    if not current_user.is_admin:
+        abort(403)
     c = db.get_or_404(Consent, consent_id)
     pid = c.patient_id
+    ActivityLog.record("consent.delete", user_id=current_user.id,
+                       entity="patient", entity_id=pid,
+                       ip_address=client_ip())
     db.session.delete(c)
     db.session.commit()
     flash(t("consent.deleted"), "info")
     return redirect(url_for("patients.view", patient_id=pid) + "#consent")
+
+
+@patients_bp.route("/consents/<int:consent_id>/withdraw", methods=["POST"])
+@module_required(MODULE)
+def withdraw_consent(consent_id):
+    """The guardian has withdrawn it. The row stays; it is marked and dated.
+
+    The statement they signed says they may — *"ولي أن أسحب موافقتي في أي
+    وقت"* — and the program could only delete, which is a different thing. The
+    consent was given; that remains true. What changed is that it no longer
+    stands, and when it stopped standing is exactly the fact somebody will
+    need later.
+
+    Reversible for the same reason a referral is: a withdrawal recorded
+    against the wrong consent, at a desk, with a queue waiting.
+    """
+    from app.utils.clock import local_now
+
+    c = db.get_or_404(Consent, consent_id)
+    if c.is_withdrawn:
+        c.withdrawn_at = None
+        c.withdrawn_reason = None
+        c.withdrawn_by = None
+        action, message = "consent.withdraw_undo", "consent.withdraw_undone"
+    else:
+        c.withdrawn_at = local_now().replace(tzinfo=None)
+        c.withdrawn_reason = (request.form.get("reason") or "").strip() or None
+        c.withdrawn_by = current_user.id
+        action, message = "consent.withdraw", "consent.withdrawn"
+    ActivityLog.record(action, user_id=current_user.id, entity="patient",
+                       entity_id=c.patient_id, ip_address=client_ip())
+    db.session.commit()
+    flash(t(message), "info")
+    return redirect(
+        url_for("patients.view", patient_id=c.patient_id) + "#consent")
 
 
 @patients_bp.route("/consents/<int:consent_id>/print")
@@ -1072,6 +1133,7 @@ def _read_patient_form():
         "birth_weight_kg": (request.form.get("birth_weight_kg") or "").strip(),
         "gestation_weeks": (request.form.get("gestation_weeks") or "").strip(),
         "gestation_days": (request.form.get("gestation_days") or "").strip(),
+        "birth_time": (request.form.get("birth_time") or "").strip(),
         "allergies": (request.form.get("allergies") or "").strip(),
         "chronic_diseases": (request.form.get("chronic_diseases") or "").strip(),
         "notes": (request.form.get("notes") or "").strip(),
@@ -1080,6 +1142,31 @@ def _read_patient_form():
         "family_id": request.form.get("family_id", type=int),
         "new_family_name": (request.form.get("new_family_name") or "").strip(),
     }
+
+
+def _dental_summary(patient):
+    """What this child's mouth needs, in the few lines a file tab can hold.
+
+    ``None`` when the clinic does not do dentistry, so the tab is absent
+    rather than empty — an empty tab labelled "teeth" on every paediatric file
+    is furniture, and the module is off by default precisely because a
+    paediatric clinic is not a dental one.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("dentistry"):
+        return None
+
+    from app.models import TreatmentPlan
+    from app.models.dental import chart_for, outstanding
+
+    drawn = chart_for(patient.id)
+    plans = (TreatmentPlan.query
+             .filter(TreatmentPlan.patient_id == patient.id,
+                     TreatmentPlan.status.in_(("draft", "accepted")))
+             .order_by(TreatmentPlan.id.desc()).all())
+    return {"needs": outstanding(drawn), "plans": plans,
+            "recorded": sum(1 for slots in drawn.values() if slots)}
 
 
 def _validate_patient(form, existing):
@@ -1155,6 +1242,19 @@ def _read_birth_facts(form, ranges=((0.3, 7.0), (22, 45))):
         form["gestation_days"] = None
     elif form["gestation_days"] is None:
         form["gestation_days"] = 0
+
+    # The hour of birth. Blank becomes ``None`` and never midnight: the whole
+    # point of recording it is that an assumed hour is wrong by up to twelve,
+    # and a stored 00:00 is indistinguishable from a baby actually born then.
+    raw_time = form.get("birth_time") or ""
+    if not raw_time:
+        form["birth_time"] = None
+    else:
+        try:
+            hours, minutes = raw_time.split(":")[:2]
+            form["birth_time"] = dtime(int(hours), int(minutes))
+        except (ValueError, TypeError):
+            return t("patients.birth_time_bad")
     return None
 
 

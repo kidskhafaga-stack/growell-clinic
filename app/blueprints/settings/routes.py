@@ -10,7 +10,9 @@ from werkzeug.utils import secure_filename
 from app.blueprints.settings import settings_bp
 from app.extensions import db
 from app.i18n import t
+from app.models import CONSENT_TYPES as _CONSENT_TYPES
 from app.models import ActivityLog, Setting
+from app.utils import consent as _consent
 from app.utils.decorators import admin_required, client_ip, owner_required
 
 ALLOWED_LOGO = {"png", "jpg", "jpeg", "webp", "svg", "gif"}
@@ -67,6 +69,7 @@ TEXT_KEYS = [
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",
+               "ai_dx_suggest",
                # Appointments board: visit-type breakdown panel + its parts.
                "board_show_breakdown", "board_breakdown_month",
                "board_breakdown_newold",
@@ -246,7 +249,12 @@ def update_check_now():
     remember(found)
     if found:
         return jsonify({"ok": True, "behind": True, "installed": installed,
-                        "latest": found["latest"], "notes": found["notes"]})
+                        "latest": found["latest"], "notes": found["notes"],
+                        # What the vendor wrote, grouped. Empty when they
+                        # wrote none — the screen then shows the commit
+                        # subjects above, which is a worse answer and a real
+                        # one.
+                        "release_notes": found.get("release_notes") or []})
 
     # `pending()` answers None for "up to date" and for "could not reach
     # GitHub" alike — which are different things to tell somebody who just
@@ -483,6 +491,16 @@ def index():
                 Setting.set(key, overrides[key])
                 continue
             Setting.set(key, (request.form.get(key) or "").strip())
+        # The consent wording, one key per kind per language. Not in
+        # `TEXT_KEYS` because that list is fixed and this one is the seven
+        # consent kinds times two languages — and because blank has to mean
+        # *use the default*, not "store an empty consent". Clearing the box is
+        # how a clinic puts the program's own wording back.
+        for kind in _CONSENT_TYPES:
+            for lang in ("ar", "en"):
+                key = _consent.setting_key(kind, lang)
+                Setting.set(key, (request.form.get(key) or "").strip())
+
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")
 
@@ -545,6 +563,16 @@ def index():
         # What this copy is, and how it knows. A clone can answer for itself;
         # a downloaded copy reads the stamp `update.bat` wrote.
         installed_revision=_installed_now(),
+        # The consent wording: what this program says, and what the clinic
+        # wrote instead. Both, so the screen can show the default underneath
+        # the box a clinic has overridden and clearing it can put it back.
+        consent_types=_CONSENT_TYPES,
+        consent_defaults={kind: {lang: _consent.default_statement(kind, lang)
+                                 for lang in ("ar", "en")}
+                          for kind in _CONSENT_TYPES},
+        consent_own={kind: {lang: _consent.clinic_statement(kind, lang)
+                            for lang in ("ar", "en")}
+                     for kind in _CONSENT_TYPES},
         update_pending=_update_pending(),
         # Whether this copy can start the external updater at all: Windows,
         # and the hand-off script actually on disk. Without it the template's

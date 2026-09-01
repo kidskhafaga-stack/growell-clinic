@@ -41,6 +41,7 @@ from app.models import (
 from app.utils import whatsapp as wa
 from app.utils.decorators import client_ip, module_required
 from app.utils.paging import paginate
+from app.utils import vital_bands
 from app.utils.icd import available_versions
 from app.utils import phrases
 from app.utils.uploads import ATTACHMENT_KINDS, remove_document, save_document
@@ -370,7 +371,36 @@ def record(visit_id):
         # the list the moment it is imported, and stays out of it until then.
         icd_versions=available_versions(),
         ai_ready=ai.is_ready(),
+        # Both, because the button has two reasons to be absent and they are
+        # not the same reason: no provider configured is the clinic's IT, a
+        # switch left off is the clinic's policy. The screen shows the button
+        # only when both are true and says nothing when either is not — there
+        # is nothing a doctor mid-consultation could do about either.
+        ai_dx_suggest=ai.is_ready() and ai.dx_suggestion_enabled(),
+        # The age-banded ranges the vitals boxes colour themselves by. Sent
+        # rather than written into the template, so this screen and anything
+        # on the server that judges a reading are reading the same table.
+        # A way into this child's tooth chart, when the clinic does
+        # dentistry.
+        dental_chart_url=_dental_chart_url(visit),
+        vital_bands=vital_bands.BY_AGE,
+        vital_fixed=vital_bands.FIXED,
     )
+
+
+def _dental_chart_url(visit):
+    """The way into this child's tooth chart, or ``None``.
+
+    ``None`` when the clinic does not do dentistry, so the button is absent
+    rather than pointing at a module that answers 404. The chart, the plans
+    and the per-tooth history were all built and nothing in the program linked
+    to any of them — least of all the screen the doctor is standing on.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("dentistry"):
+        return None
+    return url_for("dentistry.chart", patient_id=visit.patient_id)
 
 
 def _visit_clinical_text(visit, anonymize=True):

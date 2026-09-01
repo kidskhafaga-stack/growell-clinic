@@ -241,3 +241,57 @@ def patient_discuss(patient_id):
                            ip_address=client_ip())
         db.session.commit()
     return _reply(result)
+
+
+@ai_bp.route("/visit/<int:visit_id>/suggest-dx", methods=["POST"])
+@module_required(MODULE)
+def suggest_dx(visit_id):
+    """Name the diagnoses these notes point at, so the doctor can find them.
+
+    Guarded by the visit module and not only by this one: the caller is the
+    consultation screen, and somebody who cannot open a visit has no business
+    reading its notes through a route that happens to live under ``/ai``.
+
+    Not guarded by ``ai_patient_context``. That switch governs sending a
+    child's *file* — history, past visits, a summary — and this sends none of
+    it. What leaves here is the age, the sex, and the notes typed into this
+    one visit, with no name attached. Requiring the file switch would mean a
+    clinic could not have this without also agreeing to something it does not
+    do.
+    """
+    from app.models import Visit
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("visits"):
+        return _reply({"ok": False, "error": "visits_disabled"}, 403)
+    if not ai_utils.dx_suggestion_enabled():
+        return _reply({"ok": False, "error": "dx_suggest_disabled"}, 403)
+    visit = db.get_or_404(Visit, visit_id)
+
+    from app.utils import ai_suggest
+
+    # What is in the boxes right now, which is not always what the row holds:
+    # the doctor asks while still writing. Read as a closed list of the three
+    # fields the brief has a place for, so the screen cannot widen what leaves
+    # the clinic by adding a key.
+    data = request.get_json(silent=True) or {}
+    typed = {field: str(data.get(field) or "")
+             for field in ai_suggest.TYPED_FIELDS}
+
+    result = ai_suggest.suggest(visit, getattr(g, "lang", "ar"), typed=typed)
+
+    # Logged like the discussion is, and for the same question: a clinic ought
+    # to be able to answer "was the assistant asked about this consultation"
+    # from its own record rather than from whoever was in the room. Logged on
+    # success only — a refused call spent nothing and consulted nobody.
+    if result.get("ok"):
+        from flask_login import current_user
+
+        from app.models import ActivityLog
+        from app.utils.decorators import client_ip
+
+        ActivityLog.record("ai.suggest_dx", user_id=current_user.id,
+                           entity="visit", entity_id=visit.id,
+                           ip_address=client_ip())
+        db.session.commit()
+    return _reply(result)

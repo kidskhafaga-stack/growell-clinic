@@ -346,4 +346,22 @@ def test_every_list_on_the_screen_behaves_the_same(pharmacy, screen):
     and not there — which is worse than none of them working."""
     body = _read("app", "templates", *screen.split("/"))
     assert body.count("gc-picker") >= 2
-    assert "suggestions" not in body, "a hand-rolled list is still in here"
+
+    # The banned thing is a hand-rolled **type-ahead**: an Alpine component
+    # holding its own `suggestions: []` beside its own `open`, filled as
+    # somebody types, with no keyboard, no debounce and no guard against a
+    # slow reply for "para" landing after "paracetamol" and repainting the
+    # list under a doctor who is about to click a row.
+    #
+    # This used to be asserted as the word "suggestions" appearing anywhere in
+    # the file, which is a proxy and not the pattern. It caught the diagnosis
+    # suggestion panel, which is none of those things: one request, fired by a
+    # button that disables itself while it is in flight, rendering a short list
+    # of plain <button>s that Tab and Enter already reach. There is no typing
+    # to race and no row to repaint under a cursor.
+    #
+    # So the two markers of the real pattern are checked instead.
+    assert not re.search(r"x-for=\"[^\"]*\bin suggestions\b", body), \
+        "a hand-rolled type-ahead list is still in here"
+    assert not re.search(r"\bsuggestions:\s*\[\]", body), \
+        "a component still holds its own type-ahead state"
