@@ -750,6 +750,19 @@
     </div>
     <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_discussion_hint') }}</p>
 
+    {# A third switch rather than a fold into the one above, because the two
+       appear in different places to different people. The discussion is a
+       doctor asking a colleague, on the patient's screen, deliberately. This
+       one appears inside the consultation at the moment the diagnosis is
+       being chosen — the most useful place for it and the place where a
+       suggestion has the most power to become the answer. #}
+    <h3 style="margin:16px 0 6px;font-size:0.95rem;"><i class="bi bi-lightbulb"></i> {{ t('settings.ai_dx_section') }}</h3>
+    <div class="form-row checkbox">
+      <input type="checkbox" id="ai_dx_suggest" name="ai_dx_suggest" value="1" {{ 'checked' if values.get('ai_dx_suggest')=='1' else '' }}>
+      <label for="ai_dx_suggest" style="margin:0;font-weight:400;">{{ t('settings.ai_dx_suggest') }}</label>
+    </div>
+    <p class="hint" style="margin:6px 0 0;"><i class="bi bi-info-circle"></i> {{ t('settings.ai_dx_hint') }}</p>
+
     {# ICD-11 sits on the AI tab because it is the other thing on this screen
        that needs credentials from an outside body — not because WHO has
        anything to do with the assistant. It is imported once and then the

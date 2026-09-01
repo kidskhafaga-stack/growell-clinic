@@ -67,6 +67,7 @@ TEXT_KEYS = [
 ]
 TOGGLE_KEYS = ["show_logo_login", "show_logo_print", "eta_enabled", "ai_enabled",
                "ai_patient_context", "ai_anonymize", "ai_discussion",
+               "ai_dx_suggest",
                # Appointments board: visit-type breakdown panel + its parts.
                "board_show_breakdown", "board_breakdown_month",
                "board_breakdown_newold",

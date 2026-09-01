@@ -370,6 +370,12 @@ def record(visit_id):
         # the list the moment it is imported, and stays out of it until then.
         icd_versions=available_versions(),
         ai_ready=ai.is_ready(),
+        # Both, because the button has two reasons to be absent and they are
+        # not the same reason: no provider configured is the clinic's IT, a
+        # switch left off is the clinic's policy. The screen shows the button
+        # only when both are true and says nothing when either is not — there
+        # is nothing a doctor mid-consultation could do about either.
+        ai_dx_suggest=ai.is_ready() and ai.dx_suggestion_enabled(),
     )
 
 

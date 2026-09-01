@@ -313,6 +313,26 @@ def discussion_enabled():
     return Setting.get("ai_discussion") == "1"
 
 
+def dx_suggestion_enabled():
+    """Whether the assistant may suggest diagnoses on the visit screen.
+
+    A third switch, and not a fold into ``ai_discussion``, for the same reason
+    that one is not folded into ``ai_patient_context``: the two are different
+    decisions taken by different people. The discussion mode is a doctor
+    asking a colleague about a case they have already formed a view on, on the
+    patient's own screen, deliberately. This appears in the consultation
+    itself, at the moment the diagnosis is being chosen, which is both the
+    most useful place for it and the place where a suggestion has the most
+    power to become the answer. A clinic that wants the first should not
+    acquire the second by having ticked one box.
+
+    Off until somebody says otherwise.
+    """
+    from app.models import Setting
+
+    return Setting.get("ai_dx_suggest") == "1"
+
+
 def anonymize_enabled():
     from app.models import Setting
 

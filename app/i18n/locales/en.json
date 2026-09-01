@@ -1602,7 +1602,10 @@
     "secret_saved": "a key is saved",
     "secret_clear": "remove the saved key",
     "secret_hint": "A saved key is never sent back to this page. Leave the box empty to keep it.",
-    "guideline_moved": "Set on the vaccination management screen, where it belongs."
+    "guideline_moved": "Set on the vaccination management screen, where it belongs.",
+    "ai_dx_section": "Diagnosis suggestions on the visit screen",
+    "ai_dx_suggest": "Let the assistant suggest diagnoses from the complaint and examination",
+    "ai_dx_hint": "Suggestions appear beside the ICD search, not instead of it, and nothing is saved until the doctor adds it. The name comes from the assistant; the code comes from the program's own classification — the assistant is never asked for a code."
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2548,7 +2551,17 @@
     "discuss_placeholder": "Ask about this case…",
     "discuss_disclaimer": "A suggestion for discussion — not a diagnosis. The doctor who examined the child decides, and no doses are given here.",
     "discuss_off": "Discussion mode is switched off in Settings.",
-    "err_discussion_off": "Discussion mode is off. Switch it on in Settings → AI."
+    "err_discussion_off": "Discussion mode is off. Switch it on in Settings → AI.",
+    "dx_suggest": "Suggest diagnoses",
+    "dx_thinking": "Thinking…",
+    "dx_note": "Suggested by the assistant — the code comes from the program's own classification",
+    "dx_danger": "Must not miss",
+    "dx_no_code": "no code",
+    "dx_none": "Nothing to suggest from these notes — add the complaint or the examination",
+    "dx_too_thin": "Write the complaint or the examination first",
+    "dx_failed": "The suggestion did not arrive — try again",
+    "dx_off": "Diagnosis suggestions are off — Settings → AI",
+    "dx_from_ai": "suggested"
   },
   "rx": {
     "title": "Drugs & Prescriptions",

@@ -129,6 +129,42 @@ def _rank(entry, query):
     return None
 
 
+# British spellings, and what this table calls the same thing.
+#
+# The classification bundled here is the US clinical modification, and it is
+# spelled that way throughout: `Anemia`, `diarrhea`, `esophagitis`. Searching
+# it for "anaemia" or "diarrhoea" returns **nothing at all** — not a worse
+# match, nothing — which is a silent failure of the worst kind, because
+# "tonsillitis" and most of the rest match fine and the table looks like it is
+# working.
+#
+# It matters most for text a machine wrote. A doctor who searches "diarrhoea",
+# sees an empty list and tries again has lost two seconds. A model asked to
+# name a diagnosis writes whichever spelling it writes, gets no code back, and
+# the doctor is told this common paediatric diagnosis is not in the
+# classification — which is false.
+#
+# Applied as digraph rules rather than a word list, because the list would be
+# out of date the first time somebody imported a different edition.
+_BRITISH = (("aemia", "emia"), ("oea", "ea"), ("ae", "e"), ("oe", "e"),
+            ("our", "or"), ("isation", "ization"), ("yse", "yze"))
+
+
+def americanise(term):
+    """The same term as this table would spell it, or ``term`` unchanged.
+
+    Only ever used as a **second** attempt, after the term as written found
+    nothing — so a rule that mangles a word ("aerosol" -> "erosol") costs an
+    already-empty search nothing, and no successful search can have its result
+    changed by this.
+    """
+    out = (term or "")
+    for british, american in _BRITISH:
+        out = out.replace(british, american)
+        out = out.replace(british.capitalize(), american.capitalize())
+    return out
+
+
 def search_icd(query, limit=15, version=None):
     """Search by code, English title, or Arabic title.
 
