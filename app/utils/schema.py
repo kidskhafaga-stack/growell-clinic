@@ -203,6 +203,12 @@ ADDITIONS = [
     ("consents", "withdrawn_at", "DATETIME"),
     ("consents", "withdrawn_reason", "VARCHAR(255)"),
     ("consents", "withdrawn_by", "INTEGER"),
+    # Evidence that the guardian actually saw it: the scanned paper, or a
+    # signature drawn on the screen. Kind and file, because which of the two
+    # it is *is* the question a reader is asking.
+    ("consents", "signature_file", "VARCHAR(255)"),
+    ("consents", "signature_kind", "VARCHAR(10)"),
+    ("consents", "signature_at", "DATETIME"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

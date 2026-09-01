@@ -1049,6 +1049,69 @@ def withdraw_consent(consent_id):
         url_for("patients.view", patient_id=c.patient_id) + "#consent")
 
 
+@patients_bp.route("/consents/<int:consent_id>/signature", methods=["POST"])
+@module_required(MODULE)
+def consent_signature(consent_id):
+    """Attach the evidence: the scanned paper, or a signature drawn on screen.
+
+    Both arrive here because they are the same fact recorded two ways, and a
+    file must be able to say which one it holds — see `Consent.signature_kind`.
+
+    **Neither path trusts what it was sent.** The upload goes through
+    `save_document`, which decides the type from the bytes and not the name.
+    The drawn one is a base64 image from a canvas, and it is decoded and then
+    put through the same sniffing: a data URL claiming to be a PNG is a string
+    somebody typed, and this writes files into a folder the browser serves.
+    """
+    import base64
+    import binascii
+    import os
+    import uuid
+
+    from app.utils.clock import local_now
+    from app.utils.uploads import (ALLOWED_DOC_EXTENSIONS, docs_dir,
+                                   save_document, sniff_ext)
+
+    c = db.get_or_404(Consent, consent_id)
+    back = url_for("patients.view", patient_id=c.patient_id) + "#consent"
+
+    drawn = (request.form.get("drawn") or "").strip()
+    if drawn:
+        # `data:image/png;base64,….` — the header is discarded rather than
+        # believed; what the bytes are is decided below.
+        payload = drawn.split(",", 1)[-1]
+        try:
+            raw = base64.b64decode(payload, validate=True)
+        except (binascii.Error, ValueError):
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        ext = sniff_ext(raw[:64])
+        if ext not in ALLOWED_DOC_EXTENSIONS:
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        stored = f"{uuid.uuid4().hex}.{ext}"
+        os.makedirs(docs_dir(), exist_ok=True)
+        with open(os.path.join(docs_dir(), stored), "wb") as fh:
+            fh.write(raw)
+        kind = "drawn"
+    else:
+        stored = save_document(request.files.get("file"))
+        if not stored:
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        kind = "paper"
+
+    c.signature_file = stored
+    c.signature_kind = kind
+    c.signature_at = local_now().replace(tzinfo=None)
+    ActivityLog.record(f"consent.signature.{kind}", user_id=current_user.id,
+                       entity="patient", entity_id=c.patient_id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("consent.signature_saved"), "success")
+    return redirect(back)
+
+
 @patients_bp.route("/consents/<int:consent_id>/print")
 @module_required(MODULE)
 def print_consent(consent_id):

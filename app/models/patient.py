@@ -408,6 +408,37 @@ class Consent(db.Model):
     obtained_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # --- What shows the guardian actually saw it -----------------------
+    #
+    # Asked as *"ازاي نعمل حاجه نتأكد منها ان ولى الامر اطلع على الكونسينت
+    # وموافق عليه بشكل وثق وصحيح"*. Everything above records what a member of
+    # staff typed. None of it is evidence that the person named ever read the
+    # words or agreed to them — a consent row with a name in it and nothing
+    # else is a claim, not a document.
+    #
+    # Two ways, because they are not equally strong and a file must be able to
+    # say which one it has:
+    #
+    #   "paper" — the printed consent came back with a wet signature and was
+    #             scanned in. The strongest form, and the one an Egyptian
+    #             clinic can actually stand behind.
+    #   "drawn" — signed on the screen with a finger or a mouse. Convenient,
+    #             weaker, and honest about being weaker.
+    #
+    # Kept as *kind plus file* rather than one column, because "we have an
+    # image" does not tell a reader which of those two they are looking at,
+    # and that is the whole question.
+    signature_file = db.Column(db.String(255))
+    signature_kind = db.Column(db.String(10))          # paper | drawn
+    # When the evidence arrived, which is not when the consent was signed: the
+    # paper often comes back the next day, and a file that showed one date for
+    # both would be saying something nobody checked.
+    signature_at = db.Column(db.DateTime)
+
+    @property
+    def has_signature(self):
+        return bool(self.signature_file)
+
     # --- Withdrawn, never deleted -------------------------------------
     #
     # The statement the guardian signs promises this in its own words — *"ولي

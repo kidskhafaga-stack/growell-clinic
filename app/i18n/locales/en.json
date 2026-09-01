@@ -2254,7 +2254,14 @@
     "withdraw_undone": "The consent stands again.",
     "withdrawn_badge": "withdrawn",
     "withdrawn_on": "Withdrawn on",
-    "delete_confirm": "Delete permanently? This is for a consent written on the wrong child. If the guardian withdrew it, use Withdraw instead."
+    "delete_confirm": "Delete permanently? This is for a consent written on the wrong child. If the guardian withdrew it, use Withdraw instead.",
+    "sig_none": "no signature",
+    "sig_paper": "signed paper",
+    "sig_drawn": "signed on screen",
+    "sig_draw": "Sign on screen",
+    "sig_clear": "Clear",
+    "sig_hint": "Print it, have the guardian sign it, and upload the scan — or have them sign on the screen now.",
+    "signature_saved": "The signature is saved with the consent."
   },
   "roles_mgmt": {
     "title": "Roles & permissions",
