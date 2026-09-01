@@ -17,8 +17,8 @@ from app.models import Patient
 from app.models.dental import (ALL_TEETH, CONDITIONS, PERMANENT_TEETH,
                                PRIMARY_TEETH, WHOLE_TOOTH,
                                WHOLE_TOOTH_CONDITIONS, ToothFinding, chart_for,
-                               history_for, is_primary, slot_for, surfaces_of,
-                               tooth_kind)
+                               SURFACES, history_for, is_primary, slot_for,
+                               surfaces_of, tooth_kind)
 from app.utils.clock import local_today
 from app.utils.decorators import module_required
 
@@ -103,6 +103,14 @@ def chart(patient_id):
         conditions=CONDITIONS, whole=WHOLE_TOOTH,
         whole_only=sorted(WHOLE_TOOTH_CONDITIONS),
         surfaces_of=surfaces_of, today=local_today(),
+        # The faces each tooth actually has, keyed by number. The same
+        # `surfaces_of` the record route validates against, so the list the
+        # screen offers and the list the server accepts cannot drift apart.
+        surfaces_by_tooth={str(t): [s for s in surfaces_of(t) if s != WHOLE_TOOTH]
+                           for t in ALL_TEETH},
+        # Their names, translated here rather than in the template: Jinja has
+        # no dict comprehension, and building this one there cost a render.
+        surface_names={s: t(f"dental.s_{s}") for s in SURFACES},
         # What each tooth *is*, so the chart can draw it as one. Passed rather
         # than worked out in Jinja, because the rule it follows is not "read
         # the last digit" — the primary set has no premolars — and a template

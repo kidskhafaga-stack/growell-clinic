@@ -38,6 +38,10 @@
    The condition still appears as a word underneath. The drawing *adds*; it
    does not replace, because a picture that carries the only copy of the
    information makes the reader learn a legend first. #}
+<script type="application/json" id="dentalSurfaces">
+{{ {'byTooth': surfaces_by_tooth, 'names': surface_names} | tojson }}
+</script>
+
 {% macro crown(tooth, kind, primary, fill, stroke) %}
 {% set w = 26 if primary else 32 %}
 {% set h = 30 if primary else 36 %}
@@ -75,10 +79,26 @@
 </svg>
 {% endmacro %}
 
-{% macro arch(teeth, label, primary_set=False) %}
+{# Laid out as an arch, not a row.
+
+   Reported looking at it: *"ليه رسمة الاسنان مش بشكل الفك"*. A row of teeth
+   is a list; a mouth is a curve, and a dentist finds a tooth by where it sits
+   in the arch before they read its number — which is the same reason the
+   crowns are drawn as crowns.
+
+   The offset is a parabola on the distance from the midline: the upper arch
+   opens downward and the lower one upward, so the two together make the shape
+   of a mouth rather than two unrelated lines.
+
+   `nowrap` with a scroll, and not `wrap`: an arch that wraps onto a second
+   line is not an arch any more, and half a jaw sitting under the other half
+   is worse than having to scroll. #}
+{% macro arch(teeth, label, primary_set=False, lower=False) %}
+{% set bend = 13 if primary_set else 16 %}
 <div style="margin-bottom:14px;">
   <div class="hint" style="margin-bottom:6px;">{{ label }}</div>
-  <div style="display:flex;gap:4px;flex-wrap:wrap;">
+  <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;
+              padding:{{ bend + 4 }}px 2px;align-items:{{ 'flex-end' if lower else 'flex-start' }};">
     {% for tooth in teeth %}
     {% set found = chart.get(tooth, {}) %}
     {% set worst = found.get('whole') or (found.values()|list|first if found else None) %}
@@ -91,7 +111,13 @@
        coming; it does not say to fit anything, because that is an X-ray and a
        judgement. #}
     {% set space = spaces.get(tooth) %}
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+    {# Distance from the midline, 0 at the centre and 1 at the last tooth,
+       squared so the curve is gentle in front and steepest at the back —
+       which is the shape a jaw actually has. #}
+    {% set away = (loop.index0 * 2 / (loop.length - 1) - 1) if loop.length > 1 else 0 %}
+    {% set drop = (bend * away * away) | round(1) %}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;
+                flex:0 0 auto;transform:translateY({{ -drop if lower else drop }}px);">
     {# What the crown is filled with says what was found. A tooth nobody has
        looked at is empty, which is a different thing from one recorded as
        sound — the chart must not make "not examined" look like "fine". #}
@@ -167,25 +193,25 @@
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-grid-3x3"></i>
     {{ t('dental.permanent') }}</h2>
   {{ arch(permanent[:8] | reverse | list + permanent[8:16], t('dental.upper')) }}
-  {{ arch(permanent[24:32] | reverse | list + permanent[16:24], t('dental.lower')) }}
+  {{ arch(permanent[24:32] | reverse | list + permanent[16:24], t('dental.lower'), False, True) }}
 
   <h2 class="section-title"><i class="bi bi-grid-3x2"></i>
     {{ t('dental.primary') }}</h2>
   {{ arch(primary[:5] | reverse | list + primary[5:10], t('dental.upper'), True) }}
-  {{ arch(primary[15:20] | reverse | list + primary[10:15], t('dental.lower'), True) }}
+  {{ arch(primary[15:20] | reverse | list + primary[10:15], t('dental.lower'), True, True) }}
 </div>
 
 <div class="card gc-scale-in" style="margin-top:16px;">
   <h2 class="section-title" style="margin-top:0;"><i class="bi bi-pencil"></i>
     {{ t('dental.record') }}</h2>
   <p class="hint" style="margin:6px 0 12px;">{{ t('dental.record_hint') }}</p>
-  <form method="post" x-data="{ condition: '{{ conditions[0] }}' }"
+  <form method="post" x-data="dentalForm('{{ conditions[0] }}', {{ permanent[0] }})"
         action="{{ url_for('dentistry.record', patient_id=patient.id) }}"
         style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row" style="margin:0;flex:1;min-width:120px;">
       <label>{{ t('dental.tooth') }}</label>
-      <select class="select" name="tooth" dir="ltr">
+      <select class="select" name="tooth" dir="ltr" x-model.number="tooth">
         {% for tooth in permanent + primary %}
         <option value="{{ tooth }}">{{ tooth }}</option>{% endfor %}
       </select></div>
@@ -200,9 +226,21 @@
     <div class="form-row" style="margin:0;flex:1;min-width:150px;"
          x-show="!{{ whole_only|tojson|forceescape }}.includes(condition)">
       <label>{{ t('dental.surface') }}</label>
+      {# Only the faces the chosen tooth actually has.
+
+         It listed all six regardless, so picking a front tooth and then
+         "occlusal" produced a save the server refused — correctly, an incisor
+         has no biting table — and the doctor saw a red flash they may not have
+         caught and a chart that had not changed. Reported as *"ليه مش
+         بتتسجل"*.
+
+         The server still refuses; this stops the screen offering the refusal
+         in the first place. The map is built from the same `surfaces_of` the
+         route checks against, so the two cannot drift. #}
       <select class="select" name="surface">
-        {% for s in ['mesial','distal','buccal','lingual','occlusal','incisal'] %}
-        <option value="{{ s }}">{{ t('dental.s_' ~ s) }}</option>{% endfor %}
+        <template x-for="s in (SURFACES[tooth] || [])" :key="s">
+          <option :value="s" x-text="SURFACE_NAMES[s]"></option>
+        </template>
       </select></div>
     <div class="form-row" style="margin:0;flex:2;min-width:170px;">
       <label>{{ t('common.notes') }}</label>
@@ -211,4 +249,19 @@
       <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </div>
+<script>
+  // The record form. It exists so the surface list can follow the tooth: the
+  // faces a tooth has are not the same for an incisor and a molar, and the
+  // list used to offer all six for everything — so a doctor could pick a face
+  // the server would then refuse, and see nothing happen.
+  function dentalForm(condition, tooth) {
+    const cfg = JSON.parse(
+      document.getElementById('dentalSurfaces').textContent || '{}');
+    return {
+      condition, tooth,
+      SURFACES: cfg.byTooth || {},
+      SURFACE_NAMES: cfg.names || {},
+    };
+  }
+</script>
 {% endblock %}

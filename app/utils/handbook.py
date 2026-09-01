@@ -195,6 +195,29 @@ SECTIONS = [
              "بيتطبع أو بيتحفظ كصورة.",
              "<b>Editable quick phrases</b> cut the typing, and the visit "
              "summary prints or saves as an image."),
+            # Added with the feature. A suggestion the doctor cannot find
+            # is a switch the clinic pays for and nobody uses.
+            ("<b>اقتراح التشخيص.</b> في تاب التشخيصات، زرار «اقترح تشخيصات» "
+             "بياخد الشكوى والفحص والعلامات الحيوية ويرجّع أسماء تشخيصات — "
+             "والكود بييجي من تصنيف البرنامج نفسه، مش من المساعد. الاقتراح "
+             "بيملّي نفس الفورم اللي بتملاه بإيدك، والبحث زي ما هو، ومحدش "
+             "بيتحفظ غير لما تدوس «أضف». مقفول لحد ما الإعدادات ← الذكاء "
+             "الاصطناعي تفتحه.",
+             "<b>Diagnosis suggestions.</b> On the diagnoses tab, "
+             "\u201csuggest\u201d takes the complaint, the examination and "
+             "the vitals and returns diagnosis <i>names</i> \u2014 the code "
+             "comes from the program's own classification, never from the "
+             "assistant. A suggestion fills the same form you fill by hand, "
+             "the search is unchanged, and nothing is saved until you press "
+             "add. Off until Settings \u2192 AI turns it on."),
+            ("<b>قوالب التخصصات.</b> فوق الفحص فيه قالب بيتغيّر حسب التخصص — "
+             "قلب أو أسنان — وبيسجّل القياسات الخاصة بيه مع الزيارة. اختيار "
+             "قالب الأسنان بيفتح كمان الطريق لخريطة أسنان الطفل.",
+             "<b>Specialty panels.</b> Above the examination sits a panel "
+             "that changes with the specialty \u2014 cardiology, dentistry "
+             "\u2014 recording its own measurements against the visit. "
+             "Choosing the dental panel also opens the way to this child's "
+             "tooth chart."),
         ],
     },
     {
@@ -337,6 +360,36 @@ SECTIONS = [
         "icon": "emoji-smile",
         "title": ("عيادة الأسنان", "The dental clinic"),
         "lines": [
+            # Added after the module shipped with no way into it: the screens
+            # existed and nothing linked to them. A guide that describes what
+            # a chart does and not how to open it teaches the wrong half.
+            ("<b>إزاي توصله.</b> من ملف المريض ← تاب <b>أسنان</b>، أو من شاشة "
+             "الكشف نفسها لما تختار قالب الأسنان. والشريط الجانبي ← أسنان "
+             "بيوريك اللي عندهم خطط شغالة دلوقتي.",
+             "<b>How to open it.</b> From the patient file, the <b>Teeth</b> "
+             "tab — or from the consultation screen itself once the dental "
+             "panel is chosen. Sidebar → Dentistry lists the children with a "
+             "plan in progress."),
+            ("<b>الترتيب من الأول للآخر.</b> افتح الخريطة ← دوس على السن ← "
+             "سجّل الحالة والسطح ← «ضيف للخطة» (بياخد رقم السن والسطح معاه) ← "
+             "كمّل بنود المسوّدة وسعّرها ← اعرضها على الأهل ← «قبول الخطة» "
+             "والعربون ← وكل جلسة علّم البند اللي اتعمل.",
+             "<b>The order, start to finish.</b> Open the chart → tap the "
+             "tooth → record the condition and the surface → \u201cadd to "
+             "plan\u201d (it carries the tooth and the surface across) → "
+             "finish and price the draft → show it to the family → "
+             "\u201caccept\u201d with a deposit → then tick each item done "
+             "as the sessions happen."),
+            ("<b>الشكل بيقول قبل ما تقرا.</b> كل سن مرسوم بشكله — قاطعة، ناب، "
+             "ضاحك، ضرس — واللبني أصغر وأفتح. المخلوع بيتشطب ومش بيتشال، لأن "
+             "الفراغ نفسه معلومة. وقايمة الأسطح بتتغيّر مع السن: السن الأمامي "
+             "مالوش سطح طاحن فمش هيتعرض لك.",
+             "<b>The drawing says it before you read it.</b> Each tooth is "
+             "drawn as what it is \u2014 incisor, canine, premolar, molar "
+             "\u2014 with the primary set smaller and lighter. An extracted "
+             "tooth is struck through rather than removed, because the gap is "
+             "itself a finding. The surface list follows the tooth: a front "
+             "tooth has no biting table, so it is not offered one."),
             ("<b>خريطة الأسنان بترقيم FDI</b> — الرقم نفسه بيقول لبني ولا "
              "دائم: 16 ضرس دائم و55 اللبني اللي فوقه. الفكّين بيتعرضوا مع "
              "بعض على طول، لإن الطفل من 6 لـ12 سنة بيبقى عنده الاتنين، "
@@ -436,6 +489,23 @@ SECTIONS = [
              "\u2014 fillings, pulpotomy, stainless steel crown, space "
              "maintainer, extraction, with primary and permanent priced apart. "
              "Every price and commission is editable on the services screen."),
+            # Interceptive orthodontics: what a paediatric clinic actually
+            # does about a bite. Deliberately not a full ortho module — see
+            # the panel fields in specialty_panels.json.
+            ("<b>التقويم الاعتراضي.</b> قالب الأسنان بيسأل عن الإطباق ومكان "
+             "الإطباق العكسي والبروز بالمليمتر وعلاقة الأرحاء — ومعاهم "
+             "<b>القرار</b> و<b>ميعاد المراجعة</b>. القرار وميعاد المراجعة "
+             "هما اللي بيخلوه اعتراضي: التدخل بيشتغل في سن معيّن، والنافذة "
+             "بتقفل والطفل بيكبر. ولاحظ إن العادات (مص الصباع، التنفس من "
+             "الفم) في نفس القالب — لأنها غالباً هي السبب.",
+             "<b>Interceptive orthodontics.</b> The dental panel asks about "
+             "the bite, where a crossbite is, the overjet in millimetres and "
+             "the molar relation \u2014 and with them a <b>decision</b> and a "
+             "<b>review date</b>. Those two are what make it interceptive: "
+             "the intervention works at a particular age, and the window "
+             "closes while the child grows. Note that the habits \u2014 "
+             "thumb, dummy, mouth breathing \u2014 are on the same panel, "
+             "because they are often the cause."),
         ],
     },
     {
