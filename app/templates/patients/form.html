@@ -128,6 +128,18 @@
                    value="{{ form.birth_time if form.birth_time not in (None, '') else '' }}">
             <div class="hint">{{ t('patients.birth_time_hint') }}</div>
           </div>
+          {# This child's own usual saturation, for the child who has one.
+             It never softens a triage rule — see `red_flags.assess`. What it
+             adds is that 88 in a child who lives at 96 is a different event
+             from 88 in a child who lives at 88. #}
+          <div class="form-row">
+            <label for="baseline_spo2">{{ t('patients.baseline_spo2') }}</label>
+            <input class="input" id="baseline_spo2" name="baseline_spo2"
+                   type="number" min="50" max="100" dir="ltr"
+                   style="max-width:120px;"
+                   value="{{ form.baseline_spo2 if form.baseline_spo2 not in (None, '') else '' }}">
+            <div class="hint">{{ t('patients.baseline_spo2_hint') }}</div>
+          </div>
         </div>
 
         <!-- File numbers: system (auto) + reference (legacy) -->

@@ -85,6 +85,23 @@ class Patient(db.Model):
     birth_time = db.Column(db.Time)
     photo = db.Column(db.String(255))
 
+    # This child's own usual oxygen saturation, where somebody has recorded
+    # one. A child with a cardiac shunt or chronic lung disease can live at
+    # 88% and be entirely themselves at it; a reading of 88 means something
+    # different for them than for the child in the next chair.
+    #
+    # **It never softens a rule.** The triage threshold decides whether this
+    # child is seen now, and it decides that the same way for everybody —
+    # suppressing an urgent flag because "88 is normal for them" is exactly
+    # how a deterioration goes unnoticed in the one child least able to
+    # afford it. What the baseline adds is the other half of the sentence:
+    # *and this is where they usually sit*, so a doctor can see that 88 in a
+    # child who lives at 96 is a different event from 88 in a child who lives
+    # at 88.
+    #
+    # Blank means nobody has recorded one, which is the ordinary case.
+    baseline_spo2 = db.Column(db.Integer)
+
     # Medical alerts surfaced prominently on the profile.
     allergies = db.Column(db.Text)
     chronic_diseases = db.Column(db.Text)
@@ -407,6 +424,37 @@ class Consent(db.Model):
     signed_date = db.Column(db.Date, default=local_today, nullable=False)
     obtained_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # --- What shows the guardian actually saw it -----------------------
+    #
+    # Asked as *"ازاي نعمل حاجه نتأكد منها ان ولى الامر اطلع على الكونسينت
+    # وموافق عليه بشكل وثق وصحيح"*. Everything above records what a member of
+    # staff typed. None of it is evidence that the person named ever read the
+    # words or agreed to them — a consent row with a name in it and nothing
+    # else is a claim, not a document.
+    #
+    # Two ways, because they are not equally strong and a file must be able to
+    # say which one it has:
+    #
+    #   "paper" — the printed consent came back with a wet signature and was
+    #             scanned in. The strongest form, and the one an Egyptian
+    #             clinic can actually stand behind.
+    #   "drawn" — signed on the screen with a finger or a mouse. Convenient,
+    #             weaker, and honest about being weaker.
+    #
+    # Kept as *kind plus file* rather than one column, because "we have an
+    # image" does not tell a reader which of those two they are looking at,
+    # and that is the whole question.
+    signature_file = db.Column(db.String(255))
+    signature_kind = db.Column(db.String(10))          # paper | drawn
+    # When the evidence arrived, which is not when the consent was signed: the
+    # paper often comes back the next day, and a file that showed one date for
+    # both would be saying something nobody checked.
+    signature_at = db.Column(db.DateTime)
+
+    @property
+    def has_signature(self):
+        return bool(self.signature_file)
 
     # --- Withdrawn, never deleted -------------------------------------
     #

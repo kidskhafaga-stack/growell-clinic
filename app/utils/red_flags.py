@@ -49,6 +49,13 @@ DEFAULT_BANDS = [
 SPO2_URGENT = 92
 SPO2_WATCH = 95
 
+# How far under a child's own usual saturation is worth saying out loud. Three
+# points, because a pulse oximeter moves a point or two on its own and a note
+# that fires on every reading is a note nobody reads by the second day.
+#
+# It raises nothing. See the end of `assess`.
+BASELINE_DROP = 3
+
 # Words that turn a fever into a dehydration risk, in both languages and in the
 # spellings families and nurses actually type.
 RED_FLAG_WORDS = {
@@ -80,6 +87,33 @@ def bands():
 
         out.append((max_months, _num("fever", fever), _num("urgent", urgent)))
     return out
+
+
+def spo2_limits():
+    """The clinic's oxygen limits, falling back to the paediatric defaults.
+
+    The fever bands have been overridable since they were written; these two
+    were constants, read straight out of the module, so a clinic could change
+    what counts as a fever and not what counts as hypoxia. That was not a
+    decision anybody took — it is simply where the first version stopped.
+
+    Same shape as :func:`bands` on purpose: default in the code, override in
+    the settings, and the default returned for anything unreadable.
+    """
+    from app.models import Setting
+
+    def _num(key, fallback):
+        try:
+            raw = (Setting.get(key) or "").strip()
+        except Exception:  # noqa: BLE001 — settings table may not be ready
+            return fallback
+        try:
+            return float(raw) if raw else fallback
+        except ValueError:
+            return fallback
+
+    return (_num("triage_spo2_urgent", SPO2_URGENT),
+            _num("triage_spo2_watch", SPO2_WATCH))
 
 
 def _age_months(patient):
@@ -144,10 +178,11 @@ def assess(patient, vitals, complaint=""):
     # Oxygen first: it outranks a temperature, and a comfortable-looking child
     # at 90% is the one a busy room walks past.
     if spo2 is not None:
-        if spo2 < SPO2_URGENT:
+        urgent_below, watch_below = spo2_limits()
+        if spo2 < urgent_below:
             reasons.append("spo2_low")
             _raise("urgent")
-        elif spo2 < SPO2_WATCH:
+        elif spo2 < watch_below:
             reasons.append("spo2_borderline")
             _raise("watch")
 
@@ -183,8 +218,25 @@ def assess(patient, vitals, complaint=""):
         reasons.append("fever_rash")
         _raise("urgent")
 
+    # Where this child usually sits, when somebody has recorded it. Carried
+    # **beside** the verdict and never folded into it: the level above was
+    # decided by the rule, for everybody, the same way.
+    #
+    # It is added last, after `level` is final, so that reading this code
+    # answers the question it raises. A baseline that could reach back and
+    # lower a flag would be the program deciding that a child with chronic
+    # disease needs less watching than one without — which is backwards, and
+    # is how a deterioration goes unnoticed in the one child least able to
+    # afford it.
+    baseline = getattr(patient, "baseline_spo2", None) if patient else None
+    below_own = (spo2 is not None and baseline is not None
+                 and spo2 < baseline - BASELINE_DROP)
+    if below_own:
+        reasons.append("below_own_baseline")
+
     return {"level": level, "reasons": reasons, "temp_limit": fever_at,
-            "urgent_limit": urgent_at, "age_months": age_months}
+            "urgent_limit": urgent_at, "age_months": age_months,
+            "baseline_spo2": baseline, "below_own_baseline": below_own}
 
 
 def assess_visit(visit):

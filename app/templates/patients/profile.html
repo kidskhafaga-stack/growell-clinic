@@ -458,6 +458,18 @@
             </div>
             {% endif %}
           </div>
+          {# What shows the guardian actually saw it. A row with a name typed
+             into it is a claim; this is the document. The badge says which of
+             the two kinds it is, because a scan of a wet signature and a
+             finger-drawn squiggle are not equal evidence and a file that
+             called them both "signed" would be hiding the difference. #}
+          {% if cs.has_signature %}
+          <a class="badge badge--green" target="_blank"
+             href="{{ url_for('static', filename='uploads/patient_docs/' ~ cs.signature_file) }}">
+            <i class="bi bi-pen"></i> {{ t('consent.sig_' ~ cs.signature_kind) }}</a>
+          {% else %}
+          <span class="badge badge--muted">{{ t('consent.sig_none') }}</span>
+          {% endif %}
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.print_consent', consent_id=cs.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
           <form method="post" action="{{ url_for('patients.withdraw_consent', consent_id=cs.id) }}" style="display:inline;"
                 {% if not cs.is_withdrawn %}onsubmit="return confirm('{{ t('consent.withdraw_confirm') }}');"{% endif %}>
@@ -476,6 +488,44 @@
              about anybody, so it must not sit in their file being true. Admin
              only: the difference between this and withdrawing used to be a
              button label. #}
+          {% if not cs.is_withdrawn %}
+          {# Two ways in, because they are for two situations. The paper is
+             what the guardian took away and brought back; the pad is for the
+             guardian standing at the desk right now. #}
+          <div style="flex-basis:100%;" x-data="sigPad('{{ url_for('patients.consent_signature', consent_id=cs.id) }}')">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <form method="post" enctype="multipart/form-data" style="display:inline;"
+                    action="{{ url_for('patients.consent_signature', consent_id=cs.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input class="input" type="file" name="file" accept="image/*,.pdf"
+                       style="max-width:210px;display:inline-block;"
+                       x-on:change="$el.form.submit()">
+              </form>
+              <button type="button" class="btn btn-outline btn-sm gc-press"
+                      x-on:click="open = !open">
+                <i class="bi bi-vector-pen"></i> {{ t('consent.sig_draw') }}</button>
+              <span class="hint" style="margin:0;">{{ t('consent.sig_hint') }}</span>
+            </div>
+            <div x-show="open" x-cloak style="margin-top:8px;">
+              <canvas x-ref="pad" width="520" height="160"
+                      style="border:1px dashed var(--line);border-radius:8px;touch-action:none;max-width:100%;"
+                      x-on:pointerdown="start($event)" x-on:pointermove="move($event)"
+                      x-on:pointerup="stop()" x-on:pointerleave="stop()"></canvas>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <button type="button" class="btn btn-primary btn-sm gc-press"
+                        x-on:click="save()" :disabled="!drew">
+                  <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+                <button type="button" class="btn btn-outline btn-sm gc-press"
+                        x-on:click="clear()">{{ t('consent.sig_clear') }}</button>
+              </div>
+            </div>
+            <form method="post" x-ref="send" style="display:none;"
+                  action="{{ url_for('patients.consent_signature', consent_id=cs.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="drawn" x-ref="drawn">
+            </form>
+          </div>
+          {% endif %}
           {% if current_user.is_admin %}
           <form method="post" action="{{ url_for('patients.delete_consent', consent_id=cs.id) }}" style="display:inline;"
                 onsubmit="return confirm('{{ t('consent.delete_confirm') }}');">
@@ -1507,6 +1557,57 @@
 {% endblock %}
 
 {% block scripts %}{{ super() }}
+<script>
+  // The signature pad. A canvas, pointer events, and a PNG posted to the same
+  // route the scanned paper goes to — see `consent_signature`, which decides
+  // what the bytes are rather than believing the data URL's header.
+  //
+  // `drew` exists so an empty canvas cannot be saved: a blank signature
+  // attached to a consent is worse than no signature, because the row would
+  // then say it has one.
+  function sigPad(url) {
+    return {
+      url, open: false, drew: false, drawing: false, ctx: null,
+      _ctx() {
+        if (!this.ctx) {
+          this.ctx = this.$refs.pad.getContext('2d');
+          this.ctx.lineWidth = 2; this.ctx.lineCap = 'round';
+          this.ctx.strokeStyle = '#111';
+        }
+        return this.ctx;
+      },
+      _at(ev) {
+        const box = this.$refs.pad.getBoundingClientRect();
+        // The canvas is 520 wide and its box may not be — on a phone it is
+        // scaled down by `max-width`, and a point taken in CSS pixels would
+        // land somewhere else entirely.
+        return { x: (ev.clientX - box.left) * (this.$refs.pad.width / box.width),
+                 y: (ev.clientY - box.top) * (this.$refs.pad.height / box.height) };
+      },
+      start(ev) {
+        this.drawing = true;
+        const p = this._at(ev);
+        this._ctx().beginPath(); this._ctx().moveTo(p.x, p.y);
+      },
+      move(ev) {
+        if (!this.drawing) return;
+        const p = this._at(ev);
+        this._ctx().lineTo(p.x, p.y); this._ctx().stroke();
+        this.drew = true;
+      },
+      stop() { this.drawing = false; },
+      clear() {
+        this._ctx().clearRect(0, 0, this.$refs.pad.width, this.$refs.pad.height);
+        this.drew = false;
+      },
+      save() {
+        if (!this.drew) return;
+        this.$refs.drawn.value = this.$refs.pad.toDataURL('image/png');
+        this.$refs.send.submit();
+      },
+    };
+  }
+</script>
 {# Told, not reloaded: this screen carries forms, and throwing the page away
    would take a half-written note with it. #}
 <script>

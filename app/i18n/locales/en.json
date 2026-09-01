@@ -391,7 +391,10 @@
     "birth_time": "Time of birth",
     "birth_time_hint": "Only matters in the first days — jaundice thresholds move by the hour. Leave blank if nobody said.",
     "birth_time_bad": "The time of birth is not a valid time",
-    "tab_dental": "Teeth"
+    "tab_dental": "Teeth",
+    "baseline_spo2": "This child's usual oxygen",
+    "baseline_spo2_hint": "For a child who lives below the usual range (a cardiac shunt, chronic lung disease). The program says when a reading falls below it — and softens no triage rule because of it.",
+    "baseline_spo2_range": "The usual oxygen saturation must be between 50 and 100"
   },
   "import": {
     "title": "Import patient data",
@@ -1620,7 +1623,20 @@
     "consent_edited": "the clinic's own wording",
     "consent_clear_to_restore": "clear the box to restore the default",
     "lang_ar": "Arabic",
-    "lang_en": "English"
+    "lang_en": "English",
+    "clinical_title": "Clinical thresholds",
+    "clinical_hint": "The numbers the program uses to decide a child should be seen now. Leave a box empty to use the program's own number.",
+    "clinical_note": "These are triage rules — they say \"look at this one\", they do not diagnose and they do not reorder the waiting room. What counts as a normal range for a reading is a separate judgement.",
+    "cr_reading": "Reading",
+    "cr_context": "Age",
+    "cr_action": "Raises",
+    "cr_value": "In force",
+    "cr_default": "Program default",
+    "cr_source": "Source",
+    "cr_clear": "clear the box to restore it",
+    "cr_weaker": "this catches fewer children than the program's number",
+    "cr_p_temperature": "Temperature",
+    "cr_p_spo2": "Oxygen saturation"
   },
   "errors": {
     "403_title": "Forbidden",
@@ -2254,7 +2270,14 @@
     "withdraw_undone": "The consent stands again.",
     "withdrawn_badge": "withdrawn",
     "withdrawn_on": "Withdrawn on",
-    "delete_confirm": "Delete permanently? This is for a consent written on the wrong child. If the guardian withdrew it, use Withdraw instead."
+    "delete_confirm": "Delete permanently? This is for a consent written on the wrong child. If the guardian withdrew it, use Withdraw instead.",
+    "sig_none": "no signature",
+    "sig_paper": "signed paper",
+    "sig_drawn": "signed on screen",
+    "sig_draw": "Sign on screen",
+    "sig_clear": "Clear",
+    "sig_hint": "Print it, have the guardian sign it, and upload the scan — or have them sign on the screen now.",
+    "signature_saved": "The signature is saved with the consent."
   },
   "roles_mgmt": {
     "title": "Roles & permissions",
@@ -5195,7 +5218,8 @@
     "breathing": "Difficulty breathing",
     "convulsion": "Convulsion",
     "in_queue": "urgent case waiting",
-    "limits_for_age": "Limit for this age:"
+    "limits_for_age": "Limit for this age:",
+    "below_own_baseline": "below this child's usual"
   },
   "phrases": {
     "title": "Quick phrases and shortcuts",

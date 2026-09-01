@@ -439,6 +439,7 @@ def create():
             gestation_weeks=form["gestation_weeks"],
             gestation_days=form["gestation_days"],
             birth_time=form["birth_time"],
+            baseline_spo2=form["baseline_spo2"],
             allergies=form["allergies"],
             chronic_diseases=form["chronic_diseases"],
             notes=form["notes"],
@@ -672,6 +673,7 @@ def edit(patient_id):
         patient.gestation_weeks = form["gestation_weeks"]
         patient.gestation_days = form["gestation_days"]
         patient.birth_time = form["birth_time"]
+        patient.baseline_spo2 = form["baseline_spo2"]
         patient.allergies = form["allergies"]
         patient.chronic_diseases = form["chronic_diseases"]
         patient.notes = form["notes"]
@@ -709,6 +711,8 @@ def edit(patient_id):
         # nobody recorded it, so re-saving an edit form does not invent one.
         "birth_time": (patient.birth_time.strftime("%H:%M")
                        if patient.birth_time else ""),
+        "baseline_spo2": (patient.baseline_spo2
+                          if patient.baseline_spo2 is not None else ""),
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
         "notes": patient.notes or "",
@@ -1049,6 +1053,69 @@ def withdraw_consent(consent_id):
         url_for("patients.view", patient_id=c.patient_id) + "#consent")
 
 
+@patients_bp.route("/consents/<int:consent_id>/signature", methods=["POST"])
+@module_required(MODULE)
+def consent_signature(consent_id):
+    """Attach the evidence: the scanned paper, or a signature drawn on screen.
+
+    Both arrive here because they are the same fact recorded two ways, and a
+    file must be able to say which one it holds — see `Consent.signature_kind`.
+
+    **Neither path trusts what it was sent.** The upload goes through
+    `save_document`, which decides the type from the bytes and not the name.
+    The drawn one is a base64 image from a canvas, and it is decoded and then
+    put through the same sniffing: a data URL claiming to be a PNG is a string
+    somebody typed, and this writes files into a folder the browser serves.
+    """
+    import base64
+    import binascii
+    import os
+    import uuid
+
+    from app.utils.clock import local_now
+    from app.utils.uploads import (ALLOWED_DOC_EXTENSIONS, docs_dir,
+                                   save_document, sniff_ext)
+
+    c = db.get_or_404(Consent, consent_id)
+    back = url_for("patients.view", patient_id=c.patient_id) + "#consent"
+
+    drawn = (request.form.get("drawn") or "").strip()
+    if drawn:
+        # `data:image/png;base64,….` — the header is discarded rather than
+        # believed; what the bytes are is decided below.
+        payload = drawn.split(",", 1)[-1]
+        try:
+            raw = base64.b64decode(payload, validate=True)
+        except (binascii.Error, ValueError):
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        ext = sniff_ext(raw[:64])
+        if ext not in ALLOWED_DOC_EXTENSIONS:
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        stored = f"{uuid.uuid4().hex}.{ext}"
+        os.makedirs(docs_dir(), exist_ok=True)
+        with open(os.path.join(docs_dir(), stored), "wb") as fh:
+            fh.write(raw)
+        kind = "drawn"
+    else:
+        stored = save_document(request.files.get("file"))
+        if not stored:
+            flash(t("visits.att_bad_type"), "warning")
+            return redirect(back)
+        kind = "paper"
+
+    c.signature_file = stored
+    c.signature_kind = kind
+    c.signature_at = local_now().replace(tzinfo=None)
+    ActivityLog.record(f"consent.signature.{kind}", user_id=current_user.id,
+                       entity="patient", entity_id=c.patient_id,
+                       ip_address=client_ip())
+    db.session.commit()
+    flash(t("consent.signature_saved"), "success")
+    return redirect(back)
+
+
 @patients_bp.route("/consents/<int:consent_id>/print")
 @module_required(MODULE)
 def print_consent(consent_id):
@@ -1134,6 +1201,7 @@ def _read_patient_form():
         "gestation_weeks": (request.form.get("gestation_weeks") or "").strip(),
         "gestation_days": (request.form.get("gestation_days") or "").strip(),
         "birth_time": (request.form.get("birth_time") or "").strip(),
+        "baseline_spo2": (request.form.get("baseline_spo2") or "").strip(),
         "allergies": (request.form.get("allergies") or "").strip(),
         "chronic_diseases": (request.form.get("chronic_diseases") or "").strip(),
         "notes": (request.form.get("notes") or "").strip(),
@@ -1246,6 +1314,19 @@ def _read_birth_facts(form, ranges=((0.3, 7.0), (22, 45))):
     # The hour of birth. Blank becomes ``None`` and never midnight: the whole
     # point of recording it is that an assumed hour is wrong by up to twelve,
     # and a stored 00:00 is indistinguishable from a baby actually born then.
+    # A saturation is a percentage, and one outside what a pulse oximeter can
+    # report is a typo rather than a reading. Refused rather than stored,
+    # because a baseline of 9 would put "below their usual" on every reading
+    # this child ever has.
+    raw_baseline = form.get("baseline_spo2") or ""
+    if not raw_baseline:
+        form["baseline_spo2"] = None
+    else:
+        form["baseline_spo2"] = _int_or(raw_baseline)
+        if form["baseline_spo2"] is None or \
+                not (50 <= form["baseline_spo2"] <= 100):
+            return t("patients.baseline_spo2_range")
+
     raw_time = form.get("birth_time") or ""
     if not raw_time:
         form["birth_time"] = None
