@@ -10,9 +10,20 @@ So the store obeys the same lock the till does, through the same helper.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the screens filter by.
+#
+# These built their world with `local_today()` while the report they check
+# filters on `local_today()`, and the two disagree for the three hours a day
+# when it is already tomorrow in Cairo and still today in UTC. The suite went
+# green at 23:28 Cairo and red at 00:20, on the same commit, with nothing
+# changed in between. conftest.py warns about exactly this at the top of the
+# file.
+from app.utils.clock import local_today  # noqa: E402
+
 
 import pytest  # noqa: E402
 
@@ -43,7 +54,7 @@ def clinic():
         item = StoreItem(name="قفازات", unit="علبة", is_active=True,
                          purchase_price=50, sell_price=70)
         db.session.add(item)
-        today = date.today()
+        today = local_today()
         period = ensure_month(today.year, today.month)
         db.session.commit()
         ids = {"item": item.id, "period": period.id}
@@ -84,7 +95,7 @@ def test_an_open_month_blocks_nothing(clinic):
     from app.utils.periods import period_blocked
 
     with clinic["app"].app_context():
-        assert period_blocked(date.today(), flash_it=False) is False
+        assert period_blocked(local_today(), flash_it=False) is False
 
 
 def test_a_closed_month_is_blocked(clinic):
@@ -92,7 +103,7 @@ def test_a_closed_month_is_blocked(clinic):
 
     _close(clinic)
     with clinic["app"].app_context():
-        assert period_blocked(date.today(), flash_it=False) is True
+        assert period_blocked(local_today(), flash_it=False) is True
 
 
 def test_a_date_no_period_covers_is_not_blocked(clinic):
@@ -101,7 +112,7 @@ def test_a_date_no_period_covers_is_not_blocked(clinic):
 
     _close(clinic)
     with clinic["app"].app_context():
-        far_off = date.today() + timedelta(days=400)
+        far_off = local_today() + timedelta(days=400)
         assert period_blocked(far_off, flash_it=False) is False
 
 
@@ -120,7 +131,7 @@ def test_reopening_lifts_the_block(clinic):
     _close(clinic)
     _close(clinic, closed=False)
     with clinic["app"].app_context():
-        assert period_blocked(date.today(), flash_it=False) is False
+        assert period_blocked(local_today(), flash_it=False) is False
 
 
 # -------------------------------------------------------------- the store --

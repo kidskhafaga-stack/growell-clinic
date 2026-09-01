@@ -20,7 +20,6 @@ the fee for a staff member's child should not thereby be giving away a
 """
 import os
 import sys
-from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

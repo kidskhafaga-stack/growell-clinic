@@ -907,7 +907,46 @@ def add_service(visit_id):
                        entity_id=visit.id, detail=service.name, ip_address=client_ip())
     db.session.commit()
     flash(t("visits.proc_added"), "success")
+    _warn_if_already_on_a_plan(visit, service)
     return redirect(url_for("visits.record", visit_id=visit.id) + "#proc")
+
+
+def _warn_if_already_on_a_plan(visit, service):
+    """Say so when this work is already billed on an accepted dental plan.
+
+    There are two ways to charge for a filling: a treatment plan, which raises
+    one invoice for the agreed total when the family accepts it, and a
+    procedure on the visit, which goes on the visit's own bill. Nothing joined
+    them. A child on a plan that includes a filling on 55, whose dentist then
+    adds "filling, primary tooth" to the visit that did it, is billed for that
+    filling twice — and the program said nothing either time.
+
+    **A warning, not a refusal.** It can genuinely be extra work outside the
+    plan: a second tooth found on the day, a repair, something the family
+    agreed to there and then. The dentist is the one who knows which, and a
+    block would have them delete the plan line to get past it, which loses the
+    record of what was agreed.
+    """
+    if not service or not service.id:
+        return
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("dentistry"):
+        return
+    from app.models import TreatmentPlan, TreatmentPlanItem
+
+    clash = (TreatmentPlanItem.query
+             .join(TreatmentPlan)
+             .filter(TreatmentPlan.patient_id == visit.patient_id,
+                     TreatmentPlan.status.in_(("accepted", "done")),
+                     TreatmentPlanItem.service_id == service.id,
+                     TreatmentPlanItem.status != "dropped")
+             .first())
+    if clash is None:
+        return
+    where = f" — {clash.tooth}" if clash.tooth else ""
+    flash(t("visits.proc_on_a_plan").replace("{what}", service.name + where),
+          "warning")
 
 
 @visits_bp.route("/services/<int:vs_id>/delete", methods=["POST"])

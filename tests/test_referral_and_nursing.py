@@ -25,7 +25,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.utils.clock import local_today  # noqa: E402
 
 
-
 def _visit(clinic):
     return clinic["ids"]["visit"]
 

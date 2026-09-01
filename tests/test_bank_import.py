@@ -27,6 +27,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -76,7 +80,7 @@ def _movement(tilled, amount, when=None, code="1020", kind="deposit"):
     with tilled["app"].app_context():
         account = CashAccount.query.filter_by(code=code).first()
         mv = CashMovement(kind=kind, account_id=account.id, amount=abs(amount),
-                          moved_on=when or date.today())
+                          moved_on=when or local_today())
         tilled["db"].session.add(mv)
         tilled["db"].session.commit()
         return mv.id
@@ -260,7 +264,7 @@ def test_one_movement_at_the_same_amount_is_a_candidate(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    _movement(tilled, 1975, when=date.today())
+    _movement(tilled, 1975, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},POS settlement,1975.00\n")
     with tilled["app"].app_context():
@@ -274,7 +278,7 @@ def test_a_different_amount_is_not_a_candidate(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    _movement(tilled, 1975, when=date.today())
+    _movement(tilled, 1975, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},POS settlement,1974.00\n")
     with tilled["app"].app_context():
@@ -286,7 +290,7 @@ def test_a_movement_a_few_days_off_still_counts(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    _movement(tilled, 800, when=date.today() - timedelta(days=2))
+    _movement(tilled, 800, when=local_today() - timedelta(days=2))
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Transfer,800.00\n")
     with tilled["app"].app_context():
@@ -297,7 +301,7 @@ def test_a_movement_far_outside_the_window_does_not(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    _movement(tilled, 800, when=date.today() - timedelta(days=40))
+    _movement(tilled, 800, when=local_today() - timedelta(days=40))
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Transfer,800.00\n")
     with tilled["app"].app_context():
@@ -308,8 +312,8 @@ def test_the_nearest_date_is_offered_first(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    _movement(tilled, 300, when=date.today() - timedelta(days=3))
-    near = _movement(tilled, 300, when=date.today())
+    _movement(tilled, 300, when=local_today() - timedelta(days=3))
+    near = _movement(tilled, 300, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Deposit,300.00\n")
     with tilled["app"].app_context():
@@ -322,7 +326,7 @@ def test_auto_match_takes_the_only_answer(tilled):
     from app.models import CashAccount
     from app.utils import bank_import
 
-    mv_id = _movement(tilled, 1975, when=date.today())
+    mv_id = _movement(tilled, 1975, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},POS settlement,1975.00\n")
     with tilled["app"].app_context():
@@ -340,8 +344,8 @@ def test_auto_match_refuses_to_guess_between_two(tilled):
     from app.models import BankLine, CashAccount
     from app.utils import bank_import
 
-    _movement(tilled, 500, when=date.today())
-    _movement(tilled, 500, when=date.today())
+    _movement(tilled, 500, when=local_today())
+    _movement(tilled, 500, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Deposit,500.00\n")
     with tilled["app"].app_context():
@@ -356,7 +360,7 @@ def test_two_lines_cannot_both_claim_one_movement(tilled):
     from app.models import BankLine, CashAccount
     from app.utils import bank_import
 
-    _movement(tilled, 500, when=date.today())
+    _movement(tilled, 500, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Deposit A,500.00\n"
             f"{date.today()},Deposit B,500.00\n")
@@ -371,7 +375,7 @@ def test_matching_the_same_movement_by_hand_is_refused(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    mv_id = _movement(tilled, 500, when=date.today())
+    mv_id = _movement(tilled, 500, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Deposit A,500.00\n"
             f"{date.today()},Deposit B,500.00\n")
@@ -389,7 +393,7 @@ def test_a_match_can_always_be_undone(tilled):
     from app.models import BankLine
     from app.utils import bank_import
 
-    mv_id = _movement(tilled, 500, when=date.today())
+    mv_id = _movement(tilled, 500, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Deposit,500.00\n")
     with tilled["app"].app_context():
@@ -422,7 +426,7 @@ def test_nothing_is_posted_to_the_ledger_by_any_of_this(tilled):
     from app.models import BankLine, CashAccount, JournalEntry
     from app.utils import bank_import
 
-    _movement(tilled, 1975, when=date.today())
+    _movement(tilled, 1975, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},POS settlement,1975.00\n"
             f"{date.today()},Mystery charge,-40.00\n")
@@ -456,7 +460,7 @@ def test_a_movement_the_statement_never_mentioned_is_named(tilled):
     from app.models import CashAccount
     from app.utils import bank_import
 
-    _movement(tilled, 900, when=date.today() - timedelta(days=1))
+    _movement(tilled, 900, when=local_today() - timedelta(days=1))
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Bank charge,-25.00\n")
     with tilled["app"].app_context():
@@ -471,7 +475,7 @@ def test_a_movement_after_the_last_statement_line_is_not_called_missing(tilled):
     from app.models import CashAccount
     from app.utils import bank_import
 
-    _movement(tilled, 900, when=date.today() + timedelta(days=5))
+    _movement(tilled, 900, when=local_today() + timedelta(days=5))
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},Bank charge,-25.00\n")
     with tilled["app"].app_context():
@@ -483,7 +487,7 @@ def test_a_till_with_no_statement_yet_calls_nothing_missing(tilled):
     from app.models import CashAccount
     from app.utils import bank_import
 
-    _movement(tilled, 900, when=date.today())
+    _movement(tilled, 900, when=local_today())
     with tilled["app"].app_context():
         account = CashAccount.query.filter_by(code="1020").first()
         result = bank_import.reconciliation(account)
@@ -557,7 +561,7 @@ def test_uploading_nothing_says_so(tilled):
 
 def test_the_auto_button_reports_what_it_matched(tilled):
     bank = _bank_id(tilled)
-    _movement(tilled, 1975, when=date.today())
+    _movement(tilled, 1975, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},POS settlement,1975.00\n")
     body = tilled["acct"].post(f"/finance/tills/{bank}/reconcile/auto",
@@ -568,7 +572,7 @@ def test_the_auto_button_reports_what_it_matched(tilled):
 def test_a_line_can_be_matched_from_the_screen(tilled):
     from app.models import BankLine
 
-    mv_id = _movement(tilled, 1975, when=date.today())
+    mv_id = _movement(tilled, 1975, when=local_today())
     _import(tilled, "Date,Description,Amount\n"
             f"{date.today()},POS settlement,1975.00\n")
     with tilled["app"].app_context():

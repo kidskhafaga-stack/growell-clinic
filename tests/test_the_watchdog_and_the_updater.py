@@ -156,3 +156,54 @@ def test_a_machine_without_the_service_still_gets_start_bat():
     text = _script("update.bat")
     tail = text.split("app.update_guard done")[1]
     assert "start.bat" in tail
+
+
+# ------------------------------------------- the download that looked hung --
+def _update_bat():
+    import io
+    import os
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    with io.open(os.path.join(here, "..", "update.bat"),
+                 encoding="utf-8", newline="") as handle:
+        return handle.read()
+
+
+def test_the_progress_bar_is_off():
+    """Windows PowerShell 5.1 redraws Invoke-WebRequest's progress bar on
+    every chunk, and the redraw costs more than the download.
+
+    Reported from a clinic as an update that stopped: the screen showed
+    "Writing request stream... (Number of bytes written: 35105)" and sat
+    there. It was not stopped. It was drawing.
+    """
+    assert "$ProgressPreference='SilentlyContinue'" in _update_bat()
+
+
+def test_the_archive_is_not_unpacked_a_file_at_a_time():
+    """`Expand-Archive` is slow per *file*, not per byte, and this project is
+    763 of them — its worst case, in silence. The .NET call does the same job
+    in seconds."""
+    body = _update_bat()
+    assert "ExtractToDirectory" in body
+    live = [line for line in body.split("\r\n")
+            if not line.strip().startswith("REM")]
+    assert not any("Expand-Archive" in line for line in live), \
+        "Expand-Archive is back in a line that runs"
+
+
+def test_it_says_it_is_working():
+    """Two lines, because the two slow parts are at opposite ends and a
+    clinic staring at a still screen presses Ctrl-C."""
+    body = _update_bat()
+    assert "Downloading" in body
+    assert "Unpacking" in body
+
+
+def test_the_download_block_has_no_stray_bracket():
+    """The bug this file has been bitten by twice: a `)` inside a
+    parenthesised block closes it where it stands, and the rest of the block
+    runs unconditionally."""
+    live = [line for line in _update_bat().split("\r\n")
+            if not line.strip().startswith("REM")]
+    assert not any(") else (" in line for line in live)

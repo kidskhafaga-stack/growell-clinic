@@ -13,9 +13,12 @@ same to anything still looking at the old column.
 """
 import os
 import sys
-from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -212,7 +215,7 @@ def test_the_count_is_of_cards_that_are_valid_today(boss, clubs, clinic):
         clinic["db"].session.add(PatientCoverage(
             patient_id=clinic["ids"]["child"], payer_id=clubs["smouha"],
             membership_number="OLD", is_active=True,
-            expiry_date=date.today() - timedelta(days=1)))
+            expiry_date=local_today() - timedelta(days=1)))
         clinic["db"].session.commit()
 
     from app.blueprints.finance.routes import _valid_member_counts

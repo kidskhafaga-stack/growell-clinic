@@ -185,6 +185,7 @@ def create_app(config_name="default"):
         "visits": "visits.index",
         "growth": "growth.index",
         "vaccinations": "vaccinations.index",
+        "dentistry": "dentistry.index",
         "prescriptions": "prescriptions.index",
         "inventory": "inventory.index",
         "finance": "finance.index",

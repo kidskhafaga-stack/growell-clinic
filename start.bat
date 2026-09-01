@@ -12,7 +12,7 @@ setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
 echo ============================================================
-echo    GROWELL CLINIC  ^|  PediaPro
+echo    PediaPro
 echo ============================================================
 echo.
 
@@ -111,7 +111,7 @@ for /f "usebackq delims=" %%P in (`python -c "import sys;from app.settings_file 
 if "%APP_PORT%"=="" set "APP_PORT=5000"
 
 REM --- 7) Launch the app and open the browser ---
-echo [5/5] Starting GROWELL CLINIC at http://localhost:%APP_PORT%
+echo [5/5] Starting PediaPro at http://localhost:%APP_PORT%
 echo Close this window to stop the server.
 start "" "http://localhost:%APP_PORT%"
 python run.py %APP_PORT%

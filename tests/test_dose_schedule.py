@@ -22,6 +22,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -34,7 +38,7 @@ def kid(clinic):
     with clinic["app"].app_context():
         child = Patient(patient_number="PK1", full_name="طفل الجدول",
                         gender="male", is_active=True,
-                        date_of_birth=date.today() - timedelta(days=365 * 3))
+                        date_of_birth=local_today() - timedelta(days=365 * 3))
         clinic["db"].session.add(child)
         clinic["db"].session.flush()
 
@@ -89,7 +93,7 @@ def _d(iso):
 # ------------------------------------------------------------- the floor ---
 def test_the_next_dose_never_falls_due_before_the_last_one_was_given(kid):
     """The bug, stated as the rule it broke. Everything else here is detail."""
-    given_on = date.today()
+    given_on = local_today()
     _give(kid, 1, given_on)
 
     doses = _doses(kid)
@@ -99,7 +103,7 @@ def test_the_next_dose_never_falls_due_before_the_last_one_was_given(kid):
 def test_no_dose_in_the_course_falls_due_before_its_predecessor(kid):
     """Not just dose 2 — the whole chain, because a fix that only pushed the
     next one would leave dose 3 sitting in the past."""
-    _give(kid, 1, date.today())
+    _give(kid, 1, local_today())
 
     doses = _doses(kid)
     assert _d(doses[3]["due_date"]) > _d(doses[2]["due_date"])
@@ -107,7 +111,7 @@ def test_no_dose_in_the_course_falls_due_before_its_predecessor(kid):
 
 def test_a_dose_given_a_year_late_pushes_the_rest_forward(kid):
     """The reported case: dose 1 was due at two months and given at eighteen."""
-    given_on = date.today()
+    given_on = local_today()
     _give(kid, 1, given_on)
 
     doses = _doses(kid)
@@ -118,7 +122,7 @@ def test_a_dose_given_a_year_late_pushes_the_rest_forward(kid):
 def test_the_rest_of_the_course_stops_reading_as_overdue(kid):
     """A dose given today leaving the next one "overdue since 2023" is the
     version of this bug a parent sees."""
-    _give(kid, 1, date.today())
+    _give(kid, 1, local_today())
 
     doses = _doses(kid)
     assert doses[2]["status"] != "overdue"
@@ -133,7 +137,7 @@ def test_a_vaccine_with_its_own_interval_uses_that_and_not_the_floor(kid):
     with kid["app"].app_context():
         kid["db"].session.get(Vaccine, kid["vac"]).min_interval_days = 60
         kid["db"].session.commit()
-    given_on = date.today()
+    given_on = local_today()
     _give(kid, 1, given_on)
 
     doses = _doses(kid)
@@ -147,7 +151,7 @@ def test_an_interval_of_zero_still_gets_the_floor(kid):
     with kid["app"].app_context():
         kid["db"].session.get(Vaccine, kid["vac"]).min_interval_days = 0
         kid["db"].session.commit()
-    given_on = date.today()
+    given_on = local_today()
     _give(kid, 1, given_on)
 
     doses = _doses(kid)
@@ -177,7 +181,7 @@ def test_a_given_dose_keeps_the_date_it_was_actually_due(kid):
     from app.models import Patient
     from app.utils.vaccines import add_months
 
-    given_on = date.today()
+    given_on = local_today()
     _give(kid, 1, given_on)
     with kid["app"].app_context():
         dob = kid["db"].session.get(Patient, kid["kid"]).date_of_birth
@@ -192,7 +196,7 @@ def test_the_doctors_own_appointment_still_wins(kid):
     the doctor typed in."""
     from app.models import PatientVaccine
 
-    given_on = date.today()
+    given_on = local_today()
     _give(kid, 1, given_on)
     wanted = given_on + timedelta(days=90)
     with kid["app"].app_context():
@@ -211,7 +215,7 @@ def test_a_course_given_today_leaves_the_visit_panel_unalarmed(kid):
     from app.models import Patient
     from app.utils.vaccines import visit_vaccine_panel
 
-    _give(kid, 1, date.today())
+    _give(kid, 1, local_today())
     with kid["app"].app_context():
         child = kid["db"].session.get(Patient, kid["kid"])
         offered = visit_vaccine_panel(child)["give_now"]

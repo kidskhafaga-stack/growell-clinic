@@ -26,7 +26,7 @@ everywhere they printed.
 import os
 import re
 import sys
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

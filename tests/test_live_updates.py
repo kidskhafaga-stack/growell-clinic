@@ -34,6 +34,10 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -106,7 +110,7 @@ def test_a_new_study_moves_it(watched):
     with watched["app"].app_context():
         watched["db"].session.add(DeviceStudy(
             patient_id=watched["ids"]["child"], device_id=dev_id,
-            study_date=date.today()))
+            study_date=local_today()))
         watched["db"].session.commit()
     assert _patient_fp(watched) != before
 
@@ -149,7 +153,7 @@ def test_another_childs_visit_does_not_move_it(watched):
         watched["db"].session.flush()
         watched["db"].session.add(Visit(
             patient_id=other.id, doctor_id=watched["ids"]["doctor"],
-            visit_date=date.today()))
+            visit_date=local_today()))
         watched["db"].session.commit()
     assert _patient_fp(watched) == before
 

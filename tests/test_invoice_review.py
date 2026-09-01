@@ -24,6 +24,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -94,7 +98,7 @@ def test_an_invoice_can_be_found_by_file_number(bills, boss):
 
 def test_the_list_can_be_cut_to_a_date_range(bills, boss):
     """Reviewing a month is the whole reason this screen is opened."""
-    since = (date.today() - timedelta(days=20)).isoformat()
+    since = (local_today() - timedelta(days=20)).isoformat()
     body = boss.get("/finance/invoices",
                     query_string={"from": since}).get_data(as_text=True)
     assert _numbers(body) == {"INV-A", "INV-B"}
@@ -126,7 +130,7 @@ def test_the_filters_combine(bills, boss, clinic):
 def test_the_status_chips_keep_the_rest_of_the_filter(bills, boss):
     """Losing the date range on every chip click is how a filter bar becomes
     something people stop using."""
-    since = (date.today() - timedelta(days=20)).isoformat()
+    since = (local_today() - timedelta(days=20)).isoformat()
     body = boss.get("/finance/invoices",
                     query_string={"from": since}).get_data(as_text=True)
     assert f"from={since}" in body or f"from={since.replace('-', '%2D')}" in body
@@ -266,7 +270,7 @@ def test_a_closed_period_says_so_instead(bills, boss, clinic):
     from app.utils.periods import close_period, ensure_month
 
     with clinic["app"].app_context():
-        today = date.today()
+        today = local_today()
         close_period(ensure_month(today.year, today.month))
         clinic["db"].session.commit()
 
@@ -282,7 +286,7 @@ def test_a_closed_period_still_refuses_the_edit_itself(bills, boss, clinic):
 
     item_id = _items(clinic, bills["INV-A"])[0][0]
     with clinic["app"].app_context():
-        today = date.today()
+        today = local_today()
         close_period(ensure_month(today.year, today.month))
         clinic["db"].session.commit()
 

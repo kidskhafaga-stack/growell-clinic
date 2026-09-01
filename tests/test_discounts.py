@@ -13,6 +13,10 @@ from datetime import date, time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -57,10 +61,10 @@ def clinic():
         # Both children are booked today, with the same doctor.
         db.session.add_all([
             Appointment(patient_id=brother.id, doctor_id=doctor.id,
-                        appt_date=date.today(), appt_time=time(10, 0),
+                        appt_date=local_today(), appt_time=time(10, 0),
                         status="booked"),
             Appointment(patient_id=child.id, doctor_id=doctor.id,
-                        appt_date=date.today(), appt_time=time(10, 30),
+                        appt_date=local_today(), appt_time=time(10, 30),
                         status="booked")])
 
         member = NamedDiscount(name="خصم الأعضاء", dtype="payer", value=20,
@@ -140,16 +144,16 @@ def test_sibling_rule_wants_the_same_doctor(clinic):
 
     with clinic["app"].test_request_context("/"):
         child, sibling = clinic["child"], clinic["sibling"]
-        assert fr._sibling_rule_met(sibling, child, date.today(),
+        assert fr._sibling_rule_met(sibling, child, local_today(),
                                     clinic["doctor"].id)
         (Appointment.query.filter_by(patient_id=clinic["brother"].id)
          .one().doctor_id) = clinic["other"].id
         clinic["db"].session.flush()
-        assert not fr._sibling_rule_met(sibling, child, date.today(),
+        assert not fr._sibling_rule_met(sibling, child, local_today(),
                                         clinic["doctor"].id)
         # …unless the clinic said the offer isn't tied to one doctor.
         sibling.same_doctor = False
-        assert fr._sibling_rule_met(sibling, child, date.today(),
+        assert fr._sibling_rule_met(sibling, child, local_today(),
                                     clinic["doctor"].id)
 
 

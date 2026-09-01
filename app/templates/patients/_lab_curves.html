@@ -62,12 +62,7 @@
 
 {% macro panel(series, latest) %}
 <div class="card gc-scale-in" style="margin-top:14px;">
-  {# Converted with the patient file, which is the only screen that imports
-     this. A partial left in the old grammar renders one heading that does not
-     match the page around it — the kind of miss a roll-out done screen by
-     screen invites, and the reason the test asks for none left rather than
-     for at least one converted. #}
-  <div class="md-section-head"><h3><i class="bi bi-graph-up-arrow"></i> {{ t('labs.curve') }}</h3></div>
+  <h3 class="section-title"><i class="bi bi-graph-up-arrow"></i> {{ t('labs.curve') }}</h3>
 
   {% if latest %}
   <div class="info-grid" style="margin-bottom:12px;">

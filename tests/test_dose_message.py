@@ -24,6 +24,10 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 
 def _reachable(clinic, phone="01001234567"):
     """Give the child a guardian with a phone — otherwise nothing can be sent
@@ -106,7 +110,7 @@ def test_both_screens_write_the_same_message(clinic):
         patient = db.session.get(Patient, clinic["ids"]["child"])
         vaccine = db.session.get(Vaccine, clinic["ids"]["pcv"])
         expected = dose_message(patient, vaccine, vaccine.brands[0], 1,
-                                date.today())
+                                local_today())
 
     _give_in_visit(clinic)
 

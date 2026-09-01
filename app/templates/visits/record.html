@@ -27,7 +27,7 @@
     'age_days': (visit.patient.age_days or 0),
     'prev': ({'cc': recent_visits[0].chief_complaint or '', 'exam': recent_visits[0].clinical_exam or '', 'plan': recent_visits[0].plan or ''} if recent_visits else None)} | tojson }}
 </script>
-<div class="md" x-data="visitPage('{{ url_for('main.icd_search') }}',
+<div x-data="visitPage('{{ url_for('main.icd_search') }}',
         {{ visit.vitals.weight_kg if (visit.vitals and visit.vitals.weight_kg) else 'null' }}, {{ visit.vitals.height_cm if (visit.vitals and visit.vitals.height_cm) else 'null' }})"
      x-init="restore()" style="padding-bottom:78px;">
 
@@ -135,8 +135,8 @@
 
   <!-- Continuity: what to review when the patient returns for the consultation -->
   {% if recent_visits or pending_investigations or recent_attachments %}
-  <div class="md-section gc-scale-in" x-show="tab==='case'" style="animation-delay:0.05s;border-inline-start:4px solid var(--green-600);">
-    <div class="md-section-head"><h2><i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.previous_context') }}</h2></div>
+  <div class="card gc-scale-in" x-show="tab==='case'" style="animation-delay:0.05s;border-inline-start:4px solid var(--green-600);">
+    <h2 class="section-title"><i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.previous_context') }}</h2>
 
     {% if recent_visits %}
     <div style="margin-bottom:12px;">
@@ -220,8 +220,8 @@
   <!-- Vitals + clinical (single form) -->
   <form method="post" id="visitForm" x-show="tab==='case'">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="md-section gc-scale-in" style="animation-delay:0.08s;">
-      <div class="md-section-head"><h2><i class="bi bi-activity"></i> {{ t('visits.vitals') }}</h2></div>
+    <div class="card gc-scale-in" style="animation-delay:0.08s;">
+      <h2 class="section-title"><i class="bi bi-activity"></i> {{ t('visits.vitals') }}</h2>
       <div class="vitals-grid">
         <div class="form-row"><label>{{ t('visits.weight') }}</label>
           <input class="input" type="number" step="0.01" name="weight_kg" x-model="weight" value="{{ visit.vitals.weight_kg if visit.vitals and visit.vitals.weight_kg is not none else '' }}"></div>
@@ -288,7 +288,7 @@
         <section class="md-section gc-scale-in">
           <div class="md-section-head" style="justify-content:space-between;">
             <span style="display:flex;align-items:center;gap:12px;">
-              <span class="md-badge"><i class="bi bi-clipboard-data"></i></span>
+              <span class="md-step"><i class="bi bi-clipboard-data"></i></span>
               <h3>{{ t('panels.title') }}</h3>
               <span class="md-sub" x-show="!panelKey" x-cloak>{{ t('panels.optional') }}</span>
             </span>
@@ -444,9 +444,9 @@
       </div>
     </div>
 
-    <div class="md-section gc-scale-in" style="animation-delay:0.14s;">
+    <div class="card gc-scale-in" style="animation-delay:0.14s;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div class="md-section-head" style="margin:0;"><h2><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.section_clinical') }}</h2></div>
+        <h2 class="section-title" style="margin:0;"><i class="bi bi-clipboard2-pulse"></i> {{ t('visits.section_clinical') }}</h2>
         <button type="button" class="btn btn-outline btn-sm gc-press" x-show="prev" x-on:click="carryForward()">
           <i class="bi bi-arrow-counterclockwise"></i> {{ t('visits.carry_forward') }}</button>
       </div>
@@ -574,8 +574,8 @@
 
   <!-- Prescriptions written from this visit -->
   {% if visit.prescriptions %}
-  <div class="md-section gc-scale-in" x-show="tab==='case'">
-    <div class="md-section-head"><h2><i class="bi bi-prescription2"></i> {{ t('rx.title') }}</h2></div>
+  <div class="card gc-scale-in" x-show="tab==='case'">
+    <h2 class="section-title"><i class="bi bi-prescription2"></i> {{ t('rx.title') }}</h2>
     <div style="display:flex;flex-direction:column;gap:8px;">
       {% for rx in visit.prescriptions %}
       <a class="dx-row" style="text-decoration:none;color:inherit;" href="{{ url_for('prescriptions.view', rx_id=rx.id) }}">
@@ -590,8 +590,8 @@
   {% endif %}
 
   <!-- Diagnoses -->
-  <div class="md-section gc-scale-in" data-add-panel id="dx" x-show="tab==='dx'" style="animation-delay:0.2s;">
-    <div class="md-section-head"><h2><i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}</h2></div>
+  <div class="card gc-scale-in" data-add-panel id="dx" x-show="tab==='dx'" style="animation-delay:0.2s;">
+    <h2 class="section-title"><i class="bi bi-card-list"></i> {{ t('visits.diagnoses') }}</h2>
 
     <div data-add-list>
     {% if visit.diagnoses %}
@@ -694,8 +694,8 @@
   </div>
 
   <!-- Investigations: request labs/imaging + record results -->
-  <div class="md-section gc-scale-in" data-add-panel id="inv" x-show="tab==='inv'" style="animation-delay:0.24s;">
-    <div class="md-section-head"><h2><i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}</h2></div>
+  <div class="card gc-scale-in" data-add-panel id="inv" x-show="tab==='inv'" style="animation-delay:0.24s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-data"></i> {{ t('visits.investigations') }}</h2>
 
     <div data-add-list>
     {% if visit.investigations %}
@@ -795,8 +795,8 @@
 
   <!-- Procedures: chargeable services performed in the visit (echo, nebuliser…) -->
   <!-- Medicines written in the room: they carry over to the prescription -->
-  <div class="md-section gc-scale-in" data-add-panel id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
-    <div class="md-section-head"><h2><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h2></div>
+  <div class="card gc-scale-in" data-add-panel id="meds" x-show="tab==='meds'" style="animation-delay:0.25s;">
+    <h2 class="section-title"><i class="bi bi-capsule"></i> {{ t('visits.medications') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.med_hint') }}</p>
 
     {# Medication reconciliation (GAHAR).
@@ -967,8 +967,8 @@
   </div>
 
   <!-- Informed consent, in the room where it's needed -->
-  <div class="md-section gc-scale-in" id="consent" x-show="tab==='consent'" style="animation-delay:0.25s;">
-    <div class="md-section-head"><h2><i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}</h2></div>
+  <div class="card gc-scale-in" id="consent" x-show="tab==='consent'" style="animation-delay:0.25s;">
+    <h2 class="section-title"><i class="bi bi-file-earmark-check"></i> {{ t('consent.title') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('consent.visit_hint') }}</p>
 
     {% if consent and consent.needed %}
@@ -995,7 +995,7 @@
     {% endif %}
 
     {% if visit.patient.consents %}
-    <div class="md-section-head" style="font-size:.95rem;"><h3><i class="bi bi-archive"></i> {{ t('consent.on_file') }}</h3></div>
+    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-archive"></i> {{ t('consent.on_file') }}</h3>
     <table class="table" style="margin-bottom:14px;">
       <tbody>
         {% for c in visit.patient.consents[:6] %}
@@ -1014,7 +1014,7 @@
     </table>
     {% endif %}
 
-    <div class="md-section-head" style="font-size:.95rem;"><h3><i class="bi bi-pen"></i> {{ t('consent.record_now') }}</h3></div>
+    <h3 class="section-title" style="font-size:.95rem;"><i class="bi bi-pen"></i> {{ t('consent.record_now') }}</h3>
     <form method="post" action="{{ url_for('visits.add_visit_consent', visit_id=visit.id) }}"
           x-data="{ kind: 'general', texts: {{ consent_statements|tojson|forceescape }} }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1060,8 +1060,8 @@
      thing they are doing involves a machine. Splitting on that made one
      decision take two tabs to carry out, and made "was the echo done?" a
      question you had to look in two places to answer. #}
-  <div class="md-section gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
-    <div class="md-section-head"><h2><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2></div>
+  <div class="card gc-scale-in" id="proc" x-show="tab==='proc'" style="animation-delay:0.26s;">
+    <h2 class="section-title"><i class="bi bi-clipboard2-plus"></i> {{ t('visits.procedures') }}</h2>
     <p class="hint" style="margin-top:-6px;">{{ t('visits.procedures_hint') }}</p>
 
     {% if visit.services %}
@@ -1209,9 +1209,9 @@
   </div>
 
   <!-- Vaccinations: optional, age-appropriate vaccines the doctor can give now -->
-  <div class="md-section gc-scale-in" id="vac" x-show="tab==='vac'" style="animation-delay:0.27s;">
+  <div class="card gc-scale-in" id="vac" x-show="tab==='vac'" style="animation-delay:0.27s;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-      <div class="md-section-head" style="margin:0;"><h2><i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}</h2></div>
+      <h2 class="section-title" style="margin:0;"><i class="bi bi-shield-plus"></i> {{ t('visits.tab_vaccines') }}</h2>
       {% if current_user.can_access('vaccinations') %}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a class="btn btn-outline btn-sm gc-press" target="_blank"
@@ -1432,8 +1432,8 @@
   </div>
 
   <!-- Patient file attachments (lab/imaging reports) -->
-  <div class="md-section gc-scale-in" data-add-panel id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
-    <div class="md-section-head"><h2><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h2></div>
+  <div class="card gc-scale-in" data-add-panel id="files" x-show="tab==='files'" style="animation-delay:0.28s;">
+    <h2 class="section-title"><i class="bi bi-paperclip"></i> {{ t('visits.attachments') }}</h2>
 
     <div data-add-list>
     {% if visit.attachments %}

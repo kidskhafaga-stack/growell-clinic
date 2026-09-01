@@ -26,9 +26,13 @@ screen that has to tell those apart was the one screen not saying so.
 import os
 import re
 import sys
-from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 
 RECORD = os.path.join(os.path.dirname(__file__), "..",
                       "app", "templates", "visits", "record.html")
@@ -138,13 +142,13 @@ def test_the_same_temperature_reads_differently_by_age(clinic):
         db = clinic["db"]
         baby = Patient(patient_number="P-BABY", full_name="رضيع",
                        gender="female",
-                       date_of_birth=date.today() - timedelta(days=42),
+                       date_of_birth=local_today() - timedelta(days=42),
                        is_active=True)
         db.session.add(baby)
         db.session.flush()
         baby_visit = Visit(patient_id=baby.id,
                            doctor_id=clinic["ids"]["doctor"],
-                           visit_date=date.today())
+                           visit_date=local_today())
         db.session.add(baby_visit)
         db.session.flush()
         db.session.add(VitalSigns(visit_id=baby_visit.id, temperature_c=38.2))

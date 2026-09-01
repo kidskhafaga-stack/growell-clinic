@@ -1,9 +1,10 @@
 """Markup in a grammar whose stylesheet was never loaded.
 
-The clinic is being moved onto one visual language, screen by screen — the
-booking form first, then the visit record, the settings update panel, and the
-till. The grammar is `md-section` / `md-section-head` / `md-step` and it lives
-in `app/static/css/material.css`.
+Three screens are written in this grammar: the booking form, the settings
+update panel, and the specialty panel on the visit record. The till, the
+patient file and the rest of the visit screen were converted and then put
+back at the clinic's request — they preferred the cards. The grammar is
+`md-section` / `md-section-head` / `md-step`, in `app/static/css/material.css`.
 
 **The stylesheet is not global, and that is deliberate**: `.md` scopes it so a
 screen opts in and nothing else on the way changes. Which means a screen can
@@ -26,7 +27,7 @@ import re
 import pytest
 
 # The classes that do nothing without material.css.
-GRAMMAR = re.compile(r'class="[^"]*\bmd-(section|section-head|step|badge|sub|field|btn)\b')
+GRAMMAR = re.compile(r'class="[^"]*\bmd-(section|section-head|step|sub|field|btn)\b')
 STYLESHEET = "css/material.css"
 
 _CLASS_ATTR = re.compile(r'class="([^"]*)"')
@@ -121,7 +122,7 @@ def test_the_rollout_has_actually_reached_somewhere():
     """A guard over an empty set passes for ever. If this ever finds nothing,
     the pattern above has stopped matching and both tests above are green
     because they are asking about nothing."""
-    assert len(list(_templates_using_the_grammar())) >= 4
+    assert len(list(_templates_using_the_grammar())) >= 3
 
 
 # ------------------------------------------------- and on the real pages ---
@@ -143,7 +144,7 @@ def booked(clinic):
     return clinic
 
 
-@pytest.mark.parametrize("screen", ["till", "booking"])
+@pytest.mark.parametrize("screen", ["booking"])
 def test_the_page_a_person_opens_carries_the_stylesheet(booked, screen):
     """Rendered, not read off disk.
 
@@ -152,8 +153,7 @@ def test_the_page_a_person_opens_carries_the_stylesheet(booked, screen):
     only proof is the bytes the browser receives.
     """
     desk = booked["sign_in"]("desk")
-    url = (f"/finance/checkout/{booked['ids']['appt']}" if screen == "till"
-           else "/appointments/new")
+    url = "/appointments/new"
     page = desk.get(url)
     assert page.status_code == 200
     body = page.get_data(as_text=True)

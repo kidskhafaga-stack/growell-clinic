@@ -29,6 +29,10 @@ from datetime import date, time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -71,7 +75,7 @@ def family(clinic):
         for kid in kids:
             db.session.add(Appointment(
                 patient_id=kid.id, doctor_id=clinic["ids"]["doctor"],
-                appt_date=date.today(), appt_time=time(10, 0),
+                appt_date=local_today(), appt_time=time(10, 0),
                 appt_type="sb_exam", status="booked"))
         db.session.commit()
         return {"kids": [k.id for k in kids], "rule": rule.id,
@@ -85,7 +89,7 @@ def _met(clinic, family):
     with clinic["app"].test_request_context("/"):
         rule = clinic["db"].session.get(NamedDiscount, family["rule"])
         patient = clinic["db"].session.get(Patient, family["kids"][0])
-        return fr._sibling_rule_met(rule, patient, date.today(),
+        return fr._sibling_rule_met(rule, patient, local_today(),
                                     clinic["ids"]["doctor"])
 
 
@@ -149,7 +153,7 @@ def test_the_first_child_can_be_billed_before_the_second(family, clinic):
     with clinic["app"].app_context():
         inv = Invoice(invoice_number="SB-1", patient_id=family["kids"][0],
                       doctor_id=clinic["ids"]["doctor"],
-                      invoice_date=date.today())
+                      invoice_date=local_today())
         clinic["db"].session.add(inv)
         clinic["db"].session.flush()
         clinic["db"].session.add(InvoiceItem(
@@ -168,7 +172,7 @@ def test_a_billed_line_of_zero_does_not_count(family, clinic):
         Appointment.query.filter_by(patient_id=family["kids"][1]).delete()
         inv = Invoice(invoice_number="SB-2", patient_id=family["kids"][1],
                       doctor_id=clinic["ids"]["doctor"],
-                      invoice_date=date.today())
+                      invoice_date=local_today())
         clinic["db"].session.add(inv)
         clinic["db"].session.flush()
         clinic["db"].session.add(InvoiceItem(

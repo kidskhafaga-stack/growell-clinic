@@ -1,0 +1,96 @@
+{% extends "shell.html" %}
+{% set active_module = 'dentistry' %}
+{% block title %}{{ t('nav.dentistry') }}{% endblock %}
+{% block page_heading %}{{ t('nav.dentistry') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-emoji-smile"></i> {{ t('nav.dentistry') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('dental.index_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-search"></i> {{ t('dental.open_a_chart') }}</a>
+</div>
+
+{# The work outstanding, across every child — the one question a chart cannot
+   answer, because a chart is one mouth and this is all of them. #}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-list-check"></i> {{ t('dental.open_plans') }}
+    <span class="badge badge--muted">{{ open_plans|length }}</span></h2>
+
+  {% if open_plans %}
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('patients.name') }}</th>
+      <th>{{ t('dental.plan') }}</th>
+      <th>{{ t('dental.progress') }}</th>
+      <th style="text-align:end;">{{ t('invoices.total') }}</th>
+      <th style="text-align:end;">{{ t('invoices.balance') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for plan in open_plans %}
+      {% set done, of = plan.progress %}
+      <tr>
+        <td><a href="{{ url_for('dentistry.chart', patient_id=plan.patient_id) }}">
+          {{ plan.patient.display_name(current_lang) }}</a></td>
+        <td>{{ plan.title or '—' }}
+          {% if plan.accepted_at %}
+          <div class="hint" dir="ltr">{{ plan.accepted_at.strftime('%Y-%m-%d') }}</div>
+          {% endif %}</td>
+        <td><span class="badge {{ 'badge--green' if done else 'badge--muted' }}"
+                  dir="ltr">{{ done }} / {{ of }}</span></td>
+        <td style="text-align:end;">{{ plan.total|money }}</td>
+        {# What the family still owes on it. The plan bills once at
+           acceptance, so this is the invoice's balance and not a second sum
+           worked out here — two places computing one figure is how they come
+           to disagree. #}
+        <td style="text-align:end;">
+          {% if plan.invoice %}
+            <span class="{{ 'badge badge--danger' if plan.invoice.balance > 0 else '' }}">
+              {{ plan.invoice.balance|money }}</span>
+          {% else %}—{% endif %}</td>
+        <td style="text-align:end;">
+          <a class="btn btn-sm btn-outline gc-press"
+             href="{{ url_for('dentistry.plan', plan_id=plan.id) }}">
+            {{ t('common.view') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('dental.no_open_plans') }}</p>
+  {% endif %}
+</div>
+
+{# Written and never put to the family. Money nobody asked for, and invisible
+   on every other screen — a draft costs nothing and is therefore easy to
+   forget you wrote. #}
+{% if drafts %}
+<div class="card gc-scale-in" style="margin-top:16px;animation-delay:.05s;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-pencil"></i> {{ t('dental.drafts') }}
+    <span class="badge badge--muted">{{ drafts|length }}</span></h2>
+  <p class="hint" style="margin-top:-4px;">{{ t('dental.drafts_hint') }}</p>
+  <table class="table">
+    <tbody>
+      {% for plan in drafts %}
+      <tr>
+        <td><a href="{{ url_for('dentistry.chart', patient_id=plan.patient_id) }}">
+          {{ plan.patient.display_name(current_lang) }}</a></td>
+        <td>{{ plan.title or '—' }}</td>
+        <td>{{ plan.live_items|length }} {{ t('dental.items') }}</td>
+        <td style="text-align:end;">{{ plan.total|money }}</td>
+        <td style="text-align:end;">
+          <a class="btn btn-sm btn-outline gc-press"
+             href="{{ url_for('dentistry.plan', plan_id=plan.id) }}">
+            {{ t('common.view') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

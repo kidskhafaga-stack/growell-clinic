@@ -37,6 +37,11 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 APP_JS = os.path.join(ROOT, "app", "static", "js", "app.js")
 VENDOR = os.path.join(ROOT, "app", "static", "vendor")
@@ -181,7 +186,6 @@ def test_a_failure_still_leaves_the_user_somewhere():
 def test_the_prescription_offers_it(clinic):
     """On the copy that goes to the family, where a file is what is wanted."""
     with clinic["app"].app_context():
-        from datetime import date
 
         from app.models import Prescription, RxPrintTemplate
         db = clinic["db"]
@@ -189,7 +193,7 @@ def test_the_prescription_offers_it(clinic):
                                        page_size="A4", is_default=True))
         rx = Prescription(patient_id=clinic["ids"]["child"],
                           doctor_id=clinic["ids"]["doctor"],
-                          rx_date=date.today())
+                          rx_date=local_today())
         db.session.add(rx)
         db.session.commit()
         rx_id = rx.id
