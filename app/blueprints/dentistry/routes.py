@@ -17,7 +17,8 @@ from app.models import Patient
 from app.models.dental import (ALL_TEETH, CONDITIONS, PERMANENT_TEETH,
                                PRIMARY_TEETH, WHOLE_TOOTH,
                                WHOLE_TOOTH_CONDITIONS, ToothFinding, chart_for,
-                               history_for, is_primary, slot_for, surfaces_of)
+                               history_for, is_primary, slot_for, surfaces_of,
+                               tooth_kind)
 from app.utils.clock import local_today
 from app.utils.decorators import module_required
 
@@ -101,7 +102,12 @@ def chart(patient_id):
         permanent=PERMANENT_TEETH, primary=PRIMARY_TEETH,
         conditions=CONDITIONS, whole=WHOLE_TOOTH,
         whole_only=sorted(WHOLE_TOOTH_CONDITIONS),
-        surfaces_of=surfaces_of, today=local_today())
+        surfaces_of=surfaces_of, today=local_today(),
+        # What each tooth *is*, so the chart can draw it as one. Passed rather
+        # than worked out in Jinja, because the rule it follows is not "read
+        # the last digit" — the primary set has no premolars — and a template
+        # is the wrong place for that to live.
+        dental_kind=tooth_kind)
 
 
 @dentistry_bp.route("/patient/<int:patient_id>/record", methods=["POST"])

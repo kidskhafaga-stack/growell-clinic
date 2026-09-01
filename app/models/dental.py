@@ -54,6 +54,35 @@ def tooth_position(tooth):
     return tooth % 10
 
 
+# What a tooth *is*, which is what decides how it is drawn.
+#
+# The number alone cannot answer this, and that is the whole point of the
+# function. Position 4 in a permanent quadrant is a premolar; position 4 in a
+# primary quadrant is a **molar**, because the primary set has no premolars at
+# all — twenty teeth, not twenty-eight, and the two premolars that eventually
+# stand there erupt underneath the primary molars and replace them.
+#
+# A chart that reads the last digit and stops draws a child's mouth with four
+# teeth that do not exist in it. That is an adult chart shrunk down, and it is
+# the difference between a paediatric dental chart and a dental chart.
+TOOTH_KINDS = ("incisor", "canine", "premolar", "molar")
+
+
+def tooth_kind(tooth):
+    """What kind of tooth an FDI number is.
+
+    One of ``incisor``, ``canine``, ``premolar``, ``molar``.
+    """
+    position = tooth_position(tooth)
+    if position <= 2:
+        return "incisor"
+    if position == 3:
+        return "canine"
+    if is_primary(tooth):
+        return "molar"          # no premolars in the primary dentition
+    return "premolar" if position <= 5 else "molar"
+
+
 def is_anterior(tooth):
     """Incisors and canines — the teeth with an incisal edge and no biting
     table. Positions 1–3 in every quadrant, primary and permanent alike."""

@@ -19,7 +19,63 @@
    Drawn as it is drawn on paper: the patient's right on the left of the
    page, upper arch above the lower. A dentist reading a chart laid out the
    other way has to translate every tooth. #}
-{% macro arch(teeth, label) %}
+{# A tooth, drawn as a tooth.
+
+   The chart used to be numbered squares. A square tells you nothing until you
+   have read its number, which is the opposite of what a chart is for — a
+   dentist should see the shape of the arch and find the tooth in it, the way
+   they do on paper.
+
+   Four crown outlines, chosen by what the tooth actually is (see
+   `dental.tooth_kind`), and **not** by the last digit alone: position 4 in a
+   permanent quadrant is a premolar and position 4 in a primary quadrant is a
+   molar, because the primary set has no premolars. Reading the digit and
+   stopping draws a child's mouth with four teeth that are not in it.
+
+   Primary teeth are drawn smaller and lighter — that is how the two sets are
+   told apart at a glance, and between six and twelve a child has both.
+
+   The condition still appears as a word underneath. The drawing *adds*; it
+   does not replace, because a picture that carries the only copy of the
+   information makes the reader learn a legend first. #}
+{% macro crown(tooth, kind, primary, fill, stroke) %}
+{% set w = 26 if primary else 32 %}
+{% set h = 30 if primary else 36 %}
+<svg viewBox="0 0 32 36" width="{{ w }}" height="{{ h }}" aria-hidden="true"
+     style="display:block;">
+  {% if kind == 'incisor' %}
+    {# Narrow, with a straight incisal edge — the tooth that cuts. #}
+    <path d="M9 4 Q16 1 23 4 L24 24 Q16 30 8 24 Z"
+          fill="{{ fill }}" stroke="{{ stroke }}" stroke-width="1.6"
+          stroke-linejoin="round"/>
+    <line x1="9" y1="25" x2="23" y2="25" stroke="{{ stroke }}"
+          stroke-width="1.2" opacity=".55"/>
+  {% elif kind == 'canine' %}
+    {# Narrower still, and pointed: the one tooth with a cusp tip at the edge. #}
+    <path d="M10 5 Q16 2 22 5 L23 21 L16 30 L9 21 Z"
+          fill="{{ fill }}" stroke="{{ stroke }}" stroke-width="1.6"
+          stroke-linejoin="round"/>
+  {% elif kind == 'premolar' %}
+    {# Two cusps, and a waist. Permanent only — see the note above. #}
+    <path d="M7 8 Q16 3 25 8 L26 24 Q16 31 6 24 Z"
+          fill="{{ fill }}" stroke="{{ stroke }}" stroke-width="1.6"
+          stroke-linejoin="round"/>
+    <path d="M9 9 Q12 6 15 9 M17 9 Q20 6 23 9" fill="none"
+          stroke="{{ stroke }}" stroke-width="1.1" opacity=".6"/>
+  {% else %}
+    {# The widest crown, with a biting table: four cusps and a fissure. #}
+    <path d="M5 8 Q16 3 27 8 L28 25 Q16 32 4 25 Z"
+          fill="{{ fill }}" stroke="{{ stroke }}" stroke-width="1.6"
+          stroke-linejoin="round"/>
+    <path d="M7 9 Q10 6 13 9 M19 9 Q22 6 25 9" fill="none"
+          stroke="{{ stroke }}" stroke-width="1.1" opacity=".6"/>
+    <path d="M8 17 H24 M16 12 V22" fill="none" stroke="{{ stroke }}"
+          stroke-width="1" opacity=".45"/>
+  {% endif %}
+</svg>
+{% endmacro %}
+
+{% macro arch(teeth, label, primary_set=False) %}
 <div style="margin-bottom:14px;">
   <div class="hint" style="margin-bottom:6px;">{{ label }}</div>
   <div style="display:flex;gap:4px;flex-wrap:wrap;">
@@ -36,18 +92,53 @@
        judgement. #}
     {% set space = spaces.get(tooth) %}
     <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <a class="gc-lift" href="{{ url_for('dentistry.tooth_history', patient_id=patient.id, tooth=tooth) }}"
-         title="{{ t('dental.tooth') }} {{ tooth }}"
-         style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                width:46px;height:52px;border-radius:8px;text-decoration:none;color:inherit;
-                border:1px solid {{ 'var(--danger)' if needs and not on_plan else 'var(--line)' }};
-                background:{{ 'var(--green-050)' if not found else 'var(--warning-050,#fff7ed)' }};">
-        <span style="font-weight:700;font-size:0.85rem;" dir="ltr">{{ tooth }}</span>
-        {% if worst %}
-        <span class="hint" style="font-size:0.6rem;line-height:1;text-align:center;">
-          {{ t('dental.c_' ~ worst.condition) }}</span>
+    {# What the crown is filled with says what was found. A tooth nobody has
+       looked at is empty, which is a different thing from one recorded as
+       sound — the chart must not make "not examined" look like "fine". #}
+    {% set cond = worst.condition if worst else none %}
+    {% set gone = cond in ('extracted', 'missing') %}
+    {% set fill = {
+         'caries':      '#b45309',
+         'filled':      '#64748b',
+         'sealant':     '#93c5fd',
+         'crown':       '#facc15',
+         'root_canal':  '#a855f7',
+         'pulpotomy':   '#c084fc',
+         'trauma':      '#ef4444',
+         'discoloured': '#a8a29e',
+         'mobile':      '#fed7aa',
+         'erupting':    '#dcfce7',
+         'sound':       '#ffffff',
+       }.get(cond, 'none' if gone or cond == 'unerupted' else '#ffffff') %}
+    {% set stroke = 'var(--danger)' if needs and not on_plan
+                    else ('#94a3b8' if primary_set else '#475569') %}
+    <a class="gc-lift tooth-cell" href="{{ url_for('dentistry.tooth_history', patient_id=patient.id, tooth=tooth) }}"
+       title="{{ t('dental.tooth') }} {{ tooth }}{% if cond %} — {{ t('dental.c_' ~ cond) }}{% endif %}"
+       style="text-decoration:none;color:inherit;">
+      <span style="position:relative;display:block;">
+        {{ crown(tooth, dental_kind(tooth), primary_set, fill, stroke) }}
+        {% if gone %}
+        {# Struck through rather than removed. The space is part of the chart:
+           a tooth that is not there is a finding, and an empty slot would read
+           as one nobody has looked at. #}
+        <svg viewBox="0 0 32 36" width="{{ 26 if primary_set else 32 }}"
+             height="{{ 30 if primary_set else 36 }}" aria-hidden="true"
+             style="position:absolute;inset:0;">
+          <path d="M6 6 L26 30 M26 6 L6 30" stroke="var(--danger)"
+                stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
         {% endif %}
-      </a>
+        {% if cond == 'unerupted' %}
+        <span style="position:absolute;inset:0;border:1px dashed var(--line);
+                     border-radius:6px;"></span>
+        {% endif %}
+      </span>
+      <span style="font-weight:700;font-size:0.72rem;display:block;text-align:center;" dir="ltr">{{ tooth }}</span>
+      {% if worst %}
+      <span class="hint" style="font-size:0.6rem;line-height:1;text-align:center;display:block;">
+        {{ t('dental.c_' ~ worst.condition) }}</span>
+      {% endif %}
+    </a>
       {# The link the chart and the plan were missing. It carries the tooth
          and the face across; it never names a procedure, because which
          treatment a decayed tooth needs is a judgement made in front of the
@@ -80,8 +171,8 @@
 
   <h2 class="section-title"><i class="bi bi-grid-3x2"></i>
     {{ t('dental.primary') }}</h2>
-  {{ arch(primary[:5] | reverse | list + primary[5:10], t('dental.upper')) }}
-  {{ arch(primary[15:20] | reverse | list + primary[10:15], t('dental.lower')) }}
+  {{ arch(primary[:5] | reverse | list + primary[5:10], t('dental.upper'), True) }}
+  {{ arch(primary[15:20] | reverse | list + primary[10:15], t('dental.lower'), True) }}
 </div>
 
 <div class="card gc-scale-in" style="margin-top:16px;">
