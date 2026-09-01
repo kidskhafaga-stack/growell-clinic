@@ -405,6 +405,25 @@ a:hover { color: var(--green-900); }
 .btn-success:hover { background: #15803d; color: #fff; }
 .btn-sm { padding: 6px 11px; font-size: 0.8rem; }
 
+/* The bare icon button — remove a row, clear a line. It lives here because it
+   was defined five separate times, in five templates, in three different
+   colours, and *used* in seven more that defined it nowhere: the patient
+   file, the prescription writer, the services, discounts and expenses
+   screens, the purchase form and the investigation files.
+   Fifteen buttons across the program rendering as the browser's default
+   grey box — a bordered rectangle in the wrong font, sitting next to a
+   properly styled `.btn-outline` beside it. Reported as exactly that:
+   "شكله مش حلو مش متوافق مع باقي التصميم".
+   The note was already written in record.html — *a screen cannot inherit
+   another screen's `<style>` block* — and this is what ignoring it costs. */
+.btn-x {
+  border: none; background: none; cursor: pointer;
+  color: var(--muted); padding: 2px 6px; border-radius: 8px;
+  font-family: inherit; font-size: inherit; line-height: 1;
+}
+.btn-x:hover { color: var(--danger); background: var(--surface-2, transparent); }
+.btn-x:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
+
 /* ---------- Tables ---------- */
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td {

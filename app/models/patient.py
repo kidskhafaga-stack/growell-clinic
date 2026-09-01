@@ -399,13 +399,37 @@ class Consent(db.Model):
     guardian_id_no = db.Column(db.String(20))          # national ID of the signer
     statement = db.Column(db.Text)                     # the consent text
     notes = db.Column(db.Text)
-    signed_date = db.Column(db.Date, default=date.today, nullable=False)
+    # The clinic's date, not the server's. This was `date.today`, which is the
+    # machine's wall clock — so a consent signed at half past midnight in
+    # Cairo, on a server keeping UTC, was dated **yesterday**. On a signed
+    # document. Same fault as the one already swept out of thirty-one test
+    # files, on the one row where the date is the point.
+    signed_date = db.Column(db.Date, default=local_today, nullable=False)
     obtained_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # --- Withdrawn, never deleted -------------------------------------
+    #
+    # The statement the guardian signs promises this in its own words — *"ولي
+    # أن أسحب موافقتي في أي وقت"* — and the program had no way to record it.
+    # It had a delete button, and deleting is not withdrawing: a withdrawal is
+    # a fact with a date, and the consent that was given remains a fact too.
+    # A record that can be made to say the consent never happened is not a
+    # record of consent at all.
+    withdrawn_at = db.Column(db.DateTime)
+    withdrawn_reason = db.Column(db.String(255))
+    withdrawn_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    @property
+    def is_withdrawn(self):
+        return self.withdrawn_at is not None
+
     patient = db.relationship("Patient", backref=db.backref(
         "consents", cascade="all, delete-orphan", order_by="Consent.signed_date.desc()"))
-    staff = db.relationship("User")
+    # Two keys run to `users` now — who took the consent and who recorded the
+    # withdrawal — so each relationship has to say which one it means.
+    staff = db.relationship("User", foreign_keys=[obtained_by])
+    withdrawn_staff = db.relationship("User", foreign_keys=[withdrawn_by])
 
     def __repr__(self):
         return f"<Consent p={self.patient_id} {self.consent_type} {self.signed_date}>"

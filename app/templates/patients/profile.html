@@ -433,18 +433,55 @@
       {% if patient.consents %}
       <div style="display:flex;flex-direction:column;gap:8px;">
         {% for cs in patient.consents %}
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:9px 12px;">
+        {# Withdrawn rather than deleted, and it stays on the screen saying so.
+           The statement the guardian signed promises they may withdraw; the
+           program could only delete, which erases the consent instead of
+           recording that it no longer stands. Both are facts and the file
+           needs both.
+
+           The buttons match the one beside them. This row had a bare `.btn-x`
+           next to a proper `.btn-outline`, and `.btn-x` was not defined on
+           this screen at all — so it rendered as the browser's grey default.
+           See theme.css. #}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:9px 12px;{% if cs.is_withdrawn %}opacity:.72;{% endif %}">
           <span class="badge badge--role">{{ t('consent.types.' ~ cs.consent_type) }}</span>
           <div style="flex:1;min-width:180px;">
             <strong>{{ cs.guardian_name }}</strong>
             {% if cs.guardian_relation %}<span style="color:var(--muted);font-size:0.8rem;">({{ t('relations.' ~ cs.guardian_relation) }})</span>{% endif %}
+            {% if cs.is_withdrawn %}<span class="badge badge--red">{{ t('consent.withdrawn_badge') }}</span>{% endif %}
             <div style="font-size:0.78rem;color:var(--muted);"><span dir="ltr">{{ cs.signed_date }}</span>{% if cs.statement %} · {{ cs.statement[:80] }}{% endif %}</div>
+            {% if cs.is_withdrawn %}
+            <div style="font-size:0.78rem;color:var(--danger);">
+              {{ t('consent.withdrawn_on') }} <span dir="ltr">{{ cs.withdrawn_at.strftime('%Y-%m-%d') }}</span>
+              {%- if cs.withdrawn_reason %} · {{ cs.withdrawn_reason }}{% endif %}
+              {%- if cs.withdrawn_staff %} · {{ cs.withdrawn_staff.display_name(current_lang) }}{% endif %}
+            </div>
+            {% endif %}
           </div>
           <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('patients.print_consent', consent_id=cs.id) }}" target="_blank"><i class="bi bi-printer"></i> {{ t('common.print') }}</a>
-          <form method="post" action="{{ url_for('patients.delete_consent', consent_id=cs.id) }}" style="display:inline;"
-                onsubmit="return confirm('{{ t('common.confirm') }}?');">
+          <form method="post" action="{{ url_for('patients.withdraw_consent', consent_id=cs.id) }}" style="display:inline;"
+                {% if not cs.is_withdrawn %}onsubmit="return confirm('{{ t('consent.withdraw_confirm') }}');"{% endif %}>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn-x" type="submit"><i class="bi bi-trash"></i></button></form>
+            {% if cs.is_withdrawn %}
+            <button class="btn btn-outline btn-sm gc-press" type="submit">
+              <i class="bi bi-arrow-counterclockwise"></i> {{ t('consent.withdraw_undo') }}</button>
+            {% else %}
+            <input class="input" name="reason" style="max-width:170px;display:inline-block;"
+                   placeholder="{{ t('consent.withdraw_reason') }}">
+            <button class="btn btn-outline btn-sm gc-press" type="submit">
+              <i class="bi bi-x-circle"></i> {{ t('consent.withdraw') }}</button>
+            {% endif %}
+          </form>
+          {# Deleting is for a consent written on the wrong child — not a fact
+             about anybody, so it must not sit in their file being true. Admin
+             only: the difference between this and withdrawing used to be a
+             button label. #}
+          {% if current_user.is_admin %}
+          <form method="post" action="{{ url_for('patients.delete_consent', consent_id=cs.id) }}" style="display:inline;"
+                onsubmit="return confirm('{{ t('consent.delete_confirm') }}');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-x" type="submit" title="{{ t('common.delete') }}"><i class="bi bi-trash"></i></button></form>
+          {% endif %}
         </div>
         {% endfor %}
       </div>

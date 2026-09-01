@@ -11,6 +11,7 @@ from datetime import time as dtime
 
 from flask import (
     Response,
+    abort,
     current_app,
     flash,
     g,
@@ -992,12 +993,60 @@ def add_consent(patient_id):
 @patients_bp.route("/consents/<int:consent_id>/delete", methods=["POST"])
 @module_required(MODULE)
 def delete_consent(consent_id):
+    """Remove a consent entirely. Admin only, and it is not the ordinary path.
+
+    Withdrawing is what a guardian does and what :func:`withdraw_consent`
+    records. This is for the other thing: a consent written on the wrong
+    child, which is not a fact about anybody and must not sit in their file
+    being true. Anyone who can edit a patient could do this before, which
+    meant the difference between the two was a button label.
+    """
+    if not current_user.is_admin:
+        abort(403)
     c = db.get_or_404(Consent, consent_id)
     pid = c.patient_id
+    ActivityLog.record("consent.delete", user_id=current_user.id,
+                       entity="patient", entity_id=pid,
+                       ip_address=client_ip())
     db.session.delete(c)
     db.session.commit()
     flash(t("consent.deleted"), "info")
     return redirect(url_for("patients.view", patient_id=pid) + "#consent")
+
+
+@patients_bp.route("/consents/<int:consent_id>/withdraw", methods=["POST"])
+@module_required(MODULE)
+def withdraw_consent(consent_id):
+    """The guardian has withdrawn it. The row stays; it is marked and dated.
+
+    The statement they signed says they may — *"ولي أن أسحب موافقتي في أي
+    وقت"* — and the program could only delete, which is a different thing. The
+    consent was given; that remains true. What changed is that it no longer
+    stands, and when it stopped standing is exactly the fact somebody will
+    need later.
+
+    Reversible for the same reason a referral is: a withdrawal recorded
+    against the wrong consent, at a desk, with a queue waiting.
+    """
+    from app.utils.clock import local_now
+
+    c = db.get_or_404(Consent, consent_id)
+    if c.is_withdrawn:
+        c.withdrawn_at = None
+        c.withdrawn_reason = None
+        c.withdrawn_by = None
+        action, message = "consent.withdraw_undo", "consent.withdraw_undone"
+    else:
+        c.withdrawn_at = local_now().replace(tzinfo=None)
+        c.withdrawn_reason = (request.form.get("reason") or "").strip() or None
+        c.withdrawn_by = current_user.id
+        action, message = "consent.withdraw", "consent.withdrawn"
+    ActivityLog.record(action, user_id=current_user.id, entity="patient",
+                       entity_id=c.patient_id, ip_address=client_ip())
+    db.session.commit()
+    flash(t(message), "info")
+    return redirect(
+        url_for("patients.view", patient_id=c.patient_id) + "#consent")
 
 
 @patients_bp.route("/consents/<int:consent_id>/print")

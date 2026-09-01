@@ -2238,7 +2238,16 @@
       "data_privacy": "I consent to the clinic keeping the child's medical data in their file and using it to follow up their treatment and to issue the reports and invoices required. This data is not shared with any outside party except with my consent or where the law requires it. I have the right to see the file and to ask for anything in it to be corrected.",
       "photography": "I consent to the child's condition being photographed or filmed for the medical purpose explained to me, and to it being kept in the child's file. It is not used for teaching or publication except with separate written consent and after removing anything identifying the child. I may withdraw this consent at any time, and that applies to anything not yet published."
     },
-    "statement_hint": "This is the text that will be signed — read it to the guardian; you can add to it if the case needs it."
+    "statement_hint": "This is the text that will be signed — read it to the guardian; you can add to it if the case needs it.",
+    "withdraw": "Withdraw",
+    "withdraw_undo": "Undo withdrawal",
+    "withdraw_reason": "Reason (optional)",
+    "withdraw_confirm": "Record that the guardian withdrew this consent? It stays in the file, marked as withdrawn.",
+    "withdrawn": "The consent is recorded as withdrawn.",
+    "withdraw_undone": "The consent stands again.",
+    "withdrawn_badge": "withdrawn",
+    "withdrawn_on": "Withdrawn on",
+    "delete_confirm": "Delete permanently? This is for a consent written on the wrong child. If the guardian withdrew it, use Withdraw instead."
   },
   "roles_mgmt": {
     "title": "Roles & permissions",
