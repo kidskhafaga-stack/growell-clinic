@@ -85,6 +85,23 @@ class Patient(db.Model):
     birth_time = db.Column(db.Time)
     photo = db.Column(db.String(255))
 
+    # This child's own usual oxygen saturation, where somebody has recorded
+    # one. A child with a cardiac shunt or chronic lung disease can live at
+    # 88% and be entirely themselves at it; a reading of 88 means something
+    # different for them than for the child in the next chair.
+    #
+    # **It never softens a rule.** The triage threshold decides whether this
+    # child is seen now, and it decides that the same way for everybody —
+    # suppressing an urgent flag because "88 is normal for them" is exactly
+    # how a deterioration goes unnoticed in the one child least able to
+    # afford it. What the baseline adds is the other half of the sentence:
+    # *and this is where they usually sit*, so a doctor can see that 88 in a
+    # child who lives at 96 is a different event from 88 in a child who lives
+    # at 88.
+    #
+    # Blank means nobody has recorded one, which is the ordinary case.
+    baseline_spo2 = db.Column(db.Integer)
+
     # Medical alerts surfaced prominently on the profile.
     allergies = db.Column(db.Text)
     chronic_diseases = db.Column(db.Text)

@@ -49,6 +49,13 @@ DEFAULT_BANDS = [
 SPO2_URGENT = 92
 SPO2_WATCH = 95
 
+# How far under a child's own usual saturation is worth saying out loud. Three
+# points, because a pulse oximeter moves a point or two on its own and a note
+# that fires on every reading is a note nobody reads by the second day.
+#
+# It raises nothing. See the end of `assess`.
+BASELINE_DROP = 3
+
 # Words that turn a fever into a dehydration risk, in both languages and in the
 # spellings families and nurses actually type.
 RED_FLAG_WORDS = {
@@ -211,8 +218,25 @@ def assess(patient, vitals, complaint=""):
         reasons.append("fever_rash")
         _raise("urgent")
 
+    # Where this child usually sits, when somebody has recorded it. Carried
+    # **beside** the verdict and never folded into it: the level above was
+    # decided by the rule, for everybody, the same way.
+    #
+    # It is added last, after `level` is final, so that reading this code
+    # answers the question it raises. A baseline that could reach back and
+    # lower a flag would be the program deciding that a child with chronic
+    # disease needs less watching than one without — which is backwards, and
+    # is how a deterioration goes unnoticed in the one child least able to
+    # afford it.
+    baseline = getattr(patient, "baseline_spo2", None) if patient else None
+    below_own = (spo2 is not None and baseline is not None
+                 and spo2 < baseline - BASELINE_DROP)
+    if below_own:
+        reasons.append("below_own_baseline")
+
     return {"level": level, "reasons": reasons, "temp_limit": fever_at,
-            "urgent_limit": urgent_at, "age_months": age_months}
+            "urgent_limit": urgent_at, "age_months": age_months,
+            "baseline_spo2": baseline, "below_own_baseline": below_own}
 
 
 def assess_visit(visit):

@@ -439,6 +439,7 @@ def create():
             gestation_weeks=form["gestation_weeks"],
             gestation_days=form["gestation_days"],
             birth_time=form["birth_time"],
+            baseline_spo2=form["baseline_spo2"],
             allergies=form["allergies"],
             chronic_diseases=form["chronic_diseases"],
             notes=form["notes"],
@@ -672,6 +673,7 @@ def edit(patient_id):
         patient.gestation_weeks = form["gestation_weeks"]
         patient.gestation_days = form["gestation_days"]
         patient.birth_time = form["birth_time"]
+        patient.baseline_spo2 = form["baseline_spo2"]
         patient.allergies = form["allergies"]
         patient.chronic_diseases = form["chronic_diseases"]
         patient.notes = form["notes"]
@@ -709,6 +711,8 @@ def edit(patient_id):
         # nobody recorded it, so re-saving an edit form does not invent one.
         "birth_time": (patient.birth_time.strftime("%H:%M")
                        if patient.birth_time else ""),
+        "baseline_spo2": (patient.baseline_spo2
+                          if patient.baseline_spo2 is not None else ""),
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
         "notes": patient.notes or "",
@@ -1197,6 +1201,7 @@ def _read_patient_form():
         "gestation_weeks": (request.form.get("gestation_weeks") or "").strip(),
         "gestation_days": (request.form.get("gestation_days") or "").strip(),
         "birth_time": (request.form.get("birth_time") or "").strip(),
+        "baseline_spo2": (request.form.get("baseline_spo2") or "").strip(),
         "allergies": (request.form.get("allergies") or "").strip(),
         "chronic_diseases": (request.form.get("chronic_diseases") or "").strip(),
         "notes": (request.form.get("notes") or "").strip(),
@@ -1309,6 +1314,19 @@ def _read_birth_facts(form, ranges=((0.3, 7.0), (22, 45))):
     # The hour of birth. Blank becomes ``None`` and never midnight: the whole
     # point of recording it is that an assumed hour is wrong by up to twelve,
     # and a stored 00:00 is indistinguishable from a baby actually born then.
+    # A saturation is a percentage, and one outside what a pulse oximeter can
+    # report is a typo rather than a reading. Refused rather than stored,
+    # because a baseline of 9 would put "below their usual" on every reading
+    # this child ever has.
+    raw_baseline = form.get("baseline_spo2") or ""
+    if not raw_baseline:
+        form["baseline_spo2"] = None
+    else:
+        form["baseline_spo2"] = _int_or(raw_baseline)
+        if form["baseline_spo2"] is None or \
+                not (50 <= form["baseline_spo2"] <= 100):
+            return t("patients.baseline_spo2_range")
+
     raw_time = form.get("birth_time") or ""
     if not raw_time:
         form["birth_time"] = None

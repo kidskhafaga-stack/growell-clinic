@@ -91,7 +91,8 @@ def by_key():
 def value(key):
     """What is in force for this rule: the clinic's number, or the default.
 
-    Falls back on anything unreadable rather than raising, for the same reason
+    Falls back on anything unreadable rather than raising, for the same
+    reason
     `red_flags.bands()` does: a threshold that cannot be parsed must not be
     able to stop a screen from rendering, and the default is the safe answer.
     """
@@ -113,7 +114,8 @@ def value(key):
 
 
 def is_override(key):
-    """Whether the clinic has set this one, as opposed to taking the default."""
+    """Whether the clinic has set this one, rather than taking the
+    default."""
     from app.models import Setting
 
     try:

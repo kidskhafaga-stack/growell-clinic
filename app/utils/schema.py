@@ -209,6 +209,9 @@ ADDITIONS = [
     ("consents", "signature_file", "VARCHAR(255)"),
     ("consents", "signature_kind", "VARCHAR(10)"),
     ("consents", "signature_at", "DATETIME"),
+    # This child's own usual saturation. Never softens a triage rule — it says
+    # where they normally sit, beside the rule's own answer.
+    ("patients", "baseline_spo2", "INTEGER"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

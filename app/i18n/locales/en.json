@@ -391,7 +391,10 @@
     "birth_time": "Time of birth",
     "birth_time_hint": "Only matters in the first days — jaundice thresholds move by the hour. Leave blank if nobody said.",
     "birth_time_bad": "The time of birth is not a valid time",
-    "tab_dental": "Teeth"
+    "tab_dental": "Teeth",
+    "baseline_spo2": "This child's usual oxygen",
+    "baseline_spo2_hint": "For a child who lives below the usual range (a cardiac shunt, chronic lung disease). The program says when a reading falls below it — and softens no triage rule because of it.",
+    "baseline_spo2_range": "The usual oxygen saturation must be between 50 and 100"
   },
   "import": {
     "title": "Import patient data",
@@ -5215,7 +5218,8 @@
     "breathing": "Difficulty breathing",
     "convulsion": "Convulsion",
     "in_queue": "urgent case waiting",
-    "limits_for_age": "Limit for this age:"
+    "limits_for_age": "Limit for this age:",
+    "below_own_baseline": "below this child's usual"
   },
   "phrases": {
     "title": "Quick phrases and shortcuts",
