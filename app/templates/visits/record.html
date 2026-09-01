@@ -310,6 +310,20 @@
             </select>
           </div>
 
+          {# The chart lives on its own screen and belongs there — a mouth is
+             not a form field. What was missing was any way to reach it from
+             the room: the dental panel here records the history and the risk,
+             and the tooth-by-tooth findings and the plan are next door with
+             nothing pointing at them. Shown with the dental panel, because
+             that is when a doctor wants it. #}
+          {% if dental_chart_url %}
+          <div class="md-row" x-show="panelKey === 'dentistry'" x-cloak
+               style="justify-content:flex-end;">
+            <a class="btn btn-outline gc-press" href="{{ dental_chart_url }}">
+              <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
+          </div>
+          {% endif %}
+
           {% for p in panel_all %}
           <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak>
             {% if p.reads %}

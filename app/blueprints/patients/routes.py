@@ -547,6 +547,12 @@ def view(patient_id):
         sibling_hints=suggest_siblings(patient),
         patient=patient,
         relations=PARENT_RELATIONS,
+        # The child's mouth, when the clinic does dentistry. A summary and a
+        # way in — the chart itself is a screen of its own and belongs there,
+        # not copied into this file. Everything about dentistry was built and
+        # nothing linked to it: the chart, the plans and the per-tooth history
+        # all existed, and no screen in the program pointed at any of them.
+        dental=_dental_summary(patient),
         consent_types=CONSENT_TYPES,
         consent_statements=all_statements(),
         categories=CLIENT_CATEGORIES,
@@ -1087,6 +1093,31 @@ def _read_patient_form():
         "family_id": request.form.get("family_id", type=int),
         "new_family_name": (request.form.get("new_family_name") or "").strip(),
     }
+
+
+def _dental_summary(patient):
+    """What this child's mouth needs, in the few lines a file tab can hold.
+
+    ``None`` when the clinic does not do dentistry, so the tab is absent
+    rather than empty — an empty tab labelled "teeth" on every paediatric file
+    is furniture, and the module is off by default precisely because a
+    paediatric clinic is not a dental one.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("dentistry"):
+        return None
+
+    from app.models import TreatmentPlan
+    from app.models.dental import chart_for, outstanding
+
+    drawn = chart_for(patient.id)
+    plans = (TreatmentPlan.query
+             .filter(TreatmentPlan.patient_id == patient.id,
+                     TreatmentPlan.status.in_(("draft", "accepted")))
+             .order_by(TreatmentPlan.id.desc()).all())
+    return {"needs": outstanding(drawn), "plans": plans,
+            "recorded": sum(1 for slots in drawn.values() if slots)}
 
 
 def _validate_patient(form, existing):

@@ -159,7 +159,11 @@
     "drafts": "Drafts",
     "drafts_hint": "Written and not yet put to the family — nothing is billed.",
     "items": "items",
-    "open_a_chart": "Open a child's chart"
+    "open_a_chart": "Open a child's chart",
+    "open_chart": "Open the tooth chart",
+    "teeth_recorded": "Teeth recorded",
+    "needs_work": "Needing work",
+    "no_plans": "No treatment plan yet — open the chart and record the findings first."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -386,7 +390,8 @@
     "at_birth": "at birth",
     "birth_time": "Time of birth",
     "birth_time_hint": "Only matters in the first days — jaundice thresholds move by the hour. Leave blank if nobody said.",
-    "birth_time_bad": "The time of birth is not a valid time"
+    "birth_time_bad": "The time of birth is not a valid time",
+    "tab_dental": "Teeth"
   },
   "import": {
     "title": "Import patient data",

@@ -176,6 +176,12 @@
           ('prescriptions','tab_prescriptions','capsule'),
           ('documents','tab_documents','folder')
         ] %}
+        {# Only where the clinic does dentistry. A tab labelled "teeth" on
+           every paediatric file is furniture, which is why the module is off
+           by default in the first place. #}
+        {% if dental is not none %}
+        {% set ns.tabs = ns.tabs + [('dental','tab_dental','emoji-smile')] %}
+        {% endif %}
         {% if imported %}
         {# Only when there is something in it: an empty tab labelled "history"
            on every file is furniture. #}
@@ -1073,6 +1079,57 @@
     </div>
 
     <!-- Documents / attachments -->
+    {# The child's mouth. A summary and a door — the chart itself is a screen
+       of its own with both dentitions on it, and copying it in here would be
+       the second copy problem again.
+
+       This tab exists because everything about dentistry was built and
+       nothing pointed at it: the chart, the plans and the per-tooth history
+       all worked, and no screen in the program linked to any of them. A
+       dentist opening a child's file had no way in at all. #}
+    {% if dental is not none %}
+    <div class="gc-tab-panel" x-show="tab==='dental'" x-cloak>
+      <div class="card gc-scale-in">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <h2 class="section-title" style="margin:0;flex:1;">
+            <i class="bi bi-emoji-smile"></i> {{ t('patients.tab_dental') }}</h2>
+          <a class="btn btn-primary gc-press"
+             href="{{ url_for('dentistry.chart', patient_id=patient.id) }}">
+            <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
+        </div>
+
+        <div class="info-grid" style="margin-bottom:14px;">
+          <div class="info-item">
+            <div class="k">{{ t('dental.teeth_recorded') }}</div>
+            <div class="v">{{ dental.recorded }}</div>
+          </div>
+          <div class="info-item">
+            <div class="k">{{ t('dental.needs_work') }}</div>
+            <div class="v">{{ dental.needs | length }}</div>
+          </div>
+        </div>
+
+        {% if dental.plans %}
+        <h3 style="font-size:0.95rem;margin:0 0 8px;">{{ t('dental.plans') }}</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          {% for plan in dental.plans %}
+          <a class="dx-row" style="text-decoration:none;color:inherit;"
+             href="{{ url_for('dentistry.plan', plan_id=plan.id) }}">
+            <span class="badge badge--{{ 'green' if plan.status == 'accepted' else 'muted' }}">
+              {{ t('dental.st_' ~ plan.status) }}</span>
+            <span style="flex:1;">{{ plan.title or t('dental.plan') }}</span>
+            <span class="badge badge--role" dir="ltr">
+              {{ plan.progress[0] }} / {{ plan.progress[1] }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--muted);">{{ t('dental.no_plans') }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="gc-tab-panel" x-show="tab==='documents'" x-cloak>
       <h3 class="section-title"><i class="bi bi-folder2-open"></i> {{ t('patients.documents_title') }}</h3>
       {% set docs = patient.attachments | sort(attribute='created_at', reverse=true) %}

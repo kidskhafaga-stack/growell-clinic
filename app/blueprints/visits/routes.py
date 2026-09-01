@@ -380,9 +380,27 @@ def record(visit_id):
         # The age-banded ranges the vitals boxes colour themselves by. Sent
         # rather than written into the template, so this screen and anything
         # on the server that judges a reading are reading the same table.
+        # A way into this child's tooth chart, when the clinic does
+        # dentistry.
+        dental_chart_url=_dental_chart_url(visit),
         vital_bands=vital_bands.BY_AGE,
         vital_fixed=vital_bands.FIXED,
     )
+
+
+def _dental_chart_url(visit):
+    """The way into this child's tooth chart, or ``None``.
+
+    ``None`` when the clinic does not do dentistry, so the button is absent
+    rather than pointing at a module that answers 404. The chart, the plans
+    and the per-tooth history were all built and nothing in the program linked
+    to any of them — least of all the screen the doctor is standing on.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("dentistry"):
+        return None
+    return url_for("dentistry.chart", patient_id=visit.patient_id)
 
 
 def _visit_clinical_text(visit, anonymize=True):
