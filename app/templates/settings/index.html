@@ -907,7 +907,20 @@
                  live: null,
                  behind() { return this.live ? this.live.behind : {{ 'true' if update_pending else 'false' }}; },
                  latest() { return this.live ? this.live.latest : '{{ (update_pending.latest if update_pending else '')[:12] }}'; },
-                 notes() { return this.live ? this.live.notes : {{ (update_pending.notes if update_pending else []) | tojson }}; },
+                 notes() { return this.live ? this.live.notes : {{ ((update_pending.notes if update_pending else []) or []) | tojson }}; },
+                 // What the vendor wrote, grouped. Preferred over the
+                 // commit subjects where it exists: a line filed under
+                 // «fixed» tells a clinic what kind of release this is, and
+                 // the subject the change was committed under does not.
+                 // (No double quotes in here — this whole block is inside a
+                 // double-quoted attribute, and one would end it.)
+                 // `or []` is not decoration. A notice stored by a launch
+                 // before this field existed — which is every clinic that has
+                 // one right now — has no `release_notes` key, and Jinja's
+                 // Undefined raises inside `tojson`. That is a 500 on the
+                 // settings screen of an install that upgraded.
+                 groups() { return this.live ? this.live.release_notes
+                            : {{ ((update_pending.release_notes if update_pending else []) or []) | tojson }}; },
                  async check() {
                    this.busy = true; this.said = '';
                    try {
@@ -917,16 +930,18 @@
                      if (d.ok && d.behind) {
                        this.tone = 'warn'; this.said = UPD.behind;
                        this.live = { behind: true, latest: (d.latest || '').slice(0, 12),
-                                     notes: d.notes || [] };
+                                     notes: d.notes || [],
+                                     release_notes: d.release_notes || [] };
                      }
                      else if (d.ok) {
                        this.tone = 'ok'; this.said = UPD.current;
-                       this.live = { behind: false, latest: '', notes: [] };
+                       this.live = { behind: false, latest: '', notes: [],
+                                     release_notes: [] };
                      }
-                     // Offline and "cannot tell" leave `live` alone on
+                     // Offline and «cannot tell» leave `live` alone on
                      // purpose: neither is an answer about the version, and
                      // overwriting a real one with them would turn a blip in
-                     // the connection into "you are up to date".
+                     // the connection into «you are up to date».
                      else if (d.reason === 'unreachable') { this.tone = 'warn'; this.said = UPD.offline; }
                      else { this.tone = 'warn'; this.said = UPD.unknown; }
                    } catch (e) { this.tone = 'warn'; this.said = UPD.offline; }
@@ -977,17 +992,45 @@
     {# «الجديد» — the section the sentence above points at. It has to appear
        when a live check finds something, not only when the page happened to
        load already knowing. #}
-    <div x-show="behind() && notes().length" x-cloak
+    <div x-show="behind() && (groups().length || notes().length)" x-cloak
          style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
       <strong style="font-size:.92rem;">{{ t('update.whats_new') }}</strong>
-      <ul style="margin:6px 0 0;padding-inline-start:20px;">
+
+      {# What the vendor actually wrote, when they wrote any: a release at a
+         time, and inside it what is new, what improved and what was fixed.
+         A clinic decides whether to close for five minutes now or after lunch
+         on this, and a list of commit subject lines does not tell them
+         whether the release is a feature or a bug they have been hitting. #}
+      <template x-for="(rel, ri) in groups()" :key="ri">
+        <div style="margin-top:8px;">
+          <div class="hint" style="font-weight:600;" x-text="rel.heading"></div>
+          <template x-for="g in [
+              {k:'new',      label:{{ t('update.notes_new') | tojson }}},
+              {k:'improved', label:{{ t('update.notes_improved') | tojson }}},
+              {k:'fixed',    label:{{ t('update.notes_fixed') | tojson }}}]" :key="g.k">
+            <div x-show="(rel[g.k] || []).length" style="margin-top:4px;">
+              <span class="badge badge--muted" x-text="g.label"></span>
+              <ul style="margin:4px 0 0;padding-inline-start:20px;">
+                <template x-for="(line, i) in (rel[g.k] || [])" :key="i">
+                  <li class="hint" x-text="line"></li>
+                </template>
+              </ul>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      {# The fallback, and it only appears when nothing was written: the
+         subject lines the changes were committed under. Worse than the above
+         and better than the nothing a clinic used to get. #}
+      <ul x-show="!groups().length" style="margin:6px 0 0;padding-inline-start:20px;">
         <template x-for="(line, i) in notes()" :key="i">
           <li class="hint" x-text="line"></li>
         </template>
       </ul>
     </div>
-    <p class="hint" x-show="behind() && !notes().length" x-cloak
-       style="margin-top:12px;">{{ t('update.no_notes') }}</p>
+    <p class="hint" x-show="behind() && !groups().length && !notes().length"
+       x-cloak style="margin-top:12px;">{{ t('update.no_notes') }}</p>
 
     {# ---- Installing it, in the same place as everything else about it ----
 
@@ -1005,11 +1048,23 @@
        `formaction` rather than a nested `<form>`: every tab on this screen is
        one form, and a form inside a form is dropped by the browser. The same
        pattern the ICD-11 buttons above already use. #}
-    {# Rendered always and shown when there is something to install, so a live
-       check reveals it. It used to exist only when the page happened to load
-       already knowing — which is how the sentence above could announce a new
-       version with no way to act on it anywhere on the screen. #}
-    <div class="update-do" x-show="behind()" x-cloak>
+    {# A live check that finds one when the page did not know: the block below
+       is not on the page, because a copy that is up to date must not carry
+       instructions for installing nothing — hidden markup is still markup, and
+       there is a test that says so.
+
+       So it offers the way to it rather than a copy of it. Opening the link
+       reloads this screen, which is the user's own choice to make: everything
+       here is one form, and losing a half-typed API key to a button press
+       would not have been. #}
+    <p class="hint" x-show="behind() && !{{ 'true' if update_pending else 'false' }}"
+       x-cloak style="margin-top:12px;">
+      <i class="bi bi-box-arrow-in-down"></i>
+      <a href="{{ url_for('settings.index') }}#update">{{ t('update.open_page') }}</a>
+    </p>
+
+    {% if update_pending %}
+    <div class="update-do">
       <div class="update-do__head">
         <i class="bi bi-box-arrow-in-down"></i>
         <strong>{{ t('update.how') }}</strong>
@@ -1035,6 +1090,7 @@
       <div class="hint" style="margin-top:8px;">{{ t('update.do_it_hint') }}</div>
       {% endif %}
     </div>
+    {% endif %}
 
     {# One control, and only one. This toggle used to live on the policies tab
        as well; two checkboxes posting the same name into the same form means

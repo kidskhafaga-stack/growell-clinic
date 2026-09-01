@@ -67,15 +67,27 @@ def test_it_says_so_when_there_is_an_update_but_no_notes(screen):
     """GitHub can answer the version and not the commits. Silence there would
     look like the same missing section all over again."""
     card = _card(screen)
-    assert 'x-show="behind() && !notes().length"' in card
+    assert ('x-show="behind() && !groups().length && !notes().length"'
+            in card)
 
 
 # ------------------------------- and something to actually do about it ------
-def test_the_install_block_appears_on_a_live_check(screen):
+def test_a_live_check_offers_a_way_to_act_on_what_it_found(screen):
     """Announcing a new version with no way to act on it anywhere on the
-    screen is the third half of the same bug."""
+    screen is the third half of the same bug.
+
+    Not by revealing a hidden copy of the install block: a copy that is up to
+    date must not carry instructions for installing nothing, hidden markup is
+    still markup, and `test_a_current_copy_is_not_shown_how_to_install_nothing`
+    says so. So a live discovery offers the way *to* the block instead — a
+    link that reloads this screen, which is the user's own choice to make.
+    Everything here is one form, and losing a half-typed API key to a button
+    press would not have been."""
     card = _card(screen)
-    assert 'class="update-do" x-show="behind()"' in card
+    assert 'x-show="behind() && !false"' in card or \
+           'x-show="behind() && !true"' in card, \
+        "a live check that finds an update offers nothing to do about it"
+    assert "update.open_page" not in card, "untranslated key on the screen"
 
 
 # ------------------------------------------ what the check does with it -----

@@ -342,6 +342,119 @@ def notes_between(installed, latest, limit=5):
     return list(reversed(out))[:limit]
 
 
+# Where the vendor writes what changed, and the only three things a clinic is
+# ever told about a release.
+NOTES_FILE = "WHATS_NEW.md"
+GROUPS = ("new", "improved", "fixed")
+
+
+def _sections(text):
+    """``[(heading, {group: [line, …]}), …]``, newest first, from the file.
+
+    The format is deliberately the least that could work, because a format
+    nobody can be bothered with is a changelog nobody writes::
+
+        ## <any heading>
+        ### new | improved | fixed
+        - one line per thing
+
+    The group names are English **keys** rather than displayed text: the
+    program renders each heading in the clinic's own language, so the file
+    does not have to be written twice.
+    """
+    out = []
+    heading, groups, group = None, None, None
+    hidden = False
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        # Markdown comments are skipped, and that is not tidiness. The file
+        # documents its own format inside one — with an example release in it
+        # — and a parser reading straight through would announce that example
+        # to every clinic as a version. Ours escaped only because the example
+        # writes `### new | improved | fixed` on one line, which matches no
+        # group, so the section came out empty and was dropped. A clearer
+        # example would have shipped a phantom release.
+        if "<!--" in line:
+            hidden = True
+        if hidden:
+            if "-->" in line:
+                hidden = False
+            continue
+        if line.startswith("## ") and not line.startswith("### "):
+            if heading is not None and any(groups.values()):
+                out.append((heading, groups))
+            heading = line[3:].strip()
+            groups = {name: [] for name in GROUPS}
+            group = None
+        elif line.startswith("### ") and groups is not None:
+            wanted = line[4:].strip().lower()
+            group = wanted if wanted in GROUPS else None
+        elif line.startswith("- ") and group:
+            groups[group].append(line[2:].strip())
+    if heading is not None and any(groups.values()):
+        out.append((heading, groups))
+    return out
+
+
+def _notes_file_at(revision):
+    """The notes file as it stands at that revision, or ``None``.
+
+    Fetched rather than read from disk, because the interesting copy is the
+    **new** version's: a clinic on last month's release does not have the file
+    that describes what it is about to install.
+    """
+    import base64
+
+    data = _get(f"https://api.github.com/repos/{REPO}/contents/"
+                f"{NOTES_FILE}?ref={revision}")
+    if not isinstance(data, dict) or data.get("encoding") != "base64":
+        return None
+    try:
+        return base64.b64decode(data.get("content") or "").decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+
+def _local_notes():
+    """This copy's own notes file, or ``""``.
+
+    What the clinic already knows about.
+    """
+    path = os.path.join(_root(), NOTES_FILE)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def release_notes(latest):
+    """What is in the new version that this copy has not been told about.
+
+    ``[{"heading", "new": [...], "improved": [...], "fixed": [...]}, …]``.
+
+    Compared against the file this copy already has rather than against a
+    version number, so a clinic three releases behind sees all three — being
+    shown only the newest is how somebody concludes an update is smaller than
+    it is and puts it off.
+
+    Empty when the file cannot be reached or says nothing new. The caller
+    falls back to the commit subjects, which is a worse answer and a real one.
+    """
+    if not latest:
+        return []
+    remote = _notes_file_at(latest)
+    if not remote:
+        return []
+    known = {heading for heading, _groups in _sections(_local_notes())}
+    out = []
+    for heading, groups in _sections(remote):
+        if heading in known:
+            break            # everything below this is already installed
+        out.append({"heading": heading, **groups})
+    return out
+
+
 def pending():
     """``{"installed", "latest", "notes"}`` when there is a newer version.
 
@@ -358,4 +471,8 @@ def pending():
     if not latest or latest == installed:
         return None
     return {"installed": installed, "latest": latest,
-            "notes": notes_between(installed, latest)}
+            "notes": notes_between(installed, latest),
+            # What the vendor wrote, when they wrote any. The commit subjects
+            # above stay as the fallback: they are always available and they
+            # are better than nothing, which is what a clinic got before.
+            "release_notes": release_notes(latest)}

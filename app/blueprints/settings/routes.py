@@ -247,7 +247,12 @@ def update_check_now():
     remember(found)
     if found:
         return jsonify({"ok": True, "behind": True, "installed": installed,
-                        "latest": found["latest"], "notes": found["notes"]})
+                        "latest": found["latest"], "notes": found["notes"],
+                        # What the vendor wrote, grouped. Empty when they
+                        # wrote none — the screen then shows the commit
+                        # subjects above, which is a worse answer and a real
+                        # one.
+                        "release_notes": found.get("release_notes") or []})
 
     # `pending()` answers None for "up to date" and for "could not reach
     # GitHub" alike — which are different things to tell somebody who just

@@ -3239,7 +3239,10 @@
     "said_behind": "There is a newer version — see What's new below.",
     "said_current": "You are on the newest version.",
     "said_offline": "Could not reach GitHub. Try again when the connection is up.",
-    "said_unknown": "This copy does not know its own version, so there is nothing to compare."
+    "said_unknown": "This copy does not know its own version, so there is nothing to compare.",
+    "notes_new": "New",
+    "notes_improved": "Improvements",
+    "notes_fixed": "Fixes"
   },
   "notif": {
     "title": "Notifications",
