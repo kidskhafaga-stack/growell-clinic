@@ -20,9 +20,13 @@ Nothing here diagnoses. It subtracts, names the threshold, and stops.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -227,11 +231,11 @@ def test_it_reads_the_panel_by_the_codes_the_panel_uses(clinic):
 
 def test_read_gives_both_halves_or_the_half_it_has(clinic):
     class _Baby:
-        date_of_birth = date.today() - timedelta(days=2)
+        date_of_birth = local_today() - timedelta(days=2)
 
     seen = cardio.read({"bp_right_arm": 120, "bp_right_leg": 90,
                         "spo2_pre_ductal": 99, "spo2_post_ductal": 90},
-                       _Baby(), date.today())
+                       _Baby(), local_today())
 
     assert seen["four_limb"]["gradient"] == 30
     assert seen["ductal"]["result"] == "repeat"

@@ -24,6 +24,45 @@ from app.utils.decorators import module_required
 MODULE = "dentistry"
 
 
+@dentistry_bp.route("/")
+@module_required(MODULE)
+def index():
+    """The way in.
+
+    Every other address here needs a child or a plan, so the module had no
+    front door at all — and the sidebar, finding no landing page for it,
+    quietly rendered the link as `href="#"` with a "coming soon" tooltip.
+    Reported as pressing it and nothing happening, which is exactly what it
+    did.
+
+    What it opens on is the dentist's actual worklist rather than a menu:
+    **accepted plans with work still outstanding**. That is the question a
+    dental clinic starts the day with — who is owed what, and how far through
+    it are we — and it is the one nobody can answer by reading a chart, since
+    the chart is per child and this is across all of them.
+
+    Drafts come underneath because a plan written and never put to the family
+    is money nobody asked for, and it is invisible everywhere else.
+    """
+    from app.models import TreatmentPlan
+
+    plans = (TreatmentPlan.query
+             .filter(TreatmentPlan.status == "accepted")
+             .order_by(TreatmentPlan.accepted_at.desc().nullslast(),
+                       TreatmentPlan.id.desc()).all())
+    # "Accepted" and "done" are separate states, but a plan whose last item
+    # was carried out becomes `done` on its own — so anything still accepted
+    # has work left in it. Kept as a filter anyway rather than trusted: a
+    # plan whose items were all dropped would otherwise sit here for ever
+    # asking to be finished.
+    open_plans = [p for p in plans if p.progress[0] < p.progress[1]]
+    drafts = (TreatmentPlan.query
+              .filter(TreatmentPlan.status == "draft")
+              .order_by(TreatmentPlan.id.desc()).limit(25).all())
+    return render_template("dentistry/index.html", open_plans=open_plans,
+                           drafts=drafts, today=local_today())
+
+
 @dentistry_bp.route("/patient/<int:patient_id>")
 @module_required(MODULE)
 def chart(patient_id):

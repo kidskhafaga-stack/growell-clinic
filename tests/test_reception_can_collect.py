@@ -26,7 +26,7 @@ on the board, collect, and walk back — for each family.
 """
 import os
 import sys
-from datetime import date, time
+from datetime import time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

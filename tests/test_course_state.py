@@ -16,9 +16,13 @@ inferred from rather than being asserted as fact.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -177,7 +181,7 @@ def _given(clinic, *dose_numbers, imported=False):
                 patient_id=clinic["ids"]["child"], vaccine_id=clinic["ids"]["pcv"],
                 brand_id=clinic["ids"]["brand"], dose_number=number,
                 event_type="given", import_batch_id=batch_id,
-                given_date=date.today() - timedelta(days=400 - 30 * number)))
+                given_date=local_today() - timedelta(days=400 - 30 * number)))
         clinic["db"].session.commit()
 
 

@@ -252,4 +252,4 @@ def test_the_wording_exists_in_both_languages(ward):
             block = json.load(fh)["station"]
         for key in keys:
             assert key in block, f"{lang} is missing station.{key}"
-    assert isinstance(date.today(), date)
+    assert isinstance(local_today(), date)

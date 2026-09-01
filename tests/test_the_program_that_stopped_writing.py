@@ -31,6 +31,14 @@ from datetime import date, timedelta
 
 import pytest
 
+# The clinic's today, not the server's — the same clock `effective_today`
+# reads. Written with `local_today()`, every expiry here is a day out for the
+# three hours when it is already tomorrow in Cairo and still today in UTC, and
+# "the last day still works" becomes "the day after still works". Found by
+# running the suite at 00:20 Cairo, in the very file that had just diagnosed
+# this in two others.
+from app.utils.clock import local_today  # noqa: E402
+
 
 # What "add a child" is on the form the reception desk uses.
 _NEW_CHILD = {"full_name": "طفل جديد", "date_of_birth": "2024-01-01",
@@ -97,7 +105,7 @@ def _machine(clinic):
 def _for_this_machine(clinic, days=365, **extra):
     payload = {"v": 1, "clinic": "عيادة النمو", "id": "GC-0007",
                "machine": _machine(clinic),
-               "expires": (date.today() + timedelta(days=days)).isoformat()}
+               "expires": (local_today() + timedelta(days=days)).isoformat()}
     payload.update(extra)
     return payload
 
@@ -325,7 +333,7 @@ def test_winding_the_clock_back_does_not_revive_a_licence(licensed, vendor,
     """
     from app.utils import licensing
 
-    today = date.today()
+    today = local_today()
     text = _sign(vendor, _for_this_machine(licensed, days=-1))
     with licensed["app"].app_context():
         licensing.effective_today()          # a year of ordinary use
@@ -347,7 +355,7 @@ def test_a_wild_clock_cannot_expire_a_licence_for_ever(licensed, vendor,
     """
     from app.utils import licensing
 
-    today = date.today()
+    today = local_today()
     with licensed["app"].app_context():
         licensing.effective_today()
         _clock(monkeypatch, today + timedelta(days=26000))   # the year 2097
@@ -363,7 +371,7 @@ def test_the_mark_keeps_up_with_ordinary_use(licensed, monkeypatch):
     nothing."""
     from app.utils import licensing
 
-    today = date.today()
+    today = local_today()
     with licensed["app"].app_context():
         licensing.effective_today()
         for step in (5, 10, 20, 25):

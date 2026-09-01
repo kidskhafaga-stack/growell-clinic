@@ -32,9 +32,13 @@ worse than printing nothing.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -50,10 +54,10 @@ def _rx(clinic, weight=None, weight_date=None, allergies=None):
         if weight is not None:
             db.session.add(GrowthRecord(
                 patient_id=patient.id, weight_kg=weight,
-                record_date=weight_date or date.today()))
+                record_date=weight_date or local_today()))
         rx = Prescription(patient_id=patient.id,
                           doctor_id=clinic["ids"]["doctor"],
-                          rx_date=date.today())
+                          rx_date=local_today())
         db.session.add(rx)
         db.session.commit()
         return rx.id
@@ -82,7 +86,7 @@ def test_a_child_with_no_weight_on_file_prints_cleanly(clinic):
 
 def test_an_older_weight_carries_the_day_it_was_taken(clinic):
     """The whole reason the record is read rather than the bare number."""
-    taken = date.today() - timedelta(days=200)
+    taken = local_today() - timedelta(days=200)
     rx_id = _rx(clinic, weight=9.0, weight_date=taken)
     body = _paper(clinic, rx_id)
     assert "9.0" in body
@@ -101,7 +105,7 @@ def test_todays_weight_does_not_repeat_todays_date(clinic):
     body = _paper(clinic, rx_id)
     band = body.split("rxPaper")[1][:4000]
     assert "11.0" in band
-    assert band.count(str(date.today())) <= 1, (
+    assert band.count(str(local_today())) <= 1, (
         "today's date is repeated beside a weight measured today")
 
 
@@ -120,12 +124,12 @@ def test_the_paper_and_the_dosing_read_the_same_weight(clinic):
 
 def test_the_most_recent_weight_wins_not_the_first_one(clinic):
     """A child who has been coming for years has a column of these."""
-    rx_id = _rx(clinic, weight=8.0, weight_date=date.today() - timedelta(days=400))
+    rx_id = _rx(clinic, weight=8.0, weight_date=local_today() - timedelta(days=400))
     with clinic["app"].app_context():
         from app.models import GrowthRecord, Patient
         db = clinic["db"]
         db.session.add(GrowthRecord(patient_id=clinic["ids"]["child"],
-                                    weight_kg=14.2, record_date=date.today()))
+                                    weight_kg=14.2, record_date=local_today()))
         db.session.commit()
         patient = db.session.get(Patient, clinic["ids"]["child"])
         assert patient.latest_growth.weight_kg == 14.2
@@ -294,7 +298,7 @@ def _rx_with_conditions(clinic, conditions):
         patient.chronic_diseases = conditions
         rx = Prescription(patient_id=patient.id,
                           doctor_id=clinic["ids"]["doctor"],
-                          rx_date=date.today())
+                          rx_date=local_today())
         db.session.add(rx)
         db.session.commit()
         return rx.id

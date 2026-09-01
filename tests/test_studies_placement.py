@@ -32,6 +32,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -59,10 +63,10 @@ def scanned(clinic):
                                device_id=spiro.id, is_active=True))
 
         made = []
-        for dev, when in ((spiro, date.today()),
-                          (spiro, date.today() - timedelta(days=200)),
-                          (echo, date.today() - timedelta(days=30)),
-                          (echo, date.today() - timedelta(days=400))):
+        for dev, when in ((spiro, local_today()),
+                          (spiro, local_today() - timedelta(days=200)),
+                          (echo, local_today() - timedelta(days=30)),
+                          (echo, local_today() - timedelta(days=400))):
             study = DeviceStudy(patient_id=clinic["ids"]["child"],
                                 device_id=dev.id, study_date=when,
                                 conclusion="طبيعي")
@@ -221,7 +225,7 @@ def test_a_study_with_no_date_sorts_oldest_rather_than_crashing(scanned):
             device=SimpleNamespace(id=1, display_name=lambda lang="ar": "جهاز"))
 
     patient = SimpleNamespace(device_studies=[
-        study(1, None), study(2, date.today())])
+        study(1, None), study(2, local_today())])
     with scanned["app"].test_request_context("/"):
         data = patient_studies(patient)
     rows = data["groups"][0]["rows"]

@@ -43,6 +43,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -133,7 +137,7 @@ def test_a_finished_course_drops_off_the_list(shelf):
             shelf["db"].session.add(PatientVaccine(
                 patient_id=ids["child"], vaccine_id=ids["pcv"],
                 brand_id=ids["brand"], dose_number=number,
-                given_date=date.today() - timedelta(days=90 * number),
+                given_date=local_today() - timedelta(days=90 * number),
                 event_type="given"))
         shelf["db"].session.commit()
 
@@ -158,7 +162,7 @@ def test_the_next_dose_is_the_one_after_what_they_have_had(shelf):
             shelf["db"].session.add(PatientVaccine(
                 patient_id=ids["child"], vaccine_id=ids["pcv"],
                 brand_id=ids["brand"], dose_number=number,
-                given_date=date.today() - timedelta(days=120 * number),
+                given_date=local_today() - timedelta(days=120 * number),
                 event_type="given"))
         shelf["db"].session.commit()
 

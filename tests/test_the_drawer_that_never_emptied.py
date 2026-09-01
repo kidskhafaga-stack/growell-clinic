@@ -17,7 +17,6 @@ only because nothing ever left the drawer. Once the takings go to the safe,
 suggesting the count would open tomorrow expecting the whole evening's money,
 and every shift after it would look short by the same figure.
 """
-from datetime import date
 
 import pytest
 

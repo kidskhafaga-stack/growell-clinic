@@ -12,6 +12,10 @@ the family already paid.
 """
 from datetime import date, timedelta
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest
 
 
@@ -535,7 +539,7 @@ def test_a_teenager_is_not_plotted_on_the_nought_to_five_chart(clinic):
         clinic["db"].session.add(teen)
         clinic["db"].session.flush()
         clinic["db"].session.add(GrowthRecord(patient_id=teen.id,
-                                              record_date=date.today(),
+                                              record_date=local_today(),
                                               weight_kg=55, source="manual"))
         clinic["db"].session.commit()
         teen_id = teen.id

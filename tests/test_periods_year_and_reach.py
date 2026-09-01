@@ -22,6 +22,10 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -73,7 +77,7 @@ def test_a_nonsense_year_falls_back_rather_than_creating_anything(clinic):
     with clinic["app"].app_context():
         assert valid_year("22026") == date.today().year
         assert valid_year("") == date.today().year
-        assert valid_year(None) == date.today().year
+        assert valid_year(None) == local_today().year
         assert valid_year("abc") == date.today().year
         assert valid_year("2019") == 2019
 
@@ -83,8 +87,8 @@ def test_the_suggestions_still_cover_the_usual_span(clinic):
 
     with clinic["app"].app_context():
         years = selectable_years()
-    assert date.today().year in years
-    assert date.today().year + 1 in years
+    assert local_today().year in years
+    assert local_today().year + 1 in years
 
 
 # ================================================ pressing it twice =========

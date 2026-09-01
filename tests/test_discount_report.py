@@ -12,7 +12,7 @@ a pricing decision to review, the other is a conversation with a person.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -25,7 +25,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # changed in between. conftest.py warns about exactly this at the top of the
 # file.
 from app.utils.clock import local_today  # noqa: E402
-
 
 
 def _invoice(clinic, *, gross=200, discount=0, percent=False, rule=None,

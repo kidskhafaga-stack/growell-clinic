@@ -27,6 +27,10 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 
 def _fridge(clinic, name="ثلاجة التطعيمات"):
     from app.models import Warehouse
@@ -247,7 +251,7 @@ def test_the_card_shows_a_receipt_and_a_dose(clinic):
         db.session.add(PatientVaccine(
             patient_id=clinic["ids"]["child"], vaccine_id=clinic["ids"]["pcv"],
             brand_id=clinic["ids"]["brand"], dose_number=1,
-            given_date=date.today(), inventory_id=batch.id))
+            given_date=local_today(), inventory_id=batch.id))
         db.session.commit()
 
         rows = card.ledger(db.session.get(VaccineBrand, clinic["ids"]["brand"]))

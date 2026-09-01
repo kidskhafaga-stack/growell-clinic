@@ -21,6 +21,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -94,12 +98,12 @@ def test_the_list_can_be_cut_to_a_status(given, clinic):
 def test_a_window_in_the_future_excludes_what_is_already_late(given, clinic):
     """The point of the range: "what will I need next month" is a different
     question from "who is late"."""
-    later = date.today() + timedelta(days=365)
+    later = local_today() + timedelta(days=365)
     assert _due(clinic, start=later) == []
 
 
 def test_a_window_that_covers_the_due_date_keeps_it(given, clinic):
-    rows = _due(clinic, end=date.today() + timedelta(days=3650))
+    rows = _due(clinic, end=local_today() + timedelta(days=3650))
     assert rows
 
 

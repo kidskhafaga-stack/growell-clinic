@@ -20,6 +20,10 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 # Small enough to build in a second, big enough that one-query-per-row shows
@@ -70,18 +74,18 @@ def busy(tmp_path, monkeypatch):
         for i in range(APPOINTMENTS):
             db.session.add(Appointment(
                 patient_id=children[i % PATIENTS].id, doctor_id=doctor.id,
-                appt_date=date.today(),
+                appt_date=local_today(),
                 appt_time=(datetime(2026, 1, 1, 9)
                            + timedelta(minutes=10 * i)).time(),
                 status=["scheduled", "waiting", "done"][i % 3],
                 appt_type="consultation"))
             db.session.add(Visit(patient_id=children[i % PATIENTS].id,
-                                 doctor_id=doctor.id, visit_date=date.today()))
+                                 doctor_id=doctor.id, visit_date=local_today()))
 
         for i in range(INVOICES):
             invoice = Invoice(invoice_number=f"INV-{i:05d}",
                               patient_id=children[i % PATIENTS].id,
-                              doctor_id=doctor.id, invoice_date=date.today())
+                              doctor_id=doctor.id, invoice_date=local_today())
             db.session.add(invoice)
             db.session.flush()
             invoice.items.append(InvoiceItem(description="كشف", unit_price=200,

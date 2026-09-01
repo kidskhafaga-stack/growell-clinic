@@ -24,9 +24,13 @@ spinner inside the box there was no room left for the digits.
 """
 import os
 import sys
-from datetime import date, time
+from datetime import time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -346,7 +350,7 @@ def test_the_appointment_door_still_opens(clinic, desk):
     with clinic["app"].app_context():
         appt = Appointment(patient_id=clinic["ids"]["child"],
                            doctor_id=clinic["ids"]["doctor"],
-                           appt_date=date.today(), appt_time=time(10, 0),
+                           appt_date=local_today(), appt_time=time(10, 0),
                            appt_type="new", status="scheduled")
         clinic["db"].session.add(appt)
         clinic["db"].session.commit()

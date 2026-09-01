@@ -27,9 +27,13 @@ drug rather than a guess from a shelf label.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -50,7 +54,7 @@ def _aged(clinic, years):
         from app.models import Patient
         db = clinic["db"]
         patient = db.session.get(Patient, clinic["ids"]["child"])
-        patient.date_of_birth = date.today() - timedelta(days=int(years * 365.25))
+        patient.date_of_birth = local_today() - timedelta(days=int(years * 365.25))
         db.session.commit()
         return patient.id
 

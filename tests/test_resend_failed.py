@@ -14,9 +14,13 @@ arriving at all.
 """
 import os
 import sys
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -133,7 +137,7 @@ def test_a_reminder_for_an_appointment_that_has_passed_is_not_resent(
         db = sending["db"]
         gone = Appointment(patient_id=sending["ids"]["child"],
                            doctor_id=sending["ids"]["doctor"],
-                           appt_date=date.today() - timedelta(days=2),
+                           appt_date=local_today() - timedelta(days=2),
                            appt_time=time(10, 0), duration_minutes=15,
                            status="no_show")
         db.session.add(gone)
@@ -151,7 +155,7 @@ def test_a_reminder_for_an_appointment_still_ahead_is_resent(sending, monkeypatc
         db = sending["db"]
         soon = Appointment(patient_id=sending["ids"]["child"],
                            doctor_id=sending["ids"]["doctor"],
-                           appt_date=date.today() + timedelta(days=2),
+                           appt_date=local_today() + timedelta(days=2),
                            appt_time=time(10, 0), duration_minutes=15,
                            status="scheduled")
         db.session.add(soon)

@@ -31,9 +31,13 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
-TODAY = date.today()
+TODAY = local_today()
 LAST_MONTH = TODAY - timedelta(days=32)
 
 

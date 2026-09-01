@@ -20,9 +20,12 @@ fails and says so.
 """
 import os
 import sys
-from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -77,7 +80,7 @@ def _bookable_day():
     """A day whose slots cannot have gone past while the suite was running."""
     from datetime import timedelta
 
-    return date.today() + timedelta(days=TOMORROW_OFFSET)
+    return local_today() + timedelta(days=TOMORROW_OFFSET)
 
 
 def _open_booking(desk):

@@ -10,7 +10,6 @@ accident — a double-click, a 500 note for a 150 bill, refunding a bill that
 was only half paid, collecting with no shift open — and what the program is
 supposed to do about it.
 """
-from datetime import date
 
 import pytest
 
@@ -20,7 +19,6 @@ import pytest
 # disagree — on a UTC server and a Cairo clinic, every night after
 # 22:00. These twenty failed on the hour rather than on a change.
 from app.utils.clock import local_today  # noqa: E402
-
 
 
 # --------------------------------------------------------------- helpers --

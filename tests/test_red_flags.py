@@ -20,7 +20,7 @@ is wrong.
 """
 import os
 import sys
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 from types import SimpleNamespace
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -31,7 +31,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # disagree — on a UTC server and a Cairo clinic, every night after
 # 22:00. These twenty failed on the hour rather than on a change.
 from app.utils.clock import local_today  # noqa: E402
-
 
 
 def _vitals(**fields):

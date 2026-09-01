@@ -34,6 +34,10 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -260,8 +264,8 @@ def test_more_than_one_year_can_be_chosen(clinic):
     with clinic["app"].app_context():
         years = selectable_years()
     assert len(years) > 1
-    assert date.today().year + 1 in years
-    assert date.today().year - 1 in years
+    assert local_today().year + 1 in years
+    assert local_today().year - 1 in years
 
 
 def test_a_year_that_has_periods_is_always_offered(clinic):

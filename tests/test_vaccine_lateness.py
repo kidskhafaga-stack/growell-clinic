@@ -22,9 +22,13 @@ asking the family again, on paper, every time the certificate is issued.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
 
 
 def _toddler(clinic, days=730):
@@ -33,7 +37,7 @@ def _toddler(clinic, days=730):
 
     db = clinic["db"]
     patient = db.session.get(Patient, clinic["ids"]["child"])
-    patient.date_of_birth = date.today() - timedelta(days=days)
+    patient.date_of_birth = local_today() - timedelta(days=days)
     db.session.commit()
     return patient
 
@@ -44,7 +48,7 @@ def _give(clinic, patient, vaccine_id, brand_id, dose=1, days_ago=400, **kw):
     db = clinic["db"]
     row = PatientVaccine(patient_id=patient.id, vaccine_id=vaccine_id,
                          brand_id=brand_id, dose_number=dose,
-                         given_date=date.today() - timedelta(days=days_ago),
+                         given_date=local_today() - timedelta(days=days_ago),
                          event_type=kw.pop("event_type", "given"), **kw)
     db.session.add(row)
     db.session.commit()

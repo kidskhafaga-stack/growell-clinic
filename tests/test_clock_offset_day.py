@@ -56,7 +56,6 @@ def _bill_form(ids, price="200"):
     }
 
 
-
 def _set_tz(clinic, name):
     with clinic["app"].app_context():
         from app.models import Setting

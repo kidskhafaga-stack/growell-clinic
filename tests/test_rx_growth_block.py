@@ -30,6 +30,10 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# The clinic's today, not the server's — the same clock the
+# screens filter by. See conftest.py.
+from app.utils.clock import local_today  # noqa: E402
+
 import pytest  # noqa: E402
 
 
@@ -56,7 +60,7 @@ def _rx(clinic, **measurements):
                                         **measurements))
         rx = Prescription(patient_id=patient.id,
                           doctor_id=clinic["ids"]["doctor"],
-                          rx_date=date.today())
+                          rx_date=local_today())
         db.session.add(rx)
         db.session.commit()
         return rx.id
@@ -141,13 +145,13 @@ def test_the_block_reads_one_measurement_event(clinic):
     height" and "the newest weight" separately would print both side by side
     under one date, describing a moment that never happened.
     """
-    old = date.today() - timedelta(days=400)
+    old = local_today() - timedelta(days=400)
     rx_id = _rx(clinic, height_cm=70.0, record_date=old)
     with clinic["app"].app_context():
         from app.models import GrowthRecord
         db = clinic["db"]
         db.session.add(GrowthRecord(patient_id=clinic["ids"]["child"],
-                                    weight_kg=14.0, record_date=date.today()))
+                                    weight_kg=14.0, record_date=local_today()))
         db.session.commit()
     _template(clinic, show_growth=True, show_weight=True, show_allergies=True)
 
@@ -157,7 +161,7 @@ def test_the_block_reads_one_measurement_event(clinic):
 
 
 def test_an_older_measurement_carries_its_date(clinic):
-    taken = date.today() - timedelta(days=90)
+    taken = local_today() - timedelta(days=90)
     rx_id = _rx(clinic, weight_kg=11.0, height_cm=80.0, record_date=taken)
     _template(clinic, show_growth=True, show_weight=True, show_allergies=True)
     body = _paper(clinic, rx_id)
@@ -198,7 +202,7 @@ def test_the_reference_follows_the_childs_age(clinic, years, expected):
 
         db = clinic["db"]
         patient = db.session.get(Patient, clinic["ids"]["child"])
-        patient.date_of_birth = date.today() - timedelta(days=int(years * 365.25))
+        patient.date_of_birth = local_today() - timedelta(days=int(years * 365.25))
         db.session.commit()
         assert reference_for(patient) == expected
 
@@ -221,9 +225,9 @@ def test_a_measurement_with_no_percentile_still_prints_its_value(clinic):
 
         db = clinic["db"]
         patient = db.session.get(Patient, clinic["ids"]["child"])
-        patient.date_of_birth = date.today() + timedelta(days=365)
+        patient.date_of_birth = local_today() + timedelta(days=365)
         record = GrowthRecord(patient_id=patient.id, weight_kg=12.0,
-                              record_date=date.today())
+                              record_date=local_today())
         db.session.add(record)
         db.session.commit()
 

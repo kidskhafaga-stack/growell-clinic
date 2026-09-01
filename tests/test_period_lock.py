@@ -10,7 +10,7 @@ So the store obeys the same lock the till does, through the same helper.
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

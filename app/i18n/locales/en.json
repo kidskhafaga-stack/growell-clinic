@@ -116,7 +116,7 @@
     "minimum": "The clinic asks for {amount} up front — anything less is a person's decision, not a refusal.",
     "on_plan": "On plan",
     "permanent": "Permanent teeth",
-    "plan": "Treatment plan",
+    "plan": "Plan",
     "plan_empty": "The plan is still empty.",
     "plan_items": "Plan items",
     "plan_new": "New plan",
@@ -128,7 +128,7 @@
     "plans_empty": "No treatment plans for this child.",
     "primary": "Primary teeth",
     "procedure": "Procedure",
-    "progress": "Carried out",
+    "progress": "Progress",
     "record": "Record a finding",
     "record_hint": "Every finding is kept with its date — nothing is deleted, and the chart shows the latest.",
     "recorded_by": "Recorded by",
@@ -152,7 +152,14 @@
     "upper": "Upper arch",
     "space_open": "space open →",
     "space_open_note": "A primary tooth is gone and nothing is holding the space. The permanent tooth due here is {n} — whether a maintainer goes in is an X-ray and the child's age.",
-    "c_space_maintainer": "Space maintainer"
+    "c_space_maintainer": "Space maintainer",
+    "index_sub": "Work outstanding across every child — not one file",
+    "open_plans": "Plans in progress",
+    "no_open_plans": "No plan has work left on it.",
+    "drafts": "Drafts",
+    "drafts_hint": "Written and not yet put to the family — nothing is billed.",
+    "items": "items",
+    "open_a_chart": "Open a child's chart"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -890,7 +897,8 @@
     "bp_arm": "Arm",
     "bp_arm_right": "Right",
     "bp_arm_left": "Left",
-    "icd_loaded": "Searching {v}. Anything not listed: type the code and name yourself and pick the version."
+    "icd_loaded": "Searching {v}. Anything not listed: type the code and name yourself and pick the version.",
+    "proc_on_a_plan": "Careful: \"{what}\" is already on an accepted treatment plan for this child, and the plan has been billed for it. If this is extra work outside the plan, carry on."
   },
   "diagnosis_types": {
     "working": "Working",
