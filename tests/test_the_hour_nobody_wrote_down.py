@@ -11,7 +11,7 @@ a parent's memory rather than a discharge summary. What it must never be is
 midnight, and a computed age built on one would be silently wrong for half the
 register with nothing on the screen to say so.
 """
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 
 import pytest
 

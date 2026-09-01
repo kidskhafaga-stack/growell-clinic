@@ -700,7 +700,8 @@ def edit(patient_id):
         "gestation_days": patient.gestation_days if patient.gestation_days is not None else "",
         # `HH:MM` — what an <input type="time"> round-trips. Blank when
         # nobody recorded it, so re-saving an edit form does not invent one.
-        "birth_time": patient.birth_time.strftime("%H:%M") if patient.birth_time else "",
+        "birth_time": (patient.birth_time.strftime("%H:%M")
+                       if patient.birth_time else ""),
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
         "notes": patient.notes or "",
