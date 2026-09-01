@@ -116,6 +116,7 @@
         ('phrases','chat-square-text', t('settings.lists_tab')),
         ('policies','shield-lock', t('settings.policies_title')),
         ('eta','receipt-cutoff', t('settings.eta_title')),
+        ('clinical','heart-pulse', t('settings.clinical_title')),
         ('consent','file-earmark-check', t('settings.consent_title')),
         ('ai','robot', t('settings.ai_title')),
         ('update','arrow-up-circle', t('update.tab'))] %}
@@ -549,6 +550,77 @@
   </div>
 
   <!-- AI assistant -->
+  {# The clinical thresholds, in one place a doctor can find.
+
+     They were already overridable — `red_flags.bands()` has read them from the
+     settings since it was written — and **no screen ever wrote them**. The
+     mechanism existed and the door did not, which is the fourth time that
+     pattern has turned up in this program.
+
+     Every row carries what a person needs to change it responsibly: the
+     reading, the age it applies to, what it triggers, the number in force,
+     the program's default, and where the default came from. Clearing a box
+     restores the default — editable, and not losable.
+
+     The warning is the part that matters. A *higher* fever threshold and a
+     *lower* oxygen threshold both mean fewer children flagged, and
+     `red_flags` says in its own words why that must not happen quietly: *a
+     threshold set high enough not to cry wolf over toddlers is a threshold
+     that silently ignores the infants who need it most.* So the screen says
+     so and asks; it never refuses. #}
+  <div class="card gc-scale-in" x-show="tab==='clinical'" x-cloak id="clinical">
+    <h2 class="section-title"><i class="bi bi-heart-pulse"></i> {{ t('settings.clinical_title') }}</h2>
+    <p class="hint">{{ t('settings.clinical_hint') }}</p>
+
+    <div style="overflow-x:auto;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('settings.cr_reading') }}</th>
+        <th>{{ t('settings.cr_context') }}</th>
+        <th>{{ t('settings.cr_action') }}</th>
+        <th>{{ t('settings.cr_value') }}</th>
+        <th>{{ t('settings.cr_default') }}</th>
+        <th>{{ t('settings.cr_source') }}</th>
+      </tr></thead>
+      <tbody>
+      {% for rule in clinical_rules %}
+      <tr>
+        <td>{{ t('settings.cr_p_' ~ rule.parameter) }}</td>
+        <td dir="ltr">{{ rule.context }}</td>
+        <td>
+          <span class="badge badge--{{ 'red' if rule.action == 'urgent' else 'muted' }}">
+            {{ t('redflags.level_' ~ rule.action) }}</span></td>
+        <td>
+          <input class="input" name="{{ rule.key }}" dir="ltr"
+                 style="max-width:100px;"
+                 inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*"
+                 placeholder="{{ rule.default }}"
+                 value="{{ rule.value if rule.overridden else '' }}">
+          <span dir="ltr" style="font-size:.78rem;color:var(--muted);">{{ rule.unit }}</span>
+          {% if rule.weaker %}
+          <div class="hint" style="color:var(--danger);margin-top:4px;">
+            <i class="bi bi-exclamation-triangle"></i> {{ t('settings.cr_weaker') }}</div>
+          {% endif %}
+        </td>
+        <td dir="ltr">
+          {{ rule.default }}
+          {% if rule.overridden %}
+          <div class="hint" style="margin:2px 0 0;">{{ t('settings.cr_clear') }}</div>
+          {% endif %}
+        </td>
+        <td class="hint" style="max-width:260px;">{{ rule.source }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <p class="hint" style="margin-top:10px;">
+      <i class="bi bi-info-circle"></i> {{ t('settings.clinical_note') }}</p>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </div>
+
   {# The wording every consent is signed under. It lived in the locale files,
      which meant a clinic could not change a word of it — and a consent form's
      entire job is to say what is being agreed to, in words the clinic stands

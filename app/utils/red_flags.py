@@ -82,6 +82,33 @@ def bands():
     return out
 
 
+def spo2_limits():
+    """The clinic's oxygen limits, falling back to the paediatric defaults.
+
+    The fever bands have been overridable since they were written; these two
+    were constants, read straight out of the module, so a clinic could change
+    what counts as a fever and not what counts as hypoxia. That was not a
+    decision anybody took — it is simply where the first version stopped.
+
+    Same shape as :func:`bands` on purpose: default in the code, override in
+    the settings, and the default returned for anything unreadable.
+    """
+    from app.models import Setting
+
+    def _num(key, fallback):
+        try:
+            raw = (Setting.get(key) or "").strip()
+        except Exception:  # noqa: BLE001 — settings table may not be ready
+            return fallback
+        try:
+            return float(raw) if raw else fallback
+        except ValueError:
+            return fallback
+
+    return (_num("triage_spo2_urgent", SPO2_URGENT),
+            _num("triage_spo2_watch", SPO2_WATCH))
+
+
 def _age_months(patient):
     if patient is None or not getattr(patient, "date_of_birth", None):
         return None
@@ -144,10 +171,11 @@ def assess(patient, vitals, complaint=""):
     # Oxygen first: it outranks a temperature, and a comfortable-looking child
     # at 90% is the one a busy room walks past.
     if spo2 is not None:
-        if spo2 < SPO2_URGENT:
+        urgent_below, watch_below = spo2_limits()
+        if spo2 < urgent_below:
             reasons.append("spo2_low")
             _raise("urgent")
-        elif spo2 < SPO2_WATCH:
+        elif spo2 < watch_below:
             reasons.append("spo2_borderline")
             _raise("watch")
 

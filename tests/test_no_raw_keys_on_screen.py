@@ -91,10 +91,20 @@ def test_the_scan_would_notice_a_missing_key():
     assert "rx.dose" in keys
 
 
-# ``t('a.b.' ~ something)`` — the leaf is built at render time, but everything
-# before the last dot is a literal and has to exist as a section.
+# ``t('a.b.' ~ something)`` and ``t('a.b_' ~ something)`` — the leaf is built
+# at render time, but everything before the **last dot** is a literal and has
+# to exist as a section.
+#
+# The first version of this required the literal to end at the dot, so it saw
+# `t('relations.' ~ x)` and missed `t('dental.c_' ~ condition)` entirely —
+# which is the commoner of the two shapes in this program. It let through
+# exactly the bug it was written for: `t('red_flags.level_' ~ rule.action)`,
+# where the section is `redflags`, printing the key at the user on the
+# settings screen. Whatever follows the last dot is part of the leaf and is
+# not this test's business; the section in front of it is.
 BUILT_PREFIX = re.compile(
-    r"""\bt\(\s*['"]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.['"]\s*~""")
+    r"""\bt\(\s*['"]([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)"""
+    r"""\.[a-zA-Z0-9_]*['"]\s*~""")
 
 
 def _sections_in_templates():

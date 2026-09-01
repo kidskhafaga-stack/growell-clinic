@@ -1620,7 +1620,20 @@
     "consent_edited": "the clinic's own wording",
     "consent_clear_to_restore": "clear the box to restore the default",
     "lang_ar": "Arabic",
-    "lang_en": "English"
+    "lang_en": "English",
+    "clinical_title": "Clinical thresholds",
+    "clinical_hint": "The numbers the program uses to decide a child should be seen now. Leave a box empty to use the program's own number.",
+    "clinical_note": "These are triage rules — they say \"look at this one\", they do not diagnose and they do not reorder the waiting room. What counts as a normal range for a reading is a separate judgement.",
+    "cr_reading": "Reading",
+    "cr_context": "Age",
+    "cr_action": "Raises",
+    "cr_value": "In force",
+    "cr_default": "Program default",
+    "cr_source": "Source",
+    "cr_clear": "clear the box to restore it",
+    "cr_weaker": "this catches fewer children than the program's number",
+    "cr_p_temperature": "Temperature",
+    "cr_p_spo2": "Oxygen saturation"
   },
   "errors": {
     "403_title": "Forbidden",

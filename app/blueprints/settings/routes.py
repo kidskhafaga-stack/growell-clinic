@@ -12,6 +12,7 @@ from app.extensions import db
 from app.i18n import t
 from app.models import CONSENT_TYPES as _CONSENT_TYPES
 from app.models import ActivityLog, Setting
+from app.utils import clinical_rules as _clinical
 from app.utils import consent as _consent
 from app.utils.decorators import admin_required, client_ip, owner_required
 
@@ -496,6 +497,23 @@ def index():
         # consent kinds times two languages — and because blank has to mean
         # *use the default*, not "store an empty consent". Clearing the box is
         # how a clinic puts the program's own wording back.
+        # The clinical thresholds. Saved with the same rule the consent
+        # wording follows — blank means "use the default", so clearing a box
+        # is how somebody puts the program's own number back. Anything that is
+        # not a number is dropped rather than stored: a threshold that cannot
+        # be parsed would be silently ignored by the rule that reads it, which
+        # is the worst of both, so it never gets written in the first place.
+        for rule in _clinical.registry():
+            raw = (request.form.get(rule["key"]) or "").strip()
+            if not raw:
+                Setting.set(rule["key"], "")
+                continue
+            try:
+                float(raw.replace(",", "."))
+            except ValueError:
+                continue
+            Setting.set(rule["key"], raw.replace(",", "."))
+
         for kind in _CONSENT_TYPES:
             for lang in ("ar", "en"):
                 key = _consent.setting_key(kind, lang)
@@ -566,6 +584,10 @@ def index():
         # The consent wording: what this program says, and what the clinic
         # wrote instead. Both, so the screen can show the default underneath
         # the box a clinic has overridden and clearing it can put it back.
+        # Every clinical threshold with what is in force, its default, where
+        # the default came from, and whether the current value is weaker than
+        # it. See app/utils/clinical_rules.py.
+        clinical_rules=_clinical.for_screen(),
         consent_types=_CONSENT_TYPES,
         consent_defaults={kind: {lang: _consent.default_statement(kind, lang)
                                  for lang in ("ar", "en")}
