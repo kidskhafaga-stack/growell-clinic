@@ -116,6 +116,18 @@
             </div>
             <div class="hint">{{ t('patients.gestation_hint') }}</div>
           </div>
+          {# The hour, and it earns its place on the form for one reason:
+             jaundice thresholds in the first days move by the hour, and the
+             date alone leaves the program working a day out. Blank means
+             nobody said — the calculator refuses and names this field rather
+             than assuming midnight. #}
+          <div class="form-row">
+            <label for="birth_time">{{ t('patients.birth_time') }}</label>
+            <input class="input" id="birth_time" name="birth_time" type="time"
+                   dir="ltr" style="max-width:150px;"
+                   value="{{ form.birth_time if form.birth_time not in (None, '') else '' }}">
+            <div class="hint">{{ t('patients.birth_time_hint') }}</div>
+          </div>
         </div>
 
         <!-- File numbers: system (auto) + reference (legacy) -->

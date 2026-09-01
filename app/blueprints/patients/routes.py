@@ -437,6 +437,7 @@ def create():
             birth_weight_kg=form["birth_weight_kg"],
             gestation_weeks=form["gestation_weeks"],
             gestation_days=form["gestation_days"],
+            birth_time=form["birth_time"],
             allergies=form["allergies"],
             chronic_diseases=form["chronic_diseases"],
             notes=form["notes"],
@@ -663,6 +664,7 @@ def edit(patient_id):
         patient.birth_weight_kg = form["birth_weight_kg"]
         patient.gestation_weeks = form["gestation_weeks"]
         patient.gestation_days = form["gestation_days"]
+        patient.birth_time = form["birth_time"]
         patient.allergies = form["allergies"]
         patient.chronic_diseases = form["chronic_diseases"]
         patient.notes = form["notes"]
@@ -696,6 +698,9 @@ def edit(patient_id):
         "birth_weight_kg": patient.birth_weight_kg if patient.birth_weight_kg is not None else "",
         "gestation_weeks": patient.gestation_weeks if patient.gestation_weeks is not None else "",
         "gestation_days": patient.gestation_days if patient.gestation_days is not None else "",
+        # `HH:MM` — what an <input type="time"> round-trips. Blank when
+        # nobody recorded it, so re-saving an edit form does not invent one.
+        "birth_time": patient.birth_time.strftime("%H:%M") if patient.birth_time else "",
         "allergies": patient.allergies or "",
         "chronic_diseases": patient.chronic_diseases or "",
         "notes": patient.notes or "",
@@ -1072,6 +1077,7 @@ def _read_patient_form():
         "birth_weight_kg": (request.form.get("birth_weight_kg") or "").strip(),
         "gestation_weeks": (request.form.get("gestation_weeks") or "").strip(),
         "gestation_days": (request.form.get("gestation_days") or "").strip(),
+        "birth_time": (request.form.get("birth_time") or "").strip(),
         "allergies": (request.form.get("allergies") or "").strip(),
         "chronic_diseases": (request.form.get("chronic_diseases") or "").strip(),
         "notes": (request.form.get("notes") or "").strip(),
@@ -1155,6 +1161,19 @@ def _read_birth_facts(form, ranges=((0.3, 7.0), (22, 45))):
         form["gestation_days"] = None
     elif form["gestation_days"] is None:
         form["gestation_days"] = 0
+
+    # The hour of birth. Blank becomes ``None`` and never midnight: the whole
+    # point of recording it is that an assumed hour is wrong by up to twelve,
+    # and a stored 00:00 is indistinguishable from a baby actually born then.
+    raw_time = form.get("birth_time") or ""
+    if not raw_time:
+        form["birth_time"] = None
+    else:
+        try:
+            hours, minutes = raw_time.split(":")[:2]
+            form["birth_time"] = dtime(int(hours), int(minutes))
+        except (ValueError, TypeError):
+            return t("patients.birth_time_bad")
     return None
 
 

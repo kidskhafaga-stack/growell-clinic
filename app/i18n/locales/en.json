@@ -383,7 +383,10 @@
     "preterm": "Preterm",
     "corrected_age": "corrected age",
     "corrected_age_hint": "This child was born early, so the percentile is computed against the corrected age rather than the age since birth.",
-    "at_birth": "at birth"
+    "at_birth": "at birth",
+    "birth_time": "Time of birth",
+    "birth_time_hint": "Only matters in the first days — jaundice thresholds move by the hour. Leave blank if nobody said.",
+    "birth_time_bad": "The time of birth is not a valid time"
   },
   "import": {
     "title": "Import patient data",

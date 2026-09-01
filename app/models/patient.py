@@ -6,7 +6,7 @@ legacy numbers) or generated automatically as ``PM-YYYY-NNNN``.
 from datetime import date, datetime
 
 from app.extensions import db
-from app.utils.clock import local_today
+from app.utils.clock import local_now, local_today
 
 GENDERS = ["male", "female"]
 BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
@@ -73,6 +73,16 @@ class Patient(db.Model):
     birth_weight_kg = db.Column(db.Float)
     gestation_weeks = db.Column(db.Integer)
     gestation_days = db.Column(db.Integer)
+    # The hour, and it is here for one reason: neonatal jaundice thresholds
+    # move by the *hour* through the first days of life. `date_of_birth` is a
+    # Date, so without this the program is working ±24 hours out — and at 48
+    # hours of age that is the whole distance between "go home" and "start
+    # phototherapy".
+    #
+    # Optional, and never defaulted. A blank one means nobody said, which is a
+    # different thing from midnight; anything that needs it refuses and names
+    # the missing field rather than assuming an hour it was not told.
+    birth_time = db.Column(db.Time)
     photo = db.Column(db.String(255))
 
     # Medical alerts surfaced prominently on the profile.
@@ -167,6 +177,30 @@ class Patient(db.Model):
         if self.gestation_weeks is None:
             return None
         return self.gestation_total_days < 37 * 7
+
+    @property
+    def age_hours(self):
+        """Hours since birth, or ``None`` when the birth time is not recorded.
+
+        Three-valued in the same way :attr:`is_preterm` is, and for a sharper
+        reason: a jaundice threshold read at the wrong hour is a decision taken
+        on somebody else's baby. A fallback to midnight would make this return
+        a number for every child in the register, and half of those numbers
+        would be up to twelve hours wrong with nothing on the screen to say so.
+        """
+        if not self.date_of_birth or self.birth_time is None:
+            return None
+        # The clinic's wall clock, not the server's. `date_of_birth` and
+        # `birth_time` were written down by somebody standing in the clinic,
+        # so the "now" they are subtracted from has to be the same clock —
+        # `datetime.now()` here would be out by the whole offset on any
+        # install whose server sits in another zone, all day, silently.
+        # `local_now()` is timezone-aware and `born` is a naive wall-clock
+        # reading of the same clinic clock, so the offset is dropped rather
+        # than converted: attaching a zone to `born` would be inventing one
+        # nobody recorded, and the two are already in the same frame.
+        born = datetime.combine(self.date_of_birth, self.birth_time)
+        return (local_now().replace(tzinfo=None) - born).total_seconds() / 3600
 
     @property
     def age_days(self):

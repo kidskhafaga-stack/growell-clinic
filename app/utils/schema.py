@@ -195,6 +195,9 @@ ADDITIONS = [
     ("patients", "birth_weight_kg", "FLOAT"),
     ("patients", "gestation_weeks", "INTEGER"),
     ("patients", "gestation_days", "INTEGER"),
+    # The hour of birth. Jaundice thresholds move by the hour in the first
+    # days, and a Date alone leaves the program working ±24 hours out.
+    ("patients", "birth_time", "TIME"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),
