@@ -321,8 +321,24 @@ def record(visit_id):
     from app.utils import panels as _panels
     from app.utils import series as _series
 
+    from app.utils.facility import module_enabled
+
     panel_key, panel_meta = _panels.for_visit(visit, visit.doctor,
                                               getattr(g, "lang", "ar"))
+
+    # Only the panels this doctor works, and only if the clinic uses panels at
+    # all. A general paediatric practice gets no section here — not an empty
+    # picker, not a disabled control, nothing: the module is what decides
+    # whether the ground exists, and the doctor's own list decides what stands
+    # on it.
+    #
+    # A visit already recorded under a panel keeps it in the list even if the
+    # doctor no longer works it, because the readings are on the screen and a
+    # tab that vanishes from under saved data is how it stops being reachable.
+    panel_on = module_enabled("panels")
+    mine = _panels.for_doctor(visit.doctor) if panel_on else []
+    if panel_on and panel_key and panel_key not in mine:
+        mine = mine + [panel_key]
 
     return render_template(
         "visits/record.html", visit=visit, recent_visits=recent_visits,
@@ -331,8 +347,15 @@ def record(visit_id):
         panel_readings=_panels.all_readings(visit),
         # Every panel, so picking one from the menu shows its fields at once
         # instead of asking for a save first. See panels.every_panel_for.
-        panel_all=_panels.every_panel_for(visit, visit.vitals,
-                                          getattr(g, "lang", "ar")),
+        panel_on=panel_on,
+        panel_mine=mine,
+        # The panel the screen opens on: the one this visit was already
+        # recorded under, else this doctor's own default.
+        panel_start=(panel_key or _panels.default_for_doctor(visit.doctor)
+                     if panel_on else ""),
+        panel_all=[p for p in _panels.every_panel_for(
+            visit, visit.vitals, getattr(g, "lang", "ar"))
+            if p["key"] in mine],
         # The last echo/device reading for the fields the catalogue links to
         # one. Shown beside the box and never filled into it: the vitals were
         # taken minutes ago, an echo was taken whenever it was taken.
@@ -608,7 +631,7 @@ def station_vitals(appointment_id):
 
 
 def _save_panel(visit):
-    """Store what the specialty panel was given, and only what it describes.
+    """Store what the specialty panels were given, and only what they describe.
 
     Every field name is checked against the catalogue before anything is
     written. A form posts names; without that check a crafted request could
@@ -619,22 +642,71 @@ def _save_panel(visit):
     Correcting a visit by emptying a box is exactly the moment a stale value
     would survive, and a stale measurement on a chart is worse than a gap
     because a gap is visible.
+
+    **More than one panel per visit.** A doctor may work several — general
+    paediatrics with a gastroenterology or a cardiology interest — and a child
+    seen once does not come back for a second visit per panel. So every panel
+    on the screen is saved, not only the one the tabs happened to be showing
+    when the doctor pressed save. Nothing had to change in the database for
+    that: `Measurement.panel` already stamps each reading with the panel it
+    came from, so the rows say for themselves which panels this visit used.
+    `visit.specialty_panel` keeps meaning what it always meant — the panel the
+    visit was opened under — and is no longer the whole answer.
+
+    Which panels count as "on the screen" is worked out here and never read
+    from the form. The form is the doctor's answers, not the list of questions
+    they were allowed to be asked, and a posted list of panels would let a
+    crafted request write into a panel this clinic does not use.
     """
     from app.models import Measurement
     from app.utils import panels
+    from app.utils.facility import module_enabled
 
-    chosen = (request.form.get("specialty_panel") or "").strip()[:40]
-    if chosen and panels.panel(chosen) is None:
-        chosen = ""                       # a key nothing answers to is not one
-    visit.specialty_panel = chosen or None
-    if not chosen:
+    # A clinic that has switched the module off is not shown these fields at
+    # all, so nothing here was answered. Returning is not laziness: the
+    # alternative is reading an empty form as "the doctor cleared every box"
+    # and deleting readings a clinic can still see the moment it switches the
+    # module back on. Off means not asked, never erased.
+    if not module_enabled("panels"):
         return
 
-    fields = panels.field_map(chosen)
+    # The panels whose boxes were on the screen: this doctor's own, plus
+    # whatever this visit was already recorded under — a panel dropped from
+    # the doctor's list still shows its saved readings, and a save must be
+    # able to correct them rather than freezing them.
+    #
+    # Both halves come from the database. Neither is read from the form, and
+    # the posted key below is checked against this list rather than added to
+    # it: a request that named a panel would otherwise be a request that
+    # granted itself one.
+    active = list(panels.for_doctor(visit.doctor))
+    stamped = (visit.specialty_panel or "").strip()
+    if stamped and panels.panel(stamped) is not None and stamped not in active:
+        active.append(stamped)
+
+    chosen = (request.form.get("specialty_panel") or "").strip()[:40]
+    if chosen not in active:
+        chosen = ""      # a panel this doctor does not work is not one of theirs
+
+    if chosen:
+        visit.specialty_panel = chosen
+    # else: leave the stamp alone. A visit opened under a panel keeps saying so.
+
+    if not active:
+        return
+
+    # code -> (field, panel). The chosen panel is laid down last so that if a
+    # clinic ever extends the catalogue with a code two panels share, the panel
+    # the doctor was looking at owns it.
+    fields = {}
+    for key in [k for k in active if k != chosen] + ([chosen] if chosen else []):
+        for code, field in panels.field_map(key).items():
+            fields[code] = (field, key)
+
     existing = {row.code: row for row in
                 Measurement.query.filter_by(visit_id=visit.id).all()}
 
-    for code, field in fields.items():
+    for code, (field, key) in fields.items():
         raw = (request.form.get(f"m_{code}") or "").strip()
         row = existing.get(code)
         if not raw:
@@ -643,10 +715,10 @@ def _save_panel(visit):
             continue
         if row is None:
             row = Measurement(patient_id=visit.patient_id, visit_id=visit.id,
-                              code=code, panel=chosen,
+                              code=code, panel=key,
                               recorded_by=current_user.id)
             db.session.add(row)
-        row.panel = chosen
+        row.panel = key
         row.unit = field.get("unit")
         # A number where the catalogue says number, a word where it says word.
         # `_number` returns None for prose rather than zero — the same rule the

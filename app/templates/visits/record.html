@@ -288,44 +288,96 @@
          with a round trip puts a save between the question and the answer — on
          a screen used forty times a day, before there is anything worth saving.
 
-         So every panel is rendered and the menu shows one. The catalogue is a
+         So every panel is rendered and the chips show one. The catalogue is a
          small data file already read once per request; nothing is fetched and
-         nothing needs the network. The save is unchanged: the server writes
-         only fields belonging to the panel the visit was recorded under, so a
-         hidden panel's boxes are ignored exactly as an invented name is. #}
-      <div class="md" x-data="{ panelKey: '{{ panel_key }}' }" style="margin-top:14px;">
+         nothing needs the network. And because every panel's boxes stay in the
+         form, a doctor who works two of them fills both in one visit: the save
+         writes each reading under its own panel. A panel outside this doctor's
+         list is ignored exactly as an invented field name is — that list is
+         worked out on the server, never posted. #}
+      {# The way into this child's tooth chart. The chart lives on its own
+         screen and belongs there — a mouth is not a form field — but nothing
+         in the program pointed at it, least of all the screen the doctor is
+         standing on.
+
+         Outside the specialty section on purpose, and gated on the dentistry
+         module alone. It sat inside the dental panel, which looked tidier and
+         was wrong: a dental clinic that had switched on dentistry and not
+         panels had no panel section, so the only route from the consultation
+         to the chart disappeared with it — the exact bug this link was added
+         to fix, one module further along. #}
+      {% if dental_chart_url %}
+      <div class="md-row" style="justify-content:flex-end;margin-top:10px;">
+        <a class="btn btn-outline gc-press" href="{{ dental_chart_url }}">
+          <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
+      </div>
+      {% endif %}
+      {# Gone entirely when the clinic does not work specialties, and gone
+         when this doctor has no panels — the module decides whether the
+         ground exists, the doctor's own list decides what stands on it. #}
+      {% if panel_on and panel_all %}
+      <div class="md" x-data="panelBox({{ panel_start|tojson|forceescape }},
+                                       {{ (panel_all | map(attribute='key') | list)|tojson|forceescape }})"
+           x-on:input="recount()" x-on:change="recount()"
+           style="margin-top:14px;">
         <section class="md-section gc-scale-in">
           <div class="md-section-head" style="justify-content:space-between;">
-            <span style="display:flex;align-items:center;gap:12px;">
-              <span class="md-step"><i class="bi bi-clipboard-data"></i></span>
+            <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              {# Folds to this one line. A doctor who does not need it in this
+                 consultation puts it away and the screen stays short —
+                 asked for as *"حاجه ممكن تطوي علشان شاشة الكشف متبقاش
+                 زحمة"*. The state is remembered, because folding it forty
+                 times a day is not tidying, it is work. #}
+              <button type="button" class="md-step" x-on:click="fold()"
+                      :aria-expanded="open ? 'true' : 'false'"
+                      :title="open ? {{ t('panels.collapse')|tojson|forceescape }}
+                                   : {{ t('panels.expand')|tojson|forceescape }}"
+                      style="border:none;cursor:pointer;">
+                {# Closed points the way the language reads, or the arrow
+                   argues with the text beside it on one of the two. #}
+                <i class="bi" :class="open ? 'bi-chevron-down'
+                       : 'bi-chevron-{{ 'left' if direction == 'rtl' else 'right' }}'"></i>
+              </button>
               <h3>{{ t('panels.title') }}</h3>
-              <span class="md-sub" x-show="!panelKey" x-cloak>{{ t('panels.optional') }}</span>
+              {# The marks stay visible folded. A fold that hides what was
+                 recorded is not tidying, it is hiding. #}
+              <span class="md-sub" x-show="!filled.length" x-cloak>{{ t('panels.optional') }}</span>
+              <span class="md-sub" x-show="!open && filled.length" x-cloak
+                    x-text="filled.length === 1
+                            ? {{ t('panels.folded_one')|tojson|forceescape }}
+                            : {{ t('panels.folded_has')|tojson|forceescape }}
+                              .replace('{n}', filled.length)"></span>
             </span>
-            <select class="select" name="specialty_panel" x-model="panelKey"
-                    style="max-width:240px;">
-              <option value="">{{ t('panels.none') }}</option>
-              {% for p in panel_all %}
-              <option value="{{ p.key }}">{{ p.label }}</option>
-              {% endfor %}
-            </select>
           </div>
 
-          {# The chart lives on its own screen and belongs there — a mouth is
-             not a form field. What was missing was any way to reach it from
-             the room: the dental panel here records the history and the risk,
-             and the tooth-by-tooth findings and the plan are next door with
-             nothing pointing at them. Shown with the dental panel, because
-             that is when a doctor wants it. #}
-          {% if dental_chart_url %}
-          <div class="md-row" x-show="panelKey === 'dentistry'" x-cloak
-               style="justify-content:flex-end;">
-            <a class="btn btn-outline gc-press" href="{{ dental_chart_url }}">
-              <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
+          {# Chips, not a menu. A menu says "pick one" and this doctor may work
+             three: the readings are stored per panel already
+             (`Measurement.panel`), so what was typed into one is kept when
+             another is opened — which a `<select>` could not promise, because
+             only the chosen panel's fields were ever saved. #}
+          <div class="chips" role="tablist" x-show="open" x-cloak
+               style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            {% for p in panel_all %}
+            <button type="button" class="md-chip" role="tab"
+                    data-panel-key="{{ p.key }}"
+                    :aria-selected="panelKey === {{ p.key|tojson|forceescape }} ? 'true' : 'false'"
+                    :class="panelKey === {{ p.key|tojson|forceescape }} && 'is-selected'"
+                    x-on:click="panelKey = {{ p.key|tojson|forceescape }}">
+              <span class="chip-dot" x-show="filled.includes({{ p.key|tojson|forceescape }})"
+                    x-cloak></span>{{ p.label }}</button>
+            {% endfor %}
           </div>
-          {% endif %}
+          <p class="hint" x-show="open && panelAll.length > 1" x-cloak
+             style="margin:-4px 0 10px;"><i class="bi bi-info-circle"></i>
+            {{ t('panels.multi_hint') }}</p>
+          {# The panel the visit opened on, for the history. Which panels it
+             actually recorded under is read back from the measurements. #}
+          <input type="hidden" name="specialty_panel" :value="panelKey">
+          <div x-show="open" x-cloak>
 
           {% for p in panel_all %}
-          <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak>
+          <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak
+               role="tabpanel" data-panel-fields="{{ p.key }}">
             {% if p.reads %}
             {# Read, not asked again. A second weight box would mean two weights
                for one visit and no way to know which is the real one. #}
@@ -448,15 +500,19 @@
             {% endif %}
           </div>
 
+          </div>{# /x-show="open" #}
+
           {# A panel this visit was recorded under that the catalogue no longer
              has. Its readings are kept; the screen says so rather than
-             pretending they came from nowhere. #}
+             pretending they came from nowhere. Outside the fold: a warning
+             that folds away is a warning nobody reads. #}
           {% if panel_key and not panel %}
           <p class="info-note" style="margin:10px 0 0;"><i class="bi bi-exclamation-triangle"></i>
             {{ t('panels.unknown', key=panel_key) }}</p>
           {% endif %}
         </section>
       </div>
+      {% endif %}
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:2px;">
         <p class="hint" style="margin:0;"><i class="bi bi-graph-up"></i> {{ t('visits.growth_note') }}</p>
         <span class="hint" style="margin:0;display:inline-flex;gap:10px;align-items:center;">
@@ -1698,6 +1754,71 @@
       },
     };
   }
+  {# Gone with the section it drives. "Off" for a module means the ground
+     is not there — including the script that would have stood on it. #}
+  {% if panel_on and panel_all %}
+  // The specialty panels box: which panel is showing, whether the box is
+  // folded, and which panels already have something typed into them.
+  //
+  // Folding was asked for because the exam screen is long — *"فى حاجه ممكن
+  // تطوي علشان شاشة الكشف متبقاش زحمة"*. Two things make a fold safe rather
+  // than a way to lose work:
+  //
+  //   * folded is not hidden — the head keeps saying how many panels carry
+  //     something, so a folded box never conceals a filled one; and
+  //   * folding changes nothing that is submitted. Every panel's boxes stay
+  //     in the form whether the box is open or shut, so the save sees the
+  //     same fields either way. A fold that dropped fields would be a fold
+  //     that deleted readings.
+  //
+  // The state is remembered per browser, because a doctor who folds this
+  // forty times a day is not tidying, they are working. Remembered per
+  // browser and nowhere else: it is a preference about one screen on one
+  // machine, not a clinical setting, and it has no business in the database.
+  function panelBox(start, keys) {
+    const REMEMBER = 'gc.panels.open';
+    return {
+      panelAll: keys || [],
+      panelKey: start || (keys && keys[0]) || '',
+      open: true,
+      filled: [],
+      init() {
+        // A stored preference, if the browser has one and will admit to it.
+        // Private windows and locked-down browsers throw on the read itself,
+        // so the box opens rather than not rendering.
+        try {
+          const kept = window.localStorage.getItem(REMEMBER);
+          if (kept === '0') this.open = false;
+        } catch (e) { /* no memory, open it */ }
+        // The remembered fold is honoured even when the visit already has
+        // readings, and that is the deliberate half. Re-opening the box
+        // because something is in it would make the fold useless for exactly
+        // the doctor who wanted it — the one who records under a panel every
+        // day. What makes that safe is the head: it says how many panels
+        // carry something while the box is shut, so nothing is concealed.
+        this.$nextTick(() => this.recount());
+      },
+      fold() {
+        this.open = !this.open;
+        try { window.localStorage.setItem(REMEMBER, this.open ? '1' : '0'); }
+        catch (e) { /* it just will not be remembered */ }
+      },
+      // Read off the boxes themselves rather than tracked per field: the
+      // fields come from a data file the clinic can extend, so anything that
+      // needed a list of them here would go stale the day a panel gains one.
+      recount() {
+        const seen = [];
+        this.$el.querySelectorAll('[data-panel-fields]').forEach((box) => {
+          const key = box.getAttribute('data-panel-fields');
+          const any = Array.from(box.querySelectorAll('input, select, textarea'))
+            .some((el) => (el.value || '').trim() !== '');
+          if (any && seen.indexOf(key) === -1) seen.push(key);
+        });
+        this.filled = seen;
+      },
+    };
+  }
+  {% endif %}
   // Vaccine tab search: filter cards across every section by any text
   // (scientific name, trade name, dose) and hide sections left empty.
   function gcVacFilter(q) {

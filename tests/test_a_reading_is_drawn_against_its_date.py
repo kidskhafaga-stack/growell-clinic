@@ -31,9 +31,15 @@ import pytest  # noqa: E402
 
 @pytest.fixture()
 def echo(clinic):
-    """An echo machine with the seeded template, and a cardiologist."""
+    """An echo machine with the seeded template, and a cardiologist.
+
+    The clinic works specialties and the doctor is on the cardiology panel —
+    both are needed for the EF box to be on the screen at all, and they are
+    separate switches: the module says this clinic has panels, the doctor's
+    own list says which ones they work.
+    """
     from app.extensions import db
-    from app.models import DeviceMeasurement, MedicalDevice, User, Visit
+    from app.models import DeviceMeasurement, MedicalDevice, Setting, User, Visit
 
     with clinic["app"].app_context():
         device = MedicalDevice(name="إيكو", device_type="echo",
@@ -48,8 +54,9 @@ def echo(clinic):
             DeviceMeasurement(device_id=device.id, name="الصمامات",
                               name_en="Valves"),
         ])
+        Setting.set("mod_enabled:panels", "1")
         visit = db.session.get(Visit, clinic["ids"]["visit"])
-        db.session.get(User, visit.doctor_id).specialty_panel = "cardiology"
+        db.session.get(User, visit.doctor_id).specialty_panels = "cardiology"
         db.session.commit()
         clinic["device_id"] = device.id
     return clinic
@@ -366,36 +373,44 @@ def test_a_panel_field_with_no_device_behind_it_is_offered_nothing(echo):
 def test_a_doctor_with_no_specialty_does_not_get_a_panel_card(clinic):
     """It was on every visit screen of every clinic, including the ones with
     one specialty who will never open it. A dropdown nobody uses on a screen
-    used forty times a day is not free."""
+    used forty times a day is not free.
+
+    This started as "the card shrank to a small picker" and has since gone the
+    whole way: specialty panels are a module, and a clinic that has not
+    switched it on has no picker, no heading and no fields — nothing at all.
+    """
     page = (clinic["sign_in"]("boss")
             .get(f"/visits/{clinic['ids']['visit']}/record").get_data(as_text=True))
 
-    assert page.count('name="specialty_panel"') == 1, \
-        "the panel select is not on the page exactly once"
-    # The card's own heading is gone; the label beside the small picker is the
-    # one occurrence left, and it only shows once the picker is opened.
-    assert page.count("لوح التخصص") == 1
-    assert "section-title" not in page.split('name="specialty_panel"')[0][-400:], \
-        "the panel is still a card with a heading of its own"
+    assert 'name="specialty_panel"' not in page, \
+        "the panel picker is on the screen of a clinic that has no panels"
+    assert "لوح التخصص" not in page
+    assert 'name="m_ef_pct"' not in page, "its fields are in the form anyway"
 
 
-def test_the_picker_is_still_there_for_the_doctor_who_wants_one(clinic):
-    """Hidden is not removed. A doctor seeing one cardiac child this month must
-    still be able to turn the panel on for that visit."""
+def test_the_picker_is_still_there_for_the_doctor_who_wants_one(echo):
+    """Hidden is not removed. A doctor who works cardiology gets the panel,
+    and the visit records which one it was opened under.
+
+    Who decides moved with the module: it used to be a per-visit dropdown on
+    every screen, and it is now a tick in the doctor's own setup — asked for
+    as *"فى اعدادت الدكتور نقدر نعلم ايه القوالب الى تظهر للطبيب ده"*. The
+    `echo` fixture is that setup.
+    """
     from app.extensions import db
     from app.models import Visit
 
-    page = (clinic["sign_in"]("boss")
-            .get(f"/visits/{clinic['ids']['visit']}/record").get_data(as_text=True))
-    assert 'value="cardiology"' in page, "there is no way to choose a panel"
+    page = (echo["sign_in"]("boss")
+            .get(f"/visits/{echo['ids']['visit']}/record").get_data(as_text=True))
+    assert 'data-panel-key="cardiology"' in page, "there is no way to choose a panel"
 
-    clinic["sign_in"]("boss").post(f"/visits/{clinic['ids']['visit']}/record",
-                                   data={"chief_complaint": "متابعة",
-                                         "specialty_panel": "cardiology"},
-                                   follow_redirects=True)
+    echo["sign_in"]("boss").post(f"/visits/{echo['ids']['visit']}/record",
+                                 data={"chief_complaint": "متابعة",
+                                       "specialty_panel": "cardiology"},
+                                 follow_redirects=True)
 
-    with clinic["app"].app_context():
-        assert db.session.get(Visit, clinic["ids"]["visit"]).specialty_panel \
+    with echo["app"].app_context():
+        assert db.session.get(Visit, echo["ids"]["visit"]).specialty_panel \
             == "cardiology"
 
 

@@ -2201,7 +2201,11 @@
     "rx_template": "Layout",
     "provides": "Performs",
     "other_services": "Other services",
-    "provides_hint": "Tick what this doctor actually performs. With nothing ticked they see the whole catalogue, unchanged."
+    "provides_hint": "Tick what this doctor actually performs. With nothing ticked they see the whole catalogue, unchanged.",
+    "panels": "Specialty panels",
+    "panels_hint": "The panels this doctor's visit screen carries. The ordinary visit — complaint, examination, vitals, diagnosis and plan — is always there; a panel adds measurements on top of it. A doctor may work more than one.",
+    "panels_opens": "Opens on",
+    "panels_none": "None ticked — this doctor's visit screen is the ordinary visit with no panel section. Unticking a panel never deletes readings already recorded under it."
   },
   "problems": {
     "title_list": "Problem list",
@@ -3534,7 +3538,8 @@
     "day_care": "Day care",
     "ward": "Ward",
     "nicu": "NICU",
-    "icu": "ICU"
+    "icu": "ICU",
+    "newborn_care": "Newborn care"
   },
   "templates": {
     "pediatric_clinic": "Pediatric clinic",
@@ -5426,7 +5431,23 @@
     "pick_then_save": "Choose one and save the visit to see its fields.",
     "from_study": "Last device reading:",
     "use_study": "Use it",
-    "optional": "optional"
+    "optional": "optional",
+    "module_title": "Specialty panels",
+    "module_hint": "What each panel asks, which doctors work it, and whether anybody is filling it in.",
+    "p_name": "Panel",
+    "p_asks": "Fields",
+    "p_doctors": "Doctors",
+    "p_visits": "Visits recorded",
+    "p_reads": "reads",
+    "p_nobody": "nobody",
+    "p_where": "Doctors are put on panels from each doctor's own settings. A doctor sees only their own panels on the visit screen.",
+    "p_orphans": "Readings for a panel that no longer exists",
+    "p_orphans_hint": "There are readings stored under keys the catalogue no longer offers. The readings are the children's and still true; what is gone is the question that produced them.",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "folded_has": "Recorded in {n} panels",
+    "folded_one": "Recorded in one panel",
+    "multi_hint": "You can record under more than one panel in the same visit; every reading is kept under its own panel."
   },
   "curves": {
     "src_lab": "Lab",

@@ -210,14 +210,68 @@ SECTIONS = [
              "assistant. A suggestion fills the same form you fill by hand, "
              "the search is unchanged, and nothing is saved until you press "
              "add. Off until Settings \u2192 AI turns it on."),
-            ("<b>قوالب التخصصات.</b> فوق الفحص فيه قالب بيتغيّر حسب التخصص — "
-             "قلب أو أسنان — وبيسجّل القياسات الخاصة بيه مع الزيارة. اختيار "
-             "قالب الأسنان بيفتح كمان الطريق لخريطة أسنان الطفل.",
-             "<b>Specialty panels.</b> Above the examination sits a panel "
-             "that changes with the specialty \u2014 cardiology, dentistry "
-             "\u2014 recording its own measurements against the visit. "
-             "Choosing the dental panel also opens the way to this child's "
-             "tooth chart."),
+        ],
+    },
+    {
+        # Opt-in, so `visible_to` keeps this away from every clinic that has
+        # not switched the module on. A general paediatric practice has no
+        # specialty section on its consultation screen and is not taught one.
+        "key": "panels",
+        "module": "panels",
+        "icon": "clipboard-data",
+        "title": ("قوالب التخصصات", "Specialty panels"),
+        "lines": [
+            ("<b>الزيارة العادية هي الأساس.</b> الشكوى والفحص والعلامات "
+             "الحيوية والتشخيص والخطة موجودين دايمًا وما بيتغيروش بالتخصص — "
+             "ده اللي بيخلّي ملف الطفل واحد، وطبيب الأسنان يشوف إن عنده فتحة "
+             "في القلب. القالب طبقة صغيرة فوق ده، بيزوّد قياسات التخصص بس.",
+             "<b>The ordinary visit is the base.</b> Complaint, examination, "
+             "vitals, diagnosis and plan are always there and do not change "
+             "with the specialty \u2014 that is what keeps the child's file "
+             "one file, and lets the dentist see that this child has a hole "
+             "in the heart. A panel is a small layer on top, adding that "
+             "specialty's measurements and nothing else."),
+            ("<b>مين بيقرر اللي يظهر.</b> المدير بيعلّم في إعدادات الطبيب "
+             "(المستخدمون ← الأطباء ← الطبيب) القوالب اللي بيشتغلها — وممكن "
+             "يبقى أكتر من واحد: أطفال عام + جهاز هضمي، أو عام + حديثي ولادة "
+             "+ حساسية صدر. واحد منهم بيتعلّم «يفتح عليه» علشان مش تدوّر كل "
+             "مرة. طبيب ما اتعلّمش ليه أي قالب شاشته هي الزيارة العادية من "
+             "غير القسم ده خالص.",
+             "<b>Who decides what shows.</b> An admin ticks, in the doctor's "
+             "own setup (Users \u2192 Doctors \u2192 the doctor), which "
+             "panels that doctor works \u2014 and it can be several: general "
+             "paediatrics with gastroenterology, or general with newborn care "
+             "and asthma. One of them is marked \u201copens on\u201d so "
+             "nobody hunts for it forty times a day. A doctor with none "
+             "ticked gets the ordinary visit with no panel section at all."),
+            ("<b>في الزيارة.</b> القوالب بتظهر كشرايط فوق بعض — تدوس على "
+             "الشريط فتظهر خانات القالب فورًا من غير حفظ. تقدر تسجّل في أكتر "
+             "من قالب في نفس الزيارة: الطفل جه مرة واحدة، وكل قراءة بتتحفظ "
+             "باسم القالب اللي اتسجلت منه، فالملف بيفضل عارف القياس ده جه "
+             "من أنهي تخصص.",
+             "<b>In the visit.</b> The panels appear as chips; pressing one "
+             "shows its boxes at once, with no save in between. You can "
+             "record under more than one panel in the same visit \u2014 the "
+             "child came once \u2014 and every reading is stored under the "
+             "panel it was entered from, so the file keeps knowing which "
+             "specialty took which measurement."),
+            ("<b>الطي.</b> السهم جنب العنوان بيطوي القسم كله لما مش محتاجه، "
+             "والشاشة بتقصر. الطي بيتفكر لحد ما تفتحه تاني، وما بيخبّيش حاجة: "
+             "العنوان بيفضل يقول مسجّل في كام قالب، والقراءات كلها بتتحفظ "
+             "زي ما هي سواء القسم مفتوح أو مطوي.",
+             "<b>Folding.</b> The chevron beside the heading puts the whole "
+             "section away when you do not need it, and the screen gets "
+             "shorter. The fold is remembered until you open it again, and "
+             "it hides nothing: the heading keeps saying how many panels "
+             "carry something, and every reading is saved whether the "
+             "section is open or shut."),
+            ("<b>قالب اتشال.</b> لو المدير شال قالب من قايمة الطبيب، القراءات "
+             "اللي اتسجلت تحته بتفضل في الملف وفي زياراتها زي ما هي — "
+             "الإعداد بيقول تسأل إيه بعد كده، مش بيعدّل في زيارات خلصت.",
+             "<b>A panel taken away.</b> If an admin unticks a panel, the "
+             "readings recorded under it stay in the file and on their "
+             "visits, untouched \u2014 the setting says what to ask next, it "
+             "does not edit finished visits."),
         ],
     },
     {

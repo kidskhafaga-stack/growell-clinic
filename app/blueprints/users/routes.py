@@ -1,5 +1,5 @@
 """User management (admin only) — create, edit, enable/disable and delete."""
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, g, redirect, render_template, request, url_for
 from flask_login import current_user
 
 import re
@@ -508,13 +508,27 @@ def doctor_manage(user_id):
 
     from app.models import RxPrintTemplate
 
+    from app.utils import panels as _panels
+    from app.utils.facility import module_enabled
+
     doc = db.get_or_404(User, user_id)
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
     overrides = {oc.service_id: oc
                  for oc in DoctorServiceCommission.query.filter_by(doctor_id=doc.id).all()}
+    # Which specialty panels this doctor works. Gone entirely when the clinic
+    # has not switched the module on: a setting for a module nobody uses is a
+    # question with no consequences, and a screen full of those is how a
+    # clinic learns to skip the screen.
+    panel_on = module_enabled("panels")
     return render_template("users/doctor_manage.html", doc=doc, services=services,
                            overrides=overrides, titles=PROFESSIONAL_TITLES,
                            commission_types=COMMISSION_TYPES,
+                           panel_on=panel_on,
+                           panel_list=(_panels.choices(getattr(g, "lang", "ar"))
+                                       if panel_on else []),
+                           panel_mine=_panels.for_doctor(doc) if panel_on else [],
+                           panel_default=(_panels.default_for_doctor(doc)
+                                          if panel_on else ""),
                            rx_templates=(RxPrintTemplate.query
                                          .order_by(RxPrintTemplate.name).all()))
 
@@ -577,6 +591,49 @@ def doctor_professional(user_id):
     doc.print_title_en = (f.get("print_title_en") or "").strip() or None
     ActivityLog.record("doctor.professional", user_id=current_user.id, entity="user",
                        entity_id=doc.id, detail=doc.username, ip_address=client_ip())
+    db.session.commit()
+    flash(t("doctors.saved"), "success")
+    return redirect(url_for("users.doctor_manage", user_id=doc.id))
+
+
+@users_bp.route("/doctors/<int:user_id>/panels", methods=["POST"])
+@admin_required
+def doctor_panels(user_id):
+    """Which specialty panels this doctor's visit screen carries.
+
+    A list and not a choice, because a doctor works more than one: general
+    paediatrics with a gastroenterology interest follows the same children,
+    and asking them to pick one would mean picking again on the next visit.
+    Asked for in those words — *"ممكن يشتغل اكثر من تخصص خلى بالك"*.
+
+    Ticking nothing is a real answer and the common one: a general paediatric
+    practice has no panel section on the visit screen at all. Nothing is
+    hidden by that. The complaint, the examination, the vitals, the diagnosis
+    and the plan are the screen itself; a panel only adds measurements on top
+    of it.
+
+    Unticking a panel never deletes what was recorded under it. The readings
+    stay on their visits and those visits keep showing them — a setting about
+    what to ask next is not a licence to edit the file backwards.
+    """
+    from app.utils import panels as _panels
+
+    doc = db.get_or_404(User, user_id)
+    known = _panels.all_panels()
+    # Catalogue order rather than form order: the form's order is whatever the
+    # browser sent, and the first ticked panel is the one the screen opens on
+    # when nothing else says otherwise.
+    picked = [key for key in known if request.form.get(f"panel_{key}")]
+    doc.specialty_panels = ",".join(picked) or None
+
+    # Which of them opens first. Checked against the ticked list, so a stale
+    # form cannot leave a doctor opening on a panel they no longer work.
+    opens = (request.form.get("panel_default") or "").strip()
+    doc.specialty_panel = opens if opens in picked else (picked[0] if picked else None)
+
+    ActivityLog.record("doctor.panels", user_id=current_user.id, entity="user",
+                       entity_id=doc.id, detail=doc.specialty_panels or "—",
+                       ip_address=client_ip())
     db.session.commit()
     flash(t("doctors.saved"), "success")
     return redirect(url_for("users.doctor_manage", user_id=doc.id))

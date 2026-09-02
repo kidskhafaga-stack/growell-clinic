@@ -76,6 +76,49 @@ def field_map(key):
     return {f["code"]: f for f in (meta or {}).get("fields", [])}
 
 
+def for_doctor(doctor):
+    """The panel keys this doctor works, in catalogue order.
+
+    A list, because a doctor works more than one: paediatrics and
+    gastroenterology follow the same children, and a screen that made them
+    choose would make them choose again on the next visit. Stored as a
+    comma-separated string on the user — a join table for a handful of keys
+    per doctor would be three files to answer a question one column answers.
+
+    Falls back to the single `specialty_panel` a doctor already had, so
+    nobody's setting is lost by this arriving.
+    """
+    if doctor is None:
+        return []
+    raw = (getattr(doctor, "specialty_panels", None) or "").strip()
+    if not raw:
+        one = (getattr(doctor, "specialty_panel", None) or "").strip()
+        raw = one
+    known = all_panels()
+    seen, out = set(), []
+    for key in raw.split(","):
+        key = key.strip()
+        if key and key in known and key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out
+
+
+def default_for_doctor(doctor):
+    """Which of their panels opens first. Their own, not a house rule.
+
+    A neurologist who works only neurology opens that screen forty times a
+    day; making them pass through anything else first is forty clicks. There
+    is no "general" panel to default to — the complaint, the examination and
+    the vitals are the screen itself and never go away.
+    """
+    mine = for_doctor(doctor)
+    if not mine:
+        return ""
+    chosen = (getattr(doctor, "specialty_panel", None) or "").strip()
+    return chosen if chosen in mine else mine[0]
+
+
 def for_visit(visit, doctor=None, lang="ar"):
     """The panel this visit should show: its own, else the doctor's, else none.
 
@@ -86,7 +129,7 @@ def for_visit(visit, doctor=None, lang="ar"):
     """
     key = (getattr(visit, "specialty_panel", None) or "").strip()
     if not key and doctor is not None:
-        key = (getattr(doctor, "specialty_panel", None) or "").strip()
+        key = default_for_doctor(doctor)
     return key, panel(key)
 
 
@@ -130,9 +173,12 @@ def every_panel_for(visit, vitals, lang="ar"):
 
     The catalogue is a small data file already read once per request, so the
     honest fix is to hand the screen all of it and let the choice be a choice.
-    Nothing else about the save changes: the server still writes only the
-    fields belonging to the panel the visit was actually recorded under, so a
-    hidden panel's boxes are ignored exactly as an invented field name is.
+
+    What the save does with them is decided in `_save_panel`: every panel this
+    doctor works is written, because one visit can be a cardiology visit and a
+    gastroenterology visit at once and a child is not asked to come back twice.
+    A panel outside that list is ignored exactly as an invented field name is —
+    the list is worked out on the server and never read from the form.
 
     Returns ``[{key, meta, label, reads}]`` in catalogue order.
     """

@@ -14,6 +14,7 @@ from app.models import CONSENT_TYPES as _CONSENT_TYPES
 from app.models import ActivityLog, Setting
 from app.utils import clinical_rules as _clinical
 from app.utils import consent as _consent
+from app.utils import facility as _facility
 from app.utils import jaundice as _jaundice
 from app.utils.decorators import admin_required, client_ip, owner_required
 
@@ -596,6 +597,7 @@ def index():
         # asks a clinician to accept these numbers and nobody can accept a
         # table they cannot see.
         jaundice_table=_jaundice.table(),
+        offers_newborn=_facility.offers("newborn_care"),
         consent_types=_CONSENT_TYPES,
         consent_defaults={kind: {lang: _consent.default_statement(kind, lang)
                                  for lang in ("ar", "en")}

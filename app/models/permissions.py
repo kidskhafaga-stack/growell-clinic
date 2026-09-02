@@ -24,6 +24,15 @@ MODULES = [
     # A specialty, not part of the paediatric core. Off until a clinic says
     # otherwise — see `facility.OPT_IN_MODULES`.
     "dentistry",
+    # The specialty panels: which extra questions a doctor is asked on the
+    # visit screen. A module rather than a setting because a clinic that does
+    # not work specialties should not have the section on its consultation
+    # screen at all — not an empty picker, not a disabled control, absent.
+    #
+    # Admin-only and opt-in, for the two reasons those lists exist: nobody but
+    # whoever runs the clinic ever opens it, and a general paediatric practice
+    # is not asked a question it has no answer to.
+    "panels",
     "prescriptions",
     "inventory",
     "finance",
@@ -49,7 +58,7 @@ MODULES = [
 # toggles and the icons all iterate that list, and an admin does reach both.
 # What changes is that a role cannot be *granted* them, which is the promise
 # that was not being kept.
-ADMIN_ONLY_MODULES = ["users", "settings"]
+ADMIN_ONLY_MODULES = ["users", "settings", "panels"]
 
 # What a role checkbox may actually grant.
 GRANTABLE_MODULES = [m for m in MODULES if m not in ADMIN_ONLY_MODULES]
@@ -63,6 +72,7 @@ MODULE_ICONS = {
     "growth": "graph-up",
     "vaccinations": "shield-plus",
     "dentistry": "emoji-smile",
+    "panels": "clipboard-data",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",

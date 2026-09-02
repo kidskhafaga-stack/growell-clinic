@@ -127,3 +127,86 @@ def test_a_check_that_finds_one_returns_what_the_card_needs(
     assert body["ok"] and body["behind"]
     assert body["latest"] == "b" * 40
     assert body["notes"] == ["A vaccine this clinic does not give"]
+
+
+# ------------------------------------- what the screen actually printed -----
+def test_the_check_messages_are_javascript_strings_not_html(screen):
+    """Seen on the screen: **see What&#39;s new below**.
+
+    The four answers are written into a `<script>` block, and Jinja escapes
+    for HTML — so an apostrophe became those five characters and `x-text`,
+    which sets text rather than markup, wrote them out exactly. `tojson`
+    produces a JavaScript string literal and escapes for the language the
+    value is actually going into."""
+    import json
+    import re
+
+    block = screen[screen.index("const UPD = {"):]
+    block = block[:block.index("};")]
+
+    # Decoded, not read as spelled: `tojson` writes non-ASCII as `\uXXXX`,
+    # which is a correct JavaScript string and displays perfectly. What must
+    # not survive is HTML escaping of the *characters* — that is what reached
+    # the screen.
+    values = [json.loads(m) for m in re.findall(r'"(?:[^"\\]|\\.)*"', block)]
+    assert len(values) == 4, values
+    for value in values:
+        assert "&#39;" not in value and "&amp;" not in value, value
+        assert value.strip()
+
+
+def test_the_messages_decode_to_what_the_clinic_wrote(clinic):
+    """End to end, in the language the apostrophe was in. The Arabic wording
+    has none, so the bug was invisible on an Arabic screen and plain on an
+    English one — which is where it was reported."""
+    import json
+    import re
+
+    from app.i18n import _load_translations, _lookup
+
+    page = clinic["sign_in"]("boss").get(
+        "/settings/", headers={"Accept-Language": "en"}).get_data(as_text=True)
+    block = page[page.index("const UPD = {"):]
+    block = block[:block.index("};")]
+    values = [json.loads(m) for m in re.findall(r'"(?:[^"\\]|\\.)*"', block)]
+
+    tables = _load_translations()
+    for key, value in zip(("said_behind", "said_current", "said_offline",
+                           "said_unknown"), values):
+        for lang in ("ar", "en"):
+            expected = _lookup(tables, lang, f"update.{key}")
+            if expected == value:
+                break
+        else:
+            raise AssertionError(f"{key} reached the page as {value!r}")
+
+
+# ---------------------------------- and the link goes somewhere new ---------
+def test_the_way_to_the_install_block_is_a_different_url(screen):
+    """A hash could not carry this link.
+
+    The tab watcher rewrites the URL to `#update` the moment that tab opens,
+    so a link to `#update` *from* the update tab points at the URL already in
+    the bar — and a browser does nothing for an unchanged same-page hash. It
+    read as a dead link because it was a link to here.
+
+    A query string is a different URL, so it navigates. The reload is the
+    point: the check stored what it found, and only a fresh render can show
+    the install block for it."""
+    card = _card(screen)
+    assert "?tab=update" in card
+    assert 'href="/settings/#update"' not in card
+
+
+def test_the_page_opens_the_tab_a_query_string_asks_for(screen):
+    """Without this the new link lands on the default tab and the block it was
+    pointing at is still not on screen."""
+    assert "URLSearchParams(window.location.search).get('tab')" in screen
+
+
+def test_the_hash_still_works_for_the_links_that_use_it(screen):
+    """Three redirects in the settings blueprint name a section by hash. The
+    query is read first; the hash is not replaced by it."""
+    init = screen[screen.index("init() {"):]
+    init = init[:init.index("this.$watch")]
+    assert "window.location.hash" in init

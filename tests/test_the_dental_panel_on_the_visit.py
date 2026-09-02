@@ -30,10 +30,17 @@ def _panels():
 
 @pytest.fixture
 def dental(clinic):
-    from app.models import Setting
+    from app.models import Setting, User, Visit
 
     with clinic["app"].app_context():
         Setting.set("mod_enabled:dentistry", "1")
+        # Two separate switches on purpose. Dentistry is the chart, the plan
+        # and the price list; panels is whether the visit screen carries
+        # specialty fields at all. A clinic can want either without the other.
+        Setting.set("mod_enabled:panels", "1")
+        visit = clinic["db"].session.get(Visit, clinic["ids"]["visit"])
+        doctor = clinic["db"].session.get(User, visit.doctor_id)
+        doctor.specialty_panels = "dentistry"
         clinic["db"].session.commit()
     return clinic
 
@@ -45,14 +52,23 @@ def screen(dental):
 
 
 # ------------------------------------------------------------- it exists ---
-def test_the_dropdown_offers_it(screen):
-    assert 'value="dentistry"' in screen
+def test_the_chips_offer_it(screen):
+    """A chip and not a menu option: a doctor may work more than one panel in
+    the same visit, and a `<select>` says pick one."""
+    assert 'data-panel-key="dentistry"' in screen
     assert "أسنان الأطفال" in screen
 
 
-def test_it_did_not_take_the_other_panel_with_it(screen):
-    """Adding a specialty must not cost the one already there."""
-    assert 'value="cardiology"' in screen
+def test_it_did_not_take_the_other_panel_with_it():
+    """Adding a specialty must not cost the one already there.
+
+    Asserted against the catalogue rather than the screen: the screen now
+    shows the panels *this doctor* works, so cardiology being absent from a
+    dentist's visit is the module doing its job, not a panel that went
+    missing.
+    """
+    assert "cardiology" in _panels()
+    assert _panels()["cardiology"]["fields"]
 
 
 def test_it_is_data_and_not_code():

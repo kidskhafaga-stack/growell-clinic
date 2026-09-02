@@ -36,14 +36,15 @@ import pytest  # noqa: E402
 
 @pytest.fixture()
 def desk(clinic):
-    """A visit whose doctor works in cardiology."""
+    """A clinic that works specialties, and a doctor who works cardiology."""
     from app.extensions import db
-    from app.models import User, Visit
+    from app.models import Setting, User, Visit
 
     with clinic["app"].app_context():
+        Setting.set("mod_enabled:panels", "1")
         visit = db.session.get(Visit, clinic["ids"]["visit"])
         doctor = db.session.get(User, visit.doctor_id)
-        doctor.specialty_panel = "cardiology"
+        doctor.specialty_panels = "cardiology"
         db.session.commit()
     clinic["url"] = f"/visits/{clinic['ids']['visit']}/record"
     return clinic
@@ -259,11 +260,23 @@ def test_saving_twice_corrects_rather_than_adds(desk):
     assert count == 1, f"the same field was recorded {count} times for one visit"
 
 
-def test_a_panel_that_was_put_away_stops_writing(desk):
-    """Nothing is recorded under a panel the visit is no longer using."""
+def test_which_panel_is_showing_does_not_decide_what_is_kept(desk):
+    """A doctor who works a panel records under it whether or not the chips
+    happened to be showing it when they pressed save.
+
+    This test used to assert the opposite — that an empty `specialty_panel`
+    threw the readings away — and that was right while a visit belonged to one
+    panel. It stopped being right when a doctor could work several: a
+    cardiology reading typed on a screen whose chips had moved on to another
+    panel is still a cardiology reading, and deleting it would be the screen
+    editing the file behind the doctor.
+    """
     _save(desk, specialty_panel="", m_ef_pct="58")
 
-    assert _readings(desk) == {}
+    rows = _readings(desk)
+    assert rows["ef_pct"].value_num == 58.0
+    assert rows["ef_pct"].panel == "cardiology", \
+        "the reading lost the panel it was taken under"
 
 
 # ------------------------------------------------------------- on the screen
