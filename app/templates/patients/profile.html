@@ -10,16 +10,38 @@
    an ongoing medicine redirects back to ``#meds``, and that block has moved
    into the prescriptions tab — without this line the redirect would ask for a
    tab called "meds", nothing would match, and the person would land on a page
-   with every panel hidden, having just saved something. #}
+   with every panel hidden, having just saved something.
+
+   Three more were in exactly that state, and the map was written for the wrong
+   one first. ``#consent``, ``#problems`` and ``#coverage`` are all sections
+   *inside* a tab rather than tabs, and every route that saves one of them
+   redirects to its hash. Reported after signing a consent: *"بعد ما بحفظ
+   التوقيع مش بيرجع على نفس الصفحة"* — it did come back to the page, and the
+   page then hid all of itself, which looks the same and is worse.
+
+   ``known`` is the second half of the fix, and the more important half. The
+   map has to be kept in step with the markup by hand and it silently was not;
+   a name that answers to no panel now falls back to the overview instead of
+   hiding everything, so the next section that moves costs somebody a scroll
+   rather than a blank file. #}
 <div x-data="{
-        inside: { meds: 'prescriptions' },
+        inside: { meds: 'prescriptions', consent: 'overview',
+                  problems: 'overview', coverage: 'family' },
+        known: [],
         tab: 'overview',
         showParent: false,
         pick(hash) {
           const asked = (hash || '#overview').substring(1);
-          return this.inside[asked] || asked || 'overview';
+          const wanted = this.inside[asked] || asked || 'overview';
+          return this.known.includes(wanted) ? wanted : 'overview';
         },
         init() {
+          // Read off the buttons rather than listed here: which tabs exist
+          // depends on this user's permissions and on whether this child has
+          // imported history, and a list written out separately would be one
+          // more thing to keep in step by hand — which is how this broke.
+          this.known = Array.from(this.$el.querySelectorAll('[data-tab]'))
+                            .map(b => b.dataset.tab);
           this.tab = this.pick(window.location.hash);
           window.addEventListener('hashchange',
             () => this.tab = this.pick(window.location.hash));
@@ -192,7 +214,7 @@
         {% set ns.tabs = ns.tabs + [('finance','tab_finance','cash-coin')] %}
       {% endif %}
       {% for key, label, icon in ns.tabs %}
-      <button class="gc-tab" :class="tab==='{{ key }}' && 'active'"
+      <button class="gc-tab" data-tab="{{ key }}" :class="tab==='{{ key }}' && 'active'"
               x-on:click="tab='{{ key }}'; history.replaceState(null,'','#{{ key }}')">
         <i class="bi bi-{{ icon }}"></i> {{ t('patients.' ~ label) }}
       </button>
@@ -497,8 +519,15 @@
               <form method="post" enctype="multipart/form-data" style="display:inline;"
                     action="{{ url_for('patients.consent_signature', consent_id=cs.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input class="input" type="file" name="file" accept="image/*,.pdf"
-                       style="max-width:210px;display:inline-block;"
+                {# It uploads the moment a file is picked, so the control is
+                   the button: see `.input--pick`. The label is on the button
+                   itself through `title`, because the native text is the
+                   browser's own and cannot be translated. #}
+                <label class="hint" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);"
+                       for="sigfile_{{ cs.id }}">{{ t('consent.sig_upload') }}</label>
+                <input class="input input--pick" type="file" name="file"
+                       id="sigfile_{{ cs.id }}" accept="image/*,.pdf"
+                       title="{{ t('consent.sig_upload') }}"
                        x-on:change="$el.form.submit()">
               </form>
               <button type="button" class="btn btn-outline btn-sm gc-press"
