@@ -2622,7 +2622,10 @@
     "dx_too_thin": "Write the complaint or the examination first",
     "dx_failed": "The suggestion did not arrive — try again",
     "dx_off": "Diagnosis suggestions are off — Settings → AI",
-    "dx_from_ai": "suggested"
+    "dx_from_ai": "suggested",
+    "dx_off_switch": "AI diagnosis suggestions exist and are switched off. Turn them on in Settings → AI.",
+    "dx_off_provider": "AI diagnosis suggestions need an AI provider configured first, in Settings → AI.",
+    "dx_off_where": "Open settings"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
