@@ -45,15 +45,33 @@ def parse_date(raw):
 def _between(query, column, start, end, is_datetime=False):
     """Apply the range to ``column``. The end is inclusive — somebody typing
     31 January means the 31st, and an exclusive bound would silently drop the
-    last day of every month anybody ever exports."""
+    last day of every month anybody ever exports.
+
+    ``is_datetime`` columns hold naive **UTC** — `Patient.created_at`,
+    `Payment.paid_at` — while the two dates come from a person's screen and
+    mean the clinic's own days. Both bounds are converted, not just the far
+    one: comparing a bare `date` against a datetime column is its own quiet
+    mistake, and it was doing that at the near end while reading the clinic's
+    midnight as UTC midnight at the far end. Everything taken in the small
+    hours fell out of the month it belonged to.
+
+    Date columns need none of this — `invoice_date`, `given_date` and their
+    kind are already stamped with the clinic's day.
+    """
+    if is_datetime:
+        from app.utils.clock import to_utc
+
+        if start:
+            query = query.filter(column >= to_utc(
+                datetime.combine(start, datetime.min.time())))
+        if end:
+            query = query.filter(column <= to_utc(
+                datetime.combine(end, datetime.max.time())))
+        return query
     if start:
         query = query.filter(column >= start)
     if end:
-        if is_datetime:
-            query = query.filter(column < datetime.combine(
-                end, datetime.max.time()).replace(microsecond=0))
-        else:
-            query = query.filter(column <= end)
+        query = query.filter(column <= end)
     return query
 
 

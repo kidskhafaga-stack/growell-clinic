@@ -917,6 +917,21 @@ def _cashier_date():
         return local_today()
 
 
+def _clinic_day(on_date):
+    """``(start, end)`` in stored UTC for one of the clinic's own days.
+
+    Said once because it was written out three times — the cashier screen, the
+    drawer summary it prints, and the end-of-day report — and all three read a
+    local date as though it were UTC. Three screens reading the same table and
+    disagreeing with each other by one late shift is how a clinic stops
+    trusting all three.
+    """
+    from app.utils.clock import to_utc
+
+    return (to_utc(datetime.combine(on_date, datetime.min.time())),
+            to_utc(datetime.combine(on_date, datetime.max.time())))
+
+
 def _shift_number():
     """Serial audit number for a new shift: SHIFT-2026-000001 (per year)."""
     prefix = f"SHIFT-{datetime.utcnow().year}-"
@@ -1251,11 +1266,16 @@ def _uncollected_by_patient(days=7):
 
 
 def _drawer_summary(on_date):
-    """The day's drawer figures (shared by the cashier screen and its print)."""
+    """The day's drawer figures (shared by the cashier screen and its print).
+
+    The window is the clinic's day converted to UTC, not the local date read
+    as though it were UTC — `paid_at` and `opened_at` are stored naive UTC,
+    and the date here is a person's. See `app/utils/shift_rollup._shifts` for
+    what the difference costs: three hours a night filed under yesterday.
+    """
     from collections import Counter
 
-    start = datetime.combine(on_date, datetime.min.time())
-    end = datetime.combine(on_date, datetime.max.time())
+    start, end = _clinic_day(on_date)
     pays = Payment.query.filter(Payment.paid_at >= start, Payment.paid_at <= end).all()
     by_method = Counter()
     refunds = 0.0
@@ -1451,8 +1471,7 @@ def cashier_poll():
     wa.maybe_dispatch()
 
     on_date = _cashier_date()
-    start = datetime.combine(on_date, datetime.min.time())
-    end = datetime.combine(on_date, datetime.max.time())
+    start, end = _clinic_day(on_date)
     pays = (db.session.query(Payment.id, Payment.amount, Payment.kind)
             .filter(Payment.paid_at >= start, Payment.paid_at <= end).all())
     open_invs = (db.session.query(Invoice.id)
@@ -1618,8 +1637,7 @@ def eod_report():
     cashier, money by method, expected vs counted and the over/short — plus
     a clinic-wide totals row. Printable."""
     on_date = _cashier_date()
-    start = datetime.combine(on_date, datetime.min.time())
-    end = datetime.combine(on_date, datetime.max.time())
+    start, end = _clinic_day(on_date)
     shifts = (CashierShift.query
               .filter(CashierShift.opened_at >= start,
                       CashierShift.opened_at <= end)
