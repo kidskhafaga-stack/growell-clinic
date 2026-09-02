@@ -55,6 +55,24 @@ def _range():
     return parse("date_from", today.replace(day=1)), parse("date_to", today)
 
 
+def _utc_window(date_from, date_to):
+    """``(start, end)`` in stored UTC for a range of the clinic's own days.
+
+    The dates a report is asked for are a person's — typed into the two boxes
+    at the top, or `local_today()`. Columns like `Payment.paid_at` and
+    `Patient.created_at` are naive UTC. Comparing the one against the other
+    reads the clinic's midnight as UTC midnight, and everything recorded in the
+    hours between the two lands in the wrong month's figures.
+
+    Date columns — `invoice_date`, `visit_date`, `appt_date` — are already the
+    clinic's own day and are compared directly. This is only for the moments.
+    """
+    from app.utils.clock import to_utc
+
+    return (to_utc(datetime.combine(date_from, datetime.min.time())),
+            to_utc(datetime.combine(date_to, datetime.max.time())))
+
+
 @reports_bp.route("/")
 @module_required(MODULE)
 def index():
@@ -88,9 +106,10 @@ def financial():
 
     # Payment methods (by payment date in range).
     by_method = defaultdict(float)
+    paid_from, paid_to = _utc_window(date_from, date_to)
     payments = (
-        Payment.query.filter(Payment.paid_at >= datetime.combine(date_from, datetime.min.time()),
-                             Payment.paid_at <= datetime.combine(date_to, datetime.max.time())).all()
+        Payment.query.filter(Payment.paid_at >= paid_from,
+                             Payment.paid_at <= paid_to).all()
     )
     for p in payments:
         by_method[p.method] += (p.amount or 0)
@@ -432,9 +451,10 @@ def operational():
     for a in appts:
         by_status[a.status] += 1
 
+    joined_from, joined_to = _utc_window(date_from, date_to)
     new_patients = Patient.query.filter(
-        Patient.created_at >= datetime.combine(date_from, datetime.min.time()),
-        Patient.created_at <= datetime.combine(date_to, datetime.max.time())).count()
+        Patient.created_at >= joined_from,
+        Patient.created_at <= joined_to).count()
     visits = Visit.query.filter(Visit.visit_date >= date_from,
                                 Visit.visit_date <= date_to).count()
     doses = PatientVaccine.query.filter(PatientVaccine.given_date >= date_from,
@@ -652,9 +672,6 @@ def discounts():
 @module_required(MODULE)
 def staff():
     date_from, date_to = _range()
-    start_dt = datetime.combine(date_from, datetime.min.time())
-    end_dt = datetime.combine(date_to, datetime.max.time())
-
     doctors = User.query.filter_by(role="doctor").order_by(User.full_name).all()
     rows = []
     for doc in doctors:

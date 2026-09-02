@@ -443,10 +443,24 @@ a:hover { color: var(--green-900); }
 .badge--danger { background: #fde8e8; color: var(--danger); }
 /* Popover edit forms must float above sibling cards. Sibling .card elements
    create stacking contexts (animations/transforms), so lift the card that
-   holds an open <details> above the rest. */
+   holds an open <details> above the rest.
+
+   **One is enough, and 50 was too many.** The siblings this has to beat sit at
+   layer 0 — `.gc-scale-in` ends on `transform: scale(1)`, which is a stacking
+   context with no z-index of its own — so `1` clears them. `50` cleared the
+   topbar as well (layer 20), and the topbar is where the notification bell
+   hangs its panel from: on the dashboard, whose "clinic today" card holds a
+   `<details>` that is open by default, an open bell was drawn *underneath*
+   that card. Reported as *"الاشعارات بتروح فى الخلفية"*.
+
+   The rule behind that: the chrome — topbar 20, sidebar 30, its scrim 29 —
+   sits above the content, and nothing inside `.content` may name a z-index
+   that reaches it. A popover that needs to escape its card escapes into the
+   card's own stacking context (`.popform` below), not into the page's.
+   `test_the_bell_is_not_painted_over.py` holds the budget. */
 .popform { z-index: 60 !important; }
 .card { position: relative; }
-.card:has(details[open]) { z-index: 50; }
+.card:has(details[open]) { z-index: 1; }
 .info-note { background: var(--green-050); border: 1px solid var(--green-100); color: var(--green-900);
   border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; line-height: 1.7; }
 .alert-pill { border-radius: 10px; padding: 9px 13px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
@@ -463,6 +477,65 @@ a:hover { color: var(--green-900); }
   font-family: inherit; font-size: 0.92rem; background: var(--card); color: var(--ink);
 }
 .input:focus, .select:focus { outline: none; border-color: var(--green-500); box-shadow: 0 0 0 3px var(--green-050); }
+
+/* The file field. Left alone it renders the browser's own grey "Choose File /
+   No file chosen" — a control from a different decade sitting in a row of the
+   program's buttons, which is how it was noticed: *"الزرار ده شكله غريب"*.
+
+   Restyled here rather than in the twenty-two templates that use one, and via
+   `::file-selector-button` rather than the usual trick of hiding the input
+   behind a label: hiding it means the field can no longer be reached by
+   keyboard or named by a screen reader unless every one of those templates
+   remembers to wire a label to it, and twenty-two places will not all
+   remember. The browser's own button keeps its behaviour and stops looking
+   borrowed. */
+.input[type="file"] {
+  padding: 5px 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.input[type="file"]::file-selector-button {
+  margin-inline-end: 10px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.input[type="file"]::file-selector-button:hover {
+  border-color: var(--green-700);
+  color: var(--green-800);
+}
+
+/* ...and where the control submits the moment a file is picked, the field is
+   the button and nothing else. "No file chosen" is a status line for a form
+   you are still filling in; on a control that uploads immediately it is a
+   sentence that is never true for longer than a blink, and it was being
+   ellipsised to "No fi…osen" in the consent row for the privilege.
+
+   `font-size: 0` collapses that text without hiding the input itself, so the
+   field keeps its focus ring and its place in the tab order; the button sets
+   its own size back. */
+.input[type="file"].input--pick {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0;
+}
+.input[type="file"].input--pick::file-selector-button {
+  margin-inline-end: 0; font-size: 0.8rem;
+}
+.input[type="file"].input--pick:focus-visible::file-selector-button {
+  border-color: var(--green-500);
+  box-shadow: 0 0 0 3px var(--green-050);
+}
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .checkbox { display: flex; align-items: center; gap: 8px; }
 

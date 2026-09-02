@@ -34,15 +34,30 @@ def _shifts(date_from, date_to, account_id=None, user_id=None):
     By ``opened_at``, not by close: a shift that runs past midnight belongs to
     the day it was opened, which is the day the person worked and the day the
     clinic will look for it under.
+
+    **And "the day it was opened" is the clinic's day, not the server's.** The
+    dates arriving here are a person's — typed into a report screen, or
+    `local_today()` — while `opened_at` is stored as naive UTC. Combining the
+    one with `time.min` and comparing it to the other reads the clinic's
+    midnight as UTC midnight, so for the two or three hours a night when Cairo
+    is already tomorrow, every shift opened in that window was reported under
+    the previous day: missing from its own night's reconciliation and sitting
+    in the total of the night before, against whoever worked that one.
+
+    `to_utc` is the conversion, and it was already being used correctly for the
+    same shape in `app/utils/live.py`. Nothing here was hard; it was simply not
+    done, and no test could see it because the suite ran on a machine whose
+    clock agreed with the clinic's.
     """
     from datetime import datetime, time
 
     from sqlalchemy.orm import selectinload
 
     from app.models import CashierShift
+    from app.utils.clock import to_utc
 
-    start = datetime.combine(date_from, time.min)
-    end = datetime.combine(date_to, time.max)
+    start = to_utc(datetime.combine(date_from, time.min))
+    end = to_utc(datetime.combine(date_to, time.max))
     query = (CashierShift.query
              .options(selectinload(CashierShift.payments))
              .filter(CashierShift.opened_at >= start,

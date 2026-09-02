@@ -1,11 +1,12 @@
 {
-  "version": "2026.08",
-  "effective_date": "2026-08-23",
+  "version": "2026.09",
+  "effective_date": "2026-09-02",
   "_note_ar": "لوح التخصص على شاشة الزيارة. البيانات هنا مش في الكود — إضافة تخصص = إضافة هنا، من غير أي تعديل برمجي. الحقول اتاخدت من استبيان التخصصات (questions.ts + الإجابات المقترحة).",
   "_note_en": "The specialty panel on the visit screen. Data, not code: adding a specialty is an edit here. Fields come from the specialties survey.",
   "_sources": [
-    "PediaPro specialties survey — questions.ts, section `cardiology`",
-    "PediaPro_Survey_Answers.xlsx — الإجابات المقترحة, قلب الأطفال"
+    "PediaPro specialties survey — questions.ts, every `specialtySections` entry",
+    "PediaPro_Survey_Answers.xlsx — الإجابات المقترحة, the ✓-marked `measured_every_visit` options for each specialty",
+    "ISPAD 2024 (glycaemic targets), AAP 2017 (paediatric BP), KDIGO 2024 (BP in CKD), GINA 2025 (asthma control at every visit), AAP preterm growth tools, AAPD (caries risk, fluoride) — cited by the survey's own references sheet, and the reason no threshold is stored here"
   ],
   "panels": {
     "cardiology": {
@@ -321,6 +322,653 @@
           "label_ar": "آخر زيارة أسنان",
           "label_en": "Last dental visit",
           "type": "date"
+        }
+      ]
+    },
+    "endocrinology": {
+      "name_ar": "الغدد الصماء والسكر",
+      "name_en": "Endocrinology & diabetes",
+      "icon": "droplet-half",
+      "reads": [
+        "weight_kg",
+        "height_cm",
+        "blood_pressure"
+      ],
+      "_note_ar": "الحقول من العلامات المؤشَّرة في استبيان التخصصات. الـBMI وسرعة النمو مش خانات: البرنامج عنده الوزن والطول وتواريخهم، وخانة لرقم البرنامج يقدر يحسبه هي رقم تاني يقدر يخالفه.",
+      "fields": [
+        {
+          "code": "tanner",
+          "label_ar": "مرحلة البلوغ Tanner",
+          "label_en": "Tanner stage",
+          "type": "choice",
+          "options": [
+            "I",
+            "II",
+            "III",
+            "IV",
+            "V"
+          ]
+        },
+        {
+          "code": "insulin_dose",
+          "label_ar": "جرعة الأنسولين",
+          "label_en": "Insulin dose",
+          "type": "number",
+          "unit": "U/kg/day"
+        },
+        {
+          "code": "hypo_episodes",
+          "label_ar": "نوبات هبوط السكر",
+          "label_en": "Hypoglycaemia episodes",
+          "type": "number",
+          "unit": "/week"
+        },
+        {
+          "code": "in_range_pct",
+          "label_ar": "القراءات داخل المدى",
+          "label_en": "Readings in range",
+          "type": "number",
+          "unit": "%"
+        },
+        {
+          "code": "injection_sites",
+          "label_ar": "حالة أماكن الحقن",
+          "label_en": "Injection sites",
+          "type": "choice",
+          "options": [
+            "سليمة",
+            "تليّف موضعي",
+            "تليّف واسع"
+          ]
+        }
+      ]
+    },
+    "pulmonology": {
+      "name_ar": "الصدر والحساسية",
+      "name_en": "Respiratory & allergy",
+      "icon": "lungs",
+      "reads": [
+        "weight_kg",
+        "height_cm",
+        "resp_rate",
+        "spo2"
+      ],
+      "_note_ar": "أربع أسئلة السيطرة (النوبات، الموسّع السريع، ليالي الاستيقاظ، الغياب) بتتسجّل كأرقام زي ما هي. البرنامج بيسجّلها ومش بيقول «مضبوط» أو «مش مضبوط» — التصنيف ده قرار الطبيب، وGINA نفسها بتقول يتقيّم في كل زيارة.",
+      "fields": [
+        {
+          "code": "act_score",
+          "label_ar": "درجة السيطرة",
+          "label_en": "Control score",
+          "type": "number",
+          "unit": "ACT / c-ACT"
+        },
+        {
+          "code": "act_tool",
+          "label_ar": "الأداة المستعملة",
+          "label_en": "Tool used",
+          "type": "choice",
+          "options": [
+            "ACT",
+            "c-ACT"
+          ]
+        },
+        {
+          "code": "inhaler_technique",
+          "label_ar": "تقنية استعمال البخاخ",
+          "label_en": "Inhaler technique",
+          "type": "choice",
+          "options": [
+            "صحيحة",
+            "تحتاج تصحيح",
+            "لم تُقيَّم"
+          ]
+        },
+        {
+          "code": "attacks_this_month",
+          "label_ar": "نوبات هذا الشهر",
+          "label_en": "Attacks this month",
+          "type": "number",
+          "unit": "/month"
+        },
+        {
+          "code": "reliever_per_week",
+          "label_ar": "استعمال الموسّع السريع",
+          "label_en": "Reliever use",
+          "type": "number",
+          "unit": "/week"
+        },
+        {
+          "code": "night_wakings",
+          "label_ar": "ليالٍ يستيقظ فيها",
+          "label_en": "Nights woken",
+          "type": "number",
+          "unit": "/week"
+        },
+        {
+          "code": "school_days_missed",
+          "label_ar": "أيام الغياب عن المدرسة",
+          "label_en": "School days missed",
+          "type": "number",
+          "unit": "/month"
+        }
+      ]
+    },
+    "neurology": {
+      "name_ar": "المخ والأعصاب",
+      "name_en": "Neurology",
+      "icon": "activity",
+      "reads": [
+        "weight_kg",
+        "height_cm"
+      ],
+      "_note_ar": "الوزن مقروء ومش متسأل عنه، وهو مهم هنا أكتر من أي لوح تاني: جرعات مضادات التشنج بالكيلو، وطفل بيكبر بجرعة ثابتة بيقل تركيز الدواء عنده من غير ما حد يغيّر حاجة.",
+      "fields": [
+        {
+          "code": "seizures_per_month",
+          "label_ar": "عدد النوبات",
+          "label_en": "Seizures",
+          "type": "number",
+          "unit": "/month"
+        },
+        {
+          "code": "seizure_type",
+          "label_ar": "نوع النوبة",
+          "label_en": "Seizure type",
+          "type": "choice",
+          "options": [
+            "بؤرية",
+            "معمّمة",
+            "غيابية",
+            "توترية-رمعية",
+            "غير مصنّفة"
+          ]
+        },
+        {
+          "code": "seizure_duration_min",
+          "label_ar": "أطول نوبة",
+          "label_en": "Longest seizure",
+          "type": "number",
+          "unit": "min"
+        },
+        {
+          "code": "muscle_tone",
+          "label_ar": "التوتر العضلي",
+          "label_en": "Muscle tone",
+          "type": "choice",
+          "options": [
+            "طبيعي",
+            "منخفض",
+            "مرتفع",
+            "متفاوت"
+          ]
+        },
+        {
+          "code": "power_mrc",
+          "label_ar": "القوة العضلية MRC",
+          "label_en": "Power (MRC)",
+          "type": "choice",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        {
+          "code": "milestones",
+          "label_ar": "محطات التطور",
+          "label_en": "Developmental milestones",
+          "type": "choice",
+          "options": [
+            "في موعدها",
+            "متأخرة",
+            "تراجع"
+          ]
+        },
+        {
+          "code": "headaches_per_month",
+          "label_ar": "نوبات الصداع",
+          "label_en": "Headaches",
+          "type": "number",
+          "unit": "/month"
+        }
+      ]
+    },
+    "developmental": {
+      "name_ar": "التطور والسلوك والنفسية",
+      "name_en": "Development & behaviour",
+      "icon": "puzzle",
+      "reads": [
+        "weight_kg",
+        "height_cm"
+      ],
+      "_note_ar": "المجالات الأربعة اتسجّلت كمستويات وصفية مش كدرجات: الاستبيان اختارها بالاسم، ودرجة رقمية من غير أداة مسمّاة رقم يبان موضوعي وهو مش كده.",
+      "fields": [
+        {
+          "code": "gross_motor",
+          "label_ar": "الحركة الكبرى",
+          "label_en": "Gross motor",
+          "type": "choice",
+          "options": [
+            "في موعدها",
+            "متأخرة",
+            "تراجع"
+          ]
+        },
+        {
+          "code": "fine_motor",
+          "label_ar": "الحركة الدقيقة",
+          "label_en": "Fine motor",
+          "type": "choice",
+          "options": [
+            "في موعدها",
+            "متأخرة",
+            "تراجع"
+          ]
+        },
+        {
+          "code": "language",
+          "label_ar": "اللغة والكلام",
+          "label_en": "Language & speech",
+          "type": "choice",
+          "options": [
+            "في موعدها",
+            "متأخرة",
+            "تراجع"
+          ]
+        },
+        {
+          "code": "social",
+          "label_ar": "التواصل الاجتماعي",
+          "label_en": "Social communication",
+          "type": "choice",
+          "options": [
+            "في موعدها",
+            "متأخرة",
+            "تراجع"
+          ]
+        },
+        {
+          "code": "sleep_hours",
+          "label_ar": "ساعات النوم",
+          "label_en": "Sleep",
+          "type": "number",
+          "unit": "h/day"
+        },
+        {
+          "code": "screen_time",
+          "label_ar": "وقت الشاشة",
+          "label_en": "Screen time",
+          "type": "number",
+          "unit": "h/day"
+        },
+        {
+          "code": "school_performance",
+          "label_ar": "الأداء الدراسي",
+          "label_en": "School performance",
+          "type": "choice",
+          "options": [
+            "جيد",
+            "متوسط",
+            "ضعيف",
+            "لا ينطبق"
+          ]
+        },
+        {
+          "code": "appetite",
+          "label_ar": "الشهية",
+          "label_en": "Appetite",
+          "type": "choice",
+          "options": [
+            "جيدة",
+            "متوسطة",
+            "ضعيفة"
+          ]
+        }
+      ]
+    },
+    "nephrology": {
+      "name_ar": "الكلى والمسالك",
+      "name_en": "Nephrology & urology",
+      "icon": "moisture",
+      "reads": [
+        "blood_pressure",
+        "weight_kg",
+        "height_cm"
+      ],
+      "_note_ar": "الضغط مقروء من العلامات الحيوية ومش متسأل عنه تاني. ومفيش خانة «الشريحة المئوية»: دي حساب من العمر والجنس والطول (AAP 2017)، والبرنامج يا بيحسبها من الجداول يا ما يقولهاش — خانة الطبيب يكتب فيها رقم بإيده هي رقم محسوب في مكان تاني وممكن يخالف.",
+      "fields": [
+        {
+          "code": "dry_weight",
+          "label_ar": "وزن الجفاف",
+          "label_en": "Dry weight",
+          "type": "number",
+          "unit": "kg"
+        },
+        {
+          "code": "oedema_site",
+          "label_ar": "مكان التورّم",
+          "label_en": "Oedema",
+          "type": "choice",
+          "options": [
+            "لا يوجد",
+            "حول العينين",
+            "الأطراف",
+            "البطن",
+            "عام"
+          ]
+        },
+        {
+          "code": "urine_protein",
+          "label_ar": "بروتين البول بالشريط",
+          "label_en": "Urine protein (dipstick)",
+          "type": "choice",
+          "options": [
+            "سالب",
+            "أثر",
+            "1+",
+            "2+",
+            "3+",
+            "4+"
+          ]
+        },
+        {
+          "code": "urine_output",
+          "label_ar": "كمية البول",
+          "label_en": "Urine output",
+          "type": "number",
+          "unit": "ml/kg/h"
+        },
+        {
+          "code": "relapses",
+          "label_ar": "عدد الانتكاسات",
+          "label_en": "Relapses",
+          "type": "number",
+          "unit": "/year"
+        }
+      ]
+    },
+    "gastroenterology": {
+      "name_ar": "الجهاز الهضمي والكبد والتغذية",
+      "name_en": "Gastroenterology, liver & nutrition",
+      "icon": "egg-fried",
+      "reads": [
+        "weight_kg",
+        "height_cm"
+      ],
+      "_note_ar": "نوع البراز على مقياس بريستول ١–٧ بدل وصف حر: نفس السبب اللي خلّى تعاون الطفل على Frankl في لوح الأسنان — كلمة العيادة عن «إسهال» ما بتسافرش للطبيب اللي بعدها.",
+      "fields": [
+        {
+          "code": "stools_per_day",
+          "label_ar": "عدد مرات الإخراج",
+          "label_en": "Stools",
+          "type": "number",
+          "unit": "/day"
+        },
+        {
+          "code": "stool_type",
+          "label_ar": "نوع البراز — بريستول",
+          "label_en": "Stool type (Bristol)",
+          "type": "choice",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7"
+          ]
+        },
+        {
+          "code": "vomiting",
+          "label_ar": "القيء والارتجاع",
+          "label_en": "Vomiting / reflux",
+          "type": "choice",
+          "options": [
+            "لا يوجد",
+            "أحياناً",
+            "يومياً",
+            "بعد كل رضعة"
+          ]
+        },
+        {
+          "code": "diet_adherence",
+          "label_ar": "الالتزام بالحمية",
+          "label_en": "Diet adherence",
+          "type": "choice",
+          "options": [
+            "ملتزم",
+            "التزام جزئي",
+            "غير ملتزم",
+            "لا توجد حمية"
+          ]
+        },
+        {
+          "code": "liver_span",
+          "label_ar": "الكبد تحت الحافة الضلعية",
+          "label_en": "Liver below costal margin",
+          "type": "number",
+          "unit": "cm"
+        },
+        {
+          "code": "spleen_span",
+          "label_ar": "الطحال تحت الحافة الضلعية",
+          "label_en": "Spleen below costal margin",
+          "type": "number",
+          "unit": "cm"
+        }
+      ]
+    },
+    "haematology": {
+      "name_ar": "أمراض الدم",
+      "name_en": "Haematology",
+      "icon": "droplet",
+      "reads": [
+        "weight_kg",
+        "height_cm"
+      ],
+      "_note_ar": "الاستبيان علّم «الوزن والطول والبلوغ» هنا، ومرحلة البلوغ Tanner موجودة في لوح الغدد. القياس واحد، فاتساب بكوده هناك بدل ما يتخزّن مرتين تحت اسمين — لوحين بيقيسوا نفس الحاجة باسمين مختلفين هما رقمين يقدروا يختلفوا.",
+      "fields": [
+        {
+          "code": "spleen_cm",
+          "label_ar": "الطحال تحت الحافة الضلعية",
+          "label_en": "Spleen below costal margin",
+          "type": "number",
+          "unit": "cm"
+        },
+        {
+          "code": "pallor_jaundice",
+          "label_ar": "شحوب أو يرقان",
+          "label_en": "Pallor / jaundice",
+          "type": "choice",
+          "options": [
+            "لا يوجد",
+            "شحوب",
+            "يرقان",
+            "الاثنان"
+          ]
+        },
+        {
+          "code": "hb_pre_transfusion",
+          "label_ar": "الهيموجلوبين قبل النقل",
+          "label_en": "Pre-transfusion haemoglobin",
+          "type": "number",
+          "unit": "g/dL"
+        },
+        {
+          "code": "pain_crises",
+          "label_ar": "نوبات الألم",
+          "label_en": "Pain crises",
+          "type": "number",
+          "unit": "/year"
+        }
+      ]
+    },
+    "neonatology": {
+      "name_ar": "متابعة حديثي الولادة والخُدَّج",
+      "name_en": "Newborn & preterm follow-up",
+      "icon": "moon-stars",
+      "reads": [
+        "weight_kg",
+        "height_cm",
+        "head_circ_cm",
+        "spo2"
+      ],
+      "_note_ar": "«العمر المصحّح» مش خانة. البرنامج عارف تاريخ الميلاد وأسابيع الحمل، والعمر المصحّح طرح بينهم — خانة يكتب فيها الطبيب رقم هي نسخة تانية من رقم محسوب، وبتقدم مع كل أسبوع بيعدي. محيط الرأس مقروء من العلامات الحيوية: هو أهم قياس في اللوح ده ومش هيتسأل مرتين.",
+      "fields": [
+        {
+          "code": "feeding_volume",
+          "label_ar": "الرضاعة",
+          "label_en": "Feeding volume",
+          "type": "number",
+          "unit": "ml/kg/day"
+        },
+        {
+          "code": "feeding_route",
+          "label_ar": "طريقة الرضاعة",
+          "label_en": "Feeding route",
+          "type": "choice",
+          "options": [
+            "رضاعة طبيعية",
+            "صناعية",
+            "مختلطة",
+            "أنبوبة",
+            "وريدي"
+          ]
+        },
+        {
+          "code": "jaundice",
+          "label_ar": "الصفراء",
+          "label_en": "Jaundice",
+          "type": "choice",
+          "options": [
+            "لا يوجد",
+            "الوجه",
+            "حتى الصدر",
+            "حتى البطن",
+            "الأطراف",
+            "الكفّان والقدمان"
+          ]
+        },
+        {
+          "code": "development_corrected",
+          "label_ar": "التطور بالعمر المصحّح",
+          "label_en": "Development (corrected age)",
+          "type": "choice",
+          "options": [
+            "في موعده",
+            "متأخر",
+            "تراجع"
+          ]
+        }
+      ]
+    },
+    "ophthalmology": {
+      "name_ar": "عيون الأطفال",
+      "name_en": "Paediatric ophthalmology",
+      "icon": "eye",
+      "reads": [],
+      "_note_ar": "لوح مالوش قراءات من العلامات الحيوية — الوزن والنبض مالهمش لازمة هنا، ولوح بيعرض قراءات مش بيستعملها هو زحمة. حدة الإبصار نص مش رقم: 6/6 و20/20 وLogMAR 0.0 تلات كتابات لنفس الشيء، والأداة اللي اتقاس بيها بتتسجّل جنبها بدل ما تتحوّل لرقم بيخفي إزاي اتقاس.",
+      "fields": [
+        {
+          "code": "va_right",
+          "label_ar": "حدة الإبصار — اليمنى",
+          "label_en": "Visual acuity — right",
+          "type": "choice",
+          "options": [
+            "6/6",
+            "6/9",
+            "6/12",
+            "6/18",
+            "6/24",
+            "6/36",
+            "6/60",
+            "أقل من 6/60",
+            "لم تُقَس"
+          ]
+        },
+        {
+          "code": "va_left",
+          "label_ar": "حدة الإبصار — اليسرى",
+          "label_en": "Visual acuity — left",
+          "type": "choice",
+          "options": [
+            "6/6",
+            "6/9",
+            "6/12",
+            "6/18",
+            "6/24",
+            "6/36",
+            "6/60",
+            "أقل من 6/60",
+            "لم تُقَس"
+          ]
+        },
+        {
+          "code": "va_method",
+          "label_ar": "طريقة القياس",
+          "label_en": "Method",
+          "type": "choice",
+          "options": [
+            "Snellen",
+            "Lea",
+            "LogMAR",
+            "HOTV",
+            "Teller"
+          ]
+        },
+        {
+          "code": "refraction_sph",
+          "label_ar": "المقاس بعد التوسيع — Sph",
+          "label_en": "Cycloplegic refraction — Sph",
+          "type": "number",
+          "unit": "D"
+        },
+        {
+          "code": "refraction_cyl",
+          "label_ar": "المقاس بعد التوسيع — Cyl",
+          "label_en": "Cycloplegic refraction — Cyl",
+          "type": "number",
+          "unit": "D"
+        },
+        {
+          "code": "refraction_axis",
+          "label_ar": "المقاس بعد التوسيع — Axis",
+          "label_en": "Cycloplegic refraction — Axis",
+          "type": "number",
+          "unit": "°"
+        },
+        {
+          "code": "ocular_motility",
+          "label_ar": "حركة عضلات العين",
+          "label_en": "Ocular motility",
+          "type": "choice",
+          "options": [
+            "كاملة",
+            "قصور في اتجاه",
+            "قصور متعدد"
+          ]
+        },
+        {
+          "code": "fundus",
+          "label_ar": "فحص قاع العين",
+          "label_en": "Fundus",
+          "type": "choice",
+          "options": [
+            "طبيعي",
+            "غير طبيعي",
+            "لم يُفحص"
+          ]
+        },
+        {
+          "code": "squint_angle",
+          "label_ar": "زاوية الحول بالبريزم",
+          "label_en": "Squint angle (prism)",
+          "type": "number",
+          "unit": "PD"
         }
       ]
     }

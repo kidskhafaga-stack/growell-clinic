@@ -173,3 +173,66 @@ def test_the_relationship_is_named_and_not_keyed(clinic):
         f"/patients/{clinic['ids']['child']}").get_data(as_text=True)
     assert "parent_relations" not in page
     assert "الأب" in page
+
+
+# --------------------------------------------------- when the leaves are known
+
+# The section check above is as far as a stylesheet-blind scan can go for a key
+# built at render time — *unless the program itself enumerates the values*. Then
+# every key that expression can ever produce is knowable, and checking the
+# section alone is leaving most of the answer on the table.
+#
+# It let one through. `nav.panels` did not exist in either locale, so the new
+# specialty-panels module appeared on the dashboard, in the sidebar and on the
+# setup screen labelled **`nav.panels`** — the raw key, on three screens, in
+# both languages. `t('nav.' ~ module)` is built at render time, and `nav` is a
+# section that plainly exists, so nothing here objected. Reported by looking at
+# the screen, which is where these are always found: *"ده ايه؟"*.
+#
+# Each entry is (a name for the failure, the prefix, a callable returning every
+# leaf). Adding a set is how a new render-time key stops being a guess.
+def _module_keys():
+    from app.models.permissions import MODULES
+
+    return list(MODULES)
+
+
+def _panel_read_keys():
+    import json as _json
+
+    path = os.path.join(ROOT, "app", "data", "specialty_panels.json")
+    with open(path, encoding="utf-8") as fh:
+        panels = _json.load(fh)["panels"]
+    return sorted({"read_" + code
+                   for panel in panels.values()
+                   for code in panel.get("reads", [])})
+
+
+ENUMERABLE = (
+    ("every module's name in the sidebar, the dashboard and the setup screen",
+     "nav.", _module_keys),
+    ("every vital a specialty panel says it reads", "panels.", _panel_read_keys),
+)
+
+
+def test_a_built_key_whose_values_are_known_is_checked_leaf_by_leaf():
+    """The one that would have caught `nav.panels`."""
+    missing = []
+    locales = {lang: _locale(lang) for lang in ("ar", "en")}
+    for what, prefix, leaves in ENUMERABLE:
+        for leaf in leaves():
+            for lang, data in locales.items():
+                if not _has(data, prefix + leaf):
+                    missing.append(f"{lang}.{prefix}{leaf} — {what}")
+
+    assert not missing, (
+        "these are printed at the user as the key itself: " + ", ".join(missing))
+
+
+def test_that_check_is_actually_looking_at_something():
+    """Guarding the guard. An enumerator that returned nothing would make the
+    test above a green light for a check that never ran."""
+    for what, _prefix, leaves in ENUMERABLE:
+        assert leaves(), f"nothing enumerated for: {what}"
+    assert "panels" in _module_keys(), \
+        "the module this check was written for is no longer in the list"

@@ -168,6 +168,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "dentistry": "Dentistry",
+    "panels": "Specialty panels",
     "patients": "Patients & Families",
     "appointments": "Appointments",
     "visits": "Visits",
@@ -2289,7 +2290,8 @@
     "sig_draw": "Sign on screen",
     "sig_clear": "Clear",
     "sig_hint": "Print it, have the guardian sign it, and upload the scan — or have them sign on the screen now.",
-    "signature_saved": "The signature is saved with the consent."
+    "signature_saved": "The signature is saved with the consent.",
+    "sig_upload": "Upload the signed scan"
   },
   "roles_mgmt": {
     "title": "Roles & permissions",
@@ -5447,7 +5449,8 @@
     "expand": "Expand",
     "folded_has": "Recorded in {n} panels",
     "folded_one": "Recorded in one panel",
-    "multi_hint": "You can record under more than one panel in the same visit; every reading is kept under its own panel."
+    "multi_hint": "You can record under more than one panel in the same visit; every reading is kept under its own panel.",
+    "read_head_circ_cm": "Head circumference"
   },
   "curves": {
     "src_lab": "Lab",
