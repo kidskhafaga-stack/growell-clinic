@@ -207,3 +207,36 @@ def vitals_shown(meta, vitals):
         if value not in (None, ""):
             out.append((code, value))
     return out
+
+
+def charts_for(key):
+    """The investigation codes this panel follows as a curve.
+
+    Empty for a panel that answered the survey's chart question with its own
+    measurements and with images rather than with lab tests — ophthalmology and
+    dentistry both did. Empty is a real answer here and not a gap: their
+    readings are already drawn, because `series.curves_for` has plotted panel
+    measurements since the panels existed.
+    """
+    return list((panel(key) or {}).get("charts") or [])
+
+
+def chart_tests(key, lang="ar"):
+    """``[Investigation]`` for this panel's chart list, in the order it names.
+
+    Resolved by code, never by name. A clinic that renames "مخزون الحديد
+    (فيريتين)" to "فيريتين" keeps its curve; a lookup by text would have
+    silently stopped matching the day somebody tidied the catalogue.
+
+    A code that answers to nothing is skipped rather than raising: the
+    catalogue is a clinic's to edit, and a panel losing one of its tests
+    should cost that test and not the screen.
+    """
+    from app.models import Investigation
+
+    codes = charts_for(key)
+    if not codes:
+        return []
+    found = {row.code: row for row in
+             Investigation.query.filter(Investigation.code.in_(codes)).all()}
+    return [found[code] for code in codes if code in found]

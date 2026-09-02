@@ -177,6 +177,7 @@ ADDITIONS = [
     ("visit_investigations", "result_low", "FLOAT"),
     ("visit_investigations", "result_high", "FLOAT"),
     ("investigations", "unit", "VARCHAR(20)"),
+    ("investigations", "code", "VARCHAR(40)"),
     # Blood pressure is a vital sign, not a cardiology field: three specialties
     # asked for it, which is the argument against giving it to any of them.
     ("vital_signs", "bp_systolic", "INTEGER"),

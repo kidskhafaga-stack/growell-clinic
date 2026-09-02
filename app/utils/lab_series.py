@@ -107,3 +107,39 @@ def latest_values(patient_id, lang="ar"):
           "date": (r.resulted_at or r.created_at), "visit_id": r.visit_id}
          for r in latest.values()),
         key=lambda d: d["name"])
+
+
+def latest_by_investigation(patient_id):
+    """``{investigation_id: point}`` — the newest numeric result of each
+    catalogue test this child has.
+
+    Keyed by the catalogue id and **only** by it, unlike the two functions
+    above, which also group hand-typed tests by name. That is deliberate: this
+    answers a question asked from the other direction. A specialty panel starts
+    from "these are the tests I follow", which is a list of catalogue entries,
+    and matching a hand-typed "hba1c" into that list would mean guessing that
+    somebody's free text meant this row — the guess a code exists to avoid.
+
+    A test the child has never had is simply absent, which is what lets the
+    panel say "not done yet" rather than draw a zero.
+    """
+    rows = (VisitInvestigation.query
+            .filter(VisitInvestigation.patient_id == patient_id,
+                    VisitInvestigation.investigation_id.isnot(None),
+                    VisitInvestigation.result_value.isnot(None))
+            .order_by(VisitInvestigation.resulted_at,
+                      VisitInvestigation.created_at,
+                      VisitInvestigation.id)
+            .all())
+    latest = {}
+    for row in rows:                       # oldest first, so the last one wins
+        latest[row.investigation_id] = {
+            "value": row.result_value,
+            "unit": row.result_unit,
+            "low": row.result_low,
+            "high": row.result_high,
+            "out_of_range": row.out_of_range,
+            "date": (row.resulted_at or row.created_at),
+            "visit_id": row.visit_id,
+        }
+    return latest

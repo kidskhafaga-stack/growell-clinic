@@ -378,6 +378,56 @@
           {% for p in panel_all %}
           <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak
                role="tabpanel" data-panel-fields="{{ p.key }}">
+
+            {# The tests this specialty follows, with the child's newest
+               result on each. Two questions answered in one look: "order the
+               HbA1c" and "what was his last one".
+
+               The order is one press because the alternative is typing the
+               name, and a typed name is what splits a curve — `lab_series`
+               groups by catalogue id where there is one and by text where
+               there is not, so "HbA1c" on Sunday and "hba1c" on Thursday
+               become two curves for one test on one child.
+
+               Only lab tests are here. The survey lists chest films, panoramic
+               X-rays and photographs under the same question, and nothing
+               draws a curve through a photograph; and this panel's own
+               measurements are already plotted without being named anywhere.
+               See app/utils/investigations.py. #}
+            {% set tests = (panel_charts or {}).get(p.key) or [] %}
+            {% if tests %}
+            <div class="chart-tests" data-chart-tests="{{ p.key }}">
+              <span class="hint chart-tests__lead"><i class="bi bi-graph-up"></i>
+                {{ t('panels.follows') }}</span>
+              {% for test in tests %}
+              {% set last = (panel_chart_latest or {}).get(test.id) %}
+              <form method="post" style="display:inline;"
+                    action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="investigation_id" value="{{ test.id }}">
+                <input type="hidden" name="name_ar" value="{{ test.name_ar }}">
+                <input type="hidden" name="name_en" value="{{ test.name_en or '' }}">
+                <input type="hidden" name="kind" value="{{ test.kind }}">
+                <button type="submit" class="md-chip chart-test"
+                        title="{{ t('panels.order_test') }}">
+                  <span>{{ test.display_name(current_lang) }}</span>
+                  {% if last %}
+                  {# Shown, never carried forward into today's boxes: a result
+                     from March is not a reading taken today, which is the same
+                     rule the echo hint follows two sections down. #}
+                  <span class="chart-test__last{{ ' is-out' if last.out_of_range else '' }}"
+                        dir="ltr">{{ last.value }}{% if last.unit %} {{ last.unit }}{% endif %}</span>
+                  <span class="chart-test__when" dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>
+                  {% else %}
+                  <span class="chart-test__none" data-never-done="{{ test.code }}"
+                    >{{ t('panels.never_done') }}</span>
+                  {% endif %}
+                </button>
+              </form>
+              {% endfor %}
+            </div>
+            {% endif %}
+
             {% if p.reads %}
             {# Read, not asked again. A second weight box would mean two weights
                for one visit and no way to know which is the real one. #}
@@ -1654,6 +1704,17 @@
   .dx-ai { border:1px dashed var(--line); border-radius:10px; padding:10px 12px;
     margin-bottom:14px; background:var(--surface-2,transparent); }
   .dx-ai__head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  /* The specialty's own tests, orderable in one press. Quiet on purpose: this
+     is a shortcut beside the work, not the work. */
+  .chart-tests { display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    margin:10px 0 2px; }
+  .chart-tests__lead { margin:0; }
+  .md-chip.chart-test { padding:5px 10px; font-size:.8rem; gap:7px; }
+  .chart-test__last { font-weight:700; font-variant-numeric:tabular-nums; }
+  .chart-test__last.is-out { color:var(--danger); }
+  .chart-test__when { color:var(--muted); font-size:.72rem;
+    font-variant-numeric:tabular-nums; }
+  .chart-test__none { color:var(--muted); font-size:.72rem; }
   .dx-ai__err { color:var(--danger); margin:8px 0 0; }
   .dx-ai__list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
   .dx-ai__item { display:flex; align-items:center; gap:8px; flex-wrap:wrap;

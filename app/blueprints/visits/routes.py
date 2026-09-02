@@ -318,6 +318,7 @@ def record(visit_id):
     # screen with a panel on it rather than a screen per specialty — see
     # app/utils/panels.py for why.
     from app.utils import cardio as _cardio
+    from app.utils import lab_series as _lab_series
     from app.utils import panels as _panels
     from app.utils import series as _series
 
@@ -356,6 +357,19 @@ def record(visit_id):
         panel_all=[p for p in _panels.every_panel_for(
             visit, visit.vitals, getattr(g, "lang", "ar"))
             if p["key"] in mine],
+        # The tests each panel follows, with this child's newest result beside
+        # each — so "order the HbA1c" and "what was his last one" are one look
+        # instead of a trip to the patient file and back. Keyed by catalogue
+        # id: the panel names its tests by code, and matching a hand-typed
+        # name into that list would be the guess the code exists to avoid.
+        #
+        # Keyed off `mine`, which is already empty when the module is off, so
+        # there is no second module check here. A guard no test can tell from
+        # its absence is not protection, it is decoration.
+        panel_charts={key: _panels.chart_tests(key, getattr(g, "lang", "ar"))
+                      for key in mine},
+        panel_chart_latest=(_lab_series.latest_by_investigation(visit.patient_id)
+                            if mine else {}),
         # The last echo/device reading for the fields the catalogue links to
         # one. Shown beside the box and never filled into it: the vitals were
         # taken minutes ago, an echo was taken whenever it was taken.

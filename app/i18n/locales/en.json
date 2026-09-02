@@ -5453,7 +5453,10 @@
     "folded_has": "Recorded in {n} panels",
     "folded_one": "Recorded in one panel",
     "multi_hint": "You can record under more than one panel in the same visit; every reading is kept under its own panel.",
-    "read_head_circ_cm": "Head circumference"
+    "read_head_circ_cm": "Head circumference",
+    "follows": "Follows:",
+    "order_test": "Order this test",
+    "never_done": "not yet"
   },
   "curves": {
     "src_lab": "Lab",
