@@ -1,0 +1,78 @@
+{% extends "shell.html" %}
+{% set active_module = 'panels' %}
+{% block title %}{{ t('panels.module_title') }}{% endblock %}
+{% block page_heading %}{{ t('panels.module_title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-clipboard-data"></i>
+    {{ t('panels.module_title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('panels.module_hint') }}</p>
+</div>
+
+{# Not a shell to satisfy the landing-page guard. Three questions somebody
+   actually asks: what does each panel ask for, who is on it, and is anybody
+   filling it in. #}
+<div class="card gc-scale-in">
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('panels.p_name') }}</th>
+      <th>{{ t('panels.p_asks') }}</th>
+      <th>{{ t('panels.p_doctors') }}</th>
+      <th>{{ t('panels.p_visits') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>
+        <strong>{{ row.meta['name_' ~ current_lang] or row.meta.name_ar }}</strong>
+        {% if row.reads %}
+        <div class="hint" style="margin:2px 0 0;">
+          <i class="bi bi-eye"></i> {{ t('panels.p_reads') }}:
+          {% for code in row.reads %}{{ t('panels.read_' ~ code) }}{% if not loop.last %}، {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+      </td>
+      <td dir="ltr">{{ row.fields }}</td>
+      <td>
+        {# Each name is a way into that doctor's setup, because the answer to
+           "who is on this panel" is nearly always followed by changing it.
+           A screen that reports a state and makes you go and find where to
+           edit it is half a screen. #}
+        {% if row.doctors %}
+          {% for d in row.doctors %}<a class="badge badge--role"
+             href="{{ url_for('users.doctor_manage', user_id=d.id) }}"
+             title="{{ t('doctors.panels') }}">{{ d.display_name(current_lang) }}</a> {% endfor %}
+        {% else %}
+          <span class="hint">{{ t('panels.p_nobody') }}</span>
+        {% endif %}
+      </td>
+      <td dir="ltr">{{ row.visits }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <p class="hint" style="margin-top:12px;">
+    <i class="bi bi-info-circle"></i> {{ t('panels.p_where') }}
+    <a href="{{ url_for('users.doctors') }}">{{ t('doctors.manage') }}</a></p>
+</div>
+
+{# A panel key with readings behind it that the catalogue no longer offers.
+   The readings are still the child's and still true; what is gone is the
+   question that produced them. Said out loud rather than dropped, because a
+   count that silently stops matching the file is how somebody stops trusting
+   both. #}
+{% if orphans %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title"><i class="bi bi-question-circle"></i>
+    {{ t('panels.p_orphans') }}</h2>
+  <p class="hint">{{ t('panels.p_orphans_hint') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% for key in orphans %}<span class="badge badge--muted" dir="ltr">{{ key }}</span>{% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -79,6 +79,16 @@ class User(UserMixin, db.Model):
     # typed anything into it, and matching a panel against prose is a lookup
     # that works in testing and fails on a real clinic.
     specialty_panel = db.Column(db.String(40))
+    # And the rest of them. A doctor works more than one specialty — general
+    # paediatrics and gastroenterology follow the same children — and the
+    # single column above could only hold one, so the visit screen offered one
+    # and the doctor changed it by hand every time.
+    #
+    # Comma-separated keys rather than a join table: it is a handful of keys
+    # per doctor, read on every visit render and written on a settings screen,
+    # and three files to answer what one column answers is not a better shape.
+    # `specialty_panel` stays as *which of them opens first*.
+    specialty_panels = db.Column(db.String(255))
     # Free multi-line titles printed under the doctor's name on the Rx — one
     # qualification per line (consultant / hospital / fellowship…), AR & EN.
     print_title_ar = db.Column(db.Text)

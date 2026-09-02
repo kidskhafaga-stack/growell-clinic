@@ -212,6 +212,8 @@ ADDITIONS = [
     # This child's own usual saturation. Never softens a triage rule — it says
     # where they normally sit, beside the rule's own answer.
     ("patients", "baseline_spo2", "INTEGER"),
+    # Every panel a doctor works, not just the one that opens first.
+    ("users", "specialty_panels", "VARCHAR(255)"),
     ("vaccines", "booster_required", "BOOLEAN DEFAULT 0"),
     ("vaccines", "is_seasonal", "BOOLEAN DEFAULT 0"),
     ("vaccines", "pregnancy_recommendation", "VARCHAR(120)"),

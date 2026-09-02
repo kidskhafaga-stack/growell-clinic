@@ -287,6 +287,21 @@
   font-size: .8rem;
 }
 
+/* A mark on a chip whose panel already carries a reading. It is a dot and not
+   a number because the count is not the point — which panels have something in
+   them is, and the head above says how many when the box is folded. */
+.md-chip .chip-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--md-shape-full);
+  background: var(--green-700);
+}
+.md-chip.is-selected .chip-dot { background: currentColor; }
+:root[data-theme="dark"] .md-chip .chip-dot {
+  background: color-mix(in srgb, var(--green-500) 85%, white);
+}
+
 /* ============================================================== bar ====== */
 
 /* The commit bar. Material puts the primary action somewhere it cannot be

@@ -49,6 +49,50 @@
   </form>
 </div>
 
+{# ---- Which specialty panels this doctor works -------------------------
+   Not the free-text `specialty` above, which prints on the prescription and
+   has said "استشاري قلب أطفال" and worse. This is the coded list the visit
+   screen reads, and it is a list because a doctor works more than one.
+
+   Gone entirely when the clinic has not switched the panels module on. #}
+{% if panel_on %}
+<div class="card gc-scale-in" style="animation-delay:0.08s;">
+  <h2 class="section-title"><i class="bi bi-clipboard-data"></i> {{ t('doctors.panels') }}</h2>
+  <p class="hint" style="margin-top:-6px;">{{ t('doctors.panels_hint') }}</p>
+  <form method="post" action="{{ url_for('users.doctor_panels', user_id=doc.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('panels.title') }}</th>
+        <th style="width:1%;white-space:nowrap;">{{ t('doctors.panels_opens') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for key, label in panel_list %}
+        <tr>
+          <td><label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="panel_{{ key }}"
+                   {{ 'checked' if key in panel_mine else '' }}>
+            <span>{{ label }}</span></label></td>
+          {# One of them opens first. A doctor who works only neurology opens
+             that screen forty times a day; passing through anything else is
+             forty clicks. #}
+          <td style="text-align:center;">
+            <input type="radio" name="panel_default" value="{{ key }}"
+                   {{ 'checked' if key == panel_default else '' }}></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not panel_mine %}
+    <p class="hint" style="margin:8px 0 0;"><i class="bi bi-info-circle"></i>
+      {{ t('doctors.panels_none') }}</p>
+    {% endif %}
+    <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:12px;">
+      <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+{% endif %}
+
 <!-- The paper this doctor prints on, next to the name that prints on it -->
 {# The layout, the signature and the stamp are three halves of one setting:
    whether a printed prescription is usable at a pharmacy. They lived on three

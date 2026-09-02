@@ -11,13 +11,14 @@ to find out what the record is supposed to contain.
 
 The catalogue is a small data file already read once per request, so the honest
 fix is to hand the screen all of it and let the choice be a choice. Nothing is
-fetched, nothing needs the network, and the save is unchanged — the server still
-writes only the fields belonging to the panel the visit was recorded under, so a
-hidden panel's boxes are ignored exactly as an invented field name is.
+fetched and nothing needs the network.
 
-That last sentence is the one worth testing hardest. Rendering every panel means
-every panel's inputs are in the form, and a browser posts what is in the form
-whether it is visible or not.
+What the save then does with them is the part worth testing hardest. Rendering
+every panel means every panel's inputs are in the form, and a browser posts what
+is in the form whether it is visible or not. The rule is that a panel **this
+doctor works** is saved — all of them, because one visit can be a cardiology
+visit and a gastroenterology visit at once — and nothing else is. That list is
+worked out on the server and never read from the form.
 """
 import os
 import sys
@@ -29,8 +30,24 @@ import pytest  # noqa: E402
 
 @pytest.fixture()
 def desk(clinic):
-    """A visit whose doctor has no specialty at all — the case that used to
-    show nothing until somebody saved."""
+    """A clinic that works specialties, and a doctor who works all of them.
+
+    Both halves are needed and they answer different questions: the module
+    says whether this clinic has panels at all, and the doctor's own list says
+    which of them stand on that ground. A clinic that has not ticked the
+    module has no panel section on the screen whatever its doctors work — that
+    is `test_a_clinic_that_does_not_work_specialties`.
+    """
+    from app.extensions import db
+    from app.models import Setting, User, Visit
+    from app.utils import panels as _panels
+
+    with clinic["app"].app_context():
+        Setting.set("mod_enabled:panels", "1")
+        visit = db.session.get(Visit, clinic["ids"]["visit"])
+        doctor = db.session.get(User, visit.doctor_id)
+        doctor.specialty_panels = ",".join(_panels.all_panels())
+        db.session.commit()
     clinic["url"] = f"/visits/{clinic['ids']['visit']}/record"
     return clinic
 
@@ -101,19 +118,48 @@ def test_choosing_one_is_client_side(desk):
 
 # --------------------------- and the save is exactly as strict as before
 
-def test_a_hidden_panels_boxes_are_not_written(desk):
+def test_a_panel_this_doctor_does_not_work_is_not_written(desk):
     """The risk the whole change introduces, and the reason it is safe: a
-    browser posts what is in the form whether it is visible or not. The server
-    writes only what belongs to the panel the visit says it used."""
-    _save(desk, specialty_panel="", m_ef_pct="58", m_lvedd_mm="34")
+    browser posts what is in the form whether it is visible or not, and a
+    crafted request posts whatever it likes. What may be written is the
+    doctor's own list of panels, worked out on the server."""
+    from app.extensions import db
+    from app.models import User, Visit
 
-    assert _readings(desk) == {}, \
-        "a panel that was not chosen wrote readings into the file"
+    with desk["app"].app_context():
+        visit = db.session.get(Visit, desk["ids"]["visit"])
+        doctor = db.session.get(User, visit.doctor_id)
+        doctor.specialty_panels = "dentistry"      # no cardiology
+        db.session.commit()
+
+    _save(desk, specialty_panel="cardiology", m_ef_pct="58", m_lvedd_mm="34")
+
+    rows = _readings(desk)
+    assert "ef_pct" not in rows and "lvedd_mm" not in rows, \
+        "a panel this doctor does not work wrote readings into the file"
 
 
-def test_only_the_chosen_panels_fields_are_kept(desk):
-    """Two panels' worth of boxes posted at once — which is what a form with
-    every panel in it sends. Only one panel's readings may survive."""
+def test_a_doctor_who_works_two_records_both_in_one_visit(desk):
+    """Asked for directly: *"لو حد اطفال عام + جهاز هضمى هيتابع الاثنين"*. A
+    child seen once does not come back for a second visit per panel, so both
+    panels' boxes are saved — and each reading is stamped with the panel it
+    came from, so the file can still say which specialty took it."""
+    _save(desk, specialty_panel="cardiology", m_ef_pct="58",
+          m_overjet_mm="6")
+
+    rows = _readings(desk)
+
+    assert rows["ef_pct"].value_num == 58.0
+    assert rows["ef_pct"].panel == "cardiology"
+    assert "overjet_mm" in rows, \
+        "the other panel the doctor works was thrown away"
+    assert rows["overjet_mm"].panel == "dentistry", \
+        "a reading was stamped with the panel that happened to be showing"
+
+
+def test_a_field_no_panel_describes_is_never_written(desk):
+    """Every panel the doctor works is saved; nothing outside the catalogue
+    is, however it is spelled."""
     _save(desk, specialty_panel="cardiology", m_ef_pct="58",
           m_not_a_real_field="9", m_weight_kg="99")
 

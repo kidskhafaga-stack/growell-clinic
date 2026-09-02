@@ -31,7 +31,7 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 # a dental price list in their books without anybody asking for either.
 #
 # So the default runs the other way here: nothing until somebody says so.
-OPT_IN_MODULES = {"dentistry"}
+OPT_IN_MODULES = {"dentistry", "panels"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
