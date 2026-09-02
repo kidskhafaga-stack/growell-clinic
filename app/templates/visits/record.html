@@ -295,6 +295,23 @@
          writes each reading under its own panel. A panel outside this doctor's
          list is ignored exactly as an invented field name is — that list is
          worked out on the server, never posted. #}
+      {# The way into this child's tooth chart. The chart lives on its own
+         screen and belongs there — a mouth is not a form field — but nothing
+         in the program pointed at it, least of all the screen the doctor is
+         standing on.
+
+         Outside the specialty section on purpose, and gated on the dentistry
+         module alone. It sat inside the dental panel, which looked tidier and
+         was wrong: a dental clinic that had switched on dentistry and not
+         panels had no panel section, so the only route from the consultation
+         to the chart disappeared with it — the exact bug this link was added
+         to fix, one module further along. #}
+      {% if dental_chart_url %}
+      <div class="md-row" style="justify-content:flex-end;margin-top:10px;">
+        <a class="btn btn-outline gc-press" href="{{ dental_chart_url }}">
+          <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
+      </div>
+      {% endif %}
       {# Gone entirely when the clinic does not work specialties, and gone
          when this doctor has no panels — the module decides whether the
          ground exists, the doctor's own list decides what stands on it. #}
@@ -357,20 +374,6 @@
              actually recorded under is read back from the measurements. #}
           <input type="hidden" name="specialty_panel" :value="panelKey">
           <div x-show="open" x-cloak>
-
-          {# The chart lives on its own screen and belongs there — a mouth is
-             not a form field. What was missing was any way to reach it from
-             the room: the dental panel here records the history and the risk,
-             and the tooth-by-tooth findings and the plan are next door with
-             nothing pointing at them. Shown with the dental panel, because
-             that is when a doctor wants it. #}
-          {% if dental_chart_url %}
-          <div class="md-row" x-show="panelKey === 'dentistry'" x-cloak
-               style="justify-content:flex-end;">
-            <a class="btn btn-outline gc-press" href="{{ dental_chart_url }}">
-              <i class="bi bi-grid-3x3"></i> {{ t('dental.open_chart') }}</a>
-          </div>
-          {% endif %}
 
           {% for p in panel_all %}
           <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak

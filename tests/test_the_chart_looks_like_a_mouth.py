@@ -203,7 +203,22 @@ def test_it_cost_no_python():
 
 
 def test_the_new_fields_reach_the_visit_screen(chart):
-    """Data is only data if the renderer already understands it."""
+    """Data is only data if the renderer already understands it.
+
+    Two switches are needed to see them, and they are separate on purpose:
+    dentistry is the chart and the plans, panels is whether the consultation
+    screen carries specialty fields at all. This test wants the fields, so it
+    turns on both and puts the dentist on the panel.
+    """
+    from app.extensions import db
+    from app.models import Setting, User, Visit
+
+    with chart["app"].app_context():
+        Setting.set("mod_enabled:panels", "1")
+        visit = db.session.get(Visit, chart["ids"]["visit"])
+        db.session.get(User, visit.doctor_id).specialty_panels = "dentistry"
+        db.session.commit()
+
     page = chart["sign_in"]("doc").get(
         f"/visits/{chart['ids']['visit']}/record").get_data(as_text=True)
     for code in ("crossbite_site", "overjet_mm", "ortho_decision",
