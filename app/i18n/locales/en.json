@@ -3534,7 +3534,8 @@
     "day_care": "Day care",
     "ward": "Ward",
     "nicu": "NICU",
-    "icu": "ICU"
+    "icu": "ICU",
+    "newborn_care": "Newborn care"
   },
   "templates": {
     "pediatric_clinic": "Pediatric clinic",

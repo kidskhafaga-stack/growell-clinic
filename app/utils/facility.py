@@ -69,7 +69,7 @@ DEFAULT_FACILITY_TYPE = "pediatric_center"
 CAPABILITY_GROUPS = {
     "clinical":   ["general_consultation", "followup", "vaccination",
                    "growth_monitoring", "emergency_care", "home_care",
-                   "dentistry"],
+                   "dentistry", "newborn_care"],
     "diagnostic": ["ecg", "echo", "eeg", "spirometry", "audiology",
                    "vision_screening"],
     "imaging":    ["ultrasound", "xray", "ct", "mri"],
@@ -86,6 +86,12 @@ CAPABILITY_MODULES = {
     "vaccination": {"vaccinations", "inventory"},
     "growth_monitoring": {"growth"},
     "dentistry": {"dentistry", "visits"},
+    # Seeing newborns. Not the same as seeing children: a clinic whose
+    # youngest patient is three has no use for an hour-by-hour bilirubin table
+    # on its settings screen, and showing it implies they ought to be using
+    # it. Same argument as `dentistry` — a paediatric clinic is not a dental
+    # one, and it is not a neonatal one either.
+    "newborn_care": {"visits", "growth"},
     "emergency_care": {"visits"},
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
@@ -137,6 +143,23 @@ def capabilities():
     except (ValueError, TypeError):
         return []
     return [c for c in data if c in CAPABILITY_MODULES]
+
+
+def offers(capability):
+    """Whether this clinic said it does this.
+
+    The first thing to gate on a capability rather than a module, so this
+    helper did not exist: `dentistry` is a module and `module_enabled`
+    answered for it. Newborn care needs no module of its own — it is a few
+    fields and a calculator on screens that already exist — and gating it on
+    a module would have meant inventing one to hold a checkbox.
+
+    Off for every clinic that has not run the wizard, which is the right way
+    round: `capabilities()` is empty until somebody chooses, unlike modules,
+    which stay on so an upgrading clinic does not lose screens it used
+    yesterday. Nobody loses a screen they never had.
+    """
+    return capability in capabilities()
 
 
 def default_caps_for(type_key):

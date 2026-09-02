@@ -27,6 +27,37 @@ import pytest  # noqa: E402
 from app.utils.clock import local_today  # noqa: E402
 
 
+# --- running the suite on a clock the clinic does not share ---------------
+#
+# `local_today()` is the date in the clinic's zone; `date.today()` is the date
+# on the machine. They differ for the three hours a night when it is already
+# tomorrow in Cairo and still today in UTC, and the suite has gone red in that
+# window three separate times — each time on a different file, found by
+# whoever happened to be running tests after eleven.
+#
+#     pytest --tz=Pacific/Midway
+#
+# forces the two eleven hours apart, all day, so the whole class shows up at
+# once instead of one file per night. It found a bug in the cashier rollup
+# that grepping for `date.today()` had missed entirely: that file contains
+# none, and the mixing was in the production code it exercises.
+#
+# `test_today_is_the_clinics_today` asserts the shipped default and is
+# expected to fail under this flag. Nothing else should.
+def pytest_addoption(parser):
+    parser.addoption("--tz", action="store", default=None,
+                     help="Run as if the clinic's timezone were this, to "
+                          "expose code that mixes the clinic's clock with "
+                          "the server's.")
+
+
+def pytest_configure(config):
+    chosen = config.getoption("--tz")
+    if chosen:
+        import app.utils.clock as clock
+        clock.DEFAULT_TZ = chosen
+
+
 @pytest.fixture()
 def clinic():
     """A working clinic: staff, a child, a priced service, and vaccines.

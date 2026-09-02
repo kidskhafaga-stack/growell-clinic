@@ -23,14 +23,27 @@ from app.utils import jaundice
 
 
 @pytest.fixture
-def ready(clinic):
-    """A clinic whose clinician has signed off the table."""
+def newborn_clinic(clinic):
+    """A clinic that said it sees newborns. Nothing here answers without it."""
+    import json
+
     from app.models import Setting
 
     with clinic["app"].app_context():
-        Setting.set(jaundice.CONFIRMED_KEY, "1")
+        Setting.set("facility_capabilities", json.dumps(["newborn_care"]))
         clinic["db"].session.commit()
     return clinic
+
+
+@pytest.fixture
+def ready(newborn_clinic):
+    """...and whose clinician has then signed off the table."""
+    from app.models import Setting
+
+    with newborn_clinic["app"].app_context():
+        Setting.set(jaundice.CONFIRMED_KEY, "1")
+        newborn_clinic["db"].session.commit()
+    return newborn_clinic
 
 
 @pytest.fixture
@@ -51,11 +64,53 @@ def baby(clinic):
 
 
 # ------------------------------------------ it will not answer unasked ------
+def test_a_clinic_that_does_not_see_newborns_is_never_asked(clinic, baby):
+    """The most important gate, and it was missing.
+
+    A paediatric clinic whose youngest patient is three is not withholding an
+    answer here — it has no question. The bilirubin table was on its settings
+    screen and the calculator would have answered for it, which is the same
+    fault as putting a tooth chart on every child's file: the program
+    implying a clinic ought to be doing something it does not do."""
+    from app.models import Setting
+
+    with clinic["app"].app_context():
+        Setting.set(jaundice.CONFIRMED_KEY, "1")     # even accepted
+        clinic["db"].session.commit()
+        answer = jaundice.assess(baby, 18.0)
+    assert answer == {"ok": False, "reason": "not_offered"}
+
+
+def test_the_table_is_not_on_a_settings_screen_that_has_no_use_for_it(clinic):
+    page = clinic["sign_in"]("boss").get("/settings/").get_data(as_text=True)
+    assert "jaundice_table_confirmed" not in page
+
+
+def test_it_appears_once_the_clinic_says_it_sees_newborns(newborn_clinic):
+    page = newborn_clinic["sign_in"]("boss").get(
+        "/settings/").get_data(as_text=True)
+    assert "jaundice_table_confirmed" in page
+
+
+def test_seeing_newborns_is_not_enough_on_its_own(newborn_clinic, baby):
+    """Two gates, two questions. "We see newborns" is not "a clinician has
+    read this table and accepts these numbers"."""
+    with newborn_clinic["app"].app_context():
+        answer = jaundice.assess(baby, 18.0)
+    assert answer == {"ok": False, "reason": "table_not_confirmed"}
+
+
 def test_it_says_nothing_until_the_table_is_accepted(clinic, baby):
     """Not a formality. The values were transcribed by hand, and a
     transcribed clinical table presented as authoritative is the failure this
     program spends its time guarding against."""
+    import json
+
+    from app.models import Setting
+
     with clinic["app"].app_context():
+        Setting.set("facility_capabilities", json.dumps(["newborn_care"]))
+        clinic["db"].session.commit()
         answer = jaundice.assess(baby, 18.0)
     assert answer["ok"] is False
     assert answer["reason"] == "table_not_confirmed"

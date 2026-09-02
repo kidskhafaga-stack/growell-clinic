@@ -106,6 +106,13 @@ def assess(patient, bilirubin, has_risk=False, hours=None):
     ``hours`` may be passed in for a reading taken earlier — the value belongs
     to the moment blood was drawn, not to the moment somebody typed it in.
     """
+    # Asked before anything else: a clinic that does not see newborns is not
+    # withholding an answer here, it has no question. The table is not on
+    # their settings screen either — see `offers`.
+    from app.utils.facility import offers
+
+    if not offers("newborn_care"):
+        return {"ok": False, "reason": "not_offered"}
     if not confirmed():
         return {"ok": False, "reason": "table_not_confirmed"}
 

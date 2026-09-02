@@ -3534,7 +3534,8 @@
     "day_care": "رعاية نهارية",
     "ward": "عنبر تنويم",
     "nicu": "حضّانات (NICU)",
-    "icu": "عناية مركزة (ICU)"
+    "icu": "عناية مركزة (ICU)",
+    "newborn_care": "رعاية حديثي الولادة"
   },
   "templates": {
     "pediatric_clinic": "عيادة أطفال",

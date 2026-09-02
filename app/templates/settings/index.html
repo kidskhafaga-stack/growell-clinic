@@ -618,6 +618,11 @@
     <p class="hint" style="margin-top:10px;">
       <i class="bi bi-info-circle"></i> {{ t('settings.clinical_note') }}</p>
 
+    {# Only where the clinic sees newborns. An hour-by-hour bilirubin table on
+       the settings screen of a practice whose youngest patient is three is
+       clutter that implies they ought to be using it — the same argument that
+       keeps dentistry off until somebody asks for it. #}
+    {% if offers_newborn %}
     {# The jaundice table, and the reason it has a box in front of it.
 
        The numbers were transcribed by hand rather than read from a
@@ -671,6 +676,7 @@
       {{ t('settings.jaundice_confirm') }}</label>
     <p class="hint" style="margin:6px 0 0;">
       <i class="bi bi-exclamation-triangle"></i> {{ t('settings.jaundice_until') }}</p>
+    {% endif %}
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </div>
