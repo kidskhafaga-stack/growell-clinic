@@ -701,6 +701,17 @@
        number would be read as measurement, and this is not one. Sorted with
        the dangerous ones first, because an ordinary-looking case is exactly
        where the dangerous possibility gets read last. #}
+    {# Off, and said out loud — but only to somebody who can switch it on.
+       See `ai_dx_off` in the route: a doctor mid-consultation still sees
+       nothing, because nothing here is theirs to fix. #}
+    {% if ai_dx_off %}
+    <p class="hint" data-dx-off="{{ ai_dx_off }}"
+       style="margin:0 0 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <i class="bi bi-lightbulb"></i>
+      <span>{{ t('ai.dx_off_' ~ ai_dx_off) }}</span>
+      <a href="{{ url_for('settings.index') }}?tab=ai">{{ t('ai.dx_off_where') }}</a>
+    </p>
+    {% endif %}
     {% if ai_dx_suggest %}
     <div class="dx-ai" x-data>
       <div class="dx-ai__head">

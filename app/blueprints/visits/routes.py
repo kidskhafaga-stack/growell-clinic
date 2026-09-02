@@ -396,10 +396,24 @@ def record(visit_id):
         ai_ready=ai.is_ready(),
         # Both, because the button has two reasons to be absent and they are
         # not the same reason: no provider configured is the clinic's IT, a
-        # switch left off is the clinic's policy. The screen shows the button
-        # only when both are true and says nothing when either is not — there
-        # is nothing a doctor mid-consultation could do about either.
+        # switch left off is the clinic's policy.
         ai_dx_suggest=ai.is_ready() and ai.dx_suggestion_enabled(),
+        # ...and which of the two is closed, for the one line that says so.
+        #
+        # The screen used to show nothing at all when either gate was shut,
+        # reasoning that a doctor mid-consultation can do nothing about
+        # either. That is true of a doctor and false of the person who owns
+        # the clinic, and it is the owner who goes looking: *"انا مش لاقي
+        # اقتراح التشخيص فى الزيارة بالذكاء الصناعي"*. A feature that exists,
+        # is switched off by default, and says nothing anywhere about how to
+        # switch it on is a feature nobody has.
+        #
+        # So the note is shown to whoever can actually act on it and to
+        # nobody else — the original reasoning, kept, with the audience
+        # corrected. `None` means "say nothing".
+        ai_dx_off=(None if (ai.is_ready() and ai.dx_suggestion_enabled())
+                   or not current_user.is_admin
+                   else ("provider" if not ai.is_ready() else "switch")),
         # The age-banded ranges the vitals boxes colour themselves by. Sent
         # rather than written into the template, so this screen and anything
         # on the server that judges a reading are reading the same table.
