@@ -367,6 +367,35 @@
                     x-cloak></span>{{ p.label }}</button>
             {% endfor %}
           </div>
+          {# What the specialty asked to be warned about, and actually ran.
+             Outside the per-panel tabs because an alert about this child does
+             not belong to whichever chip happens to be showing. #}
+          {% if panel_alerts %}
+          <div class="panel-alerts" data-panel-alerts="{{ panel_alerts|length }}">
+            {% for fired in panel_alerts %}
+            <p class="alert-pill warn" style="margin:0 0 6px;">
+              <i class="bi bi-exclamation-triangle"></i>
+              <span>{{ fired.label }}</span>
+              {% if fired.detail and fired.detail.days %}
+              <span class="hint" style="margin:0;" dir="ltr"
+                >{{ fired.detail.date.strftime('%Y-%m-%d') }}
+                 · {{ fired.detail.days }}d</span>
+              {% endif %}
+            </p>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {# ...and what the rest are waiting for, to somebody who can supply
+             it. Never to a doctor mid-consultation: it is not theirs to fix,
+             and the same mistake was made once already with the diagnosis
+             suggestion. #}
+          {% if panel_alerts_waiting %}
+          <p class="hint" data-alerts-waiting="1" style="margin:0 0 8px;">
+            <i class="bi bi-hourglass-split"></i>
+            {% for need, count in panel_alerts_waiting.items() %}{{
+              t('panels.waiting_' ~ need, n=count) }}{% if not loop.last %} · {% endif %}{% endfor %}
+          </p>
+          {% endif %}
           <p class="hint" x-show="open && panelAll.length > 1" x-cloak
              style="margin:-4px 0 10px;"><i class="bi bi-info-circle"></i>
             {{ t('panels.multi_hint') }}</p>

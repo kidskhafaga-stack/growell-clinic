@@ -192,14 +192,50 @@ def test_it_did_not_replace_what_was_already_asked():
 
 def test_it_cost_no_python():
     """The file's own promise: adding to a panel is data. If this ever needs
-    code, the next specialty costs a release."""
-    import subprocess
+    code, the next specialty costs a release.
 
-    changed = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD", "--", "app/utils/panels.py",
-         "app/models/measurement.py"],
-        capture_output=True, text=True, cwd=os.path.join(HERE, "..")).stdout
-    assert not changed.strip(), changed
+    **Rewritten twice, and both wrong turns are worth recording.**
+
+    The first version ran `git diff HEAD -- app/utils/panels.py`, which compares
+    the *working tree* to the last commit — so it failed for anybody with
+    unfinished work in that file, which is exactly how it failed: a full suite
+    run caught the tree mid-edit and reported a defect in a commit that was
+    clean. A test that goes red because somebody is typing is a test that gets
+    ignored.
+
+    The second attempt asserted that no module names `"dentistry"` as a string.
+    That is false by design and the suite said so immediately: dentistry is a
+    *module* as well as a panel, so it is named in the permissions list, the
+    nav endpoints, the price rules and the handbook, all legitimately.
+
+    What is actually promised is narrower and checkable: the panel's **fields**
+    are data. `overjet_mm`, `cooperation`, `crossbite_site` and the rest come
+    out of a JSON file, and no Python decides anything by their names. Adding
+    a field is then an edit to that file — which is the claim — while the
+    module around dentistry stays free to exist in code.
+    """
+    import ast
+
+    codes = set(_dental_fields())
+    assert len(codes) > 10, "the catalogue is empty, so this proves nothing"
+
+    root = os.path.join(HERE, "..", "app")
+    named = []
+    for folder, _dirs, files in os.walk(root):
+        for name in files:
+            if not name.endswith(".py"):
+                continue
+            path = os.path.join(folder, name)
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and node.value in codes:
+                    named.append(f"{os.path.relpath(path, root)}:{node.lineno} "
+                                 f"\"{node.value}\"")
+
+    assert not named, (
+        "a dental panel field is named in code, so adding one needs a "
+        "release: " + ", ".join(named))
 
 
 def test_the_new_fields_reach_the_visit_screen(chart):

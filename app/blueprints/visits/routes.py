@@ -319,6 +319,7 @@ def record(visit_id):
     # app/utils/panels.py for why.
     from app.utils import cardio as _cardio
     from app.utils import lab_series as _lab_series
+    from app.utils import panel_alerts as _panel_alerts
     from app.utils import panels as _panels
     from app.utils import series as _series
 
@@ -378,6 +379,18 @@ def record(visit_id):
                           for key in mine},
         panel_problems=(_panels.problems_already_on(visit.patient_id, mine)
                         if mine else set()),
+        # What the specialty asked to be warned about, and what actually ran.
+        # Two different things, and the screen says which: an alert declared
+        # and not implemented shows nothing rather than an all-clear, because
+        # "we did not look" and "we looked and it is fine" are different
+        # answers and merging them would be the more dangerous one.
+        panel_alerts=(_panel_alerts.evaluate(visit.patient_id, mine)
+                      if mine else []),
+        # ...and what the rest are waiting for, to somebody who can supply it.
+        # A clinic that has never written its numbers down is one settings
+        # screen away from eleven more alerts, and nothing said so.
+        panel_alerts_waiting=(_panel_alerts.waiting(mine)
+                              if mine and current_user.is_admin else {}),
         # The last echo/device reading for the fields the catalogue links to
         # one. Shown beside the box and never filled into it: the vitals were
         # taken minutes ago, an echo was taken whenever it was taken.

@@ -5458,7 +5458,12 @@
     "order_test": "Order this test",
     "never_done": "not yet",
     "follows_conditions": "Follows:",
-    "follow_condition": "Add this to the child's problem list"
+    "follow_condition": "Add this to the child's problem list",
+    "waiting_number": "{n} alerts waiting for the clinic's number",
+    "waiting_trend": "{n} alerts waiting on a second reading",
+    "waiting_overdue": "{n} alerts waiting on dates",
+    "waiting_cross_check": "{n} alerts need a medicines knowledge base",
+    "waiting_doctor": "{n} alerts only a doctor can record"
   },
   "curves": {
     "src_lab": "Lab",
