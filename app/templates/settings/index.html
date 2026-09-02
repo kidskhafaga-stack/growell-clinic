@@ -19,11 +19,18 @@
   // The four answers the check can give, in the clinic's language. "Offline"
   // and "up to date" are different facts and must not share a sentence: one
   // means there is nothing new, the other means nobody could find out.
+  // Piped through `tojson` rather than quoted inline: these go into
+  // JavaScript, and Jinja escapes for HTML. An apostrophe came out as the
+  // five characters `&#39;`, which `x-text` then wrote to the screen — "see
+  // What&#39;s new below", shown to the person being told there is an update.
+  // (And no Jinja delimiters in this comment: a template parses them wherever
+  // they are, including inside a JavaScript comment. That is what broke this
+  // file a moment ago.)
   const UPD = {
-    behind:  "{{ t('update.said_behind') }}",
-    current: "{{ t('update.said_current') }}",
-    offline: "{{ t('update.said_offline') }}",
-    unknown: "{{ t('update.said_unknown') }}"
+    behind:  {{ t('update.said_behind')  | tojson }},
+    current: {{ t('update.said_current') | tojson }},
+    offline: {{ t('update.said_offline') | tojson }},
+    unknown: {{ t('update.said_unknown') | tojson }}
   };
 </script>
 {% endblock %}
@@ -96,7 +103,20 @@
         inside: { icd11: 'ai' },
         tab: 'clinic',
         init() {
-          const asked = (window.location.hash || '').slice(1);
+          // `?tab=` as well as the hash, and the query first.
+          //
+          // The hash alone could not carry a link *back to this page*: the
+          // tab watcher below rewrites the URL to `#update` as soon as you
+          // open that tab, so a link to `#update` from the update tab points
+          // at the URL you are already on — and a browser does nothing at all
+          // for a same-page hash that has not changed. The link looked broken
+          // because it was a link to here.
+          //
+          // A query string is a different URL, so it navigates, and the
+          // reload is the point: the check stored what it found, and only a
+          // fresh render of the page can show the install block for it.
+          const query = new URLSearchParams(window.location.search).get('tab');
+          const asked = query || (window.location.hash || '').slice(1);
           if (this.tabs.includes(asked)) this.tab = asked;
           else if (this.inside[asked]) this.tab = this.inside[asked];
           this.$watch('tab', v => history.replaceState(null, '', '#' + v));
@@ -1242,7 +1262,7 @@
     <p class="hint" x-show="behind() && !{{ 'true' if update_pending else 'false' }}"
        x-cloak style="margin-top:12px;">
       <i class="bi bi-box-arrow-in-down"></i>
-      <a href="{{ url_for('settings.index') }}#update">{{ t('update.open_page') }}</a>
+      <a href="{{ url_for('settings.index') }}?tab=update">{{ t('update.open_page') }}</a>
     </p>
 
     {% if update_pending %}
