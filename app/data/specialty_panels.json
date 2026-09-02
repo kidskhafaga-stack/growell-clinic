@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.3",
+  "version": "2026.09.4",
   "effective_date": "2026-09-02",
   "_note_ar": "لوح التخصص على شاشة الزيارة. البيانات هنا مش في الكود — إضافة تخصص = إضافة هنا، من غير أي تعديل برمجي. الحقول اتاخدت من استبيان التخصصات (questions.ts + الإجابات المقترحة).",
   "_note_en": "The specialty panel on the visit screen. Data, not code: adding a specialty is an edit here. Fields come from the specialties survey.",
@@ -416,6 +416,18 @@
           "label_ar": "آخر زيارة أسنان",
           "label_en": "Last dental visit",
           "type": "date"
+        },
+        {
+          "code": "pain_swelling",
+          "label_ar": "ألم أو تورّم",
+          "label_en": "Pain or swelling",
+          "type": "choice",
+          "options": [
+            "لا يوجد",
+            "ألم",
+            "تورّم",
+            "الاثنان"
+          ]
         }
       ],
       "charts": [],
@@ -561,6 +573,20 @@
             "تليّف موضعي",
             "تليّف واسع"
           ]
+        },
+        {
+          "code": "waist",
+          "label_ar": "محيط الخصر",
+          "label_en": "Waist circumference",
+          "type": "number",
+          "unit": "cm"
+        },
+        {
+          "code": "bone_age",
+          "label_ar": "العمر العظمي",
+          "label_en": "Bone age",
+          "type": "number",
+          "unit": "years"
         }
       ],
       "charts": [
@@ -725,6 +751,26 @@
           "label_en": "School days missed",
           "type": "number",
           "unit": "/month"
+        },
+        {
+          "code": "fev1",
+          "label_ar": "وظائف التنفس FEV1",
+          "label_en": "FEV1",
+          "type": "number",
+          "unit": "% predicted"
+        },
+        {
+          "code": "pef",
+          "label_ar": "أقصى تدفق زفيري PEF",
+          "label_en": "Peak expiratory flow",
+          "type": "number",
+          "unit": "L/min"
+        },
+        {
+          "code": "scorad",
+          "label_ar": "شدّة الأكزيما SCORAD",
+          "label_en": "Eczema severity (SCORAD)",
+          "type": "number"
         }
       ],
       "charts": [
@@ -817,7 +863,8 @@
       "icon": "activity",
       "reads": [
         "weight_kg",
-        "height_cm"
+        "height_cm",
+        "head_circ_cm"
       ],
       "_note_ar": "الوزن مقروء ومش متسأل عنه، وهو مهم هنا أكتر من أي لوح تاني: جرعات مضادات التشنج بالكيلو، وطفل بيكبر بجرعة ثابتة بيقل تركيز الدواء عنده من غير ما حد يغيّر حاجة.",
       "fields": [
@@ -891,6 +938,26 @@
           "label_en": "Headaches",
           "type": "number",
           "unit": "/month"
+        },
+        {
+          "code": "seizure_free_days",
+          "label_ar": "أطول فترة بلا نوبة",
+          "label_en": "Longest seizure-free period",
+          "type": "number",
+          "unit": "days"
+        },
+        {
+          "code": "gmfcs",
+          "label_ar": "درجة الحركة GMFCS",
+          "label_en": "Gross motor function (GMFCS)",
+          "type": "choice",
+          "options": [
+            "I",
+            "II",
+            "III",
+            "IV",
+            "V"
+          ]
         }
       ],
       "charts": [
@@ -1067,6 +1134,18 @@
             "متوسطة",
             "ضعيفة"
           ]
+        },
+        {
+          "code": "mchat",
+          "label_ar": "مقياس التوحد M-CHAT",
+          "label_en": "M-CHAT score",
+          "type": "number"
+        },
+        {
+          "code": "vanderbilt",
+          "label_ar": "مقياس فرط الحركة Vanderbilt",
+          "label_en": "Vanderbilt score",
+          "type": "number"
         }
       ],
       "charts": [
@@ -1353,6 +1432,20 @@
           "label_en": "Spleen below costal margin",
           "type": "number",
           "unit": "cm"
+        },
+        {
+          "code": "muac",
+          "label_ar": "محيط منتصف الذراع",
+          "label_en": "Mid-upper arm circumference",
+          "type": "number",
+          "unit": "cm"
+        },
+        {
+          "code": "abd_circ",
+          "label_ar": "محيط البطن",
+          "label_en": "Abdominal circumference",
+          "type": "number",
+          "unit": "cm"
         }
       ],
       "charts": [
@@ -1476,6 +1569,20 @@
           "code": "pain_crises",
           "label_ar": "نوبات الألم",
           "label_en": "Pain crises",
+          "type": "number",
+          "unit": "/year"
+        },
+        {
+          "code": "tx_interval",
+          "label_ar": "الفاصل بين النقلتين",
+          "label_en": "Interval between transfusions",
+          "type": "number",
+          "unit": "days"
+        },
+        {
+          "code": "tx_count",
+          "label_ar": "عدد النقلات في السنة",
+          "label_en": "Transfusions this year",
           "type": "number",
           "unit": "/year"
         }
@@ -1606,6 +1713,37 @@
             "في موعده",
             "متأخر",
             "تراجع"
+          ]
+        },
+        {
+          "code": "fenton_centile",
+          "label_ar": "الشريحة على منحنى Fenton",
+          "label_en": "Fenton centile",
+          "type": "number",
+          "unit": "%"
+        },
+        {
+          "code": "rop_screen",
+          "label_ar": "فحص الشبكية ROP",
+          "label_en": "ROP screening",
+          "type": "choice",
+          "options": [
+            "لم يُعمل",
+            "طبيعي",
+            "يحتاج متابعة",
+            "يحتاج علاج"
+          ]
+        },
+        {
+          "code": "hearing_screen",
+          "label_ar": "فحص السمع",
+          "label_en": "Hearing screen",
+          "type": "choice",
+          "options": [
+            "لم يُعمل",
+            "اجتاز",
+            "يحتاج إعادة",
+            "يحتاج تحويل"
           ]
         }
       ],
@@ -1786,6 +1924,34 @@
           "label_en": "Squint angle (prism)",
           "type": "number",
           "unit": "PD"
+        },
+        {
+          "code": "iop",
+          "label_ar": "ضغط العين",
+          "label_en": "Intraocular pressure",
+          "type": "number",
+          "unit": "mmHg"
+        },
+        {
+          "code": "axial_length",
+          "label_ar": "طول محور العين",
+          "label_en": "Axial length",
+          "type": "number",
+          "unit": "mm"
+        },
+        {
+          "code": "glasses_hours",
+          "label_ar": "التزام النظارة",
+          "label_en": "Glasses worn",
+          "type": "number",
+          "unit": "h/day"
+        },
+        {
+          "code": "patch_hours",
+          "label_ar": "التزام الرقعة",
+          "label_en": "Patching",
+          "type": "number",
+          "unit": "h/day"
         }
       ],
       "charts": [],

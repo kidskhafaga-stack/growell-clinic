@@ -628,7 +628,13 @@ def doctor_panels(user_id):
 
     # Which of them opens first. Checked against the ticked list, so a stale
     # form cannot leave a doctor opening on a panel they no longer work.
-    opens = (request.form.get("panel_default") or "").strip()
+    #
+    # `getlist(...)[-1]`, not `get(...)`: the control is a clearable checkbox
+    # rather than a radio, so a browser running no script can post more than
+    # one. Taking the last is arbitrary but defined, and the check below means
+    # the worst case is a doctor opening on a panel they do work.
+    sent = [v.strip() for v in request.form.getlist("panel_default") if v.strip()]
+    opens = sent[-1] if sent else ""
     doc.specialty_panel = opens if opens in picked else (picked[0] if picked else None)
 
     ActivityLog.record("doctor.panels", user_id=current_user.id, entity="user",

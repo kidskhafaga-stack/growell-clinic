@@ -75,9 +75,16 @@
             <span>{{ label }}</span></label></td>
           {# One of them opens first. A doctor who works only neurology opens
              that screen forty times a day; passing through anything else is
-             forty clicks. #}
+             forty clicks.
+
+             A checkbox and not a radio, reported as *"عايزها اتشيك مش يا ده يا
+             ده"*. The rule is still one-of, and the script below enforces it —
+             but a radio cannot be **unset**, so a clinic that ticked one by
+             mistake had no way back to "no preference" short of reloading the
+             page. Clicking a ticked box here clears it. #}
           <td style="text-align:center;">
-            <input type="radio" name="panel_default" value="{{ key }}"
+            <input type="checkbox" class="opens-on" name="panel_default"
+                   value="{{ key }}"
                    {{ 'checked' if key == panel_default else '' }}></td>
         </tr>
         {% endfor %}
@@ -90,6 +97,24 @@
     <button class="btn btn-primary gc-press gc-ripple" type="submit" style="margin-top:12px;">
       <i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
+  <script>
+    // One-of, but clearable. Ticking one unticks the rest; ticking the ticked
+    // one leaves nothing ticked, which a radio group cannot express and which
+    // is a real answer — a doctor with no preference opens on the first panel
+    // they work.
+    //
+    // The server does not trust this. `doctor_panels` takes the last value it
+    // is sent and checks it against the ticked panels, so a browser with no
+    // scripting posts something the route still handles correctly.
+    document.querySelectorAll('.opens-on').forEach(function (box) {
+      box.addEventListener('click', function () {
+        if (!box.checked) return;
+        document.querySelectorAll('.opens-on').forEach(function (other) {
+          if (other !== box) other.checked = false;
+        });
+      });
+    });
+  </script>
 </div>
 {% endif %}
 

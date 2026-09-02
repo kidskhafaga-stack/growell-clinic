@@ -249,3 +249,66 @@ def test_a_clinic_without_the_module_gets_none_of_it(desk):
 
     page = _page(desk)
     assert FIRED not in page and WAITING not in page
+
+
+# ------------------------------------- an alert with nothing to feed it ---
+
+# What each alert reads, where the reading is a panel field or a vital rather
+# than a lab test. Written down here because the catalogue cannot infer it and
+# because the gap it catches is invisible otherwise: an alert about intraocular
+# pressure, sitting under a panel with no box to record intraocular pressure,
+# looks exactly like a working alert until somebody waits for it.
+NEEDS_A_READING = {
+    "iop_high": "iop",
+    "amblyopia_stuck": "patch_hours",
+    "refraction_fast": "refraction_sph",
+    "ef_drop": "ef_pct",
+    "hb_low": "hb_pre_transfusion",
+    "spleen_big": "spleen_cm",
+    "seizures_inc": "seizures_per_month",
+    "hc_cross": "head_circ_cm",
+    "hc_fast": "head_circ_cm",
+    "control_loss": "act_score",
+    "spo2_low": "spo2",
+    "egfr_drop": None,        # a lab test, checked by the chart-list tests
+    "hypo_freq": "hypo_episodes",
+    "no_wt_gain": "weight_kg",
+    "wt_drop": "weight_kg",
+    "wt_gain": "weight_kg",
+    "low_wt": "weight_kg",
+}
+
+
+def test_no_alert_watches_something_the_panel_cannot_record():
+    """The gap this found, and it was a real one.
+
+    Ophthalmology asked to be warned when intraocular pressure goes over the
+    clinic's limit, and when amblyopia has not improved after the patching
+    period — and the panel recorded neither pressure nor patching hours.
+    Neurology asked to be warned when head circumference crosses a centile and
+    did not read head circumference. Those alerts could never fire, whatever
+    number a clinic set, and nothing on any screen would have said so.
+
+    An alert is a promise about data. This checks the data exists.
+    """
+    panels = _catalogue()
+    broken = []
+    for key, panel in panels.items():
+        available = {f["code"] for f in panel.get("fields") or []}
+        available |= set(panel.get("reads") or [])
+        for alert in panel.get("alerts") or []:
+            wanted = NEEDS_A_READING.get(alert["code"])
+            if wanted and wanted not in available:
+                broken.append(f"{key}.{alert['code']} needs '{wanted}'")
+
+    assert not broken, (
+        "these alerts watch a reading their panel never records, so they can "
+        "never fire: " + "; ".join(broken))
+
+
+def test_that_check_is_looking_at_something():
+    """Guarding the guard: an empty map would make the test above vacuous."""
+    panels = _catalogue()
+    codes = {a["code"] for p in panels.values() for a in p.get("alerts") or []}
+    checked = [c for c in NEEDS_A_READING if c in codes]
+    assert len(checked) > 10, f"only {len(checked)} alerts are checked this way"
