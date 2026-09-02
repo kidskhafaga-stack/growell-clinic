@@ -5456,7 +5456,9 @@
     "read_head_circ_cm": "Head circumference",
     "follows": "Follows:",
     "order_test": "Order this test",
-    "never_done": "not yet"
+    "never_done": "not yet",
+    "follows_conditions": "Follows:",
+    "follow_condition": "Add this to the child's problem list"
   },
   "curves": {
     "src_lab": "Lab",

@@ -394,6 +394,41 @@
                draws a curve through a photograph; and this panel's own
                measurements are already plotted without being named anywhere.
                See app/utils/investigations.py. #}
+            {# The conditions this specialty follows long-term. One press puts
+               one on the child's problem list and comes straight back here —
+               the doctor is mid-consultation and the child is in the room.
+
+               **By name, with no ICD code.** Looking each one up in the loaded
+               table was tried and is wrong often enough to be dangerous: type 1
+               diabetes resolves to the *with ketoacidosis* code, epilepsy to a
+               specific focal variant, and coeliac disease to nothing at all
+               because the table spells it the American way. A wrong code on a
+               child's problem list is a clinical claim nobody made, and it
+               travels. The code is left to the ICD search already sitting in
+               the problem form. See panels.conditions_for. #}
+            {% set conditions = (panel_conditions or {}).get(p.key) or [] %}
+            {% if conditions %}
+            <div class="chart-tests" data-conditions="{{ p.key }}">
+              <span class="hint chart-tests__lead"><i class="bi bi-clipboard-pulse"></i>
+                {{ t('panels.follows_conditions') }}</span>
+              {% for cond in conditions %}
+              <form method="post" style="display:inline;"
+                    action="{{ url_for('patients.add_problem', patient_id=visit.patient_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="visit_id" value="{{ visit.id }}">
+                <input type="hidden" name="title" value="{{ cond.label_ar }}">
+                <input type="hidden" name="title_en" value="{{ cond.label_en }}">
+                <button type="submit" class="md-chip chart-test"
+                        title="{{ t('panels.follow_condition') }}"
+                        {{ 'disabled' if cond.code in (panel_problems or []) else '' }}>
+                  {% if cond.code in (panel_problems or []) %}<i class="bi bi-check2"></i>{% endif %}
+                  <span>{{ cond.label }}</span>
+                </button>
+              </form>
+              {% endfor %}
+            </div>
+            {% endif %}
+
             {% set tests = (panel_charts or {}).get(p.key) or [] %}
             {% if tests %}
             <div class="chart-tests" data-chart-tests="{{ p.key }}">

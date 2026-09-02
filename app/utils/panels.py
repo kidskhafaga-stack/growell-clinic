@@ -240,3 +240,61 @@ def chart_tests(key, lang="ar"):
     found = {row.code: row for row in
              Investigation.query.filter(Investigation.code.in_(codes)).all()}
     return [found[code] for code in codes if code in found]
+
+
+def conditions_for(key, lang="ar"):
+    """``[{code, label}]`` — the conditions this specialty follows long-term.
+
+    Names only. **No ICD code is attached here, and that is a decision rather
+    than an omission.**
+
+    The obvious shortcut is to look each condition up in the loaded ICD table
+    and store what comes back. It was tried, and what comes back is wrong often
+    enough to be dangerous: "Type 1 diabetes mellitus" resolves to `E10.10`,
+    which is type 1 *with ketoacidosis*, not the unspecified `E10.9`;
+    "Epilepsy" resolves to a specific localisation-related variant rather than
+    `G40.909`; and coeliac disease, sickle cell disease and iron deficiency
+    anaemia resolve to nothing at all, because the bundled table is the US
+    clinical modification and spells them the other way.
+
+    A wrong code on a child's problem list is worse than no code: it is a
+    clinical claim nobody made, and it travels — into reports, into insurance,
+    into the next doctor's reading of the file. So the panel offers the name
+    and the doctor attaches the code through the ICD search already sitting in
+    the same form, which knows about the spelling.
+    """
+    meta = panel(key) or {}
+    field = "label_en" if lang == "en" else "label_ar"
+    return [{"code": row["code"],
+             "label": row.get(field) or row.get("label_ar"),
+             "label_ar": row.get("label_ar"),
+             "label_en": row.get("label_en")}
+            for row in meta.get("conditions") or []]
+
+
+def problems_already_on(patient_id, keys):
+    """The condition codes from these panels that are already on the file.
+
+    Matched on the stored Arabic title, which is what the chip writes, so a
+    condition added by pressing the chip is recognised and one typed by hand
+    in different words is not. That asymmetry is deliberate: the alternative is
+    fuzzy matching a doctor's free text against a fixed list, and a chip that
+    greyed itself out because it *guessed* the child already had asthma would
+    be hiding a real action behind a guess.
+
+    Worst case here is an offered chip for something already on the list, and
+    the problem list itself is visible on the same file — which is a smaller
+    cost than a chip that quietly refuses to work.
+    """
+    from app.models import PatientProblem
+
+    titles = {row.title for row in
+              PatientProblem.query.filter_by(patient_id=patient_id).all()}
+    if not titles:
+        return set()
+    found = set()
+    for key in keys:
+        for row in (panel(key) or {}).get("conditions") or []:
+            if row.get("label_ar") in titles:
+                found.add(row["code"])
+    return found

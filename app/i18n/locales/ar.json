@@ -5456,7 +5456,9 @@
     "read_head_circ_cm": "محيط الرأس",
     "follows": "بيتابع:",
     "order_test": "اطلب التحليل ده",
-    "never_done": "لسه"
+    "never_done": "لسه",
+    "follows_conditions": "بيتابع:",
+    "follow_condition": "ضيف الحالة دي لقائمة مشاكل الطفل"
   },
   "curves": {
     "src_lab": "تحليل",

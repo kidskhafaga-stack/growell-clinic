@@ -914,10 +914,25 @@ def _icd_version(raw):
 @module_required(MODULE)
 def add_problem(patient_id):
     patient = db.get_or_404(Patient, patient_id)
+
+    # Where to go back to. A problem added from the patient file belongs back
+    # on the patient file; one added from a consultation belongs back in the
+    # consultation, because the doctor is mid-visit and the child is in the
+    # room. Sent as a visit id and never as a URL: the id is checked against
+    # this patient's own visits, so the form cannot name an address.
+    from app.models import Visit
+
+    back = url_for("patients.view", patient_id=patient.id) + "#problems"
+    from_visit = request.form.get("visit_id", type=int)
+    if from_visit:
+        visit = db.session.get(Visit, from_visit)
+        if visit is not None and visit.patient_id == patient.id:
+            back = url_for("visits.record", visit_id=visit.id) + "#dx"
+
     title = (request.form.get("title") or "").strip()
     if not title:
         flash(t("common.required") + ": " + t("problems.title"), "danger")
-        return redirect(url_for("patients.view", patient_id=patient.id) + "#problems")
+        return redirect(back)
     db.session.add(PatientProblem(
         patient_id=patient.id, title=title,
         title_en=(request.form.get("title_en") or "").strip() or None,
@@ -933,7 +948,7 @@ def add_problem(patient_id):
                        entity_id=patient.id, detail=title, ip_address=client_ip())
     db.session.commit()
     flash(t("problems.added"), "success")
-    return redirect(url_for("patients.view", patient_id=patient.id) + "#problems")
+    return redirect(back)
 
 
 @patients_bp.route("/problems/<int:problem_id>/toggle", methods=["POST"])

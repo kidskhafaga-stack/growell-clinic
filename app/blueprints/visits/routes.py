@@ -370,6 +370,14 @@ def record(visit_id):
                       for key in mine},
         panel_chart_latest=(_lab_series.latest_by_investigation(visit.patient_id)
                             if mine else {}),
+        # The conditions each panel follows, and which of them this child is
+        # already on — so a chip that has been pressed says so instead of
+        # inviting a second copy of the same problem onto the list.
+        panel_conditions={key: _panels.conditions_for(key,
+                                                      getattr(g, "lang", "ar"))
+                          for key in mine},
+        panel_problems=(_panels.problems_already_on(visit.patient_id, mine)
+                        if mine else set()),
         # The last echo/device reading for the fields the catalogue links to
         # one. Shown beside the box and never filled into it: the vitals were
         # taken minutes ago, an echo was taken whenever it was taken.
