@@ -31,7 +31,7 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 # a dental price list in their books without anybody asking for either.
 #
 # So the default runs the other way here: nothing until somebody says so.
-OPT_IN_MODULES = {"dentistry", "panels"}
+OPT_IN_MODULES = {"dentistry", "panels", "observations"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -92,7 +92,7 @@ CAPABILITY_MODULES = {
     # it. Same argument as `dentistry` — a paediatric clinic is not a dental
     # one, and it is not a neonatal one either.
     "newborn_care": {"visits", "growth"},
-    "emergency_care": {"visits"},
+    "emergency_care": {"visits", "observations"},
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
@@ -100,8 +100,15 @@ CAPABILITY_MODULES = {
     "ct": {"visits", "inventory"}, "mri": {"visits", "inventory"},
     "laboratory": {"visits"}, "sample_collection": {"visits"}, "pathology": {"visits"},
     "pharmacy": {"prescriptions", "inventory"}, "clinical_pharmacy": {"prescriptions"},
-    "observation": {"visits"}, "day_care": {"visits"}, "ward": {"visits"},
-    "nicu": {"visits"}, "icu": {"visits"},
+    # Every one of these is somewhere a child is watched rather than seen
+    # once, so each of them wants the rounds. A clinic that ticks "emergency"
+    # in the wizard and then cannot record a second temperature has been sold
+    # a department that does not work — which is the gap this module closes.
+    "observation": {"visits", "observations"},
+    "day_care": {"visits", "observations"},
+    "ward": {"visits", "observations"},
+    "nicu": {"visits", "observations"},
+    "icu": {"visits", "observations"},
 }
 
 # Ready-made presets: type + capabilities (modules derived).

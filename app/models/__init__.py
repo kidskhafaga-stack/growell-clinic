@@ -34,6 +34,9 @@ from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
 from app.models.measurement import Measurement
+from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
+                                   Observation, ObservationOrder,
+                                   due_at, lateness_grace)
 from app.models.parent import (
     CLIENT_CATEGORIES,
     PARENT_RELATIONS,
@@ -228,6 +231,13 @@ __all__ = [
     "Parent",
     "Patient",
     "PanelHistory",
+    "Observation",
+    "ObservationOrder",
+    "INTERVALS",
+    "OXYGEN_SUPPORT",
+    "AVPU",
+    "due_at",
+    "lateness_grace",
     "PatientProblem",
     "PROBLEM_STATUSES",
     "Consent",

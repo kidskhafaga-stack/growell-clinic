@@ -1,0 +1,241 @@
+{% extends "shell.html" %}
+{% set active_module = 'observations' %}
+{% block title %}{{ t('nav.observations') }} — {{ patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('nav.observations') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* The three states a reading can be in against the range for the child's
+     age. The numbers behind them are in app/utils/vital_bands.py and nowhere
+     else — this only paints what that file decided. */
+  .ob-bad  { color: var(--danger); font-weight: 700; }
+  .ob-warn { color: #9a6700; font-weight: 700; }
+  :root[data-theme="dark"] .ob-warn { color: #fcd34d; }
+  /* A hand-sized entry grid. This screen is opened on a tablet beside a bed,
+     and a column of full-width inputs means scrolling with one hand full. */
+  .ob-grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); }
+  .ob-grid .form-row { margin-bottom:0; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-activity"></i>
+      {{ patient.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('observations.chart_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('patients.view', patient_id=patient.id) }}">
+      <i class="bi bi-person"></i> {{ t('observations.open_file') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('observations.index') }}">
+      <i class="bi bi-list-check"></i> {{ t('observations.board') }}</a>
+  </div>
+</div>
+
+{# ---- the order: how often, since when, and who asked ------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clock"></i> {{ t('observations.the_order') }}</h2>
+
+  {% if order %}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+    <span class="badge badge--green" dir="ltr">
+      {{ t('observations.every_n', n=order.every_minutes) }}</span>
+    <span class="hint">{{ t('observations.since') }}
+      <span dir="ltr">{{ order.started_at|clinic_stamp }}</span></span>
+    {% if order.reason %}<span class="hint">· {{ order.reason }}</span>{% endif %}
+
+    {% if state.level == late %}
+    <span class="alert-pill danger"><i class="bi bi-clock-history"></i>
+      {{ t('observations.late_by', n=state.minutes_late) }}</span>
+    {% elif state.level == due %}
+    <span class="alert-pill warn"><i class="bi bi-clock"></i>
+      {{ t('observations.due_now') }}</span>
+    {% elif state.due_at %}
+    <span class="hint">{{ t('observations.next_due') }}:
+      <span dir="ltr">{{ state.due_at|clinic_time }}</span></span>
+    {% endif %}
+
+    {% if may_order %}
+    <form method="post" action="{{ url_for('observations.stop', order_id=order.id) }}"
+          style="margin-inline-start:auto;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">
+        <i class="bi bi-stop-circle"></i> {{ t('observations.stop') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0 0 10px;">{{ t('observations.no_order') }}</p>
+  {% endif %}
+
+  {% if may_order %}
+  {# Starting and changing are the same form: changing stops the old order and
+     starts a new one, so the chart keeps what was asked for at every hour of
+     the stay rather than only the latest instruction. #}
+  <form method="post" action="{{ url_for('observations.order', patient_id=patient.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:160px;">
+      <label for="every_minutes">{{ t('observations.every') }}</label>
+      <select class="select" id="every_minutes" name="every_minutes">
+        {% for minutes in intervals %}
+        <option value="{{ minutes }}"
+                {% if order and order.every_minutes == minutes %}selected{% endif %}>
+          {{ t('observations.every_n', n=minutes) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:200px;flex:1;">
+      <label for="reason">{{ t('observations.reason') }}</label>
+      <input class="input" id="reason" name="reason" maxlength="120"
+             value="{{ order.reason or '' if order else '' }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-check2"></i>
+      {{ t('observations.change_order') if order else t('observations.start_order') }}</button>
+  </form>
+  {% elif not order %}
+  {# Rule seven, paid for once already: a feature that is unavailable to you
+     still has to say it exists, or whoever *can* use it never learns it is
+     there. A nurse cannot order rounds; they can ask the doctor in the room. #}
+  <p class="hint" style="margin:10px 0 0;">{{ t('observations.doctor_orders') }}</p>
+  {% endif %}
+</div>
+
+{# ---- taking a reading --------------------------------------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-plus-circle"></i> {{ t('observations.record') }}</h2>
+  <form method="post"
+        action="{{ url_for('observations.record', patient_id=patient.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ob-grid">
+      <div class="form-row">
+        {# Prefilled with now, and editable, because four readings written on
+           paper at the bedside are typed in together at the desk. Local time:
+           the server stores UTC and converts on the way in. #}
+        <label for="taken_at">{{ t('observations.taken_at') }}</label>
+        <input class="input" type="datetime-local" id="taken_at" name="taken_at"
+               dir="ltr" value="{{ now_local }}">
+      </div>
+      <div class="form-row">
+        <label for="temperature_c">{{ t('visits.temperature') }}</label>
+        <input class="input" type="number" step="0.1" min="25" max="45"
+               inputmode="decimal" id="temperature_c" name="temperature_c" dir="ltr">
+      </div>
+      <div class="form-row">
+        <label for="pulse_bpm">{{ t('visits.pulse') }}</label>
+        <input class="input" type="number" min="0" max="350" inputmode="numeric"
+               id="pulse_bpm" name="pulse_bpm" dir="ltr">
+      </div>
+      <div class="form-row">
+        <label for="resp_rate">{{ t('visits.resp_rate') }}</label>
+        <input class="input" type="number" min="0" max="150" inputmode="numeric"
+               id="resp_rate" name="resp_rate" dir="ltr">
+      </div>
+      <div class="form-row">
+        <label for="spo2">{{ t('visits.spo2') }}</label>
+        <input class="input" type="number" min="0" max="100" inputmode="numeric"
+               id="spo2" name="spo2" dir="ltr">
+      </div>
+      <div class="form-row">
+        <label for="bp_systolic">{{ t('observations.bp') }}</label>
+        <div style="display:flex;gap:6px;" dir="ltr">
+          <input class="input" type="number" min="0" max="300" inputmode="numeric"
+                 id="bp_systolic" name="bp_systolic" placeholder="120">
+          <input class="input" type="number" min="0" max="200" inputmode="numeric"
+                 id="bp_diastolic" name="bp_diastolic" placeholder="80">
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="glucose_mgdl">{{ t('observations.glucose') }}</label>
+        <input class="input" type="number" min="0" max="900" inputmode="numeric"
+               id="glucose_mgdl" name="glucose_mgdl" dir="ltr">
+      </div>
+      <div class="form-row">
+        <label for="avpu">{{ t('observations.avpu') }}</label>
+        <select class="select" id="avpu" name="avpu">
+          <option value="">—</option>
+          {% for letter in avpu %}
+          <option value="{{ letter }}">{{ letter }} · {{ t('observations.avpu_' ~ letter) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="oxygen_support">{{ t('observations.oxygen') }}</label>
+        <select class="select" id="oxygen_support" name="oxygen_support">
+          <option value="">—</option>
+          {% for kind in oxygen %}
+          <option value="{{ kind }}">{{ t('observations.oxygen_' ~ kind) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="pain_score">{{ t('observations.pain') }}</label>
+        <input class="input" type="number" min="0" max="10" inputmode="numeric"
+               id="pain_score" name="pain_score" dir="ltr">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:10px;">
+      <label for="note">{{ t('observations.note') }}</label>
+      <input class="input" id="note" name="note" maxlength="255">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+    {% if not open_visit %}
+    <span class="hint" style="margin-inline-start:10px;">
+      {{ t('observations.no_open_visit') }}</span>
+    {% endif %}
+  </form>
+</div>
+
+{# ---- what has been taken ------------------------------------------------ #}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-table"></i> {{ t('observations.readings') }}
+    <span class="badge badge--muted">{{ readings|length }}</span></h2>
+
+  {% if readings %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('observations.taken_at') }}</th>
+      <th>{{ t('visits.temperature') }}</th>
+      <th>{{ t('visits.pulse') }}</th>
+      <th>{{ t('visits.resp_rate') }}</th>
+      <th>{{ t('visits.spo2') }}</th>
+      <th>{{ t('observations.bp') }}</th>
+      <th>{{ t('observations.glucose') }}</th>
+      <th>{{ t('observations.avpu') }}</th>
+      <th>{{ t('observations.oxygen') }}</th>
+      <th>{{ t('observations.pain') }}</th>
+      <th>{{ t('observations.note') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in readings %}
+      {% set seen = bands[row.id] %}
+      <tr>
+        <td dir="ltr">{{ row.taken_at|clinic_stamp }}</td>
+        {% for kind, value in [('temp', row.temperature_c), ('hr', row.pulse_bpm),
+                               ('rr', row.resp_rate), ('spo2', row.spo2)] %}
+        <td dir="ltr" class="{{ 'ob-bad' if seen[kind][1] == 'bad'
+                                else ('ob-warn' if seen[kind][1] == 'warn' else '') }}">
+          {{ value if value is not none else '—' }}</td>
+        {% endfor %}
+        <td dir="ltr">{{ row.blood_pressure or '—' }}</td>
+        <td dir="ltr">{{ row.glucose_mgdl if row.glucose_mgdl is not none else '—' }}</td>
+        <td dir="ltr">{{ row.avpu or '—' }}</td>
+        <td>{{ t('observations.oxygen_' ~ row.oxygen_support) if row.oxygen_support else '—' }}</td>
+        <td dir="ltr">{{ row.pain_score if row.pain_score is not none else '—' }}</td>
+        <td>{{ row.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint" style="margin:0;">{{ t('observations.none_yet') }}</p>
+  {% endif %}
+</div>
+{% endblock %}
