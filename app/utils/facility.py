@@ -31,7 +31,8 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 # a dental price list in their books without anybody asking for either.
 #
 # So the default runs the other way here: nothing until somebody says so.
-OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds"}
+OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
+                  "emergency", "nicu"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -92,7 +93,7 @@ CAPABILITY_MODULES = {
     # it. Same argument as `dentistry` — a paediatric clinic is not a dental
     # one, and it is not a neonatal one either.
     "newborn_care": {"visits", "growth"},
-    "emergency_care": {"visits", "observations", "beds"},
+    "emergency_care": {"visits", "observations", "beds", "emergency"},
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
@@ -107,7 +108,7 @@ CAPABILITY_MODULES = {
     "observation": {"visits", "observations"},
     "day_care": {"visits", "observations", "beds"},
     "ward": {"visits", "observations", "beds"},
-    "nicu": {"visits", "observations", "beds"},
+    "nicu": {"visits", "observations", "beds", "nicu"},
     "icu": {"visits", "observations", "beds"},
 }
 
