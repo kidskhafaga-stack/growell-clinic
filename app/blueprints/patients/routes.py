@@ -567,7 +567,26 @@ def view(patient_id):
         # EF the cardiologist wrote. See app/utils/series.py.
         lab_series=series.curves_for(patient.id, getattr(g, "lang", "ar")),
         lab_latest=lab_series.latest_values(patient.id, getattr(g, "lang", "ar")),
+        # Where this child is, if they are in a bed, and what is free if they
+        # are not. Asked only when the clinic has beds at all: a query per
+        # patient file for a module nobody switched on is work for nothing,
+        # and a screen that offers to admit somebody into a hospital that does
+        # not exist is worse than no screen.
+        **_ward_context(patient.id),
     )
+
+
+def _ward_context(patient_id):
+    """``open_admission`` and ``free_beds`` for the file, or neither."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        return {"open_admission": None, "free_beds": []}
+    from app.utils import beds as ward
+
+    admission = ward.open_admission(patient_id)
+    return {"open_admission": admission,
+            "free_beds": [] if admission else ward.free_beds()}
 
 
 @patients_bp.route("/<int:patient_id>/report")
