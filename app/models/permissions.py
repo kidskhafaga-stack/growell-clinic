@@ -33,6 +33,12 @@ MODULES = [
     # whoever runs the clinic ever opens it, and a general paediatric practice
     # is not asked a question it has no answer to.
     "panels",
+    # Readings taken again and again at the interval a doctor set — the rounds.
+    # A module because a clinic seeing outpatients has no rounds at all, and
+    # opt-in for the same reason dentistry is: nobody is handed a ward screen
+    # by upgrading. It is what emergency, the incubators, the ward and the
+    # recovery room are all built on (see HOSPITAL_PLAN.md, أساس ١).
+    "observations",
     "prescriptions",
     "inventory",
     "finance",
@@ -73,6 +79,7 @@ MODULE_ICONS = {
     "vaccinations": "shield-plus",
     "dentistry": "emoji-smile",
     "panels": "clipboard-data",
+    "observations": "activity",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -98,6 +105,8 @@ ROLE_PERMISSIONS = {
         # does not do dentistry nothing — the module is off for them, and an
         # off module is unreachable whoever asks.
         "dentistry",
+        # They order the rounds; the nurse records them.
+        "observations",
         "prescriptions",
         "ai",
     ],
@@ -110,6 +119,9 @@ ROLE_PERMISSIONS = {
         "visits",
         "growth",
         "vaccinations",
+        # The rounds are theirs to take. Whoever holds the thermometer at
+        # three in the morning is the one this module was built for.
+        "observations",
     ],
     "reception": [
         "dashboard",

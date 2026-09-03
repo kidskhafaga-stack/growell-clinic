@@ -527,6 +527,13 @@ def index():
         for key in TOGGLE_KEYS:
             Setting.set(key, "1" if request.form.get(key) else "0")
 
+        # Who accepted the bilirubin table, and when. A tick in a box is not a
+        # sign-off: the gate exists because a person took responsibility for a
+        # hand-transcribed clinical table, and "somebody ticked it" names
+        # nobody. Withdrawing the acceptance clears the name with it.
+        _jaundice.note_approval(
+            bool(request.form.get(_jaundice.CONFIRMED_KEY)), current_user)
+
         # Logo upload.
         file = request.files.get("logo")
         if file and file.filename:
@@ -597,6 +604,9 @@ def index():
         # asks a clinician to accept these numbers and nobody can accept a
         # table they cannot see.
         jaundice_table=_jaundice.table(),
+        # Who signed the table off, so the screen can say so rather than
+        # showing a ticked box that names nobody.
+        jaundice_approval=_jaundice.approval(),
         offers_newborn=_facility.offers("newborn_care"),
         consent_types=_CONSENT_TYPES,
         consent_defaults={kind: {lang: _consent.default_statement(kind, lang)

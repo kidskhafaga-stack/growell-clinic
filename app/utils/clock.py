@@ -178,3 +178,39 @@ def local_today(tz=None):
     """
     local = to_local(datetime.utcnow(), tz)
     return local.date() if local else datetime.utcnow().date()
+
+
+def stamp(moment, shape="%Y-%m-%d %H:%M"):
+    """A stored moment, printed as the clock on the clinic's wall.
+
+    Screens have been printing ``moment.strftime(...)`` straight from the
+    column, which is UTC. For a date that is usually harmless; for an **hour**
+    it is wrong by however far the clinic is from Greenwich, and a chart of
+    readings taken every fifteen minutes is nothing but hours. A round taken
+    at 03:10 in Cairo would print as midnight, and the nurse who took it would
+    be looking at somebody else's night.
+
+    Falls back to printing the stored value when the zone cannot be resolved.
+    That is the same bargain :func:`local_today` makes: the alternative here is
+    a blank where a time should be, and a blank on a rounds chart reads as a
+    reading that was never taken.
+    """
+    if moment is None:
+        return ""
+    return (to_local(moment) or moment).strftime(shape)
+
+
+def hhmm(moment):
+    """Just the time of day, in the clinic's own hours."""
+    return stamp(moment, "%H:%M")
+
+
+def init_app(app):
+    """Give templates the two above, so no screen converts by hand.
+
+    Registered rather than imported per template for the reason the bands
+    table lives in one file: a second way to print a time is a second way to
+    print it wrong, and this one has already cost four money reports.
+    """
+    app.jinja_env.filters["clinic_stamp"] = stamp
+    app.jinja_env.filters["clinic_time"] = hhmm

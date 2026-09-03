@@ -275,6 +275,64 @@ SECTIONS = [
         ],
     },
     {
+        # Opt-in like the two above, and for a sharper reason: this is a ward
+        # screen. A clinic that sees children one at a time has no rounds at
+        # all, and would be taught a department it does not run.
+        "key": "observations",
+        "module": "observations",
+        "icon": "activity",
+        "title": ("الملاحظات المتكررة", "Repeated observations"),
+        "lines": [
+            ("<b>ليه موجودة.</b> العلامات الحيوية في الزيارة قراءة واحدة — "
+             "وده صح للعيادة الخارجية. الطفل اللي تحت الملاحظة في الطوارئ أو "
+             "في الحضانة بيتقاس كل ربع ساعة أو كل ساعة حسب طلب الطبيب، والقسم "
+             "ده هو اللي بيسجّل ده من غير ما يلمس قراءة الزيارة.",
+             "<b>Why it exists.</b> A visit keeps one set of vitals, which is "
+             "right for an outpatient. A child under observation in emergency "
+             "or in an incubator is measured every fifteen minutes or every "
+             "hour as the doctor asked, and this is where that is recorded "
+             "\u2014 without touching the visit's own reading."),
+            ("<b>الطبيب بيطلب، والتمريض بيسجّل.</b> الطبيب بيحدد كل قد إيه من "
+             "قايمة ثابتة (ربع ساعة، نص ساعة، ساعة، ساعتين، أربع، تمانية). "
+             "التمريض بيسجّل القراءة. تغيير المدة بيوقف الطلب القديم ويفتح "
+             "طلب جديد، علشان الملف يفضل قايل الطفل كان بيتراقب إزاي في كل "
+             "ساعة من إقامته.",
+             "<b>The doctor orders, nursing records.</b> The doctor picks how "
+             "often from a fixed list (15, 30, 60, 120, 240 or 480 minutes) "
+             "and nursing records the readings. Changing the interval stops "
+             "the old order and starts a new one, so the file keeps saying "
+             "how closely the child was being watched at every hour of the "
+             "stay."),
+            ("<b>اللوحة بتقول مين اتأخر.</b> مش «آخر قراءة كانت إيه» — ده "
+             "الجدول بيقوله. اللوحة بتقول مين معملوش قياس بقى له أطول من اللي "
+             "الطبيب طلبه، والتأخير محسوب بالنسبة للمدة نفسها: تلات دقايق "
+             "تأخير على ربع ساعة تأخير، وعلى أربع ساعات مش حاجة.",
+             "<b>The board says who is overdue.</b> Not \u201cwhat was the "
+             "last reading\u201d \u2014 the table says that. It says who has "
+             "not been measured for longer than the doctor asked, and "
+             "lateness is measured against the interval itself: three minutes "
+             "past a quarter-hourly round is late, and past a four-hourly one "
+             "is nothing."),
+            ("<b>الأرقام بتتقرا بنفس قواعد العيادة.</b> الحرارة والنبض "
+             "والتنفس والأكسجين بتتلوّن بنفس الجداول اللي شاشة الكشف "
+             "بتستعملها، مش بجدول تاني — علشان الطفل ما يبقاش أصفر في شاشة "
+             "وأخضر في شاشة تانية وكل واحدة مظبوطة لوحدها.",
+             "<b>The numbers are read by the clinic's own rules.</b> "
+             "Temperature, pulse, respiratory rate and saturation are "
+             "coloured by the same tables the consultation screen uses, not "
+             "by a second set \u2014 so a child cannot be amber on one screen "
+             "and green on another with each screen individually correct."),
+            ("<b>قراءة فاضية مترفض.</b> لو محدش قاس حاجة، مفيش صف بيتحفظ: "
+             "الصف الفاضي بيقفل تنبيه التأخير من غير ما حد يكون قرّب من "
+             "الطفل. جملة ملاحظة لوحدها («نايم ومرتاح») تبقى قراءة.",
+             "<b>An empty reading is refused.</b> If nothing was measured, "
+             "nothing is saved: an empty row would silence the lateness "
+             "warning while nobody had been near the child. A note on its "
+             "own (\u201csleeping, comfortable\u201d) counts as an "
+             "observation."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",

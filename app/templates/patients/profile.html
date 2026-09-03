@@ -153,6 +153,17 @@
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
         <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
       {% endif %}
+      {# The rounds, from the file. The board in the sidebar answers "who is
+         overdue"; this is the other direction — somebody is looking at a
+         child and wants to record or read their observations, and without
+         this the module could only be entered from a list they might not be
+         on yet. Only where the clinic switched the module on: a ward button
+         on an outpatient file is furniture. #}
+      {% if module_enabled('observations') and current_user.can_access('observations') %}
+      <a class="btn btn-outline btn-sm gc-press"
+         href="{{ url_for('observations.chart', patient_id=patient.id) }}">
+        <i class="bi bi-activity"></i> {{ t('nav.observations') }}</a>
+      {% endif %}
       {% if current_user.can_access('messages') and patient.contact_phone %}
       <a class="btn btn-outline btn-sm gc-press" title="{{ t('inbox.start_hint') }}"
          href="{{ url_for('messages.inbox_start', patient_id=patient.id) }}">

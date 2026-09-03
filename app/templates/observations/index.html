@@ -1,0 +1,85 @@
+{% extends "shell.html" %}
+{% set active_module = 'observations' %}
+{% block title %}{{ t('nav.observations') }}{% endblock %}
+{% block page_heading %}{{ t('nav.observations') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-activity"></i> {{ t('nav.observations') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('observations.board_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('patients.index') }}">
+    <i class="bi bi-search"></i> {{ t('observations.find_a_child') }}</a>
+</div>
+
+{# One row per child under observation, worst first. The order comes from
+   `utils/observations.board` so that any other screen showing this list shows
+   it in the same order — a board sorted twice is a board two people describe
+   differently over the phone. #}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard-pulse"></i> {{ t('observations.under_observation') }}
+    <span class="badge badge--muted">{{ rows|length }}</span></h2>
+
+  {% if rows %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('patients.name') }}</th>
+      <th>{{ t('observations.every') }}</th>
+      <th>{{ t('observations.last_reading') }}</th>
+      <th>{{ t('observations.next_due') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          <a href="{{ url_for('observations.chart', patient_id=row.patient.id) }}">
+            {{ row.patient.display_name(current_lang) }}</a>
+          {# The program's own reading of the last set of numbers. Not a
+             judgement made on this screen: it is `red_flags`, the same
+             answer the visit screen and the board give for the same child. #}
+          {% if row.flag.level %}
+          <span class="alert-pill {{ 'danger' if row.flag.level == 'urgent' else 'warn' }}"
+                style="margin-inline-start:6px;">
+            <i class="bi bi-exclamation-triangle"></i>
+            {{ t('redflags.level_' ~ row.flag.level) }}</span>
+          {% endif %}
+        </td>
+        <td dir="ltr">{{ t('observations.every_n', n=row.order.every_minutes) }}</td>
+        <td dir="ltr">
+          {% if row.last %}{{ row.last.taken_at|clinic_time }}
+            <div class="hint">{{ row.last.taken_at|clinic_stamp }}</div>
+          {% else %}<span class="hint">{{ t('observations.none_yet') }}</span>{% endif %}
+        </td>
+        <td dir="ltr">
+          {% if row.state.level == late %}
+            <span class="alert-pill danger">
+              <i class="bi bi-clock-history"></i>
+              {{ t('observations.late_by', n=row.state.minutes_late) }}</span>
+          {% elif row.state.level == due %}
+            <span class="alert-pill warn"><i class="bi bi-clock"></i>
+              {{ t('observations.due_now') }}</span>
+          {% else %}
+            {{ row.state.due_at|clinic_time }}
+          {% endif %}
+        </td>
+        <td style="text-align:end;">
+          <a class="btn btn-sm btn-primary gc-press"
+             href="{{ url_for('observations.chart', patient_id=row.patient.id) }}">
+            <i class="bi bi-plus-lg"></i> {{ t('observations.record') }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  {# Not an error and not an empty screen: it says what this is for and how a
+     child gets onto it, because a board that is blank on the first morning
+     teaches somebody the module is broken. #}
+  <p class="hint" style="margin:0;">{{ t('observations.nobody_yet') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

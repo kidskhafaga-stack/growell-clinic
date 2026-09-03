@@ -121,6 +121,8 @@ def create_app(config_name="default"):
     i18n.init_app(app)
     from app.utils import money as _money
     _money.init_app(app)
+    from app.utils import clock as _clock
+    _clock.init_app(app)
     # The licence guard. Armed here rather than in a before_request, because
     # what it protects is the database session and not the request: eighteen
     # of this program's screens write on a plain GET.
@@ -139,6 +141,7 @@ def create_app(config_name="default"):
     from app.blueprints.webhooks import webhooks_bp
     from app.blueprints.finance import finance_bp
     from app.blueprints.dentistry import dentistry_bp
+    from app.blueprints.observations import observations_bp
     from app.blueprints.panels import panels_bp
     from app.blueprints.growth import growth_bp
     from app.blueprints.inventory import inventory_bp
@@ -160,6 +163,7 @@ def create_app(config_name="default"):
     app.register_blueprint(growth_bp)
     app.register_blueprint(dentistry_bp)
     app.register_blueprint(panels_bp)
+    app.register_blueprint(observations_bp)
     app.register_blueprint(vaccinations_bp)
     app.register_blueprint(prescriptions_bp)
     app.register_blueprint(inventory_bp)
@@ -189,6 +193,7 @@ def create_app(config_name="default"):
         "vaccinations": "vaccinations.index",
         "dentistry": "dentistry.index",
         "panels": "panels.index",
+        "observations": "observations.index",
         "prescriptions": "prescriptions.index",
         "inventory": "inventory.index",
         "finance": "finance.index",
