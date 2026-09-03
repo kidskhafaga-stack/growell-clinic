@@ -226,6 +226,11 @@ ADDITIONS = [
     ("patient_vaccines", "event_type", "VARCHAR(20) DEFAULT 'given'"),
     ("patient_vaccines", "adverse_events", "TEXT"),
     ("patient_vaccines", "refusal_reason", "VARCHAR(200)"),
+    # Which appointment a bill was raised for. The board used to match a
+    # patient's invoices by date, and a family who pays on Thursday for a
+    # Saturday appointment made that guess wrong — the Saturday row read
+    # "بدون فاتورة" and offered to collect money already taken.
+    ("invoices", "appointment_id", "INTEGER"),
     ("patients", "qr_token", "VARCHAR(32)"),
     ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
     ("vaccines", "replaced_by_id", "INTEGER"),

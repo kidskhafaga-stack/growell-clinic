@@ -333,6 +333,85 @@ SECTIONS = [
         ],
     },
     {
+        # Opt-in, and the sharpest case of it: a clinic seeing outpatients has
+        # no beds at all. Switched on by the wizard for anybody who says they
+        # run a ward, an emergency, incubators or intensive care.
+        "key": "beds",
+        "module": "beds",
+        "icon": "hospital",
+        "title": ("الأسرّة والإقامة", "Beds and admissions"),
+        "lines": [
+            ("<b>الإقامة مش زيارة.</b> الزيارة الخارجية بتبتدي وتخلص في يوم "
+             "واحد، وده صح ليها. الإقامة بتمتد أيام، وبتنتهي بقرار (خروج، أو "
+             "تحويل لمستشفى تانية)، وفي كل ساعة منها الطفل في <b>مكان</b>. "
+             "وملف الطفل يفضل واحد: التنويم بيظهر في نفس الملف زي الزيارة "
+             "بالظبط، مش في نظام موازي.",
+             "<b>A stay is not a visit.</b> An outpatient visit starts and "
+             "ends on one day, which is right for it. A stay runs across "
+             "days, ends in a decision (home, or a transfer to another "
+             "hospital), and at every hour of it the child is in a "
+             "<b>place</b>. The child's file stays one file: an admission "
+             "shows up in it exactly as a visit does, not in a parallel "
+             "system."),
+            ("<b>القسم ← الحيّز ← السرير.</b> الحيّز مش «غرفة» بس، لأن "
+             "الطوارئ بارتشنات والداخلي غُرف والعناية صالة مفتوحة فيها "
+             "بارتشن عزل أو اتنين. والسرير له نوع: سرير، سرير حديثي ولادة، "
+             "حضّانة، كبسولة نقل، ترولي طوارئ. الأقسام الأربعة بتشتغل على "
+             "نفس الشكل ده، بيختلفوا في كثافة الملاحظة مش في شكل المكان.",
+             "<b>Unit → space → bed.</b> The middle level is a *space* and "
+             "not simply a room: emergency runs on partitions, the ward on "
+             "rooms, intensive care is an open bay with one or two isolation "
+             "partitions. A bed has a kind — bed, cot, incubator, transport "
+             "capsule, emergency trolley. All four departments run on that "
+             "same shape and differ by how closely a child is watched, not "
+             "by what a place is."),
+            ("<b>العزل خاصية للحيّز مش للسرير.</b> اللي بيعزل الطفل هو "
+             "الحيطة اللي حواليه. صالة فيها ست أسرّة وواحد متعلّم عليه "
+             "«معزول» دي معلومة بتكدب. فلما تسأل «فيه مكان عزل فاضي؟» "
+             "البرنامج بيرد من الحيّز.",
+             "<b>Isolation belongs to the space, never to the bed.</b> What "
+             "isolates a child is the walls around them. A bay of six beds "
+             "with one marked \u201cisolated\u201d is information that lies. "
+             "So \u201cis there an isolation space free?\u201d is answered "
+             "from the space."),
+            ("<b>الإشغال محسوب مش متخزّن.</b> السرير فاضي لما ما يبقاش عليه "
+             "إقامة مفتوحة — مفيش خانة «مشغول» في أي مكان، ولا المفروض تبقى: "
+             "الفلاج ده بيبعد خروج واحد اتنسي عن قسم بيقول إنه مليان وتلات "
+             "أسرّة فاضية، والتمريض بيبطّل يصدّق الشاشة في أسبوع.",
+             "<b>Occupancy is counted, never stored.</b> A bed is free when "
+             "no stay is open on it \u2014 there is no \u201coccupied\u201d "
+             "column anywhere and there must never be one. A flag is one "
+             "forgotten discharge away from a ward that reports itself full "
+             "with three beds standing empty, and the staff stop believing "
+             "the screen within a week."),
+            ("<b>النقلة بتتسجّل، والسرير ما بيتمسحش.</b> الطفل لما ينتقل من "
+             "صالة لحيّز عزل، الصف القديم بيفضل بساعاته والجديد بيفتح — "
+             "علشان سؤال «كان فين يوم الأربع؟» يبقى له إجابة. والسرير بيتوقف "
+             "عن الخدمة وبيرجع، وما بيتمسحش أبدًا: إقاماته هي إشغال الشهر "
+             "اللي فات. والكبسولة بتتحرّك والإقامة بتفضل مفتوحة — الطفل نزل "
+             "أشعة، ما خرجش.",
+             "<b>A move is recorded, and a bed is never deleted.</b> When a "
+             "child moves from a bay into an isolation space, the old row "
+             "keeps its hours and a new one opens \u2014 so "
+             "\u201cwhere were they on Wednesday?\u201d has an answer. A "
+             "bed goes out of service and comes back, never deleted: its "
+             "stays are last month's occupancy. And a transport capsule "
+             "moves with the stay still open \u2014 the baby went down to "
+             "X-ray, they did not leave."),
+            ("<b>مين بيعمل إيه.</b> التنويم والنقل والخروج شغل إكلينيكي: "
+             "الأطباء والتمريض ومدير العيادة. أما بناء المكان نفسه — قسم "
+             "جديد، غرفة، سرير — فده للمدير، وبيتعمل من شاشة الإعداد مش من "
+             "تحديث: العيادة اللي بتضيف حضّانة رقم ٧ بتعملها يوم التلات "
+             "الجاي.",
+             "<b>Who does what.</b> Admitting, moving and discharging are "
+             "clinical acts: doctors, nursing and whoever runs the clinic. "
+             "Building the place itself \u2014 a unit, a room, a bed \u2014 "
+             "is the owner's, and it is done from the setup screen rather "
+             "than from a release: a clinic adding incubator number seven "
+             "does it on a Tuesday afternoon."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",
