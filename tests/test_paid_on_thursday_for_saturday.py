@@ -366,3 +366,44 @@ def test_the_board_still_costs_one_query_for_the_payment_snapshot(desk):
 
         assert len(seen) == 1, (
             f"{len(seen)} invoice queries for {len(appts)} appointments")
+
+
+# ------------------------------------------------------- the upgrade path ---
+def test_a_clinic_that_already_has_invoices_gets_the_column(clinic):
+    """A new column on a table full of a clinic's money is the moment an
+    upgrade can go wrong, so this runs the upgrade rather than reading it.
+
+    The invoices table is built here without the column — which is exactly
+    what every installation running yesterday's code holds — and then the
+    program's own schema step is asked to bring it forward. Nothing else in
+    this file would notice the difference: the tests above build their
+    database from the models, and therefore always have every column.
+    """
+    from sqlalchemy import inspect, text
+
+    from app.utils.schema import apply_schema
+
+    with clinic["app"].app_context():
+        db = clinic["db"]
+        # SQLite before 3.35 cannot drop a column, so the table is rebuilt the
+        # way an older release would have created it: everything except this.
+        columns = [c for c in inspect(db.engine).get_columns("invoices")]
+        assert any(c["name"] == "appointment_id" for c in columns)
+        kept = ", ".join(c["name"] for c in columns
+                         if c["name"] != "appointment_id")
+        db.session.execute(text("ALTER TABLE invoices RENAME TO invoices_old"))
+        db.session.execute(text(
+            f"CREATE TABLE invoices AS SELECT {kept} FROM invoices_old"))
+        db.session.execute(text("DROP TABLE invoices_old"))
+        db.session.commit()
+
+        assert not any(c["name"] == "appointment_id"
+                       for c in inspect(db.engine).get_columns("invoices"))
+
+        apply_schema()
+        db.session.commit()
+
+        assert any(c["name"] == "appointment_id"
+                   for c in inspect(db.engine).get_columns("invoices")), (
+            "an existing clinic upgrades into a board that cannot read the "
+            "link, and every appointment goes back to being matched by date")
