@@ -100,18 +100,43 @@ def busy(tmp_path, monkeypatch):
     client = app.test_client()
     client.post("/login", data={"username": "boss", "password": "secret"},
                 follow_redirects=True)
-    return {"app": app, "db": db, "client": client}
+
+    # The bell is held warm for the length of the test, deliberately.
+    #
+    # Its feed is worked out live and kept in a *process-level* cache for
+    # ninety seconds, so what a page costs depends on how long ago somebody
+    # else asked — sixteen queries more when the ninety seconds happen to run
+    # out inside the request being measured. That made this file report a
+    # different number on the build machine than on the laptop, and the
+    # difference was the clock, not the code. The recompute is a fixed cost
+    # and it has a ceiling of its own below; the per-row ceilings measure the
+    # page without it, from a state that is the same on every machine.
+    from app.utils import notifications
+    monkeypatch.setattr(notifications, "_TTL", 10 ** 6)
+    notifications.invalidate()
+    with app.app_context():
+        notifications._all()
+    try:
+        yield {"app": app, "db": db, "client": client}
+    finally:
+        # Nothing after this test inherits a feed computed against a database
+        # that no longer exists.
+        notifications.invalidate()
 
 
-def count_queries(busy, path):
-    """How many statements one page costs."""
+def statements_for(busy, path):
+    """Every statement one page costs, in the order it was issued."""
     from sqlalchemy import event
     from sqlalchemy.engine import Engine
 
     statements = []
 
     def record(conn, cursor, statement, params, context, many):
-        statements.append(statement)
+        # The parameters travel with the statement because the interesting
+        # repetition is often *the same query with a different key* — fifteen
+        # reads of the settings table are one shape and fifteen different
+        # questions, and only the parameters tell them apart.
+        statements.append((statement, params))
 
     event.listen(Engine, "before_cursor_execute", record)
     try:
@@ -119,7 +144,44 @@ def count_queries(busy, path):
     finally:
         event.remove(Engine, "before_cursor_execute", record)
     assert resp.status_code == 200, f"{path} → {resp.status_code}"
-    return len(statements)
+    return statements
+
+
+def count_queries(busy, path):
+    """How many statements one page costs."""
+    return len(statements_for(busy, path))
+
+
+def what_repeated(statements, top=6):
+    """The statements a failing page asked most, shortened to their shape.
+
+    A ceiling that fails on a build machine and passes on the laptop used to
+    report one number and nothing else, which is the least useful half of what
+    the listener already had in its hands. The whole point of the ceiling is
+    that a query is running inside a loop; naming it costs nothing and is the
+    first thing anybody reading the failure needs.
+    """
+    from collections import Counter
+
+    counts = Counter()
+    examples = {}
+    for sql, params in statements:
+        shape = " ".join(sql.split())[:90]
+        counts[shape] += 1
+        examples.setdefault(shape, []).append(params)
+    lines = []
+    for shape, n in counts.most_common(top):
+        if n < 2:
+            continue
+        # Grouped by the statement and *not* by its parameters, because a
+        # query inside a loop is the same statement with a different id every
+        # time — grouping by both would report it as a hundred separate
+        # queries, which is the one thing this must not say. The parameters
+        # come back as examples instead: they are what tells nineteen reads of
+        # the settings table apart from nineteen reads of the same row.
+        shown = ", ".join(repr(p) for p in examples[shape][:3])
+        lines.append(f"  ×{n}  {shape}\n        e.g. {shown[:80]}")
+    return "\n".join(lines) or "  (nothing repeated — every query differs)"
 
 
 # Ceilings with headroom. One query per row would blow through every one of
@@ -148,10 +210,35 @@ def count_queries(busy, path):
     ("/prescriptions/drugs", 40),
 ])
 def test_a_screen_does_not_query_once_per_row(busy, path, ceiling):
-    count = count_queries(busy, path)
-    assert count <= ceiling, (
-        f"{path} costs {count} queries with {PATIENTS} patients / "
-        f"{INVOICES} invoices on file — something is querying inside a loop")
+    statements = statements_for(busy, path)
+    assert len(statements) <= ceiling, (
+        f"{path} costs {len(statements)} queries with {PATIENTS} patients / "
+        f"{INVOICES} invoices on file — something is querying inside a loop."
+        f"\nMost repeated:\n{what_repeated(statements)}")
+
+
+def test_the_bell_recomputing_is_a_fixed_cost(busy):
+    """What the page costs on the request that rebuilds the notification feed.
+
+    Every ninety seconds one unlucky visitor pays for the whole feed — vaccines
+    due, stock running low, unpaid invoices, birthdays this week. That is a
+    fair trade only while the rebuild is a *constant*: it scans whole tables
+    and counts in Python, and the moment one of those scans becomes a query
+    per patient it is 120 queries landing on somebody's dashboard with no
+    warning, on the screen the program opens to.
+
+    Measured cold on purpose, which is the opposite of every other ceiling in
+    this file.
+    """
+    from app.utils import notifications
+
+    notifications.invalidate()
+    statements = statements_for(busy, "/")
+    assert len(statements) <= 70, (
+        f"the dashboard costs {len(statements)} queries on the request that "
+        f"rebuilds the bell, with {PATIENTS} patients on file — the rebuild "
+        f"is meant to be a fixed number of table reads."
+        f"\nMost repeated:\n{what_repeated(statements)}")
 
 
 def test_the_settings_are_read_once_per_request(busy):
