@@ -48,6 +48,7 @@ from app.models.patient import (
     PROBLEM_STATUSES,
     Consent,
     Patient,
+    PanelHistory,
     PatientProblem,
 )
 from app.models.patient_flag import FLAG_LEVELS, PatientFlag
@@ -226,6 +227,7 @@ __all__ = [
     "ReminderAction",
     "Parent",
     "Patient",
+    "PanelHistory",
     "PatientProblem",
     "PROBLEM_STATUSES",
     "Consent",

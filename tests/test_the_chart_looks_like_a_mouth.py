@@ -319,3 +319,46 @@ def test_every_line_of_the_guide_is_in_both_languages():
 def test_the_dentistry_guide_reaches_the_screen(chart):
     page = chart["sign_in"]("doc").get("/guide?all=1").get_data(as_text=True)
     assert "التقويم الاعتراضي" in page or "Interceptive" in page
+
+
+# ------------------------------------------ dentistry is surgery as well ----
+
+def test_the_dental_panel_makes_room_for_a_general_anaesthetic():
+    """*"الاسنان فيها جراحة برضه لان ساعات الاطفال مش يستحملوا جميع الشغل فا
+    لازم يبقى فى تخدير كلي علشان الشغل الى هيتعمل"*.
+
+    The panel recorded caries risk, habits and cooperation — everything about
+    a child who sits in the chair. A child who cannot is the harder case and
+    the more expensive one, and the file had nowhere to say so: which route was
+    chosen, why, when the session is, how many teeth, the anaesthetic grading,
+    whether fasting was confirmed, and what happened afterwards.
+    """
+    fields = _dental_fields()
+    for asked in ("behaviour_route", "ga_reason", "ga_planned_date",
+                  "ga_teeth_planned", "asa_grade", "fasting_confirmed",
+                  "surgical_procedure", "post_op_check"):
+        assert asked in fields, asked
+
+
+def test_the_route_includes_everything_short_of_an_anaesthetic_too():
+    """A general anaesthetic is the last option, not the only alternative to
+    persuasion. Recording only "GA / not GA" would lose the middle, which is
+    where most of these children actually are."""
+    options = _dental_fields()["behaviour_route"]["options"]
+    assert len(options) >= 4
+    joined = " ".join(options)
+    assert "أكسيد النيتروز" in joined and "مهدئ بالفم" in joined
+    assert "تخدير كلي" in joined
+
+
+def test_it_records_the_anaesthetic_decisions_without_making_them():
+    """Fasting hours and ASA limits belong to the anaesthetist and the
+    facility's protocol, not to this program. The panel records *that* fasting
+    was confirmed; it does not compute it, and no number is stored here."""
+    fields = _dental_fields()
+    assert fields["fasting_confirmed"]["type"] == "choice"
+    assert fields["asa_grade"]["type"] == "choice"
+    for code in ("fasting_confirmed", "asa_grade", "ga_reason"):
+        for value in fields[code].values():
+            assert not isinstance(value, (int, float)) or isinstance(value, bool), \
+                f"{code} carries a number the program should not own"

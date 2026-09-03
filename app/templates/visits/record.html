@@ -423,6 +423,32 @@
                draws a curve through a photograph; and this panel's own
                measurements are already plotted without being named anywhere.
                See app/utils/investigations.py. #}
+            {# The case history for this specialty — written once, kept, and
+               shown on every visit already written.
+
+               Per patient and not per visit, which is the point: retyping the
+               story every time is exactly the "doctor writing too much" this
+               screen keeps being told to avoid. And per specialty, because the
+               endocrinologist's account of this child is not the dentist's.
+
+               The same quick-phrase codes the complaint and examination boxes
+               use work here too — type the code, press space, get the
+               sentence — so a long history costs few keystrokes. #}
+            <div class="form-row" style="margin-top:4px;">
+              <label>{{ t('panels.case_history') }}
+                {% set hist = (panel_history or {}).get(p.key) %}
+                {% if hist and hist.updated_at %}
+                <span class="hint" dir="ltr" style="font-weight:400;"
+                  >· {{ hist.updated_at.strftime('%Y-%m-%d') }}</span>
+                {% endif %}
+              </label>
+              <textarea class="input" rows="3" dir="auto"
+                        name="panel_history_{{ p.key }}"
+                        data-panel-history="{{ p.key }}"
+                        x-on:input="expand('exam', null, $event)"
+                        placeholder="{{ t('panels.case_history_hint') }}">{{ hist.text if hist else '' }}</textarea>
+            </div>
+
             {# The conditions this specialty follows long-term. One press puts
                one on the child's problem list and comes straight back here —
                the doctor is mid-consultation and the child is in the room.

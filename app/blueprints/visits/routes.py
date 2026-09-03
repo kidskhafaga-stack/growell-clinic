@@ -377,6 +377,10 @@ def record(visit_id):
         panel_conditions={key: _panels.conditions_for(key,
                                                       getattr(g, "lang", "ar"))
                           for key in mine},
+        # The case history each specialty keeps for this child — written once
+        # and shown on every visit, rather than retyped into each one.
+        panel_history=(_panels.history_for(visit.patient_id, mine)
+                       if mine else {}),
         panel_problems=(_panels.problems_already_on(visit.patient_id, mine)
                         if mine else set()),
         # What the specialty asked to be warned about, and what actually ran.
@@ -754,6 +758,15 @@ def _save_panel(visit):
 
     existing = {row.code: row for row in
                 Measurement.query.filter_by(visit_id=visit.id).all()}
+
+    # The case history each specialty keeps for this child. Saved with the
+    # visit because that is where it is edited, but stored against the
+    # **patient**: the same text is on the next visit already written.
+    for key in active:
+        if f"panel_history_{key}" in request.form:
+            panels.save_history(visit.patient_id, key,
+                                request.form.get(f"panel_history_{key}"),
+                                current_user.id)
 
     for code, (field, key) in fields.items():
         raw = (request.form.get(f"m_{code}") or "").strip()

@@ -82,10 +82,61 @@ def _missed_appointment(kit, days_ago, status="scheduled"):
 
 # ---------------------------------------------------------- what is declared ---
 
-def test_every_specialty_declares_the_alerts_it_asked_for():
+#: The eleven the survey covers. The rest of the catalogue is proposed from
+#: published practice rather than transcribed from a doctor's ticks, and each
+#: of those carries a `_source_ar` saying so — a difference in provenance that
+#: matters more than any difference in shape, and one a test should not blur.
+FROM_THE_SURVEY = [
+    "endocrinology", "cardiology", "pulmonology", "neurology", "developmental",
+    "nephrology", "gastroenterology", "haematology", "neonatology",
+    "ophthalmology", "dentistry",
+]
+
+
+#: The sixty the survey actually named, by panel and by code. Written out
+#: rather than counted, because a total is the wrong assertion: it goes red
+#: when a panel legitimately *gains* an alert — which it did, when dentistry
+#: was given the general-anaesthetic ones — and stays green if a survey alert
+#: is swapped for something else. What must hold is that none of these is
+#: lost; adding beside them is allowed and expected.
+SURVEY_ALERTS = {
+    "endocrinology": ['hba1c_high', 'hypo_freq', 'growth_stop', 'no_hba1c', 'bp_high', 'late'],
+    "cardiology": ['spo2_low', 'wt_gain', 'ef_drop', 'penicillin_late', 'inr_out', 'defect_grows'],
+    "pulmonology": ['systemic_steroids', 'er', 'control_loss', 'high_ics', 'contraindicated'],
+    "neurology": ['seizures_inc', 'lost_skill', 'hc_cross', 'lft_high', 'dose_low', 'drug_level_old'],
+    "developmental": ['lost_skill', 'wt_drop', 'delay_age', 'no_improvement', 'lost_followup'],
+    "nephrology": ['bp_high', 'egfr_drop', 'new_relapse', 'steroid_toxicity', 'renal_dose'],
+    "gastroenterology": ['wt_drop', 'no_wt_gain', 'lft_high', 'ttg_high', 'gluten_rx'],
+    "haematology": ['ferritin_high', 'hb_low', 'tx_late', 'spleen_big', 'g6pd_rx'],
+    "neonatology": ['low_wt', 'rop_due', 'wrong_vaccine', 'hc_fast', 'no_hearing'],
+    "ophthalmology": ['amblyopia_stuck', 'refraction_fast', 'preterm_rop_due', 'iop_high', 'long_term_steroid', 'never_examined'],
+    "dentistry": ['fluoride_due', 'new_caries_despite_followup', 'heart_defect_prophylaxis', 'penicillin_allergy', 'gum_hyperplasia_risk', 'no_visit_since_one'],
+}
+
+
+def test_no_alert_the_survey_asked_for_has_been_lost():
+    """The survey's sixty, each by name. A count would go red on a legitimate
+    addition and green on a silent substitution."""
     panels = _catalogue()
-    total = sum(len(p.get("alerts") or []) for p in panels.values())
-    assert total == 60, f"the survey named 60 alerts and the catalogue has {total}"
+    missing = []
+    for key, wanted in SURVEY_ALERTS.items():
+        have = {a["code"] for a in panels[key].get("alerts") or []}
+        missing += [f"{key}.{c}" for c in wanted if c not in have]
+
+    assert not missing, "these were in the survey and are gone: " + ", ".join(missing)
+    assert sum(len(v) for v in SURVEY_ALERTS.values()) == 60
+
+
+def test_the_proposed_panels_say_they_are_proposed():
+    """The provenance is the whole difference. A panel nobody ticked must not
+    look like one somebody did."""
+    panels = _catalogue()
+    proposed = [k for k in panels if k not in FROM_THE_SURVEY]
+    assert proposed, "no proposed panels found, so this proves nothing"
+    for key in proposed:
+        assert panels[key].get("_source_ar"), \
+            f"{key} is not in the survey and does not say where it came from"
+        assert panels[key].get("alerts"), f"{key} declares no alerts at all"
 
 
 def test_every_alert_says_what_it_needs():

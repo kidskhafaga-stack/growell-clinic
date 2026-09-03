@@ -86,6 +86,22 @@ COMMON_INVESTIGATIONS = [
     ("bilirubin", "الصفراء (البيليروبين)", "Serum Bilirubin", "lab", "حديثي الولادة", "mg/dL"),
     ("phosphorus", "الفوسفور", "Serum Phosphorus", "lab", "أملاح", "mg/dL"),
 
+    # --- What the proposed specialties follow ---------------------------
+    # Added with the nine panels that are not in the survey; see the
+    # `_source` note on each of those in specialty_panels.json.
+    ("crp", "بروتين سي التفاعلي (CRP)", "C-Reactive Protein", "lab", "التهابات", "mg/L"),
+    ("esr", "سرعة الترسيب (ESR)", "ESR", "lab", "التهابات", "mm/hr"),
+    ("cbc", "صورة دم كاملة (CBC)", "Complete Blood Count", "lab", "أمراض الدم", None),
+    ("anc", "العدلات المطلقة ANC", "Absolute Neutrophil Count", "lab", "أمراض الدم", "cells/µL"),
+    ("ana", "الأجسام المضادة للنواة ANA", "Antinuclear Antibodies", "lab", "روماتيزم", None),
+    ("immunoglobulins", "الغلوبولينات المناعية IgG/IgA/IgM", "Immunoglobulins", "lab", "مناعة", "mg/dL"),
+    ("lymphocyte_subsets", "تحت مجموعات اللمفاويات", "Lymphocyte Subsets", "lab", "مناعة", "cells/µL"),
+    ("ammonia", "الأمونيا", "Serum Ammonia", "lab", "أيض", "µmol/L"),
+    ("lactate", "اللاكتات", "Serum Lactate", "lab", "أيض", "mmol/L"),
+    ("blood_culture", "زرع دم (مزرعة)", "Blood Culture", "lab", "التهابات", None),
+    ("urine_culture", "مزرعة بول (زرع)", "Urine Culture", "lab", "بول/كلى", None),
+    ("vit_b12", "فيتامين ب١٢", "Vitamin B12", "lab", "فيتامينات", "pg/mL"),
+
     # --- Imaging (أشعة) ---
     (None, "أشعة صدر", "Chest X-ray", "imaging", "أشعة عادية", None),
     (None, "أشعة بطن", "Abdominal X-ray", "imaging", "أشعة عادية", None),

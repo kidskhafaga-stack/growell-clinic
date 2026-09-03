@@ -481,3 +481,51 @@ class Consent(db.Model):
 
     def __repr__(self):
         return f"<Consent p={self.patient_id} {self.consent_type} {self.signed_date}>"
+
+
+class PanelHistory(db.Model):
+    """The case history a specialist writes once and keeps, per specialty.
+
+    Asked for after the panels were built: *"الأطباء ساعات بتبقى عايزة تكتب
+    التاريخ المرضى للحالة بالذات فى التخصصات"*. The panels record measurements
+    — a number per box, per visit — and there was nowhere to write the story
+    the numbers belong to.
+
+    **Per patient and not per visit, which is the whole point.** A case history
+    is written once and edited when it changes; retyping it every visit is
+    exactly the "doctor writing too much" this program keeps being told to
+    avoid. It appears on every visit already written, and the doctor adds a
+    line when there is a line to add.
+
+    **Per specialty, because it is not one history.** The endocrinologist's
+    account of this child — when the diabetes started, which regimen, which
+    admissions — is not the dentist's account of the same child. One shared box
+    would be either a fight over whose text it is, or a page nobody reads.
+
+    Nothing here is deleted by unticking a panel. The same rule the readings
+    follow: a setting about what to ask next does not edit what was written.
+    """
+    __tablename__ = "panel_histories"
+    __table_args__ = (
+        db.UniqueConstraint("patient_id", "panel", name="uq_panel_history"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"),
+                           nullable=False, index=True)
+    # The panel key, not a foreign key: panels live in a data file a clinic
+    # edits, and a history whose specialty was renamed should keep its text and
+    # say which key it was written under.
+    panel = db.Column(db.String(40), nullable=False, index=True)
+
+    text = db.Column(db.Text)
+
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    patient = db.relationship("Patient", backref="panel_histories")
+    author = db.relationship("User", foreign_keys=[updated_by])
+
+    def __repr__(self):
+        return f"<PanelHistory p={self.patient_id} {self.panel}>"

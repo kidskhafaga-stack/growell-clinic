@@ -298,3 +298,51 @@ def problems_already_on(patient_id, keys):
             if row.get("label_ar") in titles:
                 found.add(row["code"])
     return found
+
+
+def history_for(patient_id, keys):
+    """``{panel_key: PanelHistory}`` for the panels this doctor works.
+
+    Read for the whole set in one query rather than one per panel: the visit
+    screen renders every panel at once, so a per-panel lookup would be twenty
+    queries to draw one page.
+    """
+    from app.models import PanelHistory
+
+    if not keys:
+        return {}
+    rows = PanelHistory.query.filter(
+        PanelHistory.patient_id == patient_id,
+        PanelHistory.panel.in_(list(keys))).all()
+    return {row.panel: row for row in rows}
+
+
+def save_history(patient_id, key, text, user_id=None):
+    """Write this specialty's case history for this child, or clear it.
+
+    One row per patient per panel, updated in place. Clearing it to blank
+    **deletes the row** rather than leaving an empty one behind, so "has this
+    specialty written anything" stays a question the data answers by itself.
+
+    Returns the row, or ``None`` when it was cleared.
+    """
+    from app.extensions import db
+    from app.models import PanelHistory
+
+    if panel(key) is None:
+        return None
+
+    row = PanelHistory.query.filter_by(patient_id=patient_id, panel=key).first()
+    text = (text or "").strip()
+
+    if not text:
+        if row is not None:
+            db.session.delete(row)
+        return None
+
+    if row is None:
+        row = PanelHistory(patient_id=patient_id, panel=key)
+        db.session.add(row)
+    row.text = text
+    row.updated_by = user_id
+    return row

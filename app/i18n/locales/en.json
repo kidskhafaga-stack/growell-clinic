@@ -5463,7 +5463,10 @@
     "waiting_trend": "{n} alerts waiting on a second reading",
     "waiting_overdue": "{n} alerts waiting on dates",
     "waiting_cross_check": "{n} alerts need a medicines knowledge base",
-    "waiting_doctor": "{n} alerts only a doctor can record"
+    "waiting_doctor": "{n} alerts only a doctor can record",
+    "case_history": "Case history",
+    "case_history_hint": "Written once and kept across visits — add a line when something changes. Your phrase codes work here too.",
+    "read_temperature_c": "Temperature"
   },
   "curves": {
     "src_lab": "Lab",
