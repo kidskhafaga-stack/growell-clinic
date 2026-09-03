@@ -98,7 +98,11 @@ def test_an_unknown_panel_key_answers_with_nothing(desk):
     silently acquire another specialty's fields."""
     from app.utils import panels
 
-    assert panels.panel("orthopaedics") is None
+    # A key chosen because nothing will ever answer to it. The first version
+    # of this test used "orthopaedics", which was a safe bet right up until
+    # paediatric orthopaedics became a real panel — and then the test was
+    # asserting that a panel the program has does not exist.
+    assert panels.panel("no-such-specialty") is None
     assert panels.panel("") is None
 
 

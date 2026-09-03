@@ -215,3 +215,47 @@ def test_the_panels_screen_leads_to_where_it_is_changed(desk):
 
     assert f"/users/doctors/{desk['ids']['doctor']}" in page, \
         "the doctor's name on the panels screen goes nowhere"
+
+
+# --------------------------------------------- "opens on" is clearable now ---
+
+def test_opens_on_is_a_checkbox_and_not_a_radio(desk):
+    """Reported as *"عايزها اتشيك مش يا ده يا ده"*. The rule is still one-of —
+    a script unticks the others — but a radio cannot be **unset**, so a clinic
+    that ticked one by mistake had no way back to "no preference" short of
+    reloading the page."""
+    page = desk["sign_in"]("boss").get(desk["url"]).get_data(as_text=True)
+
+    assert 'type="checkbox" class="opens-on" name="panel_default"' in page
+    assert 'type="radio" name="panel_default"' not in page
+
+
+def test_clearing_it_falls_back_to_the_first_panel_worked(desk):
+    """"No preference" is a real answer, and it means the doctor opens on the
+    first panel they work rather than on nothing."""
+    _set(desk, panel_cardiology="1", panel_dentistry="1")
+
+    with desk["app"].app_context():
+        from app.utils import panels
+
+        assert panels.default_for_doctor(_doctor(desk)) == "cardiology"
+
+
+def test_two_sent_at_once_is_handled_rather_than_refused(desk):
+    """A browser running no script can post both boxes. The route takes the
+    last and checks it, so the worst case is a doctor opening on a panel they
+    do work — not a crash and not a stored panel they do not."""
+    from werkzeug.datastructures import MultiDict
+
+    reply = desk["sign_in"]("boss").post(
+        f"{desk['url']}/panels",
+        data=MultiDict([("panel_cardiology", "1"), ("panel_dentistry", "1"),
+                        ("panel_default", "cardiology"),
+                        ("panel_default", "dentistry")]),
+        follow_redirects=True)
+    assert reply.status_code == 200
+
+    with desk["app"].app_context():
+        from app.utils import panels
+
+        assert panels.default_for_doctor(_doctor(desk)) == "dentistry"

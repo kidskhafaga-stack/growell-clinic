@@ -5453,7 +5453,20 @@
     "folded_has": "Recorded in {n} panels",
     "folded_one": "Recorded in one panel",
     "multi_hint": "You can record under more than one panel in the same visit; every reading is kept under its own panel.",
-    "read_head_circ_cm": "Head circumference"
+    "read_head_circ_cm": "Head circumference",
+    "follows": "Follows:",
+    "order_test": "Order this test",
+    "never_done": "not yet",
+    "follows_conditions": "Follows:",
+    "follow_condition": "Add this to the child's problem list",
+    "waiting_number": "{n} alerts waiting for the clinic's number",
+    "waiting_trend": "{n} alerts waiting on a second reading",
+    "waiting_overdue": "{n} alerts waiting on dates",
+    "waiting_cross_check": "{n} alerts need a medicines knowledge base",
+    "waiting_doctor": "{n} alerts only a doctor can record",
+    "case_history": "Case history",
+    "case_history_hint": "Written once and kept across visits — add a line when something changes. Your phrase codes work here too.",
+    "read_temperature_c": "Temperature"
   },
   "curves": {
     "src_lab": "Lab",

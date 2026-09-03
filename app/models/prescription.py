@@ -337,6 +337,21 @@ class Investigation(db.Model):
     __tablename__ = "investigations"
 
     id = db.Column(db.Integer, primary_key=True)
+
+    # A stable key for the tests the program itself has to be able to name.
+    #
+    # A specialty panel says which tests it follows, and it has to say so by
+    # something that does not move. The Arabic name moves: a clinic renames
+    # "مخزون الحديد (فيريتين)" to "فيريتين" and every reference to it by name
+    # quietly stops matching. The survey review made the same point about its
+    # own answer sheet — *"لا تعتمد على matching بالنص فقط"* — after finding
+    # the workbook stored labels where it should have stored ids.
+    #
+    # Null for anything a clinic adds itself. A code is only needed where the
+    # program refers to a test from code or from a data file; a clinic's own
+    # entry is referred to by the doctor, who is looking at the name.
+    code = db.Column(db.String(40), unique=True, index=True)
+
     name_ar = db.Column(db.String(160), nullable=False, index=True)
     name_en = db.Column(db.String(160), index=True)
     kind = db.Column(db.String(12), default="lab", nullable=False)  # lab | imaging

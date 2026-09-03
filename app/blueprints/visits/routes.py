@@ -318,6 +318,8 @@ def record(visit_id):
     # screen with a panel on it rather than a screen per specialty — see
     # app/utils/panels.py for why.
     from app.utils import cardio as _cardio
+    from app.utils import lab_series as _lab_series
+    from app.utils import panel_alerts as _panel_alerts
     from app.utils import panels as _panels
     from app.utils import series as _series
 
@@ -356,6 +358,43 @@ def record(visit_id):
         panel_all=[p for p in _panels.every_panel_for(
             visit, visit.vitals, getattr(g, "lang", "ar"))
             if p["key"] in mine],
+        # The tests each panel follows, with this child's newest result beside
+        # each — so "order the HbA1c" and "what was his last one" are one look
+        # instead of a trip to the patient file and back. Keyed by catalogue
+        # id: the panel names its tests by code, and matching a hand-typed
+        # name into that list would be the guess the code exists to avoid.
+        #
+        # Keyed off `mine`, which is already empty when the module is off, so
+        # there is no second module check here. A guard no test can tell from
+        # its absence is not protection, it is decoration.
+        panel_charts={key: _panels.chart_tests(key, getattr(g, "lang", "ar"))
+                      for key in mine},
+        panel_chart_latest=(_lab_series.latest_by_investigation(visit.patient_id)
+                            if mine else {}),
+        # The conditions each panel follows, and which of them this child is
+        # already on — so a chip that has been pressed says so instead of
+        # inviting a second copy of the same problem onto the list.
+        panel_conditions={key: _panels.conditions_for(key,
+                                                      getattr(g, "lang", "ar"))
+                          for key in mine},
+        # The case history each specialty keeps for this child — written once
+        # and shown on every visit, rather than retyped into each one.
+        panel_history=(_panels.history_for(visit.patient_id, mine)
+                       if mine else {}),
+        panel_problems=(_panels.problems_already_on(visit.patient_id, mine)
+                        if mine else set()),
+        # What the specialty asked to be warned about, and what actually ran.
+        # Two different things, and the screen says which: an alert declared
+        # and not implemented shows nothing rather than an all-clear, because
+        # "we did not look" and "we looked and it is fine" are different
+        # answers and merging them would be the more dangerous one.
+        panel_alerts=(_panel_alerts.evaluate(visit.patient_id, mine)
+                      if mine else []),
+        # ...and what the rest are waiting for, to somebody who can supply it.
+        # A clinic that has never written its numbers down is one settings
+        # screen away from eleven more alerts, and nothing said so.
+        panel_alerts_waiting=(_panel_alerts.waiting(mine)
+                              if mine and current_user.is_admin else {}),
         # The last echo/device reading for the fields the catalogue links to
         # one. Shown beside the box and never filled into it: the vitals were
         # taken minutes ago, an echo was taken whenever it was taken.
@@ -719,6 +758,15 @@ def _save_panel(visit):
 
     existing = {row.code: row for row in
                 Measurement.query.filter_by(visit_id=visit.id).all()}
+
+    # The case history each specialty keeps for this child. Saved with the
+    # visit because that is where it is edited, but stored against the
+    # **patient**: the same text is on the next visit already written.
+    for key in active:
+        if f"panel_history_{key}" in request.form:
+            panels.save_history(visit.patient_id, key,
+                                request.form.get(f"panel_history_{key}"),
+                                current_user.id)
 
     for code, (field, key) in fields.items():
         raw = (request.form.get(f"m_{code}") or "").strip()

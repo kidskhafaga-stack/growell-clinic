@@ -367,6 +367,35 @@
                     x-cloak></span>{{ p.label }}</button>
             {% endfor %}
           </div>
+          {# What the specialty asked to be warned about, and actually ran.
+             Outside the per-panel tabs because an alert about this child does
+             not belong to whichever chip happens to be showing. #}
+          {% if panel_alerts %}
+          <div class="panel-alerts" data-panel-alerts="{{ panel_alerts|length }}">
+            {% for fired in panel_alerts %}
+            <p class="alert-pill warn" style="margin:0 0 6px;">
+              <i class="bi bi-exclamation-triangle"></i>
+              <span>{{ fired.label }}</span>
+              {% if fired.detail and fired.detail.days %}
+              <span class="hint" style="margin:0;" dir="ltr"
+                >{{ fired.detail.date.strftime('%Y-%m-%d') }}
+                 · {{ fired.detail.days }}d</span>
+              {% endif %}
+            </p>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {# ...and what the rest are waiting for, to somebody who can supply
+             it. Never to a doctor mid-consultation: it is not theirs to fix,
+             and the same mistake was made once already with the diagnosis
+             suggestion. #}
+          {% if panel_alerts_waiting %}
+          <p class="hint" data-alerts-waiting="1" style="margin:0 0 8px;">
+            <i class="bi bi-hourglass-split"></i>
+            {% for need, count in panel_alerts_waiting.items() %}{{
+              t('panels.waiting_' ~ need, n=count) }}{% if not loop.last %} · {% endif %}{% endfor %}
+          </p>
+          {% endif %}
           <p class="hint" x-show="open && panelAll.length > 1" x-cloak
              style="margin:-4px 0 10px;"><i class="bi bi-info-circle"></i>
             {{ t('panels.multi_hint') }}</p>
@@ -378,6 +407,117 @@
           {% for p in panel_all %}
           <div x-show="panelKey === {{ p.key|tojson|forceescape }}" x-cloak
                role="tabpanel" data-panel-fields="{{ p.key }}">
+
+            {# The tests this specialty follows, with the child's newest
+               result on each. Two questions answered in one look: "order the
+               HbA1c" and "what was his last one".
+
+               The order is one press because the alternative is typing the
+               name, and a typed name is what splits a curve — `lab_series`
+               groups by catalogue id where there is one and by text where
+               there is not, so "HbA1c" on Sunday and "hba1c" on Thursday
+               become two curves for one test on one child.
+
+               Only lab tests are here. The survey lists chest films, panoramic
+               X-rays and photographs under the same question, and nothing
+               draws a curve through a photograph; and this panel's own
+               measurements are already plotted without being named anywhere.
+               See app/utils/investigations.py. #}
+            {# The case history for this specialty — written once, kept, and
+               shown on every visit already written.
+
+               Per patient and not per visit, which is the point: retyping the
+               story every time is exactly the "doctor writing too much" this
+               screen keeps being told to avoid. And per specialty, because the
+               endocrinologist's account of this child is not the dentist's.
+
+               The same quick-phrase codes the complaint and examination boxes
+               use work here too — type the code, press space, get the
+               sentence — so a long history costs few keystrokes. #}
+            <div class="form-row" style="margin-top:4px;">
+              <label>{{ t('panels.case_history') }}
+                {% set hist = (panel_history or {}).get(p.key) %}
+                {% if hist and hist.updated_at %}
+                <span class="hint" dir="ltr" style="font-weight:400;"
+                  >· {{ hist.updated_at.strftime('%Y-%m-%d') }}</span>
+                {% endif %}
+              </label>
+              <textarea class="input" rows="3" dir="auto"
+                        name="panel_history_{{ p.key }}"
+                        data-panel-history="{{ p.key }}"
+                        x-on:input="expand('exam', null, $event)"
+                        placeholder="{{ t('panels.case_history_hint') }}">{{ hist.text if hist else '' }}</textarea>
+            </div>
+
+            {# The conditions this specialty follows long-term. One press puts
+               one on the child's problem list and comes straight back here —
+               the doctor is mid-consultation and the child is in the room.
+
+               **By name, with no ICD code.** Looking each one up in the loaded
+               table was tried and is wrong often enough to be dangerous: type 1
+               diabetes resolves to the *with ketoacidosis* code, epilepsy to a
+               specific focal variant, and coeliac disease to nothing at all
+               because the table spells it the American way. A wrong code on a
+               child's problem list is a clinical claim nobody made, and it
+               travels. The code is left to the ICD search already sitting in
+               the problem form. See panels.conditions_for. #}
+            {% set conditions = (panel_conditions or {}).get(p.key) or [] %}
+            {% if conditions %}
+            <div class="chart-tests" data-conditions="{{ p.key }}">
+              <span class="hint chart-tests__lead"><i class="bi bi-clipboard-pulse"></i>
+                {{ t('panels.follows_conditions') }}</span>
+              {% for cond in conditions %}
+              <form method="post" style="display:inline;"
+                    action="{{ url_for('patients.add_problem', patient_id=visit.patient_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="visit_id" value="{{ visit.id }}">
+                <input type="hidden" name="title" value="{{ cond.label_ar }}">
+                <input type="hidden" name="title_en" value="{{ cond.label_en }}">
+                <button type="submit" class="md-chip chart-test"
+                        title="{{ t('panels.follow_condition') }}"
+                        {{ 'disabled' if cond.code in (panel_problems or []) else '' }}>
+                  {% if cond.code in (panel_problems or []) %}<i class="bi bi-check2"></i>{% endif %}
+                  <span>{{ cond.label }}</span>
+                </button>
+              </form>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% set tests = (panel_charts or {}).get(p.key) or [] %}
+            {% if tests %}
+            <div class="chart-tests" data-chart-tests="{{ p.key }}">
+              <span class="hint chart-tests__lead"><i class="bi bi-graph-up"></i>
+                {{ t('panels.follows') }}</span>
+              {% for test in tests %}
+              {% set last = (panel_chart_latest or {}).get(test.id) %}
+              <form method="post" style="display:inline;"
+                    action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="investigation_id" value="{{ test.id }}">
+                <input type="hidden" name="name_ar" value="{{ test.name_ar }}">
+                <input type="hidden" name="name_en" value="{{ test.name_en or '' }}">
+                <input type="hidden" name="kind" value="{{ test.kind }}">
+                <button type="submit" class="md-chip chart-test"
+                        title="{{ t('panels.order_test') }}">
+                  <span>{{ test.display_name(current_lang) }}</span>
+                  {% if last %}
+                  {# Shown, never carried forward into today's boxes: a result
+                     from March is not a reading taken today, which is the same
+                     rule the echo hint follows two sections down. #}
+                  <span class="chart-test__last{{ ' is-out' if last.out_of_range else '' }}"
+                        dir="ltr">{{ last.value }}{% if last.unit %} {{ last.unit }}{% endif %}</span>
+                  <span class="chart-test__when" dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>
+                  {% else %}
+                  <span class="chart-test__none" data-never-done="{{ test.code }}"
+                    >{{ t('panels.never_done') }}</span>
+                  {% endif %}
+                </button>
+              </form>
+              {% endfor %}
+            </div>
+            {% endif %}
+
             {% if p.reads %}
             {# Read, not asked again. A second weight box would mean two weights
                for one visit and no way to know which is the real one. #}
@@ -1654,6 +1794,17 @@
   .dx-ai { border:1px dashed var(--line); border-radius:10px; padding:10px 12px;
     margin-bottom:14px; background:var(--surface-2,transparent); }
   .dx-ai__head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  /* The specialty's own tests, orderable in one press. Quiet on purpose: this
+     is a shortcut beside the work, not the work. */
+  .chart-tests { display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    margin:10px 0 2px; }
+  .chart-tests__lead { margin:0; }
+  .md-chip.chart-test { padding:5px 10px; font-size:.8rem; gap:7px; }
+  .chart-test__last { font-weight:700; font-variant-numeric:tabular-nums; }
+  .chart-test__last.is-out { color:var(--danger); }
+  .chart-test__when { color:var(--muted); font-size:.72rem;
+    font-variant-numeric:tabular-nums; }
+  .chart-test__none { color:var(--muted); font-size:.72rem; }
   .dx-ai__err { color:var(--danger); margin:8px 0 0; }
   .dx-ai__list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
   .dx-ai__item { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
