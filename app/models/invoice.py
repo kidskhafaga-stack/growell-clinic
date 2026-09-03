@@ -26,6 +26,25 @@ class Invoice(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
     doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
+    # **Which appointment this bill was raised for.**
+    #
+    # Reported from the desk: an appointment booked for Saturday, paid for on
+    # Thursday when the family were standing there, and the Saturday board
+    # still showing "بدون فاتورة" with a Collect button beside it — while the
+    # collect screen, opened from that very button, answered *"كل اللي الزيارة
+    # دي بتحصّله موجود فعلاً على فاتورة INV-2026-0020"* and refused to write
+    # anything.
+    #
+    # Two screens, two rules, and neither of them wrong on its own terms: the
+    # board matched invoices **by date**, and the invoice carried the day the
+    # money was taken, not the day of the appointment. Nothing recorded that
+    # the two were the same encounter, so the board was guessing from a date
+    # and guessing badly whenever a family pays in advance.
+    #
+    # Nullable, and it always will be: money is taken without an appointment
+    # every day — a walk-in, a vaccine, a bill settled a week later.
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"),
+                               nullable=True, index=True)
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=True, index=True)
     coverage_card = db.Column(db.String(60))   # snapshot: membership/card no.
     coverage_expiry = db.Column(db.Date)        # snapshot: card expiry
