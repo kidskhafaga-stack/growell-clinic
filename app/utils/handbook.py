@@ -412,6 +412,95 @@ SECTIONS = [
         ],
     },
     {
+        "key": "emergency",
+        "module": "emergency",
+        "icon": "thermometer-half",
+        "title": ("الطوارئ", "Emergency"),
+        "lines": [
+            ("<b>الشاشة بتجاوب على سؤال واحد: مين الأول.</b> لوحة الأسرّة "
+             "بترسم المكان وبتقول مين فيه؛ الطوارئ بتتقرا بالعكس — الأسوأ "
+             "فوق. والترتيب أربع حاجات بالترتيب ده: طفل محدش قاسه من ساعة ما "
+             "دخل، بعدين اللي جولته اتأخرت، بعدين اللي آخر قراءة ليه البرنامج "
+             "قراها «حالة تستاهل تتشاف دلوقتي»، وبعدين الباقي الأطول انتظارًا "
+             "الأول.",
+             "<b>The screen answers one question: who first.</b> The bed "
+             "board draws the place and says who is in it; emergency is read "
+             "the other way round \u2014 worst at the top. The order is four "
+             "things: a child nobody has measured since they arrived, then "
+             "one whose rounds are overdue, then one whose last reading the "
+             "program reads as urgent, then everybody else, longest wait "
+             "first."),
+            ("<b>مفيش فرز جديد هنا.</b> الحرارة والأكسجين بيتقروا بنفس "
+             "الجداول اللي شاشة الكشف ومحطة التمريض بيستعملوها. لو الشاشة دي "
+             "عملت جدول خاص بيها، الطفل يبقى أحمر في مكان وأخضر في مكان "
+             "والاتنين «مظبوطين».",
+             "<b>No second triage.</b> Temperature and saturation are read by "
+             "the same tables the consultation screen and the nursing station "
+             "use. A department with its own thresholds would make a child "
+             "red on one screen and green on another, each individually "
+             "correct."),
+            ("<b>الإقامة بتنتهي بقرار مش بمرور الوقت.</b> خروج، أو تحويل "
+             "لمستشفى تانية، أو <b>تنويم</b> — والتنويم <em>نقل لسرير</em> مش "
+             "خروج ودخول تاني: الطفل ما خرجش، والإقامة بتفضل واحدة على نفس "
+             "الحتة من الرعاية.",
+             "<b>A stay ends in a decision, not in time passing.</b> Home, a "
+             "transfer to another hospital, or <b>admission</b> \u2014 and "
+             "admission is a <em>move to a bed</em>, not a discharge followed "
+             "by a new stay: the child did not leave, and one piece of care "
+             "stays one stay."),
+            ("<b>لازم يكون فيه قسم متبني.</b> القسم بيتعمل من إعداد الأسرّة: "
+             "قسم نوعه طوارئ، وبارتشنات، وسرير في كل بارتشن. والشاشة بتقول "
+             "كده صراحة لو لسه مفيش، مش بتفضل فاضية.",
+             "<b>A unit has to exist first.</b> It is built from the bed "
+             "setup: a unit of kind emergency, its partitions, and a bed in "
+             "each. The screen says so plainly when there is none rather than "
+             "sitting empty."),
+        ],
+    },
+    {
+        "key": "nicu",
+        "module": "nicu",
+        "icon": "moisture",
+        "title": ("الحضّانات", "The incubators"),
+        "lines": [
+            ("<b>نفس شاشة الطوارئ، بإيقاع تاني وأربع حقايق زيادة.</b> عمر "
+             "الطفل بالساعات، سن الحمل عند الولادة، الوزن مقارنة بوزن "
+             "الولادة، وآخر بيليروبين فين من حد الطفل ده هو نفسه.",
+             "<b>The same screen as emergency, at a different tempo and with "
+             "four extra facts.</b> Hours of life, gestation at birth, weight "
+             "against birth weight, and where the last bilirubin sits against "
+             "<em>this baby's own</em> threshold."),
+            ("<b>ولا واحدة من الأربعة جديدة.</b> الساعات وسن الحمل موجودين "
+             "على ملف الطفل من زمان، والوزن هو منحنى النمو نفسه، والمقارنة هي "
+             "حاسبة الصفراء اللي موجودة ومقفولة لحد ما طبيب يوافق على الجدول. "
+             "اللي كان ناقص هو الوصل: الممرضة كانت بتقرا الرقم من شاشة المعمل "
+             "وتعمل المقارنة في دماغها — على الحسبة الوحيدة اللي البرنامج "
+             "اتعمل فيها عشان محدش يعملها في دماغه.",
+             "<b>None of the four is new.</b> Hours and gestation have been "
+             "on the child's file for a long time, the weight is the growth "
+             "curve itself, and the comparison is the jaundice calculator "
+             "\u2014 which exists and stays shut until a clinician accepts "
+             "the table. What was missing is the join: a nurse read the "
+             "number off the lab screen and did the comparison in their head, "
+             "on the one calculation this program built so that nobody would "
+             "have to."),
+            ("<b>القراءة بتتحسب بساعة سحب العينة مش بدلوقتي.</b> في الأيام "
+             "الأولى المنحنى بيتحرك بسرعة كفاية إن ساعات قليلة تعدّيه، فبيليروبين "
+             "اتسحب الصبح بيتقارن بعمر الطفل وقتها.",
+             "<b>The reading is judged at the hour the blood was drawn.</b> "
+             "In the first days the curve moves fast enough that a few hours "
+             "crosses it, so a bilirubin drawn this morning is compared "
+             "against the baby's age at that moment."),
+            ("<b>السرير هنا تلات أنواع.</b> سرير، وحضّانة، وكبسولة نقل. "
+             "والكبسولة بتتحرك والإقامة بتفضل مفتوحة — الطفل نزل أشعة، ما "
+             "خرجش من القسم.",
+             "<b>Three kinds of bed here.</b> A cot, an incubator and a "
+             "transport capsule. The capsule moves with the stay still open "
+             "\u2014 the baby went down for an X-ray, they did not leave the "
+             "unit."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",

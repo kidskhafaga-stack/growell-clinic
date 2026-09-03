@@ -45,6 +45,12 @@ MODULES = [
     # not by what a bed is (HOSPITAL_PLAN.md, ٤-ب). Opt-in: a clinic that sees
     # outpatients has no beds and must not find a ward screen after upgrading.
     "beds",
+    # The two departments that have a screen of their own. Not two systems:
+    # both are `utils/department.live` over the same place, stay and readings,
+    # at different tempos — emergency ends in a decision, the incubators watch
+    # four facts no other department needs. Opt-in like everything above them.
+    "emergency",
+    "nicu",
     "prescriptions",
     "inventory",
     "finance",
@@ -87,6 +93,8 @@ MODULE_ICONS = {
     "panels": "clipboard-data",
     "observations": "activity",
     "beds": "hospital",
+    "emergency": "thermometer-half",
+    "nicu": "moisture",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -116,6 +124,8 @@ ROLE_PERMISSIONS = {
         "observations",
         # Admitting and discharging is a clinical decision.
         "beds",
+        "emergency",
+        "nicu",
         "prescriptions",
         "ai",
     ],
@@ -133,6 +143,8 @@ ROLE_PERMISSIONS = {
         "observations",
         # And they move children between beds, which is the same shift's work.
         "beds",
+        "emergency",
+        "nicu",
     ],
     "reception": [
         "dashboard",

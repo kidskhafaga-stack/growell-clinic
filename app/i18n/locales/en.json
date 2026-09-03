@@ -186,7 +186,9 @@
     "collapse": "Collapse the menu",
     "menu": "Menu",
     "observations": "Observations",
-    "beds": "Beds & stays"
+    "beds": "Beds & stays",
+    "emergency": "Emergency",
+    "nicu": "Incubators"
   },
   "auth": {
     "login": "Login",
@@ -5728,5 +5730,29 @@
     "refused_no_bed": "Choose a bed from the list.",
     "admit": "Admit",
     "admit_reason": "Reason for admission"
+  },
+  "dept": {
+    "inside_n": "In now: {n}",
+    "nobody_in": "Nobody is in the department right now.",
+    "no_unit_emergency": "No emergency unit has been built yet. Build one in the bed setup: a unit of kind emergency, its partitions, and a bed in each.",
+    "no_unit_nicu": "No incubator unit has been built yet. Build one in the bed setup: a unit of kind incubators, a bay, and the cots, incubators and capsules in it.",
+    "not_measured": "not measured yet",
+    "here_for": "here {n} min",
+    "hours_old": "{n} h old",
+    "jaundice_phototherapy": "above the phototherapy line",
+    "jaundice_exchange": "above the exchange line",
+    "jaundice_below": "below both lines"
+  },
+  "emergency": {
+    "sub": "Who first, and who has been here without anybody measuring them",
+    "decision": "Decision",
+    "admit_upstairs": "Admit (move to a bed)",
+    "to_bed": "To which bed",
+    "record_decision": "Record the decision",
+    "admitted_upstairs": "Moved to the bed — the stay continues",
+    "decided": "Decision recorded and the stay closed"
+  },
+  "nicu": {
+    "sub": "The incubators: hours of life, gestation, weight and jaundice"
   }
 }

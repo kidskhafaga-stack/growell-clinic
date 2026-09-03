@@ -1,0 +1,182 @@
+{% extends "shell.html" %}
+{% set active_module = module %}
+{% block title %}{{ t('nav.' ~ module) }}{% endblock %}
+{% block page_heading %}{{ t('nav.' ~ module) }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One card per child, read top to bottom. A table was tried on paper and is
+     the wrong shape here: the row that matters carries four different kinds
+     of fact and a table makes each of them a column that is empty for
+     everybody else. */
+  .dept-row { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+              margin-bottom:10px; display:flex; gap:14px; flex-wrap:wrap;
+              align-items:flex-start; }
+  .dept-row__who { min-width:200px; flex:1; }
+  .dept-row__reads { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .dept-row__act { margin-inline-start:auto; }
+  .dept-name { font-weight:700; }
+  /* The four states, and the border is the loudest thing on the card because
+     the question this screen answers from across a room is "who first". */
+  .lv-unseen { border-inline-start:5px solid var(--danger); }
+  .lv-late   { border-inline-start:5px solid var(--danger); }
+  .lv-urgent { border-inline-start:5px solid var(--danger); }
+  .lv-watch  { border-inline-start:5px solid #d97706; }
+  .lv-steady { border-inline-start:5px solid var(--green-600); }
+  .reads { font-size:.86rem; }
+  .reads b { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-{{ 'thermometer-half' if kind == 'emergency' else 'moisture' }}"></i>
+      {{ t('nav.' ~ module) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t(module ~ '.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span class="badge badge--muted">{{ t('dept.inside_n', n=rows|length) }}</span>
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
+      <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
+  </div>
+</div>
+
+{% if not units %}
+{# The department is switched on and nothing has been built. Said plainly,
+   with the one door that leads somewhere — an empty screen here reads as a
+   module that does not work. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0 0 10px;">{{ t('dept.no_unit_' ~ kind) }}</p>
+  {% if may_build %}
+  <a class="btn btn-primary gc-press" href="{{ url_for('beds.setup') }}">
+    <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>
+  {% endif %}
+</div>
+
+{% elif not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('dept.nobody_in') }}</p>
+</div>
+
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div class="dept-row lv-{{ row.level }}">
+    <div class="dept-row__who">
+      <div class="dept-name">
+        <a href="{{ url_for('beds.admission', admission_id=row.admission.id) }}">
+          {{ row.patient.display_name(current_lang) }}</a></div>
+      <div class="hint">
+        {% if row.bed %}{{ row.bed.unit.name }} · {{ row.bed.name }}{% endif %}
+        {% if row.bed and row.bed.is_isolation %}
+        · <span class="alert-pill warn">{{ t('beds.isolation') }}</span>{% endif %}
+      </div>
+      <div class="hint" dir="ltr">{{ t('dept.here_for', n=row.minutes) }}
+        · {{ row.since|clinic_stamp }}</div>
+      {% if row.admission.reason %}
+      <div class="hint">{{ row.admission.reason }}</div>{% endif %}
+    </div>
+
+    <div class="dept-row__reads">
+      {# Why this child is where they are in the list. Never a bare colour:
+         a badge nobody can account for is ignored by the second day. #}
+      {% if row.level == levels.UNSEEN %}
+      <span class="alert-pill danger" data-level="unseen">
+        <i class="bi bi-eye-slash"></i> {{ t('dept.not_measured') }}</span>
+      {% elif row.level == levels.LATE %}
+      <span class="alert-pill danger" data-level="late">
+        <i class="bi bi-clock-history"></i>
+        {{ t('observations.late_by', n=row.rounds.minutes_late) }}</span>
+      {% elif row.level == levels.URGENT or row.level == levels.WATCH %}
+      <span class="alert-pill {{ 'danger' if row.level == levels.URGENT else 'warn' }}"
+            data-level="{{ row.level }}">
+        <i class="bi bi-exclamation-triangle"></i>
+        {{ t('redflags.level_' ~ row.flag.level) }}
+        {% for why in row.flag.reasons %}· {{ t('redflags.' ~ why) }}{% endfor %}</span>
+      {% endif %}
+
+      {% if row.last %}
+      <span class="reads" dir="ltr">
+        {% if row.last.temperature_c %}<b>{{ row.last.temperature_c }}</b>°{% endif %}
+        {% if row.last.pulse_bpm %} · <b>{{ row.last.pulse_bpm }}</b>{% endif %}
+        {% if row.last.resp_rate %} · <b>{{ row.last.resp_rate }}</b>{% endif %}
+        {% if row.last.spo2 %} · <b>{{ row.last.spo2 }}</b>%{% endif %}
+        <span class="hint">{{ row.last.taken_at|clinic_time }}</span>
+      </span>
+      {% endif %}
+
+      {% if kind == 'nicu' and row.newborn %}
+      {# The four facts that belong only here. Each read from something that
+         already existed; none of them recomputed on this screen. #}
+      <span class="reads" dir="ltr" data-newborn>
+        {% if row.newborn.hours is not none %}
+        <span class="badge badge--muted">{{ t('dept.hours_old', n=row.newborn.hours|round|int) }}</span>
+        {% endif %}
+        {% if row.newborn.weeks %}
+        <span class="badge badge--muted">{{ row.newborn.weeks }}w</span>{% endif %}
+        {% if row.newborn.weight %}
+        <span class="badge badge--muted">{{ row.newborn.weight }}kg
+          {%- if row.newborn.birth_weight %} / {{ row.newborn.birth_weight }}{% endif %}</span>
+        {% endif %}
+      </span>
+      {% if row.newborn.jaundice and row.newborn.jaundice.ok %}
+      {% set j = row.newborn.jaundice %}
+      <span class="alert-pill {{ 'danger' if j.points_at in ('exchange', 'phototherapy') else 'warn' }}"
+            data-jaundice="{{ j.points_at or 'below' }}" dir="ltr">
+        <i class="bi bi-droplet-half"></i>
+        {{ row.newborn.bilirubin.result_value }} ·
+        {{ t('dept.jaundice_' ~ (j.points_at or 'below')) }}</span>
+      {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="dept-row__act" style="display:flex;gap:6px;flex-wrap:wrap;">
+      {% if module_enabled('observations') and current_user.can_access('observations') %}
+      <a class="btn btn-sm btn-primary gc-press"
+         href="{{ url_for('observations.chart', patient_id=row.patient.id) }}">
+        <i class="bi bi-activity"></i> {{ t('observations.record') }}</a>
+      {% endif %}
+      <a class="btn btn-sm btn-outline gc-press"
+         href="{{ url_for('patients.view', patient_id=row.patient.id) }}">
+        <i class="bi bi-person"></i> {{ t('beds.patient_file') }}</a>
+    </div>
+
+    {% if kind == 'emergency' %}
+    {# The exit. An emergency stay does not end by time passing; it ends in a
+       decision, and "admitted" is a move rather than a discharge — the child
+       does not leave and come back, and two stays on one piece of care would
+       be a lie about both. #}
+    <form method="post" style="width:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:end;"
+          action="{{ url_for('emergency.decide', admission_id=row.admission.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin-bottom:0;min-width:170px;">
+        <label>{{ t('emergency.decision') }}</label>
+        <select class="select" name="outcome">
+          <option value="home">{{ t('beds.outcome_home') }}</option>
+          <option value="admitted">{{ t('emergency.admit_upstairs') }}</option>
+          <option value="transferred">{{ t('beds.outcome_transferred') }}</option>
+          <option value="self_discharge">{{ t('beds.outcome_self_discharge') }}</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:200px;">
+        <label>{{ t('emergency.to_bed') }}</label>
+        <select class="select" name="bed_id">
+          {% for option in free %}
+          <option value="{{ option.id }}">
+            {{ option.unit.name }} · {{ option.space.name }} · {{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
+        <label>{{ t('beds.discharge_note') }}</label>
+        <input class="input" name="note" maxlength="255">
+      </div>
+      <button class="btn btn-sm btn-outline gc-press" type="submit">
+        <i class="bi bi-box-arrow-right"></i> {{ t('emergency.record_decision') }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

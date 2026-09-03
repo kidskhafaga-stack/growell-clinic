@@ -142,6 +142,8 @@ def create_app(config_name="default"):
     from app.blueprints.finance import finance_bp
     from app.blueprints.dentistry import dentistry_bp
     from app.blueprints.beds import beds_bp
+    from app.blueprints.emergency import emergency_bp
+    from app.blueprints.nicu import nicu_bp
     from app.blueprints.observations import observations_bp
     from app.blueprints.panels import panels_bp
     from app.blueprints.growth import growth_bp
@@ -166,6 +168,8 @@ def create_app(config_name="default"):
     app.register_blueprint(panels_bp)
     app.register_blueprint(observations_bp)
     app.register_blueprint(beds_bp)
+    app.register_blueprint(emergency_bp)
+    app.register_blueprint(nicu_bp)
     app.register_blueprint(vaccinations_bp)
     app.register_blueprint(prescriptions_bp)
     app.register_blueprint(inventory_bp)
@@ -197,6 +201,8 @@ def create_app(config_name="default"):
         "panels": "panels.index",
         "observations": "observations.index",
         "beds": "beds.index",
+        "emergency": "emergency.index",
+        "nicu": "nicu.index",
         "prescriptions": "prescriptions.index",
         "inventory": "inventory.index",
         "finance": "finance.index",
