@@ -567,7 +567,26 @@ def view(patient_id):
         # EF the cardiologist wrote. See app/utils/series.py.
         lab_series=series.curves_for(patient.id, getattr(g, "lang", "ar")),
         lab_latest=lab_series.latest_values(patient.id, getattr(g, "lang", "ar")),
+        # Where this child is, if they are in a bed, and what is free if they
+        # are not. Asked only when the clinic has beds at all: a query per
+        # patient file for a module nobody switched on is work for nothing,
+        # and a screen that offers to admit somebody into a hospital that does
+        # not exist is worse than no screen.
+        **_ward_context(patient.id),
     )
+
+
+def _ward_context(patient_id):
+    """``open_admission`` and ``free_beds`` for the file, or neither."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        return {"open_admission": None, "free_beds": []}
+    from app.utils import beds as ward
+
+    admission = ward.open_admission(patient_id)
+    return {"open_admission": admission,
+            "free_beds": [] if admission else ward.free_beds()}
 
 
 @patients_bp.route("/<int:patient_id>/report")
@@ -930,12 +949,29 @@ def add_problem(patient_id):
             back = url_for("visits.record", visit_id=visit.id) + "#dx"
 
     title = (request.form.get("title") or "").strip()
+    title_en = (request.form.get("title_en") or "").strip()
+
+    # A chip on the specialty panel sends `panel:code` and nothing else — one
+    # button carries one value. The two names come from the panel file, which
+    # is where the specialty's own wording lives; a browser that posted them
+    # could post anything, and this is a line on a child's problem list.
+    chip = (request.form.get("condition") or "").strip()
+    if chip and not title:
+        from app.utils import panels
+
+        panel_key, _, code = chip.partition(":")
+        for cond in panels.conditions_for(panel_key, "ar"):
+            if cond["code"] == code:
+                title = cond["label_ar"]
+                title_en = cond["label_en"]
+                break
+
     if not title:
         flash(t("common.required") + ": " + t("problems.title"), "danger")
         return redirect(back)
     db.session.add(PatientProblem(
         patient_id=patient.id, title=title,
-        title_en=(request.form.get("title_en") or "").strip() or None,
+        title_en=title_en or None,
         icd_code=(request.form.get("icd_code") or "").strip() or None,
         # Checked against the versions the program knows rather than trusted:
         # the picker fills it, but the code box beside it can be typed by

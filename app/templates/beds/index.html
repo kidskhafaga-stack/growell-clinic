@@ -1,0 +1,105 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('nav.beds') }}{% endblock %}
+{% block page_heading %}{{ t('nav.beds') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* A bed is a tile, because a ward is read at a glance and a table of sixty
+     rows is not. Free and taken differ by fill, not only by a word: the
+     question this screen answers from across a room is "where is there
+     space". */
+  .bd-grid { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); }
+  .bd { border:1px solid var(--line); border-radius:10px; padding:9px 11px; }
+  .bd--free { border-style:dashed; color:var(--muted); }
+  .bd--taken { background:var(--green-050); border-color:var(--green-100); }
+  .bd--off { background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(127,127,127,.10) 6px,rgba(127,127,127,.10) 12px); }
+  .bd__name { font-weight:700; font-size:.86rem; }
+  .bd__who { font-size:.82rem; margin-top:3px; }
+  .bd__kind { font-size:.72rem; color:var(--muted); }
+  :root[data-theme="dark"] .bd--taken { background:#12301f; border-color:#1f5b37; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-hospital"></i> {{ t('nav.beds') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('beds.board_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    {# Counted from the open stays, like everything else here — never from a
+       flag on a bed. #}
+    <span class="badge badge--green" dir="ltr">
+      {{ t('beds.free_n', n=counts.free) }}</span>
+    <span class="badge badge--muted" dir="ltr">
+      {{ t('beds.taken_n', n=counts.taken) }}</span>
+    {% if may_build %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.setup') }}">
+      <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if units %}
+{% for row in units %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-buildings"></i> {{ row.unit.name }}
+    <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span>
+    <span class="hint" dir="ltr">{{ row.taken }} / {{ row.taken + row.free }}</span>
+  </h2>
+
+  {% for block in row.spaces %}
+  <div style="margin-bottom:12px;">
+    <div class="hint" style="margin-bottom:5px;">
+      <i class="bi bi-door-closed"></i> {{ block.space.name }}
+      · {{ t('beds.space_' ~ block.space.kind) }}
+      {% if block.space.is_isolation %}
+      <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
+        {{ t('beds.isolation') }}</span>
+      {% endif %}
+    </div>
+    {% if block.beds %}
+    <div class="bd-grid">
+      {% for cell in block.beds %}
+      <div class="bd {{ 'bd--off' if not cell.bed.is_active
+                        else ('bd--taken' if cell.stay else 'bd--free') }}">
+        <div class="bd__name">{{ cell.bed.name }}</div>
+        <div class="bd__kind">{{ t('beds.bed_' ~ cell.bed.kind) }}</div>
+        {% if not cell.bed.is_active %}
+        <div class="bd__who">{{ t('beds.out_of_service') }}</div>
+        {% elif cell.patient %}
+        <div class="bd__who">
+          <a href="{{ url_for('beds.admission', admission_id=cell.stay.admission_id) }}">
+            {{ cell.patient.display_name(current_lang) }}</a></div>
+        <div class="bd__kind" dir="ltr">
+          {{ t('beds.since') }} {{ cell.stay.since|clinic_stamp }}</div>
+        {% else %}
+        <div class="bd__who">{{ t('beds.free') }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('beds.no_beds_here') }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if not row.spaces %}
+  <p class="hint" style="margin:0;">{{ t('beds.no_spaces_here') }}</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+{# Not an empty screen: it says what to do first, because a ward with nothing
+   in it on the first morning otherwise reads as a module that is broken. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0 0 10px;">{{ t('beds.nothing_built') }}</p>
+  {% if may_build %}
+  <a class="btn btn-primary gc-press" href="{{ url_for('beds.setup') }}">
+    <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

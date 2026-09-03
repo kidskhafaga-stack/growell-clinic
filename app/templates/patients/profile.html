@@ -153,6 +153,37 @@
       <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('prescriptions.new', patient_id=patient.id) }}">
         <i class="bi bi-prescription2"></i> {{ t('rx.new') }}</a>
       {% endif %}
+      {# Admitting, from the file — the one screen where somebody is already
+         looking at the child they mean to admit. A stay that can only be
+         started from a board is a stay nobody starts.
+
+         A sibling of the other buttons and never nested inside one of them:
+         a form inside a form ends the outer one in the browser, which cost a
+         doctor every Save they pressed. See `test_a_form_inside_a_form.py`. #}
+      {% if module_enabled('beds') and current_user.can_access('beds') %}
+        {% if open_admission %}
+        <a class="btn btn-outline btn-sm gc-press"
+           href="{{ url_for('beds.admission', admission_id=open_admission.id) }}">
+          <i class="bi bi-hospital"></i> {{ t('beds.stay') }}</a>
+        {% elif free_beds %}
+        <form method="post" action="{{ url_for('beds.admit', patient_id=patient.id) }}"
+              style="display:flex;flex-direction:column;gap:6px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select class="select" name="bed_id" style="font-size:.82rem;">
+            {% for bed in free_beds %}
+            <option value="{{ bed.id }}">{{ bed.unit.name }} · {{ bed.space.name }}
+              · {{ bed.name }}{% if bed.is_isolation %} · {{ t('beds.isolation') }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <input class="input" name="reason" maxlength="200"
+                 style="font-size:.82rem;" placeholder="{{ t('beds.admit_reason') }}">
+          <button class="btn btn-outline btn-sm gc-press" type="submit">
+            <i class="bi bi-hospital"></i> {{ t('beds.admit') }}</button>
+        </form>
+        {% else %}
+        <p class="hint" style="margin:0;">{{ t('beds.no_free_bed') }}</p>
+        {% endif %}
+      {% endif %}
       {# The rounds, from the file. The board in the sidebar answers "who is
          overdue"; this is the other direction — somebody is looking at a
          child and wants to record or read their observations, and without

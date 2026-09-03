@@ -39,6 +39,12 @@ MODULES = [
     # by upgrading. It is what emergency, the incubators, the ward and the
     # recovery room are all built on (see HOSPITAL_PLAN.md, أساس ١).
     "observations",
+    # The place a child stays, and the stay itself: units, spaces, beds and
+    # admissions. One module for four departments — emergency, the incubators,
+    # intensive care and the ward differ by how often a child is looked at,
+    # not by what a bed is (HOSPITAL_PLAN.md, ٤-ب). Opt-in: a clinic that sees
+    # outpatients has no beds and must not find a ward screen after upgrading.
+    "beds",
     "prescriptions",
     "inventory",
     "finance",
@@ -80,6 +86,7 @@ MODULE_ICONS = {
     "dentistry": "emoji-smile",
     "panels": "clipboard-data",
     "observations": "activity",
+    "beds": "hospital",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -107,6 +114,8 @@ ROLE_PERMISSIONS = {
         "dentistry",
         # They order the rounds; the nurse records them.
         "observations",
+        # Admitting and discharging is a clinical decision.
+        "beds",
         "prescriptions",
         "ai",
     ],
@@ -122,6 +131,8 @@ ROLE_PERMISSIONS = {
         # The rounds are theirs to take. Whoever holds the thermometer at
         # three in the morning is the one this module was built for.
         "observations",
+        # And they move children between beds, which is the same shift's work.
+        "beds",
     ],
     "reception": [
         "dashboard",

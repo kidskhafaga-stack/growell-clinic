@@ -34,6 +34,9 @@ from app.models.family import Family
 from app.models.diagnosis import DIAGNOSIS_TYPES, ICD_VERSIONS, Diagnosis
 from app.models.growth_record import GrowthRecord
 from app.models.measurement import Measurement
+from app.models.place import (BED_KINDS, SPACE_KINDS, UNIT_KINDS,
+                             Bed, Space, Unit)
+from app.models.admission import OUTCOMES, Admission, BedStay
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
                                    Observation, ObservationOrder,
                                    due_at, lateness_grace)
@@ -232,6 +235,15 @@ __all__ = [
     "Patient",
     "PanelHistory",
     "Observation",
+    "Unit",
+    "Space",
+    "Bed",
+    "UNIT_KINDS",
+    "SPACE_KINDS",
+    "BED_KINDS",
+    "Admission",
+    "BedStay",
+    "OUTCOMES",
     "ObservationOrder",
     "INTERVALS",
     "OXYGEN_SUPPORT",

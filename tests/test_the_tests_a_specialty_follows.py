@@ -295,10 +295,15 @@ def test_ordering_one_is_a_single_press(desk):
     """Typing the name is what splits a curve, so the order has to carry the
     catalogue id and the result land on the same test as every previous one.
 
-    The form is read **off the rendered page** and posted back field for field,
-    rather than the fields being typed here. The first version typed them, and
-    so it passed with the id deleted from the template — it was testing the
-    route, which was never in doubt, and calling it a test of the screen.
+    What the chip carries is read **off the rendered page** and posted back,
+    rather than being typed here. The first version typed it, and so it passed
+    with the id deleted from the template — it was testing the route, which
+    was never in doubt, and calling it a test of the screen.
+
+    The chip is a **button naming a form it does not sit inside**, not a form
+    of its own: a form drawn inside the consultation form ended it early in
+    the browser, which cost a doctor their Save and put the clinical card on
+    every tab. See `test_a_form_inside_a_form.py`.
     """
     import re
 
@@ -308,16 +313,14 @@ def test_ordering_one_is_a_single_press(desk):
         test_id = Investigation.query.filter_by(code="hba1c").first().id
 
     page = _page(desk)
-    forms = re.findall(
-        r'<form[^>]*action="[^"]*/investigations"[^>]*>(.*?)</form>', page, re.S)
-    mine = [f for f in forms if f'value="{test_id}"' in f]
-    assert mine, "no one-press order for this test is on the screen"
+    chips = re.findall(
+        r'<button[^>]*form="panelTestForm"[^>]*value="([^"]+)"', page)
+    assert str(test_id) in chips, \
+        "no one-press order for this test is on the screen"
 
-    fields = dict(re.findall(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"',
-                             mine[0]))
     desk["sign_in"]("boss").post(
         f"/visits/{desk['ids']['visit']}/investigations",
-        data=fields, follow_redirects=True)
+        data={"investigation_id": test_id}, follow_redirects=True)
 
     with desk["app"].app_context():
         row = VisitInvestigation.query.filter_by(

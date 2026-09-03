@@ -294,27 +294,49 @@ def _payment_status(appointments, on_date):
     if not appointments:
         return {}
     patient_ids = {a.patient_id for a in appointments}
-    # Today's invoices, plus any still-outstanding balance from any date — so a
-    # charge the doctor added after the patient paid (or a lingering due) shows
-    # up for the cashier instead of silently disappearing.
     from sqlalchemy.orm import selectinload
 
     invoices = (
         Invoice.query
         .options(selectinload(Invoice.items), selectinload(Invoice.payments))
         .filter(
-            Invoice.patient_id.in_(patient_ids),
-            db.or_(Invoice.invoice_date == on_date,
-                   Invoice.status.in_(["unpaid", "partial"])),
+            db.or_(
+                # **The bill raised for this appointment, whatever day it was
+                # paid on.** Asked first and answered exactly, because the two
+                # rules below are guesses from a date and one of them was
+                # wrong every time a family paid in advance: an appointment on
+                # Saturday, settled on Thursday, showed "بدون فاتورة" with a
+                # Collect button — and the collect screen it opened refused,
+                # saying the charges were already on an invoice. See
+                # `Invoice.appointment_id`.
+                Invoice.appointment_id.in_([a.id for a in appointments]),
+                db.and_(
+                    Invoice.patient_id.in_(patient_ids),
+                    # Today's invoices, plus any still-outstanding balance from
+                    # any date — so a charge the doctor added after the patient
+                    # paid (or a lingering due) shows up for the cashier
+                    # instead of silently disappearing. Kept as the answer for
+                    # every invoice raised before the link above existed.
+                    db.or_(Invoice.invoice_date == on_date,
+                           Invoice.status.in_(["unpaid", "partial"])),
+                ),
+            )
         ).all()
     )
     by_patient = {}
+    linked = {}
     for inv in invoices:
+        if inv.appointment_id:
+            linked.setdefault(inv.appointment_id, []).append(inv)
         by_patient.setdefault(inv.patient_id, []).append(inv)
 
     out = {}
     for a in appointments:
-        ivs = by_patient.get(a.patient_id)
+        # An invoice that names this appointment answers on its own. Falling
+        # back to the patient's other invoices here would put somebody else's
+        # outstanding balance — last month's, another child's visit — onto a
+        # row that is already settled.
+        ivs = linked.get(a.id) or by_patient.get(a.patient_id)
         if not ivs:
             out[a.id] = {"state": "none"}
             continue

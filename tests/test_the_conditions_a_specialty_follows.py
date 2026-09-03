@@ -138,15 +138,18 @@ def test_pressing_one_puts_it_on_the_childs_problem_list(desk):
     from app.models import PatientProblem
 
     page = _page(desk)
-    forms = re.findall(
-        r'<form[^>]*action="[^"]*/problems"[^>]*>(.*?)</form>', page, re.S)
-    mine = [f for f in forms if "السكر النوع الأول" in f]
-    assert mine, "no one-press control for that condition is on the screen"
+    # A button naming the hidden form at the foot of the page, not a form of
+    # its own — a form inside the consultation form ended it early in the
+    # browser and cost a doctor their Save. See `test_a_form_inside_a_form.py`.
+    chip = re.search(
+        r'<button[^>]*form="panelProblemForm"[^>]*value="([^"]+)"[^>]*>'
+        r'(?:(?!</button>).)*السكر النوع الأول', page, re.S)
+    assert chip, "no one-press control for that condition is on the screen"
 
-    fields = dict(re.findall(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"',
-                             mine[0]))
     desk["sign_in"]("boss").post(
-        f"/patients/{desk['ids']['child']}/problems", data=fields,
+        f"/patients/{desk['ids']['child']}/problems",
+        data={"condition": chip.group(1),
+              "visit_id": desk["ids"]["visit"]},
         follow_redirects=True)
 
     with desk["app"].app_context():
@@ -164,13 +167,18 @@ def test_it_comes_back_to_the_consultation_and_not_to_the_patient_file(desk):
     import re
 
     page = _page(desk)
-    form = [f for f in re.findall(
-        r'<form[^>]*action="[^"]*/problems"[^>]*>(.*?)</form>', page, re.S)
-        if "السكر النوع الأول" in f][0]
-    fields = dict(re.findall(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"', form))
+    # The chip is a button that names the hidden form at the foot of the page;
+    # that form carries the visit id, which is what brings the doctor back.
+    chip = re.search(
+        r'<button[^>]*form="panelProblemForm"[^>]*value="([^"]+)"', page)
+    assert chip, "no condition chip on the screen"
+    back = re.search(
+        r'id="panelProblemForm".*?name="visit_id" value="(\d+)"', page, re.S)
+    assert back, "the chip's form does not carry the way back"
 
     reply = desk["sign_in"]("boss").post(
-        f"/patients/{desk['ids']['child']}/problems", data=fields)
+        f"/patients/{desk['ids']['child']}/problems",
+        data={"condition": chip.group(1), "visit_id": back.group(1)})
 
     assert reply.status_code in (301, 302)
     assert f"/visits/{desk['ids']['visit']}/record" in reply.headers["Location"]

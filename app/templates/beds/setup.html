@@ -1,0 +1,152 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('beds.setup') }}{% endblock %}
+{% block page_heading %}{{ t('beds.setup') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('beds.setup_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
+    <i class="bi bi-hospital"></i> {{ t('beds.board') }}</a>
+</div>
+
+{# A department. Its *kind* is the only thing that makes emergency different
+   from a ward here — the shape underneath is identical, which is the whole
+   argument of ٤-ب in the plan. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-buildings"></i> {{ t('beds.add_unit') }}</h2>
+  <form method="post" action="{{ url_for('beds.add_unit') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:200px;flex:1;">
+      <label for="unit_name">{{ t('beds.name') }}</label>
+      <input class="input" id="unit_name" name="name" maxlength="80" required>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      <label for="unit_kind">{{ t('beds.kind') }}</label>
+      <select class="select" id="unit_kind" name="kind">
+        {% for kind in unit_kinds %}
+        <option value="{{ kind }}">{{ t('beds.unit_' ~ kind) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+
+{% for row in units %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    {{ row.unit.name }}
+    <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span></h2>
+
+  {% for block in row.spaces %}
+  <div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+      <b>{{ block.space.name }}</b>
+      <span class="badge badge--muted">{{ t('beds.space_' ~ block.space.kind) }}</span>
+      {% if block.space.is_isolation %}
+      <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
+        {{ t('beds.isolation') }}</span>
+      {% endif %}
+    </div>
+
+    {% if block.beds %}
+    <table class="table">
+      <tbody>
+      {% for cell in block.beds %}
+      <tr>
+        <td>{{ cell.bed.name }}</td>
+        <td>{{ t('beds.bed_' ~ cell.bed.kind) }}</td>
+        <td>
+          {% if cell.stay %}
+          <span class="badge badge--green">{{ t('beds.occupied') }}</span>
+          {% elif not cell.bed.is_active %}
+          <span class="badge badge--muted">{{ t('beds.out_of_service') }}
+            {% if cell.bed.out_of_service_note %}
+            · {{ cell.bed.out_of_service_note }}{% endif %}</span>
+          {% else %}
+          <span class="hint">{{ t('beds.free') }}</span>
+          {% endif %}
+        </td>
+        <td style="text-align:end;">
+          {# A bed is never deleted — its stays are last month's occupancy,
+             which a hospital reports on. It goes out of service and comes
+             back. #}
+          <form method="post"
+                action="{{ url_for('beds.bed_service', bed_id=cell.bed.id) }}"
+                style="display:flex;gap:6px;justify-content:flex-end;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if cell.bed.is_active %}
+            <input class="input" name="note" maxlength="120"
+                   style="max-width:180px;"
+                   placeholder="{{ t('beds.service_note') }}">
+            {% endif %}
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              {{ t('beds.back_in_service') if not cell.bed.is_active
+                 else t('beds.take_out') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('beds.add_bed', space_id=block.space.id) }}"
+          style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <label>{{ t('beds.add_bed') }}</label>
+        <input class="input" name="name" maxlength="40" required
+               placeholder="{{ t('beds.bed_name_hint') }}">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <select class="select" name="kind">
+          {% for kind in bed_kinds %}
+          <option value="{{ kind }}">{{ t('beds.bed_' ~ kind) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-sm btn-primary gc-press" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  <form method="post" action="{{ url_for('beds.add_space', unit_id=row.unit.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
+      <label>{{ t('beds.add_space') }}</label>
+      <input class="input" name="name" maxlength="60" required
+             placeholder="{{ t('beds.space_name_hint') }}">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:160px;">
+      <select class="select" name="kind">
+        {% for kind in space_kinds %}
+        <option value="{{ kind }}">{{ t('beds.space_' ~ kind) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {# Isolation belongs to the space and is asked here — a partition can be
+       an isolation partition and a room can be an isolation room, so it is a
+       property and not a fourth kind. #}
+    <label class="checkbox" style="font-weight:400;">
+      <input type="checkbox" name="is_isolation" value="1">
+      {{ t('beds.is_isolation') }}</label>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+{% endfor %}
+
+{% if not units %}
+<p class="hint">{{ t('beds.nothing_built') }}</p>
+{% endif %}
+{% endblock %}

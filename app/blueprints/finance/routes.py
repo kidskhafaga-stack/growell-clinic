@@ -2397,11 +2397,23 @@ def _checkout_screen(appt, patient):
         if invoice is None:
             invoice = Invoice(invoice_number=generate_invoice_number(),
                               patient_id=patient_id, doctor_id=doctor_id,
+                              # Which appointment the money was taken for. The
+                              # board used to match invoices by date and got
+                              # this wrong for every family that pays before
+                              # the day of their appointment — see the column.
+                              appointment_id=appt.id if appt else None,
                               created_by=current_user.id)
             db.session.add(invoice)
             db.session.flush()
-        elif invoice.doctor_id is None:
-            invoice.doctor_id = doctor_id
+        else:
+            if invoice.doctor_id is None:
+                invoice.doctor_id = doctor_id
+            # Today's invoice, appended to from an appointment that has not
+            # claimed it yet. Never re-pointed: an invoice already raised for
+            # one appointment stays that appointment's, or a second collection
+            # would quietly move the first one's money onto another row.
+            if appt is not None and invoice.appointment_id is None:
+                invoice.appointment_id = appt.id
 
         descs = request.form.getlist("line_desc")
         sids = request.form.getlist("line_service_id")
