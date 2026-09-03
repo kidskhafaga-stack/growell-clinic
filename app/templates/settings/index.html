@@ -689,11 +689,43 @@
     </div>
     <p class="hint" style="margin:0 0 8px;">{{ t('settings.j_legend') }}</p>
 
+    {# Why there is nothing to type here, said out loud.
+
+       Reported as a question: *"هو فى الجدول تحت العيادة مش المفروض تعدل او
+       تعمل اجراء ؟ انا شايف مفيش تعديل"*. Fair — the table directly above it
+       has a box on every row, so a table with none reads like a screen
+       somebody forgot to finish.
+
+       It is not unfinished. A fever threshold is one number with an obvious
+       meaning and a clinic sets its own; this is ninety-six numbers from one
+       published guideline, and a cell edited in the middle of it produces a
+       table that is no longer that guideline and is not any other one either.
+       So the action here is to read it and accept it — which is the only
+       thing a person can honestly do to a transcribed table — and the screen
+       now says that instead of leaving it to be discovered. #}
+    <div class="alert-pill warn" style="display:block;margin:0 0 10px;">
+      <i class="bi bi-lock"></i> {{ t('settings.j_not_editable') }}</div>
+
     <label class="checkbox" style="font-weight:400;display:block;">
       <input type="checkbox" id="jaundice_table_confirmed"
              name="jaundice_table_confirmed" value="1"
              {{ 'checked' if values.get('jaundice_table_confirmed')=='1' else '' }}>
       {{ t('settings.jaundice_confirm') }}</label>
+    {# A tick names nobody. If a decision taken on these numbers is ever
+       looked at again, the first question is who accepted them. #}
+    {% if jaundice_approval %}
+    <p class="hint" style="margin:6px 0 0;" data-jaundice-approval>
+      <i class="bi bi-person-check"></i>
+      {% if jaundice_approval.name %}
+        {{ t('settings.j_approved_by', name=jaundice_approval.name) }}
+        {% if jaundice_approval.at %}
+        · <span dir="ltr">{{ jaundice_approval.at|replace('T', ' ') }}</span>
+        {% endif %}
+      {% else %}
+        {{ t('settings.j_approved_unknown') }}
+      {% endif %}
+    </p>
+    {% endif %}
     <p class="hint" style="margin:6px 0 0;">
       <i class="bi bi-exclamation-triangle"></i> {{ t('settings.jaundice_until') }}</p>
     {% endif %}

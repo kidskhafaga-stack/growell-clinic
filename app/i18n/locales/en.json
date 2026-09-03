@@ -1646,7 +1646,10 @@
     "j_weeks": "Gestation",
     "j_no_risk": "No neurotoxicity risk factors",
     "j_risk": "With neurotoxicity risk factors",
-    "j_legend": "The larger number is the phototherapy threshold; the smaller one beneath it is the exchange transfusion threshold."
+    "j_legend": "The larger number is the phototherapy threshold; the smaller one beneath it is the exchange transfusion threshold.",
+    "j_not_editable": "These numbers are transcribed from the published guidance and are not edited here: the table is one coupled set, and a single cell changed produces a table that follows no guideline at all. The action here is to read it and accept it — the limits above (temperature and oxygen) are the ones a clinic sets for itself.",
+    "j_approved_by": "Reviewed and accepted by {name}",
+    "j_approved_unknown": "Accepted before the program recorded who accepted it."
   },
   "errors": {
     "403_title": "Forbidden",

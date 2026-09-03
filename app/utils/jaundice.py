@@ -29,6 +29,8 @@ import json
 import os
 
 CONFIRMED_KEY = "jaundice_table_confirmed"
+APPROVED_BY_KEY = "jaundice_table_confirmed_by"
+APPROVED_AT_KEY = "jaundice_table_confirmed_at"
 
 # Gestational ages the table has curves for. A baby below the lowest is not
 # extrapolated down to — preterm thresholds are not a straight line and the
@@ -57,6 +59,59 @@ def confirmed():
         return Setting.get(CONFIRMED_KEY) == "1"
     except Exception:  # noqa: BLE001 — settings table may not be ready
         return False
+
+
+def approval():
+    """Who accepted the table and when — ``{"name", "at"}`` or ``None``.
+
+    Asked because a tick in a box is not a sign-off. The whole argument for
+    this gate is that a person took responsibility for a hand-transcribed
+    clinical table, and *"somebody ticked it at some point"* does not name a
+    person. If a decision taken on these numbers is ever looked at again, the
+    first question is who accepted them, and the settings row had no answer.
+
+    Deliberately not a foreign key to ``users``: the name is captured at the
+    moment of approval and kept as text, so a doctor who later leaves the
+    clinic and is archived does not take their own sign-off with them.
+    """
+    from app.models import Setting
+
+    try:
+        if Setting.get(CONFIRMED_KEY) != "1":
+            return None
+        name = (Setting.get(APPROVED_BY_KEY) or "").strip()
+        at = (Setting.get(APPROVED_AT_KEY) or "").strip()
+    except Exception:  # noqa: BLE001 — settings table may not be ready
+        return None
+    # Both empty means it was accepted on a copy that ran before this was
+    # recorded, and the acceptance still stands: it is not withdrawn because
+    # the program grew a field. The screen says the name is unknown rather
+    # than pretending nobody ever accepted it.
+    return {"name": name, "at": at}
+
+
+def note_approval(confirming, user):
+    """Stamp (or clear) who accepted the table, from the settings screen.
+
+    Clearing on withdrawal is the point of the pair: a clinic that unticks the
+    box has taken the acceptance back, and leaving the previous name beside a
+    table the program is no longer allowed to use would read as a sign-off
+    that is still standing.
+    """
+    from datetime import datetime
+
+    from app.models import Setting
+
+    if not confirming:
+        Setting.set(APPROVED_BY_KEY, "")
+        Setting.set(APPROVED_AT_KEY, "")
+        return
+    if Setting.get(APPROVED_AT_KEY):
+        return                      # already accepted; not re-stamped on every save
+    Setting.set(APPROVED_BY_KEY,
+                (getattr(user, "full_name", "") or
+                 getattr(user, "username", "") or "")[:120])
+    Setting.set(APPROVED_AT_KEY, datetime.utcnow().isoformat(timespec="minutes"))
 
 
 def _row(weeks):
