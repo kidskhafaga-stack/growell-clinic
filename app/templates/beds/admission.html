@@ -110,6 +110,84 @@
   </div>
 </div>
 
+{# ---- the round --------------------------------------------------------- #}
+{# The stay's own thread. The board answers "has anybody been round today"
+   across a whole department; this is the other half of the same fact — what
+   was actually decided, day by day, for one child. A doctor coming on shift
+   reads this and not fourteen sets of numbers. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-check"></i> {{ t('rounds.history') }}</h2>
+
+  {% if admission.is_open %}
+  <form method="post" style="margin-bottom:14px;"
+        action="{{ url_for('beds.round_note', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <span class="hint">{{ t('rounds.today_q') }}</span>
+      {% for trend in trends %}
+      <button class="btn btn-sm btn-outline gc-press" type="submit"
+              name="trend" value="{{ trend }}" data-trend="{{ trend }}">
+        <i class="bi bi-{{ {'improving':'arrow-up-right',
+                            'stable':'dash-lg',
+                            'worse':'arrow-down-right'}[trend] }}"></i>
+        {{ t('rounds.trend_' ~ trend) }}</button>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+        <label for="assessment">{{ t('rounds.assessment') }}</label>
+        <input class="input" id="assessment" name="assessment" maxlength="500">
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+        <label for="plan">{{ t('rounds.plan') }}</label>
+        <input class="input" id="plan" name="plan" maxlength="500">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="expected_discharge">{{ t('rounds.expected_discharge') }}</label>
+        <input class="input" type="date" id="expected_discharge"
+               name="expected_discharge"
+               value="{{ rounds[0].expected_discharge if rounds and rounds[0].expected_discharge else '' }}">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;">
+        <label for="at">{{ t('rounds.at') }}</label>
+        <input class="input" type="datetime-local" id="at" name="at">
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if not rounds %}
+  <p class="hint" style="margin:0;">{{ t('rounds.none_yet') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('rounds.at') }}</th>
+      <th>{{ t('rounds.today_q') }}</th>
+      <th>{{ t('rounds.assessment') }}</th>
+      <th>{{ t('rounds.plan') }}</th>
+      <th>{{ t('rounds.expected_discharge') }}</th>
+      <th>{{ t('rounds.by') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for note in rounds %}
+      <tr data-round-row>
+        <td dir="ltr">{{ note.at|clinic_stamp }}</td>
+        <td><span class="badge badge--muted" data-trend="{{ note.trend }}">
+          {{ t('rounds.trend_' ~ note.trend) }}</span></td>
+        <td>{{ note.assessment or '—' }}</td>
+        <td>{{ note.plan or '—' }}</td>
+        <td dir="ltr">{{ note.expected_discharge or '—' }}</td>
+        <td>{{ note.by.display_name(current_lang) if note.by else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
 {# ---- ending it --------------------------------------------------------- #}
 {% if admission.is_open %}
 <div class="card gc-scale-in">

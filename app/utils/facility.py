@@ -32,7 +32,7 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 #
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
-                  "emergency", "nicu"}
+                  "emergency", "nicu", "icu", "ward"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -107,9 +107,14 @@ CAPABILITY_MODULES = {
     # a department that does not work — which is the gap this module closes.
     "observation": {"visits", "observations"},
     "day_care": {"visits", "observations", "beds"},
-    "ward": {"visits", "observations", "beds"},
+    # Each of these three now has a screen of its own, so ticking the
+    # capability has to switch that screen on as well. It did not for the two
+    # slow ones: a hospital ticked "ward" in the wizard, got the bed board and
+    # the rounds, and had nowhere that answered "who has nobody been round to
+    # this morning" — the capability was real and the door to it was missing.
+    "ward": {"visits", "observations", "beds", "ward"},
     "nicu": {"visits", "observations", "beds", "nicu"},
-    "icu": {"visits", "observations", "beds"},
+    "icu": {"visits", "observations", "beds", "icu"},
 }
 
 # Ready-made presets: type + capabilities (modules derived).

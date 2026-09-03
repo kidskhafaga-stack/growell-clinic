@@ -188,7 +188,9 @@
     "observations": "Observations",
     "beds": "Beds & stays",
     "emergency": "Emergency",
-    "nicu": "Incubators"
+    "nicu": "Incubators",
+    "ward": "Wards",
+    "icu": "Intensive care"
   },
   "auth": {
     "login": "Login",
@@ -5741,7 +5743,9 @@
     "hours_old": "{n} h old",
     "jaundice_phototherapy": "above the phototherapy line",
     "jaundice_exchange": "above the exchange line",
-    "jaundice_below": "below both lines"
+    "jaundice_below": "below both lines",
+    "no_unit_ward": "No inpatient ward has been built yet. Build one in the bed setup: a unit of kind ward, its rooms, and a bed or more in each.",
+    "no_unit_icu": "No intensive care unit has been built yet. Build one in the bed setup: a unit of kind intensive care, an open bay holding the beds, and one or two partitions marked as isolation."
   },
   "emergency": {
     "sub": "Who first, and who has been here without anybody measuring them",
@@ -5754,5 +5758,28 @@
   },
   "nicu": {
     "sub": "The incubators: hours of life, gestation, weight and jaundice"
+  },
+  "rounds": {
+    "today_q": "Today's round:",
+    "not_today": "no round today",
+    "trend_improving": "improving",
+    "trend_stable": "unchanged",
+    "trend_worse": "worse",
+    "more": "More (optional)",
+    "assessment": "How they are today",
+    "plan": "Plan",
+    "expected_discharge": "Expected home",
+    "at": "Time of the round",
+    "saved": "Round recorded.",
+    "needs_trend": "Say how the child is first: improving, unchanged or worse. A blank round would have cleared the “nobody has been round today” flag without anybody going near them.",
+    "history": "The round",
+    "none_yet": "No round has been written on this stay yet.",
+    "by": "written by"
+  },
+  "ward": {
+    "sub": "Who has had no round today, and who we expect to send home"
+  },
+  "icu": {
+    "sub": "The ward screen, read hourly instead of once a morning"
   }
 }

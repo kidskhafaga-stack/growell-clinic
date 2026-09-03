@@ -19,8 +19,11 @@ doctors, nursing, and whoever runs the clinic. Building the place itself —
 adding a unit, a room, a bed — is the owner's, because it is configuration and
 not care.
 """
+from datetime import datetime
+
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user
+from werkzeug.routing import BuildError
 
 from app.blueprints.beds import beds_bp
 from app.extensions import db
@@ -28,7 +31,10 @@ from app.i18n import t
 from app.models import Patient, Visit
 from app.models.admission import OUTCOMES, Admission
 from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Unit
+from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
+from app.utils import rounds as ward_round
+from app.utils.clock import to_utc
 from app.utils.decorators import module_required
 
 MODULE = "beds"
@@ -189,7 +195,11 @@ def admission(admission_id):
     """One stay: where they are, where they have been, and how it ended."""
     row = Admission.query.get_or_404(admission_id)
     return render_template("beds/admission.html", admission=row,
-                           free=ward.free_beds(), outcomes=OUTCOMES)
+                           free=ward.free_beds(), outcomes=OUTCOMES,
+                           trends=ROUND_TRENDS,
+                           rounds=sorted(row.round_notes,
+                                         key=lambda n: (n.at, n.id),
+                                         reverse=True))
 
 
 @beds_bp.route("/admission/<int:admission_id>/move", methods=["POST"])
@@ -218,3 +228,91 @@ def discharge(admission_id):
     db.session.commit()
     flash(t("beds.discharged"), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+# ------------------------------------------------------------ the round -----
+@beds_bp.route("/admission/<int:admission_id>/round", methods=["POST"])
+@module_required(MODULE)
+def round_note(admission_id):
+    """One stop on the ward round.
+
+    **Here and not on the ward blueprint**, although the ward is where it is
+    used most. Three department screens post to this address — the wards,
+    intensive care and the incubators — and a clinic may run any one of them
+    without the others. Hanging the action off `ward` would have meant a
+    nursery with no wards getting 404 on the round it walks every morning:
+    the same "a module off is a module absent" rule, aimed at itself. Every
+    department that has rounds has `beds` on, because the stay is here.
+    """
+    row = Admission.query.get_or_404(admission_id)
+    try:
+        ward_round.record(
+            row, (request.form.get("trend") or "").strip(),
+            user=current_user,
+            assessment=request.form.get("assessment"),
+            plan=request.form.get("plan"),
+            expected_discharge=_a_date(request.form.get("expected_discharge")),
+            at=_happened_at())
+    except ValueError:
+        db.session.rollback()
+        # The blank round, refused out loud. Silence here would look exactly
+        # like a round that saved, and the board would stop asking about a
+        # child nobody had been to see — which is the failure the whole "not
+        # rounded today" flag exists to prevent.
+        flash(t("rounds.needs_trend"), "error")
+        return _back_to(row)
+    db.session.commit()
+    flash(t("rounds.saved"), "success")
+    return _back_to(row)
+
+
+def _back_to(admission):
+    """Back to the screen the round was written from.
+
+    The referrer decides, because one address serves three department boards
+    and the stay screen — but it is matched against our own endpoints rather
+    than followed, since a redirect that trusts a request header is an open
+    redirect wherever it appears.
+    """
+    here = request.referrer or ""
+    for endpoint in ("ward.index", "icu.index", "nicu.index"):
+        try:
+            known = url_for(endpoint)
+        except BuildError:
+            continue
+        if here.endswith(known):
+            return redirect(known)
+    return redirect(url_for("beds.admission", admission_id=admission.id))
+
+
+def _a_date(raw):
+    """A date the screen sent, or nothing. Never today by default: an expected
+    discharge nobody typed is not a plan, and defaulting it would put one in
+    the record."""
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _happened_at():
+    """When the round happened, in UTC.
+
+    The screen offers the clinic's local wall clock prefilled with now,
+    because a doctor typing this at eleven is recording a round they walked at
+    nine. Converting is not optional: comparing a local time against stored
+    UTC is the mistake this program has already paid for in four money
+    reports. Unparseable falls back to now — a round with the wrong minute on
+    it is worth more than a round nobody wrote down.
+    """
+    raw = (request.form.get("at") or "").strip()
+    if raw:
+        for shape in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
+            try:
+                return to_utc(datetime.strptime(raw, shape))
+            except ValueError:
+                continue
+    return datetime.utcnow()

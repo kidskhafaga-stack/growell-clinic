@@ -501,6 +501,91 @@ SECTIONS = [
         ],
     },
     {
+        "key": "ward",
+        "module": "ward",
+        "icon": "buildings",
+        "title": ("الداخلي", "The wards"),
+        "lines": [
+            ("<b>القسم الداخلي بيتقرا بالأيام مش بالدقايق.</b> الطفل في سرير "
+             "رقم أربعة مش رايح حتة قبل الخميس، والسؤال مش «مين الأول» — "
+             "دول سؤالين تانيين: <b>مين محدش عمله راوند النهاردة</b>، "
+             "و<b>مين متوقّع يخرج</b>.",
+             "<b>A ward is read in days, not in minutes.</b> The child in bed "
+             "four is not going anywhere before Thursday, and the question is "
+             "not \u201cwho first\u201d \u2014 it is two others: <b>who has "
+             "nobody been round to this morning</b>, and <b>who are we "
+             "expecting to send home</b>."),
+            ("<b>الراوند دوسة واحدة.</b> بيتحسّن، زي ما هو، بيسوء — والتلاتة "
+             "أزرار. اللي بعد كده كله اختياري وراء «تفاصيل زيادة»: الحالة "
+             "النهاردة، والخطة، وتاريخ الخروج المتوقّع. الطبيب واقف عند سرير "
+             "وقدامه تمنية، فاللي بيتطلب منه يكتبه هو اللي مش موجود في البرنامج "
+             "أصلاً.",
+             "<b>A round is one press.</b> Improving, unchanged, worse \u2014 "
+             "three buttons. Everything after that is optional and behind "
+             "\u201cmore\u201d: how they are, the plan, and when we expect "
+             "them home. The doctor is standing at a bed with eight more to "
+             "see, so the only thing asked of them is the part the program "
+             "does not already hold."),
+            ("<b>والراوند الفاضي مرفوض.</b> صف من غير حالة كان هيقفل تنبيه "
+             "«محدش شافه النهاردة» من غير ما حد يقرّب من الطفل — نفس القاعدة "
+             "بالظبط اللي بترفض قراءة ملاحظات فاضية، ولنفس السبب.",
+             "<b>And a blank round is refused.</b> A row with no trend on it "
+             "would clear \u201cnobody has been round today\u201d without "
+             "anybody having gone near the child \u2014 the same rule that "
+             "refuses an empty observation, for the same reason."),
+            ("<b>تاريخ الخروج المتوقّع بيتكتب على الراوند مش على الإقامة.</b> "
+             "لأن اللي بيتغيّر بيحكي: «قلنا الخميس يوم الاتنين، وقلنا السبت "
+             "يوم الأربعا» ده تاريخ الحالة، وعمود واحد على الإقامة كان هيمسح "
+             "الإجابة القديمة كل مرة.",
+             "<b>The expected discharge is written on the round, not on the "
+             "stay.</b> What changed is the story: \u201cwe said Thursday on "
+             "Monday and Saturday on Wednesday\u201d is the history, and a "
+             "single column on the stay would have overwritten the earlier "
+             "answer every time."),
+            ("<b>لازم يكون فيه قسم متبني.</b> القسم بيتعمل من إعداد الأسرّة: "
+             "قسم نوعه داخلي، وغرف، وسرير أو أكتر في كل غرفة.",
+             "<b>A unit has to exist first.</b> It is built from the bed "
+             "setup: a unit of kind ward, its rooms, and a bed or more in "
+             "each."),
+        ],
+    },
+    {
+        "key": "icu",
+        "module": "icu",
+        "icon": "heart-pulse",
+        "title": ("العناية المركزة", "Intensive care"),
+        "lines": [
+            ("<b>نفس شاشة الداخلي، بتتقرا أربع مرات أكتر.</b> اللي بيفرق هو "
+             "كل قد إيه حد بيبص: طلب ملاحظات كل ساعة بدل راوند الصبح، وطفل "
+             "آخر قراءة ليه البرنامج قراها «تستاهل تتشاف دلوقتي» بيبقى الحالة "
+             "العادية هنا مش الاستثناء.",
+             "<b>The ward screen, read four times as often.</b> What differs "
+             "is how often somebody looks: an hourly observation order "
+             "instead of a morning round, and a child whose last reading the "
+             "program calls urgent is the normal case here rather than the "
+             "alarm."),
+            ("<b>ولا واحدة من الفروق دي في الكود.</b> المدة على طلب الملاحظات "
+             "بتاع الطفل، اللي الطبيب كتبه؛ والحدود هي نسخة العيادة الوحيدة في "
+             "<b>red_flags</b> و<b>vital_bands</b>. قسم بيحكم على حرارة بقاعدة "
+             "خاصة بيه كان هيخلّي الطفل أحمر في شاشة وأخضر في شاشة والاتنين "
+             "«مظبوطين».",
+             "<b>None of those differences is in code.</b> The interval is on "
+             "the child\u2019s own observation order, written by the doctor "
+             "who admitted them; the thresholds are the clinic\u2019s single "
+             "copy in <b>red_flags</b> and <b>vital_bands</b>. A department "
+             "judging a temperature by its own rule would make a child red on "
+             "one screen and green on another, each individually correct."),
+            ("<b>العزل حيّز مش سرير.</b> صالة العناية فيها الأسرّة، والعزل "
+             "بارتشن أو اتنين متعلّمين عزل في إعداد الأسرّة — وسؤال «فيه مكان "
+             "عزل فاضي؟» بيتسأل وقت ما حالة معدية بتدخل، مش وقت الفراغ.",
+             "<b>Isolation is a space, not a bed.</b> The bay holds the beds, "
+             "and isolation is one or two partitions marked as such in the bed "
+             "setup \u2014 and \u201cis there an isolation space free?\u201d "
+             "is asked at the moment an infectious child is coming in, which "
+             "is never a quiet moment."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",

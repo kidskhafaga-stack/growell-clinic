@@ -51,6 +51,16 @@ MODULES = [
     # four facts no other department needs. Opt-in like everything above them.
     "emergency",
     "nicu",
+    # And the two slow ones. A ward is read in days rather than in minutes,
+    # and intensive care is the same ward screen looked at four times as
+    # often — the difference is the interval on the child's observation
+    # order, which a doctor writes, not a branch in any file.
+    #
+    # Separate modules and not one "inpatient" module, for the reason all of
+    # these are separate: a hospital that runs wards and no intensive care
+    # must not find an intensive care screen after an update.
+    "icu",
+    "ward",
     "prescriptions",
     "inventory",
     "finance",
@@ -95,6 +105,8 @@ MODULE_ICONS = {
     "beds": "hospital",
     "emergency": "thermometer-half",
     "nicu": "moisture",
+    "icu": "heart-pulse",
+    "ward": "buildings",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -126,6 +138,8 @@ ROLE_PERMISSIONS = {
         "beds",
         "emergency",
         "nicu",
+        "icu",
+        "ward",
         "prescriptions",
         "ai",
     ],
@@ -145,6 +159,8 @@ ROLE_PERMISSIONS = {
         "beds",
         "emergency",
         "nicu",
+        "icu",
+        "ward",
     ],
     "reception": [
         "dashboard",

@@ -23,13 +23,22 @@ them and sorts. A department that judged a temperature by its own rule would
 be a second copy of the clinic's thresholds, free to disagree with the visit
 screen about the same child.
 
-**Batched, because a full department is the normal case.** Four queries for
-any number of children: the open stays, the last observation for each, the
-running rounds order for each, and (for the incubators) the last bilirubin.
+**Batched, because a full department is the normal case.** A fixed handful of
+queries for any number of children: the open stays, the last observation for
+each, the running observation order for each, the last ward-round note and
+who has been seen today, and — for the incubators — the last bilirubin and
+the last weight. A ward of sixty costs what a ward of four costs, and a
+size-comparison test fails if any of them turns into a query per child.
 """
 from datetime import datetime
 
 from app.extensions import db
+# Aliased, because two different things are called a round in a hospital and
+# both are in this file: `observations` is the repeated-reading round (every
+# fifteen minutes), and this one is the ward round the doctor walks each
+# morning. `_standing` binds the first of those to the name `rounds` locally,
+# so the second gets a name that cannot collide with it.
+from app.utils import rounds as ward_round
 
 # Where a child sits in the reading order. Not a triage category — the clinic
 # already has one of those in `red_flags`, and inventing a second scale here
@@ -149,6 +158,11 @@ def live(kind, now=None):
     latest = _latest_observations(patient_ids)
     orders = _running_orders(patient_ids)
     newborn = _newborn_extras(admissions) if kind == "nicu" else {}
+    # The daily round, where the department has one. Emergency does not: a
+    # child is there for hours, and "not seen today" would flag every trolley
+    # in the place the moment it filled. See `rounds.NO_ROUND_KINDS`.
+    round_state = (ward_round.state([a.id for a in admissions])
+                   if ward_round.kind_has_rounds(kind) else {})
 
     rows = []
     for admission in admissions:
@@ -167,9 +181,18 @@ def live(kind, now=None):
             "flag": flag,
             "level": level,
             "newborn": newborn.get(admission.patient_id),
+            "round": round_state.get(admission.id),
         })
-    # Worst first, and within a level the one who has been here longest.
-    rows.sort(key=lambda r: (_RANK[r["level"]], -r["minutes"]))
+    # Worst first; then, at the same level, whoever nobody has been round to
+    # yet; then the one who has been here longest.
+    #
+    # The round is a tie-breaker and never a level of its own. A child seen
+    # this morning and deteriorating outranks one who is stable and unseen,
+    # and putting "no round yet" into `_RANK` would have said the opposite —
+    # an administrative gap jumping the queue in front of a clinical one.
+    rows.sort(key=lambda r: (_RANK[r["level"]],
+                             1 if (r["round"] or {}).get("today") else 0,
+                             -r["minutes"]))
     return rows
 
 

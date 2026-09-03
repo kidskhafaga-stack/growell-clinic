@@ -146,6 +146,7 @@
 /* Semantic, and therefore literal on purpose: "this went well" is green
    whatever colour the clinic painted its sidebar. A clinic with a red accent
    must not end up reading red as its success colour. */
+:root[data-theme="dark"] .alert-pill.ok,
 :root[data-theme="dark"] .flash--success { background: #143221; color: #86efac; border-color: #1f5b37; }
 :root[data-theme="dark"] .flash--info { background: #12303a; color: #7dd3fc; border-color: #1f4d5b; }
 
@@ -466,6 +467,10 @@ a:hover { color: var(--green-900); }
 .alert-pill { border-radius: 10px; padding: 9px 13px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
 .alert-pill.danger { background: #fde8e8; color: var(--danger); }
 .alert-pill.warn { background: #fff4e0; color: #9a6700; }
+/* "This one has been done." Semantic and therefore literal, like the success
+   flash above it: a clinic that painted its sidebar red must not end up
+   reading red as the colour of a job finished. */
+.alert-pill.ok { background: var(--green-050); color: var(--green-900); }
 
 /* ---------- Forms ---------- */
 .form-row { margin-bottom: 16px; }
