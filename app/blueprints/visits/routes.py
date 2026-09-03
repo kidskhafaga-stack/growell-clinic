@@ -893,11 +893,26 @@ def add_investigation(visit_id):
     # a manually-typed name falls back to the visible field.
     name = (request.form.get("name_ar") or request.form.get("name") or "").strip()
     name_en = (request.form.get("name_en") or "").strip()
+    kind = request.form.get("kind") if request.form.get("kind") in ("lab", "imaging") else "lab"
+    inv_id = request.form.get("investigation_id", type=int) or None
+
+    # A chip on the specialty panel sends the catalogue id and nothing else,
+    # because a button can carry exactly one value — and because the name and
+    # the kind are the catalogue's to state, not the browser's. Looked up here
+    # rather than posted, which is both the smaller message and the more
+    # trustworthy one.
+    if inv_id and not name:
+        row = db.session.get(Investigation, inv_id)
+        if row is not None:
+            name = (row.name_ar or "").strip()
+            name_en = (row.name_en or "").strip()
+            kind = row.kind if row.kind in ("lab", "imaging") else kind
+        else:
+            inv_id = None
+
     if not name:
         flash(t("visits.inv_need_name"), "danger")
         return redirect(url_for("visits.record", visit_id=visit.id) + "#inv")
-    kind = request.form.get("kind") if request.form.get("kind") in ("lab", "imaging") else "lab"
-    inv_id = request.form.get("investigation_id", type=int) or None
 
     # Let the doctor grow the catalogue: a typed-but-unknown test can be saved
     # to the investigations list so it shows up next time (idempotent by name).

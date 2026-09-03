@@ -930,12 +930,29 @@ def add_problem(patient_id):
             back = url_for("visits.record", visit_id=visit.id) + "#dx"
 
     title = (request.form.get("title") or "").strip()
+    title_en = (request.form.get("title_en") or "").strip()
+
+    # A chip on the specialty panel sends `panel:code` and nothing else — one
+    # button carries one value. The two names come from the panel file, which
+    # is where the specialty's own wording lives; a browser that posted them
+    # could post anything, and this is a line on a child's problem list.
+    chip = (request.form.get("condition") or "").strip()
+    if chip and not title:
+        from app.utils import panels
+
+        panel_key, _, code = chip.partition(":")
+        for cond in panels.conditions_for(panel_key, "ar"):
+            if cond["code"] == code:
+                title = cond["label_ar"]
+                title_en = cond["label_en"]
+                break
+
     if not title:
         flash(t("common.required") + ": " + t("problems.title"), "danger")
         return redirect(back)
     db.session.add(PatientProblem(
         patient_id=patient.id, title=title,
-        title_en=(request.form.get("title_en") or "").strip() or None,
+        title_en=title_en or None,
         icd_code=(request.form.get("icd_code") or "").strip() or None,
         # Checked against the versions the program knows rather than trusted:
         # the picker fills it, but the code box beside it can be typed by

@@ -466,20 +466,21 @@
             <div class="chart-tests" data-conditions="{{ p.key }}">
               <span class="hint chart-tests__lead"><i class="bi bi-clipboard-pulse"></i>
                 {{ t('panels.follows_conditions') }}</span>
+              {# A button, never a form. HTML forbids a form inside a form, and
+                 the browser does not merely ignore the inner one: it ends the
+                 outer one at the inner `</form>`, so the whole consultation
+                 form was being cut in half here — see the two hidden forms at
+                 the foot of this file. The button carries the only thing that
+                 varies and the program looks the rest up. #}
               {% for cond in conditions %}
-              <form method="post" style="display:inline;"
-                    action="{{ url_for('patients.add_problem', patient_id=visit.patient_id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="visit_id" value="{{ visit.id }}">
-                <input type="hidden" name="title" value="{{ cond.label_ar }}">
-                <input type="hidden" name="title_en" value="{{ cond.label_en }}">
-                <button type="submit" class="md-chip chart-test"
-                        title="{{ t('panels.follow_condition') }}"
-                        {{ 'disabled' if cond.code in (panel_problems or []) else '' }}>
-                  {% if cond.code in (panel_problems or []) %}<i class="bi bi-check2"></i>{% endif %}
-                  <span>{{ cond.label }}</span>
-                </button>
-              </form>
+              <button type="submit" form="panelProblemForm"
+                      name="condition" value="{{ p.key }}:{{ cond.code }}"
+                      class="md-chip chart-test"
+                      title="{{ t('panels.follow_condition') }}"
+                      {{ 'disabled' if cond.code in (panel_problems or []) else '' }}>
+                {% if cond.code in (panel_problems or []) %}<i class="bi bi-check2"></i>{% endif %}
+                <span>{{ cond.label }}</span>
+              </button>
               {% endfor %}
             </div>
             {% endif %}
@@ -491,29 +492,27 @@
                 {{ t('panels.follows') }}</span>
               {% for test in tests %}
               {% set last = (panel_chart_latest or {}).get(test.id) %}
-              <form method="post" style="display:inline;"
-                    action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="investigation_id" value="{{ test.id }}">
-                <input type="hidden" name="name_ar" value="{{ test.name_ar }}">
-                <input type="hidden" name="name_en" value="{{ test.name_en or '' }}">
-                <input type="hidden" name="kind" value="{{ test.kind }}">
-                <button type="submit" class="md-chip chart-test"
-                        title="{{ t('panels.order_test') }}">
-                  <span>{{ test.display_name(current_lang) }}</span>
-                  {% if last %}
-                  {# Shown, never carried forward into today's boxes: a result
-                     from March is not a reading taken today, which is the same
-                     rule the echo hint follows two sections down. #}
-                  <span class="chart-test__last{{ ' is-out' if last.out_of_range else '' }}"
-                        dir="ltr">{{ last.value }}{% if last.unit %} {{ last.unit }}{% endif %}</span>
-                  <span class="chart-test__when" dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>
-                  {% else %}
-                  <span class="chart-test__none" data-never-done="{{ test.code }}"
-                    >{{ t('panels.never_done') }}</span>
-                  {% endif %}
-                </button>
-              </form>
+              {# Same shape as the condition chips above, and the same reason:
+                 no form inside a form. The id is the whole message — the name
+                 and the kind are read from the catalogue row on the server,
+                 which is where they belong anyway. #}
+              <button type="submit" form="panelTestForm"
+                      name="investigation_id" value="{{ test.id }}"
+                      class="md-chip chart-test"
+                      title="{{ t('panels.order_test') }}">
+                <span>{{ test.display_name(current_lang) }}</span>
+                {% if last %}
+                {# Shown, never carried forward into today's boxes: a result
+                   from March is not a reading taken today, which is the same
+                   rule the echo hint follows two sections down. #}
+                <span class="chart-test__last{{ ' is-out' if last.out_of_range else '' }}"
+                      dir="ltr">{{ last.value }}{% if last.unit %} {{ last.unit }}{% endif %}</span>
+                <span class="chart-test__when" dir="ltr">{{ last.date.strftime('%Y-%m-%d') }}</span>
+                {% else %}
+                <span class="chart-test__none" data-never-done="{{ test.code }}"
+                  >{{ t('panels.never_done') }}</span>
+                {% endif %}
+              </button>
               {% endfor %}
             </div>
             {% endif %}
@@ -2290,6 +2289,34 @@
     };
   }
 </script>
+{# The two forms the specialty chips submit, kept **outside** every other
+   form on this screen.
+
+   Reported from a real consultation: *"لما بدوس حفظ بعمل ريفريش ومش بيحفظ
+   حاجه"*, and *"البيانات السريرية متكرر"* on every tab. One cause for both.
+   The chips used to be forms, drawn inside the consultation form — and HTML
+   forbids that. A browser does not ignore the mistake quietly: it ignores the
+   inner `<form>` tag and then lets the inner `</form>` close the **outer**
+   one. So the consultation form ended halfway down the specialty panel. The
+   clinical fields below the cut lost their form — nothing to submit, hence a
+   Save that only reloaded — and lost the `x-show` that hides the case tab,
+   which is why the clinical card appeared on the diagnoses tab and on every
+   other one.
+
+   A button may name a form it does not sit inside. So the chips became
+   buttons, the forms live here at the foot of the page where nothing can
+   contain them, and each button carries the one value that varies. `hidden`
+   because they have nothing to show: every field in them is fixed. #}
+<form method="post" id="panelProblemForm" hidden
+      action="{{ url_for('patients.add_problem', patient_id=visit.patient_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="visit_id" value="{{ visit.id }}">
+</form>
+<form method="post" id="panelTestForm" hidden
+      action="{{ url_for('visits.add_investigation', visit_id=visit.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
 {# Told, not reloaded: this screen carries forms, and throwing the page away
    would take a half-written note with it. #}
 <script>
