@@ -184,3 +184,54 @@ def test_the_screen_shows_no_raw_translation_keys(wired):
     for key in ("ai.dx_suggest", "ai.dx_danger", "ai.dx_no_code",
                 "ai.dx_too_thin", "ai.dx_from_ai"):
         assert key not in page, f"untranslated key on the screen: {key}"
+
+
+# ------------------------------------- the code without its classification ---
+
+def test_a_suggestion_says_which_classification_its_code_is_from(clinic):
+    """Reported from the screen: *"لازم يكون قايل ده ICD 10 و لا ICD 11
+    الاقتراح ده مع الكود"*.
+
+    `J12.1` is a different disease in ICD-10 and ICD-11. A chip showing the
+    number with no book beside it asks the doctor to assume, at the exact
+    moment they are deciding whether to accept it — and the saved diagnosis row
+    directly below has always printed the version, so the two disagreed about
+    how much they owed the reader.
+
+    Nothing was missing underneath: `resolve` sets `icd_version` on every
+    suggestion and `applySuggestion` already carries it into the form. Only the
+    chip was silent.
+    """
+    from app.models import Setting
+
+    with clinic["app"].app_context():
+        Setting.set("ai_enabled", "1")
+        Setting.set("ai_provider", "gemini")
+        Setting.set("ai_base_url", "https://example.invalid")
+        Setting.set("ai_model", "gemini-2.0-flash")
+        Setting.set("ai_api_key", "k")
+        Setting.set("ai_dx_suggest", "1")
+        clinic["db"].session.commit()
+
+    page = clinic["sign_in"]("boss").get(
+        f"/visits/{clinic['ids']['visit']}/record").get_data(as_text=True)
+
+    assert "'ICD-' + (s.icd_version || '10') + ' · ' + s.code" in page, \
+        "the suggestion shows a code without saying which classification it is"
+
+
+def test_the_server_puts_a_version_on_every_suggestion_that_has_a_code(clinic):
+    """The chip can only show what it is given. This is the half underneath."""
+    from app.utils import ai_suggest
+
+    with clinic["app"].app_context():
+        resolved = ai_suggest.resolve(
+            [{"ar": "التهاب الشعب الهوائية الحاد", "en": "Acute bronchitis",
+              "why": "كحة"}], version="10")
+
+    assert resolved, "nothing came back to check"
+    for item in resolved:
+        assert "icd_version" in item, "a suggestion carries no classification"
+        if item.get("code"):
+            assert item["icd_version"], \
+                f"{item['code']} has a code and no version to read it under"
