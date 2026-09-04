@@ -45,6 +45,16 @@ class Invoice(db.Model):
     # every day — a walk-in, a vaccine, a bill settled a week later.
     appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"),
                                nullable=True, index=True)
+    # **Which stay this bill belongs to.** A stay runs across days and its
+    # nights all belong to one account: without this the daily bed charge
+    # would either raise an invoice a night — eleven bills for eleven days —
+    # or fall back to the one-invoice-per-day rule and land on whichever bill
+    # the desk happened to open that morning.
+    #
+    # Nullable for ever, like `appointment_id`: most invoices in this program
+    # are raised for somebody who walked in and walked out.
+    admission_id = db.Column(db.Integer, db.ForeignKey("admissions.id"),
+                             nullable=True, index=True)
     payer_id = db.Column(db.Integer, db.ForeignKey("payer_entities.id"), nullable=True, index=True)
     coverage_card = db.Column(db.String(60))   # snapshot: membership/card no.
     coverage_expiry = db.Column(db.Date)        # snapshot: card expiry

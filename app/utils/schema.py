@@ -231,6 +231,23 @@ ADDITIONS = [
     # Saturday appointment made that guess wrong — the Saturday row read
     # "بدون فاتورة" and offered to collect money already taken.
     ("invoices", "appointment_id", "INTEGER"),
+    # **Which stay a bill belongs to**, so a stay's nights all land on one
+    # account instead of eleven bills for eleven days.
+    ("invoices", "admission_id", "INTEGER"),
+    # What a night costs, on the department and — where a bay holds three
+    # kinds of bed at three prices — on the bed itself.
+    #
+    # These three are here even though `care_units` and `care_beds` are newer
+    # than the baseline the migration test compares against, and so would not
+    # be demanded by it. The test cannot see them; a clinic can. Anybody
+    # already running the version that added the beds has those tables
+    # **without** these columns, and `create_all` adds tables, never columns
+    # to a table that exists. Left off this list, the bed board would open on
+    # their machine with "no such column: care_units.daily_service_id" — the
+    # exact failure this list was written for, arriving through the one door
+    # the test does not watch.
+    ("care_units", "daily_service_id", "INTEGER"),
+    ("care_beds", "daily_service_id", "INTEGER"),
     ("patients", "qr_token", "VARCHAR(32)"),
     ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
     ("vaccines", "replaced_by_id", "INTEGER"),

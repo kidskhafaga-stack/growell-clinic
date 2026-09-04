@@ -63,6 +63,19 @@ class Unit(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # What a night in this department costs, as a **service** — so the daily
+    # bed charge lives in the clinic's one price list, where the discounts,
+    # the payer rules, the doctor's commission and the tax item code already
+    # work. A price typed onto this row would have been a second price list
+    # that none of those knew about.
+    #
+    # Nullable, and that nullability is the feature's own switch: a clinic
+    # that does not bill by the night simply never sets one, and nothing is
+    # ever charged. See ``utils/bed_billing.py``.
+    daily_service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                                 nullable=True, index=True)
+
+    daily_service = db.relationship("Service", foreign_keys=[daily_service_id])
     spaces = db.relationship("Space", back_populates="unit",
                              order_by="Space.sort_order, Space.id")
 
@@ -119,6 +132,14 @@ class Bed(db.Model):
     out_of_service_note = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # A night in *this* bed, when it is not what a night in the department
+    # costs. The nursery is the case that forces it: one bay holds a cot, an
+    # incubator and a transport capsule, and they are not the same money.
+    # Left empty on nearly every bed — the unit's rate is the normal answer.
+    daily_service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                                 nullable=True, index=True)
+
+    daily_service = db.relationship("Service", foreign_keys=[daily_service_id])
     space = db.relationship("Space", back_populates="beds")
 
     @property

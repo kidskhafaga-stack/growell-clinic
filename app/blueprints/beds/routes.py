@@ -36,6 +36,7 @@ from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Uni
 from app.models.prescription import Drug
 from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
+from app.utils import bed_billing
 from app.utils import drug_round
 from app.utils import rounds as ward_round
 from app.utils.clock import to_local, to_utc
@@ -66,11 +67,18 @@ def setup():
     """
     if not current_user.is_admin:
         abort(403, description=t("auth.no_permission"))
+    from app.models.service import Service
+
     return render_template("beds/setup.html",
                            units=ward.board(),
                            unit_kinds=UNIT_KINDS, space_kinds=SPACE_KINDS,
                            bed_kinds=BED_KINDS,
-                           taken=ward.occupied_bed_ids())
+                           taken=ward.occupied_bed_ids(),
+                           # What a night may be priced at. The clinic's own
+                           # services, because a night is a service.
+                           services=(Service.query
+                                     .filter(Service.is_active.is_(True))
+                                     .order_by(Service.name).all()))
 
 
 def _admin_only():
@@ -129,6 +137,33 @@ def add_bed(space_id):
                        sort_order=len(space.beds)))
     db.session.commit()
     flash(t("beds.bed_added"), "success")
+    return redirect(url_for("beds.setup"))
+
+
+@beds_bp.route("/rate", methods=["POST"])
+@module_required(MODULE)
+def set_rate():
+    """What a night here costs — on a unit, or on one bed inside it.
+
+    **The door to the daily bed charge, and its switch.** A clinic that never
+    sets a rate is never charged for a night and never shown a figure: the
+    feature is absent for them the way a module that is off is absent. Which
+    means it has to be reachable, or it is a feature nobody can turn on —
+    the failure this project has walked into six times.
+
+    A service and not a number, so the night sits in the one price list where
+    the discounts, the payer rules, the commission and the tax code already
+    work.
+    """
+    _admin_only()
+    service_id = request.form.get("service_id", type=int) or None
+    unit_id = request.form.get("unit_id", type=int)
+    bed_id = request.form.get("bed_id", type=int)
+    target = (Unit.query.get_or_404(unit_id) if unit_id
+              else Bed.query.get_or_404(bed_id))
+    target.daily_service_id = service_id
+    db.session.commit()
+    flash(t("beds.rate_saved"), "success")
     return redirect(url_for("beds.setup"))
 
 
@@ -210,7 +245,33 @@ def admission(admission_id):
         stopped=[o for o in row.medication_orders if not o.is_running],
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
-        may_order=current_user.can("medication_order"))
+        may_order=current_user.can("medication_order"),
+        # Shown, never posted by opening a page. Money is written onto a
+        # family's account by somebody pressing something.
+        due_nights=bed_billing.outstanding(row),
+        charged=sorted(row.bed_charges, key=lambda c: c.on_date))
+
+
+@beds_bp.route("/admission/<int:admission_id>/nights", methods=["POST"])
+@module_required(MODULE)
+def post_nights(admission_id):
+    """Charge the nights this stay owes and nobody has billed.
+
+    Safe to press twice, and pressed by a person on purpose. There is no
+    timer writing money onto a family's account overnight — the screen shows
+    what is outstanding and somebody decides.
+    """
+    row = Admission.query.get_or_404(admission_id)
+    result = bed_billing.post(row, user=current_user,
+                              lang=getattr(g, "lang", "ar"))
+    db.session.commit()
+    if not result["nights"]:
+        flash(t("beds.nights_none"), "info")
+    else:
+        flash(t("beds.nights_posted", n=result["nights"],
+                total=result["total"],
+                number=result["invoice"].invoice_number), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id))
 
 
 @beds_bp.route("/admission/<int:admission_id>/move", methods=["POST"])
@@ -236,8 +297,19 @@ def discharge(admission_id):
     row = Admission.query.get_or_404(admission_id)
     ward.discharge(row, (request.form.get("outcome") or "").strip(),
                    user=current_user, note=request.form.get("note"))
+    db.session.flush()
+    # The nights, at the one moment the whole stay is finally known. A
+    # discharge is already a deliberate act with a form in front of it, so
+    # this is not money appearing behind anybody's back — and it is said out
+    # loud in the flash rather than left to be discovered on the bill.
+    billed = bed_billing.post(row, user=current_user,
+                              lang=getattr(g, "lang", "ar"))
     db.session.commit()
     flash(t("beds.discharged"), "success")
+    if billed["nights"]:
+        flash(t("beds.nights_posted", n=billed["nights"],
+                total=billed["total"],
+                number=billed["invoice"].invoice_number), "info")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 

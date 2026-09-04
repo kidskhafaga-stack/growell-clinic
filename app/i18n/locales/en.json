@@ -5754,7 +5754,20 @@
     "refused_service": "That bed is out of service.",
     "refused_no_bed": "Choose a bed from the list.",
     "admit": "Admit",
-    "admit_reason": "Reason for admission"
+    "admit_reason": "Reason for admission",
+    "nightly_rate": "Price of a night here",
+    "no_rate": "No rate (not billed by the night)",
+    "rate_from_unit": "Same as the department",
+    "save_rate": "Save the rate",
+    "rate_saved": "Nightly rate saved.",
+    "rate_hint": "Leave it empty if the clinic does not bill by the night — nothing is then charged.",
+    "nights": "Nights of the stay",
+    "nights_outstanding": "{n} nights not charged yet",
+    "nights_all_posted": "Every night so far has been charged.",
+    "post_nights": "Put them on the invoice",
+    "nights_none": "No nights are outstanding right now.",
+    "nights_posted": "{n} nights charged, {total}, on invoice {number}.",
+    "nights_charged_n": "Nights charged ({n})"
   },
   "dept": {
     "inside_n": "In now: {n}",

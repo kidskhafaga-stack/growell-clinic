@@ -477,6 +477,66 @@ SECTIONS = [
         ],
     },
     {
+        "key": "beds_nights",
+        "module": "beds",
+        "icon": "moon-stars",
+        "title": ("فاتورة السرير اليومية", "The daily bed charge"),
+        "lines": [
+            ("<b>ليلة مش يوم.</b> الليالي بتتعد من تاريخ الدخول لتاريخ الخروج "
+             "من غير يوم الخروج، وبحد أدنى ليلة واحدة. دخل الاتنين وخرج "
+             "الخميس = تلات ليالي، ودخل وخرج نفس اليوم = ليلة، لأن سرير "
+             "اتفرش واترفع.",
+             "<b>A night, not a day.</b> Nights run from the date of "
+             "admission to the date of discharge, not counting the day they "
+             "leave, with a floor of one. In on Monday and out on Thursday is "
+             "three nights; in and out the same afternoon is one, because a "
+             "bed was made up and taken again."),
+            ("<b>السعر خدمة مش رقم.</b> بيتحط من إعداد الأسرّة على القسم، أو "
+             "على سرير بعينه لما يكون بسعر تاني — صالة الحضّانات فيها سرير "
+             "وحضّانة وكبسولة وهما مش نفس الفلوس. وبما إنه خدمة، الخصومات "
+             "وجهات التأمين ونسبة الطبيب وكود الضريبة كلهم شغّالين عليه من "
+             "غير سطر زيادة.",
+             "<b>The rate is a service, not a number.</b> It is set from the "
+             "bed setup on the department, or on one bed where that bed costs "
+             "something else \u2014 a nursery bay holds a cot, an incubator "
+             "and a transport capsule and they are not the same money. Being "
+             "a service, the discounts, the payers, the doctor\u2019s "
+             "commission and the tax item code all work on it already."),
+            ("<b>والسعر هو المفتاح.</b> عيادة ما حطتش سعر على أي قسم عمرها ما "
+             "هيتحسب عليها ليلة ولا هتشوف الكارت ده أصلاً — زي أي مديول "
+             "مقفول بالظبط.",
+             "<b>And the price is the switch.</b> A clinic that has set no "
+             "rate on any department is never charged for a night and never "
+             "sees the card at all \u2014 exactly like a module that is off."),
+            ("<b>مفيش فلوس بتتكتب من ورا حد.</b> شاشة الإقامة بتوريك الليالي "
+             "اللي لسه ما اتحسبتش وحد بيدوس؛ والخروج بيحسبها لأن الخروج أصلاً "
+             "قرار بيتاخد قدام فورم، وبيتقال بصوت عالي في الرسالة. مفيش "
+             "تايمر بيكتب على حساب أهل الطفل بالليل.",
+             "<b>No money is written behind anybody\u2019s back.</b> The stay "
+             "screen shows the uncharged nights and somebody presses; the "
+             "discharge charges them because a discharge is already a "
+             "deliberate act with a form in front of it, and it says so in "
+             "the message. There is no timer writing onto a family\u2019s "
+             "account overnight."),
+            ("<b>ودوسة تانية ما بتحسبش تاني.</b> كل ليلة اتحسبت ليها صف، "
+             "وقاعدة البيانات نفسها بترفض ليلتين لنفس اليوم — مش شرط في "
+             "الكود: اتنين بيدوسوا في نفس الثانية من شاشتين هو بالظبط إزاي "
+             "أهل طفل بيتحاسبوا مرتين على يوم التلات.",
+             "<b>And pressing again charges nothing twice.</b> Every charged "
+             "night is a row, and the database itself refuses two for the "
+             "same date \u2014 not a check in code: two people pressing in "
+             "the same second on two screens is exactly how a family gets "
+             "billed twice for a Tuesday."),
+            ("<b>والليلة بتتحسب بالسرير اللي الطفل كان فيه آخر اليوم.</b> طفل "
+             "اتنقل للعناية الساعة أربعة بعد الضهر بات في العناية، والليلة دي "
+             "بفلوس العناية.",
+             "<b>A night is charged at the bed they were in at the end of "
+             "it.</b> A child moved up to intensive care at four in the "
+             "afternoon spent that night in intensive care, and that is what "
+             "the night cost."),
+        ],
+    },
+    {
         "key": "emergency",
         "module": "emergency",
         "icon": "thermometer-half",

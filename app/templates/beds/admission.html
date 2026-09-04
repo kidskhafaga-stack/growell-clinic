@@ -110,6 +110,59 @@
   </div>
 </div>
 
+{# ---- the nights -------------------------------------------------------- #}
+{# Shown, and posted by somebody pressing. There is no timer writing money
+   onto a family's account overnight — and a clinic that has set no nightly
+   rate never sees this card at all, which is how the feature stays absent
+   for the clinics it is not for. #}
+{% if due_nights or charged %}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-moon-stars"></i> {{ t('beds.nights') }}</h2>
+
+  {% if due_nights %}
+  <p class="hint" style="margin:0 0 10px;" data-due-nights>
+    {{ t('beds.nights_outstanding', n=due_nights|length) }}</p>
+  <div style="overflow-x:auto;margin-bottom:10px;">
+  <table class="table">
+    <tbody>
+      {% for night, bed, service in due_nights %}
+      <tr data-night>
+        <td dir="ltr">{{ night }}</td>
+        <td>{% if bed %}{{ bed.unit.name }} · {{ bed.name }}{% endif %}</td>
+        <td>{{ service.display_name(current_lang) }}</td>
+        <td dir="ltr">{{ service.price }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <form method="post"
+        action="{{ url_for('beds.post_nights', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-primary gc-press" type="submit" data-post-nights>
+      <i class="bi bi-receipt"></i> {{ t('beds.post_nights') }}</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:0 0 10px;">{{ t('beds.nights_all_posted') }}</p>
+  {% endif %}
+
+  {% if charged %}
+  <details style="margin-top:10px;">
+    <summary class="hint" style="cursor:pointer;">
+      {{ t('beds.nights_charged_n', n=charged|length) }}</summary>
+    <ul class="hint" style="margin:8px 0 0;">
+      {% for night in charged %}
+      <li data-charged dir="ltr">{{ night.on_date }} — {{ night.unit_price }}
+        {% if night.invoice_item and night.invoice_item.invoice %}
+        · {{ night.invoice_item.invoice.invoice_number }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- the chart --------------------------------------------------------- #}
 {# What this child is on, and what the clinic's own safety check makes of it.
    Not a second check: `rx_safety` is the one the prescription screen uses,
