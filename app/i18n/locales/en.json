@@ -5784,14 +5784,20 @@
     "rate_from_unit": "Same as the department",
     "save_rate": "Save the rate",
     "rate_saved": "Nightly rate saved.",
-    "rate_hint": "Leave it empty if the clinic does not bill by the night — nothing is then charged.",
+    "rate_hint": "Leave it empty if the clinic does not charge for a bed — nothing is then charged. The price is read from the bed, then the room, then the department.",
     "nights": "Nights of the stay",
     "nights_outstanding": "{n} nights not charged yet",
     "nights_all_posted": "Every night so far has been charged.",
     "post_nights": "Put them on the invoice",
     "nights_none": "No nights are outstanding right now.",
     "nights_posted": "{n} nights charged, {total}, on invoice {number}.",
-    "nights_charged_n": "Nights charged ({n})"
+    "nights_charged_n": "Nights charged ({n})",
+    "hours": "Hours of the stay",
+    "hours_so_far": "{n} hours so far — charged when the stay ends",
+    "billed_by": "Charged by the",
+    "basis_night": "night",
+    "basis_hour": "hour",
+    "rate_from_room": "Same as the room"
   },
   "dept": {
     "inside_n": "In now: {n}",

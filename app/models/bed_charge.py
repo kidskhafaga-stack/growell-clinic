@@ -21,23 +21,31 @@ family was billed in February.
 when they read the bill: *why is Tuesday more than Monday?* A child moved
 into intensive care on Tuesday afternoon, and Tuesday night cost what
 intensive care costs.
+
+**A night is not the only unit.** Emergency is charged by the hour — a child
+on a trolley for three hours who goes home has not spent a night anywhere,
+and billing one is not a rounding difference, it is a bill for something that
+did not happen. So the row carries how many of what: ``quantity`` and
+``basis``. A ward night is ``1`` of ``night``; a four-hour emergency stay is
+``4`` of ``hour``, on one row, written when the stay ends — because how many
+hours it was is not known until then.
 """
 from datetime import datetime
 
 from app.extensions import db
 
 
-class BedDayCharge(db.Model):
-    """This stay, this night, billed at this price on this invoice."""
+class BedCharge(db.Model):
+    """This stay, this night or these hours, billed on this invoice."""
 
-    __tablename__ = "bed_day_charges"
+    __tablename__ = "bed_charges"
     __table_args__ = (
         # The whole of the idempotence. Not a convention and not a check in
         # Python: two people pressing "post the nights" in the same second on
         # two screens is exactly how a family gets billed twice for a Tuesday,
         # and only the database can refuse that.
         db.UniqueConstraint("admission_id", "on_date",
-                            name="uq_bed_day_charge_night"),
+                            name="uq_bed_charge_period"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -51,6 +59,13 @@ class BedDayCharge(db.Model):
     # two disagree for the first three hours of every day — which would put a
     # child admitted at 1am on the previous night's bill.
     on_date = db.Column(db.Date, nullable=False, index=True)
+
+    # How many of what. One night is (1, "night"); a four-hour stay in
+    # emergency is (4, "hour"). Both on one row so the invoice line and the
+    # audit trail say the same thing, and so that "was this date charged"
+    # stays one question with one answer.
+    quantity = db.Column(db.Integer, default=1, nullable=False)
+    basis = db.Column(db.String(8), default="night", nullable=False)
 
     bed_id = db.Column(db.Integer, db.ForeignKey("care_beds.id"), nullable=True)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
@@ -68,5 +83,10 @@ class BedDayCharge(db.Model):
     service = db.relationship("Service")
     invoice_item = db.relationship("InvoiceItem")
 
+    @property
+    def amount(self):
+        return round((self.unit_price or 0) * (self.quantity or 1), 2)
+
     def __repr__(self):
-        return f"<BedDayCharge {self.on_date} stay={self.admission_id}>"
+        return (f"<BedCharge {self.on_date} x{self.quantity} "
+                f"{self.basis} stay={self.admission_id}>")

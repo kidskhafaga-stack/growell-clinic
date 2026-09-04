@@ -40,7 +40,7 @@ from app.models.admission import OUTCOMES, Admission, BedStay
 from app.models.round_note import ROUND_TRENDS, RoundNote
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
                                   MedicationOrder)
-from app.models.bed_charge import BedDayCharge
+from app.models.bed_charge import BedCharge
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
                                    Observation, ObservationOrder,
                                    due_at, lateness_grace)
@@ -249,7 +249,7 @@ __all__ = [
     "RoundNote",
     "MedicationOrder",
     "MedicationDose",
-    "BedDayCharge",
+    "BedCharge",
     "DOSE_OUTCOMES",
     "ROUND_TRENDS",
     "BedStay",

@@ -115,10 +115,19 @@
    onto a family's account overnight — and a clinic that has set no nightly
    rate never sees this card at all, which is how the feature stays absent
    for the clinics it is not for. #}
-{% if due_nights or charged %}
+{% if due_nights or charged or running_hours %}
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin-top:0;">
-    <i class="bi bi-moon-stars"></i> {{ t('beds.nights') }}</h2>
+    <i class="bi bi-{{ 'hourglass-split' if basis == 'hour' else 'moon-stars' }}"></i>
+    {{ t('beds.hours') if basis == 'hour' else t('beds.nights') }}</h2>
+
+  {% if running_hours %}
+  {# An hourly stay is charged when it ends, because until then the number is
+     still moving. Shown all the same, so somebody can tell a family what it
+     is coming to rather than discovering it at the door. #}
+  <p class="hint" style="margin:0 0 10px;" data-running-hours>
+    {{ t('beds.hours_so_far', n=running_hours) }}</p>
+  {% endif %}
 
   {% if due_nights %}
   <p class="hint" style="margin:0 0 10px;" data-due-nights>
@@ -126,12 +135,15 @@
   <div style="overflow-x:auto;margin-bottom:10px;">
   <table class="table">
     <tbody>
-      {% for night, bed, service in due_nights %}
-      <tr data-night>
-        <td dir="ltr">{{ night }}</td>
-        <td>{% if bed %}{{ bed.unit.name }} · {{ bed.name }}{% endif %}</td>
-        <td>{{ service.display_name(current_lang) }}</td>
-        <td dir="ltr">{{ service.price }}</td>
+      {% for row in due_nights %}
+      <tr data-night data-basis="{{ row.basis }}">
+        <td dir="ltr">{{ row.on }}</td>
+        <td>{% if row.bed %}{{ row.bed.unit.name }} · {{ row.bed.name }}{% endif %}</td>
+        <td>{{ row.service.display_name(current_lang) }}</td>
+        <td dir="ltr">
+          {%- if row.basis == 'hour' %}{{ row.quantity }} × {% endif -%}
+          {{ row.service.price }}</td>
+        <td dir="ltr"><b>{{ row.amount }}</b></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -143,7 +155,7 @@
     <button class="btn btn-primary gc-press" type="submit" data-post-nights>
       <i class="bi bi-receipt"></i> {{ t('beds.post_nights') }}</button>
   </form>
-  {% else %}
+  {% elif not running_hours %}
   <p class="hint" style="margin:0 0 10px;">{{ t('beds.nights_all_posted') }}</p>
   {% endif %}
 
@@ -153,7 +165,9 @@
       {{ t('beds.nights_charged_n', n=charged|length) }}</summary>
     <ul class="hint" style="margin:8px 0 0;">
       {% for night in charged %}
-      <li data-charged dir="ltr">{{ night.on_date }} — {{ night.unit_price }}
+      <li data-charged dir="ltr">{{ night.on_date }}
+        {%- if night.basis == 'hour' %} ({{ night.quantity }}h){% endif %}
+        — {{ night.amount }}
         {% if night.invoice_item and night.invoice_item.invoice %}
         · {{ night.invoice_item.invoice.invoice_number }}{% endif %}</li>
       {% endfor %}

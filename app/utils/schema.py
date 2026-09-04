@@ -234,8 +234,12 @@ ADDITIONS = [
     # **Which stay a bill belongs to**, so a stay's nights all land on one
     # account instead of eleven bills for eleven days.
     ("invoices", "admission_id", "INTEGER"),
-    # What a night costs, on the department and — where a bay holds three
-    # kinds of bed at three prices — on the bed itself.
+    # What a stay costs, at all three levels a clinic may price at: the
+    # department, the room (a single and a double are two prices for the same
+    # bed) and the bed itself (a bay holding a cot, an incubator and a
+    # capsule). Plus whether the department sells nights or hours — emergency
+    # sells hours, and billing a three-hour trolley as a night is a bill for
+    # something that did not happen.
     #
     # These three are here even though `care_units` and `care_beds` are newer
     # than the baseline the migration test compares against, and so would not
@@ -246,8 +250,10 @@ ADDITIONS = [
     # their machine with "no such column: care_units.daily_service_id" — the
     # exact failure this list was written for, arriving through the one door
     # the test does not watch.
-    ("care_units", "daily_service_id", "INTEGER"),
-    ("care_beds", "daily_service_id", "INTEGER"),
+    ("care_units", "rate_service_id", "INTEGER"),
+    ("care_units", "billing_basis", "VARCHAR(8) DEFAULT 'night'"),
+    ("care_spaces", "rate_service_id", "INTEGER"),
+    ("care_beds", "rate_service_id", "INTEGER"),
     ("patients", "qr_token", "VARCHAR(32)"),
     ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
     ("vaccines", "replaced_by_id", "INTEGER"),

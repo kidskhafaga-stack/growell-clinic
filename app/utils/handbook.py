@@ -482,26 +482,50 @@ SECTIONS = [
         "icon": "moon-stars",
         "title": ("فاتورة السرير اليومية", "The daily bed charge"),
         "lines": [
-            ("<b>ليلة مش يوم.</b> الليالي بتتعد من تاريخ الدخول لتاريخ الخروج "
-             "من غير يوم الخروج، وبحد أدنى ليلة واحدة. دخل الاتنين وخرج "
-             "الخميس = تلات ليالي، ودخل وخرج نفس اليوم = ليلة، لأن سرير "
-             "اتفرش واترفع.",
-             "<b>A night, not a day.</b> Nights run from the date of "
-             "admission to the date of discharge, not counting the day they "
-             "leave, with a floor of one. In on Monday and out on Thursday is "
-             "three nights; in and out the same afternoon is one, because a "
-             "bed was made up and taken again."),
-            ("<b>السعر خدمة مش رقم.</b> بيتحط من إعداد الأسرّة على القسم، أو "
-             "على سرير بعينه لما يكون بسعر تاني — صالة الحضّانات فيها سرير "
-             "وحضّانة وكبسولة وهما مش نفس الفلوس. وبما إنه خدمة، الخصومات "
-             "وجهات التأمين ونسبة الطبيب وكود الضريبة كلهم شغّالين عليه من "
-             "غير سطر زيادة.",
-             "<b>The rate is a service, not a number.</b> It is set from the "
-             "bed setup on the department, or on one bed where that bed costs "
-             "something else \u2014 a nursery bay holds a cot, an incubator "
-             "and a transport capsule and they are not the same money. Being "
-             "a service, the discounts, the payers, the doctor\u2019s "
-             "commission and the tax item code all work on it already."),
+            ("<b>ليلة مش يوم — والطوارئ بالساعة.</b> الليالي بتتعد من تاريخ "
+             "الدخول لتاريخ الخروج من غير يوم الخروج، وبحد أدنى ليلة واحدة: "
+             "دخل الاتنين وخرج الخميس = تلات ليالي، ودخل وخرج نفس اليوم = "
+             "ليلة لأن سرير اتفرش واترفع. أما الطوارئ فبالساعة: طفل قعد تلات "
+             "ساعات على ترولي وراح البيت ما نامش ولا ليلة، وفاتورة ليلة عليه "
+             "مش تقريب — دي فاتورة لحاجة ما حصلتش.",
+             "<b>A night, not a day \u2014 and emergency by the hour.</b> "
+             "Nights run from the date of admission to the date of discharge, "
+             "not counting the day they leave, with a floor of one: in on "
+             "Monday and out on Thursday is three nights, and in and out the "
+             "same afternoon is one because a bed was made up and taken "
+             "again. Emergency is different: a child on a trolley for three "
+             "hours who goes home has not spent a night anywhere, and billing "
+             "one is not a rounding difference \u2014 it is a bill for "
+             "something that did not happen."),
+            ("<b>والساعة بتتحسب لما الإقامة تخلص، مش قبل كده.</b> عدد "
+             "الساعات مش معروف قبل ما الطفل يمشي، وحسابها على أقساط كان "
+             "هيحط سطرين على فاتورة واحدة لزيارة واحدة. والوقت بيتقاس "
+             "بالدقيقة، وأي جزء من ساعة بيتحسب ساعة — عشرين دقيقة على ترولي "
+             "هي ساعة ترولي. والشاشة بتوري الساعات اللي جرت لحد دلوقتي علشان "
+             "حد يقدر يقول للأهل قبل ما يوصلوا الباب.",
+             "<b>And an hour is charged when the stay ends, not before.</b> "
+             "How many hours it was is not known until the child leaves, and "
+             "charging in instalments would put two lines on one bill for one "
+             "visit. The time is counted in whole minutes and any part-hour "
+             "is an hour \u2014 twenty minutes on a trolley is an hour of a "
+             "trolley. The screen shows the hours run up so far, so a family "
+             "can be told at the trolley rather than at the door."),
+            ("<b>السعر خدمة مش رقم، وبيتحط على تلات مستويات.</b> السرير، "
+             "وبعده الغرفة، وبعدهم القسم — وأقرب واحد متحط بيكسب. أغلب "
+             "المستشفيات بتسعّر <b>الغرفة</b> (مفردة ومزدوجة سعرين لنفس "
+             "السرير، واللي بيفرق هو الحيطان)، والحضّانات بتسعّر <b>السرير</b> "
+             "لأن الصالة فيها سرير وحضّانة وكبسولة، والطوارئ بتسعّر "
+             "<b>القسم</b>. وبما إنه خدمة، الخصومات وجهات التأمين ونسبة "
+             "الطبيب وكود الضريبة كلهم شغّالين عليه من غير سطر زيادة.",
+             "<b>The rate is a service, not a number, and it sits at three "
+             "levels.</b> The bed, then the room, then the department \u2014 "
+             "the nearest one set wins. Most hospitals price the <b>room</b> "
+             "(a single and a double are two prices for the same bed, and "
+             "what differs is the walls), the nursery prices the <b>bed</b> "
+             "because one bay holds a cot, an incubator and a capsule, and "
+             "emergency prices the <b>department</b>. Being a service, the "
+             "discounts, the payers, the doctor\u2019s commission and the tax "
+             "item code all work on it already."),
             ("<b>والسعر هو المفتاح.</b> عيادة ما حطتش سعر على أي قسم عمرها ما "
              "هيتحسب عليها ليلة ولا هتشوف الكارت ده أصلاً — زي أي مديول "
              "مقفول بالظبط.",

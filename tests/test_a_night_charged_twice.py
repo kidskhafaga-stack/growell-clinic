@@ -24,6 +24,15 @@ an angry bill:
 5. **The night belongs to the bed at the end of it.** A child moved into
    intensive care at four in the afternoon spent that night in intensive
    care, and that is what the night cost.
+6. **Emergency is charged by the hour**, and reported in one sentence:
+   *"الإقامة بالساعة في الطوارىء خلي بالك"*. A child on a trolley for three
+   hours who goes home has not spent a night anywhere, and billing one is not
+   a rounding difference — it is a bill for something that did not happen.
+7. **The price hangs off all three levels: bed, room, department.** Reported
+   in the same breath: *"هي الفاتورة تفصيلية للسرير ولا الغرف ولا الحضانة"*.
+   Most hospitals price the room — a single and a double are two prices for
+   the same bed, and what differs is the walls — and the nursery prices the
+   bed. The room level was missing.
 
 And one that is not about money at all: **nothing is posted by opening a
 page.** Money is written onto a family's account by somebody pressing
@@ -43,24 +52,29 @@ def hospital(clinic):
     """A ward and an intensive care unit, priced differently."""
     from app.models import Service, Setting
     from app.models.place import Bed, Space, Unit
+    from app.utils import bed_billing
 
     with clinic["app"].app_context():
-        for module in ("observations", "beds", "ward", "icu"):
+        for module in ("observations", "beds", "ward", "icu", "emergency"):
             Setting.set(f"mod_enabled:{module}", "1")
 
         rates = {}
         for key, name, price in (("ward", "ليلة داخلي", 500),
                                  ("icu", "ليلة عناية", 2000),
-                                 ("incubator", "ليلة حضّانة", 1200)):
+                                 ("incubator", "ليلة حضّانة", 1200),
+                                 ("single", "غرفة مفردة", 800),
+                                 ("er", "ساعة ملاحظة طوارئ", 150)):
             service = Service(name=name, category="other", price=price)
             clinic["db"].session.add(service)
             clinic["db"].session.flush()
             rates[key] = service.id
 
         for key, kind, beds in (("ward", "ward", ["د١", "د٢"]),
-                                ("icu", "icu", ["ع١"])):
+                                ("icu", "icu", ["ع١"]),
+                                ("er", "emergency", ["ط١"])):
             unit = Unit(name=f"قسم {key}", kind=kind,
-                        daily_service_id=rates[key])
+                        rate_service_id=rates[key],
+                        billing_basis=bed_billing.default_basis(kind))
             clinic["db"].session.add(unit)
             clinic["db"].session.flush()
             space = Space(unit_id=unit.id, name=f"حيّز {key}", kind="room")
@@ -108,12 +122,12 @@ def _stay(clinic, admission_id):
 
 
 def _charges(clinic, admission_id):
-    from app.models.bed_charge import BedDayCharge
+    from app.models.bed_charge import BedCharge
 
     with clinic["app"].app_context():
-        return (BedDayCharge.query
+        return (BedCharge.query
                 .filter_by(admission_id=admission_id)
-                .order_by(BedDayCharge.on_date).all())
+                .order_by(BedCharge.on_date).all())
 
 
 # --------------------------------------------------------- a night, not a day
@@ -189,7 +203,7 @@ def test_a_stay_that_started_today_owes_nothing_yet(hospital):
         stay = _stay(hospital, admission)
         assert bed_billing.nights(stay) == []
         assert bed_billing.outstanding(stay) == []
-        assert bed_billing.post(stay)["nights"] == 0
+        assert bed_billing.post(stay)["periods"] == 0
 
 
 # ------------------------------------------------------------ charged once ---
@@ -212,8 +226,8 @@ def test_pressing_twice_does_not_bill_a_night_twice(hospital):
         second = bed_billing.post(_stay(hospital, admission))
         hospital["db"].session.commit()
 
-    assert first["nights"] == 3
-    assert second["nights"] == 0
+    assert first["periods"] == 3
+    assert second["periods"] == 0
     assert len(_charges(hospital, admission)) == 3
 
 
@@ -223,7 +237,7 @@ def test_the_database_itself_refuses_the_second_row(hospital):
     the database can refuse that."""
     from sqlalchemy.exc import IntegrityError
 
-    from app.models.bed_charge import BedDayCharge
+    from app.models.bed_charge import BedCharge
     from app.utils import bed_billing
 
     child = _child(hospital, "قاعدة")
@@ -235,9 +249,9 @@ def test_the_database_itself_refuses_the_second_row(hospital):
         hospital["db"].session.commit()
         night = _charges(hospital, admission)[0].on_date
 
-        hospital["db"].session.add(BedDayCharge(
+        hospital["db"].session.add(BedCharge(
             admission_id=admission, patient_id=child, on_date=night,
-            unit_price=500))
+            unit_price=500, quantity=1, basis="night"))
         with pytest.raises(IntegrityError):
             hospital["db"].session.commit()
         hospital["db"].session.rollback()
@@ -286,10 +300,10 @@ def test_a_second_posting_lands_on_the_same_invoice(hospital):
         second = bed_billing.post(_stay(hospital, admission))
         hospital["db"].session.commit()
 
-        assert first["nights"] and second["nights"]
+        assert first["periods"] and second["periods"]
         bills = Invoice.query.filter_by(admission_id=admission).all()
         assert len(bills) == 1
-        assert len(bills[0].items) == first["nights"] + second["nights"]
+        assert len(bills[0].items) == first["periods"] + second["periods"]
 
 
 # ------------------------------------------------------- the rate is a switch
@@ -305,12 +319,12 @@ def test_a_clinic_that_sets_no_rate_is_never_charged(hospital):
 
     with hospital["app"].app_context():
         for unit in Unit.query.all():
-            unit.daily_service_id = None
+            unit.rate_service_id = None
         hospital["db"].session.commit()
 
         stay = _stay(hospital, admission)
         assert bed_billing.outstanding(stay) == []
-        assert bed_billing.post(stay)["nights"] == 0
+        assert bed_billing.post(stay)["periods"] == 0
         assert _charges(hospital, admission) == []
 
 
@@ -327,7 +341,7 @@ def test_the_card_is_absent_when_there_is_no_rate(hospital):
 
     with hospital["app"].app_context():
         for unit in Unit.query.all():
-            unit.daily_service_id = None
+            unit.rate_service_id = None
         hospital["db"].session.commit()
         heading = None
     with hospital["app"].test_request_context("/"):
@@ -345,7 +359,7 @@ def test_the_rate_can_be_set_from_the_screen(hospital):
 
     with hospital["app"].app_context():
         unit = Unit.query.filter_by(kind="ward").first()
-        unit.daily_service_id = None
+        unit.rate_service_id = None
         hospital["db"].session.commit()
         unit_id = unit.id
 
@@ -357,7 +371,7 @@ def test_the_rate_can_be_set_from_the_screen(hospital):
                                     "service_id": hospital["rates"]["ward"]},
                 follow_redirects=True)
     with hospital["app"].app_context():
-        assert (hospital["db"].session.get(Unit, unit_id).daily_service_id
+        assert (hospital["db"].session.get(Unit, unit_id).rate_service_id
                 == hospital["rates"]["ward"])
 
 
@@ -372,12 +386,257 @@ def test_a_bed_may_cost_something_other_than_its_department(hospital):
 
     with hospital["app"].app_context():
         bed = hospital["db"].session.get(Bed, hospital["beds"]["د١"])
-        bed.daily_service_id = hospital["rates"]["incubator"]
+        bed.rate_service_id = hospital["rates"]["incubator"]
         hospital["db"].session.commit()
 
         stay = _stay(hospital, admission)
-        assert all(service.price == 1200
-                   for _day, _bed, service in bed_billing.outstanding(stay))
+        assert all(row["service"].price == 1200
+                   for row in bed_billing.outstanding(stay))
+
+
+# ------------------------------------------------- emergency, by the hour ---
+def test_three_hours_in_emergency_is_not_a_night(hospital):
+    """**Reported in one sentence:** *"الإقامة بالساعة في الطوارىء خلي بالك"*.
+
+    A child on a trolley for three hours who goes home has not spent a night
+    anywhere. Billing one is not a rounding difference — it is a bill for
+    something that did not happen, and it is three times the money.
+    """
+    from app.utils import bed_billing
+
+    child = _child(hospital, "طوارئ_تلات_ساعات")
+    admission = _admit(hospital, child, "ط١")
+
+    with hospital["app"].app_context():
+        from app.utils import beds as place
+
+        stay = _stay(hospital, admission)
+        stay.admitted_at = datetime.utcnow() - timedelta(hours=3)
+        for bed_stay in stay.stays:
+            bed_stay.since = stay.admitted_at
+        place.discharge(stay, "home")
+        hospital["db"].session.commit()
+
+        due = bed_billing.outstanding(_stay(hospital, admission))
+        assert len(due) == 1
+        assert due[0]["basis"] == bed_billing.HOUR
+        assert due[0]["quantity"] == 3
+        assert due[0]["amount"] == 3 * 150
+
+
+def test_a_part_hour_rounds_up_and_never_below_one(hospital):
+    """Twenty minutes on a trolley is an hour of a trolley. Rounding down
+    would make the first hour of every emergency free, and most emergency
+    stays are one hour."""
+    from app.utils import bed_billing
+
+    # 60 → 1 and 180 → 3 are the boundaries, and they are the reason the
+    # duration is counted in whole minutes: measured to the microsecond, the
+    # discharge lands a fraction of a second past the hour and the family is
+    # billed for the next one.
+    for minutes, expected in ((20, 1), (60, 1), (61, 2), (180, 3), (200, 4)):
+        child = _child(hospital, f"دقايق{minutes}")
+        admission = _admit(hospital, child, "ط١")
+        with hospital["app"].app_context():
+            from app.utils import beds as place
+
+            stay = _stay(hospital, admission)
+            stay.admitted_at = datetime.utcnow() - timedelta(minutes=minutes)
+            for bed_stay in stay.stays:
+                bed_stay.since = stay.admitted_at
+            place.discharge(stay, "home")
+            hospital["db"].session.commit()
+            assert bed_billing.billable_hours(
+                _stay(hospital, admission)) == expected, minutes
+
+
+def test_an_hourly_stay_is_charged_when_it_ends_and_not_before(hospital):
+    """How many hours it was is not known until the child leaves. Charging in
+    instalments would put two lines on one bill for one visit — and would
+    need a second row for the same date, which the unique index refuses."""
+    from app.utils import bed_billing
+
+    child = _child(hospital, "لسه_في_الطوارئ")
+    admission = _admit(hospital, child, "ط١")
+
+    with hospital["app"].app_context():
+        stay = _stay(hospital, admission)
+        stay.admitted_at = datetime.utcnow() - timedelta(hours=2)
+        hospital["db"].session.commit()
+
+        assert bed_billing.outstanding(_stay(hospital, admission)) == []
+        assert bed_billing.post(_stay(hospital, admission))["periods"] == 0
+        # But the screen can still say what it is coming to.
+        assert bed_billing.hours_so_far(_stay(hospital, admission)) == 2
+
+
+def test_the_running_hours_are_shown_while_the_stay_is_open(hospital):
+    """So a family is told at the trolley rather than at the door."""
+    from app.i18n import t
+
+    child = _child(hospital, "بيعد")
+    admission = _admit(hospital, child, "ط١")
+    with hospital["app"].app_context():
+        stay = _stay(hospital, admission)
+        stay.admitted_at = datetime.utcnow() - timedelta(hours=1, minutes=55)
+        hospital["db"].session.commit()
+
+    page = hospital["sign_in"]("boss").get(
+        f"/beds/admission/{admission}").get_data(as_text=True)
+    assert "data-running-hours" in page
+    with hospital["app"].test_request_context("/"):
+        assert t("beds.hours_so_far", n=2) in page
+
+
+def test_the_hours_reach_the_invoice_as_a_quantity(hospital):
+    """One line, four hours, not four lines — and the line says so."""
+    from app.models.invoice import Invoice
+    from app.utils import bed_billing
+
+    child = _child(hospital, "فاتورة_ساعات")
+    admission = _admit(hospital, child, "ط١")
+
+    with hospital["app"].app_context():
+        from app.utils import beds as place
+
+        stay = _stay(hospital, admission)
+        stay.admitted_at = datetime.utcnow() - timedelta(hours=4)
+        for bed_stay in stay.stays:
+            bed_stay.since = stay.admitted_at
+        place.discharge(stay, "home")
+        bed_billing.post(_stay(hospital, admission))
+        hospital["db"].session.commit()
+
+        bill = Invoice.query.filter_by(admission_id=admission).one()
+        assert len(bill.items) == 1
+        assert bill.items[0].quantity == 4
+        assert bill.total == 4 * 150
+        assert "4h" in bill.items[0].description
+
+    charges = _charges(hospital, admission)
+    assert len(charges) == 1
+    assert charges[0].basis == "hour" and charges[0].quantity == 4
+
+
+def test_a_ward_is_still_charged_by_the_night(hospital):
+    """The two bases sit side by side in one hospital, and the department
+    decides which — not the code, and not a global setting."""
+    from app.utils import bed_billing
+
+    child = _child(hospital, "داخلي_بالليلة")
+    admission = _admit(hospital, child, "د١", days_ago=2)
+
+    with hospital["app"].app_context():
+        due = bed_billing.outstanding(_stay(hospital, admission))
+        assert [row["basis"] for row in due] == ["night", "night"]
+        assert all(row["quantity"] == 1 for row in due)
+
+
+def test_a_new_emergency_unit_is_hourly_without_anybody_saying_so(hospital):
+    """A preset, editable afterwards. What it buys is that nobody has to know
+    emergency is hourly before their first emergency bill comes out wrong."""
+    from app.models.place import Unit
+    from app.utils import bed_billing
+
+    assert bed_billing.default_basis("emergency") == bed_billing.HOUR
+    assert bed_billing.default_basis("ward") == bed_billing.NIGHT
+
+    client = hospital["sign_in"]("boss")
+    client.post("/beds/unit", data={"name": "طوارئ ٢", "kind": "emergency"},
+                follow_redirects=True)
+    with hospital["app"].app_context():
+        made = Unit.query.filter_by(name="طوارئ ٢").one()
+        assert made.billing_basis == bed_billing.HOUR
+
+
+def test_the_basis_can_be_changed_from_the_screen(hospital):
+    """A preset nobody can override is a rule, and this one is not a rule:
+    a clinic that charges its observation ward by the night is not wrong."""
+    from app.models.place import Unit
+
+    with hospital["app"].app_context():
+        unit_id = Unit.query.filter_by(kind="emergency").first().id
+
+    page = hospital["sign_in"]("boss").get("/beds/setup").get_data(as_text=True)
+    assert "data-basis" in page
+
+    hospital["sign_in"]("boss").post(
+        "/beds/rate",
+        data={"unit_id": unit_id, "service_id": hospital["rates"]["er"],
+              "billing_basis": "night"}, follow_redirects=True)
+    with hospital["app"].app_context():
+        assert (hospital["db"].session.get(Unit, unit_id).billing_basis
+                == "night")
+
+
+# ------------------------------------------- bed, then room, then department
+def test_the_room_is_priced_between_the_bed_and_the_department(hospital):
+    """**Reported:** *"هي الفاتورة تفصيلية للسرير ولا الغرف ولا الحضانة"*.
+
+    Most hospitals price the room: a single and a double are two prices for
+    the same bed, and what differs is the walls. The chain went bed →
+    department and skipped the level in the middle.
+    """
+    from app.models.place import Bed, Space
+    from app.utils import bed_billing
+
+    with hospital["app"].app_context():
+        bed = hospital["db"].session.get(Bed, hospital["beds"]["د١"])
+        space = hospital["db"].session.get(Space, bed.space_id)
+
+        # Nothing set on the bed or the room: the department answers.
+        assert bed_billing.rate_for(bed).price == 500
+
+        # The room answers over the department.
+        space.rate_service_id = hospital["rates"]["single"]
+        hospital["db"].session.commit()
+        assert bed_billing.rate_for(bed).price == 800
+
+        # And the bed answers over the room.
+        bed.rate_service_id = hospital["rates"]["incubator"]
+        hospital["db"].session.commit()
+        assert bed_billing.rate_for(bed).price == 1200
+
+
+def test_a_room_rate_reaches_the_bill(hospital):
+    """Not only the resolver — the nights actually charged move with it."""
+    from app.models.place import Bed, Space
+    from app.utils import bed_billing
+
+    child = _child(hospital, "غرفة_مفردة")
+    admission = _admit(hospital, child, "د١", days_ago=2)
+
+    with hospital["app"].app_context():
+        bed = hospital["db"].session.get(Bed, hospital["beds"]["د١"])
+        space = hospital["db"].session.get(Space, bed.space_id)
+        space.rate_service_id = hospital["rates"]["single"]
+        hospital["db"].session.commit()
+
+        bed_billing.post(_stay(hospital, admission))
+        hospital["db"].session.commit()
+
+    assert [c.unit_price for c in _charges(hospital, admission)] == [800, 800]
+
+
+def test_the_room_rate_can_be_set_from_the_screen(hospital):
+    """The middle level needs a door of its own, or a clinic that prices by
+    the room cannot say so."""
+    from app.models.place import Bed, Space
+
+    with hospital["app"].app_context():
+        bed = hospital["db"].session.get(Bed, hospital["beds"]["د١"])
+        space_id = bed.space_id
+
+    client = hospital["sign_in"]("boss")
+    assert "data-space-rate" in client.get("/beds/setup").get_data(as_text=True)
+
+    client.post("/beds/rate",
+                data={"space_id": space_id,
+                      "service_id": hospital["rates"]["single"]},
+                follow_redirects=True)
+    with hospital["app"].app_context():
+        assert (hospital["db"].session.get(Space, space_id).rate_service_id
+                == hospital["rates"]["single"])
 
 
 # ------------------------------------------------------------ the snapshot ---
@@ -429,8 +688,8 @@ def test_a_night_is_charged_at_the_bed_they_ended_it_in(hospital):
                    when=moved)
         hospital["db"].session.commit()
 
-        prices = {day: service.price for day, _bed, service
-                  in bed_billing.outstanding(_stay(hospital, admission))}
+        prices = {row["on"]: row["service"].price
+                  for row in bed_billing.outstanding(_stay(hospital, admission))}
 
     assert prices[local_today() - timedelta(days=2)] == 500     # the ward
     assert prices[local_today() - timedelta(days=1)] == 2000    # intensive care
@@ -519,9 +778,12 @@ def test_the_new_columns_reach_a_clinic_that_already_has_the_tables():
     from app.utils.schema import ADDITIONS
 
     covered = {(table, column) for table, column, _ddl in ADDITIONS}
-    assert ("care_units", "daily_service_id") in covered
-    assert ("care_beds", "daily_service_id") in covered
-    assert ("invoices", "admission_id") in covered
+    for table, column in (("care_units", "rate_service_id"),
+                          ("care_units", "billing_basis"),
+                          ("care_spaces", "rate_service_id"),
+                          ("care_beds", "rate_service_id"),
+                          ("invoices", "admission_id")):
+        assert (table, column) in covered, f"{table}.{column}"
 
 
 def test_the_guide_explains_the_charge():

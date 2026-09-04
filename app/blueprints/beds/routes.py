@@ -70,6 +70,7 @@ def setup():
     from app.models.service import Service
 
     return render_template("beds/setup.html",
+                           bases=bed_billing.BASES,
                            units=ward.board(),
                            unit_kinds=UNIT_KINDS, space_kinds=SPACE_KINDS,
                            bed_kinds=BED_KINDS,
@@ -96,6 +97,11 @@ def add_unit():
         flash(t("beds.name_and_kind"), "error")
         return redirect(url_for("beds.setup"))
     db.session.add(Unit(name=name, kind=kind,
+                        # Emergency is charged by the hour and a ward by the
+                        # night. A preset, editable from this same screen —
+                        # what it buys is that nobody has to know that before
+                        # their first emergency bill comes out wrong.
+                        billing_basis=bed_billing.default_basis(kind),
                         sort_order=Unit.query.count()))
     db.session.commit()
     flash(t("beds.unit_added"), "success")
@@ -158,10 +164,21 @@ def set_rate():
     _admin_only()
     service_id = request.form.get("service_id", type=int) or None
     unit_id = request.form.get("unit_id", type=int)
+    space_id = request.form.get("space_id", type=int)
     bed_id = request.form.get("bed_id", type=int)
-    target = (Unit.query.get_or_404(unit_id) if unit_id
-              else Bed.query.get_or_404(bed_id))
-    target.daily_service_id = service_id
+    # Bed, room or department — the three levels a clinic may price at. Which
+    # one it uses is its own business; the charge reads the nearest one set.
+    if unit_id:
+        target = Unit.query.get_or_404(unit_id)
+    elif space_id:
+        target = Space.query.get_or_404(space_id)
+    else:
+        target = Bed.query.get_or_404(bed_id)
+    target.rate_service_id = service_id
+    if unit_id:
+        basis = (request.form.get("billing_basis") or "").strip()
+        if basis in bed_billing.BASES:
+            target.billing_basis = basis
     db.session.commit()
     flash(t("beds.rate_saved"), "success")
     return redirect(url_for("beds.setup"))
@@ -249,7 +266,14 @@ def admission(admission_id):
         # Shown, never posted by opening a page. Money is written onto a
         # family's account by somebody pressing something.
         due_nights=bed_billing.outstanding(row),
-        charged=sorted(row.bed_charges, key=lambda c: c.on_date))
+        charged=sorted(row.bed_charges, key=lambda c: c.on_date),
+        # What an hourly stay has run up so far. Shown while it is open and
+        # never charged until it closes — the number is still moving.
+        basis=bed_billing.basis_for(row.bed),
+        running_hours=(bed_billing.hours_so_far(row)
+                       if row.is_open
+                       and bed_billing.basis_for(row.bed) == bed_billing.HOUR
+                       else 0))
 
 
 @beds_bp.route("/admission/<int:admission_id>/nights", methods=["POST"])
@@ -265,10 +289,10 @@ def post_nights(admission_id):
     result = bed_billing.post(row, user=current_user,
                               lang=getattr(g, "lang", "ar"))
     db.session.commit()
-    if not result["nights"]:
+    if not result["periods"]:
         flash(t("beds.nights_none"), "info")
     else:
-        flash(t("beds.nights_posted", n=result["nights"],
+        flash(t("beds.nights_posted", n=result["periods"],
                 total=result["total"],
                 number=result["invoice"].invoice_number), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
@@ -306,8 +330,8 @@ def discharge(admission_id):
                               lang=getattr(g, "lang", "ar"))
     db.session.commit()
     flash(t("beds.discharged"), "success")
-    if billed["nights"]:
-        flash(t("beds.nights_posted", n=billed["nights"],
+    if billed["periods"]:
+        flash(t("beds.nights_posted", n=billed["periods"],
                 total=billed["total"],
                 number=billed["invoice"].invoice_number), "info")
     return redirect(url_for("beds.admission", admission_id=row.id))
