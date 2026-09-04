@@ -32,6 +32,11 @@
       {{ t('beds.free_n', n=counts.free) }}</span>
     <span class="badge badge--muted" dir="ltr">
       {{ t('beds.taken_n', n=counts.taken) }}</span>
+    {# The other half of a stay. The board says where every child is; the
+       drug round says what they are owed, and a bed board with no way to
+       reach it sends whoever is on hunting through the sidebar. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.drugs') }}">
+      <i class="bi bi-capsule"></i> {{ t('meds.round') }}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.setup') }}">
       <i class="bi bi-diagram-3"></i> {{ t('beds.setup') }}</a>

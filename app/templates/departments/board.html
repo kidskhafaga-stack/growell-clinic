@@ -36,6 +36,9 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <span class="badge badge--muted">{{ t('dept.inside_n', n=rows|length) }}</span>
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('beds.drugs', kind=kind) }}">
+      <i class="bi bi-capsule"></i> {{ t('meds.round') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
       <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
   </div>
@@ -113,6 +116,20 @@
         <i class="bi bi-box-arrow-right"></i>
         {{ row.round.expected_discharge }}</span>
       {% endif %}
+      {% endif %}
+
+      {% if row.drugs and (row.drugs.late or row.drugs.due) %}
+      {# What is owed out of the trolley. Counted, not listed: the card says
+         how many and the drug board says which — a row that named five drugs
+         would stop being readable from across a room, which is the only
+         thing this screen is for. #}
+      <a class="alert-pill {{ 'danger' if row.drugs.late else 'warn' }}"
+         data-drugs="{{ 'late' if row.drugs.late else 'due' }}"
+         style="text-decoration:none;"
+         href="{{ url_for('beds.drugs', kind=kind) }}">
+        <i class="bi bi-capsule"></i>
+        {% if row.drugs.late %}{{ t('meds.n_late', n=row.drugs.late) }}
+        {% else %}{{ t('meds.n_due', n=row.drugs.due) }}{% endif %}</a>
       {% endif %}
 
       {% if row.last %}

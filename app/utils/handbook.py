@@ -412,6 +412,71 @@ SECTIONS = [
         ],
     },
     {
+        "key": "beds_drugs",
+        "module": "beds",
+        "icon": "capsule",
+        "title": ("دورة الدواء", "The drug round"),
+        "lines": [
+            ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
+             "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
+             "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "
+             "الأمر، السؤال «هو مستحق دلوقتي؟» كان هيتجاوب، والسؤال «حصل إيه "
+             "الساعة اتنين؟» كان هيترد عليه بجرعة النهاردة عن كل يوم في "
+             "الإقامة — وده بالظبط سؤال التحقيق في خطأ دوائي.",
+             "<b>The order and the dose are two different things.</b> The "
+             "doctor writes a standing order \u2014 the drug, the dose, how "
+             "many hours apart \u2014 and nursing records every dose: given, "
+             "held, or refused. A single \u201clast given\u201d column on "
+             "the order would answer \u201cis it due?\u201d and would answer "
+             "\u201cwhat happened at two o\u2019clock?\u201d with "
+             "tonight\u2019s answer for every night of the stay, which is "
+             "exactly what a drug-error inquiry asks."),
+            ("<b>مفيش جرعات متجدولة قدام.</b> «مستحق» بيتحسب من الأمر ومن آخر "
+             "جرعة، زي الملاحظة المتأخرة بالظبط. جدول جرعات جاية لازم يفضل "
+             "متماشي مع أمر اتغيّر نص الليل، وأول حاجة بيعملها لما يفرق إنه "
+             "يقول إن طفل اداله حاجة ما اتعطتلوش.",
+             "<b>Nothing is scheduled ahead.</b> Due-ness is worked out from "
+             "the order and the last dose, exactly the way a late observation "
+             "is. A table of future doses has to be kept in step with an "
+             "order that changed at midnight, and the first thing it does "
+             "when it drifts is claim a child was given something they were "
+             "not."),
+            ("<b>التأجيل قرار، والصمت مش قرار.</b> جرعة اتأجلت بتحرّك الساعة "
+             "زي اللي اتعطت بالظبط — حد وقف عند السرير وقرر. اللي مينفعش "
+             "يحصل هو جرعة محدش كتب عنها حاجة، وده بالظبط اللي اللوحة "
+             "اتعملت علشانه. وعلشان كده <b>التأجيل لازم يكون معاه سبب</b>: "
+             "تأجيل من غير سبب شكله زي جرعة حد نسيها، والاتنين بيسكّتوا "
+             "اللوحة.",
+             "<b>A hold is a decision; silence is not.</b> A held dose moves "
+             "the clock exactly as a given one does \u2014 somebody stood at "
+             "the bed and decided. What must not exist is a dose nobody wrote "
+             "anything about, which is the whole reason the board exists. "
+             "That is why <b>a hold needs a reason</b>: one without it looks "
+             "exactly like a dose somebody forgot, and both silence the "
+             "board."),
+            ("<b>الكتابة والإعطاء صلاحيتين مختلفتين.</b> «كتابة أوامر الدواء» "
+             "صلاحية لوحدها — أقدم قاعدة أمان في أي قسم داخلي: اللي ماسك "
+             "السرنجة مش هو اللي قرر اللي جواها. التمريض بياخد القسم ودورة "
+             "الدواء وما بياخدش الصلاحية دي.",
+             "<b>Writing and giving are two permissions.</b> "
+             "\u201cWrite drug orders\u201d is a capability of its own "
+             "\u2014 the oldest safety rule on a ward: whoever holds the "
+             "syringe is not the one who decided what is in it. Nursing gets "
+             "the ward and the drug round and not this one."),
+            ("<b>وفحص الأمان مش نسخة تانية.</b> الجرعة القصوى والحساسية "
+             "والتعارضات كلها <b>نفس</b> الفحص اللي شاشة الروشتة بتستعمله، "
+             "وبيشوف كمان أدوية الطفل اللي من برة — الكاربامازيبين اللي حد "
+             "تاني كتبه من شهور هو بالظبط النص اللي بيتعارض مع اللي هيتبدأ "
+             "دلوقتي.",
+             "<b>And the safety check is not a second one.</b> The dose "
+             "ceilings, the allergies and the interaction pairs are the "
+             "<b>same</b> check the prescription screen uses, and it sees the "
+             "child\u2019s pre-existing medicines too \u2014 the "
+             "carbamazepine somebody else wrote months ago is exactly the "
+             "half that interacts with what is about to be started."),
+        ],
+    },
+    {
         "key": "emergency",
         "module": "emergency",
         "icon": "thermometer-half",
@@ -1205,6 +1270,8 @@ CAPABILITY_LABELS = {
                       "Move the clinic's money between tills"),
     "treasury_adjust": ("تسوية فروق الجرد (مدير فقط)",
                         "Write off counting differences (admin only)"),
+    "medication_order": ("كتابة أوامر الدواء للأطفال المنوّمين",
+                         "Write drug orders for admitted children"),
 }
 
 

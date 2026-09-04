@@ -38,6 +38,8 @@ from app.models.place import (BED_KINDS, SPACE_KINDS, UNIT_KINDS,
                              Bed, Space, Unit)
 from app.models.admission import OUTCOMES, Admission, BedStay
 from app.models.round_note import ROUND_TRENDS, RoundNote
+from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
+                                  MedicationOrder)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
                                    Observation, ObservationOrder,
                                    due_at, lateness_grace)
@@ -244,6 +246,9 @@ __all__ = [
     "BED_KINDS",
     "Admission",
     "RoundNote",
+    "MedicationOrder",
+    "MedicationDose",
+    "DOSE_OUTCOMES",
     "ROUND_TRENDS",
     "BedStay",
     "OUTCOMES",

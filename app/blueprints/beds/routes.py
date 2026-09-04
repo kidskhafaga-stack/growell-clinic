@@ -21,7 +21,8 @@ not care.
 """
 from datetime import datetime
 
-from flask import abort, flash, redirect, render_template, request, url_for
+from flask import (abort, flash, g, redirect, render_template, request,
+                   url_for)
 from flask_login import current_user
 from werkzeug.routing import BuildError
 
@@ -30,12 +31,15 @@ from app.extensions import db
 from app.i18n import t
 from app.models import Patient, Visit
 from app.models.admission import OUTCOMES, Admission
+from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationOrder)
 from app.models.place import BED_KINDS, SPACE_KINDS, UNIT_KINDS, Bed, Space, Unit
+from app.models.prescription import Drug
 from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
+from app.utils import drug_round
 from app.utils import rounds as ward_round
-from app.utils.clock import to_utc
-from app.utils.decorators import module_required
+from app.utils.clock import to_local, to_utc
+from app.utils.decorators import capability_required, module_required
 
 MODULE = "beds"
 
@@ -194,12 +198,19 @@ def admit(patient_id):
 def admission(admission_id):
     """One stay: where they are, where they have been, and how it ended."""
     row = Admission.query.get_or_404(admission_id)
-    return render_template("beds/admission.html", admission=row,
-                           free=ward.free_beds(), outcomes=OUTCOMES,
-                           trends=ROUND_TRENDS,
-                           rounds=sorted(row.round_notes,
-                                         key=lambda n: (n.at, n.id),
-                                         reverse=True))
+    return render_template(
+        "beds/admission.html", admission=row,
+        free=ward.free_beds(), outcomes=OUTCOMES, trends=ROUND_TRENDS,
+        rounds=sorted(row.round_notes, key=lambda n: (n.at, n.id),
+                      reverse=True),
+        # The chart, and what the clinic's own safety check makes of it. Not a
+        # second check: `rx_safety` is the one the prescription screen uses,
+        # and an inpatient order is handed to it unchanged.
+        meds=drug_round.for_admissions([row.id]).get(row.id) or {},
+        stopped=[o for o in row.medication_orders if not o.is_running],
+        safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
+        routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
+        may_order=current_user.can("medication_order"))
 
 
 @beds_bp.route("/admission/<int:admission_id>/move", methods=["POST"])
@@ -316,3 +327,140 @@ def _happened_at():
             except ValueError:
                 continue
     return datetime.utcnow()
+
+
+# ------------------------------------------------------- the drug round -----
+@beds_bp.route("/drugs")
+@module_required(MODULE)
+def drugs():
+    """The station board: every child owed something, most overdue first.
+
+    Whoever is on at three in the morning covers more than one ward, so this
+    is the whole hospital by default and narrows to one kind of department
+    from the link on that department's screen.
+
+    A child on nothing is deliberately not a row. They are on every other ward
+    screen; putting them here as well would bury the four who are actually
+    owed a dose under the twenty who are not.
+    """
+    kind = (request.args.get("kind") or "").strip() or None
+    return render_template("beds/drugs.html",
+                           rows=drug_round.board(kind), kind=kind,
+                           levels=drug_round, routes=ROUTES,
+                           outcomes=DOSE_OUTCOMES)
+
+
+@beds_bp.route("/drug-search")
+@module_required(MODULE)
+def drug_search():
+    """Autocomplete for the order box — the same search the prescription
+    writer and the visit screen use.
+
+    A thin route of its own rather than borrowing the one under ``visits``:
+    that address is behind the visits module, and while every department
+    capability happens to switch visits on today, a ward whose autocomplete
+    stops working because somebody turned off an unrelated module is a bug
+    waiting on a settings change.
+    """
+    from flask import jsonify
+
+    from app.utils.drug_search import search_drugs
+
+    return jsonify(search_drugs(request.args.get("q"),
+                                lang=getattr(g, "lang", "ar"), limit=12))
+
+
+@beds_bp.route("/admission/<int:admission_id>/medication", methods=["POST"])
+@module_required(MODULE)
+@capability_required("medication_order")
+def add_medication(admission_id):
+    """Write a standing order.
+
+    Behind ``medication_order`` and not behind the module, because deciding
+    what a child is on and giving it are two jobs — the oldest safety rule on
+    a ward, and the one the module gate is too coarse to express.
+    """
+    row = Admission.query.get_or_404(admission_id)
+    drug = db.session.get(Drug, request.form.get("drug_id", type=int))
+    try:
+        drug_round.order(
+            row,
+            (request.form.get("drug_name") or "").strip() or (
+                drug.trade_name if drug else ""),
+            user=current_user, drug=drug,
+            dose=request.form.get("dose"),
+            route=(request.form.get("route") or "oral").strip(),
+            every_hours=request.form.get("every_hours", type=int),
+            is_prn=bool(request.form.get("is_prn")),
+            min_gap_hours=request.form.get("min_gap_hours", type=int),
+            note=request.form.get("note"))
+    except ValueError as why:
+        db.session.rollback()
+        # Each refusal names itself. "You did not say which drug" and "you did
+        # not say how often" send whoever is at the keyboard to two different
+        # boxes, and one message for both wastes the trip.
+        flash(t({"no drug": "meds.needs_drug",
+                 "no interval": "meds.needs_interval"}.get(
+                     str(why), "meds.refused")), "error")
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    db.session.commit()
+    flash(t("meds.ordered"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.id))
+
+
+@beds_bp.route("/medication/<int:order_id>/stop", methods=["POST"])
+@module_required(MODULE)
+@capability_required("medication_order")
+def stop_medication(order_id):
+    """Stop an order. Its doses stay — a drug that was stopped is not a drug
+    the child was never on, and the file has to be able to say what they were
+    on last Tuesday."""
+    row = MedicationOrder.query.get_or_404(order_id)
+    drug_round.stop(row, user=current_user, reason=request.form.get("reason"))
+    db.session.commit()
+    flash(t("meds.stopped"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.admission_id))
+
+
+@beds_bp.route("/medication/<int:order_id>/dose", methods=["POST"])
+@module_required(MODULE)
+def dose(order_id):
+    """Given, held, or refused — recorded by whoever stood at the bed.
+
+    **Not** behind ``medication_order``: giving is the nurse's act, and it is
+    the whole reason the two are separate capabilities.
+    """
+    row = MedicationOrder.query.get_or_404(order_id)
+    try:
+        drug_round.give(row, (request.form.get("outcome") or "given").strip(),
+                        user=current_user, at=_happened_at(),
+                        reason=request.form.get("reason"),
+                        note=request.form.get("note"))
+    except drug_round.NoReason:
+        db.session.rollback()
+        flash(t("meds.needs_reason"), "error")
+        return _back_from_dose(row)
+    except drug_round.TooSoon as floor:
+        db.session.rollback()
+        flash(t("meds.too_soon", at=to_local(floor.args[0]).strftime("%H:%M")),
+              "error")
+        return _back_from_dose(row)
+    except ValueError:
+        db.session.rollback()
+        flash(t("meds.refused"), "error")
+        return _back_from_dose(row)
+    db.session.commit()
+    flash(t("meds.recorded"), "success")
+    return _back_from_dose(row)
+
+
+def _back_from_dose(order_row):
+    """Back to the drug board when that is where the nurse was, otherwise to
+    the stay. Matched against our own addresses rather than followed, like
+    every other referrer in this file."""
+    here = request.referrer or ""
+    board = url_for("beds.drugs")
+    if board in here:
+        return redirect(here if here.startswith(request.host_url) else board)
+    return redirect(url_for("beds.admission",
+                            admission_id=order_row.admission_id))

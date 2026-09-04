@@ -1,0 +1,116 @@
+{% extends "shell.html" %}
+{% set active_module = 'beds' %}
+{% block title %}{{ t('meds.round') }}{% endblock %}
+{% block page_heading %}{{ t('meds.round') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One block per child, the drugs under them. A flat table of doses was the
+     obvious shape and is the wrong one: a nurse works child by child, walks
+     to one bed and gives three things, and a list sorted purely by hour makes
+     them walk the ward four times. */
+  .dr-child { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+              margin-bottom:10px; }
+  .dr-child.lv-late { border-inline-start:5px solid var(--danger); }
+  .dr-child.lv-due  { border-inline-start:5px solid #d97706; }
+  .dr-child.lv-ok   { border-inline-start:5px solid var(--green-600); }
+  .dr-head { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline;
+             margin-bottom:8px; }
+  .dr-order { display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+              padding:8px 0; border-top:1px dashed var(--line); }
+  .dr-order__what { min-width:200px; flex:1; }
+  .dr-drug { font-weight:600; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-capsule"></i> {{ t('meds.round') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('meds.round_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span class="badge badge--muted">{{ t('meds.n_children', n=rows|length) }}</span>
+    {# The whole hospital by default, because whoever is on at three in the
+       morning covers more than one ward. #}
+    <a class="btn btn-outline gc-press{{ ' btn-primary' if not kind else '' }}"
+       href="{{ url_for('beds.drugs') }}">{{ t('meds.everywhere') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
+      <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
+  </div>
+</div>
+
+{% if not rows %}
+{# Not an empty screen: "nobody is owed anything" is a real and good answer,
+   and it has to read as one rather than as a module that failed to load. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('meds.nothing_due') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div class="dr-child lv-{{ row.level }}" data-level="{{ row.level }}">
+    <div class="dr-head">
+      <span class="dr-drug">
+        <a href="{{ url_for('beds.admission', admission_id=row.admission.id) }}">
+          {{ row.patient.display_name(current_lang) }}</a></span>
+      {% if row.bed %}
+      <span class="hint">{{ row.bed.unit.name }} · {{ row.bed.name }}</span>
+      {% endif %}
+      {% if row.late %}
+      <span class="alert-pill danger" data-late>
+        <i class="bi bi-clock-history"></i> {{ t('meds.n_late', n=row.late) }}</span>
+      {% elif row.due %}
+      <span class="alert-pill warn" data-due>
+        <i class="bi bi-hourglass-split"></i> {{ t('meds.n_due', n=row.due) }}</span>
+      {% endif %}
+    </div>
+
+    {% for item in row.orders %}
+    <div class="dr-order" data-order="{{ item.order.id }}">
+      <div class="dr-order__what">
+        <span class="dr-drug">{{ item.order.drug_name }}</span>
+        {% if item.order.dose %} · {{ item.order.dose }}{% endif %}
+        <span class="badge badge--muted">{{ t('meds.route_' ~ item.order.route) }}</span>
+        {% if item.order.is_prn %}
+        <span class="badge badge--muted">{{ t('meds.prn') }}</span>
+        {% else %}
+        <span class="badge badge--muted" dir="ltr">q{{ item.order.every_hours }}h</span>
+        {% endif %}
+        <div class="hint" dir="ltr">
+          {% if item.state.due_at %}
+          {{ t('meds.due_at') }} {{ item.state.due_at|clinic_time }}
+          {% if item.state.level == levels.LATE %}
+          · <b>{{ t('meds.late_by', n=item.state.minutes_late) }}</b>{% endif %}
+          {% elif item.state.not_before %}
+          {{ t('meds.not_before') }} {{ item.state.not_before|clinic_time }}
+          {% endif %}
+          {% if item.last %}
+          · {{ t('meds.last_' ~ item.last.outcome) }} {{ item.last.at|clinic_time }}
+          {% endif %}
+        </div>
+      </div>
+
+      {# Given is one press. Held and refused are two, and the second one is
+         the reason — a hold with nothing said about why is indistinguishable
+         from a dose somebody forgot, and it silences this board either way. #}
+      <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"
+            action="{{ url_for('beds.dose', order_id=item.order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="reason" maxlength="200" style="width:170px;"
+               placeholder="{{ t('meds.reason_if_not') }}">
+        <button class="btn btn-sm btn-primary gc-press" type="submit"
+                name="outcome" value="given">
+          <i class="bi bi-check2"></i> {{ t('meds.given') }}</button>
+        <button class="btn btn-sm btn-outline gc-press" type="submit"
+                name="outcome" value="held">
+          <i class="bi bi-pause"></i> {{ t('meds.held') }}</button>
+        <button class="btn btn-sm btn-outline gc-press" type="submit"
+                name="outcome" value="refused">
+          <i class="bi bi-x-lg"></i> {{ t('meds.refused') }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

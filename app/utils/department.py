@@ -33,6 +33,7 @@ size-comparison test fails if any of them turns into a query per child.
 from datetime import datetime
 
 from app.extensions import db
+from app.utils import drug_round
 # Aliased, because two different things are called a round in a hospital and
 # both are in this file: `observations` is the repeated-reading round (every
 # fifteen minutes), and this one is the ward round the doctor walks each
@@ -163,6 +164,10 @@ def live(kind, now=None):
     # in the place the moment it filled. See `rounds.NO_ROUND_KINDS`.
     round_state = (ward_round.state([a.id for a in admissions])
                    if ward_round.kind_has_rounds(kind) else {})
+    # And what is owed out of the drug trolley. Every department, this one —
+    # a child in emergency on hourly antibiotics is as capable of missing a
+    # dose as one on a ward, and the absence leaves no row there either.
+    drugs = drug_round.for_admissions([a.id for a in admissions], now)
 
     rows = []
     for admission in admissions:
@@ -182,6 +187,7 @@ def live(kind, now=None):
             "level": level,
             "newborn": newborn.get(admission.patient_id),
             "round": round_state.get(admission.id),
+            "drugs": drugs.get(admission.id),
         })
     # Worst first; then, at the same level, whoever nobody has been round to
     # yet; then the one who has been here longest.

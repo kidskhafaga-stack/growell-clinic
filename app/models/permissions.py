@@ -212,11 +212,21 @@ CAPABILITIES = [
     # and separating the two is granting this to one person rather than
     # rebuilding anything.
     "messages_setup",
+    # Writing a standing drug order for a child in a bed. **Not the same act
+    # as giving one**, and the split is the oldest safety rule on a ward:
+    # whoever holds the syringe is not the one who decided what is in it.
+    #
+    # A capability rather than `role == "doctor"`, because roles in this
+    # program are editable and a hospital that invents "registrar" would
+    # otherwise find that its registrars cannot prescribe and nothing on any
+    # screen says why. Nursing keeps the ward and the drug round and does not
+    # get this one.
+    "medication_order",
 ]
 
 ROLE_CAPABILITIES = {
     "admin": list(CAPABILITIES),
-    "doctor": ["patient_medical"],
+    "doctor": ["patient_medical", "medication_order"],
     "reception": ["cashier"],
     # They write into the child's clinical record — the vitals, the reason for
     # the visit — so they hold the medical capability and no money one.

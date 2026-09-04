@@ -110,6 +110,195 @@
   </div>
 </div>
 
+{# ---- the chart --------------------------------------------------------- #}
+{# What this child is on, and what the clinic's own safety check makes of it.
+   Not a second check: `rx_safety` is the one the prescription screen uses,
+   and the child's pre-existing medicines are in it too — the carbamazepine
+   somebody else wrote months ago is exactly the half that interacts with
+   what is about to be started. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-capsule"></i> {{ t('meds.chart') }}</h2>
+
+  {% if safety and safety.interactions %}
+  <div class="alert-pill danger" style="margin-bottom:12px;" data-interaction>
+    <i class="bi bi-exclamation-octagon"></i>
+    {{ t('meds.interactions') }}:
+    {% for pair in safety.interactions %}
+    {{ pair.generic_a.display_name(current_lang) }} +
+    {{ pair.generic_b.display_name(current_lang) }}{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% for line in (safety.lines if safety else []) if line.allergy and line.allergy.hit %}
+  <div class="alert-pill danger" style="margin-bottom:12px;" data-allergy>
+    <i class="bi bi-shield-exclamation"></i>
+    {{ t('meds.allergy_to', name=line.name) }}</div>
+  {% endfor %}
+
+  {% if not meds.orders %}
+  <p class="hint" style="margin:0 0 12px;">{{ t('meds.none_yet') }}</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="table">
+    <thead><tr>
+      <th>{{ t('meds.drug') }}</th>
+      <th>{{ t('meds.dose') }}</th>
+      <th>{{ t('meds.how_often') }}</th>
+      <th>{{ t('meds.next') }}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for item in meds.orders %}
+      <tr data-order="{{ item.order.id }}">
+        <td><b>{{ item.order.drug_name }}</b>
+          <span class="badge badge--muted">{{ t('meds.route_' ~ item.order.route) }}</span></td>
+        <td>{{ item.order.dose or '—' }}</td>
+        <td dir="ltr">
+          {%- if item.order.is_prn %}{{ t('meds.prn') }}
+          {%- if item.order.min_gap_hours %} · ≥{{ item.order.min_gap_hours }}h{% endif %}
+          {%- else %}q{{ item.order.every_hours }}h{% endif %}</td>
+        <td dir="ltr">
+          {% if item.state.due_at %}{{ item.state.due_at|clinic_time }}
+          {% if item.state.level == 'late' %}
+          <span class="alert-pill danger" data-late>
+            {{ t('meds.late_by', n=item.state.minutes_late) }}</span>{% endif %}
+          {% elif item.state.not_before %}
+          {{ t('meds.not_before') }} {{ item.state.not_before|clinic_time }}
+          {% else %}—{% endif %}</td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;"
+                  action="{{ url_for('beds.dose', order_id=item.order.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="input" name="reason" maxlength="200"
+                     style="width:130px;" placeholder="{{ t('meds.reason_if_not') }}">
+              <button class="btn btn-sm btn-primary gc-press" type="submit"
+                      name="outcome" value="given">{{ t('meds.given') }}</button>
+              <button class="btn btn-sm btn-outline gc-press" type="submit"
+                      name="outcome" value="held">{{ t('meds.held') }}</button>
+            </form>
+            {% if may_order and admission.is_open %}
+            <form method="post"
+                  action="{{ url_for('beds.stop_medication', order_id=item.order.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-outline gc-press" type="submit"
+                      data-stop>{{ t('meds.stop') }}</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% if item.order.doses %}
+      <tr><td colspan="5" class="hint" dir="ltr" data-given>
+        {% for given in item.order.doses[-8:] %}
+        {{ given.at|clinic_time }} {{ t('meds.last_' ~ given.outcome) }}
+        {%- if given.reason %} ({{ given.reason }}){% endif %}
+        {%- if not loop.last %} · {% endif %}
+        {% endfor %}
+      </td></tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+
+  {% if stopped %}
+  <details style="margin-top:10px;">
+    <summary class="hint" style="cursor:pointer;">{{ t('meds.stopped_ones') }}</summary>
+    <ul class="hint" style="margin:8px 0 0;">
+      {% for old in stopped %}
+      <li data-stopped>{{ old.label() }}
+        <span dir="ltr">— {{ old.stopped_at|clinic_stamp }}</span>
+        {% if old.stop_reason %} · {{ old.stop_reason }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+
+  {% if may_order and admission.is_open %}
+  {# Writing the order is behind its own permission: whoever holds the
+     syringe is not the one who decides what is in it.
+
+     The name box is `gcPicker` — the clinic's one autocomplete, the same
+     control the prescription writer and the visit screen use. It was three
+     hand-written copies once and they had drifted into three behaviours;
+     a fourth here would have been a fourth. Picking a row fills the dose the
+     catalogue carries as well, which is the whole of "the doctor types
+     little" on this form. #}
+  <form method="post" style="margin-top:14px;"
+        action="{{ url_for('beds.add_medication', admission_id=admission.id) }}"
+        x-data="{
+          prn: false,
+          picker: window.gcPicker({ url: '{{ url_for('beds.drug_search') }}', minChars: 2 }),
+          q: '',
+          pick(r) {
+            this.picker.close();
+            this.$refs.name.value = r.name || r.trade || '';
+            this.$refs.drugId.value = r.id || '';
+            if (r.dose && !this.$refs.dose.value) this.$refs.dose.value = r.dose;
+            this.q = this.$refs.name.value;
+          }
+        }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="drug_id" x-ref="drugId">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;position:relative;">
+        <label for="drug_name">{{ t('meds.drug') }}</label>
+        <input class="input" id="drug_name" name="drug_name" maxlength="200"
+               type="text" autocomplete="off" x-ref="name" x-model="q"
+               role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="picker.q = q; picker.search()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(() => picker.close(), 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(r, idx) in picker.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx"
+                    x-on:click="pick(r)">
+              <span x-text="r.trade"></span>
+              <span class="badge badge--muted" x-text="r.generic"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:130px;">
+        <label for="dose">{{ t('meds.dose') }}</label>
+        <input class="input" id="dose" name="dose" maxlength="80" x-ref="dose">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:130px;">
+        <label for="route">{{ t('meds.route') }}</label>
+        <select class="select" id="route" name="route">
+          {% for way in routes %}
+          <option value="{{ way }}">{{ t('meds.route_' ~ way) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:140px;">
+        <label for="every_hours">{{ t('meds.how_often') }}</label>
+        <input class="input" type="number" min="1" max="168" id="every_hours"
+               name="every_hours" x-bind:disabled="prn" dir="ltr">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label>
+          <input type="checkbox" name="is_prn" x-model="prn">
+          {{ t('meds.prn_when_needed') }}</label>
+        <input class="input" type="number" min="1" max="72" name="min_gap_hours"
+               x-bind:disabled="!prn" dir="ltr"
+               placeholder="{{ t('meds.min_gap') }}">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('meds.order') }}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
 {# ---- the round --------------------------------------------------------- #}
 {# The stay's own thread. The board answers "has anybody been round today"
    across a whole department; this is the other half of the same fact — what
