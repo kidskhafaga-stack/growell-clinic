@@ -41,6 +41,7 @@ from app.models.round_note import ROUND_TRENDS, RoundNote
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
                                   MedicationOrder)
 from app.models.bed_charge import BedCharge
+from app.models.panel_alert_rule import PanelAlertRule
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                Operation, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
@@ -252,6 +253,7 @@ __all__ = [
     "MedicationOrder",
     "MedicationDose",
     "BedCharge",
+    "PanelAlertRule",
     "Theatre",
     "Operation",
     "SafetyCheck",

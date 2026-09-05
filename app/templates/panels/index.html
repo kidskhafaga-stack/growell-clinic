@@ -4,10 +4,16 @@
 {% block page_heading %}{{ t('panels.module_title') }}{% endblock %}
 
 {% block content %}
-<div class="gc-animate" style="margin-bottom:16px;">
-  <h1 class="page-title"><i class="bi bi-clipboard-data"></i>
-    {{ t('panels.module_title') }}</h1>
-  <p class="page-sub" style="margin:0;">{{ t('panels.module_hint') }}</p>
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard-data"></i>
+      {{ t('panels.module_title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('panels.module_hint') }}</p>
+  </div>
+  {# The way in to the numbers. Without a link from here the screen exists and
+     nothing leads to it, which is the whole failure it was built to fix. #}
+  <a class="btn btn-outline gc-press" href="{{ url_for('panels.alerts') }}">
+    <i class="bi bi-bell"></i> {{ t('panel_alerts.title') }}</a>
 </div>
 
 {# Not a shell to satisfy the landing-page guard. Three questions somebody

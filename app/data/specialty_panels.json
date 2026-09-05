@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.6",
+  "version": "2026.09.7",
   "effective_date": "2026-09-02",
   "_note_ar": "لوح التخصص على شاشة الزيارة. البيانات هنا مش في الكود — إضافة تخصص = إضافة هنا، من غير أي تعديل برمجي. الحقول اتاخدت من استبيان التخصصات (questions.ts + الإجابات المقترحة).",
   "_note_en": "The specialty panel on the visit screen. Data, not code: adding a specialty is an edit here. Fields come from the specialties survey.",
@@ -205,7 +205,12 @@
         {
           "code": "spo2_low",
           "label_ar": "تشبّع الأكسجين تحت الرقم الذي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "vital",
+            "of": "spo2",
+            "when": "below"
+          }
         },
         {
           "code": "wt_gain",
@@ -771,7 +776,12 @@
         {
           "code": "hba1c_high",
           "label_ar": "HbA1c فوق الرقم الذي كتبته في الخانة ٣",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "lab",
+            "of": "hba1c",
+            "when": "above"
+          }
         },
         {
           "code": "hypo_freq",
@@ -786,7 +796,12 @@
         {
           "code": "no_hba1c",
           "label_ar": "لم يعمل HbA1c منذ ٦ أشهر",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "lab",
+            "of": "hba1c",
+            "when": "since"
+          }
         },
         {
           "code": "bp_high",
@@ -1157,7 +1172,12 @@
         {
           "code": "drug_level_old",
           "label_ar": "لم يعمل مستوى الدواء منذ فترة",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "lab",
+            "of": "drug_level",
+            "when": "since"
+          }
         }
       ],
       "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت."
@@ -1751,12 +1771,22 @@
         {
           "code": "ferritin_high",
           "label_ar": "الفيريتين تجاوز الحد الذي كتبته *",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "lab",
+            "of": "ferritin",
+            "when": "above"
+          }
         },
         {
           "code": "hb_low",
           "label_ar": "الهيموجلوبين قبل النقل تحت الحد",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "hb_pre_transfusion",
+            "when": "below"
+          }
         },
         {
           "code": "tx_late",
@@ -2150,7 +2180,12 @@
         {
           "code": "iop_high",
           "label_ar": "ضغط العين فوق الحد",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "iop",
+            "when": "above"
+          }
         },
         {
           "code": "long_term_steroid",
@@ -2160,7 +2195,11 @@
         {
           "code": "never_examined",
           "label_ar": "لم يُفحص نظره من قبل وعمره تعدّى السن التي حدّدتها",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          }
         }
       ],
       "_alerts_note_ar": "التنبيهات اللي التخصص ده طلبها في الاستبيان، وكل واحد مكتوب جنبه **محتاج إيه** علشان يشتغل:\n• `overdue` — تاريخ البرنامج عارفه خلاص (ميعاد متابعة عدّى، تحليل مامتعملش من مدة).\n• `trend` — مقارنة بين زيارتين، من غير رقم مطلق.\n• `number` — محتاج رقم **العيادة** تحطه. الاستبيان نفسه بيرفض يحط رقم موحّد، والبرنامج ما بيخترعش أرقام إكلينيكية — فالتنبيه ده مايشتغلش لحد ما العيادة تكتب رقمها.\n• `cross_check` — محتاج قاعدة معرفة للأدوية والحساسية والتطعيمات لسه مش موجودة.\n• `doctor` — حاجة الطبيب هو اللي بيلاحظها (فقد مهارة، انتكاسة)، والبرنامج ما يقدرش يستنتجها.\n`live: true` معناها متنفّذ فعلاً دلوقتي. الباقي معلن ومستني، والشاشة بتقول كده بدل ما تسكت."
@@ -2317,12 +2356,21 @@
         {
           "code": "no_hearing_test",
           "label_ar": "السمع لم يُفحص وعمره تعدّى السن التي حدّدتها",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          }
         },
         {
           "code": "aom_recurrent",
           "label_ar": "التهابات أذن أكتر من الرقم اللي كتبته في السنة",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "ear_infections_year",
+            "when": "above"
+          }
         },
         {
           "code": "tympanogram_b_persists",
@@ -2466,7 +2514,12 @@
         {
           "code": "fever_long",
           "label_ar": "الحمى استمرت أكتر من عدد الأيام اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "fever_days",
+            "when": "above"
+          }
         },
         {
           "code": "abx_no_culture",
@@ -2476,7 +2529,12 @@
         {
           "code": "abx_many",
           "label_ar": "دورات مضاد أكتر من الرقم اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "abx_courses_year",
+            "when": "above"
+          }
         },
         {
           "code": "contact_untraced",
@@ -2486,7 +2544,12 @@
         {
           "code": "culture_pending",
           "label_ar": "مزرعة اتطلبت ونتيجتها ماجتش",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "order",
+            "of": "blood_culture,urine_culture",
+            "when": "pending"
+          }
         }
       ]
     },
@@ -2625,7 +2688,12 @@
         {
           "code": "sleep_disturbed",
           "label_ar": "الحكة بتقطع النوم أكتر من الرقم اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "sleep_lost_nights",
+            "when": "above"
+          }
         },
         {
           "code": "infected_eczema",
@@ -2759,7 +2827,12 @@
         {
           "code": "brace_low",
           "label_ar": "الالتزام بالجهاز أقل من الساعات اللي كتبتها",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "panel",
+            "of": "brace_hours",
+            "when": "below"
+          }
         },
         {
           "code": "limp_new",
@@ -2887,12 +2960,22 @@
         {
           "code": "esr_high",
           "label_ar": "سرعة الترسيب فوق الرقم اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "lab",
+            "of": "esr",
+            "when": "above"
+          }
         },
         {
           "code": "methotrexate_labs",
           "label_ar": "لم تُعمل وظائف الكبد على الميثوتريكسات",
-          "needs": "overdue"
+          "needs": "overdue",
+          "watches": {
+            "source": "lab",
+            "of": "lft",
+            "when": "since"
+          }
         }
       ]
     },
@@ -3002,7 +3085,12 @@
         {
           "code": "anc_low",
           "label_ar": "العدلات تحت الرقم اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "lab",
+            "of": "anc",
+            "when": "below"
+          }
         },
         {
           "code": "line_infection",
@@ -3231,7 +3319,12 @@
         {
           "code": "ammonia_high",
           "label_ar": "الأمونيا فوق الرقم اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "lab",
+            "of": "ammonia",
+            "when": "above"
+          }
         },
         {
           "code": "crisis_repeat",
@@ -3358,7 +3451,11 @@
         {
           "code": "testis_age",
           "label_ar": "الخصية لسه معلقة وعدّى السن اللي كتبته",
-          "needs": "number"
+          "needs": "number",
+          "watches": {
+            "source": "age_months",
+            "when": "above"
+          }
         },
         {
           "code": "wound_infection",
@@ -3372,5 +3469,6 @@
         }
       ]
     }
-  }
+  },
+  "_watches_note_ar": "«watches» بيقول التنبيه ده بيبص على إيه: تحليل بكوده من كتالوج الفحوصات، أو علامة حيوية، أو قراءة من قالب التخصص نفسه، أو عمر الطفل بالشهور، أو طلب فحص لسه ماجاش عليه رد. **مفيش رقم إكلينيكي هنا** — الرقم بيتكتب من شاشة أرقام العيادة، والتنبيه ما بيشتغلش قبل ما حد يكتبه. التنبيهات اللي مالهاش «watches» البرنامج ما بيقدرش يجاوبها من اللي عنده، وبتفضل معلنة ومش شغالة — وده أصدق من إنها تبان كأنها شبكة أمان."
 }

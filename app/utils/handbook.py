@@ -272,6 +272,48 @@ SECTIONS = [
              "readings recorded under it stay in the file and on their "
              "visits, untouched \u2014 the setting says what to ask next, it "
              "does not edit finished visits."),
+            ("<b>التنبيهات، والرقم رقمك انت.</b> الاستبيان سأل كل تخصص "
+             "«البرنامج ينبّهك إمتى؟» وردّ بمية وتلات تنبيهات. اللي منهم حد "
+             "رقمي — السكر التراكمي فوق كذا، الأكسجين تحت كذا — الاستبيان "
+             "نفسه رفض يدّي رقم («لا يوجد رقم موحّد»)، والبرنامج ما "
+             "بيخترعش رقم إكلينيكي. فالتنبيهات دي كانت معلنة ومش شغالة "
+             "<b>ومكانش فيه مكان أصلاً تكتب فيه رقمك</b> — ميزة متعملة "
+             "ومفيش باب ليها.",
+             "<b>The alerts, and the number is yours.</b> The survey asked "
+             "each specialty when the program should warn them and got a "
+             "hundred and three alerts back. The ones that are a threshold "
+             "\u2014 HbA1c above, saturation below \u2014 the survey itself "
+             "refused to supply a figure for (\u201cthere is no single "
+             "number\u201d), and this program does not invent clinical "
+             "numbers. So they were declared and dormant, <b>and there was "
+             "nowhere to write your own figure</b>: a feature built with no "
+             "door to it."),
+            ("<b>البرنامج بيقول بيبص على إيه، والعيادة بتقول إمتى تقلق.</b> "
+             "الكتالوج بيقول التنبيه ده بيقرا تحليل بكوده، ولا علامة حيوية، "
+             "ولا قراءة من القالب، ولا عمر الطفل، ولا طلب فحص ماجاش عليه رد — "
+             "ومفيش رقم واحد في الكتالوج كله. الرقم بيتكتب من «أرقام تنبيهات "
+             "التخصصات»، وهو صف في قاعدة بيانات العيادة، فالتحديث عمره ما "
+             "بيلمسه.",
+             "<b>The program says what it looks at; the clinic says when to "
+             "worry.</b> The catalogue names a lab test by its code, a vital "
+             "sign, a reading the panel takes, the child\u2019s age, or an "
+             "order that never came back \u2014 and carries no number "
+             "anywhere. The figure is written on the specialty-alerts screen "
+             "and lives as a row in the clinic\u2019s own database, which an "
+             "update never touches."),
+            ("<b>خانة فاضية = التنبيه مش شغال، زي ما كان بالظبط.</b> ونسخة "
+             "جديدة مفيهاش ولا رقم، فما بتشتغلش ولا تنبيه من دول. والشاشة "
+             "بتقول كمان اللي مستني على حاجة تانية — مقارنة بين زيارتين، أو "
+             "قاعدة معرفة أدوية، أو حاجة الطبيب بس اللي بيلاحظها — عشان "
+             "العيادة اللي ملّت أربع أرقام تعرف إن الباقي مش إعداد ناقص "
+             "عليها.",
+             "<b>An empty box means the alert is dormant, exactly as it "
+             "was.</b> A fresh install has no numbers and therefore none of "
+             "these alerts. The screen also says which of the rest are "
+             "waiting on something else \u2014 a comparison between two "
+             "visits, a drug knowledge base, or something only a person can "
+             "notice \u2014 so a clinic that filled in four numbers is not "
+             "left thinking the others are a setting they missed."),
         ],
     },
     {
