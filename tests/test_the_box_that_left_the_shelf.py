@@ -83,6 +83,7 @@ def _state(counter, line_id):
         row = counter["db"].session.get(PrescriptionItem, line_id)
         return {"shelf": row.store_item_id, "quantity": row.quantity,
                 "dispensed": row.dispensed_at is not None,
+                "at": row.dispensed_at,
                 "dispensed_by": row.dispensed_by,
                 "billed": row.invoice_item_id is not None,
                 "moved": row.stock_movement_id is not None,
@@ -94,6 +95,21 @@ def _stock(counter, item_id):
 
     with counter["app"].app_context():
         return counter["db"].session.get(StoreItem, item_id).current_stock
+
+
+def _collect(counter, line_id, price="60", qty="2"):
+    """The desk takes the money. Not the pharmacist: they hand the box over
+    and the cashier collects, and the pharmacy role has no finance screen."""
+    return counter["sign_in"]("boss").post(
+        f"/finance/collect/{counter['ids']['child']}", data={
+            "doctor_id": counter["ids"]["doctor"], "discount_id": "none",
+            "line_service_id": [""], "line_desc": ["أموكسيسيلين شراب"],
+            "line_price": [price], "line_qty": [qty],
+            "line_no_commission": ["1"], "line_brand_id": [""],
+            "line_dose_id": [""], "line_dose_number": [""], "line_vs_id": [""],
+            "line_op_id": [""], "line_test_id": [""],
+            "line_rx_line_id": [str(line_id)],
+        }, follow_redirects=True)
 
 
 def _put_on_shelf(counter, line=None, quantity=1):
@@ -169,6 +185,11 @@ def test_handing_over_charges_it_and_takes_it_off_the_shelf(counter):
 
     state = _state(counter, counter["line"])
     assert state["billed"] and state["moved"]
+    # And it never comes back to the desk: the line carries what paid for it,
+    # the same stamp the nights, the doses and the theatre cases use.
+    again = counter["sign_in"]("boss").get(
+        f"/finance/collect/{counter['ids']['child']}")
+    assert b'"rx_line_id"' not in again.data
     # Two bottles at 60, off the shelf and onto the bill.
     assert _stock(counter, counter["box"]) == -2
     with counter["app"].app_context():
@@ -204,18 +225,67 @@ def test_what_was_never_handed_over_is_never_offered(counter):
     assert b'"rx_line_id"' not in page.data
 
 
-def test_the_same_box_is_never_handed_over_twice(counter):
+def test_a_handed_over_line_leaves_the_queue(counter):
+    """The queue is what is still owed. A line that stayed on it after being
+    handed over would send the next pharmacist to fetch the same box."""
+    from app.models import Prescription
+    from app.utils import pharmacy
+
     client = _put_on_shelf(counter)
     client.post(f"/pharmacy/line/{counter['line']}/dispense",
                 follow_redirects=True)
-    again = client.post(f"/pharmacy/line/{counter['line']}/dispense",
-                        follow_redirects=True)
-
-    assert again.status_code == 200
-    from app.models import StockMovement
 
     with counter["app"].app_context():
-        assert StockMovement.query.count() == 0   # nothing yet — not billed
+        rx = counter["db"].session.get(Prescription, counter["rx"])
+        assert pharmacy.pending(rx) == []
+        assert pharmacy.queue() == []
+
+
+def test_the_same_box_is_never_handed_over_twice(counter):
+    """The second press is a keystroke on the wrong row. It must not move the
+    time it was handed over, and must not put a second box on the bill."""
+    from app.utils import pharmacy
+
+    client = _put_on_shelf(counter)
+    client.post(f"/pharmacy/line/{counter['line']}/dispense",
+                follow_redirects=True)
+    first = _state(counter, counter["line"])
+
+    # Somebody else, later, pressing the same button on the same row.
+    counter["sign_in"]("boss").post(
+        f"/pharmacy/line/{counter['line']}/dispense", follow_redirects=True)
+
+    with counter["app"].app_context():
+        # One thing owed, once — not two boxes for one handover.
+        assert len(pharmacy.unbilled(
+            patient_id=counter["ids"]["child"])) == 1
+    again = _state(counter, counter["line"])
+    # **The moment it crossed the counter, unmoved.** Asserted on the time and
+    # the name rather than on "is it dispensed": both stay true while a second
+    # press quietly rewrites when the box was handed over and by whom, which
+    # is the whole of what the record is for.
+    assert again["at"] == first["at"]
+    assert again["dispensed_by"] == counter["chemist"]
+
+
+def test_the_handover_says_who_made_it(counter):
+    """A box that left the shelf with nobody's name on it is a box nobody can
+    be asked about."""
+    client = _put_on_shelf(counter)
+    client.post(f"/pharmacy/line/{counter['line']}/dispense",
+                follow_redirects=True)
+
+    assert _state(counter, counter["line"])["dispensed_by"] == counter["chemist"]
+
+
+def test_the_quantity_can_be_settled_at_the_moment_of_handing_over(counter):
+    """Two bottles were written and one is on the shelf: the number that ends
+    up on the bill is the number that crossed the counter."""
+    client = _put_on_shelf(counter, quantity=1)
+    client.post(f"/pharmacy/line/{counter['line']}/dispense",
+                data={"quantity": "3"}, follow_redirects=True)
+
+    assert _state(counter, counter["line"])["quantity"] == 3
 
 
 def test_a_box_is_never_refused_for_want_of_stock(counter):
@@ -238,6 +308,57 @@ def test_a_box_is_never_refused_for_want_of_stock(counter):
     # Negative, and that is the honest number: a discrepancy for the store to
     # reconcile rather than a medicine to take back off a child.
     assert _stock(counter, counter["box"]) == -3
+
+
+def test_the_cost_of_the_box_reaches_the_ledger(counter):
+    """The issue document rides on the invoice, so the **cost of goods** is
+    journalled in the same posting the till already does for a service's
+    consumables.
+
+    Asserted on the store entry and not merely on the document: a version that
+    checked an issue document existed and the invoice was journalled stayed
+    true with the document never handed to the ledger at all — the medicine
+    was sold and its cost was never booked.
+    """
+    from app.models import JournalEntry, StockMovement, StoreDocument
+
+    with counter["app"].app_context():
+        # Stock in first, so the issue has a cost to book against it.
+        counter["db"].session.add(StockMovement(
+            item_id=counter["box"], kind="in", qty=10, unit_cost=25))
+        counter["db"].session.commit()
+
+    client = _put_on_shelf(counter, quantity=2)
+    client.post(f"/pharmacy/line/{counter['line']}/dispense",
+                follow_redirects=True)
+    _collect(counter, counter["line"])
+
+    with counter["app"].app_context():
+        document = StoreDocument.query.filter_by(kind="issue").one()
+        cost = JournalEntry.query.filter_by(source_type="store_doc",
+                                            source_id=document.id).one()
+        moved = {(line.account.code, line.debit, line.credit)
+                 for line in cost.lines}
+        # Debit cost of sales, credit the stock it came out of: two at 25.
+        assert ("5020", 50.0, 0.0) in moved
+        assert ("1040", 0.0, 50.0) in moved
+
+
+def test_the_desk_line_is_prefilled_with_no_commission(counter):
+    """Nobody's percentage rides on a box being handed across a counter.
+
+    Asserted on what the screen is *filled with*, not on what a test posts: a
+    hand-written form carrying the flag would pass while every real checkout
+    quietly paid a commission on a bottle of syrup.
+    """
+    client = _put_on_shelf(counter)
+    client.post(f"/pharmacy/line/{counter['line']}/dispense",
+                follow_redirects=True)
+
+    page = counter["sign_in"]("boss").get(
+        f"/finance/collect/{counter['ids']['child']}")
+
+    assert b'"no_commission": "1"' in page.data
 
 
 def test_nothing_to_dispense_is_refused_and_says_so(counter):
