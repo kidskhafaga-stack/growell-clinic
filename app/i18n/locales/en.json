@@ -5381,7 +5381,12 @@
     "route_topical": "topical",
     "route_eye": "eye",
     "route_ear": "ear",
-    "route_ng": "NG tube"
+    "route_ng": "NG tube",
+    "given_on_ward": "Given on the ward: {drug}",
+    "from_store": "Store item",
+    "no_store_item": "Not deducted or charged",
+    "units_per_dose": "Units per dose",
+    "n_doses_charged": "{n} doses charged and taken off the shelf"
   },
   "station": {
     "all_clinics": "All clinics",

@@ -254,6 +254,15 @@ ADDITIONS = [
     ("care_units", "billing_basis", "VARCHAR(8) DEFAULT 'night'"),
     ("care_spaces", "rate_service_id", "INTEGER"),
     ("care_beds", "rate_service_id", "INTEGER"),
+    # What a dose takes off the shelf and how many units of it, and where a
+    # given dose landed on the bill and in the store. The four tables these
+    # sit on shipped in the release that added the wards, so a clinic already
+    # running it has them **without** these columns — and `create_all` adds
+    # tables, never columns to a table that exists.
+    ("medication_orders", "store_item_id", "INTEGER"),
+    ("medication_orders", "units_per_dose", "INTEGER DEFAULT 1"),
+    ("medication_doses", "invoice_item_id", "INTEGER"),
+    ("medication_doses", "stock_movement_id", "INTEGER"),
     ("patients", "qr_token", "VARCHAR(32)"),
     ("vaccines", "is_discontinued", "BOOLEAN DEFAULT 0"),
     ("vaccines", "replaced_by_id", "INTEGER"),

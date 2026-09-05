@@ -295,9 +295,13 @@ def post(admission, user=None, upto=None, lang="ar"):
     """
     from app.models.invoice import InvoiceItem
 
+    from app.utils import drug_round
+
     due = outstanding(admission, upto)
-    if not due:
-        return {"periods": 0, "total": 0.0, "invoice": None}
+    doses = drug_round.chargeable(admission)
+    if not due and not doses:
+        return {"periods": 0, "doses": 0, "total": 0.0, "gross": 0.0,
+                "invoice": None}
 
     invoice = invoice_for(admission, user)
     added = []
@@ -329,6 +333,11 @@ def post(admission, user=None, upto=None, lang="ar"):
             posted_by=getattr(user, "id", None)))
         added.append(item)
 
+    # The drugs given on the ward, onto the same bill. One invoice for the
+    # stay, so a family gets one account and not a bed bill plus a pharmacy
+    # bill for the same three days.
+    given = drug_round.charge(admission, invoice, user=user, lang=lang)
+
     # **And then through the same door every other invoice goes through.**
     # The insurance, the contract tariff, the cash price list and the family's
     # own discount all live in `utils/billing`, and a bed bill raised outside
@@ -343,12 +352,13 @@ def post(admission, user=None, upto=None, lang="ar"):
     # journal failure rolls the session back, and rolling back before the bill
     # is committed takes the bill with it. A family would have been discharged
     # with no invoice at all because the bookkeeping hiccupped.
-    return {"periods": len(due),
-            # The lines *this* call added, after coverage — not the whole
-            # bill, which on the second posting of a long stay would report
-            # last week's nights again as if they had just been charged.
-            "total": round(sum(i.net for i in added), 2),
-            "gross": round(sum(i.gross for i in added), 2),
+    # The lines *this* call added, after coverage — not the whole bill, which
+    # on the second posting of a long stay would report last week's nights
+    # again as if they had just been charged.
+    mine = added + [d.invoice_item for d in doses if d.invoice_item is not None]
+    return {"periods": len(due), "doses": given,
+            "total": round(sum(i.net for i in mine), 2),
+            "gross": round(sum(i.gross for i in mine), 2),
             "invoice": invoice}
 
 

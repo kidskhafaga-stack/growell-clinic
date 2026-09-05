@@ -359,6 +359,27 @@
                x-bind:disabled="!prn" dir="ltr"
                placeholder="{{ t('meds.min_gap') }}">
       </div>
+      {# What comes off the shelf when this is given, and how many units of
+         it. Left empty, the order is charted and given exactly as before and
+         touches neither the stock nor the bill — which is how a clinic that
+         keeps its ward drugs on paper stays untouched. #}
+      <div class="form-row" style="margin-bottom:0;min-width:210px;">
+        <label for="store_item_id">{{ t('meds.from_store') }}</label>
+        <select class="select" id="store_item_id" name="store_item_id"
+                data-store-item>
+          <option value="">{{ t('meds.no_store_item') }}</option>
+          {% for stocked in store_items %}
+          <option value="{{ stocked.id }}">
+            {{ stocked.display_name(current_lang) }}
+            {%- if stocked.unit %} ({{ stocked.unit }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:120px;">
+        <label for="units_per_dose">{{ t('meds.units_per_dose') }}</label>
+        <input class="input" type="number" min="1" max="99" value="1"
+               id="units_per_dose" name="units_per_dose" dir="ltr">
+      </div>
       <button class="btn btn-primary gc-press" type="submit">
         <i class="bi bi-plus-lg"></i> {{ t('meds.order') }}</button>
     </div>

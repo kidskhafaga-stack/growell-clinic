@@ -259,6 +259,8 @@ def admission(admission_id):
         # second check: `rx_safety` is the one the prescription screen uses,
         # and an inpatient order is handed to it unchanged.
         meds=drug_round.for_admissions([row.id]).get(row.id) or {},
+        # The ward's own shelf, so an order can point at what it takes.
+        store_items=_ward_items(),
         stopped=[o for o in row.medication_orders if not o.is_running],
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
@@ -291,12 +293,17 @@ def post_nights(admission_id):
     # invoice with it.
     result = bed_billing.charge(row, user=current_user,
                                 lang=getattr(g, "lang", "ar"))
-    if not result["periods"]:
+    if not result["periods"] and not result["doses"]:
         flash(t("beds.nights_none"), "info")
-    else:
+        return redirect(url_for("beds.admission", admission_id=row.id))
+    if result["periods"]:
         flash(t("beds.nights_posted", n=result["periods"],
                 total=result["total"],
                 number=result["invoice"].invoice_number), "success")
+    if result["doses"]:
+        # Said out loud rather than discovered on the bill: the drugs given
+        # on the ward are money and stock, and both moved.
+        flash(t("meds.n_doses_charged", n=result["doses"]), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
@@ -335,6 +342,8 @@ def discharge(admission_id):
         flash(t("beds.nights_posted", n=billed["periods"],
                 total=billed["total"],
                 number=billed["invoice"].invoice_number), "info")
+    if billed["doses"]:
+        flash(t("meds.n_doses_charged", n=billed["doses"]), "info")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
@@ -490,6 +499,11 @@ def add_medication(admission_id):
             every_hours=request.form.get("every_hours", type=int),
             is_prn=bool(request.form.get("is_prn")),
             min_gap_hours=request.form.get("min_gap_hours", type=int),
+            # What comes off the shelf when this is given, and how many units
+            # of it. Left empty the order works exactly as before and touches
+            # neither the stock nor the bill.
+            store_item_id=request.form.get("store_item_id", type=int),
+            units_per_dose=request.form.get("units_per_dose", type=int),
             note=request.form.get("note"))
     except ValueError as why:
         db.session.rollback()
@@ -549,6 +563,21 @@ def dose(order_id):
     db.session.commit()
     flash(t("meds.recorded"), "success")
     return _back_from_dose(row)
+
+
+def _ward_items():
+    """What the store holds that a ward order could be written against.
+
+    Drugs first and everything else after: an order is written for a drug,
+    and a list that opens on gauze is a list somebody scrolls past. Inactive
+    items stay out — an order cannot be written against something the clinic
+    has stopped stocking.
+    """
+    from app.models import StoreItem
+
+    return (StoreItem.query
+            .filter(StoreItem.is_active.is_(True))
+            .order_by((StoreItem.item_type != "drug"), StoreItem.name).all())
 
 
 def _back_from_dose(order_row):

@@ -81,6 +81,19 @@ class MedicationOrder(db.Model):
     is_prn = db.Column(db.Boolean, default=False, nullable=False)
     min_gap_hours = db.Column(db.Integer)
 
+    # **What comes off the shelf when this is given.** The store's dispense
+    # unit is a dose ("جرعة / قطعة"), so one administration is one unit of it
+    # unless the order says otherwise — two ampoules make a dose often enough
+    # that guessing would be wrong on a ward.
+    #
+    # Nullable, and that is the feature's switch: an order with no item behind
+    # it is charted, given and recorded exactly as before, and touches neither
+    # the stock nor the bill. A clinic that keeps its ward drugs on paper is
+    # left alone — the same rule as the bed with no rate on it.
+    store_item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"),
+                              nullable=True, index=True)
+    units_per_dose = db.Column(db.Integer, default=1, nullable=False)
+
     started_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False, index=True)
     stopped_at = db.Column(db.DateTime, index=True)
@@ -94,6 +107,7 @@ class MedicationOrder(db.Model):
     admission = db.relationship("Admission", backref="medication_orders")
     patient = db.relationship("Patient")
     drug = db.relationship("Drug")
+    store_item = db.relationship("StoreItem")
     orderer = db.relationship("User", foreign_keys=[ordered_by])
     doses = db.relationship("MedicationDose", back_populates="order",
                             order_by="MedicationDose.at, MedicationDose.id")
@@ -151,10 +165,25 @@ class MedicationDose(db.Model):
     reason = db.Column(db.String(200))
     note = db.Column(db.String(255))
     by_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+
+    # Where this dose went on the bill and where it came off the shelf. Set
+    # once, by the posting; their presence is what makes the posting safe to
+    # run again, exactly as the unique night is for a bed charge.
+    #
+    # Both stay null for a dose that was **held or refused**: nothing was
+    # given, so nothing is owed and nothing left the store. That is the whole
+    # reason the outcome is recorded rather than inferred from a gap.
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
+                                nullable=True, index=True)
+    stock_movement_id = db.Column(db.Integer,
+                                  db.ForeignKey("stock_movements.id"),
+                                  nullable=True, index=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False)
 
     order = db.relationship("MedicationOrder", back_populates="doses")
+    invoice_item = db.relationship("InvoiceItem")
     patient = db.relationship("Patient")
     by = db.relationship("User", foreign_keys=[by_id])
 

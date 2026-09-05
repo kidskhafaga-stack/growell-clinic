@@ -463,6 +463,32 @@ SECTIONS = [
              "\u2014 the oldest safety rule on a ward: whoever holds the "
              "syringe is not the one who decided what is in it. Nursing gets "
              "the ward and the drug round and not this one."),
+            ("<b>والجرعة اللي اتعطت بتتحاسب وبتتخصم من المخزن.</b> الأمر "
+             "بيتربط بصنف من المخزن (والكمية: أمبولة ولا أمبولتين)، وكل جرعة "
+             "<b>اتعطت</b> بتتحط على فاتورة الإقامة وبتخرج من الرف. المتأجلة "
+             "والمرفوضة ما بتحاسبش وما بتخصمش — محدش اداله حاجة. والأمر اللي "
+             "مش مربوط بصنف بيشتغل زي ما هو من غير ما يلمس لا فلوس ولا مخزن، "
+             "فالعيادة اللي ماسكة أدوية القسم بالورق ما اتغيّرش عندها حاجة.",
+             "<b>And a dose that was given is charged and comes off the "
+             "shelf.</b> The order is pointed at a store item (and how many "
+             "units make a dose \u2014 one ampoule or two), and every "
+             "<b>given</b> dose lands on the stay\u2019s invoice and leaves "
+             "the store. Held and refused doses charge nothing and deduct "
+             "nothing: nobody was given anything. An order with no item "
+             "behind it works exactly as before and touches neither money nor "
+             "stock, so a clinic that keeps its ward drugs on paper is "
+             "untouched."),
+            ("<b>والجرعة عمرها ما بتترفض عشان المخزن باين فاضي.</b> القسم "
+             "ادّى الدوا؛ ده حصل. برنامج بيرفض يسجّله لأن عدّته بتقول إن الرف "
+             "فاضي بيكون بدّل حقيقة بحاجة مرتبة. الحركة بتتسجّل والمخزون "
+             "بيسمح له ينزل تحت الصفر — ده فرق للمخزن يراجعه، مش جرعة "
+             "تضيع.",
+             "<b>And a dose is never refused because the shelf looks "
+             "empty.</b> The ward gave the drug; that happened. A program "
+             "that declines to record it because its own count says the shelf "
+             "is empty has replaced a true fact with a tidy one. The movement "
+             "is posted and the stock is allowed to go negative \u2014 a "
+             "discrepancy for the store to reconcile, not a dose to lose."),
             ("<b>وفحص الأمان مش نسخة تانية.</b> الجرعة القصوى والحساسية "
              "والتعارضات كلها <b>نفس</b> الفحص اللي شاشة الروشتة بتستعمله، "
              "وبيشوف كمان أدوية الطفل اللي من برة — الكاربامازيبين اللي حد "
