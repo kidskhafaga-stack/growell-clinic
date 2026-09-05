@@ -5381,7 +5381,12 @@
     "route_topical": "موضعي",
     "route_eye": "عين",
     "route_ear": "ودن",
-    "route_ng": "أنبوبة معدة"
+    "route_ng": "أنبوبة معدة",
+    "given_on_ward": "اتعطى في القسم: {drug}",
+    "from_store": "من صنف المخزن",
+    "no_store_item": "مش بيتخصم من المخزن ولا بيتحاسب",
+    "units_per_dose": "كام وحدة في الجرعة",
+    "n_doses_charged": "{n} جرعة اتحسبت واتخصمت من المخزن"
   },
   "station": {
     "all_clinics": "كل العيادات",

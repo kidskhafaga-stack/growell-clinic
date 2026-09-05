@@ -207,7 +207,7 @@ def board(kind=None, now=None):
 
 def order(admission, drug_name, user=None, drug=None, dose=None, route="oral",
           every_hours=None, is_prn=False, min_gap_hours=None, note=None,
-          when=None):
+          store_item_id=None, units_per_dose=None, when=None):
     """Write a standing order, or refuse.
 
     Refuses a nameless drug, and refuses a regular order with no interval —
@@ -232,6 +232,11 @@ def order(admission, drug_name, user=None, drug=None, dose=None, route="oral",
         every_hours=None if is_prn else int(every_hours),
         is_prn=is_prn,
         min_gap_hours=int(min_gap_hours) if is_prn and min_gap_hours else None,
+        store_item_id=store_item_id or None,
+        # One unit unless somebody says otherwise: the store's dispense unit
+        # is a dose, and a floor of one stops a blank box from writing an
+        # order that takes nothing off the shelf however often it is given.
+        units_per_dose=max(1, int(units_per_dose or 1)),
         started_at=when or datetime.utcnow(),
         ordered_by=getattr(user, "id", None),
         note=(note or "").strip()[:255] or None)
@@ -293,6 +298,113 @@ def give(order_row, outcome=GIVEN, user=None, at=None, reason=None, note=None,
         by_id=getattr(user, "id", None))
     db.session.add(row)
     return row
+
+
+# ------------------------------------------- what a dose costs the store ----
+def chargeable(admission):
+    """Doses that were **given**, on an order that names a store item, and
+    that nobody has billed yet.
+
+    Three conditions, and each of them is a decision:
+
+    * **given** — a held or refused dose burns nothing and is owed nothing.
+      That is the whole reason the outcome is recorded rather than inferred
+      from a gap in the chart;
+    * **the order names an item** — an order with no shelf behind it is
+      charted and given exactly as before and touches neither the stock nor
+      the bill. A clinic that keeps its ward drugs on paper is left alone,
+      the same way a bed with no rate on it is;
+    * **not billed yet** — the dose carries the invoice line it went onto, so
+      the posting is safe to run again. The bed nights use a unique night for
+      the same job; a dose has its own row already, so it carries the link.
+    """
+    if admission is None:
+        return []
+    out = []
+    for order in (admission.medication_orders or []):
+        if order.store_item_id is None:
+            continue
+        for dose in order.doses:
+            if dose.outcome != GIVEN or dose.invoice_item_id is not None:
+                continue
+            out.append(dose)
+    out.sort(key=lambda d: (d.at, d.id))
+    return out
+
+
+def charge(admission, invoice, user=None, lang="ar"):
+    """Bill the given doses and take them off the shelf. Returns how many.
+
+    **A dose is never refused for want of stock.** The ward gave the drug;
+    that happened, and a program that declines to record it because its own
+    count says the shelf is empty has replaced a true fact with a tidy one.
+    The movement is posted and the stock is allowed to go negative, which is
+    a discrepancy for the store to reconcile rather than a dose to lose.
+    """
+    from app.models import StockMovement
+    from app.models.invoice import InvoiceItem
+    from app.utils.costing import issue_unit_cost
+    from app.utils.store_docs import open_document
+
+    due = chargeable(admission)
+    if not due or invoice is None:
+        return 0
+
+    document = None
+    for dose in due:
+        order = dose.order
+        item = order.store_item
+        units = max(1, int(order.units_per_dose or 1))
+        price = float(getattr(item, "sell_price", 0) or 0)
+
+        line = InvoiceItem(
+            invoice_id=invoice.id,
+            # A store item is not a `Service`, so the line carries no
+            # ``service_id`` — and therefore no doctor commission, which is
+            # right: nobody's percentage rides on a nurse pushing a syringe.
+            description=_dose_line(order, item, dose, lang),
+            unit_price=price, quantity=units)
+        db.session.add(line)
+        db.session.flush()
+        dose.invoice_item_id = line.id
+
+        if document is None:
+            document = open_document("issue", reference=invoice.invoice_number)
+        movement = StockMovement(
+            item_id=item.id, kind="out", qty=-abs(units),
+            reason=_dose_reason(order, lang),
+            unit_cost=issue_unit_cost(item),
+            created_by=getattr(user, "id", None), document_id=document.id)
+        db.session.add(movement)
+        db.session.flush()
+        dose.stock_movement_id = movement.id
+
+    # The issue document rides on the invoice so the ledger picks its cost of
+    # goods up in the same posting the till already does for consumables.
+    if document is not None:
+        invoice._iss_doc = document
+    return len(due)
+
+
+def _dose_line(order, item, dose, lang):
+    from app.utils.clock import to_local
+
+    name = (item.display_name(lang) if hasattr(item, "display_name")
+            else order.drug_name)
+    when = to_local(dose.at).strftime("%Y-%m-%d %H:%M")
+    parts = [name]
+    if order.dose:
+        parts.append(order.dose)
+    return f"{' · '.join(parts)} ({when})"[:200]
+
+
+def _dose_reason(order, lang):
+    from app.i18n import t
+
+    try:
+        return t("meds.given_on_ward", drug=order.drug_name)[:160]
+    except Exception:  # noqa: BLE001
+        return order.drug_name[:160]
 
 
 def safety(admission, extra=None, lang="ar"):
