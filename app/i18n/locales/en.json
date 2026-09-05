@@ -6098,6 +6098,30 @@
     "make_up": "Made up",
     "prepared": "Recorded",
     "not_running": "This order is stopped — it is not supplied",
-    "ready": "Made up"
+    "ready": "Made up",
+    "verified": "Checked",
+    "verify": "Check this order",
+    "not_verified": "No pharmacist has checked it",
+    "n_unverified": "{n} unchecked",
+    "n_high_alert": "{n} high alert"
+  },
+  "halert": {
+    "title": "High-alert medicines",
+    "sub": "The medicines this hospital decided to be careful with",
+    "why": "The medication-management standards are explicit that this list is **the hospital's own** — built from its own use and its own errors and near misses. So nothing is shipped with the software: a paediatric oncology unit and a village clinic do not fear the same molecules, and being wrong about this list is being wrong about the medicines that kill people when they go wrong.",
+    "none": "The list is empty — nothing marked yet.",
+    "add": "Add one to the list",
+    "ingredient": "Active ingredient",
+    "reason": "Why",
+    "reason_ph": "e.g. ten-fold dosing errors",
+    "precaution": "What to do about it",
+    "precaution_ph": "e.g. a second person checks the units before it is given",
+    "need_drug": "Choose the active ingredient",
+    "need_reason": "Write the reason — a name on its own tells a night nurse nothing",
+    "added": "Added to the list",
+    "off": "Off",
+    "turn_off": "Take off",
+    "turn_on": "Put back",
+    "flag": "High alert"
   }
 }

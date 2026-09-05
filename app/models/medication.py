@@ -107,6 +107,20 @@ class MedicationOrder(db.Model):
     # given while the question is open, because the answer is usually "yes, I
     # meant it", and a pharmacy that can stop a ward's drug is a pharmacy the
     # ward starts writing around.
+    # **A pharmacist checked this order before it was dispensed.**
+    #
+    # What the medication-management standards ask for and the program had no
+    # room for: an order was written and given, and nothing anywhere recorded
+    # whether anybody with a pharmacy training had looked at it first.
+    #
+    # **Recorded, never enforced.** A hospital at three in the morning with no
+    # pharmacist on site still gives the antibiotic, and a program that
+    # refused would be worked around by the end of the first night — which is
+    # how a control stops meaning anything. So the gap is made visible and
+    # kept visible, the same choice the surgical sign-out makes.
+    verified_at = db.Column(db.DateTime, index=True)
+    verified_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+
     query_note = db.Column(db.String(255))
     queried_at = db.Column(db.DateTime, index=True)
     queried_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
@@ -128,6 +142,7 @@ class MedicationOrder(db.Model):
     drug = db.relationship("Drug")
     store_item = db.relationship("StoreItem")
     orderer = db.relationship("User", foreign_keys=[ordered_by])
+    verifier = db.relationship("User", foreign_keys=[verified_by])
     querier = db.relationship("User", foreign_keys=[queried_by])
     answerer = db.relationship("User", foreign_keys=[answered_by])
     doses = db.relationship("MedicationDose", back_populates="order",

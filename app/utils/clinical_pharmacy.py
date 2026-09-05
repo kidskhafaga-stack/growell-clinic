@@ -118,6 +118,7 @@ def board(kind=None, on_date=None):
     asked = open_queries(ids)
     charts = drug_round.running_orders(ids)
 
+    known = high_alert_map()
     rows = []
     for stay in stays:
         orders = list(charts.get(stay.id) or [])
@@ -126,6 +127,12 @@ def board(kind=None, on_date=None):
             "orders": orders, "drugs": len(orders),
             "review": done.get(stay.id),
             "queries": asked.get(stay.id) or [],
+            # The two the standards ask about: what this hospital said it is
+            # careful with, and what nobody with a pharmacy training has
+            # looked at yet.
+            "high_alert": sum(1 for o in orders
+                              if high_alert_for(o, known) is not None),
+            "unverified": sum(1 for o in orders if o.verified_at is None),
         })
     # Nobody has been to them, then whoever has the most on their chart —
     # which is the honest proxy for who is most worth a second pair of eyes.
@@ -153,8 +160,11 @@ def chart(admission, lang="ar"):
 
     if admission is None:
         return {"orders": [], "safety": None}
-    return {"orders": list(drug_round.running_orders([admission.id])
-                           .get(admission.id) or []),
+    orders = list(drug_round.running_orders([admission.id])
+                  .get(admission.id) or [])
+    known = high_alert_map()
+    return {"orders": orders,
+            "high_alert": {o.id: high_alert_for(o, known) for o in orders},
             "safety": drug_round.safety(admission, lang=lang)}
 
 
@@ -337,3 +347,101 @@ def supply_counts(rows=None):
     rows = supply_list() if rows is None else rows
     return {"children": len(rows),
             "drugs": sum(r["left"] for r in rows)}
+
+
+# --------------------------------------------- the hospital's own list -----
+def high_alert_map():
+    """``{("generic", id): row}`` and ``{("drug", id): row}`` — the list.
+
+    One query and a dict, because every screen that draws a chart asks about
+    every line on it. Empty for a hospital that has not written its list,
+    which is where a fresh install stays: **nothing is seeded**, because a
+    list of dangerous drugs bundled with the software would be somebody
+    else's judgement about a ward it has never seen.
+    """
+    from app.models import HighAlertDrug
+
+    out = {}
+    for row in HighAlertDrug.query.filter(
+            HighAlertDrug.is_active.is_(True)).all():
+        if row.generic_id:
+            out[("generic", row.generic_id)] = row
+        if row.drug_id:
+            out[("drug", row.drug_id)] = row
+    return out
+
+
+def high_alert_for(order, known=None):
+    """The list's row for this order, or ``None``.
+
+    Matched on the **active ingredient** first, so every brand of it is caught
+    including the one this clinic has not stocked yet — the same argument the
+    interaction pairs are built on — and on the product only when the concern
+    genuinely is that box.
+    """
+    if order is None:
+        return None
+    known = high_alert_map() if known is None else known
+    drug = getattr(order, "drug", None)
+    if drug is not None:
+        hit = known.get(("drug", drug.id))
+        if hit is not None:
+            return hit
+        if getattr(drug, "generic_id", None):
+            hit = known.get(("generic", drug.generic_id))
+            if hit is not None:
+                return hit
+    # A hand-typed line still matches when it names the ingredient: a ward
+    # that types "morphine" rather than picking a box is exactly the ward this
+    # flag is for.
+    from app.models import GenericDrug
+
+    name = (getattr(order, "drug_name", "") or "").strip().lower()
+    if not name:
+        return None
+    for (kind, ident), row in known.items():
+        if kind != "generic":
+            continue
+        found = db.session.get(GenericDrug, ident)
+        if found is None:
+            continue
+        for label in (found.name_en, found.name_ar):
+            if label and label.strip().lower() == name:
+                return row
+    return None
+
+
+def verify(order, user=None, at=None):
+    """A pharmacist checked this order. Never a block, only a record.
+
+    A hospital at three in the morning with no pharmacist on site still gives
+    the antibiotic, and a program that refused would be worked around by the
+    end of the first night — which is how a control stops meaning anything.
+    The gap is made visible and kept visible instead.
+    """
+    if order is None:
+        raise ValueError("no order")
+    if not order.is_running:
+        raise ValueError("not running")
+    order.verified_at = at or datetime.utcnow()
+    order.verified_by = getattr(user, "id", None)
+    return order
+
+
+def unverified(admission_ids=None):
+    """Running orders no pharmacist has checked — high-alert ones first.
+
+    The order the standards care about most is the one nobody looked at, and
+    among those the ones this hospital has already said it is careful with.
+    """
+    query = MedicationOrder.query.filter(
+        MedicationOrder.verified_at.is_(None),
+        MedicationOrder.stopped_at.is_(None))
+    if admission_ids is not None:
+        if not admission_ids:
+            return []
+        query = query.filter(MedicationOrder.admission_id.in_(admission_ids))
+    rows = query.order_by(MedicationOrder.started_at).all()
+    known = high_alert_map()
+    rows.sort(key=lambda o: high_alert_for(o, known) is None)
+    return rows

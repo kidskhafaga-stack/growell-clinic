@@ -15,7 +15,8 @@ line stays dispensable: the doctor may well have meant it, the family is
 standing there, and a pharmacy that can veto a prescription is one that
 prescriptions get written around.
 """
-from flask import flash, g, redirect, render_template, request, url_for
+from flask import (abort, flash, g, redirect, render_template, request,
+                   url_for)
 from flask_login import current_user
 
 from app.blueprints.pharmacy import pharmacy_bp
@@ -248,3 +249,90 @@ def prepare(order_id):
     db.session.commit()
     flash(t("cpharm.prepared"), "success")
     return redirect(request.referrer or url_for("pharmacy.supply"))
+
+
+# ------------------------------------------- the hospital's own list -------
+@pharmacy_bp.route("/high-alert")
+@module_required(MODULE)
+def high_alert():
+    """The medicines this hospital decided to be careful with.
+
+    **Nothing is seeded, on purpose.** The medication-management standards are
+    explicit that the list is the hospital's own, built from its own use and
+    its own near misses — and a list of dangerous drugs bundled with the
+    software would be somebody else's judgement about a ward it has never
+    seen. A paediatric oncology unit and a village clinic do not fear the same
+    molecules.
+    """
+    from app.models import GenericDrug, HighAlertDrug
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    return render_template(
+        "pharmacy/high_alert.html",
+        rows=(HighAlertDrug.query.order_by(HighAlertDrug.id.desc()).all()),
+        generics=(GenericDrug.query.order_by(GenericDrug.name_en).limit(400)
+                  .all()))
+
+
+@pharmacy_bp.route("/high-alert/add", methods=["POST"])
+@module_required(MODULE)
+def add_high_alert():
+    """Put one on the list. A reason is required."""
+    from app.models import HighAlertDrug
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    generic_id = request.form.get("generic_id", type=int)
+    reason = (request.form.get("reason") or "").strip()[:255]
+    if not generic_id:
+        # A row naming neither an ingredient nor a product matches nothing,
+        # and a rule that matches nothing reads as cover.
+        flash(t("halert.need_drug"), "error")
+        return redirect(url_for("pharmacy.high_alert"))
+    if not reason:
+        # The reason is the point: "insulin" on a list with nothing beside it
+        # tells a night nurse nothing.
+        flash(t("halert.need_reason"), "error")
+        return redirect(url_for("pharmacy.high_alert"))
+    db.session.add(HighAlertDrug(
+        generic_id=generic_id, reason=reason,
+        precaution=(request.form.get("precaution") or "").strip()[:255] or None,
+        added_by=current_user.id))
+    db.session.commit()
+    flash(t("halert.added"), "success")
+    return redirect(url_for("pharmacy.high_alert"))
+
+
+@pharmacy_bp.route("/high-alert/<int:row_id>/toggle", methods=["POST"])
+@module_required(MODULE)
+def toggle_high_alert(row_id):
+    """Off the list without losing that it was once on it."""
+    from app.models import HighAlertDrug
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    row = db.get_or_404(HighAlertDrug, row_id)
+    row.is_active = not row.is_active
+    db.session.commit()
+    return redirect(url_for("pharmacy.high_alert"))
+
+
+@pharmacy_bp.route("/order/<int:order_id>/verify", methods=["POST"])
+@module_required(MODULE)
+def verify(order_id):
+    """A pharmacist checked this order before it was dispensed."""
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(MedicationOrder, order_id)
+    try:
+        clinical_pharmacy.verify(row, user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("cpharm.not_running"), "error")
+        return redirect(url_for("pharmacy.ward"))
+    db.session.commit()
+    flash(t("cpharm.verified"), "success")
+    return redirect(request.referrer
+                    or url_for("pharmacy.chart", admission_id=row.admission_id))

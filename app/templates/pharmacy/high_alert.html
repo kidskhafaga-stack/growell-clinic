@@ -1,0 +1,80 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('halert.title') }}{% endblock %}
+{% block page_heading %}{{ t('halert.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-exclamation-diamond"></i> {{ t('halert.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('halert.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}">
+    <i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</a>
+</div>
+
+{# Why the list is empty on the first day, said once and plainly. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('halert.why') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-plus-lg"></i> {{ t('halert.add') }}</h2>
+  <form method="post" action="{{ url_for('pharmacy.add_high_alert') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:220px;">
+      {# The ingredient, so every brand of it is caught — including the one
+         this clinic has not stocked yet. #}
+      <label for="generic_id">{{ t('halert.ingredient') }}</label>
+      <select class="select" id="generic_id" name="generic_id">
+        {% for one in generics %}
+        <option value="{{ one.id }}">{{ one.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+      <label for="reason">{{ t('halert.reason') }}</label>
+      <input class="input" id="reason" name="reason" maxlength="255" required
+             placeholder="{{ t('halert.reason_ph') }}">
+    </div>
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+      <label for="precaution">{{ t('halert.precaution') }}</label>
+      <input class="input" id="precaution" name="precaution" maxlength="255"
+             placeholder="{{ t('halert.precaution_ph') }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;" data-empty>{{ t('halert.none') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+              padding:10px 0;border-top:1px dashed var(--line);"
+       data-high-alert="{{ row.id }}" data-active="{{ '1' if row.is_active else '0' }}">
+    <div style="min-width:200px;flex:1;">
+      <b>{{ row.display_name(current_lang) }}</b>
+      {% if not row.is_active %}
+      <span class="badge badge--muted">{{ t('halert.off') }}</span>{% endif %}
+      <div class="hint">{{ row.reason }}</div>
+      {% if row.precaution %}
+      <div class="hint"><i class="bi bi-shield-check"></i> {{ row.precaution }}</div>
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('pharmacy.toggle_high_alert', row_id=row.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">
+        {{ t('halert.turn_on') if not row.is_active else t('halert.turn_off') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -57,8 +57,13 @@
   {% set flagged = look and ((look.allergy and look.allergy.hit) or look.warnings) %}
   <div class="cp-order {{ 'asked' if order.queried_at and not order.answered_at else ('flagged' if flagged else '') }}"
        data-order="{{ order.id }}">
+    {% set alert = high_alert.get(order.id) %}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;">
       <span class="cp-drug">{{ order.drug_name }}</span>
+      {% if alert %}
+      <span class="alert-pill danger" data-high-alert>
+        <i class="bi bi-exclamation-diamond"></i> {{ t('halert.flag') }}</span>
+      {% endif %}
       {% if order.dose %}<span class="hint">{{ order.dose }}</span>{% endif %}
       {% if order.every_hours %}<span class="hint" dir="ltr">q{{ order.every_hours }}h</span>{% endif %}
       {% if order.route %}<span class="badge badge--muted">{{ t('meds.route_' ~ order.route) }}</span>{% endif %}
@@ -76,6 +81,16 @@
     {% endfor %}
     {% endif %}
 
+    {% if alert %}
+    {# The reason and the precaution, not just a red badge: "insulin" on a
+       list with nothing beside it tells a night nurse nothing, while what to
+       do about it tells them everything. #}
+    <div class="alert-pill danger" style="margin-top:8px;" data-alert-reason>
+      <i class="bi bi-exclamation-diamond"></i> {{ alert.reason }}
+      {% if alert.precaution %} — <b>{{ alert.precaution }}</b>{% endif %}
+    </div>
+    {% endif %}
+
     {% if order.queried_at %}
     <div class="alert-pill {{ 'ok' if order.answered_at else 'warn' }}"
          style="margin-top:8px;" data-query>
@@ -91,6 +106,18 @@
     {% endif %}
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      {% if order.verified_at %}
+      <span class="alert-pill ok" data-verified>
+        <i class="bi bi-check2-circle"></i> {{ t('cpharm.verified') }}
+        {% if order.verifier %} · {{ order.verifier.display_name(current_lang) }}{% endif %}</span>
+      {% else %}
+      <form method="post" action="{{ url_for('pharmacy.verify', order_id=order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline gc-press" type="submit" data-verify>
+          <i class="bi bi-eye"></i> {{ t('cpharm.verify') }}</button>
+      </form>
+      {% endif %}
+
       <form method="post" style="display:flex;gap:8px;align-items:end;flex:1;min-width:250px;"
             action="{{ url_for('pharmacy.ask', order_id=order.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

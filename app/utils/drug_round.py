@@ -183,6 +183,30 @@ def _prepared_today(order_ids):
     return clinical_pharmacy.prepared_on(order_ids)
 
 
+def _high_alert(orders):
+    """``{order_id: HighAlertDrug}`` — empty unless a hospital wrote a list.
+
+    Nothing is seeded, so a clinic that has never opened that screen sees no
+    flags at all, which is right: the list is a judgement about a ward, and
+    the program does not have one.
+    """
+    from app.utils.facility import module_enabled
+
+    if not orders or not module_enabled("pharmacy"):
+        return {}
+    from app.utils import clinical_pharmacy
+
+    known = clinical_pharmacy.high_alert_map()
+    if not known:
+        return {}
+    found = {}
+    for order in orders:
+        hit = clinical_pharmacy.high_alert_for(order, known)
+        if hit is not None:
+            found[order.id] = hit
+    return found
+
+
 def board(kind=None, now=None):
     """Every child on a drug right now, the most overdue at the top.
 
@@ -211,9 +235,13 @@ def board(kind=None, now=None):
     # pharmacy's own screen would send somebody down a corridor to find out.
     # An empty answer when no pharmacy prepares anything, which is every
     # clinic that has not switched the module on.
-    ready = _prepared_today([o["order"].id
-                            for entry in drugs.values()
-                            for o in (entry.get("orders") or [])])
+    every = [o["order"] for entry in drugs.values()
+             for o in (entry.get("orders") or [])]
+    ready = _prepared_today([o.id for o in every])
+    # And the hospital's own high-alert list, at the trolley: a flag that
+    # lives only on the pharmacy's screen warns the person who is not holding
+    # the syringe.
+    flagged = _high_alert(every)
     rows = []
     for admission in admissions:
         entry = drugs.get(admission.id) or {}
@@ -224,6 +252,7 @@ def board(kind=None, now=None):
             continue
         for line in entry.get("orders") or []:
             line["prepared"] = ready.get(line["order"].id)
+            line["high_alert"] = flagged.get(line["order"].id)
         rows.append({"admission": admission, "patient": admission.patient,
                      "bed": admission.bed, **entry})
     rows.sort(key=lambda r: (_RANK[r["level"]],

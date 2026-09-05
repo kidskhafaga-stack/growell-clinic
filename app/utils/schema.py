@@ -212,6 +212,11 @@ ADDITIONS = [
     ("medication_orders", "answer_note", "VARCHAR(255)"),
     ("medication_orders", "answered_at", "DATETIME"),
     ("medication_orders", "answered_by", "INTEGER"),
+    # A pharmacist checked this order before it was dispensed. Nullable: an
+    # order written before the ward pharmacy existed was never checked, which
+    # is not the same as having been approved.
+    ("medication_orders", "verified_at", "DATETIME"),
+    ("medication_orders", "verified_by", "INTEGER"),
     ("investigations", "unit", "VARCHAR(20)"),
     ("investigations", "code", "VARCHAR(40)"),
     # The per-specialty case history: a whole table, created by `create_all`

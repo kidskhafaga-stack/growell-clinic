@@ -31,6 +31,10 @@
       <i class="bi bi-question-circle"></i> {{ t('cpharm.n_queries', n=counts.queries) }}</span>
     {% endif %}
     {# The bench half of the job, and the larger half in most hospitals. #}
+    {% if current_user.is_admin %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.high_alert') }}">
+      <i class="bi bi-exclamation-diamond"></i> {{ t('halert.title') }}</a>
+    {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.supply') }}">
       <i class="bi bi-bag-plus"></i> {{ t('cpharm.supply') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.index') }}">
@@ -65,6 +69,23 @@
     {% else %}
     <span class="alert-pill danger" data-not-reviewed>
       <i class="bi bi-eye-slash"></i> {{ t('cpharm.not_today') }}</span>
+    {% endif %}
+
+    {% if row.high_alert %}
+    {# What this hospital said it is careful with. Loud, because the whole
+       point of the list is that these are the ones that kill people when
+       they go wrong. #}
+    <span class="alert-pill danger" data-high-alert>
+      <i class="bi bi-exclamation-diamond"></i>
+      {{ t('cpharm.n_high_alert', n=row.high_alert) }}</span>
+    {% endif %}
+
+    {% if row.unverified %}
+    {# What no pharmacist has looked at. Shown and never enforced: a hospital
+       at three in the morning still gives the antibiotic, and a program that
+       refused would be worked around by the end of the first night. #}
+    <span class="alert-pill warn" data-unverified-orders>
+      <i class="bi bi-eye"></i> {{ t('cpharm.n_unverified', n=row.unverified) }}</span>
     {% endif %}
 
     {% if row.queries %}

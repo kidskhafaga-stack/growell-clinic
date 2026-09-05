@@ -626,3 +626,224 @@ def test_the_screen_says_a_prn_has_no_daily_count(ward):
     page = ward["sign_in"]("chem").get("/pharmacy/supply")
 
     assert b"data-prn" in page.data
+
+
+# ============ the hospital's own high-alert list ============================
+def _flag(ward, name="أموكسيسيلين", reason="أخطاء بعشر أضعاف",
+          precaution="مراجعة تانية قبل الإعطاء"):
+    """Put one ingredient on this hospital's list."""
+    from app.models import GenericDrug, HighAlertDrug
+
+    with ward["app"].app_context():
+        generic = GenericDrug(name_ar=name, name_en=name)
+        ward["db"].session.add(generic)
+        ward["db"].session.flush()
+        ward["db"].session.add(HighAlertDrug(
+            generic_id=generic.id, reason=reason, precaution=precaution))
+        ward["db"].session.commit()
+        return generic.id
+
+
+def test_nothing_is_flagged_until_the_hospital_writes_its_list(ward):
+    """**Nothing is seeded, and that is the design.** The standards say the
+    list is the hospital's own, built from its own use and its own near
+    misses — and a paediatric oncology unit and a village clinic do not fear
+    the same molecules."""
+    from app.utils import clinical_pharmacy
+
+    stay = _admit(ward, _child(ward, "ه٢"))
+    _order(ward, stay)
+
+    with ward["app"].app_context():
+        assert clinical_pharmacy.high_alert_map() == {}
+    page = ward["sign_in"]("doc").get("/beds/drugs")
+    assert b"data-high-alert" not in page.data
+
+
+def test_a_flagged_ingredient_is_marked_wherever_it_appears(ward):
+    """Keyed on the ingredient so every brand of it is caught — including the
+    one this clinic has not stocked yet."""
+    _flag(ward)
+    stay = _admit(ward, _child(ward, "و٢"))
+    _order(ward, stay)
+
+    trolley = ward["sign_in"]("doc").get("/beds/drugs")
+    chart = ward["sign_in"]("chem").get(f"/pharmacy/ward/{stay}")
+
+    assert b"data-high-alert" in trolley.data
+    assert b"data-high-alert" in chart.data
+
+
+def test_the_flag_carries_the_reason_and_what_to_do(ward):
+    """"Insulin" on a list with nothing beside it tells a night nurse nothing;
+    what to do about it tells them everything."""
+    _flag(ward)
+    stay = _admit(ward, _child(ward, "ز٢"))
+    _order(ward, stay)
+
+    page = ward["sign_in"]("chem").get(f"/pharmacy/ward/{stay}")
+
+    assert b"data-alert-reason" in page.data
+    assert "مراجعة تانية قبل الإعطاء".encode() in page.data
+    # And at the trolley, where the syringe is.
+    trolley = ward["sign_in"]("doc").get("/beds/drugs")
+    assert "مراجعة تانية قبل الإعطاء".encode() in trolley.data
+
+
+def test_a_row_with_no_reason_is_refused(ward):
+    """A name on a list is not a warning."""
+    from app.models import GenericDrug, HighAlertDrug
+
+    with ward["app"].app_context():
+        generic = GenericDrug(name_ar="مورفين", name_en="morphine")
+        ward["db"].session.add(generic)
+        ward["db"].session.commit()
+        ident = generic.id
+
+    ward["sign_in"]("boss").post("/pharmacy/high-alert/add",
+                                 data={"generic_id": ident, "reason": "  "},
+                                 follow_redirects=True)
+
+    with ward["app"].app_context():
+        assert HighAlertDrug.query.count() == 0
+
+
+def test_a_row_naming_nothing_is_refused(ward):
+    """A rule that matches nothing reads as cover."""
+    from app.models import HighAlertDrug
+
+    ward["sign_in"]("boss").post("/pharmacy/high-alert/add",
+                                 data={"reason": "خطير"},
+                                 follow_redirects=True)
+
+    with ward["app"].app_context():
+        assert HighAlertDrug.query.count() == 0
+
+
+def test_taking_one_off_the_list_stops_the_flag(ward):
+    """Off without losing that it was once on."""
+    from app.models import HighAlertDrug
+
+    _flag(ward)
+    stay = _admit(ward, _child(ward, "ح٢"))
+    _order(ward, stay)
+
+    with ward["app"].app_context():
+        row = HighAlertDrug.query.one()
+        ident = row.id
+    ward["sign_in"]("boss").post(f"/pharmacy/high-alert/{ident}/toggle",
+                                 follow_redirects=True)
+
+    page = ward["sign_in"]("doc").get("/beds/drugs")
+    assert b"data-high-alert" not in page.data
+    with ward["app"].app_context():
+        # Still there, still readable — just not marking anything.
+        assert HighAlertDrug.query.count() == 1
+
+
+def test_the_list_is_the_owners(ward):
+    """It decides what a whole hospital is warned about."""
+    assert ward["sign_in"]("chem").get(
+        "/pharmacy/high-alert").status_code == 403
+
+
+# ============ a pharmacist checked it, and it is never a block ==============
+def test_an_order_starts_unchecked(ward):
+    """What the medication-management standards ask about and the program had
+    no room for: an order was written and given, and nothing recorded whether
+    anybody with a pharmacy training had looked at it first."""
+    from app.utils import clinical_pharmacy
+
+    stay = _admit(ward, _child(ward, "ط٢"))
+    order = _order(ward, stay)
+
+    with ward["app"].app_context():
+        assert [o.id for o in clinical_pharmacy.unverified()] == [order]
+
+
+def test_checking_it_records_who_and_when(ward):
+    from app.models.medication import MedicationOrder
+
+    stay = _admit(ward, _child(ward, "ي٢"))
+    order = _order(ward, stay)
+
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{order}/verify",
+                                 follow_redirects=True)
+
+    with ward["app"].app_context():
+        row = ward["db"].session.get(MedicationOrder, order)
+        assert row.verified_at is not None
+        assert row.verified_by == ward["chemist"]
+
+
+def test_an_unchecked_order_is_still_given(ward):
+    """**Never a block.** A hospital at three in the morning with no
+    pharmacist on site still gives the antibiotic, and a program that refused
+    would be worked around by the end of the first night — which is how a
+    control stops meaning anything."""
+    from app.models.medication import MedicationOrder
+    from app.utils import drug_round
+
+    stay = _admit(ward, _child(ward, "ك٢"))
+    order = _order(ward, stay)
+
+    with ward["app"].app_context():
+        row = ward["db"].session.get(MedicationOrder, order)
+        assert row.verified_at is None
+        # Given, recorded, and charged exactly as it would have been.
+        drug_round.give(row, "given")
+        ward["db"].session.commit()
+        assert row.doses
+
+
+def test_the_unchecked_high_alert_ones_come_first(ward):
+    """The order the standards care about most is the one nobody looked at,
+    and among those the ones this hospital already said it is careful with."""
+    from app.utils import clinical_pharmacy
+
+    _flag(ward, name="مورفين")
+    stay = _admit(ward, _child(ward, "ل٢"))
+    ordinary = _order(ward, stay, drug="باراسيتامول")
+    flagged = _order(ward, stay, drug="مورفين")
+
+    with ward["app"].app_context():
+        assert [o.id for o in clinical_pharmacy.unverified()][0] == flagged
+        assert ordinary in [o.id for o in clinical_pharmacy.unverified()]
+
+
+def test_the_board_counts_both_things_the_standards_ask_about(ward):
+    _flag(ward)
+    stay = _admit(ward, _child(ward, "م٢"))
+    _order(ward, stay)
+
+    page = ward["sign_in"]("chem").get("/pharmacy/ward")
+
+    assert b"data-high-alert" in page.data
+    assert b"data-unverified-orders" in page.data
+
+
+def test_a_checked_order_drops_off_the_unchecked_count(ward):
+    from app.utils import clinical_pharmacy
+
+    stay = _admit(ward, _child(ward, "ن٢"))
+    order = _order(ward, stay)
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{order}/verify",
+                                 follow_redirects=True)
+
+    with ward["app"].app_context():
+        assert clinical_pharmacy.unverified() == []
+
+
+def test_a_stopped_order_is_not_checked(ward):
+    from app.models.medication import MedicationOrder
+    from app.utils import clinical_pharmacy, drug_round
+
+    stay = _admit(ward, _child(ward, "س٢"))
+    order = _order(ward, stay)
+    with ward["app"].app_context():
+        row = ward["db"].session.get(MedicationOrder, order)
+        drug_round.stop(row, reason="اتوقف")
+        ward["db"].session.commit()
+        with pytest.raises(ValueError):
+            clinical_pharmacy.verify(row)
+        ward["db"].session.rollback()
