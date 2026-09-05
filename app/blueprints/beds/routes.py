@@ -261,6 +261,13 @@ def admission(admission_id):
         meds=drug_round.for_admissions([row.id]).get(row.id) or {},
         # The ward's own shelf, so an order can point at what it takes.
         store_items=_ward_items(),
+        # The second door into the theatres. A day case is booked from the
+        # theatre list; a child already in a bed is booked from here, where
+        # whoever is looking after them is standing. One door would have
+        # hidden the other kind of case — the gap this program has now found
+        # seven times. Empty when the module is off, and the screen draws
+        # nothing: a module off is a module absent, not a dead button.
+        theatre_rooms=_theatre_rooms(),
         stopped=[o for o in row.medication_orders if not o.is_running],
         safety=drug_round.safety(row, lang=getattr(g, "lang", "ar")),
         routes=ROUTES, dose_outcomes=DOSE_OUTCOMES,
@@ -293,7 +300,8 @@ def post_nights(admission_id):
     # invoice with it.
     result = bed_billing.charge(row, user=current_user,
                                 lang=getattr(g, "lang", "ar"))
-    if not result["periods"] and not result["doses"]:
+    if not result["periods"] and not result["doses"] \
+            and not result["operations"]:
         flash(t("beds.nights_none"), "info")
         return redirect(url_for("beds.admission", admission_id=row.id))
     if result["periods"]:
@@ -304,6 +312,8 @@ def post_nights(admission_id):
         # Said out loud rather than discovered on the bill: the drugs given
         # on the ward are money and stock, and both moved.
         flash(t("meds.n_doses_charged", n=result["doses"]), "success")
+    if result["operations"]:
+        flash(t("theatre.n_charged", n=result["operations"]), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
@@ -344,6 +354,8 @@ def discharge(admission_id):
                 number=billed["invoice"].invoice_number), "info")
     if billed["doses"]:
         flash(t("meds.n_doses_charged", n=billed["doses"]), "info")
+    if billed["operations"]:
+        flash(t("theatre.n_charged", n=billed["operations"]), "info")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
@@ -400,6 +412,18 @@ def _back_to(admission):
         if here.endswith(known):
             return redirect(known)
     return redirect(url_for("beds.admission", admission_id=admission.id))
+
+
+def _theatre_rooms():
+    """The operating rooms, or nothing at all when the module is off."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("theatres"):
+        return []
+    from app.models.theatre import Theatre
+
+    return (Theatre.query.filter(Theatre.is_active.is_(True))
+            .order_by(Theatre.sort_order, Theatre.id).all())
 
 
 def _a_date(raw):

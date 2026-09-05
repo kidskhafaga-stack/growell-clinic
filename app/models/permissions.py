@@ -61,6 +61,13 @@ MODULES = [
     # must not find an intensive care screen after an update.
     "icu",
     "ward",
+    # The operating theatres. **Not a department with beds** — a theatre is
+    # booked, used for ninety minutes and cleaned, so it is a schedule and not
+    # a place a child sleeps (HOSPITAL_PLAN.md ٤-ج). Its own module and not a
+    # corner of `beds` for the reason all of these are separate: a hospital
+    # that admits children and operates on none of them must not find a
+    # theatre list after an update.
+    "theatres",
     "prescriptions",
     "inventory",
     "finance",
@@ -107,6 +114,7 @@ MODULE_ICONS = {
     "nicu": "moisture",
     "icu": "heart-pulse",
     "ward": "buildings",
+    "theatres": "scissors",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -140,6 +148,9 @@ ROLE_PERMISSIONS = {
         "nicu",
         "icu",
         "ward",
+        # Surgeons and anaesthetists are doctors, and the checklist is signed
+        # by whoever is standing at the table.
+        "theatres",
         "prescriptions",
         "ai",
     ],
@@ -161,6 +172,11 @@ ROLE_PERMISSIONS = {
         "nicu",
         "icu",
         "ward",
+        # The scrub nurse runs the checklist more often than anybody. Leaving
+        # them out would have meant the one stop nobody may skip is signed by
+        # borrowing a doctor's login, which is how a signature stops meaning
+        # anything.
+        "theatres",
     ],
     "reception": [
         "dashboard",

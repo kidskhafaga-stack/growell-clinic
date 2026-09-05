@@ -573,7 +573,25 @@ def view(patient_id):
         # and a screen that offers to admit somebody into a hospital that does
         # not exist is worse than no screen.
         **_ward_context(patient.id),
+        # And what they have been operated on for. Asked here because a day
+        # case has no stay to hang off: without this the only place it ever
+        # appeared was one date's theatre list, which nobody opens again six
+        # months later — the feature built and no door to it.
+        operations=_operations(patient.id),
     )
+
+
+def _operations(patient_id):
+    """This child's operations, newest first — or nothing when the module is
+    off, in which case the file says nothing about theatres at all."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("theatres"):
+        return []
+    from app.models.theatre import Operation
+
+    return (Operation.query.filter(Operation.patient_id == patient_id)
+            .order_by(Operation.on_date.desc(), Operation.id.desc()).all())
 
 
 def _ward_context(patient_id):

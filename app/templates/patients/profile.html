@@ -363,6 +363,26 @@
         <p style="color:var(--muted);">{{ t('patients.no_alerts') }}</p>
       {% endif %}
 
+      {# Operations. **The file is where an operation history lives**, and
+         without this it did not: a day case has no stay to hang off, so the
+         only place it appeared was the theatre list for one date — a screen
+         nobody opens six months later. Read-only here; the booking doors are
+         the theatre day and the stay. #}
+      {% if operations %}
+      <h3 class="section-title" style="margin-top:24px;" id="operations" data-operations>
+        <i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h3>
+      <ul style="margin:0;padding-inline-start:18px;">
+        {% for op in operations %}
+        <li>
+          <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
+          <span class="hint" dir="ltr">{{ op.on_date }}</span>
+          <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
+          {% if op.surgeon %}<span class="hint">{{ op.surgeon.full_name }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
       <!-- Problem list (GAHAR): structured ongoing/past problems across visits -->
       <h3 class="section-title" style="margin-top:24px;" id="problems"><i class="bi bi-card-checklist"></i> {{ t('problems.title_list') }}</h3>
       {% set active_problems = patient.problems | selectattr('status', 'equalto', 'active') | list %}

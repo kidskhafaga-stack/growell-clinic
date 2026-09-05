@@ -2038,6 +2038,17 @@ def _unbilled_patient_services(patient_id, days=7):
             .all())
 
 
+def _case_for_line(cases, op_ids, index):
+    """The unbilled day case this submitted line pays for, if any."""
+    raw = op_ids[index] if index < len(op_ids) else ""
+    if not raw:
+        return None
+    try:
+        return cases.get(int(raw))
+    except (TypeError, ValueError):
+        return None
+
+
 def _claimed_ids(field, kept_indexes):
     """The ids the surviving invoice lines say they are paying for.
 
@@ -2115,6 +2126,47 @@ def _unbilled_visit_services(appt):
             .all())
 
 
+def _unbilled_operations(patient_id):
+    """Day cases this child was operated on for and nobody has charged.
+
+    **Only the ones with no stay.** An operation on an admitted child belongs
+    to the stay's one bill — it is charged there with the nights and the doses
+    — and offering it at the desk as well would bill the same knife twice.
+
+    Empty when the theatres module is off, which is what makes this safe to
+    call from a screen every clinic opens: a module off is a module absent,
+    not a query returning nothing.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("theatres"):
+        return []
+    from app.utils import theatres
+
+    return [op for op in theatres.unbilled(patient_id=patient_id)
+            if op.admission_id is None]
+
+
+def _operation_lines(patient_id, lang):
+    """Those day cases as checkout lines.
+
+    Priced at **the surgeon's** rate for the service, because the price list
+    can carry a per-doctor price and the person who did the operation is the
+    one it is being charged for.
+    """
+    lines = []
+    for op in _unbilled_operations(patient_id):
+        service = op.service
+        lines.append({
+            "service_id": service.id,
+            "description": f"{service.display_name(lang)} — {op.procedure}"[:200],
+            "unit_price": service.price_for(op.surgeon) or 0,
+            "quantity": 1,
+            "op_id": op.id,
+        })
+    return lines
+
+
 def _checkout_url(appt, patient_id):
     """Back to whichever door this checkout came in by."""
     if appt is not None:
@@ -2143,6 +2195,11 @@ def _patient_checkout_lines(patient, doctor_id, lang):
             "vs_id": vs.id,
         })
     lines.extend(_vaccine_prefill_lines(patient.id, doctor, lang, False))
+    # And the theatre. A day case comes in, is operated on and goes home
+    # without ever being admitted, so the desk is the only place its bill can
+    # be raised — without this the module charged admitted children and quietly
+    # nothing at all for everybody else.
+    lines.extend(_operation_lines(patient.id, lang))
     return lines
 
 
@@ -2190,6 +2247,11 @@ def _checkout_lines(appt, lang):
     booked = _booked_vaccine_line(appt, lang, vac_lines)
     if booked is not None:
         lines.append(booked)
+    # A day case this child was operated on for and nobody has charged. Offered
+    # on this door as well as the walk-in one: the family standing at the desk
+    # with an appointment is the same family, and a bill that appears on one
+    # door and not the other is a bill somebody has to know a trick to find.
+    lines.extend(_operation_lines(appt.patient_id, lang))
     return lines
 
 
@@ -2362,6 +2424,12 @@ def _checkout_screen(appt, patient):
         nocomms = request.form.getlist("line_no_commission")
         brands = request.form.getlist("line_brand_id")
         dose_numbers = request.form.getlist("line_dose_number")
+        # Which line pays for which day case. Looked up from what is actually
+        # still unbilled rather than trusted from the form: a posted id is a
+        # number anybody can type, and this one stamps an operation as paid.
+        op_ids = request.form.getlist("line_op_id")
+        cases = {op.id: op for op in _unbilled_operations(patient_id)}
+        billed_cases = {}       # invoice line -> the operation it charged for
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -2397,12 +2465,27 @@ def _checkout_screen(appt, patient):
                     if i < len(dose_numbers) and dose_numbers[i] else None)
             except (TypeError, ValueError):
                 item.vaccine_dose_number = None
+            # A theatre line is owed to **the surgeon**, who is not the
+            # doctor this invoice belongs to. Recorded on the line so the
+            # share below is worked out at their rate and stays theirs when
+            # the cash price list reprices the bill.
+            case = _case_for_line(cases, op_ids, i)
+            line_doctor = None
+            if case is not None:
+                item.doctor_id = case.surgeon_id or None
+                # The object, not the id: the relationship on a line that has
+                # not been flushed yet reads back ``None``, so working the
+                # share out from ``item.doctor`` here would quietly pay it at
+                # the invoice doctor's rate.
+                line_doctor = case.surgeon
+                billed_cases[id(item)] = case
             svc = db.session.get(Service, sid) if sid else None
             # Vaccine product lines carry no invoice commission (doctor share is
             # the brand's doctor_fee, tracked on the dose — never double-paid).
             no_comm = i < len(nocomms) and nocomms[i] in ("1", "on", "true")
             if svc is not None and not no_comm:
-                item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
+                item.commission_amount = svc.doctor_share(
+                    item.net, line_doctor or invoice.doctor)
             invoice.items.append(item)
             new_items.append(item)
             kept.append(i)
@@ -2412,6 +2495,13 @@ def _checkout_screen(appt, patient):
         # added to an existing invoice, so the main checkout never deducted
         # anything. Deducted once, here, as the invoice is raised.
         db.session.flush()
+        # And the day case carries the line that paid for it, which is what
+        # stops it being offered at the desk again on the next visit — the
+        # same stamp the nights and the doses use.
+        for item in new_items:
+            case = billed_cases.get(id(item))
+            if case is not None:
+                case.invoice_item_id = item.id
         burned = 0
         for item in new_items:
             if item.service_id is None:

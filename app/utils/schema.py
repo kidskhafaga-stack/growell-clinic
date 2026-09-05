@@ -95,6 +95,10 @@ ADDITIONS = [
     ("payments", "tendered", "FLOAT"),
     ("invoice_items", "vaccine_brand_id", "INTEGER"),
     ("invoice_items", "vaccine_dose_number", "INTEGER"),
+    # Whose line this is when it is not the invoice's own doctor — the
+    # surgeon's fee on a stay's bill. Null means the invoice's doctor, so
+    # every existing line behaves exactly as it did.
+    ("invoice_items", "doctor_id", "INTEGER"),
     ("named_discounts", "payer_id", "INTEGER"),
     ("named_discounts", "min_siblings", "INTEGER DEFAULT 2"),
     ("drugs", "generic_id", "INTEGER"),

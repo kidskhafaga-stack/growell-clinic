@@ -761,6 +761,91 @@ SECTIONS = [
         ],
     },
     {
+        # Opt-in like every department above it, and not part of `beds`: a
+        # theatre is a schedule rather than a place a child sleeps, and a
+        # hospital that admits children and operates on none of them must not
+        # find a theatre list after an update.
+        "key": "theatres",
+        "module": "theatres",
+        "icon": "scissors",
+        "title": ("العمليات الجراحية", "Operating theatres"),
+        "lines": [
+            ("<b>العمليات جدول مش قسم فيه أسرّة.</b> غرفة العمليات بتتحجز، "
+             "وتشتغل ساعة ونص، وتتنضف — مش مكان بينام فيه حد. فهي مش قسم في "
+             "إعداد الأسرّة، والمكان اللي الطفل بيروحه بعدها سرير موجود أصلاً: "
+             "الإفاقة نوع قسم من زمان، والقراءات المتكررة كل خمس دقايق هي "
+             "نفسها الملاحظات.",
+             "<b>Theatres are a schedule, not a department with beds.</b> An "
+             "operating room is booked, used for ninety minutes and cleaned "
+             "\u2014 nobody sleeps in it. So it is not a unit in the bed "
+             "setup, and the place a child goes afterwards already exists: "
+             "recovery has been a unit kind since the wards were built, and "
+             "the five-minute readings it runs on are the observations."),
+            ("<b>قايمة الفحص هي قلب الشاشة مش ورقة جنبها.</b> قايمة منظمة "
+             "الصحة العالمية: تلات وقفات — قبل التخدير، وقبل أول جرح، وقبل ما "
+             "الفريق يسيب الغرفة. وكل وقفة بتتوقّع من حد في لحظة، فالبرنامج "
+             "يقدر يقول <b>أي وقفة ماحصلتش</b> — وده اللي بيخلّيها قايمة فحص "
+             "مش بوستر.",
+             "<b>The checklist is the screen, not a poster beside it.</b> The "
+             "WHO checklist has three stops: before anaesthesia, before the "
+             "first cut, and before the team leaves the room. Each is signed "
+             "by somebody at a moment, so the program can say <b>which stop "
+             "nobody made</b> \u2014 which is what makes it a checklist."),
+            ("<b>حاجة واحدة بس البرنامج بيرفضها.</b> إنك تدخل الطفل الغرفة "
+             "ووقفة «قبل التخدير» لسه ماتوقّعتش. أي حاجة تانية بيسجّلها زي ما "
+             "حصلت: وقفة اتوقّعت وفيها بنود مش متعلّم عليها بتتخزّن بالبنود "
+             "الناقصة بالاسم — لأن قايمة بتقرّب «أربعة من سبعة» لـ«تمام» "
+             "بتعمل توقيع مكانش موجود، وده أسوأ من إنه مفيش قايمة أصلاً.",
+             "<b>The program refuses exactly one thing.</b> Starting a case "
+             "whose sign-in has not been signed. Everything else it records "
+             "as it happened: a stop signed with items unticked is stored "
+             "with the unticked ones named \u2014 because a checklist that "
+             "rounds \u201cfour of seven\u201d up to \u201cdone\u201d "
+             "manufactures a signature, which is worse than no checklist."),
+            ("<b>والخروج من الغرفة مش مرفوض لو الوقفة التالتة ناقصة.</b> "
+             "لأن رفض إنك تسجّل إن العملية خلصت كان هيسيب الطفل جوّه الغرفة "
+             "للأبد في كلام البرنامج نفسه. الشاشة بتقول إن الوقفة ناقصة "
+             "وتفضل قايلة — فجوة باينة أحسن من رفض الناس بتلف حواليه.",
+             "<b>But finishing is never refused for a missing sign-out.</b> "
+             "Refusing to record that an operation ended would leave the "
+             "child in theatre for ever in the program\u2019s own telling. "
+             "The screen says the stop is missing and goes on saying it "
+             "\u2014 a visible gap is worth more than a refusal people work "
+             "around."),
+            ("<b>العملية بتتحاسب زي أي خدمة، وعلى فاتورة الإقامة الواحدة.</b> "
+             "بتختار ليها خدمة من قايمة أسعار العيادة، فالتأمين ونسبة الطبيب "
+             "والضريبة والمستهلكات كلها بتمشي من غير أي حاجة زيادة — ونصيب "
+             "الطبيب بيتقرا على <b>الجرّاح</b>، مش الطبيب المعالج. والعملية "
+             "اللي محدش حطّ عليها خدمة عمرها ما بتوصل لفاتورة، والشاشة بتقول "
+             "كده بصوت عالي.",
+             "<b>An operation is charged as a service, on the stay\u2019s one "
+             "bill.</b> You pick a service from the clinic\u2019s own price "
+             "list, so the insurance, the doctor\u2019s share, the tax code "
+             "and the consumables all follow with nothing added \u2014 and "
+             "the share is read against the <b>surgeon</b>, not the admitting "
+             "doctor. An operation nobody priced never reaches a bill, and "
+             "the screen says so out loud."),
+            ("<b>وحالة اليوم الواحد بتتحاسب على الديسك.</b> الطفل اللي "
+             "اتعمل له عملية ومشي من غير تنويم مالوش إقامة تشيل فاتورته، "
+             "فالعملية بتظهر في شاشة التحصيل زي أي حاجة تانية لسه ماتحاسبتش "
+             "— وأول ما تتحصّل بتتختم بالسطر اللي دفع عنها، فما بترجعش تظهر "
+             "تاني في الزيارة الجاية.",
+             "<b>And a day case is charged at the desk.</b> A child operated "
+             "on who went home without being admitted has no stay to carry "
+             "their bill, so the operation shows up on the collection screen "
+             "like anything else still unbilled \u2014 and once collected it "
+             "is stamped with the line that paid for it, so it does not come "
+             "back at the next visit."),
+            ("<b>بابين للحجز.</b> الحالة اليومية بتتحجز من جدول العمليات "
+             "نفسه؛ والطفل اللي منوّم بيتحجز من شاشة إقامته، لأن ده المكان "
+             "اللي اللي بيتابعه واقف فيه. باب واحد كان هيخفي النوع التاني.",
+             "<b>Two doors.</b> A day case is booked from the theatre list "
+             "itself; a child already in a bed is booked from their stay "
+             "screen, because that is where whoever is looking after them is "
+             "standing. One door would have hidden the other kind of case."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",
