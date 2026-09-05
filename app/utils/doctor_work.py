@@ -119,27 +119,36 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
     doctor's cut is a fee on the brand recorded against the dose, not a
     commission on an invoice line, and folding it into the services would make
     a total nobody could trace back.
+
+    **And the lines are gathered by whose they are, not whose invoice they sit
+    on** (``InvoiceItem.earner_id``). A stay's bill belongs to the admitting
+    doctor and carries the surgeon's operation and the visiting consultant's
+    round on it; asking the invoice would have paid all three at one rate and
+    put all three on one statement.
     """
-    from app.models import Invoice, PatientVaccine
+    from app.models import Invoice, InvoiceItem, PatientVaccine
 
-    invoices = (Invoice.query
-                .filter(Invoice.doctor_id == doctor_id,
-                        Invoice.invoice_date >= date_from,
-                        Invoice.invoice_date <= date_to).all())
+    lines_q = (InvoiceItem.query
+               .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
+               .filter(InvoiceItem.earned_by(doctor_id),
+                       Invoice.invoice_date >= date_from,
+                       Invoice.invoice_date <= date_to))
 
-    groups = {}
-    for invoice in invoices:
-        for line in invoice.items:
-            key = line.service_id or 0
-            row = groups.get(key)
-            if row is None:
-                label = (line.service.display_name(lang) if line.service
-                         else (line.description or "—"))
-                row = groups[key] = {"label": label, "count": 0,
-                                     "gross": 0.0, "share": 0.0}
-            row["count"] += line.quantity or 1
-            row["gross"] += line.net
-            row["share"] += line.commission_amount or 0
+    groups, invoices, seen = {}, [], set()
+    for line in lines_q.order_by(Invoice.invoice_date, Invoice.id).all():
+        if line.invoice_id not in seen:
+            seen.add(line.invoice_id)
+            invoices.append(line.invoice)
+        key = line.service_id or 0
+        row = groups.get(key)
+        if row is None:
+            label = (line.service.display_name(lang) if line.service
+                     else (line.description or "—"))
+            row = groups[key] = {"label": label, "count": 0,
+                                 "gross": 0.0, "share": 0.0}
+        row["count"] += line.quantity or 1
+        row["gross"] += line.net
+        row["share"] += line.commission_amount or 0
 
     rows = sorted(({"label": r["label"], "count": r["count"],
                     "gross": round(r["gross"], 2),
@@ -163,7 +172,9 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
             "share": vaccine_share,
         })
 
-    share = round(sum(i.doctor_share_total for i in invoices) + vaccine_share, 2)
+    # Their own lines, not the whole of every bill they appear on.
+    share = round(sum(i.share_for(doctor_id) for i in invoices)
+                  + vaccine_share, 2)
     return rows, share, invoices
 
 
@@ -200,7 +211,7 @@ def earned_ever(doctor_id):
 
     lines = (db.session.query(db.func.sum(InvoiceItem.commission_amount))
              .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
-             .filter(Invoice.doctor_id == doctor_id).scalar()) or 0
+             .filter(InvoiceItem.earned_by(doctor_id)).scalar()) or 0
     # And the money that went back out takes its share with it. Without this,
     # a clinic that refunded a visit still owed the doctor their cut of money
     # it no longer had: `commission_amount` is the snapshot written when the

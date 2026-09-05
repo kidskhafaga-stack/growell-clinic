@@ -81,20 +81,27 @@ def needs_approval(invoice, amount, user):
     return round(amount or 0, 2) >= approval_threshold()
 
 
-def doctor_share_of(invoice, amount):
-    """What refunding ``amount`` takes off the doctor's share of ``invoice``.
+def doctor_share_of(invoice, amount, doctor_id=None):
+    """What refunding ``amount`` takes off a doctor's share of ``invoice``.
 
     Proportional, because that is the only split that holds together when an
     invoice carries several lines at different commission rates and the refund
     is not against any one of them. Refund a third of the money and a third of
     the doctor's share goes with it.
 
-    Zero when the invoice has no doctor, or came to nothing — a share of
+    ``doctor_id`` narrows it to that doctor's own lines. Without it the answer
+    is the whole bill's commission, which is what the clinic's books want and
+    what a single-doctor invoice has always meant.
+
+    Zero when there is no share, or the invoice came to nothing — a share of
     nothing is nothing, and dividing by it is how this sort of helper
     announces itself in production.
     """
     total = round(invoice.total or 0, 2)
-    share = round(invoice.doctor_share_total or 0, 2)
+    if doctor_id is None:
+        share = round(invoice.doctor_share_total or 0, 2)
+    else:
+        share = invoice.share_for(doctor_id)
     if total <= 0 or share <= 0 or not amount:
         return 0.0
     return round(share * min(round(amount, 2), total) / total, 2)
@@ -125,25 +132,39 @@ def close_if_emptied(invoice):
 
 
 def notify_doctor(invoice, payment, amount, *, scope, reason=None, user_id=None):
-    """Write the doctor's copy of this refund. Returns the notice, or None.
+    """Write a copy of this refund for **every doctor whose share moved**.
 
-    None when there is nobody to tell — an invoice with no doctor on it, a
-    dressing done by the nurse. A refund on one of those is still a refund; it
-    simply has no share to move and nobody whose account moved.
+    Returns the notices, newest call first — a list, because one bill can be
+    several doctors' work. A stay carries the ward's charge, the surgeon's
+    operation and a visiting consultant's round; refunding it takes something
+    off each of them, and one notice to the invoice's doctor would have taken
+    the surgeon's money out of the admitting doctor's account. The earnings
+    side reads each line's own doctor (``InvoiceItem.earner_id``), so the
+    refund side has to read the same column or the two never balance.
+
+    Empty when there is nobody to tell — a bill with no doctor anywhere on it,
+    a dressing done by the nurse. That is still a refund; it simply has no
+    share to move and nobody whose account moved. Doctors whose lines carry no
+    commission get no notice either, for the same reason.
     """
     from app.models import RefundNotice
 
-    if invoice.doctor_id is None:
-        return None
-    notice = RefundNotice(
-        invoice_id=invoice.id,
-        payment_id=payment.id if payment is not None else None,
-        doctor_id=invoice.doctor_id,
-        amount=round(amount or 0, 2),
-        doctor_amount=doctor_share_of(invoice, amount),
-        scope=scope if scope in ("full", "partial") else "partial",
-        reason=(reason or "").strip()[:200] or None,
-        refunded_by=user_id,
-    )
-    db.session.add(notice)
-    return notice
+    notices = []
+    for doctor_id in sorted({i.earner_id for i in invoice.items
+                             if i.earner_id is not None}):
+        moved = doctor_share_of(invoice, amount, doctor_id=doctor_id)
+        if not moved:
+            continue
+        notice = RefundNotice(
+            invoice_id=invoice.id,
+            payment_id=payment.id if payment is not None else None,
+            doctor_id=doctor_id,
+            amount=round(amount or 0, 2),
+            doctor_amount=moved,
+            scope=scope if scope in ("full", "partial") else "partial",
+            reason=(reason or "").strip()[:200] or None,
+            refunded_by=user_id,
+        )
+        db.session.add(notice)
+        notices.append(notice)
+    return notices

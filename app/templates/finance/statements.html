@@ -63,9 +63,9 @@
         <td dir="ltr">{{ inv.invoice_number }}</td>
         <td dir="ltr">{{ inv.invoice_date }}</td>
         <td>{{ inv.patient.display_name(current_lang) }}</td>
-        <td>{{ inv.total }}</td>
+        <td>{{ inv.net_for(doctor.id) }}{% if inv.net_for(doctor.id) != inv.total %} <small class="muted" dir="ltr">/ {{ inv.total }}</small>{% endif %}</td>
         <td><span class="status-badge {{ 'st-completed' if inv.status=='paid' else ('st-waiting' if inv.status=='partial' else 'st-no_show') }}">{{ t('invoices.st_' ~ inv.status) }}</span></td>
-        <td><strong style="color:var(--green-700);">{{ inv.doctor_share_total }}</strong></td>
+        <td><strong style="color:var(--green-700);">{{ inv.share_for(doctor.id) }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
