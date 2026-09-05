@@ -73,6 +73,12 @@ MODULES = [
     # a screen for: the sample, and the person who runs it. Its own module and
     # opt-in, because a clinic that sends its tests out has no bench.
     "labs",
+    # The counter. Not the writing — the prescription writer has existed for
+    # years and the dose and interaction checks with it. This is the act
+    # underneath: somebody reviews the paper, takes the box off the shelf and
+    # hands it over. Opt-in, because a clinic whose families fill their
+    # prescriptions outside has no counter.
+    "pharmacy",
     "prescriptions",
     "inventory",
     "finance",
@@ -121,6 +127,7 @@ MODULE_ICONS = {
     "ward": "buildings",
     "theatres": "scissors",
     "labs": "eyedropper",
+    "pharmacy": "prescription2",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -206,6 +213,10 @@ ROLE_PERMISSIONS = {
         "inventory",
         "vaccinations",
         "prescriptions",
+        # The counter itself, which is the job. The role was named for it and
+        # could not reach it: they saw the prescription and had nowhere to
+        # record that they had handed anything over.
+        "pharmacy",
     ],
 }
 

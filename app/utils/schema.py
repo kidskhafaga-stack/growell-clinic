@@ -191,6 +191,18 @@ ADDITIONS = [
     ("visit_investigations", "invoice_item_id", "INTEGER"),
     ("investigations", "sample_type", "VARCHAR(40)"),
     ("investigations", "service_id", "INTEGER"),
+    # The pharmacy counter. Every one nullable: a clinic whose families fill
+    # their prescriptions outside is the normal case and keeps working exactly
+    # as it did — nothing on the line, nothing dispensed, nothing charged.
+    ("prescription_items", "store_item_id", "INTEGER"),
+    ("prescription_items", "quantity", "INTEGER"),
+    ("prescription_items", "dispensed_at", "DATETIME"),
+    ("prescription_items", "dispensed_by", "INTEGER"),
+    ("prescription_items", "invoice_item_id", "INTEGER"),
+    ("prescription_items", "stock_movement_id", "INTEGER"),
+    ("prescription_items", "query_note", "VARCHAR(255)"),
+    ("prescription_items", "queried_at", "DATETIME"),
+    ("prescription_items", "queried_by", "INTEGER"),
     ("investigations", "unit", "VARCHAR(20)"),
     ("investigations", "code", "VARCHAR(40)"),
     # The per-specialty case history: a whole table, created by `create_all`

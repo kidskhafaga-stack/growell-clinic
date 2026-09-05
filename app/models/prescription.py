@@ -501,6 +501,51 @@ class PrescriptionItem(db.Model):
     # accident: leaving something *off* has to be a deliberate press.
     printed = db.Column(db.Boolean, default=True, nullable=False)
 
+    # ---- the counter ----------------------------------------------------
+    # **What the pharmacy actually hands over**, which the program had no row
+    # for: a prescription was written, printed, and that was the end of it as
+    # far as this software was concerned. The box left the shelf and the
+    # clinic's own stock did not know, and nobody was charged.
+    #
+    # Nullable, all of it. A clinic that writes prescriptions for the family
+    # to fill outside is the normal case and is untouched: no store item on
+    # the line, nothing dispensed, nothing charged — the same rule as an
+    # inpatient order with no shelf behind it and a bed with no rate on it.
+    store_item_id = db.Column(db.Integer, db.ForeignKey("store_items.id"),
+                              nullable=True, index=True)
+    # How many boxes. Not derived from the dose and the duration: "three times
+    # a day for a week" is 21 doses and one bottle, and a program that worked
+    # the number out would be confidently wrong about a syrup.
+    quantity = db.Column(db.Integer)
+
+    dispensed_at = db.Column(db.DateTime)
+    dispensed_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
+                                nullable=True, index=True)
+    stock_movement_id = db.Column(db.Integer,
+                                  db.ForeignKey("stock_movements.id"),
+                                  nullable=True, index=True)
+
+    # What the pharmacist asked the doctor about, and never a block.
+    #
+    # A pharmacist who reads a dose they think is wrong has one job: to say
+    # so, to the person who wrote it. Recording it as a **question** rather
+    # than a refusal is the honest shape — the doctor may have meant it, the
+    # child may be on something the file does not carry, and a pharmacy that
+    # can veto a prescription is a pharmacy prescriptions get written around.
+    query_note = db.Column(db.String(255))
+    queried_at = db.Column(db.DateTime)
+    queried_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+
+    store_item = db.relationship("StoreItem")
+    dispenser = db.relationship("User", foreign_keys=[dispensed_by])
+    querier = db.relationship("User", foreign_keys=[queried_by])
+    invoice_item = db.relationship("InvoiceItem")
+
+    @property
+    def is_dispensed(self):
+        return self.dispensed_at is not None
+
     prescription = db.relationship("Prescription", back_populates="items")
     drug = db.relationship("Drug")
 

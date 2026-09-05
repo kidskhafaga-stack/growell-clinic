@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('nav.pharmacy') }}{% endblock %}
+{% block page_heading %}{{ t('nav.pharmacy') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One block per prescription, the lines under it. A flat list of lines was
+     the obvious shape and is the wrong one: a pharmacist serves a *person*,
+     and one family's four medicines are one trip to the counter. */
+  .ph-rx { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+           margin-bottom:10px; }
+  .ph-head { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline;
+             margin-bottom:6px; }
+  .ph-name { font-weight:600; }
+  .ph-line { display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+             padding:6px 0; border-top:1px dashed var(--line); }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-prescription2"></i> {{ t('nav.pharmacy') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('pharm.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span class="badge badge--muted">{{ t('pharm.n_waiting', n=rows|length) }}</span>
+    {# How far back the counter looks. A prescription from March is not
+       waiting here; it was filled somewhere else or never filled. #}
+    <form method="get" style="display:flex;gap:6px;align-items:center;">
+      <label class="hint" for="days">{{ t('pharm.last_days') }}</label>
+      <input class="input" type="number" id="days" name="days" min="1" max="30"
+             value="{{ days }}" dir="ltr" style="width:80px;"
+             onchange="this.form.submit()">
+    </form>
+  </div>
+</div>
+
+{% if queries %}
+{# What the counter asked and nobody has answered. On this screen because the
+   pharmacist needs to know they are still waiting, and on the doctor's file
+   because they are the one who has to answer. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-queries>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-question-circle"></i> {{ t('pharm.open_queries') }}</h2>
+  <ul style="margin:0;padding-inline-start:18px;">
+    {% for line in queries %}
+    <li>
+      <a href="{{ url_for('pharmacy.prescription', rx_id=line.prescription_id) }}">
+        {{ line.drug_name }}</a>
+      <span class="hint">{{ line.query_note }}</span>
+      <span class="hint" dir="ltr">{{ line.queried_at|clinic_stamp }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if not rows %}
+{# "Nobody is waiting" is a real and good answer — and it is also what a
+   clinic whose families fill their prescriptions outside sees for ever,
+   which is why it says which of the two it is. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('pharm.nothing_waiting') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for rx in rows %}
+  <div class="ph-rx" data-rx="{{ rx.id }}">
+    <div class="ph-head">
+      <span class="ph-name">
+        <a href="{{ url_for('pharmacy.prescription', rx_id=rx.id) }}">
+          {{ rx.patient.display_name(current_lang) }}</a></span>
+      {% if rx.doctor %}<span class="hint">{{ rx.doctor.display_name(current_lang) }}</span>{% endif %}
+      <span class="hint" dir="ltr">{{ rx.created_at|clinic_stamp }}</span>
+      <span class="badge badge--muted">
+        {{ t('pharm.n_to_hand', n=counter.pending(rx)|length) }}</span>
+    </div>
+    {% for line in counter.pending(rx) %}
+    <div class="ph-line" data-line="{{ line.id }}">
+      <span style="min-width:180px;flex:1;">{{ line.drug_name }}
+        {% if line.dose %}<span class="hint">{{ line.dose }}</span>{% endif %}</span>
+      {% if line.queried_at %}
+      <span class="alert-pill warn" data-queried>
+        <i class="bi bi-question-circle"></i> {{ line.query_note }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <a class="btn btn-sm btn-primary gc-press" style="margin-top:8px;"
+       href="{{ url_for('pharmacy.prescription', rx_id=rx.id) }}">
+      <i class="bi bi-box-arrow-right"></i> {{ t('pharm.open') }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

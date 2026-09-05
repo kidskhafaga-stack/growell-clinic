@@ -2157,6 +2157,22 @@ def _unbilled_operations(patient_id):
             if op.admission_id is None]
 
 
+def _unbilled_dispensed(patient_id):
+    """Medicines this clinic's own pharmacy handed over and nobody charged.
+
+    Handed over, not written: a prescription the family took away to fill
+    outside costs the clinic nothing, and the moment something is owed is the
+    moment a box leaves this shelf. Empty when the counter is off.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("pharmacy"):
+        return []
+    from app.utils import pharmacy
+
+    return pharmacy.unbilled(patient_id=patient_id)
+
+
 def _unbilled_tests(patient_id):
     """Lab tests drawn for this child that nobody has charged for.
 
@@ -2191,6 +2207,24 @@ def _test_lines(patient_id, lang):
             "test_id": row.id,
         })
     return lines
+
+
+def _dispensed_lines(patient_id, lang):
+    """Those medicines as checkout lines.
+
+    Priced from the shelf and carrying **no service**, so no doctor
+    commission: nobody's percentage rides on a box being handed across a
+    counter — the same rule the ward's doses follow.
+    """
+    from app.utils import pharmacy
+
+    return [{"service_id": "",
+             "description": pharmacy._line_text(line, line.store_item, lang),
+             "unit_price": getattr(line.store_item, "sell_price", 0) or 0,
+             "quantity": max(1, int(line.quantity or 1)),
+             "no_commission": "1",
+             "rx_line_id": line.id}
+            for line in _unbilled_dispensed(patient_id)]
 
 
 def _operation_lines(patient_id, lang):
@@ -2249,6 +2283,9 @@ def _patient_checkout_lines(patient, doctor_id, lang):
     # And the lab. A test is drawn at the clinic and paid for at the desk like
     # everything else — without this the bench ran and the money never moved.
     lines.extend(_test_lines(patient.id, lang))
+    # And the counter. A box that left our shelf is money and stock, and both
+    # moved without anything recording it before this.
+    lines.extend(_dispensed_lines(patient.id, lang))
     return lines
 
 
@@ -2302,6 +2339,7 @@ def _checkout_lines(appt, lang):
     # door and not the other is a bill somebody has to know a trick to find.
     lines.extend(_operation_lines(appt.patient_id, lang))
     lines.extend(_test_lines(appt.patient_id, lang))
+    lines.extend(_dispensed_lines(appt.patient_id, lang))
     return lines
 
 
@@ -2483,6 +2521,9 @@ def _checkout_screen(appt, patient):
         test_ids = request.form.getlist("line_test_id")
         drawn = {row.id: row for row in _unbilled_tests(patient_id)}
         billed_tests = {}       # invoice line -> the lab order it charged for
+        rx_ids = request.form.getlist("line_rx_line_id")
+        handed = {row.id: row for row in _unbilled_dispensed(patient_id)}
+        billed_rx = {}          # invoice line -> the dispensed medicine
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -2525,6 +2566,9 @@ def _checkout_screen(appt, patient):
             test = _row_for_line(drawn, test_ids, i)
             if test is not None:
                 billed_tests[id(item)] = test
+            handover = _row_for_line(handed, rx_ids, i)
+            if handover is not None:
+                billed_rx[id(item)] = handover
             case = _case_for_line(cases, op_ids, i)
             line_doctor = None
             if case is not None:
@@ -2561,6 +2605,17 @@ def _checkout_screen(appt, patient):
             test = billed_tests.get(id(item))
             if test is not None:
                 test.invoice_item_id = item.id
+            handover = billed_rx.get(id(item))
+            if handover is not None:
+                handover.invoice_item_id = item.id
+        # And the boxes the pharmacy handed over leave the shelf, under one
+        # issue document that rides on the invoice — so the cost of goods is
+        # journalled in the same posting as a service's consumables below.
+        if billed_rx:
+            from app.utils import pharmacy
+
+            pharmacy.take_off_shelf(list(billed_rx.values()), invoice,
+                                    user=current_user, lang=lang)
         burned = 0
         for item in new_items:
             if item.service_id is None:

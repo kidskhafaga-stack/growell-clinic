@@ -192,7 +192,8 @@
     "ward": "Wards",
     "icu": "Intensive care",
     "theatres": "Theatres",
-    "labs": "The lab"
+    "labs": "The lab",
+    "pharmacy": "Pharmacy"
   },
   "auth": {
     "login": "Login",
@@ -6002,5 +6003,30 @@
     "state_collected": "Sample drawn",
     "state_resulted": "Resulted",
     "n_charged": "{n} tests put on the bill"
+  },
+  "pharm": {
+    "sub": "The queue: who is waiting, and what for",
+    "the_queue": "The queue",
+    "open": "Open",
+    "n_waiting": "{n} waiting",
+    "n_to_hand": "{n} to hand over",
+    "last_days": "Last days",
+    "nothing_waiting": "Nothing waiting at the counter. A clinic whose families fill their prescriptions outside sees this screen empty for ever, which is right.",
+    "rx_for": "{name}'s prescription",
+    "from_the_shelf": "From the shelf",
+    "not_from_here": "Not from our pharmacy",
+    "filled_outside": "This one is filled outside — nothing leaves our stock and nothing is charged",
+    "quantity": "Quantity",
+    "dispense": "Hand over",
+    "dispensed": "Handed over",
+    "already_dispensed": "This line has already been handed over",
+    "nothing_to_dispense": "No box chosen from the shelf",
+    "ask_the_doctor": "Ask the doctor",
+    "ask": "Ask",
+    "queried": "The question is recorded and reaches the doctor",
+    "need_note": "Write the question — a blank one reads on the doctor's screen as “the pharmacy looked and was happy”",
+    "open_queries": "Questions with no answer yet",
+    "issue_reason": "Pharmacy issue: {drug}",
+    "n_charged": "{n} items put on the bill"
   }
 }

@@ -32,7 +32,8 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 #
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
-                  "emergency", "nicu", "icu", "ward", "theatres", "labs"}
+                  "emergency", "nicu", "icu", "ward", "theatres", "labs",
+                  "pharmacy"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -112,7 +113,11 @@ CAPABILITY_MODULES = {
     "laboratory": {"visits", "labs"},
     "sample_collection": {"visits", "labs"},
     "pathology": {"visits", "labs"},
-    "pharmacy": {"prescriptions", "inventory"}, "clinical_pharmacy": {"prescriptions"},
+    # A pharmacy of its own means a counter: the queue, the review and the
+    # handover. A clinic that writes prescriptions for families to fill
+    # outside ticks neither and keeps the writer exactly as it is.
+    "pharmacy": {"prescriptions", "inventory", "pharmacy"},
+    "clinical_pharmacy": {"prescriptions", "pharmacy"},
     # Every one of these is somewhere a child is watched rather than seen
     # once, so each of them wants the rounds. A clinic that ticks "emergency"
     # in the wizard and then cannot record a second temperature has been sold

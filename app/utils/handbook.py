@@ -931,6 +931,86 @@ SECTIONS = [
         ],
     },
     {
+        # Opt-in: a clinic whose families fill their prescriptions outside has
+        # no counter, and the prescription writer never depended on this.
+        "key": "pharmacy",
+        "module": "pharmacy",
+        "icon": "prescription2",
+        "title": ("الصيدلية", "The pharmacy"),
+        "lines": [
+            ("<b>الجرعة بالكيلو والتعارضات كانوا موجودين من زمان، ومااتعملوش "
+             "تاني.</b> الجرعة في <b>dosing</b> والتعارض والحساسية في "
+             "<b>rx_safety</b>، وشاشة الروشتة بتوريهم للطبيب من سنين. نسخة "
+             "تانية من أي واحد فيهم كانت هتبقى مجموعة تانية من الأرقام "
+             "الإكلينيكية — الحاجة الوحيدة اللي البرنامج ده عمره ما بيعملها "
+             "مرتين.",
+             "<b>The dose by weight and the interactions already existed and "
+             "are not rebuilt.</b> The paediatric dose lives in <b>dosing</b>, "
+             "the interaction and allergy checks in <b>rx_safety</b>, and the "
+             "prescription writer has shown both to the doctor for years. A "
+             "second copy of either would be a second set of clinical numbers "
+             "\u2014 the one thing this program never does twice."),
+            ("<b>اللي مكانش موجود هو التسليم نفسه.</b> الروشتة كانت بتتكتب "
+             "وتتطبع وتخلص خلاص من ناحية البرنامج: العلبة بتخرج من الرف "
+             "والمخزن مايعرفش، ومحدش بيتحاسب. الشاشة دي هي الكاونتر — "
+             "الطابور، والمراجعة، والتسليم.",
+             "<b>What did not exist is the handover.</b> A prescription was "
+             "written, printed, and that was the end of it as far as this "
+             "software was concerned: the box left the shelf without the "
+             "clinic\u2019s own stock knowing, and nothing was charged. This "
+             "is the counter \u2014 the queue, the review and the handover."),
+            ("<b>الصيدلي بيشوف نفس اللي الطبيب شافه.</b> ده مقصود: عين تانية "
+             "بتقرا كتاب تاني مش عين تانية.",
+             "<b>The pharmacist sees exactly what the doctor saw.</b> That is "
+             "the point: a second pair of eyes reading a different rulebook is "
+             "not a second pair of eyes."),
+            ("<b>سؤال، مش رفض.</b> الصيدلي اللي بيقرا جرعة شايفها غلط شغلته "
+             "إنه يقولها للي كتبها. بيتسجّل كـ<b>سؤال</b> والصنف بيفضل قابل "
+             "للتسليم — لأن الرد غالباً «أيوة أنا قاصدها»، والأهل واقفين. "
+             "وصيدلية تقدر ترفض روشتة هي صيدلية الروشتات بتتكتب من حواليها.",
+             "<b>A question, never a veto.</b> A pharmacist who reads a dose "
+             "they think is wrong has one job: to say so, to the person who "
+             "wrote it. It is recorded as a <b>question</b> and the line stays "
+             "dispensable \u2014 the answer is usually \u201cyes, I meant "
+             "it\u201d and the family is standing there. A pharmacy that can "
+             "block a prescription is one prescriptions get written around."),
+            ("<b>الصنف من غير علبة من رفنا بيتصرف بره، وده الطبيعي.</b> "
+             "العيادة اللي بتكتب روشتات والأهل بيصرفوها من الصيدلية اللي "
+             "تحت مالهاش دعوة بالشاشة دي خالص: مفيش حاجة بتخرج من مخزننا "
+             "ومفيش حاجة بتتحاسب — نفس قاعدة أمر الدوا اللي مش مربوط برف، "
+             "والسرير اللي مالوش سعر.",
+             "<b>A line with no box of ours on it is filled outside, and that "
+             "is the normal case.</b> A clinic that writes prescriptions for "
+             "families to fill at the pharmacy downstairs is untouched by this "
+             "screen: nothing leaves our stock and nothing is charged \u2014 "
+             "the same rule as a ward order with no shelf behind it and a bed "
+             "with no rate on it."),
+            ("<b>واللي بيتسلّم بيتحاسب وبيخرج من الرف في نفس اللحظة.</b> "
+             "السطر بيتحط على فاتورة الديسك، والعلبة بتطلع بإذن صرف واحد "
+             "راكب على الفاتورة، فتكلفة البضاعة المباعة بتتقيّد في نفس "
+             "القيد. والسطر مالوش خدمة، يعني مفيش نسبة طبيب — محدش بياخد "
+             "نسبة على علبة اتسلّمت من على كاونتر.",
+             "<b>And what is handed over is charged and leaves the shelf in "
+             "the same act.</b> The line goes on the desk\u2019s invoice and "
+             "the box leaves under one issue document riding on it, so the "
+             "cost of goods is journalled in the same posting. The line "
+             "carries no service and therefore no doctor commission \u2014 "
+             "nobody\u2019s percentage rides on a box being handed across a "
+             "counter."),
+            ("<b>وعمرها ما بترفض علبة عشان العدد بتاعنا بيقول الرف فاضي.</b> "
+             "الصيدلية سلّمت، وده حصل. البرنامج اللي بيرفض يسجّله عشان عدّه "
+             "بيقول حاجة تانية بيكون استبدل حقيقة بترتيب — الحركة بتتسجّل، "
+             "والرصيد مسموح له ينزل تحت الصفر، والفرق ده شغل الجرد مش دوا "
+             "الطفل.",
+             "<b>And a box is never refused for want of stock.</b> The "
+             "pharmacy handed it over; that happened. A program that declines "
+             "to record it because its own count disagrees has replaced a true "
+             "fact with a tidy one \u2014 the movement is posted, the stock is "
+             "allowed to go negative, and the difference is the store\u2019s "
+             "to reconcile rather than a medicine to take back off a child."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",
