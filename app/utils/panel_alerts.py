@@ -177,7 +177,12 @@ def _latest_vital(patient_id, field):
     vitals, on_date = row
     from datetime import datetime
 
-    return getattr(vitals, field), datetime.combine(on_date, datetime.min.time())
+    from app.utils.clock import to_utc
+
+    # ``visit_date`` is the clinic's own date; ``_months_since`` compares
+    # against ``utcnow()``. Combining the two without converting is how a
+    # visit recorded in the small hours lands a day out.
+    return getattr(vitals, field), to_utc(datetime.combine(on_date, datetime.min.time()))
 
 
 def _latest_panel(patient_id, code):
