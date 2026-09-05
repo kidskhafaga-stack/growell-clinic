@@ -1092,3 +1092,146 @@ def test_the_chart_leads_to_the_discharge_list(ward):
     page = ward["sign_in"]("chem").get(f"/pharmacy/ward/{stay}")
 
     assert f"/pharmacy/ward/{stay}/discharge".encode() in page.data
+
+
+# ============ the paths a name-only order never exercises ===================
+def _catalogue_order(ward, stay, trade="فورتيميسين", ingredient="مورفين"):
+    """An order that points at a real catalogue box, not a typed name.
+
+    **The half the earlier tests never reached.** Every order they wrote was
+    free text, so the ingredient match — the one that catches every brand of a
+    drug, which is the whole reason the lists are keyed that way — was never
+    run once. Found by breaking it and watching nothing fail.
+    """
+    from app.models import Drug, GenericDrug
+    from app.models.admission import Admission
+    from app.utils import drug_round
+
+    with ward["app"].app_context():
+        generic = GenericDrug.query.filter_by(name_en=ingredient).first()
+        if generic is None:
+            generic = GenericDrug(name_ar=ingredient, name_en=ingredient)
+            ward["db"].session.add(generic)
+            ward["db"].session.flush()
+        box = Drug(trade_name=trade, trade_name_ar=trade,
+                   generic_id=generic.id)
+        ward["db"].session.add(box)
+        ward["db"].session.flush()
+        row = drug_round.order(ward["db"].session.get(Admission, stay),
+                               trade, drug=box, dose="2 mg", every_hours=8)
+        ward["db"].session.commit()
+        return row.id, generic.id
+
+
+def test_the_flag_follows_the_ingredient_not_the_trade_name(ward):
+    """A brand nobody typed the ingredient of is still the ingredient.
+
+    This is the whole argument for keying the list that way: mark morphine and
+    every box of it is caught, including the trade name this clinic started
+    stocking last week.
+    """
+    from app.utils import clinical_pharmacy
+    from app.models.medication import MedicationOrder
+
+    _flag(ward, name="مورفين", reason="مخدر", precaution="عدّاد مزدوج")
+    stay = _admit(ward, _child(ward, "فع"))
+    order, _ = _catalogue_order(ward, stay, trade="فورتيميسين",
+                                ingredient="مورفين")
+
+    with ward["app"].app_context():
+        row = ward["db"].session.get(MedicationOrder, order)
+        # The name on the order is the brand and matches nothing by text.
+        assert row.drug_name == "فورتيميسين"
+        found = clinical_pharmacy.high_alert_for(row)
+        assert found is not None and found.precaution == "عدّاد مزدوج"
+
+
+def test_taking_a_pair_off_the_list_stops_the_warning(ward):
+    """Off means off, the same as the high-alert list."""
+    from app.models import LasaPair
+    from app.models.medication import MedicationOrder
+    from app.utils import clinical_pharmacy
+
+    first, second = _pair(ward, first="مورفين", second="هيدرومورفون")
+    stay = _admit(ward, _child(ward, "طف"))
+    order, _ = _catalogue_order(ward, stay, trade="مورفين تجاري",
+                                ingredient="مورفين")
+
+    with ward["app"].app_context():
+        row = ward["db"].session.get(MedicationOrder, order)
+        assert clinical_pharmacy.lasa_for(row)
+        LasaPair.query.one().is_active = False
+        ward["db"].session.commit()
+        assert clinical_pharmacy.lasa_for(row) == []
+
+
+def test_the_chart_shows_the_name_it_is_confused_with(ward):
+    """Shown where one of the two is about to be handed over — not on a
+    settings page nobody has open at the time."""
+    _pair(ward, first="مورفين", second="هيدرومورفون")
+    stay = _admit(ward, _child(ward, "لخ"))
+    _catalogue_order(ward, stay, trade="مورفين تجاري", ingredient="مورفين")
+
+    page = ward["sign_in"]("chem").get(f"/pharmacy/ward/{stay}")
+
+    assert b"data-lasa" in page.data
+    assert "هيدرومورفون".encode() in page.data
+
+
+def test_the_discharge_list_matches_on_the_ingredient(ward):
+    """**The comparison that makes this screen worth opening.** A ward writes
+    the brand and the home list holds the ingredient; matched by text they
+    read as one drug started and another stopped, which is the opposite of
+    what happened.
+    """
+    from app.models import GenericDrug, PatientMedication
+    from app.models.admission import Admission
+    from app.utils import clinical_pharmacy
+
+    child = _child(ward, "مط")
+    stay = _admit(ward, child)
+    order, generic_id = _catalogue_order(ward, stay, trade="فورتيميسين",
+                                         ingredient="مورفين")
+    with ward["app"].app_context():
+        # The home list holds the same ingredient under a different name.
+        ward["db"].session.add(PatientMedication(
+            patient_id=child, name="مورفين", dose="2 mg",
+            generic_id=generic_id))
+        ward["db"].session.commit()
+
+        found = clinical_pharmacy.discharge_reconciliation(
+            ward["db"].session.get(Admission, stay))
+        # One drug, continued — not one started and one stopped.
+        assert found["started"] == []
+        assert found["stopped"] == []
+        assert [m.name for m, _ in found["continued"]] == ["مورفين"]
+
+
+def test_every_outcome_band_is_the_one_the_index_gives(ward):
+    """All nine, not a sample: an E filed as "no harm" would put a child who
+    needed an intervention in the column a hospital reports as safe."""
+    from app.models import OUTCOME_BANDS
+
+    assert [OUTCOME_BANDS[k] for k in "ABCDEFGHI"] == [
+        "no_error", "no_harm", "no_harm", "no_harm",
+        "harm", "harm", "harm", "harm", "death"]
+
+
+def test_the_most_reported_drug_is_the_most_reported_one(ward):
+    """Ranked by how often, never alphabetically — this is the column a
+    pharmacy reads when it revises its high-alert list, and the wrong order
+    puts the wrong drug at the top of it."""
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        # "أ" sorts before "ي" alphabetically, so the frequent one is put
+        # last on purpose: sorting by name would pass with the counting gone.
+        for _ in range(4):
+            clinical_pharmacy.report_error("غلط", "dispensing", "B",
+                                           drug_name="يوديد البوتاسيوم")
+        clinical_pharmacy.report_error("غلط", "dispensing", "B",
+                                       drug_name="أموكسيسيلين")
+        ward["db"].session.commit()
+
+        found = clinical_pharmacy.error_summary()
+        assert found["drugs"][0] == ("يوديد البوتاسيوم", 4)
