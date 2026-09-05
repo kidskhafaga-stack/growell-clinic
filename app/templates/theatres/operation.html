@@ -37,10 +37,10 @@
       <span class="hint" dir="ltr">{{ operation.on_date }}
         {% if operation.start_time %}· {{ operation.start_time.strftime('%H:%M') }}{% endif %}</span>
       {% if operation.surgeon %}
-      <span class="hint">{{ t('theatre.surgeon') }}: {{ operation.surgeon.full_name }}</span>
+      <span class="hint">{{ t('theatre.surgeon') }}: {{ operation.surgeon.display_name(current_lang) }}</span>
       {% endif %}
       {% if operation.anaesthetist %}
-      <span class="hint">{{ t('theatre.anaesthetist') }}: {{ operation.anaesthetist.full_name }}</span>
+      <span class="hint">{{ t('theatre.anaesthetist') }}: {{ operation.anaesthetist.display_name(current_lang) }}</span>
       {% endif %}
       <span class="badge badge--muted" data-op-status>{{ t('theatre.status_' ~ operation.status) }}</span>
     </div>
@@ -78,7 +78,7 @@
       <span class="alert-pill ok" data-signed>
         <i class="bi bi-check2-circle"></i>
         {{ signed.at|clinic_stamp }}
-        {% if signed.by %} · {{ signed.by.full_name }}{% endif %}</span>
+        {% if signed.by %} · {{ signed.by.display_name(current_lang) }}{% endif %}</span>
       {% endif %}
       {% if short %}
       {# A stop signed with items unticked, kept visible and named. A green
@@ -229,7 +229,7 @@
             {% for doctor in surgeons %}
             <option value="{{ doctor.id }}"
                     {{ 'selected' if doctor.id == operation.surgeon_id else '' }}>
-              {{ doctor.full_name }}</option>
+              {{ doctor.display_name(current_lang) }}</option>
             {% endfor %}
           </select>
         </div>
@@ -240,7 +240,7 @@
             {% for doctor in surgeons %}
             <option value="{{ doctor.id }}"
                     {{ 'selected' if doctor.id == operation.anaesthetist_id else '' }}>
-              {{ doctor.full_name }}</option>
+              {{ doctor.display_name(current_lang) }}</option>
             {% endfor %}
           </select>
         </div>

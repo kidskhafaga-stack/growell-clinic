@@ -377,7 +377,7 @@
           <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
           <span class="hint" dir="ltr">{{ op.on_date }}</span>
           <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
-          {% if op.surgeon %}<span class="hint">{{ op.surgeon.full_name }}</span>{% endif %}
+          {% if op.surgeon %}<span class="hint">{{ op.surgeon.display_name(current_lang) }}</span>{% endif %}
         </li>
         {% endfor %}
       </ul>

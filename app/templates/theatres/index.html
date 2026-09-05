@@ -85,7 +85,7 @@
           <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">
             {{ op.patient.display_name(current_lang) }}</a></div>
         <div class="hint">{{ op.procedure }}
-          {% if op.surgeon %} · {{ op.surgeon.full_name }}{% endif %}
+          {% if op.surgeon %} · {{ op.surgeon.display_name(current_lang) }}{% endif %}
           {% if op.minutes %} · <span dir="ltr">{{ t('theatre.n_minutes', n=op.minutes) }}</span>{% endif %}
         </div>
       </div>
@@ -190,7 +190,7 @@
         <select class="select" id="th_surgeon" name="surgeon_id">
           <option value="">{{ t('common.none') }}</option>
           {% for doctor in surgeons %}
-          <option value="{{ doctor.id }}">{{ doctor.full_name }}</option>
+          <option value="{{ doctor.id }}">{{ doctor.display_name(current_lang) }}</option>
           {% endfor %}
         </select>
       </div>
