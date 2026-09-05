@@ -68,6 +68,11 @@ MODULES = [
     # that admits children and operates on none of them must not find a
     # theatre list after an update.
     "theatres",
+    # The lab bench. Not the ordering — that has been on the visit screen for
+    # years, and the reading has its own inbox. This is the middle nobody had
+    # a screen for: the sample, and the person who runs it. Its own module and
+    # opt-in, because a clinic that sends its tests out has no bench.
+    "labs",
     "prescriptions",
     "inventory",
     "finance",
@@ -115,6 +120,7 @@ MODULE_ICONS = {
     "icu": "heart-pulse",
     "ward": "buildings",
     "theatres": "scissors",
+    "labs": "eyedropper",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -151,6 +157,9 @@ ROLE_PERMISSIONS = {
         # Surgeons and anaesthetists are doctors, and the checklist is signed
         # by whoever is standing at the table.
         "theatres",
+        # They order the tests; seeing where one has got to is the same
+        # question as "has anybody been to draw this child's blood".
+        "labs",
         "prescriptions",
         "ai",
     ],
@@ -177,6 +186,9 @@ ROLE_PERMISSIONS = {
         # borrowing a doctor's login, which is how a signature stops meaning
         # anything.
         "theatres",
+        # Whoever walks to the bed with the tube. A clinic with a lab
+        # technician of its own makes a role for them — roles are data.
+        "labs",
     ],
     "reception": [
         "dashboard",

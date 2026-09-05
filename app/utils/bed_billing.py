@@ -295,13 +295,15 @@ def post(admission, user=None, upto=None, lang="ar"):
     """
     from app.models.invoice import InvoiceItem
 
-    from app.utils import drug_round, theatres
+    from app.utils import drug_round, labs, theatres
 
     due = outstanding(admission, upto)
     doses = drug_round.chargeable(admission)
     cases = theatres.unbilled(admission_id=admission.id)
-    if not due and not doses and not cases:
-        return {"periods": 0, "doses": 0, "operations": 0,
+    tests = (labs.unbilled(visit_id=admission.visit_id)
+             if admission.visit_id else [])
+    if not due and not doses and not cases and not tests:
+        return {"periods": 0, "doses": 0, "operations": 0, "tests": 0,
                 "total": 0.0, "gross": 0.0, "invoice": None}
 
     invoice = invoice_for(admission, user)
@@ -341,6 +343,10 @@ def post(admission, user=None, upto=None, lang="ar"):
     # And the theatre. One account for the admission — not a bed bill, a
     # pharmacy bill and a theatre bill for the same three days.
     operated = theatres.charge(admission, invoice, user=user, lang=lang)
+    # And the lab. Same account again: a family gets one bill for the
+    # admission, not a bed bill, a pharmacy bill, a theatre bill and a lab
+    # bill for the same three days.
+    tested = labs.charge(admission, invoice, user=user, lang=lang)
 
     # **And then through the same door every other invoice goes through.**
     # The insurance, the contract tariff, the cash price list and the family's
@@ -361,8 +367,10 @@ def post(admission, user=None, upto=None, lang="ar"):
     # again as if they had just been charged.
     mine = (added
             + [d.invoice_item for d in doses if d.invoice_item is not None]
-            + [c.invoice_item for c in cases if c.invoice_item is not None])
+            + [c.invoice_item for c in cases if c.invoice_item is not None]
+            + [x.invoice_item for x in tests if x.invoice_item is not None])
     return {"periods": len(due), "doses": given, "operations": operated,
+            "tests": tested,
             "total": round(sum(i.net for i in mine), 2),
             "gross": round(sum(i.gross for i in mine), 2),
             "invoice": invoice}

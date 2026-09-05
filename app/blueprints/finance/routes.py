@@ -2040,11 +2040,21 @@ def _unbilled_patient_services(patient_id, days=7):
 
 def _case_for_line(cases, op_ids, index):
     """The unbilled day case this submitted line pays for, if any."""
-    raw = op_ids[index] if index < len(op_ids) else ""
+    return _row_for_line(cases, op_ids, index)
+
+
+def _row_for_line(known, ids, index):
+    """The still-unbilled row a submitted line claims to pay for.
+
+    Resolved against what is *actually* unbilled rather than trusted from the
+    form: a posted id is a number anybody can type, and these stamp something
+    as paid for.
+    """
+    raw = ids[index] if index < len(ids) else ""
     if not raw:
         return None
     try:
-        return cases.get(int(raw))
+        return known.get(int(raw))
     except (TypeError, ValueError):
         return None
 
@@ -2147,6 +2157,42 @@ def _unbilled_operations(patient_id):
             if op.admission_id is None]
 
 
+def _unbilled_tests(patient_id):
+    """Lab tests drawn for this child that nobody has charged for.
+
+    Empty when the lab module is off, like every other module-owned question
+    asked from a screen every clinic opens.
+
+    **Drawn, not merely ordered.** An order somebody wrote and thought better
+    of costs nothing; the clinic has spent something the moment the sample
+    exists — and that is also the moment a family can be told what it costs.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("labs"):
+        return []
+    from app.utils import labs
+
+    return labs.unbilled(patient_id=patient_id)
+
+
+def _test_lines(patient_id, lang):
+    """Those tests as checkout lines."""
+    from app.utils import labs
+
+    lines = []
+    for row in _unbilled_tests(patient_id):
+        service = row.investigation.service
+        lines.append({
+            "service_id": service.id,
+            "description": labs.line_for(row, lang),
+            "unit_price": service.price or 0,
+            "quantity": 1,
+            "test_id": row.id,
+        })
+    return lines
+
+
 def _operation_lines(patient_id, lang):
     """Those day cases as checkout lines.
 
@@ -2200,6 +2246,9 @@ def _patient_checkout_lines(patient, doctor_id, lang):
     # be raised — without this the module charged admitted children and quietly
     # nothing at all for everybody else.
     lines.extend(_operation_lines(patient.id, lang))
+    # And the lab. A test is drawn at the clinic and paid for at the desk like
+    # everything else — without this the bench ran and the money never moved.
+    lines.extend(_test_lines(patient.id, lang))
     return lines
 
 
@@ -2252,6 +2301,7 @@ def _checkout_lines(appt, lang):
     # with an appointment is the same family, and a bill that appears on one
     # door and not the other is a bill somebody has to know a trick to find.
     lines.extend(_operation_lines(appt.patient_id, lang))
+    lines.extend(_test_lines(appt.patient_id, lang))
     return lines
 
 
@@ -2430,6 +2480,9 @@ def _checkout_screen(appt, patient):
         op_ids = request.form.getlist("line_op_id")
         cases = {op.id: op for op in _unbilled_operations(patient_id)}
         billed_cases = {}       # invoice line -> the operation it charged for
+        test_ids = request.form.getlist("line_test_id")
+        drawn = {row.id: row for row in _unbilled_tests(patient_id)}
+        billed_tests = {}       # invoice line -> the lab order it charged for
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -2469,6 +2522,9 @@ def _checkout_screen(appt, patient):
             # doctor this invoice belongs to. Recorded on the line so the
             # share below is worked out at their rate and stays theirs when
             # the cash price list reprices the bill.
+            test = _row_for_line(drawn, test_ids, i)
+            if test is not None:
+                billed_tests[id(item)] = test
             case = _case_for_line(cases, op_ids, i)
             line_doctor = None
             if case is not None:
@@ -2502,6 +2558,9 @@ def _checkout_screen(appt, patient):
             case = billed_cases.get(id(item))
             if case is not None:
                 case.invoice_item_id = item.id
+            test = billed_tests.get(id(item))
+            if test is not None:
+                test.invoice_item_id = item.id
         burned = 0
         for item in new_items:
             if item.service_id is None:

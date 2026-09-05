@@ -301,7 +301,7 @@ def post_nights(admission_id):
     result = bed_billing.charge(row, user=current_user,
                                 lang=getattr(g, "lang", "ar"))
     if not result["periods"] and not result["doses"] \
-            and not result["operations"]:
+            and not result["operations"] and not result["tests"]:
         flash(t("beds.nights_none"), "info")
         return redirect(url_for("beds.admission", admission_id=row.id))
     if result["periods"]:
@@ -314,6 +314,8 @@ def post_nights(admission_id):
         flash(t("meds.n_doses_charged", n=result["doses"]), "success")
     if result["operations"]:
         flash(t("theatre.n_charged", n=result["operations"]), "success")
+    if result["tests"]:
+        flash(t("lab.n_charged", n=result["tests"]), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
@@ -356,6 +358,8 @@ def discharge(admission_id):
         flash(t("meds.n_doses_charged", n=billed["doses"]), "info")
     if billed["operations"]:
         flash(t("theatre.n_charged", n=billed["operations"]), "info")
+    if billed["tests"]:
+        flash(t("lab.n_charged", n=billed["tests"]), "info")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 

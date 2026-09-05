@@ -32,7 +32,7 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 #
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
-                  "emergency", "nicu", "icu", "ward", "theatres"}
+                  "emergency", "nicu", "icu", "ward", "theatres", "labs"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -104,7 +104,14 @@ CAPABILITY_MODULES = {
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
     "ultrasound": {"visits", "inventory"}, "xray": {"visits", "inventory"},
     "ct": {"visits", "inventory"}, "mri": {"visits", "inventory"},
-    "laboratory": {"visits"}, "sample_collection": {"visits"}, "pathology": {"visits"},
+    # A lab of its own means a bench of its own: the rack, the sample and the
+    # result belong to whoever runs it. A clinic that *sends* its tests out
+    # ticks nothing here and keeps ordering from the visit screen exactly as
+    # before — which is why this switches on `labs` and the plain `visits`
+    # ordering never depended on it.
+    "laboratory": {"visits", "labs"},
+    "sample_collection": {"visits", "labs"},
+    "pathology": {"visits", "labs"},
     "pharmacy": {"prescriptions", "inventory"}, "clinical_pharmacy": {"prescriptions"},
     # Every one of these is somewhere a child is watched rather than seen
     # once, so each of them wants the rounds. A clinic that ticks "emergency"

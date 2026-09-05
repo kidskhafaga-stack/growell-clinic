@@ -846,6 +846,91 @@ SECTIONS = [
         ],
     },
     {
+        # Opt-in: a clinic that sends its tests out has no bench, and ordering
+        # from the visit screen has never depended on this module.
+        "key": "labs",
+        "module": "labs",
+        "icon": "eyedropper",
+        "title": ("المعمل", "The lab"),
+        "lines": [
+            ("<b>الطلب والقراية كانوا موجودين، والنص الناقص هو اللي المستشفى "
+             "بتعيش فيه.</b> الطلب من شاشة الكشف شغّال من زمان، والنتيجة "
+             "بترجع للطبيب في صندوق النتايج، والمنحنى بيترسم من الرقم. اللي "
+             "مكانش ليه شاشة خالص هو النص: حد بيروح للسرير يسحب العينة، وحد "
+             "تاني بيعملها.",
+             "<b>The order and the reading already existed; what was missing "
+             "is the middle a hospital lives in.</b> Ordering has worked from "
+             "the visit screen for years, the answer reaches the doctor in "
+             "the results inbox, and the curve is drawn from the number. What "
+             "had no screen at all is the part between: somebody walks to the "
+             "bed and draws the sample, and somebody else runs it."),
+            ("<b>«محدش راح للسرير» و«العينة في الرَف» مش نفس الحاجة.</b> "
+             "الأولى محتاجة حد يمشي، والتانية محتاجة وقت بس. طول ما الاتنين "
+             "متسجلين «مطلوب» الشاشة مش قادرة تفرّق بينهم — والقايمة اللي "
+             "مش قادرة تفرّق دي بيتم مراجعتها بالتليفون.",
+             "<b>\u201cNobody has been to the bed\u201d and \u201cit is in "
+             "the rack\u201d are not the same thing.</b> The first needs a "
+             "person to walk; the second needs only time. While both are "
+             "stored as \u201crequested\u201d the screen cannot tell them "
+             "apart \u2014 and a list that cannot tell them apart is checked "
+             "by phone."),
+            ("<b>الرَف مقسوم قسمين، لأنهم شغلانتين.</b> عينات تتسحب، وعينات "
+             "تتعمل. والترتيب من الأقدم للأحدث: الرَف بيتشتغل من تحت، "
+             "والقايمة اللي بتحط طلب الدقيقة دي فوق هي اللي بتخلّي عينة "
+             "الساعة تمانية لسه واقفة الساعة اتنين.",
+             "<b>The rack is two lists, because they are two jobs.</b> "
+             "Samples to draw, and samples to run. Oldest first, not newest: "
+             "a rack is worked from the bottom, and a list that puts this "
+             "minute\u2019s order on top is one where the sample taken at "
+             "eight is still sitting there at two."),
+            ("<b>رقم الأنبوبة بيتكتب لوحده.</b> تاريخ اليوم ورقم الطلب. "
+             "سيبها فاضية والبرنامج يكتبها — لأن اللي بيتكتب لوحده هو اللي "
+             "بيتكتب فعلاً على الأنبوبة الساعة تلاتة بالليل.",
+             "<b>The tube label writes itself.</b> The clinic\u2019s date and "
+             "the order\u2019s own number. Leave it blank and one is written "
+             "\u2014 because a label nobody has to invent is a label that "
+             "actually ends up on the tube at three in the morning."),
+            ("<b>مفيش مكان تاني للنتيجة.</b> الرقم بيتكتب على نفس الطلب اللي "
+             "بيجاوبه — نفس الصف اللي شاشة الكشف بتعرضه واللي المنحنى "
+             "بيتقري منه. جدول نتايج تاني كان هيبقى نسختين من رقم واحد، "
+             "والمنحنى يقرا اللي آخر شاشة كتبت فيه.",
+             "<b>There is no second place for a result.</b> The number is "
+             "written on the order it answers \u2014 the same row the visit "
+             "screen shows and the curve is drawn from. A separate results "
+             "table would have been two copies of one number, with the curve "
+             "reading whichever half the last screen wrote to."),
+            ("<b>والمدى المرجعي هو اللي التقرير نفسه قاله.</b> مدى الأطفال "
+             "بيتحرك مع العمر ومع الجهاز، ورقم واحد متخزّن ومعروض لكل طفل "
+             "ده البرنامج بيخترع حقيقة إكلينيكية — نفس القاعدة اللي جداول "
+             "التطعيمات موجودة عشانها.",
+             "<b>And the reference range is the one this report printed.</b> "
+             "A paediatric range moves with age and with the assay, and one "
+             "number stored centrally and shown for every child would be the "
+             "program inventing a clinical fact \u2014 the same rule the "
+             "vaccine tables exist to keep."),
+            ("<b>السعر هو المفتاح.</b> كل تحليل بيتربط بخدمة من قايمة أسعار "
+             "العيادة، فالتأمين والخصومات والضريبة بيمشوا عليه من غير أي حاجة "
+             "زيادة. وتحليل من غير خدمة بيتطلب ويتسحب ويتعمل وعمره ما يوصل "
+             "لفاتورة — وده إزاي مستشفى ما بتحاسبش على المعمل بشكل منفصل "
+             "بتقول كده من غير إعداد.",
+             "<b>The price is the switch.</b> Each test is tied to a service "
+             "from the clinic\u2019s own price list, so the insurance, the "
+             "discounts and the tax code all follow with nothing added. A "
+             "test with no service is ordered, drawn, run and resulted and "
+             "never reaches a bill \u2014 which is how a hospital that does "
+             "not bill its lab separately says so, with no setting for it."),
+            ("<b>والحساب بيبدأ من ساعة سحب العينة، مش من ساعة الطلب.</b> طلب "
+             "اتكتب وبعدين حد عدل عنه ما كلّفش حاجة؛ المستشفى بتكون صرفت أول "
+             "ما العينة بقت موجودة. الطفل المنوّم بيتحاسب على فاتورة إقامته، "
+             "واللي جه ومشي بيتحاسب على الديسك زي أي حاجة تانية.",
+             "<b>And charging starts at the draw, not at the order.</b> An "
+             "order somebody wrote and thought better of costs nothing; the "
+             "hospital has spent something the moment the sample exists. An "
+             "admitted child\u2019s tests go on their stay\u2019s bill; an "
+             "outpatient\u2019s reach the desk like everything else."),
+        ],
+    },
+    {
         "key": "growth",
         "module": "growth",
         "icon": "graph-up",

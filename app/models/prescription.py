@@ -366,6 +366,26 @@ class Investigation(db.Model):
     # this program inventing a clinical fact.
     unit = db.Column(db.String(20))
 
+    # What a sample of this is: blood, urine, a swab. Held here because it is a
+    # fact about the test rather than about the child — every CBC is drawn the
+    # same way — and because the person carrying a rack of tubes sorts by it.
+    #
+    # Free text and nullable, not a fixed list: a clinic that sends sputum,
+    # CSF and stool should not have to wait for a release, and imaging has no
+    # sample at all.
+    sample_type = db.Column(db.String(40))
+
+    # What this test is charged as, when the clinic charges for it.
+    #
+    # **The price is the switch**, the same rule the beds and the theatre run
+    # on: a `Service`, so the price list, the payer contracts, the discounts
+    # and the tax code all work on a lab test with nothing added — and a test
+    # with no service on it is ordered, run and resulted and never reaches a
+    # bill, which is how a hospital whose lab is not billed separately says so.
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                           nullable=True, index=True)
+    service = db.relationship("Service")
+
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name_ar
 

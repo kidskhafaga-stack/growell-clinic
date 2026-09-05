@@ -180,6 +180,17 @@ ADDITIONS = [
     ("visit_investigations", "result_unit", "VARCHAR(20)"),
     ("visit_investigations", "result_low", "FLOAT"),
     ("visit_investigations", "result_high", "FLOAT"),
+    # The bench: the sample, who drew it, who ran it, and the line that paid.
+    # Every one of them nullable, because an order written before the lab
+    # module existed went from the doctor's hand to the doctor's keyboard and
+    # never passed through anybody else's.
+    ("visit_investigations", "sample_code", "VARCHAR(24)"),
+    ("visit_investigations", "collected_at", "DATETIME"),
+    ("visit_investigations", "collected_by", "INTEGER"),
+    ("visit_investigations", "resulted_by", "INTEGER"),
+    ("visit_investigations", "invoice_item_id", "INTEGER"),
+    ("investigations", "sample_type", "VARCHAR(40)"),
+    ("investigations", "service_id", "INTEGER"),
     ("investigations", "unit", "VARCHAR(20)"),
     ("investigations", "code", "VARCHAR(40)"),
     # The per-specialty case history: a whole table, created by `create_all`

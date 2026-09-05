@@ -147,6 +147,7 @@ def create_app(config_name="default"):
     from app.blueprints.icu import icu_bp
     from app.blueprints.ward import ward_bp
     from app.blueprints.theatres import theatres_bp
+    from app.blueprints.labs import labs_bp
     from app.blueprints.observations import observations_bp
     from app.blueprints.panels import panels_bp
     from app.blueprints.growth import growth_bp
@@ -176,6 +177,7 @@ def create_app(config_name="default"):
     app.register_blueprint(icu_bp)
     app.register_blueprint(ward_bp)
     app.register_blueprint(theatres_bp)
+    app.register_blueprint(labs_bp)
     app.register_blueprint(vaccinations_bp)
     app.register_blueprint(prescriptions_bp)
     app.register_blueprint(inventory_bp)
@@ -212,6 +214,7 @@ def create_app(config_name="default"):
         "icu": "icu.index",
         "ward": "ward.index",
         "theatres": "theatres.index",
+        "labs": "labs.index",
         "prescriptions": "prescriptions.index",
         "inventory": "inventory.index",
         "finance": "finance.index",

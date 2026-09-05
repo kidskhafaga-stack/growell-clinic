@@ -1273,27 +1273,25 @@ def _number(raw):
 @module_required(MODULE)
 def result_investigation(inv_id):
     """Record the result text + the doctor's interpretation/comment."""
+    from app.utils import labs
+
     inv = db.get_or_404(VisitInvestigation, inv_id)
-    inv.result_text = (request.form.get("result_text") or "").strip() or None
-    inv.result_comment = (request.form.get("result_comment") or "").strip() or None
-
-    # The number, where the result is one. Blank clears it rather than
-    # leaving the old reading attached to a new report — a stale value on a
-    # curve is worse than a gap in it, because a gap is visible.
-    inv.result_value = _number(request.form.get("result_value"))
-    inv.result_low = _number(request.form.get("result_low"))
-    inv.result_high = _number(request.form.get("result_high"))
-    inv.result_unit = (request.form.get("result_unit") or "").strip()[:20] or None
-    if inv.result_value is None:
-        # A range with nothing to compare it to is a band on an empty chart.
-        inv.result_low = inv.result_high = None
-
-    if inv.has_result:
-        inv.status = "resulted"
-        inv.resulted_at = datetime.utcnow()
-    else:
-        inv.status = "requested"
-        inv.resulted_at = None
+    # **One door.** The doctor typing in what a paper report said and the lab
+    # bench writing what it measured are the same act, and they were two
+    # copies of it — the half that drifts is always the one that decides
+    # whether the order counts as finished, which is what the ward, the
+    # results inbox and the bill all read.
+    #
+    # Blank clears the number and its range with it: a stale value on a curve
+    # is worse than a gap, because a gap is visible.
+    labs.record(inv,
+                value=_number(request.form.get("result_value")),
+                unit=request.form.get("result_unit"),
+                low=_number(request.form.get("result_low")),
+                high=_number(request.form.get("result_high")),
+                text=request.form.get("result_text") or "",
+                comment=request.form.get("result_comment") or "",
+                user=current_user)
     db.session.commit()
     flash(t("visits.inv_result_saved"), "success")
     # Return to the page the result was entered from (e.g. the follow-up
