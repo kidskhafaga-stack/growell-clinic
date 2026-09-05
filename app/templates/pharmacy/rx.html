@@ -1,0 +1,148 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('pharm.rx_for', name=rx.patient.display_name(current_lang)) }}{% endblock %}
+{% block page_heading %}{{ t('nav.pharmacy') }}{% endblock %}
+
+{% block content %}
+<style>
+  .ph-item { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+             margin-bottom:10px; }
+  .ph-item.done { border-inline-start:5px solid var(--green-600); }
+  .ph-item.flagged { border-inline-start:5px solid var(--danger); }
+  .ph-drug { font-weight:600; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-prescription2"></i>
+      {{ rx.patient.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {% if rx.doctor %}{{ rx.doctor.display_name(current_lang) }} · {% endif %}
+      <span dir="ltr">{{ rx.created_at|clinic_stamp }}</span>
+      {% if rx.diagnosis %} · {{ rx.diagnosis }}{% endif %}
+      {% if safety.weight %} · <span dir="ltr">{{ safety.weight }} kg</span>{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('patients.view', patient_id=rx.patient_id) }}">
+      <i class="bi bi-person"></i> {{ t('beds.patient_file') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.index') }}">
+      <i class="bi bi-list-ul"></i> {{ t('pharm.the_queue') }}</a>
+  </div>
+</div>
+
+{% if safety.interactions %}
+{# The same interaction warning the doctor was shown, from the same rules.
+   Shown again on purpose: a second pair of eyes that reads a different
+   rulebook is not a second pair of eyes. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div class="alert-pill danger" data-interaction>
+    <i class="bi bi-exclamation-octagon"></i> {{ t('meds.interactions') }}:
+    {% for pair in safety.interactions %}
+    {{ pair.generic_a.display_name(current_lang) }} +
+    {{ pair.generic_b.display_name(current_lang) }}{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card gc-scale-in">
+  {% for line in rx.items %}
+  {% set look = safety.by_item.get(line.id) %}
+  {% set flagged = look and ((look.allergy and look.allergy.hit) or look.warnings) %}
+  <div class="ph-item {{ 'done' if line.dispensed_at else ('flagged' if flagged else '') }}"
+       data-line="{{ line.id }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;">
+      <span class="ph-drug">{{ line.drug_name }}</span>
+      {% if line.dose %}<span class="hint">{{ line.dose }}</span>{% endif %}
+      {% if line.frequency %}<span class="hint">{{ line.frequency }}</span>{% endif %}
+      {% if line.duration %}<span class="hint">{{ line.duration }}</span>{% endif %}
+      {% if line.dispensed_at %}
+      <span class="alert-pill ok" data-dispensed>
+        <i class="bi bi-check2-circle"></i>
+        {{ line.dispensed_at|clinic_stamp }}
+        {% if line.dispenser %} · {{ line.dispenser.display_name(current_lang) }}{% endif %}</span>
+      {% endif %}
+    </div>
+
+    {% if look %}
+    {# The allergy and the paediatric dose, computed against this child's own
+       weight — `rx_safety`, unchanged. #}
+    {% if look.allergy and look.allergy.hit %}
+    <div class="alert-pill danger" style="margin-top:8px;" data-allergy>
+      <i class="bi bi-exclamation-triangle"></i> {{ t('meds.allergy_to', name=line.drug_name) }}</div>
+    {% endif %}
+    {% for code in look.warnings %}
+    <div class="alert-pill warn" style="margin-top:8px;" data-dose-warning>
+      <i class="bi bi-exclamation-triangle"></i> {{ t('drugbook.warn_' ~ code) }}</div>
+    {% endfor %}
+    {% endif %}
+
+    {% if line.queried_at %}
+    <div class="alert-pill warn" style="margin-top:8px;" data-queried>
+      <i class="bi bi-question-circle"></i> {{ line.query_note }}
+      <span class="hint" dir="ltr">{{ line.queried_at|clinic_stamp }}</span></div>
+    {% endif %}
+
+    {% if not line.dispensed_at %}
+    {# Which box on the shelf this written line means. The counter's call and
+       not the doctor's: which of three strengths the clinic actually stocks
+       is the pharmacy's knowledge. #}
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"
+          action="{{ url_for('pharmacy.shelf', line_id=line.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+        <label for="item_{{ line.id }}">{{ t('pharm.from_the_shelf') }}</label>
+        <select class="select" id="item_{{ line.id }}" name="store_item_id"
+                data-store-item>
+          <option value="">{{ t('pharm.not_from_here') }}</option>
+          {% for stock in items %}
+          <option value="{{ stock.id }}"
+                  {{ 'selected' if stock.id == line.store_item_id else '' }}>
+            {{ stock.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:110px;">
+        <label for="qty_{{ line.id }}">{{ t('pharm.quantity') }}</label>
+        <input class="input" type="number" min="1" max="99" dir="ltr"
+               id="qty_{{ line.id }}" name="quantity" value="{{ line.quantity or 1 }}">
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        {{ t('common.save') }}</button>
+    </form>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      {% if line.store_item_id %}
+      <form method="post" action="{{ url_for('pharmacy.dispense', line_id=line.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary gc-press" type="submit">
+          <i class="bi bi-box-arrow-right"></i> {{ t('pharm.dispense') }}</button>
+      </form>
+      {% else %}
+      {# No box chosen, so there is nothing to hand over — and the family
+         takes the paper and fills it outside, which is the normal case for
+         most clinics and not a failure. #}
+      <p class="hint" style="margin:0;" data-outside>{{ t('pharm.filled_outside') }}</p>
+      {% endif %}
+
+      <form method="post" style="display:flex;gap:8px;align-items:end;flex:1;min-width:240px;"
+            action="{{ url_for('pharmacy.query', line_id=line.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row" style="margin-bottom:0;flex:1;">
+          {# A question, never a block: the doctor may well have meant it, and
+             a pharmacy that can veto a prescription is one prescriptions get
+             written around. #}
+          <label for="note_{{ line.id }}">{{ t('pharm.ask_the_doctor') }}</label>
+          <input class="input" id="note_{{ line.id }}" name="note" maxlength="255">
+        </div>
+        <button class="btn btn-outline gc-press" type="submit">
+          <i class="bi bi-question-circle"></i> {{ t('pharm.ask') }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

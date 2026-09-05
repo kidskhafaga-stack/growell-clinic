@@ -2038,6 +2038,27 @@ def _unbilled_patient_services(patient_id, days=7):
             .all())
 
 
+def _case_for_line(cases, op_ids, index):
+    """The unbilled day case this submitted line pays for, if any."""
+    return _row_for_line(cases, op_ids, index)
+
+
+def _row_for_line(known, ids, index):
+    """The still-unbilled row a submitted line claims to pay for.
+
+    Resolved against what is *actually* unbilled rather than trusted from the
+    form: a posted id is a number anybody can type, and these stamp something
+    as paid for.
+    """
+    raw = ids[index] if index < len(ids) else ""
+    if not raw:
+        return None
+    try:
+        return known.get(int(raw))
+    except (TypeError, ValueError):
+        return None
+
+
 def _claimed_ids(field, kept_indexes):
     """The ids the surviving invoice lines say they are paying for.
 
@@ -2115,6 +2136,117 @@ def _unbilled_visit_services(appt):
             .all())
 
 
+def _unbilled_operations(patient_id):
+    """Day cases this child was operated on for and nobody has charged.
+
+    **Only the ones with no stay.** An operation on an admitted child belongs
+    to the stay's one bill — it is charged there with the nights and the doses
+    — and offering it at the desk as well would bill the same knife twice.
+
+    Empty when the theatres module is off, which is what makes this safe to
+    call from a screen every clinic opens: a module off is a module absent,
+    not a query returning nothing.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("theatres"):
+        return []
+    from app.utils import theatres
+
+    return [op for op in theatres.unbilled(patient_id=patient_id)
+            if op.admission_id is None]
+
+
+def _unbilled_dispensed(patient_id):
+    """Medicines this clinic's own pharmacy handed over and nobody charged.
+
+    Handed over, not written: a prescription the family took away to fill
+    outside costs the clinic nothing, and the moment something is owed is the
+    moment a box leaves this shelf. Empty when the counter is off.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("pharmacy"):
+        return []
+    from app.utils import pharmacy
+
+    return pharmacy.unbilled(patient_id=patient_id)
+
+
+def _unbilled_tests(patient_id):
+    """Lab tests drawn for this child that nobody has charged for.
+
+    Empty when the lab module is off, like every other module-owned question
+    asked from a screen every clinic opens.
+
+    **Drawn, not merely ordered.** An order somebody wrote and thought better
+    of costs nothing; the clinic has spent something the moment the sample
+    exists — and that is also the moment a family can be told what it costs.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("labs"):
+        return []
+    from app.utils import labs
+
+    return labs.unbilled(patient_id=patient_id)
+
+
+def _test_lines(patient_id, lang):
+    """Those tests as checkout lines."""
+    from app.utils import labs
+
+    lines = []
+    for row in _unbilled_tests(patient_id):
+        service = row.investigation.service
+        lines.append({
+            "service_id": service.id,
+            "description": labs.line_for(row, lang),
+            "unit_price": service.price or 0,
+            "quantity": 1,
+            "test_id": row.id,
+        })
+    return lines
+
+
+def _dispensed_lines(patient_id, lang):
+    """Those medicines as checkout lines.
+
+    Priced from the shelf and carrying **no service**, so no doctor
+    commission: nobody's percentage rides on a box being handed across a
+    counter — the same rule the ward's doses follow.
+    """
+    from app.utils import pharmacy
+
+    return [{"service_id": "",
+             "description": pharmacy._line_text(line, line.store_item, lang),
+             "unit_price": getattr(line.store_item, "sell_price", 0) or 0,
+             "quantity": max(1, int(line.quantity or 1)),
+             "no_commission": "1",
+             "rx_line_id": line.id}
+            for line in _unbilled_dispensed(patient_id)]
+
+
+def _operation_lines(patient_id, lang):
+    """Those day cases as checkout lines.
+
+    Priced at **the surgeon's** rate for the service, because the price list
+    can carry a per-doctor price and the person who did the operation is the
+    one it is being charged for.
+    """
+    lines = []
+    for op in _unbilled_operations(patient_id):
+        service = op.service
+        lines.append({
+            "service_id": service.id,
+            "description": f"{service.display_name(lang)} — {op.procedure}"[:200],
+            "unit_price": service.price_for(op.surgeon) or 0,
+            "quantity": 1,
+            "op_id": op.id,
+        })
+    return lines
+
+
 def _checkout_url(appt, patient_id):
     """Back to whichever door this checkout came in by."""
     if appt is not None:
@@ -2143,6 +2275,17 @@ def _patient_checkout_lines(patient, doctor_id, lang):
             "vs_id": vs.id,
         })
     lines.extend(_vaccine_prefill_lines(patient.id, doctor, lang, False))
+    # And the theatre. A day case comes in, is operated on and goes home
+    # without ever being admitted, so the desk is the only place its bill can
+    # be raised — without this the module charged admitted children and quietly
+    # nothing at all for everybody else.
+    lines.extend(_operation_lines(patient.id, lang))
+    # And the lab. A test is drawn at the clinic and paid for at the desk like
+    # everything else — without this the bench ran and the money never moved.
+    lines.extend(_test_lines(patient.id, lang))
+    # And the counter. A box that left our shelf is money and stock, and both
+    # moved without anything recording it before this.
+    lines.extend(_dispensed_lines(patient.id, lang))
     return lines
 
 
@@ -2190,6 +2333,13 @@ def _checkout_lines(appt, lang):
     booked = _booked_vaccine_line(appt, lang, vac_lines)
     if booked is not None:
         lines.append(booked)
+    # A day case this child was operated on for and nobody has charged. Offered
+    # on this door as well as the walk-in one: the family standing at the desk
+    # with an appointment is the same family, and a bill that appears on one
+    # door and not the other is a bill somebody has to know a trick to find.
+    lines.extend(_operation_lines(appt.patient_id, lang))
+    lines.extend(_test_lines(appt.patient_id, lang))
+    lines.extend(_dispensed_lines(appt.patient_id, lang))
     return lines
 
 
@@ -2362,6 +2512,18 @@ def _checkout_screen(appt, patient):
         nocomms = request.form.getlist("line_no_commission")
         brands = request.form.getlist("line_brand_id")
         dose_numbers = request.form.getlist("line_dose_number")
+        # Which line pays for which day case. Looked up from what is actually
+        # still unbilled rather than trusted from the form: a posted id is a
+        # number anybody can type, and this one stamps an operation as paid.
+        op_ids = request.form.getlist("line_op_id")
+        cases = {op.id: op for op in _unbilled_operations(patient_id)}
+        billed_cases = {}       # invoice line -> the operation it charged for
+        test_ids = request.form.getlist("line_test_id")
+        drawn = {row.id: row for row in _unbilled_tests(patient_id)}
+        billed_tests = {}       # invoice line -> the lab order it charged for
+        rx_ids = request.form.getlist("line_rx_line_id")
+        handed = {row.id: row for row in _unbilled_dispensed(patient_id)}
+        billed_rx = {}          # invoice line -> the dispensed medicine
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -2397,12 +2559,33 @@ def _checkout_screen(appt, patient):
                     if i < len(dose_numbers) and dose_numbers[i] else None)
             except (TypeError, ValueError):
                 item.vaccine_dose_number = None
+            # A theatre line is owed to **the surgeon**, who is not the
+            # doctor this invoice belongs to. Recorded on the line so the
+            # share below is worked out at their rate and stays theirs when
+            # the cash price list reprices the bill.
+            test = _row_for_line(drawn, test_ids, i)
+            if test is not None:
+                billed_tests[id(item)] = test
+            handover = _row_for_line(handed, rx_ids, i)
+            if handover is not None:
+                billed_rx[id(item)] = handover
+            case = _case_for_line(cases, op_ids, i)
+            line_doctor = None
+            if case is not None:
+                item.doctor_id = case.surgeon_id or None
+                # The object, not the id: the relationship on a line that has
+                # not been flushed yet reads back ``None``, so working the
+                # share out from ``item.doctor`` here would quietly pay it at
+                # the invoice doctor's rate.
+                line_doctor = case.surgeon
+                billed_cases[id(item)] = case
             svc = db.session.get(Service, sid) if sid else None
             # Vaccine product lines carry no invoice commission (doctor share is
             # the brand's doctor_fee, tracked on the dose — never double-paid).
             no_comm = i < len(nocomms) and nocomms[i] in ("1", "on", "true")
             if svc is not None and not no_comm:
-                item.commission_amount = svc.doctor_share(item.net, invoice.doctor)
+                item.commission_amount = svc.doctor_share(
+                    item.net, line_doctor or invoice.doctor)
             invoice.items.append(item)
             new_items.append(item)
             kept.append(i)
@@ -2412,6 +2595,27 @@ def _checkout_screen(appt, patient):
         # added to an existing invoice, so the main checkout never deducted
         # anything. Deducted once, here, as the invoice is raised.
         db.session.flush()
+        # And the day case carries the line that paid for it, which is what
+        # stops it being offered at the desk again on the next visit — the
+        # same stamp the nights and the doses use.
+        for item in new_items:
+            case = billed_cases.get(id(item))
+            if case is not None:
+                case.invoice_item_id = item.id
+            test = billed_tests.get(id(item))
+            if test is not None:
+                test.invoice_item_id = item.id
+            handover = billed_rx.get(id(item))
+            if handover is not None:
+                handover.invoice_item_id = item.id
+        # And the boxes the pharmacy handed over leave the shelf, under one
+        # issue document that rides on the invoice — so the cost of goods is
+        # journalled in the same posting as a service's consumables below.
+        if billed_rx:
+            from app.utils import pharmacy
+
+            pharmacy.take_off_shelf(list(billed_rx.values()), invoice,
+                                    user=current_user, lang=lang)
         burned = 0
         for item in new_items:
             if item.service_id is None:

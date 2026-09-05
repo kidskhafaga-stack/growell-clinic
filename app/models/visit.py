@@ -10,7 +10,21 @@ from app.extensions import db
 from app.utils.clock import local_today
 
 VISIT_STATUSES = ["open", "completed"]
-INVESTIGATION_STATUSES = ["requested", "resulted"]
+# Where an order is. ``collected`` sits between the other two and arrived with
+# the lab bench: the sample has been drawn and nobody has run it yet.
+#
+# **It is a third state, not a second meaning for the first**, and everything
+# that used to ask ``status == "requested"`` to mean *no answer yet* has to ask
+# ``status != "resulted"`` instead. Four places did — the doctor's results
+# inbox, the pending list on the consultation screen, the WhatsApp file
+# matcher, and this list — and every one of them would have made an order
+# vanish the moment a clinic switched its lab on.
+INVESTIGATION_STATUSES = ["requested", "collected", "resulted"]
+
+# The ones still waiting for an answer. The predicate every screen outside the
+# lab actually wants: "has this been answered", never "which of the states
+# before the answer is it in" — that question belongs to the bench alone.
+INVESTIGATION_OPEN = ["requested", "collected"]
 
 
 class Visit(db.Model):
@@ -180,10 +194,39 @@ class VisitInvestigation(db.Model):
     result_high = db.Column(db.Float)
 
     resulted_at = db.Column(db.DateTime)
+
+    # ---- the bench ------------------------------------------------------
+    # What happens between the doctor asking and the answer coming back, and
+    # what the program had nothing at all for: the order went straight from
+    # `requested` to `resulted` because the only hands it passed through were
+    # the doctor's, typing what a paper report said.
+    #
+    # In a hospital there is a step in the middle, and it is the one that goes
+    # wrong: **the sample**. A test nobody drew blood for and a test whose
+    # blood is sitting in a rack look identical when the only fact stored is
+    # "requested" — and the second one is answered by waiting while the first
+    # needs somebody to go to the bed.
+    sample_code = db.Column(db.String(24), index=True)
+    collected_at = db.Column(db.DateTime)
+    collected_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    # Who ran it. Separate from the doctor who reads it: the person who put
+    # the number in is the person a query about the number goes to, and on the
+    # old flow that was always the doctor because there was nobody else.
+    resulted_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+
+    # The line that paid for it, once something has. Same stamp the bed
+    # nights, the ward doses and the theatre cases carry: the order knows what
+    # charged it, so asking twice charges once.
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
+                                nullable=True, index=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     visit = db.relationship("Visit", back_populates="investigations",
                             foreign_keys=[visit_id])
+    collector = db.relationship("User", foreign_keys=[collected_by])
+    resulter = db.relationship("User", foreign_keys=[resulted_by])
+    invoice_item = db.relationship("InvoiceItem")
     patient = db.relationship("Patient")
     investigation = db.relationship("Investigation")
 

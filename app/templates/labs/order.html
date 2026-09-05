@@ -1,0 +1,101 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ order.name }}{% endblock %}
+{% block page_heading %}{{ order.name }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ order.name }}</h1>
+    <p class="page-sub" style="margin:0;">
+      <a href="{{ url_for('patients.view', patient_id=order.patient_id) }}">
+        {{ order.patient.display_name(current_lang) }}</a>
+      · <span class="badge badge--muted" data-status>{{ t('lab.state_' ~ order.status) }}</span>
+      · <span class="hint" dir="ltr">{{ t('lab.waiting_n', n=waited) }}</span>
+    </p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
+    <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+</div>
+
+{# ---- the sample -------------------------------------------------------- #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-droplet"></i> {{ t('lab.sample') }}</h2>
+  {% if order.collected_at %}
+  <p class="hint" data-collected>
+    <span dir="ltr">{{ order.sample_code }}</span> · {{ order.collected_at|clinic_stamp }}
+    {% if order.collector %} · {{ order.collector.display_name(current_lang) }}{% endif %}
+  </p>
+  {% else %}
+  <p class="hint">{{ t('lab.no_sample_yet') }}</p>
+  {% endif %}
+
+  {% if order.status != 'resulted' %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        action="{{ url_for('labs.collect', order_id=order.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:180px;">
+      {# Left blank the program writes one. A label nobody has to invent is a
+         label that actually gets written on the tube. #}
+      <label for="code">{{ t('lab.tube_label') }}</label>
+      <input class="input" id="code" name="code" maxlength="24" dir="ltr"
+             placeholder="{{ t('lab.tube_auto') }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-droplet-fill"></i>
+      {{ t('lab.recollect') if order.collected_at else t('lab.collect') }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{# ---- the answer -------------------------------------------------------- #}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clipboard-data"></i> {{ t('lab.result') }}</h2>
+  {% if order.resulted_at %}
+  <p class="hint" data-resulted>{{ order.resulted_at|clinic_stamp }}
+    {% if order.resulter %} · {{ order.resulter.display_name(current_lang) }}{% endif %}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('labs.result', order_id=order.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;min-width:120px;">
+        <label for="result_value">{{ t('lab.value') }}</label>
+        <input class="input" id="result_value" name="result_value" dir="ltr"
+               value="{{ order.result_value if order.result_value is not none else '' }}">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:100px;">
+        <label for="result_unit">{{ t('lab.unit') }}</label>
+        <input class="input" id="result_unit" name="result_unit" maxlength="20" dir="ltr"
+               value="{{ order.result_unit or (order.investigation.unit if order.investigation else '') }}">
+      </div>
+      {# The range **this report printed**, not one the program holds. A
+         paediatric range moves with age and with the assay, and one number
+         shown for every child would be the program inventing a clinical
+         fact — the rule the vaccine tables exist to keep. #}
+      <div class="form-row" style="margin-bottom:0;min-width:100px;">
+        <label for="result_low">{{ t('lab.low') }}</label>
+        <input class="input" id="result_low" name="result_low" dir="ltr"
+               value="{{ order.result_low if order.result_low is not none else '' }}">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:100px;">
+        <label for="result_high">{{ t('lab.high') }}</label>
+        <input class="input" id="result_high" name="result_high" dir="ltr"
+               value="{{ order.result_high if order.result_high is not none else '' }}">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:10px;">
+      {# The words, for everything that is not a number: a culture, a film,
+         a smear. Beside the value and never instead of it. #}
+      <label for="result_text">{{ t('lab.report') }}</label>
+      <textarea class="input" id="result_text" name="result_text" rows="4">{{ order.result_text or '' }}</textarea>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+
+  <p class="hint" style="margin-top:12px;">{{ t('lab.reading_is_the_doctors') }}</p>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('lab.tests') }}{% endblock %}
+{% block page_heading %}{{ t('lab.tests') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-list-check"></i> {{ t('lab.tests') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab.tests_sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('labs.index') }}">
+    <i class="bi bi-list-ul"></i> {{ t('lab.the_rack') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-plus-lg"></i> {{ t('lab.add_test') }}</h2>
+  <form method="post" action="{{ url_for('labs.add_test') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
+      <label for="name_ar">{{ t('lab.test_name') }}</label>
+      <input class="input" id="name_ar" name="name_ar" maxlength="160" required>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="name_en">{{ t('lab.test_name_en') }}</label>
+      <input class="input" id="name_en" name="name_en" maxlength="160" dir="ltr">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:120px;">
+      <label for="kind">{{ t('lab.kind') }}</label>
+      <select class="select" id="kind" name="kind">
+        {% for one in kinds %}
+        <option value="{{ one }}">{{ t('lab.kind_' ~ one) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:110px;">
+      <label for="unit">{{ t('lab.unit') }}</label>
+      <input class="input" id="unit" name="unit" maxlength="20" dir="ltr">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:130px;">
+      <label for="sample_type">{{ t('lab.sample_type') }}</label>
+      <input class="input" id="sample_type" name="sample_type" maxlength="40">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      {# What it is charged as. Empty means the clinic does not bill this test
+         separately — nothing is ever charged and no figure is ever shown. #}
+      <label for="service_id">{{ t('lab.charged_as') }}</label>
+      <select class="select" id="service_id" name="service_id">
+        <option value="">{{ t('common.none') }}</option>
+        {% for service in services %}
+        <option value="{{ service.id }}">{{ service.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('lab.no_tests') }}</p>
+</div>
+{% else %}
+{# One form per test, each a block of its own rather than a row in an editable
+   table. A `<form>` cannot be a child of `<tr>` — the browser hoists it out of
+   the table and every input inside it silently stops belonging to it, which is
+   the same class of bug as `test_a_form_inside_a_form.py`. #}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <form method="post" data-test="{{ row.id }}"
+        action="{{ url_for('labs.edit_test', test_id=row.id) }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;
+               padding:11px 0;border-top:1px dashed var(--line);">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:190px;flex:1;">
+      <label>{{ t('lab.test_name') }}
+        <span class="badge badge--muted">{{ t('lab.kind_' ~ row.kind) }}</span></label>
+      <input class="input" name="name_ar" maxlength="160" value="{{ row.name_ar }}">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:140px;">
+      <label>{{ t('lab.test_name_en') }}</label>
+      <input class="input" name="name_en" maxlength="160" dir="ltr"
+             value="{{ row.name_en or '' }}">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:100px;">
+      <label>{{ t('lab.unit') }}</label>
+      <input class="input" name="unit" maxlength="20" dir="ltr"
+             value="{{ row.unit or '' }}">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:120px;">
+      <label>{{ t('lab.sample_type') }}</label>
+      <input class="input" name="sample_type" maxlength="40"
+             value="{{ row.sample_type or '' }}">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:180px;">
+      <label>{{ t('lab.charged_as') }}</label>
+      <select class="select" name="service_id" data-price>
+        <option value="">{{ t('common.none') }}</option>
+        {% for service in services %}
+        <option value="{{ service.id }}"
+                {{ 'selected' if service.id == row.service_id else '' }}>
+          {{ service.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <label class="hint" style="min-width:80px;">
+      <input type="checkbox" name="is_active" value="1"
+             {{ 'checked' if row.is_active else '' }}> {{ t('lab.in_use') }}</label>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      {{ t('common.save') }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

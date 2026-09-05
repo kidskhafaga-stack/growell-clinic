@@ -95,6 +95,10 @@ ADDITIONS = [
     ("payments", "tendered", "FLOAT"),
     ("invoice_items", "vaccine_brand_id", "INTEGER"),
     ("invoice_items", "vaccine_dose_number", "INTEGER"),
+    # Whose line this is when it is not the invoice's own doctor — the
+    # surgeon's fee on a stay's bill. Null means the invoice's doctor, so
+    # every existing line behaves exactly as it did.
+    ("invoice_items", "doctor_id", "INTEGER"),
     ("named_discounts", "payer_id", "INTEGER"),
     ("named_discounts", "min_siblings", "INTEGER DEFAULT 2"),
     ("drugs", "generic_id", "INTEGER"),
@@ -176,6 +180,29 @@ ADDITIONS = [
     ("visit_investigations", "result_unit", "VARCHAR(20)"),
     ("visit_investigations", "result_low", "FLOAT"),
     ("visit_investigations", "result_high", "FLOAT"),
+    # The bench: the sample, who drew it, who ran it, and the line that paid.
+    # Every one of them nullable, because an order written before the lab
+    # module existed went from the doctor's hand to the doctor's keyboard and
+    # never passed through anybody else's.
+    ("visit_investigations", "sample_code", "VARCHAR(24)"),
+    ("visit_investigations", "collected_at", "DATETIME"),
+    ("visit_investigations", "collected_by", "INTEGER"),
+    ("visit_investigations", "resulted_by", "INTEGER"),
+    ("visit_investigations", "invoice_item_id", "INTEGER"),
+    ("investigations", "sample_type", "VARCHAR(40)"),
+    ("investigations", "service_id", "INTEGER"),
+    # The pharmacy counter. Every one nullable: a clinic whose families fill
+    # their prescriptions outside is the normal case and keeps working exactly
+    # as it did — nothing on the line, nothing dispensed, nothing charged.
+    ("prescription_items", "store_item_id", "INTEGER"),
+    ("prescription_items", "quantity", "INTEGER"),
+    ("prescription_items", "dispensed_at", "DATETIME"),
+    ("prescription_items", "dispensed_by", "INTEGER"),
+    ("prescription_items", "invoice_item_id", "INTEGER"),
+    ("prescription_items", "stock_movement_id", "INTEGER"),
+    ("prescription_items", "query_note", "VARCHAR(255)"),
+    ("prescription_items", "queried_at", "DATETIME"),
+    ("prescription_items", "queried_by", "INTEGER"),
     ("investigations", "unit", "VARCHAR(20)"),
     ("investigations", "code", "VARCHAR(40)"),
     # The per-specialty case history: a whole table, created by `create_all`

@@ -1,0 +1,212 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('nav.theatres') }}{% endblock %}
+{% block page_heading %}{{ t('nav.theatres') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One block per room, the cases under it in time order. A flat list of the
+     day's operations was the obvious shape and is the wrong one: the person
+     reading this is asking "what is theatre two doing at eleven", and a list
+     sorted purely by hour makes them read every room to answer it. */
+  .th-room { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+             margin-bottom:12px; }
+  .th-room__head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;
+                   margin-bottom:8px; }
+  .th-case { display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+             padding:10px 0; border-top:1px dashed var(--line); }
+  .th-case__who { min-width:200px; flex:1; }
+  .th-when { font-variant-numeric: tabular-nums; font-weight:700; min-width:56px; }
+  .th-name { font-weight:600; }
+  /* The checklist, three dots, read from across the room. This is the only
+     thing on the day screen that is not a fact about the timetable, and it is
+     deliberately the loudest: an unsigned stop is the point of the module. */
+  .th-dots { display:inline-flex; gap:4px; }
+  .th-dot { width:11px; height:11px; border-radius:50%; display:inline-block;
+            border:2px solid var(--line); }
+  .th-dot.on   { background:var(--green-600); border-color:var(--green-600); }
+  .th-dot.gap  { background:var(--danger);    border-color:var(--danger); }
+  .th-case.st-cancelled { opacity:.55; }
+  .th-case.st-in_theatre { border-inline-start:5px solid #d97706; padding-inline-start:8px; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('theatre.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {# The day is a thing somebody moves back and forth through: yesterday's
+       list is what a morning meeting reads, and tomorrow's is what the
+       booking clerk is filling. #}
+    <form method="get" style="display:flex;gap:6px;align-items:center;">
+      <input class="input" type="date" name="date" value="{{ on_date }}"
+             onchange="this.form.submit()" dir="ltr">
+      <noscript><button class="btn btn-outline" type="submit">{{ t('theatre.show_day') }}</button></noscript>
+    </form>
+    {% if may_build %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.setup') }}">
+      <i class="bi bi-door-closed"></i> {{ t('theatre.rooms') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if not rooms %}
+{# Switched on and nothing built. Said plainly, with the one door that leads
+   somewhere — an empty screen here reads as a module that does not work. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0 0 10px;">{{ t('theatre.no_rooms') }}</p>
+  {% if may_build %}
+  <a class="btn btn-primary gc-press" href="{{ url_for('theatres.setup') }}">
+    <i class="bi bi-plus-lg"></i> {{ t('theatre.add_room') }}</a>
+  {% endif %}
+</div>
+{% else %}
+
+<div class="card gc-scale-in">
+  {% for room in rooms %}
+  <div class="th-room" data-room="{{ room.theatre.id }}">
+    <div class="th-room__head">
+      <span class="th-name"><i class="bi bi-door-closed"></i> {{ room.theatre.name }}</span>
+      <span class="badge badge--muted">{{ t('theatre.n_cases', n=room.operations|length) }}</span>
+      {% if room.theatre.note %}<span class="hint">{{ room.theatre.note }}</span>{% endif %}
+    </div>
+
+    {% if not room.operations %}
+    <p class="hint" style="margin:0;">{{ t('theatre.room_empty') }}</p>
+    {% else %}
+    {% for case in room.operations %}
+    {% set op = case.operation %}
+    <div class="th-case st-{{ op.status }}" data-status="{{ op.status }}">
+      <span class="th-when" dir="ltr">
+        {{ op.start_time.strftime('%H:%M') if op.start_time else '—' }}</span>
+      <div class="th-case__who">
+        <div class="th-name">
+          <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+            {{ op.patient.display_name(current_lang) }}</a></div>
+        <div class="hint">{{ op.procedure }}
+          {% if op.surgeon %} · {{ op.surgeon.display_name(current_lang) }}{% endif %}
+          {% if op.minutes %} · <span dir="ltr">{{ t('theatre.n_minutes', n=op.minutes) }}</span>{% endif %}
+        </div>
+      </div>
+
+      {# Where the checklist stands, in three dots: signed, signed short, not
+         signed at all. The missing stop is the finding, so it is drawn rather
+         than left to be noticed. #}
+      <span class="th-dots" data-safety title="{{ t('theatre.checklist') }}">
+        {% for stop in stops %}
+        <span class="th-dot {{ 'gap' if case.safety.missed.get(stop)
+                               else ('on' if stop in case.safety.done else '') }}"
+              data-stop="{{ stop }}"
+              data-state="{{ 'short' if case.safety.missed.get(stop)
+                             else ('signed' if stop in case.safety.done else 'none') }}"
+              title="{{ t('theatre.stop_' ~ stop) }}"></span>
+        {% endfor %}
+      </span>
+
+      <span class="badge badge--muted" data-op-status>{{ t('theatre.status_' ~ op.status) }}</span>
+      {% if op.status == 'scheduled' and not case.safety.ready %}
+      <span class="alert-pill warn" data-unsigned>
+        <i class="bi bi-shield-exclamation"></i> {{ t('theatre.not_signed_in_short') }}</span>
+      {% endif %}
+      <a class="btn btn-sm btn-outline gc-press"
+         href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+        <i class="bi bi-clipboard2-check"></i> {{ t('theatre.open_case') }}</a>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{# The first door: a day case, booked from the list itself. The second is on
+   the stay screen, where a child already in a bed is booked by whoever is
+   looking after them. #}
+<div class="card gc-scale-in" style="margin-top:14px;"
+     x-data="{
+       picker: window.gcPicker({ url: '{{ url_for('theatres.patient_search') }}', minChars: 2 }),
+       q: '',
+       pick(r) {
+         this.picker.close();
+         this.$refs.patient.value = r.id || '';
+         this.q = r.name || '';
+       }
+     }">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-calendar-plus"></i> {{ t('theatre.book') }}</h2>
+  <form method="post" action="{{ url_for('theatres.book') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="patient_id" x-ref="patient">
+    <input type="hidden" name="date" value="{{ on_date }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;position:relative;">
+        <label for="th_patient">{{ t('theatre.patient') }}</label>
+        <input class="input" id="th_patient" type="text" autocomplete="off"
+               x-model="q" role="combobox" aria-autocomplete="list"
+               :aria-expanded="picker.open ? 'true' : 'false'"
+               x-on:input.debounce.250ms="picker.q = q; picker.search()"
+               x-on:keydown.arrow-down.prevent="picker.move(1)"
+               x-on:keydown.arrow-up.prevent="picker.move(-1)"
+               x-on:keydown.escape="picker.close()"
+               x-on:blur="setTimeout(() => picker.close(), 150)">
+        <div class="gc-picker" x-show="picker.open" x-cloak role="listbox">
+          <template x-for="(r, idx) in picker.items" :key="idx">
+            <button type="button" class="gc-picker-item" role="option"
+                    :aria-selected="idx === picker.active ? 'true' : 'false'"
+                    x-on:mouseenter="picker.active = idx"
+                    x-on:click="pick(r)">
+              <span x-text="r.name"></span>
+              <span class="badge badge--muted" x-text="r.file"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="th_room">{{ t('theatre.room') }}</label>
+        <select class="select" id="th_room" name="theatre_id">
+          {% for room in rooms %}
+          <option value="{{ room.theatre.id }}">{{ room.theatre.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+        <label for="th_procedure">{{ t('theatre.procedure') }}</label>
+        <input class="input" id="th_procedure" name="procedure" maxlength="200">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;">
+        {# What it is charged as. Left empty on purpose when nobody knows yet:
+           an operation with no service is booked, done, and simply never
+           reaches a bill — the price is the switch, here as everywhere. #}
+        <label for="th_service">{{ t('theatre.charged_as') }}</label>
+        <select class="select" id="th_service" name="service_id">
+          <option value="">{{ t('common.none') }}</option>
+          {% for service in services %}
+          <option value="{{ service.id }}">{{ service.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:170px;">
+        <label for="th_surgeon">{{ t('theatre.surgeon') }}</label>
+        <select class="select" id="th_surgeon" name="surgeon_id">
+          <option value="">{{ t('common.none') }}</option>
+          {% for doctor in surgeons %}
+          <option value="{{ doctor.id }}">{{ doctor.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:120px;">
+        <label for="th_start">{{ t('theatre.start_time') }}</label>
+        <input class="input" type="time" id="th_start" name="start_time" dir="ltr">
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:110px;">
+        <label for="th_minutes">{{ t('theatre.minutes') }}</label>
+        <input class="input" type="number" min="5" max="1440" id="th_minutes"
+               name="minutes" dir="ltr">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-plus-lg"></i> {{ t('theatre.book') }}</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

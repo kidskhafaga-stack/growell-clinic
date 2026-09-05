@@ -27,12 +27,18 @@ def arrived_unread(doctor_id=None, limit=100):
 
     from app.extensions import db
     from app.models import PatientAttachment, Visit, VisitInvestigation
+    from app.models.visit import INVESTIGATION_OPEN
 
     rows = (VisitInvestigation.query
             .options(selectinload(VisitInvestigation.files),
                      selectinload(VisitInvestigation.patient),
                      selectinload(VisitInvestigation.visit))
-            .filter(VisitInvestigation.status == "requested")
+            # Anything without an answer yet — **not** `== "requested"`. The
+            # lab bench added `collected` between the two, and asking for the
+            # exact first state made a film whose sample had been drawn drop
+            # off this list silently: the report was sitting on the record and
+            # the doctor was never told it had come.
+            .filter(VisitInvestigation.status.in_(INVESTIGATION_OPEN))
             # Only the ones with something attached; the rest are still out
             # with the family and belong on nobody's list.
             .filter(VisitInvestigation.id.in_(

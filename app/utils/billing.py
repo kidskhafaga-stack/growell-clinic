@@ -46,8 +46,12 @@ def apply_cash_prices(invoice):
             continue
         item.unit_price = price
         if item.service is not None:
-            item.commission_amount = item.service.doctor_share(item.net,
-                                                               invoice.doctor)
+            # Against the line's own doctor when it has one. A theatre line on
+            # a stay's bill is owed to the surgeon, and repricing it from the
+            # cash list used to hand it back to the admitting doctor's rate —
+            # a number that changed for no reason anybody could point at.
+            item.commission_amount = item.service.doctor_share(
+                item.net, item.doctor or invoice.doctor)
 
 
 def apply_coverage(invoice, patient, warn=None, then=None):

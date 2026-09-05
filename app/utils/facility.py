@@ -32,7 +32,8 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 #
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
-                  "emergency", "nicu", "icu", "ward"}
+                  "emergency", "nicu", "icu", "ward", "theatres", "labs",
+                  "pharmacy"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -55,7 +56,8 @@ FACILITY_TYPES = {
     "hospital":          {"icon": "hospital",
                           "caps": ["general_consultation", "followup", "laboratory",
                                    "ultrasound", "xray", "pharmacy",
-                                   "emergency_care", "ward", "icu"]},
+                                   "emergency_care", "ward", "icu",
+                                   "surgery"]},
     "diagnostic_center": {"icon": "activity",
                           "caps": ["ecg", "echo", "ultrasound", "laboratory"]},
     "pediatric_center":  {"icon": "emoji-smile",
@@ -77,6 +79,10 @@ CAPABILITY_GROUPS = {
     "laboratory": ["laboratory", "sample_collection", "pathology"],
     "pharmacy":   ["pharmacy", "clinical_pharmacy"],
     "inpatient":  ["observation", "day_care", "ward", "nicu", "icu"],
+    # A group of its own rather than a line inside "inpatient": a hospital
+    # that operates and one that admits are different claims about a place,
+    # and a day-case unit is the second without the first.
+    "surgical":   ["surgery"],
 }
 ALL_CAPABILITIES = [c for group in CAPABILITY_GROUPS.values() for c in group]
 
@@ -99,8 +105,19 @@ CAPABILITY_MODULES = {
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
     "ultrasound": {"visits", "inventory"}, "xray": {"visits", "inventory"},
     "ct": {"visits", "inventory"}, "mri": {"visits", "inventory"},
-    "laboratory": {"visits"}, "sample_collection": {"visits"}, "pathology": {"visits"},
-    "pharmacy": {"prescriptions", "inventory"}, "clinical_pharmacy": {"prescriptions"},
+    # A lab of its own means a bench of its own: the rack, the sample and the
+    # result belong to whoever runs it. A clinic that *sends* its tests out
+    # ticks nothing here and keeps ordering from the visit screen exactly as
+    # before — which is why this switches on `labs` and the plain `visits`
+    # ordering never depended on it.
+    "laboratory": {"visits", "labs"},
+    "sample_collection": {"visits", "labs"},
+    "pathology": {"visits", "labs"},
+    # A pharmacy of its own means a counter: the queue, the review and the
+    # handover. A clinic that writes prescriptions for families to fill
+    # outside ticks neither and keeps the writer exactly as it is.
+    "pharmacy": {"prescriptions", "inventory", "pharmacy"},
+    "clinical_pharmacy": {"prescriptions", "pharmacy"},
     # Every one of these is somewhere a child is watched rather than seen
     # once, so each of them wants the rounds. A clinic that ticks "emergency"
     # in the wizard and then cannot record a second temperature has been sold
@@ -115,6 +132,11 @@ CAPABILITY_MODULES = {
     "ward": {"visits", "observations", "beds", "ward"},
     "nicu": {"visits", "observations", "beds", "nicu"},
     "icu": {"visits", "observations", "beds", "icu"},
+    # The theatre list, and the bed the child wakes up in. `beds` because
+    # ``recovery`` has been a unit kind since the wards were built and that is
+    # where a case goes afterwards; `observations` because a recovery room is
+    # readings at a five-minute interval and nothing else.
+    "surgery": {"visits", "observations", "beds", "theatres"},
 }
 
 # Ready-made presets: type + capabilities (modules derived).

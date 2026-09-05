@@ -285,9 +285,23 @@ class InvoiceItem(db.Model):
     discount_value = db.Column(db.Float, default=0)          # raw input
     discount_is_percent = db.Column(db.Boolean, default=False)
     commission_amount = db.Column(db.Float, default=0)        # doctor cut snapshot
+    # **Whose line this is, when it is not the invoice's own doctor.**
+    #
+    # An invoice belongs to one doctor, which was true for as long as an
+    # invoice was one outpatient visit. A hospital stay broke it: the bill for
+    # three days belongs to the admitting doctor, and the operation on the
+    # second day was done by a surgeon who is neither of them. Reading the
+    # share off the invoice's doctor priced the surgeon's work at the wrong
+    # rate — silently, because both numbers look plausible.
+    #
+    # Nullable, and null means "the invoice's doctor" — so every line ever
+    # written before this column behaves exactly as it did.
+    doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True,
+                          index=True)
 
     invoice = db.relationship("Invoice", back_populates="items")
     service = db.relationship("Service")
+    doctor = db.relationship("User", foreign_keys=[doctor_id])
 
     @property
     def gross(self):

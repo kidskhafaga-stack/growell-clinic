@@ -387,6 +387,62 @@
   {% endif %}
 </div>
 
+{# ---- the theatre ------------------------------------------------------- #}
+{# The second door. A day case is booked from the theatre list; a child who is
+   already in a bed is booked from here, because this is where whoever is
+   looking after them is standing. Absent entirely when the module is off —
+   not a disabled button, not an empty box. #}
+{% if theatre_rooms and current_user.can_access('theatres') %}
+<div class="card gc-scale-in" style="margin-bottom:16px;" data-theatre>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-scissors"></i> {{ t('nav.theatres') }}</h2>
+
+  {% if admission.operations %}
+  <ul style="margin:0 0 12px;padding-inline-start:18px;">
+    {% for op in admission.operations|sort(attribute='on_date') %}
+    <li data-operation="{{ op.id }}">
+      <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">{{ op.procedure }}</a>
+      <span class="hint" dir="ltr">{{ op.on_date }}</span>
+      <span class="badge badge--muted">{{ t('theatre.status_' ~ op.status) }}</span>
+      {% if op.invoice_item_id %}
+      <span class="alert-pill ok"><i class="bi bi-cash-coin"></i> {{ t('theatre.on_the_bill') }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if admission.is_open %}
+  <form method="post" action="{{ url_for('theatres.book') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="patient_id" value="{{ admission.patient_id }}">
+    {# The stay comes with it, so the operation lands on this admission's one
+       bill rather than raising a second account for the same piece of care. #}
+    <input type="hidden" name="admission_id" value="{{ admission.id }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+      <label for="op_procedure">{{ t('theatre.procedure') }}</label>
+      <input class="input" id="op_procedure" name="procedure" maxlength="200">
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:160px;">
+      <label for="op_room">{{ t('theatre.room') }}</label>
+      <select class="select" id="op_room" name="theatre_id">
+        {% for room in theatre_rooms %}
+        <option value="{{ room.id }}">{{ room.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="op_date">{{ t('theatre.the_day') }}</label>
+      <input class="input" type="date" id="op_date" name="date" dir="ltr">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-calendar-plus"></i> {{ t('theatre.book') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ---- the round --------------------------------------------------------- #}
 {# The stay's own thread. The board answers "has anybody been round today"
    across a whole department; this is the other half of the same fact — what

@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% set active_module = 'labs' %}
+{% block title %}{{ t('nav.labs') }}{% endblock %}
+{% block page_heading %}{{ t('nav.labs') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One row per order, and the border says which of the two jobs it is
+     waiting for. A single undifferentiated list was the obvious shape and is
+     the wrong one: drawing blood and running a sample are done by two people,
+     and a list that mixes them makes each of them read the other's work. */
+  .lb-row { border:1px solid var(--line); border-radius:12px; padding:11px 13px;
+            margin-bottom:9px; display:flex; gap:12px; flex-wrap:wrap;
+            align-items:center; }
+  .lb-row.st-requested { border-inline-start:5px solid #d97706; }
+  .lb-row.st-collected { border-inline-start:5px solid var(--green-600); }
+  .lb-row__who { min-width:190px; flex:1; }
+  .lb-name { font-weight:600; }
+  .lb-waited { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-eyedropper"></i> {{ t('nav.labs') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lab.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {# The two jobs, as two counts. Whoever is holding a rack wants their own
+       number, not a total that mixes it with somebody else's. #}
+    <a class="badge {{ 'badge--muted' if state != 'requested' else '' }}"
+       style="text-decoration:none;" data-count="to_collect"
+       href="{{ url_for('labs.index', state='requested', kind=kind) }}">
+      {{ t('lab.to_collect', n=counts.to_collect) }}</a>
+    <a class="badge {{ 'badge--muted' if state != 'collected' else '' }}"
+       style="text-decoration:none;" data-count="to_run"
+       href="{{ url_for('labs.index', state='collected', kind=kind) }}">
+      {{ t('lab.to_run', n=counts.to_run) }}</a>
+    <a class="btn btn-outline gc-press{{ ' btn-primary' if not state and not kind else '' }}"
+       href="{{ url_for('labs.index') }}">{{ t('lab.everything') }}</a>
+    {% if may_build %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('labs.tests') }}">
+      <i class="bi bi-list-check"></i> {{ t('lab.tests') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if not rows %}
+{# "Nothing is waiting" is a real and good answer, and has to read as one
+   rather than as a module that failed to load. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('lab.nothing_waiting') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div class="lb-row st-{{ row.status }}" data-status="{{ row.status }}">
+    <div class="lb-row__who">
+      <div class="lb-name">
+        <a href="{{ url_for('labs.order', order_id=row.id) }}">{{ row.name }}</a>
+      </div>
+      <div class="hint">
+        <a href="{{ url_for('patients.view', patient_id=row.patient_id) }}">
+          {{ row.patient.display_name(current_lang) }}</a>
+        {% if row.investigation and row.investigation.sample_type %}
+        · {{ row.investigation.sample_type }}{% endif %}
+        {% if row.request_notes %} · {{ row.request_notes }}{% endif %}
+      </div>
+    </div>
+
+    {% if row.status == 'collected' %}
+    <span class="alert-pill ok" data-sample>
+      <i class="bi bi-upc"></i> <span dir="ltr">{{ row.sample_code }}</span></span>
+    {% else %}
+    <span class="alert-pill warn" data-needs-sample>
+      <i class="bi bi-droplet"></i> {{ t('lab.needs_sample') }}</span>
+    {% endif %}
+
+    {# How long it has been sitting there. The one number this screen is read
+       for, and it is on the row rather than in a tooltip. #}
+    <span class="hint lb-waited" dir="ltr" data-waited>
+      {{ t('lab.waiting_n', n=bench.waiting_minutes(row, now)) }}</span>
+
+    <a class="btn btn-sm btn-outline gc-press"
+       href="{{ url_for('labs.order', order_id=row.id) }}">
+      {{ t('lab.open') }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

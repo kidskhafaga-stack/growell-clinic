@@ -1,0 +1,320 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ operation.procedure }}{% endblock %}
+{% block page_heading %}{{ operation.procedure }}{% endblock %}
+
+{% block content %}
+<style>
+  /* The checklist is the screen, not a panel on it. `HOSPITAL_PLAN.md` ٤-ج:
+     "قايمة الفحص قبل العملية تكون هي قلب الشاشة مش ورقة جنبها" — so it is
+     first, it is wide, and the timetable facts sit above it in one line. */
+  .op-head { display:flex; gap:14px; flex-wrap:wrap; align-items:baseline;
+             margin-bottom:6px; }
+  .op-stop { border:1px solid var(--line); border-radius:12px; padding:14px;
+             margin-bottom:12px; }
+  .op-stop.signed { border-inline-start:5px solid var(--green-600); }
+  .op-stop.short  { border-inline-start:5px solid #d97706; }
+  .op-stop.next   { border-inline-start:5px solid var(--danger); }
+  .op-stop__head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;
+                   margin-bottom:10px; }
+  .op-stop__title { font-weight:700; font-size:1.02rem; }
+  /* The items, big enough to tick standing up with gloves on. A dense list
+     read at a table is not the thing being built here. */
+  .op-items { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+  .op-item { display:flex; gap:8px; align-items:flex-start; padding:8px 10px;
+             border:1px solid var(--line); border-radius:9px; cursor:pointer; }
+  .op-item input { margin-top:2px; }
+  .op-missed { color:var(--danger); }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-scissors"></i> {{ operation.procedure }}</h1>
+    <div class="op-head">
+      <a href="{{ url_for('patients.view', patient_id=operation.patient.id) }}">
+        {{ operation.patient.display_name(current_lang) }}</a>
+      <span class="hint">{{ operation.theatre.name }}</span>
+      <span class="hint" dir="ltr">{{ operation.on_date }}
+        {% if operation.start_time %}· {{ operation.start_time.strftime('%H:%M') }}{% endif %}</span>
+      {% if operation.surgeon %}
+      <span class="hint">{{ t('theatre.surgeon') }}: {{ operation.surgeon.display_name(current_lang) }}</span>
+      {% endif %}
+      {% if operation.anaesthetist %}
+      <span class="hint">{{ t('theatre.anaesthetist') }}: {{ operation.anaesthetist.display_name(current_lang) }}</span>
+      {% endif %}
+      <span class="badge badge--muted" data-op-status>{{ t('theatre.status_' ~ operation.status) }}</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    {% if operation.admission %}
+    {# Back to the bed the child came from, when there is one. A day case has
+       no admission and gets no dead link. #}
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('beds.admission', admission_id=operation.admission_id) }}">
+      <i class="bi bi-hospital"></i> {{ t('theatre.the_stay') }}</a>
+    {% endif %}
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('theatres.index', date=operation.on_date) }}">
+      <i class="bi bi-list-ul"></i> {{ t('theatre.the_day') }}</a>
+  </div>
+</div>
+
+{# ------------------------------------------------------ the checklist --- #}
+<div class="card gc-scale-in">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-check"></i> {{ t('theatre.checklist') }}</h2>
+  <p class="hint">{{ t('theatre.checklist_hint') }}</p>
+
+  {% for stop in stops %}
+  {% set signed = safety.signed.get(stop) %}
+  {% set short = safety.missed.get(stop) %}
+  <div class="op-stop {{ 'short' if short else ('signed' if signed else ('next' if safety.next == stop else '')) }}"
+       data-stop="{{ stop }}"
+       data-state="{{ 'short' if short else ('signed' if signed else 'none') }}">
+    <div class="op-stop__head">
+      <span class="op-stop__title">{{ t('theatre.stop_' ~ stop) }}</span>
+      <span class="hint">{{ t('theatre.stop_when_' ~ stop) }}</span>
+      {% if signed %}
+      <span class="alert-pill ok" data-signed>
+        <i class="bi bi-check2-circle"></i>
+        {{ signed.at|clinic_stamp }}
+        {% if signed.by %} · {{ signed.by.display_name(current_lang) }}{% endif %}</span>
+      {% endif %}
+      {% if short %}
+      {# A stop signed with items unticked, kept visible and named. A green
+         tick over four of seven would be the program manufacturing a
+         signature, which is worse than having no checklist at all. #}
+      <span class="alert-pill warn" data-short>
+        <i class="bi bi-exclamation-triangle"></i>
+        {{ t('theatre.n_unticked', n=short|length) }}</span>
+      {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('theatres.sign', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="stop" value="{{ stop }}">
+      <div class="op-items">
+        {% for item in items[stop] %}
+        <label class="op-item {{ 'op-missed' if short and item in short else '' }}">
+          <input type="checkbox" name="item" value="{{ item }}"
+                 {{ 'checked' if signed and signed.has(item) else '' }}>
+          <span>{{ t('theatre.item_' ~ item) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+        <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+          <label for="note_{{ stop }}">{{ t('theatre.stop_note') }}</label>
+          <input class="input" id="note_{{ stop }}" name="note" maxlength="255"
+                 value="{{ signed.note or '' if signed else '' }}">
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:170px;">
+          {# When it happened, not when it was typed. A nurse signing the
+             time-out at ten past is recording a stop the team made at ten. #}
+          <label for="at_{{ stop }}">{{ t('theatre.stop_at') }}</label>
+          <input class="input" type="datetime-local" id="at_{{ stop }}" name="at">
+        </div>
+        <button class="btn {{ 'btn-outline' if signed else 'btn-primary' }} gc-press"
+                type="submit">
+          <i class="bi bi-pen"></i>
+          {{ t('theatre.resign') if signed else t('theatre.sign') }}</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+
+{# --------------------------------------------------------- the case ---- #}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-clock"></i> {{ t('theatre.the_case') }}</h2>
+
+  {% if operation.status == 'scheduled' %}
+  {% if not safety.ready %}
+  {# The one refusal in the module, said before the button is pressed rather
+     than after. A control that looks live and answers "no" teaches people to
+     press it twice. #}
+  <p class="alert-pill danger" data-blocked style="display:inline-flex;">
+    <i class="bi bi-shield-exclamation"></i> {{ t('theatre.not_signed_in') }}</p>
+  {% endif %}
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        action="{{ url_for('theatres.start', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      <label for="start_at">{{ t('theatre.started_at') }}</label>
+      <input class="input" type="datetime-local" id="start_at" name="at">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit"
+            {{ 'disabled' if not safety.ready else '' }}>
+      <i class="bi bi-play-fill"></i> {{ t('theatre.start') }}</button>
+  </form>
+
+  {% elif operation.status == 'in_theatre' %}
+  <p class="hint" dir="ltr">{{ t('theatre.started') }} · {{ operation.started_at|clinic_stamp }}</p>
+  <form method="post" action="{{ url_for('theatres.finish', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label for="findings">{{ t('theatre.findings') }}</label>
+      <textarea class="input" id="findings" name="findings" rows="3"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;min-width:170px;">
+        <label for="finish_at">{{ t('theatre.finished_at') }}</label>
+        <input class="input" type="datetime-local" id="finish_at" name="at">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-check2"></i> {{ t('theatre.finish') }}</button>
+    </div>
+  </form>
+
+  {% else %}
+  <p class="hint" dir="ltr">
+    {% if operation.started_at %}{{ operation.started_at|clinic_stamp }}{% endif %}
+    {% if operation.finished_at %} — {{ operation.finished_at|clinic_stamp }}{% endif %}
+    {% if operation.cancel_reason %} · {{ operation.cancel_reason }}{% endif %}
+  </p>
+  {% endif %}
+
+  {% if operation.status == 'done' and not safety.closed %}
+  {# Kept saying it. The finish was never refused for a missing sign-out —
+     that would leave the child in theatre for ever in the program's telling —
+     so the gap is shown instead, and goes on being shown. #}
+  <p class="alert-pill danger" data-no-signout style="display:inline-flex;">
+    <i class="bi bi-shield-exclamation"></i> {{ t('theatre.sign_out_missing') }}</p>
+  {% endif %}
+
+  {% if operation.invoice_item_id %}
+  <p class="alert-pill ok" data-billed style="display:inline-flex;">
+    <i class="bi bi-cash-coin"></i> {{ t('theatre.on_the_bill') }}</p>
+  {% elif operation.status == 'done' and not operation.service_id %}
+  {# Done and priced at nothing. Not an error: the price is the switch, and an
+     operation nobody put a service on simply never reaches a bill. Said out
+     loud so that is a decision rather than a surprise at discharge. #}
+  <p class="hint" data-not-priced>{{ t('theatre.not_priced') }}</p>
+  {% endif %}
+</div>
+
+{# ------------------------------------------------- correcting the booking #}
+{# The way back. A case is often put on the list before anybody knows who is
+   operating or what it is charged as — and set only at booking, an operation
+   with no surgeon could never be given one, so it could never be billed. #}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <details {{ 'open' if not operation.service_id or not operation.surgeon_id else '' }}>
+    <summary class="hint" style="cursor:pointer;">{{ t('theatre.edit') }}</summary>
+    <form method="post" style="margin-top:10px;"
+          action="{{ url_for('theatres.edit', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+          <label for="ed_procedure">{{ t('theatre.procedure') }}</label>
+          <input class="input" id="ed_procedure" name="procedure" maxlength="200"
+                 value="{{ operation.procedure }}">
+        </div>
+        {% if not operation.invoice_item_id %}
+        <div class="form-row" style="margin-bottom:0;min-width:180px;">
+          <label for="ed_service">{{ t('theatre.charged_as') }}</label>
+          <select class="select" id="ed_service" name="service_id">
+            <option value="">{{ t('common.none') }}</option>
+            {% for service in services %}
+            <option value="{{ service.id }}"
+                    {{ 'selected' if service.id == operation.service_id else '' }}>
+              {{ service.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:170px;">
+          <label for="ed_surgeon">{{ t('theatre.surgeon') }}</label>
+          <select class="select" id="ed_surgeon" name="surgeon_id">
+            <option value="">{{ t('common.none') }}</option>
+            {% for doctor in surgeons %}
+            <option value="{{ doctor.id }}"
+                    {{ 'selected' if doctor.id == operation.surgeon_id else '' }}>
+              {{ doctor.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:170px;">
+          <label for="ed_anaes">{{ t('theatre.anaesthetist') }}</label>
+          <select class="select" id="ed_anaes" name="anaesthetist_id">
+            <option value="">{{ t('theatre.anaesthetist_none') }}</option>
+            {% for doctor in surgeons %}
+            <option value="{{ doctor.id }}"
+                    {{ 'selected' if doctor.id == operation.anaesthetist_id else '' }}>
+              {{ doctor.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:160px;">
+          <label for="ed_room">{{ t('theatre.room') }}</label>
+          <select class="select" id="ed_room" name="theatre_id">
+            {% for room in rooms %}
+            <option value="{{ room.id }}"
+                    {{ 'selected' if room.id == operation.theatre_id else '' }}>
+              {{ room.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:150px;">
+          <label for="ed_date">{{ t('theatre.the_day') }}</label>
+          <input class="input" type="date" id="ed_date" name="date" dir="ltr"
+                 value="{{ operation.on_date }}">
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:120px;">
+          <label for="ed_time">{{ t('theatre.start_time') }}</label>
+          <input class="input" type="time" id="ed_time" name="start_time" dir="ltr"
+                 value="{{ operation.start_time.strftime('%H:%M') if operation.start_time else '' }}">
+        </div>
+        <div class="form-row" style="margin-bottom:0;min-width:110px;">
+          <label for="ed_minutes">{{ t('theatre.minutes') }}</label>
+          <input class="input" type="number" min="5" max="1440" id="ed_minutes"
+                 name="minutes" dir="ltr" value="{{ operation.minutes or '' }}">
+        </div>
+        {% else %}
+        <p class="hint" data-locked style="flex:1;min-width:220px;margin:0;">
+          {{ t('theatre.locked_billed') }}</p>
+        {% endif %}
+        <button class="btn btn-outline gc-press" type="submit">
+          <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+{# --------------------------------------------------- the operation note - #}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-journal-text"></i> {{ t('theatre.op_note') }}</h2>
+  <p class="hint">{{ t('theatre.op_note_hint') }}</p>
+  <form method="post" action="{{ url_for('theatres.note', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label for="op_findings">{{ t('theatre.findings') }}</label>
+      <textarea class="input" id="op_findings" name="findings" rows="4">{{ operation.findings or '' }}</textarea>
+    </div>
+    <div class="form-row">
+      <label for="op_notes">{{ t('common.notes') }}</label>
+      <textarea class="input" id="op_notes" name="notes" rows="2">{{ operation.notes or '' }}</textarea>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+
+{% if operation.is_open %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <details>
+    <summary class="hint" style="cursor:pointer;">{{ t('theatre.cancel_case') }}</summary>
+    <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"
+          action="{{ url_for('theatres.cancel', operation_id=operation.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+        <label for="cancel_reason">{{ t('theatre.cancel_reason') }}</label>
+        <input class="input" id="cancel_reason" name="reason" maxlength="200">
+      </div>
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-x-lg"></i> {{ t('theatre.cancel_case') }}</button>
+    </form>
+  </details>
+</div>
+{% endif %}
+{% endblock %}
