@@ -34,6 +34,7 @@ import pytest  # noqa: E402
 def lab(clinic):
     """A clinic with a bench, one priced test and one that is not priced."""
     from app.models import Investigation, Service, Setting
+    from app.models.place import Bed, Space, Unit
     from app.utils import accounting as acct
 
     with clinic["app"].app_context():
@@ -54,9 +55,26 @@ def lab(clinic):
         clinic["db"].session.add_all([cbc, urine])
         clinic["db"].session.commit()
 
+        # And a ward, because the other half of the lab's money is a child in
+        # a bed: their tests belong on the stay's one bill, not on a second.
+        for module in ("observations", "beds", "ward"):
+            Setting.set(f"mod_enabled:{module}", "1")
+        night = Service(name="ليلة داخلي", category="other", price=500)
+        clinic["db"].session.add(night)
+        clinic["db"].session.flush()
+        unit = Unit(name="الداخلي", kind="ward", rate_service_id=night.id)
+        clinic["db"].session.add(unit)
+        clinic["db"].session.flush()
+        space = Space(unit_id=unit.id, name="غرفة ١", kind="room")
+        clinic["db"].session.add(space)
+        clinic["db"].session.flush()
+        clinic["db"].session.add(Bed(space_id=space.id, name="د١"))
+        clinic["db"].session.commit()
+
         clinic["cbc"] = cbc.id
         clinic["urine"] = urine.id
         clinic["cbc_service"] = cbc_service.id
+        clinic["bed"] = Bed.query.first().id
     return clinic
 
 
@@ -330,6 +348,137 @@ def test_charging_starts_at_the_draw_not_at_the_order(lab):
         lab["db"].session.commit()
         assert [r.id for r in
                 labs.unbilled(patient_id=lab["ids"]["child"])] == [ordered]
+
+
+def test_an_admitted_childs_test_lands_on_the_stays_one_bill(lab):
+    """The other half of the money, and the rule the whole ward runs on: a
+    family gets one account for the admission — not a bed bill, a pharmacy
+    bill, a theatre bill and a lab bill for the same three days.
+
+    Found through the stay's own encounter, which is the link that exists: the
+    order carries the visit it was written at and the admission carries the
+    visit it began from.
+    """
+    from datetime import datetime as dt
+
+    from app.models import Patient, Visit, VisitInvestigation
+    from app.models.admission import Admission
+    from app.models.place import Bed
+    from app.utils import bed_billing, labs
+    from app.utils import beds as place
+
+    with lab["app"].app_context():
+        admission = place.admit(
+            Patient.query.get(lab["ids"]["child"]),
+            Bed.query.get(lab["bed"]),
+            visit=lab["db"].session.get(Visit, lab["ids"]["visit"]),
+            when=dt.utcnow() - timedelta(days=2))
+        lab["db"].session.commit()
+        stay = admission.id
+
+    order = _order(lab)
+    with lab["app"].app_context():
+        labs.collect(lab["db"].session.get(VisitInvestigation, order))
+        lab["db"].session.commit()
+
+        result = bed_billing.charge(lab["db"].session.get(Admission, stay))
+        assert result["tests"] == 1
+        # Two nights at 500 and one test at 150, on one invoice.
+        assert result["invoice"].total == 2 * 500 + 150
+
+    assert _state(lab, order)["billed"]
+
+
+def _admit(lab, days_ago=2):
+    """This child, in a bed, on their own visit."""
+    from datetime import datetime as dt
+
+    from app.models import Patient, Visit
+    from app.models.place import Bed
+    from app.utils import beds as place
+
+    with lab["app"].app_context():
+        row = place.admit(Patient.query.get(lab["ids"]["child"]),
+                          Bed.query.get(lab["bed"]),
+                          visit=lab["db"].session.get(Visit,
+                                                      lab["ids"]["visit"]),
+                          when=dt.utcnow() - timedelta(days=days_ago))
+        lab["db"].session.commit()
+        return row.id
+
+
+def test_a_test_alone_is_enough_to_raise_the_stays_bill(lab):
+    """A stay that owes no night yet.
+
+    The child was admitted this morning — nothing owes a night until tomorrow
+    — and a test was drawn at noon. A posting that only looks for nights,
+    doses and theatre cases answers "nothing due" and the test is never
+    charged, on this admission or any later one.
+    """
+    from app.models import VisitInvestigation
+    from app.models.admission import Admission
+    from app.utils import bed_billing, labs
+
+    stay = _admit(lab, days_ago=0)
+    order = _order(lab)
+    with lab["app"].app_context():
+        labs.collect(lab["db"].session.get(VisitInvestigation, order))
+        lab["db"].session.commit()
+
+        result = bed_billing.charge(lab["db"].session.get(Admission, stay))
+        assert result["periods"] == 0
+        assert result["tests"] == 1
+        assert result["invoice"].total == 150
+
+
+def test_another_childs_test_never_lands_on_this_stays_bill(lab):
+    """The stay is charged for its own encounter and nobody else's.
+
+    A posting that swept up every unbilled test in the hospital would put the
+    child in the next bed's blood count on this family's account — and it
+    would look exactly right on the screen that made it.
+    """
+    from app.models import Patient, Visit, VisitInvestigation
+    from app.models.admission import Admission
+    from app.utils import bed_billing, labs
+    from app.utils.clock import local_today
+
+    with lab["app"].app_context():
+        other = Patient(patient_number="L2", full_name="طفل تاني",
+                        gender="male", is_active=True,
+                        date_of_birth=local_today() - timedelta(days=900))
+        lab["db"].session.add(other)
+        lab["db"].session.flush()
+        visit = Visit(patient_id=other.id, doctor_id=lab["ids"]["doctor"],
+                      visit_date=local_today())
+        lab["db"].session.add(visit)
+        lab["db"].session.commit()
+        theirs = VisitInvestigation(
+            visit_id=visit.id, patient_id=other.id,
+            investigation_id=lab["cbc"], kind="lab", name="صورة دم",
+            status="requested")
+        lab["db"].session.add(theirs)
+        lab["db"].session.commit()
+        labs.collect(theirs)
+        lab["db"].session.commit()
+        stranger = theirs.id
+
+    stay = _admit(lab, days_ago=0)
+    mine = _order(lab)
+    with lab["app"].app_context():
+        labs.collect(lab["db"].session.get(VisitInvestigation, mine))
+        lab["db"].session.commit()
+
+        result = bed_billing.charge(lab["db"].session.get(Admission, stay))
+        assert result["tests"] == 1
+        assert result["invoice"].total == 150
+
+    assert _state(lab, mine)["billed"]
+    # And the other child's blood count is still owed by the other child.
+    from app.models import VisitInvestigation as VI
+
+    with lab["app"].app_context():
+        assert lab["db"].session.get(VI, stranger).invoice_item_id is None
 
 
 def test_a_test_nobody_priced_never_reaches_a_bill(lab):
