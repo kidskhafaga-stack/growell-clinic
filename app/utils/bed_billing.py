@@ -300,7 +300,7 @@ def post(admission, user=None, upto=None, lang="ar"):
         return {"periods": 0, "total": 0.0, "invoice": None}
 
     invoice = invoice_for(admission, user)
-    total = 0.0
+    added = []
     for row in due:
         price = float(row["service"].price or 0)
         item = InvoiceItem(
@@ -310,6 +310,12 @@ def post(admission, user=None, upto=None, lang="ar"):
             # is Tuesday more than Monday".
             description=describe(row, lang),
             unit_price=price, quantity=row["quantity"])
+        # The doctor's share of this line, snapshotted like every other
+        # chargeable line in the program. Left off at first, so a clinic that
+        # had set a commission on "a night on the ward" was quietly paying
+        # nothing on the one service its inpatients buy most of.
+        item.commission_amount = row["service"].doctor_share(item.net,
+                                                             invoice.doctor)
         db.session.add(item)
         db.session.flush()
         db.session.add(BedCharge(
@@ -321,8 +327,53 @@ def post(admission, user=None, upto=None, lang="ar"):
             # price list edited in March must not rewrite February's bill.
             unit_price=price, invoice_item_id=item.id,
             posted_by=getattr(user, "id", None)))
-        total += row["amount"]
-    return {"periods": len(due), "total": round(total, 2), "invoice": invoice}
+        added.append(item)
+
+    # **And then through the same door every other invoice goes through.**
+    # The insurance, the contract tariff, the cash price list and the family's
+    # own discount all live in `utils/billing`, and a bed bill raised outside
+    # them was a covered child billed the cash rate for eleven nights with
+    # nothing claimable at the end of it.
+    from app.utils import billing
+
+    billing.apply_coverage(invoice, admission.patient)
+    db.session.flush()
+    # **The ledger is not posted here** — see `charge` below, which is what a
+    # screen should call. It matters, and it cost a suite run to find out: a
+    # journal failure rolls the session back, and rolling back before the bill
+    # is committed takes the bill with it. A family would have been discharged
+    # with no invoice at all because the bookkeeping hiccupped.
+    return {"periods": len(due),
+            # The lines *this* call added, after coverage — not the whole
+            # bill, which on the second posting of a long stay would report
+            # last week's nights again as if they had just been charged.
+            "total": round(sum(i.net for i in added), 2),
+            "gross": round(sum(i.gross for i in added), 2),
+            "invoice": invoice}
+
+
+def charge(admission, user=None, upto=None, lang="ar"):
+    """Post the outstanding periods, commit them, and then journal them.
+
+    **The order is the point.** ``post`` builds the lines and ``post_to_ledger``
+    is best-effort — and "best effort" means it rolls the session back when the
+    ledger refuses. Called before the commit, that rollback discards the
+    invoice it was trying to journal, and a family goes home with no bill at
+    all because the chart of accounts was in a bad way. The till has always
+    done it in this order; the wards do it here so nobody has to remember.
+    """
+    result = post(admission, user=user, upto=upto, lang=lang)
+    db.session.commit()
+    if result["invoice"] is not None:
+        billing_module().post_to_ledger("invoice", result["invoice"],
+                                        user_id=getattr(user, "id", None))
+    return result
+
+
+def billing_module():
+    from app.utils import billing
+
+    return billing
 
 
 def describe(row, lang="ar"):
