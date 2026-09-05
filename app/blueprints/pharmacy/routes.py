@@ -21,7 +21,8 @@ from flask_login import current_user
 from app.blueprints.pharmacy import pharmacy_bp
 from app.extensions import db
 from app.i18n import t
-from app.models import Prescription, PrescriptionItem
+from app.models import MedicationOrder, Prescription, PrescriptionItem
+from app.models.admission import Admission
 from app.utils import pharmacy as counter
 from app.utils.decorators import module_required
 
@@ -121,3 +122,87 @@ def _shelf():
             .filter(StoreItem.is_active.is_(True),
                     StoreItem.item_type == "drug")
             .order_by(StoreItem.name).all())
+
+
+# --------------------------------------------------- the ward pharmacist ---
+def _ward_or_404():
+    """The ward screens exist only where there are beds.
+
+    A module off is a module absent, and a clinic with no inpatients has no
+    drug charts to review — an empty board would read as something broken
+    rather than as something they do not have.
+    """
+    from flask import abort
+
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        abort(404)
+
+
+@pharmacy_bp.route("/ward")
+@module_required(MODULE)
+def ward():
+    """Whose chart has nobody been through today.
+
+    The clinical half of the profession, and the half a hospital buys: not a
+    queue of people holding paper, but every child in a bed and whether a
+    second pair of eyes has read what they are on.
+    """
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    kind = (request.args.get("kind") or "").strip() or None
+    rows = clinical_pharmacy.board(kind=kind)
+    return render_template("pharmacy/ward.html", rows=rows, kind=kind,
+                           counts=clinical_pharmacy.counts(rows))
+
+
+@pharmacy_bp.route("/ward/<int:admission_id>")
+@module_required(MODULE)
+def chart(admission_id):
+    """One child's chart, with the clinic's own safety check over it."""
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(Admission, admission_id)
+    return render_template(
+        "pharmacy/chart.html", admission=row,
+        reviews=sorted(row.chart_reviews, key=lambda r: r.at, reverse=True),
+        **clinical_pharmacy.chart(row, lang=getattr(g, "lang", "ar")))
+
+
+@pharmacy_bp.route("/ward/<int:admission_id>/reviewed", methods=["POST"])
+@module_required(MODULE)
+def reviewed(admission_id):
+    """Record that somebody went through it."""
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(Admission, admission_id)
+    clinical_pharmacy.review(row, user=current_user,
+                             note=request.form.get("note"))
+    db.session.commit()
+    flash(t("cpharm.reviewed"), "success")
+    return redirect(url_for("pharmacy.chart", admission_id=row.id))
+
+
+@pharmacy_bp.route("/order/<int:order_id>/ask", methods=["POST"])
+@module_required(MODULE)
+def ask(order_id):
+    """Ask the doctor about one ward order — and never stop it."""
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(MedicationOrder, order_id)
+    try:
+        clinical_pharmacy.ask(row, note=request.form.get("note"),
+                              user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("pharm.need_note"), "error")
+        return redirect(url_for("pharmacy.chart",
+                                admission_id=row.admission_id))
+    db.session.commit()
+    flash(t("cpharm.asked"), "info")
+    return redirect(url_for("pharmacy.chart", admission_id=row.admission_id))

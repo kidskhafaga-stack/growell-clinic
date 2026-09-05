@@ -1,0 +1,82 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('cpharm.title') }}{% endblock %}
+{% block page_heading %}{{ t('cpharm.title') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One row per child, and the border says whether anybody has been through
+     their chart today. The question this screen is opened to answer is "who
+     has been missed", so that has to be readable from across a room. */
+  .cp-row { border:1px solid var(--line); border-radius:12px; padding:11px 13px;
+            margin-bottom:9px; display:flex; gap:12px; flex-wrap:wrap;
+            align-items:center; }
+  .cp-row.unseen { border-inline-start:5px solid var(--danger); }
+  .cp-row.done   { border-inline-start:5px solid var(--green-600); }
+  .cp-who { min-width:200px; flex:1; }
+  .cp-name { font-weight:600; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('cpharm.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span class="badge {{ 'badge--muted' if not counts.unreviewed else '' }}"
+          data-unreviewed>{{ t('cpharm.n_unreviewed', n=counts.unreviewed) }}</span>
+    <span class="badge badge--muted" data-beds>{{ t('cpharm.n_beds', n=counts.beds) }}</span>
+    {% if counts.queries %}
+    <span class="alert-pill warn" data-queries>
+      <i class="bi bi-question-circle"></i> {{ t('cpharm.n_queries', n=counts.queries) }}</span>
+    {% endif %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.index') }}">
+      <i class="bi bi-prescription2"></i> {{ t('pharm.the_queue') }}</a>
+  </div>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('cpharm.nobody_in') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div class="cp-row {{ 'done' if row.review else 'unseen' }}"
+       data-stay="{{ row.admission.id }}"
+       data-state="{{ 'done' if row.review else 'unseen' }}">
+    <div class="cp-who">
+      <div class="cp-name">
+        <a href="{{ url_for('pharmacy.chart', admission_id=row.admission.id) }}">
+          {{ row.patient.display_name(current_lang) }}</a></div>
+      <div class="hint">
+        {% if row.bed %}{{ row.bed.unit.name }} · {{ row.bed.name }}{% endif %}
+        · {{ t('cpharm.n_drugs', n=row.drugs) }}
+      </div>
+    </div>
+
+    {% if row.review %}
+    <span class="alert-pill ok" data-reviewed>
+      <i class="bi bi-check2-circle"></i> {{ row.review.at|clinic_time }}
+      {% if row.review.by %} · {{ row.review.by.display_name(current_lang) }}{% endif %}</span>
+    {% else %}
+    <span class="alert-pill danger" data-not-reviewed>
+      <i class="bi bi-eye-slash"></i> {{ t('cpharm.not_today') }}</span>
+    {% endif %}
+
+    {% if row.queries %}
+    {# What was asked and nobody has answered. Counted rather than listed: the
+       row has to stay readable, and the chart says which. #}
+    <span class="alert-pill warn" data-open-queries>
+      <i class="bi bi-question-circle"></i>
+      {{ t('cpharm.n_queries', n=row.queries|length) }}</span>
+    {% endif %}
+
+    <a class="btn btn-sm btn-outline gc-press"
+       href="{{ url_for('pharmacy.chart', admission_id=row.admission.id) }}">
+      {{ t('cpharm.open_chart') }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

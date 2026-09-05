@@ -6058,5 +6058,32 @@
     "unit_below": "Lower limit",
     "unit_since": "Months",
     "unit_pending": "Days"
+  },
+  "cpharm": {
+    "title": "Inpatient chart review",
+    "sub": "Whose chart has nobody been through today",
+    "the_board": "The board",
+    "open_chart": "Open the chart",
+    "not_today": "Not reviewed today",
+    "nobody_in": "No children in beds right now.",
+    "no_drugs": "Nothing written on this stay's chart.",
+    "n_beds": "{n} in beds",
+    "n_unreviewed": "{n} not reviewed",
+    "n_queries": "{n} awaiting an answer",
+    "n_drugs": "{n} drugs",
+    "ask_the_doctor": "Ask the doctor about this order",
+    "the_answer": "The doctor's answer",
+    "answer": "Answer",
+    "asked": "Recorded and sent to the doctor — the drug goes on being given",
+    "answered": "Answer recorded",
+    "answered_no_note": "answered",
+    "nothing_asked": "Nothing was asked about this order",
+    "still_given": "The drug goes on being given while this is open — it is a question, not a stop.",
+    "record_review": "Record that you reviewed it",
+    "record_hint": "One row saying somebody went through this chart today. Without it, “nobody opened it” and “it was opened and there was nothing to say” look identical.",
+    "what_you_found": "What you found (optional)",
+    "mark_reviewed": "Reviewed",
+    "reviewed": "Review recorded",
+    "waiting_answer": "Waiting on the doctor — they answer from the stay screen"
   }
 }

@@ -1039,6 +1039,53 @@ SECTIONS = [
              "carries no service and therefore no doctor commission \u2014 "
              "nobody\u2019s percentage rides on a box being handed across a "
              "counter."),
+            ("<b>والنص التاني من المهنة: مراجعة علاج المنوّمين.</b> الكاونتر "
+             "ده الصيدلية اللي بتصرف — طابور ناس واقفة بورق. الصيدلة "
+             "الإكلينيكية هي اللي المستشفى بتشتريها: حد بيقرا ورقة علاج كل "
+             "طفل في سرير، على وزنه وعلى الأربع حاجات التانية اللي هو "
+             "عليها، ويقول للطبيب حاجة **قبل** ما الجرعة تتاخد.",
+             "<b>And the other half of the profession: the inpatient chart "
+             "review.</b> The counter is the dispensing pharmacy \u2014 a "
+             "queue of people holding paper. Clinical pharmacy is what a "
+             "hospital buys: somebody who reads the drug chart of every child "
+             "in a bed, against that child\u2019s weight and the four other "
+             "things they are on, and says something to the doctor "
+             "<b>before</b> a dose is given."),
+            ("<b>واللوحة بتسأل نفس سؤال الراوند: مين محدش عدّى عليه "
+             "النهاردة.</b> ورقة علاج اتراجعت الاتنين ما بتقولش حاجة عن الدوا "
+             "اللي اتكتب الأربع. والمراجعة **صف**، مش علامة: إقامة مفيهاش "
+             "أسئلة شكلها زي إقامة محدش فتحها، ودول حقيقتين متعاكستين.",
+             "<b>And the board asks the round\u2019s own question: whose "
+             "chart has nobody been through today.</b> A chart reviewed on "
+             "Monday says nothing about the drug started on Wednesday. The "
+             "review is a <b>row</b>, not a tick: a stay with no queries on "
+             "it looks exactly like a stay nobody opened, and those are "
+             "opposite facts."),
+            ("<b>والسؤال بيوصل للطبيب في الشاشة اللي هو فيها.</b> السؤال "
+             "بيتكتب من الصيدلية وبيظهر على شاشة الإقامة، والطبيب بيرد من "
+             "هناك — لأنه أصلاً ما بيفتحش مديول الصيدلية. سؤال مالوش رد إلا "
+             "من شاشة اللي المفروض يرد عليها مش بيقدر يفتحها هو سؤال محدش "
+             "بيرد عليه، والصيدلي يفضل مستني من غير ما يعرف الفرق بين ده "
+             "وبين إن حد تجاهله.",
+             "<b>And the question reaches the doctor on the screen they are "
+             "already on.</b> It is written from the pharmacy and appears on "
+             "the stay screen, and the reply goes back from there \u2014 "
+             "because the doctor cannot open the pharmacy module at all. A "
+             "question answerable only on a screen the person who has to "
+             "answer it cannot reach is a question nobody answers, and the "
+             "pharmacist waits with no way to tell that from being ignored."),
+            ("<b>والدوا بيتاخد عادي والسؤال مفتوح.</b> الرد غالباً «أيوة أنا "
+             "قاصدها» والطفل في السرير، وصيدلية تقدر توقف دوا العنبر هي "
+             "صيدلية العنبر بيكتب من حواليها. والسؤال بيفضل مكتوب بعد الرد: "
+             "اللي اتسأل واللي رجع هو السجل، ومسحه كان هيسيب جرعة اتغيّرت "
+             "من غير حاجة تقول ليه.",
+             "<b>And the drug goes on being given while the question is "
+             "open.</b> The answer is usually \u201cyes, I meant it\u201d "
+             "and the child is in the bed; a pharmacy that can stop a "
+             "ward\u2019s drug is one the ward writes around. The question "
+             "stays on the order after it is answered: what was asked and "
+             "what came back is the record, and clearing it would leave a "
+             "changed dose with nothing saying why."),
             ("<b>وعمرها ما بترفض علبة عشان العدد بتاعنا بيقول الرف فاضي.</b> "
              "الصيدلية سلّمت، وده حصل. البرنامج اللي بيرفض يسجّله عشان عدّه "
              "بيقول حاجة تانية بيكون استبدل حقيقة بترتيب — الحركة بتتسجّل، "

@@ -117,7 +117,11 @@ CAPABILITY_MODULES = {
     # handover. A clinic that writes prescriptions for families to fill
     # outside ticks neither and keeps the writer exactly as it is.
     "pharmacy": {"prescriptions", "inventory", "pharmacy"},
-    "clinical_pharmacy": {"prescriptions", "pharmacy"},
+    # A clinical pharmacist reads the charts of children in beds, so this
+    # switches the beds on too — the ward screens are the whole of what the
+    # capability means, and without them it would tick a box and change
+    # nothing anybody could point at.
+    "clinical_pharmacy": {"prescriptions", "pharmacy", "beds", "observations"},
     # Every one of these is somewhere a child is watched rather than seen
     # once, so each of them wants the rounds. A clinic that ticks "emergency"
     # in the wizard and then cannot record a second temperature has been sold

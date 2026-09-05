@@ -463,6 +463,38 @@ def _happened_at():
     return datetime.utcnow()
 
 
+@beds_bp.route("/order/<int:order_id>/answer", methods=["POST"])
+@module_required(MODULE)
+def answer_query(order_id):
+    """The doctor's reply to the clinical pharmacist's question.
+
+    **Here and not on the pharmacy screen**, which is where the first version
+    put it — and the doctor could not open that screen at all, because the
+    `pharmacy` module is not theirs. A question that can only be answered on a
+    screen the person who has to answer it cannot reach is a question nobody
+    answers, and the pharmacist would have gone on waiting with no way to tell
+    that from being ignored.
+
+    So the question arrives on the stay screen, where the doctor is standing
+    with the chart in front of them, and the reply goes back from there.
+    """
+    from app.models.medication import MedicationOrder
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(MedicationOrder, order_id)
+    try:
+        clinical_pharmacy.answer(row, note=request.form.get("note"),
+                                 user=current_user)
+    except ValueError:
+        db.session.rollback()
+        flash(t("cpharm.nothing_asked"), "error")
+        return redirect(url_for("beds.admission",
+                                admission_id=row.admission_id))
+    db.session.commit()
+    flash(t("cpharm.answered"), "success")
+    return redirect(url_for("beds.admission", admission_id=row.admission_id))
+
+
 # ------------------------------------------------------- the drug round -----
 @beds_bp.route("/drugs")
 @module_required(MODULE)
