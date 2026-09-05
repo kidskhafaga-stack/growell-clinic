@@ -34,6 +34,7 @@ from datetime import datetime
 
 from app.extensions import db
 from app.models import Investigation, VisitInvestigation
+from app.models.visit import INVESTIGATION_OPEN
 
 # Where an order is. Recorded, not derived: see the module docstring — the
 # difference between "nobody has been to the bed" and "it is in the rack" is
@@ -43,7 +44,12 @@ REQUESTED, COLLECTED, RESULTED = "requested", "collected", "resulted"
 # What is still the lab's problem. `resulted` is not here on purpose: once
 # there is an answer the order belongs to whoever asked for it, and that list
 # already exists — `results_inbox.arrived_unread`.
-OPEN_STATES = (REQUESTED, COLLECTED)
+#
+# **The model's own list, not a second copy.** Every screen outside this
+# module asks the same question — "has this been answered yet" — and the day
+# a fourth state is added, one copy of the answer is the difference between a
+# new state appearing everywhere and an order vanishing off four screens.
+OPEN_STATES = tuple(INVESTIGATION_OPEN)
 
 
 def worklist(kind=None, state=None, limit=200):

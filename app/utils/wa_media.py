@@ -185,13 +185,18 @@ def answered_order(patient_id, kind):
     result; a doctor still has to read it and write what it says.
     """
     from app.models import VisitInvestigation
+    from app.models.visit import INVESTIGATION_OPEN
 
     if kind not in ("imaging", "lab"):
         return None
     order = (VisitInvestigation.query
+             # Anything still unanswered: a report a family sends in answers
+             # the order whether or not our own bench has drawn a sample for
+             # it, and matching only `requested` would have filed it against
+             # nothing at exactly the clinics that run both.
              .filter(VisitInvestigation.patient_id == patient_id,
                      VisitInvestigation.kind == kind,
-                     VisitInvestigation.status == "requested")
+                     VisitInvestigation.status.in_(INVESTIGATION_OPEN))
              .order_by(VisitInvestigation.created_at.desc(),
                        VisitInvestigation.id.desc())
              .first())

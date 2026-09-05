@@ -211,11 +211,18 @@ def record(visit_id):
     )
     # Investigations requested in earlier visits that still have no result —
     # the doctor reviews/fills them now, in the consultation.
+    #
+    # "Still has no result" and not "is in the first state": once the lab
+    # bench exists an order sits in `collected` while the sample is on the
+    # bench, and asking for `requested` alone dropped exactly the orders a
+    # clinic running its own lab is most likely to be waiting on.
+    from app.models.visit import INVESTIGATION_OPEN
+
     pending_investigations = (
         VisitInvestigation.query.filter(
             VisitInvestigation.patient_id == visit.patient_id,
             VisitInvestigation.visit_id != visit.id,
-            VisitInvestigation.status == "requested",
+            VisitInvestigation.status.in_(INVESTIGATION_OPEN),
         ).order_by(VisitInvestigation.created_at.desc()).all()
     )
     recent_attachments = (

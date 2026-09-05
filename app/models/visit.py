@@ -10,7 +10,21 @@ from app.extensions import db
 from app.utils.clock import local_today
 
 VISIT_STATUSES = ["open", "completed"]
-INVESTIGATION_STATUSES = ["requested", "resulted"]
+# Where an order is. ``collected`` sits between the other two and arrived with
+# the lab bench: the sample has been drawn and nobody has run it yet.
+#
+# **It is a third state, not a second meaning for the first**, and everything
+# that used to ask ``status == "requested"`` to mean *no answer yet* has to ask
+# ``status != "resulted"`` instead. Four places did — the doctor's results
+# inbox, the pending list on the consultation screen, the WhatsApp file
+# matcher, and this list — and every one of them would have made an order
+# vanish the moment a clinic switched its lab on.
+INVESTIGATION_STATUSES = ["requested", "collected", "resulted"]
+
+# The ones still waiting for an answer. The predicate every screen outside the
+# lab actually wants: "has this been answered", never "which of the states
+# before the answer is it in" — that question belongs to the bench alone.
+INVESTIGATION_OPEN = ["requested", "collected"]
 
 
 class Visit(db.Model):
