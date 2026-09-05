@@ -173,10 +173,50 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
         })
 
     # Their own lines, not the whole of every bill they appear on.
+    # Cover is its own row for the reason the vaccines are: it is money of a
+    # different shape — no invoice, no patient — and folding it into the
+    # services would make a total nobody could trace back.
+    duty_rows = _duty_rows(doctor_id, date_from, date_to)
+    rows.extend(duty_rows)
+    duty_share = round(sum(r["share"] for r in duty_rows), 2)
+
     share = round(sum(i.share_for(doctor_id) for i in invoices)
-                  + vaccine_share, 2)
+                  + vaccine_share + duty_share, 2)
     return rows, share, invoices
 
+
+
+def _duty_earned(doctor_id, date_from=None, date_to=None):
+    """What cover has earned them — nothing at all when the rota is off.
+
+    **Off means absent, not zero-by-accident.** Every module-owned question
+    asked from a screen every clinic opens goes through ``module_enabled``
+    first, so a clinic that does not roster never pays a query for a table it
+    has no rows in.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("duty"):
+        return 0.0
+    from app.utils import duty
+
+    return duty.earned(doctor_id, date_from, date_to)
+
+
+def _duty_rows(doctor_id, date_from, date_to):
+    """Their cover in the window, grouped by shift. Empty when the rota is off."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("duty"):
+        return []
+    from app.utils import duty
+
+    return [{"label": row["label"], "count": row["count"],
+             # A shift has no price to a patient, so there is no gross to
+             # show. Zero and not the share repeated: a column headed "billed"
+             # carrying the doctor's own pay is a number that reads as revenue.
+             "gross": 0.0, "share": row["share"]}
+            for row in duty.by_slot(doctor_id, date_from, date_to)]
 
 
 def _refunded_share(doctor_id, date_from=None, date_to=None):
@@ -222,7 +262,11 @@ def earned_ever(doctor_id):
              .filter(PatientVaccine.doctor_id == doctor_id,
                      PatientVaccine.event_type == "given",
                      PatientVaccine.given_outside.is_(False)).scalar()) or 0
-    return round(lines + doses, 2)
+    # And the nights they covered. A third shape of money, and the only one
+    # with no patient behind it: a shift is owed by the clinic, not paid out
+    # of somebody's bill. Leaving it out here would have shown a resident a
+    # balance of zero on a month they worked eleven nights.
+    return round(lines + doses + _duty_earned(doctor_id), 2)
 
 
 def account(doctor_id):

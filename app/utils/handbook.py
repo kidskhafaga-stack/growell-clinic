@@ -1533,6 +1533,79 @@ SECTIONS = [
         ],
     },
     {
+        # The rota, and deliberately not a corner of `beds`: the night shift
+        # is a clinic thing before it is a hospital thing.
+        "key": "duty",
+        "module": "duty",
+        "icon": "calendar-week",
+        "title": ("المناوبات ومستحقاتها", "The duty rota and what it owes"),
+        "lines": [
+            ("<b>ده اتجاه تاني للفلوس، مش شاشة جديدة على القديم.</b> كل رقم "
+             "في البرنامج قبل كده كان نصيب من حاجة الأهل دفعوها — سطر في "
+             "فاتورة، أو فِي على جرعة. الطبيب المقيم اللي قاعد في القسم من "
+             "عشرة بالليل لتمانية الصبح <b>مش بيفوتر على حد</b>، فمفيش فاتورة "
+             "نصيبه يتحسب منها. المناوبة مستحق على العيادة نفسها.",
+             "<b>This is a second direction for money, not another screen "
+             "over the first.</b> Every figure in this program used to be a "
+             "share of something a family paid — a line on a bill, a fee "
+             "on a dose. A resident sitting in the department from ten at "
+             "night until eight in the morning <b>bills nobody</b>, so there "
+             "is no invoice to take a share of. Cover is owed by the clinic."),
+            ("<b>ومش للمستشفيات بس.</b> العيادة اللي عندها مقيم بيغطّي الليل "
+             "بتستعمل نفس الشاشة، والقسم <b>اختياري</b> — عشان كده المناوبات "
+             "مديول لوحده مش جزء من الأسرّة. لو كانت جوّه الأسرّة، أكتر "
+             "العيادات اللي محتاجاها ماكانتش هتشوفها.",
+             "<b>And it is not only for hospitals.</b> A clinic with a "
+             "resident covering the night uses the same screen, and the "
+             "department is <b>optional</b> — which is why the rota is "
+             "its own module rather than part of the beds. Behind the beds, "
+             "most of the clinics that need it would never have seen it."),
+            ("<b>«مجدولة» مش «اتعملت».</b> الاسم في خانة على جدول الحيطة "
+             "خطة، والدفع على خطة دفع على لا حاجة. فالمناوبة بتتكتب وهي "
+             "بصفر، ومحدش بياخد عليها حاجة غير لما حد يقول إنها حصلت. "
+             "والبرنامج <b>ما بيأكّدش لوحده</b>: مفيش حاجة فيه بتشوف الطرقة "
+             "الساعة تلاتة بالليل.",
+             "<b>Rostered is not worked.</b> A name in a square on a wall "
+             "chart is a plan, and paying for a plan is paying for nothing. "
+             "So a duty is written worth zero and pays only once somebody "
+             "says it happened. The program <b>never confirms by itself</b>: "
+             "nothing in it can see the corridor at three in the morning."),
+            ("<b>واللي عدّى يومه ومحدش قال حصل فيه إيه بيفضل باين.</b> مش "
+             "بيتقفل ولا بيتحسب — بيتعرض في أول الشاشة. لأن الصفوف دي لو "
+             "اتسابت بتتقفل بالتخمين آخر الشهر، وساعتها ليلة اتغطّت بتضيع "
+             "وليلة ماحصلتش بتتدفع.",
+             "<b>And a duty whose day has passed with nobody speaking for it "
+             "stays visible.</b> Not closed and not counted — listed at "
+             "the top of the screen. Left alone, those rows get closed by "
+             "guesswork at month end, and that is when a night that was "
+             "covered is missed and one that was not is paid."),
+            ("<b>الشيفتات وأسعارها بتتكتب من الشاشة.</b> الساعات بتختلف من "
+             "قسم لقسم ومن بلد لبلد، ورمضان بيحرّكها، والعيادة اللي بتشغّل "
+             "شيفتين مش تلاتة مالهاش لازمة مسا فاضي. وفيه سعر خاص للطبيب "
+             "لو الاتفاق معاه غير سعر الشيفت — نفس فكرة نسبة الطبيب على "
+             "الخدمة. <b>والسعر بيتصوّر على المناوبة ساعة ما تتكتب</b>، "
+             "فتعديل السعر في مارس ما بيعيدش كتابة فبراير.",
+             "<b>The shifts and their rates are typed on the screen.</b> The "
+             "hours differ between departments and countries, Ramadan moves "
+             "them, and a clinic that runs two shifts has no use for an empty "
+             "evening. A doctor may have their own figure where the agreement "
+             "differs — the same shape as a service commission. <b>And "
+             "the rate is snapshotted onto the duty when it is written</b>, "
+             "so a rate edited in March does not rewrite February."),
+            ("<b>والاستشاري حكاية تانية.</b> اللي بيتحاسب بالحالة أو بالزيارة "
+             "بيمشي على الفاتورة زي أي خدمة، ونصيبه بيتقرا من <b>سطره هو</b> "
+             "مش من الفاتورة كلها. اللي بيتحاسب مبلغ ثابت على المرور كله "
+             "بيتكتب هنا كمناوبة. <b>واحدة بس مش الاتنين لنفس اليوم</b> — "
+             "غير كده بيتحسب مرتين.",
+             "<b>A consultant is a different case.</b> One paid per case or "
+             "per visit goes on the bill like any other service, and their "
+             "share is read from <b>their own line</b> rather than from the "
+             "whole invoice. One paid a flat figure for the round is written "
+             "here as a duty. <b>One of the two for a given day, never "
+             "both</b> — otherwise it is counted twice."),
+        ],
+    },
+    {
         "key": "prescriptions",
         "module": "prescriptions",
         "icon": "capsule",

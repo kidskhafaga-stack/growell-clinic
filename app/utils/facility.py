@@ -33,7 +33,7 @@ ALWAYS_ON = {"dashboard", "settings", "users"}
 # So the default runs the other way here: nothing until somebody says so.
 OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
                   "emergency", "nicu", "icu", "ward", "theatres", "labs",
-                  "pharmacy"}
+                  "pharmacy", "duty"}
 
 # Modules an admin may turn on/off.
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
@@ -99,7 +99,10 @@ CAPABILITY_MODULES = {
     # it. Same argument as `dentistry` — a paediatric clinic is not a dental
     # one, and it is not a neonatal one either.
     "newborn_care": {"visits", "growth"},
-    "emergency_care": {"visits", "observations", "beds", "emergency"},
+    # And the rota with it: a department that is open at three in the
+    # morning is a department somebody is covering, and the shift they work
+    # is the one thing about it the program could not pay for.
+    "emergency_care": {"visits", "observations", "beds", "emergency", "duty"},
     "home_care": {"visits"},
     "ecg": {"visits"}, "echo": {"visits"}, "eeg": {"visits"},
     "spirometry": {"visits"}, "audiology": {"visits"}, "vision_screening": {"visits"},
@@ -133,9 +136,9 @@ CAPABILITY_MODULES = {
     # slow ones: a hospital ticked "ward" in the wizard, got the bed board and
     # the rounds, and had nowhere that answered "who has nobody been round to
     # this morning" — the capability was real and the door to it was missing.
-    "ward": {"visits", "observations", "beds", "ward"},
-    "nicu": {"visits", "observations", "beds", "nicu"},
-    "icu": {"visits", "observations", "beds", "icu"},
+    "ward": {"visits", "observations", "beds", "ward", "duty"},
+    "nicu": {"visits", "observations", "beds", "nicu", "duty"},
+    "icu": {"visits", "observations", "beds", "icu", "duty"},
     # The theatre list, and the bed the child wakes up in. `beds` because
     # ``recovery`` has been a unit kind since the wards were built and that is
     # where a case goes afterwards; `observations` because a recovery room is

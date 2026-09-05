@@ -79,6 +79,13 @@ MODULES = [
     # hands it over. Opt-in, because a clinic whose families fill their
     # prescriptions outside has no counter.
     "pharmacy",
+    # **The rota.** Who is covering the department tonight, and what the
+    # clinic owes them for it — the second direction money goes in this
+    # program, and the only one with no invoice behind it. Deliberately not a
+    # corner of `beds`: a clinic with no wards and a resident covering the
+    # night is the ordinary case, and gating this behind the inpatient module
+    # would have hidden it from most of the clinics that run one.
+    "duty",
     "prescriptions",
     "inventory",
     "finance",
@@ -128,6 +135,7 @@ MODULE_ICONS = {
     "theatres": "scissors",
     "labs": "eyedropper",
     "pharmacy": "prescription2",
+    "duty": "calendar-week",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -167,6 +175,9 @@ ROLE_PERMISSIONS = {
         # They order the tests; seeing where one has got to is the same
         # question as "has anybody been to draw this child's blood".
         "labs",
+        # The rota — reading it, which is what "who is on tonight" is. What a
+        # night pays and who is put on it stay admin-only inside the screen.
+        "duty",
         "prescriptions",
         "ai",
     ],
@@ -196,6 +207,9 @@ ROLE_PERMISSIONS = {
         # Whoever walks to the bed with the tube. A clinic with a lab
         # technician of its own makes a role for them — roles are data.
         "labs",
+        # Nursing works the same nights, and "who is on with me" is the
+        # question the rota exists to answer.
+        "duty",
     ],
     "reception": [
         "dashboard",

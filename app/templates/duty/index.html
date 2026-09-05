@@ -1,0 +1,192 @@
+{% extends "shell.html" %}
+{% set active_module = 'duty' %}
+{% block title %}{{ t('duty.title') }}{% endblock %}
+{% block page_heading %}{{ t('duty.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-calendar-week"></i> {{ t('duty.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('duty.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press" href="{{ url_for('duty.index', date=prev.isoformat(), unit_id=unit_id or None) }}">
+      <i class="bi bi-chevron-right"></i> {{ t('duty.prev_week') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('duty.index', date=next.isoformat(), unit_id=unit_id or None) }}">
+      {{ t('duty.next_week') }} <i class="bi bi-chevron-left"></i></a>
+    {% if may_edit %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('duty.slots') }}">
+      <i class="bi bi-sliders"></i> {{ t('duty.slots') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+{# The gap, first and out loud: a rostered night whose day has gone by and
+   nobody has said what happened. Left alone it becomes a month-end guess. #}
+{% if waiting %}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--amber-500);">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-question-circle"></i> {{ t('duty.waiting') }}
+    <span class="badge">{{ waiting|length }}</span></h2>
+  <p class="hint" style="margin-top:0;">{{ t('duty.waiting_sub') }}</p>
+  <table class="table">
+    <tbody>
+      {% for d in waiting[:20] %}
+      <tr>
+        <td dir="ltr">{{ d.on_date }}</td>
+        <td>{{ d.slot.name if d.slot else '—' }}</td>
+        <td>{{ d.doctor.display_name(current_lang) if d.doctor else '—' }}</td>
+        <td>{{ d.unit.name if d.unit else t('duty.no_unit') }}</td>
+        {% if may_edit %}
+        <td style="display:flex;gap:6px;">
+          <form method="post" action="{{ url_for('duty.happened', duty_id=d.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-primary gc-press" type="submit">
+              <i class="bi bi-check2"></i> {{ t('duty.happened') }}</button>
+          </form>
+          <form method="post" action="{{ url_for('duty.absent', duty_id=d.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              {{ t('duty.absent') }}</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="stat-row gc-animate" style="margin-bottom:14px;">
+  <div class="stat-card edge-blue"><i class="bi bi-calendar-check ico"></i>
+    <div class="value">{{ counts.rostered }}</div>
+    <div class="label">{{ t('duty.st_rostered') }}</div></div>
+  <div class="stat-card edge-green"><i class="bi bi-check2-circle ico"></i>
+    <div class="value">{{ counts.worked }}</div>
+    <div class="label">{{ t('duty.st_worked') }}</div></div>
+  <div class="stat-card edge-red"><i class="bi bi-x-circle ico"></i>
+    <div class="value">{{ counts.absent }}</div>
+    <div class="label">{{ t('duty.st_absent') }}</div></div>
+</div>
+
+<form method="get" class="card gc-scale-in"
+      style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+  <input type="hidden" name="date" value="{{ anchor.isoformat() }}">
+  <div class="form-row" style="margin-bottom:0;min-width:200px;">
+    <label for="f_unit">{{ t('duty.unit') }}</label>
+    <select class="input" id="f_unit" name="unit_id" onchange="this.form.submit()">
+      <option value="">{{ t('common.all') }}</option>
+      {% for u in units %}
+      <option value="{{ u.id }}" {% if unit_id == u.id %}selected{% endif %}>{{ u.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <span class="hint" dir="ltr">{{ start }} → {{ end }}</span>
+</form>
+
+{% if not slots %}
+{# No shifts written down yet, and the screen says what to do about it rather
+   than showing an empty grid that looks broken. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('duty.no_slots') }}
+    {% if may_edit %}<a href="{{ url_for('duty.slots') }}">{{ t('duty.slots') }}</a>{% endif %}
+  </p>
+</div>
+{% else %}
+<div class="card gc-scale-in" style="overflow-x:auto;">
+  <table class="table" style="min-width:820px;">
+    <thead>
+      <tr>
+        <th>{{ t('duty.slot') }}</th>
+        {% for day in days %}
+        <th dir="ltr" style="text-align:center;">{{ day.strftime('%a %d/%m') }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for slot in slots %}
+      <tr>
+        <td>
+          <strong>{{ slot.name }}</strong><br>
+          <small class="muted" dir="ltr">
+            {{ slot.start_time.strftime('%H:%M') }}–{{ slot.end_time.strftime('%H:%M') }}
+            {% if slot.crosses_midnight %}<i class="bi bi-moon" title="{{ t('duty.overnight') }}"></i>{% endif %}
+          </small>
+        </td>
+        {% for day in days %}
+        <td style="vertical-align:top;">
+          {% for d in grid.get((slot.id, day), []) %}
+          <div style="margin-bottom:6px;">
+            <span class="status-badge {{ 'st-completed' if d.status=='worked' else ('st-no_show' if d.status=='absent' else 'st-waiting') }}">
+              {{ d.doctor.display_name(current_lang) if d.doctor else '—' }}
+            </span>
+            {% if d.unit %}<small class="muted">{{ d.unit.name }}</small>{% endif %}
+            {% if may_edit and d.status == 'rostered' %}
+            <div style="display:flex;gap:4px;margin-top:4px;">
+              <form method="post" action="{{ url_for('duty.happened', duty_id=d.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-primary gc-press" type="submit"
+                        title="{{ t('duty.happened') }}"><i class="bi bi-check2"></i></button>
+              </form>
+              <form method="post" action="{{ url_for('duty.absent', duty_id=d.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline gc-press" type="submit"
+                        title="{{ t('duty.absent') }}"><i class="bi bi-x"></i></button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if may_edit %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-person-plus"></i> {{ t('duty.assign') }}</h2>
+  <form method="post" action="{{ url_for('duty.assign') }}"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
+      <label for="a_doctor">{{ t('duty.who') }}</label>
+      <select class="input" id="a_doctor" name="doctor_id" required>
+        <option value="">—</option>
+        {% for u in doctors %}
+        <option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="a_slot">{{ t('duty.slot') }}</label>
+      <select class="input" id="a_slot" name="slot_id" required>
+        {% for s in slots %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="a_date">{{ t('duty.on_date') }}</label>
+      <input class="input" type="date" id="a_date" name="on_date"
+             value="{{ anchor.isoformat() }}" dir="ltr" required>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      {# Optional, and that is the feature: a clinic with no departments still
+         has a night somebody covers. #}
+      <label for="a_unit">{{ t('duty.unit') }} <small class="muted">{{ t('common.optional') }}</small></label>
+      <select class="input" id="a_unit" name="unit_id">
+        <option value="">{{ t('duty.no_unit') }}</option>
+        {% for u in units %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+  <p class="hint" style="margin-bottom:0;">{{ t('duty.assign_hint') }}</p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
