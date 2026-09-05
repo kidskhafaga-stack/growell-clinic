@@ -55,6 +55,7 @@ from app.utils.services import next_service_code
 from app.utils.pricing import (
     service_for_visit_type,
 )
+from app.utils import billing
 from app.utils import einvoice as eta
 
 MODULE = "finance"
@@ -247,25 +248,10 @@ def journal_entry_new():
 
 
 def _post_journal_safe(kind, obj):
-    """Best-effort automatic journal posting (F2) — a bookkeeping hiccup must
-    never block billing, so every failure is swallowed after a rollback."""
-    try:
-        from app.utils import accounting as acct
-
-        if kind == "invoice":
-            acct.post_invoice(obj, user_id=current_user.id)
-            for p in obj.payments:
-                acct.post_payment(p, user_id=current_user.id)
-            # COGS for consumables issued with this invoice (W3).
-            iss = getattr(obj, "_iss_doc", None)
-            if iss is not None:
-                acct.post_store_doc(iss, user_id=current_user.id)
-        elif kind == "payment":
-            acct.post_payment(obj, user_id=current_user.id)
-        elif kind == "expense":
-            acct.post_expense(obj, user_id=current_user.id)
-    except Exception:  # noqa: BLE001
-        db.session.rollback()
+    """Automatic journal posting (F2). In ``utils/billing`` because the wards
+    post too, and a stay billed on the ward reached the revenue report and
+    never reached the ledger."""
+    billing.post_to_ledger(kind, obj, user_id=current_user.id)
 
 
 def _doctors():
@@ -1878,82 +1864,24 @@ def _auto_apply_best(invoice, patient, doctor_id=None):
 
 
 def _apply_cash_prices(invoice):
-    """Reprice the lines from the clinic's cash price list (التسعيرة النقدية).
-
-    The cash agreement needs no membership card — it is what the walk-in
-    patient pays — so it is applied to every invoice with no payer. Lines the
-    user priced by hand (a manual discount) are left alone."""
-    from app.utils.pricing import cash_tariff
-
-    for item in invoice.items:
-        if not item.service_id or (item.discount_value or 0) > 0:
-            continue
-        price = cash_tariff(item.service, invoice.invoice_date)
-        if price is None or price == item.unit_price:
-            continue
-        item.unit_price = price
-        if item.service is not None:
-            item.commission_amount = item.service.doctor_share(item.net,
-                                                               invoice.doctor)
+    """The cash price list. Lives in ``utils/billing`` — see there for why."""
+    billing.apply_cash_prices(invoice)
 
 
 def _apply_coverage(invoice, patient, auto_discount=True):
-    """Auto-apply a member's per-service coverage to the invoice lines.
+    """The payer's tariff and cover split — and then the best named discount.
 
-    For each covered line the entity's share becomes the line discount (so the
-    patient pays the rest and the entity share is claimable). Uncovered
-    services are left untouched (patient pays full — option ب). An expired card
-    is not applied automatically; the user is warned instead.
-
-    Afterwards the best named discount the patient qualifies for is applied to
-    whatever is still undiscounted — unless reception already picked one, or
-    asked for none (``auto_discount=False``).
+    The work itself is in ``utils/billing``: the wards raise invoices too, and
+    a bed night that skipped the insurance was billing a covered family the
+    cash rate for eleven nights. What stays here is the half that needs a
+    person in front of it — the warnings, and the named discounts, which read
+    "did his brother come today" and are the cashier screen's own question.
     """
-    coverage = patient.active_coverage if patient else None
-    # If the card exists but is expired/inactive, warn and skip auto-apply.
-    if coverage is None:
-        expired = [c for c in getattr(patient, "coverages", []) if not c.is_valid]
-        if expired:
-            flash(t("coverage.expired_warn"), "warning")
-        # No payer → the clinic's own cash price list applies, automatically.
-        # It is not a third party that pays, so no payer is stamped on the
-        # invoice and nothing becomes claimable — it only sets the price.
-        _apply_cash_prices(invoice)
-        if auto_discount:
-            _auto_apply_best(invoice, patient)
-        return
-
-    payer = coverage.payer
-    invoice.payer_id = payer.id
-    invoice.coverage_card = coverage.membership_number
-    invoice.coverage_expiry = coverage.expiry_date
-
-    # If the entity works by contracts, one must be in force on the invoice date.
-    if payer.contracts and payer.active_contract(invoice.invoice_date) is None:
-        flash(t("contracts.none_active_warn"), "warning")
-        return
-
-    for item in invoice.items:
-        if not item.service_id or (item.discount_value or 0) > 0:
-            continue  # keep manual discounts; skip free-text lines
-        # Contract tariff (سعر تعاقدي): members are billed at the contract's
-        # negotiated price for the service, then coverage splits it.
-        tariff = payer.tariff(item.service, invoice.invoice_date)
-        if tariff is not None:
-            item.unit_price = tariff
-        covered = payer.covers(item.service, item.gross, invoice.invoice_date)
-        if covered > 0:
-            item.discount_value = covered
-            item.discount_is_percent = False
-            if item.service is not None:
-                item.commission_amount = item.service.doctor_share(item.net, invoice.doctor)
-
-    # A club whose agreement is "members pay 15% less" carries no price list,
-    # so nothing above touched the invoice — its member discount lands here.
-    # Same for the family offer. Whichever is worth more wins, and only on the
-    # lines the coverage didn't already reduce.
-    if auto_discount:
-        _auto_apply_best(invoice, patient)
+    billing.apply_coverage(
+        invoice, patient,
+        warn=lambda key: flash(t(key), "warning"),
+        then=((lambda inv, pat: _auto_apply_best(inv, pat))
+              if auto_discount else None))
 
 
 def _uncharged_vaccines(patient_id, days=2):
@@ -2076,6 +2004,18 @@ def _todays_invoice(patient_id):
     nothing and the second collection of the evening opened a **second
     invoice** for the same visit. Which is the exact thing the paragraph above
     says it exists to prevent."""
+    # **A stay's bill first, whatever date it was raised on.** The rule above
+    # is right for an outpatient, who arrives and pays on one date. A stay
+    # runs across days: the nights are charged on the ward on Tuesday and the
+    # family pays at the desk on Thursday, and matching by date opened a
+    # *second* invoice and left the ward's one hanging — the same failure as
+    # the appointment paid on Thursday for Saturday, and for the same reason:
+    # the desk was guessing from a date because nothing said what the bill was
+    # for. Only an unsettled one is offered, so a stay paid at discharge does
+    # not come back when the child returns for a follow-up.
+    stay = billing.stay_invoice(patient_id)
+    if stay is not None:
+        return stay
     return (Invoice.query
             .filter(Invoice.patient_id == patient_id,
                     Invoice.invoice_date == local_today())

@@ -286,9 +286,11 @@ def post_nights(admission_id):
     what is outstanding and somebody decides.
     """
     row = Admission.query.get_or_404(admission_id)
-    result = bed_billing.post(row, user=current_user,
-                              lang=getattr(g, "lang", "ar"))
-    db.session.commit()
+    # `charge`, not `post`: it commits the bill before journalling it, because
+    # a ledger failure rolls the session back and would otherwise take the
+    # invoice with it.
+    result = bed_billing.charge(row, user=current_user,
+                                lang=getattr(g, "lang", "ar"))
     if not result["periods"]:
         flash(t("beds.nights_none"), "info")
     else:
@@ -326,9 +328,8 @@ def discharge(admission_id):
     # discharge is already a deliberate act with a form in front of it, so
     # this is not money appearing behind anybody's back — and it is said out
     # loud in the flash rather than left to be discovered on the bill.
-    billed = bed_billing.post(row, user=current_user,
-                              lang=getattr(g, "lang", "ar"))
-    db.session.commit()
+    billed = bed_billing.charge(row, user=current_user,
+                                lang=getattr(g, "lang", "ar"))
     flash(t("beds.discharged"), "success")
     if billed["periods"]:
         flash(t("beds.nights_posted", n=billed["periods"],
