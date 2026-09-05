@@ -336,3 +336,109 @@ def verify(order_id):
     flash(t("cpharm.verified"), "success")
     return redirect(request.referrer
                     or url_for("pharmacy.chart", admission_id=row.admission_id))
+
+
+# ------------------------------------------------ two names that confuse ----
+@pharmacy_bp.route("/lasa", methods=["GET", "POST"])
+@module_required(MODULE)
+def lasa():
+    """The pairs this hospital keeps confusing, and what it does about them.
+
+    The hospital's own, like the high-alert list: which names get mixed up
+    depends on what is on their shelves, what their handwriting looks like and
+    what their staff speak.
+    """
+    from app.models import GenericDrug, LasaPair
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    if request.method == "POST":
+        first = request.form.get("generic_a_id", type=int)
+        second = request.form.get("generic_b_id", type=int)
+        if not first or not second or first == second:
+            # A drug confused with itself is not a pair, and half a pair
+            # warns in no direction at all.
+            flash(t("lasa.need_two"), "error")
+            return redirect(url_for("pharmacy.lasa"))
+        db.session.add(LasaPair(
+            generic_a_id=min(first, second), generic_b_id=max(first, second),
+            precaution=(request.form.get("precaution") or "").strip()[:255]
+            or None, added_by=current_user.id))
+        db.session.commit()
+        flash(t("lasa.added"), "success")
+        return redirect(url_for("pharmacy.lasa"))
+
+    return render_template(
+        "pharmacy/lasa.html",
+        rows=LasaPair.query.order_by(LasaPair.id.desc()).all(),
+        generics=(GenericDrug.query.order_by(GenericDrug.name_en).limit(400)
+                  .all()))
+
+
+@pharmacy_bp.route("/lasa/<int:row_id>/toggle", methods=["POST"])
+@module_required(MODULE)
+def toggle_lasa(row_id):
+    from app.models import LasaPair
+
+    if not current_user.is_admin:
+        abort(403, description=t("auth.no_permission"))
+    row = db.get_or_404(LasaPair, row_id)
+    row.is_active = not row.is_active
+    db.session.commit()
+    return redirect(url_for("pharmacy.lasa"))
+
+
+# ------------------------------------------------- what went wrong ----------
+@pharmacy_bp.route("/errors", methods=["GET", "POST"])
+@module_required(MODULE)
+def errors():
+    """What went wrong, or nearly did — and what it adds up to.
+
+    **The loop the standards describe.** A hospital's high-alert list is meant
+    to be built from its own near misses and errors; until something recorded
+    them the list could only be written once from memory and never revised.
+
+    Reporting is open to anybody who can reach the pharmacy module, because a
+    reporting system only the pharmacist may write to collects the pharmacy's
+    own mistakes and nobody else's.
+    """
+    from app.models import ERROR_OUTCOMES, ERROR_STAGES
+    from app.utils import clinical_pharmacy
+
+    if request.method == "POST":
+        try:
+            clinical_pharmacy.report_error(
+                request.form.get("what_happened"),
+                (request.form.get("stage") or "").strip(),
+                (request.form.get("outcome") or "").strip(),
+                user=current_user,
+                drug_name=request.form.get("drug_name"),
+                reached=request.form.get("reached") == "1",
+                action=request.form.get("action_taken"))
+        except ValueError:
+            db.session.rollback()
+            flash(t("mederr.need_account"), "error")
+            return redirect(url_for("pharmacy.errors"))
+        db.session.commit()
+        flash(t("mederr.recorded"), "success")
+        return redirect(url_for("pharmacy.errors"))
+
+    days = min(365, max(7, request.args.get("days", type=int) or 90))
+    return render_template("pharmacy/errors.html", days=days,
+                           stages=ERROR_STAGES, outcomes=ERROR_OUTCOMES,
+                           summary=clinical_pharmacy.error_summary(days))
+
+
+# ---------------------------------------- what they go home on --------------
+@pharmacy_bp.route("/ward/<int:admission_id>/discharge")
+@module_required(MODULE)
+def discharge_meds(admission_id):
+    """The three lists a discharge needs put beside each other."""
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(Admission, admission_id)
+    return render_template(
+        "pharmacy/discharge.html", admission=row,
+        **clinical_pharmacy.discharge_reconciliation(
+            row, lang=getattr(g, "lang", "ar")))

@@ -1,0 +1,100 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('recon.title') }}{% endblock %}
+{% block page_heading %}{{ t('recon.title') }}{% endblock %}
+
+{% block content %}
+<style>
+  .rc-col { border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .rc-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+  .rc-started { border-inline-start:5px solid var(--green-600); }
+  .rc-stopped { border-inline-start:5px solid var(--danger); }
+  .rc-same    { border-inline-start:5px solid var(--line); }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-left-right"></i>
+      {{ admission.patient.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('recon.sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('pharmacy.chart', admission_id=admission.id) }}">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</a>
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('beds.admission', admission_id=admission.id) }}">
+      <i class="bi bi-hospital"></i> {{ t('theatre.the_stay') }}</a>
+  </div>
+</div>
+
+{# It decides nothing, and the screen says so: continuing a home medicine
+   through an admission and stopping one the child came in on are both
+   decisions, and a program that resolved them quietly would be writing a
+   discharge prescription nobody signed. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('recon.decides_nothing') }}</p>
+</div>
+
+<div class="rc-grid">
+  <div class="rc-col rc-started" data-started>
+    <h2 class="section-title" style="margin-top:0;">
+      <i class="bi bi-plus-circle"></i> {{ t('recon.started', n=started|length) }}</h2>
+    <p class="hint">{{ t('recon.started_hint') }}</p>
+    {% if started %}
+    <ul style="margin:0;padding-inline-start:18px;">
+      {% for order in started %}
+      <li><b>{{ order.drug_name }}</b>
+        {% if order.dose %}<span class="hint">{{ order.dose }}</span>{% endif %}
+        {% if order.every_hours %}
+        <span class="hint" dir="ltr">q{{ order.every_hours }}h</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('recon.nothing_here') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="rc-col rc-stopped" data-stopped>
+    <h2 class="section-title" style="margin-top:0;">
+      <i class="bi bi-dash-circle"></i> {{ t('recon.stopped', n=stopped|length) }}</h2>
+    <p class="hint">{{ t('recon.stopped_hint') }}</p>
+    {% if stopped %}
+    <ul style="margin:0;padding-inline-start:18px;">
+      {% for med in stopped %}
+      <li><b>{{ med.name }}</b>
+        {% if med.dose %}<span class="hint">{{ med.dose }}</span>{% endif %}
+        {% if med.reason %}<span class="hint">— {{ med.reason }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('recon.nothing_here') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="rc-col rc-same" data-continued>
+    <h2 class="section-title" style="margin-top:0;">
+      <i class="bi bi-arrow-repeat"></i> {{ t('recon.continued', n=continued|length) }}</h2>
+    <p class="hint">{{ t('recon.continued_hint') }}</p>
+    {% if continued %}
+    <ul style="margin:0;padding-inline-start:18px;">
+      {% for med, order in continued %}
+      <li><b>{{ med.name }}</b>
+        {% if med.dose and order.dose and med.dose != order.dose %}
+        {# The dose changed while they were in. The one comparison on this
+           screen worth pointing at: a child going home on the ward's dose of
+           a medicine they came in on is the classic discharge error. #}
+        <span class="alert-pill warn" data-dose-changed>
+          {{ med.dose }} → {{ order.dose }}</span>
+        {% elif order.dose %}
+        <span class="hint">{{ order.dose }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint" style="margin:0;">{{ t('recon.nothing_here') }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

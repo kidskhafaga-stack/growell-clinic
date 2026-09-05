@@ -847,3 +847,248 @@ def test_a_stopped_order_is_not_checked(ward):
         with pytest.raises(ValueError):
             clinical_pharmacy.verify(row)
         ward["db"].session.rollback()
+
+
+# ============ two names that confuse ========================================
+def _pair(ward, first="مورفين", second="هيدرومورفون"):
+    from app.models import GenericDrug, LasaPair
+
+    with ward["app"].app_context():
+        a = GenericDrug(name_ar=first, name_en=first)
+        b = GenericDrug(name_ar=second, name_en=second)
+        ward["db"].session.add_all([a, b])
+        ward["db"].session.flush()
+        ward["db"].session.add(LasaPair(
+            generic_a_id=min(a.id, b.id), generic_b_id=max(a.id, b.id),
+            precaution="رفوف منفصلة"))
+        ward["db"].session.commit()
+        return a.id, b.id
+
+
+def test_no_pair_is_shipped_with_the_software(ward):
+    """Which names get mixed up depends on what is on their shelves and what
+    their staff speak — a shipped list would be about somebody else's
+    pharmacy."""
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        assert clinical_pharmacy.lasa_map() == {}
+
+
+def test_a_pair_warns_in_both_directions_from_one_row(ward):
+    """Stored once and read both ways, so a pair cannot end up half-deleted
+    and warning in one direction only — the failure mode of every
+    hand-maintained pair list."""
+    from app.utils import clinical_pharmacy
+
+    first, second = _pair(ward)
+
+    with ward["app"].app_context():
+        known = clinical_pharmacy.lasa_map()
+        assert first in known and second in known
+        pair = known[first][0]
+        assert pair.other_than(first).id == second
+        assert pair.other_than(second).id == first
+
+
+def test_a_drug_confused_with_itself_is_refused(ward):
+    """Half a pair warns in no direction at all."""
+    from app.models import GenericDrug, LasaPair
+
+    with ward["app"].app_context():
+        one = GenericDrug(name_ar="مورفين", name_en="morphine")
+        ward["db"].session.add(one)
+        ward["db"].session.commit()
+        ident = one.id
+
+    ward["sign_in"]("boss").post("/pharmacy/lasa",
+                                 data={"generic_a_id": ident,
+                                       "generic_b_id": ident},
+                                 follow_redirects=True)
+
+    with ward["app"].app_context():
+        assert LasaPair.query.count() == 0
+
+
+def test_the_pair_list_is_the_owners(ward):
+    assert ward["sign_in"]("chem").get("/pharmacy/lasa").status_code == 403
+
+
+# ============ what went wrong, and the loop it closes =======================
+def test_a_near_miss_needs_no_patient(ward):
+    """**The valuable half.** The wrong box picked up and put back belongs to
+    no child, and refusing the report until somebody names one would lose
+    exactly the lessons that cost nothing."""
+    from app.models import MedicationError
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        clinical_pharmacy.report_error(
+            "اتاخد الصندوق الغلط من الرف واترجع", "dispensing", "B",
+            drug_name="مورفين")
+        ward["db"].session.commit()
+        row = MedicationError.query.one()
+        assert row.patient_id is None
+        assert row.is_near_miss
+        assert row.band == "no_harm"
+
+
+def test_the_outcome_letter_decides_the_band(ward):
+    """NCC MERP's letters, because a hospital comparing its own quarters needs
+    the same buckets everybody else uses."""
+    from app.models import OUTCOME_BANDS
+
+    assert OUTCOME_BANDS["A"] == "no_error"
+    assert OUTCOME_BANDS["C"] == "no_harm"
+    assert OUTCOME_BANDS["F"] == "harm"
+    assert OUTCOME_BANDS["I"] == "death"
+
+
+def test_an_unknown_stage_or_outcome_is_refused(ward):
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        with pytest.raises(ValueError):
+            clinical_pharmacy.report_error("حاجة", "guessing", "C")
+        with pytest.raises(ValueError):
+            clinical_pharmacy.report_error("حاجة", "dispensing", "Z")
+        with pytest.raises(ValueError):
+            clinical_pharmacy.report_error("   ", "dispensing", "C")
+        ward["db"].session.rollback()
+
+
+def test_the_report_never_asks_who_made_the_mistake(ward):
+    """A reporting system with that field collects nothing after the first
+    month, which is the oldest finding in patient safety."""
+    from app.models import MedicationError
+
+    columns = {c.name for c in MedicationError.__table__.columns}
+    assert "reported_by" in columns
+    for blaming in ("made_by", "responsible_id", "blamed_by", "at_fault"):
+        assert blaming not in columns
+
+
+def test_the_summary_is_what_the_high_alert_list_is_revised_against(ward):
+    """The loop the standards describe: the list is built from a hospital's
+    own near misses, so something has to be counting them."""
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        for _ in range(3):
+            clinical_pharmacy.report_error("جرعة زيادة", "prescribing", "C",
+                                           drug_name="أنسولين")
+        clinical_pharmacy.report_error("صنف غلط", "dispensing", "B",
+                                       drug_name="مورفين", reached=False)
+        ward["db"].session.commit()
+
+        found = clinical_pharmacy.error_summary()
+        assert found["total"] == 4
+        assert found["near_misses"] == 4      # none of them reached a child
+        assert found["stages"]["prescribing"] == 3
+        # Most-reported first: the column a pharmacy reads when it revises.
+        assert found["drugs"][0] == ("أنسولين", 3)
+
+
+def test_reaching_the_child_is_recorded_not_guessed_from_the_letter(ward):
+    """"Reached them and did no harm" and "was caught" are different lessons,
+    and the letters blur them at the edges."""
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        row = clinical_pharmacy.report_error(
+            "اتعطى وماأذاش", "administering", "C", reached=True)
+        ward["db"].session.commit()
+        assert row.band == "no_harm"
+        assert not row.is_near_miss
+
+
+def test_anybody_in_the_pharmacy_module_may_report(ward):
+    """A reporting system only the pharmacist may write to collects the
+    pharmacy's own mistakes and nobody else's."""
+    page = ward["sign_in"]("chem").post("/pharmacy/errors", data={
+        "what_happened": "الجرعة اتحسبت غلط", "stage": "prescribing",
+        "outcome": "B"}, follow_redirects=True)
+
+    assert page.status_code == 200
+    from app.models import MedicationError
+
+    with ward["app"].app_context():
+        assert MedicationError.query.count() == 1
+
+
+# ============ what they go home on ==========================================
+def _home_med(ward, patient_id, name="فالبروات", dose="5 ml"):
+    from app.models import PatientMedication
+
+    with ward["app"].app_context():
+        row = PatientMedication(patient_id=patient_id, name=name, dose=dose)
+        ward["db"].session.add(row)
+        ward["db"].session.commit()
+        return row.id
+
+
+def test_the_discharge_list_says_what_started_stopped_and_continued(ward):
+    """The question every transition asks and a discharge could not answer."""
+    from app.models.admission import Admission
+    from app.utils import clinical_pharmacy
+
+    child = _child(ward, "خر")
+    _home_med(ward, child, name="فالبروات")
+    _home_med(ward, child, name="فيتامين د")
+    stay = _admit(ward, child)
+    _order(ward, stay, drug="فالبروات")       # continued
+    _order(ward, stay, drug="أموكسيسيلين")     # started here
+
+    with ward["app"].app_context():
+        found = clinical_pharmacy.discharge_reconciliation(
+            ward["db"].session.get(Admission, stay))
+        assert [o.drug_name for o in found["started"]] == ["أموكسيسيلين"]
+        assert [m.name for m in found["stopped"]] == ["فيتامين د"]
+        assert [m.name for m, _ in found["continued"]] == ["فالبروات"]
+
+
+def test_a_stopped_home_medicine_is_not_counted_as_theirs(ward):
+    """A medicine somebody stopped last year is history, not something this
+    child is going home on."""
+    from app.models import PatientMedication
+    from app.models.admission import Admission
+    from app.utils import clinical_pharmacy
+    from app.utils.clock import local_today
+
+    child = _child(ward, "قد")
+    old = _home_med(ward, child, name="دوا قديم")
+    with ward["app"].app_context():
+        ward["db"].session.get(PatientMedication, old).stopped_on = local_today()
+        ward["db"].session.commit()
+    stay = _admit(ward, child)
+
+    with ward["app"].app_context():
+        found = clinical_pharmacy.discharge_reconciliation(
+            ward["db"].session.get(Admission, stay))
+        assert found["stopped"] == []
+
+
+def test_the_screen_says_it_decides_nothing(ward):
+    """Continuing a home medicine and stopping one are both decisions, and a
+    program that resolved them quietly would be writing a discharge
+    prescription nobody signed."""
+    child = _child(ward, "شا")
+    _home_med(ward, child)
+    stay = _admit(ward, child)
+    _order(ward, stay, drug="أموكسيسيلين")
+
+    page = ward["sign_in"]("chem").get(f"/pharmacy/ward/{stay}/discharge")
+
+    assert page.status_code == 200
+    assert b"data-started" in page.data
+    assert b"data-stopped" in page.data
+    assert b"data-continued" in page.data
+
+
+def test_the_chart_leads_to_the_discharge_list(ward):
+    stay = _admit(ward, _child(ward, "دل"))
+    _order(ward, stay)
+
+    page = ward["sign_in"]("chem").get(f"/pharmacy/ward/{stay}")
+
+    assert f"/pharmacy/ward/{stay}/discharge".encode() in page.data

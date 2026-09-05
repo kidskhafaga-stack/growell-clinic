@@ -31,9 +31,13 @@
       <i class="bi bi-question-circle"></i> {{ t('cpharm.n_queries', n=counts.queries) }}</span>
     {% endif %}
     {# The bench half of the job, and the larger half in most hospitals. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.errors') }}">
+      <i class="bi bi-clipboard2-x"></i> {{ t('mederr.title') }}</a>
     {% if current_user.is_admin %}
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.high_alert') }}">
       <i class="bi bi-exclamation-diamond"></i> {{ t('halert.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.lasa') }}">
+      <i class="bi bi-arrow-left-right"></i> {{ t('lasa.title') }}</a>
     {% endif %}
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.supply') }}">
       <i class="bi bi-bag-plus"></i> {{ t('cpharm.supply') }}</a>

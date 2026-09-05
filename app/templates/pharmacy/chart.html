@@ -26,6 +26,11 @@
     <a class="btn btn-outline gc-press"
        href="{{ url_for('beds.admission', admission_id=admission.id) }}">
       <i class="bi bi-hospital"></i> {{ t('theatre.the_stay') }}</a>
+    {# The question every transition asks, and the one a discharge could not
+       answer: what did they come in on, and what are they going home with. #}
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('pharmacy.discharge_meds', admission_id=admission.id) }}">
+      <i class="bi bi-arrow-left-right"></i> {{ t('recon.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}">
       <i class="bi bi-list-ul"></i> {{ t('cpharm.the_board') }}</a>
   </div>
@@ -90,6 +95,16 @@
       {% if alert.precaution %} — <b>{{ alert.precaution }}</b>{% endif %}
     </div>
     {% endif %}
+
+    {% for pair, other in (confusable.get(order.id) or []) %}
+    {# Two names this hospital keeps mixing up, shown where one of them is
+       about to be handed over. #}
+    <div class="alert-pill warn" style="margin-top:8px;" data-lasa>
+      <i class="bi bi-arrow-left-right"></i>
+      {{ t('lasa.flag') }}: <b>{{ other.display_name(current_lang) }}</b>
+      {% if pair.precaution %} — {{ pair.precaution }}{% endif %}
+    </div>
+    {% endfor %}
 
     {% if order.queried_at %}
     <div class="alert-pill {{ 'ok' if order.answered_at else 'warn' }}"

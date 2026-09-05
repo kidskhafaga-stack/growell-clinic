@@ -163,8 +163,12 @@ def chart(admission, lang="ar"):
     orders = list(drug_round.running_orders([admission.id])
                   .get(admission.id) or [])
     known = high_alert_map()
+    pairs = lasa_map()
     return {"orders": orders,
             "high_alert": {o.id: high_alert_for(o, known) for o in orders},
+            # And the names this hospital keeps mixing up, shown where one of
+            # them is about to be handed over.
+            "confusable": {o.id: lasa_for(o, pairs) for o in orders},
             "safety": drug_round.safety(admission, lang=lang)}
 
 
@@ -445,3 +449,169 @@ def unverified(admission_ids=None):
     known = high_alert_map()
     rows.sort(key=lambda o: high_alert_for(o, known) is None)
     return rows
+
+
+# ------------------------------------------------ two names that confuse ----
+def lasa_map():
+    """``{generic_id: [LasaPair]}`` — read both ways from one row.
+
+    Stored once and read in both directions rather than as two rows, so a pair
+    cannot end up half-deleted and warning one way only — the failure mode of
+    every hand-maintained pair list.
+    """
+    from app.models import LasaPair
+
+    out = {}
+    for row in LasaPair.query.filter(LasaPair.is_active.is_(True)).all():
+        out.setdefault(row.generic_a_id, []).append(row)
+        out.setdefault(row.generic_b_id, []).append(row)
+    return out
+
+
+def lasa_for(order, known=None):
+    """``[(pair, other)]`` — what this order could be confused with.
+
+    Empty for a hospital that has not written its pairs, which is where a
+    fresh install stays: which names get mixed up depends on what is on their
+    shelves and what their staff speak, and a list shipped with the software
+    would be about somebody else's pharmacy.
+    """
+    known = lasa_map() if known is None else known
+    if not known or order is None:
+        return []
+    drug = getattr(order, "drug", None)
+    generic_id = getattr(drug, "generic_id", None) if drug is not None else None
+    if generic_id is None:
+        return []
+    found = []
+    for pair in known.get(generic_id) or []:
+        other = pair.other_than(generic_id)
+        if other is not None:
+            found.append((pair, other))
+    return found
+
+
+# ------------------------------------------------- what went wrong ----------
+def report_error(what_happened, stage, outcome, user=None, patient_id=None,
+                 admission_id=None, order=None, generic_id=None,
+                 drug_name=None, reached=False, action=None, at=None):
+    """Write down something that went wrong, or nearly did. Returns the row.
+
+    **A near miss is the valuable half**, so nothing here requires a patient:
+    the wrong box picked up and put back on the bench belongs to no child, and
+    refusing the report until somebody names one would lose exactly the
+    lessons that cost nothing.
+    """
+    from app.models import ERROR_OUTCOMES, ERROR_STAGES, MedicationError
+
+    text = (what_happened or "").strip()
+    if not text:
+        raise ValueError("no account")
+    if stage not in ERROR_STAGES:
+        raise ValueError("unknown stage")
+    if outcome not in ERROR_OUTCOMES:
+        raise ValueError("unknown outcome")
+
+    row = MedicationError(
+        what_happened=text, stage=stage, outcome=outcome,
+        reached_patient=bool(reached),
+        patient_id=patient_id, admission_id=admission_id,
+        order_id=getattr(order, "id", None),
+        generic_id=generic_id, drug_name=(drug_name or "").strip()[:200] or None,
+        action_taken=(action or "").strip() or None,
+        happened_at=at or datetime.utcnow(),
+        reported_by=getattr(user, "id", None))
+    db.session.add(row)
+    return row
+
+
+def error_summary(days=90):
+    """``{bands, stages, near_misses, total, drugs}`` over a window.
+
+    **What the high-alert list is supposed to be built from.** The standards
+    ask a hospital to write that list from its own near misses and errors, and
+    until something recorded them the list could only ever be written once
+    from memory and never revised.
+    """
+    from datetime import timedelta
+
+    from app.models import MedicationError
+
+    since = datetime.utcnow() - timedelta(days=max(1, days))
+    rows = (MedicationError.query
+            .filter(MedicationError.happened_at >= since)
+            .order_by(MedicationError.happened_at.desc()).all())
+
+    bands, stages, drugs = {}, {}, {}
+    for row in rows:
+        bands[row.band] = bands.get(row.band, 0) + 1
+        stages[row.stage] = stages.get(row.stage, 0) + 1
+        name = (row.generic.display_name("ar") if row.generic is not None
+                else (row.drug_name or "").strip())
+        if name:
+            drugs[name] = drugs.get(name, 0) + 1
+    return {
+        "rows": rows, "total": len(rows), "bands": bands, "stages": stages,
+        "near_misses": sum(1 for r in rows if r.is_near_miss),
+        # Most-reported first: this is the column a pharmacy reads when it
+        # sits down to revise its high-alert list, which is the whole point.
+        "drugs": sorted(drugs.items(), key=lambda kv: -kv[1])[:15],
+    }
+
+
+# ---------------------------------------- what they go home on --------------
+def discharge_reconciliation(admission, lang="ar"):
+    """The three lists a discharge needs put beside each other.
+
+    **The question the standards ask at every transition** and the one this
+    program could not answer at a discharge: what was this child on before
+    they came in, what are they on now, and what are they going home with.
+
+    Returns ``{"home", "ward", "started", "stopped", "continued"}`` — the home
+    list, the ward chart, and the three answers that come out of comparing
+    them. Matched on the **active ingredient** where both sides have one and
+    on the name otherwise, because a ward writes "Augmentin" against a home
+    list that says "amoxicillin/clavulanate" and a comparison by text alone
+    would call that a new drug and a stopped one.
+
+    **It decides nothing.** Every one of these is a sentence for a person to
+    act on: continuing a home medicine through an admission, and stopping one
+    the child came in on, are both decisions, and a program that quietly
+    resolved them would be writing a discharge prescription nobody signed.
+    """
+    from app.models import PatientMedication
+    from app.utils import drug_round
+
+    if admission is None:
+        return {"home": [], "ward": [], "started": [], "stopped": [],
+                "continued": []}
+
+    # Still running only: a medicine somebody stopped last year is history and
+    # not something this child is going home on. The column is `stopped_on`
+    # and never a delete — see the model.
+    home = (PatientMedication.query
+            .filter(PatientMedication.patient_id == admission.patient_id,
+                    PatientMedication.stopped_on.is_(None))
+            .order_by(PatientMedication.id).all())
+    ward = list(drug_round.running_orders([admission.id])
+                .get(admission.id) or [])
+
+    def key_of(generic_id, name):
+        if generic_id:
+            return ("g", generic_id)
+        return ("n", (name or "").strip().casefold())
+
+    home_keys = {key_of(m.generic_id, m.name): m for m in home}
+    ward_keys = {}
+    for order in ward:
+        drug = getattr(order, "drug", None)
+        ward_keys[key_of(getattr(drug, "generic_id", None) if drug else None,
+                         order.drug_name)] = order
+
+    started = [order for key, order in ward_keys.items()
+               if key not in home_keys]
+    stopped = [med for key, med in home_keys.items() if key not in ward_keys]
+    continued = [(home_keys[key], ward_keys[key])
+                 for key in home_keys if key in ward_keys]
+    return {"home": home, "ward": ward, "started": started,
+            "stopped": stopped, "continued": continued}
