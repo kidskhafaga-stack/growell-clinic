@@ -87,6 +87,13 @@
           · {{ t('meds.last_' ~ item.last.outcome) }} {{ item.last.at|clinic_time }}
           {% endif %}
         </div>
+        {% if item.prepared %}
+        {# "Is it here?" is the question asked at the trolley, so it is
+           answered at the trolley — not on the pharmacy's own screen, which
+           would send somebody down a corridor to find out. #}
+        <span class="alert-pill ok" data-prepared>
+          <i class="bi bi-bag-check"></i> {{ t('cpharm.ready') }}</span>
+        {% endif %}
       </div>
 
       {# Given is one press. Held and refused are two, and the second one is

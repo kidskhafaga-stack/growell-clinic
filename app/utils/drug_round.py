@@ -167,6 +167,22 @@ def for_admissions(admission_ids, now=None):
     return out
 
 
+def _prepared_today(order_ids):
+    """``{order_id: DosePrep}`` — what the pharmacy has already made up.
+
+    Empty and silent when the pharmacy module is off: a ward whose drugs come
+    off its own shelf has nobody preparing anything, and a column saying "not
+    ready" for ever would be a fault report about a service they do not buy.
+    """
+    from app.utils.facility import module_enabled
+
+    if not order_ids or not module_enabled("pharmacy"):
+        return {}
+    from app.utils import clinical_pharmacy
+
+    return clinical_pharmacy.prepared_on(order_ids)
+
+
 def board(kind=None, now=None):
     """Every child on a drug right now, the most overdue at the top.
 
@@ -189,6 +205,15 @@ def board(kind=None, now=None):
                       .order_by(Admission.admitted_at).all())
 
     drugs = for_admissions([a.id for a in admissions], now)
+    # Whether the pharmacy has made today's supply up, when a clinic runs one.
+    # **On this board because this is where the nurse is**: "is it here?" is
+    # the question asked at the trolley, and answering it only on the
+    # pharmacy's own screen would send somebody down a corridor to find out.
+    # An empty answer when no pharmacy prepares anything, which is every
+    # clinic that has not switched the module on.
+    ready = _prepared_today([o["order"].id
+                            for entry in drugs.values()
+                            for o in (entry.get("orders") or [])])
     rows = []
     for admission in admissions:
         entry = drugs.get(admission.id) or {}
@@ -197,6 +222,8 @@ def board(kind=None, now=None):
             # every other ward screen; putting them here too would bury the
             # four children who are actually owed something.
             continue
+        for line in entry.get("orders") or []:
+            line["prepared"] = ready.get(line["order"].id)
         rows.append({"admission": admission, "patient": admission.patient,
                      "bed": admission.bed, **entry})
     rows.sort(key=lambda r: (_RANK[r["level"]],

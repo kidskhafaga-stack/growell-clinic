@@ -27,6 +27,24 @@ question this program answers:
   while it is open. The answer is usually "yes, I meant it", the child is in
   the bed, and a pharmacy that can stop a ward's drug is one the ward starts
   writing around.
+
+**And the other half is work rather than reading.** A hospital pharmacy makes
+up what each ward needs before the round — labelled per child, per drug, per
+day — and in most hospitals that is the larger half of the job. The program
+had nothing for it: a dose existed only at the moment a nurse recorded giving
+it, so *"is this child's amoxicillin ready?"* had no answer anywhere. See
+:func:`supply_list` and :func:`prepare`.
+
+**How many doses is arithmetic on the doctor's own order** — six-hourly for a
+day is four — and never a judgement about what a child needs. A PRN order has
+no count at all, because there is no hour it is owed at.
+
+**What this module will not do**, and the list is worth stating: it does not
+choose a diluent, a final volume, an infusion time or a stability window, and
+it does not formulate parenteral nutrition or adjust a dose for a kidney.
+Every one of those is a clinical number or a rulebook, and the rule that stops
+this program inventing an alert threshold stops it inventing these. A clinic
+with its own recipe writes it on the order, where a person wrote it.
 """
 from datetime import datetime
 
@@ -194,3 +212,128 @@ def answer(order, note=None, user=None, at=None):
     order.answered_at = at or datetime.utcnow()
     order.answered_by = getattr(user, "id", None)
     return order
+
+
+# ------------------------------------------------------ making them up -----
+def doses_in_a_day(order):
+    """How many doses a day this order comes to, or ``None`` for a PRN.
+
+    Arithmetic on what the doctor wrote and nothing else. ``None`` is the
+    honest answer for "when needed": there is no hour it is owed at, so there
+    is no number of them in a day, and a pharmacy supplies those by agreement
+    rather than by a count this program made up.
+    """
+    if order is None or order.is_prn or not order.every_hours:
+        return None
+    return max(1, int(24 // max(1, int(order.every_hours))))
+
+
+def prepared_on(order_ids, on_date=None):
+    """``{order_id: DosePrep}`` for the batches made up on a clinic date."""
+    from app.models import DosePrep
+    from app.utils.clock import local_today
+
+    if not order_ids:
+        return {}
+    rows = (DosePrep.query
+            .filter(DosePrep.order_id.in_(order_ids),
+                    DosePrep.for_date == (on_date or local_today()))
+            .all())
+    return {row.order_id: row for row in rows}
+
+
+def supply_list(kind=None, on_date=None):
+    """What the pharmacy has to make up today, child by child.
+
+    Grouped by child rather than by drug, because that is how a unit-dose bag
+    is filled and how it is checked: one label, one patient, everything they
+    are on. A list sorted by drug would have somebody walking the shelves once
+    per patient instead of once per round.
+
+    Children with nothing left to make up drop off — the list is the work
+    remaining, and one that keeps everybody on it is one nobody can see the
+    end of.
+    """
+    from app.utils import drug_round
+    from app.utils.clock import local_today
+
+    on_date = on_date or local_today()
+    stays = (Admission.query
+             .filter(Admission.discharged_at.is_(None))
+             .order_by(Admission.admitted_at).all())
+    if kind:
+        stays = [s for s in stays
+                 if s.bed is not None and s.bed.unit is not None
+                 and s.bed.unit.kind == kind]
+    if not stays:
+        return []
+
+    charts = drug_round.running_orders([s.id for s in stays])
+    every_order = [o for orders in charts.values() for o in orders]
+    done = prepared_on([o.id for o in every_order], on_date)
+
+    rows = []
+    for stay in stays:
+        lines = []
+        for order in charts.get(stay.id) or []:
+            count = doses_in_a_day(order)
+            lines.append({
+                "order": order, "doses": count,
+                "units": (None if count is None
+                          else count * max(1, int(order.units_per_dose or 1))),
+                "prep": done.get(order.id),
+            })
+        if not lines or all(ln["prep"] is not None for ln in lines):
+            continue
+        rows.append({"admission": stay, "patient": stay.patient,
+                     "bed": stay.bed, "lines": lines,
+                     "left": sum(1 for ln in lines if ln["prep"] is None)})
+    # Most left to do first: a pharmacist works the biggest bag first because
+    # it is the one most likely to still be unfinished when the round starts.
+    rows.sort(key=lambda r: -r["left"])
+    return rows
+
+
+def prepare(order, user=None, doses=None, units=None, label=None,
+            on_date=None, note=None):
+    """Record that today's supply of this drug is made up. Returns the row.
+
+    Making it up again on the same day updates rather than adds: a bag redone
+    because the order changed at noon is still one bag going up to the ward,
+    and two rows would tell the ward it was ready twice.
+    """
+    from app.models import DosePrep
+    from app.utils.clock import local_today
+
+    if order is None:
+        raise ValueError("no order")
+    if not order.is_running:
+        # A stopped order is not supplied. Making up a drug nobody may give is
+        # the one mistake this list can cause, so it is refused here rather
+        # than left to the screen.
+        raise ValueError("not running")
+
+    for_date = on_date or local_today()
+    row = DosePrep.query.filter_by(order_id=order.id,
+                                   for_date=for_date).first()
+    if row is None:
+        row = DosePrep(order_id=order.id, admission_id=order.admission_id,
+                       patient_id=order.patient_id, for_date=for_date)
+        db.session.add(row)
+    counted = doses_in_a_day(order) if doses is None else doses
+    row.doses = counted
+    row.units = (units if units is not None
+                 else (None if counted is None
+                       else counted * max(1, int(order.units_per_dose or 1))))
+    row.prepared_at = datetime.utcnow()
+    row.prepared_by = getattr(user, "id", None)
+    row.label = (label or "").strip()[:255] or None
+    row.note = (note or "").strip()[:255] or None
+    return row
+
+
+def supply_counts(rows=None):
+    """``{children, drugs}`` still to make up — the heading's two numbers."""
+    rows = supply_list() if rows is None else rows
+    return {"children": len(rows),
+            "drugs": sum(r["left"] for r in rows)}

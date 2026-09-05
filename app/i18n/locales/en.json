@@ -6084,6 +6084,20 @@
     "what_you_found": "What you found (optional)",
     "mark_reviewed": "Reviewed",
     "reviewed": "Review recorded",
-    "waiting_answer": "Waiting on the doctor — they answer from the stay screen"
+    "waiting_answer": "Waiting on the doctor — they answer from the stay screen",
+    "supply": "Ward supply",
+    "supply_sub": "What has to be made up for the wards today — child by child",
+    "all_made_up": "Everything is made up. Nothing left for today.",
+    "n_children": "{n} children",
+    "n_to_make": "{n} to make up",
+    "n_doses_today": "{n} doses today",
+    "n_units": "{n} units",
+    "prn_by_agreement": "When needed — no fixed daily count, supplied by agreement",
+    "label": "On the bag",
+    "label_ph": "Optional",
+    "make_up": "Made up",
+    "prepared": "Recorded",
+    "not_running": "This order is stopped — it is not supplied",
+    "ready": "Made up"
   }
 }

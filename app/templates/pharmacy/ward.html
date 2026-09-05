@@ -30,6 +30,9 @@
     <span class="alert-pill warn" data-queries>
       <i class="bi bi-question-circle"></i> {{ t('cpharm.n_queries', n=counts.queries) }}</span>
     {% endif %}
+    {# The bench half of the job, and the larger half in most hospitals. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.supply') }}">
+      <i class="bi bi-bag-plus"></i> {{ t('cpharm.supply') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.index') }}">
       <i class="bi bi-prescription2"></i> {{ t('pharm.the_queue') }}</a>
   </div>

@@ -426,3 +426,203 @@ def test_the_capability_switches_the_beds_on_with_it(ward):
 
     needed = CAPABILITY_MODULES["clinical_pharmacy"]
     assert {"pharmacy", "beds"} <= needed
+
+
+# ===================== making the ward's doses up ===========================
+def _supply(ward):
+    from app.utils import clinical_pharmacy
+
+    with ward["app"].app_context():
+        return [{"stay": r["admission"].id, "left": r["left"],
+                 "lines": [(ln["order"].id, ln["doses"], ln["units"],
+                            ln["prep"] is not None) for ln in r["lines"]]}
+                for r in clinical_pharmacy.supply_list()]
+
+
+def test_the_count_is_arithmetic_on_the_doctors_own_order(ward):
+    """**Never a judgement about what a child needs.** Six-hourly for a day is
+    four, and that is all this number ever is."""
+    from app.models.admission import Admission
+    from app.utils import clinical_pharmacy, drug_round
+
+    stay = _admit(ward, _child(ward, "ق"))
+    with ward["app"].app_context():
+        row = drug_round.order(
+            ward["db"].session.get(Admission, stay), "أموكسيسيلين",
+            dose="250 mg", every_hours=6, units_per_dose=2)
+        ward["db"].session.commit()
+        order = row.id
+        assert clinical_pharmacy.doses_in_a_day(row) == 4
+
+    # Four doses a day, and two ampoules in each of them: the ward is owed
+    # four and eight left the shelf, and neither can be worked back from the
+    # other once somebody changes the order.
+    assert _supply(ward)[0]["lines"] == [(order, 4, 8, False)]
+
+
+def test_a_prn_order_has_no_daily_count(ward):
+    """There is no hour it is owed at, so there is no number of them in a day
+    — and a pharmacy supplies those by agreement rather than by a figure this
+    program made up."""
+    from app.models.admission import Admission
+    from app.utils import clinical_pharmacy, drug_round
+
+    stay = _admit(ward, _child(ward, "ر٢"))
+    with ward["app"].app_context():
+        order = drug_round.order(
+            ward["db"].session.get(Admission, stay), "باراسيتامول",
+            dose="5 ml", is_prn=True, min_gap_hours=6)
+        ward["db"].session.commit()
+        assert clinical_pharmacy.doses_in_a_day(order) is None
+
+    assert _supply(ward)[0]["lines"][0][1] is None
+
+
+def test_making_it_up_takes_it_off_the_list(ward):
+    """The list is the work remaining. One that keeps everybody on it is one
+    nobody can see the end of."""
+    stay = _admit(ward, _child(ward, "ش"))
+    order = _order(ward, stay)
+
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{order}/prepare",
+                                 data={"label": "كيس ٤ جرعات"},
+                                 follow_redirects=True)
+
+    assert _supply(ward) == []
+
+
+def test_a_child_with_one_drug_left_stays_on_the_list(ward):
+    """Off the list means *everything* is made up, not something."""
+    stay = _admit(ward, _child(ward, "ت"))
+    first = _order(ward, stay)
+    _order(ward, stay, drug="باراسيتامول")
+
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{first}/prepare",
+                                 follow_redirects=True)
+
+    rows = _supply(ward)
+    assert len(rows) == 1 and rows[0]["left"] == 1
+
+
+def test_making_it_up_again_the_same_day_is_one_bag(ward):
+    """A bag redone because the order changed at noon is still one bag going
+    up to the ward, and two rows would tell the ward it was ready twice."""
+    from app.models import DosePrep
+
+    stay = _admit(ward, _child(ward, "ث"))
+    order = _order(ward, stay)
+    client = ward["sign_in"]("chem")
+    client.post(f"/pharmacy/order/{order}/prepare", follow_redirects=True)
+    client.post(f"/pharmacy/order/{order}/prepare", data={"label": "تاني"},
+                follow_redirects=True)
+
+    with ward["app"].app_context():
+        row = DosePrep.query.one()
+        assert row.label == "تاني"
+
+
+def test_yesterdays_bag_does_not_cover_today(ward):
+    """Supply is daily. Yesterday's four doses are given and gone."""
+    from datetime import timedelta as td
+
+    from app.models.medication import MedicationOrder
+    from app.utils import clinical_pharmacy
+    from app.utils.clock import local_today
+
+    stay = _admit(ward, _child(ward, "خ"))
+    order = _order(ward, stay)
+    with ward["app"].app_context():
+        clinical_pharmacy.prepare(
+            ward["db"].session.get(MedicationOrder, order),
+            on_date=local_today() - td(days=1))
+        ward["db"].session.commit()
+
+    assert _supply(ward)[0]["left"] == 1
+
+
+def test_a_stopped_order_is_never_made_up(ward):
+    """Making up a drug nobody may give is the one mistake this list can
+    cause, so it is refused rather than left to the screen."""
+    from app.models import DosePrep
+    from app.models.medication import MedicationOrder
+    from app.utils import clinical_pharmacy, drug_round
+
+    stay = _admit(ward, _child(ward, "ذ"))
+    order = _order(ward, stay)
+    with ward["app"].app_context():
+        drug_round.stop(ward["db"].session.get(MedicationOrder, order),
+                        reason="اتوقف")
+        ward["db"].session.commit()
+
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{order}/prepare",
+                                 follow_redirects=True)
+
+    with ward["app"].app_context():
+        assert DosePrep.query.count() == 0
+
+
+def test_the_ward_trolley_says_whether_it_is_here(ward):
+    """**"Is it here?" is asked at the trolley**, so it is answered at the
+    trolley — not on the pharmacy's own screen, which would send somebody down
+    a corridor to find out."""
+    stay = _admit(ward, _child(ward, "ض"))
+    order = _order(ward, stay)
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{order}/prepare",
+                                 follow_redirects=True)
+
+    page = ward["sign_in"]("doc").get("/beds/drugs")
+
+    assert b"data-prepared" in page.data
+
+
+def test_the_trolley_says_nothing_when_no_pharmacy_prepares_anything(ward):
+    """A ward whose drugs come off its own shelf has nobody preparing them,
+    and a column reading "not ready" for ever would be a fault report about a
+    service they do not buy."""
+    from app.models import Setting
+
+    stay = _admit(ward, _child(ward, "ظ"))
+    order = _order(ward, stay)
+    ward["sign_in"]("chem").post(f"/pharmacy/order/{order}/prepare",
+                                 follow_redirects=True)
+    with ward["app"].app_context():
+        Setting.set("mod_enabled:pharmacy", "0")
+        ward["db"].session.commit()
+
+    page = ward["sign_in"]("doc").get("/beds/drugs")
+
+    assert page.status_code == 200
+    assert b"data-prepared" not in page.data
+
+
+def test_the_supply_screen_is_absent_without_beds(ward):
+    from app.models import Setting
+
+    with ward["app"].app_context():
+        Setting.set("mod_enabled:beds", "0")
+        ward["db"].session.commit()
+
+    assert ward["sign_in"]("chem").get("/pharmacy/supply").status_code == 404
+
+
+def test_the_board_leads_to_the_bench(ward):
+    page = ward["sign_in"]("chem").get("/pharmacy/ward")
+
+    assert b"/pharmacy/supply" in page.data
+
+
+def test_the_screen_says_a_prn_has_no_daily_count(ward):
+    """Rather than printing a number nobody worked out."""
+    from app.models.admission import Admission
+    from app.utils import drug_round
+
+    stay = _admit(ward, _child(ward, "غ"))
+    with ward["app"].app_context():
+        drug_round.order(ward["db"].session.get(Admission, stay),
+                         "باراسيتامول", dose="5 ml", is_prn=True,
+                         min_gap_hours=6)
+        ward["db"].session.commit()
+
+    page = ward["sign_in"]("chem").get("/pharmacy/supply")
+
+    assert b"data-prn" in page.data

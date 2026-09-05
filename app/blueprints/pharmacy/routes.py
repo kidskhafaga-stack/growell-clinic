@@ -206,3 +206,45 @@ def ask(order_id):
     db.session.commit()
     flash(t("cpharm.asked"), "info")
     return redirect(url_for("pharmacy.chart", admission_id=row.admission_id))
+
+
+@pharmacy_bp.route("/supply")
+@module_required(MODULE)
+def supply():
+    """What has to be made up for the wards today.
+
+    The bench half of the job, and the larger half in most hospitals: before
+    the eight o'clock round somebody makes up each child's doses for the day,
+    labelled per patient. The program had nothing for it — a dose existed only
+    at the moment a nurse recorded giving it, so "is this child's amoxicillin
+    ready?" had no answer anywhere.
+    """
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    kind = (request.args.get("kind") or "").strip() or None
+    rows = clinical_pharmacy.supply_list(kind=kind)
+    return render_template("pharmacy/supply.html", rows=rows, kind=kind,
+                           counts=clinical_pharmacy.supply_counts(rows))
+
+
+@pharmacy_bp.route("/order/<int:order_id>/prepare", methods=["POST"])
+@module_required(MODULE)
+def prepare(order_id):
+    """Made up, and on its way to the ward."""
+    _ward_or_404()
+    from app.utils import clinical_pharmacy
+
+    row = db.get_or_404(MedicationOrder, order_id)
+    try:
+        clinical_pharmacy.prepare(row, user=current_user,
+                                  label=request.form.get("label"))
+    except ValueError:
+        db.session.rollback()
+        # A stopped order is not supplied. Making up a drug nobody may give is
+        # the one mistake this list can cause.
+        flash(t("cpharm.not_running"), "error")
+        return redirect(url_for("pharmacy.supply"))
+    db.session.commit()
+    flash(t("cpharm.prepared"), "success")
+    return redirect(request.referrer or url_for("pharmacy.supply"))

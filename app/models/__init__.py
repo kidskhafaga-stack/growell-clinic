@@ -43,6 +43,7 @@ from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
 from app.models.bed_charge import BedCharge
 from app.models.panel_alert_rule import PanelAlertRule
 from app.models.chart_review import ChartReview
+from app.models.dose_prep import DosePrep
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                Operation, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
@@ -256,6 +257,7 @@ __all__ = [
     "BedCharge",
     "PanelAlertRule",
     "ChartReview",
+    "DosePrep",
     "Theatre",
     "Operation",
     "SafetyCheck",
