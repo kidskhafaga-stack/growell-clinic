@@ -412,6 +412,155 @@ SECTIONS = [
         ],
     },
     {
+        "key": "beds_drugs",
+        "module": "beds",
+        "icon": "capsule",
+        "title": ("دورة الدواء", "The drug round"),
+        "lines": [
+            ("<b>الأمر حاجة والجرعة حاجة تانية.</b> الطبيب بيكتب أمر ثابت — "
+             "الدوا والجرعة وكل كام ساعة — والتمريض بيسجّل كل جرعة: اتعطت، "
+             "اتأجلت، أو اترفضت. لو كان في عمود واحد اسمه «آخر جرعة» على "
+             "الأمر، السؤال «هو مستحق دلوقتي؟» كان هيتجاوب، والسؤال «حصل إيه "
+             "الساعة اتنين؟» كان هيترد عليه بجرعة النهاردة عن كل يوم في "
+             "الإقامة — وده بالظبط سؤال التحقيق في خطأ دوائي.",
+             "<b>The order and the dose are two different things.</b> The "
+             "doctor writes a standing order \u2014 the drug, the dose, how "
+             "many hours apart \u2014 and nursing records every dose: given, "
+             "held, or refused. A single \u201clast given\u201d column on "
+             "the order would answer \u201cis it due?\u201d and would answer "
+             "\u201cwhat happened at two o\u2019clock?\u201d with "
+             "tonight\u2019s answer for every night of the stay, which is "
+             "exactly what a drug-error inquiry asks."),
+            ("<b>مفيش جرعات متجدولة قدام.</b> «مستحق» بيتحسب من الأمر ومن آخر "
+             "جرعة، زي الملاحظة المتأخرة بالظبط. جدول جرعات جاية لازم يفضل "
+             "متماشي مع أمر اتغيّر نص الليل، وأول حاجة بيعملها لما يفرق إنه "
+             "يقول إن طفل اداله حاجة ما اتعطتلوش.",
+             "<b>Nothing is scheduled ahead.</b> Due-ness is worked out from "
+             "the order and the last dose, exactly the way a late observation "
+             "is. A table of future doses has to be kept in step with an "
+             "order that changed at midnight, and the first thing it does "
+             "when it drifts is claim a child was given something they were "
+             "not."),
+            ("<b>التأجيل قرار، والصمت مش قرار.</b> جرعة اتأجلت بتحرّك الساعة "
+             "زي اللي اتعطت بالظبط — حد وقف عند السرير وقرر. اللي مينفعش "
+             "يحصل هو جرعة محدش كتب عنها حاجة، وده بالظبط اللي اللوحة "
+             "اتعملت علشانه. وعلشان كده <b>التأجيل لازم يكون معاه سبب</b>: "
+             "تأجيل من غير سبب شكله زي جرعة حد نسيها، والاتنين بيسكّتوا "
+             "اللوحة.",
+             "<b>A hold is a decision; silence is not.</b> A held dose moves "
+             "the clock exactly as a given one does \u2014 somebody stood at "
+             "the bed and decided. What must not exist is a dose nobody wrote "
+             "anything about, which is the whole reason the board exists. "
+             "That is why <b>a hold needs a reason</b>: one without it looks "
+             "exactly like a dose somebody forgot, and both silence the "
+             "board."),
+            ("<b>الكتابة والإعطاء صلاحيتين مختلفتين.</b> «كتابة أوامر الدواء» "
+             "صلاحية لوحدها — أقدم قاعدة أمان في أي قسم داخلي: اللي ماسك "
+             "السرنجة مش هو اللي قرر اللي جواها. التمريض بياخد القسم ودورة "
+             "الدواء وما بياخدش الصلاحية دي.",
+             "<b>Writing and giving are two permissions.</b> "
+             "\u201cWrite drug orders\u201d is a capability of its own "
+             "\u2014 the oldest safety rule on a ward: whoever holds the "
+             "syringe is not the one who decided what is in it. Nursing gets "
+             "the ward and the drug round and not this one."),
+            ("<b>وفحص الأمان مش نسخة تانية.</b> الجرعة القصوى والحساسية "
+             "والتعارضات كلها <b>نفس</b> الفحص اللي شاشة الروشتة بتستعمله، "
+             "وبيشوف كمان أدوية الطفل اللي من برة — الكاربامازيبين اللي حد "
+             "تاني كتبه من شهور هو بالظبط النص اللي بيتعارض مع اللي هيتبدأ "
+             "دلوقتي.",
+             "<b>And the safety check is not a second one.</b> The dose "
+             "ceilings, the allergies and the interaction pairs are the "
+             "<b>same</b> check the prescription screen uses, and it sees the "
+             "child\u2019s pre-existing medicines too \u2014 the "
+             "carbamazepine somebody else wrote months ago is exactly the "
+             "half that interacts with what is about to be started."),
+        ],
+    },
+    {
+        "key": "beds_nights",
+        "module": "beds",
+        "icon": "moon-stars",
+        "title": ("فاتورة السرير اليومية", "The daily bed charge"),
+        "lines": [
+            ("<b>ليلة مش يوم — والطوارئ بالساعة.</b> الليالي بتتعد من تاريخ "
+             "الدخول لتاريخ الخروج من غير يوم الخروج، وبحد أدنى ليلة واحدة: "
+             "دخل الاتنين وخرج الخميس = تلات ليالي، ودخل وخرج نفس اليوم = "
+             "ليلة لأن سرير اتفرش واترفع. أما الطوارئ فبالساعة: طفل قعد تلات "
+             "ساعات على ترولي وراح البيت ما نامش ولا ليلة، وفاتورة ليلة عليه "
+             "مش تقريب — دي فاتورة لحاجة ما حصلتش.",
+             "<b>A night, not a day \u2014 and emergency by the hour.</b> "
+             "Nights run from the date of admission to the date of discharge, "
+             "not counting the day they leave, with a floor of one: in on "
+             "Monday and out on Thursday is three nights, and in and out the "
+             "same afternoon is one because a bed was made up and taken "
+             "again. Emergency is different: a child on a trolley for three "
+             "hours who goes home has not spent a night anywhere, and billing "
+             "one is not a rounding difference \u2014 it is a bill for "
+             "something that did not happen."),
+            ("<b>والساعة بتتحسب لما الإقامة تخلص، مش قبل كده.</b> عدد "
+             "الساعات مش معروف قبل ما الطفل يمشي، وحسابها على أقساط كان "
+             "هيحط سطرين على فاتورة واحدة لزيارة واحدة. والوقت بيتقاس "
+             "بالدقيقة، وأي جزء من ساعة بيتحسب ساعة — عشرين دقيقة على ترولي "
+             "هي ساعة ترولي. والشاشة بتوري الساعات اللي جرت لحد دلوقتي علشان "
+             "حد يقدر يقول للأهل قبل ما يوصلوا الباب.",
+             "<b>And an hour is charged when the stay ends, not before.</b> "
+             "How many hours it was is not known until the child leaves, and "
+             "charging in instalments would put two lines on one bill for one "
+             "visit. The time is counted in whole minutes and any part-hour "
+             "is an hour \u2014 twenty minutes on a trolley is an hour of a "
+             "trolley. The screen shows the hours run up so far, so a family "
+             "can be told at the trolley rather than at the door."),
+            ("<b>السعر خدمة مش رقم، وبيتحط على تلات مستويات.</b> السرير، "
+             "وبعده الغرفة، وبعدهم القسم — وأقرب واحد متحط بيكسب. أغلب "
+             "المستشفيات بتسعّر <b>الغرفة</b> (مفردة ومزدوجة سعرين لنفس "
+             "السرير، واللي بيفرق هو الحيطان)، والحضّانات بتسعّر <b>السرير</b> "
+             "لأن الصالة فيها سرير وحضّانة وكبسولة، والطوارئ بتسعّر "
+             "<b>القسم</b>. وبما إنه خدمة، الخصومات وجهات التأمين ونسبة "
+             "الطبيب وكود الضريبة كلهم شغّالين عليه من غير سطر زيادة.",
+             "<b>The rate is a service, not a number, and it sits at three "
+             "levels.</b> The bed, then the room, then the department \u2014 "
+             "the nearest one set wins. Most hospitals price the <b>room</b> "
+             "(a single and a double are two prices for the same bed, and "
+             "what differs is the walls), the nursery prices the <b>bed</b> "
+             "because one bay holds a cot, an incubator and a capsule, and "
+             "emergency prices the <b>department</b>. Being a service, the "
+             "discounts, the payers, the doctor\u2019s commission and the tax "
+             "item code all work on it already."),
+            ("<b>والسعر هو المفتاح.</b> عيادة ما حطتش سعر على أي قسم عمرها ما "
+             "هيتحسب عليها ليلة ولا هتشوف الكارت ده أصلاً — زي أي مديول "
+             "مقفول بالظبط.",
+             "<b>And the price is the switch.</b> A clinic that has set no "
+             "rate on any department is never charged for a night and never "
+             "sees the card at all \u2014 exactly like a module that is off."),
+            ("<b>مفيش فلوس بتتكتب من ورا حد.</b> شاشة الإقامة بتوريك الليالي "
+             "اللي لسه ما اتحسبتش وحد بيدوس؛ والخروج بيحسبها لأن الخروج أصلاً "
+             "قرار بيتاخد قدام فورم، وبيتقال بصوت عالي في الرسالة. مفيش "
+             "تايمر بيكتب على حساب أهل الطفل بالليل.",
+             "<b>No money is written behind anybody\u2019s back.</b> The stay "
+             "screen shows the uncharged nights and somebody presses; the "
+             "discharge charges them because a discharge is already a "
+             "deliberate act with a form in front of it, and it says so in "
+             "the message. There is no timer writing onto a family\u2019s "
+             "account overnight."),
+            ("<b>ودوسة تانية ما بتحسبش تاني.</b> كل ليلة اتحسبت ليها صف، "
+             "وقاعدة البيانات نفسها بترفض ليلتين لنفس اليوم — مش شرط في "
+             "الكود: اتنين بيدوسوا في نفس الثانية من شاشتين هو بالظبط إزاي "
+             "أهل طفل بيتحاسبوا مرتين على يوم التلات.",
+             "<b>And pressing again charges nothing twice.</b> Every charged "
+             "night is a row, and the database itself refuses two for the "
+             "same date \u2014 not a check in code: two people pressing in "
+             "the same second on two screens is exactly how a family gets "
+             "billed twice for a Tuesday."),
+            ("<b>والليلة بتتحسب بالسرير اللي الطفل كان فيه آخر اليوم.</b> طفل "
+             "اتنقل للعناية الساعة أربعة بعد الضهر بات في العناية، والليلة دي "
+             "بفلوس العناية.",
+             "<b>A night is charged at the bed they were in at the end of "
+             "it.</b> A child moved up to intensive care at four in the "
+             "afternoon spent that night in intensive care, and that is what "
+             "the night cost."),
+        ],
+    },
+    {
         "key": "emergency",
         "module": "emergency",
         "icon": "thermometer-half",
@@ -498,6 +647,91 @@ SECTIONS = [
              "transport capsule. The capsule moves with the stay still open "
              "\u2014 the baby went down for an X-ray, they did not leave the "
              "unit."),
+        ],
+    },
+    {
+        "key": "ward",
+        "module": "ward",
+        "icon": "buildings",
+        "title": ("الداخلي", "The wards"),
+        "lines": [
+            ("<b>القسم الداخلي بيتقرا بالأيام مش بالدقايق.</b> الطفل في سرير "
+             "رقم أربعة مش رايح حتة قبل الخميس، والسؤال مش «مين الأول» — "
+             "دول سؤالين تانيين: <b>مين محدش عمله راوند النهاردة</b>، "
+             "و<b>مين متوقّع يخرج</b>.",
+             "<b>A ward is read in days, not in minutes.</b> The child in bed "
+             "four is not going anywhere before Thursday, and the question is "
+             "not \u201cwho first\u201d \u2014 it is two others: <b>who has "
+             "nobody been round to this morning</b>, and <b>who are we "
+             "expecting to send home</b>."),
+            ("<b>الراوند دوسة واحدة.</b> بيتحسّن، زي ما هو، بيسوء — والتلاتة "
+             "أزرار. اللي بعد كده كله اختياري وراء «تفاصيل زيادة»: الحالة "
+             "النهاردة، والخطة، وتاريخ الخروج المتوقّع. الطبيب واقف عند سرير "
+             "وقدامه تمنية، فاللي بيتطلب منه يكتبه هو اللي مش موجود في البرنامج "
+             "أصلاً.",
+             "<b>A round is one press.</b> Improving, unchanged, worse \u2014 "
+             "three buttons. Everything after that is optional and behind "
+             "\u201cmore\u201d: how they are, the plan, and when we expect "
+             "them home. The doctor is standing at a bed with eight more to "
+             "see, so the only thing asked of them is the part the program "
+             "does not already hold."),
+            ("<b>والراوند الفاضي مرفوض.</b> صف من غير حالة كان هيقفل تنبيه "
+             "«محدش شافه النهاردة» من غير ما حد يقرّب من الطفل — نفس القاعدة "
+             "بالظبط اللي بترفض قراءة ملاحظات فاضية، ولنفس السبب.",
+             "<b>And a blank round is refused.</b> A row with no trend on it "
+             "would clear \u201cnobody has been round today\u201d without "
+             "anybody having gone near the child \u2014 the same rule that "
+             "refuses an empty observation, for the same reason."),
+            ("<b>تاريخ الخروج المتوقّع بيتكتب على الراوند مش على الإقامة.</b> "
+             "لأن اللي بيتغيّر بيحكي: «قلنا الخميس يوم الاتنين، وقلنا السبت "
+             "يوم الأربعا» ده تاريخ الحالة، وعمود واحد على الإقامة كان هيمسح "
+             "الإجابة القديمة كل مرة.",
+             "<b>The expected discharge is written on the round, not on the "
+             "stay.</b> What changed is the story: \u201cwe said Thursday on "
+             "Monday and Saturday on Wednesday\u201d is the history, and a "
+             "single column on the stay would have overwritten the earlier "
+             "answer every time."),
+            ("<b>لازم يكون فيه قسم متبني.</b> القسم بيتعمل من إعداد الأسرّة: "
+             "قسم نوعه داخلي، وغرف، وسرير أو أكتر في كل غرفة.",
+             "<b>A unit has to exist first.</b> It is built from the bed "
+             "setup: a unit of kind ward, its rooms, and a bed or more in "
+             "each."),
+        ],
+    },
+    {
+        "key": "icu",
+        "module": "icu",
+        "icon": "heart-pulse",
+        "title": ("العناية المركزة", "Intensive care"),
+        "lines": [
+            ("<b>نفس شاشة الداخلي، بتتقرا أربع مرات أكتر.</b> اللي بيفرق هو "
+             "كل قد إيه حد بيبص: طلب ملاحظات كل ساعة بدل راوند الصبح، وطفل "
+             "آخر قراءة ليه البرنامج قراها «تستاهل تتشاف دلوقتي» بيبقى الحالة "
+             "العادية هنا مش الاستثناء.",
+             "<b>The ward screen, read four times as often.</b> What differs "
+             "is how often somebody looks: an hourly observation order "
+             "instead of a morning round, and a child whose last reading the "
+             "program calls urgent is the normal case here rather than the "
+             "alarm."),
+            ("<b>ولا واحدة من الفروق دي في الكود.</b> المدة على طلب الملاحظات "
+             "بتاع الطفل، اللي الطبيب كتبه؛ والحدود هي نسخة العيادة الوحيدة في "
+             "<b>red_flags</b> و<b>vital_bands</b>. قسم بيحكم على حرارة بقاعدة "
+             "خاصة بيه كان هيخلّي الطفل أحمر في شاشة وأخضر في شاشة والاتنين "
+             "«مظبوطين».",
+             "<b>None of those differences is in code.</b> The interval is on "
+             "the child\u2019s own observation order, written by the doctor "
+             "who admitted them; the thresholds are the clinic\u2019s single "
+             "copy in <b>red_flags</b> and <b>vital_bands</b>. A department "
+             "judging a temperature by its own rule would make a child red on "
+             "one screen and green on another, each individually correct."),
+            ("<b>العزل حيّز مش سرير.</b> صالة العناية فيها الأسرّة، والعزل "
+             "بارتشن أو اتنين متعلّمين عزل في إعداد الأسرّة — وسؤال «فيه مكان "
+             "عزل فاضي؟» بيتسأل وقت ما حالة معدية بتدخل، مش وقت الفراغ.",
+             "<b>Isolation is a space, not a bed.</b> The bay holds the beds, "
+             "and isolation is one or two partitions marked as such in the bed "
+             "setup \u2014 and \u201cis there an isolation space free?\u201d "
+             "is asked at the moment an infectious child is coming in, which "
+             "is never a quiet moment."),
         ],
     },
     {
@@ -1120,6 +1354,8 @@ CAPABILITY_LABELS = {
                       "Move the clinic's money between tills"),
     "treasury_adjust": ("تسوية فروق الجرد (مدير فقط)",
                         "Write off counting differences (admin only)"),
+    "medication_order": ("كتابة أوامر الدواء للأطفال المنوّمين",
+                         "Write drug orders for admitted children"),
 }
 
 

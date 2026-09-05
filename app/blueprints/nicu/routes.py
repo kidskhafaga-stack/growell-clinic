@@ -21,13 +21,8 @@ superseded by ``HOSPITAL_PLAN.md``: the bed census now exists, and the
 repeated readings with it. The honest gap the old plan named has been closed
 rather than papered over.
 """
-from flask import render_template
-from flask_login import current_user
-
+from app.blueprints import department_screen
 from app.blueprints.nicu import nicu_bp
-from app.models.admission import OUTCOMES
-from app.utils import beds as ward
-from app.utils import department
 from app.utils.decorators import module_required
 
 MODULE = "nicu"
@@ -37,12 +32,4 @@ KIND = "nicu"
 @nicu_bp.route("/")
 @module_required(MODULE)
 def index():
-    from app.models.place import Unit
-
-    units = (Unit.query.filter(Unit.kind == KIND, Unit.is_active.is_(True))
-             .order_by(Unit.sort_order, Unit.id).all())
-    return render_template(
-        "departments/board.html",
-        kind=KIND, module=MODULE, rows=department.live(KIND), units=units,
-        free=ward.free_beds(), outcomes=OUTCOMES,
-        levels=department, may_build=current_user.is_admin)
+    return department_screen.render(MODULE, KIND)

@@ -29,6 +29,13 @@ combination. Not on the bed, because a bay with six beds and one of them
 marked "isolated" is information that lies — there is no wall around it. What
 isolates is the space.
 
+**And the price hangs off all three levels.** A clinic prices where it
+prices: some by the department, most by the room — a single room and a double
+room are two prices for the same bed — and the nursery by the bed, because one
+bay holds a cot, an incubator and a transport capsule. So each level carries a
+nullable rate and the nearest one set wins: bed, then space, then unit. See
+``utils/bed_billing.py``.
+
 **Nothing here stores whether a bed is free.** Occupancy is worked out from
 open stays (see ``admission.py``). A flag on the bed is one forgotten
 discharge away from a ward that says it is full while three beds stand empty,
@@ -63,6 +70,31 @@ class Unit(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # What a stay in this department costs, as a **service** — so the bed
+    # charge lives in the clinic's one price list, where the discounts, the
+    # payer rules, the doctor's commission and the tax item code already
+    # work. A price typed onto this row would have been a second price list
+    # that none of those knew about.
+    #
+    # Nullable, and that nullability is the feature's own switch: a clinic
+    # that does not bill for a bed simply never sets one, and nothing is ever
+    # charged. See ``utils/bed_billing.py``.
+    rate_service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                                nullable=True, index=True)
+
+    # **What one unit of that price buys: a night, or an hour.**
+    #
+    # Emergency is the reason this column exists. A child is on a trolley for
+    # three hours and goes home, and billing that as a night is not a rounding
+    # difference — it is a different bill, for something that did not happen.
+    # Recovery after theatre is the same shape, shorter.
+    #
+    # On the department and not on the bed, because it is a fact about how the
+    # place works rather than about the furniture: every trolley in an
+    # emergency is charged by the hour and every bed on a ward by the night.
+    billing_basis = db.Column(db.String(8), default="night", nullable=False)
+
+    rate_service = db.relationship("Service", foreign_keys=[rate_service_id])
     spaces = db.relationship("Space", back_populates="unit",
                              order_by="Space.sort_order, Space.id")
 
@@ -92,6 +124,15 @@ class Space(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # **The level most hospitals actually price at.** A single room and a
+    # double room are two prices for the same bed, and the difference is the
+    # walls — which is this row, not the furniture inside it and not the
+    # department around it. Left off the chain at first, and the omission was
+    # reported in one sentence: *"هي الفاتورة تفصيلية للسرير ولا الغرف"*.
+    rate_service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                                nullable=True, index=True)
+
+    rate_service = db.relationship("Service", foreign_keys=[rate_service_id])
     unit = db.relationship("Unit", back_populates="spaces")
     beds = db.relationship("Bed", back_populates="space",
                            order_by="Bed.sort_order, Bed.id")
@@ -119,6 +160,14 @@ class Bed(db.Model):
     out_of_service_note = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # A night in *this* bed, when it is not what the room or the department
+    # costs. The nursery is the case that forces it: one bay holds a cot, an
+    # incubator and a transport capsule, and they are not the same money.
+    # Left empty on nearly every bed — the room or the unit answers for them.
+    rate_service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                                nullable=True, index=True)
+
+    rate_service = db.relationship("Service", foreign_keys=[rate_service_id])
     space = db.relationship("Space", back_populates="beds")
 
     @property

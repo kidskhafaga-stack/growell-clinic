@@ -18,15 +18,15 @@ screen surfaces them rather than growing a third way to end a stay.
 
 Opt-in, and off until a clinic says it runs an emergency.
 """
-from flask import redirect, render_template, request, url_for
+from flask import redirect, request, url_for
 from flask_login import current_user
 
+from app.blueprints import department_screen
 from app.blueprints.emergency import emergency_bp
 from app.extensions import db
 from app.i18n import t
-from app.models.admission import OUTCOMES, Admission
+from app.models.admission import Admission
 from app.utils import beds as ward
-from app.utils import department
 from app.utils.decorators import module_required
 
 MODULE = "emergency"
@@ -37,18 +37,7 @@ KIND = "emergency"
 @module_required(MODULE)
 def index():
     """Who is in the department, worst first."""
-    from app.models.place import Unit
-
-    units = (Unit.query.filter(Unit.kind == KIND, Unit.is_active.is_(True))
-             .order_by(Unit.sort_order, Unit.id).all())
-    return render_template(
-        "departments/board.html",
-        kind=KIND, module=MODULE, rows=department.live(KIND), units=units,
-        # Where a child goes when the decision is "upstairs". Offered from
-        # here because the alternative is telling somebody to find the bed
-        # board, remember the child's name, and start again.
-        free=ward.free_beds(), outcomes=OUTCOMES,
-        levels=department, may_build=current_user.is_admin)
+    return department_screen.render(MODULE, KIND)
 
 
 @emergency_bp.route("/decide/<int:admission_id>", methods=["POST"])

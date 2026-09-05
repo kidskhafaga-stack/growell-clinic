@@ -30,12 +30,15 @@
 <div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
   <div>
     <h1 class="page-title">
-      <i class="bi bi-{{ 'thermometer-half' if kind == 'emergency' else 'moisture' }}"></i>
+      <i class="bi bi-{{ MODULE_ICONS.get(module, 'hospital') }}"></i>
       {{ t('nav.' ~ module) }}</h1>
     <p class="page-sub" style="margin:0;">{{ t(module ~ '.sub') }}</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <span class="badge badge--muted">{{ t('dept.inside_n', n=rows|length) }}</span>
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('beds.drugs', kind=kind) }}">
+      <i class="bi bi-capsule"></i> {{ t('meds.round') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('beds.index') }}">
       <i class="bi bi-grid-3x3"></i> {{ t('beds.board') }}</a>
   </div>
@@ -95,6 +98,40 @@
         {% for why in row.flag.reasons %}· {{ t('redflags.' ~ why) }}{% endfor %}</span>
       {% endif %}
 
+      {% if row.round %}
+      {# The ward's own two questions, and only on the screens that ask them:
+         `row.round` is absent in emergency, where a child is here for hours
+         and "not seen today" would flag every trolley in the place. #}
+      {% if row.round.today %}
+      <span class="alert-pill ok" data-round="done">
+        <i class="bi bi-check2-circle"></i>
+        {{ t('rounds.trend_' ~ row.round.last.trend) }}
+        <span class="hint">{{ row.round.last.at|clinic_time }}</span></span>
+      {% else %}
+      <span class="alert-pill warn" data-round="none">
+        <i class="bi bi-clipboard-x"></i> {{ t('rounds.not_today') }}</span>
+      {% endif %}
+      {% if row.round.expected_discharge %}
+      <span class="badge badge--muted" data-expected dir="ltr">
+        <i class="bi bi-box-arrow-right"></i>
+        {{ row.round.expected_discharge }}</span>
+      {% endif %}
+      {% endif %}
+
+      {% if row.drugs and (row.drugs.late or row.drugs.due) %}
+      {# What is owed out of the trolley. Counted, not listed: the card says
+         how many and the drug board says which — a row that named five drugs
+         would stop being readable from across a room, which is the only
+         thing this screen is for. #}
+      <a class="alert-pill {{ 'danger' if row.drugs.late else 'warn' }}"
+         data-drugs="{{ 'late' if row.drugs.late else 'due' }}"
+         style="text-decoration:none;"
+         href="{{ url_for('beds.drugs', kind=kind) }}">
+        <i class="bi bi-capsule"></i>
+        {% if row.drugs.late %}{{ t('meds.n_late', n=row.drugs.late) }}
+        {% else %}{{ t('meds.n_due', n=row.drugs.due) }}{% endif %}</a>
+      {% endif %}
+
       {% if row.last %}
       <span class="reads" dir="ltr">
         {% if row.last.temperature_c %}<b>{{ row.last.temperature_c }}</b>°{% endif %}
@@ -140,6 +177,56 @@
          href="{{ url_for('patients.view', patient_id=row.patient.id) }}">
         <i class="bi bi-person"></i> {{ t('beds.patient_file') }}</a>
     </div>
+
+    {% if row.round %}
+    {# The round itself: three buttons and nothing to type.
+       A round is one press because the doctor is standing at a bed with
+       eight more to see, and the sentence they say there is better, the
+       same, or worse. Everything they might add — what they found, what
+       we are doing, when we think this child goes home — is behind the
+       fold, optional, and empty by default.
+
+       A blank round is refused by the route, not hidden here: the three
+       buttons each carry their own trend, so pressing any of them is a
+       round and there is no way to submit without one. #}
+    <form method="post" style="width:100%;"
+          action="{{ url_for('beds.round_note', admission_id=row.admission.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span class="hint">{{ t('rounds.today_q') }}</span>
+        {% for trend in trends %}
+        <button class="btn btn-sm btn-outline gc-press" type="submit"
+                name="trend" value="{{ trend }}" data-trend="{{ trend }}">
+          <i class="bi bi-{{ {'improving':'arrow-up-right',
+                              'stable':'dash-lg',
+                              'worse':'arrow-down-right'}[trend] }}"></i>
+          {{ t('rounds.trend_' ~ trend) }}</button>
+        {% endfor %}
+        <details style="flex:1;min-width:200px;">
+          <summary class="hint" style="cursor:pointer;">{{ t('rounds.more') }}</summary>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label>{{ t('rounds.assessment') }}</label>
+              <input class="input" name="assessment" maxlength="500">
+            </div>
+            <div class="form-row" style="margin-bottom:0;flex:1;min-width:180px;">
+              <label>{{ t('rounds.plan') }}</label>
+              <input class="input" name="plan" maxlength="500">
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:150px;">
+              <label>{{ t('rounds.expected_discharge') }}</label>
+              <input class="input" type="date" name="expected_discharge"
+                     value="{{ row.round.expected_discharge or '' }}">
+            </div>
+            <div class="form-row" style="margin-bottom:0;min-width:170px;">
+              <label>{{ t('rounds.at') }}</label>
+              <input class="input" type="datetime-local" name="at">
+            </div>
+          </div>
+        </details>
+      </div>
+    </form>
+    {% endif %}
 
     {% if kind == 'emergency' %}
     {# The exit. An emergency stay does not end by time passing; it ends in a

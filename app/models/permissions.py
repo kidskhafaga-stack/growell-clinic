@@ -51,6 +51,16 @@ MODULES = [
     # four facts no other department needs. Opt-in like everything above them.
     "emergency",
     "nicu",
+    # And the two slow ones. A ward is read in days rather than in minutes,
+    # and intensive care is the same ward screen looked at four times as
+    # often — the difference is the interval on the child's observation
+    # order, which a doctor writes, not a branch in any file.
+    #
+    # Separate modules and not one "inpatient" module, for the reason all of
+    # these are separate: a hospital that runs wards and no intensive care
+    # must not find an intensive care screen after an update.
+    "icu",
+    "ward",
     "prescriptions",
     "inventory",
     "finance",
@@ -95,6 +105,8 @@ MODULE_ICONS = {
     "beds": "hospital",
     "emergency": "thermometer-half",
     "nicu": "moisture",
+    "icu": "heart-pulse",
+    "ward": "buildings",
     "prescriptions": "capsule",
     "inventory": "box-seam",
     "finance": "cash-coin",
@@ -126,6 +138,8 @@ ROLE_PERMISSIONS = {
         "beds",
         "emergency",
         "nicu",
+        "icu",
+        "ward",
         "prescriptions",
         "ai",
     ],
@@ -145,6 +159,8 @@ ROLE_PERMISSIONS = {
         "beds",
         "emergency",
         "nicu",
+        "icu",
+        "ward",
     ],
     "reception": [
         "dashboard",
@@ -196,11 +212,21 @@ CAPABILITIES = [
     # and separating the two is granting this to one person rather than
     # rebuilding anything.
     "messages_setup",
+    # Writing a standing drug order for a child in a bed. **Not the same act
+    # as giving one**, and the split is the oldest safety rule on a ward:
+    # whoever holds the syringe is not the one who decided what is in it.
+    #
+    # A capability rather than `role == "doctor"`, because roles in this
+    # program are editable and a hospital that invents "registrar" would
+    # otherwise find that its registrars cannot prescribe and nothing on any
+    # screen says why. Nursing keeps the ward and the drug round and does not
+    # get this one.
+    "medication_order",
 ]
 
 ROLE_CAPABILITIES = {
     "admin": list(CAPABILITIES),
-    "doctor": ["patient_medical"],
+    "doctor": ["patient_medical", "medication_order"],
     "reception": ["cashier"],
     # They write into the child's clinical record — the vitals, the reason for
     # the visit — so they hold the medical capability and no money one.

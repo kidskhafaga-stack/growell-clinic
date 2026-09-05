@@ -188,7 +188,9 @@
     "observations": "Observations",
     "beds": "Beds & stays",
     "emergency": "Emergency",
-    "nicu": "Incubators"
+    "nicu": "Incubators",
+    "ward": "Wards",
+    "icu": "Intensive care"
   },
   "auth": {
     "login": "Login",
@@ -5332,7 +5334,54 @@
     "reconcile_hint": "For each ongoing medicine: continue, stop or modify. The decision is recorded under your name and this visit's date.",
     "reconciled": "Every medicine reviewed at this visit",
     "pending_review": "Not yet reviewed",
-    "decided": "Decided"
+    "decided": "Decided",
+    "round": "Drug round",
+    "round_sub": "Who is owed something now, and whose hour has gone past",
+    "chart": "Drug chart",
+    "everywhere": "Whole hospital",
+    "nothing_due": "Nobody is owed a dose right now.",
+    "none_yet": "Nothing has been written up on this stay yet.",
+    "n_children": "{n} children",
+    "n_late": "{n} late",
+    "n_due": "{n} due",
+    "drug": "Drug",
+    "route": "Route",
+    "how_often": "Every how many hours",
+    "next": "Next due",
+    "order": "Write the order",
+    "ordered": "Order written.",
+    "stopped_ones": "Stopped orders",
+    "prn": "when needed",
+    "prn_when_needed": "When needed (PRN)",
+    "min_gap": "Not sooner than (hours)",
+    "given": "Given",
+    "held": "Held",
+    "refused": "Refused",
+    "last_given": "given",
+    "last_held": "held",
+    "last_refused": "refused",
+    "recorded": "Dose recorded.",
+    "due_at": "due",
+    "not_before": "not before",
+    "late_by": "{n} min late",
+    "reason_if_not": "Reason, if not given",
+    "needs_reason": "A dose that was not given needs a reason. A hold with nothing said about why looks exactly like a dose somebody forgot, and both silence the board.",
+    "needs_drug": "Name the drug first.",
+    "needs_interval": "Say how many hours apart, or tick “when needed”. An order with no interval can never be due, and so can never show as late.",
+    "too_soon": "Too soon. The next dose is not before {at}.",
+    "interactions": "Drug interaction",
+    "allergy_to": "This child is recorded as allergic to {name}",
+    "route_oral": "oral",
+    "route_iv": "IV",
+    "route_im": "IM",
+    "route_sc": "subcut",
+    "route_inhaled": "inhaled",
+    "route_nebulised": "nebulised",
+    "route_rectal": "rectal",
+    "route_topical": "topical",
+    "route_eye": "eye",
+    "route_ear": "ear",
+    "route_ng": "NG tube"
   },
   "station": {
     "all_clinics": "All clinics",
@@ -5729,7 +5778,26 @@
     "refused_service": "That bed is out of service.",
     "refused_no_bed": "Choose a bed from the list.",
     "admit": "Admit",
-    "admit_reason": "Reason for admission"
+    "admit_reason": "Reason for admission",
+    "nightly_rate": "Price of a night here",
+    "no_rate": "No rate (not billed by the night)",
+    "rate_from_unit": "Same as the department",
+    "save_rate": "Save the rate",
+    "rate_saved": "Nightly rate saved.",
+    "rate_hint": "Leave it empty if the clinic does not charge for a bed — nothing is then charged. The price is read from the bed, then the room, then the department.",
+    "nights": "Nights of the stay",
+    "nights_outstanding": "{n} nights not charged yet",
+    "nights_all_posted": "Every night so far has been charged.",
+    "post_nights": "Put them on the invoice",
+    "nights_none": "No nights are outstanding right now.",
+    "nights_posted": "{n} nights charged, {total}, on invoice {number}.",
+    "nights_charged_n": "Nights charged ({n})",
+    "hours": "Hours of the stay",
+    "hours_so_far": "{n} hours so far — charged when the stay ends",
+    "billed_by": "Charged by the",
+    "basis_night": "night",
+    "basis_hour": "hour",
+    "rate_from_room": "Same as the room"
   },
   "dept": {
     "inside_n": "In now: {n}",
@@ -5741,7 +5809,9 @@
     "hours_old": "{n} h old",
     "jaundice_phototherapy": "above the phototherapy line",
     "jaundice_exchange": "above the exchange line",
-    "jaundice_below": "below both lines"
+    "jaundice_below": "below both lines",
+    "no_unit_ward": "No inpatient ward has been built yet. Build one in the bed setup: a unit of kind ward, its rooms, and a bed or more in each.",
+    "no_unit_icu": "No intensive care unit has been built yet. Build one in the bed setup: a unit of kind intensive care, an open bay holding the beds, and one or two partitions marked as isolation."
   },
   "emergency": {
     "sub": "Who first, and who has been here without anybody measuring them",
@@ -5754,5 +5824,28 @@
   },
   "nicu": {
     "sub": "The incubators: hours of life, gestation, weight and jaundice"
+  },
+  "rounds": {
+    "today_q": "Today's round:",
+    "not_today": "no round today",
+    "trend_improving": "improving",
+    "trend_stable": "unchanged",
+    "trend_worse": "worse",
+    "more": "More (optional)",
+    "assessment": "How they are today",
+    "plan": "Plan",
+    "expected_discharge": "Expected home",
+    "at": "Time of the round",
+    "saved": "Round recorded.",
+    "needs_trend": "Say how the child is first: improving, unchanged or worse. A blank round would have cleared the “nobody has been round today” flag without anybody going near them.",
+    "history": "The round",
+    "none_yet": "No round has been written on this stay yet.",
+    "by": "written by"
+  },
+  "ward": {
+    "sub": "Who has had no round today, and who we expect to send home"
+  },
+  "icu": {
+    "sub": "The ward screen, read hourly instead of once a morning"
   }
 }

@@ -45,6 +45,46 @@
     {{ row.unit.name }}
     <span class="badge badge--muted">{{ t('beds.unit_' ~ row.unit.kind) }}</span></h2>
 
+  {# What a stay in this department costs, and whether it is sold by the
+     night or by the hour. Emergency is by the hour: a child on a trolley for
+     three hours has not spent a night anywhere.
+
+     A service and not a number, so it sits in the one price list where the
+     discounts, the payer rules, the commission and the tax code already
+     work — and leaving it empty is how a clinic that does not bill for a bed
+     says so: nothing is ever charged and no figure is ever shown. #}
+  <form method="post" action="{{ url_for('beds.set_rate') }}"
+        style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="unit_id" value="{{ row.unit.id }}">
+    <div class="form-row" style="margin-bottom:0;min-width:230px;">
+      <label for="rate{{ row.unit.id }}">{{ t('beds.nightly_rate') }}</label>
+      <select class="select" id="rate{{ row.unit.id }}" name="service_id"
+              data-unit-rate>
+        <option value="">{{ t('beds.no_rate') }}</option>
+        {% for service in services %}
+        <option value="{{ service.id }}"
+          {{ 'selected' if row.unit.rate_service_id == service.id }}>
+          {{ service.display_name(current_lang) }} — {{ service.price }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:160px;">
+      <label for="basis{{ row.unit.id }}">{{ t('beds.billed_by') }}</label>
+      <select class="select" id="basis{{ row.unit.id }}" name="billing_basis"
+              data-basis>
+        {% for basis in bases %}
+        <option value="{{ basis }}"
+          {{ 'selected' if row.unit.billing_basis == basis }}>
+          {{ t('beds.basis_' ~ basis) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      <i class="bi bi-cash-coin"></i> {{ t('beds.save_rate') }}</button>
+    <span class="hint" style="align-self:center;">{{ t('beds.rate_hint') }}</span>
+  </form>
+
   {% for block in row.spaces %}
   <div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
@@ -54,6 +94,26 @@
       <span class="alert-pill warn"><i class="bi bi-shield-exclamation"></i>
         {{ t('beds.isolation') }}</span>
       {% endif %}
+
+      {# The level most hospitals actually price at: a single room and a
+         double are two prices for the same bed, and what differs is the
+         walls. Empty means "whatever the department costs". #}
+      <form method="post" action="{{ url_for('beds.set_rate') }}"
+            style="display:flex;gap:6px;align-items:center;margin-inline-start:auto;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="space_id" value="{{ block.space.id }}">
+        <select class="select" name="service_id" style="max-width:210px;"
+                data-space-rate>
+          <option value="">{{ t('beds.rate_from_unit') }}</option>
+          {% for service in services %}
+          <option value="{{ service.id }}"
+            {{ 'selected' if block.space.rate_service_id == service.id }}>
+            {{ service.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-outline gc-press" type="submit">
+          {{ t('beds.save_rate') }}</button>
+      </form>
     </div>
 
     {% if block.beds %}
@@ -73,6 +133,27 @@
           {% else %}
           <span class="hint">{{ t('beds.free') }}</span>
           {% endif %}
+        </td>
+        <td>
+          {# Only where a bed costs something other than what the department
+             costs. The nursery is the case that forces it: one bay holds a
+             cot, an incubator and a transport capsule. #}
+          <form method="post" action="{{ url_for('beds.set_rate') }}"
+                style="display:flex;gap:6px;align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="bed_id" value="{{ cell.bed.id }}">
+            <select class="select" name="service_id" style="max-width:200px;"
+                    data-bed-rate>
+              <option value="">{{ t('beds.rate_from_room') }}</option>
+              {% for service in services %}
+              <option value="{{ service.id }}"
+                {{ 'selected' if cell.bed.rate_service_id == service.id }}>
+                {{ service.display_name(current_lang) }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline gc-press" type="submit">
+              {{ t('beds.save_rate') }}</button>
+          </form>
         </td>
         <td style="text-align:end;">
           {# A bed is never deleted — its stays are last month's occupancy,
