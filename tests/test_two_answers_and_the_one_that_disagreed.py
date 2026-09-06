@@ -310,3 +310,41 @@ def test_the_row_says_which_word_found_it(wired):
     body = wired["sign_in"]("doc").post(
         "/prescriptions/drugs/ask", json={"q": "خافض حرارة"}).get_json()
     assert all(r.get("matched") == "Paracetamol" for r in body["results"])
+
+
+def test_no_two_handlers_on_this_screen_share_a_name(wired):
+    """Found the hard way, by looking at the screen.
+
+    The natural-language box was written as ``askDrug()`` and the drug line's
+    own picker already had ``askDrug(l)`` — two keys with one name in one
+    object literal, where the second silently wins. There is no error and no
+    warning: one of the two buttons simply stops doing anything, which is
+    precisely the report this whole screen keeps generating.
+
+    Swept over every method rather than asserting the one pair, because the
+    next collision will be somewhere else and will look just as invisible.
+    """
+    import re
+
+    page = wired["sign_in"]("doc").get(
+        "/prescriptions/new").get_data(as_text=True)
+    body = page.split("function rxForm(")[1] if "function rxForm(" in page else page
+    # A method of the component: at the object literal's own indent, taking a
+    # parameter list and opening a body on the same line. The keyword list
+    # keeps `if (…) {` and friends out of the count.
+    names = [n for n in re.findall(
+        r"^    (?:async )?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{", body, re.M)
+        if n not in ("if", "for", "while", "switch", "catch", "function",
+                     "return", "fetch")]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    assert duplicates == [], f"two handlers share a name: {duplicates}"
+
+
+def test_the_two_searches_are_different_handlers(wired):
+    """The named half of the sweep above: typing in a drug line searches the
+    catalogue, and the describe-it box asks the assistant. They are not the
+    same question and must not be the same function."""
+    page = wired["sign_in"]("doc").get(
+        "/prescriptions/new").get_data(as_text=True)
+    assert "askDrug(line)" in page          # the line's own picker
+    assert "askByDescription()" in page     # the assistant's box

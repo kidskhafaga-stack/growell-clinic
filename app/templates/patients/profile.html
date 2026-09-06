@@ -180,7 +180,10 @@
           <button class="btn btn-outline btn-sm gc-press" type="submit">
             <i class="bi bi-hospital"></i> {{ t('beds.admit') }}</button>
         </form>
-        {% else %}
+        {% elif has_beds %}
+        {# Only where there is a ward. With the module on and no beds made,
+           this line sat on every child's file for ever, telling a clinic with
+           no ward that its ward was full. #}
         <p class="hint" style="margin:0;">{{ t('beds.no_free_bed') }}</p>
         {% endif %}
       {% endif %}
