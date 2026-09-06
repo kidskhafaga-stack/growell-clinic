@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'duty' %}
 {% block title %}{{ t('duty.slots') }}{% endblock %}
 {% block page_heading %}{{ t('duty.slots') }}{% endblock %}
@@ -105,13 +106,9 @@
       <input class="input" value="{{ s.name }}" readonly>
     </div>
     <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
-      <label for="r_doc_{{ s.id }}">{{ t('duty.who') }}</label>
-      <select class="input" id="r_doc_{{ s.id }}" name="doctor_id" required>
-        <option value="">—</option>
-        {% for u in doctors %}
-        <option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>
-        {% endfor %}
-      </select>
+      <label>{{ t('duty.who') }}</label>
+      {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                               autosubmit=False) }}
     </div>
     <div class="form-row" style="margin-bottom:0;min-width:120px;">
       <label for="r_amt_{{ s.id }}">{{ t('duty.rate') }}</label>

@@ -1,4 +1,5 @@
 {% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
 {% set active_module = 'duty' %}
 {% block title %}{{ t('duty.title') }}{% endblock %}
 {% block page_heading %}{{ t('duty.title') }}{% endblock %}
@@ -153,14 +154,12 @@
   <form method="post" action="{{ url_for('duty.assign') }}"
         style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# The one "which doctor?" control. A hospital rota is exactly the forty-
+       doctor case that dropdown was replaced for. #}
     <div class="form-row" style="margin-bottom:0;min-width:180px;flex:1;">
-      <label for="a_doctor">{{ t('duty.who') }}</label>
-      <select class="input" id="a_doctor" name="doctor_id" required>
-        <option value="">—</option>
-        {% for u in doctors %}
-        <option value="{{ u.id }}">{{ u.display_name(current_lang) }}</option>
-        {% endfor %}
-      </select>
+      <label>{{ t('duty.who') }}</label>
+      {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                               autosubmit=False) }}
     </div>
     <div class="form-row" style="margin-bottom:0;min-width:150px;">
       <label for="a_slot">{{ t('duty.slot') }}</label>
