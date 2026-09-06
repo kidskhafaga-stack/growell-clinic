@@ -244,6 +244,33 @@
                         <button class="btn btn-primary btn-sm gc-press" type="submit"><i class="bi bi-files"></i> {{ t('contracts.copy_btn') }}</button>
                       </form>
                     </details>
+                    {# The two dates the agreement is argued about. Blank is a
+                       real answer — "nothing agreed" — and the program shows
+                       no deadline and warns about nothing for a contract that
+                       carries none. #}
+                    <details style="display:inline-block;position:relative;">
+                      <summary class="btn btn-outline btn-sm gc-press" style="list-style:none;"
+                               title="{{ t('contracts.terms') }}"><i class="bi bi-hourglass-split"></i>
+                        {% if c.filing_days or c.payment_days %}<span class="badge badge--green">{{ c.filing_days or '—' }}/{{ c.payment_days or '—' }}</span>{% endif %}
+                      </summary>
+                      <form method="post" action="{{ url_for('finance.contract_edit', contract_id=c.id) }}"
+                            style="position:absolute;z-index:30;inset-inline-end:0;margin-top:6px;width:280px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px;text-align:start;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="terms" value="1">
+                        <p class="hint" style="margin:0 0 8px;">{{ t('contracts.terms_hint') }}</p>
+                        <div class="form-row"><label>{{ t('contracts.filing_days') }}</label>
+                          <input class="input" type="number" min="1" name="filing_days" dir="ltr"
+                                 value="{{ c.filing_days or '' }}"></div>
+                        <div class="form-row"><label>{{ t('contracts.payment_days') }}</label>
+                          <input class="input" type="number" min="1" name="payment_days" dir="ltr"
+                                 value="{{ c.payment_days or '' }}"></div>
+                        <div class="form-row"><label>{{ t('contracts.cycle_day') }}</label>
+                          <input class="input" type="number" min="1" max="31" name="cycle_day" dir="ltr"
+                                 value="{{ c.cycle_day or '' }}"></div>
+                        <button class="btn btn-primary btn-sm gc-press" type="submit">
+                          <i class="bi bi-check2"></i> {{ t('common.save') }}</button>
+                      </form>
+                    </details>
                     <form method="post" action="{{ url_for('finance.contract_delete', contract_id=c.id) }}" onsubmit="return confirm('{{ t('common.confirm') }}?');" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button class="btn btn-outline btn-sm gc-press" type="submit"><i class="bi bi-trash"></i></button></form>

@@ -279,11 +279,34 @@ def account(doctor_id):
     this answers "where do we stand".
     """
     from app.models import DoctorPayout
+    from app.utils.collected import split_for_doctor
 
     earned = earned_ever(doctor_id)
     paid = DoctorPayout.paid_to(doctor_id)
+
+    # **Beside the figure, never instead of it.** ``earned`` still means what
+    # it has always meant — everything billed — because a clinic that updates
+    # must not find the number it settles on has quietly moved. What is added
+    # is the answer to the question that number cannot give: *how much of it
+    # has actually come in*, and from whom the rest is owed.
+    #
+    # Contract work is the reason. Cash is collected at the desk the same
+    # hour, so for a clinic with no payers these three add up to ``earned``
+    # minus nothing and nothing changes on the screen. On contract work the
+    # money arrives when the insurer sends it — sometimes ninety days later,
+    # sometimes never — and paying a doctor at billing pays them for money the
+    # clinic does not have.
+    split = split_for_doctor(doctor_id)
+    # Cover and duty are owed by the clinic itself with no third party in
+    # between, so they are collected by definition — there is nobody to wait
+    # for. Folding them in keeps the three parts adding up to ``earned``.
+    on_a_bill = round(split["collected"] + split["from_family"]
+                      + split["from_payer"], 2)
     return {"earned": earned, "paid": paid,
-            "balance": round(earned - paid, 2)}
+            "balance": round(earned - paid, 2),
+            "collected": round(earned - on_a_bill + split["collected"], 2),
+            "from_family": split["from_family"],
+            "from_payer": split["from_payer"]}
 
 
 def summary(doctor_id, date_from, date_to, lang="ar"):

@@ -3883,10 +3883,27 @@ def contract_edit(contract_id):
     from app.models import PayerContract
 
     c = db.get_or_404(PayerContract, contract_id)
-    c.number = (request.form.get("number") or "").strip() or None
-    c.start_date = _parse_date_arg2(request.form.get("start_date"))
-    c.end_date = _parse_date_arg2(request.form.get("end_date"))
-    c.is_active = bool(request.form.get("is_active"))
+    # **Only what the form actually carried.** This route had no screen posting
+    # to it at all, and now two do — the period on one and the terms on the
+    # other. Overwriting every column from every post would mean saving a
+    # filing window wiped the contract's dates, which is the shape of bug that
+    # only shows up a month later on somebody's bill.
+    if "number" in request.form:
+        c.number = (request.form.get("number") or "").strip() or None
+    if "start_date" in request.form:
+        c.start_date = _parse_date_arg2(request.form.get("start_date"))
+    if "end_date" in request.form:
+        c.end_date = _parse_date_arg2(request.form.get("end_date"))
+    if "period" in request.form:
+        c.is_active = bool(request.form.get("is_active"))
+    # The terms. Blank clears them back to "nothing agreed", which has to stay
+    # reachable: a clinic that typed 90 by mistake must be able to get back to
+    # no deadline rather than being stuck with a wrong one.
+    if "terms" in request.form:
+        for field in ("filing_days", "payment_days", "cycle_day"):
+            raw = (request.form.get(field) or "").strip()
+            setattr(c, field,
+                    int(raw) if raw.isdigit() and int(raw) > 0 else None)
     db.session.commit()
     flash(t("contracts.updated"), "success")
     _warn_overlap(c)
@@ -4008,8 +4025,16 @@ def claims():
         claim = round(sum(i.discount_total for i in invs), 2)
         rows.append({"entity": entity, "count": len(invs), "claim": claim})
     claim_docs = Claim.query.order_by(Claim.id.desc()).limit(50).all()
+    # The two things the agreement says and the screen could not: what is
+    # about to become unclaimable, and what has been out too long. Both are
+    # empty for a clinic that has typed no terms — see `utils/claim_clock`.
+    from app.utils import claim_clock
+
     return render_template("finance/claims.html", rows=rows,
                            claim_docs=claim_docs,
+                           closing=claim_clock.closing_soon(),
+                           aging=claim_clock.aging(),
+                           outstanding=claim_clock.outstanding(),
                            date_from=date_from, date_to=date_to)
 
 
@@ -5005,7 +5030,14 @@ def doctor_payouts():
         tills=CashAccount.active(), methods=DOCTOR_PAYOUT_METHODS,
         totals={"earned": round(sum(r["earned"] for r in rows), 2),
                 "paid": round(sum(r["paid"] for r in rows), 2),
-                "balance": round(sum(r["balance"] for r in rows), 2)})
+                "balance": round(sum(r["balance"] for r in rows), 2),
+                # What has actually come in against what was earned, and who
+                # the rest is owed by. The screen hides these three entirely
+                # when nothing is outstanding from anybody, so a cash clinic
+                # sees exactly the screen it saw yesterday.
+                "collected": round(sum(r["collected"] for r in rows), 2),
+                "from_family": round(sum(r["from_family"] for r in rows), 2),
+                "from_payer": round(sum(r["from_payer"] for r in rows), 2)})
 
 
 @finance_bp.route("/doctor-payouts/pay", methods=["POST"])

@@ -189,6 +189,13 @@ ADDITIONS = [
     ("visit_investigations", "collected_by", "INTEGER"),
     ("visit_investigations", "resulted_by", "INTEGER"),
     ("visit_investigations", "invoice_item_id", "INTEGER"),
+    # The two dates a payer agreement is argued about: by when the claim must
+    # be sent, and by when the money must come. Nullable, and that nullability
+    # is the feature's switch — a clinic that types no term is warned about
+    # nothing and sees exactly the screens it saw before.
+    ("payer_contracts", "filing_days", "INTEGER"),
+    ("payer_contracts", "payment_days", "INTEGER"),
+    ("payer_contracts", "cycle_day", "INTEGER"),
     ("investigations", "sample_type", "VARCHAR(40)"),
     ("investigations", "service_id", "INTEGER"),
     # The pharmacy counter. Every one nullable: a clinic whose families fill
