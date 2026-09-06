@@ -146,11 +146,20 @@ def test_the_register_gains_the_brands_this_was_written_for(clinic):
 
         seed_drugbook()
         seed_register()
-        linked = Drug.query.filter(Drug.generic_id.isnot(None)).count()
-        # 2,018 with an exact match; 2,618 now. Never the 2,721 an earlier
-        # version reached — 98 of those were boxes taking a dose written for
-        # another route, and 5 were chamomile linked to a teething gel.
-        assert 2550 < linked < 2700
+        # **Register rows only.** This used to count every linked drug, which
+        # meant it also counted the few hundred brands the seed writes by
+        # hand — so adding a shelf of nappy-rash creams to the seed moved a
+        # number that is supposed to be measuring the *matcher*, and pushed it
+        # through a ceiling written about something else. The Arabic name is
+        # what the register import fills in and the hand-written seed does
+        # not, so it separates the two cleanly.
+        linked = Drug.query.filter(Drug.generic_id.isnot(None),
+                                   Drug.trade_name_ar.isnot(None)).count()
+        # 2,332 the day this was split out, 2,350 now. Never the ~2,435 an
+        # earlier version of the matcher reached — 98 of those were boxes
+        # taking a dose written for another route, and 5 were chamomile
+        # linked to a teething gel.
+        assert 2250 < linked < 2450
 
         # And the drug the whole thing started from.
         para = Drug.query.filter(

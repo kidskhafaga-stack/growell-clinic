@@ -1169,6 +1169,131 @@ GENERICS += [
     ),
 ]
 
+# --- fourth wave: the shelf a mother points at ----------------------------
+#
+# Chosen the opposite way to the third wave. That one was measured — the
+# ingredients carrying the most trade names in the register. This one comes
+# from a sentence about what a missing drug *costs*:
+#
+#     "لو الطبيب أنا بقوله في 20000 ألف دواء ومَيلاقيش حاجات بديهية ومشهورة
+#      في السوق بتبقى عدم ثقة ويأس"
+#
+# A reference is not judged by what it has. It is judged the first time
+# somebody looks for something ordinary. Type "سودو" and find nothing and the
+# whole catalogue is finished — not wrong, *finished*, because nobody types a
+# second word into a box that failed the first. So the test for this wave was
+# not "how many boxes does it reach" but "would a mother name it".
+#
+# Nappy rash is the case that made it, and it is four different medicines
+# wearing the same complaint: a barrier (zinc oxide, dexpanthenol), a yeast
+# (nystatin, miconazole, clotrimazole), a bacterium (mupirocin, fusidic acid)
+# and an inflamed patch that is none of those (hydrocortisone). The clinic had
+# the last two and half of the second. It now has all four — **as products
+# with their categories, not as a ladder**. Which one this child needs is a
+# clinical decision and this program does not make those: it carries what can
+# be prescribed, warns on what is dangerous, and the doctor chooses.
+#
+# The burns and the antiseptics come from the same request, one door along —
+# "الحاجات بتاعت الجراحة للأطفال". A children's clinic dresses a scald and a
+# grazed knee far more often than it operates.
+#
+# **No new shelf was created for any of this**, and that is deliberate. These
+# all belong on المستحضرات الموضعية beside the povidone-iodine already there.
+# Moving an existing ingredient to a new class would split the world: the seed
+# never overwrites, so a clinic that already has the row keeps the old shelf
+# while a fresh install gets the new one, and the same drug is then in two
+# different places depending on when you installed. One shelf for everybody.
+GENERICS += [
+    dict(
+        name_ar="ديكسبانثينول (موضعي)", name_en="Dexpanthenol (topical)",
+        cls="TOPIC", atc="D03AX03", routes="topical",
+        indications="التهاب الحفاض والوقاية منه، جفاف الجلد، تشقق حلمة الثدي "
+                    "أثناء الرضاعة، والسحجات السطحية.",
+        contraindications="فرط الحساسية للمكوّن.",
+        precautions="حاجز ومرطّب — يُدهن مع كل تغيير حفاض. مش علاج للعدوى: "
+                    "الطفح اللي حواليه بقع صغيرة منفصلة أو اللي مستمر أكتر من "
+                    "3 أيام يتراجع.",
+        preg="A", lact="آمن — يُمسح قبل الرضعة.", ref="EDA leaflet",
+    ),
+    dict(
+        name_ar="نيستاتين (موضعي)", name_en="Nystatin (topical)", cls="ANTIF",
+        atc="D01AA01", routes="topical",
+        indications="كانديدا الحفاض والثنيات.",
+        contraindications="فرط الحساسية.",
+        precautions="2–4 مرات يومياً، ويستمر أسبوع بعد اختفاء الطفح. "
+                    "الكانديدا في الحفاض غالباً معاها سلاق في الفم — "
+                    "يتكشف عليه.",
+        preg="B", lact="آمن.", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="ميكونازول (موضعي)", name_en="Miconazole (topical)",
+        cls="ANTIF", atc="D01AC02", routes="topical",
+        indications="فطريات الجلد وكانديدا الحفاض.",
+        contraindications="فرط الحساسية للإيميدازولات.",
+        precautions="مرتين يومياً ويستمر أسبوع بعد اختفاء الطفح.",
+        preg="C", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="تيربينافين (موضعي)", name_en="Terbinafine (topical)",
+        cls="ANTIF", atc="D01AE15", routes="topical",
+        indications="سعفة الجسم والقدم.",
+        contraindications="فرط الحساسية.",
+        precautions="مرة أو مرتين يومياً لمدة 1–2 أسبوع. "
+                    "سعفة فروة الرأس لا تُعالَج بمرهم — محتاجة علاج بالفم.",
+        preg="B", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="سلفاديازين الفضة (موضعي)",
+        name_en="Silver sulfadiazine (topical)", cls="TOPIC", atc="D06BA01",
+        routes="topical", min_age=2,
+        indications="الحروق السطحية والجروح المعرّضة للتلوث — طبقة رقيقة "
+                    "تحت ضمادة.",
+        contraindications="أقل من شهرين، نقص إنزيم G6PD، وحساسية السلفا.",
+        black_box="سلفوناميد — يزيح البيليروبين عن البروتين ويسبب اليرقان "
+                  "النووي في حديثي الولادة؛ يُمنع تحت شهرين.",
+        precautions="الحروق الواسعة تمتص المادة — تُتابع صورة الدم في "
+                    "الاستعمال الممتد أو على مساحة كبيرة.",
+        side="نقص كرات الدم البيضاء المؤقت في أول أيام العلاج.",
+        preg="B", lact="يُتجنّب على منطقة الثدي.", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="بيتا سيتوستيرول (ميبو)", name_en="Beta-sitosterol (MEBO)",
+        cls="TOPIC", routes="topical",
+        indications="الحروق السطحية والجروح — مرهم يُجدَّد على الجرح كل "
+                    "4–6 ساعات.",
+        contraindications="فرط الحساسية لزيت السمسم.",
+        precautions="ده مرهم للسطحي. الحرق اللي فيه فقاقيع واسعة أو مساحته "
+                    "أكبر من كف يد الطفل، أو أي حرق في الوش أو اليد أو "
+                    "المنطقة التناسلية — يتحوّل، مش يتدهن.",
+        preg="A", ref="EDA leaflet",
+    ),
+    dict(
+        name_ar="كلورهيكسيدين", name_en="Chlorhexidine", cls="TOPIC",
+        atc="D08AC02", routes="topical",
+        indications="تطهير الجلد والأيدي قبل الإجراءات، وغسول للفم في "
+                    "القرح واللثة.",
+        contraindications="ملامسة العين أو طبلة الأذن المثقوبة.",
+        precautions="البديل لليود تحت شهر — لكن التركيز الكحولي يحرق جلد "
+                    "الخديج، ويُستعمل التركيز المائي وتُجفَّف المنطقة بعده. "
+                    "الغسول لا يُبلَع.",
+        preg="B", ref="WHO",
+    ),
+    dict(
+        name_ar="ليدوكايين/بريلوكايين (مخدر موضعي)",
+        name_en="Lidocaine/prilocaine (topical)", cls="TOPIC", atc="N01BB20",
+        routes="topical",
+        indications="تخدير الجلد قبل الوخز أو تركيب الكانيولا — يُوضع تحت "
+                    "ضمادة لاصقة قبل الإجراء بساعة.",
+        contraindications="ميتهيموجلوبينية خلقية، وجلد مجروح أو غشاء مخاطي.",
+        black_box="البريلوكايين يسبب ميتهيموجلوبينية في الرضّع — الكمية "
+                  "والمساحة والمدة محدودة بالعمر، والخطر يزيد مع "
+                  "الباراسيتامول والسلفا والنترات.",
+        precautions="الكمية والمساحة حسب عمر الطفل في النشرة — "
+                    "الجرعة الزائدة هنا مساحة، مش ملليجرام.",
+        preg="B", ref="BNF for Children",
+    ),
+]
+
 # --- third wave of trade names: more of the shelf, and more strengths ------
 BRANDS += [
     # paracetamol / ibuprofen family
@@ -1333,6 +1458,139 @@ BRANDS += [
     ("Flagyl", "Metronidazole", "tablet", "500 mg", None, "Sanofi"),
     ("Lyclear", "Permethrin (topical)", "lotion", "5%", None, "Sedico"),
 ]
+
+
+# --- fourth wave of trade names: the ones somebody would ask for by name ---
+BRANDS += [
+    # التسلخات والحفاض — الحاجز
+    ("Sudocrem", "Zinc oxide (topical)", "cream", "60 g", None, "Teva"),
+    # The register lists no ingredient at all for Desitin, so it ships with no
+    # strength rather than one this file decided. It is filed under zinc oxide
+    # because that is the ingredient of every Desitin nappy cream sold
+    # anywhere, and the register's own category for it is DIAPER RASH.
+    ("Desitin Extra", "Zinc oxide (topical)", "cream", "—", None,
+     "Johnson & Johnson"),
+    ("Baby Rash Free", "Zinc oxide (topical)", "ointment", "30%", None,
+     "Alexandria"),
+    ("Bepanthen", "Dexpanthenol (topical)", "cream", "—", None, "Bayer"),
+    ("Bepanthen", "Dexpanthenol (topical)", "ointment", "—", None, "Bayer"),
+    ("Adcopantin", "Dexpanthenol (topical)", "cream", "5%", None, "ADCO"),
+    # التسلخات والحفاض — الفطر تحته
+    ("Nocandida", "Nystatin (topical)", "cream", "10 M.I.U.", None,
+     "Pharopharma"),
+    ("Daktarin", "Miconazole (topical)", "cream", "2%", None, "Janssen"),
+    ("Adcozole", "Miconazole (topical)", "cream", "2%", None, "ADCO"),
+    ("Dermozol", "Miconazole (topical)", "gel", "2%", None, "Pharco"),
+    # Miconazole and zinc oxide in one tube, and the register files it under
+    # DIAPER RASH itself — the barrier and the antifungal are the two things
+    # that complaint usually needs.
+    ("Mocazix", "Miconazole (topical)", "ointment", "2% + zinc oxide", None,
+     "Uniswab"),
+    ("Lamisil", "Terbinafine (topical)", "dermal gel", "1%", None, "Novartis"),
+    ("Benafin", "Terbinafine (topical)", "cream", "1%", None, "Memphis"),
+    ("Fungisafe", "Terbinafine (topical)", "cream", "1%", None, "Amoun"),
+    # المطهرات والجروح والحروق
+    ("Betadine", "Povidone-iodine", "ointment", "10%", None, "Mundipharma"),
+    ("Betadine", "Povidone-iodine", "antiseptic solution", "10%", None,
+     "Mundipharma"),
+    ("Betavidone", "Povidone-iodine", "ointment", "10%", None, "El Nile"),
+    ("Antiseptol", "Chlorhexidine", "mouth wash", "1 mg/ml", 1, "Kahira"),
+    ("Bacticide", "Chlorhexidine", "antiseptic solution",
+     "with isopropanol", None, "Debeiky"),
+    ("Dermazin", "Silver sulfadiazine (topical)", "cream", "1%", None,
+     "Sandoz"),
+    ("Silvazine", "Silver sulfadiazine (topical)", "cream", "1%", None,
+     "Unipharma"),
+    ("Burnazin", "Silver sulfadiazine (topical)", "cream", "1%", None,
+     "Alexandria"),
+    ("Sulphargin", "Silver sulfadiazine (topical)", "cream", "1%", None,
+     "El Nile"),
+    ("MEBO", "Beta-sitosterol (MEBO)", "ointment", "0.25%", None, "Julphar"),
+    ("Burnasores", "Beta-sitosterol (MEBO)", "ointment", "0.25%", None,
+     "Global Napi"),
+    ("Featherlite", "Beta-sitosterol (MEBO)", "cream", "0.25%", None,
+     "Spectra"),
+    ("EMLA", "Lidocaine/prilocaine (topical)", "cream", "5%", None,
+     "AstraZeneca"),
+    ("Avrisurg", "Lidocaine/prilocaine (topical)", "cream", "—", None,
+     "Medizen"),
+    ("Farco-Caine", "Lidocaine (topical)", "ointment", "5%", None, "Pharco"),
+    ("Farco-Caine", "Lidocaine (topical)", "spray", "10%", None, "Pharco"),
+    ("Dentable", "Lidocaine (topical)", "oral gel", "0.33%", None,
+     "Pharopharma"),
+    # الفم واللثة والتسنين
+    ("Dentocaine", "Benzocaine (oral gel)", "dental gel", "7.5%", None,
+     "Pharco"),
+    ("Dentocalm", "Benzocaine (oral gel)", "oral ointment", "with clove oil",
+     None, "Pharco"),
+    ("Mundisal", "Choline salicylate (oral gel)", "oral gel", "—", None,
+     "Mundipharma"),
+    ("Pansoral", "Choline salicylate (oral gel)", "oral gel", "—", None,
+     "Pierre Fabre"),
+    ("Salcozadex", "Choline salicylate (oral gel)", "oral gel", "—", None,
+     "Zad"),
+    # المضادات الحيوية اللي كانت بلا علبة
+    ("Cedenir", "Cefdinir", "suspension", "125 mg/5 ml", 25, "Unipharma"),
+    ("Bacticefdin", "Cefdinir", "suspension", "125 mg/5 ml", 25, "Sigma Tec"),
+    ("Cefathird", "Cefdinir", "suspension", "125 mg/5 ml", 25, "Epico"),
+    ("Averofectan", "Cefdinir", "suspension", "250 mg/5 ml", 50, "Averroes"),
+    ("Cedenir", "Cefdinir", "capsule", "300 mg", None, "Unipharma"),
+    ("Cefaxim", "Cefotaxime", "vial", "500 mg", None, "El Nasr"),
+    ("Cefaxim", "Cefotaxime", "vial", "1 g", None, "El Nasr"),
+    ("Cefalomash", "Cefotaxime", "vial", "1 g", None, "Mash Premiere"),
+    ("Cefidime", "Ceftazidime", "vial", "250 mg", None, "Epico"),
+    ("Cefidime", "Ceftazidime", "vial", "500 mg", None, "Epico"),
+    ("Cefidime", "Ceftazidime", "vial", "1 g", None, "Epico"),
+    ("Cefzim", "Ceftazidime", "vial", "1 g", None, "Pharco"),
+    # Ospen's tablets are on the shelf; its 400,000 IU/5 ml suspension — the
+    # form a child would actually take — is marked (N/A) on the register, so
+    # it is not listed. A brand that cannot be dispensed is the same wasted
+    # trip as a brand that does not exist.
+    ("Ospen", "Phenoxymethylpenicillin", "tablet", "1.0 MIU", None, "Sandoz"),
+    ("Ospen", "Phenoxymethylpenicillin", "tablet", "1.5 MIU", None, "Sandoz"),
+    # مضادات الفطريات بالفم
+    ("Griseovin", "Griseofulvin", "suspension", "2.5%", 25, "Delta Pharma"),
+    ("Ultragriseofulvin", "Griseofulvin", "suspension", "2.5%", 25, "Kahira"),
+    ("Ultragriseofulvin", "Griseofulvin", "tablet", "125 mg", None, "Kahira"),
+    ("Ultrafulvin", "Griseofulvin", "tablet", "125 mg", None, "Memphis"),
+    ("Fungisafe", "Terbinafine", "tablet", "250 mg", None, "Amoun"),
+    ("Lamifen", "Terbinafine", "tablet", "125 mg", None, "Epico"),
+    ("Lamifen", "Terbinafine", "tablet", "250 mg", None, "Epico"),
+    # الحساسية والمعدة
+    ("Triactin", "Cyproheptadine", "syrup", "2 mg/5 ml", 0.4, "Kahira"),
+    ("Triactin", "Cyproheptadine", "tablet", "4 mg", None, "Kahira"),
+    ("Cyptadine", "Cyproheptadine", "tablet", "4 mg", None, "Memphis"),
+    ("Atarax", "Hydroxyzine", "tablet", "10 mg", None, "CID"),
+    ("Atarax", "Hydroxyzine", "tablet", "25 mg", None, "CID"),
+    ("Controloc", "Pantoprazole", "tablet", "20 mg", None, "Acino"),
+    ("Controloc", "Pantoprazole", "tablet", "40 mg", None, "Acino"),
+    ("Antopral", "Pantoprazole", "tablet", "20 mg", None, "Novartis"),
+    ("Antopral", "Pantoprazole", "vial", "40 mg", None, "Novartis"),
+    # الأدرينالين — الأمبولة اللي بتقف في الدولاب لحد ما تلزم
+    ("Adrenaline-CID", "Adrenaline (epinephrine)", "ampoule", "1 mg/ml", 1,
+     "CID"),
+    ("Adrenamax", "Adrenaline (epinephrine)", "ampoule", "1 mg/ml", 1,
+     "Chemipharm"),
+    # الفيتامينات اللي كانت بلا علبة
+    ("A-Viton", "Vitamin A", "capsule", "50,000 IU", None, "Kahira"),
+    ("Amovit-C", "Vitamin C (ascorbic acid)", "effervescent tablet", "1 g",
+     None, "Amoun"),
+    ("Ascokarm", "Vitamin C (ascorbic acid)", "capsule", "500 mg", None,
+     "Karman"),
+]
+
+# **Erythromycin is still here with no box behind it, and on purpose.** Every
+# oral erythromycin on the register — Erythrocid, Erythrocin, Erythromycin
+# Pharco, Ethyronate, the lot — is marked (N/A); what is actually on the shelf
+# is the acne paint. The ingredient keeps its paediatric dose for the day a
+# suspension comes back or somebody types one in by hand, and it lists no
+# brand because there is none to list. An empty shelf that is honestly empty
+# beats a name that sends a parent to four pharmacies.
+#
+# **Petrolatum has no entry either.** The barrier role is covered twice over
+# by zinc oxide and dexpanthenol, and the register's plain-vaseline products
+# are cosmetics with no strength and no maker worth putting a doctor's name
+# next to.
 
 
 def seed_drug_classes():
