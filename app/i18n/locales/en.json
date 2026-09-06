@@ -2653,7 +2653,8 @@
     "dx_from_ai": "suggested",
     "dx_off_switch": "AI diagnosis suggestions exist and are switched off. Turn them on in Settings → AI.",
     "dx_off_provider": "AI diagnosis suggestions need an AI provider configured first, in Settings → AI.",
-    "dx_off_where": "Open settings"
+    "dx_off_where": "Open settings",
+    "dx_classified_as": "the classification calls it"
   },
   "rx": {
     "title": "Drugs & Prescriptions",
@@ -2781,7 +2782,23 @@
     "all_classes": "All classes",
     "conditions": "Chronic conditions",
     "next_appointment": "Next appointment",
-    "coverage": "Insurance / membership"
+    "coverage": "Insurance / membership",
+    "ai_compare": "The reference and the assistant, side by side",
+    "ai_ours": "Reference",
+    "ai_theirs": "Assistant",
+    "ai_inside": "inside the reference's range",
+    "ai_under": "below the reference's range",
+    "ai_over": "above the reference's range",
+    "ai_over_ceiling": "over the recorded maximum — check before writing",
+    "ai_unreadable": "cannot be compared — one side has no number",
+    "ai_no_reference": "the reference has no figure here (no weight, or no per-kilo dose)",
+    "ai_take_ours": "Use the reference's figure",
+    "ai_take_theirs": "Use the assistant's figure",
+    "ai_ask": "Don't remember the name? Describe it",
+    "ai_ask_hint": "e.g. the fever syrup for an infant",
+    "ai_ask_go": "Find",
+    "ai_ask_none": "nothing in the catalogue matches that description",
+    "ai_ask_from": "searched for"
   },
   "drug_forms": {
     "tablet": "Tablet",
@@ -4594,7 +4611,11 @@
     "map_preview_first": "Start with \"preview without saving\" — you'll see how many products would be added before the catalogue is touched.",
     "import_map_required": "You must at least choose the trade-name column.",
     "import_expired": "The uploaded file has expired — upload it again.",
-    "import_now": "Import for real"
+    "import_now": "Import for real",
+    "warn_no_end_date": "topical corticosteroid with no duration — write one; this tube gets repeated for months",
+    "warn_course_too_long": "longer than the recorded course for this ingredient",
+    "steroid_with_antifungal": "a topical corticosteroid and an antifungal on the same prescription",
+    "steroid_with_antifungal_why": "A common and often correct pairing — but the steroid is the half that has to stop. With no end date the rash improves, returns, and the tube keeps being dispensed; the nappy area is occluded, so absorption is higher."
   },
   "periods": {
     "title": "Accounting periods",
@@ -5879,7 +5900,9 @@
     "needs_trend": "Say how the child is first: improving, unchanged or worse. A blank round would have cleared the “nobody has been round today” flag without anybody going near them.",
     "history": "The round",
     "none_yet": "No round has been written on this stay yet.",
-    "by": "written by"
+    "by": "written by",
+    "n_charged": "{n} consultant round(s) charged",
+    "outstanding": "{n} consultant round(s) not charged yet"
   },
   "ward": {
     "sub": "Who has had no round today, and who we expect to send home"
@@ -6245,5 +6268,47 @@
     "waiting": "Duties whose day has passed with nobody saying what happened",
     "waiting_sub": "Left visible and unpaid, rather than closed by guesswork at month end.",
     "who": "Who"
+  },
+  "settle": {
+    "advances": "Paid during the period",
+    "advances_hint": "Advances or a mid-month payment — subtracted, or the month is paid twice.",
+    "already": "Another statement already covers these days — the period would be paid twice.",
+    "awaiting": "Still out",
+    "awaiting_hint": "billed and not yet collected — it lands in the statement for the period it arrives in.",
+    "bad_action": "Not available in this state.",
+    "bad_period": "That period is not valid.",
+    "basis": "Basis",
+    "basis_agreed": "As agreed with the doctor",
+    "basis_billed": "On what was billed",
+    "basis_collected": "On what was collected",
+    "close": "Close the statement",
+    "close_hint": "Once closed the figures never move, even if an invoice is edited afterwards.",
+    "closed": "Statement closed.",
+    "deleted": "Deleted.",
+    "draw": "Draw a statement",
+    "draw_hint": "A statement opens as a draft: it redraws every time you open it, and freezes on the figures you agreed once you close it.",
+    "duty": "Duty cover",
+    "from": "From",
+    "gross": "Gross",
+    "hint_closed": "Frozen at the moment they were agreed.",
+    "hint_draft": "These are today's figures and may differ tomorrow.",
+    "hint_paid": "Closed and paid.",
+    "lines": "Share of bills",
+    "net": "Due",
+    "none_yet": "No statements yet.",
+    "note": "Note",
+    "number": "Statement",
+    "pay": "Pay what is due",
+    "period": "Period",
+    "reopen": "Reopen",
+    "reopen_hint": "Only while the money has not gone. After payment the difference lands on the next statement.",
+    "reopened": "Back to draft.",
+    "st_closed": "Closed",
+    "st_draft": "Draft",
+    "st_paid": "Paid",
+    "sub": "The month closed with a doctor — a figure agreed and frozen, not a screen that shifts under them",
+    "title": "Doctor settlements",
+    "to": "To",
+    "vaccines": "Vaccine fees"
   }
 }

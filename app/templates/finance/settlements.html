@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% import "_pickers.html" as pickers with context %}
+{% set active_module = 'finance' %}
+{% block title %}{{ t('settle.title') }}{% endblock %}
+{% block page_heading %}{{ t('settle.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-file-earmark-check"></i> {{ t('settle.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('settle.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('finance.doctor_payouts') }}">
+    <i class="bi bi-cash"></i> {{ t('payouts.title') }}</a>
+</div>
+
+{# The month is drawn for one doctor over one period. Both dates are typed:
+   most clinics close a calendar month, some close a fortnight, and one that
+   pays on the 25th closes the 26th to the 25th. #}
+<div class="card gc-scale-in" style="margin-bottom:16px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-plus-lg"></i> {{ t('settle.draw') }}</h2>
+  <form method="post" action="{{ url_for('finance.settlement_draw') }}"
+        style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:200px;flex:1;">
+      <label>{{ t('appointments.doctor') }}</label>
+      {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
+                               autosubmit=False) }}
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="d_from">{{ t('settle.from') }}</label>
+      <input class="input" type="date" id="d_from" name="date_from"
+             value="{{ month_from }}" required>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="d_to">{{ t('settle.to') }}</label>
+      <input class="input" type="date" id="d_to" name="date_to"
+             value="{{ month_to }}" required>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:170px;">
+      <label for="d_basis">{{ t('settle.basis') }}</label>
+      <select class="input" id="d_basis" name="basis">
+        <option value="">{{ t('settle.basis_agreed') }}</option>
+        <option value="billed">{{ t('settle.basis_billed') }}</option>
+        <option value="collected">{{ t('settle.basis_collected') }}</option>
+      </select>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-file-earmark-plus"></i> {{ t('settle.draw') }}</button>
+  </form>
+  <p class="hint" style="margin-bottom:0;">{{ t('settle.draw_hint') }}</p>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('settle.none_yet') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in" style="padding:0;overflow:hidden;">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('settle.number') }}</th><th>{{ t('appointments.doctor') }}</th>
+        <th>{{ t('settle.period') }}</th><th>{{ t('settle.basis') }}</th>
+        <th class="num">{{ t('settle.gross') }}</th>
+        <th class="num">{{ t('settle.advances') }}</th>
+        <th class="num">{{ t('settle.net') }}</th>
+        <th>{{ t('invoices.status') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for s in rows %}
+        <tr>
+          <td dir="ltr"><a href="{{ url_for('finance.settlement_view', settlement_id=s.id) }}">{{ s.number }}</a></td>
+          <td>{{ s.doctor.display_name(current_lang) if s.doctor else '—' }}</td>
+          <td dir="ltr">{{ s.date_from }} → {{ s.date_to }}</td>
+          <td>{{ t('settle.basis_' ~ s.basis) }}</td>
+          <td class="num">{{ s.gross_amount }}</td>
+          <td class="num">{{ s.advances }}</td>
+          <td class="num"><strong>{{ s.net_due }}</strong></td>
+          <td><span class="status-badge {{ {'draft':'st-waiting','closed':'st-in_progress','paid':'st-completed'}[s.status] }}">
+            {{ t('settle.st_' ~ s.status) }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

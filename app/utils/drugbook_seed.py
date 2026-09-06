@@ -521,6 +521,13 @@ GENERICS += [
          ref="BNF for Children"),
     dict(name_ar="هيدروكورتيزون (موضعي)", name_en="Hydrocortisone (topical)",
          cls="TOPIC", atc="D07AA02", routes="topical",
+         # The one printed course limit in this file, and it is printed on the
+         # carton: hydrocortisone 1% sold over the counter says seven days.
+         # Every other topical steroid here is left empty on purpose — the
+         # labels do not agree on a figure and this file does not invent one.
+         # They are still covered by the other half of the check, which needs
+         # no number: a steroid with no end date written at all.
+         max_course_days=7,
          indications="الإكزيما والتهاب الجلد التحسسي.",
          contraindications="العدوى الفطرية أو الفيروسية غير المغطاة.",
          precautions="أقصر مدة وأقل تركيز، وتجنّب الوجه والثنيات إلا بتعليمات.",
@@ -755,13 +762,41 @@ GENERICS += [
 # (trade_name, generic_en, form, strength, conc_mg_per_ml, manufacturer)
 BRANDS = [
     ("Cetal", "Paracetamol", "syrup", "120 mg/5 ml", 24, "Epico"),
-    ("Cetal Forte", "Paracetamol", "syrup", "250 mg/5 ml", 50, "Epico"),
-    ("Abimol", "Paracetamol", "syrup", "120 mg/5 ml", 24, "Amoun"),
+    # Three corrections made while checking these against the register, and
+    # they are the argument for checking: "Cetal Forte" was on no register at
+    # all (the 250 mg/5 ml suspension is sold as plain Cetal, which is already
+    # here); Abimol's syrup is 150 mg/5 ml and was written as 120; and
+    # Febrimol's drops are on the market with **no strength printed on the
+    # entry**, so they are left out rather than given a concentration this
+    # file invented. A wrong mg/ml is worse than a missing product: the
+    # missing one sends somebody to look it up.
+    # **The drops, and they are the presentation this list could least afford
+    # to be missing.** They are what an infant is actually given, and they are
+    # 100 mg/ml against the syrup's 24 — so the same number of millilitres is
+    # four times the dose. A reference that carried only the syrup left the
+    # doctor picking a syrup for a baby holding a dropper, and the whole
+    # "work the dose out from the concentration, never from the name" rule
+    # can only protect anybody if the presentation in their hand is in the
+    # list. Every strength here is read off the Egyptian register.
+    ("Cetal Drops", "Paracetamol", "drops", "100 mg/ml", 100, "Epico"),
+    ("Paragesic Drops", "Paracetamol", "drops", "100 mg/ml", 100, "Amriya"),
+    ("Pyral Drops", "Paracetamol", "drops", "100 mg/ml", 100, "Kahira"),
+    ("Abimol", "Paracetamol", "syrup", "150 mg/5 ml", 30, "Amoun"),
     ("Paramol", "Paracetamol", "suppository", "125 mg", None, "Sedico"),
     ("Brufen", "Ibuprofen", "syrup", "100 mg/5 ml", 20, "Kahira"),
     ("Nurofen", "Ibuprofen", "syrup", "100 mg/5 ml", 20, "Reckitt"),
+    # Two ibuprofen drops on the Egyptian market at two different strengths —
+    # 40 mg/ml and 40 mg/ml expressed as 50 mg/1.25 ml. Both are listed rather
+    # than one "ibuprofen drops", because a clinic that stocks the second and
+    # picks the first is reading the wrong millilitres off the screen.
+    ("Flabu Drops", "Ibuprofen", "drops", "40 mg/ml", 40, "Delta Pharma"),
+    ("Peopobruf Drops", "Ibuprofen", "drops", "50 mg/1.25 ml", 40,
+     "Delta Pharma"),
     ("Megamox", "Amoxicillin", "syrup", "250 mg/5 ml", 50, "Amoun"),
     ("E-Mox", "Amoxicillin", "syrup", "125 mg/5 ml", 25, "Epico"),
+    # And the infant drops: 100 mg/ml against the syrups' 25 and 50. Four
+    # times one of them.
+    ("Unimox Drops", "Amoxicillin", "drops", "100 mg/ml", 100, "Hikma"),
     ("Hibiotic", "Amoxicillin/Clavulanate", "syrup", "457 mg/5 ml", 80, "Amoun"),
     ("Augmentin", "Amoxicillin/Clavulanate", "syrup", "312 mg/5 ml", 50, "GSK"),
     ("Zisrocin", "Azithromycin", "syrup", "200 mg/5 ml", 40, "Kahira"),
@@ -796,7 +831,6 @@ BRANDS = [
 # --- second wave: more of what an Egyptian pharmacy actually stocks ---------
 BRANDS += [
     ("Adol", "Paracetamol", "syrup", "120 mg/5 ml", 24, "Julphar"),
-    ("Panadol Baby", "Paracetamol", "syrup", "120 mg/5 ml", 24, "GSK"),
     ("Cetal", "Paracetamol", "suppository", "250 mg", None, "Epico"),
     ("Temp", "Paracetamol", "suppository", "125 mg", None, "Amoun"),
     ("Perfalgan", "Paracetamol", "infusion", "10 mg/ml", 10, "BMS"),
@@ -832,6 +866,8 @@ BRANDS += [
     ("Histazine", "Chlorpheniramine", "syrup", "2 mg/5 ml", 0.4, "Kahira"),
     ("Allergex", "Chlorpheniramine", "tablet", "4 mg", None, "Egyptian Group"),
     ("Zaditen", "Ketotifen", "syrup", "1 mg/5 ml", 0.2, "Novartis"),
+    # Five times the syrup. The two bottles look the same on a shelf.
+    ("Zedotefen Drops", "Ketotifen", "drops", "1 mg/ml", 1, "El Nasr"),
     ("Cetrizal", "Cetirizine", "syrup", "5 mg/5 ml", 1, "Amoun"),
     ("Lorine", "Loratadine", "syrup", "5 mg/5 ml", 1, "Amoun"),
     ("Pulmicort", "Budesonide (inhaled)", "nebuliser respule", "0.5 mg/2 ml", 0.25, "AstraZeneca"),
@@ -853,6 +889,12 @@ BRANDS += [
     ("Hidrasec", "Racecadotril", "sachet", "30 mg", None, "Bioprojet"),
     ("Antinal", "Racecadotril", "sachet", "30 mg", None, "Amoun"),
     ("Lacteol Fort", "Probiotic (Lactobacillus)", "sachet", "10 billion", None, "Adam Pharma"),
+    # The infant form. No concentration to get wrong here — these are dosed in
+    # drops, not in millilitres — but a newborn with colic is not given a
+    # sachet, and a list with only sachets on it is a list that does not cover
+    # the age this one is for.
+    ("BioGaia Drops", "Probiotic (Lactobacillus)", "drops", "5 drops daily",
+     None, "BioGaia"),
     ("Bacillac", "Probiotic (Lactobacillus)", "sachet", "1.5 billion", None, "Kahira"),
     ("Rehydran N", "Oral rehydration salts (ORS)", "sachet", "WHO formula", None, "Sedico"),
     ("Hydrasal", "Oral rehydration salts (ORS)", "sachet", "WHO formula", None, "Amoun"),
@@ -1134,6 +1176,243 @@ GENERICS += [
     ),
 ]
 
+# --- fourth wave: the shelf a mother points at ----------------------------
+#
+# Chosen the opposite way to the third wave. That one was measured — the
+# ingredients carrying the most trade names in the register. This one comes
+# from a sentence about what a missing drug *costs*:
+#
+#     "لو الطبيب أنا بقوله في 20000 ألف دواء ومَيلاقيش حاجات بديهية ومشهورة
+#      في السوق بتبقى عدم ثقة ويأس"
+#
+# A reference is not judged by what it has. It is judged the first time
+# somebody looks for something ordinary. Type "سودو" and find nothing and the
+# whole catalogue is finished — not wrong, *finished*, because nobody types a
+# second word into a box that failed the first. So the test for this wave was
+# not "how many boxes does it reach" but "would a mother name it".
+#
+# Nappy rash is the case that made it, and it is four different medicines
+# wearing the same complaint: a barrier (zinc oxide, dexpanthenol), a yeast
+# (nystatin, miconazole, clotrimazole), a bacterium (mupirocin, fusidic acid)
+# and an inflamed patch that is none of those (hydrocortisone). The clinic had
+# the last two and half of the second. It now has all four — **as products
+# with their categories, not as a ladder**. Which one this child needs is a
+# clinical decision and this program does not make those: it carries what can
+# be prescribed, warns on what is dangerous, and the doctor chooses.
+#
+# The burns and the antiseptics come from the same request, one door along —
+# "الحاجات بتاعت الجراحة للأطفال". A children's clinic dresses a scald and a
+# grazed knee far more often than it operates.
+#
+# **No new shelf was created for any of this**, and that is deliberate. These
+# all belong on المستحضرات الموضعية beside the povidone-iodine already there.
+# Moving an existing ingredient to a new class would split the world: the seed
+# never overwrites, so a clinic that already has the row keeps the old shelf
+# while a fresh install gets the new one, and the same drug is then in two
+# different places depending on when you installed. One shelf for everybody.
+GENERICS += [
+    dict(
+        name_ar="ديكسبانثينول (موضعي)", name_en="Dexpanthenol (topical)",
+        cls="TOPIC", atc="D03AX03", routes="topical",
+        indications="التهاب الحفاض والوقاية منه، جفاف الجلد، تشقق حلمة الثدي "
+                    "أثناء الرضاعة، والسحجات السطحية.",
+        contraindications="فرط الحساسية للمكوّن.",
+        precautions="حاجز ومرطّب — يُدهن مع كل تغيير حفاض. مش علاج للعدوى: "
+                    "الطفح اللي حواليه بقع صغيرة منفصلة أو اللي مستمر أكتر من "
+                    "3 أيام يتراجع.",
+        preg="A", lact="آمن — يُمسح قبل الرضعة.", ref="EDA leaflet",
+    ),
+    # **Vaseline has no box, and it still belongs here.** There is no
+    # single-ingredient petrolatum on the Egyptian register — plain vaseline
+    # is sold as a cosmetic, and the two "vaseline cream" entries that exist
+    # are four-ingredient skin-care products. So this ships as an ingredient
+    # with no trade name, which is not a gap: an ingredient with no brand on
+    # file is still writable by name from the search, and a doctor who writes
+    # "فازلين" on a prescription — which is an ordinary thing to write — now
+    # finds it with its barrier note instead of finding nothing.
+    dict(
+        name_ar="فازلين (بارافين أبيض)",
+        name_en="Petrolatum (white soft paraffin)", cls="TOPIC",
+        routes="topical",
+        indications="حاجز على الجلد — الوقاية من التسلخات، تشقق الشفايف "
+                    "والجلد الجاف، وتليين القشرة قبل إزالتها.",
+        contraindications="الجرح المفتوح أو الحرق حديث الحدوث.",
+        precautions="حاجز مش علاج: بيمنع البلل يوصل للجلد ومش بيقتل فطر ولا "
+                    "ميكروب. ومش بيتحط على منطقة فيها التهاب بيرشّح.",
+        preg="A", lact="آمن — يُمسح قبل الرضعة.", ref="EDA leaflet",
+    ),
+    dict(
+        name_ar="نيستاتين (موضعي)", name_en="Nystatin (topical)", cls="ANTIF",
+        atc="D01AA01", routes="topical",
+        indications="كانديدا الحفاض والثنيات.",
+        contraindications="فرط الحساسية.",
+        precautions="2–4 مرات يومياً، ويستمر أسبوع بعد اختفاء الطفح. "
+                    "الكانديدا في الحفاض غالباً معاها سلاق في الفم — "
+                    "يتكشف عليه.",
+        preg="B", lact="آمن.", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="ميكونازول (موضعي)", name_en="Miconazole (topical)",
+        cls="ANTIF", atc="D01AC02", routes="topical",
+        indications="فطريات الجلد وكانديدا الحفاض.",
+        contraindications="فرط الحساسية للإيميدازولات.",
+        precautions="مرتين يومياً ويستمر أسبوع بعد اختفاء الطفح.",
+        preg="C", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="تيربينافين (موضعي)", name_en="Terbinafine (topical)",
+        cls="ANTIF", atc="D01AE15", routes="topical",
+        indications="سعفة الجسم والقدم.",
+        contraindications="فرط الحساسية.",
+        precautions="مرة أو مرتين يومياً لمدة 1–2 أسبوع. "
+                    "سعفة فروة الرأس لا تُعالَج بمرهم — محتاجة علاج بالفم.",
+        preg="B", ref="BNF for Children",
+    ),
+    # **A route in brackets is a fact, not a decoration — so it is only
+    # written when there is another route to tell it apart from.**
+    #
+    # The spelling table never strips a route qualifier, and for a good
+    # measured reason: stripping it linked 27 systemic ofloxacin products to
+    # an ear-drop entry, and the same for chloramphenicol (eye) and
+    # ketoconazole (topical), whose oral form is hepatotoxic. Nystatin,
+    # miconazole and terbinafine all keep theirs, because each of them really
+    # is two different drugs by route.
+    #
+    # Pimecrolimus, crisaborole, silver sulfadiazine and EMLA are not. There
+    # is no oral form of any of them anywhere, so the bracket separated them
+    # from nothing — and cost them every box the register was already
+    # carrying: the register's four Elidel rows, its two crisaborole rows and
+    # its eleven silver sulfadiazine rows sat in the catalogue with no age
+    # limit and no boxed warning because of a qualifier that meant nothing.
+    #
+    # The older "(topical)" names in this file that have the same shape are
+    # **deliberately left alone**. Renaming an ingredient does not rename it
+    # on a clinic that already has it: the seed would add a second one beside
+    # the first and orphan every brand hanging off the old. That is a worse
+    # thing than a missed link.
+    # --- الإكزيما ---------------------------------------------------------
+    #
+    # The measurement first, because it changes what "missing" means here.
+    # **Elidel, Crisacan, QV, Physiogel, Aveeno and Dermalex are all in the
+    # catalogue already** — the register import brings them in, they are not
+    # cosmetics by the sweep's rules, and they are searchable today. Every one
+    # of them carries ``generic_id = None``. So they are findable and naked:
+    # no dose, no age limit, no warning, nothing behind the name.
+    #
+    # That is a different fault from the nappy-rash one and it takes a
+    # different fix. There the products were absent. Here the ingredient is
+    # absent, and writing it attaches every box the register already brought.
+    #
+    # Two of these are real medicines with real warnings that were reaching
+    # nobody, and two are not medicines at all — and the second pair is the
+    # half of eczema treatment that never gets written down.
+    dict(
+        name_ar="بيميكروليموس", name_en="Pimecrolimus",
+        cls="TOPIC", atc="D11AH02", routes="topical", min_age=24,
+        indications="الإكزيما التأتبية الخفيفة للمتوسطة — وبالذات الوش "
+                    "والرقبة وثنايا الجلد، اللي الكورتيزون بيرقّق الجلد فيها.",
+        contraindications="أقل من سنتين، جلد عليه عدوى فيروسية أو فطرية أو "
+                          "بكتيرية، ونقص المناعة.",
+        black_box="تحذير هيئة الغذاء والدواء الأمريكية: اتبلّغت حالات لمفوما "
+                  "وسرطان جلد مع مثبطات الكالسينيورين الموضعية. السببية مش "
+                  "مثبتة — والاستعمال بيفضل متقطّع، أقصر مدة، وعلى أقل مساحة، "
+                  "مش علاج مستمر.",
+        precautions="حرقان مكان الدهان في أول كام يوم وبيقل. تُتجنّب الشمس "
+                    "والسولاريوم أثناء العلاج، ومش بيتحط تحت ضمادة.",
+        preg="C", lact="يُتجنّب على منطقة الثدي.",
+        ref="BNF for Children / FDA label",
+    ),
+    dict(
+        name_ar="كريسابورول", name_en="Crisaborole",
+        cls="TOPIC", atc="D11AH06", routes="topical", min_age=3,
+        indications="الإكزيما التأتبية الخفيفة للمتوسطة — بديل غير كورتيزوني.",
+        contraindications="فرط الحساسية للمادة.",
+        precautions="مرتين يومياً. أشيع أثر جانبي حرقان أو لسعة مكان الدهان، "
+                    "وبيقل مع الاستمرار.",
+        preg="C", ref="FDA label",
+    ),
+    # **Not a molecule, and that is the point.** The register lists no
+    # ingredient at all for any of these boxes, because they are not
+    # medicines. What they need is not a chemical name — it is the sentence
+    # that makes them work, which is about quantity and frequency and has
+    # nothing to do with which tub the family bought.
+    dict(
+        name_ar="مرطّب الإكزيما (مطرٍّ)", name_en="Emollient (eczema)",
+        cls="TOPIC", routes="topical",
+        indications="الإكزيما التأتبية والجلد الجاف — ده أساس العلاج، مش "
+                    "مساعد ليه.",
+        contraindications="مفيش. لكن أي مستحضر ممكن يهيّج طفل معيّن، ولو حصل "
+                          "يتغيّر المستحضر مش يتوقف الترطيب.",
+        precautions="الكمية والتكرار هما العلاج مش الماركة: بسخاء، 2–4 مرات "
+                    "يومياً على الأقل، وبيكمّل والجلد سليم — لأن اللي بيمنع "
+                    "النوبة الجاية هو ترطيب الأيام اللي مافيهاش نوبة. "
+                    "وبيتحط بعد الحمام على جلد لسه مبلول.",
+        preg="A", lact="آمن.", ref="NICE CG57",
+    ),
+    dict(
+        name_ar="بديل الصابون وزيت الاستحمام",
+        name_en="Soap substitute / bath emollient", cls="TOPIC",
+        routes="topical",
+        indications="الإكزيما — بدل الصابون والشاور جل، اللي بيشيلوا دهون "
+                    "الجلد ويولّعوا الهياج.",
+        contraindications="مفيش.",
+        precautions="حمام قصير بمياه دافية مش سخنة. **وزيت الاستحمام بيخلّي "
+                    "البانيو والأرضية زلقة** — دي إصابة بتحصل فعلاً مع "
+                    "الأطفال والكبار في البيت.",
+        preg="A", lact="آمن.", ref="NICE CG57",
+    ),
+    dict(
+        name_ar="سلفاديازين الفضة",
+        name_en="Silver sulfadiazine", cls="TOPIC", atc="D06BA01",
+        routes="topical", min_age=2,
+        indications="الحروق السطحية والجروح المعرّضة للتلوث — طبقة رقيقة "
+                    "تحت ضمادة.",
+        contraindications="أقل من شهرين، نقص إنزيم G6PD، وحساسية السلفا.",
+        black_box="سلفوناميد — يزيح البيليروبين عن البروتين ويسبب اليرقان "
+                  "النووي في حديثي الولادة؛ يُمنع تحت شهرين.",
+        precautions="الحروق الواسعة تمتص المادة — تُتابع صورة الدم في "
+                    "الاستعمال الممتد أو على مساحة كبيرة.",
+        side="نقص كرات الدم البيضاء المؤقت في أول أيام العلاج.",
+        preg="B", lact="يُتجنّب على منطقة الثدي.", ref="BNF for Children",
+    ),
+    dict(
+        name_ar="بيتا سيتوستيرول (ميبو)", name_en="Beta-sitosterol (MEBO)",
+        cls="TOPIC", routes="topical",
+        indications="الحروق السطحية والجروح — مرهم يُجدَّد على الجرح كل "
+                    "4–6 ساعات.",
+        contraindications="فرط الحساسية لزيت السمسم.",
+        precautions="ده مرهم للسطحي. الحرق اللي فيه فقاقيع واسعة أو مساحته "
+                    "أكبر من كف يد الطفل، أو أي حرق في الوش أو اليد أو "
+                    "المنطقة التناسلية — يتحوّل، مش يتدهن.",
+        preg="A", ref="EDA leaflet",
+    ),
+    dict(
+        name_ar="كلورهيكسيدين", name_en="Chlorhexidine", cls="TOPIC",
+        atc="D08AC02", routes="topical",
+        indications="تطهير الجلد والأيدي قبل الإجراءات، وغسول للفم في "
+                    "القرح واللثة.",
+        contraindications="ملامسة العين أو طبلة الأذن المثقوبة.",
+        precautions="البديل لليود تحت شهر — لكن التركيز الكحولي يحرق جلد "
+                    "الخديج، ويُستعمل التركيز المائي وتُجفَّف المنطقة بعده. "
+                    "الغسول لا يُبلَع.",
+        preg="B", ref="WHO",
+    ),
+    dict(
+        name_ar="ليدوكايين/بريلوكايين (مخدر موضعي)",
+        name_en="Lidocaine/prilocaine", cls="TOPIC", atc="N01BB20",
+        routes="topical",
+        indications="تخدير الجلد قبل الوخز أو تركيب الكانيولا — يُوضع تحت "
+                    "ضمادة لاصقة قبل الإجراء بساعة.",
+        contraindications="ميتهيموجلوبينية خلقية، وجلد مجروح أو غشاء مخاطي.",
+        black_box="البريلوكايين يسبب ميتهيموجلوبينية في الرضّع — الكمية "
+                  "والمساحة والمدة محدودة بالعمر، والخطر يزيد مع "
+                  "الباراسيتامول والسلفا والنترات.",
+        precautions="الكمية والمساحة حسب عمر الطفل في النشرة — "
+                    "الجرعة الزائدة هنا مساحة، مش ملليجرام.",
+        preg="B", ref="BNF for Children",
+    ),
+]
+
 # --- third wave of trade names: more of the shelf, and more strengths ------
 BRANDS += [
     # paracetamol / ibuprofen family
@@ -1300,6 +1579,181 @@ BRANDS += [
 ]
 
 
+# --- fourth wave of trade names: the ones somebody would ask for by name ---
+BRANDS += [
+    # التسلخات والحفاض — الحاجز
+    ("Sudocrem", "Zinc oxide (topical)", "cream", "60 g", None, "Teva"),
+    # The register lists no ingredient at all for Desitin, so it ships with no
+    # strength rather than one this file decided. It is filed under zinc oxide
+    # because that is the ingredient of every Desitin nappy cream sold
+    # anywhere, and the register's own category for it is DIAPER RASH.
+    ("Desitin Extra", "Zinc oxide (topical)", "cream", "—", None,
+     "Johnson & Johnson"),
+    ("Baby Rash Free", "Zinc oxide (topical)", "ointment", "30%", None,
+     "Alexandria"),
+    ("Bepanthen", "Dexpanthenol (topical)", "cream", "—", None, "Bayer"),
+    ("Bepanthen", "Dexpanthenol (topical)", "ointment", "—", None, "Bayer"),
+    ("Adcopantin", "Dexpanthenol (topical)", "cream", "5%", None, "ADCO"),
+    # التسلخات والحفاض — الفطر تحته
+    ("Nocandida", "Nystatin (topical)", "cream", "10 M.I.U.", None,
+     "Pharopharma"),
+    ("Daktarin", "Miconazole (topical)", "cream", "2%", None, "Janssen"),
+    ("Adcozole", "Miconazole (topical)", "cream", "2%", None, "ADCO"),
+    ("Dermozol", "Miconazole (topical)", "gel", "2%", None, "Pharco"),
+    # Miconazole and zinc oxide in one tube, and the register files it under
+    # DIAPER RASH itself — the barrier and the antifungal are the two things
+    # that complaint usually needs.
+    ("Mocazix", "Miconazole (topical)", "ointment", "2% + zinc oxide", None,
+     "Uniswab"),
+    ("Lamisil", "Terbinafine (topical)", "dermal gel", "1%", None, "Novartis"),
+    ("Benafin", "Terbinafine (topical)", "cream", "1%", None, "Memphis"),
+    ("Fungisafe", "Terbinafine (topical)", "cream", "1%", None, "Amoun"),
+    # المطهرات والجروح والحروق
+    ("Betadine", "Povidone-iodine", "ointment", "10%", None, "Mundipharma"),
+    ("Betadine", "Povidone-iodine", "antiseptic solution", "10%", None,
+     "Mundipharma"),
+    ("Betavidone", "Povidone-iodine", "ointment", "10%", None, "El Nile"),
+    ("Antiseptol", "Chlorhexidine", "mouth wash", "1 mg/ml", 1, "Kahira"),
+    ("Bacticide", "Chlorhexidine", "antiseptic solution",
+     "with isopropanol", None, "Debeiky"),
+    ("Dermazin", "Silver sulfadiazine", "cream", "1%", None,
+     "Sandoz"),
+    ("Silvazine", "Silver sulfadiazine", "cream", "1%", None,
+     "Unipharma"),
+    ("Burnazin", "Silver sulfadiazine", "cream", "1%", None,
+     "Alexandria"),
+    ("Sulphargin", "Silver sulfadiazine", "cream", "1%", None,
+     "El Nile"),
+    ("MEBO", "Beta-sitosterol (MEBO)", "ointment", "0.25%", None, "Julphar"),
+    ("Burnasores", "Beta-sitosterol (MEBO)", "ointment", "0.25%", None,
+     "Global Napi"),
+    ("Featherlite", "Beta-sitosterol (MEBO)", "cream", "0.25%", None,
+     "Spectra"),
+    ("EMLA", "Lidocaine/prilocaine", "cream", "5%", None,
+     "AstraZeneca"),
+    ("Avrisurg", "Lidocaine/prilocaine", "cream", "—", None,
+     "Medizen"),
+    ("Farco-Caine", "Lidocaine (topical)", "ointment", "5%", None, "Pharco"),
+    ("Farco-Caine", "Lidocaine (topical)", "spray", "10%", None, "Pharco"),
+    ("Dentable", "Lidocaine (topical)", "oral gel", "0.33%", None,
+     "Pharopharma"),
+    # الفم واللثة والتسنين
+    ("Dentocaine", "Benzocaine (oral gel)", "dental gel", "7.5%", None,
+     "Pharco"),
+    ("Dentocalm", "Benzocaine (oral gel)", "oral ointment", "with clove oil",
+     None, "Pharco"),
+    ("Mundisal", "Choline salicylate (oral gel)", "oral gel", "—", None,
+     "Mundipharma"),
+    ("Pansoral", "Choline salicylate (oral gel)", "oral gel", "—", None,
+     "Pierre Fabre"),
+    ("Salcozadex", "Choline salicylate (oral gel)", "oral gel", "—", None,
+     "Zad"),
+    # المضادات الحيوية اللي كانت بلا علبة
+    ("Cedenir", "Cefdinir", "suspension", "125 mg/5 ml", 25, "Unipharma"),
+    ("Bacticefdin", "Cefdinir", "suspension", "125 mg/5 ml", 25, "Sigma Tec"),
+    ("Cefathird", "Cefdinir", "suspension", "125 mg/5 ml", 25, "Epico"),
+    ("Averofectan", "Cefdinir", "suspension", "250 mg/5 ml", 50, "Averroes"),
+    ("Cedenir", "Cefdinir", "capsule", "300 mg", None, "Unipharma"),
+    ("Cefaxim", "Cefotaxime", "vial", "500 mg", None, "El Nasr"),
+    ("Cefaxim", "Cefotaxime", "vial", "1 g", None, "El Nasr"),
+    ("Cefalomash", "Cefotaxime", "vial", "1 g", None, "Mash Premiere"),
+    ("Cefidime", "Ceftazidime", "vial", "250 mg", None, "Epico"),
+    ("Cefidime", "Ceftazidime", "vial", "500 mg", None, "Epico"),
+    ("Cefidime", "Ceftazidime", "vial", "1 g", None, "Epico"),
+    ("Cefzim", "Ceftazidime", "vial", "1 g", None, "Pharco"),
+    # Ospen's tablets are on the shelf; its 400,000 IU/5 ml suspension — the
+    # form a child would actually take — is marked (N/A) on the register, so
+    # it is not listed. A brand that cannot be dispensed is the same wasted
+    # trip as a brand that does not exist.
+    ("Ospen", "Phenoxymethylpenicillin", "tablet", "1.0 MIU", None, "Sandoz"),
+    ("Ospen", "Phenoxymethylpenicillin", "tablet", "1.5 MIU", None, "Sandoz"),
+    # مضادات الفطريات بالفم
+    ("Griseovin", "Griseofulvin", "suspension", "2.5%", 25, "Delta Pharma"),
+    ("Ultragriseofulvin", "Griseofulvin", "suspension", "2.5%", 25, "Kahira"),
+    ("Ultragriseofulvin", "Griseofulvin", "tablet", "125 mg", None, "Kahira"),
+    ("Ultrafulvin", "Griseofulvin", "tablet", "125 mg", None, "Memphis"),
+    ("Fungisafe", "Terbinafine", "tablet", "250 mg", None, "Amoun"),
+    ("Lamifen", "Terbinafine", "tablet", "125 mg", None, "Epico"),
+    ("Lamifen", "Terbinafine", "tablet", "250 mg", None, "Epico"),
+    # الحساسية والمعدة
+    ("Triactin", "Cyproheptadine", "syrup", "2 mg/5 ml", 0.4, "Kahira"),
+    ("Triactin", "Cyproheptadine", "tablet", "4 mg", None, "Kahira"),
+    ("Cyptadine", "Cyproheptadine", "tablet", "4 mg", None, "Memphis"),
+    ("Atarax", "Hydroxyzine", "tablet", "10 mg", None, "CID"),
+    ("Atarax", "Hydroxyzine", "tablet", "25 mg", None, "CID"),
+    ("Controloc", "Pantoprazole", "tablet", "20 mg", None, "Acino"),
+    ("Controloc", "Pantoprazole", "tablet", "40 mg", None, "Acino"),
+    ("Antopral", "Pantoprazole", "tablet", "20 mg", None, "Novartis"),
+    ("Antopral", "Pantoprazole", "vial", "40 mg", None, "Novartis"),
+    # الأدرينالين — الأمبولة اللي بتقف في الدولاب لحد ما تلزم
+    ("Adrenaline-CID", "Adrenaline (epinephrine)", "ampoule", "1 mg/ml", 1,
+     "CID"),
+    ("Adrenamax", "Adrenaline (epinephrine)", "ampoule", "1 mg/ml", 1,
+     "Chemipharm"),
+    # الفيتامينات اللي كانت بلا علبة
+    ("A-Viton", "Vitamin A", "capsule", "50,000 IU", None, "Kahira"),
+    ("Amovit-C", "Vitamin C (ascorbic acid)", "effervescent tablet", "1 g",
+     None, "Amoun"),
+    ("Ascokarm", "Vitamin C (ascorbic acid)", "capsule", "500 mg", None,
+     "Karman"),
+    # الحرارة — the famous boxes that were still missing
+    #
+    # Measured the same way as the rest: every paracetamol and ibuprofen brand
+    # on the register that is not marked (N/A) or (CANCELLED), sorted by how
+    # many presentations it carries, minus what was already here. Profinal is
+    # the one that stings — it is one of the two ibuprofen suspensions a
+    # mother names, and it was not in a reference that had four others.
+    #
+    # Two labels here are written the way the box writes them and not
+    # rewritten: Profinal's suspension says 20 mg/ml and Ibufen's says 2%.
+    # They are the same concentration. Both keep their own wording and both
+    # carry 20 mg/ml for the arithmetic, because the doctor is holding the
+    # box, not this file.
+    ("Profinal", "Ibuprofen", "suspension", "20 mg/ml", 20, "Julphar"),
+    ("Profinal", "Ibuprofen", "tablet", "200 mg", None, "Julphar"),
+    ("Profinal", "Ibuprofen", "tablet", "400 mg", None, "Julphar"),
+    ("Ibufen", "Ibuprofen", "suspension", "2%", 20, "Alexandria"),
+    ("Marcofen", "Ibuprofen", "suspension", "100 mg/5 ml", 20, "GSK"),
+    # Ibuprofen suppositories, and the reference had none at all — the form a
+    # vomiting child with a fever actually gets.
+    ("Marcofen", "Ibuprofen", "suppository", "100 mg", None, "GSK"),
+    ("Marcofen", "Ibuprofen", "suppository", "300 mg", None, "GSK"),
+    # الإكزيما — كلهم في الكتالوج أصلاً من السجل وبلا مادة وراهم
+    ("Elidel", "Pimecrolimus", "cream", "1%", None, "Meda"),
+    ("Crisacan", "Crisaborole", "ointment", "2%", None, "Hikma"),
+    ("Marcrisa", "Crisaborole", "ointment", "2%", None, "Marcyrl"),
+    # The moisturisers. No strength on any of them and none invented: what
+    # matters about an emollient is on the ingredient, not on the tub.
+    ("QV Cream", "Emollient (eczema)", "cream", "—", None, "Ego"),
+    ("Physiogel", "Emollient (eczema)", "cream", "—", None, "GSK"),
+    ("Aveeno Dermexa", "Emollient (eczema)", "cream", "—", None,
+     "Johnson & Johnson"),
+    ("Dermalex Repair", "Emollient (eczema)", "cream", "—", None, "Chefaro"),
+    # And the half nobody writes on the prescription.
+    ("QV Bar", "Soap substitute / bath emollient", "soap", "—", None, "Ego"),
+    ("QV Bath Oil", "Soap substitute / bath emollient", "bath oil", "—", None,
+     "Ego"),
+    ("Aveeno Dermexa", "Soap substitute / bath emollient", "body wash", "—",
+     None, "Johnson & Johnson"),
+    ("Febrimol", "Paracetamol", "tablet", "500 mg", None, "Pharco"),
+    ("Doliprane", "Paracetamol", "tablet", "1 g", None, "Sanofi"),
+    ("Doliprane", "Paracetamol", "sachet", "1 g", None, "Sanofi"),
+]
+
+# **Erythromycin is still here with no box behind it, and on purpose.** Every
+# oral erythromycin on the register — Erythrocid, Erythrocin, Erythromycin
+# Pharco, Ethyronate, the lot — is marked (N/A); what is actually on the shelf
+# is the acne paint. The ingredient keeps its paediatric dose for the day a
+# suspension comes back or somebody types one in by hand, and it lists no
+# brand because there is none to list. An empty shelf that is honestly empty
+# beats a name that sends a parent to four pharmacies.
+#
+# **Petrolatum has no entry either.** The barrier role is covered twice over
+# by zinc oxide and dexpanthenol, and the register's plain-vaseline products
+# are cosmetics with no strength and no maker worth putting a doctor's name
+# next to.
+
+
 def seed_drug_classes():
     existing = {c.code for c in DrugClass.query.with_entities(DrugClass.code).all()}
     n = 0
@@ -1333,6 +1787,7 @@ def seed_generics():
             max_per_kg_day=dose[4], max_single_dose_mg=dose[5],
             max_daily_dose_mg=dose[6],
             dose_note=row.get("note"),
+            max_course_days=row.get("max_course_days"),
             min_age_months=row.get("min_age"), max_age_months=row.get("max_age"),
             indications=row.get("indications"),
             contraindications=row.get("contraindications"),
@@ -1361,13 +1816,30 @@ def seed_generics():
 
 
 def seed_brands():
-    """Create the missing trade names and attach them to their ingredient."""
+    """Create the missing trade names and attach them to their ingredient.
+
+    **A product is a trade name, a form and a strength.** This used to skip on
+    the trade name and the strength alone, and the effect was silent: any
+    brand sold in two forms at the same printed strength lost one of them, and
+    nothing anywhere said so. Seven rows were being dropped when that was
+    measured — Fucidin's ointment, Lyclear's lotion, Diflucan's suspension,
+    Betadine's antiseptic solution, Bepanthen's ointment, Doliprane's sachet,
+    and **Mycostatin's oral drops**, which is the infant presentation of a
+    thrush treatment and the exact kind of row this reference exists to carry.
+
+    The cost of widening the key is one case and it is worth naming: a clinic
+    that *renamed the form* on a row we shipped — "syrup" to "شراب" — no
+    longer matches it, and would gain our row beside theirs. That is one
+    visible, editable duplicate against every clinic permanently missing
+    presentations, and the trade is not close.
+    """
     generics = {g.name_en: g for g in GenericDrug.query.all()}
-    existing = {(d.trade_name, d.strength or "") for d in
-                Drug.query.with_entities(Drug.trade_name, Drug.strength).all()}
+    existing = {(d.trade_name, d.form, d.strength or "") for d in
+                Drug.query.with_entities(Drug.trade_name, Drug.form,
+                                         Drug.strength).all()}
     n = 0
     for trade, generic_en, form, strength, conc, maker in BRANDS:
-        key = (trade, strength or "")
+        key = (trade, form, strength or "")
         if key in existing:
             continue
         existing.add(key)      # also guards repeats *inside* the seed list
@@ -1407,14 +1879,128 @@ def link_existing_drugs():
     return n
 
 
+# --- correcting a figure we shipped wrong ---------------------------------
+#
+# **The seed adds and never overwrites**, which is what makes it safe to run
+# on a working clinic: a dose somebody corrected against their own protocol
+# must not come back next Tuesday as ours. The cost of that rule is the other
+# direction — when *we* ship a wrong figure, it stays wrong on every clinic
+# that already has the row.
+#
+# Abimol is the example this list was written for. Its syrup is 150 mg/5 ml on
+# the Egyptian register and this file shipped 120 for a long time, which is a
+# fifth off every millilitre worked out from it.
+#
+# **Each correction carries the value we shipped**, and that is the whole
+# safety of it: the row is changed only when it still holds *exactly* what we
+# put there. A clinic that had already noticed and fixed it does not match, so
+# nothing of theirs is touched — and neither does a clinic that changed it for
+# a reason of their own we do not know about. Left alone and counted, so the
+# update can say how many it did not dare touch.
+#
+# A fingerprint column would do the same job more automatically and was not
+# worth a schema change: writing the old value out is more precise, it is
+# reviewable in a diff, and it forces whoever adds a correction to say what
+# they believe the clinic is holding.
+#
+# **Names are not corrected here, only figures.** "Cetal Forte" and "Panadol
+# Baby" were removed from the seed because no Egyptian register carries them,
+# and they are deliberately left in place on clinics that already have them: a
+# brand that cannot be bought is a nuisance, and deleting a row a prescription
+# may point at is a fault. New installs simply do not get them.
+SHIPPED_FIXES = [
+    {
+        "trade_name": "Abimol", "form": "syrup",
+        "was": {"strength": "120 mg/5 ml", "conc_mg_per_ml": 24.0},
+        "now": {"strength": "150 mg/5 ml", "conc_mg_per_ml": 30.0},
+        "why": "شراب أبيمول ١٥٠ مج/٥مل على السجل المصري — وكان مشحون ١٢٠.",
+    },
+]
+
+
+def apply_shipped_fixes(fixes=None):
+    """Correct figures this file shipped wrong, and only where it shipped them.
+
+    Returns ``{"fixed": n, "left": m}`` — ``left`` being the rows that carry
+    the product but no longer carry our value, which means somebody changed
+    it and it is not ours to change back.
+    """
+    fixed = left = 0
+    for fix in (fixes if fixes is not None else SHIPPED_FIXES):
+        rows = Drug.query.filter_by(trade_name=fix["trade_name"],
+                                    form=fix["form"]).all()
+        for row in rows:
+            if all(getattr(row, field) == value
+                   for field, value in fix["was"].items()):
+                for field, value in fix["now"].items():
+                    setattr(row, field, value)
+                fixed += 1
+            elif not all(getattr(row, field) == value
+                         for field, value in fix["now"].items()):
+                # Neither what we shipped nor what we are shipping now: the
+                # clinic's own figure, and it stays.
+                left += 1
+    if fixed:
+        db.session.flush()
+    return {"fixed": fixed, "left": left}
+
+
+# --- course limits, filled in and never written over -----------------------
+#
+# `seed_generics` skips an ingredient that already exists, which is what makes
+# it safe to re-run — and it means a figure added to this file after a clinic
+# installed would never reach them. That was the whole "the reference stopped
+# growing" bug, one field down.
+#
+# So course limits are filled separately and **only where the row is empty**.
+# A clinic that set seven days to ten keeps ten; a clinic that has never heard
+# of the field gets ours.
+COURSE_LIMITS = {
+    "Hydrocortisone (topical)": 7,
+}
+
+
+def fill_course_limits(limits=None):
+    """Put our course limit on ingredients that carry none. Returns the count."""
+    filled = 0
+    for name, days in (limits if limits is not None else COURSE_LIMITS).items():
+        row = GenericDrug.query.filter_by(name_en=name).first()
+        if row is not None and row.max_course_days is None:
+            row.max_course_days = days
+            filled += 1
+    if filled:
+        db.session.flush()
+    return filled
+
+
 def seed_drugbook(force=False):
-    """Seed classes → ingredients → trade names. Idempotent; returns counts."""
-    if not force and GenericDrug.query.first() is not None:
-        return {"classes": 0, "generics": 0, "brands": 0, "linked": 0}
+    """Seed classes → ingredients → trade names. Adds what is missing.
+
+    **It used to stop dead the moment the clinic had a single ingredient.**
+    The guard read "a fresh install only", and the effect was that the
+    reference froze at whatever the clinic's first run produced: every
+    ingredient added to this file afterwards — and the list has roughly
+    doubled — never reached a clinic that had already run once. A doctor
+    looked for ondansetron, or salbutamol, or vitamin D, and found nothing,
+    while the same names sat in the source and in the Egyptian register beside
+    it. Reported as *"ازاي الادوية دي مش موجودة عندنا"*, and every one of them
+    was here.
+
+    **Adding is safe and updating would not be**, which is the whole reason
+    this can be a top-up. Every one of the four steps below is add-only: each
+    skips a row that already exists and never writes over it. So a clinic that
+    corrected a dose, renamed a brand or switched an ingredient off keeps every
+    one of those decisions, and only gets the rows it never had.
+
+    ``force`` is kept for the command that means "seed it again from scratch",
+    and now differs from the default only in intent — there is nothing left for
+    it to override.
+    """
     return {
         "classes": seed_drug_classes(),
         "generics": seed_generics(),
         "brands": seed_brands(),
+        "course_limits": fill_course_limits(),
         "linked": link_existing_drugs(),
         "interactions": seed_interactions(),
     }

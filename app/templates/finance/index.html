@@ -42,6 +42,15 @@
     <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('payouts.sub') }}</p>
   </a>
 
+  {# The third half, and the one a clinic actually does at the end of a month:
+     sit with somebody, agree a figure, and pay it. The running balance beside
+     it answers "where do we stand"; this answers "what did we agree". #}
+  <a class="card gc-lift" href="{{ url_for('finance.settlements') }}" style="text-decoration:none;">
+    <div class="hub-ico edge-green"><i class="bi bi-file-earmark-check"></i></div>
+    <h3 style="margin:10px 0 4px;">{{ t('settle.title') }}</h3>
+    <p style="color:var(--muted);margin:0;font-size:0.88rem;">{{ t('settle.sub') }}</p>
+  </a>
+
   <a class="card gc-lift" href="{{ url_for('finance.periods') }}" style="text-decoration:none;">
     <div class="hub-ico edge-green"><i class="bi bi-calendar-check"></i></div>
     <h3 style="margin:10px 0 4px;">{{ t('periods.title') }}</h3>

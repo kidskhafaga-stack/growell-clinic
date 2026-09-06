@@ -208,6 +208,47 @@ def expand_duration(text):
     return raw
 
 
+def duration_days(text):
+    """A written duration in days, or ``None`` when it is not a length of time.
+
+    The inverse of :func:`expand_duration`, and it lives beside it for one
+    reason: **that function's output is this function's input.** The screen
+    expands shorthand on save, so what is stored is «٥ أيام» and «أسبوعين»,
+    not ``5d`` — a parser written anywhere else would be reading a format it
+    does not own and would rot the first time the wording changed. The two
+    are tested against each other rather than against a list of examples.
+
+    Weeks are seven days and months are thirty. That is arithmetic, not a
+    clinical claim: nothing here decides what a course *should* be, only how
+    long the one on the paper is.
+
+    ``None`` for anything else — "حتى التحسن", "when needed", empty — and that
+    is a distinct answer from zero, because "no end written" is the thing a
+    caller most needs to be able to see.
+    """
+    raw = _to_western((text or "").strip())
+    if not raw:
+        return None
+    # The wordless shapes Arabic uses for one and two, which carry no digit.
+    bare = {"يوم واحد": 1, "يوم": 1, "يومين": 2,
+            "أسبوع": 7, "اسبوع": 7, "أسبوعين": 14, "اسبوعين": 14,
+            "شهر": 30, "شهرين": 60}
+    if raw in bare:
+        return bare[raw]
+    match = _DURATION_RE.match(raw)
+    if not match:
+        return None
+    count = int(match.group(1))
+    unit = (match.group(2) or "d").strip().lower()
+    if unit in _WEEK_WORDS:
+        return count * 7
+    if unit in _MONTH_WORDS:
+        return count * 30
+    if unit in _DAY_WORDS:
+        return count
+    return None
+
+
 # ------------------------------------------------------------------ dose --
 _DOSE_RE = re.compile(rf"^\s*(\d+(?:[.,]\d+)?)\s*({_UNIT_CHARS}*)\s*$")
 

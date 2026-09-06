@@ -159,13 +159,21 @@ def test_the_age_limits_are_the_ones_the_regulators_set(clinic):
 
 
 def test_the_warning_does_not_fire_by_itself_and_that_is_written_down(clinic):
-    """The honest limit.
+    """The honest limit, and where it now stops.
 
     Almost every one of these products is a combination — chlorhexidine plus
     lidocaine plus clove oil — and the combination guard refuses to hang one
-    ingredient's dose on a mixture. So the entries are lookup-able and do not
-    attach. Asserting it keeps somebody from reading the shelf and assuming a
-    doctor gets warned automatically.
+    ingredient's dose on a mixture. **Nothing the register imports attaches by
+    itself**, and asserting that keeps somebody from reading the shelf and
+    assuming a doctor gets warned automatically.
+
+    What changed is the other half. The shelf used to link *nothing at all*,
+    which meant a teething gel with a salicylate in it carried the warning
+    nowhere. A handful of these are now named by hand in the seed — Mundisal,
+    Pansoral, Dentocaine — and those do attach, because a person read the box
+    and wrote which ingredient the warning belongs to. Guessing that over
+    25,000 imported rows and writing it three times are not the same act, and
+    the difference is exactly what this test holds apart.
     """
     with clinic["app"].app_context():
         from app.models import Drug, GenericDrug
@@ -177,8 +185,13 @@ def test_the_warning_does_not_fire_by_itself_and_that_is_written_down(clinic):
         for name in ("Choline salicylate (oral gel)", "Benzocaine (oral gel)"):
             generic = GenericDrug.query.filter_by(name_en=name).first()
             assert generic is not None
-            linked = Drug.query.filter_by(generic_id=generic.id).count()
-            assert linked == 0, (
-                f"{name} now links {linked} products — if the combination "
-                "guard has changed, this limit is worth re-reading rather "
-                "than the number being edited")
+            linked = Drug.query.filter_by(generic_id=generic.id).all()
+            assert linked, f"{name} carries the warning and reaches nothing"
+            # Every imported row carries the register's Arabic name; the ones
+            # written into the seed by hand do not. So this is "did the import
+            # guess?", not "how many rows are there".
+            guessed = [d.trade_name for d in linked if d.trade_name_ar]
+            assert guessed == [], (
+                f"{name} picked up {guessed} from the register — if the "
+                "combination guard has changed, this limit is worth "
+                "re-reading rather than the number being edited")

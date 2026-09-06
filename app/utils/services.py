@@ -10,6 +10,24 @@ from app.models import Service
 
 # Canonical services created on a fresh install (clinic edits prices/commission
 # afterwards). Stable codes so the visit-type map and reports stay anchored.
+# The consultant's round on an inpatient, as a line the family can be billed
+# for. **Shipped at zero, and that is the switch**, exactly as the bed rate is:
+# a clinic that never prices it is never charged for it and never sees a card
+# about it, and a resident walking the ward every morning stays what it has
+# always been — a clinical note with no money attached.
+#
+# The price is set **per consultant**, on the doctor–service row that already
+# exists for every other service: `price_override` is what the family pays for
+# that consultant's round, and a `fixed` commission on the same row is what the
+# hospital pays the consultant. The difference is the hospital's margin, and it
+# is computed by the same `doctor_share` every other line uses.
+#
+# Which is the arrangement as it was described: *«غالباً الاستشاري بيتحاسب من
+# المستشفى في ساعتها، والمستشفى بتحط على فاتورة الأهل بعد كده وغالباً بيبقى
+# ليها نسبة من المبلغ ده»*.
+ROUND_SERVICE = ("SVC-ROUND", "مرور استشاري", "Consultant round",
+                 0, "consultation", "none", 0)
+
 # (code, name_ar, name_en, price, category, commission_type, commission_value)
 CORE_SERVICES = [
     ("SVC-KASHF", "كشف", "Consultation", 250, "consultation", "percent", 40),
@@ -58,9 +76,10 @@ CAPABILITY_SERVICES = {
     "sample_collection": [("SVC-SAMPLE", "سحب عينة", "Sample collection", 50, "lab", "none", 0)],
     "observation": [("SVC-OBS", "ملاحظة (يوم)", "Observation (day)", 500, "other", "none", 0)],
     "day_care": [("SVC-DAYCARE", "رعاية نهارية (يوم)", "Day care (day)", 700, "other", "none", 0)],
-    "nicu": [("SVC-NICU", "حضّانة (يوم)", "NICU (day)", 1500, "other", "none", 0)],
-    "icu": [("SVC-ICU", "رعاية مركزة (يوم)", "ICU (day)", 2000, "other", "none", 0)],
-    "ward": [("SVC-WARD", "إقامة داخلية (يوم)", "Inpatient ward (day)", 800, "other", "none", 0)],
+    "nicu": [("SVC-NICU", "حضّانة (يوم)", "NICU (day)", 1500, "other", "none", 0), ROUND_SERVICE],
+    "icu": [("SVC-ICU", "رعاية مركزة (يوم)", "ICU (day)", 2000, "other", "none", 0), ROUND_SERVICE],
+    "ward": [("SVC-WARD", "إقامة داخلية (يوم)", "Inpatient ward (day)", 800, "other", "none", 0),
+             ROUND_SERVICE],
 
     # Paediatric dentistry, and the word paediatric is doing work here. A
     # general dental list carries implants, bridges and dentures; a

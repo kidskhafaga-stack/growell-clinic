@@ -1155,6 +1155,16 @@ def booking_due(appt, lang="ar"):
         lines = _checkout_lines(appt, lang)
     except Exception:  # noqa: BLE001 - a pricing gap must not break the till
         return None
+    # **No lines is not a price of zero.** The checkout produced nothing to
+    # charge because nothing about this booking is priced — a visit type with
+    # no service behind it, most often a clinic still setting itself up — and
+    # that is the `None` this function already documents: *"the price could
+    # not be worked out, which is a reason to show it rather than hide it"*.
+    # It used to fall out of the sum as 0.0, so an unpriced booking was
+    # silently treated as a free one and dropped off the chase list — which is
+    # the same fault as billing a free visit, facing the other way.
+    if not lines:
+        return None
     return round(sum((line.get("unit_price") or 0) * (line.get("quantity") or 1)
                      for line in lines), 2)
 
@@ -5083,12 +5093,125 @@ def doctor_pay():
     db.session.add(payout)
     db.session.flush()
     post_doctor_payout(payout, user_id=current_user.id)
+    # When the payment was made against an agreed month, say so on the paper.
+    # The money leaving the till is the same act either way; this only answers
+    # the question somebody asks in March about a payment made in January.
+    settlement_id = request.form.get("settlement_id", type=int)
+    if settlement_id:
+        from app.models import Settlement
+        from app.utils import settlement as settle
+
+        statement = db.session.get(Settlement, settlement_id)
+        if statement is not None and statement.doctor_id == doctor.id:
+            settle.mark_paid(statement, payout)
     ActivityLog.record("doctor.pay", user_id=current_user.id, entity="user",
                        entity_id=doctor.id, detail=f"{amount:.2f}",
                        ip_address=client_ip())
     db.session.commit()
     flash(t("payouts.paid_ok"), "success")
-    return redirect(url_for("finance.doctor_payouts"))
+    return redirect(request.form.get("next")
+                    or url_for("finance.doctor_payouts"))
+
+
+# =======================================================================
+# The month closed with a doctor
+# =======================================================================
+
+@finance_bp.route("/settlements")
+@module_required(MODULE)
+def settlements():
+    """Every statement drawn, and the form that draws the next one."""
+    from app.models import Settlement
+    from app.utils.appointments import list_doctors
+
+    doctor_id = request.args.get("doctor_id", type=int)
+    query = Settlement.query
+    if doctor_id:
+        query = query.filter(Settlement.doctor_id == doctor_id)
+    rows = query.order_by(Settlement.date_from.desc(),
+                          Settlement.id.desc()).limit(100).all()
+
+    today = local_today()
+    first = today.replace(day=1)
+    return render_template("finance/settlements.html", rows=rows,
+                           doctors=list_doctors(), doctor_id=doctor_id,
+                           month_from=first, month_to=today)
+
+
+@finance_bp.route("/settlements/draw", methods=["POST"])
+@module_required(MODULE)
+def settlement_draw():
+    """Open a draft statement for one doctor over one period."""
+    from app.models import User
+    from app.utils import settlement as settle
+    from app.utils.appointments import list_doctors
+
+    doctor = db.session.get(User, request.form.get("doctor_id", type=int) or 0)
+    if doctor is None or doctor.id not in {d.id for d in list_doctors()}:
+        flash(t("payouts.not_a_doctor"), "danger")
+        return redirect(url_for("finance.settlements"))
+
+    date_from = _parse_date_arg2(request.form.get("date_from"))
+    date_to = _parse_date_arg2(request.form.get("date_to"))
+    basis = (request.form.get("basis") or "").strip() or None
+    try:
+        statement = settle.draw(doctor, date_from, date_to,
+                                user=current_user, basis=basis)
+    except ValueError as why:
+        # The overlap refusal said out loud. Silence here would leave somebody
+        # pressing a button that does nothing, and the reason it does nothing
+        # is the most useful sentence on the screen.
+        db.session.rollback()
+        flash(t("settle.already" if "settled" in str(why) else "settle.bad_period"),
+              "danger")
+        return redirect(url_for("finance.settlements"))
+
+    db.session.commit()
+    return redirect(url_for("finance.settlement_view",
+                            settlement_id=statement.id))
+
+
+@finance_bp.route("/settlement/<int:settlement_id>")
+@module_required(MODULE)
+def settlement_view(settlement_id):
+    """One statement — a draft redraws itself, a closed one never moves."""
+    from app.models import DOCTOR_PAYOUT_METHODS, CashAccount, Settlement
+    from app.utils import settlement as settle
+
+    statement = db.get_or_404(Settlement, settlement_id)
+    settle.refresh(statement)
+    db.session.commit()
+    return render_template("finance/settlement.html", s=statement,
+                           tills=CashAccount.active(),
+                           methods=DOCTOR_PAYOUT_METHODS)
+
+
+@finance_bp.route("/settlement/<int:settlement_id>/act", methods=["POST"])
+@module_required(MODULE)
+def settlement_act(settlement_id):
+    """Agree it, or reopen it while the money has not gone."""
+    from app.models import Settlement
+    from app.utils import settlement as settle
+
+    statement = db.get_or_404(Settlement, settlement_id)
+    action = (request.form.get("action") or "").strip()
+    if action == "close":
+        settle.close(statement, user=current_user,
+                     note=request.form.get("note"))
+        flash(t("settle.closed"), "success")
+    elif action == "reopen" and statement.status == "closed":
+        settle.reopen(statement)
+        flash(t("settle.reopened"), "info")
+    elif action == "delete" and statement.status == "draft":
+        db.session.delete(statement)
+        db.session.commit()
+        flash(t("settle.deleted"), "info")
+        return redirect(url_for("finance.settlements"))
+    else:
+        flash(t("settle.bad_action"), "warning")
+    db.session.commit()
+    return redirect(url_for("finance.settlement_view",
+                            settlement_id=statement.id))
 
 
 @finance_bp.route("/documents/<int:doc_id>/terms", methods=["POST"])

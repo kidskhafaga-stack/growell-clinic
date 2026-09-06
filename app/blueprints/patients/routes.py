@@ -595,16 +595,27 @@ def _operations(patient_id):
 
 
 def _ward_context(patient_id):
-    """``open_admission`` and ``free_beds`` for the file, or neither."""
+    """``open_admission``, ``free_beds`` and whether there is a ward at all.
+
+    The third one exists because "no bed is free" was being printed on every
+    child's file in a clinic that has **no beds at all** — the module switched
+    on, nothing set up behind it, and a sentence in the column of buttons
+    saying something nobody asked. ``free_beds()`` returns an empty list for
+    both states and they are not the same news: *all the beds are taken* is
+    worth a line, *you never made a ward* is not.
+    """
     from app.utils.facility import module_enabled
 
     if not module_enabled("beds"):
-        return {"open_admission": None, "free_beds": []}
+        return {"open_admission": None, "free_beds": [], "has_beds": False}
+    from app.models import Bed
+
     from app.utils import beds as ward
 
     admission = ward.open_admission(patient_id)
     return {"open_admission": admission,
-            "free_beds": [] if admission else ward.free_beds()}
+            "free_beds": [] if admission else ward.free_beds(),
+            "has_beds": Bed.query.filter_by(is_active=True).first() is not None}
 
 
 @patients_bp.route("/<int:patient_id>/report")

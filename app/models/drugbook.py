@@ -74,6 +74,11 @@ class GenericDrug(db.Model):
     dose_note = db.Column(db.String(255))       # e.g. "أول يوم 10 ثم 5 مج/كج"
 
     # --- eligibility / safety -----------------------------------------
+    # How long a course of this may run before somebody looks again. Empty on
+    # almost everything and that is correct: it is filled only where a printed
+    # limit exists to point at, and the clinic sets its own from the screen.
+    # Nothing here decides what a course *should* be.
+    max_course_days = db.Column(db.Integer)
     min_age_months = db.Column(db.Integer)      # e.g. ibuprofen = 6
     max_age_months = db.Column(db.Integer)
     min_weight_kg = db.Column(db.Float)

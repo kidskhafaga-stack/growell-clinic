@@ -110,10 +110,65 @@ def test_every_doctor_is_addressed_and_a_professor_differently(clinic):
         db.session.add(prof)
         db.session.commit()
 
+        # The title follows the **name**, not the page: an Arabic name is
+        # addressed in Arabic on an English screen too, or the two halves of
+        # one line read in opposite directions.
         assert plain.doctor_print_name("ar") == "د/ منى حسن"
-        assert plain.doctor_print_name("en") == "Dr. منى حسن"
+        assert plain.doctor_print_name("en") == "د/ منى حسن"
         assert prof.doctor_print_name("ar") == "أ.د/ أحمد سمير"
-        assert prof.doctor_print_name("en") == "Prof. Dr. أحمد سمير"
+        assert prof.doctor_print_name("en") == "أ.د/ أحمد سمير"
+
+
+def test_an_english_name_is_addressed_in_english_on_an_arabic_page(clinic):
+    """Reported off a printed receipt: *"د/ Ahmed Gamal Kandil"*.
+
+    A doctor whose only name on file is English still prints on the Arabic
+    receipt, because that is the only name there is — and the title was picked
+    by the page rather than by the name, so one line carried an Arabic
+    honorific in front of a Latin name.
+
+    *"المفروض احنا محددين Dr. مع اللغة الانجليزية و د/ مع العربي"* — and the
+    thing that decides which is the name, since the page can only ever guess.
+    """
+    from app.models import User
+
+    with clinic["app"].app_context():
+        plain = User(username="ahmed", full_name="Ahmed Gamal Kandil",
+                     role="doctor", is_active=True)
+        prof = User(username="samir", full_name="Ahmed Samir", role="doctor",
+                    is_active=True, professional_title="Professor")
+
+        assert plain.doctor_print_name("ar") == "Dr. Ahmed Gamal Kandil"
+        assert plain.doctor_print_name("en") == "Dr. Ahmed Gamal Kandil"
+        assert prof.doctor_print_name("ar") == "Prof. Dr. Ahmed Samir"
+
+
+def test_a_name_that_says_nothing_falls_back_to_the_page(clinic):
+    """Initials, a number, a practice name in symbols. The page's language is
+    the only thing left to go on, and it is a better answer than none."""
+    from app.models import User
+
+    with clinic["app"].app_context():
+        odd = User(username="odd", full_name="—", role="doctor",
+                   is_active=True)
+        assert odd.doctor_honorific("ar", name="—") == "د/"
+        assert odd.doctor_honorific("en", name="—") == "Dr."
+
+
+def test_a_mixed_name_is_read_by_whichever_script_carries_most_of_it(clinic):
+    """Counted, not read off the first letter — the first letter is whichever
+    way the file happened to be typed, and a name with one foreign word in it
+    is still a name in its own language. A tie goes to Arabic, because this is
+    an Arabic-first program and the tie is rare enough not to be worth a
+    second rule."""
+    from app.models import User
+
+    who = User(username="mix", full_name="x", role="doctor")
+    assert who._script_of("أحمد جمال Kandil") == "ar"    # mostly Arabic
+    assert who._script_of("Ahmed Gamal قنديل") == "en"   # mostly Latin
+    assert who._script_of("علي Ali") == "ar"             # a tie
+    assert who._script_of("Ahmed Gamal Kandil") == "en"
+    assert who._script_of("12345") is None
 
 
 def test_the_english_title_no_longer_lands_on_an_arabic_name(clinic):

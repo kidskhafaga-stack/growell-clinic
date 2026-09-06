@@ -102,6 +102,14 @@ ADDITIONS = [
     ("named_discounts", "payer_id", "INTEGER"),
     ("named_discounts", "min_siblings", "INTEGER DEFAULT 2"),
     ("drugs", "generic_id", "INTEGER"),
+    # The course-length rule for an ingredient: a ceiling where a printed one
+    # exists, empty everywhere else. Null on an existing clinic means no rule,
+    # which is exactly what that clinic had yesterday.
+    # The consultant's round, once it is on the family's bill. Null on an
+    # existing clinic means "not billed", which is what every round it has
+    # ever recorded is.
+    ("round_notes", "invoice_item_id", "INTEGER"),
+    ("generic_drugs", "max_course_days", "INTEGER"),
     ("drug_interactions", "generic_a_id", "INTEGER"),
     ("drug_interactions", "generic_b_id", "INTEGER"),
     ("drug_interactions", "alternative", "VARCHAR(200)"),
@@ -193,6 +201,14 @@ ADDITIONS = [
     # be sent, and by when the money must come. Nullable, and that nullability
     # is the feature's switch — a clinic that types no term is warned about
     # nothing and sees exactly the screens it saw before.
+    # How a doctor is settled — on what was billed, or on what came in.
+    # Nullable: empty is "the default", which is what every figure in this
+    # program has always meant.
+    ("users", "settlement_basis", "VARCHAR(10)"),
+    # And which statement a payout was made against, when it was made against
+    # one. Nullable: every payout written before statements existed was made
+    # against nothing in particular, which is the truth about it.
+    ("doctor_payouts", "settlement_id", "INTEGER"),
     ("payer_contracts", "filing_days", "INTEGER"),
     ("payer_contracts", "payment_days", "INTEGER"),
     ("payer_contracts", "cycle_day", "INTEGER"),

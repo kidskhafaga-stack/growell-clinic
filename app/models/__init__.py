@@ -41,6 +41,8 @@ from app.models.round_note import ROUND_TRENDS, RoundNote
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
                                   MedicationOrder)
 from app.models.bed_charge import BedCharge
+from app.models.settlement import (SETTLEMENT_BASES,
+                                  SETTLEMENT_STATUSES, Settlement)
 from app.models.duty import (DUTY_PAYABLE, DUTY_STATUSES,
                             Duty, DutyRate, DutySlot)
 from app.models.panel_alert_rule import PanelAlertRule
@@ -261,6 +263,9 @@ __all__ = [
     "MedicationOrder",
     "MedicationDose",
     "BedCharge",
+    "Settlement",
+    "SETTLEMENT_STATUSES",
+    "SETTLEMENT_BASES",
     "Duty",
     "DutySlot",
     "DutyRate",

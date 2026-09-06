@@ -115,7 +115,11 @@
    onto a family's account overnight — and a clinic that has set no nightly
    rate never sees this card at all, which is how the feature stays absent
    for the clinics it is not for. #}
-{% if due_nights or charged or running_hours %}
+{# `due_rounds` is in this condition for a reason worth stating: a hospital
+   can charge for a consultant's visit and not for the bed — a day case, or a
+   ward whose nightly rate nobody has set — and the round would then have had
+   nowhere on the screen to be seen before it was billed. #}
+{% if due_nights or charged or running_hours or due_rounds %}
 <div class="card gc-scale-in" style="margin-bottom:16px;">
   <h2 class="section-title" style="margin-top:0;">
     <i class="bi bi-{{ 'hourglass-split' if basis == 'hour' else 'moon-stars' }}"></i>
@@ -149,14 +153,42 @@
     </tbody>
   </table>
   </div>
+  {% elif not running_hours and not due_rounds %}
+  <p class="hint" style="margin:0 0 10px;">{{ t('beds.nights_all_posted') }}</p>
+  {% endif %}
+
+  {# The consultant's rounds. Beside the nights and not on a screen of their
+     own, because they go onto the same bill in the same press — and because
+     the question "what does this stay owe" has one answer, not two.
+
+     Absent entirely wherever no round is priced, which is every clinic that
+     has not set this up and every stay a resident walked alone. #}
+  {% if due_rounds %}
+  <p class="hint" style="margin:0 0 10px;" data-due-rounds>
+    {{ t('rounds.outstanding', n=due_rounds|length) }}</p>
+  <div style="overflow-x:auto;margin-bottom:10px;">
+  <table class="table">
+    <tbody>
+      {% for note in due_rounds %}
+      <tr data-round-due>
+        <td dir="ltr">{{ note.at.strftime('%Y-%m-%d') }}</td>
+        <td>{{ note.by.full_name or note.by.username }}</td>
+        <td>{{ round_service.display_name(current_lang) }}</td>
+        <td dir="ltr"><b>{{ round_service.price_for(note.by) }}</b></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+
+  {% if due_nights or due_rounds %}
   <form method="post"
         action="{{ url_for('beds.post_nights', admission_id=admission.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-primary gc-press" type="submit" data-post-nights>
       <i class="bi bi-receipt"></i> {{ t('beds.post_nights') }}</button>
   </form>
-  {% elif not running_hours %}
-  <p class="hint" style="margin:0 0 10px;">{{ t('beds.nights_all_posted') }}</p>
   {% endif %}
 
   {% if charged %}

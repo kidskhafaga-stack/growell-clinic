@@ -28,6 +28,10 @@
   {% elif p.state == 'partial' %}
     <span class="pay-tag pay-partial"><i class="bi bi-dash-circle"></i> {{ t('appointments.pay_partial') }}</span>
     <div class="pay-bal" dir="ltr">{{ t('appointments.pay_balance') }}: {{ p.balance }}</div>
+  {% elif p.state == 'free' %}
+    {# Nothing to collect, and there never will be. Same badge as a bill that
+       came to nothing, because it is the same fact about the money. #}
+    <span class="pay-tag pay-paid"><i class="bi bi-gift"></i> {{ t('appointments.pay_free') }}</span>
   {% elif p.state == 'unpaid' %}
     <span class="pay-tag pay-unpaid"><i class="bi bi-exclamation-circle"></i> {{ t('appointments.pay_unpaid') }}</span>
   {% else %}
@@ -508,11 +512,17 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     cancel: { id: null, reason: '' },
     // walk-in / waitlist fields
     f: { doctorId: '', appt_type: 'new', reason: '', preferred_from: '', preferred_to: '', services: [] },
+    // **The walk-in doctor lives on its own, and the search box owns it.**
+    // It shared `f.doctorId` with the waiting-list form, whose control is a
+    // different one — so opening one modal after the other left the box
+    // showing one doctor and the state holding another. One field per
+    // control, and nothing else writes to this one.
+    wf: { doctorId: '' },
     // {doctor_id: [service_id]} for doctors somebody has marked. Absent means
     // nobody has said, so the list is left exactly as it was.
     marks: {{ doctor_marks | tojson }},
     mine(serviceId) {
-      var list = this.marks[this.f.doctorId];
+      var list = this.marks[this.wf.doctorId || this.f.doctorId];
       return !!list && list.indexOf(serviceId) !== -1;
     },
 
@@ -554,13 +564,17 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     },
     // Walk-in --------------------------------------------------------------
     openWalkIn() {
-      this.f = { doctorId: this.defaultDoctorId(), appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'', services: [] };
+      // `doctorId` is deliberately not reset: the search box holds it and is
+      // still on the screen, so clearing it here would leave the box showing
+      // a name the program has stopped holding — which is the bug this pair
+      // of fields exists to make impossible.
+      this.f = { ...this.f, appt_type: 'urgent', reason: '', preferred_from:'', preferred_to:'', services: [] };
       this.modal = 'walkin';
     },
     submitWalkIn() {
-      if (!this.chosen || !this.f.doctorId) return;
+      if (!this.chosen || !this.wf.doctorId) return;
       this.postForm(`/appointments/walk-in`, {
-        patient_id: this.chosen.id, doctor_id: this.f.doctorId,
+        patient_id: this.chosen.id, doctor_id: this.wf.doctorId,
         appt_type: this.f.appt_type, reason: this.f.reason,
         extra_services: this.f.services });
     },

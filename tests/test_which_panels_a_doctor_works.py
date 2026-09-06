@@ -134,8 +134,11 @@ def test_a_default_they_do_not_work_is_not_stored(desk):
     with desk["app"].app_context():
         from app.utils import panels
 
-        assert _doctor(desk).specialty_panel == "cardiology"
-        assert panels.default_for_doctor(_doctor(desk)) == "cardiology"
+        # Not stored, and not swapped for a different one either: the form
+        # said something impossible, so the answer is "nothing chosen" rather
+        # than a panel nobody asked for.
+        assert _doctor(desk).specialty_panel is None
+        assert panels.default_for_doctor(_doctor(desk)) == ""
 
 
 def test_a_panel_no_catalogue_describes_is_ignored(desk):
@@ -230,15 +233,53 @@ def test_opens_on_is_a_checkbox_and_not_a_radio(desk):
     assert 'type="radio" name="panel_default"' not in page
 
 
-def test_clearing_it_falls_back_to_the_first_panel_worked(desk):
-    """"No preference" is a real answer, and it means the doctor opens on the
-    first panel they work rather than on nothing."""
+def test_clearing_it_means_no_preference_and_stays_cleared(desk):
+    """"No preference" is a real answer, and it means **none** — not the first
+    panel they happen to work.
+
+    This test used to assert the opposite, and the opposite was the bug.
+    Reported in these words: *"كل ما اشيل العلامة بعد الحفظ يرجعها تاني"*. A
+    doctor who works newborn care unticked "opens automatically", saved, and
+    the tick came straight back, because clearing it fell through to the first
+    ticked panel — so the box could be ticked and never unticked.
+
+    Working a panel and opening every visit on it are two different
+    statements. The first says what this doctor does; the second says what
+    their screen should assume about the child in front of them, and for a
+    general paediatrician with a neonatology interest the honest answer is
+    nothing at all.
+    """
     _set(desk, panel_cardiology="1", panel_dentistry="1")
 
     with desk["app"].app_context():
         from app.utils import panels
 
-        assert panels.default_for_doctor(_doctor(desk)) == "cardiology"
+        assert _doctor(desk).specialty_panel is None
+        assert panels.default_for_doctor(_doctor(desk)) == ""
+
+
+def test_choosing_one_still_sticks(desk):
+    """The other half, and the guard against fixing this by never storing it:
+    a doctor who does want to open on a panel says so once and it holds."""
+    _set(desk, panel_cardiology="1", panel_dentistry="1",
+         panel_default="dentistry")
+
+    with desk["app"].app_context():
+        from app.utils import panels
+
+        assert _doctor(desk).specialty_panel == "dentistry"
+        assert panels.default_for_doctor(_doctor(desk)) == "dentistry"
+
+
+def test_and_it_can_be_cleared_again_afterwards(desk):
+    """Ticked on Monday, cleared on Tuesday, and Tuesday wins. This is the
+    exact sequence that used to be impossible."""
+    _set(desk, panel_cardiology="1", panel_default="cardiology")
+    _set(desk, panel_cardiology="1")
+
+    with desk["app"].app_context():
+        assert _doctor(desk).specialty_panels == "cardiology"
+        assert _doctor(desk).specialty_panel is None
 
 
 def test_two_sent_at_once_is_handled_rather_than_refused(desk):

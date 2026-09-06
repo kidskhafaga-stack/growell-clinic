@@ -215,6 +215,18 @@
         </template>
       </div>
     </template>
+    {# The pair, said once for the prescription. Amber and not red on purpose:
+       this combination is prescribed every day and often rightly, and a red
+       box on a correct prescription is how a doctor learns to close the box
+       without reading it. #}
+    <template x-if="steroidPair">
+      <div style="margin-bottom:12px;border:1px solid #f0d08a;border-radius:10px;overflow:hidden;">
+        <div style="background:#fff8e6;color:#8a5a00;padding:8px 12px;font-weight:700;">
+          <i class="bi bi-layers-half"></i> {{ t('drugbook.steroid_with_antifungal') }}</div>
+        <div style="padding:8px 12px;border-top:1px solid #f6e7c2;color:var(--muted);">
+          {{ t('drugbook.steroid_with_antifungal_why') }}</div>
+      </div>
+    </template>
     <template x-for="(line, i) in lines" :key="i">
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
         <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="removeLine(i)"><i class="bi bi-x-lg"></i></button>
@@ -246,8 +258,12 @@
                    list="rx-frequencies" x-on:blur="line.frequency = expandFreq(line.frequency)"
                    placeholder="1x3"></div>
           <div class="form-row"><label>{{ t('rx.duration') }}</label>
+            {# The check runs again when the duration settles: the course
+               warning is *about* this field, and without this it would only
+               ever be computed from the value the line had when the drug was
+               chosen — which is empty, always. #}
             <input class="input" name="item_duration" x-model="line.duration"
-                   x-on:blur="line.duration = expandDuration(line.duration)"
+                   x-on:blur="line.duration = expandDuration(line.duration); checkInteractions()"
                    placeholder="5d"></div>
           <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
           {# Ticked by default: a line the doctor wrote must not vanish from
@@ -263,15 +279,92 @@
           </div>
         </div>
         {% if ai_ready %}
-        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="aiDose(i)" :disabled="line.aiBusy || !line.name">
-            <i class="bi bi-robot"></i> <span x-text="line.aiBusy ? {{ t('ai.thinking')|tojson|forceescape }} : {{ t('rx.ai_suggest')|tojson|forceescape }}"></span></button>
-          <span class="hint" x-show="line.aiNote" x-cloak x-text="line.aiNote" style="color:var(--green-700);"></span>
+        <div style="margin-top:8px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="aiDose(i)" :disabled="line.aiBusy || !line.name">
+              <i class="bi bi-robot"></i> <span x-text="line.aiBusy ? {{ t('ai.thinking')|tojson|forceescape }} : {{ t('rx.ai_suggest')|tojson|forceescape }}"></span></button>
+            <span class="hint" x-show="line.aiNote && !line.aiCompare" x-cloak x-text="line.aiNote" style="color:var(--green-700);"></span>
+          </div>
+          {# The two answers, side by side, and nothing filled in. The reason
+             is in the route: overwriting the reference with the model's reply
+             turned the one useful thing a model says here — "that is not what
+             the book says" — into silence. #}
+          <template x-if="line.aiCompare">
+            <div class="gc-ai-cmp" :class="'v-' + line.aiCompare.verdict" style="margin-top:8px;">
+              <div class="gc-ai-cmp-head">
+                <i class="bi bi-shuffle"></i> {{ t('rx.ai_compare') }}
+                <span class="gc-ai-cmp-verdict" x-text="verdictWord(line.aiCompare.verdict)"></span>
+              </div>
+              <div class="gc-ai-cmp-cols">
+                <div class="gc-ai-cmp-col">
+                  <div class="gc-ai-cmp-who">{{ t('rx.ai_ours') }}</div>
+                  <template x-if="line.aiCompare.reference">
+                    <div>
+                      <div class="gc-ai-cmp-num" x-text="bandText(line.aiCompare.reference)"></div>
+                      <div class="hint" x-text="line.aiCompare.reference.source"></div>
+                      <button type="button" class="btn btn-outline btn-sm gc-press"
+                              x-on:click="takeReference(line)">{{ t('rx.ai_take_ours') }}</button>
+                    </div>
+                  </template>
+                  <template x-if="!line.aiCompare.reference">
+                    <div class="hint">{{ t('rx.ai_no_reference') }}</div>
+                  </template>
+                </div>
+                <div class="gc-ai-cmp-col">
+                  <div class="gc-ai-cmp-who">{{ t('rx.ai_theirs') }}</div>
+                  <div class="gc-ai-cmp-num" x-text="line.aiCompare.dose || '—'"></div>
+                  <div class="hint" style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <span x-show="line.aiCompare.frequency" x-cloak x-text="line.aiCompare.frequency"></span>
+                    <span x-show="line.aiCompare.duration" x-cloak x-text="line.aiCompare.duration"></span>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm gc-press"
+                          x-show="line.aiCompare.dose" x-cloak
+                          x-on:click="takeAssistant(line)">{{ t('rx.ai_take_theirs') }}</button>
+                </div>
+              </div>
+              <div class="hint" x-show="line.aiCompare.note" x-cloak x-text="line.aiCompare.note"></div>
+            </div>
+          </template>
         </div>
         {% endif %}
       </div>
     </template>
     <button type="button" class="btn btn-outline btn-sm gc-press" x-on:click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('rx.add_drug_line') }}</button>
+    {% if ai_ready %}
+    {# The catalogue is indexed by the one thing the person asking does not
+       have: the name. This turns a description into search words, and then
+       searches *our* rows with them — so nothing can come back that this
+       clinic does not stock at a strength nobody printed. #}
+    <div class="gc-ai-ask" style="margin-top:10px;">
+      <label class="hint" for="rx-ask">{{ t('rx.ai_ask') }}</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input class="input" id="rx-ask" x-model="askQ" style="flex:1;min-width:220px;"
+               placeholder="{{ t('rx.ai_ask_hint') }}"
+               x-on:keydown.enter.prevent="askByDescription()">
+        <button type="button" class="btn btn-outline btn-sm gc-press"
+                x-on:click="askByDescription()" :disabled="askBusy || !askQ.trim()">
+          <i class="bi bi-search"></i>
+          <span x-text="askBusy ? {{ t('ai.thinking')|tojson|forceescape }} : {{ t('rx.ai_ask_go')|tojson|forceescape }}"></span>
+        </button>
+      </div>
+      <div class="hint" x-show="askNote" x-cloak x-text="askNote"></div>
+      {# Grouped under the word that found them. Repeating "searched for:
+         paracetamol" on every chip was noise on the screen — the term is one
+         fact about the whole group, not about each row. #}
+      <div x-show="askRows.length" x-cloak style="margin-top:6px;">
+        <template x-for="(group, gi) in askGroups()" :key="gi">
+          <div style="margin-bottom:8px;">
+            <div class="hint">{{ t('rx.ai_ask_from') }}: <span x-text="group.term"></span></div>
+            <template x-for="(s, ri) in group.rows" :key="ri">
+              <button type="button" class="btn btn-outline btn-sm gc-press"
+                      style="margin:6px 0 0 6px;" x-on:click="takeFound(s)"
+                      x-text="s.name || s.trade"></button>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- The four or five familiar pictures a paediatric day is made of -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;
@@ -424,7 +517,7 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       return {drug_id:m.drug_id||'', name:m.name||'', dose:m.dose||'',
               frequency:m.frequency||'', duration:m.duration||'',
               instructions:m.instructions||'', max:'',
-              dosePerKg:null, maxPerKg:null, conc:null, calc:'', aiBusy:false, aiNote:''};
+              dosePerKg:null, maxPerKg:null, conc:null, calc:'', aiBusy:false, aiNote:'', aiCompare:null};
     }),
     interactions: [],
     doseFlags: [],
@@ -439,15 +532,25 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       'min_weight': t('drugbook.warn_min_weight'),
       'daily_cap': t('drugbook.warn_daily_cap'),
       'adult_cap': t('drugbook.warn_adult_cap'),
+      'no_end_date': t('drugbook.warn_no_end_date'),
+      'course_too_long': t('drugbook.warn_course_too_long'),
     } | tojson }},
+    steroidPair: false,
     async checkInteractions(){
-      const ids = this.lines.map(l => l.drug_id).filter(Boolean);
-      const names = this.lines.filter(l => !l.drug_id && (l.name || '').trim())
-                              .map(l => l.name.trim());
+      const chosen = this.lines.filter(l => l.drug_id);
+      const typed = this.lines.filter(l => !l.drug_id && (l.name || '').trim());
+      const ids = chosen.map(l => l.drug_id);
+      const names = typed.map(l => l.name.trim());
+      // Same order as the server builds its items: chosen first, then typed.
+      // Blanks are sent as blanks — "no end date written" is the finding, not
+      // a gap to be tidied away.
+      const durations = chosen.concat(typed).map(l => (l.duration || '').trim());
       if(!ids.length && !names.length){
-        this.interactions = []; this.doseFlags = []; this.allergyFlags = []; return; }
+        this.interactions = []; this.doseFlags = []; this.allergyFlags = [];
+        this.steroidPair = false; return; }
       let url = "{{ url_for('prescriptions.interactions_check') }}?ids=" + ids.join(',')
-              + "&names=" + encodeURIComponent(names.join('|'));
+              + "&names=" + encodeURIComponent(names.join('|'))
+              + "&durations=" + encodeURIComponent(durations.join('|'));
       const pid = document.querySelector('[name="patient_id"]');
       if(pid && pid.value) url += "&patient_id=" + pid.value;
       if(this.weight) url += "&weight=" + this.weight;
@@ -465,7 +568,9 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
           }
         });
         this.doseFlags = flags; this.allergyFlags = allergies;
-      }catch(e){ this.interactions = []; this.doseFlags = []; this.allergyFlags = []; }
+        this.steroidPair = !!d.steroid_with_antifungal;
+      }catch(e){ this.interactions = []; this.doseFlags = []; this.allergyFlags = [];
+                 this.steroidPair = false; }
     },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
@@ -504,22 +609,90 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       const s = line.picker.take();
       if (s) { ev.preventDefault(); this.applyDrug(line, s); }
     },
-    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''}); },
+    blankLine(){ return this.withPicker({drug_id:'',name:'',dose:'',frequency:'',duration:'',instructions:'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:'',aiCompare:null}); },
     addLine(){ this.lines.push(this.blankLine()); },
-    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:''})); },
+    continueMed(m){ this.lines.push(this.withPicker({drug_id:m.drug_id||'',name:m.drug_name||'',dose:m.dose||'',frequency:m.frequency||'',duration:m.duration||'',instructions:m.instructions||'',printed:true,max:'',dosePerKg:null,maxPerKg:null,conc:null,calc:'',aiBusy:false,aiNote:'',aiCompare:null})); },
+    // The assistant answers *beside* the reference and fills nothing. It used
+    // to write l.dose, l.frequency and l.duration outright, which meant a
+    // model that disagreed with the reference produced no visible sign of it.
     async aiDose(i){
       var l=this.lines[i]; if(!l.name || l.aiBusy) return;
-      l.aiBusy=true; l.aiNote='';
+      l.aiBusy=true; l.aiNote=''; l.aiCompare=null;
       try{
         var res=await fetch("{{ url_for('prescriptions.ai_dose') }}",{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({drug:l.name, weight:this.weight, diagnosis:this.dx})});
+          body:JSON.stringify({drug:l.name, drug_id:l.drug_id, weight:this.weight, diagnosis:this.dx})});
         var d=await res.json();
         if(d.ok){
-          if(d.dose) l.dose=d.dose; if(d.frequency) l.frequency=d.frequency; if(d.duration) l.duration=d.duration;
+          l.aiCompare={dose:d.dose||'', frequency:d.frequency||'', duration:d.duration||'',
+                       note:d.note||'', reference:d.reference||null, verdict:d.verdict||'unreadable'};
           l.aiNote=d.note || '';
         } else { l.aiNote = d.message || {{ t('ai.error') | tojson }}; }
       }catch(e){ l.aiNote={{ t('ai.error') | tojson }}; }
       finally{ l.aiBusy=false; }
+    },
+    verdictWord(v){
+      return ({inside: {{ t('rx.ai_inside')|tojson }},
+               under: {{ t('rx.ai_under')|tojson }},
+               over: {{ t('rx.ai_over')|tojson }},
+               over_ceiling: {{ t('rx.ai_over_ceiling')|tojson }},
+               unreadable: {{ t('rx.ai_unreadable')|tojson }}})[v] || '';
+    },
+    bandText(b){
+      if(!b) return '';
+      var mg = (b.low_mg===b.high_mg) ? b.low_mg : (b.low_mg+'–'+b.high_mg);
+      var out = mg + ' mg';
+      if(b.low_ml!=null){ out += ' (' + ((b.low_ml===b.high_ml)?b.low_ml:(b.low_ml+'–'+b.high_ml)) + ' ml)'; }
+      if(b.capped_mg!=null){ out += ' · ' + {{ t('rx.max_hint')|tojson }} + ' ' + b.capped_mg + ' mg'; }
+      return out;
+    },
+    takeReference(l){
+      var b=l.aiCompare && l.aiCompare.reference; if(!b) return;
+      this.computeLine(l, true); l.aiCompare=null;
+    },
+    takeAssistant(l){
+      var c=l.aiCompare; if(!c) return;
+      if(c.dose) l.dose=c.dose;
+      if(c.frequency) l.frequency=c.frequency;
+      if(c.duration) l.duration=c.duration;
+      l.aiCompare=null;
+    },
+    // "I know what I want and not what it is called." The model turns the
+    // sentence into search words; every row shown comes out of our catalogue.
+    askBusy:false, askQ:'', askRows:[], askTerms:[], askNote:'',
+    // Named for what it is and *not* askDrug — the line picker already owns
+    // that name one screen down, and in an object literal the second one
+    // silently wins. Two handlers, one name, and whichever lost is a dead
+    // button with no error anywhere.
+    async askByDescription(){
+      if(!this.askQ.trim() || this.askBusy) return;
+      this.askBusy=true; this.askRows=[]; this.askNote='';
+      try{
+        var pid=document.querySelector('[name="patient_id"]');
+        var url="{{ url_for('prescriptions.drug_ask') }}" + (pid && pid.value ? "?patient_id="+pid.value : "");
+        var res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({q:this.askQ})});
+        var d=await res.json();
+        if(d.ok){
+          this.askRows=d.results||[]; this.askTerms=d.terms||[];
+          if(!this.askRows.length) this.askNote={{ t('rx.ai_ask_none')|tojson }};
+        } else { this.askNote = d.message || {{ t('ai.error') | tojson }}; }
+      }catch(e){ this.askNote={{ t('ai.error') | tojson }}; }
+      finally{ this.askBusy=false; }
+    },
+    askGroups(){
+      const out = [];
+      for (const row of this.askRows) {
+        const term = row.matched || '';
+        const last = out.length ? out[out.length - 1] : null;
+        if (last && last.term === term) { last.rows.push(row); }
+        else { out.push({term: term, rows: [row]}); }
+      }
+      return out;
+    },
+    takeFound(s){
+      var l=this.blankLine(); this.lines.push(l);
+      this.applyDrug(l, s);
+      this.askRows=[]; this.askQ='';
     },
     // Compute the weight-based suggestion text for a line and (re)fill its dose.
     computeLine(l, fillDose){
