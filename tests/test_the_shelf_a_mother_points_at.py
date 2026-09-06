@@ -107,12 +107,38 @@ def test_and_the_reference_screen_finds_it_too(seeded, typed):
         "لا توجد" not in page.get_data(as_text=True)
 
 
-def test_the_search_ranks_the_exact_name_first(seeded):
-    """Coming back somewhere on page three is not coming back. Sudocrem is
-    what was typed, so Sudocrem is the first row."""
-    page = seeded["sign_in"]("boss").get("/prescriptions/drugs/search?q=Sudocrem")
-    rows = page.get_json()
-    assert rows and "sudocrem" in (rows[0].get("name") or "").lower()
+def test_what_was_typed_is_the_first_row(seeded):
+    """Coming back somewhere on page three is not coming back.
+
+    The guarantee is the ordering, not the branch that produces it: the
+    ranker's exact-match tier is *redundant* with its starts-with tier, since
+    a name equal to what was typed also begins with it and also sorts first
+    alphabetically among the names that do. Deleting that branch changes no
+    order, and no test can see it — which is worth writing down rather than
+    chasing, because the thing worth holding is that the typed name is on top.
+    """
+    for typed in ("Sudocrem", "Cetal", "Bepanthen"):
+        rows = seeded["sign_in"]("boss").get(
+            f"/prescriptions/drugs/search?q={typed}").get_json()
+        assert rows, f"{typed} returns nothing"
+        assert typed.lower() in (rows[0].get("name") or "").lower(), \
+            f"{typed} is not the first row for {typed!r}"
+
+
+def test_a_brand_sold_in_two_tubes_is_two_rows(seeded):
+    """Bepanthen is a cream and an ointment, and on a raw nappy area they are
+    not interchangeable — the ointment is the occlusive one. The same rule the
+    drops were added under: a presentation the clinic stocks and the screen
+    does not list is a presentation the doctor picks blind.
+    """
+    from app.models import Drug
+
+    with seeded["app"].app_context():
+        forms = {d.form for d in
+                 Drug.query.filter_by(trade_name="Bepanthen").all()}
+        assert forms == {"cream", "ointment"}, forms
+        # And the same shape wherever a barrier brand ships more than one.
+        assert Drug.query.filter_by(trade_name="Sudocrem").count() > 1
 
 
 # --------------------------------------------- nappy rash is four medicines

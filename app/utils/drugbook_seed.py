@@ -1679,13 +1679,30 @@ def seed_generics():
 
 
 def seed_brands():
-    """Create the missing trade names and attach them to their ingredient."""
+    """Create the missing trade names and attach them to their ingredient.
+
+    **A product is a trade name, a form and a strength.** This used to skip on
+    the trade name and the strength alone, and the effect was silent: any
+    brand sold in two forms at the same printed strength lost one of them, and
+    nothing anywhere said so. Seven rows were being dropped when that was
+    measured — Fucidin's ointment, Lyclear's lotion, Diflucan's suspension,
+    Betadine's antiseptic solution, Bepanthen's ointment, Doliprane's sachet,
+    and **Mycostatin's oral drops**, which is the infant presentation of a
+    thrush treatment and the exact kind of row this reference exists to carry.
+
+    The cost of widening the key is one case and it is worth naming: a clinic
+    that *renamed the form* on a row we shipped — "syrup" to "شراب" — no
+    longer matches it, and would gain our row beside theirs. That is one
+    visible, editable duplicate against every clinic permanently missing
+    presentations, and the trade is not close.
+    """
     generics = {g.name_en: g for g in GenericDrug.query.all()}
-    existing = {(d.trade_name, d.strength or "") for d in
-                Drug.query.with_entities(Drug.trade_name, Drug.strength).all()}
+    existing = {(d.trade_name, d.form, d.strength or "") for d in
+                Drug.query.with_entities(Drug.trade_name, Drug.form,
+                                         Drug.strength).all()}
     n = 0
     for trade, generic_en, form, strength, conc, maker in BRANDS:
-        key = (trade, strength or "")
+        key = (trade, form, strength or "")
         if key in existing:
             continue
         existing.add(key)      # also guards repeats *inside* the seed list

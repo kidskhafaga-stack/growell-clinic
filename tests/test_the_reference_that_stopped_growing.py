@@ -136,6 +136,33 @@ def test_a_clinic_that_already_has_one_ingredient_still_gets_the_rest(clinic):
             name_en="Ondansetron").first() is not None
 
 
+def test_a_brand_sold_in_two_forms_keeps_both(seeded):
+    """The seed's skip-key had forgotten the form.
+
+    It matched a row on the trade name and the strength alone, so a brand sold
+    as a cream *and* an ointment at the same printed strength arrived once and
+    the other form was dropped without a word. Seven rows were being lost,
+    and the one that matters most is **Mycostatin's oral drops** — the infant
+    presentation of a thrush treatment, in a reference whose whole argument
+    for existing is that the presentation in the parent's hand has to be on
+    the screen.
+    """
+    from app.models import Drug
+
+    pairs = [("Mycostatin", {"oral suspension", "oral drops"}),
+             ("Fucidin", {"cream", "ointment"}),
+             ("Lyclear", {"cream", "lotion"}),
+             ("Diflucan", {"syrup", "capsule", "suspension"}),
+             ("Betadine", {"ointment", "antiseptic solution"}),
+             ("Bepanthen", {"cream", "ointment"}),
+             ("Doliprane", {"tablet", "sachet"})]
+    with seeded["app"].app_context():
+        for trade, forms in pairs:
+            have = {d.form for d in
+                    Drug.query.filter_by(trade_name=trade).all()}
+            assert forms <= have, f"{trade} is missing {forms - have}"
+
+
 def test_running_it_again_adds_nothing(seeded):
     """Idempotent, or every update would double the reference."""
     from app.utils.drugbook_seed import seed_drugbook
