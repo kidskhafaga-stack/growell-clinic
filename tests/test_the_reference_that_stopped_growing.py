@@ -164,14 +164,21 @@ def test_a_brand_sold_in_two_forms_keeps_both(seeded):
 
 
 def test_running_it_again_adds_nothing(seeded):
-    """Idempotent, or every update would double the reference."""
+    """Idempotent, or every update would double the reference.
+
+    Asserted on the **counts**, not on the shape of the dict. It used to name
+    the five keys exactly, so adding a sixth step to the seed failed this test
+    for saying ``course_limits: 0`` — a zero, which is the very thing the test
+    is asking for. A test that breaks when nothing it cares about changed is a
+    test people learn to edit rather than read.
+    """
     from app.utils.drugbook_seed import seed_drugbook
 
     with seeded["app"].app_context():
         made = seed_drugbook()
         seeded["db"].session.commit()
-    assert made == {"classes": 0, "generics": 0, "brands": 0, "linked": 0,
-                    "interactions": 0}
+    assert made, "the seed reported no steps at all"
+    assert all(count == 0 for count in made.values()), made
 
 
 def test_what_the_clinic_changed_is_never_written_back_over(seeded):

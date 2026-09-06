@@ -255,3 +255,32 @@ def test_a_stay_with_no_priced_round_shows_nothing_about_rounds(ward):
     page = ward["sign_in"]("boss").get(
         f"/beds/admission/{ward['stay']}").get_data(as_text=True)
     assert "data-round-due" not in page
+
+
+def test_a_round_with_nobody_s_name_on_it_is_never_billed(ward):
+    """``by_id`` is nullable — an imported history, a row written by the
+    program — and a round with no author has no arrangement behind it: there
+    is no doctor to read a price against and nobody to pay. Charging it would
+    put a line on a family's bill at whatever the default price happened to
+    be, earned by nobody.
+
+    Found by a mutation that deleted the guard and passed anyway, because a
+    second guard downstream happened to cover it. Two guards and no test is
+    one accident away from none.
+    """
+    from app.models import Admission, Invoice, RoundNote
+    from app.utils.round_billing import unbilled
+
+    _price_the_round(ward, ward["consultant"], 500, 300)
+    db = ward["db"]
+    with ward["app"].app_context():
+        stay = db.session.get(Admission, ward["stay"])
+        db.session.add(RoundNote(admission_id=stay.id,
+                                 patient_id=stay.patient_id,
+                                 trend="same", by_id=None))
+        db.session.commit()
+        assert unbilled(admission_id=ward["stay"]) == []
+
+    assert _charge(ward)["rounds"] == 0
+    with ward["app"].app_context():
+        assert Invoice.query.filter_by(admission_id=ward["stay"]).count() == 0

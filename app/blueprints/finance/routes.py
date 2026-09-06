@@ -1155,6 +1155,16 @@ def booking_due(appt, lang="ar"):
         lines = _checkout_lines(appt, lang)
     except Exception:  # noqa: BLE001 - a pricing gap must not break the till
         return None
+    # **No lines is not a price of zero.** The checkout produced nothing to
+    # charge because nothing about this booking is priced — a visit type with
+    # no service behind it, most often a clinic still setting itself up — and
+    # that is the `None` this function already documents: *"the price could
+    # not be worked out, which is a reason to show it rather than hide it"*.
+    # It used to fall out of the sum as 0.0, so an unpriced booking was
+    # silently treated as a free one and dropped off the chase list — which is
+    # the same fault as billing a free visit, facing the other way.
+    if not lines:
+        return None
     return round(sum((line.get("unit_price") or 0) * (line.get("quantity") or 1)
                      for line in lines), 2)
 

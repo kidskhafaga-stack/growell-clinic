@@ -28,6 +28,10 @@
   {% elif p.state == 'partial' %}
     <span class="pay-tag pay-partial"><i class="bi bi-dash-circle"></i> {{ t('appointments.pay_partial') }}</span>
     <div class="pay-bal" dir="ltr">{{ t('appointments.pay_balance') }}: {{ p.balance }}</div>
+  {% elif p.state == 'free' %}
+    {# Nothing to collect, and there never will be. Same badge as a bill that
+       came to nothing, because it is the same fact about the money. #}
+    <span class="pay-tag pay-paid"><i class="bi bi-gift"></i> {{ t('appointments.pay_free') }}</span>
   {% elif p.state == 'unpaid' %}
     <span class="pay-tag pay-unpaid"><i class="bi bi-exclamation-circle"></i> {{ t('appointments.pay_unpaid') }}</span>
   {% else %}

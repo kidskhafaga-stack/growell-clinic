@@ -285,6 +285,19 @@ def _visit_breakdown(doctor_id, on_date):
     }
 
 
+def _costs_nothing(appt):
+    """True when this booking would come to exactly zero if billed now.
+
+    Worked out by the checkout's own line builder, through the till's
+    ``booking_due`` — so "worth collecting" has one definition in this program
+    and the board cannot disagree with the screen it sends people to.
+    """
+    from app.blueprints.finance.routes import booking_due
+
+    due = booking_due(appt, getattr(g, "lang", "ar"))
+    return due is not None and due <= 0
+
+
 def _payment_status(appointments, on_date):
     """Map appointment.id -> payment snapshot from that patient's invoices on
     the date. State is one of: ``paid`` / ``partial`` / ``unpaid`` / ``none``
@@ -338,7 +351,21 @@ def _payment_status(appointments, on_date):
         # row that is already settled.
         ivs = linked.get(a.id) or by_patient.get(a.patient_id)
         if not ivs:
-            out[a.id] = {"state": "none"}
+            # **No invoice is not the same as money owed.** A visit type the
+            # clinic prices at nothing — a free follow-up, a consultation this
+            # doctor does not charge for — will never have an invoice, and the
+            # board was showing "بدون فاتورة" beside a Collect button for every
+            # one of them. Reported in those words: *"الاستشارة ليه معلمة إنها
+            # ما تحصلتش مع إننا عالجنا الحتة دي للخدمات اللي سعرها صفر؟"*
+            #
+            # The answer is `booking_due`, which is what the **till** already
+            # uses to keep free bookings off its chase list — the same reading
+            # of the same question, not a second one. And `None` from it means
+            # the price could not be worked out at all, which stays "no
+            # invoice": not priced is not the same as free, and a clinic that
+            # has not set its prices up should not see every row call itself
+            # free of charge.
+            out[a.id] = {"state": "free" if _costs_nothing(a) else "none"}
             continue
         total = round(sum(i.total for i in ivs), 2)
         balance = round(sum(i.balance for i in ivs), 2)
