@@ -674,10 +674,22 @@ def drug_search():
 @prescriptions_bp.route("/ai-dose", methods=["POST"])
 @module_required(MODULE)
 def ai_dose():
-    """Ask the configured AI for a paediatric dose suggestion for one drug.
+    """The assistant's dose **beside** the reference's own, never instead of it.
 
     Sends only the drug name, the child's weight/age and the diagnosis — no
     patient identifiers. The doctor always verifies before prescribing.
+
+    This used to answer alone: the reply went straight into the dose, the
+    frequency and the duration, and the reference sitting on the same screen —
+    with a citation on every figure — was never consulted. The one thing worth
+    having from a model here is the moment it says something the reference does
+    not, and overwriting was the one behaviour that guaranteed nobody saw it.
+
+    So both answers come back with their sources and the screen fills nothing.
+    The verdict is computed against the reference's own **band**, not a point,
+    so a model saying 13 mg/kg where the reference says 10–15 is not reported
+    as a conflict — and a model over the hard maximum is reported as its own
+    kind of answer, not as merely "different".
     """
     import json as _json
 
@@ -715,12 +727,98 @@ def ai_dose():
             parsed = _json.loads(text[start:end + 1])
     except (ValueError, TypeError):
         parsed = None
+    from app.utils.rx_ai import compare, reference_dose
+
+    row = None
+    drug_id = data.get("drug_id")
+    if drug_id:
+        row = db.session.get(Drug, drug_id)
+    band = reference_dose(row, weight) if row is not None else None
+
     if isinstance(parsed, dict):
-        return jsonify({"ok": True, "dose": parsed.get("dose", ""),
+        suggested = parsed.get("dose", "")
+        verdict, mg = compare(band, suggested)
+        return jsonify({"ok": True, "dose": suggested,
                         "frequency": parsed.get("frequency", ""),
                         "duration": parsed.get("duration", ""),
-                        "note": parsed.get("note", "")})
-    return jsonify({"ok": True, "note": text})
+                        "note": parsed.get("note", ""),
+                        "reference": band, "verdict": verdict,
+                        "suggested_mg": mg})
+    verdict, mg = compare(band, text)
+    return jsonify({"ok": True, "note": text, "reference": band,
+                    "verdict": verdict, "suggested_mg": mg})
+
+
+@prescriptions_bp.route("/drugs/ask", methods=["POST"])
+@module_required(MODULE)
+def drug_ask():
+    """Find a drug from a sentence, when the doctor does not have the name.
+
+    *"الشراب بتاع الحرارة للرضيع"* is a perfectly clear request and matches no
+    row in any catalogue, because catalogues are indexed by the one thing the
+    person asking does not have. This is the job a language model is genuinely
+    good at and the search box genuinely cannot do.
+
+    **The model picks the search word. The catalogue picks the answer.** It is
+    asked for ingredient names and nothing else, and every row that comes back
+    is one of ours, found by the same :func:`search_drugs` every other screen
+    uses. So the assistant cannot name a product this clinic does not have, at
+    a strength nobody printed — which is the whole failure mode of asking a
+    model "what should I prescribe".
+
+    It is a search, not a suggestion: it answers "which box did you mean",
+    never "which drug does this child need".
+    """
+    import json as _json
+
+    from app.utils import ai as ai_utils
+    from app.utils.drug_search import search_drugs
+
+    if not ai_utils.is_ready():
+        return jsonify({"ok": False, "error": "ai_not_ready"}), 400
+    phrase = (request.get_json(silent=True) or {}).get("q") or ""
+    phrase = phrase.strip()
+    if not phrase:
+        return jsonify({"ok": False, "error": "no_query"}), 400
+
+    system = (
+        "You turn a clinician's description of a medicine into search terms "
+        "for a drug catalogue. Reply ONLY with compact JSON: "
+        '{"terms": ["...", "..."], "why": "..."}. '
+        "Each term is a single active-ingredient name (English generic name, "
+        "or its common Arabic name) — never a brand, never a dose, never a "
+        "sentence. At most four terms, best first. If the description names no "
+        "medicine, return an empty list."
+    )
+    result = ai_utils.chat([{"role": "user", "content": phrase}], system=system,
+                           feature="rx_find")
+    if not result.get("ok"):
+        return jsonify(ai_utils.as_json(result)), 502
+
+    text = (result.get("text") or "").strip()
+    terms, why = [], ""
+    try:
+        start, end = text.find("{"), text.rfind("}")
+        parsed = _json.loads(text[start:end + 1]) if start >= 0 and end > start else None
+    except (ValueError, TypeError):
+        parsed = None
+    if isinstance(parsed, dict):
+        terms = [str(x).strip() for x in (parsed.get("terms") or [])
+                 if str(x).strip()][:4]
+        why = str(parsed.get("why") or "")
+
+    age_months = _search_age_months()
+    rows, seen = [], set()
+    for term in terms:
+        for row in search_drugs(term, age_months=age_months,
+                               lang=getattr(g, "lang", "ar"), limit=6):
+            key = (row.get("id"), row.get("generic_id"), row.get("name"))
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(dict(row, matched=term))
+    return jsonify({"ok": True, "terms": terms, "why": why,
+                    "results": rows[:15]})
 
 
 @prescriptions_bp.route("/investigations/search")

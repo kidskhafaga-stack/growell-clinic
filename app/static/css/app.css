@@ -340,3 +340,37 @@
   font-size: 1.15rem; letter-spacing: .08em; direction: ltr; unicode-bidi: isolate;
   user-select: all;
 }
+
+/* The reference and the assistant, side by side on a prescription line.
+   The verdict is a border colour and a word, never only a colour: the whole
+   point of this panel is that somebody reads *why* the two differ, and a red
+   edge with no sentence beside it is a decoration. Colours come from the same
+   tokens the rest of the page uses, so both themes are already handled. */
+.gc-ai-cmp {
+  border: 1px solid var(--line); border-inline-start-width: 4px;
+  border-radius: 10px; padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-2) 55%, var(--card));
+}
+.gc-ai-cmp-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: .9rem; font-weight: 600; margin-bottom: 8px;
+}
+.gc-ai-cmp-verdict { font-weight: 400; opacity: .85; }
+.gc-ai-cmp-cols {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+.gc-ai-cmp-col { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.gc-ai-cmp-who { font-size: .8rem; letter-spacing: .04em; opacity: .7; }
+.gc-ai-cmp-num {
+  font-size: 1.05rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate;
+}
+.gc-ai-cmp.v-inside { border-inline-start-color: var(--green-700); }
+.gc-ai-cmp.v-under,
+.gc-ai-cmp.v-over { border-inline-start-color: var(--warning); }
+.gc-ai-cmp.v-over_ceiling {
+  border-inline-start-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--card));
+}
+.gc-ai-cmp.v-unreadable { border-inline-start-color: var(--line); }
