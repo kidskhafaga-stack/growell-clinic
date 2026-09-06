@@ -53,6 +53,7 @@ FAMOUS = [
     "EMLA", "Nocandida", "Daktarin", "Triactin", "Atarax", "Controloc",
     "Cedenir", "Cefaxim", "Ospen", "Griseovin", "Lamisil", "Mundisal",
     "Profinal", "Marcofen", "Febrimol", "Doliprane",
+    "Elidel", "Crisacan", "QV Cream", "Physiogel", "Aveeno Dermexa",
 ]
 
 
@@ -199,9 +200,9 @@ def test_a_cream_is_never_dosed_by_the_kilo(seeded):
 
     creams = ["Zinc oxide (topical)", "Dexpanthenol (topical)",
               "Nystatin (topical)", "Miconazole (topical)",
-              "Silver sulfadiazine (topical)", "Beta-sitosterol (MEBO)",
+              "Silver sulfadiazine", "Beta-sitosterol (MEBO)",
               "Terbinafine (topical)", "Chlorhexidine",
-              "Lidocaine/prilocaine (topical)"]
+              "Lidocaine/prilocaine"]
     with seeded["app"].app_context():
         for name in creams:
             g = GenericDrug.query.filter_by(name_en=name).first()
@@ -257,7 +258,7 @@ def test_the_burn_cream_is_kept_away_from_a_newborn(seeded):
 
     with seeded["app"].app_context():
         g = GenericDrug.query.filter_by(
-            name_en="Silver sulfadiazine (topical)").first()
+            name_en="Silver sulfadiazine").first()
         assert g.min_age_months == 2
         assert g.black_box
         drug = Drug.query.filter_by(generic_id=g.id).first()
@@ -450,3 +451,126 @@ def test_every_kind_in_the_barrier_row_has_something(seeded):
             assert Drug.query.filter_by(generic_id=g.id,
                                         is_active=True).count() >= 2, \
                 f"{name} has fewer than two products behind it"
+
+
+# ------------------------------------------------------------- the eczema
+
+def test_the_eczema_boxes_were_never_missing_they_were_naked(seeded):
+    """A different fault from the nappy-rash one, and it needed a different
+    fix.
+
+    Elidel, Crisacan, QV, Physiogel, Aveeno and Dermalex all arrive in the
+    catalogue from the register on their own — they are not cosmetics by the
+    sweep's rules and they are searchable today. Every one of them carried
+    ``generic_id = None``: findable and with nothing behind the name. No age
+    limit on the immunomodulator, no warning on it, and no sentence anywhere
+    about how an emollient is actually used.
+
+    So the products did not need adding. The **ingredient** did, and writing
+    it attaches the boxes the register already brought.
+    """
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        for ingredient in ("Pimecrolimus", "Crisaborole",
+                           "Emollient (eczema)",
+                           "Soap substitute / bath emollient"):
+            g = GenericDrug.query.filter_by(name_en=ingredient).first()
+            assert g is not None, f"{ingredient} is missing"
+            assert Drug.query.filter_by(generic_id=g.id).count(), \
+                f"{ingredient} reaches no product"
+
+
+def test_the_register_boxes_pick_up_the_warning_by_themselves(seeded):
+    """The payoff of writing the ingredient rather than the products.
+
+    The register's own Elidel and Crisaborole rows carry a scientific name, so
+    once the ingredient exists they link to it through the same spelling table
+    everything else uses — and a box that was sitting there with no age limit
+    and no boxed warning now has both.
+    """
+    from app.models import Drug, GenericDrug
+    from app.utils.egypt_drugs import seed_register
+
+    with seeded["app"].app_context():
+        seed_register()
+        seeded["db"].session.commit()
+        for ingredient, box in (("Pimecrolimus", "ELIDEL"),
+                                ("Crisaborole", "CRISACAN"),
+                                ("Silver sulfadiazine", "DERMAZIN")):
+            g = GenericDrug.query.filter_by(name_en=ingredient).first()
+            rows = Drug.query.filter(Drug.generic_id == g.id,
+                                     Drug.trade_name.ilike(f"{box}%")).all()
+            assert rows, f"the register's {box} still has no ingredient"
+            assert any(d.trade_name_ar for d in rows), \
+                f"{box} linked the seeded row but not the register's"
+
+
+def test_the_steroid_sparing_cream_keeps_its_age_and_its_warning(seeded):
+    """Pimecrolimus is the one you reach for on a child's face *because* it is
+    not a steroid, and it carries a boxed warning that says intermittent and
+    short. A clinic that finds the tube and not the warning is worse off than
+    one that finds neither."""
+    from app.models import Drug, GenericDrug
+    from app.utils.drug_search import age_fit
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(
+            name_en="Pimecrolimus").first()
+        assert g.min_age_months == 24 and g.black_box
+        drug = Drug.query.filter_by(generic_id=g.id).first()
+        assert age_fit(drug, 10) == 1 and age_fit(drug, 40) == 0
+
+
+def test_the_half_of_eczema_nobody_writes_down_is_on_the_shelf(seeded):
+    """Ordinary soap strips the barrier the whole treatment is trying to
+    rebuild, and "stop using soap" is advice that gets said and not written.
+    It is a shelf entry here, with the one warning that comes with bath oil
+    and is always left out: it makes the bath floor slippery."""
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(
+            name_en="Soap substitute / bath emollient").first()
+        forms = {d.form for d in Drug.query.filter_by(generic_id=g.id).all()}
+        assert {"soap", "bath oil", "body wash"} <= forms
+        assert "زلق" in (g.precautions or "")
+
+
+def test_one_brand_on_two_shelves_is_two_rows(seeded):
+    """Aveeno Dermexa is a cream and a body wash, and they do different jobs —
+    one is the moisturiser, the other is the soap substitute. Same trade name,
+    no strength on either: exactly the collision the seed's skip-key used to
+    resolve by dropping one."""
+    from app.models import Drug
+
+    with seeded["app"].app_context():
+        rows = Drug.query.filter_by(trade_name="Aveeno Dermexa").all()
+        assert {d.form for d in rows} == {"cream", "body wash"}
+        assert len({d.generic_id for d in rows}) == 2
+
+
+def test_a_route_in_brackets_is_only_written_when_it_separates_something(
+        seeded):
+    """What made the link above possible, as a rule.
+
+    The spelling table never strips a route qualifier — stripping it linked 27
+    systemic ofloxacin products to an ear-drop entry — so a bracket on an
+    ingredient that has no other route separates it from nothing and costs it
+    every box the register already carries. Nystatin, miconazole and
+    terbinafine keep theirs because each really is two drugs by route; these
+    four have no oral form anywhere.
+    """
+    from app.models import GenericDrug
+
+    with seeded["app"].app_context():
+        for name in ("Pimecrolimus", "Crisaborole", "Silver sulfadiazine",
+                     "Lidocaine/prilocaine"):
+            assert GenericDrug.query.filter_by(name_en=name).first(), \
+                f"{name} is not the plain name"
+        # And the ones that do need it still have it, with the sibling that
+        # makes it mean something.
+        for base in ("Nystatin", "Miconazole", "Terbinafine"):
+            siblings = GenericDrug.query.filter(
+                GenericDrug.name_en.like(f"{base}%")).all()
+            assert len(siblings) >= 2, f"{base} lost its route split"

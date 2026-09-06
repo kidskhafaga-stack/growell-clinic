@@ -1261,9 +1261,102 @@ GENERICS += [
                     "سعفة فروة الرأس لا تُعالَج بمرهم — محتاجة علاج بالفم.",
         preg="B", ref="BNF for Children",
     ),
+    # **A route in brackets is a fact, not a decoration — so it is only
+    # written when there is another route to tell it apart from.**
+    #
+    # The spelling table never strips a route qualifier, and for a good
+    # measured reason: stripping it linked 27 systemic ofloxacin products to
+    # an ear-drop entry, and the same for chloramphenicol (eye) and
+    # ketoconazole (topical), whose oral form is hepatotoxic. Nystatin,
+    # miconazole and terbinafine all keep theirs, because each of them really
+    # is two different drugs by route.
+    #
+    # Pimecrolimus, crisaborole, silver sulfadiazine and EMLA are not. There
+    # is no oral form of any of them anywhere, so the bracket separated them
+    # from nothing — and cost them every box the register was already
+    # carrying: the register's four Elidel rows, its two crisaborole rows and
+    # its eleven silver sulfadiazine rows sat in the catalogue with no age
+    # limit and no boxed warning because of a qualifier that meant nothing.
+    #
+    # The older "(topical)" names in this file that have the same shape are
+    # **deliberately left alone**. Renaming an ingredient does not rename it
+    # on a clinic that already has it: the seed would add a second one beside
+    # the first and orphan every brand hanging off the old. That is a worse
+    # thing than a missed link.
+    # --- الإكزيما ---------------------------------------------------------
+    #
+    # The measurement first, because it changes what "missing" means here.
+    # **Elidel, Crisacan, QV, Physiogel, Aveeno and Dermalex are all in the
+    # catalogue already** — the register import brings them in, they are not
+    # cosmetics by the sweep's rules, and they are searchable today. Every one
+    # of them carries ``generic_id = None``. So they are findable and naked:
+    # no dose, no age limit, no warning, nothing behind the name.
+    #
+    # That is a different fault from the nappy-rash one and it takes a
+    # different fix. There the products were absent. Here the ingredient is
+    # absent, and writing it attaches every box the register already brought.
+    #
+    # Two of these are real medicines with real warnings that were reaching
+    # nobody, and two are not medicines at all — and the second pair is the
+    # half of eczema treatment that never gets written down.
     dict(
-        name_ar="سلفاديازين الفضة (موضعي)",
-        name_en="Silver sulfadiazine (topical)", cls="TOPIC", atc="D06BA01",
+        name_ar="بيميكروليموس", name_en="Pimecrolimus",
+        cls="TOPIC", atc="D11AH02", routes="topical", min_age=24,
+        indications="الإكزيما التأتبية الخفيفة للمتوسطة — وبالذات الوش "
+                    "والرقبة وثنايا الجلد، اللي الكورتيزون بيرقّق الجلد فيها.",
+        contraindications="أقل من سنتين، جلد عليه عدوى فيروسية أو فطرية أو "
+                          "بكتيرية، ونقص المناعة.",
+        black_box="تحذير هيئة الغذاء والدواء الأمريكية: اتبلّغت حالات لمفوما "
+                  "وسرطان جلد مع مثبطات الكالسينيورين الموضعية. السببية مش "
+                  "مثبتة — والاستعمال بيفضل متقطّع، أقصر مدة، وعلى أقل مساحة، "
+                  "مش علاج مستمر.",
+        precautions="حرقان مكان الدهان في أول كام يوم وبيقل. تُتجنّب الشمس "
+                    "والسولاريوم أثناء العلاج، ومش بيتحط تحت ضمادة.",
+        preg="C", lact="يُتجنّب على منطقة الثدي.",
+        ref="BNF for Children / FDA label",
+    ),
+    dict(
+        name_ar="كريسابورول", name_en="Crisaborole",
+        cls="TOPIC", atc="D11AH06", routes="topical", min_age=3,
+        indications="الإكزيما التأتبية الخفيفة للمتوسطة — بديل غير كورتيزوني.",
+        contraindications="فرط الحساسية للمادة.",
+        precautions="مرتين يومياً. أشيع أثر جانبي حرقان أو لسعة مكان الدهان، "
+                    "وبيقل مع الاستمرار.",
+        preg="C", ref="FDA label",
+    ),
+    # **Not a molecule, and that is the point.** The register lists no
+    # ingredient at all for any of these boxes, because they are not
+    # medicines. What they need is not a chemical name — it is the sentence
+    # that makes them work, which is about quantity and frequency and has
+    # nothing to do with which tub the family bought.
+    dict(
+        name_ar="مرطّب الإكزيما (مطرٍّ)", name_en="Emollient (eczema)",
+        cls="TOPIC", routes="topical",
+        indications="الإكزيما التأتبية والجلد الجاف — ده أساس العلاج، مش "
+                    "مساعد ليه.",
+        contraindications="مفيش. لكن أي مستحضر ممكن يهيّج طفل معيّن، ولو حصل "
+                          "يتغيّر المستحضر مش يتوقف الترطيب.",
+        precautions="الكمية والتكرار هما العلاج مش الماركة: بسخاء، 2–4 مرات "
+                    "يومياً على الأقل، وبيكمّل والجلد سليم — لأن اللي بيمنع "
+                    "النوبة الجاية هو ترطيب الأيام اللي مافيهاش نوبة. "
+                    "وبيتحط بعد الحمام على جلد لسه مبلول.",
+        preg="A", lact="آمن.", ref="NICE CG57",
+    ),
+    dict(
+        name_ar="بديل الصابون وزيت الاستحمام",
+        name_en="Soap substitute / bath emollient", cls="TOPIC",
+        routes="topical",
+        indications="الإكزيما — بدل الصابون والشاور جل، اللي بيشيلوا دهون "
+                    "الجلد ويولّعوا الهياج.",
+        contraindications="مفيش.",
+        precautions="حمام قصير بمياه دافية مش سخنة. **وزيت الاستحمام بيخلّي "
+                    "البانيو والأرضية زلقة** — دي إصابة بتحصل فعلاً مع "
+                    "الأطفال والكبار في البيت.",
+        preg="A", lact="آمن.", ref="NICE CG57",
+    ),
+    dict(
+        name_ar="سلفاديازين الفضة",
+        name_en="Silver sulfadiazine", cls="TOPIC", atc="D06BA01",
         routes="topical", min_age=2,
         indications="الحروق السطحية والجروح المعرّضة للتلوث — طبقة رقيقة "
                     "تحت ضمادة.",
@@ -1299,7 +1392,7 @@ GENERICS += [
     ),
     dict(
         name_ar="ليدوكايين/بريلوكايين (مخدر موضعي)",
-        name_en="Lidocaine/prilocaine (topical)", cls="TOPIC", atc="N01BB20",
+        name_en="Lidocaine/prilocaine", cls="TOPIC", atc="N01BB20",
         routes="topical",
         indications="تخدير الجلد قبل الوخز أو تركيب الكانيولا — يُوضع تحت "
                     "ضمادة لاصقة قبل الإجراء بساعة.",
@@ -1516,22 +1609,22 @@ BRANDS += [
     ("Antiseptol", "Chlorhexidine", "mouth wash", "1 mg/ml", 1, "Kahira"),
     ("Bacticide", "Chlorhexidine", "antiseptic solution",
      "with isopropanol", None, "Debeiky"),
-    ("Dermazin", "Silver sulfadiazine (topical)", "cream", "1%", None,
+    ("Dermazin", "Silver sulfadiazine", "cream", "1%", None,
      "Sandoz"),
-    ("Silvazine", "Silver sulfadiazine (topical)", "cream", "1%", None,
+    ("Silvazine", "Silver sulfadiazine", "cream", "1%", None,
      "Unipharma"),
-    ("Burnazin", "Silver sulfadiazine (topical)", "cream", "1%", None,
+    ("Burnazin", "Silver sulfadiazine", "cream", "1%", None,
      "Alexandria"),
-    ("Sulphargin", "Silver sulfadiazine (topical)", "cream", "1%", None,
+    ("Sulphargin", "Silver sulfadiazine", "cream", "1%", None,
      "El Nile"),
     ("MEBO", "Beta-sitosterol (MEBO)", "ointment", "0.25%", None, "Julphar"),
     ("Burnasores", "Beta-sitosterol (MEBO)", "ointment", "0.25%", None,
      "Global Napi"),
     ("Featherlite", "Beta-sitosterol (MEBO)", "cream", "0.25%", None,
      "Spectra"),
-    ("EMLA", "Lidocaine/prilocaine (topical)", "cream", "5%", None,
+    ("EMLA", "Lidocaine/prilocaine", "cream", "5%", None,
      "AstraZeneca"),
-    ("Avrisurg", "Lidocaine/prilocaine (topical)", "cream", "—", None,
+    ("Avrisurg", "Lidocaine/prilocaine", "cream", "—", None,
      "Medizen"),
     ("Farco-Caine", "Lidocaine (topical)", "ointment", "5%", None, "Pharco"),
     ("Farco-Caine", "Lidocaine (topical)", "spray", "10%", None, "Pharco"),
@@ -1618,6 +1711,23 @@ BRANDS += [
     # vomiting child with a fever actually gets.
     ("Marcofen", "Ibuprofen", "suppository", "100 mg", None, "GSK"),
     ("Marcofen", "Ibuprofen", "suppository", "300 mg", None, "GSK"),
+    # الإكزيما — كلهم في الكتالوج أصلاً من السجل وبلا مادة وراهم
+    ("Elidel", "Pimecrolimus", "cream", "1%", None, "Meda"),
+    ("Crisacan", "Crisaborole", "ointment", "2%", None, "Hikma"),
+    ("Marcrisa", "Crisaborole", "ointment", "2%", None, "Marcyrl"),
+    # The moisturisers. No strength on any of them and none invented: what
+    # matters about an emollient is on the ingredient, not on the tub.
+    ("QV Cream", "Emollient (eczema)", "cream", "—", None, "Ego"),
+    ("Physiogel", "Emollient (eczema)", "cream", "—", None, "GSK"),
+    ("Aveeno Dermexa", "Emollient (eczema)", "cream", "—", None,
+     "Johnson & Johnson"),
+    ("Dermalex Repair", "Emollient (eczema)", "cream", "—", None, "Chefaro"),
+    # And the half nobody writes on the prescription.
+    ("QV Bar", "Soap substitute / bath emollient", "soap", "—", None, "Ego"),
+    ("QV Bath Oil", "Soap substitute / bath emollient", "bath oil", "—", None,
+     "Ego"),
+    ("Aveeno Dermexa", "Soap substitute / bath emollient", "body wash", "—",
+     None, "Johnson & Johnson"),
     ("Febrimol", "Paracetamol", "tablet", "500 mg", None, "Pharco"),
     ("Doliprane", "Paracetamol", "tablet", "1 g", None, "Sanofi"),
     ("Doliprane", "Paracetamol", "sachet", "1 g", None, "Sanofi"),
