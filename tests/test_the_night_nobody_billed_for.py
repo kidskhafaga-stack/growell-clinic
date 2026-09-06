@@ -267,6 +267,92 @@ def test_a_rostered_night_is_not_in_the_money_list(rota):
                             local_today()) == []
 
 
+def test_one_doctors_cover_is_not_another_doctors(rota):
+    """Two people on the rota on the same night, at different rates.
+
+    Found by breaking it: ``earned`` could drop the doctor from its filter
+    entirely and every test still passed, because no test ever had two people
+    being paid for cover at once. On a real rota that is every night, and the
+    failure is each of them being shown the other's money as well as their own.
+    """
+    from app.extensions import db
+    from app.models.duty import Duty
+    from app.utils import duty
+
+    mine = _put_on(rota, "night")                       # the resident, 700
+    theirs = _put_on(rota, "morning", doctor=rota["ids"]["doctor"])   # 500
+    with rota["app"].app_context():
+        for duty_id in (mine, theirs):
+            duty.confirm(db.session.get(Duty, duty_id))
+        db.session.commit()
+
+    assert _earned(rota, rota["resident"]) == 700.0
+    assert _earned(rota, rota["ids"]["doctor"]) == 500.0
+
+
+def test_a_duty_already_spoken_for_is_not_still_waiting(rota):
+    """The gap list is about silence, not about the past.
+
+    Without this, a rota three months old lists every night that ever
+    happened, the real unanswered ones are buried in it, and the list people
+    were meant to clear stops being read.
+    """
+    from app.extensions import db
+    from app.models.duty import Duty
+    from app.utils import duty
+    from app.utils.clock import local_today
+
+    old_one = _put_on(rota, "night",
+                      on_date=local_today() - timedelta(days=3))
+    with rota["app"].app_context():
+        duty.confirm(db.session.get(Duty, old_one))
+        db.session.commit()
+        assert duty.unconfirmed() == []
+
+
+def test_an_absent_night_is_not_waiting_either(rota):
+    """"It did not happen" is an answer. Only silence is a gap."""
+    from app.extensions import db
+    from app.models.duty import Duty
+    from app.utils import duty
+    from app.utils.clock import local_today
+
+    old_one = _put_on(rota, "night",
+                      on_date=local_today() - timedelta(days=3))
+    with rota["app"].app_context():
+        duty.mark_absent(db.session.get(Duty, old_one))
+        db.session.commit()
+        assert duty.unconfirmed() == []
+
+
+def test_a_duty_with_nobody_on_it_is_refused(rota):
+    """A row with no person is a square on a wall chart, and it would sit in
+    the gap list for ever with nobody able to answer for it."""
+    from app.extensions import db
+    from app.models.duty import DutySlot
+    from app.utils import duty
+    from app.utils.clock import local_today
+
+    with rota["app"].app_context():
+        slot = db.session.get(DutySlot, rota["night"])
+        with pytest.raises(ValueError):
+            duty.assign(None, slot, local_today())
+
+
+def test_a_duty_with_no_shift_is_refused(rota):
+    """And the other half: without a shift there is no rate and no hours, so
+    the duty is a date with nothing attached to it."""
+    from app.extensions import db
+    from app.models import User
+    from app.utils import duty
+    from app.utils.clock import local_today
+
+    with rota["app"].app_context():
+        who = db.session.get(User, rota["resident"])
+        with pytest.raises(ValueError):
+            duty.assign(who, None, local_today())
+
+
 # ------------------------------------------------------------------ the rate
 
 def test_the_rate_is_snapshotted_when_the_duty_is_written(rota):
@@ -504,6 +590,22 @@ def test_a_shift_with_no_hours_is_refused(rota):
                                  follow_redirects=True)
     with rota["app"].app_context():
         assert DutySlot.query.filter_by(name="بلا ساعات").first() is None
+
+
+def test_a_shift_with_no_name_is_refused(rota):
+    """Hours without a name make a column on the rota nobody can read — and
+    the hours alone parse fine, so nothing further down would have stopped it.
+    """
+    from app.models.duty import DutySlot
+
+    with rota["app"].app_context():
+        before = DutySlot.query.count()
+    rota["sign_in"]("boss").post(
+        "/duty/slots/add",
+        data={"name": "  ", "start_time": "07:00", "end_time": "14:00"},
+        follow_redirects=True)
+    with rota["app"].app_context():
+        assert DutySlot.query.count() == before
 
 
 def test_clearing_a_doctors_own_rate_goes_back_to_the_shifts(rota):
