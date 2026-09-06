@@ -7,6 +7,13 @@ the patient's record, and, when it is a rating reply, fills the patient's open
 satisfaction survey. The result lands in
 the same ``Feedback`` model, so the existing stars/analytics keep working; only
 the collection *channel* differs.
+
+The WaPilot half of this was written before anybody had seen a real request
+from WaPilot, and its tests sent the shape this file had invented — so they
+proved the code understood itself, not the provider. The API v2 contract has
+since been read, and it is what the WaPilot functions below are pinned to:
+two public events, ``message`` and ``message.any``, wrapping the same object
+under different keys.
 """
 import re
 from datetime import datetime, timedelta
@@ -118,13 +125,54 @@ def apply_status(item):
     return row
 
 
+#: The WaPilot v2 events that carry a message. Both are public; a clinic
+#: subscribes to whichever it wants, and it may subscribe to both.
+WAPILOT_MESSAGE_EVENTS = ("message", "message.any")
+
+
+def _wapilot_message(payload):
+    """The message object inside a WaPilot envelope.
+
+    The two events wrap it differently — ``message`` puts it under
+    ``message``, ``message.any`` under ``payload`` (WaPilot API v2 →
+    Webhooks). Reading only the first meant a clinic subscribed to the
+    broader stream answered 200 to every message and filed none of them.
+
+    Whichever key is present is read, so an envelope that carries both, or
+    one with no ``event`` at all, still resolves to the same object.
+    """
+    p = payload or {}
+    return p.get("message") or p.get("payload") or {}
+
+
+def carries_a_wapilot_message(payload):
+    """Whether this envelope was supposed to contain a message.
+
+    The pair to :func:`normalize_wapilot`: on its own that function answers
+    the empty list to *"nothing here concerns messages"* and to *"a message
+    arrived and I could not read it"* alike — and the second one is a
+    parent's message disappearing behind a 200. This separates them.
+    """
+    p = payload or {}
+    return p.get("event") in WAPILOT_MESSAGE_EVENTS or bool(p.get("message"))
+
+
 def normalize_wapilot(payload):
-    """WaPilot v2 ``message`` webhook → list of normalized items."""
-    m = (payload or {}).get("message") or {}
-    if not m:
+    """WaPilot v2 message webhook → list of normalized items."""
+    m = _wapilot_message(payload)
+    # A message with nobody on it is not a message this program can use, and
+    # saying so here is what lets the caller keep the envelope instead of
+    # filing a row with an empty body and no number — same rule
+    # ``normalize_meta`` already applies to its own items.
+    if not m or not (m.get("chat_id") or m.get("from")):
         return []
     reply = m.get("list_reply") or m.get("button_reply") or {}
     return [{
+        # WaPilot's own id for this message. It is what tells the same
+        # message arriving twice — a clinic subscribed to both events gets
+        # each one on ``message`` and again on ``message.any`` — from two
+        # messages that happen to read alike.
+        "msg_id": m.get("id"),
         "from_phone": m.get("chat_id") or m.get("from"),
         "text": m.get("text"),
         "button_id": reply.get("id") or m.get("button_id"),
@@ -185,17 +233,57 @@ def _capture_rating(patients, item):
     return True
 
 
+def record_unreadable(payload, provider):
+    """File an envelope that said it carried a message but did not parse.
+
+    Answering 200 to it is right — the provider has done its job and a retry
+    would only deliver the same bytes again — but answering 200 and keeping
+    nothing is how a parent's message disappears with no trace anywhere. So
+    the envelope itself is kept, as what it is: something that arrived and
+    could not be read. Whoever is called about it can then see the shape
+    instead of guessing at it.
+    """
+    import json
+
+    try:
+        raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    except (TypeError, ValueError):      # noqa: BLE001 — never break the webhook
+        raw = repr(payload)
+    log = MessageLog(direction="in", provider=provider, body=raw[:4000],
+                     status="received", error="unreadable_payload")
+    db.session.add(log)
+    return log
+
+
+def _already_logged(msg_id):
+    """Has this provider message id been filed before?"""
+    return db.session.query(
+        MessageLog.query.filter_by(direction="in",
+                                   provider_msg_id=msg_id).exists()).scalar()
+
+
 def handle_inbound(item, provider):
     """Log one normalized inbound message and capture a rating if present.
 
     Caller commits. Returns ``{"matched", "captured"}``.
     """
     phone = normalize_phone(item.get("from_phone"))
+    # The same message twice is one message. A clinic subscribed to both of
+    # WaPilot's message events receives each reply on each of them, and
+    # filing it twice would show the parent as having written twice and
+    # would answer their survey twice. Only guards where the provider gave
+    # an id: without one there is nothing to compare, and a caller that
+    # never sends ids behaves exactly as it did.
+    msg_id = (item.get("msg_id") or "").strip() or None
+    if msg_id and _already_logged(msg_id):
+        return {"matched": False, "captured": False,
+                "away": False, "attachment": False, "duplicate": True}
     patients = _match_patients(phone)
     body = (item.get("text") or item.get("button_id")
             or ("[media]" if item.get("media") else ""))
     log = MessageLog(direction="in", provider=provider, to_phone=phone,
                      body=body or "", status="received",
+                     provider_msg_id=msg_id,
                      patient_id=(patients[0].id if patients else None))
     db.session.add(log)
     # A file is usually the X-ray or the lab report the doctor asked for.
@@ -215,4 +303,5 @@ def handle_inbound(item, provider):
         from app.utils.service_desk import maybe_send_away_reply
         away = maybe_send_away_reply(log)
     return {"matched": bool(patients), "captured": captured,
-            "away": away is not None, "attachment": attachment is not None}
+            "away": away is not None, "attachment": attachment is not None,
+            "duplicate": False}
