@@ -60,6 +60,13 @@ class DoctorPayout(db.Model):
     shift_id = db.Column(db.Integer, db.ForeignKey("cashier_shifts.id"),
                          nullable=True, index=True)
 
+    # The statement this payment settles, when it settles one. Nullable, and
+    # nullable is the ordinary case: a clinic that hands a doctor money on a
+    # Tuesday is not settling a month, and pretending otherwise would attach
+    # every advance to a document nobody drew.
+    settlement_id = db.Column(db.Integer,
+                              db.ForeignKey("doctor_settlements.id"),
+                              nullable=True, index=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

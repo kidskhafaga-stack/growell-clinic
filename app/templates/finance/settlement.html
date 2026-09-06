@@ -1,0 +1,141 @@
+{% extends "shell.html" %}
+{% set active_module = 'finance' %}
+{% block title %}{{ s.number }}{% endblock %}
+{% block page_heading %}{{ s.number }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title" dir="ltr">{{ s.number }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {{ s.doctor.display_name(current_lang) if s.doctor else '—' }}
+      · <span dir="ltr">{{ s.date_from }} → {{ s.date_to }}</span>
+      · {{ t('settle.basis_' ~ s.basis) }}
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;" class="no-print">
+    <button class="btn btn-outline gc-press" type="button" onclick="window.print()">
+      <i class="bi bi-printer"></i> {{ t('common.print') }}</button>
+    <a class="btn btn-outline gc-press" href="{{ url_for('finance.settlements') }}">
+      <i class="bi bi-list-ul"></i> {{ t('settle.title') }}</a>
+  </div>
+</div>
+
+{# A draft says so, loudly. The figures on it are today's and will be
+   different tomorrow, and somebody about to agree a number needs to know
+   which of the two kinds of document they are holding. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid {{ 'var(--amber-500)' if s.status == 'draft' else ('var(--green-600)' if s.status == 'paid' else 'var(--blue-600, #2563eb)') }};">
+  <p style="margin:0;">
+    <span class="status-badge {{ {'draft':'st-waiting','closed':'st-in_progress','paid':'st-completed'}[s.status] }}">
+      {{ t('settle.st_' ~ s.status) }}</span>
+    <span class="hint">{{ t('settle.hint_' ~ s.status) }}</span>
+  </p>
+</div>
+
+<div class="card gc-scale-in">
+  <table class="table">
+    <tbody>
+      <tr><td>{{ t('settle.lines') }}</td>
+          <td class="num" dir="ltr">{{ s.lines_amount }}</td></tr>
+      {% if s.vaccine_amount %}
+      <tr><td>{{ t('settle.vaccines') }}</td>
+          <td class="num" dir="ltr">{{ s.vaccine_amount }}</td></tr>
+      {% endif %}
+      {% if s.duty_amount %}
+      <tr><td>{{ t('settle.duty') }}</td>
+          <td class="num" dir="ltr">{{ s.duty_amount }}</td></tr>
+      {% endif %}
+      <tr style="border-top:2px solid var(--line);">
+        <td><strong>{{ t('settle.gross') }}</strong></td>
+        <td class="num" dir="ltr"><strong>{{ s.gross_amount }}</strong></td></tr>
+      {% if s.advances %}
+      <tr><td>{{ t('settle.advances') }}
+              <br><small class="muted">{{ t('settle.advances_hint') }}</small></td>
+          <td class="num" dir="ltr">− {{ s.advances }}</td></tr>
+      {% endif %}
+      <tr style="border-top:2px solid var(--line);">
+        <td><strong>{{ t('settle.net') }}</strong></td>
+        <td class="num" dir="ltr"><strong style="color:var(--green-700);font-size:1.15em;">{{ s.net_due }}</strong></td></tr>
+    </tbody>
+  </table>
+
+  {# On a collected statement, the sentence the doctor always asks next. #}
+  {% if s.basis == 'collected' and s.awaiting %}
+  <p class="hint" style="margin-bottom:0;"><i class="bi bi-hourglass-split"></i>
+    {{ t('settle.awaiting') }}: <strong dir="ltr">{{ s.awaiting }}</strong>
+    — {{ t('settle.awaiting_hint') }}</p>
+  {% endif %}
+  {% if s.note %}<p class="hint" style="margin-bottom:0;">{{ s.note }}</p>{% endif %}
+</div>
+
+<div class="no-print">
+  {% if s.status == 'draft' %}
+  <div class="card gc-scale-in" style="margin-top:14px;">
+    <form method="post" action="{{ url_for('finance.settlement_act', settlement_id=s.id) }}"
+          style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="close">
+      <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+        <label for="note">{{ t('settle.note') }}</label>
+        <input class="input" id="note" name="note" maxlength="255">
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-lock"></i> {{ t('settle.close') }}</button>
+    </form>
+    <p class="hint" style="margin-bottom:0;">{{ t('settle.close_hint') }}</p>
+    <form method="post" action="{{ url_for('finance.settlement_act', settlement_id=s.id) }}"
+          onsubmit="return confirm('{{ t('common.confirm') }}?');" style="margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="delete">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-trash"></i> {{ t('common.delete') }}</button>
+    </form>
+  </div>
+  {% elif s.status == 'closed' %}
+  {# Agreed and not yet paid. Both the payment and the way back are here,
+     because a mistake found before the money goes is a correction — the same
+     edit afterwards would be a second set of books. #}
+  <div class="card gc-scale-in" style="margin-top:14px;">
+    <h2 class="section-title" style="margin-top:0;">
+      <i class="bi bi-cash"></i> {{ t('settle.pay') }}</h2>
+    <form method="post" action="{{ url_for('finance.doctor_pay') }}"
+          style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="doctor_id" value="{{ s.doctor_id }}">
+      <input type="hidden" name="settlement_id" value="{{ s.id }}">
+      <input type="hidden" name="next" value="{{ url_for('finance.settlement_view', settlement_id=s.id) }}">
+      <div class="form-row" style="margin-bottom:0;min-width:140px;">
+        <label for="amount">{{ t('payouts.amount') }}</label>
+        {# Defaulted to the agreed figure and still typed: paying exactly what
+           is owed is the common case and never the only one. #}
+        <input class="input" type="number" step="0.01" id="amount" name="amount"
+               dir="ltr" value="{{ s.net_due }}" required>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:130px;">
+        <label for="method">{{ t('payouts.method') }}</label>
+        <select class="input" id="method" name="method">
+          {% for m in methods %}<option value="{{ m }}">{{ t('supplier_pay_methods.' ~ m) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:160px;">
+        <label for="account_id">{{ t('payouts.out_of') }}</label>
+        <select class="input" id="account_id" name="account_id">
+          <option value="">—</option>
+          {% for a in tills %}<option value="{{ a.id }}">{{ a.display_name(current_lang) }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary gc-press" type="submit">
+        <i class="bi bi-check2"></i> {{ t('settle.pay') }}</button>
+    </form>
+    <form method="post" action="{{ url_for('finance.settlement_act', settlement_id=s.id) }}"
+          style="margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="reopen">
+      <button class="btn btn-outline btn-sm gc-press" type="submit">
+        <i class="bi bi-unlock"></i> {{ t('settle.reopen') }}</button>
+      <span class="hint">{{ t('settle.reopen_hint') }}</span>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

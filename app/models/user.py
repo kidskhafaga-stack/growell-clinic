@@ -73,6 +73,19 @@ class User(UserMixin, db.Model):
     specialty = db.Column(db.String(160))           # التخصص الرئيسي
     sub_specialties = db.Column(db.String(255))     # التخصصات الفرعية
 
+    # **How this doctor is settled: on what was billed, or on what came in.**
+    #
+    # The agreement with them, not a rule in any file. Cash work is collected
+    # at the desk the same hour, so for most clinics the two are one number
+    # and this stays empty. Contract work is paid when the insurer sends the
+    # money, and settling that at billing pays a doctor out of money the
+    # clinic has not got.
+    #
+    # Null means the program's default, which is "billed" — what every figure
+    # in this program has always meant, so a clinic that updates and sets
+    # nothing settles exactly as it did yesterday.
+    settlement_basis = db.Column(db.String(10))
+
     # The coded panel this doctor's visits open on — a key from
     # app/data/specialty_panels.json, and a different thing from `specialty`
     # above. That one is free text and prints on the prescription; a doctor has

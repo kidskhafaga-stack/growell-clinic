@@ -193,6 +193,14 @@ ADDITIONS = [
     # be sent, and by when the money must come. Nullable, and that nullability
     # is the feature's switch — a clinic that types no term is warned about
     # nothing and sees exactly the screens it saw before.
+    # How a doctor is settled — on what was billed, or on what came in.
+    # Nullable: empty is "the default", which is what every figure in this
+    # program has always meant.
+    ("users", "settlement_basis", "VARCHAR(10)"),
+    # And which statement a payout was made against, when it was made against
+    # one. Nullable: every payout written before statements existed was made
+    # against nothing in particular, which is the truth about it.
+    ("doctor_payouts", "settlement_id", "INTEGER"),
     ("payer_contracts", "filing_days", "INTEGER"),
     ("payer_contracts", "payment_days", "INTEGER"),
     ("payer_contracts", "cycle_day", "INTEGER"),
