@@ -177,6 +177,33 @@ class PayerContract(db.Model):
     end_date = db.Column(db.Date)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     notes = db.Column(db.String(200))
+
+    # --- the two dates an agreement is actually argued about -----------------
+    #
+    # A contract carried a period and a price list and said nothing about
+    # *time*: by when the claim must be sent, and by when the money must come.
+    # Both were in the paper agreement and in nobody's screen, so the program
+    # could not say "this one closes on Thursday" or "this payer is sixty days
+    # late" — the two sentences a claims desk exists to say.
+    #
+    # **Nullable, and that is the switch.** A clinic that has not typed a term
+    # is shown no deadline and warned about nothing, exactly as before. The
+    # program never guesses a number here: filing windows run from 90 days to
+    # a year depending on the payer, and inventing one would either raise
+    # alarms about claims that are fine or stay quiet about claims that are
+    # already dead.
+
+    # Days from the date of service in which the claim must reach the payer.
+    # Past it an otherwise payable claim is refused, and in most agreements
+    # cannot be billed to the family either — it becomes a write-off.
+    filing_days = db.Column(db.Integer)
+    # Days from submission in which the payer is meant to pay.
+    payment_days = db.Column(db.Integer)
+    # The day of the month this payer's claims are sent, when the agreement
+    # names one. A cutoff people plan around: "anything after the 25th goes
+    # on next month's batch".
+    cycle_day = db.Column(db.Integer)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     payer = db.relationship("PayerEntity", back_populates="contracts")
@@ -190,7 +217,12 @@ class PayerContract(db.Model):
         clone = PayerContract(
             payer_id=self.payer_id, number=number,
             start_date=start_date, end_date=end_date,
-            notes=self.notes, is_active=True)
+            notes=self.notes, is_active=True,
+            # A renewal keeps the terms unless somebody changes them. Dropping
+            # them here would silently switch the deadlines off on the day a
+            # contract rolls over, which is the one day nobody is looking.
+            filing_days=self.filing_days, payment_days=self.payment_days,
+            cycle_day=self.cycle_day)
         for r in self.rates:
             clone.rates.append(PayerContractRate(
                 service_id=r.service_id, special_price=r.special_price,

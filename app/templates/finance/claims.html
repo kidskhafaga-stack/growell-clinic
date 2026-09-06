@@ -20,6 +20,94 @@
   <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('statements.generate') }}</button>
 </form>
 
+{# **What is about to become unclaimable.** A filing window is a contractual
+   deadline counted from the date of service; past it the claim is refused and
+   in most agreements cannot be billed to the family either, so it turns
+   straight into a write-off. The ones already past it are kept on the list
+   with a negative number rather than hidden — somebody has to decide to write
+   them off, not discover them at the audit.
+
+   Empty, and the whole block absent, for a clinic that has typed no term. #}
+{% if closing %}
+<div class="card gc-scale-in" style="margin-top:14px;border-inline-start:4px solid var(--danger);">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-hourglass-bottom"></i> {{ t('claims.closing') }}
+    <span class="badge">{{ closing|length }}</span></h2>
+  <p class="hint" style="margin-top:0;">{{ t('claims.closing_hint') }}</p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('invoices.number') }}</th><th>{{ t('invoices.date') }}</th>
+        <th>{{ t('claims.entity') }}</th><th class="num">{{ t('claims.claim_amount') }}</th>
+        <th>{{ t('claims.closes_on') }}</th><th>{{ t('claims.days_left') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in closing %}
+        <tr>
+          <td dir="ltr">{{ row.invoice.invoice_number }}</td>
+          <td dir="ltr">{{ row.invoice.invoice_date }}</td>
+          <td>{{ row.invoice.payer.display_name(current_lang) if row.invoice.payer else '—' }}</td>
+          <td class="num">{{ row.amount }}</td>
+          <td dir="ltr">{{ row.due }}</td>
+          <td><strong style="color:{{ 'var(--danger)' if row.days < 0 else 'var(--amber-600, #b45309)' }};"
+                      dir="ltr">{{ row.days }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# **Money out, by how long it has been out** — aged from the day the claim
+   was sent, because that is when the payer's clock starts. Every bucket is
+   drawn even when empty: a table that grows and loses rows is one nobody
+   reads the shape of. #}
+{% if outstanding %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-clock-history"></i> {{ t('claims.aging') }}</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr>
+        {% for b in aging %}
+        <th class="num" dir="ltr">{% if b.low is none %}{{ t('claims.undated') }}
+          {% elif b.high %}{{ b.low }}–{{ b.high }}{% else %}{{ b.low }}+{% endif %}</th>
+        {% endfor %}
+      </tr></thead>
+      <tbody><tr>
+        {% for b in aging %}
+        <td class="num"><strong style="{{ 'color:var(--danger);' if b.low and b.low >= 91 and b.amount else '' }}">{{ b.amount }}</strong>
+          <br><small class="muted">{{ b.count }}</small></td>
+        {% endfor %}
+      </tr></tbody>
+    </table>
+  </div>
+  <div class="table-wrap" style="margin-top:10px;">
+    <table class="table">
+      <thead><tr>
+        <th>{{ t('claims.number') }}</th><th>{{ t('claims.entity') }}</th>
+        <th class="num">{{ t('claims.claim_amount') }}</th>
+        <th>{{ t('claims.sent_days') }}</th><th>{{ t('claims.due_on') }}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in outstanding %}
+        <tr>
+          <td dir="ltr"><a href="{{ url_for('finance.claim_view', claim_id=row.claim.id) }}">{{ row.claim.claim_number }}</a></td>
+          <td>{{ row.claim.payer.display_name(current_lang) if row.claim.payer else '—' }}</td>
+          <td class="num">{{ row.amount }}</td>
+          <td dir="ltr">{{ row.age if row.age is not none else '—' }}</td>
+          <td dir="ltr">{% if row.due %}{{ row.due }}
+            {% if row.overdue %}<span class="badge badge--danger" dir="ltr">+{{ row.overdue }}</span>{% endif %}
+            {% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <div class="card gc-scale-in" style="padding:0;overflow:hidden;animation-delay:0.08s;">
   <table class="table">
     <thead><tr>

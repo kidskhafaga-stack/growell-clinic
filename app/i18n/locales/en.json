@@ -2053,7 +2053,15 @@
     "sig_payer": "For the payer",
     "hub_payers": "Payers & contracts",
     "hub_payers_sub": "Insurance, companies and clubs — and each service's price in the contract.",
-    "payers_title": "Payers"
+    "payers_title": "Payers",
+    "closing": "Claims closing soon",
+    "closing_hint": "The filing window runs from the date of service. Past it the payer refuses the claim, and most agreements forbid billing it to the family — so it becomes a write-off. A negative number means the window has already closed.",
+    "closes_on": "Closes on",
+    "days_left": "Days left",
+    "aging": "Out with payers — by age",
+    "sent_days": "Days since sent",
+    "due_on": "Due on",
+    "undated": "Undated"
   },
   "payer_types": {
     "club": "Club",
@@ -2446,7 +2454,12 @@
     "cash_inactive": "No contract in force — invoices use the plain service prices.",
     "cash_saved": "Cash price list saved.",
     "cash_renewed": "The cash price list was renewed automatically for next year: {from} to {to}. Review the prices before it starts.",
-    "year_hint": "Leave empty for a year from the start date. The number is generated."
+    "year_hint": "Leave empty for a year from the start date. The number is generated.",
+    "terms": "Timing terms",
+    "terms_hint": "The agreement says how many days from the date of service the claim must be sent, and how many days from submission the money must come. Leave blank when nothing is agreed — the program never invents a number.",
+    "filing_days": "Filing window (days from service)",
+    "payment_days": "Payment terms (days from submission)",
+    "cycle_day": "Claim cycle day of month"
   },
   "reports": {
     "title": "Reports",
