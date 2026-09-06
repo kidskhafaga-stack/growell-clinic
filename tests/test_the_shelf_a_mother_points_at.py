@@ -52,6 +52,7 @@ FAMOUS = [
     "Sudocrem", "Desitin", "Bepanthen", "Betadine", "Dermazin", "MEBO",
     "EMLA", "Nocandida", "Daktarin", "Triactin", "Atarax", "Controloc",
     "Cedenir", "Cefaxim", "Ospen", "Griseovin", "Lamisil", "Mundisal",
+    "Profinal", "Marcofen", "Febrimol", "Doliprane",
 ]
 
 
@@ -348,3 +349,39 @@ def test_a_clinic_that_already_ran_the_seed_gets_the_new_shelf(seeded):
                     "Bepanthen", "Adcopantin"}
         assert Drug.query.filter_by(
             trade_name="Sudocrem").first().manufacturer == "اللي العيادة كتبته"
+
+
+# --------------------------------------------------------- and the fever
+
+def test_the_same_concentration_written_three_ways_is_one_number(seeded):
+    """Profinal's box says 20 mg/ml, Brufen's says 100 mg/5 ml and Ibufen's
+    says 2%. They are the same suspension. The doctor is holding whichever
+    box the pharmacy had, so all three are listed the way they are printed —
+    and all three have to reach the same millilitre, or the wording on a
+    carton changes the dose."""
+    from app.models import Drug
+
+    with seeded["app"].app_context():
+        wording = {"Profinal": "20 mg/ml", "Ibufen": "2%",
+                   "Brufen": "100 mg/5 ml"}
+        rows = [Drug.query.filter_by(trade_name=trade, strength=label).first()
+                for trade, label in wording.items()]
+        assert all(rows), f"one of {list(wording)} is not on the shelf"
+        assert len({d.conc_mg_per_ml for d in rows}) == 1, \
+            "the wording on the carton changed the millilitre"
+        assert rows[0].conc_mg_per_ml == 20
+
+
+def test_the_fever_that_will_not_stay_down_has_a_suppository(seeded):
+    """A child who is vomiting cannot take the syrup. Paracetamol had four
+    suppositories in the reference and ibuprofen had none — so the one drug
+    left when the other is not working had no form for the case it is most
+    often needed in."""
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        for name in ("Ibuprofen", "Paracetamol"):
+            g = GenericDrug.query.filter_by(name_en=name).first()
+            assert Drug.query.filter_by(generic_id=g.id,
+                                        form="suppository").count(), \
+                f"{name} has no suppository on the shelf"

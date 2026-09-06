@@ -1577,6 +1577,31 @@ BRANDS += [
      None, "Amoun"),
     ("Ascokarm", "Vitamin C (ascorbic acid)", "capsule", "500 mg", None,
      "Karman"),
+    # الحرارة — the famous boxes that were still missing
+    #
+    # Measured the same way as the rest: every paracetamol and ibuprofen brand
+    # on the register that is not marked (N/A) or (CANCELLED), sorted by how
+    # many presentations it carries, minus what was already here. Profinal is
+    # the one that stings — it is one of the two ibuprofen suspensions a
+    # mother names, and it was not in a reference that had four others.
+    #
+    # Two labels here are written the way the box writes them and not
+    # rewritten: Profinal's suspension says 20 mg/ml and Ibufen's says 2%.
+    # They are the same concentration. Both keep their own wording and both
+    # carry 20 mg/ml for the arithmetic, because the doctor is holding the
+    # box, not this file.
+    ("Profinal", "Ibuprofen", "suspension", "20 mg/ml", 20, "Julphar"),
+    ("Profinal", "Ibuprofen", "tablet", "200 mg", None, "Julphar"),
+    ("Profinal", "Ibuprofen", "tablet", "400 mg", None, "Julphar"),
+    ("Ibufen", "Ibuprofen", "suspension", "2%", 20, "Alexandria"),
+    ("Marcofen", "Ibuprofen", "suspension", "100 mg/5 ml", 20, "GSK"),
+    # Ibuprofen suppositories, and the reference had none at all — the form a
+    # vomiting child with a fever actually gets.
+    ("Marcofen", "Ibuprofen", "suppository", "100 mg", None, "GSK"),
+    ("Marcofen", "Ibuprofen", "suppository", "300 mg", None, "GSK"),
+    ("Febrimol", "Paracetamol", "tablet", "500 mg", None, "Pharco"),
+    ("Doliprane", "Paracetamol", "tablet", "1 g", None, "Sanofi"),
+    ("Doliprane", "Paracetamol", "sachet", "1 g", None, "Sanofi"),
 ]
 
 # **Erythromycin is still here with no box behind it, and on purpose.** Every
