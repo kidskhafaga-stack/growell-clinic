@@ -281,29 +281,65 @@ def resolve(suggestions, version="10"):
     not a failure to hide: the doctor has the term, and the search box beside
     this will take it.
     """
-    from app.utils.icd import search_icd
+    from app.utils.icd import search_by_words, search_icd
 
     for item in suggestions:
         item["code"] = ""
         item["icd_title"] = ""
+        # The classification's *own* Arabic, where it has one. Carried
+        # separately from the model's `ar` and never merged into it: once a
+        # code is attached, the name that goes into the file has to be the
+        # name that code carries, or the file ends up holding two different
+        # diagnoses under one number. Empty on the uncurated rows, which is a
+        # real answer — we do not invent an Arabic title for them.
+        item["icd_title_ar"] = ""
         item["icd_version"] = version
-        for term, is_single_word in _attempts(item["en"]):
+        def _take(row):
+            item["code"] = row["code"]
+            item["icd_title"] = row.get("en") or row.get("ar") or ""
+            item["icd_title_ar"] = row.get("ar") or ""
+            item["icd_version"] = row["version"]
+
+        forms = _attempts(item["en"])
+        found = False
+        # 1. The phrase as written, and its spelling variants.
+        for term, is_single_word in forms:
+            if is_single_word:
+                continue
             hits = search_icd(term, limit=1, version=version)
-            if not hits:
-                continue
-            title = hits[0].get("en") or hits[0].get("ar") or ""
-            # A single word has to appear in the matched title *as a word*.
-            # `search_icd` matches any substring, which is right for somebody
-            # typing "diarr" into a live picker and wrong for a fallback
-            # nobody is watching: "Made up thing disease" fell through to the
-            # word "thing" and matched **K00.7, Teething syndrome**.
-            if is_single_word and not re.search(
-                    r"\b" + re.escape(term) + r"\b", title, re.I):
-                continue
-            item["code"] = hits[0]["code"]
-            item["icd_title"] = title
-            item["icd_version"] = hits[0]["version"]
-            break
+            if hits:
+                _take(hits[0])
+                found = True
+                break
+        # 2. Then its words together — which is what actually finds the
+        #    commonest illness in paediatrics, because the table's own title
+        #    for it shares every important word with what a doctor writes and
+        #    not one contiguous run of characters.
+        if not found:
+            hits = search_by_words(item["en"], version=version, limit=1)
+            if hits:
+                _take(hits[0])
+                found = True
+        # 3. And only then one word alone, which is the weakest evidence there
+        #    is and is fenced accordingly.
+        if not found:
+            for term, is_single_word in forms:
+                if not is_single_word:
+                    continue
+                hits = search_icd(term, limit=1, version=version)
+                if not hits:
+                    continue
+                title = hits[0].get("en") or hits[0].get("ar") or ""
+                # A single word has to appear in the matched title *as a word*.
+                # `search_icd` matches any substring, which is right for
+                # somebody typing "diarr" into a live picker and wrong for a
+                # fallback nobody is watching: "Made up thing disease" fell
+                # through to the word "thing" and matched **K00.7, Teething
+                # syndrome**.
+                if not re.search(r"\b" + re.escape(term) + r"\b", title, re.I):
+                    continue
+                _take(hits[0])
+                break
     return suggestions
 
 
@@ -334,6 +370,30 @@ EMPTY_WORDS = {
     "acute", "chronic", "recurrent", "severe", "mild", "moderate",
     "paediatric", "pediatric", "infantile", "neonatal", "childhood",
     "juvenile", "congenital", "suspected", "possible", "probable",
+    # Body systems and sites. Reported from a real consultation: the model
+    # wrote *"Upper respiratory viral infection"*, the full phrase matched no
+    # row (the table titles it "Acute upper respiratory infection,
+    # unspecified" and the words are not adjacent), and the fallback tried the
+    # longest word — **"respiratory"** — whose first hit is **J12.1,
+    # Respiratory syncytial virus pneumonia**. A common cold was filed as RSV
+    # pneumonia, and the single-word guard passed it because "respiratory"
+    # really is a word in that title.
+    #
+    # Counted rather than guessed, in the bundled ICD-10: respiratory matches
+    # 228 rows, viral 168, intestinal 159, pulmonary 139 — and upper, lower,
+    # tract, system, muscle, joint, blood and infection each match more than
+    # the search will return at all. A word that selects two hundred rows is
+    # not selecting one of them.
+    #
+    # The real single-word diagnoses stay out of this list and keep working:
+    # anemia (93 rows) reaches "Anemia, unspecified", pneumonia (74) reaches
+    # "Pneumonia, unspecified organism", asthma, epilepsy, eczema, impetigo,
+    # bronchiolitis, gastroenteritis, thalassemia, kawasaki.
+    "respiratory", "infection", "infections", "tract", "upper", "lower",
+    "system", "systemic", "muscle", "joint", "blood", "abdominal",
+    "urinary", "renal", "hepatic", "gastric", "intestinal", "pulmonary",
+    "nervous", "cardiac", "digestive", "chest", "throat",
+    "viral", "bacterial", "inflammation",
 }
 
 

@@ -39,6 +39,7 @@ asks, so the option and the data arrive together.
 import gzip
 import json
 import os
+import re
 
 _DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
 _CURATED_PATH = os.path.join(_DIR, "icd_codes.json")
@@ -204,6 +205,85 @@ def search_icd(query, limit=15, version=None):
 
     scored.sort(key=lambda row: (row[0], row[1]))
     return [entry for _, _, entry in scored[:limit]]
+
+
+# Words that are in half the classification and select none of it. Kept short
+# on purpose: this is grammar, not medicine — the medical stop-words belong
+# where the single-word fallback lives, because there they are a safety rule
+# and here they would only be noise in a count.
+_GRAMMAR = {"and", "the", "of", "in", "on", "with", "without", "due", "to",
+            "for", "by", "not", "unspecified", "nos", "other", "elsewhere",
+            "classified", "type", "site", "part"}
+
+_words_cache = {}
+
+
+def _title_words(title):
+    return {w for w in re.split(r"[^a-z0-9]+", (title or "").lower()) if w}
+
+
+def _indexed(version):
+    """``[(entry, word set), …]`` for one version, tokenised once.
+
+    Seventy thousand titles re-split on every keystroke would be felt; split
+    once and kept, like the rows themselves already are.
+    """
+    if version not in _words_cache:
+        _words_cache[version] = [(e, _title_words(e.get("en")))
+                                 for e in _load_full(version)]
+    return _words_cache[version]
+
+
+def search_by_words(query, version=None, limit=5):
+    """Rows whose title contains most of these words, in any order.
+
+    :func:`search_icd` matches a **contiguous** run of characters, which is
+    right for somebody typing into a live picker and is why a written-out
+    diagnosis so often matches nothing: the table titles the commonest illness
+    in paediatrics *"Acute upper respiratory infection, unspecified"*, and a
+    doctor — or a model — writing "upper respiratory viral infection" shares
+    every important word with it and not one contiguous run.
+
+    The old answer to that was to fall back to a single word, and a single
+    word is how a common cold came back as **J12.1, RSV pneumonia**: the word
+    was "respiratory". This is the answer instead — several words together are
+    evidence where one is not.
+
+    Two rules, and both are proportions rather than thresholds picked by
+    taste: at least **two** content words must match, and they must be at
+    least **half** of the words in the query. A row that shares two words out
+    of nine has not been identified by them.
+    """
+    words = {americanise(w) for w in _title_words(query)} - _GRAMMAR
+    words = {w for w in words if len(w) >= 4}
+    if len(words) < 2:
+        return []
+    need = max(2, (len(words) + 1) // 2)
+
+    scored = []
+    for entry in _load_curated():
+        if version and entry.get("version") != version:
+            continue
+        hit = len(words & _title_words(entry.get("en")))
+        if hit >= need:
+            scored.append((-hit, len(entry.get("en") or ""), 0, entry))
+    for ver in ([version] if version in VERSIONS else VERSIONS):
+        for entry, title_words in _indexed(ver):
+            hit = len(words & title_words)
+            if hit >= need:
+                scored.append((-hit, len(entry.get("en") or ""), 1, entry))
+
+    scored.sort(key=lambda row: row[:3])
+    out, seen = [], set()
+    for _, _, _, entry in scored:                # the curated row of a code
+        key = (entry["code"].upper(), entry["version"])   # wins over the bare
+        if key in seen:                                   # one, by sort order
+            continue
+        seen.add(key)
+        out.append(entry)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def lookup_icd(code, version=None):

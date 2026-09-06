@@ -2653,7 +2653,8 @@
     "dx_from_ai": "suggested",
     "dx_off_switch": "AI diagnosis suggestions exist and are switched off. Turn them on in Settings → AI.",
     "dx_off_provider": "AI diagnosis suggestions need an AI provider configured first, in Settings → AI.",
-    "dx_off_where": "Open settings"
+    "dx_off_where": "Open settings",
+    "dx_classified_as": "the classification calls it"
   },
   "rx": {
     "title": "Drugs & Prescriptions",

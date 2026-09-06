@@ -885,6 +885,15 @@
             <span class="badge badge--role" x-show="s.code"
                   x-text="'ICD-' + (s.icd_version || '10') + ' · ' + s.code"></span>
             <span class="badge badge--muted" x-show="!s.code">{{ t('ai.dx_no_code') }}</span>
+            {# **What the code actually says**, whenever it is not what the
+               model wrote. `resolve` has always carried this and the chip has
+               always dropped it, and dropping it is what let a common cold
+               reach the file as J12.1 — RSV pneumonia. The module's own
+               safeguard is this line: "the doctor sees the matched title next
+               to the code, which is the check on all of this". It was not on
+               the screen, so there was no check. #}
+            <span class="dx-ai__title" x-show="classifiedAs(s)" x-cloak
+                  x-text="'{{ t('ai.dx_classified_as') }}: ' + classifiedAs(s)"></span>
             <span class="dx-ai__why" x-text="s.why"></span>
           </button>
         </template>
@@ -1826,6 +1835,11 @@
     font-family:inherit; font-size:0.88rem; cursor:pointer; transition:border-color .15s ease; }
   .dx-ai__item:hover { border-color:var(--green-600); }
   .dx-ai__name { font-weight:600; }
+  /* What the code says, on its own line above the reason. Quiet, because it
+     is confirmation on the ordinary case and only turns into a warning by
+     saying something the doctor did not expect. */
+  .dx-ai__title { flex-basis:100%; color:var(--muted); font-size:0.8rem;
+                  font-style:italic; }
   .dx-ai__why { flex-basis:100%; color:var(--muted); font-size:0.8rem; }
   [x-cloak]{ display:none !important; }
   /* Workflow tabs */
@@ -2215,13 +2229,36 @@
             || code === 'dx_suggest_disabled') return '{{ t('ai.dx_off') }}';
         return '{{ t('ai.dx_failed') }}';
       },
+      // The classification's own wording for a suggestion's code, when it is
+      // not what the model wrote. Empty when they agree, so the chip stays
+      // quiet on the ordinary case and speaks only where it matters.
+      classifiedAs(s) {
+        if (!s.code) return '';
+        const own = (current_lang === 'ar' ? (s.icd_title_ar || s.icd_title)
+                                           : (s.icd_title || s.icd_title_ar)) || '';
+        const wrote = (current_lang === 'ar' ? (s.ar || s.en) : (s.en || s.ar)) || '';
+        return own.trim().toLowerCase() === wrote.trim().toLowerCase() ? '' : own;
+      },
       applySuggestion(s) {
         // Fills the same form the doctor was already filling — the type stays
         // whatever the select says, and its default is `working`. Nothing here
         // saves: they still press add.
+        //
+        // **A code brings its own name.** This used to file the model's
+        // paraphrase beside the program's code, so one number ended up with
+        // two different Arabic names on one visit — and the prescription
+        // screen, searching the classification for the name it had been
+        // handed, answered "no diagnosis by that name". A code picked by hand
+        // has always taken the row's own wording (`applyIcd`, just below);
+        // there was never a reason for a code found by the assistant to
+        // behave differently. Where the row carries no Arabic — most of the
+        // full table does not — the model's Arabic stays, because inventing
+        // one is not on offer either.
         this.code = s.code || '';
-        this.titleAr = s.ar || ''; this.titleEn = s.en || '';
-        this.title = (current_lang === 'ar' ? (s.ar || s.en) : (s.en || s.ar));
+        this.titleAr = (s.code && s.icd_title_ar) || s.ar || '';
+        this.titleEn = (s.code && s.icd_title) || s.en || '';
+        this.title = (current_lang === 'ar' ? (this.titleAr || this.titleEn)
+                                            : (this.titleEn || this.titleAr));
         this.version = s.icd_version || '10';
         this.fromAi = true;
         this.q = '';
