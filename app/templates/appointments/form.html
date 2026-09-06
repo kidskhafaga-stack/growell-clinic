@@ -33,7 +33,18 @@
        The numbering is honest here and would not be on most forms: a slot
        cannot be picked before a doctor and a date, so these really are steps
        in an order. See app/static/css/material.css. #}
-    <section class="md-section gc-scale-in">
+    {# **Above the sections below it.** The two search lists in here are
+       `position:absolute`, and every section on this screen is a stacking
+       context of its own — `.gc-scale-in` ends on a transform, which makes
+       one with no z-index to argue about. So a later sibling paints over an
+       earlier sibling's positioned descendant however high that descendant's
+       z-index is, and the list of patients came out cut off underneath the
+       "when" card. Reported as *"البحث بيظهر مختفى تحت"*.
+
+       One layer, and one is the budget: the chrome — topbar 20, sidebar 30 —
+       must stay above everything inside the content. Same rule and same
+       reasoning as `.card:has(details[open])` in theme.css. #}
+    <section class="md-section gc-scale-in" style="position:relative;z-index:1;">
       <div class="md-section-head">
         <span class="md-step">1</span>
         <h3>{{ t('appointments.step_who') }}</h3>

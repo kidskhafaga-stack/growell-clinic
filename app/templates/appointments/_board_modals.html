@@ -1,4 +1,8 @@
 {# Booking board modals. Rendered inside the board() Alpine scope. #}
+{% import "_pickers.html" as pickers with context %}
+{# The doctor the board is showing, if it is showing one — else the only
+   doctor, if there is only one. What the walk-in box starts on. #}
+{% set walkin_doctor = doctor_id or (doctors[0].id if doctors|length == 1 else None) %}
 
 {% macro patient_search_box() %}
   <template x-if="!chosen">
@@ -85,7 +89,23 @@
     <h3 style="margin:0 0 14px;"><i class="bi bi-person-walking"></i> {{ t('appointments.walk_in_title') }}</h3>
     <div class="form-row"><label>{{ t('appointments.patient') }} *</label>{{ patient_search_box() }}</div>
     <div class="form-grid">
-      <div class="form-row"><label>{{ t('appointments.doctor') }} *</label>{{ doctor_select('f.doctorId') }}</div>
+      {# **The one control that knows which doctor this is.**
+         It was a `<select>` with no empty option, so a browser with nothing
+         chosen showed the first doctor in the list while the program held
+         nobody: the desk read a name off the screen, pressed the button, and
+         got "choose a doctor" — and the only way out was to pick a different
+         doctor and come back, which fired the change the state was waiting
+         for. Reported exactly that way.
+
+         A search box rather than a fixed list for the reason every other
+         screen has one: a list is fine at four doctors and *is* the screen at
+         forty. And it writes `wf.doctorId` itself (`bind`), so there is one
+         owner — a second writer is how the screen and the state part company
+         in the first place. #}
+      <div class="form-row"><label>{{ t('appointments.doctor') }} *</label>
+        {{ pickers.doctor_picker('walkin_doctor_id', walkin_doctor, None,
+                                 doctors=doctors, autosubmit=False,
+                                 bind='wf.doctorId') }}</div>
       <div class="form-row"><label>{{ t('appointments.visit_type') }}</label>{{ type_select('f.appt_type') }}</div>
     </div>
     <div class="form-row"><label>{{ t('appointments.reason') }}</label><input class="input" x-model="f.reason"></div>
@@ -109,14 +129,14 @@
       </div>
     </div>
     {% endif %}
-    <p class="hint" x-show="!chosen || !f.doctorId" x-cloak style="color:var(--danger);margin:6px 0 0;">
+    <p class="hint" x-show="!chosen || !wf.doctorId" x-cloak style="color:var(--danger);margin:6px 0 0;">
       <i class="bi bi-info-circle"></i>
       <span x-show="!chosen">{{ t('appointments.walk_in_pick_patient') }}</span>
-      <span x-show="chosen && !f.doctorId">{{ t('appointments.walk_in_pick_doctor') }}</span>
+      <span x-show="chosen && !wf.doctorId">{{ t('appointments.walk_in_pick_doctor') }}</span>
     </p>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
       <button type="button" class="btn btn-outline gc-press" x-on:click="close()">{{ t('common.cancel') }}</button>
-      <button type="button" class="btn btn-primary gc-press" x-on:click="submitWalkIn()" :disabled="!chosen || !f.doctorId">
+      <button type="button" class="btn btn-primary gc-press" x-on:click="submitWalkIn()" :disabled="!chosen || !wf.doctorId">
         <i class="bi bi-check-lg"></i> {{ t('appointments.walk_in_btn') }}</button>
     </div>
   </div>

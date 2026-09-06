@@ -9,10 +9,17 @@
    roster need a way back to "every doctor", and a search box without one is a
    worse filter than the dropdown it replaces. #}
 {% macro doctor_picker(name, value, label, doctors=None, allow_all=False,
-                       placeholder=None, autosubmit=True) %}
+                       placeholder=None, autosubmit=True, bind=None) %}
 {% set chosen = (doctors | selectattr('id', 'equalto', value) | first)
                 if (doctors and value) else None %}
+{# ``bind`` hands the chosen id to a surrounding Alpine component — the
+   appointment board's modals keep their own form object and post it with
+   fetch rather than submitting a form, so there is nothing for the hidden
+   input below to be read out of. One direction only: the picker is the one
+   that knows, and a second writer is how a screen ends up showing a doctor
+   the program is not holding. #}
 <div class="form-row" style="position:relative;max-width:340px;"
+     {% if bind %}x-effect="{{ bind }} = chosenId"{% endif %}
      x-data="gcDoctorPicker('{{ url_for('main.doctor_search') }}',
                             {{ value or 'null' }},
                             {{ (chosen.display_name(current_lang) if chosen else '')|tojson|forceescape }},
