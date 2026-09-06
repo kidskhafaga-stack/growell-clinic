@@ -68,7 +68,15 @@ class User(UserMixin, db.Model):
     branch = db.Column(db.String(120))         # الفرع
 
     # Doctor profile / branding.
+    # The name on the prescription, **as a pair like every other name here**.
+    # One field could not be shown in two languages: a doctor who typed
+    # "Dr. Ahmed Gamal Kandil" into it got that on the Arabic sheet too, under
+    # an Arabic letterhead, beside an Arabic specialty and an Arabic address.
+    # Reported from a real printout. Same argument the credits page already
+    # made about its own names, and the same fallback: the side that is filled
+    # in answers for both.
     rx_display_name = db.Column(db.String(160))     # الاسم الظاهر في الروشتة
+    rx_display_name_en = db.Column(db.String(160))
     professional_title = db.Column(db.String(40))   # Professor/Consultant/...
     specialty = db.Column(db.String(160))           # التخصص الرئيسي
     sub_specialties = db.Column(db.String(255))     # التخصصات الفرعية
@@ -364,7 +372,7 @@ class User(UserMixin, db.Model):
         when it holds anything else, it is somebody's exact wording and is
         printed as written.
         """
-        chosen = (self.rx_display_name or "").strip()
+        chosen = self.rx_name_for(lang)
         base = chosen or self.display_name(lang)
         # The title follows the name it is stuck to. An Arabic page showing a
         # doctor whose only name on file is English still says "Dr.".
@@ -376,6 +384,19 @@ class User(UserMixin, db.Model):
         if any(base.strip().startswith(known) for known in self.CARRIES_TITLE):
             return base
         return f"{honorific} {base}"
+
+    def rx_name_for(self, lang="ar"):
+        """The prescription name written for this language, or the other one.
+
+        Falling back rather than printing nothing is what lets a doctor fill
+        in only the side they care about — the same rule as ``display_name``
+        and as every other pair in this program. A clinic that has typed only
+        an English practice name still gets it on the Arabic sheet, which is
+        what it had yesterday.
+        """
+        first = self.rx_display_name_en if lang == "en" else self.rx_display_name
+        second = self.rx_display_name if lang == "en" else self.rx_display_name_en
+        return (first or "").strip() or (second or "").strip()
 
     def _is_own_name(self, text):
         """Is this the doctor's own name, or a different piece of wording?

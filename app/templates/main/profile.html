@@ -85,6 +85,13 @@
            doctor whose title is missing could not otherwise tell why. #}
         <p class="hint" style="margin:6px 0 0;"><i class="bi bi-eye"></i>
           {{ t('profile.rx_name_preview', v=current_user.doctor_print_name(current_lang)) }}</p></div>
+      {# The English side, so an Arabic sheet is not printed with an English
+         name under an Arabic letterhead. Optional: whichever is filled in
+         answers for both. #}
+      <div class="form-row"><label>{{ t('profile.rx_name_en') }}</label>
+        <input class="input" name="rx_display_name_en" dir="ltr"
+               value="{{ current_user.rx_display_name_en or '' }}"
+               placeholder="{{ current_user.display_name('en') }}"></div>
       <div class="form-row"><label>{{ t('profile.prof_title') }}</label>
         <select class="select" name="professional_title"><option value="">—</option>
           {% for ti in titles %}<option value="{{ ti }}" {{ 'selected' if current_user.professional_title==ti else '' }}>{{ ti }}</option>{% endfor %}

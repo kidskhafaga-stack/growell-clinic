@@ -359,7 +359,8 @@ def doctor_search():
 
         def matches(user):
             for field in (user.full_name, user.full_name_en,
-                          user.rx_display_name, user.username, user.specialty):
+                          user.rx_display_name, user.rx_display_name_en,
+                          user.username, user.specialty):
                 if field and needle in field.lower():
                     return True
             return False
@@ -707,6 +708,8 @@ def profile():
 
         if u.role == "doctor":
             u.rx_display_name = (request.form.get("rx_display_name") or "").strip() or None
+            u.rx_display_name_en = (
+                request.form.get("rx_display_name_en") or "").strip() or None
             title = (request.form.get("professional_title") or "").strip()
             u.professional_title = title if title in PROFESSIONAL_TITLES else None
             u.specialty = (request.form.get("specialty") or "").strip() or None

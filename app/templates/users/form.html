@@ -129,6 +129,15 @@
               {{ t('profile.rx_name_preview', v=user.doctor_print_name(current_lang)) }}</p>
             {% endif %}
           </div>
+          {# The English side. One box could not be printed in two languages:
+             a doctor who typed their English name got it on the Arabic sheet
+             too, under an Arabic letterhead. Optional — whichever side is
+             filled in answers for both. #}
+          <div class="form-row">
+            <label for="rx_display_name_en">{{ t('profile.rx_name_en') }}</label>
+            <input class="input" id="rx_display_name_en" name="rx_display_name_en"
+                   dir="ltr" value="{{ form.rx_display_name_en or '' }}">
+          </div>
           <div class="form-row">
             <label for="professional_title">{{ t('profile.prof_title') }}</label>
             <select class="select" id="professional_title" name="professional_title">
