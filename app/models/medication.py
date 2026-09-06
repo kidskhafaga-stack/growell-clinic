@@ -98,6 +98,39 @@ class MedicationOrder(db.Model):
                            nullable=False, index=True)
     stopped_at = db.Column(db.DateTime, index=True)
     stop_reason = db.Column(db.String(200))
+
+    # **What the clinical pharmacist asked about, and never a block.**
+    #
+    # The same shape as the query on a written prescription line, and for the
+    # same reason: a pharmacist who reads a dose they think is wrong has one
+    # job — to say so, to the person who wrote it. The order goes on being
+    # given while the question is open, because the answer is usually "yes, I
+    # meant it", and a pharmacy that can stop a ward's drug is a pharmacy the
+    # ward starts writing around.
+    # **A pharmacist checked this order before it was dispensed.**
+    #
+    # What the medication-management standards ask for and the program had no
+    # room for: an order was written and given, and nothing anywhere recorded
+    # whether anybody with a pharmacy training had looked at it first.
+    #
+    # **Recorded, never enforced.** A hospital at three in the morning with no
+    # pharmacist on site still gives the antibiotic, and a program that
+    # refused would be worked around by the end of the first night — which is
+    # how a control stops meaning anything. So the gap is made visible and
+    # kept visible, the same choice the surgical sign-out makes.
+    verified_at = db.Column(db.DateTime, index=True)
+    verified_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+
+    query_note = db.Column(db.String(255))
+    queried_at = db.Column(db.DateTime, index=True)
+    queried_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    # Answered by the doctor, which is the half a query is written for. The
+    # question stays on the order afterwards: what was asked and what came
+    # back is the record, and clearing it would leave a changed dose with
+    # nothing saying why.
+    answer_note = db.Column(db.String(255))
+    answered_at = db.Column(db.DateTime)
+    answered_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     ordered_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     stopped_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     note = db.Column(db.String(255))
@@ -109,6 +142,9 @@ class MedicationOrder(db.Model):
     drug = db.relationship("Drug")
     store_item = db.relationship("StoreItem")
     orderer = db.relationship("User", foreign_keys=[ordered_by])
+    verifier = db.relationship("User", foreign_keys=[verified_by])
+    querier = db.relationship("User", foreign_keys=[queried_by])
+    answerer = db.relationship("User", foreign_keys=[answered_by])
     doses = db.relationship("MedicationDose", back_populates="order",
                             order_by="MedicationDose.at, MedicationDose.id")
 

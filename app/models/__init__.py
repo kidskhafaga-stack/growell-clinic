@@ -41,6 +41,15 @@ from app.models.round_note import ROUND_TRENDS, RoundNote
 from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
                                   MedicationOrder)
 from app.models.bed_charge import BedCharge
+from app.models.duty import (DUTY_PAYABLE, DUTY_STATUSES,
+                            Duty, DutyRate, DutySlot)
+from app.models.panel_alert_rule import PanelAlertRule
+from app.models.chart_review import ChartReview
+from app.models.dose_prep import DosePrep
+from app.models.high_alert import HighAlertDrug
+from app.models.lasa_pair import LasaPair
+from app.models.med_error import (ERROR_OUTCOMES, ERROR_STAGES,
+                                  OUTCOME_BANDS, MedicationError)
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                Operation, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
@@ -252,6 +261,20 @@ __all__ = [
     "MedicationOrder",
     "MedicationDose",
     "BedCharge",
+    "Duty",
+    "DutySlot",
+    "DutyRate",
+    "DUTY_STATUSES",
+    "DUTY_PAYABLE",
+    "PanelAlertRule",
+    "ChartReview",
+    "DosePrep",
+    "HighAlertDrug",
+    "LasaPair",
+    "MedicationError",
+    "ERROR_STAGES",
+    "ERROR_OUTCOMES",
+    "OUTCOME_BANDS",
     "Theatre",
     "Operation",
     "SafetyCheck",

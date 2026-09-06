@@ -62,6 +62,10 @@ def apply_coverage(invoice, patient, warn=None, then=None):
     services are left untouched (patient pays full — option ب). An expired card
     is not applied automatically; the caller is warned instead.
 
+    **The doctor's share is read off the price, not off what the family is
+    left to pay** — see the comment where it is written. Cover is a discount
+    only in the arithmetic; it is not a cheaper consultation.
+
     ``warn`` is called with a translation key when there is something a person
     ought to be told; ``then`` is called with ``(invoice, patient)`` once the
     coverage is settled, and is where the screen applies its named discounts.
@@ -106,8 +110,26 @@ def apply_coverage(invoice, patient, warn=None, then=None):
             item.discount_value = covered
             item.discount_is_percent = False
             if item.service is not None:
+                # **On the price of the line, not on what is left for the
+                # family to pay.**
+                #
+                # Cover is stored as a discount, which is how the claimable
+                # amount is worked out and is fine as far as the money goes.
+                # It is not a discount in any other sense: an insurer paying
+                # for a consultation does not make the consultation cheaper,
+                # it changes who hands over the money. Reading the share off
+                # what was left after cover meant a doctor who saw a fully
+                # insured child earned **nothing at all** for seeing them —
+                # 200 billed to the insurer, zero to the person who did the
+                # work — while the clinic claimed the whole of it.
+                #
+                # ``gross`` is the right base and not ``net``: cover is the
+                # only thing on this line (a line already carrying a manual
+                # discount is skipped above), and the tariff has already been
+                # written onto ``unit_price``, so ``gross`` is exactly the
+                # contract price of the work.
                 item.commission_amount = item.service.doctor_share(
-                    item.net, invoice.doctor)
+                    item.gross, item.doctor or invoice.doctor)
 
     # A club whose agreement is "members pay 15% less" carries no price list,
     # so nothing above touched the invoice — its member discount lands there.

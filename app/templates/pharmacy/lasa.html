@@ -1,0 +1,76 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('lasa.title') }}{% endblock %}
+{% block page_heading %}{{ t('lasa.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-arrow-left-right"></i> {{ t('lasa.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('lasa.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}">
+    <i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</a>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('lasa.why') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;min-width:200px;">
+      <label for="generic_a_id">{{ t('lasa.first') }}</label>
+      <select class="select" id="generic_a_id" name="generic_a_id">
+        {% for one in generics %}
+        <option value="{{ one.id }}">{{ one.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:200px;">
+      <label for="generic_b_id">{{ t('lasa.second') }}</label>
+      <select class="select" id="generic_b_id" name="generic_b_id">
+        {% for one in generics %}
+        <option value="{{ one.id }}">{{ one.display_name(current_lang) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:200px;">
+      <label for="precaution">{{ t('lasa.precaution') }}</label>
+      <input class="input" id="precaution" name="precaution" maxlength="255"
+             placeholder="{{ t('lasa.precaution_ph') }}">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
+  </form>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;" data-empty>{{ t('lasa.none') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+              padding:10px 0;border-top:1px dashed var(--line);"
+       data-lasa="{{ row.id }}">
+    <div style="min-width:220px;flex:1;">
+      <b>{{ row.generic_a.display_name(current_lang) }}</b>
+      <i class="bi bi-arrow-left-right"></i>
+      <b>{{ row.generic_b.display_name(current_lang) }}</b>
+      {% if not row.is_active %}
+      <span class="badge badge--muted">{{ t('halert.off') }}</span>{% endif %}
+      {% if row.precaution %}<div class="hint">{{ row.precaution }}</div>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('pharmacy.toggle_lasa', row_id=row.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-outline gc-press" type="submit">
+        {{ t('halert.turn_on') if not row.is_active else t('halert.turn_off') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

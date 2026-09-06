@@ -1,0 +1,197 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ admission.patient.display_name(current_lang) }}{% endblock %}
+{% block page_heading %}{{ t('cpharm.title') }}{% endblock %}
+
+{% block content %}
+<style>
+  .cp-order { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+              margin-bottom:10px; }
+  .cp-order.flagged { border-inline-start:5px solid var(--danger); }
+  .cp-order.asked   { border-inline-start:5px solid #d97706; }
+  .cp-drug { font-weight:600; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-pulse"></i>
+      {{ admission.patient.display_name(current_lang) }}</h1>
+    <p class="page-sub" style="margin:0;">
+      {% if admission.bed %}{{ admission.bed.unit.name }} · {{ admission.bed.name }} · {% endif %}
+      {% if safety and safety.weight %}<span dir="ltr">{{ safety.weight }} kg</span>{% endif %}
+      {% if safety and safety.age_months %} · <span dir="ltr">{{ safety.age_months }}m</span>{% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('beds.admission', admission_id=admission.id) }}">
+      <i class="bi bi-hospital"></i> {{ t('theatre.the_stay') }}</a>
+    {# The question every transition asks, and the one a discharge could not
+       answer: what did they come in on, and what are they going home with. #}
+    <a class="btn btn-outline gc-press"
+       href="{{ url_for('pharmacy.discharge_meds', admission_id=admission.id) }}">
+      <i class="bi bi-arrow-left-right"></i> {{ t('recon.title') }}</a>
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}">
+      <i class="bi bi-list-ul"></i> {{ t('cpharm.the_board') }}</a>
+  </div>
+</div>
+
+{% if safety and safety.interactions %}
+{# The clinic's own interaction rules, unchanged — the same ones the doctor
+   who wrote this and the nurse who gives it are shown. A third rulebook here
+   would defeat the point of a third pair of eyes. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <div class="alert-pill danger" data-interaction>
+    <i class="bi bi-exclamation-octagon"></i> {{ t('meds.interactions') }}:
+    {% for pair in safety.interactions %}
+    {{ pair.generic_a.display_name(current_lang) }} +
+    {{ pair.generic_b.display_name(current_lang) }}{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if not orders %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('cpharm.no_drugs') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  {% for order in orders %}
+  {% set look = (safety.lines[loop.index0] if safety and safety.lines and loop.index0 < safety.lines|length else None) %}
+  {% set flagged = look and ((look.allergy and look.allergy.hit) or look.warnings) %}
+  <div class="cp-order {{ 'asked' if order.queried_at and not order.answered_at else ('flagged' if flagged else '') }}"
+       data-order="{{ order.id }}">
+    {% set alert = high_alert.get(order.id) %}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;">
+      <span class="cp-drug">{{ order.drug_name }}</span>
+      {% if alert %}
+      <span class="alert-pill danger" data-high-alert>
+        <i class="bi bi-exclamation-diamond"></i> {{ t('halert.flag') }}</span>
+      {% endif %}
+      {% if order.dose %}<span class="hint">{{ order.dose }}</span>{% endif %}
+      {% if order.every_hours %}<span class="hint" dir="ltr">q{{ order.every_hours }}h</span>{% endif %}
+      {% if order.route %}<span class="badge badge--muted">{{ t('meds.route_' ~ order.route) }}</span>{% endif %}
+    </div>
+
+    {% if look %}
+    {% if look.allergy and look.allergy.hit %}
+    <div class="alert-pill danger" style="margin-top:8px;" data-allergy>
+      <i class="bi bi-exclamation-triangle"></i>
+      {{ t('meds.allergy_to', name=order.drug_name) }}</div>
+    {% endif %}
+    {% for code in look.warnings %}
+    <div class="alert-pill warn" style="margin-top:8px;" data-dose-warning>
+      <i class="bi bi-exclamation-triangle"></i> {{ t('drugbook.warn_' ~ code) }}</div>
+    {% endfor %}
+    {% endif %}
+
+    {% if alert %}
+    {# The reason and the precaution, not just a red badge: "insulin" on a
+       list with nothing beside it tells a night nurse nothing, while what to
+       do about it tells them everything. #}
+    <div class="alert-pill danger" style="margin-top:8px;" data-alert-reason>
+      <i class="bi bi-exclamation-diamond"></i> {{ alert.reason }}
+      {% if alert.precaution %} — <b>{{ alert.precaution }}</b>{% endif %}
+    </div>
+    {% endif %}
+
+    {% for pair, other in (confusable.get(order.id) or []) %}
+    {# Two names this hospital keeps mixing up, shown where one of them is
+       about to be handed over. #}
+    <div class="alert-pill warn" style="margin-top:8px;" data-lasa>
+      <i class="bi bi-arrow-left-right"></i>
+      {{ t('lasa.flag') }}: <b>{{ other.display_name(current_lang) }}</b>
+      {% if pair.precaution %} — {{ pair.precaution }}{% endif %}
+    </div>
+    {% endfor %}
+
+    {% if order.queried_at %}
+    <div class="alert-pill {{ 'ok' if order.answered_at else 'warn' }}"
+         style="margin-top:8px;" data-query>
+      <i class="bi bi-question-circle"></i> {{ order.query_note }}
+      {% if order.querier %}<span class="hint">{{ order.querier.display_name(current_lang) }}</span>{% endif %}
+      {% if order.answered_at %}
+      {# The question stays after it is answered: what was asked and what came
+         back is the record. Clearing it would leave a changed dose with
+         nothing saying why. #}
+      <span data-answer>← {{ order.answer_note or t('cpharm.answered_no_note') }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;">
+      {% if order.verified_at %}
+      <span class="alert-pill ok" data-verified>
+        <i class="bi bi-check2-circle"></i> {{ t('cpharm.verified') }}
+        {% if order.verifier %} · {{ order.verifier.display_name(current_lang) }}{% endif %}</span>
+      {% else %}
+      <form method="post" action="{{ url_for('pharmacy.verify', order_id=order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline gc-press" type="submit" data-verify>
+          <i class="bi bi-eye"></i> {{ t('cpharm.verify') }}</button>
+      </form>
+      {% endif %}
+
+      <form method="post" style="display:flex;gap:8px;align-items:end;flex:1;min-width:250px;"
+            action="{{ url_for('pharmacy.ask', order_id=order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row" style="margin-bottom:0;flex:1;">
+          <label for="q_{{ order.id }}">{{ t('cpharm.ask_the_doctor') }}</label>
+          <input class="input" id="q_{{ order.id }}" name="note" maxlength="255">
+        </div>
+        <button class="btn btn-outline gc-press" type="submit">
+          <i class="bi bi-question-circle"></i> {{ t('pharm.ask') }}</button>
+      </form>
+
+      {% if order.queried_at and not order.answered_at %}
+      {# The reply is the doctor's and it is made on the stay screen, where
+         they already are — this module is not theirs to open. What belongs
+         here is knowing the question is still out. #}
+      <p class="hint" style="margin:0;" data-waiting-answer>
+        {{ t('cpharm.waiting_answer') }}</p>
+      {% endif %}
+    </div>
+
+    {# The drug goes on being given while a question is open. Said out loud,
+       because a warning that looked like a stop would have a nurse holding a
+       dose while somebody looks for the doctor. #}
+    {% if order.queried_at and not order.answered_at %}
+    <p class="hint" style="margin:8px 0 0;" data-still-given>{{ t('cpharm.still_given') }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ---- the review itself ------------------------------------------------- #}
+<div class="card gc-scale-in">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-check2-square"></i> {{ t('cpharm.record_review') }}</h2>
+  <p class="hint">{{ t('cpharm.record_hint') }}</p>
+  <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"
+        action="{{ url_for('pharmacy.reviewed', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:240px;">
+      <label for="review_note">{{ t('cpharm.what_you_found') }}</label>
+      <input class="input" id="review_note" name="note" maxlength="255">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-check2"></i> {{ t('cpharm.mark_reviewed') }}</button>
+  </form>
+
+  {% if reviews %}
+  <ul style="margin:12px 0 0;padding-inline-start:18px;" data-reviews>
+    {% for row in reviews[:8] %}
+    <li>
+      <span dir="ltr">{{ row.at|clinic_stamp }}</span>
+      {% if row.by %} · {{ row.by.display_name(current_lang) }}{% endif %}
+      {% if row.drugs_seen is not none %}
+      · <span class="hint">{{ t('cpharm.n_drugs', n=row.drugs_seen) }}</span>{% endif %}
+      {% if row.note %} — {{ row.note }}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

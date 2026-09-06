@@ -1,0 +1,95 @@
+{% extends "shell.html" %}
+{% set active_module = 'panels' %}
+{% block title %}{{ t('panel_alerts.title') }}{% endblock %}
+{% block page_heading %}{{ t('panel_alerts.title') }}{% endblock %}
+
+{% block content %}
+<style>
+  .pa-panel { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+              margin-bottom:12px; }
+  .pa-alert { display:flex; gap:10px; flex-wrap:wrap; align-items:end;
+              padding:10px 0; border-top:1px dashed var(--line); }
+  .pa-alert.armed { border-inline-start:4px solid var(--green-600);
+                    padding-inline-start:10px; }
+  .pa-what { min-width:220px; flex:1; }
+</style>
+
+<div class="gc-animate" style="margin-bottom:16px;">
+  <h1 class="page-title"><i class="bi bi-bell"></i> {{ t('panel_alerts.title') }}</h1>
+  <p class="page-sub" style="margin:0;">{{ t('panel_alerts.sub') }}</p>
+</div>
+
+{# The rule this whole screen exists to keep, said once at the top: the
+   program says what to look at, the clinic says when to worry, and neither
+   half is any use without the other. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('panel_alerts.why') }}</p>
+</div>
+
+{% if not rows %}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('panel_alerts.none') }}</p>
+</div>
+{% else %}
+{% for row in rows %}
+<div class="card gc-scale-in pa-panel" data-panel="{{ row.key }}">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-{{ row.meta.icon or 'clipboard-data' }}"></i>
+    {{ row.meta.name_ar if current_lang == 'ar' else row.meta.name_en }}</h2>
+
+  {% for item in row.alerts %}
+  {% set alert = item.alert %}
+  {% set rule = item.rule %}
+  <form method="post" action="{{ url_for('panels.set_alert') }}"
+        class="pa-alert {{ 'armed' if rule and rule.is_armed else '' }}"
+        data-alert="{{ alert.code }}"
+        data-armed="{{ '1' if rule and rule.is_armed else '0' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="panel_key" value="{{ row.key }}">
+    <input type="hidden" name="alert_code" value="{{ alert.code }}">
+    <div class="pa-what">
+      <div>{{ alert.label_ar }}</div>
+      {# What the program will actually look at. Said out loud so nobody has
+         to guess which reading a number is being compared against. #}
+      <div class="hint" data-watches>
+        {{ t('panel_alerts.watch_' ~ alert.watches.source) }}
+        {% if alert.watches.of %}<code dir="ltr">{{ alert.watches.of }}</code>{% endif %}
+        · {{ t('panel_alerts.when_' ~ alert.watches.when) }}
+      </div>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:130px;">
+      <label for="th_{{ row.key }}_{{ alert.code }}">
+        {{ t('panel_alerts.unit_' ~ alert.watches.when) }}</label>
+      <input class="input" dir="ltr" id="th_{{ row.key }}_{{ alert.code }}"
+             name="threshold" value="{{ rule.threshold if rule and rule.threshold is not none else '' }}"
+             placeholder="{{ t('panel_alerts.no_number') }}">
+    </div>
+    <label class="hint" style="min-width:90px;">
+      <input type="checkbox" name="is_active" value="1"
+             {{ 'checked' if not rule or rule.is_active else '' }}>
+      {{ t('panel_alerts.on') }}</label>
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:160px;">
+      <label for="note_{{ row.key }}_{{ alert.code }}">{{ t('common.notes') }}</label>
+      <input class="input" id="note_{{ row.key }}_{{ alert.code }}" name="note"
+             maxlength="160" value="{{ rule.note or '' if rule else '' }}">
+    </div>
+    <button class="btn btn-sm btn-outline gc-press" type="submit">
+      {{ t('common.save') }}</button>
+  </form>
+  {% endfor %}
+
+  {% if row.waiting %}
+  {# The rest of this specialty's alerts, and what each is waiting on. A clinic
+     filling in four numbers has to be told the other nine are not a setting
+     they are missing — otherwise the screen reads as incomplete for ever. #}
+  <p class="hint" style="margin-top:10px;" data-waiting>
+    {{ t('panel_alerts.still_waiting') }}
+    {% for need, count in row.waiting.items() %}
+    <span class="badge badge--muted">{{ count }} · {{ t('panel_alerts.need_' ~ need) }}</span>
+    {% endfor %}
+  </p>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

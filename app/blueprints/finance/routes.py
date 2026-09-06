@@ -4192,7 +4192,19 @@ def statements():
     doctor = db.session.get(User, doctor_id) if doctor_id else None
     invoices, totals = [], None
     if doctor is not None:
-        q = Invoice.query.filter(Invoice.doctor_id == doctor.id)
+        # Every invoice carrying a line that is **this doctor's**, which is no
+        # longer the same set as "invoices with this doctor on them": a stay is
+        # billed to the admitting doctor and carries the surgeon's operation
+        # and the visiting consultant's round. Asking the invoice would have
+        # left the surgeon's work off the surgeon's statement and put it on
+        # somebody else's.
+        from app.models import InvoiceItem
+
+        q = (Invoice.query
+             .filter(Invoice.id.in_(
+                 db.session.query(InvoiceItem.invoice_id)
+                 .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
+                 .filter(InvoiceItem.earned_by(doctor.id)))))
         if date_from:
             q = q.filter(Invoice.invoice_date >= date_from)
         if date_to:
@@ -4200,12 +4212,16 @@ def statements():
         if paid_only:
             q = q.filter(Invoice.status == "paid")
         invoices = q.order_by(Invoice.invoice_date, Invoice.id).all()
+        # And the figures are their part of each bill, not the whole bill.
+        billed = round(sum(i.net_for(doctor.id) for i in invoices), 2)
+        share = round(sum(i.share_for(doctor.id) for i in invoices), 2)
         totals = {
             "count": len(invoices),
-            "billed": round(sum(i.total for i in invoices), 2),
-            "collected": round(sum(i.paid for i in invoices), 2),
-            "doctor_share": round(sum(i.doctor_share_total for i in invoices), 2),
-            "clinic_share": round(sum(i.clinic_share_total for i in invoices), 2),
+            "billed": billed,
+            "collected": round(sum(i.collected_for(doctor.id)
+                                   for i in invoices), 2),
+            "doctor_share": share,
+            "clinic_share": round(billed - share, 2),
         }
 
     # Imported history, on its own line and never added into the totals above.

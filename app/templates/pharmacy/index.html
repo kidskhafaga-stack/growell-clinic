@@ -26,6 +26,13 @@
     <span class="badge badge--muted">{{ t('pharm.n_waiting', n=rows|length) }}</span>
     {# How far back the counter looks. A prescription from March is not
        waiting here; it was filled somewhere else or never filled. #}
+    {# The other half of the profession. Drawn only where there are beds: a
+       clinic with no inpatients has no charts to review, and a dead link is
+       worse than no link. #}
+    {% if module_enabled('beds') %}
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</a>
+    {% endif %}
     <form method="get" style="display:flex;gap:6px;align-items:center;">
       <label class="hint" for="days">{{ t('pharm.last_days') }}</label>
       <input class="input" type="number" id="days" name="days" min="1" max="30"

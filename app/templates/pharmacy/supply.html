@@ -1,0 +1,104 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('cpharm.supply') }}{% endblock %}
+{% block page_heading %}{{ t('cpharm.supply') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* One bag per child, the drugs inside it. Grouped by child and not by drug
+     because that is how a unit-dose bag is filled and checked: one label, one
+     patient, everything they are on. */
+  .sp-child { border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+              margin-bottom:10px; }
+  .sp-head { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline;
+             margin-bottom:8px; }
+  .sp-line { display:flex; gap:10px; flex-wrap:wrap; align-items:end;
+             padding:8px 0; border-top:1px dashed var(--line); }
+  .sp-what { min-width:200px; flex:1; }
+  .sp-drug { font-weight:600; }
+  .sp-count { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-bag-plus"></i> {{ t('cpharm.supply') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('cpharm.supply_sub') }}</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span class="badge badge--muted" data-children>{{ t('cpharm.n_children', n=counts.children) }}</span>
+    <span class="badge badge--muted" data-drugs>{{ t('cpharm.n_to_make', n=counts.drugs) }}</span>
+    <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.ward') }}">
+      <i class="bi bi-clipboard2-pulse"></i> {{ t('cpharm.title') }}</a>
+  </div>
+</div>
+
+{% if not rows %}
+{# "Everything is made up" is a real and good answer — this list is the work
+   remaining, so an empty one is the end of the round rather than a fault. #}
+<div class="card gc-scale-in">
+  <p class="hint" style="margin:0;">{{ t('cpharm.all_made_up') }}</p>
+</div>
+{% else %}
+<div class="card gc-scale-in">
+  {% for row in rows %}
+  <div class="sp-child" data-stay="{{ row.admission.id }}">
+    <div class="sp-head">
+      <span class="sp-drug">
+        <a href="{{ url_for('pharmacy.chart', admission_id=row.admission.id) }}">
+          {{ row.patient.display_name(current_lang) }}</a></span>
+      {% if row.bed %}
+      <span class="hint">{{ row.bed.unit.name }} · {{ row.bed.name }}</span>{% endif %}
+      <span class="badge badge--muted">{{ t('cpharm.n_to_make', n=row.left) }}</span>
+    </div>
+
+    {% for line in row.lines %}
+    {% set order = line.order %}
+    <div class="sp-line" data-order="{{ order.id }}"
+         data-prepared="{{ '1' if line.prep else '0' }}">
+      <div class="sp-what">
+        <span class="sp-drug">{{ order.drug_name }}</span>
+        {% if order.dose %}<span class="hint">{{ order.dose }}</span>{% endif %}
+        {% if order.route %}
+        <span class="badge badge--muted">{{ t('meds.route_' ~ order.route) }}</span>{% endif %}
+        <div class="hint">
+          {% if line.doses %}
+          {# The count is arithmetic on the doctor's own order — six-hourly for
+             a day is four — and never a judgement about what a child needs. #}
+          <span class="sp-count" dir="ltr" data-count>{{ t('cpharm.n_doses_today', n=line.doses) }}</span>
+          {% if line.units and line.units != line.doses %}
+          · <span class="sp-count" dir="ltr">{{ t('cpharm.n_units', n=line.units) }}</span>{% endif %}
+          {% else %}
+          {# PRN: no hour it is owed at, so no number of them in a day. The
+             program does not pretend to know how many to send up. #}
+          <span data-prn>{{ t('cpharm.prn_by_agreement') }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if line.prep %}
+      <span class="alert-pill ok" data-done>
+        <i class="bi bi-check2-circle"></i> {{ line.prep.prepared_at|clinic_time }}
+        {% if line.prep.by %} · {{ line.prep.by.display_name(current_lang) }}{% endif %}</span>
+      {% else %}
+      <form method="post" style="display:flex;gap:8px;align-items:end;"
+            action="{{ url_for('pharmacy.prepare', order_id=order.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row" style="margin-bottom:0;min-width:170px;">
+          {# The only place a clinic's own mixing instruction ever appears.
+             This program never composes one — it does not choose a diluent, a
+             volume or an infusion time, and it never will. #}
+          <label for="lb_{{ order.id }}">{{ t('cpharm.label') }}</label>
+          <input class="input" id="lb_{{ order.id }}" name="label" maxlength="255"
+                 placeholder="{{ t('cpharm.label_ph') }}">
+        </div>
+        <button class="btn btn-primary gc-press" type="submit">
+          <i class="bi bi-bag-check"></i> {{ t('cpharm.make_up') }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

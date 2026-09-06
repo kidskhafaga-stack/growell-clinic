@@ -166,6 +166,38 @@ class Invoice(db.Model):
     def clinic_share_total(self):
         return round(self.total - self.doctor_share_total, 2)
 
+    # --- one doctor's part of a bill several doctors worked on --------------
+    #
+    # An invoice used to belong to one doctor and these three questions had
+    # one answer each. A stay does not: the bill carries the ward's daily
+    # charge, the surgeon's operation and a visiting consultant's round, and a
+    # statement that showed each of them the whole invoice would show three
+    # people the same money.
+
+    def net_for(self, doctor_id):
+        """What this doctor's own lines on the bill came to."""
+        return round(sum(i.net for i in self.items
+                         if i.earner_id == doctor_id), 2)
+
+    def share_for(self, doctor_id):
+        """This doctor's cut of the bill — their lines only."""
+        return round(sum(i.commission_amount or 0 for i in self.items
+                         if i.earner_id == doctor_id), 2)
+
+    def collected_for(self, doctor_id):
+        """Their proportional part of what has actually been collected.
+
+        Money is paid against an invoice, never against a line, so there is no
+        record of which doctor's work the cash in the drawer settled. Split it
+        in proportion — the same rule ``refunds.doctor_share_of`` already uses
+        going the other way, and one rule read in both directions is the only
+        way a refund cannot take back more than a payment brought in.
+        """
+        total = round(self.total or 0, 2)
+        if total <= 0:
+            return 0.0
+        return round((self.paid or 0) * self.net_for(doctor_id) / total, 2)
+
     @property
     def no_charge(self):
         """Settled because there was nothing to charge, not because money came.
@@ -316,6 +348,32 @@ class InvoiceItem(db.Model):
     @property
     def net(self):
         return round(self.gross - self.discount_amount, 2)
+
+    @property
+    def earner_id(self):
+        """**Whose money this line is** — and the only place that is decided.
+
+        ``doctor_id`` on the line, and the invoice's doctor when the line does
+        not name one. Every screen that asks "what has this doctor earned"
+        must ask it here: the answer used to be read straight off the invoice,
+        which paid the surgeon at the admitting doctor's rate and paid the
+        round to whoever the bill happened to belong to. Two readings of one
+        question is how a doctor's statement and the doctor's own screen come
+        to disagree about their pay.
+        """
+        if self.doctor_id:
+            return self.doctor_id
+        return self.invoice.doctor_id if self.invoice is not None else None
+
+    @classmethod
+    def earned_by(cls, doctor_id):
+        """The same question as SQL, for queries that must not load the rows.
+
+        Returns a filter expression, so **the query it goes into has to join
+        ``Invoice``** — the fallback is a column on the invoice and there is no
+        honest way to answer without it.
+        """
+        return db.func.coalesce(cls.doctor_id, Invoice.doctor_id) == doctor_id
 
     def __repr__(self):
         return f"<InvoiceItem {self.description}>"

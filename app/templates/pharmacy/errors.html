@@ -1,0 +1,115 @@
+{% extends "shell.html" %}
+{% set active_module = 'pharmacy' %}
+{% block title %}{{ t('mederr.title') }}{% endblock %}
+{% block page_heading %}{{ t('mederr.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate" style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <div>
+    <h1 class="page-title"><i class="bi bi-clipboard2-x"></i> {{ t('mederr.title') }}</h1>
+    <p class="page-sub" style="margin:0;">{{ t('mederr.sub') }}</p>
+  </div>
+  <a class="btn btn-outline gc-press" href="{{ url_for('pharmacy.high_alert') }}">
+    <i class="bi bi-exclamation-diamond"></i> {{ t('halert.title') }}</a>
+</div>
+
+{# Why there is no field for who made the mistake. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <p class="hint" style="margin:0;">{{ t('mederr.no_blame') }}</p>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-pencil"></i> {{ t('mederr.report') }}</h2>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label for="what_happened">{{ t('mederr.what') }}</label>
+      <textarea class="input" id="what_happened" name="what_happened" rows="3"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin-bottom:0;min-width:170px;">
+        <label for="stage">{{ t('mederr.stage') }}</label>
+        <select class="select" id="stage" name="stage">
+          {% for one in stages %}
+          <option value="{{ one }}">{{ t('mederr.stage_' ~ one) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:200px;">
+        {# NCC MERP's letters, because a hospital comparing its own quarters
+           needs the same buckets everybody else uses. #}
+        <label for="outcome">{{ t('mederr.outcome') }}</label>
+        <select class="select" id="outcome" name="outcome">
+          {% for one in outcomes %}
+          <option value="{{ one }}">{{ one }} — {{ t('mederr.out_' ~ one) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;min-width:180px;">
+        <label for="drug_name">{{ t('mederr.drug') }}</label>
+        <input class="input" id="drug_name" name="drug_name" maxlength="200">
+      </div>
+      <label class="hint" style="min-width:150px;">
+        <input type="checkbox" name="reached" value="1"> {{ t('mederr.reached') }}</label>
+    </div>
+    <div class="form-row" style="margin-top:10px;">
+      <label for="action_taken">{{ t('mederr.action') }}</label>
+      <input class="input" id="action_taken" name="action_taken" maxlength="255">
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-save"></i> {{ t('mederr.save') }}</button>
+  </form>
+</div>
+
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-summary>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-bar-chart"></i> {{ t('mederr.last_n_days', n=days) }}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <span class="badge badge--muted">{{ t('mederr.n_total', n=summary.total) }}</span>
+    {# The near misses are the valuable half: an error caught at the counter
+       harmed nobody and is the cheapest possible lesson. #}
+    <span class="alert-pill ok" data-near>
+      {{ t('mederr.n_near', n=summary.near_misses) }}</span>
+    {% for band, count in summary.bands.items() %}
+    <span class="badge badge--muted" data-band="{{ band }}">
+      {{ t('mederr.band_' ~ band) }}: {{ count }}</span>
+    {% endfor %}
+  </div>
+
+  {% if summary.drugs %}
+  {# The column a pharmacy reads when it sits down to revise its high-alert
+     list, which is what this whole screen is for. #}
+  <p class="hint" style="margin:12px 0 4px;">{{ t('mederr.most_reported') }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;" data-drugs>
+    {% for name, count in summary.drugs %}
+    <span class="badge badge--muted">{{ name }} · {{ count }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% if summary.rows %}
+<div class="card gc-scale-in">
+  {% for row in summary.rows[:40] %}
+  <div style="padding:10px 0;border-top:1px dashed var(--line);" data-report="{{ row.id }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;">
+      <span class="badge badge--muted">{{ t('mederr.stage_' ~ row.stage) }}</span>
+      <span class="badge badge--muted">{{ row.outcome }}</span>
+      {% if row.is_near_miss %}
+      <span class="alert-pill ok">{{ t('mederr.near_miss') }}</span>
+      {% else %}
+      <span class="alert-pill warn">{{ t('mederr.reached_short') }}</span>
+      {% endif %}
+      {% if row.drug_name %}<b>{{ row.drug_name }}</b>{% endif %}
+      <span class="hint" dir="ltr">{{ row.happened_at|clinic_stamp }}</span>
+    </div>
+    <div>{{ row.what_happened }}</div>
+    {% if row.action_taken %}
+    <div class="hint"><i class="bi bi-arrow-return-right"></i> {{ row.action_taken }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

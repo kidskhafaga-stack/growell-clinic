@@ -119,27 +119,36 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
     doctor's cut is a fee on the brand recorded against the dose, not a
     commission on an invoice line, and folding it into the services would make
     a total nobody could trace back.
+
+    **And the lines are gathered by whose they are, not whose invoice they sit
+    on** (``InvoiceItem.earner_id``). A stay's bill belongs to the admitting
+    doctor and carries the surgeon's operation and the visiting consultant's
+    round on it; asking the invoice would have paid all three at one rate and
+    put all three on one statement.
     """
-    from app.models import Invoice, PatientVaccine
+    from app.models import Invoice, InvoiceItem, PatientVaccine
 
-    invoices = (Invoice.query
-                .filter(Invoice.doctor_id == doctor_id,
-                        Invoice.invoice_date >= date_from,
-                        Invoice.invoice_date <= date_to).all())
+    lines_q = (InvoiceItem.query
+               .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
+               .filter(InvoiceItem.earned_by(doctor_id),
+                       Invoice.invoice_date >= date_from,
+                       Invoice.invoice_date <= date_to))
 
-    groups = {}
-    for invoice in invoices:
-        for line in invoice.items:
-            key = line.service_id or 0
-            row = groups.get(key)
-            if row is None:
-                label = (line.service.display_name(lang) if line.service
-                         else (line.description or "—"))
-                row = groups[key] = {"label": label, "count": 0,
-                                     "gross": 0.0, "share": 0.0}
-            row["count"] += line.quantity or 1
-            row["gross"] += line.net
-            row["share"] += line.commission_amount or 0
+    groups, invoices, seen = {}, [], set()
+    for line in lines_q.order_by(Invoice.invoice_date, Invoice.id).all():
+        if line.invoice_id not in seen:
+            seen.add(line.invoice_id)
+            invoices.append(line.invoice)
+        key = line.service_id or 0
+        row = groups.get(key)
+        if row is None:
+            label = (line.service.display_name(lang) if line.service
+                     else (line.description or "—"))
+            row = groups[key] = {"label": label, "count": 0,
+                                 "gross": 0.0, "share": 0.0}
+        row["count"] += line.quantity or 1
+        row["gross"] += line.net
+        row["share"] += line.commission_amount or 0
 
     rows = sorted(({"label": r["label"], "count": r["count"],
                     "gross": round(r["gross"], 2),
@@ -163,9 +172,51 @@ def by_service(doctor_id, date_from, date_to, lang="ar"):
             "share": vaccine_share,
         })
 
-    share = round(sum(i.doctor_share_total for i in invoices) + vaccine_share, 2)
+    # Their own lines, not the whole of every bill they appear on.
+    # Cover is its own row for the reason the vaccines are: it is money of a
+    # different shape — no invoice, no patient — and folding it into the
+    # services would make a total nobody could trace back.
+    duty_rows = _duty_rows(doctor_id, date_from, date_to)
+    rows.extend(duty_rows)
+    duty_share = round(sum(r["share"] for r in duty_rows), 2)
+
+    share = round(sum(i.share_for(doctor_id) for i in invoices)
+                  + vaccine_share + duty_share, 2)
     return rows, share, invoices
 
+
+
+def _duty_earned(doctor_id, date_from=None, date_to=None):
+    """What cover has earned them — nothing at all when the rota is off.
+
+    **Off means absent, not zero-by-accident.** Every module-owned question
+    asked from a screen every clinic opens goes through ``module_enabled``
+    first, so a clinic that does not roster never pays a query for a table it
+    has no rows in.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("duty"):
+        return 0.0
+    from app.utils import duty
+
+    return duty.earned(doctor_id, date_from, date_to)
+
+
+def _duty_rows(doctor_id, date_from, date_to):
+    """Their cover in the window, grouped by shift. Empty when the rota is off."""
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("duty"):
+        return []
+    from app.utils import duty
+
+    return [{"label": row["label"], "count": row["count"],
+             # A shift has no price to a patient, so there is no gross to
+             # show. Zero and not the share repeated: a column headed "billed"
+             # carrying the doctor's own pay is a number that reads as revenue.
+             "gross": 0.0, "share": row["share"]}
+            for row in duty.by_slot(doctor_id, date_from, date_to)]
 
 
 def _refunded_share(doctor_id, date_from=None, date_to=None):
@@ -200,7 +251,7 @@ def earned_ever(doctor_id):
 
     lines = (db.session.query(db.func.sum(InvoiceItem.commission_amount))
              .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
-             .filter(Invoice.doctor_id == doctor_id).scalar()) or 0
+             .filter(InvoiceItem.earned_by(doctor_id)).scalar()) or 0
     # And the money that went back out takes its share with it. Without this,
     # a clinic that refunded a visit still owed the doctor their cut of money
     # it no longer had: `commission_amount` is the snapshot written when the
@@ -211,7 +262,11 @@ def earned_ever(doctor_id):
              .filter(PatientVaccine.doctor_id == doctor_id,
                      PatientVaccine.event_type == "given",
                      PatientVaccine.given_outside.is_(False)).scalar()) or 0
-    return round(lines + doses, 2)
+    # And the nights they covered. A third shape of money, and the only one
+    # with no patient behind it: a shift is owed by the clinic, not paid out
+    # of somebody's bill. Leaving it out here would have shown a resident a
+    # balance of zero on a month they worked eleven nights.
+    return round(lines + doses + _duty_earned(doctor_id), 2)
 
 
 def account(doctor_id):

@@ -272,6 +272,48 @@ SECTIONS = [
              "readings recorded under it stay in the file and on their "
              "visits, untouched \u2014 the setting says what to ask next, it "
              "does not edit finished visits."),
+            ("<b>التنبيهات، والرقم رقمك انت.</b> الاستبيان سأل كل تخصص "
+             "«البرنامج ينبّهك إمتى؟» وردّ بمية وتلات تنبيهات. اللي منهم حد "
+             "رقمي — السكر التراكمي فوق كذا، الأكسجين تحت كذا — الاستبيان "
+             "نفسه رفض يدّي رقم («لا يوجد رقم موحّد»)، والبرنامج ما "
+             "بيخترعش رقم إكلينيكي. فالتنبيهات دي كانت معلنة ومش شغالة "
+             "<b>ومكانش فيه مكان أصلاً تكتب فيه رقمك</b> — ميزة متعملة "
+             "ومفيش باب ليها.",
+             "<b>The alerts, and the number is yours.</b> The survey asked "
+             "each specialty when the program should warn them and got a "
+             "hundred and three alerts back. The ones that are a threshold "
+             "\u2014 HbA1c above, saturation below \u2014 the survey itself "
+             "refused to supply a figure for (\u201cthere is no single "
+             "number\u201d), and this program does not invent clinical "
+             "numbers. So they were declared and dormant, <b>and there was "
+             "nowhere to write your own figure</b>: a feature built with no "
+             "door to it."),
+            ("<b>البرنامج بيقول بيبص على إيه، والعيادة بتقول إمتى تقلق.</b> "
+             "الكتالوج بيقول التنبيه ده بيقرا تحليل بكوده، ولا علامة حيوية، "
+             "ولا قراءة من القالب، ولا عمر الطفل، ولا طلب فحص ماجاش عليه رد — "
+             "ومفيش رقم واحد في الكتالوج كله. الرقم بيتكتب من «أرقام تنبيهات "
+             "التخصصات»، وهو صف في قاعدة بيانات العيادة، فالتحديث عمره ما "
+             "بيلمسه.",
+             "<b>The program says what it looks at; the clinic says when to "
+             "worry.</b> The catalogue names a lab test by its code, a vital "
+             "sign, a reading the panel takes, the child\u2019s age, or an "
+             "order that never came back \u2014 and carries no number "
+             "anywhere. The figure is written on the specialty-alerts screen "
+             "and lives as a row in the clinic\u2019s own database, which an "
+             "update never touches."),
+            ("<b>خانة فاضية = التنبيه مش شغال، زي ما كان بالظبط.</b> ونسخة "
+             "جديدة مفيهاش ولا رقم، فما بتشتغلش ولا تنبيه من دول. والشاشة "
+             "بتقول كمان اللي مستني على حاجة تانية — مقارنة بين زيارتين، أو "
+             "قاعدة معرفة أدوية، أو حاجة الطبيب بس اللي بيلاحظها — عشان "
+             "العيادة اللي ملّت أربع أرقام تعرف إن الباقي مش إعداد ناقص "
+             "عليها.",
+             "<b>An empty box means the alert is dormant, exactly as it "
+             "was.</b> A fresh install has no numbers and therefore none of "
+             "these alerts. The screen also says which of the rest are "
+             "waiting on something else \u2014 a comparison between two "
+             "visits, a drug knowledge base, or something only a person can "
+             "notice \u2014 so a clinic that filled in four numbers is not "
+             "left thinking the others are a setting they missed."),
         ],
     },
     {
@@ -997,6 +1039,198 @@ SECTIONS = [
              "carries no service and therefore no doctor commission \u2014 "
              "nobody\u2019s percentage rides on a box being handed across a "
              "counter."),
+            ("<b>والنص التاني من المهنة: مراجعة علاج المنوّمين.</b> الكاونتر "
+             "ده الصيدلية اللي بتصرف — طابور ناس واقفة بورق. الصيدلة "
+             "الإكلينيكية هي اللي المستشفى بتشتريها: حد بيقرا ورقة علاج كل "
+             "طفل في سرير، على وزنه وعلى الأربع حاجات التانية اللي هو "
+             "عليها، ويقول للطبيب حاجة **قبل** ما الجرعة تتاخد.",
+             "<b>And the other half of the profession: the inpatient chart "
+             "review.</b> The counter is the dispensing pharmacy \u2014 a "
+             "queue of people holding paper. Clinical pharmacy is what a "
+             "hospital buys: somebody who reads the drug chart of every child "
+             "in a bed, against that child\u2019s weight and the four other "
+             "things they are on, and says something to the doctor "
+             "<b>before</b> a dose is given."),
+            ("<b>واللوحة بتسأل نفس سؤال الراوند: مين محدش عدّى عليه "
+             "النهاردة.</b> ورقة علاج اتراجعت الاتنين ما بتقولش حاجة عن الدوا "
+             "اللي اتكتب الأربع. والمراجعة **صف**، مش علامة: إقامة مفيهاش "
+             "أسئلة شكلها زي إقامة محدش فتحها، ودول حقيقتين متعاكستين.",
+             "<b>And the board asks the round\u2019s own question: whose "
+             "chart has nobody been through today.</b> A chart reviewed on "
+             "Monday says nothing about the drug started on Wednesday. The "
+             "review is a <b>row</b>, not a tick: a stay with no queries on "
+             "it looks exactly like a stay nobody opened, and those are "
+             "opposite facts."),
+            ("<b>والسؤال بيوصل للطبيب في الشاشة اللي هو فيها.</b> السؤال "
+             "بيتكتب من الصيدلية وبيظهر على شاشة الإقامة، والطبيب بيرد من "
+             "هناك — لأنه أصلاً ما بيفتحش مديول الصيدلية. سؤال مالوش رد إلا "
+             "من شاشة اللي المفروض يرد عليها مش بيقدر يفتحها هو سؤال محدش "
+             "بيرد عليه، والصيدلي يفضل مستني من غير ما يعرف الفرق بين ده "
+             "وبين إن حد تجاهله.",
+             "<b>And the question reaches the doctor on the screen they are "
+             "already on.</b> It is written from the pharmacy and appears on "
+             "the stay screen, and the reply goes back from there \u2014 "
+             "because the doctor cannot open the pharmacy module at all. A "
+             "question answerable only on a screen the person who has to "
+             "answer it cannot reach is a question nobody answers, and the "
+             "pharmacist waits with no way to tell that from being ignored."),
+            ("<b>والنص التاني من الصيدلة الإكلينيكية شغل بنش مش قراية: "
+             "تحضير أدوية العنابر.</b> قبل راوند الصبح حد بيحضّر جرعات كل "
+             "طفل لليوم، مكتوب عليها اسمه. ده في أغلب المستشفيات الجزء "
+             "الأكبر من الشغلانة، والبرنامج مكانش عنده ليه حاجة خالص: "
+             "الجرعة مكانتش موجودة كصف إلا لحظة ما الممرضة تسجّل إنها "
+             "اتعطت، فسؤال «دوا الطفل ده جاهز؟» مكانش ليه إجابة في أي مكان.",
+             "<b>And the other half of clinical pharmacy is bench work rather "
+             "than reading: making the wards\u2019 doses up.</b> Before the "
+             "morning round somebody makes up each child\u2019s doses for the "
+             "day, labelled with their name. In most hospitals that is the "
+             "larger half of the job, and the program had nothing for it at "
+             "all: a dose existed only at the moment a nurse recorded giving "
+             "it, so \u201cis this child\u2019s drug ready?\u201d had no "
+             "answer anywhere."),
+            ("<b>والعدد حساب على أمر الطبيب نفسه.</b> كل ٦ ساعات ليوم = "
+             "أربعة، وخلاص — مش حكم على اللي الطفل محتاجه. والأمر «عند "
+             "اللزوم» مالوش عدد أصلاً، لأن مفيش ساعة هو مستحق فيها، "
+             "والبرنامج ما بيدّعيش إنه عارف تبعتوا كام.",
+             "<b>And the count is arithmetic on the doctor\u2019s own "
+             "order.</b> Six-hourly for a day is four, and that is all it "
+             "ever is \u2014 never a judgement about what a child needs. A "
+             "\u201cwhen needed\u201d order has no count at all, because "
+             "there is no hour it is owed at, and the program does not pretend "
+             "to know how many to send up."),
+            ("<b>و«هو جه؟» بيتسأل عند الترولي، فبيتجاوب عند الترولي.</b> "
+             "لوحة دورة الدوا بتقول «متحضّر» جنب الأمر — مش على شاشة "
+             "الصيدلية اللي كانت هتخلّي حد يمشي في الطرقة عشان يعرف. "
+             "والعنبر اللي بياخد دواه من رفه ما بيشوفش الكلام ده أصلاً.",
+             "<b>And \u201cis it here?\u201d is asked at the trolley, so it "
+             "is answered at the trolley.</b> The drug round board says "
+             "\u201cmade up\u201d beside the order \u2014 not on the "
+             "pharmacy\u2019s own screen, which would send somebody down a "
+             "corridor to find out. A ward that takes its drugs off its own "
+             "shelf never sees any of it."),
+            ("<b>وأدوية عالية الخطورة — والقايمة بتاعة المستشفى نفسها.</b> "
+             "معايير إدارة الدواء بتقول كده بالنص: المستشفى بتبني قايمتها من "
+             "استخدامها هي ومن أخطاءها هي اللي حصلت أو كادت. فالبرنامج ما "
+             "بيجيش بقايمة جاهزة — قسم أورام أطفال وعيادة في قرية مش خايفين "
+             "من نفس الأدوية، والغلط في القايمة دي غلط في الأدوية اللي "
+             "بتقتل لما تغلط.",
+             "<b>And high-alert medicines \u2014 the list is the "
+             "hospital\u2019s own.</b> The medication-management standards "
+             "say so in as many words: the hospital builds its list from its "
+             "own utilisation and its own errors and near misses. So nothing "
+             "ships with the software \u2014 a paediatric oncology unit and a "
+             "village clinic do not fear the same molecules, and being wrong "
+             "about this list is being wrong about the medicines that kill "
+             "people when they go wrong."),
+            ("<b>والسبب مطلوب مع الاسم.</b> «أنسولين» في قايمة ومفيش حاجة "
+             "جنبه ما بيقولش لممرضة الليل حاجة؛ «أخطاء بعشر أضعاف — لازم حد "
+             "تاني يراجع الوحدات» بيقولها كل حاجة. والعلامة بتظهر عند "
+             "الترولي مش على شاشة الصيدلية بس: علامة عايشة عند الصيدلية "
+             "بتحذّر اللي مش ماسك السرنجة.",
+             "<b>And the reason is required with the name.</b> "
+             "\u201cInsulin\u201d on a list with nothing beside it tells a "
+             "night nurse nothing; \u201cten-fold errors \u2014 a second "
+             "person checks the units\u201d tells them everything. And the "
+             "flag appears at the trolley, not only on the pharmacy\u2019s "
+             "screen: a warning that lives with the pharmacy warns the person "
+             "who is not holding the syringe."),
+            ("<b>وأدوية بتتلخبط في بعضها.</b> أزواج الأسماء المتشابهة، "
+             "والقايمة بتاعة المستشفى برضه: اللي بيتلخبط بيعتمد على اللي على "
+             "الرفوف وعلى خط اللي بيكتب وعلى اللغة. والزوج متخزّن مرة واحدة "
+             "وبيتقري في الاتجاهين، فمستحيل ينحذف نصه ويحذّر في اتجاه واحد — "
+             "ودي طريقة كل قايمة أزواج بتتكتب بالإيد بتقع بيها.",
+             "<b>And look-alike, sound-alike pairs.</b> The hospital\u2019s own "
+             "list again: which names get mixed up depends on the shelves, the "
+             "handwriting and the language. A pair is stored once and read "
+             "both ways, so it cannot end up half-deleted and warning in one "
+             "direction only \u2014 the failure mode of every hand-maintained "
+             "pair list."),
+            ("<b>وتبليغ أخطاء الدواء — ومفيش خانة لمين غلط.</b> نظام تبليغ "
+             "فيه خانة زي دي ما بيجمّعش حاجة بعد أول شهر، وده أقدم درس في "
+             "سلامة المرضى. اللي بيتسجّل: المرحلة، والدوا، واللي حصل، وهل "
+             "وصل للطفل ولا اتمسك. والنتيجة بتصنيف NCC MERP من A لـI، لأن "
+             "مستشفى بتقارن ربع بربع محتاجة نفس الخانات اللي الناس كلها "
+             "بتستعملها.",
+             "<b>And medication-error reporting \u2014 with no field for who "
+             "made the mistake.</b> A reporting system with one collects "
+             "nothing after the first month, the oldest finding in patient "
+             "safety. What is recorded is the stage, the drug, what happened "
+             "and whether it reached the child. The outcome uses the NCC MERP "
+             "index A\u2013I, because a hospital comparing its own quarters "
+             "needs the same buckets as everybody else."),
+            ("<b>واللي اتمسك قبل ما يوصل هو النص المفيد.</b> غلط اتمسك عند "
+             "الكاونتر ماأذاش حد وهو أرخص درس ممكن؛ ونظام بيسجّل بس اللي وصل "
+             "للأطفال بيجمّع الدروس الغالية بس. عشان كده البلاغ مش محتاج طفل "
+             "أصلاً. <b>والملخّص هو اللي قايمة الخطورة بتتراجع عليه</b> — "
+             "وده بالظبط اللي المعيار طالبه: القايمة تتبني من أخطاء المستشفى "
+             "نفسها، يعني لازم يكون فيه حاجة بتعدّها.",
+             "<b>And the near miss is the valuable half.</b> An error caught "
+             "at the counter harmed nobody and is the cheapest possible "
+             "lesson; a system that records only what reached a child collects "
+             "the expensive lessons only. So a report needs no patient. "
+             "<b>And the summary is what the high-alert list is revised "
+             "against</b> \u2014 which is exactly what the standard asks: the "
+             "list is built from the hospital\u2019s own errors, so something "
+             "has to be counting them."),
+            ("<b>ومطابقة أدوية الخروج.</b> داخل على إيه، وعليه إيه دلوقتي، "
+             "وخارج على إيه — تلات قوايم جنب بعض. والمقارنة على المادة "
+             "الفعالة مش على الاسم، لأن العنبر بيكتب «أوجمنتين» والقايمة "
+             "بتقول «أموكسيسيلين/كلافولانيك»، ومقارنة بالنص كانت هتعتبرهم "
+             "دوا جديد ودوا اتوقف. <b>والشاشة ما بتقررش حاجة</b>: تكمّل ولا "
+             "توقّف قرار، وبرنامج بيحلّها لوحده بيكون بيكتب روشتة خروج محدش "
+             "أمضاها.",
+             "<b>And discharge reconciliation.</b> What they came in on, what "
+             "they are on now, what they go home with \u2014 three lists side "
+             "by side. Matched on the active ingredient rather than the name, "
+             "because a ward writes \u201cAugmentin\u201d against a home list "
+             "that says \u201camoxicillin/clavulanate\u201d and a text "
+             "comparison would call that a new drug and a stopped one. <b>The "
+             "screen decides nothing</b>: continuing and stopping are both "
+             "decisions, and a program that resolved them quietly would be "
+             "writing a discharge prescription nobody signed."),
+            ("<b>ومراجعة الصيدلي للأمر قبل الصرف — بتتسجّل وما بتتفرضش.</b> "
+             "المعايير بتطلب إن صيدلي يبص على الأمر قبل ما يتصرف، والبرنامج "
+             "بقى يسجّل مين راجع وإمتى ويقول مين مااتراجعش. بس ما بيمنعش: "
+             "مستشفى الساعة تلاتة بالليل ومفيش صيدلي موجود بتدي المضاد "
+             "الحيوي، وبرنامج بيرفض ده هيتلف من حواليه آخر أول ليلة — وده "
+             "إزاي أي إجراء بيبطل يعني حاجة. الفجوة بتتعرض وتفضل معروضة، "
+             "نفس اختيار توقيع الخروج من غرفة العمليات.",
+             "<b>And the pharmacist\u2019s check before dispensing is "
+             "recorded, never enforced.</b> The standards ask that a "
+             "pharmacist review an order before it is dispensed, and the "
+             "program now records who checked and when, and says which orders "
+             "nobody has. It does not block: a hospital at three in the "
+             "morning with no pharmacist on site still gives the antibiotic, "
+             "and a program that refused would be worked around by the end of "
+             "the first night \u2014 which is how a control stops meaning "
+             "anything. The gap is made visible and kept visible, the same "
+             "choice the surgical sign-out makes."),
+            ("<b>واللي البرنامج مش هيعمله، ومهم يتقال:</b> ما بيختارش مذيب "
+             "ولا حجم ولا مدة تسريب ولا مدة صلاحية بعد الخلط، وما بيركّبش "
+             "تغذية وريدية، وما بيعدّلش جرعة على وظائف كلى. كل واحدة من دي يا "
+             "رقم إكلينيكي يا كتاب قواعد — ونفس القاعدة اللي منعت البرنامج "
+             "يخترع حد تنبيه بتمنعه يخترع دول. العيادة اللي عندها وصفتها "
+             "بتكتبها على الأمر، حيث بني آدم كتبها.",
+             "<b>And what the program will not do, which is worth saying "
+             "plainly:</b> it does not choose a diluent, a volume, an infusion "
+             "time or a stability window, it does not formulate parenteral "
+             "nutrition, and it does not adjust a dose for a kidney. Every one "
+             "of those is a clinical number or a rulebook, and the same rule "
+             "that stopped it inventing an alert threshold stops it inventing "
+             "these. A clinic with its own recipe writes it on the order, "
+             "where a person wrote it."),
+            ("<b>والدوا بيتاخد عادي والسؤال مفتوح.</b> الرد غالباً «أيوة أنا "
+             "قاصدها» والطفل في السرير، وصيدلية تقدر توقف دوا العنبر هي "
+             "صيدلية العنبر بيكتب من حواليها. والسؤال بيفضل مكتوب بعد الرد: "
+             "اللي اتسأل واللي رجع هو السجل، ومسحه كان هيسيب جرعة اتغيّرت "
+             "من غير حاجة تقول ليه.",
+             "<b>And the drug goes on being given while the question is "
+             "open.</b> The answer is usually \u201cyes, I meant it\u201d "
+             "and the child is in the bed; a pharmacy that can stop a "
+             "ward\u2019s drug is one the ward writes around. The question "
+             "stays on the order after it is answered: what was asked and "
+             "what came back is the record, and clearing it would leave a "
+             "changed dose with nothing saying why."),
             ("<b>وعمرها ما بترفض علبة عشان العدد بتاعنا بيقول الرف فاضي.</b> "
              "الصيدلية سلّمت، وده حصل. البرنامج اللي بيرفض يسجّله عشان عدّه "
              "بيقول حاجة تانية بيكون استبدل حقيقة بترتيب — الحركة بتتسجّل، "
@@ -1296,6 +1530,79 @@ SECTIONS = [
              "closes while the child grows. Note that the habits \u2014 "
              "thumb, dummy, mouth breathing \u2014 are on the same panel, "
              "because they are often the cause."),
+        ],
+    },
+    {
+        # The rota, and deliberately not a corner of `beds`: the night shift
+        # is a clinic thing before it is a hospital thing.
+        "key": "duty",
+        "module": "duty",
+        "icon": "calendar-week",
+        "title": ("المناوبات ومستحقاتها", "The duty rota and what it owes"),
+        "lines": [
+            ("<b>ده اتجاه تاني للفلوس، مش شاشة جديدة على القديم.</b> كل رقم "
+             "في البرنامج قبل كده كان نصيب من حاجة الأهل دفعوها — سطر في "
+             "فاتورة، أو فِي على جرعة. الطبيب المقيم اللي قاعد في القسم من "
+             "عشرة بالليل لتمانية الصبح <b>مش بيفوتر على حد</b>، فمفيش فاتورة "
+             "نصيبه يتحسب منها. المناوبة مستحق على العيادة نفسها.",
+             "<b>This is a second direction for money, not another screen "
+             "over the first.</b> Every figure in this program used to be a "
+             "share of something a family paid — a line on a bill, a fee "
+             "on a dose. A resident sitting in the department from ten at "
+             "night until eight in the morning <b>bills nobody</b>, so there "
+             "is no invoice to take a share of. Cover is owed by the clinic."),
+            ("<b>ومش للمستشفيات بس.</b> العيادة اللي عندها مقيم بيغطّي الليل "
+             "بتستعمل نفس الشاشة، والقسم <b>اختياري</b> — عشان كده المناوبات "
+             "مديول لوحده مش جزء من الأسرّة. لو كانت جوّه الأسرّة، أكتر "
+             "العيادات اللي محتاجاها ماكانتش هتشوفها.",
+             "<b>And it is not only for hospitals.</b> A clinic with a "
+             "resident covering the night uses the same screen, and the "
+             "department is <b>optional</b> — which is why the rota is "
+             "its own module rather than part of the beds. Behind the beds, "
+             "most of the clinics that need it would never have seen it."),
+            ("<b>«مجدولة» مش «اتعملت».</b> الاسم في خانة على جدول الحيطة "
+             "خطة، والدفع على خطة دفع على لا حاجة. فالمناوبة بتتكتب وهي "
+             "بصفر، ومحدش بياخد عليها حاجة غير لما حد يقول إنها حصلت. "
+             "والبرنامج <b>ما بيأكّدش لوحده</b>: مفيش حاجة فيه بتشوف الطرقة "
+             "الساعة تلاتة بالليل.",
+             "<b>Rostered is not worked.</b> A name in a square on a wall "
+             "chart is a plan, and paying for a plan is paying for nothing. "
+             "So a duty is written worth zero and pays only once somebody "
+             "says it happened. The program <b>never confirms by itself</b>: "
+             "nothing in it can see the corridor at three in the morning."),
+            ("<b>واللي عدّى يومه ومحدش قال حصل فيه إيه بيفضل باين.</b> مش "
+             "بيتقفل ولا بيتحسب — بيتعرض في أول الشاشة. لأن الصفوف دي لو "
+             "اتسابت بتتقفل بالتخمين آخر الشهر، وساعتها ليلة اتغطّت بتضيع "
+             "وليلة ماحصلتش بتتدفع.",
+             "<b>And a duty whose day has passed with nobody speaking for it "
+             "stays visible.</b> Not closed and not counted — listed at "
+             "the top of the screen. Left alone, those rows get closed by "
+             "guesswork at month end, and that is when a night that was "
+             "covered is missed and one that was not is paid."),
+            ("<b>الشيفتات وأسعارها بتتكتب من الشاشة.</b> الساعات بتختلف من "
+             "قسم لقسم ومن بلد لبلد، ورمضان بيحرّكها، والعيادة اللي بتشغّل "
+             "شيفتين مش تلاتة مالهاش لازمة مسا فاضي. وفيه سعر خاص للطبيب "
+             "لو الاتفاق معاه غير سعر الشيفت — نفس فكرة نسبة الطبيب على "
+             "الخدمة. <b>والسعر بيتصوّر على المناوبة ساعة ما تتكتب</b>، "
+             "فتعديل السعر في مارس ما بيعيدش كتابة فبراير.",
+             "<b>The shifts and their rates are typed on the screen.</b> The "
+             "hours differ between departments and countries, Ramadan moves "
+             "them, and a clinic that runs two shifts has no use for an empty "
+             "evening. A doctor may have their own figure where the agreement "
+             "differs — the same shape as a service commission. <b>And "
+             "the rate is snapshotted onto the duty when it is written</b>, "
+             "so a rate edited in March does not rewrite February."),
+            ("<b>والاستشاري حكاية تانية.</b> اللي بيتحاسب بالحالة أو بالزيارة "
+             "بيمشي على الفاتورة زي أي خدمة، ونصيبه بيتقرا من <b>سطره هو</b> "
+             "مش من الفاتورة كلها. اللي بيتحاسب مبلغ ثابت على المرور كله "
+             "بيتكتب هنا كمناوبة. <b>واحدة بس مش الاتنين لنفس اليوم</b> — "
+             "غير كده بيتحسب مرتين.",
+             "<b>A consultant is a different case.</b> One paid per case or "
+             "per visit goes on the bill like any other service, and their "
+             "share is read from <b>their own line</b> rather than from the "
+             "whole invoice. One paid a flat figure for the round is written "
+             "here as a duty. <b>One of the two for a given day, never "
+             "both</b> — otherwise it is counted twice."),
         ],
     },
     {

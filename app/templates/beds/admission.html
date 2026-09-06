@@ -187,6 +187,32 @@
   <h2 class="section-title" style="margin-top:0;">
     <i class="bi bi-capsule"></i> {{ t('meds.chart') }}</h2>
 
+  {# What the clinical pharmacist asked about, and nobody has answered.
+     **On this screen** because this is where the doctor is: a question that
+     could only be answered on the pharmacy's own screen was a question the
+     doctor could not reach at all — they do not have that module — and the
+     pharmacist would have gone on waiting with no way to tell that from
+     being ignored. #}
+  {% for order in admission.medication_orders
+     if order.queried_at and not order.answered_at and order.is_running %}
+  <div class="alert-pill warn" style="margin-bottom:12px;" data-pharmacy-query>
+    <i class="bi bi-question-circle"></i>
+    <b>{{ order.drug_name }}</b> — {{ order.query_note }}
+    {% if order.querier %}
+    <span class="hint">{{ order.querier.display_name(current_lang) }}</span>{% endif %}
+  </div>
+  <form method="post" style="display:flex;gap:8px;align-items:end;margin-bottom:12px;"
+        action="{{ url_for('beds.answer_query', order_id=order.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin-bottom:0;flex:1;min-width:220px;">
+      <label for="ans_{{ order.id }}">{{ t('cpharm.the_answer') }}</label>
+      <input class="input" id="ans_{{ order.id }}" name="note" maxlength="255">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      {{ t('cpharm.answer') }}</button>
+  </form>
+  {% endfor %}
+
   {% if safety and safety.interactions %}
   <div class="alert-pill danger" style="margin-bottom:12px;" data-interaction>
     <i class="bi bi-exclamation-octagon"></i>
