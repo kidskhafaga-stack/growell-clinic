@@ -2863,7 +2863,8 @@
     "my_chips": "My quick phrases",
     "my_chips_hint": "Yours alone. Leave empty to use the clinic's list.",
     "chips_ph": "One per line — بالعربي|English",
-    "print_size": "Print size"
+    "print_size": "Print size",
+    "rx_name_en": "Prescription name (English)"
   },
   "rxtpl": {
     "title": "Prescription print templates",

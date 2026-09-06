@@ -582,6 +582,7 @@ def doctor_professional(user_id):
     doc = db.get_or_404(User, user_id)
     f = request.form
     doc.rx_display_name = (f.get("rx_display_name") or "").strip() or None
+    doc.rx_display_name_en = (f.get("rx_display_name_en") or "").strip() or None
     title = (f.get("professional_title") or "").strip()
     doc.professional_title = title if title in PROFESSIONAL_TITLES else None
     doc.specialty = (f.get("specialty") or "").strip() or None
@@ -717,6 +718,7 @@ def _read_form():
         "job_title": (request.form.get("job_title") or "").strip(),
         "branch": (request.form.get("branch") or "").strip(),
         "rx_display_name": (request.form.get("rx_display_name") or "").strip(),
+        "rx_display_name_en": (request.form.get("rx_display_name_en") or "").strip(),
         "professional_title": (request.form.get("professional_title") or "").strip(),
         "specialty": (request.form.get("specialty") or "").strip(),
         "sub_specialties": (request.form.get("sub_specialties") or "").strip(),
@@ -728,7 +730,8 @@ def _read_form():
 # identity (what gets printed on a prescription) only applies to someone who
 # actually sees patients.
 PROFILE_FIELDS = ["job_title", "branch"]
-PRACTITIONER_FIELDS = ["rx_display_name", "professional_title", "specialty",
+PRACTITIONER_FIELDS = ["rx_display_name", "rx_display_name_en",
+                       "professional_title", "specialty",
                        "sub_specialties", "license_no"]
 
 

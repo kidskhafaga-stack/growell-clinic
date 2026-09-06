@@ -81,13 +81,18 @@ def test_what_is_already_there_is_shown(page):
     able to see the current one is guessing."""
     from app.utils import project
 
+    # Where the file lives is `photo_path_of`'s business now — an upload, or a
+    # picture that ships with the program — and this test is about the
+    # thumbnail being on the screen at all. Naming the folder made it fail the
+    # day a second folder became possible, while the thing it cares about had
+    # not moved.
     assert 'uploads/about/' in page or "person-avatar" in page
 
     # And the picker itself carries a preview slot rather than only the page's
     # display copy: the two are in different places on the screen.
     with open(PAGE, encoding="utf-8") as fh:
         macro = fh.read().split("{% macro photo_box")[1].split("{% endmacro %}")[0]
-    assert "uploads/about/" in macro, \
+    assert "<img" in macro and "current" in macro, \
         "the picker shows no thumbnail of the stored photograph"
 
 

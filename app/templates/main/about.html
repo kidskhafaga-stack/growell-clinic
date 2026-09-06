@@ -33,7 +33,7 @@
   <label>{{ t('about.photo') }}</label>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
     {% if current %}
-    <img src="{{ url_for('static', filename='uploads/about/' ~ current) }}" alt=""
+    <img src="{{ url_for('static', filename=photo_src(current)) }}" alt=""
          style="width:64px;height:64px;border-radius:50%;object-fit:cover;
                 border:1px solid var(--line);background:#fff;">
     {% endif %}
@@ -200,7 +200,7 @@
   </div>
 
   <div style="margin-top:12px;display:flex;gap:14px;align-items:flex-start;">
-    {{ face('uploads/about/' ~ people.developer.photo if people.developer.photo else none, txt(people.developer.initial)|string) }}
+    {{ face(people.developer.photo_path, txt(people.developer.initial)|string) }}
     <div style="min-width:0;">
       <div style="font-weight:700;">{{ txt(people.developer.name) }}</div>
       <div style="color:var(--muted);">{{ txt(people.developer.role) }}</div>

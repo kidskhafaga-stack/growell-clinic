@@ -102,14 +102,19 @@ ADDITIONS = [
     ("named_discounts", "payer_id", "INTEGER"),
     ("named_discounts", "min_siblings", "INTEGER DEFAULT 2"),
     ("drugs", "generic_id", "INTEGER"),
-    # The course-length rule for an ingredient: a ceiling where a printed one
-    # exists, empty everywhere else. Null on an existing clinic means no rule,
-    # which is exactly what that clinic had yesterday.
     # The consultant's round, once it is on the family's bill. Null on an
     # existing clinic means "not billed", which is what every round it has
     # ever recorded is.
     ("round_notes", "invoice_item_id", "INTEGER"),
+    # The course-length rule for an ingredient: a ceiling where a printed one
+    # exists, empty everywhere else. Null on an existing clinic means no rule,
+    # which is exactly what that clinic had yesterday.
     ("generic_drugs", "max_course_days", "INTEGER"),
+    # The English side of the name printed on a prescription. Null on an
+    # existing clinic means "only one was ever typed", which is exactly what
+    # every doctor there has — and the fallback prints it in both languages,
+    # which is what that clinic saw yesterday.
+    ("users", "rx_display_name_en", "VARCHAR(160)"),
     ("drug_interactions", "generic_a_id", "INTEGER"),
     ("drug_interactions", "generic_b_id", "INTEGER"),
     ("drug_interactions", "alternative", "VARCHAR(200)"),
