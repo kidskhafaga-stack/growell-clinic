@@ -626,8 +626,18 @@ def doctor_panels(user_id):
     picked = [key for key in known if request.form.get(f"panel_{key}")]
     doc.specialty_panels = ",".join(picked) or None
 
-    # Which of them opens first. Checked against the ticked list, so a stale
-    # form cannot leave a doctor opening on a panel they no longer work.
+    # Which of them opens first, **and "none" is one of the answers.**
+    #
+    # It used to fall back to the first ticked panel whenever the box was
+    # cleared, which made clearing it impossible: a doctor who works newborn
+    # care and does not want every visit to open on it unticked the box, saved,
+    # and the tick came straight back. Reported in those words — *"كل ما اشيل
+    # العلامة بعد الحفظ يرجعها تاني"*.
+    #
+    # Working a panel and opening on it are two different statements. The
+    # first says what this doctor does; the second says what their screen
+    # should assume about the child in front of them, and for a general
+    # paediatrician with a neonatology interest the honest answer is nothing.
     #
     # `getlist(...)[-1]`, not `get(...)`: the control is a clearable checkbox
     # rather than a radio, so a browser running no script can post more than
@@ -635,7 +645,7 @@ def doctor_panels(user_id):
     # the worst case is a doctor opening on a panel they do work.
     sent = [v.strip() for v in request.form.getlist("panel_default") if v.strip()]
     opens = sent[-1] if sent else ""
-    doc.specialty_panel = opens if opens in picked else (picked[0] if picked else None)
+    doc.specialty_panel = opens if opens in picked else None
 
     ActivityLog.record("doctor.panels", user_id=current_user.id, entity="user",
                        entity_id=doc.id, detail=doc.specialty_panels or "—",

@@ -105,18 +105,26 @@ def for_doctor(doctor):
 
 
 def default_for_doctor(doctor):
-    """Which of their panels opens first. Their own, not a house rule.
+    """Which of their panels opens first — **or none, which is an answer.**
 
     A neurologist who works only neurology opens that screen forty times a
-    day; making them pass through anything else first is forty clicks. There
-    is no "general" panel to default to — the complaint, the examination and
-    the vitals are the screen itself and never go away.
+    day; making them pass through anything else first is forty clicks, so
+    they say so once and the screen remembers. There is no "general" panel to
+    default to — the complaint, the examination and the vitals are the screen
+    itself and never go away.
+
+    And it used to fall back to the first panel they work, which quietly
+    turned *"I see newborns sometimes"* into *"open every visit on newborn
+    care"*. Those are different statements, and the doctor is the one who
+    knows which they meant. Empty means the visit screen opens as it does for
+    everybody else, with the panel there to be opened when the child in front
+    of them needs it.
     """
     mine = for_doctor(doctor)
     if not mine:
         return ""
     chosen = (getattr(doctor, "specialty_panel", None) or "").strip()
-    return chosen if chosen in mine else mine[0]
+    return chosen if chosen in mine else ""
 
 
 def for_visit(visit, doctor=None, lang="ar"):

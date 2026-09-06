@@ -362,6 +362,20 @@ def record(visit_id):
         # recorded under, else this doctor's own default.
         panel_start=(panel_key or _panels.default_for_doctor(visit.doctor)
                      if panel_on else ""),
+        # **And whether it starts open at all.**
+        #
+        # Working a panel and opening every visit on it are two different
+        # statements. A doctor who sees newborns sometimes said the first;
+        # assuming the second put a neonatology form in front of them for
+        # every child with a cough. So the section is there, folded, and one
+        # press opens it — asked for as *"عايزه يفتح عادي صفحة الزيارة بتاعتنا
+        # عادي ويبقى عنده القالب لو الحالة مطلوبه"*.
+        #
+        # A visit already recorded under a panel opens on it regardless: the
+        # readings are in there, and folding away what somebody wrote is not
+        # tidying.
+        panel_open=bool(panel_key or (_panels.default_for_doctor(visit.doctor)
+                                      if panel_on else "")),
         panel_all=[p for p in _panels.every_panel_for(
             visit, visit.vitals, getattr(g, "lang", "ar"))
             if p["key"] in mine],

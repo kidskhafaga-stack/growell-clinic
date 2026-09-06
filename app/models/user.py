@@ -278,7 +278,31 @@ class User(UserMixin, db.Model):
     }
     DEFAULT_HONORIFIC = {"ar": "د/", "en": "Dr."}
 
-    def doctor_honorific(self, lang="ar"):
+    @staticmethod
+    def _script_of(text):
+        """``"ar"``, ``"en"``, or ``None`` when the text does not say.
+
+        Read off the letters themselves. A name is not always in the language
+        of the page it is printed on: an Arabic receipt shows an English name
+        whenever that is the only name the doctor has entered, and a title
+        chosen by the page rather than by the name produces "د/ Ahmed Gamal
+        Kandil" — half of it reading each way.
+        """
+        arabic = latin = 0
+        for ch in text or "":
+            code = ord(ch)
+            if 0x0600 <= code <= 0x06FF or 0x0750 <= code <= 0x077F \
+                    or 0xFB50 <= code <= 0xFEFF:
+                arabic += 1
+            elif ch.isalpha() and code < 0x0250:
+                latin += 1
+        if arabic and arabic >= latin:
+            return "ar"
+        if latin:
+            return "en"
+        return None
+
+    def doctor_honorific(self, lang="ar", name=None):
         """"د/" or "أ.د/" — derived from the doctor's classification.
 
         Derived, not typed. It used to print ``professional_title`` verbatim,
@@ -287,10 +311,21 @@ class User(UserMixin, db.Model):
         with a title had to remember to add one itself, so most of them did
         not. One rule here means the same doctor reads the same way on a
         prescription, a report and a screen.
+
+        **And the title follows the name, not the page.** Given a ``name``,
+        the script it is written in decides — because a doctor with only an
+        English name on file printed as *"د/ Ahmed Gamal Kandil"* on every
+        Arabic receipt, which is one title and one name reading in opposite
+        directions. Reported in those words: *"المفروض احنا محددين Dr. مع
+        اللغة الانجليزية و د/ مع العربي"*.
+
+        The page's language is still the answer when the name does not say —
+        initials, a number, a practice name in symbols.
         """
         table = self.HONORIFICS.get(self.professional_title or "",
                                     self.DEFAULT_HONORIFIC)
-        return table.get(lang, table.get("ar", ""))
+        wanted = self._script_of(name) if name is not None else None
+        return table.get(wanted or lang, table.get("ar", ""))
 
     def print_image_box(self, field):
         """``(max_height, max_width)`` in px for a signature or stamp.
@@ -331,7 +366,9 @@ class User(UserMixin, db.Model):
         """
         chosen = (self.rx_display_name or "").strip()
         base = chosen or self.display_name(lang)
-        honorific = self.doctor_honorific(lang)
+        # The title follows the name it is stuck to. An Arabic page showing a
+        # doctor whose only name on file is English still says "Dr.".
+        honorific = self.doctor_honorific(lang, name=base)
         if not honorific:
             return base
         if chosen and not self._is_own_name(chosen):

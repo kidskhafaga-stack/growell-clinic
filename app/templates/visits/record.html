@@ -317,7 +317,8 @@
          ground exists, the doctor's own list decides what stands on it. #}
       {% if panel_on and panel_all %}
       <div class="md" x-data="panelBox({{ panel_start|tojson|forceescape }},
-                                       {{ (panel_all | map(attribute='key') | list)|tojson|forceescape }})"
+                                       {{ (panel_all | map(attribute='key') | list)|tojson|forceescape }},
+                                       {{ 'true' if panel_open else 'false' }})"
            x-on:input="recount()" x-on:change="recount()"
            style="margin-top:14px;">
         <section class="md-section gc-scale-in">
@@ -1949,21 +1950,32 @@
   // forty times a day is not tidying, they are working. Remembered per
   // browser and nowhere else: it is a preference about one screen on one
   // machine, not a clinical setting, and it has no business in the database.
-  function panelBox(start, keys) {
+  function panelBox(start, keys, startOpen) {
     const REMEMBER = 'gc.panels.open';
     return {
       panelAll: keys || [],
+      // Which tab is selected once it is open. The first panel when nothing
+      // says otherwise — a box that opens on no panel at all would need two
+      // presses to be any use.
       panelKey: start || (keys && keys[0]) || '',
-      open: true,
+      // **Open only when something asked for it**: the visit's own panel, or
+      // a doctor who said this is the screen they want. A doctor who merely
+      // works a panel gets the ordinary visit screen with the section folded
+      // beside it, which is what was asked for.
+      open: startOpen !== false,
       filled: [],
       init() {
         // A stored preference, if the browser has one and will admit to it.
         // Private windows and locked-down browsers throw on the read itself,
-        // so the box opens rather than not rendering.
+        // so the box falls back to what the server asked for rather than not
+        // rendering. Both values are honoured now, not only the closed one:
+        // the doctor's own fold on this browser is a later answer than a
+        // setting somebody typed in the admin screen months ago.
         try {
           const kept = window.localStorage.getItem(REMEMBER);
           if (kept === '0') this.open = false;
-        } catch (e) { /* no memory, open it */ }
+          else if (kept === '1') this.open = true;
+        } catch (e) { /* no memory, leave it as the server asked */ }
         // The remembered fold is honoured even when the visit already has
         // readings, and that is the deliberate half. Re-opening the box
         // because something is in it would make the fold useless for exactly

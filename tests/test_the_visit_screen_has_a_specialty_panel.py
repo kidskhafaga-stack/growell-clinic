@@ -45,6 +45,10 @@ def desk(clinic):
         visit = db.session.get(Visit, clinic["ids"]["visit"])
         doctor = db.session.get(User, visit.doctor_id)
         doctor.specialty_panels = "cardiology"
+        # And they have said this is the screen they want to open on. Working
+        # a panel no longer implies it — see
+        # `test_working_a_panel_does_not_mean_opening_every_visit_on_it`.
+        doctor.specialty_panel = "cardiology"
         db.session.commit()
     clinic["url"] = f"/visits/{clinic['ids']['visit']}/record"
     return clinic
@@ -119,6 +123,61 @@ def test_it_follows_the_doctor_when_the_visit_has_not_said(desk):
         key, meta = panels.for_visit(visit, doctor)
 
     assert key == "cardiology" and meta is not None
+
+
+def test_working_a_panel_does_not_mean_opening_every_visit_on_it(desk):
+    """A doctor who sees newborns sometimes has not asked for a neonatology
+    form in front of every child with a cough.
+
+    The panel is still theirs and still one press away — what changes is that
+    the screen stops assuming. Asked for as *"عايزه يفتح عادي صفحة الزيارة
+    بتاعتنا عادي ويبقى عنده القالب لو الحالة مطلوبه فى القالب"*.
+    """
+    from app.extensions import db
+    from app.models import User, Visit
+    from app.utils import panels
+
+    with desk["app"].app_context():
+        visit = db.session.get(Visit, desk["ids"]["visit"])
+        doctor = db.session.get(User, visit.doctor_id)
+        doctor.specialty_panel = None          # works it, has not chosen it
+        db.session.commit()
+        key, meta = panels.for_visit(visit, doctor)
+
+    assert key == "" and meta is None
+
+
+def test_the_panel_is_still_on_the_screen_folded(desk):
+    """Not assuming is not hiding. The section is there with its menu, and one
+    press opens it — otherwise this fix would have cost the doctor the panel."""
+    from app.extensions import db
+    from app.models import User, Visit
+
+    with desk["app"].app_context():
+        visit = db.session.get(Visit, desk["ids"]["visit"])
+        db.session.get(User, visit.doctor_id).specialty_panel = None
+        db.session.commit()
+
+    page = desk["sign_in"]("boss").get(desk["url"]).get_data(as_text=True)
+    assert "panelBox(" in page
+    # The third argument is whether it starts open. Nobody asked, so it does
+    # not — and the doctor's own fold on this browser still wins over it.
+    assert "false)" in page.split("panelBox(")[1][:400]
+
+
+def test_a_visit_already_recorded_under_a_panel_opens_on_it(desk):
+    """Folding away what somebody already wrote is not tidying."""
+    from app.extensions import db
+    from app.models import User, Visit
+
+    with desk["app"].app_context():
+        visit = db.session.get(Visit, desk["ids"]["visit"])
+        db.session.get(User, visit.doctor_id).specialty_panel = None
+        visit.specialty_panel = "cardiology"
+        db.session.commit()
+
+    page = desk["sign_in"]("boss").get(desk["url"]).get_data(as_text=True)
+    assert "true)" in page.split("panelBox(")[1][:400]
 
 
 def test_and_the_visit_can_say_otherwise(desk):
