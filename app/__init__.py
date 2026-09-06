@@ -234,6 +234,8 @@ def create_app(config_name="default"):
         "users": "users.index",
     }
 
+    from app.utils.version import app_version
+
     @app.context_processor
     def inject_navigation():
         from app.models import Setting
@@ -255,7 +257,10 @@ def create_app(config_name="default"):
                 "© Eng. Mohamed Khafaga — All rights reserved · "
                 "يُحظر نسخه أو تعديله أو إعادة استخدامه بدون إذن صريح"
             ),
-            "app_version": "0.1",
+            # Read from the one place that works it out. It was typed here
+            # as well, so the number on the sidebar and the number in a
+            # backup's manifest were two copies of the same stale string.
+            "app_version": app_version(),
         }
 
     @app.context_processor
