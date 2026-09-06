@@ -5005,7 +5005,14 @@ def doctor_payouts():
         tills=CashAccount.active(), methods=DOCTOR_PAYOUT_METHODS,
         totals={"earned": round(sum(r["earned"] for r in rows), 2),
                 "paid": round(sum(r["paid"] for r in rows), 2),
-                "balance": round(sum(r["balance"] for r in rows), 2)})
+                "balance": round(sum(r["balance"] for r in rows), 2),
+                # What has actually come in against what was earned, and who
+                # the rest is owed by. The screen hides these three entirely
+                # when nothing is outstanding from anybody, so a cash clinic
+                # sees exactly the screen it saw yesterday.
+                "collected": round(sum(r["collected"] for r in rows), 2),
+                "from_family": round(sum(r["from_family"] for r in rows), 2),
+                "from_payer": round(sum(r["from_payer"] for r in rows), 2)})
 
 
 @finance_bp.route("/doctor-payouts/pay", methods=["POST"])

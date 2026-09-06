@@ -5638,7 +5638,11 @@
     "nothing": "No doctor has earned anything yet, and nothing has been paid out.",
     "not_a_doctor": "That user is not a doctor, so there is no share to pay.",
     "need_amount": "Enter an amount greater than zero.",
-    "paid_ok": "Payment recorded."
+    "paid_ok": "Payment recorded.",
+    "collected": "Collected",
+    "from_family": "Due from families",
+    "from_payer": "Due from payers",
+    "collected_note": "Collected means the money actually arrived — from the family at the desk, or from a payer on a claim that was paid. Earned above still means everything billed."
   },
   "licence": {
     "title": "Licence",

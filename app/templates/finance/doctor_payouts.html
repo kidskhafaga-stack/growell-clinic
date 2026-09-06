@@ -30,6 +30,31 @@
   </div>
 </div>
 
+{# **Of what was earned, how much has actually come in.** Shown beside the
+   figures above and never instead of them: `earned` still means everything
+   billed. On contract work the money arrives when the insurer sends it, and
+   settling a doctor at billing settles them out of money the clinic has not
+   got. A cash clinic sees the whole of it in the first box and nothing in
+   the other two, which is the truth for a cash clinic. #}
+{% if totals.from_payer or totals.from_family %}
+<div class="po-grid gc-scale-in" style="animation-delay:0.10s;">
+  <div class="po-stat">
+    <div class="po-k">{{ t('payouts.collected') }}</div>
+    <div class="po-v">{{ totals.collected | money }}</div>
+  </div>
+  <div class="po-stat">
+    <div class="po-k">{{ t('payouts.from_family') }}</div>
+    <div class="po-v">{{ totals.from_family | money }}</div>
+  </div>
+  <div class="po-stat">
+    <div class="po-k">{{ t('payouts.from_payer') }}</div>
+    <div class="po-v">{{ totals.from_payer | money }}</div>
+  </div>
+</div>
+<p class="hint" style="margin:-4px 0 14px;"><i class="bi bi-info-circle"></i>
+  {{ t('payouts.collected_note') }}</p>
+{% endif %}
+
 <div class="card gc-scale-in" style="animation-delay:0.12s;margin-bottom:16px;">
   <div class="table-wrap">
     <table class="table">
@@ -39,6 +64,10 @@
           <th class="num">{{ t('payouts.earned') }}</th>
           <th class="num">{{ t('payouts.paid') }}</th>
           <th class="num">{{ t('payouts.owed') }}</th>
+          {% if totals.from_payer or totals.from_family %}
+          <th class="num">{{ t('payouts.collected') }}</th>
+          <th class="num">{{ t('payouts.from_payer') }}</th>
+          {% endif %}
           <th></th>
         </tr>
       </thead>
@@ -54,6 +83,10 @@
              an error — it reads as a minus rather than being hidden. #}
           <td class="num"><strong class="{{ 'po-owed' if row.balance > 0 else 'po-ahead' }}">
             {{ row.balance | money }}</strong></td>
+          {% if totals.from_payer or totals.from_family %}
+          <td class="num">{{ row.collected | money }}</td>
+          <td class="num">{{ row.from_payer | money }}</td>
+          {% endif %}
           <td class="num">
             <button type="button" class="btn btn-outline btn-sm gc-press"
                     x-on:click="$dispatch('pay-doctor', { id: {{ row.doctor.id }},
