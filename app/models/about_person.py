@@ -54,6 +54,26 @@ HONORIFICS = {
 _PUNCT = ".،,/\\-"
 
 
+def photo_path_of(value):
+    """Where a stored photograph lives under ``static/``, or ``None``.
+
+    Two shapes, and the slash tells them apart. A **bare filename** is an
+    upload — everything typed into this program before today is one, and it
+    lives in ``uploads/about/``. A value with a path in it is a file that
+    **ships with the program**, under ``static/img/about/``, which is how the
+    credits can arrive with faces on a machine nobody has uploaded anything to
+    yet.
+
+    Keeping both is what lets the clinic replace a shipped photograph from the
+    screen: the upload is written to ``uploads/`` and the row starts pointing
+    there instead, and the file that came with the program is never touched.
+    """
+    value = (value or "").strip()
+    if not value:
+        return None
+    return value if "/" in value else f"uploads/about/{value}"
+
+
 def initial_of(name):
     """The letter to put in an empty circle for this name."""
     for word in (name or "").split():
@@ -152,9 +172,7 @@ class AboutPerson(db.Model):
         """
         if self.staff is not None and self.staff.photo:
             return f"uploads/users/{self.staff.photo}"
-        if self.photo:
-            return f"uploads/about/{self.photo}"
-        return None
+        return photo_path_of(self.photo)
 
     def initial(self, lang="ar"):
         return initial_of(self.display_name(lang))

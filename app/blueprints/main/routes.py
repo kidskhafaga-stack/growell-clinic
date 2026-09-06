@@ -386,8 +386,15 @@ def about():
     # and the warning under it have to be talking about the same backup.
     support = project.support()
 
+    from app.models.about_person import photo_path_of
+
     return render_template(
         "main/about.html",
+        # One resolver for both shapes a stored photograph can take — an
+        # upload, or a file that ships with the program. Handed to the
+        # template rather than repeated in it, so the edit form's thumbnail
+        # and the page's circle cannot disagree about where a picture is.
+        photo_src=photo_path_of,
         summary=project.SUMMARY,
         principles=project.PRINCIPLES,
         people=project.people(),

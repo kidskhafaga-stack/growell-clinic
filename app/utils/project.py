@@ -190,7 +190,8 @@ def people():
     constant — it is the copyright holder — and everything else is the
     clinic's to write.
     """
-    from app.models.about_person import AboutPerson, initial_of
+    from app.models.about_person import (AboutPerson, initial_of,
+                                         photo_path_of)
 
     try:
         doctors = (AboutPerson.query
@@ -206,6 +207,7 @@ def people():
                      (Setting.get("about_developer_note_en") or "").strip()),
             "contact": (Setting.get("about_developer_contact") or "").strip(),
             "photo": (Setting.get("about_developer_photo") or "").strip(),
+            "photo_path": photo_path_of(Setting.get("about_developer_photo")),
             # A pair, like the name it is taken from, so the circle follows
             # whichever language the page is being read in.
             "initial": tuple(initial_of(n) for n in DEVELOPER_DEFAULTS["name"]),
@@ -427,6 +429,132 @@ def carry_over_supervisor():
     for key in LEGACY_SUPERVISOR_KEYS:
         Setting.set(key, "")
     return True
+
+
+# --- the credits that ship with the program --------------------------------
+#
+# The page used to open **empty** on a fresh install: the developer's name and
+# role are constants (they are the copyright holder), and everything under them
+# — the two biographies, the contact, the photographs, and the doctor beside
+# them — was the clinic's to type. So every new install showed two headings and
+# nothing beneath them until somebody sat down and wrote it out.
+#
+# Asked for in one line: *«أنا عايز أضيف الاتنين دول في أي نسخة وأعدّل عليهم
+# وقت ما أحب»*.
+#
+# **Seeded, not compiled.** The distinction is the whole of it and the file
+# already made it once: a biography written into the source is a paragraph the
+# clinic cannot touch, and this program's rule is that what is on a screen is
+# editable from that screen. These land as ordinary rows and settings, they go
+# through the same edit form as anything typed by hand, and deleting one is a
+# decision the clinic is allowed to make.
+#
+# **Which is why it runs once and remembers.** A seed that re-ran would put a
+# deleted person back on every update, and the migration beside it already
+# refuses to do exactly that: *"cannot resurrect somebody who was deliberately
+# deleted"*. The flag is what keeps that promise while still letting the seed
+# reach an existing clinic that never had these rows.
+CREDITS_SEEDED_KEY = "about_credits_seeded"
+
+DEVELOPER_SEED = {
+    "about_developer_note":
+        "مدير تكنولوجيا المعلومات والعمليات، يتمتع بخبرة واسعة تزيد عن 20 عاماً "
+        "في إدارة وتشغيل المستشفيات، وتحديداً في قطاع رعاية الأطفال. حاصل على "
+        "دبلوم في الإدارة المتكاملة للمستشفيات عام 2016، يجمع بين الفهم العميق "
+        "لبيئة العمل الطبي والقيادة التكنولوجية لتصميم البنية التحتية وتطوير "
+        "أنظمة متقدمة لإدارة العيادات لرفع الكفاءة التشغيلية.",
+    "about_developer_note_en":
+        "IT and Operations Manager with over 20 years of specialized experience "
+        "in hospital operations, specifically within pediatric healthcare. "
+        "Holding a Diploma in Integrated Hospital Management (2016), he combines "
+        "deep healthcare domain knowledge with technology leadership to design "
+        "robust IT infrastructures and develop highly customized, user-centric "
+        "clinic management systems.",
+    "about_developer_contact": "kids_khafaga@msn.com | +20 109 162 6165",
+    "about_developer_photo": "img/about/khafaga.jpg",
+}
+
+#: The doctors credited by default. A list, because the reason
+#: ``about_people`` is a table at all is that a clinic has more than one.
+DOCTOR_SEED = [
+    {
+        "name": "أحمد جمال قنديل",
+        "name_en": "Ahmed Gamal Kandil",
+        "title": "استشاري طب الأطفال وحديثي الولادة",
+        "title_en": "Consultant Pediatrician and Neonatologist",
+        "note":
+            "ساهم د/ أحمد جمال بشكل محوري في تطوير الجانب الإكلينيكي للنظام. "
+            "قدّم الرؤية الطبية الدقيقة لتصميم نظام التطعيمات المتكامل، "
+            "بالإضافة إلى توجيه المسارات السريرية الخاصة بحديثي الولادة "
+            "والأطفال المبتسرين، مما عزّز من كفاءة وموثوقية البرنامج لخدمة "
+            "الأطباء والمرضى.",
+        "note_en":
+            "Dr. Ahmed Gamal provided instrumental clinical guidance in the "
+            "development of PediaPro. He played a key role in designing the "
+            "comprehensive vaccination module and formulating precise clinical "
+            "workflows for neonates and premature infants, significantly "
+            "enhancing the system's medical reliability.",
+        "photo": "img/about/kandil.jpg",
+        "sort_order": 0,
+    },
+]
+
+
+def shipped_photo(value):
+    """``value`` when that file is actually in the build, else ``None``.
+
+    A seeded row pointing at a picture that is not there draws a **broken
+    circle**, which is worse than the initial it was meant to replace — the
+    model already says so: *"a person without one gets their initial rather
+    than a hole where a face should be"*. So the seed only claims a photograph
+    it can see on disk, and the day the files are added they are picked up
+    with no other change.
+    """
+    import os
+
+    if not value:
+        return None
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(here, "static", *value.split("/"))
+    return value if os.path.exists(path) else None
+
+
+def seed_credits():
+    """Put the shipped credits in, once, and never over anything.
+
+    Returns ``{"developer": n, "doctors": n}`` — how many fields and rows it
+    actually created, which is zero on every run after the first.
+    """
+    from app.extensions import db
+    from app.models.about_person import AboutPerson
+
+    if (Setting.get(CREDITS_SEEDED_KEY) or "") == "1":
+        return {"developer": 0, "doctors": 0}
+
+    filled = 0
+    for key, value in DEVELOPER_SEED.items():
+        if key.endswith("_photo"):
+            value = shipped_photo(value)
+            if not value:
+                continue
+        # Only where the clinic has written nothing. A note somebody typed is
+        # theirs, and a first run that overwrote it would be the one thing this
+        # must never do.
+        if not (Setting.get(key) or "").strip():
+            Setting.set(key, value)
+            filled += 1
+
+    added = 0
+    for row in DOCTOR_SEED:
+        exists = AboutPerson.query.filter_by(name=row["name"]).first()
+        if exists is None:
+            db.session.add(AboutPerson(**dict(row,
+                                              photo=shipped_photo(row["photo"]))))
+            added += 1
+
+    Setting.set(CREDITS_SEEDED_KEY, "1")
+    db.session.flush()
+    return {"developer": filled, "doctors": added}
 
 
 def support():
