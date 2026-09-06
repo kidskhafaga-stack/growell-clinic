@@ -38,6 +38,7 @@ from app.models.round_note import ROUND_TRENDS
 from app.utils import beds as ward
 from app.utils import bed_billing
 from app.utils import drug_round
+from app.utils import round_billing
 from app.utils import rounds as ward_round
 from app.utils.clock import to_local, to_utc
 from app.utils.decorators import capability_required, module_required
@@ -275,6 +276,11 @@ def admission(admission_id):
         # Shown, never posted by opening a page. Money is written onto a
         # family's account by somebody pressing something.
         due_nights=bed_billing.outstanding(row),
+        # The consultant's rounds nobody has billed yet, shown the same way
+        # and for the same reason. Empty in every clinic that has not priced
+        # a round, which is the switch — see `utils/round_billing`.
+        due_rounds=round_billing.unbilled(admission_id=row.id),
+        round_service=round_billing.round_service(),
         charged=sorted(row.bed_charges, key=lambda c: c.on_date),
         # What an hourly stay has run up so far. Shown while it is open and
         # never charged until it closes — the number is still moving.
@@ -301,7 +307,8 @@ def post_nights(admission_id):
     result = bed_billing.charge(row, user=current_user,
                                 lang=getattr(g, "lang", "ar"))
     if not result["periods"] and not result["doses"] \
-            and not result["operations"] and not result["tests"]:
+            and not result["operations"] and not result["tests"] \
+            and not result["rounds"]:
         flash(t("beds.nights_none"), "info")
         return redirect(url_for("beds.admission", admission_id=row.id))
     if result["periods"]:
@@ -316,6 +323,8 @@ def post_nights(admission_id):
         flash(t("theatre.n_charged", n=result["operations"]), "success")
     if result["tests"]:
         flash(t("lab.n_charged", n=result["tests"]), "success")
+    if result["rounds"]:
+        flash(t("rounds.n_charged", n=result["rounds"]), "success")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 
@@ -360,6 +369,8 @@ def discharge(admission_id):
         flash(t("theatre.n_charged", n=billed["operations"]), "info")
     if billed["tests"]:
         flash(t("lab.n_charged", n=billed["tests"]), "info")
+    if billed["rounds"]:
+        flash(t("rounds.n_charged", n=billed["rounds"]), "info")
     return redirect(url_for("beds.admission", admission_id=row.id))
 
 

@@ -79,11 +79,22 @@ class RoundNote(db.Model):
     # single column on the admission would have overwritten it each time.
     expected_discharge = db.Column(db.Date)
 
+    # The line this round went onto the family's bill as, once the clinic
+    # charges for it. Empty for almost every round and that is the normal
+    # state: a resident walking the ward every morning is not a chargeable
+    # event, and nothing here changes unless the clinic has put a price on a
+    # particular doctor's round. Same shape as ``Operation.invoice_item_id`` —
+    # the clinical row carries the link, and "not billed yet" is the link
+    # being empty rather than a flag anybody has to set.
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
+                                nullable=True, index=True)
+
     by_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow,
                            nullable=False)
 
     admission = db.relationship("Admission", backref="round_notes")
+    invoice_item = db.relationship("InvoiceItem", foreign_keys=[invoice_item_id])
     patient = db.relationship("Patient")
     by = db.relationship("User", foreign_keys=[by_id])
 

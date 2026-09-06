@@ -105,6 +105,10 @@ ADDITIONS = [
     # The course-length rule for an ingredient: a ceiling where a printed one
     # exists, empty everywhere else. Null on an existing clinic means no rule,
     # which is exactly what that clinic had yesterday.
+    # The consultant's round, once it is on the family's bill. Null on an
+    # existing clinic means "not billed", which is what every round it has
+    # ever recorded is.
+    ("round_notes", "invoice_item_id", "INTEGER"),
     ("generic_drugs", "max_course_days", "INTEGER"),
     ("drug_interactions", "generic_a_id", "INTEGER"),
     ("drug_interactions", "generic_b_id", "INTEGER"),

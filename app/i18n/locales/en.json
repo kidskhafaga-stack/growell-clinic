@@ -5900,7 +5900,9 @@
     "needs_trend": "Say how the child is first: improving, unchanged or worse. A blank round would have cleared the “nobody has been round today” flag without anybody going near them.",
     "history": "The round",
     "none_yet": "No round has been written on this stay yet.",
-    "by": "written by"
+    "by": "written by",
+    "n_charged": "{n} consultant round(s) charged",
+    "outstanding": "{n} consultant round(s) not charged yet"
   },
   "ward": {
     "sub": "Who has had no round today, and who we expect to send home"

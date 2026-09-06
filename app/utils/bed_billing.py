@@ -295,16 +295,17 @@ def post(admission, user=None, upto=None, lang="ar"):
     """
     from app.models.invoice import InvoiceItem
 
-    from app.utils import drug_round, labs, theatres
+    from app.utils import drug_round, labs, round_billing, theatres
 
     due = outstanding(admission, upto)
     doses = drug_round.chargeable(admission)
     cases = theatres.unbilled(admission_id=admission.id)
     tests = (labs.unbilled(visit_id=admission.visit_id)
              if admission.visit_id else [])
-    if not due and not doses and not cases and not tests:
+    visits = round_billing.unbilled(admission_id=admission.id)
+    if not due and not doses and not cases and not tests and not visits:
         return {"periods": 0, "doses": 0, "operations": 0, "tests": 0,
-                "total": 0.0, "gross": 0.0, "invoice": None}
+                "rounds": 0, "total": 0.0, "gross": 0.0, "invoice": None}
 
     invoice = invoice_for(admission, user)
     added = []
@@ -347,6 +348,10 @@ def post(admission, user=None, upto=None, lang="ar"):
     # admission, not a bed bill, a pharmacy bill, a theatre bill and a lab
     # bill for the same three days.
     tested = labs.charge(admission, invoice, user=user, lang=lang)
+    # And the consultant's round. Same account again, and the same reason —
+    # and the fee follows the doctor who came rather than the one the stay
+    # belongs to.
+    seen = round_billing.charge(admission, invoice, user=user, lang=lang)
 
     # **And then through the same door every other invoice goes through.**
     # The insurance, the contract tariff, the cash price list and the family's
@@ -368,9 +373,10 @@ def post(admission, user=None, upto=None, lang="ar"):
     mine = (added
             + [d.invoice_item for d in doses if d.invoice_item is not None]
             + [c.invoice_item for c in cases if c.invoice_item is not None]
-            + [x.invoice_item for x in tests if x.invoice_item is not None])
+            + [x.invoice_item for x in tests if x.invoice_item is not None]
+            + [r.invoice_item for r in visits if r.invoice_item is not None])
     return {"periods": len(due), "doses": given, "operations": operated,
-            "tests": tested,
+            "tests": tested, "rounds": seen,
             "total": round(sum(i.net for i in mine), 2),
             "gross": round(sum(i.gross for i in mine), 2),
             "invoice": invoice}
