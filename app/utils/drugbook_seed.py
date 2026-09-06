@@ -1215,6 +1215,25 @@ GENERICS += [
                     "3 أيام يتراجع.",
         preg="A", lact="آمن — يُمسح قبل الرضعة.", ref="EDA leaflet",
     ),
+    # **Vaseline has no box, and it still belongs here.** There is no
+    # single-ingredient petrolatum on the Egyptian register — plain vaseline
+    # is sold as a cosmetic, and the two "vaseline cream" entries that exist
+    # are four-ingredient skin-care products. So this ships as an ingredient
+    # with no trade name, which is not a gap: an ingredient with no brand on
+    # file is still writable by name from the search, and a doctor who writes
+    # "فازلين" on a prescription — which is an ordinary thing to write — now
+    # finds it with its barrier note instead of finding nothing.
+    dict(
+        name_ar="فازلين (بارافين أبيض)",
+        name_en="Petrolatum (white soft paraffin)", cls="TOPIC",
+        routes="topical",
+        indications="حاجز على الجلد — الوقاية من التسلخات، تشقق الشفايف "
+                    "والجلد الجاف، وتليين القشرة قبل إزالتها.",
+        contraindications="الجرح المفتوح أو الحرق حديث الحدوث.",
+        precautions="حاجز مش علاج: بيمنع البلل يوصل للجلد ومش بيقتل فطر ولا "
+                    "ميكروب. ومش بيتحط على منطقة فيها التهاب بيرشّح.",
+        preg="A", lact="آمن — يُمسح قبل الرضعة.", ref="EDA leaflet",
+    ),
     dict(
         name_ar="نيستاتين (موضعي)", name_en="Nystatin (topical)", cls="ANTIF",
         atc="D01AA01", routes="topical",

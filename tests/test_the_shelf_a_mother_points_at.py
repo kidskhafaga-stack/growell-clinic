@@ -411,3 +411,42 @@ def test_the_fever_that_will_not_stay_down_has_a_suppository(seeded):
             assert Drug.query.filter_by(generic_id=g.id,
                                         form="suppository").count(), \
                 f"{name} has no suppository on the shelf"
+
+
+def test_the_barrier_with_no_box_is_still_prescribable(seeded):
+    """Vaseline.
+
+    There is no single-ingredient petrolatum on the Egyptian register — it is
+    sold as a cosmetic — so it ships as an ingredient carrying nothing. That
+    is not the same as being absent: the search returns ingredients that no
+    brand on file carries, precisely so a drug the clinic has never stocked
+    is still writable by name. A doctor writing "فازلين", which is an
+    ordinary thing to write, has to land on something.
+    """
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(
+            name_en="Petrolatum (white soft paraffin)").first()
+        assert g is not None
+        assert Drug.query.filter_by(generic_id=g.id).count() == 0
+
+    rows = seeded["sign_in"]("boss").get(
+        "/prescriptions/drugs/search?q=فازلين").get_json()
+    assert any(row.get("is_ingredient") and "فازلين" in row["name"]
+               for row in rows), "writing فازلين finds nothing"
+
+
+def test_every_kind_in_the_barrier_row_has_something(seeded):
+    """The two answers to "put something between the nappy and the skin", and
+    they are not the same thing: zinc oxide sits on the skin, the panthenol
+    creams go into it. Both were named as ordinary and one of them was here.
+    """
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        for name in ("Zinc oxide (topical)", "Dexpanthenol (topical)"):
+            g = GenericDrug.query.filter_by(name_en=name).first()
+            assert Drug.query.filter_by(generic_id=g.id,
+                                        is_active=True).count() >= 2, \
+                f"{name} has fewer than two products behind it"
