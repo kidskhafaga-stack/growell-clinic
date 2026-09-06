@@ -197,6 +197,122 @@ def test_a_missing_ingredient_comes_back_with_its_brands(seeded):
         assert Drug.query.filter_by(generic_id=back.id).count() >= 1
 
 
+# ------------------------------------------------------ the infant bottles
+
+# (ingredient, the drops that exist, the mg/ml on them, the syrup's mg/ml)
+#
+# Every one of these is more concentrated than its own syrup — which is what
+# drops *are for*, and exactly why a reference that carries only syrups is
+# wrong in the dangerous direction for the youngest patients on its books.
+DROPS = [
+    ("Paracetamol", "Cetal Drops", 100.0, 24.0),
+    ("Ibuprofen", "Flabu Drops", 40.0, 20.0),
+    ("Amoxicillin", "Unimox Drops", 100.0, 25.0),
+    ("Ketotifen", "Zedotefen Drops", 1.0, 0.2),
+]
+
+
+@pytest.mark.parametrize("ingredient,trade,drops_conc,syrup_conc", DROPS)
+def test_the_drops_are_there_and_carry_their_own_strength(
+        seeded, ingredient, trade, drops_conc, syrup_conc):
+    """The bottle an infant is actually given.
+
+    Asked in three words — *"وسيتال شراب سيتال نقط؟"* — and the syrup was
+    there twice while the drops were not there at all. The gap is not
+    cosmetic: paracetamol drops are 100 mg/ml against the syrup's 24, so the
+    same number of millilitres is four times the dose. The program works the
+    dose out from the concentration precisely so that cannot happen, and that
+    only protects anybody if the bottle in their hand is in the list.
+    """
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(name_en=ingredient).first()
+        d = Drug.query.filter_by(generic_id=g.id, trade_name=trade).first()
+        assert d is not None, f"{trade} is not in the reference"
+        assert d.form == "drops"
+        assert d.conc_mg_per_ml == drops_conc
+        assert drops_conc > syrup_conc, \
+            "a drops presentation weaker than its own syrup is a typo"
+
+
+def test_the_millilitres_differ_by_the_strength_and_not_by_the_name(seeded):
+    """The arithmetic the whole shape of this table exists for: one child, one
+    dose in milligrams, three bottles, three different amounts to pour."""
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(name_en="Paracetamol").first()
+        by_name = {(d.trade_name, d.strength): d.conc_mg_per_ml
+                   for d in Drug.query.filter_by(generic_id=g.id).all()}
+        dose_mg = 15 * 10                       # 15 mg/kg for a 10 kg child
+
+    # Keyed on the *pair*, because the name alone does not identify a bottle
+    # — which is the point being tested.
+    ml = {key: round(dose_mg / conc, 1)
+          for key, conc in by_name.items() if conc}
+    assert ml[("Cetal", "120 mg/5 ml")] == 6.2
+    assert ml[("Cetal", "250 mg/5 ml")] == 3.0
+    assert ml[("Cetal Drops", "100 mg/ml")] == 1.5
+
+
+def test_both_strengths_of_a_brand_stand_as_their_own_rows(seeded):
+    """Cetal is three things on a shelf. One row called "Cetal" would make the
+    program answer a question it cannot answer from the name."""
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(name_en="Paracetamol").first()
+        cetal = {(d.strength, d.form) for d in
+                 Drug.query.filter_by(generic_id=g.id).all()
+                 if d.trade_name.startswith("Cetal")}
+    assert ("120 mg/5 ml", "syrup") in cetal
+    assert ("250 mg/5 ml", "syrup") in cetal
+    assert ("100 mg/ml", "drops") in cetal
+
+
+def test_no_brand_is_carried_that_the_register_has_never_heard_of(seeded):
+    """Found by checking: "Cetal Forte" was in this list and on no Egyptian
+    register anywhere — the 250 mg/5 ml suspension is sold as plain Cetal. A
+    name nobody can buy is a name a doctor picks and a pharmacy cannot fill.
+    """
+    import gzip
+    import json
+    import os
+
+    from app.models import Drug, GenericDrug
+
+    path = os.path.join(os.path.dirname(__file__), "..", "app", "data",
+                        "egypt_drugs.json.gz")
+    with gzip.open(os.path.abspath(path), "rt", encoding="utf-8") as fh:
+        register = " | ".join(row[0].upper() for row in json.load(fh))
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(name_en="Paracetamol").first()
+        names = {d.trade_name for d in
+                 Drug.query.filter_by(generic_id=g.id).all()}
+
+    # Spot-checked on the ingredient the whole thread was about rather than
+    # swept over the lot: a sweep would fail on every legitimately renamed
+    # product and stop being read.
+    unknown = [n for n in names
+               if n.replace(" Drops", "").upper() not in register]
+    assert unknown == [], f"not on any Egyptian register: {unknown}"
+
+
+def test_the_two_ibuprofen_drops_are_listed_separately(seeded):
+    """They are written differently on the two boxes — 40 mg/ml and
+    50 mg/1.25 ml — and a clinic stocking the second while the screen shows
+    the first is reading the wrong millilitres off it."""
+    from app.models import Drug, GenericDrug
+
+    with seeded["app"].app_context():
+        g = GenericDrug.query.filter_by(name_en="Ibuprofen").first()
+        drops = {d.strength: d.conc_mg_per_ml for d in
+                 Drug.query.filter_by(generic_id=g.id, form="drops").all()}
+    assert drops == {"40 mg/ml": 40.0, "50 mg/1.25 ml": 40.0}
+
+
 # ------------------------------------------------ the register beside it
 
 def test_the_egyptian_register_carries_the_presentations(seeded):

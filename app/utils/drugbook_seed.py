@@ -755,13 +755,41 @@ GENERICS += [
 # (trade_name, generic_en, form, strength, conc_mg_per_ml, manufacturer)
 BRANDS = [
     ("Cetal", "Paracetamol", "syrup", "120 mg/5 ml", 24, "Epico"),
-    ("Cetal Forte", "Paracetamol", "syrup", "250 mg/5 ml", 50, "Epico"),
-    ("Abimol", "Paracetamol", "syrup", "120 mg/5 ml", 24, "Amoun"),
+    # Three corrections made while checking these against the register, and
+    # they are the argument for checking: "Cetal Forte" was on no register at
+    # all (the 250 mg/5 ml suspension is sold as plain Cetal, which is already
+    # here); Abimol's syrup is 150 mg/5 ml and was written as 120; and
+    # Febrimol's drops are on the market with **no strength printed on the
+    # entry**, so they are left out rather than given a concentration this
+    # file invented. A wrong mg/ml is worse than a missing product: the
+    # missing one sends somebody to look it up.
+    # **The drops, and they are the presentation this list could least afford
+    # to be missing.** They are what an infant is actually given, and they are
+    # 100 mg/ml against the syrup's 24 — so the same number of millilitres is
+    # four times the dose. A reference that carried only the syrup left the
+    # doctor picking a syrup for a baby holding a dropper, and the whole
+    # "work the dose out from the concentration, never from the name" rule
+    # can only protect anybody if the presentation in their hand is in the
+    # list. Every strength here is read off the Egyptian register.
+    ("Cetal Drops", "Paracetamol", "drops", "100 mg/ml", 100, "Epico"),
+    ("Paragesic Drops", "Paracetamol", "drops", "100 mg/ml", 100, "Amriya"),
+    ("Pyral Drops", "Paracetamol", "drops", "100 mg/ml", 100, "Kahira"),
+    ("Abimol", "Paracetamol", "syrup", "150 mg/5 ml", 30, "Amoun"),
     ("Paramol", "Paracetamol", "suppository", "125 mg", None, "Sedico"),
     ("Brufen", "Ibuprofen", "syrup", "100 mg/5 ml", 20, "Kahira"),
     ("Nurofen", "Ibuprofen", "syrup", "100 mg/5 ml", 20, "Reckitt"),
+    # Two ibuprofen drops on the Egyptian market at two different strengths —
+    # 40 mg/ml and 40 mg/ml expressed as 50 mg/1.25 ml. Both are listed rather
+    # than one "ibuprofen drops", because a clinic that stocks the second and
+    # picks the first is reading the wrong millilitres off the screen.
+    ("Flabu Drops", "Ibuprofen", "drops", "40 mg/ml", 40, "Delta Pharma"),
+    ("Peopobruf Drops", "Ibuprofen", "drops", "50 mg/1.25 ml", 40,
+     "Delta Pharma"),
     ("Megamox", "Amoxicillin", "syrup", "250 mg/5 ml", 50, "Amoun"),
     ("E-Mox", "Amoxicillin", "syrup", "125 mg/5 ml", 25, "Epico"),
+    # And the infant drops: 100 mg/ml against the syrups' 25 and 50. Four
+    # times one of them.
+    ("Unimox Drops", "Amoxicillin", "drops", "100 mg/ml", 100, "Hikma"),
     ("Hibiotic", "Amoxicillin/Clavulanate", "syrup", "457 mg/5 ml", 80, "Amoun"),
     ("Augmentin", "Amoxicillin/Clavulanate", "syrup", "312 mg/5 ml", 50, "GSK"),
     ("Zisrocin", "Azithromycin", "syrup", "200 mg/5 ml", 40, "Kahira"),
@@ -796,7 +824,6 @@ BRANDS = [
 # --- second wave: more of what an Egyptian pharmacy actually stocks ---------
 BRANDS += [
     ("Adol", "Paracetamol", "syrup", "120 mg/5 ml", 24, "Julphar"),
-    ("Panadol Baby", "Paracetamol", "syrup", "120 mg/5 ml", 24, "GSK"),
     ("Cetal", "Paracetamol", "suppository", "250 mg", None, "Epico"),
     ("Temp", "Paracetamol", "suppository", "125 mg", None, "Amoun"),
     ("Perfalgan", "Paracetamol", "infusion", "10 mg/ml", 10, "BMS"),
@@ -832,6 +859,8 @@ BRANDS += [
     ("Histazine", "Chlorpheniramine", "syrup", "2 mg/5 ml", 0.4, "Kahira"),
     ("Allergex", "Chlorpheniramine", "tablet", "4 mg", None, "Egyptian Group"),
     ("Zaditen", "Ketotifen", "syrup", "1 mg/5 ml", 0.2, "Novartis"),
+    # Five times the syrup. The two bottles look the same on a shelf.
+    ("Zedotefen Drops", "Ketotifen", "drops", "1 mg/ml", 1, "El Nasr"),
     ("Cetrizal", "Cetirizine", "syrup", "5 mg/5 ml", 1, "Amoun"),
     ("Lorine", "Loratadine", "syrup", "5 mg/5 ml", 1, "Amoun"),
     ("Pulmicort", "Budesonide (inhaled)", "nebuliser respule", "0.5 mg/2 ml", 0.25, "AstraZeneca"),
@@ -853,6 +882,12 @@ BRANDS += [
     ("Hidrasec", "Racecadotril", "sachet", "30 mg", None, "Bioprojet"),
     ("Antinal", "Racecadotril", "sachet", "30 mg", None, "Amoun"),
     ("Lacteol Fort", "Probiotic (Lactobacillus)", "sachet", "10 billion", None, "Adam Pharma"),
+    # The infant form. No concentration to get wrong here — these are dosed in
+    # drops, not in millilitres — but a newborn with colic is not given a
+    # sachet, and a list with only sachets on it is a list that does not cover
+    # the age this one is for.
+    ("BioGaia Drops", "Probiotic (Lactobacillus)", "drops", "5 drops daily",
+     None, "BioGaia"),
     ("Bacillac", "Probiotic (Lactobacillus)", "sachet", "1.5 billion", None, "Kahira"),
     ("Rehydran N", "Oral rehydration salts (ORS)", "sachet", "WHO formula", None, "Sedico"),
     ("Hydrasal", "Oral rehydration salts (ORS)", "sachet", "WHO formula", None, "Amoun"),
