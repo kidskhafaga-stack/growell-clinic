@@ -242,6 +242,20 @@ def register_commands(app):
                             f"{made['generics']} ingredient(s), "
                             f"{made['brands']} product(s), "
                             f"{made['interactions']} interaction(s)", fg="green")
+            # And the figures this program shipped wrong, corrected only where
+            # it still holds what we put there. Said out loud either way: a
+            # clinical number changing quietly under a clinic is exactly the
+            # thing an update is not allowed to do without telling them.
+            from app.utils.drugbook_seed import apply_shipped_fixes
+
+            put_right = apply_shipped_fixes()
+            if put_right["fixed"]:
+                click.secho(f"  ~ drug reference: {put_right['fixed']} shipped "
+                            "figure(s) corrected", fg="green")
+            if put_right["left"]:
+                click.secho(f"  ! drug reference: {put_right['left']} product(s) "
+                            "carry your own figure and were left alone",
+                            fg="yellow")
         except Exception as exc:  # noqa: BLE001
             # Loud, not silent: a clinic that opens an empty drug reference
             # needs to see why rather than assume the feature isn't there.

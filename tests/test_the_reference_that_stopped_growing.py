@@ -313,6 +313,165 @@ def test_the_two_ibuprofen_drops_are_listed_separately(seeded):
     assert drops == {"40 mg/ml": 40.0, "50 mg/1.25 ml": 40.0}
 
 
+# --------------------------------- correcting a figure we shipped wrong
+
+def _abimol(fx):
+    from app.models import Drug
+
+    with fx["app"].app_context():
+        d = Drug.query.filter_by(trade_name="Abimol", form="syrup").first()
+        return (d.strength, d.conc_mg_per_ml) if d else None
+
+
+def _shipped_the_old_value(fx):
+    """Put the row back the way an older version of this program shipped it."""
+    from app.models import Drug
+
+    db = fx["db"]
+    with fx["app"].app_context():
+        d = Drug.query.filter_by(trade_name="Abimol", form="syrup").first()
+        d.strength, d.conc_mg_per_ml = "120 mg/5 ml", 24.0
+        db.session.commit()
+
+
+def _fix(fx):
+    from app.utils.drugbook_seed import apply_shipped_fixes
+
+    with fx["app"].app_context():
+        out = apply_shipped_fixes()
+        fx["db"].session.commit()
+    return out
+
+
+def test_a_figure_we_shipped_wrong_is_put_right_on_update(seeded):
+    """The gap the add-only rule leaves open, and the reason this exists.
+
+    The seed never overwrites, which is what makes it safe on a working
+    clinic — a dose somebody corrected must not come back as ours next
+    Tuesday. The cost is that when *we* ship a wrong figure it stays wrong,
+    and Abimol's syrup is 150 mg/5 ml while this file shipped 120 for a long
+    time: a fifth off every millilitre worked out from it.
+    """
+    _shipped_the_old_value(seeded)
+    assert _abimol(seeded) == ("120 mg/5 ml", 24.0)
+
+    assert _fix(seeded) == {"fixed": 1, "left": 0}
+    assert _abimol(seeded) == ("150 mg/5 ml", 30.0)
+
+
+def test_a_figure_the_clinic_changed_is_left_exactly_alone(seeded):
+    """The safety of the whole thing, and the half that must never slip.
+
+    A clinic that had already noticed, or that carries its own protocol
+    figure, does not match what we shipped — so nothing of theirs is touched,
+    and the update says how many it did not dare touch rather than going
+    quiet about them.
+    """
+    from app.models import Drug
+
+    db = seeded["db"]
+    with seeded["app"].app_context():
+        d = Drug.query.filter_by(trade_name="Abimol", form="syrup").first()
+        d.strength, d.conc_mg_per_ml = "١٥٠ مج/٥ مل (بروتوكولنا)", 31.0
+        db.session.commit()
+
+    assert _fix(seeded) == {"fixed": 0, "left": 1}
+    assert _abimol(seeded) == ("١٥٠ مج/٥ مل (بروتوكولنا)", 31.0)
+
+
+def test_a_clinic_already_carrying_the_right_figure_is_not_counted(seeded):
+    """A fresh install, or one already corrected. Nothing to do and nothing to
+    warn about — a line saying "1 left alone" every single update is a line
+    people stop reading."""
+    assert _abimol(seeded) == ("150 mg/5 ml", 30.0)
+    assert _fix(seeded) == {"fixed": 0, "left": 0}
+
+
+def test_running_it_twice_changes_nothing_the_second_time(seeded):
+    """It runs on every update. A correction that re-applied would be a second
+    write over a row the clinic may have edited in between."""
+    _shipped_the_old_value(seeded)
+    assert _fix(seeded)["fixed"] == 1
+    assert _fix(seeded) == {"fixed": 0, "left": 0}
+
+
+def test_a_correction_only_touches_the_product_it_names(seeded):
+    """Same ingredient, same strength on the label, different brand. A fix
+    written for one product must not walk along the shelf."""
+    from app.models import Drug
+
+    _shipped_the_old_value(seeded)
+    before = _abimol(seeded)
+    del before
+
+    with seeded["app"].app_context():
+        others = {(d.trade_name, d.strength, d.conc_mg_per_ml)
+                  for d in Drug.query.filter(Drug.trade_name != "Abimol").all()}
+    _fix(seeded)
+    with seeded["app"].app_context():
+        after = {(d.trade_name, d.strength, d.conc_mg_per_ml)
+                 for d in Drug.query.filter(Drug.trade_name != "Abimol").all()}
+    assert others == after
+
+
+def test_a_correction_says_which_value_it_expects_to_find(seeded):
+    """Written out rather than worked out. It is what makes the change
+    reviewable in a diff, and it forces whoever adds one to say what they
+    believe the clinic is holding."""
+    from app.utils.drugbook_seed import SHIPPED_FIXES
+
+    for fix in SHIPPED_FIXES:
+        assert fix.get("was"), "a correction with no expected value would overwrite"
+        assert fix.get("now"), "a correction with nothing to write"
+        assert fix.get("why"), "a clinical figure changed with no reason recorded"
+        assert set(fix["was"]) & set(fix["now"]), \
+            "the value checked and the value written are unrelated"
+
+
+def test_the_update_actually_runs_it_and_says_so(seeded):
+    """Driven through ``upgrade-db`` itself rather than by reading the source.
+
+    Written the other way first and two deliberate breakages walked past it:
+    a scan for the function's name matched the *import* after the call had
+    been replaced, and a scan for the word "corrected" matched a comment after
+    the message had been deleted. A test that greps for its own vocabulary
+    passes on a program that does nothing.
+
+    And the message is half the point. A clinical number changing quietly
+    under a clinic is exactly what an update may not do without telling them.
+    """
+    from app.models import Drug
+
+    _shipped_the_old_value(seeded)
+
+    result = seeded["app"].test_cli_runner().invoke(args=["upgrade-db"])
+    assert result.exit_code == 0
+    assert "corrected" in result.output, "the update went quiet about it"
+
+    with seeded["app"].app_context():
+        d = Drug.query.filter_by(trade_name="Abimol", form="syrup").first()
+        assert (d.strength, d.conc_mg_per_ml) == ("150 mg/5 ml", 30.0)
+
+
+def test_the_update_names_what_it_did_not_dare_touch(seeded):
+    """The other half of telling them: a clinic whose own figure was left
+    alone should be told, not left to find out."""
+    from app.models import Drug
+
+    db = seeded["db"]
+    with seeded["app"].app_context():
+        d = Drug.query.filter_by(trade_name="Abimol", form="syrup").first()
+        d.strength, d.conc_mg_per_ml = "بروتوكولنا", 31.0
+        db.session.commit()
+
+    result = seeded["app"].test_cli_runner().invoke(args=["upgrade-db"])
+    assert "left alone" in result.output
+
+    with seeded["app"].app_context():
+        d = Drug.query.filter_by(trade_name="Abimol", form="syrup").first()
+        assert d.conc_mg_per_ml == 31.0
+
+
 # ------------------------------------------------ the register beside it
 
 def test_the_egyptian_register_carries_the_presentations(seeded):

@@ -1442,6 +1442,72 @@ def link_existing_drugs():
     return n
 
 
+# --- correcting a figure we shipped wrong ---------------------------------
+#
+# **The seed adds and never overwrites**, which is what makes it safe to run
+# on a working clinic: a dose somebody corrected against their own protocol
+# must not come back next Tuesday as ours. The cost of that rule is the other
+# direction — when *we* ship a wrong figure, it stays wrong on every clinic
+# that already has the row.
+#
+# Abimol is the example this list was written for. Its syrup is 150 mg/5 ml on
+# the Egyptian register and this file shipped 120 for a long time, which is a
+# fifth off every millilitre worked out from it.
+#
+# **Each correction carries the value we shipped**, and that is the whole
+# safety of it: the row is changed only when it still holds *exactly* what we
+# put there. A clinic that had already noticed and fixed it does not match, so
+# nothing of theirs is touched — and neither does a clinic that changed it for
+# a reason of their own we do not know about. Left alone and counted, so the
+# update can say how many it did not dare touch.
+#
+# A fingerprint column would do the same job more automatically and was not
+# worth a schema change: writing the old value out is more precise, it is
+# reviewable in a diff, and it forces whoever adds a correction to say what
+# they believe the clinic is holding.
+#
+# **Names are not corrected here, only figures.** "Cetal Forte" and "Panadol
+# Baby" were removed from the seed because no Egyptian register carries them,
+# and they are deliberately left in place on clinics that already have them: a
+# brand that cannot be bought is a nuisance, and deleting a row a prescription
+# may point at is a fault. New installs simply do not get them.
+SHIPPED_FIXES = [
+    {
+        "trade_name": "Abimol", "form": "syrup",
+        "was": {"strength": "120 mg/5 ml", "conc_mg_per_ml": 24.0},
+        "now": {"strength": "150 mg/5 ml", "conc_mg_per_ml": 30.0},
+        "why": "شراب أبيمول ١٥٠ مج/٥مل على السجل المصري — وكان مشحون ١٢٠.",
+    },
+]
+
+
+def apply_shipped_fixes(fixes=None):
+    """Correct figures this file shipped wrong, and only where it shipped them.
+
+    Returns ``{"fixed": n, "left": m}`` — ``left`` being the rows that carry
+    the product but no longer carry our value, which means somebody changed
+    it and it is not ours to change back.
+    """
+    fixed = left = 0
+    for fix in (fixes if fixes is not None else SHIPPED_FIXES):
+        rows = Drug.query.filter_by(trade_name=fix["trade_name"],
+                                    form=fix["form"]).all()
+        for row in rows:
+            if all(getattr(row, field) == value
+                   for field, value in fix["was"].items()):
+                for field, value in fix["now"].items():
+                    setattr(row, field, value)
+                fixed += 1
+            elif not all(getattr(row, field) == value
+                         for field, value in fix["now"].items()):
+                # Neither what we shipped nor what we are shipping now: the
+                # clinic's own figure, and it stays.
+                left += 1
+    if fixed:
+        db.session.flush()
+    return {"fixed": fixed, "left": left}
+
+
 def seed_drugbook(force=False):
     """Seed classes → ingredients → trade names. Adds what is missing.
 
