@@ -4610,7 +4610,11 @@
     "map_preview_first": "Start with \"preview without saving\" — you'll see how many products would be added before the catalogue is touched.",
     "import_map_required": "You must at least choose the trade-name column.",
     "import_expired": "The uploaded file has expired — upload it again.",
-    "import_now": "Import for real"
+    "import_now": "Import for real",
+    "warn_no_end_date": "topical corticosteroid with no duration — write one; this tube gets repeated for months",
+    "warn_course_too_long": "longer than the recorded course for this ingredient",
+    "steroid_with_antifungal": "a topical corticosteroid and an antifungal on the same prescription",
+    "steroid_with_antifungal_why": "A common and often correct pairing — but the steroid is the half that has to stop. With no end date the rash improves, returns, and the tube keeps being dispensed; the nappy area is occluded, so absorption is higher."
   },
   "periods": {
     "title": "Accounting periods",

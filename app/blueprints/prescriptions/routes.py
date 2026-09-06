@@ -68,6 +68,13 @@ def interactions_check():
     raw = (request.args.get("ids") or "").split(",")
     ids = [int(x) for x in raw if x.strip().isdigit()]
     names = [n for n in (request.args.get("names") or "").split("|") if n.strip()]
+    # Durations in the same order the items are built below: the chosen drugs
+    # first, then the hand-typed names. **Empties are kept**, unlike `names` —
+    # an empty duration is the whole point of the course check, not a blank to
+    # be filtered out. Absent altogether means the caller does not send them
+    # and nothing about that screen changes.
+    durations = (request.args.get("durations") or "").split("|") \
+        if request.args.get("durations") is not None else []
     lang = getattr(g, "lang", "ar")
     patient = (db.session.get(Patient, request.args.get("patient_id", type=int))
                if request.args.get("patient_id", type=int) else None)
@@ -75,6 +82,9 @@ def interactions_check():
     items = [{"name": drugs[i].label(lang), "drug": drugs[i]}
              for i in ids if i in drugs]
     items += [{"name": n.strip()} for n in names]
+    for index, item in enumerate(items):
+        if index < len(durations):
+            item["duration"] = durations[index]
     result = rx_check(items, patient=patient,
                       weight_kg=request.args.get("weight", type=float),
                       age_months=request.args.get("age_months", type=int), lang=lang)

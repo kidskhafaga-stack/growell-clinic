@@ -9,7 +9,12 @@ Three questions get asked every time a doctor writes a drug for a child:
   ingredient, run against the patient's own weight and age;
 * **do these drugs fight each other?** — interactions between the ingredients
   already on the list, with a severity and, where we know one, the alternative
-  to use instead.
+  to use instead;
+* **and does this course ever stop?** — a topical corticosteroid written with
+  no end date on it is the one that gets repeated at the pharmacy for months,
+  and it is the harm this file was extended for. Where a printed course limit
+  exists it is checked too; where none does, the missing end date is still
+  worth saying.
 
 Both are answered from the drug reference, matched on the **active
 ingredient**, so every brand of an interacting ingredient is caught. Nothing
@@ -51,12 +56,21 @@ def _norm(items):
         if isinstance(it, dict):
             out.append(it)
             continue
-        out.append({
+        entry = {
             "name": getattr(it, "name", None) or getattr(it, "drug_name", ""),
             "drug": getattr(it, "drug", None),
             "generic": getattr(it, "generic", None),
             "dose": getattr(it, "dose", None),
-        })
+        }
+        # **Only when the caller knows about durations at all.** An empty
+        # duration and a caller that has never heard of the field are two
+        # different facts, and the whole course check turns on the first one.
+        # Conflating them would put "no end date written" on every screen that
+        # simply does not pass durations — which is the same empty-list-means-
+        # two-things fault this program keeps finding.
+        if hasattr(it, "duration"):
+            entry["duration"] = it.duration
+        out.append(entry)
     return out
 
 
@@ -79,6 +93,63 @@ def interaction_pairs(generic_ids):
         seen.add(key)
         out.append(r)
     return out
+
+
+# Topical corticosteroids and topical antifungals, named by the code the
+# reference already carries. ATC's D07 and D01 are exactly these two families,
+# so no list of ingredients has to be kept in step with the seed — an
+# ingredient added next year is covered the day it is added.
+STEROID_ATC = "D07"
+ANTIFUNGAL_ATC = "D01"
+
+
+def _atc_family(generic, prefix):
+    return bool(generic is not None
+                and (generic.atc_code or "").upper().startswith(prefix))
+
+
+def course_warnings(generic, duration):
+    """What is wrong with the length of this course, if anything.
+
+    Two different findings and they are deliberately separate:
+
+    ``no_end_date`` — a topical corticosteroid with nothing written in the
+    duration box. This needs no number from anybody: the concern is not that
+    the course is too long, it is that **nothing says when it stops**, and the
+    tube then gets repeated for months on a child's face or nappy area. The
+    family is read off the ATC code the reference already holds.
+
+    ``course_too_long`` — past the printed limit, and only for the ingredients
+    where a printed limit exists. Hydrocortisone's carton says seven days;
+    almost nothing else says anything, and this file does not invent the rest.
+    """
+    from app.utils.rx_shorthand import duration_days
+
+    out = []
+    if generic is None:
+        return out
+    days = duration_days(duration)
+    if days is None and _atc_family(generic, STEROID_ATC):
+        out.append("no_end_date")
+    ceiling = getattr(generic, "max_course_days", None)
+    if ceiling and days is not None and days > ceiling:
+        out.append("course_too_long")
+    return out
+
+
+def steroid_with_antifungal(generics):
+    """True when a topical steroid and a topical antifungal are written
+    together.
+
+    Not a forbidden combination and not treated as one — it is prescribed
+    every day and often rightly. What it is, is the shape in which a steroid
+    quietly becomes permanent: the rash improves, comes back, and the tube
+    that has no end date on it is the steroid. Said once for the whole
+    prescription rather than per line, because it is a fact about the pair.
+    """
+    rows = [g for g in generics if g is not None]
+    return (any(_atc_family(g, STEROID_ATC) for g in rows)
+            and any(_atc_family(g, ANTIFUNGAL_ATC) for g in rows))
 
 
 def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
@@ -124,6 +195,8 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
             # once; per line we only surface the real safety flags.
             entry["warnings"] = [w for w in res["warnings"]
                                  if w not in ("no_weight", "no_rule")]
+        if "duration" in it:
+            entry["warnings"] += course_warnings(generic, it["duration"])
         lines.append(entry)
 
     # What the child is *already* on, added before the interactions are
@@ -135,6 +208,7 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
 
     ongoing = ingredient_ids(patient) if patient is not None else []
     pairs = interaction_pairs(generic_ids + ongoing)
+    together = steroid_with_antifungal([l["generic"] for l in lines])
 
     return {
         "lines": lines,
@@ -146,8 +220,9 @@ def check(items, patient=None, weight_kg=None, age_months=None, lang="ar"):
         "ongoing_ids": ongoing,
         "weight": weight_kg,
         "age_months": age_months,
+        "steroid_with_antifungal": together,
         "has_warnings": (any(l["warnings"] or l["allergy"] for l in lines)
-                         or bool(pairs)),
+                         or bool(pairs) or together),
         "allergies": [l for l in lines if l["allergy"]],
     }
 
@@ -157,6 +232,7 @@ def as_json(result, lang="ar"):
     return {
         "weight": result["weight"],
         "age_months": result["age_months"],
+        "steroid_with_antifungal": result.get("steroid_with_antifungal", False),
         "lines": [{
             "name": l["name"],
             "generic": l["generic_name"],

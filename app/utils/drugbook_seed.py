@@ -521,6 +521,13 @@ GENERICS += [
          ref="BNF for Children"),
     dict(name_ar="هيدروكورتيزون (موضعي)", name_en="Hydrocortisone (topical)",
          cls="TOPIC", atc="D07AA02", routes="topical",
+         # The one printed course limit in this file, and it is printed on the
+         # carton: hydrocortisone 1% sold over the counter says seven days.
+         # Every other topical steroid here is left empty on purpose — the
+         # labels do not agree on a figure and this file does not invent one.
+         # They are still covered by the other half of the check, which needs
+         # no number: a steroid with no end date written at all.
+         max_course_days=7,
          indications="الإكزيما والتهاب الجلد التحسسي.",
          contraindications="العدوى الفطرية أو الفيروسية غير المغطاة.",
          precautions="أقصر مدة وأقل تركيز، وتجنّب الوجه والثنيات إلا بتعليمات.",
@@ -1780,6 +1787,7 @@ def seed_generics():
             max_per_kg_day=dose[4], max_single_dose_mg=dose[5],
             max_daily_dose_mg=dose[6],
             dose_note=row.get("note"),
+            max_course_days=row.get("max_course_days"),
             min_age_months=row.get("min_age"), max_age_months=row.get("max_age"),
             indications=row.get("indications"),
             contraindications=row.get("contraindications"),
@@ -1937,6 +1945,34 @@ def apply_shipped_fixes(fixes=None):
     return {"fixed": fixed, "left": left}
 
 
+# --- course limits, filled in and never written over -----------------------
+#
+# `seed_generics` skips an ingredient that already exists, which is what makes
+# it safe to re-run — and it means a figure added to this file after a clinic
+# installed would never reach them. That was the whole "the reference stopped
+# growing" bug, one field down.
+#
+# So course limits are filled separately and **only where the row is empty**.
+# A clinic that set seven days to ten keeps ten; a clinic that has never heard
+# of the field gets ours.
+COURSE_LIMITS = {
+    "Hydrocortisone (topical)": 7,
+}
+
+
+def fill_course_limits(limits=None):
+    """Put our course limit on ingredients that carry none. Returns the count."""
+    filled = 0
+    for name, days in (limits if limits is not None else COURSE_LIMITS).items():
+        row = GenericDrug.query.filter_by(name_en=name).first()
+        if row is not None and row.max_course_days is None:
+            row.max_course_days = days
+            filled += 1
+    if filled:
+        db.session.flush()
+    return filled
+
+
 def seed_drugbook(force=False):
     """Seed classes → ingredients → trade names. Adds what is missing.
 
@@ -1964,6 +2000,7 @@ def seed_drugbook(force=False):
         "classes": seed_drug_classes(),
         "generics": seed_generics(),
         "brands": seed_brands(),
+        "course_limits": fill_course_limits(),
         "linked": link_existing_drugs(),
         "interactions": seed_interactions(),
     }

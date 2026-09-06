@@ -215,6 +215,18 @@
         </template>
       </div>
     </template>
+    {# The pair, said once for the prescription. Amber and not red on purpose:
+       this combination is prescribed every day and often rightly, and a red
+       box on a correct prescription is how a doctor learns to close the box
+       without reading it. #}
+    <template x-if="steroidPair">
+      <div style="margin-bottom:12px;border:1px solid #f0d08a;border-radius:10px;overflow:hidden;">
+        <div style="background:#fff8e6;color:#8a5a00;padding:8px 12px;font-weight:700;">
+          <i class="bi bi-layers-half"></i> {{ t('drugbook.steroid_with_antifungal') }}</div>
+        <div style="padding:8px 12px;border-top:1px solid #f6e7c2;color:var(--muted);">
+          {{ t('drugbook.steroid_with_antifungal_why') }}</div>
+      </div>
+    </template>
     <template x-for="(line, i) in lines" :key="i">
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;position:relative;">
         <button type="button" class="btn-x" style="position:absolute;inset-inline-end:8px;top:8px;border:none;background:none;cursor:pointer;color:var(--muted);" x-on:click="removeLine(i)"><i class="bi bi-x-lg"></i></button>
@@ -246,8 +258,12 @@
                    list="rx-frequencies" x-on:blur="line.frequency = expandFreq(line.frequency)"
                    placeholder="1x3"></div>
           <div class="form-row"><label>{{ t('rx.duration') }}</label>
+            {# The check runs again when the duration settles: the course
+               warning is *about* this field, and without this it would only
+               ever be computed from the value the line had when the drug was
+               chosen — which is empty, always. #}
             <input class="input" name="item_duration" x-model="line.duration"
-                   x-on:blur="line.duration = expandDuration(line.duration)"
+                   x-on:blur="line.duration = expandDuration(line.duration); checkInteractions()"
                    placeholder="5d"></div>
           <div class="form-row"><label>{{ t('rx.instructions') }}</label><input class="input" name="item_instructions" x-model="line.instructions"></div>
           {# Ticked by default: a line the doctor wrote must not vanish from
@@ -516,15 +532,25 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
       'min_weight': t('drugbook.warn_min_weight'),
       'daily_cap': t('drugbook.warn_daily_cap'),
       'adult_cap': t('drugbook.warn_adult_cap'),
+      'no_end_date': t('drugbook.warn_no_end_date'),
+      'course_too_long': t('drugbook.warn_course_too_long'),
     } | tojson }},
+    steroidPair: false,
     async checkInteractions(){
-      const ids = this.lines.map(l => l.drug_id).filter(Boolean);
-      const names = this.lines.filter(l => !l.drug_id && (l.name || '').trim())
-                              .map(l => l.name.trim());
+      const chosen = this.lines.filter(l => l.drug_id);
+      const typed = this.lines.filter(l => !l.drug_id && (l.name || '').trim());
+      const ids = chosen.map(l => l.drug_id);
+      const names = typed.map(l => l.name.trim());
+      // Same order as the server builds its items: chosen first, then typed.
+      // Blanks are sent as blanks — "no end date written" is the finding, not
+      // a gap to be tidied away.
+      const durations = chosen.concat(typed).map(l => (l.duration || '').trim());
       if(!ids.length && !names.length){
-        this.interactions = []; this.doseFlags = []; this.allergyFlags = []; return; }
+        this.interactions = []; this.doseFlags = []; this.allergyFlags = [];
+        this.steroidPair = false; return; }
       let url = "{{ url_for('prescriptions.interactions_check') }}?ids=" + ids.join(',')
-              + "&names=" + encodeURIComponent(names.join('|'));
+              + "&names=" + encodeURIComponent(names.join('|'))
+              + "&durations=" + encodeURIComponent(durations.join('|'));
       const pid = document.querySelector('[name="patient_id"]');
       if(pid && pid.value) url += "&patient_id=" + pid.value;
       if(this.weight) url += "&weight=" + this.weight;
@@ -542,7 +568,9 @@ function rxForm(prefillWeight, prefillDx, prefillDxCode, prefillInvs, prefillMed
           }
         });
         this.doseFlags = flags; this.allergyFlags = allergies;
-      }catch(e){ this.interactions = []; this.doseFlags = []; this.allergyFlags = []; }
+        this.steroidPair = !!d.steroid_with_antifungal;
+      }catch(e){ this.interactions = []; this.doseFlags = []; this.allergyFlags = [];
+                 this.steroidPair = false; }
     },
     invs: (prefillInvs || []).map(function(x){
       return {id: x.id || '', kind: x.kind || 'lab', name: x.name || '',
