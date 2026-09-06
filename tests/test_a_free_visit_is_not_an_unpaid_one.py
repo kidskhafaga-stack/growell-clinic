@@ -148,3 +148,72 @@ def test_a_free_booking_is_not_counted_as_unpaid_on_the_day(board):
         unpaid = [a.id for a in appts
                   if states[a.id]["state"] in ("unpaid", "partial", "none")]
         assert unpaid == [board["appt"]["new"]]
+
+
+def test_the_board_does_not_price_every_row_to_find_the_free_ones(board):
+    """Caught by the query-count guard next door, and worth its own name.
+
+    The authoritative answer costs a checkout build per row — invoices, visit
+    services, vaccines — and a full morning is forty rows. So a cheap
+    **necessary** condition runs first: no base charge means not priced, a
+    base that costs something cannot come to zero, and anything booked on top
+    might cost money. Only what survives that is priced properly.
+
+    The gate never answers on its own, and it is wrong only in the safe
+    direction: it can send a row to the real check that turns out to owe
+    money, and never the other way.
+    """
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    from app.blueprints.appointments.routes import _payment_status
+    from app.models import Appointment
+
+    def cost(appts):
+        seen = []
+
+        def record(conn, cursor, statement, params, context, many):
+            if "FROM invoices" in statement:
+                seen.append(statement)
+
+        event.listen(Engine, "before_cursor_execute", record)
+        try:
+            _payment_status(appts, local_today())
+        finally:
+            event.remove(Engine, "before_cursor_execute", record)
+        return len(seen)
+
+    with board["app"].test_request_context():
+        db = board["db"]
+        both = [db.session.get(Appointment, i) for i in board["appt"].values()]
+        small = cost(both)
+
+        # Twenty more of the *priced* type — a full morning. Not one of them
+        # can be free, so not one of them may cost a query.
+        extra = []
+        for i in range(20):
+            row = Appointment(patient_id=board["ids"]["child"],
+                              doctor_id=board["ids"]["doctor"],
+                              appt_date=local_today(), appt_time=time(9, i),
+                              appt_type="new", status="scheduled")
+            db.session.add(row)
+            extra.append(row)
+        db.session.flush()
+        big = cost(both + extra)
+
+    assert big == small, (
+        f"{big} invoice queries for {len(both) + len(extra)} rows against "
+        f"{small} for {len(both)} — the board is pricing every row")
+
+
+def test_a_booking_with_something_added_is_never_called_free(board):
+    """The gate's safe direction, as a property: an extra service booked onto
+    a free visit type means money might be owed, and the row keeps its till."""
+    from app.blueprints.appointments.routes import _costs_nothing
+    from app.models import Appointment
+
+    with board["app"].test_request_context():
+        appt = board["db"].session.get(Appointment,
+                                       board["appt"]["consultation"])
+        appt.extra_service_ids = str(board["ids"]["nebul"])
+        assert _costs_nothing(appt) is False

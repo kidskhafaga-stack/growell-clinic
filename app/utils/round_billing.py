@@ -76,6 +76,12 @@ def unbilled(admission_id=None, patient_id=None):
     service = round_service()
     if service is None or not service.is_active:
         return []
+    # ``by_id`` here is a **pre-filter, not the guard** — measured, by a
+    # mutation that deleted it and changed nothing: a round with no author
+    # falls out below anyway, because `rate_for(None)` has no doctor to read a
+    # price against. It stays because loading anonymous rows to discard them
+    # is work, and it is written down as redundant so that nobody later
+    # removes the real check believing this one covers it.
     query = RoundNote.query.filter(RoundNote.invoice_item_id.is_(None),
                                    RoundNote.by_id.isnot(None))
     if admission_id is not None:

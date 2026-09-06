@@ -285,15 +285,38 @@ def _visit_breakdown(doctor_id, on_date):
     }
 
 
-def _costs_nothing(appt):
+def _maybe_free(appt, base):
+    """Could this booking possibly come to nothing? Cheap, and never wrong in
+    the dangerous direction.
+
+    A **necessary** condition, not the answer: no base charge means not priced
+    (which is not free), a base that costs something cannot come to zero, and
+    anything booked on top of it might cost money. It exists so the real check
+    below runs on the handful of rows that could be free rather than on every
+    row of a full morning — see the query-count guard in
+    ``test_paid_on_thursday_for_saturday``, which is what caught this.
+    """
+    if base is None or appt.extra_service_ids or appt.vaccine_brand_id:
+        return False
+    price = (base.price_for(appt.doctor) if appt.doctor else base.price) or 0
+    return price <= 0
+
+
+def _costs_nothing(appt, base=None):
     """True when this booking would come to exactly zero if billed now.
 
-    Worked out by the checkout's own line builder, through the till's
+    Answered by the checkout's own line builder, through the till's
     ``booking_due`` — so "worth collecting" has one definition in this program
-    and the board cannot disagree with the screen it sends people to.
+    and the board cannot disagree with the screen it sends people to. The
+    cheap gate above only decides *whether to ask*; it never answers.
     """
     from app.blueprints.finance.routes import booking_due
+    from app.utils.pricing import service_for_visit_type
 
+    if base is None:
+        base = service_for_visit_type(appt.appt_type)
+    if not _maybe_free(appt, base):
+        return False
     due = booking_due(appt, getattr(g, "lang", "ar"))
     return due is not None and due <= 0
 
@@ -343,6 +366,14 @@ def _payment_status(appointments, on_date):
             linked.setdefault(inv.appointment_id, []).append(inv)
         by_patient.setdefault(inv.patient_id, []).append(inv)
 
+    # The base charge per visit type, resolved once for the types on the
+    # board rather than once per row: a full morning is forty rows and six
+    # types, and this is on the path of every board draw.
+    from app.utils.pricing import service_for_visit_type
+
+    bases = {kind: service_for_visit_type(kind)
+             for kind in {a.appt_type for a in appointments}}
+
     out = {}
     for a in appointments:
         # An invoice that names this appointment answers on its own. Falling
@@ -365,7 +396,8 @@ def _payment_status(appointments, on_date):
             # invoice": not priced is not the same as free, and a clinic that
             # has not set its prices up should not see every row call itself
             # free of charge.
-            out[a.id] = {"state": "free" if _costs_nothing(a) else "none"}
+            free = _costs_nothing(a, bases.get(a.appt_type))
+            out[a.id] = {"state": "free" if free else "none"}
             continue
         total = round(sum(i.total for i in ivs), 2)
         balance = round(sum(i.balance for i in ivs), 2)
