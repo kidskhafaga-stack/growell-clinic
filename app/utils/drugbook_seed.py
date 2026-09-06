@@ -1408,9 +1408,28 @@ def link_existing_drugs():
 
 
 def seed_drugbook(force=False):
-    """Seed classes → ingredients → trade names. Idempotent; returns counts."""
-    if not force and GenericDrug.query.first() is not None:
-        return {"classes": 0, "generics": 0, "brands": 0, "linked": 0}
+    """Seed classes → ingredients → trade names. Adds what is missing.
+
+    **It used to stop dead the moment the clinic had a single ingredient.**
+    The guard read "a fresh install only", and the effect was that the
+    reference froze at whatever the clinic's first run produced: every
+    ingredient added to this file afterwards — and the list has roughly
+    doubled — never reached a clinic that had already run once. A doctor
+    looked for ondansetron, or salbutamol, or vitamin D, and found nothing,
+    while the same names sat in the source and in the Egyptian register beside
+    it. Reported as *"ازاي الادوية دي مش موجودة عندنا"*, and every one of them
+    was here.
+
+    **Adding is safe and updating would not be**, which is the whole reason
+    this can be a top-up. Every one of the four steps below is add-only: each
+    skips a row that already exists and never writes over it. So a clinic that
+    corrected a dose, renamed a brand or switched an ingredient off keeps every
+    one of those decisions, and only gets the rows it never had.
+
+    ``force`` is kept for the command that means "seed it again from scratch",
+    and now differs from the default only in intent — there is nothing left for
+    it to override.
+    """
     return {
         "classes": seed_drug_classes(),
         "generics": seed_generics(),
