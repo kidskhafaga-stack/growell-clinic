@@ -420,6 +420,17 @@ def _payment_status(appointments, on_date):
             # Settled with no money — see the badge on the invoice itself.
             "free": total <= 0 and balance <= 0,
             "invoice_id": ivs[0].id if len(ivs) == 1 else None,
+            # **Money the clinic is holding for a visit that is not going to
+            # happen.** Reported from a board showing "ملغي" and "مدفوع" on
+            # one row, with no action beside them and nothing anywhere saying
+            # the cash was still on the counter — cancelling has never once
+            # looked at the invoice.
+            #
+            # Read here rather than asked for separately: the status is on the
+            # row and the money is already loaded, so this costs no query and
+            # cannot disagree with the badge printed next to it.
+            "held": (a.status in ("cancelled", "no_show")
+                     and round(sum(i.paid for i in ivs), 2) > 0),
         }
     return out
 

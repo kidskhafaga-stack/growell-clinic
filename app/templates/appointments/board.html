@@ -41,6 +41,18 @@
      route asks. It used to ask for the whole finance module, and reception
      has the till capability without it — so the door opened and nothing on
      the screen led to it. #}
+  {# The clinic is holding money for a visit that is not happening. Said
+     before the badge's own action, because "مدفوع" beside "ملغي" is true
+     about the collection and silent about the thing that needs doing. #}
+  {% if p.held %}
+    <div class="pay-held"><i class="bi bi-exclamation-triangle-fill"></i>
+      {{ t('appointments.pay_held') }}</div>
+    {% if current_user.can_collect and p.invoice_id %}
+      <a class="btn btn-outline btn-sm gc-press pay-held-btn"
+         href="{{ url_for('finance.invoice_view', invoice_id=p.invoice_id) }}">
+        <i class="bi bi-arrow-counterclockwise"></i> {{ t('appointments.pay_held_settle') }}</a>
+    {% endif %}
+  {% endif %}
   {% if current_user.can_collect %}
     {% if p.state in ['unpaid', 'partial'] and p.invoice_id %}
       <a class="btn btn-outline btn-sm gc-press" style="margin-top:4px;display:inline-flex;color:#0e7490;border-color:#0e7490;"
@@ -478,6 +490,8 @@
   .tt-teal{background:#cffafe;color:#0e7490;} .tt-purple{background:#ede9fe;color:#6d28d9;}
   .tt-orange{background:#ffedd5;color:#c2410c;} .tt-red{background:#fee2e2;color:#b91c1c;}
   .pay-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; font-size:0.74rem; font-weight:600; }
+  .pay-held { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:0.74rem; font-weight:600; color:var(--danger); }
+  .pay-held-btn { margin-top:4px; display:inline-flex; color:var(--danger); border-color:var(--danger); }
   .pay-paid{background:#dcfce7;color:#15803d;} .pay-partial{background:#fef9c3;color:#a16207;}
   .pay-unpaid{background:#fee2e2;color:#b91c1c;} .pay-none{background:#eef2f6;color:#64748b;}
   .pay-bal{font-size:0.72rem;color:var(--muted);margin-top:2px;}

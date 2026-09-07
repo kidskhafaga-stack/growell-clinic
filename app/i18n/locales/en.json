@@ -675,7 +675,9 @@
     "step_who": "Who, and with whom",
     "step_when": "When",
     "step_what": "The visit",
-    "step_what_sub": "optional"
+    "step_what_sub": "optional",
+    "pay_held": "Money held for a visit that is not happening",
+    "pay_held_settle": "Settle the bill"
   },
   "appt_types": {
     "new": "New visit",

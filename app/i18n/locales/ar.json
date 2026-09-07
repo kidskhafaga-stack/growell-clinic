@@ -675,7 +675,9 @@
     "step_who": "مين وعند مين",
     "step_when": "إمتى",
     "step_what": "الزيارة",
-    "step_what_sub": "اختياري"
+    "step_what_sub": "اختياري",
+    "pay_held": "فلوس متحصّلة لزيارة مش هتحصل",
+    "pay_held_settle": "سوّي الفاتورة"
   },
   "appt_types": {
     "new": "كشف جديد",

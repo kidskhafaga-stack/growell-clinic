@@ -341,3 +341,71 @@ def test_every_verdict_the_engine_produces_is_declared(desk):
             produced.add(settle.propose(item, price).verdict)
         produced.add(settle.propose(None, 0).verdict)
     assert produced == set(settle.VERDICTS)
+
+
+# ------------------------------------------------ what the board must show --
+def test_a_cancelled_paid_visit_is_flagged_on_the_board(desk):
+    """The screenshot, as a test: "ملغي" and "مدفوع" on one row with nothing
+    said about the money. The badge is true about the collection and silent
+    about the thing that needs doing."""
+    from app.blueprints.appointments.routes import _payment_status
+
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=200)
+        appt.status = "cancelled"
+        desk["db"].session.flush()
+        snapshot = _payment_status([appt], appt.appt_date)
+    assert snapshot[appt.id]["held"] is True
+
+
+def test_a_no_show_that_was_paid_for_is_flagged_too(desk):
+    """Same money, same silence — the family did not come and the cash is
+    still on the counter."""
+    from app.blueprints.appointments.routes import _payment_status
+
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=200)
+        appt.status = "no_show"
+        desk["db"].session.flush()
+        snapshot = _payment_status([appt], appt.appt_date)
+    assert snapshot[appt.id]["held"] is True
+
+
+def test_a_cancelled_visit_nobody_paid_for_is_not_flagged(desk):
+    """Nothing was collected, so there is nothing being held. Flagging it
+    would put a warning on every cancellation the clinic ever makes."""
+    from app.blueprints.appointments.routes import _payment_status
+
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=None)
+        appt.status = "cancelled"
+        desk["db"].session.flush()
+        snapshot = _payment_status([appt], appt.appt_date)
+    assert snapshot[appt.id]["held"] is False
+
+
+def test_a_paid_visit_that_is_going_ahead_is_not_flagged(desk):
+    """The ordinary row: paid, and happening. Nothing to warn about."""
+    from app.blueprints.appointments.routes import _payment_status
+
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=200)
+        snapshot = _payment_status([appt], appt.appt_date)
+    assert snapshot[appt.id]["held"] is False
+
+
+def test_a_cancelled_visit_already_refunded_is_not_flagged(desk):
+    """Once the money has gone back the clinic is holding nothing, and a
+    warning that stays after it was dealt with is a warning people stop
+    reading."""
+    from app.models import Payment
+    from app.blueprints.appointments.routes import _payment_status
+
+    with desk["app"].app_context():
+        appt, invoice, _ = _billed(desk, paid=200)
+        appt.status = "cancelled"
+        desk["db"].session.add(Payment(invoice_id=invoice.id, amount=200,
+                                       kind="refund", method="cash"))
+        desk["db"].session.flush()
+        snapshot = _payment_status([appt], appt.appt_date)
+    assert snapshot[appt.id]["held"] is False
