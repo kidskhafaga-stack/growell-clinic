@@ -83,6 +83,38 @@
   </div>
 </div>
 
+{# The visit that turned out to be something else. Reception picks what it
+   actually was and the program answers with the money — which way and how
+   much — before anything is committed. Nobody at the desk does arithmetic,
+   and nobody cancels and rebooks to change a price (that severs the booking
+   from the bill, which is how the money ends up orphaned). #}
+<div class="gc-modal-overlay" x-show="modal==='svcfix'" x-cloak x-on:click.self="close()">
+  <div class="gc-modal" style="max-width:480px;">
+    <h3 style="margin:0 0 6px;"><i class="bi bi-arrow-left-right"></i> {{ t('svcfix.change_service') }}</h3>
+    <p class="hint" style="margin:0 0 14px;">{{ t('svcfix.change_service_hint') }}</p>
+    <div class="form-row"><label>{{ t('svcfix.pick_service') }}</label>
+      <select class="input" x-model="fix.serviceId" x-on:change="askFix()">
+        <option value="">—</option>
+        {% for svc in bookable_services %}
+        <option value="{{ svc.id }}">{{ svc.name }}{% if svc.price %} · {{ svc.price }}{% endif %}</option>
+        {% endfor %}
+      </select></div>
+    <template x-if="fix.loading">
+      <div class="hint"><i class="bi bi-hourglass-split"></i> {{ t('svcfix.checking') }}</div>
+    </template>
+    <template x-if="fix.says && !fix.loading">
+      <div class="svcfix-says" :class="'svcfix-' + fix.verdict" x-text="fix.says"></div>
+    </template>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="btn btn-outline gc-press" x-on:click="close()">{{ t('common.back') }}</button>
+      <button type="button" class="btn btn-primary gc-press"
+              :disabled="!fix.serviceId || fix.loading || !fix.ok"
+              x-on:click="submitFix()">
+        <i class="bi bi-check-lg"></i> {{ t('common.confirm') }}</button>
+    </div>
+  </div>
+</div>
+
 <!-- Walk-in -->
 <div class="gc-modal-overlay" x-show="modal==='walkin'" x-cloak x-on:click.self="close()">
   <div class="gc-modal">

@@ -41,6 +41,27 @@
      route asks. It used to ask for the whole finance module, and reception
      has the till capability without it — so the door opened and nothing on
      the screen led to it. #}
+  {# The clinic is holding money for a visit that is not happening. Said
+     before the badge's own action, because "مدفوع" beside "ملغي" is true
+     about the collection and silent about the thing that needs doing. #}
+  {% if p.held %}
+    <div class="pay-held"><i class="bi bi-exclamation-triangle-fill"></i>
+      {{ t('appointments.pay_held') }}</div>
+    {% if current_user.can_collect and p.invoice_id %}
+      <a class="btn btn-outline btn-sm gc-press pay-held-btn"
+         href="{{ url_for('finance.invoice_view', invoice_id=p.invoice_id) }}">
+        <i class="bi bi-arrow-counterclockwise"></i> {{ t('appointments.pay_held_settle') }}</a>
+    {% endif %}
+  {% endif %}
+  {# Offered wherever there is a bill to correct — not only after a
+     cancellation. The common case is a visit that went ahead and turned out
+     to be a different service, and reception used to cancel and rebook to
+     express that, which cuts the booking loose from its money. #}
+  {% if current_user.can_collect and p.state not in ['none', 'free'] %}
+    <button type="button" class="btn btn-outline btn-sm gc-press svcfix-btn"
+            x-on:click="openFix({{ appt.id }})">
+      <i class="bi bi-arrow-left-right"></i> {{ t('svcfix.change_service') }}</button>
+  {% endif %}
   {% if current_user.can_collect %}
     {% if p.state in ['unpaid', 'partial'] and p.invoice_id %}
       <a class="btn btn-outline btn-sm gc-press" style="margin-top:4px;display:inline-flex;color:#0e7490;border-color:#0e7490;"
@@ -83,7 +104,7 @@
 {% endmacro %}
 
 {% block content %}
-<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }}, {{ doctors[0].id if doctors|length == 1 else 'null' }})">
+<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }}, {{ doctors[0].id if doctors|length == 1 else 'null' }}, '{{ url_for('appointments.service_proposal', appt_id=0) }}', '{{ url_for('appointments.change_service', appt_id=0) }}')">
 {# Just booked, and there is money to take. Asked here, in place, rather
    than leaving the desk to remember the row and press collect — and it is a
    question, not a redirect: a family that pays on the way out should not
@@ -478,6 +499,13 @@
   .tt-teal{background:#cffafe;color:#0e7490;} .tt-purple{background:#ede9fe;color:#6d28d9;}
   .tt-orange{background:#ffedd5;color:#c2410c;} .tt-red{background:#fee2e2;color:#b91c1c;}
   .pay-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; font-size:0.74rem; font-weight:600; }
+  .pay-held { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:0.74rem; font-weight:600; color:var(--danger); }
+  .svcfix-btn { margin-top:4px; display:inline-flex; }
+  .svcfix-says { margin-top:10px; padding:10px 12px; border-radius:8px; font-weight:600; font-size:0.9rem; background:var(--green-050); }
+  .svcfix-refund { background:#fef2f2; color:#b91c1c; }
+  .svcfix-collect { background:#fff7ed; color:#9a3412; }
+  .svcfix-nothing, .svcfix-settled { background:#f0fdf4; color:#15803d; }
+  .pay-held-btn { margin-top:4px; display:inline-flex; color:var(--danger); border-color:var(--danger); }
   .pay-paid{background:#dcfce7;color:#15803d;} .pay-partial{background:#fef9c3;color:#a16207;}
   .pay-unpaid{background:#fee2e2;color:#b91c1c;} .pay-none{background:#eef2f6;color:#64748b;}
   .pay-bal{font-size:0.72rem;color:var(--muted);margin-top:2px;}
@@ -494,9 +522,16 @@
 
 {% block scripts %}
 <script>
-function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
+function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
+               fixAskUrl, fixDoUrl) {
   return {
     slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
+    // Built by `url_for` with a placeholder id and swapped per row, the same
+    // way the two above are handed in. A path typed into the script instead
+    // would keep working until somebody moved the route, and then fail with
+    // nothing on the screen to say why.
+    fixAskUrl, fixDoUrl,
+    fixUrl(template, id) { return template.replace(/\/0(\?|$)/, '/' + id + '$1'); },
     // Pre-fill the doctor: the board's filtered doctor, else the only doctor
     // in the clinic (so a single-doctor clinic never has to pick one).
     defaultDoctorId() { return this.boardDoctorId ? String(this.boardDoctorId)
@@ -561,6 +596,36 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     submitCancel() {
       this.postForm(`/appointments/${this.cancel.id}/status`, {
         status: 'cancelled', cancel_reason: this.cancel.reason });
+    },
+    // The visit that turned out different ----------------------------------
+    fix: { id: null, serviceId: '', says: '', verdict: '', ok: false, loading: false },
+    openFix(id) {
+      this.fix = { id, serviceId: '', says: '', verdict: '', ok: false, loading: false };
+      this.modal = 'svcfix';
+    },
+    async askFix() {
+      // Asked before anything is changed, so the desk agrees to a figure it
+      // has already read. The server decides the wording as well as the
+      // number — one reading, not two that can drift apart.
+      this.fix.says = ''; this.fix.ok = false;
+      if (!this.fix.serviceId) return;
+      this.fix.loading = true;
+      try {
+        const url = this.fixUrl(this.fixAskUrl, this.fix.id)
+                  + '?service_id=' + encodeURIComponent(this.fix.serviceId);
+        const r = await fetch(url);
+        const d = await r.json();
+        this.fix.ok = !!d.ok;
+        this.fix.says = d.says || d.message || '';
+        this.fix.verdict = d.verdict || '';
+      } catch (e) {
+        this.fix.says = ''; this.fix.ok = false;
+      }
+      this.fix.loading = false;
+    },
+    submitFix() {
+      this.postForm(this.fixUrl(this.fixDoUrl, this.fix.id),
+                    { service_id: this.fix.serviceId });
     },
     // Walk-in --------------------------------------------------------------
     openWalkIn() {

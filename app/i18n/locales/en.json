@@ -675,7 +675,9 @@
     "step_who": "Who, and with whom",
     "step_when": "When",
     "step_what": "The visit",
-    "step_what_sub": "optional"
+    "step_what_sub": "optional",
+    "pay_held": "Money held for a visit that is not happening",
+    "pay_held_settle": "Settle the bill"
   },
   "appt_types": {
     "new": "New visit",
@@ -6334,5 +6336,19 @@
     "title": "Doctor settlements",
     "to": "To",
     "vaccines": "Vaccine fees"
+  },
+  "svcfix": {
+    "no_such_service": "No such service.",
+    "nothing_billed": "This visit was never billed — there is nothing to settle.",
+    "cannot_apply": "This bill cannot be corrected.",
+    "says_refund": "Hand back {v} to the family.",
+    "says_collect": "Collect {v} from the family.",
+    "says_nothing": "The bill is unchanged — nothing to do.",
+    "says_settled": "Corrected, and the money is right — nothing to collect or refund.",
+    "says_unbilled": "This visit has no invoice.",
+    "change_service": "Change the service",
+    "change_service_hint": "Pick what the visit actually was; the program says which way the money goes.",
+    "pick_service": "Service",
+    "checking": "Working it out…"
   }
 }

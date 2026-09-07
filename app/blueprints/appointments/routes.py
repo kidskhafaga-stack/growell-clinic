@@ -50,7 +50,8 @@ from app.utils import appt_reminder as reminders
 from app.utils import no_show
 from app.utils import patient_flags as flags
 from app.utils.clock import local_now, local_today
-from app.utils.decorators import client_ip, module_required
+from app.utils.decorators import cashier_access, client_ip, module_required
+from app.utils.money import format_money
 
 MODULE = "appointments"
 
@@ -420,6 +421,17 @@ def _payment_status(appointments, on_date):
             # Settled with no money — see the badge on the invoice itself.
             "free": total <= 0 and balance <= 0,
             "invoice_id": ivs[0].id if len(ivs) == 1 else None,
+            # **Money the clinic is holding for a visit that is not going to
+            # happen.** Reported from a board showing "ملغي" and "مدفوع" on
+            # one row, with no action beside them and nothing anywhere saying
+            # the cash was still on the counter — cancelling has never once
+            # looked at the invoice.
+            #
+            # Read here rather than asked for separately: the status is on the
+            # row and the money is already loaded, so this costs no query and
+            # cannot disagree with the badge printed next to it.
+            "held": (a.status in ("cancelled", "no_show")
+                     and round(sum(i.paid for i in ivs), 2) > 0),
         }
     return out
 
@@ -946,6 +958,99 @@ def _patient_brief(p):
         "age": f"{years}y {months}m" if years else f"{months}m",
         "phone": p.contact_phone or "",
     }
+
+
+# ---------------------------------------- the visit that changed shape -----
+#
+# Booked and charged at the desk, decided in the room. What the program owes
+# reception here is **the answer**, not the arithmetic: which way the money
+# goes and how much. See ``app/utils/service_settlement``.
+
+
+def _service_proposal(appt_id, service_id):
+    """The proposal, the booking and the service — or an error to show."""
+    from app.models import Service
+    from app.utils import service_settlement as settle
+
+    appt = db.get_or_404(Appointment, appt_id)
+    service = db.session.get(Service, service_id) if service_id else None
+    if service_id and service is None:
+        return appt, None, None, t("svcfix.no_such_service")
+    proposal = (settle.propose_cancellation(appt) if service is None
+                else settle.propose_service_change(appt, service))
+    if proposal.verdict == "unbilled":
+        return appt, service, proposal, t("svcfix.nothing_billed")
+    return appt, service, proposal, None
+
+
+@appointments_bp.route("/<int:appt_id>/service-proposal")
+@module_required(MODULE)
+@cashier_access
+def service_proposal(appt_id):
+    """What would happen — asked before anything is changed.
+
+    A separate read so the desk sees the figure and *then* agrees to it. The
+    same call decides the wording, so the number on the confirmation and the
+    number that gets applied cannot be two different readings.
+    """
+    service_id = request.args.get("service_id", type=int)
+    _, service, proposal, problem = _service_proposal(appt_id, service_id)
+    if problem:
+        return jsonify({"ok": False, "message": problem})
+    return jsonify({
+        "ok": True,
+        "verdict": proposal.verdict,
+        "amount": proposal.amount,
+        "was": proposal.was,
+        "becomes": proposal.becomes,
+        "service": service.name if service is not None else None,
+        # Formatted here, not in the template: the same sentence goes to the
+        # confirmation dialog and to the flash after it, and a figure written
+        # two ways is a figure two people read differently.
+        "says": t("svcfix.says_" + proposal.verdict,
+                  v=format_money(proposal.amount)),
+    })
+
+
+@appointments_bp.route("/<int:appt_id>/change-service", methods=["POST"])
+@module_required(MODULE)
+@cashier_access
+def change_service(appt_id):
+    """Correct the bill to the service the visit actually was.
+
+    **No money moves here.** The line is rewritten and the invoice is handed
+    to the screen that already collects and refunds — with its approval rule,
+    its threshold, its shift and its notice to the doctor, none of which this
+    gets to have an opinion about.
+    """
+    service_id = request.form.get("service_id", type=int)
+    appt, service, proposal, problem = _service_proposal(appt_id, service_id)
+    if problem:
+        flash(problem, "warning")
+        return _back_to_board(appt)
+
+    from app.utils import service_settlement as settle
+
+    invoice = settle.apply(proposal, service=service, user_id=current_user.id)
+    if invoice is None:
+        flash(t("svcfix.cannot_apply"), "danger")
+        db.session.rollback()
+        return _back_to_board(appt)
+
+    ActivityLog.record(
+        "appointment.service_change", user_id=current_user.id,
+        entity="appointment", entity_id=appt.id,
+        detail=f"{proposal.was}->{proposal.becomes} {proposal.verdict}",
+        ip_address=client_ip(),
+    )
+    db.session.commit()
+    flash(t("svcfix.says_" + proposal.verdict,
+            v=format_money(proposal.amount)), "success")
+    # Anything owed or owing is the till's to hand over, on the screen that
+    # does that for every other bill in the clinic.
+    if proposal.verdict in ("refund", "collect"):
+        return redirect(url_for("finance.invoice_view", invoice_id=invoice.id))
+    return _back_to_board(appt)
 
 
 # -------------------------------------------------- status lifecycle -------
