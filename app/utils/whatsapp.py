@@ -619,9 +619,13 @@ def _send_wapilot(cfg, phone, body, image_url=None):
     try:
         if local_img:  # image message with the body as caption
             url = f"{base}/{instance}/send-image"
+            # The upload field is ``media``. It was ``image`` here, which is
+            # the one name WaPilot rejects: its own validation error for this
+            # endpoint reads *"The media field is required."* — so every
+            # picture the clinic ever sent through WaPilot came back 422.
             status, _ = _post_multipart(
                 url, {"chat_id": phone, "caption": body or ""},
-                "image", local_img, {"token": token})
+                "media", local_img, {"token": token})
         else:
             url = f"{base}/{instance}/send-message"
             status, _ = _post_json(

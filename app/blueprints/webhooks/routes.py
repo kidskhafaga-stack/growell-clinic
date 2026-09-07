@@ -72,7 +72,14 @@ def wapilot_receive(secret):
     if not _enabled():
         return "", 200
     payload = request.get_json(silent=True) or {}
-    for item in inbound.normalize_wapilot(payload):
+    items = inbound.normalize_wapilot(payload)
+    for item in items:
         inbound.handle_inbound(item, "wapilot")
+    # An event that said it carried a message and yielded none is not the
+    # same thing as an event that has nothing to do with messages, and only
+    # the first is a message going missing. Keep it rather than answer 200
+    # to an empty hand.
+    if not items and inbound.carries_a_wapilot_message(payload):
+        inbound.record_unreadable(payload, "wapilot")
     db.session.commit()
     return jsonify(ok=True)

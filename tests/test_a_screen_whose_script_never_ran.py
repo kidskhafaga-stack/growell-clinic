@@ -41,6 +41,9 @@ SCREENS = [
     "/prescriptions/new",
     "/appointments/",
     "/appointments/new",
+    # The messaging hub: its connection tab reaches the network from a
+    # button, and everything that button does lives in an inline script.
+    "/messages/occasions",
 ]
 
 NODE = shutil.which("node") or "/opt/node22/bin/node"
