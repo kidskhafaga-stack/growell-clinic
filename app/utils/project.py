@@ -126,13 +126,36 @@ DONE = [
     ("سجل تدقيق كامل، أدوار وصلاحيات تتعدّل من الشاشة، وطباعة A4 لكل التقارير",
      "A full audit log, roles and permissions edited from the screen, and A4 "
      "printing across every report"),
+    # The five below were sitting in NEXT, announced as coming, long after
+    # they were built. Caught by somebody reading this page and saying "those
+    # are done" — which is the failure this whole file was written against:
+    # a roadmap nobody re-reads is a roadmap that describes a program that no
+    # longer exists, and it is *this* page a doctor judges the work by.
+    ("المحرك المحاسبي: شجرة حسابات، قيود تلقائية، دفتر يومية وفترات مقفولة",
+     "The accounting engine: a chart of accounts, automatic entries, a "
+     "journal and closed periods"),
+    ("كشوف الحساب: للطبيب وللموردين، بأعمار الديون",
+     "Statements of account: per doctor and per supplier, with ageing"),
+    ("الباقات: خدمة مركّبة من خدمات، تتعرّف وتتسعّر من الشاشة",
+     "Bundles: a service made of services, defined and priced from the "
+     "screen"),
+    ("إيصال حراري 58/80mm للتحصيل السريع",
+     "A 58/80mm thermal receipt for fast collection"),
+    ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",
+     "Measurement templates and device results, entered by hand"),
 ]
 
 BUILDING = [
-    ("استقبال رسائل واتساب من المزوّدين (Meta / WaPilot) — المنطق جاهز "
-     "ومحتاج رابط عام للعيادة",
-     "Receiving WhatsApp messages from the providers (Meta / WaPilot) — the "
-     "logic is ready and needs a public URL for the clinic"),
+    # Still the one thing standing between this and working, and it is not
+    # code: the provider calls *us*, so the clinic's machine has to be
+    # reachable. Everything on this side is built and checked against the
+    # providers' own contracts, and the screen can now prove the round trip.
+    ("استقبال رسائل واتساب — الكود جاهز ومتحقَّق منه، وفيه زرار «جرّب "
+     "الاتصال». الناقص رابط عام للعيادة، وده قرار استضافة مش كود",
+     "Receiving WhatsApp messages — the code is built and verified against "
+     "the providers' contracts, with a connection test on the screen. What "
+     "is missing is a public URL for the clinic: a hosting decision, not "
+     "code"),
     ("توسيع تغطية الجرعات في المرجع الدوائي مادة بمادة، كل واحدة بمرجعها",
      "Widening dose coverage in the drug reference one ingredient at a time, "
      "each with its source"),
@@ -145,25 +168,22 @@ BUILDING = [
      "rolled back"),
 ]
 
+# What is genuinely not built. Checked against the code rather than carried
+# forward — the version of this list before it announced five things that had
+# been finished for months, and the compliance board it called "coming" was
+# already excluding government vaccines for a reason written in its own file.
 NEXT = [
-    ("المحرك المحاسبي: شجرة حسابات وقيود تلقائية ومراكز تكلفة",
-     "The accounting engine: a chart of accounts, automatic entries and cost "
-     "centres"),
-    ("كشف حساب المريض وأعمار الديون بشكل أعمق",
-     "A patient statement of account, and deeper AR ageing"),
-    ("الباقات (كشف + إجراء + تطعيم بسعر باقة) كتعريف من الشاشة",
-     "Service packages (consultation + procedure + vaccine at a package "
-     "price), defined from the screen"),
-    ("قوالب القياس ونتائج الأجهزة بإدخال يدوي وتقرير مطبوع",
-     "Measurement templates and device results, entered by hand and printed "
-     "as a report"),
-    ("لوحة التزام التطعيمات على مستوى العيادة كلها",
-     "A clinic-wide vaccination compliance board"),
-    ("إيصال حراري 58/80mm للتحصيل السريع",
-     "A 58/80mm thermal receipt for fast collection"),
-    ("جاهزية FHIR: endpoints قراءة فقط للمريض والزيارة والتطعيم والقياسات",
+    ("مراكز التكلفة: توزيع الإيراد والمصروف على أقسام العيادة",
+     "Cost centres: revenue and expense split across the clinic's "
+     "departments"),
+    ("كشف حساب الأسرة وأعمار ديون المرضى — الموجود دلوقتي للطبيب وللموردين",
+     "A statement for the family and patient debt ageing — what exists today "
+     "is per doctor and per supplier"),
+    ("جاهزية FHIR: endpoints قراءة فقط للمريض والزيارة والتطعيم والقياسات. "
+     "الموديلات أصلاً بأسماء FHIR",
      "FHIR readiness: read-only endpoints for patient, encounter, "
-     "immunisation and observations"),
+     "immunisation and observations. The models already carry the FHIR "
+     "names"),
 ]
 
 # The section every roadmap leaves out. These are decisions, not gaps.
