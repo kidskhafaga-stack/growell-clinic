@@ -104,7 +104,7 @@
 {% endmacro %}
 
 {% block content %}
-<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }}, {{ doctors[0].id if doctors|length == 1 else 'null' }})">
+<div x-data="board('{{ url_for('appointments.slots') }}', '{{ url_for('appointments.patient_search') }}', {{ doctor_id or 'null' }}, {{ doctors[0].id if doctors|length == 1 else 'null' }}, '{{ url_for('appointments.service_proposal', appt_id=0) }}', '{{ url_for('appointments.change_service', appt_id=0) }}')">
 {# Just booked, and there is money to take. Asked here, in place, rather
    than leaving the desk to remember the row and press collect — and it is a
    question, not a redirect: a family that pays on the way out should not
@@ -522,9 +522,16 @@
 
 {% block scripts %}
 <script>
-function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
+function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
+               fixAskUrl, fixDoUrl) {
   return {
     slotsUrl, searchUrl, boardDoctorId, soleDoctorId,
+    // Built by `url_for` with a placeholder id and swapped per row, the same
+    // way the two above are handed in. A path typed into the script instead
+    // would keep working until somebody moved the route, and then fail with
+    // nothing on the screen to say why.
+    fixAskUrl, fixDoUrl,
+    fixUrl(template, id) { return template.replace(/\/0(\?|$)/, '/' + id + '$1'); },
     // Pre-fill the doctor: the board's filtered doctor, else the only doctor
     // in the clinic (so a single-doctor clinic never has to pick one).
     defaultDoctorId() { return this.boardDoctorId ? String(this.boardDoctorId)
@@ -604,7 +611,9 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
       if (!this.fix.serviceId) return;
       this.fix.loading = true;
       try {
-        const r = await fetch(`/appointments/${this.fix.id}/service-proposal?service_id=${this.fix.serviceId}`);
+        const url = this.fixUrl(this.fixAskUrl, this.fix.id)
+                  + '?service_id=' + encodeURIComponent(this.fix.serviceId);
+        const r = await fetch(url);
         const d = await r.json();
         this.fix.ok = !!d.ok;
         this.fix.says = d.says || d.message || '';
@@ -615,7 +624,7 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
       this.fix.loading = false;
     },
     submitFix() {
-      this.postForm(`/appointments/${this.fix.id}/change-service`,
+      this.postForm(this.fixUrl(this.fixDoUrl, this.fix.id),
                     { service_id: this.fix.serviceId });
     },
     // Walk-in --------------------------------------------------------------
