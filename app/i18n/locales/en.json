@@ -6350,5 +6350,13 @@
     "change_service_hint": "Pick what the visit actually was; the program says which way the money goes.",
     "pick_service": "Service",
     "checking": "Working it out…"
+  },
+  "popup": {
+    "refund_title": "A refund on your work",
+    "refund_line": "{v} refunded — invoice {n}",
+    "dont_show": "Don't show this again",
+    "moved_to_bell": "Done. You'll find these in 🔔 notifications and on «My clinic».",
+    "open": "Open",
+    "close": "Close"
   }
 }

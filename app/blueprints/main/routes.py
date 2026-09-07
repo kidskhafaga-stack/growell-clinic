@@ -3,7 +3,8 @@ import os
 import uuid
 
 from flask import (
-    abort, current_app, flash, g, redirect, render_template, request, url_for,
+    abort, current_app, flash, g, jsonify, redirect, render_template, request,
+    url_for,
 )
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
@@ -541,6 +542,42 @@ def my_clinic():
         month_start=today.replace(day=1),
     )
 
+
+
+@main_bp.route("/popup/seen", methods=["POST"])
+@login_required
+def popup_seen():
+    """This pop-up has been shown; do not show it again.
+
+    Stamps the notice's own ``seen_at``, so the thing that stops it appearing
+    is the same fact the record already carries rather than a second one kept
+    beside it.
+    """
+    from app.utils import popups
+
+    ok = popups.mark_seen(current_user, request.form.get("notice_id", type=int))
+    if ok:
+        db.session.commit()
+    return jsonify({"ok": bool(ok)})
+
+
+@main_bp.route("/popup/mute", methods=["POST"])
+@login_required
+def popup_mute():
+    """Stop this kind of pop-up for this person.
+
+    **The bell is not touched.** What is being switched off is an
+    interruption, not the information: the count keeps counting and «عيادتي»
+    keeps the list, which is what makes it safe to respect the request at all.
+    """
+    from app.utils import popups
+
+    kind = (request.form.get("kind") or "").strip()
+    if kind not in popups.KINDS:
+        return jsonify({"ok": False}), 400
+    current_user.mute_popup(kind)
+    db.session.commit()
+    return jsonify({"ok": True, "where": t("popup.moved_to_bell")})
 
 
 @main_bp.route("/my-clinic/refund/<int:notice_id>/object", methods=["POST"])

@@ -148,6 +148,15 @@ class User(UserMixin, db.Model):
     sidebar = db.Column(db.String(10))              # full | rail
     font_scale = db.Column(db.String(4))            # sm | md | lg
     default_landing = db.Column(db.String(30))      # module key after login
+    # Pop-ups this person has asked not to see again, by kind, comma-separated.
+    #
+    # **Per user, and per kind, and it silences the pop-up only.** A doctor
+    # who says a refund pop-up is bothering them has not said they do not
+    # want to know about refunds — the bell keeps counting and «عيادتي» keeps
+    # the list. Muting a way of being told is not muting the thing being said,
+    # and a pop-up that appears on every refund is one a busy clinic clicks
+    # through blindly within a week anyway.
+    muted_popups = db.Column(db.String(200))
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     last_login_at = db.Column(db.DateTime)
@@ -397,6 +406,21 @@ class User(UserMixin, db.Model):
         first = self.rx_display_name_en if lang == "en" else self.rx_display_name
         second = self.rx_display_name if lang == "en" else self.rx_display_name_en
         return (first or "").strip() or (second or "").strip()
+
+    def mutes_popup(self, kind):
+        """Has this person asked not to see this kind of pop-up again?"""
+        muted = (self.muted_popups or "").split(",")
+        return kind in {m.strip() for m in muted if m.strip()}
+
+    def mute_popup(self, kind):
+        """Stop showing this kind. Returns True when it was not already off."""
+        if not kind or self.mutes_popup(kind):
+            return False
+        muted = [m.strip() for m in (self.muted_popups or "").split(",")
+                 if m.strip()]
+        muted.append(kind)
+        self.muted_popups = ",".join(muted)[:200]
+        return True
 
     def _is_own_name(self, text):
         """Is this the doctor's own name, or a different piece of wording?
