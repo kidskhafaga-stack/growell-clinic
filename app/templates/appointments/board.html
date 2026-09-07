@@ -53,6 +53,15 @@
         <i class="bi bi-arrow-counterclockwise"></i> {{ t('appointments.pay_held_settle') }}</a>
     {% endif %}
   {% endif %}
+  {# Offered wherever there is a bill to correct — not only after a
+     cancellation. The common case is a visit that went ahead and turned out
+     to be a different service, and reception used to cancel and rebook to
+     express that, which cuts the booking loose from its money. #}
+  {% if current_user.can_collect and p.state not in ['none', 'free'] %}
+    <button type="button" class="btn btn-outline btn-sm gc-press svcfix-btn"
+            x-on:click="openFix({{ appt.id }})">
+      <i class="bi bi-arrow-left-right"></i> {{ t('svcfix.change_service') }}</button>
+  {% endif %}
   {% if current_user.can_collect %}
     {% if p.state in ['unpaid', 'partial'] and p.invoice_id %}
       <a class="btn btn-outline btn-sm gc-press" style="margin-top:4px;display:inline-flex;color:#0e7490;border-color:#0e7490;"
@@ -491,6 +500,11 @@
   .tt-orange{background:#ffedd5;color:#c2410c;} .tt-red{background:#fee2e2;color:#b91c1c;}
   .pay-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; font-size:0.74rem; font-weight:600; }
   .pay-held { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:0.74rem; font-weight:600; color:var(--danger); }
+  .svcfix-btn { margin-top:4px; display:inline-flex; }
+  .svcfix-says { margin-top:10px; padding:10px 12px; border-radius:8px; font-weight:600; font-size:0.9rem; background:var(--green-050); }
+  .svcfix-refund { background:#fef2f2; color:#b91c1c; }
+  .svcfix-collect { background:#fff7ed; color:#9a3412; }
+  .svcfix-nothing, .svcfix-settled { background:#f0fdf4; color:#15803d; }
   .pay-held-btn { margin-top:4px; display:inline-flex; color:var(--danger); border-color:var(--danger); }
   .pay-paid{background:#dcfce7;color:#15803d;} .pay-partial{background:#fef9c3;color:#a16207;}
   .pay-unpaid{background:#fee2e2;color:#b91c1c;} .pay-none{background:#eef2f6;color:#64748b;}
@@ -575,6 +589,34 @@ function board(slotsUrl, searchUrl, boardDoctorId, soleDoctorId) {
     submitCancel() {
       this.postForm(`/appointments/${this.cancel.id}/status`, {
         status: 'cancelled', cancel_reason: this.cancel.reason });
+    },
+    // The visit that turned out different ----------------------------------
+    fix: { id: null, serviceId: '', says: '', verdict: '', ok: false, loading: false },
+    openFix(id) {
+      this.fix = { id, serviceId: '', says: '', verdict: '', ok: false, loading: false };
+      this.modal = 'svcfix';
+    },
+    async askFix() {
+      // Asked before anything is changed, so the desk agrees to a figure it
+      // has already read. The server decides the wording as well as the
+      // number — one reading, not two that can drift apart.
+      this.fix.says = ''; this.fix.ok = false;
+      if (!this.fix.serviceId) return;
+      this.fix.loading = true;
+      try {
+        const r = await fetch(`/appointments/${this.fix.id}/service-proposal?service_id=${this.fix.serviceId}`);
+        const d = await r.json();
+        this.fix.ok = !!d.ok;
+        this.fix.says = d.says || d.message || '';
+        this.fix.verdict = d.verdict || '';
+      } catch (e) {
+        this.fix.says = ''; this.fix.ok = false;
+      }
+      this.fix.loading = false;
+    },
+    submitFix() {
+      this.postForm(`/appointments/${this.fix.id}/change-service`,
+                    { service_id: this.fix.serviceId });
     },
     // Walk-in --------------------------------------------------------------
     openWalkIn() {

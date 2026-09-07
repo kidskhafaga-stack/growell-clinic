@@ -409,3 +409,124 @@ def test_a_cancelled_visit_already_refunded_is_not_flagged(desk):
         desk["db"].session.flush()
         snapshot = _payment_status([appt], appt.appt_date)
     assert snapshot[appt.id]["held"] is False
+
+
+# --------------------------------------------- what reception sees and does --
+def _signed_in(desk, role="admin"):
+    from app.models import User
+
+    with desk["app"].app_context():
+        user = User(username="boss", full_name="المدير", role=role,
+                    is_active=True)
+        user.set_password("secret")
+        desk["db"].session.add(user)
+        desk["db"].session.commit()
+    client = desk["app"].test_client()
+    client.post("/login", data={"username": "boss", "password": "secret"},
+                follow_redirects=True)
+    return client
+
+
+def test_the_program_says_the_answer_not_the_arithmetic(desk):
+    """Reception picks the service and is told which way the money goes and
+    how much — the whole point of the feature."""
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        appt_id, review_id = appt.id, desk["ids"]["review"]
+    body = _signed_in(desk).get(
+        f"/appointments/{appt_id}/service-proposal?service_id={review_id}"
+    ).get_json()
+    assert body["ok"] is True
+    assert body["verdict"] == "refund"
+    assert body["amount"] == 50.0
+    assert body["says"]          # a sentence, not a bare number
+
+
+def test_asking_changes_nothing(desk):
+    """It is a question. The bill must be untouched until somebody agrees."""
+    with desk["app"].app_context():
+        appt, invoice, item = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        appt_id, review_id, invoice_id = appt.id, desk["ids"]["review"], invoice.id
+    _signed_in(desk).get(
+        f"/appointments/{appt_id}/service-proposal?service_id={review_id}")
+    with desk["app"].app_context():
+        from app.models import Invoice
+        assert Invoice.query.get(invoice_id).total == 200
+
+
+def test_agreeing_corrects_the_bill(desk):
+    with desk["app"].app_context():
+        appt, invoice, _ = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        appt_id, review_id, invoice_id = appt.id, desk["ids"]["review"], invoice.id
+    resp = _signed_in(desk).post(f"/appointments/{appt_id}/change-service",
+                                 data={"service_id": review_id})
+    assert resp.status_code in (302, 303)
+    with desk["app"].app_context():
+        from app.models import Invoice
+        assert Invoice.query.get(invoice_id).total == 150
+
+
+def test_money_owed_lands_on_the_till_screen(desk):
+    """This route never hands money over. It corrects the line and sends the
+    desk to the screen that collects and refunds every other bill — with its
+    approval rule, its threshold and its notice to the doctor."""
+    with desk["app"].app_context():
+        appt, invoice, _ = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        appt_id, free_id, invoice_id = appt.id, desk["ids"]["free"], invoice.id
+    resp = _signed_in(desk).post(f"/appointments/{appt_id}/change-service",
+                                 data={"service_id": free_id})
+    assert f"/invoice" in resp.headers.get("Location", "")
+    with desk["app"].app_context():
+        from app.models import Payment
+        assert Payment.query.filter_by(invoice_id=invoice_id,
+                                       kind="refund").count() == 0
+
+
+def test_a_change_that_costs_nothing_goes_back_to_the_board(desk):
+    """Nothing to hand over, so nobody is sent to the till."""
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        appt_id, exam_id = appt.id, desk["ids"]["exam"]
+    resp = _signed_in(desk).post(f"/appointments/{appt_id}/change-service",
+                                 data={"service_id": exam_id})
+    assert "/invoice" not in resp.headers.get("Location", "")
+
+
+def test_a_visit_with_no_invoice_says_so_rather_than_failing(desk):
+    from app.models import Appointment
+
+    with desk["app"].app_context():
+        appt = Appointment(patient_id=desk["ids"]["child"],
+                           doctor_id=desk["ids"]["doctor"],
+                           appt_date=date(2026, 9, 7), appt_time=time(11, 0),
+                           appt_type="exam", status="scheduled")
+        desk["db"].session.add(appt)
+        desk["db"].session.commit()
+        appt_id, review_id = appt.id, desk["ids"]["review"]
+    body = _signed_in(desk).get(
+        f"/appointments/{appt_id}/service-proposal?service_id={review_id}"
+    ).get_json()
+    assert body["ok"] is False
+    assert body["message"]
+
+
+def test_correcting_a_bill_needs_the_till_capability(desk):
+    """It changes what a family owes. A doctor's login is not a door to that."""
+    with desk["app"].app_context():
+        appt, _, _ = _billed(desk, paid=200)
+        desk["db"].session.commit()
+        appt_id, review_id = appt.id, desk["ids"]["review"]
+    client = desk["app"].test_client()
+    client.post("/login", data={"username": "doc", "password": "secret"},
+                follow_redirects=True)
+    resp = client.post(f"/appointments/{appt_id}/change-service",
+                       data={"service_id": review_id})
+    assert resp.status_code in (302, 401, 403)
+    with desk["app"].app_context():
+        from app.models import Invoice
+        assert Invoice.query.first().total == 200
