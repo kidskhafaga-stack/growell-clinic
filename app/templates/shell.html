@@ -7,6 +7,23 @@
   .notif-badge { position:absolute; top:-4px; inset-inline-end:-4px; background:#ef4444; color:#fff;
     font-size:0.62rem; font-weight:700; min-width:16px; height:16px; line-height:16px; text-align:center;
     border-radius:999px; padding:0 3px; }
+  /* The nudge sits beside the work, never on top of it: a doctor typing a
+     prescription must not have a card land on the field they are in. */
+  .popup-stack { position:fixed; inset-block-end:18px; inset-inline-end:18px;
+                 z-index:60; display:flex; flex-direction:column; gap:10px;
+                 max-width:340px; }
+  .popup-card { background:var(--surface,#fff); border:1px solid var(--border,#e5e7eb);
+                border-inline-start:4px solid #d97706; border-radius:10px;
+                padding:10px 12px; box-shadow:0 6px 20px rgba(0,0,0,.12); }
+  .popup-head { display:flex; align-items:center; gap:6px; font-size:.86rem; }
+  .popup-x { margin-inline-start:auto; background:none; border:0; cursor:pointer;
+             color:var(--muted); font-size:1rem; line-height:1; }
+  .popup-body { margin:6px 0 8px; font-size:.86rem; color:var(--muted); }
+  .popup-foot { display:flex; align-items:center; gap:10px; }
+  .popup-mute { margin-inline-start:auto; background:none; border:0; cursor:pointer;
+                color:var(--muted); font-size:.76rem; text-decoration:underline; }
+  .popup-note { border-inline-start-color:var(--green-600,#15803d); font-size:.84rem; }
+  @media (max-width:520px) { .popup-stack { inset-inline:12px; max-width:none; } }
   .notif-panel { position:absolute; inset-inline-end:0; top:calc(100% + 8px); width:320px; max-width:90vw;
     background:var(--surface,#fff); color:var(--ink); border:1px solid var(--line); border-radius:12px;
     box-shadow:0 16px 44px rgba(0,0,0,.18); z-index:60; overflow:hidden; }
@@ -214,6 +231,43 @@
       {% include "_flashes.html" %}
       {% block content %}{% endblock %}
     </main>
+
+    {# The nudge. Off to the side, never over the work — a doctor mid-visit
+       must not have a dialog land on the thing they are typing into. It says
+       what happened, links to the detail, and offers to stop appearing.
+
+       Switching it off silences **this kind of pop-up for this person** and
+       nothing else: the bell above keeps counting and «عيادتي» keeps the
+       list, which is why the offer can be honoured at all. #}
+    {% if popups %}
+    <div class="popup-stack" x-data="popupStack()">
+      {% for p in popups %}
+      <div class="popup-card" x-show="!gone.includes({{ p.notice.id }})" x-cloak
+           x-transition.opacity>
+        <div class="popup-head">
+          <i class="bi bi-arrow-counterclockwise"></i>
+          <strong>{{ t('popup.refund_title') }}</strong>
+          <button type="button" class="popup-x" x-on:click="seen({{ p.notice.id }})"
+                  aria-label="{{ t('popup.close') }}"><i class="bi bi-x"></i></button>
+        </div>
+        <div class="popup-body" dir="auto">
+          {{ t('popup.refund_line', v=p.notice.amount|money,
+                n=p.notice.invoice.invoice_number if p.notice.invoice else '—') }}
+        </div>
+        <div class="popup-foot">
+          <a class="btn btn-sm btn-outline gc-press"
+             href="{{ url_for('main.my_clinic') }}#mine-refunds"
+             x-on:click="seen({{ p.notice.id }})">{{ t('popup.open') }}</a>
+          <button type="button" class="popup-mute" x-on:click="mute('refund')">
+            {{ t('popup.dont_show') }}</button>
+        </div>
+      </div>
+      {% endfor %}
+      <template x-if="note">
+        <div class="popup-card popup-note" x-text="note"></div>
+      </template>
+    </div>
+    {% endif %}
   </div>
 </div>
 <div class="print-footer">
@@ -269,6 +323,36 @@
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'sidebar=' + next
     }).catch(function () {});
+  }
+  function popupStack() {
+    return {
+      gone: [], note: '',
+      post(url, body) {
+        return fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded',
+                     'X-CSRFToken': {{ csrf_token() | tojson }} },
+          body: body
+        }).then(function (r) { return r.json(); }).catch(function () { return {}; });
+      },
+      seen(id) {
+        // Stamped on the notice itself, so what stops it appearing again is
+        // the record's own fact rather than a second one kept beside it.
+        this.gone.push(id);
+        this.post({{ url_for('main.popup_seen') | tojson }}, 'notice_id=' + id);
+      },
+      mute(kind) {
+        var self = this;
+        // Everything on screen goes, and the reply says where these live now
+        // — somebody who switches a thing off is owed the sentence that says
+        // it did not disappear.
+        this.post({{ url_for('main.popup_mute') | tojson }}, 'kind=' + kind)
+          .then(function (d) { if (d && d.where) self.note = d.where; });
+        document.querySelectorAll('.popup-card').forEach(function (el) {
+          el.style.display = 'none';
+        });
+      },
+    };
   }
   // `[` for the doctor who does this fifty times a day and should not have to
   // find the mouse each time. Ignored while typing, or the shortcut would eat

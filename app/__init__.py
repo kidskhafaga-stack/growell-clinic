@@ -363,9 +363,20 @@ def create_app(config_name="default"):
             items = get_notifications(current_user)
         except Exception:  # noqa: BLE001 - never break a page over the bell
             items = []
+        # The nudge for the person who will not open the bell. Read here
+        # beside the bell itself so the two cannot drift: the pop-up is a way
+        # of being told, the count is what there is to tell, and switching the
+        # first off must never touch the second. See `app/utils/popups`.
+        try:
+            from app.utils.popups import for_user
+
+            popups = for_user(current_user)
+        except Exception:  # noqa: BLE001 - never break a page over a pop-up
+            popups = []
         return {
             "notifications": items,
             "notif_count": sum(i.get("count", 0) for i in items),
+            "popups": popups,
         }
 
     @app.context_processor

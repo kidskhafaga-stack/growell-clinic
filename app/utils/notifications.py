@@ -332,6 +332,23 @@ def get_notifications(user):
     dismissed = _dismissed_map(user)
     today_s = local_today().isoformat()
     out = []
+    # Added here rather than in ``_compute`` because it is **this person's**
+    # count, and that cache is one list shared by everybody logged in — a
+    # per-doctor number in it would show one doctor another's money.
+    #
+    # And it is counted whatever the pop-up is set to: switching off the knock
+    # must not empty the room. See ``app/utils/popups``.
+    try:
+        from app.utils.popups import pending_count
+
+        waiting = pending_count(user)
+        if waiting:
+            out.append({"key": "refund_notices", "module": "dashboard",
+                        "icon": "arrow-counterclockwise", "severity": "warning",
+                        "count": waiting, "endpoint": "main.my_clinic",
+                        "kwargs": {}})
+    except Exception:  # noqa: BLE001 — the bell never breaks a page
+        pass
     for it in _all():
         if not user.can_access(it["module"]):
             continue

@@ -115,6 +115,10 @@ ADDITIONS = [
     # every doctor there has — and the fallback prints it in both languages,
     # which is what that clinic saw yesterday.
     ("users", "rx_display_name_en", "VARCHAR(160)"),
+    # Pop-ups a person switched off. Null on an existing clinic means nobody
+    # has switched anything off yet, which is exactly true of one that has
+    # never seen a pop-up.
+    ("users", "muted_popups", "VARCHAR(200)"),
     ("drug_interactions", "generic_a_id", "INTEGER"),
     ("drug_interactions", "generic_b_id", "INTEGER"),
     ("drug_interactions", "alternative", "VARCHAR(200)"),
