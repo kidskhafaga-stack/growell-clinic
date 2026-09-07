@@ -88,6 +88,51 @@ const TPL_INIT = {
 // from the same values. Two copies drift, and a preview that shows something
 // other than what gets sent is worse than none.
 const WA_SAMPLES = {{ wa_samples | tojson }};
+
+// What each verdict means, in words the admin can act on. Built from the
+// server's own list so a verdict the screen has no wording for is a test
+// failure rather than an empty line where a warning should be.
+// `|tojson` on its own, never with `|forceescape`: in a <script> body
+// nothing un-escapes entities, so an escaped quote reaches the JavaScript
+// parser as literal characters and the whole file stops being JavaScript.
+const PROBE_SAYS = {{ probe_wording | tojson }};
+const PROBE_TONE = {
+  ok:          ['bi-check-circle-fill', 'var(--green-600)'],
+  off:         ['bi-pause-circle-fill', '#d97706'],
+  refused:     ['bi-shield-exclamation', 'var(--danger)'],
+  impostor:    ['bi-exclamation-octagon-fill', 'var(--danger)'],
+  wrong_place: ['bi-signpost-2', '#d97706'],
+  unreachable: ['bi-plug', 'var(--danger)'],
+  not_set:     ['bi-dash-circle', 'var(--muted)'],
+};
+function waProbe(){
+  return {
+    busy: false, result: null,
+    async run(){
+      this.busy = true; this.result = null;
+      try {
+        const r = await fetch({{ url_for('messages.connection_test') | tojson }}, {
+          method: 'POST',
+          headers: {'X-CSRFToken': {{ csrf_token() | tojson }}},
+        });
+        this.result = await r.json();
+      } catch (e) {
+        // A probe that cannot even be asked is itself an answer.
+        this.result = { wapilot: {verdict:'unreachable'}, meta: {verdict:'unreachable'} };
+      }
+      this.busy = false;
+    },
+    rows(){
+      if (!this.result) return [];
+      return ['wapilot','meta'].map(k => {
+        const v = (this.result[k] || {}).verdict || 'not_set';
+        const tone = PROBE_TONE[v] || PROBE_TONE.not_set;
+        return { name: k === 'meta' ? 'Meta' : 'WaPilot',
+                 says: PROBE_SAYS[v] || v, icon: tone[0], tone: tone[1] };
+      });
+    },
+  };
+}
 function waFill(text){ return (text||'').replace(/\{(\w+)\}/g, (m,k)=> WA_SAMPLES[k]!==undefined ? WA_SAMPLES[k] : m); }
 function tplEditor(id, occ){
   const seed = (typeof TPL_INIT !== 'undefined' && TPL_INIT[id]) || {body:'',img:''};
@@ -553,6 +598,36 @@ function crmTabs(){
           <code dir="ltr" style="font-size:.8rem;user-select:all;">{{ (base or '‹'~t('crm.public_base')~'›') }}/wa/webhook/wapilot/{{ secret or '‹secret›' }}</code></div>
       </div>
       <div class="hint">{{ t('crm.webhook_urls_hint') }}</div></div>
+
+    {# The round trip. Everything above is typed blind: nothing on this
+       screen, until now, could tell the clinic whether a message would
+       actually arrive. This calls the address back from outside and says
+       which link is broken — including the one nobody thinks to check, a
+       wrong secret being accepted by a server that is not this one. #}
+    <div class="form-row" x-data="waProbe()">
+      <label>{{ t('crm.probe_title') }}</label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline gc-press" @click="run()"
+                :disabled="busy || !{{ 'true' if base else 'false' }}">
+          <i class="bi" :class="busy ? 'bi-hourglass-split' : 'bi-broadcast'"></i>
+          <span x-text="busy ? '{{ t('crm.probe_running') }}' : '{{ t('crm.probe_run') }}'"></span>
+        </button>
+        <template x-if="!{{ 'true' if base else 'false' }}">
+          <span class="hint">{{ t('crm.probe_needs_base') }}</span>
+        </template>
+      </div>
+      <template x-if="result">
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+          <template x-for="row in rows()" :key="row.name">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="badge badge--role" x-text="row.name"></span>
+              <i class="bi" :class="row.icon" :style="'color:' + row.tone"></i>
+              <span x-text="row.says" :style="'color:' + row.tone"></span>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
 
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>

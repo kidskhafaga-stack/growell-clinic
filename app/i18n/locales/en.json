@@ -3302,7 +3302,18 @@
     "recall_vs_archive": "Recall is set to {months} months and archiving to {years} years — so any family reaching that point has already been archived off the roster, and this list will stay empty. Shorten the recall window or lengthen the archiving one.",
     "recall_archive_link": "Archiving settings",
     "recall_after_months": "Treat a patient as lapsed after (months)",
-    "recall_after_months_hint": "The clinic decides. Keep it below the archiving window, or the file is archived before anybody recalls it."
+    "recall_after_months_hint": "The clinic decides. Keep it below the archiving window, or the file is archived before anybody recalls it.",
+    "probe_title": "Test the connection",
+    "probe_run": "Test now",
+    "probe_running": "Testing…",
+    "probe_needs_base": "Set the public address above and save first.",
+    "probe_ok": "Working — messages will arrive.",
+    "probe_off": "Reachable, but receiving is switched off — turn it on above.",
+    "probe_refused": "Reachable, but the secret was refused — the running copy holds a different one. Save and try again.",
+    "probe_impostor": "⚠ Something else is answering on this address, not this program. Do not give the URL to a provider until the domain and tunnel are checked.",
+    "probe_wrong_place": "Something answered, but not on this path — check the domain and the tunnel's route.",
+    "probe_unreachable": "Nothing answered — the tunnel is down or the address is wrong.",
+    "probe_not_set": "Nothing to test yet."
   },
   "update": {
     "do_it": "Close the program and update",

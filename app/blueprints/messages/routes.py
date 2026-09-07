@@ -8,7 +8,8 @@ import os
 import uuid
 from datetime import datetime
 
-from flask import current_app, flash, g, redirect, render_template, request, url_for
+from flask import (current_app, flash, g, jsonify, redirect,
+                   render_template, request, url_for)
 from flask_login import current_user
 from werkzeug.utils import secure_filename
 
@@ -1206,7 +1207,7 @@ def occasions():
     from app.utils.occasions import campaign_report
     campaigns = {tpl.id: campaign_report(tpl)
                  for tpl in custom_templates if tpl.occasion_date or tpl.last_enqueued_on}
-    from app.utils import wa_preview, wa_templates
+    from app.utils import wa_connect, wa_preview, wa_templates
     clinic = values.get("clinic_name_ar") or values.get("clinic_name") or ""
     return render_template(
         "messages/occasions.html",
@@ -1222,6 +1223,11 @@ def occasions():
         campaigns=campaigns,
         today=local_today(),
         crm_mode=values.get("crm_mode", "manual"),
+        # One line per verdict the check can reach, built from the checker's
+        # own list rather than typed into the template — a verdict the screen
+        # has no wording for would otherwise render as a blank line exactly
+        # where a warning belongs.
+        probe_wording={v: t("crm.probe_" + v) for v in wa_connect.VERDICTS},
     )
 
 
@@ -1255,6 +1261,20 @@ def connection_save():
     db.session.commit()
     flash(t("settings.saved"), "success")
     return redirect(url_for("messages.occasions") + "#connection")
+
+
+@messages_bp.route("/connection/test", methods=["POST"])
+@admin_required
+def connection_test():
+    """Call the clinic's own public webhook from outside and report back.
+
+    Admin-only and POST-only for the same reason the save above is: it makes
+    the clinic's server open an outbound connection, and that is not
+    something a link in an email gets to do on somebody's behalf.
+    """
+    from app.utils import wa_connect
+
+    return jsonify(wa_connect.check())
 
 
 @messages_bp.route("/type/<int:tpl_id>/save", methods=["POST"])
