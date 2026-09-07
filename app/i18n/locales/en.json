@@ -3313,7 +3313,19 @@
     "probe_impostor": "⚠ Something else is answering on this address, not this program. Do not give the URL to a provider until the domain and tunnel are checked.",
     "probe_wrong_place": "Something answered, but not on this path — check the domain and the tunnel's route.",
     "probe_unreachable": "Nothing answered — the tunnel is down or the address is wrong.",
-    "probe_not_set": "Nothing to test yet."
+    "probe_not_set": "Nothing to test yet.",
+    "steps_title": "Steps at the provider",
+    "steps_hint": "These values are your clinic's own — copy them as they are.",
+    "steps_wapilot_1": "Open the WaPilot dashboard → Webhook settings for your instance.",
+    "steps_wapilot_2": "Put this in the Webhook URL box:",
+    "steps_wapilot_3": "Enable the message event only.",
+    "steps_wapilot_4": "Leave message.any off — it is the broader stream and includes your own messages, so the clinic's own sends would land in the inbox as if parents wrote them.",
+    "steps_meta_1": "Open Meta for Developers → your app → WhatsApp → Configuration.",
+    "steps_meta_2": "In Callback URL put:",
+    "steps_meta_3": "In Verify Token put the same value set above:",
+    "steps_meta_4": "The Meta app secret must be set above, or receiving is refused outright.",
+    "steps_meta_5": "Once Meta accepts the URL, subscribe the WABA to the messages field — without it the URL is accepted and no message ever arrives.",
+    "steps_meta_missing": "Set a Verify Token above and save to complete these steps."
   },
   "update": {
     "do_it": "Close the program and update",

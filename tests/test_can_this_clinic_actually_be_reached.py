@@ -278,6 +278,51 @@ def test_an_admin_gets_the_verdicts_back(clinic, monkeypatch):
     assert body["meta"]["verdict"] == "off"
 
 
+# --------------------------------------------------- the steps on screen --
+def test_the_steps_carry_this_clinics_own_values(clinic):
+    """An admin reading a manual has to translate every placeholder into
+    their own address and secret, and that translation is where the mistakes
+    live. The screen prints the real thing so there is nothing to translate.
+    """
+    page = clinic["sign_in"]().get("/messages/occasions")
+    html = page.get_data(as_text=True)
+    assert page.status_code == 200
+    assert f"{BASE}/wa/webhook/wapilot/{SECRET}" in html
+    assert f"{BASE}/wa/webhook/meta" in html
+    assert VERIFY in html            # Meta's verify token, ready to copy
+
+
+def test_the_url_in_the_steps_is_the_one_that_gets_tested(clinic, monkeypatch):
+    """Otherwise a pass upstairs says nothing about what was pasted below."""
+    from app.utils import wa_connect
+
+    html = clinic["sign_in"]().get("/messages/occasions").get_data(as_text=True)
+    with clinic["app"].app_context():
+        assert wa_connect.wapilot_url() in html
+        assert wa_connect.meta_url() in html
+
+
+def test_the_steps_say_to_leave_the_broader_event_off(clinic):
+    """``message.any`` includes the clinic's own sends, so subscribing to it
+    files the clinic's outgoing messages as if parents had written them."""
+    html = clinic["sign_in"]().get("/messages/occasions").get_data(as_text=True)
+    assert "message.any" in html
+
+
+def test_with_no_verify_token_the_step_asks_for_one(clinic):
+    """Rather than printing an empty box beside "put this in Verify Token"."""
+    from app.models import Setting
+
+    with clinic["app"].app_context():
+        Setting.set("wa_meta_verify_token", "")
+        clinic["db"].session.commit()
+    html = clinic["sign_in"]().get("/messages/occasions").get_data(as_text=True)
+    # Read from the locale file: ``t()`` needs a request context, and this
+    # test is outside one.
+    with open("app/i18n/locales/ar.json", encoding="utf-8") as fh:
+        assert json.load(fh)["crm"]["steps_meta_missing"] in html
+
+
 # --------------------------------------------------------- the vocabulary --
 def test_every_verdict_the_checks_produce_is_declared(clinic, monkeypatch):
     """The screen renders from ``VERDICTS``; one missing from it renders as

@@ -629,6 +629,43 @@ function crmTabs(){
       </template>
     </div>
 
+    {# The steps, with this clinic's own values already in them. An admin
+       reading a manual has to translate every placeholder into their own
+       address and secret, and that translation is where the mistakes live.
+       Here there is nothing to translate — the URL printed is the URL the
+       button above tests, so a pass upstairs means these are right. #}
+    <details style="margin-top:14px;">
+      <summary class="section-title" style="cursor:pointer;font-size:0.95rem;">
+        <i class="bi bi-list-check"></i> {{ t('crm.steps_title') }}</summary>
+      <p class="hint" style="margin:6px 0 10px;">{{ t('crm.steps_hint') }}</p>
+
+      <h4 style="font-size:.9rem;margin:10px 0 6px;">
+        <span class="badge badge--role">WaPilot</span></h4>
+      <ol style="margin:0;padding-inline-start:20px;line-height:1.9;">
+        <li>{{ t('crm.steps_wapilot_1') }}</li>
+        <li>{{ t('crm.steps_wapilot_2') }}
+          <div><code dir="ltr" style="font-size:.8rem;user-select:all;">{{ (base or '‹'~t('crm.public_base')~'›') }}/wa/webhook/wapilot/{{ secret or '‹secret›' }}</code></div></li>
+        <li>{{ t('crm.steps_wapilot_3') }}</li>
+        <li>{{ t('crm.steps_wapilot_4') }}</li>
+      </ol>
+
+      <h4 style="font-size:.9rem;margin:16px 0 6px;">
+        <span class="badge badge--role">Meta</span></h4>
+      <ol style="margin:0;padding-inline-start:20px;line-height:1.9;">
+        <li>{{ t('crm.steps_meta_1') }}</li>
+        <li>{{ t('crm.steps_meta_2') }}
+          <div><code dir="ltr" style="font-size:.8rem;user-select:all;">{{ (base or '‹'~t('crm.public_base')~'›') }}/wa/webhook/meta</code></div></li>
+        <li>{{ t('crm.steps_meta_3') }}
+          {% if values.get('wa_meta_verify_token') %}
+          <div><code dir="ltr" style="font-size:.8rem;user-select:all;">{{ values.get('wa_meta_verify_token') }}</code></div>
+          {% else %}
+          <div class="hint">{{ t('crm.steps_meta_missing') }}</div>
+          {% endif %}</li>
+        <li>{{ t('crm.steps_meta_4') }}</li>
+        <li>{{ t('crm.steps_meta_5') }}</li>
+      </ol>
+    </details>
+
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
   </form>
 </details>
