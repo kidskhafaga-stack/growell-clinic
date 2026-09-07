@@ -250,3 +250,54 @@ def test_the_page_is_clean_once_there_is_nothing_to_say(clinic):
     page, so a bare substring is true whether or not anything popped up."""
     html = clinic["sign_in"]("doc2").get("/", follow_redirects=True).get_data(as_text=True)
     assert 'class="popup-stack"' not in html
+
+
+# ------------------------------------------------------------- the cost --
+def test_the_bell_and_the_popup_share_one_read(clinic):
+    """It started as two — a count for the bell and rows for the pop-up, the
+    same filter read twice on every page anybody opens. CI caught it as a
+    query budget going from 41 to 43.
+
+    They are one read now, kept on ``g`` for the request. Asserted rather than
+    remembered, because the two callers sit in different context processors
+    and neither one looks like it is paying for the other.
+    """
+    from sqlalchemy import event
+
+    from app.extensions import db
+    from app.utils import popups
+
+    seen = []
+    with clinic["app"].test_request_context("/"):
+        doc = _user(clinic)
+
+        def record(conn, cursor, statement, *a):
+            if "refund_notices" in statement:
+                seen.append(statement)
+
+        event.listen(db.engine, "before_cursor_execute", record)
+        try:
+            popups.pending_count(doc)   # what the bell asks
+            popups.for_user(doc)        # what the pop-up asks
+        finally:
+            event.remove(db.engine, "before_cursor_execute", record)
+    assert len(seen) == 1, f"{len(seen)} reads of refund_notices in one request"
+
+
+def test_a_doctor_with_a_pile_of_them_is_still_counted_right(clinic):
+    """The shortcut is "the rows I read are all there were". Past the handful
+    the pop-up shows, that stops being true and the count is asked for
+    properly — a bell that under-reports money is worse than a query."""
+    from app.models import Invoice, RefundNotice
+    from app.utils import popups
+
+    with clinic["app"].app_context():
+        invoice = Invoice.query.first()
+        for _ in range(6):
+            clinic["db"].session.add(RefundNotice(
+                invoice_id=invoice.id, doctor_id=clinic["ids"]["doc"],
+                amount=10, scope="partial"))
+        clinic["db"].session.commit()
+        doc = _user(clinic)
+        assert popups.pending_count(doc) == 7          # 6 + the fixture's one
+        assert len(popups.for_user(doc)) == popups.SHOWN

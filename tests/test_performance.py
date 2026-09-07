@@ -196,7 +196,17 @@ def what_repeated(statements, top=6):
 # per module and now asks one query for all of them (see
 # `test_the_module_switches_are_one_query`).
 @pytest.mark.parametrize("path,ceiling", [
-    ("/", 41),
+    # 41 → 42 for the refund pop-up: one indexed read of `refund_notices`
+    # by doctor, limited to four rows, on every page. Raised deliberately and
+    # only after the two reads it started as were folded into one — the bell
+    # wants a count and the pop-up wants the rows, and they now share a single
+    # query cached on `g` for the request.
+    #
+    # A ceiling raised in silence is a ceiling that stops meaning anything, so
+    # the number that matters is what it is guarding against: this cost is a
+    # constant and does not grow with patients, invoices or notices, which is
+    # the thing the failure message asks about.
+    ("/", 42),
     ("/patients/", 60),
     ("/appointments/", 90),
     ("/visits/", 40),

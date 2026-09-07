@@ -30,22 +30,48 @@ not silence a colleague's.
 KINDS = ("refund",)
 
 
-def unseen_refunds(user, limit=3):
+#: How many the pop-up shows at once. One more than that is read so the
+#: count below can usually be answered without a second query.
+SHOWN = 3
+
+
+def _waiting(user):
+    """The unseen notices, read **once per request** and shared.
+
+    The bell wants a count and the pop-up wants the rows — the same filter,
+    read twice, on every page anybody opens. One read serves both, and it is
+    kept on ``g`` so the two context processors that ask for it in the same
+    render do not each pay for it.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return []
+    from flask import g
+
+    cached = getattr(g, "_refund_waiting", None)
+    if cached is not None:
+        return cached
+    from app.models import RefundNotice
+
+    rows = (RefundNotice.query
+            .filter(RefundNotice.doctor_id == user.id,
+                    RefundNotice.seen_at.is_(None))
+            .order_by(RefundNotice.created_at.desc())
+            .limit(SHOWN + 1).all())
+    try:
+        g._refund_waiting = rows
+    except Exception:      # noqa: BLE001 — outside a request, just don't cache
+        pass
+    return rows
+
+
+def unseen_refunds(user, limit=SHOWN):
     """Refund notices this doctor has not been shown yet.
 
     ``seen_at`` is the model's own field for this and was already there; the
     pop-up marks it, so a notice interrupts once and then lives in the bell
     and on «عيادتي» like everything else.
     """
-    if user is None or not getattr(user, "is_authenticated", False):
-        return []
-    from app.models import RefundNotice
-
-    return (RefundNotice.query
-            .filter(RefundNotice.doctor_id == user.id,
-                    RefundNotice.seen_at.is_(None))
-            .order_by(RefundNotice.created_at.desc())
-            .limit(limit).all())
+    return _waiting(user)[:limit]
 
 
 def pending_count(user):
@@ -55,9 +81,14 @@ def pending_count(user):
     it. Silencing the knock is not the same as emptying the room, and a
     program that treated them alike would let a doctor lose track of money
     coming off their own account by pressing "don't show me this again".
+
+    Answered from the rows already read, and only counted properly on the
+    rare page where a doctor has more than a handful waiting — so the common
+    case costs nothing beyond the one read.
     """
-    if user is None or not getattr(user, "is_authenticated", False):
-        return 0
+    rows = _waiting(user)
+    if len(rows) <= SHOWN:
+        return len(rows)
     from app.models import RefundNotice
 
     return (RefundNotice.query
