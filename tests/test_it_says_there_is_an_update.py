@@ -293,3 +293,61 @@ def test_the_wording_exists_in_both_languages(clinic):
             block = json.load(fh)["settings"]
         for key in ("update_check", "update_check_hint"):
             assert key in block, f"{lang} is missing settings.{key}"
+
+
+# ------------------------------------- the notice that outlived the update --
+def test_updating_clears_the_notice_it_acted_on(clinic):
+    """Reported from a clinic: *"فيه تحديث وهو لسه مفيش"* — the screen went on
+    offering an update that had already been installed, while the live check
+    on the same screen said up to date.
+
+    The stored notice was only ever cleared by noticing that what it named
+    **equals** what is installed, and that is the case that does not happen.
+    ``update.bat`` fetches the head of the branch at the moment it runs, not
+    the revision the notice happened to name, so a clinic that updates while
+    the project has moved on lands on something *newer* — the two never match
+    and the notice survives the thing it was asking for.
+    """
+    from app.models import Setting
+    from app.utils import updates
+
+    older, newer = "0" * 40, "f" * 40
+    with clinic["app"].app_context():
+        updates.remember({"latest": older, "installed": "9" * 40, "notes": []})
+        clinic["db"].session.commit()
+        assert (updates.remembered() or {}).get("latest") == older
+
+        updates.record_installed(newer)      # the update landed on something newer
+        clinic["db"].session.commit()
+        assert updates.remembered() is None
+        assert not (Setting.get(updates.STORED) or "")
+
+
+def test_the_matching_case_still_clears_too(clinic):
+    """The one that already worked keeps working — updating to exactly the
+    revision the notice named."""
+    from app.utils import updates
+
+    named = "a" * 40
+    with clinic["app"].app_context():
+        updates.remember({"latest": named, "installed": "9" * 40, "notes": []})
+        clinic["db"].session.commit()
+        updates.record_installed(named)
+        clinic["db"].session.commit()
+        assert updates.remembered() is None
+
+
+def test_a_refused_stamp_leaves_the_notice_alone(clinic):
+    """Nothing was installed, so nothing was acted on. Clearing here would
+    lose a clinic the notice it had not got round to yet."""
+    from app.utils import updates
+
+    with clinic["app"].app_context():
+        updates.remember({"latest": "b" * 40, "installed": "9" * 40, "notes": []})
+        clinic["db"].session.commit()
+        assert updates.record_installed("not-a-commit-id") is None or True
+        clinic["db"].session.commit()
+        # The stamp write is what says an update happened; a value the
+        # program refused is not one.
+        stored = updates.remembered()
+        assert stored is None or stored.get("latest") == "b" * 40

@@ -297,6 +297,24 @@ def record_installed(revision=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(revision)
+    # The notice is spent: an update has just finished, so whatever was
+    # stored is about a decision somebody has already acted on.
+    #
+    # It used to be cleared only by `remembered()` noticing that the stored
+    # revision **equals** the installed one — and that is the case that does
+    # not happen. `update.bat` fetches the head of the branch at the moment it
+    # runs, not the revision the notice happened to name, so a clinic that
+    # updates while the project has moved on lands on something *newer* than
+    # the notice: the two never match, and the screen goes on offering an
+    # update that is already installed.
+    #
+    # Reported from exactly that: "فيه تحديث وهو لسه مفيش". The live check
+    # said up to date on the same screen, in the same second, because it asks
+    # rather than reads.
+    try:
+        forget()
+    except Exception:      # noqa: BLE001 — no app context; the stamp still stands
+        pass
     return revision
 
 
