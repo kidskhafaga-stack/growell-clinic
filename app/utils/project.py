@@ -172,13 +172,27 @@ BUILDING = [
 # forward — the version of this list before it announced five things that had
 # been finished for months, and the compliance board it called "coming" was
 # already excluding government vaccines for a reason written in its own file.
+#
+# It went stale a second time even after that sweep, and in the quieter way: a
+# line here claimed the patient statement and the debt ageing were missing
+# while `/reports/statement/<id>` and `/reports/ar-aging` had both been open
+# for months. Only the roll-up across siblings was ever missing. A list that
+# under-promises is not the harmless direction to be wrong in — it is read by
+# somebody deciding what to build next, and it sends them to write a screen
+# that already exists.
+#
+# So it is no longer only proof-read. ``tests/test_the_list_that_kept_going_
+# stale.py`` opens each of these against the running program: the day one is
+# built, that test fails and this list has to be brought up to date before
+# anything else can be merged.
 NEXT = [
     ("مراكز التكلفة: توزيع الإيراد والمصروف على أقسام العيادة",
      "Cost centres: revenue and expense split across the clinic's "
      "departments"),
-    ("كشف حساب الأسرة وأعمار ديون المرضى — الموجود دلوقتي للطبيب وللموردين",
-     "A statement for the family and patient debt ageing — what exists today "
-     "is per doctor and per supplier"),
+    ("كشف حساب على مستوى الأسرة: الإخوات في ورقة واحدة. كشف المريض نفسه "
+     "وأعمار ديونه شغّالين",
+     "A statement at the family level: siblings on one sheet. The per-patient "
+     "statement and its debt ageing are built"),
     ("جاهزية FHIR: endpoints قراءة فقط للمريض والزيارة والتطعيم والقياسات. "
      "الموديلات أصلاً بأسماء FHIR",
      "FHIR readiness: read-only endpoints for patient, encounter, "
