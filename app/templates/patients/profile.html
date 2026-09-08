@@ -1483,6 +1483,13 @@
         <a class="btn btn-outline btn-sm gc-press" target="_blank"
            href="{{ url_for('reports.patient_statement', patient_id=patient.id) }}">
           <i class="bi bi-file-earmark-text"></i> {{ t('statement.title') }}</a>
+        {# Offered only where it says something the sheet above does not: an
+           only child's family sheet is the same page with a wider heading. #}
+        {% if patient.family_id and patient.siblings %}
+        <a class="btn btn-outline btn-sm gc-press" target="_blank"
+           href="{{ url_for('reports.family_statement', family_id=patient.family_id) }}">
+          <i class="bi bi-people"></i> {{ t('statement.family_title') }}</a>
+        {% endif %}
         {% endif %}
       </div>
       <div class="stat-grid" style="margin-bottom:14px;">

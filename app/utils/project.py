@@ -91,6 +91,9 @@ PRINCIPLES = [
 ]
 
 DONE = [
+    ("كشف حساب الأسرة: الإخوات في ورقة واحدة بترتيب زمني، وكل سطر بيقول "
+     "ابن مين — الحساب هو نفسه حساب كشف الطفل مش نسخة تانية منه",
+     "A family statement: siblings on one sheet in date order, each row naming the child — the arithmetic is the per-patient sheet's own, not a second copy of it"),
     ("الملف الطبي والزيارة مع ICD-10 كامل أوفلاين وتنبيهات الأمان",
      "The medical file and the visit, with the whole of ICD-10 offline and "
      "safety alerts"),
@@ -189,10 +192,6 @@ NEXT = [
     ("مراكز التكلفة: توزيع الإيراد والمصروف على أقسام العيادة",
      "Cost centres: revenue and expense split across the clinic's "
      "departments"),
-    ("كشف حساب على مستوى الأسرة: الإخوات في ورقة واحدة. كشف المريض نفسه "
-     "وأعمار ديونه شغّالين",
-     "A statement at the family level: siblings on one sheet. The per-patient "
-     "statement and its debt ageing are built"),
     ("جاهزية FHIR: endpoints قراءة فقط للمريض والزيارة والتطعيم والقياسات. "
      "الموديلات أصلاً بأسماء FHIR",
      "FHIR readiness: read-only endpoints for patient, encounter, "
