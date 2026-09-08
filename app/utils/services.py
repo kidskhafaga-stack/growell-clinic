@@ -135,6 +135,64 @@ CAPABILITY_SERVICES = {
 }
 
 
+def shipped_for_capabilities():
+    """Every service **code this program shipped**, and the capabilities it
+    shipped it for.
+
+    Built from :data:`CAPABILITY_SERVICES` rather than kept beside it, so a row
+    added there is covered here the same day and cannot be forgotten.
+
+    A code can belong to more than one capability — the consultant's round is
+    shipped with the incubators, intensive care and the ward — so the value is
+    a set and one match is enough.
+    """
+    out = {}
+    for cap, rows in CAPABILITY_SERVICES.items():
+        for row in rows:
+            out.setdefault(row[0], set()).add(cap)
+    # Shipped to everybody, so bound to nothing. Two of these also appear under
+    # a capability (the lab, the echo); the core listing is the one that wins,
+    # because a service every clinic gets is not evidence of anything.
+    for row in CORE_SERVICES:
+        out.pop(row[0], None)
+    return out
+
+
+def deliverable(services):
+    """The ones this clinic can **actually do**, out of ``services``.
+
+    Reception was being offered ``حضّانة (يوم)`` at 1500 on a clinic with no
+    incubators — and it is not a display problem: an extra ticked at booking
+    goes onto the collect screen as a priced line, so the family is billed for
+    an incubator day in a clinic that has none.
+
+    The program is not guessing which is which. It **shipped these services
+    itself**, keyed by capability, with stable codes — so "this row is an
+    incubator day" is a fact it wrote down, not a word matched in a name.
+
+    Two limits, and they matter more than the rule:
+
+    * **A service the clinic made is never hidden.** No shipped code means no
+      opinion: a clinic that added its own row knows what it sells, and a
+      program that quietly stopped offering it would be overruling somebody
+      who was right.
+    * **A clinic that has never said what it offers keeps everything.** No
+      capabilities recorded is "nobody has been asked", not "we do nothing" —
+      the same empty value standing for two different facts that this project
+      has been bitten by before. Every clinic upgrading into this keeps every
+      service it had yesterday.
+    """
+    from app.utils.facility import capabilities
+
+    offered = set(capabilities() or [])
+    if not offered:
+        return list(services)
+    bound = shipped_for_capabilities()
+    return [s for s in services
+            if not bound.get(getattr(s, "code", None))
+            or bound[s.code] & offered]
+
+
 def _add_rows(rows, existing):
     created = 0
     for code, ar, en, price, cat, ctype, cval in rows:
