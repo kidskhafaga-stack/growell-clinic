@@ -363,34 +363,40 @@ def _delta(e):
     return e["amount"] if e["kind"] in ("invoice", "refund") else -e["amount"]
 
 
-@reports_bp.route("/statement/<int:patient_id>")
-@module_required(MODULE)
-def patient_statement(patient_id):
-    """Printable patient statement (كشف حساب): invoices and payments in
-    chronological order with a running balance. Supports an optional date range
-    (?from=&to=) with a carried-forward opening balance, and a per-print
-    language choice (?lang=)."""
+def _statement_range():
+    """The optional ``?from=``/``?to=`` window a statement is printed for."""
     from datetime import date as _date
 
-    from app.extensions import db
-
-    _apply_print_lang()
-    patient = db.get_or_404(Patient, patient_id)
-
-    def _parse(name):
+    def parse(name):
         raw = (request.args.get(name) or "").strip()
         try:
             return _date.fromisoformat(raw) if raw else None
         except ValueError:
             return None
 
-    date_from = _parse("from")
-    date_to = _parse("to")
+    return parse("from"), parse("to")
 
+
+def _statement_events(patient_ids):
+    """Every billing event for these patients, oldest first.
+
+    Pulled out of :func:`patient_statement` when the family sheet was added,
+    and pulled out rather than copied on purpose. A statement is the paper a
+    family argues with, and two functions building one would eventually
+    disagree about the awkward row — the cancelled-and-refunded invoice below,
+    which is exactly the case that had already been got wrong once.
+
+    A family's sheet is the same events for more than one child, so the only
+    difference is how many ids go in.
+    """
     events = []
-    for inv in Invoice.query.filter_by(patient_id=patient.id).all():
+    for inv in Invoice.query.filter(Invoice.patient_id.in_(patient_ids)).all():
+        # Carried on every row so the family sheet can say which child it
+        # belongs to. The per-patient sheet ignores it — there is only one.
+        who = inv.patient_id
         events.append({"date": inv.invoice_date, "kind": "invoice",
-                       "ref": inv.invoice_number, "amount": inv.total})
+                       "ref": inv.invoice_number, "amount": inv.total,
+                       "patient_id": who})
         # An invoice closed by a refund was cancelled, and the statement has
         # to say so or its own arithmetic demands the money back: charge 200,
         # pay 200, refund 200 adds to 200 owed, which is how a family came to
@@ -403,17 +409,27 @@ def patient_statement(patient_id):
         if inv.refunded_at is not None:
             events.append({
                 "date": inv.refunded_at.date(), "kind": "cancelled",
-                "ref": inv.invoice_number, "amount": inv.total})
+                "ref": inv.invoice_number, "amount": inv.total,
+                "patient_id": who})
         for pay in inv.payments:
             events.append({
                 "date": pay.paid_at.date() if pay.paid_at else inv.invoice_date,
                 "kind": "refund" if pay.kind == "refund" else "payment",
                 "ref": inv.invoice_number, "amount": pay.amount or 0,
+                "patient_id": who,
             })
     events.sort(key=lambda e: (e["date"] or local_today(), e["kind"]))
+    return events
 
-    # Opening balance = net of everything strictly before the range start; the
-    # in-range rows then continue the running balance from there.
+
+def _statement_totals(events, date_from, date_to):
+    """The rows to print, the balance carried in, and the totals under them.
+
+    ``opening`` is the net of everything strictly before the range start, so
+    the in-range rows continue a running balance rather than starting one — a
+    statement for March that opens at zero is a statement that quietly forgives
+    February.
+    """
     opening = 0.0
     if date_from:
         opening = round(sum(_delta(e) for e in events
@@ -434,8 +450,73 @@ def patient_statement(patient_id):
         "refunded": round(sum(e["amount"] for e in shown if e["kind"] == "refund"), 2),
         "balance": balance,
     }
+    return shown, opening, summary
+
+
+@reports_bp.route("/statement/<int:patient_id>")
+@module_required(MODULE)
+def patient_statement(patient_id):
+    """Printable patient statement (كشف حساب): invoices and payments in
+    chronological order with a running balance. Supports an optional date range
+    (?from=&to=) with a carried-forward opening balance, and a per-print
+    language choice (?lang=)."""
+    from app.extensions import db
+
+    _apply_print_lang()
+    patient = db.get_or_404(Patient, patient_id)
+    date_from, date_to = _statement_range()
+    shown, opening, summary = _statement_totals(
+        _statement_events([patient.id]), date_from, date_to)
     return render_template("reports/statement.html", patient=patient,
                            events=shown, summary=summary,
+                           opening=opening, date_from=date_from, date_to=date_to,
+                           today=local_today())
+
+
+@reports_bp.route("/family-statement/<int:family_id>")
+@module_required(MODULE)
+def family_statement(family_id):
+    """One sheet for the whole family (كشف حساب الأسرة).
+
+    Asked for because a clinic bills children and a **family** pays. Two
+    siblings seen the same week are two statements, and the guardian standing
+    at the desk wants one number — so the desk was adding them up by hand,
+    which is where a sibling gets left out of the total nobody re-checked.
+
+    The children's rows are merged into one chronological run, and each row
+    says which child it belongs to. Not a total per child stacked up: a family
+    argues with a statement line by line, and "which visit was this?" is
+    unanswerable from a column of subtotals.
+
+    **It computes nothing of its own.** The events, the running balance and the
+    totals all come from the same two functions the per-patient sheet uses, so
+    the family's arithmetic cannot drift from the child's — including the
+    cancelled-and-refunded case that had already been got wrong once.
+    """
+    from app.extensions import db
+    from app.models import Family
+
+    _apply_print_lang()
+    family = db.get_or_404(Family, family_id)
+    # Ordered so the sheet reads the same way twice, and so a child with no
+    # invoices still appears in the header — "nobody billed Yusuf" is a fact
+    # the reader needs, and an empty statement is how they see it.
+    children = sorted(family.patients or [], key=lambda p: p.id)
+    by_id = {p.id: p for p in children}
+
+    date_from, date_to = _statement_range()
+    events = _statement_events(list(by_id)) if by_id else []
+    for e in events:
+        e["patient"] = by_id.get(e.get("patient_id"))
+    shown, opening, summary = _statement_totals(events, date_from, date_to)
+    # The number the desk would ring about this sheet: the primary contact if
+    # somebody marked one, else any parent who left a phone.
+    parents = sorted(family.parents or [],
+                     key=lambda p: (not p.is_primary_contact, p.id))
+    guardian_phone = next((p.phone for p in parents if p.phone), None)
+    return render_template("reports/family_statement.html", family=family,
+                           children=children, events=shown, summary=summary,
+                           guardian_phone=guardian_phone,
                            opening=opening, date_from=date_from, date_to=date_to,
                            today=local_today())
 

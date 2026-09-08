@@ -4016,7 +4016,10 @@
     "total_refunded": "Total refunded",
     "due": "Balance due",
     "empty": "No transactions",
-    "opening_balance": "Opening balance"
+    "opening_balance": "Opening balance",
+    "family_title": "Family statement",
+    "child": "Child",
+    "covers": "Covers"
   },
   "refunds": {
     "all_of_it": "All of it",

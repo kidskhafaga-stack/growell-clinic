@@ -4016,7 +4016,10 @@
     "total_refunded": "إجمالي المسترد",
     "due": "الرصيد المستحق",
     "empty": "لا توجد حركات",
-    "opening_balance": "رصيد افتتاحي"
+    "opening_balance": "رصيد افتتاحي",
+    "family_title": "كشف حساب الأسرة",
+    "child": "الطفل",
+    "covers": "بيشمل"
   },
   "refunds": {
     "all_of_it": "المبلغ كله",

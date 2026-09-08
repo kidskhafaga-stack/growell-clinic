@@ -64,19 +64,22 @@ def test_cost_centres_are_still_not_built(app):
 
 
 # --------------------------------------------- 2) the family-level statement --
-def test_the_family_roll_up_is_still_not_built(app):
-    """Narrowed after the list was found wrong about this one. The *patient*
-    statement and the *patient* debt ageing are asserted present below; what is
-    missing is only the sheet that adds the siblings up."""
+def test_the_family_roll_up_has_been_built_and_is_off_the_list(app):
+    """This one has flipped, which is the guard doing its job.
+
+    It went red the day ``reports.family_statement`` landed — exactly as
+    written — and the list was brought up to date before the merge. Kept as
+    the mirror of what it used to assert: the sheet exists, and NEXT no longer
+    claims otherwise. A feature quietly deleted while the roadmap still calls
+    it done is the same failure pointing the other way.
+    """
+    from app.utils.project import NEXT
+
     endpoints = {r.endpoint for r in app.url_map.iter_rules()}
-    # Not "any route mentioning a family": managing families is a different
-    # feature and has had screens for a long time (search, edit, delete). What
-    # is missing is a family's *money* on one sheet, so both words have to be
-    # there before this counts as built.
-    money = ("statement", "aging", "ageing", "balance", "account")
-    built = [e for e in endpoints
-             if "famil" in e.lower() and any(w in e.lower() for w in money)]
-    assert not built, STALE.format("the family statement") + f" ({built})"
+    assert "reports.family_statement" in endpoints
+    for arabic, english in NEXT:
+        assert "أسرة" not in arabic and "family" not in english.lower(), (
+            "the family statement is built; NEXT still lists it")
 
 
 def test_and_the_two_it_used_to_deny_are_present(app):
@@ -120,6 +123,6 @@ def test_every_item_on_the_next_list_is_covered_here(app):
     """
     from app.utils.project import NEXT
 
-    assert len(NEXT) == 3, (
-        f"NEXT has {len(NEXT)} items; this file checks 3. Add a check for the "
+    assert len(NEXT) == 2, (
+        f"NEXT has {len(NEXT)} items; this file checks 2. Add a check for the "
         "new one — an unchecked item is how this list went stale twice.")
