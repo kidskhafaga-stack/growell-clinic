@@ -109,9 +109,14 @@ def login():
         next_page = request.args.get("next")
         if _is_safe_next(next_page):
             return redirect(next_page)
-        # Honour the user's preferred landing page, if set and accessible.
+        # Honour the user's preferred landing page, if set and openable.
+        # `can_access` alone was not enough: a module switched off after
+        # somebody chose it still builds a URL and still passes the permission
+        # check, so signing in landed them on a 404 every single time. The
+        # stored choice is left alone — switching the module back on restores
+        # the home screen they picked.
         landing = user.default_landing
-        if landing and user.can_access(landing):
+        if landing and user.can_open(landing):
             try:
                 ep = "main.dashboard" if landing == "dashboard" else f"{landing}.index"
                 return redirect(url_for(ep))
