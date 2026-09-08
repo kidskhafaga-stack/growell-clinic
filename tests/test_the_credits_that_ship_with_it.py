@@ -192,3 +192,104 @@ def test_the_page_draws_them(clinic):
     # The circle draws whichever it has: a face once the files are shipped,
     # an initial until then. Never a broken image.
     assert "person-avatar" in page
+
+
+# ------------------------------- the photograph that arrived one update late --
+def _hide_shipped_photos(tmp_path):
+    """Take the shipped pictures off the disk and give them back later."""
+    import os
+    import shutil
+
+    here = os.path.join("app", "static", "img", "about")
+    moved = []
+    for name in ("khafaga.jpg", "kandil.jpg"):
+        src = os.path.join(here, name)
+        if os.path.exists(src):
+            shutil.move(src, os.path.join(str(tmp_path), name))
+            moved.append(name)
+
+    def restore():
+        # Idempotent: the test restores deliberately mid-way and the `finally`
+        # calls it again, so a second run must be a no-op rather than a crash
+        # that hides whatever the test was actually asserting.
+        for name in list(moved):
+            src = os.path.join(str(tmp_path), name)
+            if os.path.exists(src):
+                shutil.move(src, os.path.join(here, name))
+    return restore
+
+
+def test_a_face_that_shipped_later_still_arrives(clinic, tmp_path):
+    """The gap this closes, reported from a real install.
+
+    ``shipped_photo`` only claims a picture it can see, and seeding marks
+    itself done — so a clinic that took the credits in one update and the
+    photographs in the next kept its empty circles **for ever**, with both
+    files sitting on its own disk.
+
+    A missing face is not a decision somebody made, so it is filled in
+    whenever a file exists to fill it with.
+    """
+    from app.models import Setting
+    from app.models.about_person import AboutPerson
+    from app.utils.project import seed_credits
+
+    restore = _hide_shipped_photos(tmp_path)
+    try:
+        with clinic["app"].app_context():
+            seed_credits()
+            clinic["db"].session.commit()
+            assert not (Setting.get("about_developer_photo") or "")
+            assert not (AboutPerson.query.first().photo or "")
+            restore()                      # the next update brings the files
+            seed_credits()
+            clinic["db"].session.commit()
+            assert Setting.get("about_developer_photo") == "img/about/khafaga.jpg"
+            assert AboutPerson.query.first().photo == "img/about/kandil.jpg"
+    finally:
+        restore()
+
+
+def test_a_picture_the_clinic_chose_is_never_replaced(clinic, tmp_path):
+    """The half that keeps the fix safe. An uploaded photograph is somebody's
+    decision; only an **empty** one is an absence."""
+    from app.models import Setting
+    from app.models.about_person import AboutPerson
+    from app.utils.project import seed_credits
+
+    with clinic["app"].app_context():
+        seed_credits()
+        Setting.set("about_developer_photo", "theirs.jpg")
+        person = AboutPerson.query.first()
+        person.photo = "also-theirs.jpg"
+        clinic["db"].session.commit()
+        seed_credits()
+        clinic["db"].session.commit()
+        assert Setting.get("about_developer_photo") == "theirs.jpg"
+        assert AboutPerson.query.first().photo == "also-theirs.jpg"
+
+
+def test_the_words_are_still_only_written_once(clinic):
+    """Only the face is refilled — every other field stays once-only.
+
+    The backfill had to be narrowed to photographs deliberately: widening it
+    to "anything empty" would put the shipped biography back on a clinic that
+    deleted it on purpose, and deleting it **is** a decision. Checked across
+    all the text fields rather than one, because widening the loop is a
+    one-word mistake and a single-field check happens to survive it.
+    """
+    from app.models import Setting
+    from app.utils.project import DEVELOPER_SEED, seed_credits
+
+    words = [k for k in DEVELOPER_SEED if not k.endswith("_photo")]
+    assert words, "no text fields to protect"
+    with clinic["app"].app_context():
+        seed_credits()
+        clinic["db"].session.commit()
+        for key in words:
+            Setting.set(key, "")          # the clinic cleared them on purpose
+        clinic["db"].session.commit()
+        seed_credits()
+        clinic["db"].session.commit()
+        rewritten = [k for k in words if (Setting.get(k) or "").strip()]
+    assert not rewritten, f"seeding wrote back over: {rewritten}"

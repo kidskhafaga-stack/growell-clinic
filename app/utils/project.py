@@ -539,17 +539,68 @@ def shipped_photo(value):
     return value if os.path.exists(path) else None
 
 
+def _fill_missing_photos():
+    """Give a shipped photograph to a credit that was seeded without one.
+
+    ``shipped_photo`` only ever claims a picture it can see on disk, and this
+    file promised that "the day the files are added they are picked up with no
+    other change". **That was true of a fresh install and false of every
+    clinic already running.** Seeding marks itself done, so a clinic that took
+    the credits in one update and the photographs in the next kept the empty
+    circles for ever — reported from exactly that install, with both files
+    sitting on its own disk.
+
+    So the photograph is not part of what "seeded" covers. It is filled in
+    whenever it is missing and a file exists to fill it with, and never over
+    anything: a clinic that uploaded its own picture, or cleared one on
+    purpose, is holding a value and is left alone.
+    """
+    from app.models.about_person import AboutPerson
+
+    filled = 0
+    for key, value in DEVELOPER_SEED.items():
+        # Readability, not safety, and measured as such: removing this line
+        # changes nothing, because `shipped_photo` refuses anything that is
+        # not a file it can see under `static/` — and a biography is not one.
+        # Kept because a loop named "photos" that walks every field reads as a
+        # bug even when it is not.
+        if not key.endswith("_photo"):
+            continue
+        if (Setting.get(key) or "").strip():
+            continue
+        shipped = shipped_photo(value)
+        if shipped:
+            Setting.set(key, shipped)
+            filled += 1
+
+    for row in DOCTOR_SEED:
+        person = AboutPerson.query.filter_by(name=row["name"]).first()
+        if person is None or (person.photo or "").strip():
+            continue
+        shipped = shipped_photo(row["photo"])
+        if shipped:
+            person.photo = shipped
+            filled += 1
+    return filled
+
+
 def seed_credits():
     """Put the shipped credits in, once, and never over anything.
 
     Returns ``{"developer": n, "doctors": n}`` — how many fields and rows it
-    actually created, which is zero on every run after the first.
+    actually created, which is zero on every run after the first, **except
+    for photographs**: see :func:`_fill_missing_photos` for why those are
+    filled on every run rather than once.
     """
     from app.extensions import db
     from app.models.about_person import AboutPerson
 
     if (Setting.get(CREDITS_SEEDED_KEY) or "") == "1":
-        return {"developer": 0, "doctors": 0}
+        # The words are somebody's to keep; a missing face is not a decision.
+        filled = _fill_missing_photos()
+        if filled:
+            db.session.flush()
+        return {"developer": filled, "doctors": 0}
 
     filled = 0
     for key, value in DEVELOPER_SEED.items():
