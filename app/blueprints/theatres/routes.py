@@ -29,7 +29,8 @@ from app.i18n import t
 from app.models import Patient
 from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
-                                Operation, Theatre)
+                                REVIEW_KINDS, REVIEW_VERDICTS, Operation,
+                                Theatre)
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
 from app.utils.decorators import module_required
@@ -44,6 +45,10 @@ def index():
     on_date = _a_date(request.args.get("date")) or local_today()
     return render_template("theatres/index.html",
                            on_date=on_date, rooms=theatre.day(on_date),
+                           # How many are waiting, on the button that opens
+                           # the queue. A queue nobody can see the length of
+                           # is a queue nobody clears.
+                           waiting=len(theatre.unreviewed()),
                            stops=CHECK_STOPS,
                            surgeons=_surgeons(),
                            services=_procedures(),
@@ -132,6 +137,13 @@ def operation(operation_id):
     row = Operation.query.get_or_404(operation_id)
     return render_template("theatres/operation.html", operation=row,
                            safety=theatre.safety(row),
+                           # The pre-operative answers belong beside the
+                           # checklist, not on a screen of their own: whoever
+                           # is about to sign the case in is the person who
+                           # most needs to read "not fit — chest infection".
+                           reviews=theatre.reviews(row),
+                           blocking=theatre.blocking(row),
+                           kinds=REVIEW_KINDS, verdicts=REVIEW_VERDICTS,
                            stops=CHECK_STOPS, items=CHECK_ITEMS,
                            statuses=OPERATION_STATUSES,
                            rooms=(Theatre.query
@@ -163,6 +175,54 @@ def sign(operation_id):
           if check.missed else t("theatre.signed"),
           "info" if check.missed else "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/preop")
+@module_required(MODULE)
+def preop():
+    """The cases nobody has looked at yet — the anaesthetist's working list.
+
+    A screen of its own rather than a column on the day, because the point of
+    moving the question earlier is that somebody can **sit down and clear
+    it**. A column would mean opening the list every morning and scanning for
+    gaps, which is the reading the checklist's own sign-in stop already does
+    badly at the worst possible moment.
+
+    Filtered to one kind on request, because the surgeon and the anaesthetist
+    are answering different questions and neither wants the other's queue.
+    """
+    kind = request.args.get("kind")
+    kind = kind if kind in REVIEW_KINDS else None
+    return render_template(
+        "theatres/preop.html",
+        rows=theatre.unreviewed(kind=kind),
+        reviews_of=theatre.reviews,
+        kind=kind, kinds=REVIEW_KINDS, verdicts=REVIEW_VERDICTS,
+        today=local_today())
+
+
+@theatres_bp.route("/operation/<int:operation_id>/review", methods=["POST"])
+@module_required(MODULE)
+def review(operation_id):
+    """Record the surgeon's or the anaesthetist's answer on one case."""
+    row = Operation.query.get_or_404(operation_id)
+    try:
+        theatre.review(row, (request.form.get("kind") or "").strip(),
+                       (request.form.get("verdict") or "").strip(),
+                       user=current_user, note=request.form.get("note"))
+    except ValueError as why:
+        db.session.rollback()
+        # Three refusals and three different next steps: a reason is typed, a
+        # kind is picked, a verdict is picked. One message for all of them
+        # would send somebody hunting.
+        flash(t({"needs a reason": "theatre.review_needs_reason",
+                 "unknown verdict": "theatre.review_pick_verdict"}
+                .get(str(why), "theatre.review_pick_kind")), "error")
+        return redirect(request.referrer or url_for("theatres.preop"))
+    db.session.commit()
+    flash(t("theatre.reviewed"), "success")
+    return redirect(request.referrer
+                    or url_for("theatres.operation", operation_id=row.id))
 
 
 @theatres_bp.route("/operation/<int:operation_id>/start", methods=["POST"])

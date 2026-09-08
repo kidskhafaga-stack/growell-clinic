@@ -44,6 +44,13 @@
              onchange="this.form.submit()" dir="ltr">
       <noscript><button class="btn btn-outline" type="submit">{{ t('theatre.show_day') }}</button></noscript>
     </form>
+    {# Everybody, not just whoever builds rooms: the anaesthetist reading this
+       list is exactly the person the queue is for, and burying it behind an
+       admin flag would put it where they never look. The count is on it
+       because a queue nobody can see the length of is a queue nobody clears. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.preop') }}">
+      <i class="bi bi-clipboard2-check"></i> {{ t('theatre.preop') }}
+      {% if waiting %}<span class="badge badge--warn">{{ waiting }}</span>{% endif %}</a>
     {% if may_build %}
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.setup') }}">
       <i class="bi bi-door-closed"></i> {{ t('theatre.rooms') }}</a>

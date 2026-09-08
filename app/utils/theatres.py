@@ -22,8 +22,9 @@ is worse than no checklist — it manufactures a signature.
 from datetime import datetime
 
 from app.extensions import db
-from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, SIGN_IN, SIGN_OUT,
-                                TIME_OUT, Operation, SafetyCheck, Theatre)
+from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, REVIEW_KINDS,
+                                REVIEW_VERDICTS, SIGN_IN, SIGN_OUT, TIME_OUT,
+                                Operation, PreOpReview, SafetyCheck, Theatre)
 from app.utils.clock import local_today
 
 
@@ -87,6 +88,84 @@ def safety(operation):
         "ready": SIGN_IN in signed,
         "closed": SIGN_OUT in signed,
     }
+
+
+def reviews(operation):
+    """What the surgeon and the anaesthetist have said about this case.
+
+    Shaped like :func:`safety`: a dict keyed by what was asked, whose missing
+    entries **are** the finding. A case with no ``anaesthesia`` key is one
+    nobody has assessed, and that is a sentence the list can say rather than a
+    silence somebody has to notice.
+    """
+    if operation is None:
+        return {}
+    return {r.kind: r for r in (operation.reviews or [])}
+
+
+def review(operation, kind, verdict, user=None, note=None, at=None):
+    """Record one person's look at the case before the day.
+
+    Re-reviewing replaces: a child seen again after a chest infection cleared
+    has **one** current answer, and keeping both would leave the list showing
+    an "unfit" that stopped being true a week ago. The row carries who and
+    when, so what was superseded is still attributable.
+    """
+    if operation is None:
+        raise ValueError("no operation")
+    if kind not in REVIEW_KINDS:
+        raise ValueError("unknown kind")
+    if verdict not in REVIEW_VERDICTS:
+        raise ValueError("unknown verdict")
+    text = (note or "").strip()[:500] or None
+    # "Not fit" with nothing after it stops a list and tells the next person
+    # nothing — they have to ring somebody to learn what the program already
+    # knew. Only `fit` may be silent.
+    if verdict != "fit" and not text:
+        raise ValueError("needs a reason")
+
+    row = reviews(operation).get(kind)
+    if row is None:
+        row = PreOpReview(operation_id=operation.id, kind=kind)
+        db.session.add(row)
+    row.verdict = verdict
+    row.note = text
+    row.at = at or datetime.utcnow()
+    row.by_id = getattr(user, "id", None)
+    return row
+
+
+def unreviewed(on_date=None, kind=None):
+    """Cases still waiting to be looked at — the working list.
+
+    The whole point of moving the question earlier is that somebody can sit
+    down and clear it, so what they need is *the ones nobody has done*, not
+    the day's list with a column to scan. Cancelled cases are not waiting for
+    anybody.
+
+    ``kind`` narrows it to one person's queue; without it, a case missing
+    either review is on the list.
+    """
+    wanted = (kind,) if kind in REVIEW_KINDS else REVIEW_KINDS
+    rows = (Operation.query
+            .filter(Operation.on_date >= (on_date or local_today()),
+                    Operation.status == "scheduled")
+            .order_by(Operation.on_date, Operation.start_time).all())
+    return [op for op in rows
+            if any(k not in reviews(op) for k in wanted)]
+
+
+def blocking(operation):
+    """Reviews that say this case should not go ahead as listed.
+
+    Read by the screen to put the warning where the start button is. It does
+    **not** refuse — ``start`` holds the one hard stop in this module, and it
+    stays that way: a bleeding child does not wait for a form, and a program
+    that blocked an emergency would be dangerous in the other direction.
+    Saying it loudly, on the screen, every time, is the trade this module
+    already makes for the missing sign-out.
+    """
+    return [r for r in reviews(operation).values() if r.verdict == "unfit"]
 
 
 def sign(operation, stop, items=None, user=None, note=None, at=None):

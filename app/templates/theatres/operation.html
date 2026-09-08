@@ -125,6 +125,60 @@
 </div>
 
 {# --------------------------------------------------------- the case ---- #}
+{# What the surgeon and the anaesthetist said, **before** the day. The
+   checklist's own sign-in has a `consent`/`anaesthesia_check` tick, and it is
+   ticked with the child in the room — the most expensive moment to find out
+   the case should never have been listed. This block is the same question,
+   answered earlier, put where whoever is about to sign the case in will read
+   it. #}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-check"></i> {{ t('theatre.preop') }}</h2>
+
+  {% if blocking %}
+  {# Loud, and not a refusal. `start` holds the one hard stop in this module
+     and it stays that way: a bleeding child does not wait for a form. What a
+     visible gap buys is that nobody can say afterwards they were not told. #}
+  <p class="alert-pill danger" data-preop-blocks style="display:inline-flex;">
+    <i class="bi bi-exclamation-octagon"></i> {{ t('theatre.review_blocks') }}</p>
+  {% endif %}
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    {% for k in kinds %}
+    {% set r = reviews.get(k) %}
+    <div style="flex:1;min-width:250px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
+      <b>{{ t('theatre.review_kind_' ~ k) }}</b>
+      {% if r %}
+      <div style="margin-top:6px;">
+        <span class="alert-pill {{ 'ok' if r.verdict == 'fit' else ('warn' if r.verdict == 'conditions' else 'bad') }}">
+          {{ t('theatre.review_' ~ r.verdict) }}</span>
+        {% if r.note %}<div style="margin-top:6px;">{{ r.note }}</div>{% endif %}
+        <div class="hint" style="margin-top:4px;">{{ r.at|clinic_stamp }}
+          {% if r.by %} · {{ t('theatre.review_by') }} {{ r.by.display_name(current_lang) }}{% endif %}</div>
+      </div>
+      {% else %}
+      <div class="hint" style="margin-top:6px;">{{ t('theatre.review_missing') }}</div>
+      {% endif %}
+      {% if operation.status == 'scheduled' %}
+      <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"
+            action="{{ url_for('theatres.review', operation_id=operation.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ k }}">
+        <select class="select" name="verdict" style="width:auto;">
+          {% for v in verdicts %}
+          <option value="{{ v }}">{{ t('theatre.review_' ~ v) }}</option>
+          {% endfor %}
+        </select>
+        <input class="input" name="note" style="flex:1;min-width:120px;"
+               placeholder="{{ t('theatre.review_note') }}">
+        <button class="btn btn-sm btn-outline gc-press" type="submit">{{ t('theatre.review_save') }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="card gc-scale-in" style="margin-top:14px;">
   <h2 class="card-title" style="margin-top:0;">
     <i class="bi bi-clock"></i> {{ t('theatre.the_case') }}</h2>
