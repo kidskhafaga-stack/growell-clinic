@@ -195,7 +195,7 @@
 <div class="card gc-scale-in" style="animation-delay:0.16s;">
   <h2 style="margin-top:0;font-size:1.1rem;">{{ t('dashboard.your_modules') }}</h2>
   <div class="grid grid--cards gc-stagger" style="margin-top:8px;">
-    {% for module in ALL_MODULES if module != 'dashboard' and current_user.can_access(module) %}
+    {% for module in ALL_MODULES if module != 'dashboard' and current_user.can_open(module) %}
       {% set endpoint = MODULE_ENDPOINTS.get(module) %}
       <a class="module-card gc-lift gc-ripple" href="{{ url_for(endpoint) if endpoint else '#' }}"
          {% if not endpoint %}title="{{ t('common.coming_soon') }}"{% endif %}>

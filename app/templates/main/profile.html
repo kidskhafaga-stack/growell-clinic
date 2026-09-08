@@ -153,7 +153,7 @@
       <div class="form-row"><label>{{ t('profile.landing') }}</label>
         <select class="select" name="default_landing">
           <option value="">{{ t('profile.landing_default') }}</option>
-          {% for m in current_user.modules %}{% if m != 'dashboard' %}<option value="{{ m }}" {{ 'selected' if current_user.default_landing==m else '' }}>{{ t('nav.' ~ m) }}</option>{% endif %}{% endfor %}
+          {% for m in current_user.modules %}{% if m != 'dashboard' and current_user.can_open(m) %}<option value="{{ m }}" {{ 'selected' if current_user.default_landing==m else '' }}>{{ t('nav.' ~ m) }}</option>{% endif %}{% endfor %}
         </select></div>
     </div>
   </div>

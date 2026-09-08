@@ -211,6 +211,30 @@ class User(UserMixin, db.Model):
             return rec.is_admin or module in rec.module_list
         return role_can_access(self.role, module)  # static fallback
 
+    def can_open(self, module):
+        """Whether this person can **actually** open ``module`` right now.
+
+        ``can_access`` answers a different question — may this role reach it —
+        and on its own it is not enough to draw a link with, because a module
+        the clinic does not run is not reachable by anybody. The route asks
+        both, in this order, and says something different about each: a module
+        that is switched off is a 404 (it is not there), and a role without the
+        permission is a 403 (it is there and not yours). Those two stay apart.
+
+        Three screens asked only the permission half and drew the door anyway:
+        the home screen's module cards, the "page to open after login"
+        dropdown, and — through that stored choice — the login redirect
+        itself, which landed an admin on a 404 **every time they signed in**.
+        Reported from a running clinic as seven dead cards on the home screen.
+
+        The sidebar had asked both all along, which is the tell: one rule,
+        written out in four places, three of them wrong. It has a name now,
+        and every place that *offers* a module asks it instead of half of it.
+        """
+        from app.utils.facility import module_enabled
+
+        return module_enabled(module) and self.can_access(module)
+
     @property
     def can_collect(self):
         """Whether this person may take money — the till, not the ledger.
