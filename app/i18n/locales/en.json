@@ -6054,7 +6054,12 @@
     "review_missing": "Not reviewed yet",
     "review_blocks": "A review says this case is not fit — read it before starting",
     "review_by": "by",
-    "preop_waiting": "waiting for review"
+    "preop_waiting": "waiting for review",
+    "my_list": "My list",
+    "whose_list": "Whose list",
+    "everybody": "All theatres",
+    "mine_none": "You have no cases on this day.",
+    "person_none": "This person has no cases on this day."
   },
   "lab": {
     "sub": "The rack: what was asked for and has no answer yet",
