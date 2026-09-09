@@ -37,12 +37,21 @@ class NotSafeYet(Exception):
     """
 
 
-def day(on_date=None):
+def day(on_date=None, who=None):
     """Every booking on a date, theatre by theatre, in time order.
 
     Cancelled cases stay on the list, marked. A theatre morning where two of
     six were called off is a fact about that morning — dropping them would
     make the list agree with itself and disagree with the day.
+
+    ``who`` narrows it to one person's cases — *"ليست للجراح وطبيب التخدير"*.
+    **Either role counts.** A surgeon and an anaesthetist read the same day for
+    different reasons, and a filter that answered only "cases I am cutting"
+    would hand the anaesthetist somebody else's list and call it theirs.
+
+    Rooms with none of their cases **drop out** rather than showing empty. A
+    filter that leaves five empty rooms behind has not filtered anything, and
+    the whole point is a short list somebody can hold in their head.
     """
     from sqlalchemy.orm import selectinload
 
@@ -55,15 +64,44 @@ def day(on_date=None):
                          selectinload(Operation.surgeon))
                 .filter(Operation.on_date == on_date)
                 .order_by(Operation.start_time, Operation.id).all())
+    if who:
+        bookings = [b for b in bookings
+                    if who in (b.surgeon_id, b.anaesthetist_id)]
 
     by_theatre = {}
     for booking in bookings:
         by_theatre.setdefault(booking.theatre_id, []).append(booking)
 
-    return [{"theatre": room,
-             "operations": [{"operation": op, "safety": safety(op)}
-                            for op in by_theatre.get(room.id, [])]}
-            for room in theatres]
+    rooms = [{"theatre": room,
+              "operations": [{"operation": op, "safety": safety(op)}
+                             for op in by_theatre.get(room.id, [])]}
+             for room in theatres]
+    # Empty rooms are part of the day — a theatre with nothing in it is a
+    # theatre standing idle, and the person running the list wants to see
+    # that. They are **not** part of one person's list, where they would be
+    # five headings above nothing.
+    return [r for r in rooms if r["operations"]] if who else rooms
+
+
+def people_on(on_date=None):
+    """The surgeons and anaesthetists who have a case on this day.
+
+    For the dropdown, and deliberately **not** every doctor in the clinic: a
+    list of forty names to find the two who are operating today is the kind of
+    picker somebody stops using. Each person appears once however many cases
+    they have, and in whichever role.
+    """
+    on_date = on_date or local_today()
+    rows = (Operation.query
+            .filter(Operation.on_date == on_date)
+            .order_by(Operation.start_time, Operation.id).all())
+    seen, out = set(), []
+    for op in rows:
+        for person in (op.surgeon, op.anaesthetist):
+            if person is not None and person.id not in seen:
+                seen.add(person.id)
+                out.append(person)
+    return sorted(out, key=lambda p: (p.full_name or "").strip())
 
 
 def safety(operation):

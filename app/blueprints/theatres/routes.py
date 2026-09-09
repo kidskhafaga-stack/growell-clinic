@@ -43,12 +43,32 @@ MODULE = "theatres"
 def index():
     """Today's list, room by room."""
     on_date = _a_date(request.args.get("date")) or local_today()
+    # Whose list. `mine` is the shortcut a doctor presses; an explicit id is
+    # what the coordinator picks from the dropdown. Both land here, because
+    # "my list" is not a different screen — it is this one, shorter.
+    who = request.args.get("who", type=int)
+    if request.args.get("mine") and current_user.is_authenticated:
+        who = current_user.id
     return render_template("theatres/index.html",
-                           on_date=on_date, rooms=theatre.day(on_date),
+                           on_date=on_date, rooms=theatre.day(on_date, who=who),
+                           who=who,
                            # How many are waiting, on the button that opens
                            # the queue. A queue nobody can see the length of
                            # is a queue nobody clears.
                            waiting=len(theatre.unreviewed()),
+                           # Who this day has, so the dropdown lists the
+                           # people who actually have a case on it rather
+                           # than every doctor in the clinic.
+                           on_today=theatre.people_on(on_date),
+                           # The booking form's room picker reads this, not
+                           # the filtered day: a doctor looking at their own
+                           # list must still be able to book into any room,
+                           # and looping the filtered list would have left
+                           # them only the rooms they already have a case in.
+                           all_rooms=(Theatre.query
+                                      .filter(Theatre.is_active.is_(True))
+                                      .order_by(Theatre.sort_order, Theatre.id)
+                                      .all()),
                            stops=CHECK_STOPS,
                            surgeons=_surgeons(),
                            services=_procedures(),

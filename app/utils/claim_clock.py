@@ -69,6 +69,37 @@ def days_to_file(invoice, today=None):
     return (due - (today or local_today())).days
 
 
+def sent_on(claim):
+    """The day this claim was submitted, **in the clinic's own calendar**.
+
+    ``submitted_at`` is a UTC timestamp, and reading ``.date()` off it gives a
+    UTC date. Everything it is then compared against — ``local_today()`` — is
+    the clinic's date, so the two disagree for the hours when the clinic's
+    clock has crossed midnight and UTC has not.
+
+    Caught by CI failing at 22:19 UTC with ``assert 16 == 15``, and reproduced:
+
+        utcnow().date() = 2026-09-08
+        local_today()   = 2026-09-09     ← the clinic's clock is ahead
+
+    It is not only a test that suffers. A claim submitted at half past eleven
+    at night in Cairo is stamped with the previous UTC day, so its payment is
+    due a day early and it reads as overdue while it is still inside its
+    terms — a desk chasing a payer who is not late yet. The same fault the
+    consent row had, on the one field where the date is the point.
+
+    Falls back to the raw date when the clinic has set no zone: an unknown
+    zone is a question nobody answered, and answering it with a guess is how
+    this program would start inventing dates.
+    """
+    if claim is None or claim.submitted_at is None:
+        return None
+    from app.utils.clock import to_local
+
+    local = to_local(claim.submitted_at)
+    return (local.date() if local is not None else claim.submitted_at.date())
+
+
 def payment_due(claim):
     """The day this claim's money is due, or ``None`` when nothing says.
 
@@ -76,12 +107,13 @@ def payment_due(claim):
     clock starts when the claim reaches them, which is also the only date they
     would accept being held to.
     """
-    if claim is None or claim.submitted_at is None:
+    sent = sent_on(claim)
+    if sent is None:
         return None
     days = terms(claim.payer, claim.date_from or local_today())[1]
     if not days:
         return None
-    return claim.submitted_at.date() + timedelta(days=int(days))
+    return sent + timedelta(days=int(days))
 
 
 def days_overdue(claim, today=None):
@@ -145,7 +177,9 @@ def outstanding(payer_id=None, today=None):
 
     rows = []
     for claim in query.order_by(Claim.submitted_at).all():
-        sent = claim.submitted_at.date() if claim.submitted_at else None
+        # Same calendar as the due date above, or the age and the overdue
+        # count on the same row would be worked out from two different days.
+        sent = sent_on(claim)
         age = (today - sent).days if sent else None
         rows.append({"claim": claim, "age": age,
                      "due": payment_due(claim),
