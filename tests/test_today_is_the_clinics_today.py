@@ -105,10 +105,47 @@ def test_every_dated_record_uses_the_clinics_day(clinic):
             f"{column} is still stamped from something else ({name})"
 
 
+def _code_only(path):
+    """The file with its comments and string literals taken out.
+
+    The guard below reads code, and a docstring is not code. It used to read
+    the raw text, and the first thing that cost was a module **documenting**
+    this exact bug: the fix for the claims clock carried the reproduction in
+    its docstring —
+
+        utcnow().date() = 2026-09-08
+        local_today()   = 2026-09-09
+
+    — and the guard against asking UTC the date flagged the paragraph
+    explaining why you must not. In a codebase whose house style is to write
+    the bug down next to the fix, a guard that cannot tell prose from code
+    teaches people to stop writing the bug down. That is a worse outcome than
+    the one it was protecting against.
+
+    Tokenising rather than stripping by hand, so an apostrophe in a comment or
+    a quote inside a string cannot fool it. Nothing is weakened: every real
+    call still reads exactly as it did.
+    """
+    import io
+    import tokenize
+
+    with open(path, encoding="utf-8") as fh:
+        source = fh.read()
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return source          # unparseable: judge the whole text, not less
+    return " ".join(tok.string for tok in tokens
+                    if tok.type not in (tokenize.COMMENT, tokenize.STRING))
+
+
 def test_nothing_reads_the_utc_date_any_more(clinic):
     """The sweep, pinned. ``utcnow().date()`` is allowed in exactly two
     places: inside ``local_today`` itself, as the fallback for a zone that
-    cannot be resolved, and in the demo-data generator."""
+    cannot be resolved, and in the demo-data generator.
+
+    Read off the **code**, not the file text — see :func:`_code_only`.
+    """
     import re
 
     root = os.path.join(os.path.dirname(__file__), "..", "app")
@@ -123,12 +160,37 @@ def test_nothing_reads_the_utc_date_any_more(clinic):
             rel = os.path.relpath(path, os.path.dirname(root))
             if rel in allowed:
                 continue
-            with open(path, encoding="utf-8") as fh:
-                if re.search(r"utcnow\(\)\.date\(\)", fh.read()):
-                    offenders.append(rel)
+            if re.search(r"utcnow\s*\(\s*\)\s*\.\s*date\s*\(\s*\)",
+                         _code_only(path)):
+                offenders.append(rel)
 
     assert not offenders, ("these still ask UTC what day it is: "
                            + ", ".join(sorted(offenders)))
+
+
+def test_the_guard_still_catches_a_real_call(clinic, tmp_path):
+    """**The half that makes the change above safe to have made.**
+
+    Teaching a guard to ignore prose is one edit away from teaching it to
+    ignore everything, so what it must still catch is asserted rather than
+    assumed — including the spacing a formatter might introduce.
+    """
+    import re
+
+    pattern = r"utcnow\s*\(\s*\)\s*\.\s*date\s*\(\s*\)"
+    for source in ('x = utcnow().date()\n',
+                   'x = utcnow() . date()\n',
+                   'def f():\n    """doc"""\n    return utcnow().date()\n'):
+        offender = tmp_path / "offender.py"
+        offender.write_text(source, encoding="utf-8")
+        assert re.search(pattern, _code_only(str(offender))), source
+
+    # And a docstring that only talks about it is left alone.
+    innocent = tmp_path / "innocent.py"
+    innocent.write_text('"""utcnow().date() is what we stopped doing."""\n'
+                        "# utcnow().date() too\n",
+                        encoding="utf-8")
+    assert not re.search(pattern, _code_only(str(innocent)))
 
 
 # ============================================== and it still works ==========
