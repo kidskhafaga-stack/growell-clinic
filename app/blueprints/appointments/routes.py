@@ -642,10 +642,22 @@ def _doctor_options(doctors):
 
 
 def _bookable_services():
-    """Active services offered as optional extras at booking time."""
-    from app.models import Service
+    """Active services offered as optional extras at booking time.
 
-    return Service.query.filter_by(is_active=True).order_by(Service.name).all()
+    Narrowed to what the clinic can actually deliver. It used to be every
+    active row, which is how a clinic with no incubators was offered
+    ``حضّانة (يوم)`` at 1500 — and a ticked extra is not a display: it goes
+    onto the collect screen as a priced line on the family's bill.
+
+    The rule lives in ``app/utils/services.py`` beside the table it reads, so
+    a service shipped for a new capability is covered without anybody
+    remembering this function exists.
+    """
+    from app.models import Service
+    from app.utils.services import deliverable
+
+    return deliverable(
+        Service.query.filter_by(is_active=True).order_by(Service.name).all())
 
 
 def _doctor_marks():

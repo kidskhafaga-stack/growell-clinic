@@ -1,0 +1,82 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('theatre.preop') }}{% endblock %}
+{% block page_heading %}{{ t('theatre.preop') }}{% endblock %}
+
+{% block content %}
+<style>
+  /* A queue, not a timetable. The day screen is grouped by room because the
+     reader is asking "what is theatre two doing at eleven"; here they are
+     asking "who have I not seen yet", and room is noise. */
+  .pre-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start;
+             padding:12px 0; border-top:1px dashed var(--line); }
+  .pre-row:first-child { border-top:0; }
+  .pre-who { min-width:220px; flex:1; }
+  .pre-name { font-weight:600; }
+  .pre-when { font-variant-numeric: tabular-nums; font-weight:700; min-width:96px; }
+  .pre-asks { display:flex; gap:8px; flex-wrap:wrap; }
+  .pre-form { display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+              border:1px solid var(--line); border-radius:12px; padding:8px 10px; }
+  .pre-form select, .pre-form input { min-width:0; }
+  .pre-note { flex:1; min-width:160px; }
+</style>
+
+<div class="card">
+  <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">
+    <h2 style="margin:0;font-size:1.1rem;">{{ t('theatre.preop') }}</h2>
+    <span class="hint">{{ t('theatre.preop_hint') }}</span>
+  </div>
+
+  {# One person's queue at a time. The surgeon and the anaesthetist are
+     answering different questions and neither wants to read the other's. #}
+  <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;">
+    <a class="btn btn-sm {{ 'btn-primary' if not kind else 'btn-outline' }}"
+       href="{{ url_for('theatres.preop') }}">{{ t('common.all') }}</a>
+    {% for k in kinds %}
+    <a class="btn btn-sm {{ 'btn-primary' if kind == k else 'btn-outline' }}"
+       href="{{ url_for('theatres.preop', kind=k) }}">{{ t('theatre.review_kind_' ~ k) }}</a>
+    {% endfor %}
+  </div>
+
+  {% for op in rows %}
+  {% set done = reviews_of(op) %}
+  <div class="pre-row">
+    <div class="pre-when">{{ op.on_date }}{% if op.start_time %}<br>{{ op.start_time.strftime('%H:%M') }}{% endif %}</div>
+    <div class="pre-who">
+      <div class="pre-name">
+        <a href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+          {{ op.patient.display_name(current_lang) if op.patient else '—' }}</a></div>
+      <div class="hint">{{ op.procedure }}
+        {% if op.surgeon %} · {{ op.surgeon.display_name(current_lang) }}{% endif %}</div>
+    </div>
+    <div class="pre-asks">
+      {% for k in kinds if not kind or k == kind %}
+      {% set r = done.get(k) %}
+      {% if r %}
+      <span class="alert-pill {{ 'ok' if r.verdict == 'fit' else ('warn' if r.verdict == 'conditions' else 'bad') }}">
+        {{ t('theatre.review_kind_' ~ k) }}: {{ t('theatre.review_' ~ r.verdict) }}
+        {% if r.note %} — {{ r.note }}{% endif %}</span>
+      {% else %}
+      <form class="pre-form" method="post"
+            action="{{ url_for('theatres.review', operation_id=op.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ k }}">
+        <b style="font-size:.86rem;">{{ t('theatre.review_kind_' ~ k) }}</b>
+        <select class="select" name="verdict" style="width:auto;">
+          {% for v in verdicts %}
+          <option value="{{ v }}">{{ t('theatre.review_' ~ v) }}</option>
+          {% endfor %}
+        </select>
+        <input class="input pre-note" name="note"
+               placeholder="{{ t('theatre.review_note') }}">
+        <button class="btn btn-sm btn-primary" type="submit">{{ t('theatre.review_save') }}</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <p class="hint" style="padding:18px 0;text-align:center;">{{ t('theatre.preop_none') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

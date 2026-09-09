@@ -53,7 +53,8 @@ from app.models.lasa_pair import LasaPair
 from app.models.med_error import (ERROR_OUTCOMES, ERROR_STAGES,
                                   OUTCOME_BANDS, MedicationError)
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
-                               Operation, SafetyCheck, Theatre)
+                               Operation, PreOpReview, REVIEW_KINDS,
+                               REVIEW_VERDICTS, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
                                    Observation, ObservationOrder,
                                    due_at, lateness_grace)
@@ -282,6 +283,9 @@ __all__ = [
     "OUTCOME_BANDS",
     "Theatre",
     "Operation",
+    "PreOpReview",
+    "REVIEW_KINDS",
+    "REVIEW_VERDICTS",
     "SafetyCheck",
     "DOSE_OUTCOMES",
     "ROUND_TRENDS",

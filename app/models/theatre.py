@@ -144,6 +144,8 @@ class Operation(db.Model):
     service = db.relationship("Service")
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
     anaesthetist = db.relationship("User", foreign_keys=[anaesthetist_id])
+    reviews = db.relationship("PreOpReview", back_populates="operation",
+                              cascade="all, delete-orphan")
     checks = db.relationship("SafetyCheck", back_populates="operation",
                              cascade="all, delete-orphan",
                              order_by="SafetyCheck.at, SafetyCheck.id")
@@ -217,3 +219,69 @@ class SafetyCheck(db.Model):
 
     def __repr__(self):
         return f"<SafetyCheck {self.stop} op={self.operation_id}>"
+
+
+#: Who has to look at the child before the day, and what each is answering.
+#: The surgeon confirms the operation is still the right one; the anaesthetist
+#: confirms this child can be given an anaesthetic. Two different questions,
+#: asked by two different people, and a screen that merged them would let one
+#: signature stand for both.
+REVIEW_KINDS = ("surgeon", "anaesthesia")
+
+#: What a review concluded. ``conditions`` is the answer that actually happens
+#: — "yes, once the chest is clear" — and a scheme with only fit and unfit
+#: forces it to be recorded as one of the two, which loses the condition.
+REVIEW_VERDICTS = ("fit", "conditions", "unfit")
+
+
+class PreOpReview(db.Model):
+    """The surgeon's and the anaesthetist's look at a case **before the day**.
+
+    The checklist already has a stop for this — ``anaesthesia_check`` in the
+    sign-in — and it is ticked **with the child in the room**. A case that
+    should never have been listed is then found on the table, which is the
+    most expensive possible moment to find it, and the reason a pre-operative
+    assessment exists as its own thing in every hospital that has one.
+
+    So this is not a second checklist. It is the same question moved to where
+    the answer can still change something, and the list is what makes that
+    workable: the anaesthetist opens it, sees who has not been looked at, and
+    works through them on a day when nobody is waiting.
+
+    **It does not refuse.** ``start()`` holds the one hard stop in this module
+    and that is deliberate — a bleeding child does not wait for a form, and a
+    program that blocked an emergency would be dangerous in the other
+    direction. What this does instead is what ``finish()`` does about a missing
+    sign-out: say the gap is there, and keep saying it. A gap that is visible
+    is worth more than a refusal that gets worked around.
+    """
+
+    __tablename__ = "preop_reviews"
+    __table_args__ = (
+        # One review per kind per case, for the same reason the checklist has
+        # one sign-off per stop: two people recording from two screens in the
+        # same minute is how a case ends up reviewed twice with nobody able to
+        # say which answer was the real one.
+        db.UniqueConstraint("operation_id", "kind", name="uq_preop_kind"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"),
+                             nullable=False, index=True)
+    kind = db.Column(db.String(12), nullable=False)
+    verdict = db.Column(db.String(12), nullable=False)
+
+    # What the condition is, or why not. Required by the caller for any
+    # verdict but ``fit`` — "not fit" with no reason stops a list and tells
+    # the next person nothing.
+    note = db.Column(db.String(500))
+
+    at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    by_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    operation = db.relationship("Operation", back_populates="reviews")
+    by = db.relationship("User", foreign_keys=[by_id])
+
+    def __repr__(self):
+        return f"<PreOpReview {self.kind} {self.verdict}>"
