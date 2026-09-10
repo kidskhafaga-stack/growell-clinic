@@ -312,6 +312,14 @@ def _apply_service_engine_fields(svc):
     stype = (request.form.get("service_type") or "").strip()
     if valid_key(stype):
         svc.service_type = stype
+    # Empty is a choice here — «تلقائي» — and it means "let the program work
+    # it out from the category", not "no section". A blank stored as a blank
+    # is exactly right: `Service.section_key` reads it that way.
+    if request.form.get("se") == "1":
+        section = (request.form.get("invoice_section") or "").strip()
+        from app.utils.invoice_sections import all_sections
+        known = {r.key for r in all_sections()}
+        svc.invoice_section = section if section in known else None
     svc.cost = request.form.get("cost", type=float)
     svc.duration_minutes = request.form.get("duration_minutes", type=int)
     svc.device_id = request.form.get("device_id", type=int) or None
@@ -348,8 +356,16 @@ def services():
         flash(t("services.auto_seeded"), "info")
     from app.models import ETA_ITEM_TYPES, MedicalDevice, StoreItem
     from app.utils import service_types as st
+    from app.utils import invoice_sections as isec
     from app.utils.visit_types import label as vt_label
     st.ensure_seeded()
+    # And the bill sections, for the same reason and in the same breath. Left
+    # out at first, and CI caught it as 33 screens failing to render: the
+    # unseeded fallback hands back rows with no id, and the move buttons
+    # cannot build a URL from one. Seeding here is what makes the fallback
+    # the thing it was meant to be — a cushion for a half-finished upgrade,
+    # not the state the screen normally draws from.
+    isec.ensure_seeded()
 
     every = Service.query.order_by(Service.sort_order, Service.name).all()
     lang = getattr(g, "lang", "ar")
@@ -389,6 +405,17 @@ def services():
         type_rows=st.all_types(), type_choices=st.active_types(),
         type_usage=st.usage_counts(), type_label=st.label, type_icon=st.icon,
         type_choices_for=st.choices_for,
+        # The bill sections, and how many services somebody **chose** for
+        # each. Deliberately not counting the ones the program derives: a
+        # count that included them would say a section is in use when
+        # deleting it costs nothing.
+        section_rows=isec.all_sections(),
+        section_choices=isec.active_sections(),
+        section_usage={
+            key: n for key, n in
+            db.session.query(Service.invoice_section, db.func.count(Service.id))
+            .filter(Service.invoice_section.isnot(None))
+            .group_by(Service.invoice_section).all()},
         store_items=store_items, doctors=_doctors(),
         appt_types=list(APPOINTMENT_TYPES),
         visit_type_label=lambda key: vt_label(key, lang),
@@ -396,6 +423,11 @@ def services():
 
 
 # ---------------------------------------------------------------- types ----
+def _section_redirect():
+    """Back to the screen with the filters the user was looking at."""
+    return _type_redirect()
+
+
 def _type_redirect():
     """Back to the screen with the filters the user was looking at."""
     return redirect(url_for(
@@ -403,6 +435,76 @@ def _type_redirect():
         type=request.form.get("type") or None,
         cat=request.form.get("cat") or None,
         status=request.form.get("status") or None))
+
+
+@finance_bp.route("/services/sections/new", methods=["POST"])
+@module_required(MODULE)
+def invoice_section_new():
+    """Add a bill section.
+
+    Open where the accounting category is shut, and the difference is that
+    nothing here is read by name: the summary groups by whatever sections
+    exist. A hospital typing «مستلزمات غرفة العمليات» gets a section that
+    works the same minute.
+    """
+    from app.models import InvoiceSection
+    from app.utils.invoice_sections import ensure_seeded, make_key
+    from app.utils.ordering import append_order
+    ensure_seeded()
+
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash(t("common.required") + ": " + t("services.invoice_section"), "danger")
+        return _section_redirect()
+    name_en = (request.form.get("name_en") or "").strip() or None
+    db.session.add(InvoiceSection(
+        key=make_key(name, name_en), name_ar=name, name_en=name_en,
+        icon=(request.form.get("icon") or "").strip() or "bi-tag",
+        sort_order=append_order(InvoiceSection), is_active=True,
+        is_system=False))
+    db.session.commit()
+    flash(t("services.section_added"), "success")
+    return _section_redirect()
+
+
+@finance_bp.route("/services/sections/save", methods=["POST"])
+@module_required(MODULE)
+def invoice_sections_save():
+    """Rename / re-order / hide. Keys are never touched — a clinic renaming
+    «الإقامة» must not detach every night already billed under it."""
+    from app.models import InvoiceSection
+    from app.utils.ordering import ordered, renumber
+
+    for row in InvoiceSection.query.all():
+        row.name_ar = (request.form.get(f"sname_{row.id}") or "").strip() or None
+        row.name_en = (request.form.get(f"sname_en_{row.id}") or "").strip() or None
+        row.icon = (request.form.get(f"sicon_{row.id}") or "").strip() or row.icon
+        row.is_active = bool(request.form.get(f"sactive_{row.id}"))
+    renumber(ordered(InvoiceSection))
+    db.session.commit()
+    flash(t("services.section_saved"), "success")
+    return _section_redirect()
+
+
+@finance_bp.route("/services/sections/<int:section_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def invoice_section_delete(section_id):
+    from app.models import InvoiceSection
+
+    row = db.get_or_404(InvoiceSection, section_id)
+    if row.is_system:
+        flash(t("services.section_system"), "warning")
+        return _section_redirect()
+    used = Service.query.filter_by(invoice_section=row.key).count()
+    if used:
+        # Reassigning silently would move money onto a summary row nobody
+        # chose, and the person deleting is the one who knows where it goes.
+        flash(t("services.section_in_use").replace("{n}", str(used)), "danger")
+        return _section_redirect()
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("services.section_deleted"), "info")
+    return _section_redirect()
 
 
 @finance_bp.route("/services/types/new", methods=["POST"])
@@ -2944,6 +3046,23 @@ def service_type_move(type_id):
     if move(ServiceType, row, 1 if request.form.get("dir") == "down" else -1):
         db.session.commit()
     return _type_redirect()
+
+
+@finance_bp.route("/services/sections/<int:section_id>/move", methods=["POST"])
+@module_required(MODULE)
+def invoice_section_move(section_id):
+    """Move one bill section up or down — same rule as the types.
+
+    Buttons and not a typed number: two rows given the same sort number tie,
+    and the list then refuses to move for a reason nobody can see.
+    """
+    from app.models import InvoiceSection
+    from app.utils.ordering import move
+
+    row = db.get_or_404(InvoiceSection, section_id)
+    if move(InvoiceSection, row, 1 if request.form.get("dir") == "down" else -1):
+        db.session.commit()
+    return _section_redirect()
 
 
 @finance_bp.route("/client-categories/<int:cat_id>/delete", methods=["POST"])

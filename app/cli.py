@@ -69,6 +69,7 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_invoice_sections_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -276,6 +277,7 @@ def register_commands(app):
             pass
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_invoice_sections_safe()
         _seed_client_categories_safe()
         _backfill_service_types_safe()
         _migrate_visit_type_map_safe()
@@ -357,6 +359,7 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_invoice_sections_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -568,6 +571,7 @@ def register_commands(app):
         _ensure_default_roles()
         _seed_visit_types_safe()
         _seed_service_types_safe()
+        _seed_invoice_sections_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -712,6 +716,20 @@ def _seed_service_types_safe():
     (idempotent, best-effort)."""
     try:
         from app.utils.service_types import ensure_seeded
+        ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _seed_invoice_sections_safe():
+    """Seed the editable bill-section catalogue (idempotent, best-effort).
+
+    Called everywhere its twin is, so a clinic upgrading gets the sections
+    the same run it gets the column — a summary that needs a catalogue
+    nobody seeded is a screen that comes up empty and reads as broken.
+    """
+    try:
+        from app.utils.invoice_sections import ensure_seeded
         ensure_seeded()
     except Exception:  # noqa: BLE001
         pass

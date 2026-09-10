@@ -408,6 +408,11 @@ ADDITIONS = [
     ("services", "needs_approval", "BOOLEAN DEFAULT 0"),
     ("services", "can_standalone", "BOOLEAN DEFAULT 1"),
     ("services", "can_add_during_visit", "BOOLEAN DEFAULT 1"),
+    # Which part of the bill a service is totalled under. Nullable on purpose:
+    # every existing row answers from its category (`Service.section_key`), so
+    # a working clinic gets a correct summary the day it upgrades without
+    # anybody labelling three hundred services first.
+    ("services", "invoice_section", "VARCHAR(30)"),
     ("services", "device_id", "INTEGER"),
     ("store_items", "purchase_unit", "VARCHAR(40)"),
     ("store_items", "units_per_purchase", "INTEGER DEFAULT 1"),

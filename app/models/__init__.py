@@ -123,7 +123,8 @@ from app.models.inventory import (
     VaccineAdjustment,
     VaccineInventory,
 )
-from app.models.service import (
+from app.models.service import (INVOICE_SECTIONS, INVOICE_SECTION_ICONS,
+                               InvoiceSection, 
     COMMISSION_TYPES,
     ETA_ITEM_TYPES,
     SERVICE_CATEGORIES,
@@ -383,6 +384,9 @@ __all__ = [
     "Service",
     "ServiceBundleItem",
     "ServiceConsumable",
+    "INVOICE_SECTIONS",
+    "INVOICE_SECTION_ICONS",
+    "InvoiceSection",
     "ServiceType",
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
