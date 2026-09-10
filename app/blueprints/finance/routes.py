@@ -359,6 +359,13 @@ def services():
     from app.utils import invoice_sections as isec
     from app.utils.visit_types import label as vt_label
     st.ensure_seeded()
+    # And the bill sections, for the same reason and in the same breath. Left
+    # out at first, and CI caught it as 33 screens failing to render: the
+    # unseeded fallback hands back rows with no id, and the move buttons
+    # cannot build a URL from one. Seeding here is what makes the fallback
+    # the thing it was meant to be — a cushion for a half-finished upgrade,
+    # not the state the screen normally draws from.
+    isec.ensure_seeded()
 
     every = Service.query.order_by(Service.sort_order, Service.name).all()
     lang = getattr(g, "lang", "ar")

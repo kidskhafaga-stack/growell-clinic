@@ -262,3 +262,46 @@ def test_a_bill_can_be_totalled_by_section(clinic):
         assert totals.get("accommodation"), "the stay has no total"
         assert "medical" in totals
         assert all(k for k in totals), "a section with no key"
+
+
+# ------------------------------------------ the screen on a bare database --
+def test_the_screen_draws_before_anybody_seeded_the_sections():
+    """**Caught by CI as 33 screens failing to render, and every one of them
+    mine.**
+
+    The catalogue has a fallback for a half-finished upgrade — synthetic rows
+    so a template can iterate uniformly. Those rows have no ``id``, and the
+    move buttons cannot build a URL from one, so the whole services screen
+    raised. It never showed up locally because the fixture in this file seeds
+    before it looks.
+
+    The fix is what the service types already did and this copy left out:
+    **seed before rendering**. That is what makes the fallback the thing it
+    was meant to be — a cushion, not the state the screen normally draws
+    from. Asserted on a database nobody prepared, which is the only way to
+    see it.
+    """
+    from app import create_app
+    from app.extensions import db
+
+    app = create_app("testing")
+    with app.app_context():
+        db.create_all()
+        from app.models import InvoiceSection, User
+
+        assert InvoiceSection.query.count() == 0, "the fixture seeded it"
+        boss = User(username="bare", full_name="مدير", role="admin",
+                    is_active=True)
+        boss.set_password("secret")
+        db.session.add(boss)
+        db.session.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"username": "bare", "password": "secret"},
+                follow_redirects=True)
+    assert client.get("/finance/services").status_code == 200
+
+    with app.app_context():
+        from app.models import InvoiceSection
+
+        assert InvoiceSection.query.count() > 0, "drawing did not seed"
