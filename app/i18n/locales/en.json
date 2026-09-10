@@ -1760,7 +1760,17 @@
     "type_system": "A built-in type cannot be deleted — hide it instead",
     "type_in_use": "{n} service(s) are on this type — move them first",
     "category_hint": "The category drives the accounting (vaccination fee, discount scope) so it is fixed — the type is the one you add.",
-    "visit_type_charge": "Base charge for a visit type"
+    "visit_type_charge": "Base charge for a visit type",
+    "invoice_section": "Bill section",
+    "invoice_sections": "Bill sections",
+    "section_hint": "Where this service is totalled on the bill summary. Leave empty and the program works it out.",
+    "section_auto": "Automatic",
+    "section_new": "New section",
+    "section_added": "Section added",
+    "section_saved": "Sections saved",
+    "section_deleted": "Section deleted",
+    "section_system": "A built-in section cannot be deleted — switch it off or rename it",
+    "section_in_use": "{n} services are under this section. Move them first."
   },
   "commission_types": {
     "none": "None",
@@ -6384,5 +6394,18 @@
     "moved_to_bell": "Done. You'll find these in 🔔 notifications and on «My clinic».",
     "open": "Open",
     "close": "Close"
+  },
+  "invoice_sections": {
+    "accommodation": "Accommodation",
+    "medical": "Medical services",
+    "nursing": "Nursing",
+    "medicines": "Medicines",
+    "supplies": "Supplies",
+    "laboratory": "Laboratory",
+    "imaging": "Imaging",
+    "procedures": "Procedures",
+    "surgery": "Surgery",
+    "anaesthesia": "Anaesthesia",
+    "other": "Unclassified"
   }
 }

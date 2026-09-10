@@ -73,6 +73,11 @@
         <select class="select" name="category">
           {% for c in categories %}<option value="{{ c }}">{{ t('service_categories.' ~ c) }}</option>{% endfor %}
         </select></div>
+      <div class="form-row"><label>{{ t('services.invoice_section') }}</label>
+        <select class="select" name="invoice_section">
+          <option value="">{{ t('services.section_auto') }}</option>
+          {% for row in section_choices %}<option value="{{ row.key }}">{{ row.display_name(current_lang) }}</option>{% endfor %}
+        </select></div>
       <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
         <select class="select" name="eta_item_type">
           {% for it in item_types %}<option value="{{ it }}">{{ it }}</option>{% endfor %}
@@ -97,6 +102,81 @@
     <div class="form-row checkbox"><input type="checkbox" id="is_bundle" name="is_bundle" value="1">
       <label for="is_bundle" style="margin:0;font-weight:400;">{{ t('services.is_bundle') }}</label></div>
     <button class="btn btn-primary gc-press gc-ripple" type="submit"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+</details>
+
+<!-- Bill sections: how the inpatient and theatre bill adds itself up.
+     Open where the accounting category is shut, because nothing reads these
+     by name — the summary groups by whatever exists. -->
+<details class="card gc-scale-in" style="animation-delay:0.05s;">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-receipt-cutoff"></i> {{ t('services.invoice_sections') }}
+    <span class="badge badge--muted">{{ section_rows|length }}</span></summary>
+  <p class="hint" style="margin-top:10px;">{{ t('services.section_hint') }}</p>
+
+  <form method="post" action="{{ url_for('finance.invoice_sections_save') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <input type="hidden" name="type" value="{{ f_type or '' }}">
+    <input type="hidden" name="cat" value="{{ f_cat or '' }}">
+    <input type="hidden" name="status" value="{{ f_status or '' }}">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:620px;">
+        <thead><tr>
+          <th style="width:70px;">{{ t('services.type_order') }}</th>
+          <th>{{ t('services.invoice_section') }}</th>
+          <th>{{ t('services.name_en') }}</th>
+          <th style="width:130px;">{{ t('services.type_icon') }}</th>
+          <th style="width:90px;">{{ t('services.type_used') }}</th>
+          <th style="width:90px;">{{ t('services.is_active') }}</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {% for row in section_rows %}
+          <tr>
+            <td style="white-space:nowrap;">
+              <button class="btn-x" type="submit" formnovalidate name="dir" value="up"
+                      title="{{ t('common.move_up') }}"
+                      formaction="{{ url_for('finance.invoice_section_move', section_id=row.id) }}"><i class="bi bi-arrow-up"></i></button>
+              <button class="btn-x" type="submit" formnovalidate name="dir" value="down"
+                      title="{{ t('common.move_down') }}"
+                      formaction="{{ url_for('finance.invoice_section_move', section_id=row.id) }}"><i class="bi bi-arrow-down"></i></button>
+            </td>
+            <td><input class="input" name="sname_{{ row.id }}" value="{{ row.name_ar or row.display_name('ar') }}">
+              {% if row.is_system %}<span class="badge badge--muted"><i class="bi bi-lock"></i> {{ row.key }}</span>{% endif %}</td>
+            <td><input class="input" name="sname_en_{{ row.id }}" dir="ltr" value="{{ row.name_en or '' }}"></td>
+            <td><input class="input" name="sicon_{{ row.id }}" dir="ltr" value="{{ row.icon or '' }}" placeholder="bi-tag" style="width:120px;"></td>
+            {# What is counted is what somebody **chose**, not what the program
+               derived. A number that included the derived ones would say a
+               section is in use when deleting it costs nothing. #}
+            <td style="text-align:center;">{{ section_usage.get(row.key, 0) }}</td>
+            <td style="text-align:center;"><input type="checkbox" name="sactive_{{ row.id }}" value="1" {{ 'checked' if row.is_active else '' }}></td>
+            <td style="text-align:end;">
+              {% if not row.is_system %}
+              <button class="btn btn-danger btn-sm gc-press" type="submit" formnovalidate
+                      formaction="{{ url_for('finance.invoice_section_delete', section_id=row.id) }}"
+                      onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+              {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+
+  <form method="post" action="{{ url_for('finance.invoice_section_new') }}"
+        style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('services.invoice_section') }} *</label>
+      <input class="input" name="name" required></div>
+    <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('services.name_en') }}</label>
+      <input class="input" name="name_en" dir="ltr"></div>
+    <div class="form-row" style="margin:0;width:150px;"><label>{{ t('services.type_icon') }}</label>
+      <input class="input" name="icon" dir="ltr" placeholder="bi-tag"></div>
+    <button class="btn btn-outline gc-press" type="submit"><i class="bi bi-plus-lg"></i> {{ t('services.section_new') }}</button>
   </form>
 </details>
 
@@ -263,6 +343,14 @@
                       {% for c in categories %}<option value="{{ c }}" {{ 'selected' if s.category==c else '' }}>{{ t('service_categories.' ~ c) }}</option>{% endfor %}
                     </select>
                     <span class="hint">{{ t('services.category_hint') }}</span></div>
+                  <div class="form-row"><label>{{ t('services.invoice_section') }}</label>
+                    <select class="select" name="invoice_section">
+                      {# «تلقائي» shows what the program would derive, so the
+                         person choosing can see they may not need to. #}
+                      <option value="">{{ t('services.section_auto') }} — {{ t('invoice_sections.' ~ s.section_key()) }}</option>
+                      {% for row in section_choices %}<option value="{{ row.key }}" {{ 'selected' if s.invoice_section == row.key else '' }}>{{ row.display_name(current_lang) }}</option>{% endfor %}
+                    </select>
+                    <span class="hint">{{ t('services.section_hint') }}</span></div>
                   <div class="form-row"><label>{{ t('services.eta_item_type') }}</label>
                     <select class="select" name="eta_item_type">
                       {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}

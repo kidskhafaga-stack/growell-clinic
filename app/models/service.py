@@ -92,6 +92,93 @@ class ServiceType(db.Model):
         return f"<ServiceType {self.key}>"
 
 
+#: The sections an inpatient or theatre bill is read in. Seeded, and the
+#: clinic edits them — see :class:`InvoiceSection` for why this one opens up
+#: where :data:`SERVICE_CATEGORIES` stays shut.
+INVOICE_SECTIONS = [
+    "accommodation",   # الإقامة — the night, whatever the unit
+    "medical",         # الخدمات الطبية — consultations, rounds, supervision
+    "nursing",         # التمريض والإجراءات التمريضية
+    "medicines",       # الأدوية والمحاليل
+    "supplies",        # المستلزمات
+    "laboratory",      # المعمل
+    "imaging",         # الأشعة
+    "procedures",      # الإجراءات
+    "surgery",         # العمليات
+    "anaesthesia",     # التخدير
+]
+
+#: Icon per built-in section, so a long bill stays scannable by shape.
+INVOICE_SECTION_ICONS = {
+    "accommodation": "bi-house-heart",
+    "medical": "bi-clipboard2-pulse",
+    "nursing": "bi-bandaid",
+    "medicines": "bi-capsule",
+    "supplies": "bi-box-seam",
+    "laboratory": "bi-eyedropper",
+    "imaging": "bi-radioactive",
+    "procedures": "bi-activity",
+    "surgery": "bi-scissors",
+    "anaesthesia": "bi-lungs",
+}
+
+
+class InvoiceSection(db.Model):
+    """Which part of the bill a service is totalled under.
+
+    **A third axis, and the reason there is a third one.** A service already
+    carries two: ``category``, which is accounting and stays a fixed list
+    because the code reads its values by name; and ``service_type``, which is
+    operational and the clinic edits. Neither answers *"how much of this bill
+    was the stay, and how much was the theatre"* — the question a family and
+    an insurer both ask first, and the one an itemised inpatient bill is
+    printed to answer.
+
+    Asked for as a summary over a detail: *«يكون عندك ملخص رئيسي … وفي نفس
+    الوقت زر عرض التفاصيل»*. The summary needs a grouping, and reusing
+    ``category`` for it would have meant either wrong groups (no accommodation,
+    no anaesthesia, no nursing) or opening a list whose values the accounting
+    depends on.
+
+    **And it is safe to open where ``category`` is not.** Nothing here is read
+    by name: the totals group by whatever sections exist, and a percentage
+    charge names the sections it is levied on. A hospital adding «مستلزمات
+    غرفة العمليات» gets a section that works the day it is typed, because the
+    code was never looking for a particular word.
+
+    The last part matters more than it sounds. The service fee an Egyptian
+    private hospital adds is **not** a percentage of the total — it is a
+    percentage of the total *excluding medicines and stamps*. "Which
+    sections" is what makes such a charge definable at all, and checkable by
+    the family afterwards.
+    """
+
+    __tablename__ = "invoice_sections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(60))
+    name_en = db.Column(db.String(60))
+    icon = db.Column(db.String(40))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Seeded rows keep their key, because a clinic that renamed «الإقامة» to
+    # «الفندقة» must not thereby detach every night already billed under it.
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+
+    def display_name(self, lang="ar"):
+        name = self.name_en if lang == "en" else self.name_ar
+        if name:
+            return name
+        from app.i18n import t
+
+        label = t("invoice_sections." + self.key)
+        return label if label != "invoice_sections." + self.key else self.key
+
+    def __repr__(self):
+        return f"<InvoiceSection {self.key}>"
+
+
 class Service(db.Model):
     __tablename__ = "services"
 
@@ -103,6 +190,12 @@ class Service(db.Model):
     category = db.Column(db.String(40), default="other", nullable=False)
     # Service Engine: operational kind + how the service behaves in a visit.
     service_type = db.Column(db.String(20), default="other")
+    # Which part of the bill this is totalled under. NULL is not "nowhere":
+    # it means nobody has said, and :meth:`section_key` answers from the
+    # category rather than dropping the service out of the summary. A bill
+    # with an unlabelled line silently missing from its own total is the one
+    # failure a summary must not have.
+    invoice_section = db.Column(db.String(30), index=True)
     duration_minutes = db.Column(db.Integer)
     price = db.Column(db.Float, default=0, nullable=False)
     cost = db.Column(db.Float)          # direct cost (for profitability)
@@ -153,6 +246,53 @@ class Service(db.Model):
         "ServiceConsumable", back_populates="service",
         cascade="all, delete-orphan",
     )
+
+    #: The shipped services whose category cannot place them. The night is
+    #: categorised ``other`` — it is not a consultation, a procedure or a lab
+    #: test — and «الإقامة» is the headline row of an inpatient bill, so
+    #: letting it fall into "unclassified" would make the summary wrong on
+    #: the one line everybody reads first.
+    #:
+    #: Keyed by the **code this program shipped**, so this is a fact it wrote
+    #: down rather than a word matched in a name — the same footing as the
+    #: capability filter on the booking screen. A clinic's own service is
+    #: never in here and is never placed by guesswork.
+    SECTION_BY_CODE = {
+        "SVC-WARD": "accommodation",
+        "SVC-ICU": "accommodation",
+        "SVC-NICU": "accommodation",
+        "SVC-DAYCARE": "accommodation",
+        "SVC-OBS": "accommodation",
+        "SVC-ROUND": "medical",
+    }
+
+    #: What each accounting category is totalled under when nobody has said.
+    #: Derived, not guessed: the category already carries this much meaning,
+    #: and a clinic with three hundred priced rows is not going to label them
+    #: one at a time before the summary works.
+    SECTION_BY_CATEGORY = {
+        "consultation": "medical",
+        "procedure": "procedures",
+        "vaccination_fee": "medical",
+        "booking": "medical",
+        "lab": "laboratory",
+        "radiology": "imaging",
+    }
+
+    def section_key(self):
+        """This service's bill section — chosen, derived, or the catch-all.
+
+        Four answers in one place so no caller has to remember the order,
+        and so a service nobody labelled still lands somewhere the summary
+        adds up. ``other`` is the honest last resort: it says "this was not
+        classified", which is a thing a reader can act on.
+        """
+        if self.invoice_section:
+            return self.invoice_section
+        placed = self.SECTION_BY_CODE.get(self.code)
+        if placed:
+            return placed
+        return self.SECTION_BY_CATEGORY.get(self.category, "other")
 
     def display_name(self, lang="ar"):
         return self.name_en if (lang == "en" and self.name_en) else self.name
