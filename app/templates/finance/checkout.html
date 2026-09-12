@@ -94,7 +94,13 @@
               <input type="hidden" :name="'line_test_id'" :value="l.test_id || ''">
               {# And which handed-over medicine, so the box leaves the shelf
                  with the money and not on somebody's word afterwards. #}
-              <input type="hidden" :name="'line_rx_line_id'" :value="l.rx_line_id || ''"></td>
+              <input type="hidden" :name="'line_rx_line_id'" :value="l.rx_line_id || ''">
+              {# Which balance pays for this session, and which offer this line
+                 buys. The first is why a zero line is kept at all; the second
+                 is what turns a paid-for line into sessions the family can
+                 come back and use. #}
+              <input type="hidden" :name="'line_pkg_id'" :value="l.pkg_id || ''">
+              <input type="hidden" :name="'line_pkg_sale_id'" :value="l.pkg_sale_id || ''"></td>
             <td><input class="input" type="number" step="0.01" min="0" :name="'line_price'" x-model.number="l.unit_price" @input="recalc()"></td>
             <td><input class="input" type="number" min="1" placeholder="1" :name="'line_qty'"
                        style="min-width:84px;text-align:center;font-weight:600;"
@@ -122,6 +128,27 @@
         </select>
         <button type="button" class="btn btn-outline btn-sm gc-press" @click="addLine()"><i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
       </div>
+      {% if package_offers %}
+      {# Selling a course, on the same screen as selling one session — which is
+         the whole of «خلي الاثنين متاحين باقة وجلسة بجلسة». #}
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+        <select class="select" x-model="pkgId" style="max-width:320px;">
+          <option value="">{{ t('packages.sell') }}…</option>
+          {% for p in package_offers %}
+          <option value="{{ p.id }}">{{ p.name }} — {{ p.sessions }} × {{ '%.2f'|format(p.per_session) }} = {{ '%.2f'|format(p.price) }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-outline btn-sm gc-press" @click="addPackage()"><i class="bi bi-box-seam"></i> {{ t('packages.add') }}</button>
+      </div>
+      {% endif %}
+      {% if patient_packages %}
+      <p class="hint" style="margin-top:8px;"><i class="bi bi-wallet2"></i>
+        {% for p in patient_packages %}
+        <span style="margin-inline-end:10px;">{{ p.display_name(current_lang) }}:
+          <b>{{ p.remaining }}</b>/{{ p.sessions_total }}{% if p.expires_on %} — {{ t('packages.until') }} {{ p.expires_on }}{% endif %}</span>
+        {% endfor %}
+      </p>
+      {% endif %}
     </div>
 
     {# Selling a vaccine forward, on reception's own screen. It went onto the
@@ -333,6 +360,9 @@
 </div>
 
 <script>
+  // The packages reception can sell, put where the picker can price one
+  // without the template having to repeat the numbers into data attributes.
+  window.__packages = {{ (package_offers or [])|tojson }};
   function checkout(initLines, methods, autoAmt, offers, feeService) {
     return {
       offers: offers || [], feeService: feeService,
@@ -380,8 +410,8 @@
       // dose_id / vs_id say what a line is paying for. They must survive this
       // mapping: dropped here, the line submits no claim and the dose it
       // charges for is never marked billed.
-      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||'', op_id:l.op_id||'', test_id:l.test_id||'', rx_line_id:l.rx_line_id||'', dose_number:l.dose_number||''})),
-      addId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
+      lines: initLines.map(l => ({service_id:l.service_id||'', description:l.description, unit_price:Number(l.unit_price)||0, quantity:l.quantity||1, no_commission:l.no_commission||'0', brand_id:l.brand_id||'', dose_id:l.dose_id||'', vs_id:l.vs_id||'', op_id:l.op_id||'', test_id:l.test_id||'', rx_line_id:l.rx_line_id||'', dose_number:l.dose_number||'', pkg_id:l.pkg_id||'', pkg_sale_id:l.pkg_sale_id||''})),
+      addId: '', pkgId: '', discountId: '', autoAmt: Number(autoAmt) || 0,
       payments: [{amount:0, method:'cash'}],
       subtotal: 0, discountAmt: 0, total: 0, tendered: 0, paid: 0, remaining: 0, change: 0,
       // Whether this confirm is going to take money. Read off the amounts
@@ -394,6 +424,17 @@
         var opt = document.querySelector('option[value="'+this.addId+'"][data-name]');
         if (opt) this.lines.push({service_id:this.addId, description:opt.dataset.name, unit_price:Number(opt.dataset.price)||0, quantity:1, no_commission:'0', dose_number:''});
         this.addId=''; this.recalc();
+      },
+      addPackage() {
+        if (!this.pkgId) return;
+        var row = (window.__packages||[]).find(p => String(p.id) === String(this.pkgId));
+        if (!row) return;
+        // service_id stays the underlying service, so the doctor's share on a
+        // course is worked out at that service's rate — paid once, here, and
+        // never again on the zero lines the sessions come off it as.
+        this.lines.push({service_id:row.service_id, description:row.name, unit_price:Number(row.price)||0,
+                         quantity:1, no_commission:'0', dose_number:'', pkg_sale_id:row.id});
+        this.pkgId=''; this.recalc();
       },
       recalc() {
         this.subtotal = this.lines.reduce((s,l)=>s+(Number(l.unit_price)||0)*(l.quantity||1),0);

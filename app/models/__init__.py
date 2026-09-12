@@ -137,6 +137,11 @@ from app.models.service import (INVOICE_SECTIONS, INVOICE_SECTION_ICONS,
     ServiceType,
     service_type_for_category,
 )
+from app.models.package import (
+    PackageUse,
+    PatientPackage,
+    ServicePackage,
+)
 from app.models.invoice import (
     INVOICE_STATUSES,
     PAYMENT_METHODS,
@@ -388,6 +393,9 @@ __all__ = [
     "INVOICE_SECTION_ICONS",
     "InvoiceSection",
     "ServiceType",
+    "ServicePackage",
+    "PatientPackage",
+    "PackageUse",
     "DoctorServiceCommission",
     "SERVICE_CATEGORIES",
     "SERVICE_TYPES",

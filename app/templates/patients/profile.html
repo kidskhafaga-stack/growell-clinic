@@ -1497,6 +1497,25 @@
         <div class="stat-card edge-green"><div class="value">{{ fin.paid }}</div><div class="label">{{ t('invoices.paid') }}</div></div>
         <div class="stat-card {{ 'edge-red' if fin.balance > 0 else 'edge-green' }}"><div class="value">{{ fin.balance }}</div><div class="label">{{ t('invoices.balance') }}</div></div>
       </div>
+      {% if packages %}
+      {# Courses paid for up front. A balance in *sessions*, not in money —
+         the money is on the invoice that sold it, like every other charge. #}
+      <h4 style="margin:6px 0 8px;"><i class="bi bi-box-seam"></i> {{ t('packages.balance') }}</h4>
+      <table class="table" style="margin-bottom:14px;">
+        <thead><tr><th>{{ t('packages.name') }}</th><th style="width:110px;">{{ t('packages.remaining') }}</th>
+          <th style="width:120px;">{{ t('packages.until') }}</th><th style="width:120px;">{{ t('invoices.status') }}</th></tr></thead>
+        <tbody>
+          {% for p in packages %}
+          <tr>
+            <td>{{ p.display_name(current_lang) }}</td>
+            <td style="font-weight:600;">{{ p.remaining }} / {{ p.sessions_total }}</td>
+            <td dir="ltr">{{ p.expires_on or '—' }}</td>
+            <td><span class="status-badge {{ 'st-completed' if p.state() == 'open' else 'st-no_show' }}">{{ t('packages.state_' ~ p.state()) }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
       {% if invoices %}
       <table class="table">
         <thead><tr><th>{{ t('invoices.date') }}</th><th>{{ t('invoices.total') }}</th><th>{{ t('invoices.paid') }}</th><th>{{ t('invoices.balance') }}</th><th>{{ t('invoices.status') }}</th><th style="text-align:end;"></th></tr></thead>
