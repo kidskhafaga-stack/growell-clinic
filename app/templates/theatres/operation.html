@@ -59,6 +59,77 @@
   </div>
 </div>
 
+{# --------------------------------------------------- the anaesthetic ---- #}
+{# Two things the standard asks for by name and the program had neither of:
+   an assessment *immediately before induction* (SAS.16 EOC 5), and a plan
+   with six named elements (EOC 2). The checklist's «فحص التخدير» item is now
+   read from the first, the same way «الموافقة» is read from the consent. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-lungs"></i> {{ t('theatre.anaesthesia') }}
+    {% if pre_induction == 'done' %}
+    <span class="alert-pill ok"><i class="bi bi-check2-circle"></i> {{ t('theatre.pre_induction_done') }}</span>
+    {% else %}
+    <span class="alert-pill warn"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('theatre.pre_induction_' ~ pre_induction) }}</span>
+    {% endif %}
+  </h2>
+  <p class="hint" style="margin-top:-4px;">{{ t('theatre.pre_induction_hint') }}</p>
+
+  {# The six elements. Four belong before the case; the last two are an
+     account of what happened, so empty ones before induction are not gaps. #}
+  <form method="post" action="{{ url_for('theatres.anaesthesia_plan', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="an_kind">{{ t('theatre.plan_kind') }}</label>
+        <select class="select" id="an_kind" name="kind">
+          <option value="">—</option>
+          {% for k in anaesthesia_types %}
+          <option value="{{ k }}" {{ 'selected' if plan and plan.kind == k else '' }}>
+            {{ t('theatre.anaes_' ~ k) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row" style="grid-column:1/-1;">
+        <label for="an_ind">{{ t('theatre.plan_induction') }}</label>
+        <textarea class="input" id="an_ind" name="induction" rows="2"
+                  placeholder="{{ t('theatre.plan_induction_ph') }}">{{ plan.induction or '' if plan else '' }}</textarea>
+      </div>
+      <div class="form-row" style="grid-column:1/-1;">
+        <label for="an_air">{{ t('theatre.plan_airway') }}</label>
+        <textarea class="input" id="an_air" name="airway" rows="2">{{ plan.airway or '' if plan else '' }}</textarea>
+      </div>
+      <div class="form-row" style="grid-column:1/-1;">
+        <label for="an_fl">{{ t('theatre.plan_fluids') }}</label>
+        <textarea class="input" id="an_fl" name="fluids" rows="2"
+                  placeholder="{{ t('theatre.plan_fluids_ph') }}">{{ plan.fluids or '' if plan else '' }}</textarea>
+      </div>
+      <div class="form-row" style="grid-column:1/-1;">
+        <label for="an_giv">{{ t('theatre.plan_given') }}</label>
+        <textarea class="input" id="an_giv" name="given_during" rows="2"
+                  placeholder="{{ t('theatre.plan_after_ph') }}">{{ plan.given_during or '' if plan else '' }}</textarea>
+      </div>
+      <div class="form-row" style="grid-column:1/-1;">
+        <label for="an_ev">{{ t('theatre.plan_events') }}</label>
+        <textarea class="input" id="an_ev" name="events" rows="2"
+                  placeholder="{{ t('theatre.plan_after_ph') }}">{{ plan.events or '' if plan else '' }}</textarea>
+      </div>
+    </div>
+    {% if plan and plan.missing %}
+    {# Named, not counted: six empty boxes and a green tick is the checklist
+       problem in another shape. #}
+    <p class="hint" style="color:var(--danger);"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('theatre.plan_missing') }}
+      {% for f in plan.missing %}<b>{{ t('theatre.plan_' ~ f) }}</b>{{ '، ' if not loop.last }}{% endfor %}</p>
+    {% elif not plan %}
+    <p class="hint"><i class="bi bi-info-circle"></i> {{ t('theatre.plan_none') }}</p>
+    {% endif %}
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+</div>
+
 {# ------------------------------------------------------- the consent ---- #}
 {# The document the checklist's «موافقة» item reads. It used to be a tick
    anybody could make — «بند الموافقة بيتعلّم بالإيد حتى لو مفيش إقرار
@@ -141,7 +212,16 @@
       <input type="hidden" name="stop" value="{{ stop }}">
       <div class="op-items">
         {% for item in items[stop] %}
-        {% if item == 'consent' %}
+        {% if item == 'anaesthesia_check' %}
+        {# Read from the pre-induction assessment, not ticked. Same rule as
+           the consent, and the same reason: an assessment is not a box. #}
+        <label class="op-item {{ 'op-missed' if short and item in short else '' }}"
+               title="{{ t('theatre.anaes_read_only') }}">
+          <input type="checkbox" disabled {{ 'checked' if pre_induction == 'done' else '' }}>
+          <span>{{ t('theatre.item_' ~ item) }}
+            <i class="bi bi-lungs" style="opacity:.6;"></i></span>
+        </label>
+        {% elif item == 'consent' %}
         {# Read, not typed. The box is disabled and shows what the record
            says, because a tick that can disagree with the file is the exact
            thing this replaced. #}

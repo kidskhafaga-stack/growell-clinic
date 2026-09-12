@@ -328,7 +328,27 @@ class SafetyCheck(db.Model):
 #: confirms this child can be given an anaesthetic. Two different questions,
 #: asked by two different people, and a screen that merged them would let one
 #: signature stand for both.
-REVIEW_KINDS = ("surgeon", "anaesthesia")
+#: Who looks at the case before it happens — and **when**.
+#:
+#: ``surgeon`` and ``anaesthesia`` are the look days ahead. ``pre_induction``
+#: is a different assessment at a different moment, and the standard the
+#: clinic works to asks for both by name: *"A qualified anesthesiologist
+#: performs pre-anesthesia **and pre-induction** assessment"* (GAHAR SAS.16
+#: EOC 1 and EOC 5). One of them days before, one of them in the anaesthetic
+#: room with the child on the trolley — and a program that recorded only the
+#: first was answering half the requirement while the checklist ticked a box
+#: for the other half by hand.
+REVIEW_KINDS = ("surgeon", "anaesthesia", "pre_induction")
+
+#: The ones the **pre-op queue** waits for, which is not the same list.
+#:
+#: Separated the day ``pre_induction`` was added, because ``REVIEW_KINDS`` had
+#: been quietly doing two jobs: naming every kind of review, and naming the
+#: reviews a case must have *before its day*. Adding a third kind to the first
+#: meaning changed the second — and the queue stopped clearing, because a
+#: pre-induction assessment cannot be done days ahead by definition. Caught by
+#: the test that says a case leaves the queue once both have answered.
+PREOP_KINDS = ("surgeon", "anaesthesia")
 
 #: What a review concluded. ``conditions`` is the answer that actually happens
 #: — "yes, once the chest is clear" — and a scheme with only fit and unfit
@@ -478,3 +498,94 @@ class DoctorCaseRate(db.Model):
     def __repr__(self):
         return (f"<DoctorCaseRate doc={self.doctor_id} "
                 f"svc={self.service_id} {self.case_type}>")
+
+
+#: The kinds of anaesthetic a plan names. **The standard's list, not a
+#: clinic's preference** — GAHAR SAS.16 EOC 2 (أ) names local, regional and
+#: general, and PCC.08 adds sedation to the things a consent is required for.
+#: Held here for the same reason :data:`CHECK_ITEMS` is: it is a set of
+#: headings the program was told, not a clinical number it invented.
+ANAESTHESIA_TYPES = ("local", "regional", "general", "sedation")
+
+
+class AnaesthesiaPlan(db.Model):
+    """The anaesthetist's plan for one case — six elements, each named.
+
+    GAHAR SAS.16 EOC 2 asks for *"a detailed plan for anesthesia care"* and
+    then lists what has to be in it. The program had a verdict and a box of
+    free text, which is a note rather than a plan: it cannot say whether the
+    airway was thought about, and an auditor reading it a year later cannot
+    either.
+
+    **Six columns, because the standard names six things:**
+
+    ========= =================================================================
+    (أ)       the kind of anaesthetic
+    (ب)       the induction technique — the drugs, their doses, their route
+              and **their time**
+    (ج)       securing the airway and ventilation
+    (د)       fluid management: deficit and maintenance, the closing balance,
+              and which fluids or blood
+    (هـ)      anything given during the anaesthetic, **with its time**
+    (و)       any unusual event and how it was managed
+    ========= =================================================================
+
+    **The program writes none of it.** Every one of these is the
+    anaesthetist's own account in their own words — the headings are what was
+    missing, not the content. A program that filled in a dose would be
+    inventing a clinical number, which this one does not do.
+
+    **And blank is blank.** A plan with nothing under «مجرى الهوا» is a plan
+    that did not say, and the screen shows the gap rather than an empty space
+    that reads as "nothing to report". Two of the six — what was given during
+    and what went wrong — are written *after* the case and are expected to be
+    empty before it.
+    """
+
+    __tablename__ = "anaesthesia_plans"
+    __table_args__ = (
+        # One plan per case. A second would leave two accounts of the same
+        # anaesthetic and no way to say which was followed.
+        db.UniqueConstraint("operation_id", name="uq_anaesthesia_plan"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"),
+                             nullable=False, index=True)
+
+    kind = db.Column(db.String(20))              # (أ)
+    induction = db.Column(db.Text)               # (ب)
+    airway = db.Column(db.Text)                  # (ج)
+    fluids = db.Column(db.Text)                  # (د)
+    given_during = db.Column(db.Text)            # (هـ)
+    events = db.Column(db.Text)                  # (و)
+
+    at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    by_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    operation = db.relationship("Operation", backref=db.backref(
+        "anaesthesia_plan", uselist=False, cascade="all, delete-orphan"))
+    by = db.relationship("User")
+
+    #: The four written before the case. The other two — what was given and
+    #: what went wrong — are an account of what happened, so an empty one
+    #: before induction is not a gap.
+    BEFORE = ("kind", "induction", "airway", "fluids")
+
+    @property
+    def missing(self):
+        """Which of the four planned-in-advance elements nobody filled in.
+
+        The finding, named. A screen showing six empty boxes and a green tick
+        is the checklist problem in another shape.
+        """
+        return [f for f in self.BEFORE if not (getattr(self, f) or "").strip()]
+
+    @property
+    def is_planned(self):
+        """Whether the four that belong before the case are all there."""
+        return not self.missing
+
+    def __repr__(self):
+        return f"<AnaesthesiaPlan op={self.operation_id}>"

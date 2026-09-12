@@ -22,7 +22,8 @@ is worse than no checklist — it manufactures a signature.
 from datetime import datetime
 
 from app.extensions import db
-from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, REVIEW_KINDS,
+from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, PREOP_KINDS,
+                                REVIEW_KINDS,
                                 REVIEW_VERDICTS, SIGN_IN, SIGN_OUT, TIME_OUT,
                                 Operation, PreOpReview, SafetyCheck, Theatre)
 from app.utils import case_rates
@@ -134,6 +135,11 @@ def safety(operation):
 #: :func:`consent_state`.
 CONSENT_ITEM = "consent"
 
+#: And the item an anaesthetist's assessment is supposed to answer. Same
+#: treatment and the same reason: the standard asks for an assessment
+#: *immediately before induction* (GAHAR SAS.16 EOC 5), and a tick is not one.
+ANAESTHESIA_ITEM = "anaesthesia_check"
+
 
 def consent_state(operation):
     """Whether a signed, standing consent covers this case — in one word.
@@ -177,6 +183,44 @@ def consent_choices(operation):
     if operation is None or operation.patient is None:
         return []
     return [c for c in operation.patient.consents if not c.is_withdrawn]
+
+
+def pre_induction_state(operation):
+    """Whether an assessment was made in the anaesthetic room — in one word.
+
+    ``none`` · ``stale`` · ``unfit`` · ``done``, because they are four
+    different things to say to whoever is about to give the anaesthetic.
+
+    **``stale`` is the one that matters and the one a boolean would hide.**
+    The standard asks for an assessment *immediately before induction*, not
+    for one on file: a case put off to the next day has an assessment that
+    was true yesterday, and counting it would be the record claiming somebody
+    looked at this child this morning. So it is judged against **the day of
+    the operation**.
+    """
+    if operation is None:
+        return "none"
+    row = reviews(operation).get("pre_induction")
+    if row is None:
+        return "none"
+    from app.utils.clock import local_date
+
+    seen_on = local_date(row.at)
+    if seen_on is not None and operation.on_date and seen_on != operation.on_date:
+        return "stale"
+    if row.verdict == "unfit":
+        return "unfit"
+    return "done"
+
+
+def pre_induction_ok(operation):
+    """The one question the checklist item asks.
+
+    ``conditions`` counts: *"fit, once the chest is clear"* is an assessment
+    that was made and a condition that was named — which is the whole reason
+    that verdict exists. Only ``unfit`` and a missing or stale one do not.
+    """
+    return pre_induction_state(operation) == "done"
 
 
 def reviews(operation):
@@ -234,14 +278,49 @@ def unreviewed(on_date=None, kind=None):
 
     ``kind`` narrows it to one person's queue; without it, a case missing
     either review is on the list.
+
+    **The pre-induction assessment is not one of these.** It happens in the
+    anaesthetic room on the day, so a queue that waited for it would never
+    clear — see :data:`PREOP_KINDS`.
     """
-    wanted = (kind,) if kind in REVIEW_KINDS else REVIEW_KINDS
+    wanted = (kind,) if kind in PREOP_KINDS else PREOP_KINDS
     rows = (Operation.query
             .filter(Operation.on_date >= (on_date or local_today()),
                     Operation.status == "scheduled")
             .order_by(Operation.on_date, Operation.start_time).all())
     return [op for op in rows
             if any(k not in reviews(op) for k in wanted)]
+
+
+def plan_for(operation):
+    """This case's anaesthesia plan, or ``None`` — which is the finding."""
+    return getattr(operation, "anaesthesia_plan", None) if operation else None
+
+
+def write_plan(operation, user=None, **fields):
+    """Record or correct the six-element plan. Returns the plan.
+
+    Every field is the anaesthetist's own words: the program supplies the
+    headings the standard names and writes none of the content. A blank stays
+    blank rather than becoming an empty string that reads as "nothing to
+    report" — see :attr:`AnaesthesiaPlan.missing`.
+    """
+    from app.models import ANAESTHESIA_TYPES, AnaesthesiaPlan
+
+    if operation is None:
+        raise ValueError("no operation")
+    row = plan_for(operation)
+    if row is None:
+        row = AnaesthesiaPlan(operation_id=operation.id)
+        db.session.add(row)
+    kind = (fields.get("kind") or "").strip()
+    row.kind = kind if kind in ANAESTHESIA_TYPES else None
+    for name in ("induction", "airway", "fluids", "given_during", "events"):
+        if name in fields:
+            setattr(row, name, (fields.get(name) or "").strip() or None)
+    row.at = datetime.utcnow()
+    row.by_id = getattr(user, "id", None)
+    return row
 
 
 def blocking(operation):
@@ -288,6 +367,17 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
         confirmed = [i for i in confirmed if i != CONSENT_ITEM]
         if consent_ok(operation):
             confirmed.append(CONSENT_ITEM)
+
+    # **And the anaesthetic check, for the same reason.** The standard asks
+    # for an assessment immediately before induction (SAS.16 EOC 5); the
+    # program had a box somebody ticked on the way past. Read from the
+    # recorded assessment in both directions, exactly as the consent is — and
+    # it refuses nothing either: a stop signed without it is signed, and the
+    # gap shows in ``missed``.
+    if ANAESTHESIA_ITEM in known:
+        confirmed = [i for i in confirmed if i != ANAESTHESIA_ITEM]
+        if pre_induction_ok(operation):
+            confirmed.append(ANAESTHESIA_ITEM)
 
     row = operation.check_for(stop)
     if row is None:

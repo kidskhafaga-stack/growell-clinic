@@ -29,6 +29,7 @@ from app.i18n import t
 from app.models import Patient
 from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
+                                ANAESTHESIA_TYPES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
 from app.utils import recovery as _recovery
@@ -217,6 +218,11 @@ def operation(operation_id):
                            # the unsigned ones, because the person linking
                            # has to be able to see that.
                            consent_state=theatre.consent_state(row),
+                           # The anaesthetist's half: the assessment made in
+                           # the anaesthetic room, and the six-element plan.
+                           pre_induction=theatre.pre_induction_state(row),
+                           plan=theatre.plan_for(row),
+                           anaesthesia_types=ANAESTHESIA_TYPES,
                            consent_choices=theatre.consent_choices(row),
                            post_op_text=_recovery.instructions_for(row),
                            followup_default=_recovery.followup_default(row),
@@ -385,6 +391,29 @@ def edit(operation_id):
     row.case_type = _a_case_type(request.form.get("case_type"))
     db.session.commit()
     flash(t("theatre.saved"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/plan", methods=["POST"])
+@module_required(MODULE)
+def anaesthesia_plan(operation_id):
+    """Record the six-element anaesthesia plan.
+
+    The headings are the standard's (GAHAR SAS.16 EOC 2); every word under
+    them is the anaesthetist's. A program that filled in a dose would be
+    inventing a clinical number.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    theatre.write_plan(
+        row, current_user,
+        kind=request.form.get("kind"),
+        induction=request.form.get("induction"),
+        airway=request.form.get("airway"),
+        fluids=request.form.get("fluids"),
+        given_during=request.form.get("given_during"),
+        events=request.form.get("events"))
+    db.session.commit()
+    flash(t("theatre.plan_saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 

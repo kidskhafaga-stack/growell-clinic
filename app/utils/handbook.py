@@ -1802,6 +1802,31 @@ SECTIONS = [
              "price, \"as usual\" means their ordinary commission, and "
              "\"none\" means they are paid nothing on that kind. A case with "
              "no kind prices at the doctor's ordinary rate exactly as before."),
+            ("<b>تقييمين مش واحد</b>: «ما قبل التخدير» قبل بأيام، و<b>«ما "
+             "قبل الاستحثاث»</b> في غرفة التخدير قبل الاستحثاث على طول. وبند "
+             "<b>«فحص التخدير»</b> في الـchecklist بقى بيتقرا من التاني — "
+             "وتقييم من يوم تاني بيتقرا «مش بتاع يوم العملية» مش بيتحسب، لأن "
+             "المعيار طالب تقييم <b>فوري</b> مش تقييم موجود في الملف.",
+             "<b>Two assessments, not one</b>: the pre-anaesthetic look days "
+             "ahead, and the <b>pre-induction</b> one in the anaesthetic room "
+             "immediately before. The checklist's <b>anaesthetic item</b> is "
+             "read from the second — and one from another day reads as "
+             "\"not from the day of the operation\" and does not count, "
+             "because the standard asks for an <b>immediate</b> assessment, "
+             "not one on file."),
+            ("<b>خطة التخدير بستة عناصر</b>: نوع التخدير · تقنية الاستحثاث "
+             "بالأدوية وجرعاتها ووقتها · تأمين مجرى الهوا · إدارة السوائل · "
+             "اللي اتدّى أثناء التخدير · أي حدث غير معتاد. <b>العناوين من "
+             "المعيار والكلام كله من طبيب التخدير</b> — البرنامج ما بيكتبش "
+             "ولا كلمة منهم. والأربعة اللي بيتكتبوا قبل الحالة لو ناقص منهم "
+             "حاجة <b>بتتسمّى بالاسم</b> مش بتتعدّ.",
+             "<b>The anaesthesia plan has six elements</b>: the kind of "
+             "anaesthetic · the induction technique with drugs, doses and "
+             "times · securing the airway · fluid management · what was given "
+             "during · any unusual event. <b>The headings are the standard's "
+             "and every word under them is the anaesthetist's</b> — the "
+             "program writes none of it. Whatever is missing from the four "
+             "written before the case is <b>named</b>, not counted."),
             ("<b>بند «الموافقة» في الـchecklist بيتقرا من الإقرار</b>، مش "
              "بيتعلّم بالإيد. في صفحة العملية بتربط الإقرار اللي بيغطّيها من "
              "إقرارات ملف الطفل، والبند بيتعلّم لوحده لو الإقرار <b>موقّع "

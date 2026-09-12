@@ -175,6 +175,11 @@ DONE = [
      "في المستشفى واللي تحت الطلب — بأجر مختلف",
      "Emergency cover: a \"who is on now\" screen with a list per rota, and "
      "present in the building kept apart from on call — at a different rate"),
+    ("التخدير: تقييم ما قبل الاستحثاث اللي بند الـchecklist بيتقرا منه، "
+     "وخطة تخدير بستة عناصرها المسمّاة (GAHAR SAS.16)",
+     "Anaesthesia: the pre-induction assessment the checklist item is read "
+     "from, and the six named elements of the anaesthesia plan "
+     "(GAHAR SAS.16)"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",
