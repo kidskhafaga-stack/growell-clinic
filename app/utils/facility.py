@@ -39,7 +39,22 @@ OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
 
 # Every facility gets these regardless of capabilities.
-BASE_MODULES = ["patients", "appointments", "finance", "reports", "messages", "ai"]
+#
+# **``prescriptions`` is here because writing one is what a consultation is.**
+# It was left out, and the consequence was not a missing tick: it is not an
+# opt-in specialty, so it ships *on* — and then the first run of the wizard
+# computed the enabled set as base + capabilities, `prescriptions` was in
+# neither, and the screen a doctor uses every visit **switched itself off**.
+# A single-doctor clinic ticking "general consultation" and losing the
+# prescription writer is the report this fixed, and it is the exact thing the
+# wizard exists not to do.
+#
+# The pharmacy capability is a different question and stays where it is: a
+# counter, a queue and a handover are a clinic dispensing its own medicines.
+# Writing the paper is not that, and a clinic whose families fill their
+# prescriptions outside still writes them.
+BASE_MODULES = ["patients", "appointments", "finance", "reports", "messages",
+                "ai", "prescriptions"]
 
 # --- Layer 1: administrative facility types (NOT services) -----------------
 # Each carries a default capability set the wizard pre-ticks; fully editable.
