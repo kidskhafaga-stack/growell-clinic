@@ -502,6 +502,17 @@ ADDITIONS = [
     # The anaesthesia line, when the clinic bills it separately. Its own
     # column because the two lines are owed to two different people.
     ("operations", "anaesthesia_item_id", "INTEGER"),
+    # Recovery and going home. Stamps rather than statuses, so ``status``
+    # keeps meaning what the billing query already reads it to mean.
+    ("operations", "recovery_at", "DATETIME"),
+    ("operations", "discharged_at", "DATETIME"),
+    ("operations", "discharged_by", "INTEGER"),
+    ("operations", "discharge_note", "TEXT"),
+    ("operations", "followup_needed", "BOOLEAN"),
+    ("operations", "followup_on", "DATE"),
+    ("operations", "instructions_sent_at", "DATETIME"),
+    ("services", "post_op_instructions", "TEXT"),
+    ("services", "followup_days", "INTEGER"),
 ]
 
 def apply_schema(report=None):

@@ -31,6 +31,7 @@ from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
+from app.utils import recovery as _recovery
 from app.utils import theatres as theatre
 from app.utils.clock import local_today, to_utc
 from app.utils.decorators import module_required
@@ -59,6 +60,10 @@ def index():
                            # the queue. A queue nobody can see the length of
                            # is a queue nobody clears.
                            waiting=len(theatre.unreviewed()),
+                           # How many are still in recovery, on the button
+                           # that opens it. A room nobody can see the count
+                           # of is a room somebody forgets a child in.
+                           in_recovery=len(_recovery.in_recovery()),
                            # Who this day has, so the dropdown lists the
                            # people who actually have a case on it rather
                            # than every doctor in the clinic.
@@ -203,6 +208,12 @@ def operation(operation_id):
                                   .order_by(Theatre.sort_order, Theatre.id)
                                   .all()),
                            case_kinds=_case_kinds(),
+                           # What this procedure's instructions say, and when
+                           # it would usually be seen again — both shown
+                           # *before* the discharge is pressed, because that
+                           # is when somebody can still fix a blank one.
+                           post_op_text=_recovery.instructions_for(row),
+                           followup_default=_recovery.followup_default(row),
                            surgeons=_surgeons(), services=_procedures())
 
 
@@ -369,6 +380,80 @@ def edit(operation_id):
     db.session.commit()
     flash(t("theatre.saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/recovery", methods=["POST"])
+@module_required(MODULE)
+def to_recovery(operation_id):
+    """The child has left theatre. One press, by whoever wheeled them out."""
+    from app.utils import recovery
+
+    row = Operation.query.get_or_404(operation_id)
+    if recovery.to_recovery(row, current_user) is None:
+        flash(t("recovery.not_done_yet"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("recovery.in_recovery"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/discharge", methods=["POST"])
+@module_required(MODULE)
+def discharge(operation_id):
+    """Send a day case home — and answer the one question that cannot be
+    skipped.
+
+    The follow-up decision is refused when blank rather than defaulted,
+    because «مش محتاج» and «محدش سأل» stop being the same sentence only if
+    the screen makes somebody say which.
+    """
+    from app.utils import recovery
+
+    row = Operation.query.get_or_404(operation_id)
+    raw = (request.form.get("followup") or "").strip()
+    if raw not in ("yes", "no"):
+        flash(t("recovery.need_followup_answer"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+
+    out = recovery.discharge(
+        row, current_user,
+        note=request.form.get("discharge_note"),
+        followup=(raw == "yes"),
+        followup_on=_a_date(request.form.get("followup_on")))
+    if out is None:
+        flash(t("recovery.cannot_discharge"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+
+    # The instructions go with them, not later: the family is at the door, and
+    # a message sent tomorrow is a message read after the night they needed it.
+    sent = recovery.send_instructions(row, current_user)
+    db.session.commit()
+    flash(t("recovery.discharged"), "success")
+    if sent is None and recovery.instructions_for(row) is None:
+        # Said out loud rather than passed over. A procedure with no written
+        # instructions is a gap in the price list, and the person discharging
+        # is the one who can see it.
+        flash(t("recovery.no_instructions"), "info")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/recovery")
+@module_required(MODULE)
+def recovery_room():
+    """Who is in recovery, and who finished and has not been sent home.
+
+    The second list is the one that matters: a case nobody marked into
+    recovery is a case nobody is counting, and a screen built only from the
+    room itself would never show it.
+    """
+    from app.utils import recovery
+
+    on_date = _a_date(request.args.get("date")) or local_today()
+    return render_template("theatres/recovery.html", on_date=on_date,
+                           here=recovery.in_recovery(),
+                           waiting=recovery.awaiting_discharge(),
+                           expecting=recovery.expecting(),
+                           undecided=recovery.undecided())
 
 
 @theatres_bp.route("/operation/<int:operation_id>/note", methods=["POST"])

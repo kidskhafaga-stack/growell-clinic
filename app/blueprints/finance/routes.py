@@ -322,6 +322,18 @@ def _apply_service_engine_fields(svc):
         from app.utils.invoice_sections import all_sections
         known = {r.key for r in all_sections()}
         svc.invoice_section = section if section in known else None
+        # What the family is told to do at home after this procedure, and
+        # when it would usually be seen again. Blank stays blank on both: a
+        # service with no instructions sends nothing rather than an empty
+        # message, and no follow-up days means this procedure does not
+        # routinely need one.
+        svc.post_op_instructions = (
+            (request.form.get("post_op_instructions") or "").strip() or None)
+        raw_days = (request.form.get("followup_days") or "").strip()
+        try:
+            svc.followup_days = int(raw_days) if raw_days else None
+        except (TypeError, ValueError):
+            svc.followup_days = None
     svc.cost = request.form.get("cost", type=float)
     svc.duration_minutes = request.form.get("duration_minutes", type=int)
     svc.device_id = request.form.get("device_id", type=int) or None

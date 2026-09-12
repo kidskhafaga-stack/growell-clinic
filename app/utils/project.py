@@ -157,6 +157,12 @@ DONE = [
      "The kind of case (private / hospital / emergency) with its own price "
      "and fee per doctor, and anaesthesia as its own line paid to the "
      "anaesthetist"),
+    ("الإفاقة والخروج: مين في الإفاقة، ومين خلّص ولسه ما خرجش، وتعليمات بعد "
+     "الجراحة حسب العملية بتتبعت للأهل، وقرار المتابعة اللي ما ينفعش يتسكّت "
+     "عنه",
+     "Recovery and discharge: who is in recovery, who finished and has not "
+     "gone home, per-procedure post-operative instructions sent to the "
+     "family, and a follow-up decision that cannot be left blank"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

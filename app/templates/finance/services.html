@@ -440,6 +440,17 @@
                     <select class="select" name="eta_item_type">
                       {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
                     </select></div>
+                  {# **What the family is told to do at home**, written per
+                     procedure — «ويتكتبلها تعليمات بعد الجراحة حسب العملية».
+                     Blank sends nothing; a message that says only "post-op
+                     instructions:" and then stops is worse than none. #}
+                  <div class="form-row" style="grid-column:1/-1;">
+                    <label>{{ t('recovery.service_instructions') }}</label>
+                    <textarea class="input" name="post_op_instructions" rows="3">{{ s.post_op_instructions or '' }}</textarea></div>
+                  <div class="form-row"><label>{{ t('recovery.service_followup_days') }}</label>
+                    <input class="input" type="number" min="0" name="followup_days"
+                           value="{{ s.followup_days if s.followup_days is not none else '' }}">
+                    <span class="hint">{{ t('recovery.service_followup_hint') }}</span></div>
                   <div class="form-row"><label>{{ t('services.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ s.price }}"></div>
                   <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost" value="{{ s.cost if s.cost is not none else '' }}"></div>
                   <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}"></div>

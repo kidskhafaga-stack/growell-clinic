@@ -349,6 +349,71 @@
   </details>
 </div>
 
+{# ------------------------------------------------ recovery and going home #}
+{% if operation.status == 'done' %}
+<div class="card gc-scale-in" style="margin-top:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</h2>
+
+  {% if operation.discharged_at %}
+  <p><i class="bi bi-check-circle" style="color:var(--green-700);"></i>
+    {{ t('recovery.discharged') }} — <span dir="ltr">{{ operation.discharged_at|clinic_stamp }}</span>
+    {% if operation.discharger %} · {{ operation.discharger.display_name(current_lang) }}{% endif %}</p>
+  <p>{{ t('recovery.followup_q') }}
+    <strong>{% if operation.followup_needed %}{{ t('recovery.followup_yes') }}{% if operation.followup_on %}
+      — <span dir="ltr">{{ operation.followup_on }}</span>{% endif %}
+      {%- elif operation.followup_needed is not none %}{{ t('recovery.followup_no') }}
+      {%- else %}{{ t('recovery.followup_unset') }}{% endif %}</strong></p>
+  {% if operation.discharge_note %}<p class="hint">{{ operation.discharge_note }}</p>{% endif %}
+  {% if operation.instructions_sent_at %}
+  <p class="hint"><i class="bi bi-whatsapp"></i> {{ t('recovery.instructions_sent') }} —
+    <span dir="ltr">{{ operation.instructions_sent_at|clinic_stamp }}</span></p>
+  {% endif %}
+
+  {% else %}
+  {% if not operation.recovery_at %}
+  <form method="post" action="{{ url_for('theatres.to_recovery', operation_id=operation.id) }}"
+        style="margin-bottom:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-arrow-right-circle"></i> {{ t('recovery.to_recovery') }}</button>
+  </form>
+  {% else %}
+  <p class="hint"><i class="bi bi-hourglass-split"></i> {{ t('recovery.here') }} —
+    <span dir="ltr">{{ operation.recovery_at|clinic_stamp }}</span></p>
+  {% endif %}
+
+  {# **The one question that cannot be skipped.** Neither box is preselected:
+     a default would answer it for whoever is standing there, and «مش محتاج»
+     and «محدش سأل» are exactly the two things this stops being the same. #}
+  <form method="post" action="{{ url_for('theatres.discharge', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label>{{ t('recovery.followup_q') }} *</label>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <label style="font-weight:400;margin:0;"><input type="radio" name="followup" value="yes"> {{ t('recovery.followup_yes') }}</label>
+        <label style="font-weight:400;margin:0;"><input type="radio" name="followup" value="no"> {{ t('recovery.followup_no') }}</label>
+        <input class="input" type="date" name="followup_on" style="max-width:180px;"
+               value="{{ followup_default or '' }}">
+      </div>
+    </div>
+    <div class="form-row">
+      <label for="dis_note">{{ t('recovery.discharge_note') }}</label>
+      <textarea class="input" id="dis_note" name="discharge_note" rows="2"></textarea>
+    </div>
+    {% if post_op_text %}
+    <p class="hint"><i class="bi bi-whatsapp"></i> {{ t('recovery.instructions') }}:
+      {{ post_op_text[:160] }}{% if post_op_text|length > 160 %}…{% endif %}</p>
+    {% else %}
+    <p class="hint"><i class="bi bi-exclamation-triangle"></i> {{ t('recovery.no_instructions') }}</p>
+    {% endif %}
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-box-arrow-right"></i> {{ t('recovery.discharge') }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {# --------------------------------------------------- the operation note - #}
 <div class="card gc-scale-in" style="margin-top:14px;">
   <h2 class="card-title" style="margin-top:0;">

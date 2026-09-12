@@ -237,6 +237,18 @@ class Service(db.Model):
     is_bundle = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     sort_order = db.Column(db.Integer, default=0)
+    # **What the family is told to do at home afterwards**, written once per
+    # procedure. Asked for as *«ويتكتبلها تعليمات بعد الجراحة حسب العملية»* —
+    # per operation, not one clinic-wide paragraph, because the instructions
+    # after a circumcision and after a tonsillectomy have nothing in common.
+    # Blank is the ordinary answer: most services need none, and one that has
+    # none sends nothing rather than an empty message.
+    post_op_instructions = db.Column(db.Text)
+    # How long after this procedure the child is usually seen again. NULL
+    # means this procedure does not routinely need one — a *default* the
+    # surgeon overrules per case, never the decision itself; that lives on
+    # the case, where somebody actually made it.
+    followup_days = db.Column(db.Integer)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

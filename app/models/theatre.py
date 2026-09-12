@@ -164,6 +164,38 @@ class Operation(db.Model):
     findings = db.Column(db.Text)
     notes = db.Column(db.Text)
 
+    # ---------------------------------------------------------- recovery --
+    #
+    # Described by the clinic, and it is the ordinary path rather than an edge
+    # case: *«الحالات اللي بتعمل جراحة بمخدر كلي بتقعد في الإفاقة وتخرج على
+    # طول لو العملية مش كبيرة، والحالات اللي بتاخد مخدر موضعي زي الطهارة
+    # بتخرج بعد الإفاقة على طول، ويتكتبلها تعليمات بعد الجراحة، ويا بتطلب
+    # استشارة بعد العملية يا لأ»*.
+    #
+    # **Stamps, not statuses.** ``status`` stays the four words it has always
+    # been, because code reads ``done`` by name — the billing query is exactly
+    # that filter — and moving a recovered child to a fifth word would quietly
+    # drop their operation off the bill. Where they are is derived from which
+    # of these two moments has happened.
+    recovery_at = db.Column(db.DateTime, index=True)
+    discharged_at = db.Column(db.DateTime, index=True)
+    discharged_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    discharge_note = db.Column(db.Text)
+
+    # **Does this child need to be seen again?** Three states, and they are
+    # three different facts: NULL is *nobody has decided yet* — which is what
+    # a discharge screen must not let through silently — while ``False`` is a
+    # surgeon saying no, and ``True`` is a surgeon saying yes. A circumcision
+    # under local anaesthetic is the case that makes the distinction concrete:
+    # the answer is usually no, and "usually no" is not "nobody looked".
+    followup_needed = db.Column(db.Boolean)
+    followup_on = db.Column(db.Date, index=True)
+
+    # When the family were sent what to do at home. Its own stamp, because
+    # "discharged" and "told what to watch for" are not the same event and a
+    # clinic has to be able to see the gap between them.
+    instructions_sent_at = db.Column(db.DateTime)
+
     invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
                                 nullable=True, index=True)
 
@@ -179,6 +211,24 @@ class Operation(db.Model):
     admission = db.relationship("Admission", backref="operations")
     service = db.relationship("Service")
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
+    discharger = db.relationship("User", foreign_keys=[discharged_by])
+
+    @property
+    def where(self):
+        """Where this child is, derived from the moments that happened.
+
+        ``theatre`` → ``recovery`` → ``home``, and ``None`` before any of it.
+        Derived rather than stored so it can never disagree with the stamps,
+        and so ``status`` keeps meaning exactly what the rest of the program
+        already reads it to mean.
+        """
+        if self.discharged_at is not None:
+            return "home"
+        if self.recovery_at is not None:
+            return "recovery"
+        if self.status == "in_theatre":
+            return "theatre"
+        return None
     anaesthetist = db.relationship("User", foreign_keys=[anaesthetist_id])
     reviews = db.relationship("PreOpReview", back_populates="operation",
                               cascade="all, delete-orphan")

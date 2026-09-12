@@ -54,6 +54,13 @@ SYSTEM_TEMPLATE_TYPES = [
     # "It has arrived" — to the families who were told to come while the
     # shelf was empty. See app/utils/vaccine_back.py.
     "vaccine_back",
+    # What to do at home after an operation, and when they are expected back.
+    # Its own type because it is sent by a different person at a different
+    # moment from everything else here — by whoever discharges the child, at
+    # the door — and a clinic that silences appointment reminders has not
+    # thereby said it wants to stop telling families how to look after a
+    # wound. See app/utils/recovery.py.
+    "post_op",
     # The prescription itself, sent to the family as a picture of the paper.
     "rx_copy",
     # The one message that reduces no-shows more than any other, and the one
@@ -84,6 +91,11 @@ OCCASION_TYPES = SYSTEM_TEMPLATE_TYPES + ["birthday", "feedback", "seasonal", "g
 # summons, and a prescription heading wants every one of them. Both, so the
 # clinic picks per template rather than the program picking for it.
 TEMPLATE_VARIABLES = {
+    # `instructions` is the surgeon's own text for *this* procedure, kept on
+    # the service — the template is the wrapper a clinic writes once, and the
+    # clinical words are not the wrapper's to invent.
+    "post_op": ["patient", "first_name", "procedure", "instructions",
+                "followup", "clinic"],
     "appointment_confirm": ["patient", "first_name", "clinic", "date", "time", "doctor", "queue"],
     "appointment_reminder": ["patient", "first_name", "clinic", "date", "time", "doctor"],
     "no_show_followup": ["patient", "first_name", "clinic", "date", "doctor"],
@@ -108,6 +120,15 @@ TEMPLATE_VARIABLES = {
 
 # Built-in defaults used to seed the registry / fall back when none exists.
 TEMPLATE_DEFAULTS = {
+    # Deliberately a wrapper and nothing else: the sentence that matters is
+    # `{instructions}`, which the surgeon wrote against the procedure. A
+    # default that offered clinical advice of its own would be this program
+    # inventing a clinical instruction, which it never does.
+    "post_op": (
+        "سلامته يارب 🌿\n{patient} خرج بعد {procedure}.\n\n"
+        "{instructions}\n\n"
+        "لو ظهر أي عرض مقلق كلّمنا فوراً على نفس الرقم."
+    ),
     "appointment_confirm": (
         "مرحباً {patient}،\nتم تأكيد موعدك في {clinic} يوم {date} الساعة {time} "
         "مع {doctor}.\nدورك رقم: {queue}\nنتمنى لكم الصحة والعافية."

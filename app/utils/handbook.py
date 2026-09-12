@@ -1770,6 +1770,33 @@ SECTIONS = [
              "price, \"as usual\" means their ordinary commission, and "
              "\"none\" means they are paid nothing on that kind. A case with "
              "no kind prices at the doctor's ordinary rate exactly as before."),
+            ("<b>الإفاقة والخروج</b>: بعد ما العملية تخلص، زرار «دخلت "
+             "الإفاقة»، وبعدين شاشة الخروج. شاشة <b>الإفاقة</b> بتوريك مين "
+             "في الأوضة دلوقتي، و<b>مين خلّص ولسه ما خرجش</b> — حتى لو محدش "
+             "علّم دخوله الإفاقة أصلاً، وده بالظبط اللي بيتنسي.",
+             "<b>Recovery and discharge</b>: when the case finishes, one "
+             "press moves the child to recovery, then the discharge screen. "
+             "The <b>recovery</b> screen shows who is in the room now and "
+             "<b>who finished and has not gone home</b> — including cases "
+             "nobody marked into recovery at all, which are exactly the ones "
+             "that get forgotten."),
+            ("<b>قرار المتابعة ما ينفعش يتسكّت عنه</b>: الخروج بيترفض من غير "
+             "إجابة «محتاج متابعة؟ أيوه/لأ». السبب إن «مش محتاج» و«محدش سأل» "
+             "لو اتحطوا في خانة واحدة بيبقوا نفس الحاجة — والطفل اللي محدش "
+             "شافه تاني بيكون التاني مش الأول.",
+             "<b>The follow-up decision cannot be skipped</b>: a discharge is "
+             "refused without a yes or no. If \"not needed\" and \"nobody "
+             "asked\" share one column they become the same thing — and the "
+             "child nobody sees again is the second, not the first."),
+            ("<b>تعليمات بعد الجراحة بتتكتب على العملية</b> (في الخدمة)، "
+             "وبتتبعت للأهل وهم واقفين على الباب — مش بكرة. العملية اللي "
+             "مفيش لها تعليمات ما بتبعتش رسالة فاضية، والشاشة بتقولك إنها "
+             "ناقصة عشان تتكتب المرة الجاية.",
+             "<b>Post-operative instructions are written per procedure</b> "
+             "(on the service) and sent to the family at the door, not "
+             "tomorrow. A procedure with none sends nothing rather than an "
+             "empty message, and the screen says so, so it can be written "
+             "before the next one."),
             ("<b>التخدير بند لوحده</b> لما العيادة تسعّره: الجراح والمخدّر "
              "اتنين بيشتغلوا، وكل واحد أتعابه على بنده. سعّر خدمة "
              "<b>SVC-ANAES</b> بصفر وما هتشوفش البند خالص — العيادة اللي سعر "
