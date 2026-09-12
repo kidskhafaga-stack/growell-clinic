@@ -523,6 +523,16 @@ ADDITIONS = [
     # of adding a second one. NULL on every line ever written, which is right:
     # none of them was written by a rule.
     ("invoice_items", "care_charge_id", "INTEGER"),
+    # Which rota a duty is on, and whether the person was in the building.
+    # ``role`` is NULL on every duty already rostered — general cover, which
+    # is what they were — and ``cover`` defaults to being here, because
+    # on-call did not exist when they were written.
+    ("duties", "role", "VARCHAR(30)"),
+    ("duties", "cover", "VARCHAR(10) DEFAULT 'present'"),
+    # What a night at home pays. NULL is "nobody decided", never "the same as
+    # being here".
+    ("duty_slots", "on_call_rate", "FLOAT"),
+    ("duty_rates", "on_call_amount", "FLOAT"),
 ]
 
 def apply_schema(report=None):

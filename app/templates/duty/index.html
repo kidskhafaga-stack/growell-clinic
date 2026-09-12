@@ -181,6 +181,22 @@
         {% for u in units %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
       </select>
     </div>
+    {# **Which list, and whether they are in the building.** Three lists and
+       not one, and «موجود» and «تحت الطلب» kept apart — at three in the
+       morning they are two different actions and two different rates. #}
+    <div class="form-row" style="margin-bottom:0;min-width:150px;">
+      <label for="a_role">{{ t('duty.role') }} <small class="muted">{{ t('common.optional') }}</small></label>
+      <select class="input" id="a_role" name="role">
+        <option value="">{{ t('duty.role_none') }}</option>
+        {% for r in roles %}<option value="{{ r.key }}">{{ r.display_name(current_lang) }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:140px;">
+      <label for="a_cover">{{ t('duty.cover') }}</label>
+      <select class="input" id="a_cover" name="cover">
+        {% for c in covers %}<option value="{{ c }}">{{ t('duty.cover_' ~ c) }}</option>{% endfor %}
+      </select>
+    </div>
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
   </form>

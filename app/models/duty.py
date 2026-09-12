@@ -50,6 +50,31 @@ DUTY_STATUSES = ("rostered", "worked", "absent")
 # files, because the day a fourth state is added is the day the six disagree.
 DUTY_PAYABLE = "worked"
 
+# **In the building, or reachable.** Reported as two different things that are
+# paid two different ways: *«تحت الطلب او اون كول بيتحاسب طريقة مختلفة»*.
+#
+# And they are not degrees of the same thing — they are the answer to two
+# different questions on the night something goes wrong. "Who is here" is
+# somebody you fetch; "who is on call" is somebody you ring and then wait for.
+# A rota that showed only names would leave whoever is holding the phone at
+# three in the morning to guess which they had.
+DUTY_COVER = ("present", "on_call")
+
+#: The rotas a theatre runs, seeded into :class:`DutyRole`.
+#:
+#: Asked for as three lists and not one: *«خلى كل لسيت لواحده — لسيت الطبيب
+#: الجراح لواحده وليست دكتور التخدير لواحده وليست التمريض لواحده»*. One list
+#: with three kinds of person on it is a list nobody can read at speed, and
+#: speed is the only reason it exists.
+DUTY_ROLES = ["surgeon", "anaesthesia", "nursing"]
+
+#: Icon per built-in rota, so a screen read in a hurry is read by shape.
+DUTY_ROLE_ICONS = {
+    "surgeon": "bi-scissors",
+    "anaesthesia": "bi-lungs",
+    "nursing": "bi-bandaid",
+}
+
 
 class DutySlot(db.Model):
     """A named stretch of cover — صباحي، مسائي، ليلي — and what it pays.
@@ -71,6 +96,12 @@ class DutySlot(db.Model):
     # decided yet", and a duty created against a slot with no rate is worth
     # nothing until somebody sets one. See ``utils/duty.rate_for``.
     rate = db.Column(db.Float)
+    # What the same stretch pays **on call** — at home with a phone, rather
+    # than in the building. NULL is "nobody set one", not "the same as
+    # being here": a clinic that has not decided what on-call is worth should
+    # see an empty figure and be asked, not have the presence rate quietly
+    # paid for a night somebody spent at home.
+    on_call_rate = db.Column(db.Float)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     sort_order = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -90,19 +121,30 @@ class DutySlot(db.Model):
         return self.end_time is not None and self.start_time is not None \
             and self.end_time <= self.start_time
 
-    def rate_for(self, doctor=None):
-        """What this slot pays this doctor: their own figure, or the slot's.
+    def rate_for(self, doctor=None, cover="present"):
+        """What this slot pays this doctor, for this kind of cover.
 
         The same fallback ``Service.commission_for`` uses, and deliberately so
         — a clinic that has agreed a different night rate with one registrar
-        should not need a second slot to express it.
+        should not need a second slot to express it. ``cover`` picks which
+        pair of figures is being asked about: being in the building, or being
+        reachable from home.
+
+        **On call never falls back to the presence rate.** A clinic that has
+        not said what a night at home is worth gets zero and a screen that
+        says so — paying the full presence figure for it would be the program
+        deciding a rate nobody agreed.
         """
         doctor_id = getattr(doctor, "id", doctor)
+        on_call = cover == "on_call"
         if doctor_id:
             for row in self.overrides:
-                if row.doctor_id == doctor_id and row.amount is not None:
-                    return float(row.amount)
-        return float(self.rate or 0)
+                if row.doctor_id != doctor_id:
+                    continue
+                own = row.on_call_amount if on_call else row.amount
+                if own is not None:
+                    return float(own)
+        return float((self.on_call_rate if on_call else self.rate) or 0)
 
     def __repr__(self):
         return f"<DutySlot {self.name}>"
@@ -122,6 +164,10 @@ class DutyRate(db.Model):
     slot_id = db.Column(db.Integer, db.ForeignKey("duty_slots.id"),
                         nullable=False, index=True)
     amount = db.Column(db.Float)
+    # Their own figure for a night at home. NULL falls back to the slot's,
+    # exactly as ``amount`` does — and a slot with no on-call figure pays
+    # nothing, which is a question for somebody rather than a rate to invent.
+    on_call_amount = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     doctor = db.relationship("User", foreign_keys=[doctor_id])
@@ -160,6 +206,21 @@ class Duty(db.Model):
     # talks about it.
     on_date = db.Column(db.Date, default=local_today, nullable=False,
                         index=True)
+    # **Which rota this is.** Three lists and not one — the surgeons, the
+    # anaesthetists, the nursing — because a single list with three kinds of
+    # person on it is a list nobody can read at speed, and speed is the only
+    # reason it exists.
+    #
+    # NULL is **general cover**, which is what every duty rostered before this
+    # column was: the resident covering the department, belonging to no
+    # theatre rota. Not "a surgeon whose row is incomplete".
+    role = db.Column(db.String(30), index=True)
+    # In the building, or reachable from home. Defaulted rather than left
+    # empty on the rows that already exist, because for them it is not
+    # unknown: on-call did not exist when they were rostered, so every one of
+    # them was somebody actually here.
+    cover = db.Column(db.String(10), default="present", nullable=False,
+                      index=True)
     status = db.Column(db.String(10), default="rostered", nullable=False,
                        index=True)
     # Snapshotted from the slot when the duty is created — see the module
@@ -188,3 +249,42 @@ class Duty(db.Model):
 
     def __repr__(self):
         return f"<Duty {self.doctor_id} {self.on_date} {self.status}>"
+
+
+class DutyRole(db.Model):
+    """The rotas this clinic runs — the surgeons, the anaesthetists, nursing.
+
+    A catalogue and not a constant, for the reason the case kinds and the
+    bill sections are: **nothing reads a role by name.** A rota is drawn by
+    grouping duties under whatever roles exist, so a hospital that also runs
+    a «أشعة» list on call gets one the minute somebody types it.
+    """
+
+    __tablename__ = "duty_roles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(60))
+    name_en = db.Column(db.String(60))
+    icon = db.Column(db.String(40))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Seeded rows keep their key: a clinic renaming «التمريض» must not thereby
+    # detach every night already rostered under it.
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+
+    def display_name(self, lang="ar"):
+        name = self.name_en if lang == "en" else self.name_ar
+        if name:
+            return name
+        from app.i18n import t
+
+        key = "duty_roles." + self.key
+        try:
+            label = t(key)
+        except RuntimeError:
+            return self.key
+        return label if label != key else self.key
+
+    def __repr__(self):
+        return f"<DutyRole {self.key}>"

@@ -72,6 +72,10 @@
       {% if waiting %}<span class="badge badge--warn">{{ waiting }}</span>{% endif %}</a>
     {# The room after the theatre. Reached from the day list because that is
        where whoever is running the session already is. #}
+    {# «مين موجود دلوقتي» — reached from here because at three in the morning
+       this is the screen somebody is already on. #}
+    <a class="btn btn-outline gc-press" href="{{ url_for('duty.now') }}">
+      <i class="bi bi-telephone-inbound"></i> {{ t('on_call.title') }}</a>
     <a class="btn btn-outline gc-press" href="{{ url_for('theatres.recovery_room') }}">
       <i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}
       {% if in_recovery %}<span class="badge badge--warn">{{ in_recovery }}</span>{% endif %}</a>

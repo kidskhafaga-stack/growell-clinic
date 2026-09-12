@@ -43,8 +43,9 @@ from app.models.medication import (DOSE_OUTCOMES, ROUTES, MedicationDose,
 from app.models.bed_charge import BedCharge
 from app.models.settlement import (SETTLEMENT_BASES,
                                   SETTLEMENT_STATUSES, Settlement)
-from app.models.duty import (DUTY_PAYABLE, DUTY_STATUSES,
-                            Duty, DutyRate, DutySlot)
+from app.models.duty import (DUTY_COVER, DUTY_PAYABLE, DUTY_ROLE_ICONS,
+                            DUTY_ROLES, DUTY_STATUSES,
+                            Duty, DutyRate, DutyRole, DutySlot)
 from app.models.panel_alert_rule import PanelAlertRule
 from app.models.chart_review import ChartReview
 from app.models.dose_prep import DosePrep
@@ -52,10 +53,12 @@ from app.models.high_alert import HighAlertDrug
 from app.models.lasa_pair import LasaPair
 from app.models.med_error import (ERROR_OUTCOMES, ERROR_STAGES,
                                   OUTCOME_BANDS, MedicationError)
-from app.models.theatre import (CASE_TYPE_ICONS, CASE_TYPES, CHECK_ITEMS,
+from app.models.theatre import (ANAESTHESIA_TYPES, AnaesthesiaPlan,
+                               CASE_TYPE_ICONS, CASE_TYPES, CHECK_ITEMS,
                                CHECK_STOPS, CaseType, DoctorCaseRate,
                                OPERATION_STATUSES,
                                Operation, PreOpReview, REVIEW_KINDS,
+                               PREOP_KINDS,
                                REVIEW_VERDICTS, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
                                    Observation, ObservationOrder,
@@ -282,6 +285,10 @@ __all__ = [
     "DutyRate",
     "DUTY_STATUSES",
     "DUTY_PAYABLE",
+    "DUTY_COVER",
+    "DUTY_ROLES",
+    "DUTY_ROLE_ICONS",
+    "DutyRole",
     "PanelAlertRule",
     "ChartReview",
     "DosePrep",
@@ -296,6 +303,9 @@ __all__ = [
     "CASE_TYPES",
     "CASE_TYPE_ICONS",
     "CaseType",
+    "ANAESTHESIA_TYPES",
+    "AnaesthesiaPlan",
+    "PREOP_KINDS",
     "DoctorCaseRate",
     "PreOpReview",
     "REVIEW_KINDS",

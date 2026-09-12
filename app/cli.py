@@ -71,6 +71,7 @@ def register_commands(app):
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
         _seed_case_types_safe()
+        _seed_duty_roles_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -280,6 +281,7 @@ def register_commands(app):
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
         _seed_case_types_safe()
+        _seed_duty_roles_safe()
         _seed_client_categories_safe()
         _backfill_service_types_safe()
         _migrate_visit_type_map_safe()
@@ -363,6 +365,7 @@ def register_commands(app):
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
         _seed_case_types_safe()
+        _seed_duty_roles_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -576,6 +579,7 @@ def register_commands(app):
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
         _seed_case_types_safe()
+        _seed_duty_roles_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -747,6 +751,15 @@ def _seed_case_types_safe():
     """
     try:
         from app.utils.case_types import ensure_seeded
+        ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _seed_duty_roles_safe():
+    """Seed the on-call rota catalogue (idempotent, best-effort)."""
+    try:
+        from app.utils.on_call import ensure_seeded
         ensure_seeded()
     except Exception:  # noqa: BLE001
         pass
