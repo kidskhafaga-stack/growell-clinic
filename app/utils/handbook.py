@@ -1770,6 +1770,25 @@ SECTIONS = [
              "price, \"as usual\" means their ordinary commission, and "
              "\"none\" means they are paid nothing on that kind. A case with "
              "no kind prices at the doctor's ordinary rate exactly as before."),
+            ("<b>بند «الموافقة» في الـchecklist بيتقرا من الإقرار</b>، مش "
+             "بيتعلّم بالإيد. في صفحة العملية بتربط الإقرار اللي بيغطّيها من "
+             "إقرارات ملف الطفل، والبند بيتعلّم لوحده لو الإقرار <b>موقّع "
+             "ومش مسحوب ومدته سارية يوم العملية</b> — وبيتشال لوحده لو لأ، "
+             "حتى لو حد علّمه. الشاشة بتقول السبب بالظبط: مش مربوط · من غير "
+             "توقيع · اتسحب · انتهت مدته.",
+             "<b>The checklist's consent item is read from the consent</b>, "
+             "not ticked by hand. On the case screen you link which of the "
+             "child's consents covers it, and the item ticks itself when that "
+             "consent is <b>signed, not withdrawn, and still standing on the "
+             "day of the operation</b> — and unticks itself when it is not, "
+             "however firmly somebody ticked. The screen names which of the "
+             "four it is: not linked · unsigned · withdrawn · expired."),
+            ("<b>وما بيمنعش العملية</b>: المستشفى ممكن تمشي، والبرنامج "
+             "بيسجّل مش بيقفل. اللي مش هيحصل إن النقص ده يتحسب علامة خضرا — "
+             "بيفضل ظاهر كنقص في الـchecklist.",
+             "<b>And it refuses nothing</b>: a hospital may proceed, and the "
+             "program records rather than blocks. What it will not do is show "
+             "the gap as a green tick — it stays visible as a missed item."),
             ("<b>الإفاقة والخروج</b>: بعد ما العملية تخلص، زرار «دخلت "
              "الإفاقة»، وبعدين شاشة الخروج. شاشة <b>الإفاقة</b> بتوريك مين "
              "في الأوضة دلوقتي، و<b>مين خلّص ولسه ما خرجش</b> — حتى لو محدش "

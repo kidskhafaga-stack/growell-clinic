@@ -513,6 +513,12 @@ ADDITIONS = [
     ("operations", "instructions_sent_at", "DATETIME"),
     ("services", "post_op_instructions", "TEXT"),
     ("services", "followup_days", "INTEGER"),
+    # Which consent covers this operation, and how long a consent stands.
+    # Both NULL on everything already recorded, and both mean "nobody said" —
+    # an unlinked case is one nobody linked, not one with no consent, and a
+    # consent with no expiry is one whose clinic never set one.
+    ("operations", "consent_id", "INTEGER"),
+    ("consents", "valid_until", "DATE"),
 ]
 
 def apply_schema(report=None):

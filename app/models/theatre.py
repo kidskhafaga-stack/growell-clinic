@@ -164,6 +164,21 @@ class Operation(db.Model):
     findings = db.Column(db.Text)
     notes = db.Column(db.Text)
 
+    # **The consent this case is covered by.**
+    #
+    # Reported exactly: *«الإقرارات موجودة وموقّعة من ولي الأمر، بس بند
+    # «الموافقة» في الـ checklist بيتعلّم بالإيد حتى لو مفيش إقرار متسجّل»* —
+    # so the one item on the surgical checklist that a family's signature is
+    # supposed to answer was answerable by a tick.
+    #
+    # **Linked by hand, and that is deliberate.** The program will not decide
+    # that a «procedure» consent signed in March covers the tonsillectomy in
+    # September: it does not know what the guardian was told, and guessing
+    # would produce exactly the false green tick this exists to remove.
+    # Somebody names which document covers this case.
+    consent_id = db.Column(db.Integer, db.ForeignKey("consents.id"),
+                           nullable=True, index=True)
+
     # ---------------------------------------------------------- recovery --
     #
     # Described by the clinic, and it is the ordinary path rather than an edge
@@ -212,6 +227,7 @@ class Operation(db.Model):
     service = db.relationship("Service")
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
     discharger = db.relationship("User", foreign_keys=[discharged_by])
+    consent = db.relationship("Consent")
 
     @property
     def where(self):

@@ -163,6 +163,10 @@ DONE = [
      "Recovery and discharge: who is in recovery, who finished and has not "
      "gone home, per-procedure post-operative instructions sent to the "
      "family, and a follow-up decision that cannot be left blank"),
+    ("بند الموافقة في checklist العمليات بقى بيتقرا من الإقرار الموقّع "
+     "المربوط بالحالة — ما بيتعلّمش بالإيد",
+     "The consent item on the surgical checklist is now read from the signed "
+     "consent linked to the case — it can no longer be ticked by hand"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

@@ -212,6 +212,12 @@ def operation(operation_id):
                            # it would usually be seen again — both shown
                            # *before* the discharge is pressed, because that
                            # is when somebody can still fix a blank one.
+                           # Which document covers this case, and what is
+                           # on the child's file to choose from — including
+                           # the unsigned ones, because the person linking
+                           # has to be able to see that.
+                           consent_state=theatre.consent_state(row),
+                           consent_choices=theatre.consent_choices(row),
                            post_op_text=_recovery.instructions_for(row),
                            followup_default=_recovery.followup_default(row),
                            surgeons=_surgeons(), services=_procedures())
@@ -379,6 +385,44 @@ def edit(operation_id):
     row.case_type = _a_case_type(request.form.get("case_type"))
     db.session.commit()
     flash(t("theatre.saved"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/consent", methods=["POST"])
+@module_required(MODULE)
+def link_consent(operation_id):
+    """Name which signed document covers this case.
+
+    Linked by a person, never matched by the program: it does not know what
+    the guardian was told, and guessing that a «procedure» consent from March
+    covers September's tonsillectomy would produce exactly the false green
+    tick this exists to remove.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    raw = (request.form.get("consent_id") or "").strip()
+    if not raw:
+        row.consent_id = None
+        db.session.commit()
+        flash(t("theatre.consent_unlinked"), "info")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+
+    # Only this child's own consents. A posted id is a number anybody can
+    # type, and this one answers a surgical safety item.
+    allowed = {c.id for c in theatre.consent_choices(row)}
+    try:
+        chosen = int(raw)
+    except (TypeError, ValueError):
+        chosen = 0
+    if chosen not in allowed:
+        flash(t("theatre.consent_not_this_child"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+
+    row.consent_id = chosen
+    db.session.commit()
+    state = theatre.consent_state(row)
+    flash(t("theatre.consent_linked") if state == "linked"
+          else t("theatre.consent_" + state), "success" if state == "linked"
+          else "warning")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 
