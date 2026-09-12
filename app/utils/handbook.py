@@ -1757,6 +1757,17 @@ SECTIONS = [
              "<b>The course closest to expiring is spent first</b>, and an "
              "offer somebody bought is switched off rather than deleted, so "
              "what a family paid for stays readable."),
+            ("<b>بند الفاتورة</b> هو اللي الفاتورة بتتجمّع بيه في الملخّص "
+             "(إقامة · عمليات · أدوية · مستلزمات …). سيبه فاضي والبرنامج "
+             "يستنتجه من تصنيف الخدمة، والقايمة نفسها تتزوّد وتتعدّل من "
+             "الشاشة — مفيش كود بيقرا اسم قسم، فالمستشفى تضيف «مستلزمات غرفة "
+             "عمليات» وتشتغل نفس الدقيقة.",
+             "The <b>bill section</b> is what the summary groups by "
+             "(accommodation · surgery · medicines · supplies …). Leave it "
+             "blank and the program derives it from the service's category; "
+             "the list itself is added to and edited on this screen — no "
+             "code reads a section by name, so a hospital adding «theatre "
+             "supplies» gets a working section the same minute."),
         ],
     },
     {
@@ -1791,6 +1802,19 @@ SECTIONS = [
              "<b>Doctor statement</b>: pick a doctor and a period → their "
              "share across every invoice, with \"paid only\" to settle on what "
              "was actually collected."),
+            ("<b>شكل الفاتورة</b>: فوق البنود <b>ملخّص</b> بأقسام الفاتورة "
+             "— الإقامة كذا، العمليات كذا، الأدوية كذا — وتحته التفاصيل. "
+             "ولو الفاتورة على أكتر من يوم (إقامة داخلي مثلاً) التفاصيل "
+             "بتتقسّم <b>باليوم</b> جوّه كل قسم، لأن كل بند بقى شايل تاريخ "
+             "شغله مش تاريخ الفاتورة. وقايمة الفواتير فيها فلتر "
+             "<b>داخلي/خارجي</b>.",
+             "<b>The shape of a bill</b>: a <b>summary</b> by bill section "
+             "above the lines — accommodation, surgery, medicines — with the "
+             "detail below it. When the bill covers more than one day (a "
+             "stay), the detail is grouped <b>by day</b> inside each section, "
+             "because every line now carries the day its work was done rather "
+             "than the day of the bill. The invoice list has an "
+             "<b>inpatient / outpatient</b> filter."),
             ("<b>الفترات المالية</b>: إقفال الفترة يمنع التعديل عليها بأثر "
              "رجعي، و<b>الإقفال اليومي</b> بيربط التحصيل بالخزنة.",
              "<b>Accounting periods</b>: closing one blocks retroactive edits, "

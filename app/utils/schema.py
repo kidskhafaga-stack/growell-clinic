@@ -490,6 +490,11 @@ ADDITIONS = [
     # not this.
     ("about_people", "photo", "VARCHAR(255)"),
     ("about_people", "user_id", "INTEGER"),
+    # The day a line's work was done, which an eleven-night stay needs and a
+    # walk-in does not. NULL on every line written before it, and that is the
+    # honest answer for them: nobody recorded a date, and the display falls
+    # back to the invoice's without claiming otherwise.
+    ("invoice_items", "service_date", "DATE"),
 ]
 
 def apply_schema(report=None):

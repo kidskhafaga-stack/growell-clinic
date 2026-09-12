@@ -15,6 +15,11 @@ from app.utils.clock import local_today
 # out of the "who still owes" filters on its own, which is right — nobody
 # owes anything on an invoice whose money went back.
 INVOICE_STATUSES = ["unpaid", "partial", "paid", "refunded"]
+
+#: The two shapes a bill comes in. **Derived from the invoice, not stored on
+#: it** — see :attr:`Invoice.kind`. Here so screens can offer the filter
+#: without each one spelling the pair out.
+INVOICE_KINDS = ["outpatient", "inpatient"]
 PAYMENT_METHODS = ["cash", "card", "instapay", "transfer", "wallet"]
 
 
@@ -78,6 +83,31 @@ class Invoice(db.Model):
                             cascade="all, delete-orphan")
     payments = db.relationship("Payment", back_populates="invoice",
                                cascade="all, delete-orphan")
+
+    # --- what kind of bill this is --------------------------------------
+    @property
+    def kind(self):
+        """``inpatient`` or ``outpatient`` — **derived, never stored.**
+
+        Asked for as *«احنا لازم نفرق بين الفواتير الداخلية والفواتير
+        الخارجية بتاعت العيادات والخدمات والجلسات النفسية»*, and the
+        distinction is real: the two are read by different people, printed
+        differently, and answer different questions. A stay's bill is a
+        statement of a fortnight — nights, doses, rounds, a theatre — and a
+        clinic bill is a receipt for an afternoon.
+
+        **A column would have been the wrong way to hold it.** The invoice
+        already carries ``admission_id``, and that *is* the answer: a bill
+        raised against a stay is the stay's bill. A second column saying the
+        same thing could disagree with the first — and would be empty on
+        every invoice this clinic has already raised, which is the empty
+        value standing for two facts that this program keeps being bitten by.
+
+        So it is a display axis and nothing more: **no second money path.**
+        Both kinds are raised, discounted, collected and refunded by exactly
+        the same code, and always were.
+        """
+        return "inpatient" if self.admission_id else "outpatient"
 
     # --- money ---------------------------------------------------------
     @property
@@ -312,6 +342,21 @@ class InvoiceItem(db.Model):
     # settled against. Without it, "which dose" would be asked, answered, and
     # thrown away, which is worse than not asking.
     vaccine_dose_number = db.Column(db.Integer)
+    # **The day the work was done**, when that is not the day of the bill.
+    #
+    # An eleven-night stay is one invoice, and until this column the only
+    # place a line's own date lived was inside its description text — good
+    # enough to read, useless to group by, and absent entirely from the lines
+    # written by everything except the bed. So a bill nobody could break down
+    # by day was the one bill that most needed it: *«عايز أشوف الفواتير
+    # الداخلية بنودها هتبقى ايه»*.
+    #
+    # Nullable, and NULL means **nobody recorded it**, not "the day of the
+    # bill" — every line written before this column has that answer, and
+    # inventing a date for them would put a fact in the record that nobody
+    # ever established. :attr:`on_date` is where the fallback is applied, for
+    # display and ordering only.
+    service_date = db.Column(db.Date, index=True)
     unit_price = db.Column(db.Float, default=0, nullable=False)
     quantity = db.Column(db.Integer, default=1, nullable=False)
     discount_value = db.Column(db.Float, default=0)          # raw input
@@ -334,6 +379,19 @@ class InvoiceItem(db.Model):
     invoice = db.relationship("Invoice", back_populates="items")
     service = db.relationship("Service")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
+
+    @property
+    def on_date(self):
+        """The day this line belongs to, for grouping and display.
+
+        Its own date when one was recorded, and the invoice's otherwise —
+        stated as a derivation here rather than written into the column, so
+        "nobody recorded it" stays a different answer from "it happened on
+        the day of the bill".
+        """
+        if self.service_date:
+            return self.service_date
+        return self.invoice.invoice_date if self.invoice is not None else None
 
     @property
     def gross(self):
