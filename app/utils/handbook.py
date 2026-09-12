@@ -1802,6 +1802,28 @@ SECTIONS = [
              "price, \"as usual\" means their ordinary commission, and "
              "\"none\" means they are paid nothing on that kind. A case with "
              "no kind prices at the doctor's ordinary rate exactly as before."),
+            ("<b>تعليم مكان الجراحة بيتسجّل بناحيته</b> — وبند «تعليم مكان "
+             "الجراحة» في الـchecklist بيتقرا منه. خانة بتقول «اتعلّم» من "
+             "غير ما تقول <b>أنهي</b> مكان هي بالظبط إزاي عملية بتتعمل في "
+             "الناحية الغلط وعليها توقيع بيقول إنها اتراجعت. و<b>«مش منطبق» "
+             "إجابة صحيحة</b> — عملية زي اللوز مالهاش ناحية، ومنعها كان "
+             "هيخلّي الناس تختار «شمال» عشان تعدّي من الشاشة.",
+             "<b>The surgical site is recorded with its side</b> — and the "
+             "checklist's site item is read from it. A box saying \"marked\" "
+             "without saying <b>which</b> site is precisely how a wrong-side "
+             "operation ends up with a signature saying it was verified. And "
+             "<b>\"not applicable\" is a correct answer</b> — a tonsillectomy "
+             "has no side, and refusing it would have people picking \"left\" "
+             "to get past the screen."),
+            ("<b>الدم حقيقتين مش واحدة</b>: «محتاج دم؟» قرار الجرّاح، "
+             "و«محجوز ومتوفّر؟» جواب بنك الدم. علامة واحدة كانت هتخلّي "
+             "«محدش سأل» و«مش محتاج» نفس الجملة — وفي السؤال ده الفرق طفل "
+             "بينزف وحد بيتكلّم في التليفون.",
+             "<b>Blood is two facts, not one</b>: whether it is needed is the "
+             "surgeon's decision, whether it is reserved is the bank's "
+             "answer. One flag would make \"nobody asked\" and \"none "
+             "needed\" the same sentence — and on this question the "
+             "difference is a child bleeding while somebody telephones."),
             ("<b>تقييمين مش واحد</b>: «ما قبل التخدير» قبل بأيام، و<b>«ما "
              "قبل الاستحثاث»</b> في غرفة التخدير قبل الاستحثاث على طول. وبند "
              "<b>«فحص التخدير»</b> في الـchecklist بقى بيتقرا من التاني — "

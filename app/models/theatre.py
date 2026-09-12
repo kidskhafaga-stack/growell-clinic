@@ -179,6 +179,42 @@ class Operation(db.Model):
     consent_id = db.Column(db.Integer, db.ForeignKey("consents.id"),
                            nullable=True, index=True)
 
+    # ------------------------------------------------- marking the site --
+    #
+    # GAHAR SAS.06 (د) asks for the surgical site to be **marked** before the
+    # child goes in. The program had a checklist box called ``site_marked``
+    # that anybody could tick — and a tick saying "the site is marked" with no
+    # record of *which* site is precisely how wrong-side surgery happens. It
+    # is the canonical never-event, and a box is not a verification.
+    #
+    # So the box is answered from these, exactly as the consent box is
+    # answered from the consent: somebody records which side and where, and
+    # the checklist reads it.
+    #
+    # ``not_applicable`` is a real answer and the commonest one in a
+    # paediatric list — a tonsillectomy has no side. Leaving it out would
+    # force whoever is marking to type a lie, which is how a form starts
+    # being filled in without being read.
+    site_side = db.Column(db.String(16))
+    site_note = db.Column(db.String(160))
+    site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    site_marked_at = db.Column(db.DateTime)
+
+    # ------------------------------------------------------------ blood --
+    #
+    # SAS.06 (و): blood ordered and its availability confirmed. Two facts and
+    # not one — *whether this case needs blood* is the surgeon's decision, and
+    # *whether it is in the fridge* is the bank's answer. A single flag would
+    # make "nobody asked" and "no blood needed" the same, on the one question
+    # where the difference is a child bleeding while somebody telephones.
+    #
+    # NULL on ``blood_needed`` is **nobody has said**, which is what every
+    # case booked before this column has.
+    blood_needed = db.Column(db.Boolean)
+    blood_units = db.Column(db.Integer)
+    blood_reserved_at = db.Column(db.DateTime)
+    blood_reserved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+
     # ---------------------------------------------------------- recovery --
     #
     # Described by the clinic, and it is the ordinary path rather than an edge
@@ -227,6 +263,7 @@ class Operation(db.Model):
     service = db.relationship("Service")
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
     discharger = db.relationship("User", foreign_keys=[discharged_by])
+    marker = db.relationship("User", foreign_keys=[site_marked_by])
     consent = db.relationship("Consent")
 
     @property
@@ -498,6 +535,12 @@ class DoctorCaseRate(db.Model):
     def __repr__(self):
         return (f"<DoctorCaseRate doc={self.doctor_id} "
                 f"svc={self.service_id} {self.case_type}>")
+
+
+#: Which side a procedure is on. **``not_applicable`` is a real answer** and
+#: the commonest one on a children's list — a tonsillectomy has no side, and
+#: a scheme without it forces whoever is marking to type something untrue.
+SITE_SIDES = ("left", "right", "bilateral", "midline", "not_applicable")
 
 
 #: The kinds of anaesthetic a plan names. **The standard's list, not a

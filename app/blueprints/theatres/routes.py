@@ -29,7 +29,7 @@ from app.i18n import t
 from app.models import Patient
 from app.models.admission import Admission
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
-                                ANAESTHESIA_TYPES,
+                                ANAESTHESIA_TYPES, SITE_SIDES,
                                 REVIEW_KINDS, REVIEW_VERDICTS, Operation,
                                 Theatre)
 from app.utils import recovery as _recovery
@@ -221,6 +221,11 @@ def operation(operation_id):
                            # The anaesthetist's half: the assessment made in
                            # the anaesthetic room, and the six-element plan.
                            pre_induction=theatre.pre_induction_state(row),
+                           # The site and the blood — the two remaining
+                           # sign-in items the standard asks be *verified*.
+                           site_state=theatre.site_state(row),
+                           site_sides=SITE_SIDES,
+                           blood_state=theatre.blood_state(row),
                            plan=theatre.plan_for(row),
                            anaesthesia_types=ANAESTHESIA_TYPES,
                            consent_choices=theatre.consent_choices(row),
@@ -391,6 +396,46 @@ def edit(operation_id):
     row.case_type = _a_case_type(request.form.get("case_type"))
     db.session.commit()
     flash(t("theatre.saved"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/site", methods=["POST"])
+@module_required(MODULE)
+def mark_site(operation_id):
+    """Record which side, and who says so.
+
+    The never-event one: a box saying "site marked" with no record of *which*
+    site is how a wrong-side operation gets a signature saying it was
+    verified.
+    """
+    row = Operation.query.get_or_404(operation_id)
+    if theatre.mark_site(row, (request.form.get("side") or "").strip(),
+                         current_user,
+                         note=request.form.get("site_note")) is None:
+        flash(t("theatre.site_needs_side"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    db.session.commit()
+    flash(t("theatre.site_marked_ok"), "success")
+    return redirect(url_for("theatres.operation", operation_id=row.id))
+
+
+@theatres_bp.route("/operation/<int:operation_id>/blood", methods=["POST"])
+@module_required(MODULE)
+def blood(operation_id):
+    """Whether this case needs blood, and whether it is actually reserved."""
+    row = Operation.query.get_or_404(operation_id)
+    raw = (request.form.get("needed") or "").strip()
+    if raw not in ("yes", "no"):
+        # Blank is refused rather than read as "no": on this question
+        # "nobody asked" and "none needed" are not the same sentence.
+        flash(t("theatre.blood_needs_answer"), "warning")
+        return redirect(url_for("theatres.operation", operation_id=row.id))
+    theatre.set_blood(row, raw == "yes",
+                      units=request.form.get("units", type=int),
+                      reserved=bool(request.form.get("reserved")),
+                      user=current_user)
+    db.session.commit()
+    flash(t("common.saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
 
 

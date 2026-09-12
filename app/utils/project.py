@@ -180,6 +180,11 @@ DONE = [
      "Anaesthesia: the pre-induction assessment the checklist item is read "
      "from, and the six named elements of the anaesthesia plan "
      "(GAHAR SAS.16)"),
+    ("تعليم مكان الجراحة بناحيته ومين علّمه — وبند الـchecklist بيتقرا منه — "
+     "وحجز الدم بحقيقتيه (GAHAR SAS.06 د · و)",
+     "Site marking with its side and who marked it — the checklist item is "
+     "read from it — and blood, recorded as the two facts it is "
+     "(GAHAR SAS.06 d and f)"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

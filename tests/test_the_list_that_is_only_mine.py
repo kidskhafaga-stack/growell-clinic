@@ -39,6 +39,7 @@ def hospital():
         db.create_all()
         from app.models import Patient, Setting, User
         from app.models.theatre import Operation, Theatre
+        from app.utils.clock import local_today
 
         Setting.set("mod_enabled:theatres", "1")
         ids = {}
@@ -61,7 +62,14 @@ def hospital():
         db.session.flush()
         ids["room1"], ids["room2"] = one.id, two.id
 
-        today = date.today()
+        # **The clinic's date, not the server's.** ``theatre.day`` defaults to
+        # ``local_today``, so booking against ``date.today()`` puts every case
+        # on the wrong day for the three hours a night when Cairo has already
+        # turned over and UTC has not — and the test passed for twenty-one
+        # hours out of twenty-four. The same fault this project swept out of
+        # thirty-one test files; this one was booked, not dated, so it was
+        # missed.
+        today = local_today()
         for n, (room, proc, surgeon, gas) in enumerate((
                 (one, "لوز", ids["cutter"], ids["gas"]),      # both of them
                 (one, "ختان", ids["cutter"], None),           # the surgeon only
