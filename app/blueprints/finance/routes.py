@@ -355,6 +355,8 @@ def services():
         db.session.commit()
         flash(t("services.auto_seeded"), "info")
     from app.models import ETA_ITEM_TYPES, MedicalDevice, StoreItem
+    from app.models import PatientPackage
+    from app.utils import packages as pkgs
     from app.utils import service_types as st
     from app.utils import invoice_sections as isec
     from app.utils.visit_types import label as vt_label
@@ -417,6 +419,15 @@ def services():
             .filter(Service.invoice_section.isnot(None))
             .group_by(Service.invoice_section).all()},
         store_items=store_items, doctors=_doctors(),
+        # The packages, and how many families are on each — a count that
+        # decides whether deleting one is allowed at all.
+        package_rows=pkgs.catalogue(active_only=False),
+        package_usage={
+            pid: n for pid, n in
+            db.session.query(PatientPackage.package_id,
+                             db.func.count(PatientPackage.id))
+            .filter(PatientPackage.package_id.isnot(None))
+            .group_by(PatientPackage.package_id).all()},
         appt_types=list(APPOINTMENT_TYPES),
         visit_type_label=lambda key: vt_label(key, lang),
     )
@@ -505,6 +516,118 @@ def invoice_section_delete(section_id):
     db.session.commit()
     flash(t("services.section_deleted"), "info")
     return _section_redirect()
+
+
+@finance_bp.route("/services/packages/new", methods=["POST"])
+@module_required(MODULE)
+def package_new():
+    """Define an offer: *N sessions of this service, for this price.*
+
+    A package is a second way to sell a service the clinic already has, never
+    a second service — so nothing about the per-session price, its commission
+    or the screens that sell it changes by defining one. A clinic that never
+    types one here never sees a package anywhere.
+    """
+    from app.models import ServicePackage
+    from app.utils.ordering import append_order
+
+    try:
+        service_id = int(request.form.get("service_id") or 0)
+    except (TypeError, ValueError):
+        service_id = 0
+    service = db.session.get(Service, service_id) if service_id else None
+    if service is None:
+        flash(t("common.required") + ": " + t("packages.service"), "danger")
+        return _package_redirect()
+    try:
+        sessions = int(request.form.get("sessions") or 0)
+    except (TypeError, ValueError):
+        sessions = 0
+    # A package of one session is the per-session price wearing a hat, and a
+    # package of none is nothing at all. Both are somebody mis-typing.
+    if sessions < 2:
+        flash(t("packages.need_sessions"), "danger")
+        return _package_redirect()
+    try:
+        price = float(request.form.get("price") or 0)
+    except (TypeError, ValueError):
+        price = 0
+    if price <= 0:
+        flash(t("common.required") + ": " + t("services.price"), "danger")
+        return _package_redirect()
+    valid_days = (request.form.get("valid_days") or "").strip()
+    try:
+        # Blank is "no window" and stays NULL. Zero would read as "expires the
+        # day it is sold" — a real thing to say, and not what blank means.
+        valid = int(valid_days) if valid_days else None
+    except (TypeError, ValueError):
+        valid = None
+    db.session.add(ServicePackage(
+        service_id=service.id,
+        name_ar=(request.form.get("name") or "").strip() or None,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        sessions=sessions, price=round(price, 2), valid_days=valid,
+        is_active=True, sort_order=append_order(ServicePackage)))
+    db.session.commit()
+    flash(t("packages.added"), "success")
+    return _package_redirect()
+
+
+@finance_bp.route("/services/packages/save", methods=["POST"])
+@module_required(MODULE)
+def packages_save():
+    """Rename / reprice / retire.
+
+    The count and the price are the offer's, not a sold balance's: every
+    package a family already bought copied both at the sale, so repricing
+    here never rewrites what somebody already paid for.
+    """
+    from app.models import ServicePackage
+
+    for row in ServicePackage.query.all():
+        row.name_ar = (request.form.get(f"pname_{row.id}") or "").strip() or None
+        row.name_en = (request.form.get(f"pname_en_{row.id}") or "").strip() or None
+        try:
+            row.price = round(float(request.form.get(f"pprice_{row.id}") or 0), 2)
+        except (TypeError, ValueError):
+            pass
+        raw = (request.form.get(f"pdays_{row.id}") or "").strip()
+        try:
+            row.valid_days = int(raw) if raw else None
+        except (TypeError, ValueError):
+            pass
+        row.is_active = bool(request.form.get(f"pactive_{row.id}"))
+    db.session.commit()
+    flash(t("packages.saved"), "success")
+    return _package_redirect()
+
+
+@finance_bp.route("/services/packages/<int:package_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def package_delete(package_id):
+    """Remove an offer nobody has bought.
+
+    One that has been sold is switched off instead: the balances point at it,
+    and deleting it would leave a family's course with no offer behind it —
+    the sale is what they paid for, and it has to stay readable.
+    """
+    from app.models import PatientPackage, ServicePackage
+
+    row = db.get_or_404(ServicePackage, package_id)
+    sold = PatientPackage.query.filter_by(package_id=row.id).count()
+    if sold:
+        row.is_active = False
+        db.session.commit()
+        flash(t("packages.sold_deactivated").replace("{n}", str(sold)), "warning")
+        return _package_redirect()
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("packages.deleted"), "info")
+    return _package_redirect()
+
+
+def _package_redirect():
+    return redirect(url_for("finance.services") + "#packages")
 
 
 @finance_bp.route("/services/types/new", methods=["POST"])
@@ -2398,6 +2521,52 @@ def _patient_checkout_lines(patient, doctor_id, lang):
     # And the counter. A box that left our shelf is money and stock, and both
     # moved without anything recording it before this.
     lines.extend(_dispensed_lines(patient.id, lang))
+    return _cover_with_packages(patient.id, lines, lang)
+
+
+def _cover_with_packages(patient_id, lines, lang):
+    """Zero the lines a package this family already paid for covers.
+
+    Runs over the assembled prefill, not inside each builder, because the
+    question is the same wherever the line came from: *has this session
+    already been bought?* Charging it again is the vaccine double-charge in
+    another shape — the family paid in March and pays again in April, and the
+    second charge looks exactly like an ordinary one.
+
+    Draws are counted **across the lines of this one screen**, so two sessions
+    on one bill cannot both come off the last remaining one.
+    """
+    from app.utils import packages as pkgs
+
+    left = {}
+    for line in lines:
+        sid = line.get("service_id")
+        try:
+            sid = int(sid) if sid not in (None, "") else None
+        except (TypeError, ValueError):
+            sid = None
+        if not sid or line.get("pkg_id"):
+            continue
+        balance = pkgs.covering(patient_id, sid)
+        if balance is None:
+            continue
+        spare = left.get(balance.id, balance.remaining)
+        want = max(1, int(line.get("quantity") or 1))
+        # All of it or none of it. Half a line covered would need the line
+        # split in two, and a screen that silently splits a charge is a screen
+        # nobody can check against what they were told at the desk.
+        if spare < want:
+            continue
+        left[balance.id] = spare - want
+        nth = (balance.sessions_total or 0) - spare + 1
+        line["description"] = pkgs.line_label(balance, lang, nth=nth,
+                                              count=want)
+        line["unit_price"] = 0
+        line["pkg_id"] = balance.id
+        # The doctor's share was paid when the package was sold. A *fixed*
+        # commission does not care that this line is zero, so without this it
+        # would be paid again, once per session.
+        line["no_commission"] = "1"
     return lines
 
 
@@ -2452,7 +2621,7 @@ def _checkout_lines(appt, lang):
     lines.extend(_operation_lines(appt.patient_id, lang))
     lines.extend(_test_lines(appt.patient_id, lang))
     lines.extend(_dispensed_lines(appt.patient_id, lang))
-    return lines
+    return _cover_with_packages(appt.patient_id, lines, lang)
 
 
 def _booked_vaccine_line(appt, lang, vaccine_lines):
@@ -2636,6 +2805,18 @@ def _checkout_screen(appt, patient):
         rx_ids = request.form.getlist("line_rx_line_id")
         handed = {row.id: row for row in _unbilled_dispensed(patient_id)}
         billed_rx = {}          # invoice line -> the dispensed medicine
+        # Packages, both directions: a line that *buys* one, and a line a
+        # bought one *pays for*. Each resolved from what actually exists for
+        # this patient, never from the posted number — one of them creates a
+        # balance and the other spends it.
+        from app.utils import packages as pkgs
+
+        sale_ids = request.form.getlist("line_pkg_sale_id")
+        offers = {row.id: row for row in pkgs.sellable(lang)}
+        sold_packages = {}      # invoice line -> the offer it bought
+        pkg_ids = request.form.getlist("line_pkg_id")
+        balances = {row.id: row for row in pkgs.open_for(patient_id)}
+        drawn_packages = {}     # invoice line -> the session drawn for it
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -2649,7 +2830,20 @@ def _checkout_screen(appt, patient):
                 qty = int(qtys[i]) if i < len(qtys) and qtys[i] else 1
             except (TypeError, ValueError):
                 qty = 1
-            if not desc or price <= 0:
+            # A covered session is a real line at zero: the family already
+            # paid for it, and the bill is where they read which session it
+            # was. Only a line a live balance actually covers survives the
+            # zero test — every other empty row is still dropped, so a price
+            # typed as 0 by hand behaves exactly as it always has.
+            balance = _row_for_line(balances, pkg_ids, i)
+            if balance is not None and not balance.is_open():
+                balance = None
+            if balance is not None:
+                # A covered line is zero, whatever was typed into the price
+                # box. Taking a session *and* money for it is the family
+                # paying twice for the one thing they prepaid.
+                price = 0
+            if not desc or (price <= 0 and balance is None):
                 continue
             sid = None
             try:
@@ -2691,6 +2885,18 @@ def _checkout_screen(appt, patient):
                 # the invoice doctor's rate.
                 line_doctor = case.surgeon
                 billed_cases[id(item)] = case
+            if balance is not None:
+                # Taken now rather than after the flush, so the next line of
+                # this same checkout sees the balance one lower and cannot
+                # draw the session this one just took.
+                use = pkgs.draw(balance, visit_id=None,
+                                user_id=current_user.id)
+                if use is None:
+                    continue
+                drawn_packages[id(item)] = use
+            offer = _row_for_line(offers, sale_ids, i)
+            if offer is not None:
+                sold_packages[id(item)] = offer
             svc = db.session.get(Service, sid) if sid else None
             # Vaccine product lines carry no invoice commission (doctor share is
             # the brand's doctor_fee, tracked on the dose — never double-paid).
@@ -2720,6 +2926,17 @@ def _checkout_screen(appt, patient):
             handover = billed_rx.get(id(item))
             if handover is not None:
                 handover.invoice_item_id = item.id
+            # The session drawn above, pointed at the line that records it.
+            use = drawn_packages.get(id(item))
+            if use is not None:
+                use.invoice_item_id = item.id
+            # And a package bought on this bill becomes a balance — created
+            # here, after the flush, because the balance exists *because* the
+            # line that paid for it does.
+            offer = sold_packages.get(id(item))
+            if offer is not None:
+                pkgs.sell(patient, offer, invoice=invoice, item=item,
+                          user_id=current_user.id)
         # And the boxes the pharmacy handed over leave the shelf, under one
         # issue document that rides on the invoice — so the cost of goods is
         # journalled in the same posting as a service's consumables below.
@@ -2837,8 +3054,37 @@ def _checkout_screen(appt, patient):
         my_services=_my_services, other_services=_other_services,
         discounts=NamedDiscount.query.filter_by(is_active=True).order_by(NamedDiscount.name).all(),
         suggested=suggested, suggested_amount=suggested_amount,
+        # Both halves of «باقة وجلسة بجلسة» on the one screen: the offers this
+        # family could buy, and the balances they already have.
+        package_offers=_package_offers(lang),
+        patient_packages=_open_packages(patient_id),
         payment_methods=PAYMENT_METHODS,
     )
+
+
+def _package_offers(lang):
+    """The packages reception may sell today, as plain rows for the picker."""
+    from app.utils import packages as pkgs
+
+    return [{
+        "id": row.id,
+        "service_id": row.service_id,
+        "name": row.display_name(lang),
+        "sessions": row.sessions,
+        "price": row.price or 0,
+        "per_session": row.per_session,
+    } for row in pkgs.sellable(lang)]
+
+
+def _open_packages(patient_id):
+    """The balances this family can draw on — for the note above the lines.
+
+    Shown even when nothing on today's bill is covered: *"عنده باقة"* is what
+    reception needs to know before they quote a price, not after.
+    """
+    from app.utils import packages as pkgs
+
+    return pkgs.open_for(patient_id)
 
 
 def _refundable(patient_id, days=30):

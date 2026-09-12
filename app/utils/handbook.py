@@ -1734,6 +1734,29 @@ SECTIONS = [
              "تلقائياً كل ما الخدمة تتفوتر.",
              "<b>Service consumables</b>: link a service to stock items and "
              "they are deducted automatically whenever it is billed."),
+            ("<b>باقات الجلسات</b>: عدد جلسات بسعر واحد. بتتعرّف من نفس "
+             "الشاشة (الخدمة · عدد الجلسات · السعر · مدة الصلاحية لو فيه)، "
+             "والخدمة بتفضل تتباع بالجلسة زي ما هي — الاتنين مع بعض.",
+             "<b>Session packages</b>: a number of sessions for one price, "
+             "defined on the same screen (service · sessions · price · an "
+             "optional window). The service goes on selling per session "
+             "exactly as before — both, side by side."),
+            ("<b>الفلوس بتتحرّك مرة واحدة</b>: الباقة بند عادي على فاتورة "
+             "عادية. بعد كده كل جلسة بتنزل على فاتورة يومها <b>بصفر</b> "
+             "ومكتوب عليها «جلسة ٣ من ١٠» — فالأهل يشوفوا الجلسة اتسجلت "
+             "وما اتحاسبوش عليها تاني. والرصيد بيبان في ملف الطفل وعلى شاشة "
+             "التحصيل قبل ما حد يقول سعر.",
+             "<b>The money moves once</b>: the package is an ordinary line on "
+             "an ordinary invoice. Each session then appears on that day's "
+             "bill at <b>zero</b>, reading \"session 3 of 10\" — so the "
+             "family sees it recorded and is not charged again. The balance "
+             "shows on the child's file and on the collect screen before "
+             "anybody quotes a price."),
+            ("<b>الباقة اللي قربت تخلص مدتها بتتصرف الأول</b>، وباقة اتباعت "
+             "ما بتتمسحش — بتتعطّل، عشان اللي الأهل دفعوه يفضل مقروء.",
+             "<b>The course closest to expiring is spent first</b>, and an "
+             "offer somebody bought is switched off rather than deleted, so "
+             "what a family paid for stays readable."),
         ],
     },
     {

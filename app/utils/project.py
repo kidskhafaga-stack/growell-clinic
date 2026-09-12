@@ -139,9 +139,14 @@ DONE = [
      "journal and closed periods"),
     ("كشوف الحساب: للطبيب وللموردين، بأعمار الديون",
      "Statements of account: per doctor and per supplier, with ageing"),
-    ("الباقات: خدمة مركّبة من خدمات، تتعرّف وتتسعّر من الشاشة",
+    ("الخدمات المجمّعة: خدمة مركّبة من خدمات، تتعرّف وتتسعّر من الشاشة",
      "Bundles: a service made of services, defined and priced from the "
      "screen"),
+    ("باقات الجلسات: عدد جلسات بسعر واحد، تتدفع مرة وتتسحب جلسة جلسة — "
+     "والخدمة نفسها بتفضل تتباع بالجلسة زي ما هي",
+     "Session packages: a number of sessions for one price, paid once and "
+     "drawn down one visit at a time — while the service goes on selling "
+     "per session exactly as before"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

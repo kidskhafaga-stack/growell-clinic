@@ -561,6 +561,10 @@ def view(patient_id):
         payers=PayerEntity.query.filter_by(is_active=True).order_by(PayerEntity.name).all(),
         ai_patient=ai_patient, ai_discuss=ai_discuss,
         prescriptions=prescriptions, invoices=invoices, fin=fin,
+        # Courses this family paid for up front. Shown on the file and not
+        # only at the till, because "how many are left" is asked on the phone
+        # and in the corridor as often as it is asked at the desk.
+        packages=_package_card(patient.id),
         growth_alert=_growth_concern(patient),
         # One reading across every visit — labs, device studies and specialty
         # panels in one list, and the EF from an echo on the same line as the
@@ -1290,6 +1294,17 @@ def _read_patient_form():
         "family_id": request.form.get("family_id", type=int),
         "new_family_name": (request.form.get("new_family_name") or "").strip(),
     }
+
+
+def _package_card(patient_id):
+    """Every package this family ever bought, newest first — or an empty list.
+
+    Empty for the whole of a clinic that never defined one, which is why the
+    card draws nothing rather than an empty box.
+    """
+    from app.utils import packages as pkgs
+
+    return pkgs.history(patient_id)
 
 
 def _dental_summary(patient):
