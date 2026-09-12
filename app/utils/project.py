@@ -147,6 +147,11 @@ DONE = [
      "Session packages: a number of sessions for one price, paid once and "
      "drawn down one visit at a time — while the service goes on selling "
      "per session exactly as before"),
+    ("الفاتورة الداخلية: ملخّص بأقسام الفاتورة فوق التفاصيل، وكل بند "
+     "بتاريخ يومه، وفلتر داخلي/خارجي على قايمة الفواتير",
+     "The inpatient bill: a summary by bill section over the detail, every "
+     "line carrying the day its work was done, and an "
+     "inpatient/outpatient filter on the invoice list"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

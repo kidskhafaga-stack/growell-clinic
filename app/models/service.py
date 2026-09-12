@@ -172,8 +172,16 @@ class InvoiceSection(db.Model):
             return name
         from app.i18n import t
 
-        label = t("invoice_sections." + self.key)
-        return label if label != "invoice_sections." + self.key else self.key
+        key = "invoice_sections." + self.key
+        try:
+            label = t(key)
+        except RuntimeError:
+            # Outside a request there is no active language to translate in.
+            # A section's name is not worth raising over: an export, a report
+            # or a background job asking for it gets the key it was seeded
+            # with, which is readable, rather than a crash.
+            return self.key
+        return label if label != key else self.key
 
     def __repr__(self):
         return f"<InvoiceSection {self.key}>"

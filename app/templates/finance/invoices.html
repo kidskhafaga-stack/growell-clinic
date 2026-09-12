@@ -24,7 +24,7 @@
      becomes something people stop using. #}
   {% for s in ['', 'unpaid', 'partial', 'paid'] %}
   <a class="btn btn-sm {{ 'btn-primary' if status == s else 'btn-outline' }} gc-press"
-     href="{{ url_for('finance.invoices', status=s, from=f_from, to=f_to, q=f_q, doctor_id=f_doctor) }}">
+     href="{{ url_for('finance.invoices', status=s, from=f_from, to=f_to, q=f_q, doctor_id=f_doctor, kind=f_kind) }}">
     {{ t('invoices.all') if s == '' else t('invoices.st_' ~ s) }}</a>
   {% endfor %}
 </div>
@@ -44,6 +44,16 @@
     <div class="form-row" style="margin:0;max-width:190px;"><label>{{ t('invoices.doctor') }}</label>
       {{ pickers.doctor_picker('doctor_id', f_doctor, None, doctors=doctors,
                                allow_all=True, autosubmit=False) }}</div>
+    {# Inpatient or outpatient — the first cut anybody reviewing a month makes.
+       Read off the stay the bill belongs to, so it is right on every invoice
+       this clinic has already raised. #}
+    <div class="form-row" style="margin:0;max-width:160px;"><label>{{ t('invoices.kind') }}</label>
+      <select class="select" name="kind">
+        <option value="">{{ t('invoices.kind_all') }}</option>
+        {% for k in invoice_kinds %}
+        <option value="{{ k }}" {{ 'selected' if f_kind == k else '' }}>{{ t('invoices.kind_' ~ k) }}</option>
+        {% endfor %}
+      </select></div>
     <button class="btn btn-primary gc-press" type="submit"><i class="bi bi-search"></i> {{ t('common.search') }}</button>
     <a class="btn btn-outline gc-press" href="{{ url_for('finance.invoices') }}">{{ t('common.reset') }}</a>
     {# Exported from exactly what is on screen, so what the accountant hands

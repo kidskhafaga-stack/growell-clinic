@@ -323,6 +323,7 @@ def charge(admission, invoice, user=None, lang="ar"):
         item = InvoiceItem(
             invoice_id=invoice.id, service_id=service.id,
             description=_line(operation, service, lang),
+            service_date=operation.on_date,
             unit_price=price, quantity=1)
         # The surgeon's share, snapshotted like any other chargeable line —
         # and read against **the surgeon**, not the admitting doctor, because

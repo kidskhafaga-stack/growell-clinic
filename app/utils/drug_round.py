@@ -388,6 +388,13 @@ def chargeable(admission):
     return out
 
 
+def _given_on(dose):
+    """The clinic's day this dose was given, for the line's own date."""
+    from app.utils.clock import local_date
+
+    return local_date(getattr(dose, "at", None))
+
+
 def charge(admission, invoice, user=None, lang="ar"):
     """Bill the given doses and take them off the shelf. Returns how many.
 
@@ -419,6 +426,7 @@ def charge(admission, invoice, user=None, lang="ar"):
             # ``service_id`` — and therefore no doctor commission, which is
             # right: nobody's percentage rides on a nurse pushing a syringe.
             description=_dose_line(order, item, dose, lang),
+            service_date=_given_on(dose),
             unit_price=price, quantity=units)
         db.session.add(line)
         db.session.flush()

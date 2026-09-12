@@ -143,6 +143,7 @@ from app.models.package import (
     ServicePackage,
 )
 from app.models.invoice import (
+    INVOICE_KINDS,
     INVOICE_STATUSES,
     PAYMENT_METHODS,
     CashDrawerDay,
@@ -394,6 +395,7 @@ __all__ = [
     "InvoiceSection",
     "ServiceType",
     "ServicePackage",
+    "INVOICE_KINDS",
     "PatientPackage",
     "PackageUse",
     "DoctorServiceCommission",

@@ -180,6 +180,27 @@ def local_today(tz=None):
     return local.date() if local else datetime.utcnow().date()
 
 
+def local_date(moment, tz=None):
+    """Which day in the clinic a **stored** moment fell on.
+
+    :func:`local_today` answers it for *now*; this answers it for a moment
+    already in the record — the night a dose was given, the morning a sample
+    was taken — which is what an invoice line has to be dated by. Reading
+    ``moment.date()`` straight off the column answers in UTC, and a dose given
+    at half past one in the morning in Cairo then lands on the previous day of
+    a stay that is being billed by the night.
+
+    ``None`` in, ``None`` out: a moment nobody recorded has no day, and this
+    is not the place to invent one. Falls back to the stored value's own date
+    on a machine whose zone will not resolve, for the reason
+    :func:`local_today` does — a date is not optional.
+    """
+    if moment is None:
+        return None
+    local = to_local(moment, tz)
+    return local.date() if local else moment.date()
+
+
 def stamp(moment, shape="%Y-%m-%d %H:%M"):
     """A stored moment, printed as the clock on the clinic's wall.
 

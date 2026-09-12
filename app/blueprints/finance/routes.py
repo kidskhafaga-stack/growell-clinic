@@ -20,6 +20,7 @@ from app.models import (
     COVERAGE_TYPES,
     DISCOUNT_TYPES,
     EXPENSE_CATEGORIES,
+    INVOICE_KINDS,
     NamedDiscount,
     PAYER_TYPES,
     PAYMENT_METHODS,
@@ -943,6 +944,8 @@ def invoices():
         f_from=request.args.get("from", ""), f_to=request.args.get("to", ""),
         f_q=(request.args.get("q") or "").strip(),
         f_doctor=request.args.get("doctor_id", type=int),
+        f_kind=(request.args.get("kind") or "").strip(),
+        invoice_kinds=INVOICE_KINDS,
         # What the filtered set adds up to. A list of money whose total you
         # have to add up yourself is a list you cannot check a handover with.
         sums={"billed": round(sum(i.total for i in rows), 2),
@@ -1012,6 +1015,17 @@ def _filtered_invoices():
     doctor_id = request.args.get("doctor_id", type=int)
     if doctor_id:
         query = query.filter(Invoice.doctor_id == doctor_id)
+
+    # **Inpatient or outpatient**, which is the first cut anybody reviewing a
+    # month makes: *«لازم نفرق بين الفواتير الداخلية والفواتير الخارجية»*.
+    # Filtered on ``admission_id`` because that *is* the distinction — see
+    # ``Invoice.kind``. No column was added to hold it, so this filter works
+    # on every bill this clinic has already raised.
+    kind = (request.args.get("kind") or "").strip()
+    if kind == "inpatient":
+        query = query.filter(Invoice.admission_id.isnot(None))
+    elif kind == "outpatient":
+        query = query.filter(Invoice.admission_id.is_(None))
 
     # One box for the three things somebody actually remembers: the invoice
     # number, the patient's name, or their file number.
@@ -2278,6 +2292,35 @@ def _case_for_line(cases, op_ids, index):
     return _row_for_line(cases, op_ids, index)
 
 
+def _worked_on(row):
+    """The clinic's day a resolved row's work actually happened.
+
+    One place, because the four kinds of carried-over line each store their
+    moment under a different name and each would otherwise be dated by
+    whoever wrote the line. **Never read from the form**: a date is as
+    forgeable as an id, and this one decides which day of a stay a charge
+    lands on.
+
+    ``None`` when the row records no moment — the line then falls back to the
+    invoice's date for display, without claiming a day nobody wrote down.
+    """
+    from app.utils.clock import local_date
+
+    if row is None:
+        return None
+    # A day case carries a plain date; everything else carries the moment it
+    # happened, which has to be read in the clinic's zone and not in UTC.
+    plain = getattr(row, "on_date", None)
+    if plain is not None:
+        return plain
+    for field in ("collected_at", "dispensed_at", "recorded_at"):
+        moment = getattr(row, field, None)
+        if moment is not None:
+            return local_date(moment)
+    visit = getattr(row, "visit", None)
+    return getattr(visit, "visit_date", None)
+
+
 def _row_for_line(known, ids, index):
     """The still-unbilled row a submitted line claims to pay for.
 
@@ -2817,6 +2860,13 @@ def _checkout_screen(appt, patient):
         pkg_ids = request.form.getlist("line_pkg_id")
         balances = {row.id: row for row in pkgs.open_for(patient_id)}
         drawn_packages = {}     # invoice line -> the session drawn for it
+        # The doctor's own additions, resolved here as well as marked below —
+        # a procedure added at last Tuesday's visit and billed today belongs
+        # to Tuesday, and the bill is the only place that would say so.
+        vs_ids = request.form.getlist("line_vs_id")
+        doctor_added = {row.id: row for row in
+                        (_unbilled_visit_services(appt) if appt
+                         else _unbilled_patient_services(patient_id))}
         new_items = []          # only these burn consumables (see below)
         kept = []               # which submitted lines became real charges
         for i, desc in enumerate(descs):
@@ -2876,6 +2926,13 @@ def _checkout_screen(appt, patient):
             if handover is not None:
                 billed_rx[id(item)] = handover
             case = _case_for_line(cases, op_ids, i)
+            # **Which day this line's work happened**, when it was not today.
+            # Left NULL for everything raised on the day, because the
+            # invoice's own date already says so and writing it twice would
+            # make "nobody recorded it" unreadable.
+            item.service_date = _worked_on(
+                case or test or handover
+                or _row_for_line(doctor_added, vs_ids, i))
             line_doctor = None
             if case is not None:
                 item.doctor_id = case.surgeon_id or None
@@ -3592,7 +3649,32 @@ def invoice_view(invoice_id):
         # can see a correction rather than only its result.
         history=invoice_history(invoice.id),
         period_open=not _period_blocked(invoice.invoice_date, flash_it=False),
+        # The summary a family reads first, over the detail they open when
+        # one of its numbers looks wrong. Both are the same lines: the totals
+        # here are their own nets added up, never a second figure.
+        **_bill_shape(invoice),
     )
+
+
+def _bill_shape(invoice):
+    """The sectioned summary and whether the detail is worth dating.
+
+    **Reads, and does not seed.** The first version called
+    ``ensure_seeded()`` here, copying the services screen — and a mutation
+    test showed every check still passing without it, which was the honest
+    answer: the summary draws from the built-in fallback perfectly well, and
+    filling a clinic's catalogue as a side effect of *looking at a bill* is a
+    write on a read path. Seeding belongs where somebody opened the screen to
+    edit the list.
+    """
+    from app.utils import invoice_totals
+
+    lang = getattr(g, "lang", "ar")
+    return {
+        "sections": invoice_totals.by_section(invoice, lang),
+        "by_day": invoice_totals.by_day,
+        "spans_days": invoice_totals.spans_days(invoice),
+    }
 
 
 @finance_bp.route("/invoices/<int:invoice_id>/receipt")

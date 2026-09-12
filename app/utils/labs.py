@@ -170,6 +170,18 @@ def record(row, value=None, unit=None, low=None, high=None, text=None,
 
 
 # ------------------------------------------------------------- the money ---
+def _drawn_on(row):
+    """The clinic's day the sample was taken — the day the money was owed.
+
+    Not the UTC day: a sample taken at half past one in the morning in Cairo
+    belongs to that night of a stay being billed by the night, and reading
+    the stored column's own date would file it under the day before.
+    """
+    from app.utils.clock import local_date
+
+    return local_date(getattr(row, "collected_at", None))
+
+
 def unbilled(patient_id=None, visit_id=None):
     """Tests that have been drawn and nobody has charged for.
 
@@ -224,6 +236,9 @@ def charge(admission, invoice, user=None, lang="ar"):
         item = InvoiceItem(
             invoice_id=invoice.id, service_id=service.id,
             description=line_for(row, lang),
+            # The day the sample was taken, which is the day the clinic spent
+            # something — not the day somebody got round to billing it.
+            service_date=_drawn_on(row),
             unit_price=float(service.price or 0), quantity=1)
         item.commission_amount = service.doctor_share(item.net, invoice.doctor)
         db.session.add(item)

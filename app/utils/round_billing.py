@@ -107,6 +107,13 @@ def describe(note, service, lang="ar"):
     return " · ".join(p for p in parts if p)
 
 
+def _seen_on(note):
+    """The clinic's day the consultant came, for the line's own date."""
+    from app.utils.clock import local_date
+
+    return local_date(getattr(note, "recorded_at", None))
+
+
 def charge(admission, invoice, user=None, lang="ar"):
     """Put this stay's chargeable rounds on its bill. Returns how many."""
     from app.models.invoice import InvoiceItem
@@ -119,6 +126,7 @@ def charge(admission, invoice, user=None, lang="ar"):
         price = float(service.price_for(note.by) or 0)
         item = InvoiceItem(invoice_id=invoice.id, service_id=service.id,
                            description=describe(note, service, lang),
+                           service_date=_seen_on(note),
                            unit_price=price, quantity=1)
         # Read against **the consultant who came**, not the admitting doctor.
         # The fixed part of this is what the hospital pays them; the rest of

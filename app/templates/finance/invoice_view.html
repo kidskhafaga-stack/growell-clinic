@@ -61,6 +61,73 @@
       <span class="status-badge {{ 'st-completed' if invoice.status=='paid' else ('st-waiting' if invoice.status=='partial' else 'st-no_show') }}">{{ t(invoice.status_label) }}</span></div></div>
   </div>
 
+  {% if sections|length > 1 %}
+  {# **The summary, over the detail.** A fortnight in a hospital is sixty or
+     seventy lines, and nobody reads them in order — they read six numbers and
+     then open the one that looks wrong. Drawn only when there is more than one
+     section: an afternoon's receipt with a single heading over it is a heading
+     for nothing. The totals here are the very lines below, added up. #}
+  <table class="table" style="margin-bottom:14px;">
+    <thead><tr>
+      <th>{{ t('invoices.summary') }}</th>
+      <th style="width:110px;text-align:center;">{{ t('invoices.lines') }}</th>
+      <th style="width:140px;">{{ t('invoices.line_total') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in sections %}
+      <tr>
+        <td><i class="bi {{ row.icon }}"></i>
+          {{ row.label or t('invoice_sections.other') }}</td>
+        {# ``row['items']``, never ``row.items`` — Jinja resolves the attribute
+           first and hands back the dict's own ``items`` method. #}
+        <td style="text-align:center;color:var(--muted);">{{ row['items']|length }}</td>
+        <td style="font-weight:600;">{{ row.total|money }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% endif %}
+
+  {% if spans_days %}
+  {# The bill covers more than one day, so the detail is worth grouping by day
+     inside each section: "what happened on the Tuesday" is the second
+     question after "how much was the stay", and prose in a description cannot
+     answer it. Behind a toggle, because the flat table below is the one
+     somebody edits — this one is the one they read. #}
+  <details class="no-print" style="margin-bottom:10px;" open>
+    <summary class="btn btn-outline btn-sm gc-press" style="display:inline-block;list-style:none;cursor:pointer;">
+      <i class="bi bi-list-ul"></i> {{ t('invoices.show_detail') }}</summary>
+  {% for row in sections %}
+  <h4 style="margin:14px 0 6px;"><i class="bi {{ row.icon }}"></i>
+    {{ row.label or t('invoice_sections.other') }}
+    <span style="color:var(--muted);font-weight:400;">— {{ row.total|money }}</span></h4>
+  <table class="table" style="margin-bottom:6px;">
+    <thead><tr>
+      <th style="width:120px;">{{ t('invoices.date') }}</th>
+      <th>{{ t('invoices.description') }}</th><th style="width:110px;">{{ t('invoices.unit_price') }}</th>
+      <th style="width:80px;">{{ t('invoices.quantity') }}</th><th style="width:120px;">{{ t('invoices.line_total') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for day in by_day(row['items']) %}
+      {% for it in day['items'] %}
+      <tr>
+        {# The date is printed once per day, on its first line, so a column of
+           fourteen identical dates does not bury the one that changes. #}
+        <td dir="ltr" style="color:var(--muted);">{{ day.day if loop.first else '' }}</td>
+        <td>{{ it.description }}</td>
+        <td>{{ it.unit_price|money }}</td>
+        <td style="text-align:center;">{{ it.quantity }}</td>
+        <td><strong>{{ it.net|money }}</strong></td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  </details>
+  {% endif %}
+
   <table class="table">
     <thead><tr>
       <th>{{ t('invoices.description') }}</th><th>{{ t('invoices.unit_price') }}</th><th>{{ t('invoices.quantity') }}</th>

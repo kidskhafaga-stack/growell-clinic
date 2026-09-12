@@ -317,6 +317,9 @@ def post(admission, user=None, upto=None, lang="ar"):
             # questions a family asks of this line are "which night" and "why
             # is Tuesday more than Monday".
             description=describe(row, lang),
+            # Which night. The description has said so all along, and a
+            # fortnight's bill cannot be broken down by day from prose.
+            service_date=row["on"],
             unit_price=price, quantity=row["quantity"])
         # The doctor's share of this line, snapshotted like every other
         # chargeable line in the program. Left off at first, so a clinic that
