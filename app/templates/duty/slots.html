@@ -39,6 +39,11 @@
       <label for="s_rate">{{ t('duty.rate') }}</label>
       <input class="input" type="number" step="0.01" id="s_rate" name="rate" dir="ltr">
     </div>
+    {# A night at home is paid differently, and blank never means "the same". #}
+    <div class="form-row" style="margin-bottom:0;min-width:140px;">
+      <label for="s_oc_rate">{{ t('duty.on_call_rate') }}</label>
+      <input class="input" type="number" step="0.01" id="s_oc_rate" name="on_call_rate" dir="ltr">
+    </div>
     <button class="btn btn-primary gc-press" type="submit">
       <i class="bi bi-plus-lg"></i> {{ t('common.add') }}</button>
   </form>
@@ -67,12 +72,19 @@
                 style="display:flex;gap:6px;align-items:center;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input class="input" type="number" step="0.01" name="rate" dir="ltr"
-                   style="max-width:120px;" value="{{ s.rate if s.rate is not none else '' }}">
+                   style="max-width:120px;" value="{{ s.rate if s.rate is not none else '' }}"
+                   title="{{ t('duty.cover_present') }}">
+            <input class="input" type="number" step="0.01" name="on_call_rate" dir="ltr"
+                   style="max-width:120px;" value="{{ s.on_call_rate if s.on_call_rate is not none else '' }}"
+                   placeholder="{{ t('duty.cover_on_call') }}" title="{{ t('duty.cover_on_call') }}">
             <button class="btn btn-sm btn-outline gc-press" type="submit">
               {{ t('common.save') }}</button>
           </form>
           {% if s.rate is none %}
           <small class="muted">{{ t('duty.no_rate') }}</small>
+          {% endif %}
+          {% if s.on_call_rate is none %}
+          <small class="muted">{{ t('duty.on_call_rate_hint') }}</small>
           {% endif %}
         </td>
         <td>
@@ -109,6 +121,12 @@
       <label>{{ t('duty.who') }}</label>
       {{ pickers.doctor_picker('doctor_id', None, None, doctors=doctors,
                                autosubmit=False) }}
+    </div>
+    <div class="form-row" style="margin-bottom:0;min-width:130px;">
+      <label for="r_oc_{{ s.id }}">{{ t('duty.on_call_rate') }}</label>
+      <input class="input" type="number" step="0.01" id="r_oc_{{ s.id }}"
+             name="on_call_amount" dir="ltr"
+             placeholder="{{ '%.2f'|format(s.on_call_rate) if s.on_call_rate is not none else '—' }}">
     </div>
     <div class="form-row" style="margin-bottom:0;min-width:120px;">
       <label for="r_amt_{{ s.id }}">{{ t('duty.rate') }}</label>

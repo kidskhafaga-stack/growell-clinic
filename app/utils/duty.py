@@ -20,19 +20,31 @@ def slots(include_inactive=False):
                           DutySlot.id).all()
 
 
-def rate_for(slot, doctor=None):
-    """What ``slot`` pays ``doctor`` — their own figure, or the slot's."""
+def rate_for(slot, doctor=None, cover="present"):
+    """What ``slot`` pays ``doctor`` for this kind of cover.
+
+    Their own figure, then the slot's — and the on-call pair is asked about
+    separately, never filled in from the presence pair.
+    """
     if slot is None:
         return 0.0
-    return slot.rate_for(doctor)
+    return slot.rate_for(doctor, cover)
 
 
-def assign(doctor, slot, on_date=None, unit=None, user=None, note=None):
+def assign(doctor, slot, on_date=None, unit=None, user=None, note=None,
+           role=None, cover="present"):
     """Put somebody on the rota. Returns the duty.
 
     Rostered, and worth nothing yet — see :func:`confirm`. The rate is copied
     onto the row now rather than looked up when the month is paid, so a rate
     changed in March leaves February's rota alone.
+
+    ``role`` names which rota (the surgeons, the anaesthetists, nursing) and
+    ``cover`` says whether they are in the building or reachable from home —
+    and the rate follows the second, because *«تحت الطلب بيتحاسب طريقة
+    مختلفة»*. A night at home on a slot with no on-call figure snapshots
+    nothing, which is a question for whoever set the rota up rather than a
+    number this function should invent.
 
     Raises ``ValueError`` when there is no doctor or no slot, and lets the
     unique constraint refuse a second row for the same person, slot and day
@@ -40,13 +52,19 @@ def assign(doctor, slot, on_date=None, unit=None, user=None, note=None):
     """
     if doctor is None or slot is None:
         raise ValueError("duty needs a doctor and a slot")
+    from app.models.duty import DUTY_COVER
+
+    if cover not in DUTY_COVER:
+        cover = "present"
     duty = Duty(
         doctor_id=getattr(doctor, "id", doctor),
         slot_id=getattr(slot, "id", slot),
         unit_id=getattr(unit, "id", unit) if unit is not None else None,
         on_date=on_date or local_today(),
         status="rostered",
-        amount=rate_for(slot, doctor) or None,
+        role=(role or None),
+        cover=cover,
+        amount=rate_for(slot, doctor, cover) or None,
         note=(note or "").strip()[:160] or None,
         created_by=getattr(user, "id", None))
     db.session.add(duty)

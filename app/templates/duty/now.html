@@ -1,0 +1,88 @@
+{% extends "shell.html" %}
+{% set active_module = 'duty' %}
+{% block title %}{{ t('on_call.title') }}{% endblock %}
+{% block page_heading %}{{ t('on_call.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate">
+  <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+    <div>
+      <h1 class="page-title"><i class="bi bi-telephone-inbound"></i> {{ t('on_call.title') }}</h1>
+      {# The clinic's clock, said out loud: the whole answer depends on which
+         shift is running, and a server three hours out gets it wrong for a
+         quarter of every day. #}
+      <p class="hint" style="margin:4px 0 0;">{{ t('on_call.as_of') }}
+        <strong dir="ltr">{{ at|clinic_stamp }}</strong></p>
+    </div>
+    <a class="btn btn-outline gc-press" href="{{ url_for('duty.index') }}">
+      <i class="bi bi-calendar3"></i> {{ t('duty.title') }}</a>
+  </div>
+
+  {# **The finding, named.** A screen that lists two rotas and silently omits
+     the third reads as "the anaesthetists are fine" to somebody scanning it
+     at three in the morning. #}
+  {% if gaps %}
+  <div class="card gc-scale-in" style="margin-bottom:14px;border-inline-start:4px solid var(--danger);">
+    <h2 class="section-title" style="margin-top:0;color:var(--danger);">
+      <i class="bi bi-exclamation-octagon"></i> {{ t('on_call.nobody_on') }}</h2>
+    <p style="margin:6px 0 0;">
+      {% for row in gaps %}<span class="badge badge--red" style="margin-inline-end:6px;">
+        <i class="bi {{ row.icon or 'bi-people' }}"></i> {{ row.display_name(current_lang) }}</span>{% endfor %}
+    </p>
+  </div>
+  {% endif %}
+
+  {% if rotas %}
+  <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+    {% for rota in rotas %}
+    <div class="card gc-scale-in">
+      <h2 class="section-title" style="margin-top:0;">
+        <i class="bi {{ rota.icon }}"></i>
+        {{ rota.row.display_name(current_lang) if rota.row else t('on_call.general') }}</h2>
+
+      {# Here and reachable kept apart, not mixed and flagged: they are two
+         different actions — fetch, or ring and then wait. #}
+      <h4 style="margin:10px 0 4px;font-size:.9rem;color:var(--green-700);">
+        <i class="bi bi-person-check"></i> {{ t('on_call.present') }}</h4>
+      {% if rota.present %}
+      <ul style="list-style:none;padding:0;margin:0;">
+        {% for duty in rota.present %}
+        <li style="padding:4px 0;">
+          <strong>{{ duty.doctor.display_name(current_lang) if duty.doctor else '—' }}</strong>
+          <span class="hint">· {{ duty.slot.name if duty.slot else '' }}</span>
+          {% set phone = reachable(duty) %}
+          {% if phone %}<a href="tel:{{ phone }}" dir="ltr" style="margin-inline-start:6px;">{{ phone }}</a>
+          {% else %}<span class="badge badge--muted">{{ t('on_call.no_number') }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('on_call.none_here') }}</p>
+      {% endif %}
+
+      <h4 style="margin:12px 0 4px;font-size:.9rem;color:var(--muted);">
+        <i class="bi bi-telephone"></i> {{ t('on_call.on_call') }}</h4>
+      {% if rota.on_call %}
+      <ul style="list-style:none;padding:0;margin:0;">
+        {% for duty in rota.on_call %}
+        <li style="padding:4px 0;">
+          <strong>{{ duty.doctor.display_name(current_lang) if duty.doctor else '—' }}</strong>
+          <span class="hint">· {{ duty.slot.name if duty.slot else '' }}</span>
+          {% set phone = reachable(duty) %}
+          {% if phone %}<a href="tel:{{ phone }}" dir="ltr" style="margin-inline-start:6px;">{{ phone }}</a>
+          {% else %}<span class="badge badge--red">{{ t('on_call.no_number') }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="hint" style="margin:0;">{{ t('on_call.none_on_call') }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% elif not gaps %}
+  <div class="card"><div class="empty-state"><i class="bi bi-telephone-x"></i>
+    {{ t('on_call.nobody_at_all') }}</div></div>
+  {% endif %}
+</div>
+{% endblock %}

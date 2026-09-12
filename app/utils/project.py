@@ -171,6 +171,10 @@ DONE = [
      "الفاتورة اللي المستشفى تسمّيها — أو الاتنين",
      "Nursing and medical care both ways: a daily amount, or a percentage of "
      "the bill sections the hospital names — or both"),
+    ("نوبتجية الطوارئ: «مين موجود دلوقتي» بليستة لكل دور، وفرق بين الموجود "
+     "في المستشفى واللي تحت الطلب — بأجر مختلف",
+     "Emergency cover: a \"who is on now\" screen with a list per rota, and "
+     "present in the building kept apart from on call — at a different rate"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

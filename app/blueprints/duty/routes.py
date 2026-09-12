@@ -18,7 +18,7 @@ from flask_login import current_user
 from app.blueprints.duty import duty_bp
 from app.extensions import db
 from app.i18n import t
-from app.models.duty import Duty, DutyRate, DutySlot
+from app.models.duty import DUTY_COVER, Duty, DutyRate, DutySlot
 from app.utils import duty as rota
 from app.utils.clock import local_today
 from app.utils.decorators import module_required
@@ -64,6 +64,14 @@ def _doctors():
             .order_by(User.full_name).all())
 
 
+def _roles():
+    """The rotas a name can go on. Seeded here, where somebody is editing."""
+    from app.utils import on_call
+
+    on_call.ensure_seeded()
+    return on_call.active_roles()
+
+
 @duty_bp.route("/")
 @module_required(MODULE)
 def index():
@@ -89,8 +97,25 @@ def index():
         units=Unit.query.filter(Unit.is_active.is_(True))
                  .order_by(Unit.sort_order, Unit.id).all(),
         unit_id=unit_id, doctors=_doctors(),
+        # The rotas and the two kinds of cover, for the assign form.
+        roles=_roles(), covers=DUTY_COVER,
         prev=start - timedelta(days=7), next=start + timedelta(days=7),
         may_edit=current_user.is_admin)
+
+
+def _a_role(raw):
+    """A posted rota key, or ``None`` for general cover.
+
+    Checked against the catalogue: a key nothing recognises would put a name
+    on a list that draws nowhere, which on this screen means somebody who
+    looks rostered and cannot be found.
+    """
+    from app.utils import on_call
+
+    key = (raw or "").strip()
+    if not key:
+        return None
+    return key if key in {row.key for row in on_call.all_roles()} else None
 
 
 @duty_bp.route("/assign", methods=["POST"])
@@ -113,7 +138,9 @@ def assign():
 
     try:
         rota.assign(doctor, slot, on_date, unit=unit_id, user=current_user,
-                    note=request.form.get("note"))
+                    note=request.form.get("note"),
+                    role=_a_role(request.form.get("role")),
+                    cover=(request.form.get("cover") or "present"))
         db.session.commit()
         flash(t("duty.assigned"), "success")
     except Exception:  # noqa: BLE001 — the unique constraint, said plainly
@@ -147,6 +174,26 @@ def absent(duty_id):
     return redirect(url_for("duty.index", date=duty.on_date.isoformat()))
 
 
+@duty_bp.route("/now")
+@module_required(MODULE)
+def now():
+    """**Who do I call, right now.**
+
+    The screen the whole rota exists for at three in the morning: three
+    lists, each split into who is here and who is reachable, with the number
+    beside every name that has one — and the rotas with nobody on them named
+    out loud rather than shown as an empty column.
+    """
+    from app.utils import on_call
+    from app.utils.clock import local_now
+
+    return render_template("duty/now.html",
+                           at=local_now(),
+                           rotas=on_call.covering(),
+                           gaps=on_call.gaps(),
+                           reachable=on_call.reachable)
+
+
 @duty_bp.route("/slots")
 @module_required(MODULE)
 def slots():
@@ -178,6 +225,8 @@ def slot_add():
 
     db.session.add(DutySlot(name=name[:40], start_time=start_t, end_time=end_t,
                             rate=request.form.get("rate", type=float),
+                            on_call_rate=request.form.get("on_call_rate",
+                                                          type=float),
                             sort_order=request.form.get("sort_order",
                                                         type=int) or 0))
     db.session.commit()
@@ -193,6 +242,11 @@ def slot_set(slot_id):
     slot = db.get_or_404(DutySlot, slot_id)
     if "rate" in request.form:
         slot.rate = request.form.get("rate", type=float)
+    # Its own box and its own emptiness: clearing the on-call figure means
+    # "nobody has agreed one", which is what the screen then says — never
+    # "the same as being here".
+    if "on_call_rate" in request.form:
+        slot.on_call_rate = request.form.get("on_call_rate", type=float)
     if "is_active" in request.form:
         slot.is_active = request.form.get("is_active") == "1"
     db.session.commit()
@@ -217,15 +271,18 @@ def slot_rate(slot_id):
         return redirect(url_for("duty.slots"))
 
     amount = request.form.get("amount", type=float)
+    on_call = request.form.get("on_call_amount", type=float)
     row = DutyRate.query.filter_by(slot_id=slot.id, doctor_id=doctor_id).first()
-    if amount is None:
+    if amount is None and on_call is None:
+        # Both cleared: there is no override left to keep.
         if row is not None:
             db.session.delete(row)
     elif row is None:
         db.session.add(DutyRate(slot_id=slot.id, doctor_id=doctor_id,
-                                amount=amount))
+                                amount=amount, on_call_amount=on_call))
     else:
         row.amount = amount
+        row.on_call_amount = on_call
     db.session.commit()
     flash(t("common.saved"), "success")
     return redirect(url_for("duty.slots"))

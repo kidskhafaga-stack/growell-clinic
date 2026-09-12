@@ -6319,6 +6319,9 @@
     "assign_hint": "A duty is written as rostered and is worth nothing until somebody says it happened.",
     "assigned": "Duty recorded.",
     "confirmed": "Confirmed.",
+    "cover": "Kind of cover",
+    "cover_on_call": "On call",
+    "cover_present": "Present",
     "earnings_line": "Duty cover",
     "from_hour": "From",
     "happened": "Worked",
@@ -6328,6 +6331,8 @@
     "no_rate": "No rate set — this duty will be worth nothing.",
     "no_slots": "No shifts written down yet.",
     "no_unit": "No department",
+    "on_call_rate": "On-call rate",
+    "on_call_rate_hint": "Leave blank when it has not been agreed — the program never assumes it equals the presence rate.",
     "on_date": "Date",
     "overnight": "Runs past midnight",
     "own_rate": "One doctor's own rate",
@@ -6335,6 +6340,8 @@
     "pick_all": "Pick a doctor, a shift and a date.",
     "prev_week": "Previous week",
     "rate": "Shift rate",
+    "role": "Rota",
+    "role_none": "General cover",
     "slot": "Shift",
     "slot_added": "Shift added.",
     "slot_name": "Shift name",
@@ -6529,5 +6536,22 @@
     "sections_hint": "Pick the sections the percentage is taken of. Ticking nothing means the whole bill. (Common in Egypt: everything except medicines and stamps.)",
     "service": "Billed as service",
     "title": "Nursing & medical care"
+  },
+  "on_call": {
+    "as_of": "Clinic time:",
+    "general": "General cover",
+    "no_number": "no number",
+    "nobody_at_all": "Nobody is on duty right now.",
+    "nobody_on": "Rotas with nobody on them right now",
+    "none_here": "Nobody here.",
+    "none_on_call": "Nobody on call.",
+    "on_call": "On call",
+    "present": "In the hospital",
+    "title": "Who is on now"
+  },
+  "duty_roles": {
+    "anaesthesia": "Anaesthesia",
+    "nursing": "Nursing",
+    "surgeon": "Surgery"
   }
 }
