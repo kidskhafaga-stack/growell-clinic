@@ -15,7 +15,7 @@ FILENAME = "clinic.env"
 
 TEMPLATE = """\
 # ============================================================
-#  GROWELL CLINIC — local settings
+#  PediaPro — local settings
 #  Edit with Notepad, then restart the program.
 #  إعدادات محلية — عدّلها بالمفكرة وبعدين اقفل البرنامج وافتحه تاني.
 # ============================================================
@@ -120,6 +120,12 @@ def ensure_file(root=None):
 
 # The value the code falls back to when nothing is configured. It is printed
 # in the open source, so it is a password everybody already knows.
+# **Not renamed with the rest of the program, deliberately.** This exact
+# string is what an install that never set a key is carrying, and what
+# `ensure_secret` below looks for to decide the key is still the shared
+# one everybody can read. Reword it and that install reads as having a
+# real key of its own and never gets one. It has to keep matching
+# `config.Config.SECRET_KEY`'s fallback.
 DEFAULT_SECRET = "growell-clinic-dev-secret-change-me"
 
 

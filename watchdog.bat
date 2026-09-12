@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC  -  is it ANSWERING?  (run BY the watchdog task)
+REM   PediaPro  -  is it ANSWERING?  (run BY the watchdog task)
 REM
 REM   Do not double-click this. The Scheduled Task runs it every few minutes.
 REM ============================================================

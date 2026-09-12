@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   GROWELL CLINIC - Maintenance
+#   PediaPro - Maintenance
 #   The commands you need after an update, a move to a new PC,
 #   or when something needs putting right. Nothing here runs by
 #   itself: pick a number.
@@ -23,7 +23,7 @@ while true; do
   clear
   cat <<'MENU'
 ============================================================
-   GROWELL CLINIC  |  Maintenance / الصيانة
+   PediaPro  |  Maintenance / الصيانة
 ============================================================
 
   AFTER AN UPDATE / بعد التحديث

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "GROWELL CLINIC",
+    "name": "PediaPro",
     "tagline": "Integrated Pediatric Clinic Management System"
   },
   "common": {
@@ -225,7 +225,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "welcome_message": "Welcome to GROWELL CLINIC",
+    "welcome_message": "Welcome to PediaPro",
     "overview": "Overview",
     "phase_notice": "System under development — Phase 1: Foundation (database, i18n, login, permissions)",
     "your_role": "Your role",
@@ -3521,7 +3521,7 @@
     "facility_type": "Facility type",
     "type_hint": "The administrative shape of the facility only — used to preset defaults.",
     "facility_name": "Facility name",
-    "name_ph": "e.g. Growell Children's Center",
+    "name_ph": "e.g. Children's Specialist Clinic",
     "modules": "Enabled modules",
     "modules_hint": "Software modules — auto-enabled from the services, and freely overridable.",
     "seed_demo": "Load demo data",

@@ -1,4 +1,4 @@
-"""Application factory for GROWELL CLINIC."""
+"""Application factory for PediaPro."""
 import os
 import sqlite3
 from datetime import datetime

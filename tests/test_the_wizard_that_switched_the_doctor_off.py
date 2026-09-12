@@ -118,6 +118,54 @@ def test_a_fresh_copy_wears_the_programs_name(fresh):
     assert "GROWELL" not in str(DEFAULT_SETTINGS.values()).upper()
 
 
+def test_the_setting_was_never_the_only_default(fresh):
+    """**The one that was actually still shipping.** `DEFAULT_SETTINGS` was
+    fixed and the test above went green — but the settings row is not the only
+    place a name comes from, and it is not the first one asked:
+
+    * ``config.Config.CLINIC_NAME`` is *always* set, so the ``"PediaPro"``
+      fallback written beside every ``app.config.get("CLINIC_NAME", ...)``
+      never ran and «GROWELL CLINIC» was what came out
+    * ``t('app.name')`` is what the **login screen** prints when the clinic
+      has no name yet — the first screen anybody sees, on a copy that has not
+      been set up
+    """
+    from config import Config
+
+    assert Config.CLINIC_NAME == "PediaPro"
+
+    with fresh["app"].test_request_context("/"):
+        from app.i18n import t
+        assert t("app.name") == "PediaPro"
+
+
+def test_the_login_screen_of_an_unnamed_copy(fresh):
+    """Where it actually showed. No clinic name set, so the fallback prints —
+    and it used to print somebody else's clinic to every new customer."""
+    from app.models import Setting
+
+    with fresh["app"].app_context():
+        Setting.set("clinic_name", "")
+        Setting.set("clinic_name_ar", "")
+        fresh["db"].session.commit()
+
+    html = fresh["app"].test_client().get("/login").get_data(as_text=True)
+    assert "PediaPro" in html
+    assert "GROWELL" not in html.upper()
+
+
+def test_the_arabic_screen_does_not_carry_the_old_name_either(fresh):
+    """The Arabic side had its own copy of it — «جروويل كلينك»."""
+    import json
+
+    for path in ("app/i18n/locales/ar.json", "app/i18n/locales/en.json"):
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        assert "جروويل" not in text, path
+        assert "GROWELL" not in text.upper(), path
+        assert json.loads(text)["app"]["name"] == "PediaPro", path
+
+
 def test_seeding_renames_nobody(fresh):
     """The whole risk of this change, and the thing that makes it safe: a
     clinic that has set its own name must keep it."""

@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC  -  run as a Windows service
+REM   PediaPro  -  run as a Windows service
 REM
 REM   Right-click -> "Run as administrator", then pick an option.
 REM
@@ -137,8 +137,13 @@ REM 8080 is a morning spent on "the other computers cannot see it".
 for /f "usebackq delims=" %%P in (`"%PY%" -c "from app.settings_file import load_env;load_env();from run import chosen_port;print(chosen_port([]))"`) do set "APP_PORT=%%P"
 if "%APP_PORT%"=="" set "APP_PORT=5000"
 echo Opening TCP port %APP_PORT% for the local network...
+REM Both names are deleted, not just the new one: a computer that ran an
+REM older version of this script has a rule called "GROWELL CLINIC" holding
+REM a port open, and renaming without clearing it would leave that port
+REM open on the network for a version of the program that has moved.
 netsh advfirewall firewall delete rule name="GROWELL CLINIC" >nul 2>nul
-netsh advfirewall firewall add rule name="GROWELL CLINIC" dir=in action=allow protocol=TCP localport=%APP_PORT% profile=any
+netsh advfirewall firewall delete rule name="PediaPro" >nul 2>nul
+netsh advfirewall firewall add rule name="PediaPro" dir=in action=allow protocol=TCP localport=%APP_PORT% profile=any
 echo.
 echo Done. Other PCs reach it at  http://<this-server-name>:%APP_PORT%
 echo.

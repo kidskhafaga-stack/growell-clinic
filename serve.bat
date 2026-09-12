@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC  -  the server body (run BY the service)
+REM   PediaPro  -  the server body (run BY the service)
 REM
 REM   Do not double-click this. It is what the Scheduled Task runs.
 REM   To run the program by hand, use start.bat.

@@ -1,4 +1,4 @@
-"""Database models for GROWELL CLINIC.
+"""Database models for PediaPro.
 
 Phase 1 establishes the foundation models (users, settings, activity log).
 Later phases add the clinical and financial domain models. Importing them
