@@ -1,4 +1,4 @@
-"""Entry point for GROWELL CLINIC.
+"""Entry point for PediaPro.
 
 Usage:
     python run.py                 (reads the port from clinic.env / PORT)
@@ -77,7 +77,7 @@ def serve(application, port, host="0.0.0.0"):
         application.run(host=host, port=port)
         return
     waitress_serve(application, host=host, port=port, threads=8,
-                   ident="GROWELL CLINIC")
+                   ident="PediaPro")
 
 
 if __name__ == "__main__":
@@ -95,7 +95,7 @@ if __name__ == "__main__":
               f"    or set  PORT=8080  in clinic.env next to this file.\n")
         sys.exit(1)
     if not reloading:
-        print(f" * GROWELL CLINIC  ->  http://localhost:{port}")
+        print(f" * PediaPro  ->  http://localhost:{port}")
     if app.debug:
         app.run(host="0.0.0.0", port=port)      # the developer asked for it
     else:

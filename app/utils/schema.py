@@ -533,6 +533,19 @@ ADDITIONS = [
     # being here".
     ("duty_slots", "on_call_rate", "FLOAT"),
     ("duty_rates", "on_call_amount", "FLOAT"),
+    # Which side, marked by whom — the never-event one. NULL on every case
+    # booked before it, and the checklist box for it is then unticked, which
+    # is the true reading: nobody recorded a site.
+    ("operations", "site_side", "VARCHAR(16)"),
+    ("operations", "site_note", "VARCHAR(160)"),
+    ("operations", "site_marked_by", "INTEGER"),
+    ("operations", "site_marked_at", "DATETIME"),
+    # Blood: whether it is needed, and whether it is actually reserved. Two
+    # facts, because "nobody asked" and "none needed" must not be one column.
+    ("operations", "blood_needed", "BOOLEAN"),
+    ("operations", "blood_units", "INTEGER"),
+    ("operations", "blood_reserved_at", "DATETIME"),
+    ("operations", "blood_reserved_by", "INTEGER"),
 ]
 
 def apply_schema(report=None):

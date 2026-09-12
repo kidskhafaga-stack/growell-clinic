@@ -140,6 +140,12 @@ CONSENT_ITEM = "consent"
 #: *immediately before induction* (GAHAR SAS.16 EOC 5), and a tick is not one.
 ANAESTHESIA_ITEM = "anaesthesia_check"
 
+#: And the one a marked site answers. **The never-event.** SAS.06 (د) asks
+#: for the site to be marked; the program had a box saying it was, with no
+#: record of which site — which is exactly how a wrong-side operation gets a
+#: signature saying it was verified.
+SITE_ITEM = "site_marked"
+
 
 def consent_state(operation):
     """Whether a signed, standing consent covers this case — in one word.
@@ -183,6 +189,91 @@ def consent_choices(operation):
     if operation is None or operation.patient is None:
         return []
     return [c for c in operation.patient.consents if not c.is_withdrawn]
+
+
+def site_state(operation):
+    """Whether somebody marked the site, and recorded which — in one word.
+
+    ``none`` · ``marked``. Two and not five, because unlike the consent there
+    is no half-way: either a person put their name against a side and a place,
+    or nobody did.
+
+    ``not_applicable`` **counts as marked** and is the commonest answer on a
+    children's list — a tonsillectomy has no side, and somebody recording
+    that is somebody who considered the question. Refusing it would make the
+    honest answer unavailable and leave people picking "left" to get past the
+    screen, which is worse than the box it replaced.
+    """
+    if operation is None:
+        return "none"
+    from app.models.theatre import SITE_SIDES
+
+    if operation.site_side not in SITE_SIDES:
+        return "none"
+    if operation.site_marked_by is None or operation.site_marked_at is None:
+        # A side with nobody's name against it is a note, not a marking.
+        return "none"
+    return "marked"
+
+
+def site_ok(operation):
+    """The one question the checklist item asks."""
+    return site_state(operation) == "marked"
+
+
+def mark_site(operation, side, user=None, note=None, at=None):
+    """Record which side, and who says so. Returns the operation, or ``None``.
+
+    Refused without a recognised side: a free-typed one would put the
+    checklist's answer beyond anything the program could read, which is the
+    tick it replaced wearing a different hat.
+    """
+    from app.models.theatre import SITE_SIDES
+
+    if operation is None or side not in SITE_SIDES:
+        return None
+    operation.site_side = side
+    operation.site_note = (note or "").strip()[:160] or None
+    operation.site_marked_by = getattr(user, "id", None)
+    operation.site_marked_at = at or datetime.utcnow()
+    return operation
+
+
+def blood_state(operation):
+    """Where this case stands on blood — in one word.
+
+    ``unasked`` · ``not_needed`` · ``ordered`` · ``reserved``, and the first
+    two are the pair that matters: *nobody asked* and *none needed* are not
+    the same sentence, and on this question the difference is a child
+    bleeding while somebody telephones.
+    """
+    if operation is None or operation.blood_needed is None:
+        return "unasked"
+    if not operation.blood_needed:
+        return "not_needed"
+    return "reserved" if operation.blood_reserved_at else "ordered"
+
+
+def set_blood(operation, needed, units=None, reserved=False, user=None):
+    """Record the surgeon's answer, and the bank's.
+
+    Two acts through one door, because they are two halves of one row — but
+    kept apart in what they mean: saying blood is needed does not reserve it,
+    and the screen shows ``ordered`` until somebody says it is in the fridge.
+    """
+    if operation is None:
+        return None
+    operation.blood_needed = None if needed is None else bool(needed)
+    operation.blood_units = int(units) if units else None
+    if operation.blood_needed and reserved:
+        operation.blood_reserved_at = datetime.utcnow()
+        operation.blood_reserved_by = getattr(user, "id", None)
+    else:
+        # Un-saying it clears the confirmation: a reservation that outlived
+        # the decision it was made for is a reservation nobody checked.
+        operation.blood_reserved_at = None
+        operation.blood_reserved_by = None
+    return operation
 
 
 def pre_induction_state(operation):
@@ -378,6 +469,14 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
         confirmed = [i for i in confirmed if i != ANAESTHESIA_ITEM]
         if pre_induction_ok(operation):
             confirmed.append(ANAESTHESIA_ITEM)
+
+    # **And the site.** The third box on this stop that a record answers
+    # better than a person ticking on the way past — and the one where being
+    # wrong is a never-event.
+    if SITE_ITEM in known:
+        confirmed = [i for i in confirmed if i != SITE_ITEM]
+        if site_ok(operation):
+            confirmed.append(SITE_ITEM)
 
     row = operation.check_for(stop)
     if row is None:

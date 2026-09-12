@@ -99,8 +99,17 @@ def test_the_arabic_file_is_actually_in_arabic():
     The allowance is for words that have no Arabic: USB, CSV, an API. They are
     listed rather than pattern-matched, so adding one is a decision somebody
     makes on purpose.
+
+    ``app.name`` is on the list for a different reason from the rest, and it
+    is worth keeping the two apart. "USB" is a word with no Arabic; *PediaPro*
+    is a **name**, and a name does not translate — an Arabic screen writes
+    WhatsApp as WhatsApp. It is what the login screen prints when a clinic has
+    not filled in its own name yet, which is the only place it shows; the
+    moment a clinic types «عيادة الأطفال», that is what appears instead.
     """
     untranslatable = {
+        # The program's own name (see the docstring): a brand, not a word.
+        "app.name",
         "growth.zscore", "vtype.mRNA", "settings.wa_cloud_api",
         "settings.wa_wapilot", "settings.chip_en_ph",
         "connection_types.usb", "connection_types.wifi",

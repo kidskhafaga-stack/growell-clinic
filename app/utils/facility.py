@@ -39,7 +39,22 @@ OPT_IN_MODULES = {"dentistry", "panels", "observations", "beds",
 TOGGLEABLE_MODULES = [m for m in MODULES if m not in ALWAYS_ON]
 
 # Every facility gets these regardless of capabilities.
-BASE_MODULES = ["patients", "appointments", "finance", "reports", "messages", "ai"]
+#
+# **``prescriptions`` is here because writing one is what a consultation is.**
+# It was left out, and the consequence was not a missing tick: it is not an
+# opt-in specialty, so it ships *on* — and then the first run of the wizard
+# computed the enabled set as base + capabilities, `prescriptions` was in
+# neither, and the screen a doctor uses every visit **switched itself off**.
+# A single-doctor clinic ticking "general consultation" and losing the
+# prescription writer is the report this fixed, and it is the exact thing the
+# wizard exists not to do.
+#
+# The pharmacy capability is a different question and stays where it is: a
+# counter, a queue and a handover are a clinic dispensing its own medicines.
+# Writing the paper is not that, and a clinic whose families fill their
+# prescriptions outside still writes them.
+BASE_MODULES = ["patients", "appointments", "finance", "reports", "messages",
+                "ai", "prescriptions"]
 
 # --- Layer 1: administrative facility types (NOT services) -----------------
 # Each carries a default capability set the wizard pre-ticks; fully editable.
@@ -262,6 +277,14 @@ def apply_facility(type_key, facility_name, caps, modules):
     Setting.set("facility_type", type_key)
     if facility_name:
         Setting.set("clinic_name", facility_name)
+        # The wizard is usually where the program first learns whose clinic
+        # it is. A fresh copy needs nothing done — the letters derive from
+        # the name on their own. This is for the copy that upgraded into
+        # the derivation carrying the old shipped `PM`/`GC` rows, which a
+        # stored value outranks: with no file number issued yet, the wizard
+        # is allowed to clear them out. Once one is issued, it declines.
+        from app.utils import numbering
+        numbering.adopt_clinic_name()
     clean_caps = [c for c in caps if c in CAPABILITY_MODULES]
     Setting.set("facility_capabilities", json.dumps(clean_caps))
     wanted = set(modules)

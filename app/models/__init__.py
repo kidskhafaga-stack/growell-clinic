@@ -1,4 +1,4 @@
-"""Database models for GROWELL CLINIC.
+"""Database models for PediaPro.
 
 Phase 1 establishes the foundation models (users, settings, activity log).
 Later phases add the clinical and financial domain models. Importing them
@@ -58,7 +58,7 @@ from app.models.theatre import (ANAESTHESIA_TYPES, AnaesthesiaPlan,
                                CHECK_STOPS, CaseType, DoctorCaseRate,
                                OPERATION_STATUSES,
                                Operation, PreOpReview, REVIEW_KINDS,
-                               PREOP_KINDS,
+                               PREOP_KINDS, SITE_SIDES,
                                REVIEW_VERDICTS, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
                                    Observation, ObservationOrder,
@@ -306,6 +306,7 @@ __all__ = [
     "ANAESTHESIA_TYPES",
     "AnaesthesiaPlan",
     "PREOP_KINDS",
+    "SITE_SIDES",
     "DoctorCaseRate",
     "PreOpReview",
     "REVIEW_KINDS",

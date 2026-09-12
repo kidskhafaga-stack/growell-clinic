@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   GROWELL CLINIC - One-click startup for Linux / macOS
+#   PediaPro - One-click startup for Linux / macOS
 #   Installs everything the app needs, then launches it.
 #
 #   To change the port: edit clinic.env (PORT=8080), or pass it
@@ -12,7 +12,7 @@ set -e
 cd "$(dirname "$0")"
 
 echo "============================================================"
-echo "   GROWELL CLINIC  |  PediaPro"
+echo "   PediaPro"
 echo "============================================================"
 
 # 0) Pull the latest version if online (safe to skip offline / local changes)
@@ -65,7 +65,7 @@ fi
 APP_PORT="$(python -c "import sys;from app.settings_file import load_env;load_env();from run import chosen_port;print(chosen_port([a for a in sys.argv[1:] if a]))" "${1:-}")"
 
 # 7) Launch the app and open the browser
-echo "[5/5] Starting GROWELL CLINIC at http://localhost:${APP_PORT}"
+echo "[5/5] Starting PediaPro at http://localhost:${APP_PORT}"
 URL="http://localhost:${APP_PORT}"
 ( sleep 2; (command -v xdg-open >/dev/null && xdg-open "$URL") || (command -v open >/dev/null && open "$URL") || true ) >/dev/null 2>&1 &
 python run.py "$APP_PORT"

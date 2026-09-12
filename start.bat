@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC - One-click startup for Windows
+REM   PediaPro - One-click startup for Windows
 REM   Installs everything the app needs, then launches it.
 REM
 REM   To change the port: edit clinic.env (PORT=8080), or run

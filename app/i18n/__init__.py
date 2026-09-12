@@ -1,4 +1,4 @@
-"""Lightweight key-based internationalisation for GROWELL CLINIC.
+"""Lightweight key-based internationalisation for PediaPro.
 
 Every user-facing string flows through ``t("some.key")`` rather than being
 hard-coded. Translations live in JSON files under ``locales/`` (one per

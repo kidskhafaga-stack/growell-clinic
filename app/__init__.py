@@ -1,4 +1,4 @@
-"""Application factory for GROWELL CLINIC."""
+"""Application factory for PediaPro."""
 import os
 import sqlite3
 from datetime import datetime
@@ -245,7 +245,7 @@ def create_app(config_name="default"):
             "MODULE_ICONS": MODULE_ICONS,
             "MODULE_ENDPOINTS": module_endpoints,
             "module_enabled": module_enabled,
-            "clinic_name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
+            "clinic_name": app.config.get("CLINIC_NAME", "PediaPro"),
             "now_date": local_today().isoformat(),
             "now_weekday": datetime.utcnow().weekday(),
             # Two forms, because the sidebar and the About page are asking
@@ -386,7 +386,7 @@ def create_app(config_name="default"):
 
         product_default = "PediaPro"
         defaults = {
-            "name": app.config.get("CLINIC_NAME", "GROWELL CLINIC"),
+            "name": app.config.get("CLINIC_NAME", "PediaPro"),
             "name_ar": None, "logo": None, "logo_url": None,
             "show_logo_login": True, "show_logo_print": True,
             "phone": None, "address": None, "address_en": None, "tagline": None,

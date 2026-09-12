@@ -7,13 +7,19 @@ from werkzeug.utils import secure_filename
 
 from app.i18n import t
 from app.models import Patient, Setting
+from app.utils import numbering
 
 ALLOWED_PHOTO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
 
 # Defaults; overridable via the settings table without code changes.
-DEFAULT_SCHEME = "yearly"          # "yearly" -> PM-2026-0001, "fixed" -> GC-000123
-DEFAULT_YEARLY_PREFIX = "PM"
-DEFAULT_FIXED_PREFIX = "GC"
+DEFAULT_SCHEME = "yearly"          # "yearly" -> AT-2026-0001, "fixed" -> AT-000123
+#
+# The *letters* are not a constant any more. They used to be ``PM`` and
+# ``GC`` — the second one being one particular clinic's initials, handed out
+# by every copy of the program wherever it was installed. They now come from
+# the name of the clinic this copy belongs to, and once a file number has gone
+# out, from the numbers already issued rather than from the name — so renaming
+# a clinic never splits its series. See :mod:`app.utils.numbering`.
 
 
 def _next_sequence(prefix):
@@ -41,16 +47,12 @@ def generate_patient_number(scheme=None, prefix=None):
     scheme = scheme or Setting.get("patient_number_scheme", DEFAULT_SCHEME)
 
     if scheme == "fixed":
-        prefix = prefix or Setting.get(
-            "patient_number_prefix_fixed", DEFAULT_FIXED_PREFIX
-        )
+        prefix = prefix or numbering.prefix_for("fixed")
         base = f"{prefix}-"
         seq = _next_sequence(base)
         candidate = f"{base}{seq:06d}"
     else:  # yearly (default)
-        prefix = prefix or Setting.get(
-            "patient_number_prefix", DEFAULT_YEARLY_PREFIX
-        )
+        prefix = prefix or numbering.prefix_for("yearly")
         year = datetime.utcnow().year
         base = f"{prefix}-{year}-"
         seq = _next_sequence(base)
@@ -127,15 +129,11 @@ def patient_number_allocator(scheme=None, prefix=None):
     """
     scheme = scheme or Setting.get("patient_number_scheme", DEFAULT_SCHEME)
     if scheme == "fixed":
-        prefix = prefix or Setting.get(
-            "patient_number_prefix_fixed", DEFAULT_FIXED_PREFIX
-        )
+        prefix = prefix or numbering.prefix_for("fixed")
         base = f"{prefix}-"
         width = 6
     else:  # yearly
-        prefix = prefix or Setting.get(
-            "patient_number_prefix", DEFAULT_YEARLY_PREFIX
-        )
+        prefix = prefix or numbering.prefix_for("yearly")
         base = f"{prefix}-{datetime.utcnow().year}-"
         width = 4
 

@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC - the hand-off
+REM   PediaPro - the hand-off
 REM ============================================================
 REM
 REM Started BY the program, and it waits for the program to die before it
@@ -29,7 +29,7 @@ if "%PP_PID%"=="" (
   exit /b 1
 )
 
-title GROWELL CLINIC - updating
+title PediaPro - updating
 echo.
 echo ============================================================
 echo    Waiting for the clinic to close...

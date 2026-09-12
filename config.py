@@ -1,4 +1,4 @@
-"""Application configuration for GROWELL CLINIC.
+"""Application configuration for PediaPro.
 
 Configuration is environment-driven so the same codebase can move from the
 default SQLite database to PostgreSQL without code changes.
@@ -11,9 +11,20 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class Config:
     """Base configuration shared by all environments."""
 
+    # **Not renamed, deliberately.** This exact string is a *sentinel*:
+    # `settings_file.ensure_secret` recognises it as "still the shared default
+    # everybody can read" and replaces it with a generated key. Change the
+    # wording and an install still carrying the old literal reads as having a
+    # real key of its own, and never gets one — a security regression dressed
+    # up as a rename. It has to keep matching `settings_file.DEFAULT_SECRET`.
     SECRET_KEY = os.environ.get("SECRET_KEY", "growell-clinic-dev-secret-change-me")
 
     # SQLite by default; set DATABASE_URL to a PostgreSQL URI to upgrade.
+    #
+    # The filename is not renamed either, for the plainest reason there is:
+    # every clinic already running has its data in a file called this, and a
+    # program looking for a different name would come up empty and offer to
+    # set up a new clinic.
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
         "sqlite:///" + os.path.join(basedir, "instance", "growell.db"),
@@ -43,7 +54,13 @@ class Config:
     RATELIMIT_ENABLED = True
 
     # Clinic defaults (overridable via the settings table later).
-    CLINIC_NAME = os.environ.get("CLINIC_NAME", "GROWELL CLINIC")
+    #
+    # **The program's name, not a customer's.** This shipped as «GROWELL
+    # CLINIC» — one particular clinic — and it is the value that actually
+    # wins: `app/__init__.py` reads `CLINIC_NAME` with a "PediaPro" fallback,
+    # but this line is always set, so the fallback never ran and every fresh
+    # copy came up wearing somebody else's sign.
+    CLINIC_NAME = os.environ.get("CLINIC_NAME", "PediaPro")
 
 
 class DevelopmentConfig(Config):

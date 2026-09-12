@@ -59,6 +59,84 @@
   </div>
 </div>
 
+{# ------------------------------------------ the site, and the blood ----- #}
+{# SAS.06 (د) and (و). The site is the never-event: a box saying "marked"
+   with no record of *which* site is how a wrong-side operation gets a
+   signature saying it was verified. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-crosshair"></i> {{ t('theatre.site') }}
+    {% if site_state == 'marked' %}
+    <span class="alert-pill ok"><i class="bi bi-check2-circle"></i>
+      {{ t('theatre.side_' ~ operation.site_side) }}</span>
+    {% else %}
+    <span class="alert-pill warn"><i class="bi bi-exclamation-triangle"></i>
+      {{ t('theatre.site_none') }}</span>
+    {% endif %}
+  </h2>
+
+  {% if site_state == 'marked' %}
+  <p class="hint">{% if operation.site_note %}{{ operation.site_note }} · {% endif %}
+    <span dir="ltr">{{ operation.site_marked_at|clinic_stamp }}</span>
+    {% if operation.marker %} · {{ operation.marker.display_name(current_lang) }}{% endif %}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('theatres.mark_site', operation_id=operation.id) }}"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;min-width:170px;">
+      <label for="op_side">{{ t('theatre.side') }}</label>
+      <select class="select" id="op_side" name="side" required>
+        <option value="">—</option>
+        {# «مش منطبق» is a real answer and the commonest on a children's list.
+           Leaving it out would have people picking "left" to get past the
+           screen, which is worse than the box this replaced. #}
+        {% for k in site_sides %}
+        <option value="{{ k }}" {{ 'selected' if operation.site_side == k else '' }}>
+          {{ t('theatre.side_' ~ k) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row" style="margin:0;flex:1;min-width:180px;">
+      <label for="op_sitenote">{{ t('theatre.site_note') }}</label>
+      <input class="input" id="op_sitenote" name="site_note" maxlength="160"
+             value="{{ operation.site_note or '' }}">
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">
+      <i class="bi bi-pen"></i> {{ t('theatre.site_mark') }}</button>
+  </form>
+
+  <hr style="border:0;border-top:1px solid var(--line);margin:14px 0;">
+
+  <h3 style="margin:0 0 6px;font-size:1rem;"><i class="bi bi-droplet-half"></i>
+    {{ t('theatre.blood') }}
+    <span class="alert-pill {{ 'ok' if blood_state in ('reserved', 'not_needed') else 'warn' }}">
+      {{ t('theatre.blood_' ~ blood_state) }}</span></h3>
+  <form method="post" action="{{ url_for('theatres.blood', operation_id=operation.id) }}"
+        style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0;">
+      <label>{{ t('theatre.blood_needed') }}</label>
+      <div style="display:flex;gap:14px;align-items:center;">
+        <label style="font-weight:400;margin:0;"><input type="radio" name="needed" value="yes"
+          {{ 'checked' if operation.blood_needed else '' }}> {{ t('recovery.followup_yes') }}</label>
+        <label style="font-weight:400;margin:0;"><input type="radio" name="needed" value="no"
+          {{ 'checked' if operation.blood_needed is not none and not operation.blood_needed else '' }}> {{ t('recovery.followup_no') }}</label>
+      </div>
+    </div>
+    <div class="form-row" style="margin:0;width:110px;">
+      <label for="op_units">{{ t('theatre.blood_units') }}</label>
+      <input class="input" type="number" min="0" id="op_units" name="units"
+             value="{{ operation.blood_units or '' }}">
+    </div>
+    <div class="form-row" style="margin:0;">
+      <label style="font-weight:400;"><input type="checkbox" name="reserved" value="1"
+        {{ 'checked' if operation.blood_reserved_at else '' }}> {{ t('theatre.blood_confirmed') }}</label>
+    </div>
+    <button class="btn btn-outline gc-press" type="submit">{{ t('common.save') }}</button>
+  </form>
+</div>
+
 {# --------------------------------------------------- the anaesthetic ---- #}
 {# Two things the standard asks for by name and the program had neither of:
    an assessment *immediately before induction* (SAS.16 EOC 5), and a plan
@@ -212,7 +290,15 @@
       <input type="hidden" name="stop" value="{{ stop }}">
       <div class="op-items">
         {% for item in items[stop] %}
-        {% if item == 'anaesthesia_check' %}
+        {% if item == 'site_marked' %}
+        {# Read from the recorded marking. The never-event box. #}
+        <label class="op-item {{ 'op-missed' if short and item in short else '' }}"
+               title="{{ t('theatre.site_read_only') }}">
+          <input type="checkbox" disabled {{ 'checked' if site_state == 'marked' else '' }}>
+          <span>{{ t('theatre.item_' ~ item) }}
+            <i class="bi bi-crosshair" style="opacity:.6;"></i></span>
+        </label>
+        {% elif item == 'anaesthesia_check' %}
         {# Read from the pre-induction assessment, not ticked. Same rule as
            the consent, and the same reason: an assessment is not a box. #}
         <label class="op-item {{ 'op-missed' if short and item in short else '' }}"

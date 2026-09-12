@@ -22,8 +22,16 @@ DEMO_USERS = [
 ]
 
 DEFAULT_SETTINGS = {
-    "clinic_name": "GROWELL CLINIC",
-    "clinic_name_ar": "جروويل كلينك",
+    # **The program's name, not a customer's.** These shipped as «GROWELL
+    # CLINIC», which is one particular clinic — so every fresh copy came up
+    # wearing somebody else's sign, and whoever installed it had to notice
+    # and correct it before anybody saw a printed receipt.
+    #
+    # Changing the default renames nobody: `_ensure_default_settings` only
+    # writes a key that is missing, so a clinic that has set its own name
+    # keeps it, and one mid-setup keeps whatever it typed.
+    "clinic_name": "PediaPro",
+    "clinic_name_ar": "PediaPro",
     # Product/marketing brand (the software name) — editable in settings.
     "product_name": "PediaPro",
     "product_name_en": "PediaPro",
@@ -31,10 +39,14 @@ DEFAULT_SETTINGS = {
     "default_language": "ar",
     "currency": "EGP",
     "default_growth_reference": "WHO",
-    # Patient file numbering (see app/utils/patients.py).
+    # Patient file numbering (see app/utils/patients.py). **The letters are
+    # deliberately absent.** They used to ship as "PM" and "GC" — and a row
+    # written here is a row `app.utils.numbering` must treat as the clinic's
+    # own choice, so seeding them meant every copy of the program handed out
+    # one particular clinic's initials and no derivation could ever fire.
+    # Left unset, the prefix follows the clinic's name until the first file
+    # number is issued, and is written down then.
     "patient_number_scheme": "yearly",      # "yearly" | "fixed"
-    "patient_number_prefix": "PM",          # used by the yearly scheme
-    "patient_number_prefix_fixed": "GC",    # used by the fixed scheme
     # WhatsApp / messaging.
     "crm_mode": "manual",                   # "manual" (wa.me links) | "automatic" (API)
     "wa_provider": "web",                   # "web" | "cloud_api" | "wapilot"

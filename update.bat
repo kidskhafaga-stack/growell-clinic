@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC | PediaPro  --  Update
+REM   PediaPro  --  Update
 REM ============================================================
 REM
 REM Updating is a decision, not something that happens because somebody

@@ -1,4 +1,4 @@
-// GROWELL CLINIC — front-end interactions (no framework dependency).
+// PediaPro — front-end interactions (no framework dependency).
 (function () {
   "use strict";
 

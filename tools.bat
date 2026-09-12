@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM   GROWELL CLINIC - Maintenance
+REM   PediaPro - Maintenance
 REM   The commands you need after an update, a move to a new PC,
 REM   or when something needs putting right. Nothing here runs
 REM   by itself: pick a number.

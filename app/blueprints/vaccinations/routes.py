@@ -1324,8 +1324,11 @@ def verify(token):
         .order_by(PatientVaccine.given_date)
         .all()
     )
+    # One clinic's name is not a sensible fallback for every other clinic's:
+    # this is the public vaccination certificate, and an unnamed copy used to
+    # stamp somebody else's sign on it.
     clinic = (Setting.get("clinic_name_ar") or Setting.get("clinic_name")
-              or "GROWELL CLINIC")
+              or "PediaPro")
     return render_template(
         "vaccinations/verify.html", patient=patient, given=given,
         clinic=clinic, now_date=local_today().isoformat(),
