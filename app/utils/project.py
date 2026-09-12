@@ -185,6 +185,12 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("رقم الملف بياخد حروفه من اسم العيادة اللي البرنامج متسطّب عندها — "
+     "وبعد أول رقم يطلع، بياخدها من الأرقام نفسها، فتغيير اسم العيادة "
+     "ما بيقسمش السلسلة",
+     "The file number takes its letters from the name of the clinic it is "
+     "installed for — and after the first one is issued, from the numbers "
+     "themselves, so renaming a clinic never splits its series"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

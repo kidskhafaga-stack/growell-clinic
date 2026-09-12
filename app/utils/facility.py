@@ -277,6 +277,14 @@ def apply_facility(type_key, facility_name, caps, modules):
     Setting.set("facility_type", type_key)
     if facility_name:
         Setting.set("clinic_name", facility_name)
+        # The wizard is usually where the program first learns whose clinic
+        # it is. A fresh copy needs nothing done — the letters derive from
+        # the name on their own. This is for the copy that upgraded into
+        # the derivation carrying the old shipped `PM`/`GC` rows, which a
+        # stored value outranks: with no file number issued yet, the wizard
+        # is allowed to clear them out. Once one is issued, it declines.
+        from app.utils import numbering
+        numbering.adopt_clinic_name()
     clean_caps = [c for c in caps if c in CAPABILITY_MODULES]
     Setting.set("facility_capabilities", json.dumps(clean_caps))
     wanted = set(modules)

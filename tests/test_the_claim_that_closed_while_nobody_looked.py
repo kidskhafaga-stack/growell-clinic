@@ -138,13 +138,21 @@ def test_the_money_is_due_counted_from_submission_not_from_the_visit(insurer):
     only date they would accept being held to."""
     from app.models.payer import Claim
     from app.utils import claim_clock
+    from app.utils.clock import local_date
 
     invoice_id = _covered_bill(insurer, days_ago=60)
     claim_id = _sent_claim(insurer, invoice_id, days_ago=45)
     with insurer["app"].app_context():
         claim = insurer["db"].session.get(Claim, claim_id)
+        # **The clinic's calendar, not the server's.** ``submitted_at`` is a
+        # UTC stamp and ``.date()`` reads a UTC date off it, which is a
+        # different day from ``local_today()`` for the hours after the clinic
+        # has crossed midnight and UTC has not — so this line asserted a due
+        # date one day early, and only between 21:00 and midnight UTC. The
+        # production side already counts in the clinic's calendar on purpose
+        # (see ``claim_clock.sent_on``); it was the test that was mixing.
         assert claim_clock.payment_due(claim) == \
-            claim.submitted_at.date() + timedelta(days=30)
+            local_date(claim.submitted_at) + timedelta(days=30)
         assert claim_clock.days_overdue(claim) == 15
 
 

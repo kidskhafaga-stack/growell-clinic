@@ -438,12 +438,29 @@
           <option value="fixed" {{ 'selected' if values.get('patient_number_scheme') == 'fixed' else '' }}>{{ t('settings.scheme_fixed') }} (GC-000123)</option>
         </select></div>
       <div class="form-row"><label>{{ t('settings.prefix_yearly') }}</label>
-        <input class="input" name="patient_number_prefix" dir="ltr" placeholder="PM"
+        <input class="input" name="patient_number_prefix" dir="ltr"
+               placeholder="{{ number_prefix_suggested }}"
                value="{{ values.get('patient_number_prefix','') }}"></div>
       <div class="form-row"><label>{{ t('settings.prefix_fixed') }}</label>
-        <input class="input" name="patient_number_prefix_fixed" dir="ltr" placeholder="GC"
+        <input class="input" name="patient_number_prefix_fixed" dir="ltr"
+               placeholder="{{ number_prefix_suggested }}"
                value="{{ values.get('patient_number_prefix_fixed','') }}"></div>
     </div>
+    <p class="hint" style="margin-top:2px;">{{ t('settings.prefix_derived_hint') }}</p>
+    <p class="hint" style="margin-top:2px;">
+      {{ t('settings.prefix_now') }}:
+      <strong dir="ltr">{{ number_prefix_now }}</strong>
+    </p>
+    {% if number_series|length > 1 %}
+      {# More than one series on file is a real state — somebody changed the
+         letters after handing numbers out. Saying so is the only way the
+         note underneath stops being a surprise. #}
+      <p class="hint" style="margin-top:2px;">
+        {{ t('settings.prefix_series_in_use') }}:
+        {% for head, count in number_series %}<span dir="ltr">{{ head }}</span>&nbsp;({{ count }}){% if not loop.last %} · {% endif %}{% endfor %}
+      </p>
+      <p class="hint" style="margin-top:2px;">{{ t('settings.prefix_series_note') }}</p>
+    {% endif %}
   </div>
 
   <!-- Appointments board display -->

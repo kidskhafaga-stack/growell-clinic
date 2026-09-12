@@ -587,9 +587,19 @@ def index():
                      if (values.get(k) or "").strip()}
     for key in SECRET_KEYS:
         values[key] = ""
+    from app.utils import numbering
+
     return render_template(
         "settings/index.html", values=values, ai_providers=AI_PROVIDERS,
         saved_secrets=saved_secrets,
+        # The file number's letters: what the clinic's name asks for, what is
+        # actually in force, and every series that already exists in the
+        # files on record. Read-only — this screen does not settle anything;
+        # issuing a number does.
+        number_prefix_suggested=numbering.suggest(),
+        number_prefix_now=numbering.prefix_for(
+            values.get("patient_number_scheme") or numbering.DEFAULT_SCHEME),
+        number_series=numbering.series(),
         # What this copy is, and how it knows. A clone can answer for itself;
         # a downloaded copy reads the stamp `update.bat` wrote.
         installed_revision=_installed_now(),

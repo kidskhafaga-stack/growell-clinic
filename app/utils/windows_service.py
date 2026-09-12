@@ -36,6 +36,12 @@ asks ``/healthz`` on a schedule and restarts the first when it stops answering.
 """
 import os
 
+# **Identifiers, not labels — deliberately not renamed with the rest.** Every
+# copy already installed registered its scheduled task under these exact
+# names; `sc`, `schtasks`, the uninstaller and `update.bat` all find it by
+# them. Renaming these to match the program's new name would leave the old
+# task running, invisible to the new one, and a clinic with two servers
+# fighting over one port. The descriptions above are what a person reads.
 SERVICE_NAME = "GrowellClinic"
 WATCHDOG_NAME = "GrowellClinicWatchdog"
 
@@ -129,7 +135,7 @@ def service_xml(root):
     """The task that runs the clinic."""
     return task_xml(
         root, command=os.path.join(root, "serve.bat"),
-        description="GROWELL CLINIC — runs the clinic server and restarts it "
+        description="PediaPro — runs the clinic server and restarts it "
                     "if it stops. Starts at boot, before anybody signs in.",
         boot=True)
 
@@ -138,7 +144,7 @@ def watchdog_xml(root, every_minutes=5):
     """The task that checks the first one is *answering*, not merely alive."""
     return task_xml(
         root, command=os.path.join(root, "watchdog.bat"),
-        description="GROWELL CLINIC — asks the clinic server whether it is "
+        description="PediaPro — asks the clinic server whether it is "
                     "answering, and restarts it when it is not.",
         boot=False, every_minutes=every_minutes)
 
