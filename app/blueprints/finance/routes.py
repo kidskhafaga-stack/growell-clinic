@@ -322,6 +322,18 @@ def _apply_service_engine_fields(svc):
         from app.utils.invoice_sections import all_sections
         known = {r.key for r in all_sections()}
         svc.invoice_section = section if section in known else None
+        # What the family is told to do at home after this procedure, and
+        # when it would usually be seen again. Blank stays blank on both: a
+        # service with no instructions sends nothing rather than an empty
+        # message, and no follow-up days means this procedure does not
+        # routinely need one.
+        svc.post_op_instructions = (
+            (request.form.get("post_op_instructions") or "").strip() or None)
+        raw_days = (request.form.get("followup_days") or "").strip()
+        try:
+            svc.followup_days = int(raw_days) if raw_days else None
+        except (TypeError, ValueError):
+            svc.followup_days = None
     svc.cost = request.form.get("cost", type=float)
     svc.duration_minutes = request.form.get("duration_minutes", type=int)
     svc.device_id = request.form.get("device_id", type=int) or None
@@ -357,7 +369,7 @@ def services():
         db.session.commit()
         flash(t("services.auto_seeded"), "info")
     from app.models import ETA_ITEM_TYPES, MedicalDevice, StoreItem
-    from app.models import PatientPackage
+    from app.models import CARE_BASES, CareCharge, PatientPackage
     from app.utils import case_types as ctypes
     from app.utils import packages as pkgs
     from app.utils import service_types as st
@@ -429,6 +441,16 @@ def services():
         # exceptions already set — so the per-doctor editor can draw a row
         # per kind instead of only the one ordinary rate.
         case_kinds=ctypes.active_types(),
+        # How this hospital charges nursing and medical care — its own rule,
+        # in its own shape, and nothing at all where it defined none.
+        care_rows=CareCharge.query.order_by(CareCharge.sort_order,
+                                            CareCharge.id).all(),
+        care_bases=CARE_BASES,
+        care_usage={cid: n for cid, n in
+                    db.session.query(InvoiceItem.care_charge_id,
+                                     db.func.count(InvoiceItem.id))
+                    .filter(InvoiceItem.care_charge_id.isnot(None))
+                    .group_by(InvoiceItem.care_charge_id).all()},
         case_rates_for=_case_rate_map(),
         package_usage={
             pid: n for pid, n in
@@ -537,6 +559,127 @@ def invoice_section_delete(section_id):
     db.session.commit()
     flash(t("services.section_deleted"), "info")
     return _section_redirect()
+
+
+@finance_bp.route("/services/care/new", methods=["POST"])
+@module_required(MODULE)
+def care_charge_new():
+    """Define how this hospital charges nursing and medical care.
+
+    A rule, never a number the program picked: *«فى ناس بتحسبها كده وفى ناس
+    بتحسبها كده»*. Choosing one shape and shipping it would be this program
+    settling a commercial policy that differs from hospital to hospital.
+    """
+    from app.models import CARE_BASES, CareCharge
+    from app.utils.ordering import append_order
+
+    try:
+        service_id = int(request.form.get("service_id") or 0)
+    except (TypeError, ValueError):
+        service_id = 0
+    service = db.session.get(Service, service_id) if service_id else None
+    if service is None:
+        # The price list is where a clinic says what things are, and a care
+        # charge is not an exception to that.
+        flash(t("common.required") + ": " + t("care.service"), "danger")
+        return _care_redirect()
+
+    basis = (request.form.get("basis") or "").strip()
+    if basis not in CARE_BASES:
+        basis = "per_day"
+    try:
+        amount = float(request.form.get("amount") or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    if amount <= 0:
+        flash(t("care.need_amount"), "danger")
+        return _care_redirect()
+
+    db.session.add(CareCharge(
+        name_ar=(request.form.get("name") or "").strip() or None,
+        name_en=(request.form.get("name_en") or "").strip() or None,
+        service_id=service.id, basis=basis, amount=round(amount, 2),
+        sections=_care_sections(),
+        invoice_kind=_care_kind(),
+        is_active=True, sort_order=append_order(CareCharge)))
+    db.session.commit()
+    flash(t("care.added"), "success")
+    return _care_redirect()
+
+
+def _care_sections():
+    """Which bill sections a percentage is levied on, as stored.
+
+    Empty means **everything chargeable** — a real policy, not an unset
+    field: a hospital that takes its fee on the whole bill says so by naming
+    no exclusions. Checked against the catalogue, because a section nothing
+    recognises would silently exclude everything.
+    """
+    from app.utils.invoice_sections import all_sections
+
+    known = {row.key for row in all_sections()}
+    picked = [k for k in request.form.getlist("sections") if k in known]
+    return ",".join(picked) or None
+
+
+def _care_kind():
+    from app.models import INVOICE_KINDS
+
+    kind = (request.form.get("invoice_kind") or "").strip()
+    return kind if kind in INVOICE_KINDS else None
+
+
+@finance_bp.route("/services/care/save", methods=["POST"])
+@module_required(MODULE)
+def care_charges_save():
+    """Rename, reprice, retire.
+
+    The **basis** is not editable here on purpose: a rule that changes from a
+    daily rate to a percentage is a different rule, and the bills already
+    carrying its lines would silently mean something else. A different shape
+    is a new rule and the old one switched off.
+    """
+    from app.models import CareCharge
+
+    for row in CareCharge.query.all():
+        row.name_ar = (request.form.get(f"cname_{row.id}") or "").strip() or None
+        row.name_en = (request.form.get(f"cname_en_{row.id}") or "").strip() or None
+        try:
+            row.amount = round(float(request.form.get(f"camount_{row.id}") or 0), 2)
+        except (TypeError, ValueError):
+            pass
+        row.is_active = bool(request.form.get(f"cactive_{row.id}"))
+    db.session.commit()
+    flash(t("care.saved"), "success")
+    return _care_redirect()
+
+
+@finance_bp.route("/services/care/<int:charge_id>/delete", methods=["POST"])
+@module_required(MODULE)
+def care_charge_delete(charge_id):
+    """Remove a rule nothing has billed under.
+
+    One that has reached a bill is switched off instead: its lines point at
+    it, and deleting it would leave charges on somebody's account that nothing
+    explains.
+    """
+    from app.models import CareCharge
+
+    row = db.get_or_404(CareCharge, charge_id)
+    used = InvoiceItem.query.filter_by(care_charge_id=row.id).count()
+    if used:
+        row.is_active = False
+        db.session.commit()
+        flash(t("care.billed_deactivated").replace("{n}", str(used)), "warning")
+        return _care_redirect()
+    db.session.delete(row)
+    db.session.commit()
+    flash(t("care.deleted"), "info")
+    return _care_redirect()
+
+
+def _care_redirect():
+    return redirect(url_for("finance.services") + "#care")
 
 
 @finance_bp.route("/services/packages/new", methods=["POST"])
@@ -3140,6 +3283,12 @@ def _checkout_screen(appt, patient):
             flash(t("cashier.nothing_to_collect"), "warning")
             return redirect(_checkout_url(appt, patient_id))
 
+        # The clinic's own care charges, where it defined any — a daily rate,
+        # a percentage of the sections it named, or both. Before the discount
+        # and the coverage, because it is part of what the bill comes to.
+        from app.utils import care_charges
+
+        care_charges.apply(invoice, lang=lang)
         disc, auto = _chosen_discount()
         if disc is not None:
             _apply_named_discount(invoice, disc)

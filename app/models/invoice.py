@@ -357,6 +357,16 @@ class InvoiceItem(db.Model):
     # ever established. :attr:`on_date` is where the fallback is applied, for
     # display and ordering only.
     service_date = db.Column(db.Date, index=True)
+    # **Which care rule wrote this line**, when one did.
+    #
+    # The only derived line in the program: nursing and medical care are a
+    # function of the rest of the bill, so a stay posted again on its fifth
+    # night has to *correct* this line to five days rather than add a second
+    # line of four. Without this column the correction has nothing to find,
+    # and the alternative — matching on the service — breaks the moment two
+    # rules bill as the same service.
+    care_charge_id = db.Column(db.Integer, db.ForeignKey("care_charges.id"),
+                               nullable=True, index=True)
     unit_price = db.Column(db.Float, default=0, nullable=False)
     quantity = db.Column(db.Integer, default=1, nullable=False)
     discount_value = db.Column(db.Float, default=0)          # raw input

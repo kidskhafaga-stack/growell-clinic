@@ -212,16 +212,23 @@ def test_a_stop_signed_short_keeps_what_was_not_ticked(hospital):
     to prevent, manufactured by the software meant to prevent it.
     """
     operation = _book(hospital, _child(hospital, "سلمى"))
+    # ``consent`` is posted here and still comes back missing, which is the
+    # assertion: it is no longer an ordinary box. It is read from the consent
+    # linked to the case — and this case has none.
     _sign(hospital, operation, "sign_in",
-          items=["identity", "consent", "allergy"])
+          items=["identity", "allergy", "airway", "consent"])
 
     state = _state(hospital, operation)
     # Signed — the stop happened and the case may start.
     assert "sign_in" in state["done"]
     assert state["ready"]
     # And short, with the missing items named rather than counted.
+    #
+    # ``consent`` among them *although it was ticked* — the item a family's
+    # signature answers cannot be supplied by whoever is filling in the form.
+    # See test_the_tick_that_could_lie.py for the whole of that rule.
     assert set(state["missed"]["sign_in"]) == {
-        "site_marked", "airway", "anaesthesia_check", "pulse_oximeter"}
+        "site_marked", "consent", "anaesthesia_check", "pulse_oximeter"}
 
 
 def test_an_unknown_item_cannot_be_smuggled_into_a_signature(hospital):
@@ -251,12 +258,14 @@ def test_signing_the_same_stop_again_updates_it(hospital):
 
     operation = _book(hospital, _child(hospital, "لينا"))
     _sign(hospital, operation, "sign_in", items=["identity"])
-    _sign(hospital, operation, "sign_in", items=["identity", "consent"])
+    # Ordinary items on purpose: ``consent`` is answered from the record now,
+    # so using it here would be testing that feature rather than this one.
+    _sign(hospital, operation, "sign_in", items=["identity", "allergy"])
 
     with hospital["app"].app_context():
         rows = SafetyCheck.query.filter_by(operation_id=operation).all()
         assert len(rows) == 1
-        assert set(rows[0].items) == {"identity", "consent"}
+        assert set(rows[0].items) == {"identity", "allergy"}
         assert len(hospital["db"].session.get(Operation, operation).checks) == 1
 
 
@@ -705,7 +714,7 @@ def test_a_nurse_may_run_the_checklist(hospital):
 
     page = client.post(f"/theatres/operation/{operation}/sign",
                        data={"stop": "sign_in", "item": ["identity",
-                                                         "consent"]},
+                                                         "allergy"]},
                        follow_redirects=True)
 
     from app.models.theatre import Operation
@@ -717,7 +726,7 @@ def test_a_nurse_may_run_the_checklist(hospital):
     # an empty checklist.
     with hospital["app"].app_context():
         row = hospital["db"].session.get(Operation, operation)
-        assert set(row.check_for("sign_in").items) == {"identity", "consent"}
+        assert set(row.check_for("sign_in").items) == {"identity", "allergy"}
 
 
 def test_the_signature_carries_who_signed_it(hospital):

@@ -180,6 +180,116 @@
   </form>
 </details>
 
+<!-- Nursing and medical care: a rule, not a number this program picked.
+     «فى ناس بتحسبها كده وفى ناس بتحسبها كده» — so the hospital says which
+     shape it is, and a clinic that defines none sees nothing change. -->
+<details class="card gc-scale-in" id="care" style="animation-delay:0.051s;">
+  <summary class="section-title" style="cursor:pointer;">
+    <i class="bi bi-bandaid"></i> {{ t('care.title') }}
+    <span class="badge badge--muted">{{ care_rows|length }}</span></summary>
+  <p class="hint" style="margin-top:10px;">{{ t('care.hint') }}</p>
+
+  {% if care_rows %}
+  <form method="post" action="{{ url_for('finance.care_charges_save') }}" style="margin-top:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <div style="overflow-x:auto;">
+      <table class="table" style="min-width:760px;">
+        <thead><tr>
+          <th>{{ t('care.name') }}</th>
+          <th>{{ t('services.name_en') }}</th>
+          <th>{{ t('care.service') }}</th>
+          <th style="width:130px;">{{ t('care.basis') }}</th>
+          <th style="width:120px;">{{ t('care.amount') }}</th>
+          <th>{{ t('care.on_sections') }}</th>
+          <th style="width:100px;">{{ t('invoices.kind') }}</th>
+          <th style="width:80px;">{{ t('care.billed') }}</th>
+          <th style="width:80px;">{{ t('services.is_active') }}</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {% for row in care_rows %}
+          <tr>
+            <td><input class="input" name="cname_{{ row.id }}" value="{{ row.name_ar or '' }}"
+                       placeholder="{{ row.display_name(current_lang) }}"></td>
+            <td><input class="input" name="cname_en_{{ row.id }}" dir="ltr" value="{{ row.name_en or '' }}"></td>
+            <td>{{ row.service.display_name(current_lang) if row.service else '—' }}</td>
+            {# The basis is not editable: a rule that changes from a daily rate
+               to a percentage is a different rule, and the bills already
+               carrying its lines would silently mean something else. #}
+            <td style="font-weight:600;">{{ t('care.basis_' ~ row.basis) }}</td>
+            <td><input class="input" type="number" step="0.01" min="0" name="camount_{{ row.id }}"
+                       value="{{ row.amount }}">
+              <span class="hint">{{ '٪' if row.basis == 'percent' else '' }}</span></td>
+            <td style="font-size:.85rem;color:var(--muted);">
+              {% if row.basis != 'percent' %}—
+              {% elif not row.section_keys %}{{ t('care.all_sections') }}
+              {% else %}{% for k in row.section_keys %}{{ t('invoice_sections.' ~ k) }}{{ '، ' if not loop.last }}{% endfor %}{% endif %}</td>
+            <td style="font-size:.85rem;">{{ t('invoices.kind_' ~ row.invoice_kind) if row.invoice_kind else t('invoices.kind_all') }}</td>
+            <td style="text-align:center;">{{ care_usage.get(row.id, 0) }}</td>
+            <td style="text-align:center;"><input type="checkbox" name="cactive_{{ row.id }}" value="1" {{ 'checked' if row.is_active else '' }}></td>
+            <td style="text-align:end;">
+              <button class="btn btn-danger btn-sm gc-press" type="submit" formnovalidate
+                      formaction="{{ url_for('finance.care_charge_delete', charge_id=row.id) }}"
+                      onclick="return confirm('{{ t('common.confirm') }}?');"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary btn-sm gc-press" type="submit" style="margin-top:8px;"><i class="bi bi-check-lg"></i> {{ t('common.save') }}</button>
+  </form>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('finance.care_charge_new') }}"
+        style="margin-top:14px;" x-data="{ basis: 'per_day' }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ q or '' }}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <div class="form-row" style="margin:0;flex:1;min-width:170px;"><label>{{ t('care.name') }}</label>
+        <input class="input" name="name" placeholder="{{ t('care.name_ph') }}"></div>
+      <div class="form-row" style="margin:0;flex:1;min-width:200px;"><label>{{ t('care.service') }} *</label>
+        <select class="select" name="service_id" required>
+          <option value="">—</option>
+          {% for s in services if s.is_active %}
+          <option value="{{ s.id }}">{{ s.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="form-row" style="margin:0;width:160px;"><label>{{ t('care.basis') }} *</label>
+        <select class="select" name="basis" x-model="basis">
+          {% for b in care_bases %}<option value="{{ b }}">{{ t('care.basis_' ~ b) }}</option>{% endfor %}
+        </select></div>
+      <div class="form-row" style="margin:0;width:140px;">
+        <label x-text="basis === 'percent' ? '{{ t('care.percent') }}' : '{{ t('care.per_day_amount') }}'"></label>
+        <input class="input" type="number" step="0.01" min="0" name="amount" required></div>
+      <div class="form-row" style="margin:0;width:150px;"><label>{{ t('invoices.kind') }}</label>
+        <select class="select" name="invoice_kind">
+          <option value="">{{ t('invoices.kind_all') }}</option>
+          <option value="inpatient">{{ t('invoices.kind_inpatient') }}</option>
+          <option value="outpatient">{{ t('invoices.kind_outpatient') }}</option>
+        </select></div>
+    </div>
+
+    {# **Which parts the percentage is levied on** — the thing that makes such
+       a charge definable at all, and checkable by a family afterwards. Ticking
+       nothing means the whole bill, which is a real policy. #}
+    <div x-show="basis === 'percent'" x-cloak style="margin-top:10px;">
+      <p class="hint" style="margin-bottom:6px;">{{ t('care.sections_hint') }}</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        {% for row in section_choices %}
+        <label style="font-weight:400;display:flex;gap:5px;align-items:center;">
+          <input type="checkbox" name="sections" value="{{ row.key }}">
+          <span>{{ row.display_name(current_lang) }}</span></label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button class="btn btn-outline gc-press" type="submit" style="margin-top:10px;">
+      <i class="bi bi-plus-lg"></i> {{ t('care.new') }}</button>
+  </form>
+</details>
+
 <!-- Packages: the second way to sell a service that already has a price.
      Asked for as «خلي الاثنين متاحين باقة وجلسة بجلسة» — both, on the same
      screen, so a course never becomes a separate service with a separate
@@ -440,6 +550,17 @@
                     <select class="select" name="eta_item_type">
                       {% for it in item_types %}<option value="{{ it }}" {{ 'selected' if s.eta_item_type==it else '' }}>{{ it }}</option>{% endfor %}
                     </select></div>
+                  {# **What the family is told to do at home**, written per
+                     procedure — «ويتكتبلها تعليمات بعد الجراحة حسب العملية».
+                     Blank sends nothing; a message that says only "post-op
+                     instructions:" and then stops is worse than none. #}
+                  <div class="form-row" style="grid-column:1/-1;">
+                    <label>{{ t('recovery.service_instructions') }}</label>
+                    <textarea class="input" name="post_op_instructions" rows="3">{{ s.post_op_instructions or '' }}</textarea></div>
+                  <div class="form-row"><label>{{ t('recovery.service_followup_days') }}</label>
+                    <input class="input" type="number" min="0" name="followup_days"
+                           value="{{ s.followup_days if s.followup_days is not none else '' }}">
+                    <span class="hint">{{ t('recovery.service_followup_hint') }}</span></div>
                   <div class="form-row"><label>{{ t('services.price') }}</label><input class="input" type="number" step="0.01" name="price" value="{{ s.price }}"></div>
                   <div class="form-row"><label>{{ t('services.cost') }}</label><input class="input" type="number" step="0.01" name="cost" value="{{ s.cost if s.cost is not none else '' }}"></div>
                   <div class="form-row"><label>{{ t('services.duration') }}</label><input class="input" type="number" min="0" name="duration_minutes" value="{{ s.duration_minutes or '' }}"></div>

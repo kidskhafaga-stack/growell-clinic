@@ -1,0 +1,115 @@
+{% extends "shell.html" %}
+{% set active_module = 'theatres' %}
+{% block title %}{{ t('recovery.title') }}{% endblock %}
+{% block page_heading %}{{ t('recovery.title') }}{% endblock %}
+
+{% block content %}
+<div class="gc-animate">
+  <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+    <div>
+      <h1 class="page-title"><i class="bi bi-heart-pulse"></i> {{ t('recovery.title') }}</h1>
+      <p class="hint" style="margin:4px 0 0;">{{ t('recovery.hint') }}</p>
+    </div>
+    <a class="btn btn-outline gc-press" href="{{ url_for('theatres.index') }}">
+      <i class="bi bi-calendar3"></i> {{ t('theatre.the_day') }}</a>
+  </div>
+
+  {# **In the room now.** Longest wait first: the child who has been here two
+     hours is the one somebody should be asking about. #}
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 class="section-title"><i class="bi bi-hourglass-split"></i> {{ t('recovery.here') }}
+      <span class="badge badge--muted">{{ here|length }}</span></h2>
+    {% if here %}
+    <table class="table">
+      <thead><tr><th>{{ t('invoices.patient') }}</th><th>{{ t('theatre.procedure') }}</th>
+        <th style="width:150px;">{{ t('recovery.since') }}</th><th style="width:110px;"></th></tr></thead>
+      <tbody>
+        {% for op in here %}
+        <tr>
+          <td>{{ op.patient.display_name(current_lang) if op.patient else '—' }}</td>
+          <td>{{ op.procedure }}</td>
+          <td dir="ltr">{{ op.recovery_at|clinic_stamp if op.recovery_at else '—' }}</td>
+          <td style="text-align:end;">
+            <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+              <i class="bi bi-box-arrow-right"></i> {{ t('recovery.discharge') }}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--muted);margin:8px 0 0;">{{ t('recovery.room_empty') }}</p>
+    {% endif %}
+  </div>
+
+  {# The list that exists because the first one is not enough: a case nobody
+     marked into recovery is a case nobody is counting. #}
+  {% if waiting %}
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 class="section-title"><i class="bi bi-exclamation-circle"></i> {{ t('recovery.not_home_yet') }}
+      <span class="badge badge--muted">{{ waiting|length }}</span></h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('recovery.not_home_hint') }}</p>
+    <table class="table">
+      <thead><tr><th>{{ t('invoices.patient') }}</th><th>{{ t('theatre.procedure') }}</th>
+        <th style="width:120px;">{{ t('invoices.date') }}</th><th style="width:110px;"></th></tr></thead>
+      <tbody>
+        {% for op in waiting %}
+        <tr>
+          <td>{{ op.patient.display_name(current_lang) if op.patient else '—' }}</td>
+          <td>{{ op.procedure }}</td>
+          <td dir="ltr">{{ op.on_date }}</td>
+          <td style="text-align:end;">
+            <a class="btn btn-outline btn-sm gc-press" href="{{ url_for('theatres.operation', operation_id=op.id) }}">
+              <i class="bi bi-arrow-left-right"></i></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {# The other half of the decision: recording "yes, in ten days" and having
+     no list of who that was is the same as not recording it. #}
+  {% if expecting %}
+  <div class="card gc-scale-in" style="margin-bottom:14px;">
+    <h2 class="section-title"><i class="bi bi-calendar-check"></i> {{ t('recovery.expected_back') }}
+      <span class="badge badge--muted">{{ expecting|length }}</span></h2>
+    <table class="table">
+      <thead><tr><th>{{ t('invoices.patient') }}</th><th>{{ t('theatre.procedure') }}</th>
+        <th style="width:130px;">{{ t('recovery.followup_on') }}</th></tr></thead>
+      <tbody>
+        {% for op in expecting %}
+        <tr>
+          <td>{{ op.patient.display_name(current_lang) if op.patient else '—' }}</td>
+          <td>{{ op.procedure }}</td>
+          <td dir="ltr">{{ op.followup_on }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {# Should be empty — the discharge screen refuses a blank answer. What lands
+     here are the cases sent home before the question existed. #}
+  {% if undecided %}
+  <div class="card gc-scale-in">
+    <h2 class="section-title"><i class="bi bi-question-circle"></i> {{ t('recovery.nobody_decided') }}
+      <span class="badge badge--muted">{{ undecided|length }}</span></h2>
+    <p class="hint" style="margin-top:-4px;">{{ t('recovery.nobody_decided_hint') }}</p>
+    <table class="table">
+      <thead><tr><th>{{ t('invoices.patient') }}</th><th>{{ t('theatre.procedure') }}</th>
+        <th style="width:120px;">{{ t('invoices.date') }}</th></tr></thead>
+      <tbody>
+        {% for op in undecided %}
+        <tr>
+          <td>{{ op.patient.display_name(current_lang) if op.patient else '—' }}</td>
+          <td>{{ op.procedure }}</td>
+          <td dir="ltr">{{ op.on_date }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

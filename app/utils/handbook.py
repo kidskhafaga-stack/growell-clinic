@@ -1770,6 +1770,52 @@ SECTIONS = [
              "price, \"as usual\" means their ordinary commission, and "
              "\"none\" means they are paid nothing on that kind. A case with "
              "no kind prices at the doctor's ordinary rate exactly as before."),
+            ("<b>بند «الموافقة» في الـchecklist بيتقرا من الإقرار</b>، مش "
+             "بيتعلّم بالإيد. في صفحة العملية بتربط الإقرار اللي بيغطّيها من "
+             "إقرارات ملف الطفل، والبند بيتعلّم لوحده لو الإقرار <b>موقّع "
+             "ومش مسحوب ومدته سارية يوم العملية</b> — وبيتشال لوحده لو لأ، "
+             "حتى لو حد علّمه. الشاشة بتقول السبب بالظبط: مش مربوط · من غير "
+             "توقيع · اتسحب · انتهت مدته.",
+             "<b>The checklist's consent item is read from the consent</b>, "
+             "not ticked by hand. On the case screen you link which of the "
+             "child's consents covers it, and the item ticks itself when that "
+             "consent is <b>signed, not withdrawn, and still standing on the "
+             "day of the operation</b> — and unticks itself when it is not, "
+             "however firmly somebody ticked. The screen names which of the "
+             "four it is: not linked · unsigned · withdrawn · expired."),
+            ("<b>وما بيمنعش العملية</b>: المستشفى ممكن تمشي، والبرنامج "
+             "بيسجّل مش بيقفل. اللي مش هيحصل إن النقص ده يتحسب علامة خضرا — "
+             "بيفضل ظاهر كنقص في الـchecklist.",
+             "<b>And it refuses nothing</b>: a hospital may proceed, and the "
+             "program records rather than blocks. What it will not do is show "
+             "the gap as a green tick — it stays visible as a missed item."),
+            ("<b>الإفاقة والخروج</b>: بعد ما العملية تخلص، زرار «دخلت "
+             "الإفاقة»، وبعدين شاشة الخروج. شاشة <b>الإفاقة</b> بتوريك مين "
+             "في الأوضة دلوقتي، و<b>مين خلّص ولسه ما خرجش</b> — حتى لو محدش "
+             "علّم دخوله الإفاقة أصلاً، وده بالظبط اللي بيتنسي.",
+             "<b>Recovery and discharge</b>: when the case finishes, one "
+             "press moves the child to recovery, then the discharge screen. "
+             "The <b>recovery</b> screen shows who is in the room now and "
+             "<b>who finished and has not gone home</b> — including cases "
+             "nobody marked into recovery at all, which are exactly the ones "
+             "that get forgotten."),
+            ("<b>قرار المتابعة ما ينفعش يتسكّت عنه</b>: الخروج بيترفض من غير "
+             "إجابة «محتاج متابعة؟ أيوه/لأ». السبب إن «مش محتاج» و«محدش سأل» "
+             "لو اتحطوا في خانة واحدة بيبقوا نفس الحاجة — والطفل اللي محدش "
+             "شافه تاني بيكون التاني مش الأول.",
+             "<b>The follow-up decision cannot be skipped</b>: a discharge is "
+             "refused without a yes or no. If \"not needed\" and \"nobody "
+             "asked\" share one column they become the same thing — and the "
+             "child nobody sees again is the second, not the first."),
+            ("<b>تعليمات بعد الجراحة بتتكتب على العملية</b> (في الخدمة)، "
+             "وبتتبعت للأهل وهم واقفين على الباب — مش بكرة. العملية اللي "
+             "مفيش لها تعليمات ما بتبعتش رسالة فاضية، والشاشة بتقولك إنها "
+             "ناقصة عشان تتكتب المرة الجاية.",
+             "<b>Post-operative instructions are written per procedure</b> "
+             "(on the service) and sent to the family at the door, not "
+             "tomorrow. A procedure with none sends nothing rather than an "
+             "empty message, and the screen says so, so it can be written "
+             "before the next one."),
             ("<b>التخدير بند لوحده</b> لما العيادة تسعّره: الجراح والمخدّر "
              "اتنين بيشتغلوا، وكل واحد أتعابه على بنده. سعّر خدمة "
              "<b>SVC-ANAES</b> بصفر وما هتشوفش البند خالص — العيادة اللي سعر "
@@ -1779,6 +1825,35 @@ SECTIONS = [
              "on their own line. Leave the <b>SVC-ANAES</b> service at zero "
              "and the line never appears — a clinic whose operation price "
              "already includes the anaesthetic sees no change at all."),
+            ("<b>الرعاية التمريضية والطبية — بالطريقتين</b>. المستشفيات "
+             "بتحسبها بشكلين: <b>مبلغ يومي</b> بيتضرب في عدد الليالي، أو "
+             "<b>نسبة</b> من الفاتورة. البرنامج ما بيختارش لك — انت بتعرّف "
+             "القاعدة بشكلها، وتقدر تحط الاتنين مع بعض. والعيادة اللي ما "
+             "تعرّفش ولا واحدة ما بيتغيّرش عندها حاجة خالص.",
+             "<b>Nursing and medical care — both ways</b>. Hospitals work it "
+             "out in two shapes: a <b>daily amount</b> times the nights, or a "
+             "<b>percentage</b> of the bill. The program does not choose for "
+             "you — you define the rule in its shape, and you may have both. "
+             "A clinic that defines neither sees no change at all."),
+            ("<b>النسبة بتتحسب على الأقسام اللي انت تسمّيها</b> — الشائع في "
+             "مصر إنها على كل حاجة ما عدا الأدوية والدمغة، وده بالظبط اللي "
+             "بند الفاتورة اتعمل عشانه. ما تختارش أقسام = الفاتورة كلها. "
+             "و<b>النسبة عمرها ما بتتحسب على بند رعاية تاني</b> — لا على "
+             "نفسها ولا على التانية.",
+             "<b>The percentage is taken of the sections you name</b> — the "
+             "common Egyptian practice is everything except medicines and "
+             "stamps, which is exactly what the bill-section axis exists for. "
+             "Naming none means the whole bill. And <b>a percentage is never "
+             "levied on another care charge</b> — not on itself, not on the "
+             "other one."),
+            ("<b>بند الرعاية بيتصحّح مش بيتزاد</b>: الإقامة الطويلة بتترحّل "
+             "كل يوم، ولو البند كان بيتزاد كان رعاية الليلة الرابعة هتتحسب "
+             "أربع مرات. وقاعدة بتتقفل بيتشال بندها بدل ما يفضل واقف برقم "
+             "إمبارح.",
+             "<b>The care line is corrected, not added to</b>: a long stay is "
+             "posted every day, and a line that accumulated would bill the "
+             "fourth night's nursing four times. A rule switched off has its "
+             "line removed rather than left standing at yesterday's figure."),
             ("<b>بند الفاتورة</b> هو اللي الفاتورة بتتجمّع بيه في الملخّص "
              "(إقامة · عمليات · أدوية · مستلزمات …). سيبه فاضي والبرنامج "
              "يستنتجه من تصنيف الخدمة، والقايمة نفسها تتزوّد وتتعدّل من "

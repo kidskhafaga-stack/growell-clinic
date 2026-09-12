@@ -468,9 +468,44 @@ class Consent(db.Model):
     withdrawn_reason = db.Column(db.String(255))
     withdrawn_by = db.Column(db.Integer, db.ForeignKey("users.id"))
 
+    # --- How long it stands ---------------------------------------------
+    #
+    # A consent signed in March for an operation that finally happens in
+    # November is a piece of paper, not an agreement — the family have not
+    # been told anything since. Recorded as a date the clinic sets, never a
+    # window this program invents: how long a consent stands is a policy, and
+    # the program does not write a clinic's policies.
+    #
+    # NULL is **no expiry recorded**, which is what every consent signed
+    # before this column has, and it is treated as standing. Anything else
+    # would retroactively invalidate documents that were valid when they were
+    # taken.
+    valid_until = db.Column(db.Date, index=True)
+
     @property
     def is_withdrawn(self):
         return self.withdrawn_at is not None
+
+    def expired_on(self, day=None):
+        """Whether this consent had run out by ``day``.
+
+        ``False`` for a consent with no expiry recorded — see the column.
+        """
+        if not self.valid_until:
+            return False
+        return (day or local_today()) > self.valid_until
+
+    def stands_on(self, day=None):
+        """Whether this consent can be relied on for something happening on
+        ``day``: signed by somebody, not withdrawn, and not run out.
+
+        The signature is part of it and not a nicety. A consent row carrying a
+        guardian's name and nothing else is a claim that somebody agreed; the
+        signature is the only thing in it that is evidence.
+        """
+        return (self.has_signature
+                and not self.is_withdrawn
+                and not self.expired_on(day))
 
     patient = db.relationship("Patient", backref=db.backref(
         "consents", cascade="all, delete-orphan", order_by="Consent.signed_date.desc()"))

@@ -502,6 +502,27 @@ ADDITIONS = [
     # The anaesthesia line, when the clinic bills it separately. Its own
     # column because the two lines are owed to two different people.
     ("operations", "anaesthesia_item_id", "INTEGER"),
+    # Recovery and going home. Stamps rather than statuses, so ``status``
+    # keeps meaning what the billing query already reads it to mean.
+    ("operations", "recovery_at", "DATETIME"),
+    ("operations", "discharged_at", "DATETIME"),
+    ("operations", "discharged_by", "INTEGER"),
+    ("operations", "discharge_note", "TEXT"),
+    ("operations", "followup_needed", "BOOLEAN"),
+    ("operations", "followup_on", "DATE"),
+    ("operations", "instructions_sent_at", "DATETIME"),
+    ("services", "post_op_instructions", "TEXT"),
+    ("services", "followup_days", "INTEGER"),
+    # Which consent covers this operation, and how long a consent stands.
+    # Both NULL on everything already recorded, and both mean "nobody said" —
+    # an unlinked case is one nobody linked, not one with no consent, and a
+    # consent with no expiry is one whose clinic never set one.
+    ("operations", "consent_id", "INTEGER"),
+    ("consents", "valid_until", "DATE"),
+    # Which care rule wrote a line, so the next posting corrects it instead
+    # of adding a second one. NULL on every line ever written, which is right:
+    # none of them was written by a rule.
+    ("invoice_items", "care_charge_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):

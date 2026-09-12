@@ -129,6 +129,56 @@ def safety(operation):
     }
 
 
+#: The checklist item a family's signature is supposed to answer. Named here
+#: because :func:`sign` refuses to take it from the form — see
+#: :func:`consent_state`.
+CONSENT_ITEM = "consent"
+
+
+def consent_state(operation):
+    """Whether a signed, standing consent covers this case — in one word.
+
+    ``linked`` · ``unsigned`` · ``withdrawn`` · ``expired`` · ``none``, and
+    they are five different conversations at the theatre door. Lumping them
+    into a boolean would tell whoever is holding the knife that something is
+    wrong without telling them what, which is the same as telling them
+    nothing.
+
+    Checked **against the day of the operation**, not against today: a case
+    reviewed a week later must read as it read on the morning it happened.
+    """
+    if operation is None or operation.consent_id is None:
+        return "none"
+    row = operation.consent
+    if row is None:
+        return "none"
+    if row.is_withdrawn:
+        return "withdrawn"
+    if not row.has_signature:
+        return "unsigned"
+    if row.expired_on(operation.on_date):
+        return "expired"
+    return "linked"
+
+
+def consent_ok(operation):
+    """The one question the checklist item asks."""
+    return consent_state(operation) == "linked"
+
+
+def consent_choices(operation):
+    """The consents on this child's file that could cover this case.
+
+    Everything not withdrawn, newest first — **including the unsigned and the
+    expired ones**, because the person linking has to be able to see that the
+    document they were about to rely on is unsigned. Hiding them would turn a
+    visible problem into an empty list.
+    """
+    if operation is None or operation.patient is None:
+        return []
+    return [c for c in operation.patient.consents if not c.is_withdrawn]
+
+
 def reviews(operation):
     """What the surgeon and the anaesthetist have said about this case.
 
@@ -222,6 +272,22 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
 
     known = set(CHECK_ITEMS.get(stop, ()))
     confirmed = [i for i in (items or []) if i in known]
+
+    # **The consent item is read, never taken.** Reported as the thing that
+    # was wrong: *«بند الموافقة في الـ checklist بيتعلّم بالإيد حتى لو مفيش
+    # إقرار متسجّل»* — a tick that could say a family had consented when no
+    # document said so.
+    #
+    # So it is answered from the record in both directions: ticked when a
+    # signed, standing consent is linked to this case even if nobody thought
+    # to tick it, and dropped when none is, however firmly somebody ticked.
+    # The stop can still be signed — a hospital may proceed, and this program
+    # records rather than refuses — but the gap then shows in ``missed``,
+    # where it is a finding instead of a green tick.
+    if CONSENT_ITEM in known:
+        confirmed = [i for i in confirmed if i != CONSENT_ITEM]
+        if consent_ok(operation):
+            confirmed.append(CONSENT_ITEM)
 
     row = operation.check_for(stop)
     if row is None:
