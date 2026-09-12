@@ -505,6 +505,44 @@
                       {% endfor %}
                     </tbody>
                   </table>
+                  {% if case_kinds %}
+                  {# **Per kind of case.** The same operation by the same
+                     surgeon is three numbers and three fees — «فيه تسعيرين
+                     للعملية اذا كانت خاصة او مستشفى او طوارئ». A blank price
+                     means the doctor's ordinary price stands; a blank
+                     commission means their ordinary commission stands, and
+                     «بدون» means nothing is paid on this kind. #}
+                  <p class="hint" style="margin-top:12px;"><i class="bi bi-diagram-3"></i> {{ t('case_types.rates_hint') }}</p>
+                  <div style="overflow-x:auto;">
+                  <table class="table" style="min-width:640px;">
+                    <thead><tr><th>{{ t('nav.users') }}</th><th>{{ t('case_types.title') }}</th>
+                      <th>{{ t('services.price') }}</th><th>{{ t('services.commission_type') }}</th>
+                      <th>{{ t('services.commission_value') }}</th></tr></thead>
+                    <tbody>
+                      {% for d in doctors %}
+                      {% for k in case_kinds %}
+                      {% set cr = case_rates_for.get((s.id, d.id, k.key)) %}
+                      <tr>
+                        <td>{% if loop.first %}{{ d.display_name(current_lang) }}{% endif %}</td>
+                        <td><i class="bi {{ k.icon or 'bi-tag' }}"></i> {{ k.display_name(current_lang) }}</td>
+                        <td><input class="input" type="number" step="0.01" name="cprice_{{ d.id }}_{{ k.key }}"
+                                   value="{{ cr.price_override if cr and cr.price_override is not none else '' }}"
+                                   placeholder="{{ t('case_types.same_as_usual') }}"></td>
+                        <td><select class="select" name="ctype_{{ d.id }}_{{ k.key }}">
+                            <option value="">{{ t('case_types.same_as_usual') }}</option>
+                            {% for ct in commission_types %}
+                            <option value="{{ ct }}" {{ 'selected' if cr and cr.commission_type == ct else '' }}>{{ t('commission_types.' ~ ct) }}</option>
+                            {% endfor %}
+                          </select></td>
+                        <td><input class="input" type="number" step="0.01" name="cvalue_{{ d.id }}_{{ k.key }}"
+                                   value="{{ cr.commission_value if cr and cr.commission_value else '' }}"></td>
+                      </tr>
+                      {% endfor %}
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  </div>
+                  {% endif %}
                   <button class="btn btn-primary btn-sm gc-press" type="submit">{{ t('common.save') }}</button>
                 </form>
               </details>

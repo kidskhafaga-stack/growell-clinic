@@ -28,6 +28,7 @@
 | الخدمات المجمّعة (Bundles) | `Service.is_bundle` + `ServiceBundleItem` + شاشة الخدمات |
 | باقات الجلسات — عدد جلسات بسعر واحد، تتسحب جلسة جلسة | `ServicePackage` + `PatientPackage` + `PackageUse` · `app/utils/packages.py` · شاشة الخدمات والتحصيل |
 | شكل الفاتورة — ملخّص بأقسام فوق التفاصيل، وكل بند بتاريخه، وفلتر داخلي/خارجي | `Invoice.kind` (مشتق من الإقامة) + `InvoiceItem.service_date` · `app/utils/invoice_totals.py` · شاشة الفاتورة والقايمة |
+| نوع الحالة وأتعاب الجراح والمخدّر | `CaseType` + `DoctorCaseRate` + `Operation.case_type` · `app/utils/case_rates.py` · شاشة العمليات والخدمات |
 | لوحة التزام التطعيمات | `/vaccinations/compliance` |
 | إيصال حراري 58/80mm | `finance/receipt_thermal.html` |
 | قوالب القياس ونتائج الأجهزة | `DeviceMeasurement` + شاشة إعدادات الأجهزة |

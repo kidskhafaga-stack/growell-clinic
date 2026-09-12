@@ -52,7 +52,9 @@ from app.models.high_alert import HighAlertDrug
 from app.models.lasa_pair import LasaPair
 from app.models.med_error import (ERROR_OUTCOMES, ERROR_STAGES,
                                   OUTCOME_BANDS, MedicationError)
-from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, OPERATION_STATUSES,
+from app.models.theatre import (CASE_TYPE_ICONS, CASE_TYPES, CHECK_ITEMS,
+                               CHECK_STOPS, CaseType, DoctorCaseRate,
+                               OPERATION_STATUSES,
                                Operation, PreOpReview, REVIEW_KINDS,
                                REVIEW_VERDICTS, SafetyCheck, Theatre)
 from app.models.observation import (AVPU, INTERVALS, OXYGEN_SUPPORT,
@@ -290,6 +292,10 @@ __all__ = [
     "OUTCOME_BANDS",
     "Theatre",
     "Operation",
+    "CASE_TYPES",
+    "CASE_TYPE_ICONS",
+    "CaseType",
+    "DoctorCaseRate",
     "PreOpReview",
     "REVIEW_KINDS",
     "REVIEW_VERDICTS",

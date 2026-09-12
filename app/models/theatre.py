@@ -30,6 +30,18 @@ from datetime import datetime
 
 from app.extensions import db
 
+#: The kinds of case a theatre list carries, seeded into :class:`CaseType`.
+#: A **price and a fee**, not a label: the same operation by the same surgeon
+#: is three different numbers depending which of these it is.
+CASE_TYPES = ["private", "hospital", "emergency"]
+
+#: Icon per built-in kind, so a list stays scannable by shape.
+CASE_TYPE_ICONS = {
+    "private": "bi-person-badge",
+    "hospital": "bi-hospital",
+    "emergency": "bi-exclamation-triangle",
+}
+
 # Where an operation is in its day. Recorded rather than derived from times:
 # "booked for ten" and "actually started at ten past eleven" are different
 # facts, and a list of today's operations has to be able to say which of them
@@ -119,6 +131,27 @@ class Operation(db.Model):
                                 index=True)
     team = db.Column(db.String(255))
 
+    # **Private, hospital, or emergency** — and it is a price, not a label.
+    # Reported as *«فيه تسعيرين للعملية اذا كانت خاصة او مستشفى او طوارئ»*,
+    # and then again for the people: *«واتعاب الجراح برده علشان الحالات
+    # الخاصة وحالات الطوارئ وحالات المستشفى»*. The same appendicectomy by the
+    # same surgeon is three different numbers and three different fees.
+    #
+    # Nullable, and NULL means **nobody said** — every case booked before
+    # this column has that answer, and they price exactly as they always did:
+    # at the doctor's ordinary rate. It is not "private" with the paperwork
+    # missing.
+    case_type = db.Column(db.String(30), index=True)
+
+    # The anaesthesia line, when the clinic bills it separately. A second
+    # link rather than a second use of ``invoice_item_id``: the two lines are
+    # owed to two different people, and one column pointing at whichever was
+    # written last is how a surgeon's fee ends up in an anaesthetist's
+    # statement.
+    anaesthesia_item_id = db.Column(db.Integer,
+                                    db.ForeignKey("invoice_items.id"),
+                                    nullable=True, index=True)
+
     status = db.Column(db.String(16), default="scheduled", nullable=False,
                        index=True)
     started_at = db.Column(db.DateTime)
@@ -139,7 +172,10 @@ class Operation(db.Model):
 
     patient = db.relationship("Patient")
     theatre = db.relationship("Theatre")
-    invoice_item = db.relationship("InvoiceItem")
+    invoice_item = db.relationship("InvoiceItem",
+                                   foreign_keys=[invoice_item_id])
+    anaesthesia_item = db.relationship("InvoiceItem",
+                                       foreign_keys=[anaesthesia_item_id])
     admission = db.relationship("Admission", backref="operations")
     service = db.relationship("Service")
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
@@ -285,3 +321,94 @@ class PreOpReview(db.Model):
 
     def __repr__(self):
         return f"<PreOpReview {self.kind} {self.verdict}>"
+
+
+class CaseType(db.Model):
+    """The kinds of case this clinic prices differently.
+
+    Seeded with private, hospital and emergency because those are the three
+    the clinic named — and **open**, like the bill sections and unlike the
+    accounting category, for the same reason: nothing reads one by name. A
+    rate is found by matching whatever key the case carries against whatever
+    key the rate carries, so a hospital that also prices «تعاقد» gets a
+    working fourth kind the minute somebody types it.
+    """
+
+    __tablename__ = "case_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    name_ar = db.Column(db.String(60))
+    name_en = db.Column(db.String(60))
+    icon = db.Column(db.String(40))
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Seeded rows keep their key, because a clinic renaming «طوارئ» must not
+    # thereby detach every emergency rate already set under it.
+    is_system = db.Column(db.Boolean, default=False, nullable=False)
+
+    def display_name(self, lang="ar"):
+        name = self.name_en if lang == "en" else self.name_ar
+        if name:
+            return name
+        from app.i18n import t
+
+        key = "case_types." + self.key
+        try:
+            label = t(key)
+        except RuntimeError:
+            return self.key
+        return label if label != key else self.key
+
+    def __repr__(self):
+        return f"<CaseType {self.key}>"
+
+
+class DoctorCaseRate(db.Model):
+    """What one doctor charges for one service **on one kind of case**.
+
+    A third key on a pairing that already had two, and deliberately its own
+    table rather than a column on :class:`DoctorServiceCommission`. That table
+    is unique on ``(doctor, service)``, and a clinic's existing database
+    carries that constraint: adding a case type there would work perfectly in
+    tests — which build their schema from the models — and raise on the second
+    rate every real clinic tried to save. A new table is created by
+    ``create_all`` on every machine, old and new.
+
+    So the two tables say two different things, and both are true:
+    :class:`DoctorServiceCommission` is *this doctor's ordinary rate*, and
+    this is *the exception for emergencies* (or for private cases, or for
+    whatever fourth kind a hospital invents).
+
+    **NULL is not zero, in both columns here.** A row that overrides only the
+    price leaves ``commission_type`` NULL and the doctor's ordinary commission
+    stands; a row that says ``none`` means they are paid nothing on this kind
+    of case, which is a different and deliberate statement. One empty value
+    standing for both is the bug this project keeps meeting.
+    """
+
+    __tablename__ = "doctor_case_rates"
+    __table_args__ = (
+        db.UniqueConstraint("doctor_id", "service_id", "case_type",
+                            name="uq_doctor_service_case"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                          nullable=False, index=True)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                           nullable=False, index=True)
+    case_type = db.Column(db.String(30), nullable=False, index=True)
+    # NULL = the doctor's ordinary price stands. 0 = they do this kind of
+    # case for nothing, which a hospital list genuinely says.
+    price_override = db.Column(db.Float)
+    # NULL = their ordinary commission stands. "none" = nothing on this kind.
+    commission_type = db.Column(db.String(10))
+    commission_value = db.Column(db.Float)
+
+    doctor = db.relationship("User")
+    service = db.relationship("Service")
+
+    def __repr__(self):
+        return (f"<DoctorCaseRate doc={self.doctor_id} "
+                f"svc={self.service_id} {self.case_type}>")

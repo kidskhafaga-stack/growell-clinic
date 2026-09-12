@@ -222,6 +222,20 @@
           {% endfor %}
         </select>
       </div>
+      {% if case_kinds %}
+      {# Private, hospital or emergency — chosen here because it is what the
+         case *is*, and because the surgeon's and the anaesthetist's rates both
+         hang off it. Empty is a real answer: the doctor's ordinary rate. #}
+      <div class="form-row" style="margin-bottom:0;min-width:150px;">
+        <label for="th_case_type">{{ t('case_types.title') }}</label>
+        <select class="select" id="th_case_type" name="case_type">
+          <option value="">{{ t('case_types.unset') }}</option>
+          {% for k in case_kinds %}
+          <option value="{{ k.key }}">{{ k.display_name(current_lang) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
       <div class="form-row" style="margin-bottom:0;min-width:170px;">
         <label for="th_surgeon">{{ t('theatre.surgeon') }}</label>
         <select class="select" id="th_surgeon" name="surgeon_id">

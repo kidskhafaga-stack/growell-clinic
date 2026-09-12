@@ -57,6 +57,7 @@ from app.utils.pricing import (
     service_for_visit_type,
 )
 from app.utils import billing
+from app.utils import case_rates
 from app.utils import einvoice as eta
 
 MODULE = "finance"
@@ -357,6 +358,7 @@ def services():
         flash(t("services.auto_seeded"), "info")
     from app.models import ETA_ITEM_TYPES, MedicalDevice, StoreItem
     from app.models import PatientPackage
+    from app.utils import case_types as ctypes
     from app.utils import packages as pkgs
     from app.utils import service_types as st
     from app.utils import invoice_sections as isec
@@ -423,6 +425,11 @@ def services():
         # The packages, and how many families are on each — a count that
         # decides whether deleting one is allowed at all.
         package_rows=pkgs.catalogue(active_only=False),
+        # The kinds of case this clinic prices differently, and the
+        # exceptions already set — so the per-doctor editor can draw a row
+        # per kind instead of only the one ordinary rate.
+        case_kinds=ctypes.active_types(),
+        case_rates_for=_case_rate_map(),
         package_usage={
             pid: n for pid, n in
             db.session.query(PatientPackage.package_id,
@@ -432,6 +439,19 @@ def services():
         appt_types=list(APPOINTMENT_TYPES),
         visit_type_label=lambda key: vt_label(key, lang),
     )
+
+
+def _case_rate_map():
+    """Every case-type exception, keyed ``(service, doctor, kind)``.
+
+    Loaded once for the whole screen rather than queried per row: the
+    services screen draws every doctor against every kind inside every
+    service, and a query in that loop is thousands of them.
+    """
+    from app.models import DoctorCaseRate
+
+    return {(r.service_id, r.doctor_id, r.case_type): r
+            for r in DoctorCaseRate.query.all()}
 
 
 # ---------------------------------------------------------------- types ----
@@ -793,9 +813,54 @@ def service_commissions(service_id):
             db.session.add(oc)
         oc.commission_type, oc.commission_value = ctype, cval
         oc.price_override = price
+    _save_case_rates(svc)
     db.session.commit()
     flash(t("services.commissions_saved"), "success")
     return redirect(url_for("finance.services"))
+
+
+def _save_case_rates(svc):
+    """The per-kind exceptions, saved beside the doctor's ordinary rate.
+
+    Two separate emptinesses here, and they are the whole point:
+
+    * a **blank price** means the doctor's ordinary price stands — it is not
+      zero, which a hospital list genuinely uses to mean "free on this kind";
+    * a **blank commission type** means their ordinary commission stands,
+      while ``none`` means nothing is paid on this kind of case.
+
+    A row that says neither is deleted rather than kept as a row full of
+    nulls: an exception nobody made should not be findable as one.
+    """
+    from app.models import DoctorCaseRate
+    from app.utils import case_types
+
+    existing = {(r.doctor_id, r.case_type): r for r in
+                DoctorCaseRate.query.filter_by(service_id=svc.id).all()}
+    kinds = [row.key for row in case_types.active_types()]
+    for doc in _doctors():
+        for kind in kinds:
+            field = f"{doc.id}_{kind}"
+            raw_price = (request.form.get(f"cprice_{field}") or "").strip()
+            price = (request.form.get(f"cprice_{field}", type=float)
+                     if raw_price != "" else None)
+            ctype = (request.form.get(f"ctype_{field}") or "").strip()
+            if ctype not in COMMISSION_TYPES:
+                ctype = ""
+            cval = request.form.get(f"cvalue_{field}", type=float) or 0
+
+            row = existing.get((doc.id, kind))
+            if price is None and not ctype:
+                if row is not None:
+                    db.session.delete(row)
+                continue
+            if row is None:
+                row = DoctorCaseRate(doctor_id=doc.id, service_id=svc.id,
+                                     case_type=kind)
+                db.session.add(row)
+            row.price_override = price
+            row.commission_type = ctype or None
+            row.commission_value = cval if ctype else None
 
 
 @finance_bp.route("/services/<int:service_id>/bundle", methods=["POST"])
@@ -2506,21 +2571,47 @@ def _dispensed_lines(patient_id, lang):
 
 
 def _operation_lines(patient_id, lang):
-    """Those day cases as checkout lines.
+    """Those day cases as checkout lines — the surgery, and the anaesthetic.
 
-    Priced at **the surgeon's** rate for the service, because the price list
-    can carry a per-doctor price and the person who did the operation is the
-    one it is being charged for.
+    Priced at **the surgeon's rate for this kind of case**, through the same
+    resolver the ward's posting uses. The two doors used to price the same
+    operation differently — this one at the surgeon's rate, the ward's at the
+    list price — so a family paid one number as a day case and another as an
+    admission, and neither screen knew the other existed.
+
+    The anaesthetic is a **second line**, because it is owed to a second
+    person: *«سعر الجراح والمخدر مختلف وبيختلف بين طبيب وطبيب»*. It appears
+    only where the clinic priced anaesthesia and named an anaesthetist — a
+    clinic whose operation price includes the anaesthetic never sees it.
     """
+    from app.utils import case_rates, theatres
+
     lines = []
+    anaes = theatres.anaesthesia_service()
     for op in _unbilled_operations(patient_id):
         service = op.service
         lines.append({
             "service_id": service.id,
             "description": f"{service.display_name(lang)} — {op.procedure}"[:200],
-            "unit_price": service.price_for(op.surgeon) or 0,
+            "unit_price": case_rates.price_for(service, op.surgeon,
+                                               op.case_type),
             "quantity": 1,
             "op_id": op.id,
+        })
+        if (anaes is None or not anaes.is_active
+                or op.anaesthetist is None
+                or op.anaesthesia_item_id is not None):
+            continue
+        price = case_rates.price_for(anaes, op.anaesthetist, op.case_type)
+        if price <= 0:
+            continue
+        lines.append({
+            "service_id": anaes.id,
+            "description": (f"{anaes.display_name(lang)} — "
+                            f"{op.procedure}")[:200],
+            "unit_price": price,
+            "quantity": 1,
+            "anaes_op_id": op.id,
         })
     return lines
 
@@ -2842,6 +2933,12 @@ def _checkout_screen(appt, patient):
         op_ids = request.form.getlist("line_op_id")
         cases = {op.id: op for op in _unbilled_operations(patient_id)}
         billed_cases = {}       # invoice line -> the operation it charged for
+        # The anaesthetic is its own claim on its own field: two lines
+        # carrying one operation id would both try to stamp
+        # ``invoice_item_id``, and the surgeon's fee would end up recorded as
+        # whichever was written last.
+        anaes_ids = request.form.getlist("line_anaes_op_id")
+        billed_anaes = {}       # invoice line -> the operation it gassed
         test_ids = request.form.getlist("line_test_id")
         drawn = {row.id: row for row in _unbilled_tests(patient_id)}
         billed_tests = {}       # invoice line -> the lab order it charged for
@@ -2926,14 +3023,22 @@ def _checkout_screen(appt, patient):
             if handover is not None:
                 billed_rx[id(item)] = handover
             case = _case_for_line(cases, op_ids, i)
+            gassed = _case_for_line(cases, anaes_ids, i)
             # **Which day this line's work happened**, when it was not today.
             # Left NULL for everything raised on the day, because the
             # invoice's own date already says so and writing it twice would
             # make "nobody recorded it" unreadable.
             item.service_date = _worked_on(
-                case or test or handover
+                case or gassed or test or handover
                 or _row_for_line(doctor_added, vs_ids, i))
             line_doctor = None
+            if gassed is not None:
+                # Theirs, on the line. Without this the anaesthetist's fee is
+                # paid to whoever the invoice belongs to, and the two people
+                # the theatre owes become one person in the books.
+                item.doctor_id = gassed.anaesthetist_id or None
+                line_doctor = gassed.anaesthetist
+                billed_anaes[id(item)] = gassed
             if case is not None:
                 item.doctor_id = case.surgeon_id or None
                 # The object, not the id: the relationship on a line that has
@@ -2959,8 +3064,13 @@ def _checkout_screen(appt, patient):
             # the brand's doctor_fee, tracked on the dose — never double-paid).
             no_comm = i < len(nocomms) and nocomms[i] in ("1", "on", "true")
             if svc is not None and not no_comm:
-                item.commission_amount = svc.doctor_share(
-                    item.net, line_doctor or invoice.doctor)
+                # A theatre line is paid at the rate for **this kind of
+                # case**; every other line resolves to exactly what it always
+                # did, because a case with no kind falls straight through.
+                theatre_case = case or gassed
+                item.commission_amount = case_rates.share_for(
+                    svc, item.net, line_doctor or invoice.doctor,
+                    theatre_case.case_type if theatre_case else None)
             invoice.items.append(item)
             new_items.append(item)
             kept.append(i)
@@ -2977,6 +3087,9 @@ def _checkout_screen(appt, patient):
             case = billed_cases.get(id(item))
             if case is not None:
                 case.invoice_item_id = item.id
+            gassed = billed_anaes.get(id(item))
+            if gassed is not None:
+                gassed.anaesthesia_item_id = item.id
             test = billed_tests.get(id(item))
             if test is not None:
                 test.invoice_item_id = item.id

@@ -50,6 +50,9 @@ def index():
     if request.args.get("mine") and current_user.is_authenticated:
         who = current_user.id
     return render_template("theatres/index.html",
+                           # What kinds of case this clinic prices
+                           # differently, for the booking form.
+                           case_kinds=_case_kinds(),
                            on_date=on_date, rooms=theatre.day(on_date, who=who),
                            who=who,
                            # How many are waiting, on the button that opens
@@ -117,6 +120,34 @@ def toggle_room(room_id):
     return redirect(url_for("theatres.setup"))
 
 
+def _case_kinds():
+    """The kinds a case can be, for the pickers.
+
+    Empty stays empty: a clinic that switched every kind off never sees the
+    field, and every case it books prices at the doctor's ordinary rate —
+    exactly as it did before any of this existed.
+    """
+    from app.utils import case_types
+
+    return case_types.active_types()
+
+
+def _a_case_type(raw):
+    """A posted kind of case, or ``None``.
+
+    Checked against the catalogue rather than stored as typed: this string
+    decides which rate a surgeon is paid at, and a value nothing matches
+    would silently fall back to the ordinary rate while the screen showed a
+    kind somebody chose.
+    """
+    from app.utils import case_types
+
+    key = (raw or "").strip()
+    if not key:
+        return None
+    return key if key in {row.key for row in case_types.all_types()} else None
+
+
 # ------------------------------------------------------------ booking it ---
 @theatres_bp.route("/book", methods=["POST"])
 @module_required(MODULE)
@@ -136,6 +167,7 @@ def book():
             anaesthetist_id=request.form.get("anaesthetist_id", type=int),
             start_time=_a_time(request.form.get("start_time")),
             minutes=request.form.get("minutes", type=int),
+            case_type=_a_case_type(request.form.get("case_type")),
             team=(request.form.get("team") or "").strip()[:255])
     except ValueError as why:
         db.session.rollback()
@@ -170,6 +202,7 @@ def operation(operation_id):
                                   .filter(Theatre.is_active.is_(True))
                                   .order_by(Theatre.sort_order, Theatre.id)
                                   .all()),
+                           case_kinds=_case_kinds(),
                            surgeons=_surgeons(), services=_procedures())
 
 
@@ -329,6 +362,10 @@ def edit(operation_id):
     row.service_id = request.form.get("service_id", type=int)
     row.surgeon_id = request.form.get("surgeon_id", type=int)
     row.anaesthetist_id = request.form.get("anaesthetist_id", type=int)
+    # Cleared the same way, and for the same reason: a case booked as private
+    # by mistake has to be able to end up as a case nobody classified, which
+    # is a real state and not "private with the label removed".
+    row.case_type = _a_case_type(request.form.get("case_type"))
     db.session.commit()
     flash(t("theatre.saved"), "success")
     return redirect(url_for("theatres.operation", operation_id=row.id))
