@@ -81,6 +81,16 @@ CAPABILITY_SERVICES = {
     "ward": [("SVC-WARD", "إقامة داخلية (يوم)", "Inpatient ward (day)", 800, "other", "none", 0),
              ROUND_SERVICE],
 
+    # **The anaesthetic, priced on its own.** Reported as «سعر الجراح والمخدر
+    # مختلف وبيختلف بين طبيب وطبيب» — two people doing two jobs, and one
+    # line on the bill carrying only the surgeon's fee. It ships at zero on
+    # purpose: a clinic whose operation price already includes the
+    # anaesthetic leaves it at zero and never sees a second line, and one
+    # that bills it separately types a number. The price is the switch, the
+    # way it is for the consultant's round.
+    "surgery": [("SVC-ANAES", "تخدير", "Anaesthesia", 0, "procedure",
+                 "percent", 40)],
+
     # Paediatric dentistry, and the word paediatric is doing work here. A
     # general dental list carries implants, bridges and dentures; a
     # five-year-old has none of them, and every row like that is a row

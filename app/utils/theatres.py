@@ -25,6 +25,7 @@ from app.extensions import db
 from app.models.theatre import (CHECK_ITEMS, CHECK_STOPS, REVIEW_KINDS,
                                 REVIEW_VERDICTS, SIGN_IN, SIGN_OUT, TIME_OUT,
                                 Operation, PreOpReview, SafetyCheck, Theatre)
+from app.utils import case_rates
 from app.utils.clock import local_today
 
 
@@ -319,7 +320,14 @@ def charge(admission, invoice, user=None, lang="ar"):
     due = unbilled(admission_id=admission.id)
     for operation in due:
         service = operation.service
-        price = float(service.price or 0)
+        surgeon = operation.surgeon or invoice.doctor
+        # **The surgeon's rate for this kind of case**, which is one number
+        # resolved in one place. It used to be ``service.price`` here and
+        # ``service.price_for(surgeon)`` at the desk, so the same operation
+        # cost a family one thing through a stay and another thing as a day
+        # case — and neither door knew the other existed.
+        price = float(case_rates.price_for(service, surgeon,
+                                           operation.case_type))
         item = InvoiceItem(
             invoice_id=invoice.id, service_id=service.id,
             description=_line(operation, service, lang),
@@ -328,8 +336,8 @@ def charge(admission, invoice, user=None, lang="ar"):
         # The surgeon's share, snapshotted like any other chargeable line —
         # and read against **the surgeon**, not the admitting doctor, because
         # the person who did the operation is the person it is owed to.
-        item.commission_amount = service.doctor_share(
-            item.net, operation.surgeon or invoice.doctor)
+        item.commission_amount = case_rates.share_for(
+            service, item.net, surgeon, operation.case_type)
         # And recorded on the line, so repricing the bill from the cash list
         # later works it out at the surgeon's rate rather than handing it back
         # to the doctor the invoice belongs to.
@@ -337,7 +345,75 @@ def charge(admission, invoice, user=None, lang="ar"):
         db.session.add(item)
         db.session.flush()
         operation.invoice_item_id = item.id
+        _charge_anaesthesia(operation, invoice, lang)
     return len(due)
+
+
+ANAESTHESIA_CODE = "SVC-ANAES"
+
+
+def anaesthesia_service():
+    """The anaesthesia service, or ``None`` where the clinic has never had one.
+
+    ``None`` is the ordinary answer and the important one: a clinic that
+    prices the operation inclusive of the anaesthetic has no such row, and
+    must not suddenly find a second line on every theatre bill. The line
+    appears because somebody priced it, the same way the consultant's round
+    does.
+    """
+    from app.models import Service
+
+    return Service.query.filter_by(code=ANAESTHESIA_CODE).first()
+
+
+def _charge_anaesthesia(operation, invoice, lang="ar"):
+    """The anaesthetist's own line, when there is one to write.
+
+    Reported as *«سعر الجراح والمخدر مختلف وبيختلف بين طبيب وطبيب»* — two
+    people, two rates, and until now one line carrying only the surgeon's.
+    The anaesthetist did the work and the bill said nothing about it, so
+    their share was whatever the surgeon's service happened to pay, on a line
+    recorded as the surgeon's.
+
+    Three things have to be true before it is written, and each of them is
+    somebody saying so: the clinic prices anaesthesia at all, an anaesthetist
+    is named on the case, and the price comes out above zero.
+    """
+    from app.models.invoice import InvoiceItem
+
+    if operation.anaesthesia_item_id is not None:
+        return None                      # already billed; never twice
+    service = anaesthesia_service()
+    if service is None or not service.is_active:
+        return None
+    doctor = operation.anaesthetist
+    if doctor is None:
+        return None
+    price = float(case_rates.price_for(service, doctor, operation.case_type))
+    if price <= 0:
+        return None
+
+    item = InvoiceItem(
+        invoice_id=invoice.id, service_id=service.id,
+        description=_anaesthesia_line(operation, service, lang),
+        service_date=operation.on_date,
+        unit_price=price, quantity=1)
+    item.commission_amount = case_rates.share_for(
+        service, item.net, doctor, operation.case_type)
+    # **Theirs, on the line.** Without this the anaesthetist's fee is paid to
+    # whoever the invoice belongs to, and the two people the theatre owes are
+    # one person in the books.
+    item.doctor_id = doctor.id
+    db.session.add(item)
+    db.session.flush()
+    operation.anaesthesia_item_id = item.id
+    return item
+
+
+def _anaesthesia_line(operation, service, lang):
+    name = (service.display_name(lang) if hasattr(service, "display_name")
+            else service.name)
+    return f"{name} — {operation.procedure} ({operation.on_date.isoformat()})"[:200]
 
 
 def _line(operation, service, lang):

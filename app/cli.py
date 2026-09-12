@@ -70,6 +70,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
+        _seed_case_types_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -278,6 +279,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
+        _seed_case_types_safe()
         _seed_client_categories_safe()
         _backfill_service_types_safe()
         _migrate_visit_type_map_safe()
@@ -360,6 +362,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
+        _seed_case_types_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -572,6 +575,7 @@ def register_commands(app):
         _seed_visit_types_safe()
         _seed_service_types_safe()
         _seed_invoice_sections_safe()
+        _seed_case_types_safe()
         _seed_client_categories_safe()
         _seed_devices_safe()
         _seed_accounts_safe()
@@ -730,6 +734,19 @@ def _seed_invoice_sections_safe():
     """
     try:
         from app.utils.invoice_sections import ensure_seeded
+        ensure_seeded()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _seed_case_types_safe():
+    """Seed the editable case-kind catalogue (idempotent, best-effort).
+
+    Beside its twin, so a clinic upgrading gets private/hospital/emergency the
+    same run it gets the column they hang off.
+    """
+    try:
+        from app.utils.case_types import ensure_seeded
         ensure_seeded()
     except Exception:  # noqa: BLE001
         pass

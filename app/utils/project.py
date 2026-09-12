@@ -152,6 +152,11 @@ DONE = [
      "The inpatient bill: a summary by bill section over the detail, every "
      "line carrying the day its work was done, and an "
      "inpatient/outpatient filter on the invoice list"),
+    ("نوع الحالة (خاصة/مستشفى/طوارئ) بسعره وأتعابه لكل طبيب، والتخدير بند "
+     "لوحده بأتعاب طبيب التخدير",
+     "The kind of case (private / hospital / emergency) with its own price "
+     "and fee per doctor, and anaesthesia as its own line paid to the "
+     "anaesthetist"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

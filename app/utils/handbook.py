@@ -1757,6 +1757,28 @@ SECTIONS = [
              "<b>The course closest to expiring is spent first</b>, and an "
              "offer somebody bought is switched off rather than deleted, so "
              "what a family paid for stays readable."),
+            ("<b>نوع الحالة</b> (خاصة / مستشفى / طوارئ): نفس العملية بنفس "
+             "الجراح بتبقى سعر مختلف وأتعاب مختلفة. تحت «لكل طبيب» في "
+             "الخدمة تقدر تحط استثناء لكل نوع: سيب السعر فاضي = سعره "
+             "العادي، وسيب العمولة «زي العادي» = عمولته العادية، و«بدون» "
+             "معناها ما بياخدش على النوع ده. وحالة من غير نوع بتتسعّر "
+             "بسعر الطبيب العادي زي ما كانت بالظبط.",
+             "<b>The kind of case</b> (private / hospital / emergency): the "
+             "same operation by the same surgeon is a different price and a "
+             "different fee. Under \"per doctor\" on the service you can set "
+             "an exception per kind — a blank price means their ordinary "
+             "price, \"as usual\" means their ordinary commission, and "
+             "\"none\" means they are paid nothing on that kind. A case with "
+             "no kind prices at the doctor's ordinary rate exactly as before."),
+            ("<b>التخدير بند لوحده</b> لما العيادة تسعّره: الجراح والمخدّر "
+             "اتنين بيشتغلوا، وكل واحد أتعابه على بنده. سعّر خدمة "
+             "<b>SVC-ANAES</b> بصفر وما هتشوفش البند خالص — العيادة اللي سعر "
+             "العملية عندها شامل التخدير ما بيتغيّرش عندها حاجة.",
+             "<b>Anaesthesia is its own line</b> where the clinic prices it: "
+             "the surgeon and the anaesthetist both worked, and each is paid "
+             "on their own line. Leave the <b>SVC-ANAES</b> service at zero "
+             "and the line never appears — a clinic whose operation price "
+             "already includes the anaesthetic sees no change at all."),
             ("<b>بند الفاتورة</b> هو اللي الفاتورة بتتجمّع بيه في الملخّص "
              "(إقامة · عمليات · أدوية · مستلزمات …). سيبه فاضي والبرنامج "
              "يستنتجه من تصنيف الخدمة، والقايمة نفسها تتزوّد وتتعدّل من "

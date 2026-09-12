@@ -6444,5 +6444,23 @@
     "until": "until",
     "used_on": "Drawn on",
     "valid_days": "Valid (days)"
+  },
+  "case_types": {
+    "added": "Kind added",
+    "deleted": "Kind deleted",
+    "emergency": "Emergency",
+    "hint": "Private / hospital / emergency — not a label: the same operation by the same surgeon is a different price and a different fee. Leave it unset and the case prices at the doctor's ordinary rate, exactly as before.",
+    "hospital": "Hospital",
+    "in_use": "{n} cases are of this kind. Move them first.",
+    "new": "New kind",
+    "none_set": "No exception",
+    "plural": "Case kinds",
+    "private": "Private",
+    "rates_hint": "Exception prices and fees by kind of case. Leave the price blank for the doctor's ordinary price, and the commission on \"as usual\" for their ordinary commission. \"None\" means they are paid nothing on this kind.",
+    "same_as_usual": "As usual",
+    "saved": "Kinds saved",
+    "system": "A built-in kind cannot be deleted — switch it off or rename it",
+    "title": "Case kind",
+    "unset": "Unset"
   }
 }

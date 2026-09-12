@@ -495,6 +495,13 @@ ADDITIONS = [
     # honest answer for them: nobody recorded a date, and the display falls
     # back to the invoice's without claiming otherwise.
     ("invoice_items", "service_date", "DATE"),
+    # Private, hospital or emergency — a price and a fee, not a label. NULL
+    # on every case booked before it, which is the true answer: nobody said,
+    # and they price at the doctor's ordinary rate exactly as they did.
+    ("operations", "case_type", "VARCHAR(30)"),
+    # The anaesthesia line, when the clinic bills it separately. Its own
+    # column because the two lines are owed to two different people.
+    ("operations", "anaesthesia_item_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):

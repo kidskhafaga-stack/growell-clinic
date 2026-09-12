@@ -298,6 +298,21 @@
             {% endfor %}
           </select>
         </div>
+        {% if case_kinds %}
+        {# **What kind of case this is** — a price and two fees, not a label.
+           «غير محدّد» is a real answer and the one every case booked before
+           this had: it prices at the doctor's ordinary rate. #}
+        <div class="form-row" style="margin-bottom:0;min-width:160px;">
+          <label for="ed_case_type">{{ t('case_types.title') }}</label>
+          <select class="select" id="ed_case_type" name="case_type">
+            <option value="">{{ t('case_types.unset') }}</option>
+            {% for k in case_kinds %}
+            <option value="{{ k.key }}" {{ 'selected' if operation.case_type == k.key else '' }}>
+              {{ k.display_name(current_lang) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <div class="form-row" style="margin-bottom:0;min-width:160px;">
           <label for="ed_room">{{ t('theatre.room') }}</label>
           <select class="select" id="ed_room" name="theatre_id">
