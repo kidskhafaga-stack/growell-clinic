@@ -452,3 +452,102 @@ class DoctorServiceCommission(db.Model):
 
     def __repr__(self):
         return f"<DocCommission doc={self.doctor_id} svc={self.service_id}>"
+
+
+#: How a care charge works out its number. Two, because two are used — and
+#: which of the two is a property of the hospital, not of this program.
+CARE_BASES = ["per_day", "percent"]
+
+
+class CareCharge(db.Model):
+    """Nursing and medical care, charged the way this hospital charges it.
+
+    Asked twice, and the second time with the answer: *«نسبة تقريباً من إجمالي
+    الفاتورة بتتحسب الرعاية الطبية والتمريضية، عند إنهاء ولا على مستوى
+    الليلة؟ مش عارف الصراحة»* — and then, after both of us went and looked:
+    *«هل ينفع نعملها تستوعب الاثنين حسب نظام المستشفى، علشان الآراء متباينة؟»*
+
+    They are. Some hospitals put a daily nursing rate on the bill; some add a
+    percentage of the stay at the end; a good many do both, and call one of
+    them «رسوم خدمة». **So this program holds a rule, not a number**, and the
+    hospital says which shape it is. Inventing one and calling it standard
+    would have been this program deciding a commercial policy it has no
+    business deciding.
+
+    **Two bases, and they are genuinely different arithmetic:**
+
+    ``per_day``
+        an amount for each day of the stay — the same counting the bed
+        already does, so a four-night stay is four of them.
+
+    ``percent``
+        a percentage of what the bill already comes to. **Of which parts** is
+        the question that makes it definable at all: the Egyptian practice is
+        a percentage of the total *excluding medicines and stamps*, and
+        :data:`sections` is where that is said. Empty means everything.
+
+    **A percentage is never levied on a care charge** — not on itself, and not
+    on the other one. Two of these on one bill, each taking a cut of the
+    other, is a number nobody can check and nobody meant.
+
+    **And the line is recomputed, not accumulated.** Every other charge in
+    this program is written once and stands; this one is a function of the
+    rest of the bill, so a stay posted again on its fifth night has to say
+    five days rather than adding a second line of four. That is why the line
+    it writes carries :attr:`InvoiceItem.care_charge_id` — so it can be found
+    and corrected instead of doubled.
+    """
+
+    __tablename__ = "care_charges"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name_ar = db.Column(db.String(120))
+    name_en = db.Column(db.String(120))
+    # The service this is billed as, which is what gives it a bill section, an
+    # accounting category and a tax code without any of that being invented
+    # here. A charge with no service is not raised at all: the price list is
+    # where a clinic says what things are, and this is not an exception.
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"),
+                           nullable=False, index=True)
+    basis = db.Column(db.String(10), default="per_day", nullable=False)
+    # The daily amount, or the percentage. One column because a rule is one
+    # or the other and never both, and two would leave whichever is unused
+    # sitting there looking like it means something.
+    amount = db.Column(db.Float, default=0, nullable=False)
+    # Which bill sections a percentage is levied on, comma-separated. Empty is
+    # **everything chargeable**, which is a real policy and not an unset
+    # field — a hospital that takes its service fee on the whole bill says so
+    # by naming no exclusions.
+    sections = db.Column(db.String(255))
+    # Which bills it applies to: ``inpatient``, ``outpatient``, or empty for
+    # both. Read against :attr:`Invoice.kind`, which is derived from the stay
+    # — so this reuses the axis rather than inventing a second one.
+    invoice_kind = db.Column(db.String(12))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+
+    service = db.relationship("Service")
+
+    def display_name(self, lang="ar"):
+        name = self.name_en if lang == "en" else self.name_ar
+        if name:
+            return name
+        if self.service is not None:
+            return self.service.display_name(lang)
+        return "—"
+
+    @property
+    def section_keys(self):
+        """The sections a percentage is levied on, as a set — empty for all."""
+        return {p.strip() for p in (self.sections or "").split(",") if p.strip()}
+
+    def applies_to(self, invoice):
+        """Whether this rule is one of *this* bill's charges."""
+        if not self.is_active or invoice is None:
+            return False
+        if self.invoice_kind and invoice.kind != self.invoice_kind:
+            return False
+        return True
+
+    def __repr__(self):
+        return f"<CareCharge {self.basis} {self.amount}>"

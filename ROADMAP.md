@@ -31,6 +31,7 @@
 | نوع الحالة وأتعاب الجراح والمخدّر | `CaseType` + `DoctorCaseRate` + `Operation.case_type` · `app/utils/case_rates.py` · شاشة العمليات والخدمات |
 | الإفاقة والخروج وتعليمات ما بعد الجراحة وقرار المتابعة | `Operation.recovery_at/discharged_at/followup_needed` + `Service.post_op_instructions` · `app/utils/recovery.py` · `/theatres/recovery` |
 | ربط الإقرار بالعملية وقراية بند الموافقة منه (GAHAR SAS.06 · PCC.09) | `Operation.consent_id` + `Consent.valid_until` · `theatres.consent_state` |
+| الرعاية التمريضية والطبية — مبلغ يومي أو نسبة من أقسام مسمّاة، أو الاتنين | `CareCharge` + `InvoiceItem.care_charge_id` · `app/utils/care_charges.py` · شاشة الخدمات |
 | لوحة التزام التطعيمات | `/vaccinations/compliance` |
 | إيصال حراري 58/80mm | `finance/receipt_thermal.html` |
 | قوالب القياس ونتائج الأجهزة | `DeviceMeasurement` + شاشة إعدادات الأجهزة |

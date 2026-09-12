@@ -167,6 +167,10 @@ DONE = [
      "المربوط بالحالة — ما بيتعلّمش بالإيد",
      "The consent item on the surgical checklist is now read from the signed "
      "consent linked to the case — it can no longer be ticked by hand"),
+    ("الرعاية التمريضية والطبية بالطريقتين: مبلغ يومي أو نسبة من أقسام "
+     "الفاتورة اللي المستشفى تسمّيها — أو الاتنين",
+     "Nursing and medical care both ways: a daily amount, or a percentage of "
+     "the bill sections the hospital names — or both"),
     ("إيصال حراري 58/80mm للتحصيل السريع",
      "A 58/80mm thermal receipt for fast collection"),
     ("قوالب القياس ونتائج الأجهزة بإدخال يدوي",

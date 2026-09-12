@@ -519,6 +519,10 @@ ADDITIONS = [
     # consent with no expiry is one whose clinic never set one.
     ("operations", "consent_id", "INTEGER"),
     ("consents", "valid_until", "DATE"),
+    # Which care rule wrote a line, so the next posting corrects it instead
+    # of adding a second one. NULL on every line ever written, which is right:
+    # none of them was written by a rule.
+    ("invoice_items", "care_charge_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):

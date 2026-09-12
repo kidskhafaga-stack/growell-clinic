@@ -6506,5 +6506,28 @@
     "since": "Since",
     "title": "Recovery & discharge",
     "to_recovery": "Moved to recovery"
+  },
+  "care": {
+    "added": "Charge added",
+    "all_sections": "The whole bill",
+    "amount": "Value",
+    "basis": "How it is worked out",
+    "basis_per_day": "Daily amount",
+    "basis_percent": "Percentage of the bill",
+    "billed": "Billed",
+    "billed_deactivated": "This has billed {n} lines, so it was switched off instead of deleted.",
+    "deleted": "Charge deleted",
+    "hint": "Hospitals charge it two ways: a daily amount, or a percentage of the bill. Both are available — pick the one your hospital works by, and you can have both. A clinic that defines neither sees no change at all.",
+    "name": "Charge name",
+    "name_ph": "Nursing care",
+    "need_amount": "A value above zero is needed — a daily amount or a percentage.",
+    "new": "Add a care charge",
+    "on_sections": "Levied on",
+    "per_day_amount": "Amount per day",
+    "percent": "Percentage %",
+    "saved": "Care charges saved",
+    "sections_hint": "Pick the sections the percentage is taken of. Ticking nothing means the whole bill. (Common in Egypt: everything except medicines and stamps.)",
+    "service": "Billed as service",
+    "title": "Nursing & medical care"
   }
 }

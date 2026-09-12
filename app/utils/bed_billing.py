@@ -361,8 +361,17 @@ def post(admission, user=None, upto=None, lang="ar"):
     # own discount all live in `utils/billing`, and a bed bill raised outside
     # them was a covered child billed the cash rate for eleven nights with
     # nothing claimable at the end of it.
-    from app.utils import billing
+    from app.utils import billing, care_charges
 
+    # **The nursing and the supervision**, worked out the way this hospital
+    # works them out — a daily rate, a percentage of the parts it names, or
+    # both. Recomputed rather than added: a stay posted again on its fifth
+    # night corrects its care line to five days instead of writing a second
+    # one of four. A clinic that defined no rule gets nothing at all.
+    #
+    # Before coverage on purpose: the care charge is part of what the bill
+    # comes to, so an insurer's tariff and a family's discount have to see it.
+    care_charges.apply(invoice, admission, lang=lang)
     billing.apply_coverage(invoice, admission.patient)
     db.session.flush()
     # **The ledger is not posted here** — see `charge` below, which is what a

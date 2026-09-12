@@ -1825,6 +1825,35 @@ SECTIONS = [
              "on their own line. Leave the <b>SVC-ANAES</b> service at zero "
              "and the line never appears — a clinic whose operation price "
              "already includes the anaesthetic sees no change at all."),
+            ("<b>الرعاية التمريضية والطبية — بالطريقتين</b>. المستشفيات "
+             "بتحسبها بشكلين: <b>مبلغ يومي</b> بيتضرب في عدد الليالي، أو "
+             "<b>نسبة</b> من الفاتورة. البرنامج ما بيختارش لك — انت بتعرّف "
+             "القاعدة بشكلها، وتقدر تحط الاتنين مع بعض. والعيادة اللي ما "
+             "تعرّفش ولا واحدة ما بيتغيّرش عندها حاجة خالص.",
+             "<b>Nursing and medical care — both ways</b>. Hospitals work it "
+             "out in two shapes: a <b>daily amount</b> times the nights, or a "
+             "<b>percentage</b> of the bill. The program does not choose for "
+             "you — you define the rule in its shape, and you may have both. "
+             "A clinic that defines neither sees no change at all."),
+            ("<b>النسبة بتتحسب على الأقسام اللي انت تسمّيها</b> — الشائع في "
+             "مصر إنها على كل حاجة ما عدا الأدوية والدمغة، وده بالظبط اللي "
+             "بند الفاتورة اتعمل عشانه. ما تختارش أقسام = الفاتورة كلها. "
+             "و<b>النسبة عمرها ما بتتحسب على بند رعاية تاني</b> — لا على "
+             "نفسها ولا على التانية.",
+             "<b>The percentage is taken of the sections you name</b> — the "
+             "common Egyptian practice is everything except medicines and "
+             "stamps, which is exactly what the bill-section axis exists for. "
+             "Naming none means the whole bill. And <b>a percentage is never "
+             "levied on another care charge</b> — not on itself, not on the "
+             "other one."),
+            ("<b>بند الرعاية بيتصحّح مش بيتزاد</b>: الإقامة الطويلة بتترحّل "
+             "كل يوم، ولو البند كان بيتزاد كان رعاية الليلة الرابعة هتتحسب "
+             "أربع مرات. وقاعدة بتتقفل بيتشال بندها بدل ما يفضل واقف برقم "
+             "إمبارح.",
+             "<b>The care line is corrected, not added to</b>: a long stay is "
+             "posted every day, and a line that accumulated would bill the "
+             "fourth night's nursing four times. A rule switched off has its "
+             "line removed rather than left standing at yesterday's figure."),
             ("<b>بند الفاتورة</b> هو اللي الفاتورة بتتجمّع بيه في الملخّص "
              "(إقامة · عمليات · أدوية · مستلزمات …). سيبه فاضي والبرنامج "
              "يستنتجه من تصنيف الخدمة، والقايمة نفسها تتزوّد وتتعدّل من "
