@@ -185,6 +185,13 @@ DONE = [
      "Site marking with its side and who marked it — the checklist item is "
      "read from it — and blood, recorded as the two facts it is "
      "(GAHAR SAS.06 d and f)"),
+    ("الفحوصات اللي الحالة مستنياها: حد بيربط الطلبات بالعملية والبرنامج بيقرا "
+     "منها — وبند «الأشعة معروضة» الموجود أصلاً بقى بيتقرا من الأشعة المربوطة "
+     "(GAHAR SAS.06 e)",
+     "The investigations a case waits on: a person attaches the orders and the "
+     "program reads the answer off them — and the time-out's existing "
+     "\"imaging up\" item is read from the imaging attached to the case "
+     "(GAHAR SAS.06 e)"),
     ("هوية الطفل والإجراء بمشاركة الأسرة: مين تحقّق ومين كان موجود وامتى — "
      "و«محدش من الأسرة» إجابة مسجّلة مش فراغ، وبند الـchecklist بيتقرا منها "
      "(GAHAR SAS.06 a)",

@@ -236,6 +236,21 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # ------------------------------------------------- the workup --------
+    #
+    # SAS.06 (هـ): the results of the **required** investigations, before the
+    # child goes in. Shaped exactly like ``blood_needed`` and for exactly the
+    # same reason: *nobody asked* and *none needed* are two different mornings,
+    # and one NULL standing for both is the bug this program keeps finding.
+    #
+    # NULL on every case booked before this column — and "nobody has said" is
+    # the true reading of those, not "no tests were needed".
+    #
+    # Which orders it waits on is on the orders themselves
+    # (``VisitInvestigation.operation_id``), because a case can wait on
+    # several and because a person has to name them: see the note there.
+    workup_needed = db.Column(db.Boolean)
+
     # ------------------------------------------------------------ blood --
     #
     # SAS.06 (و): blood ordered and its availability confirmed. Two facts and

@@ -220,6 +220,22 @@ class VisitInvestigation(db.Model):
     invoice_item_id = db.Column(db.Integer, db.ForeignKey("invoice_items.id"),
                                 nullable=True, index=True)
 
+    # **The case this was ordered for, when it was ordered for one.**
+    #
+    # GAHAR SAS.06 (هـ) asks that the results of the *required* investigations
+    # are there before the child goes in — and the word carrying the weight is
+    # **required**. The program must not decide that a tonsillectomy needs a
+    # coagulation screen: naming the tests a procedure requires is a clinical
+    # judgement and inventing one here is the failure the vaccine tables exist
+    # to avoid.
+    #
+    # So a person says which orders this case waits on, and the program reads
+    # the answer off them. Which also rules out the tempting shortcut of
+    # reading every outstanding order on the child's file: a ferritin somebody
+    # asked for last month would then hold up this morning's appendix.
+    operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"),
+                             nullable=True, index=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     visit = db.relationship("Visit", back_populates="investigations",
@@ -229,6 +245,8 @@ class VisitInvestigation(db.Model):
     invoice_item = db.relationship("InvoiceItem")
     patient = db.relationship("Patient")
     investigation = db.relationship("Investigation")
+    operation = db.relationship("Operation", backref="investigations",
+                                foreign_keys=[operation_id])
 
     @property
     def has_result(self):

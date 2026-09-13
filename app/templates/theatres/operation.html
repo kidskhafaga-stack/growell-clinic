@@ -227,6 +227,73 @@
   </form>
 </div>
 
+{# --------------------------------------------- the results it waits on -- #}
+{# SAS.06 (هـ): the results of the **required** investigations, before the
+   child goes in. The program does not decide which tests a procedure requires
+   — that is a clinical judgement and inventing one here is the failure the
+   vaccine tables exist to avoid — so a person attaches the orders and the
+   program reads the answer off them.
+
+   The child's other orders are offered *with* their results showing, so an
+   answer that is not back yet is visible before somebody relies on it. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;">
+  <h2 class="card-title" style="margin-top:0;">
+    <i class="bi bi-clipboard2-pulse"></i> {{ t('theatre.workup') }}
+    <span class="alert-pill {{ 'ok' if workup_state in ('not_needed', 'ready') else 'warn' }}">
+      {{ t('theatre.workup_' ~ workup_state) }}</span>
+    {% if imaging_state == 'waiting' %}
+    {# Named separately because it is the half the checklist's «الأشعة معروضة»
+       reads, and a surgeon wants to know which half is missing. #}
+    <span class="alert-pill warn"><i class="bi bi-radioactive"></i>
+      {{ t('theatre.workup_imaging_waiting') }}</span>
+    {% endif %}
+  </h2>
+
+  <form method="post" action="{{ url_for('theatres.workup', operation_id=operation.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row" style="margin:0 0 10px;">
+      <label>{{ t('theatre.workup_needed') }}</label>
+      <div style="display:flex;gap:14px;align-items:center;">
+        {# No default. Blank is refused on the way in, because "nobody asked"
+           and "none needed" are two different mornings. #}
+        <label style="font-weight:400;margin:0;"><input type="radio" name="needed" value="yes"
+          {{ 'checked' if operation.workup_needed else '' }}> {{ t('recovery.followup_yes') }}</label>
+        <label style="font-weight:400;margin:0;"><input type="radio" name="needed" value="no"
+          {{ 'checked' if operation.workup_needed is not none and not operation.workup_needed else '' }}> {{ t('recovery.followup_no') }}</label>
+      </div>
+    </div>
+
+    {% if workup_choices %}
+    <p class="hint" style="margin:0 0 6px;">{{ t('theatre.workup_pick') }}</p>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      {% for order in workup_choices %}
+      <label style="font-weight:400;margin:0;display:flex;gap:8px;align-items:baseline;">
+        <input type="checkbox" name="order" value="{{ order.id }}"
+               {{ 'checked' if order.operation_id == operation.id else '' }}>
+        <span>
+          {{ order.name }}
+          <span class="hint">· {{ t('lab.kind_' ~ order.kind) }}</span>
+          {% if order.has_result %}
+          <span class="alert-pill ok" style="font-size:.72rem;">
+            <i class="bi bi-check2"></i> {{ t('theatre.workup_resulted') }}</span>
+          {% else %}
+          {# The one thing this list exists to show. #}
+          <span class="alert-pill warn" style="font-size:.72rem;">
+            <i class="bi bi-hourglass-split"></i> {{ t('theatre.workup_pending') }}</span>
+          {% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint"><i class="bi bi-info-circle"></i> {{ t('theatre.workup_no_orders') }}</p>
+    {% endif %}
+
+    <button class="btn btn-outline gc-press" type="submit" style="margin-top:10px;">
+      {{ t('common.save') }}</button>
+  </form>
+</div>
+
 {# --------------------------------------------------- the anaesthetic ---- #}
 {# Two things the standard asks for by name and the program had neither of:
    an assessment *immediately before induction* (SAS.16 EOC 5), and a plan
@@ -409,6 +476,19 @@
           <input type="checkbox" disabled {{ 'checked' if pre_induction == 'done' else '' }}>
           <span>{{ t('theatre.item_' ~ item) }}
             <i class="bi bi-lungs" style="opacity:.6;"></i></span>
+        </label>
+        {% elif item == 'imaging_ready' %}
+        {# Read from the imaging attached to this case. The one derived item
+           that ticks when nothing is recorded: a case with no imaging has
+           none to display, and painting it red would teach people to stop
+           reading the colour. It only withholds the tick where imaging was
+           ordered for this case and is not back. #}
+        <label class="op-item {{ 'op-missed' if short and item in short else '' }}"
+               title="{{ t('theatre.workup_read_only') }}">
+          <input type="checkbox" disabled
+                 {{ 'checked' if imaging_state != 'waiting' else '' }}>
+          <span>{{ t('theatre.item_' ~ item) }}
+            <i class="bi bi-clipboard2-pulse" style="opacity:.6;"></i></span>
         </label>
         {% elif item == 'consent' %}
         {# Read, not typed. The box is disabled and shows what the record

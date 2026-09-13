@@ -555,6 +555,12 @@ ADDITIONS = [
     ("operations", "identity_with", "VARCHAR(20)"),
     ("operations", "identity_with_name", "VARCHAR(120)"),
     ("operations", "identity_matched", "VARCHAR(120)"),
+    # Whether this case waits on investigations, and which ones. NULL is
+    # "nobody has said" and never "none needed" — the same pair the blood
+    # columns keep apart, on a question where the difference is a child
+    # anaesthetised before somebody read the result.
+    ("operations", "workup_needed", "BOOLEAN"),
+    ("visit_investigations", "operation_id", "INTEGER"),
 ]
 
 def apply_schema(report=None):
