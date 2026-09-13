@@ -598,6 +598,22 @@ def _operations(patient_id):
             .order_by(Operation.on_date.desc(), Operation.id.desc()).all())
 
 
+def _stays(patient_id):
+    """This child's stays, newest first — or nothing when the ward is off.
+
+    The same shape and the same guard as ``_operations`` above, and for the
+    same reason: a clinic with no ward is a clinic whose report says nothing
+    about admissions, rather than one whose report carries an empty heading.
+    """
+    from app.utils.facility import module_enabled
+
+    if not module_enabled("beds"):
+        return []
+    from app.utils import beds as ward
+
+    return ward.stays_for(patient_id)
+
+
 def _ward_context(patient_id):
     """``open_admission``, ``free_beds`` and whether there is a ward at all.
 
@@ -661,6 +677,19 @@ def report(patient_id):
     return render_template(
         "patients/report.html", patient=patient, problems=problems,
         visits=visits, latest_growth=latest_growth, vac=vac,
+        # **The hospital half of the file**, which this report did not have.
+        # It called itself comprehensive and carried demographics, problems,
+        # growth, vaccinations, visits and drugs — a complete account of a
+        # child who has never been admitted, and a misleading one about a
+        # child who has. GAHAR IMT.08 asks that the record be available when
+        # a healthcare professional needs it, and this sheet is the form it
+        # most often leaves the building in.
+        #
+        # **Not truncated, unlike the visits above.** Ten recent visits is a
+        # reasonable sample of an outpatient history and is labelled as one;
+        # ten of fourteen operations is a surgical history that reads
+        # complete and is not.
+        stays=_stays(patient.id), operations=_operations(patient.id),
         latest_rx=latest_rx, growth_alert=_growth_concern(patient),
         generated_by=current_user, today=local_today(),
     )

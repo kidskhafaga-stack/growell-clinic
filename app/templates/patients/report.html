@@ -160,6 +160,84 @@
       {% else %}<div class="muted">{{ t('report.no_visits') }}</div>{% endif %}
     </section>
 
+    <!-- Stays in hospital -->
+    {# **The half this sheet did not have.** It called itself comprehensive
+       and carried demographics, problems, growth, vaccinations, visits and
+       drugs — which is a complete account of a child who has never been
+       admitted, and a misleading one about a child who has.
+
+       Printed, so no links: whoever reads this is holding paper. The stay
+       screen is where the detail lives, and this says the stay happened, why,
+       where, and how it ended. #}
+    {% if stays %}
+    <section>
+      <h2 class="sec">{{ t('report.stays') }}</h2>
+      <table>
+        <thead><tr>
+          <th>{{ t('report.date') }}</th>
+          <th>{{ t('beds.admit_reason') }}</th>
+          <th>{{ t('report.where') }}</th>
+          <th>{{ t('report.outcome') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for stay in stays %}
+          <tr>
+            <td style="white-space:nowrap;" dir="ltr">
+              {{ stay.admitted_at.date() }}
+              {%- if stay.discharged_at %} — {{ stay.discharged_at.date() }}{% endif %}</td>
+            <td>{{ stay.reason or '—' }}</td>
+            {# The units it passed through, each named once: a child moved
+               from the bay to isolation was in two places on one stay, and
+               printing only the last one says they were never in the first. #}
+            <td>{% set ns = namespace(seen=[]) %}
+              {%- for bed_stay in stay.stays if bed_stay.bed
+                    and bed_stay.bed.unit.name not in ns.seen %}
+              {%- set ns.seen = ns.seen + [bed_stay.bed.unit.name] %}
+              {{- bed_stay.bed.unit.name }}{% if not loop.last %} · {% endif %}
+              {%- endfor %}
+              {%- if not ns.seen %}—{% endif %}</td>
+            {# Still in is not an outcome — it is the absence of one, and a
+               dash there would read as a stay that ended and nobody wrote
+               down how. #}
+            <td>{% if stay.is_open %}{{ t('beds.still_in') }}
+              {%- elif stay.outcome %}{{ t('beds.outcome_' ~ stay.outcome) }}
+              {%- else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <!-- Operations -->
+    {# Day cases and inpatient ones together: «what has been done to this
+       child» is one question, and a day-case circumcision does not belong to
+       a stay at all — splitting them by where they happened would put half
+       the surgical history under a heading about beds. #}
+    {% if operations %}
+    <section>
+      <h2 class="sec">{{ t('report.operations') }}</h2>
+      <table>
+        <thead><tr>
+          <th>{{ t('report.date') }}</th>
+          <th>{{ t('theatre.procedure') }}</th>
+          <th>{{ t('theatre.surgeon') }}</th>
+          <th>{{ t('report.status') }}</th>
+        </tr></thead>
+        <tbody>
+          {% for op in operations %}
+          <tr>
+            <td style="white-space:nowrap;" dir="ltr">{{ op.on_date }}</td>
+            <td>{{ op.procedure }}</td>
+            <td>{{ op.surgeon.display_name(current_lang) if op.surgeon else '—' }}</td>
+            <td>{{ t('theatre.status_' ~ op.status) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
     <!-- Current medications -->
     {% if latest_rx and latest_rx.items %}
     <section>

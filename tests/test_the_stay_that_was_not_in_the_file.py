@@ -363,3 +363,190 @@ def test_a_stay_written_up_late_still_sorts_by_when_it_happened(clinic):
         html = clinic["sign_in"]().get(
             "/patients/%s" % clinic["ids"]["kid"]).get_data(as_text=True)
         assert html.index("الأحدث") < html.index("الأقدم")
+
+
+# ------------------------------------- and the sheet that leaves the building
+def _report(ctx):
+    return ctx["sign_in"]().get(
+        "/patients/%s/report" % ctx["ids"]["kid"]).get_data(as_text=True)
+
+
+def test_the_medical_report_carries_the_stays(clinic):
+    """It called itself comprehensive and had demographics, problems, growth,
+    vaccinations, visits and drugs — a complete account of a child who has
+    never been admitted, and a misleading one about a child who has. This is
+    the form the record most often leaves the building in."""
+    from app.i18n import translate as t
+
+    with clinic["app"].app_context():
+        stay = _a_stay(clinic, reason="التهاب رئوي")
+        html = _report(clinic)
+        assert t("report.stays") in html
+        assert "التهاب رئوي" in html
+        assert t("beds.outcome_home") in html
+        # **Both ends of it.** With only the admission date printed, a stay of
+        # three nights and a stay of three weeks read the same on the paper.
+        assert str(stay.admitted_at.date()) in html
+        assert str(stay.discharged_at.date()) in html
+        assert stay.admitted_at.date() != stay.discharged_at.date()
+
+
+def test_the_report_says_where_the_child_was(clinic):
+    """The units, each named once. A child moved from the bay to isolation was
+    in two places on one stay, and printing only the last says they were never
+    in the first."""
+    from app.models.place import Space, Unit
+    from app.utils import beds as ward
+
+    with clinic["app"].app_context():
+        from app.models import Bed
+
+        isolation = Unit(name="العزل العام", kind="icu")
+        clinic["db"].session.add(isolation)
+        clinic["db"].session.flush()
+        room = Space(unit_id=isolation.id, name="أوضة العزل")
+        clinic["db"].session.add(room)
+        clinic["db"].session.flush()
+        far = Bed(space_id=room.id, name="سرير العزل")
+        clinic["db"].session.add(far)
+        clinic["db"].session.commit()
+
+        stay = ward.admit(_kid(clinic), _bed(clinic), user=_boss(clinic))
+        clinic["db"].session.commit()
+        ward.move(stay, far, user=_boss(clinic))
+        clinic["db"].session.commit()
+
+        html = _report(clinic)
+        assert "العنبر" in html
+        assert "العزل العام" in html
+
+
+def test_a_unit_the_child_went_back_to_is_named_once(clinic):
+    """Bay → isolation → bay is three bed-stays in two units. Printing the
+    unit per bed-stay would put the first one twice and read as three."""
+    from app.utils import beds as ward
+
+    with clinic["app"].app_context():
+        stay = ward.admit(_kid(clinic), _bed(clinic), user=_boss(clinic))
+        clinic["db"].session.commit()
+        ward.move(stay, _bed(clinic, "other"), user=_boss(clinic))
+        clinic["db"].session.commit()
+        ward.move(stay, _bed(clinic), user=_boss(clinic))
+        clinic["db"].session.commit()
+
+        html = _report(clinic)
+        # Both beds are in the same unit here, so it is named exactly once.
+        section = html.split("<!-- Stays in hospital -->", 1)[1]
+        section = section.split("<!-- Operations -->", 1)[0]
+        assert section.count("العنبر") == 1
+
+
+def test_a_stay_with_no_bed_on_it_prints_a_dash_not_a_blank_cell(clinic):
+    """A stay whose bed rows are gone — an import, a bed deleted under it — is
+    a stay whose place nobody can state. An empty cell in a printed table
+    reads as a column the printer clipped; a dash says the program looked and
+    had no answer."""
+    from app.models.admission import Admission
+
+    with clinic["app"].app_context():
+        clinic["db"].session.add(
+            Admission(patient_id=clinic["ids"]["kid"], reason="بدون سرير",
+                      admitted_at=datetime.utcnow() - timedelta(days=2),
+                      discharged_at=datetime.utcnow(), outcome="home"))
+        clinic["db"].session.commit()
+
+        html = _report(clinic)
+        section = html.split("<!-- Stays in hospital -->", 1)[1]
+        row = section.split("بدون سرير", 1)[1].split("</tr>", 1)[0]
+        assert "—" in row
+
+
+def test_a_stay_still_running_is_not_given_an_outcome_on_the_report(clinic):
+    """A dash in the outcome column would read as a stay that ended and
+    nobody wrote down how."""
+    from app.i18n import translate as t
+    from app.utils import beds as ward
+
+    with clinic["app"].app_context():
+        ward.admit(_kid(clinic), _bed(clinic), user=_boss(clinic))
+        clinic["db"].session.commit()
+        html = _report(clinic)
+        assert t("beds.still_in") in html
+
+
+def test_the_medical_report_carries_the_operations(clinic):
+    """Day cases and inpatient ones together: «what has been done to this
+    child» is one question, and a day-case circumcision belongs to no stay at
+    all."""
+    from app.i18n import translate as t
+    from app.models.theatre import Operation, Theatre
+    from app.utils.clock import local_today
+
+    with clinic["app"].app_context():
+        stay = _a_stay(clinic)
+        room = Theatre(name="غرفة ١")
+        clinic["db"].session.add(room)
+        clinic["db"].session.flush()
+        clinic["db"].session.add_all([
+            Operation(patient_id=clinic["ids"]["kid"], theatre_id=room.id,
+                      procedure="استئصال زائدة", on_date=local_today(),
+                      admission_id=stay.id, status="done"),
+            # No stay behind this one — the child came in and went home.
+            Operation(patient_id=clinic["ids"]["kid"], theatre_id=room.id,
+                      procedure="ختان", on_date=local_today(), status="done"),
+        ])
+        clinic["db"].session.commit()
+
+        html = _report(clinic)
+        assert t("report.operations") in html
+        assert "استئصال زائدة" in html
+        assert "ختان" in html
+
+
+def test_the_surgical_history_on_the_report_is_not_truncated(clinic):
+    """Ten recent visits is a labelled sample of an outpatient history. Ten of
+    fourteen operations is a surgical history that reads complete and is
+    not."""
+    from app.models.theatre import Operation, Theatre
+    from app.utils.clock import local_today
+
+    with clinic["app"].app_context():
+        room = Theatre(name="غرفة ١")
+        clinic["db"].session.add(room)
+        clinic["db"].session.flush()
+        for n in range(14):
+            clinic["db"].session.add(
+                Operation(patient_id=clinic["ids"]["kid"], theatre_id=room.id,
+                          procedure="إجراء رقم %s" % n,
+                          on_date=local_today() - timedelta(days=n),
+                          status="done"))
+        clinic["db"].session.commit()
+
+        html = _report(clinic)
+        for n in range(14):
+            assert "إجراء رقم %s" % n in html
+
+
+def test_a_clinic_with_no_ward_prints_no_stays_heading(clinic):
+    """A module off is a module absent, not an empty heading on the paper."""
+    from app.i18n import translate as t
+
+    with clinic["app"].app_context():
+        from app.models import Setting
+
+        _a_stay(clinic)
+        Setting.set("mod_enabled:beds", "0")
+        clinic["db"].session.commit()
+        html = _report(clinic)
+        assert t("report.stays") not in html
+
+
+def test_a_child_never_admitted_prints_no_stays_heading(clinic):
+    """The heading appears because there is something under it."""
+    from app.i18n import translate as t
+
+    with clinic["app"].app_context():
+        html = clinic["sign_in"]().get(
+            "/patients/%s/report" % clinic["ids"]["never"]).get_data(as_text=True)
+        assert t("report.stays") not in html
+        assert t("report.operations") not in html
