@@ -1136,6 +1136,21 @@
         {% if stay.discharge_note %}
         <p style="margin:8px 0 0;">{{ stay.discharge_note }}</p>
         {% endif %}
+
+        {# The document the stay is supposed to end with (GAHAR ACT.15). On
+           the file rather than only on the ward screen, because this is where
+           somebody reading the record afterwards would notice it missing —
+           and a summary nobody wrote is exactly what evidence 2 is about.
+           Only for a stay that has ended: a child still in a bed has not been
+           discharged, and asking for their discharge summary would be a
+           finding that can never be cleared. #}
+        {% if not stay.is_open %}
+        <p class="hint" style="margin:8px 0 0;" data-summary-state="{{ summary_state(stay) }}">
+          <i class="bi bi-file-earmark-medical"></i>
+          {% if summary_state(stay) == 'none' %}{{ t('summary.not_written') }}
+          {% elif summary_state(stay) == 'short' %}{{ t('summary.short', n=summary_missing(stay)|length) }}
+          {% else %}{{ t('summary.title') }} · {{ t('summary.complete') }}{% endif %}</p>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

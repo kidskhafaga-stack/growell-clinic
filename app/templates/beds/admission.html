@@ -579,6 +579,128 @@
   {% endif %}
 </div>
 
+{# ---- the document the stay ends with ----------------------------------- #}
+{# GAHAR ACT.15: a discharge summary is «a clinical report prepared… at the
+   conclusion of a hospital stay», and the standard calls it **a legal
+   document** with nine named elements.
+
+   **Six boxes, not nine.** The other three are already in the record — the
+   reason for the stay, the operations done on it, the drugs ordered during
+   it, and the name of whoever discharged the child — so the program reads
+   them rather than asking a doctor to type them a second time. «المهم الطبيب
+   ميكتبش كتير», and a second copy of a fact is a second answer that drifts.
+
+   **And nothing here refuses a discharge.** Refusing to record that a child
+   went home because the paperwork is not finished would leave them in a bed
+   for ever in the program's telling — the same argument `theatres.finish`
+   settled. The gap is shown, and goes on being shown. #}
+<div class="card gc-scale-in" style="margin-bottom:14px;" data-summary>
+  <h2 class="section-title" style="margin-top:0;">
+    <i class="bi bi-file-earmark-medical"></i> {{ t('summary.title') }}
+    {% if summary_state == 'none' %}
+    <span class="alert-pill danger" data-summary-state="none">
+      <i class="bi bi-exclamation-triangle"></i> {{ t('summary.not_written') }}</span>
+    {% elif summary_state == 'short' %}
+    {# «short», not «draft»: the checklist in theatres already names a signed
+       stop with items unticked this way, and a word that sounded finished is
+       exactly how a blank element gets past somebody. #}
+    <span class="alert-pill warn" data-summary-state="short">
+      {{ t('summary.short', n=summary_missing|length) }}</span>
+    {% else %}
+    <span class="alert-pill" data-summary-state="complete">
+      <i class="bi bi-check2"></i> {{ t('summary.complete') }}</span>
+    {% endif %}
+  </h2>
+
+  {# The nine, in the standard's own lettering, each saying where its answer
+     comes from. A doctor can see at a glance that (e) is answered by the
+     theatre record and needs nothing from them. #}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+    {% for element in summary_elements %}
+    <span class="badge {{ 'badge--muted' if element.filled else 'badge--warn' }}"
+          data-element="{{ element.letter }}"
+          data-filled="{{ 'yes' if element.filled else 'no' }}">
+      {{ element.letter }}) {{ t('summary.el_' ~ element.key) }}
+      {%- if not element.written %} <i class="bi bi-link-45deg"
+            title="{{ t('summary.from_the_record') }}"></i>{% endif %}</span>
+    {% endfor %}
+  </div>
+
+  <form method="post"
+        action="{{ url_for('beds.write_summary', admission_id=admission.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <label for="sm_diagnosis">{{ t('summary.el_diagnosis') }}</label>
+      {# The provisional ones offered beside the box, never into it: the final
+         diagnosis is the stay's own conclusion, and a stay that changed the
+         answer has to be able to say so. #}
+      {% if provisional %}
+      <span class="hint">{{ t('summary.provisional_was') }}:
+        {% for d in provisional %}{{ d.title }}{% if not loop.last %}، {% endif %}{% endfor %}</span>
+      {% endif %}
+      <textarea class="input" id="sm_diagnosis" name="diagnosis" rows="2">{{ discharge_summary.diagnosis if discharge_summary else '' }}</textarea>
+    </div>
+    <div class="form-row">
+      <label for="sm_findings">{{ t('summary.el_findings') }}</label>
+      <textarea class="input" id="sm_findings" name="findings" rows="2">{{ discharge_summary.findings if discharge_summary else '' }}</textarea>
+    </div>
+    <div class="form-row">
+      {# The child's condition, which is **not** the outcome. «home» is the
+         disposition; a summary that said only that would answer half of
+         element (g) and look like it had answered all of it. #}
+      <label for="sm_condition">{{ t('summary.el_condition') }}</label>
+      <textarea class="input" id="sm_condition" name="condition" rows="2">{{ discharge_summary.condition if discharge_summary else '' }}</textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {# Three boxes because the standard names three. One box lets a doctor
+         write about the medicines only while the program records element (h)
+         as done — the false green tick this codebase keeps removing. #}
+      <div class="form-row" style="flex:1;min-width:200px;">
+        <label for="sm_diet">{{ t('summary.el_diet') }}</label>
+        <textarea class="input" id="sm_diet" name="diet" rows="2">{{ discharge_summary.diet if discharge_summary else '' }}</textarea>
+      </div>
+      <div class="form-row" style="flex:1;min-width:200px;">
+        <label for="sm_medicines">{{ t('summary.el_medicines') }}</label>
+        <textarea class="input" id="sm_medicines" name="medicines" rows="2">{{ discharge_summary.medicines if discharge_summary else '' }}</textarea>
+      </div>
+      <div class="form-row" style="flex:1;min-width:200px;">
+        <label for="sm_followup">{{ t('summary.el_followup') }}</label>
+        <textarea class="input" id="sm_followup" name="followup" rows="2">{{ discharge_summary.followup if discharge_summary else '' }}</textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary gc-press" type="submit">
+      <i class="bi bi-save"></i> {{ t('common.save') }}</button>
+  </form>
+
+  {% if discharge_summary %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+    <a class="btn btn-outline gc-press" target="_blank"
+       href="{{ url_for('beds.summary_print', admission_id=admission.id) }}">
+      <i class="bi bi-printer"></i> {{ t('summary.print') }}</a>
+    {# Evidence 4 — and its own stamp, because nobody handed the family a copy
+       is not the same fact as nobody wrote one. #}
+    {% if discharge_summary.given %}
+    <span class="hint" data-summary-given>
+      <i class="bi bi-check2"></i> {{ t('summary.given_on') }}
+      <span dir="ltr">{{ discharge_summary.given_at|clinic_stamp }}</span>
+      {% if discharge_summary.giver %}· {{ discharge_summary.giver.display_name(current_lang) }}{% endif %}</span>
+    {% else %}
+    <form method="post"
+          action="{{ url_for('beds.summary_given', admission_id=admission.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline gc-press" type="submit">
+        <i class="bi bi-hand-index"></i> {{ t('summary.mark_given') }}</button>
+    </form>
+    {% endif %}
+    {# Measured, never graded: the standard asks for «an approved timeframe»
+       and names no number, so the program names none either. #}
+    {% if summary_delay is not none %}
+    <span class="hint" data-summary-delay>{{ t('summary.written_after', n=summary_delay) }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
 {# ---- ending it --------------------------------------------------------- #}
 {% if admission.is_open %}
 <div class="card gc-scale-in">

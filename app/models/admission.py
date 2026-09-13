@@ -72,6 +72,11 @@ class Admission(db.Model):
     patient = db.relationship("Patient", backref="admissions")
     visit = db.relationship("Visit", backref="admissions")
     doctor = db.relationship("User", foreign_keys=[doctor_id])
+    #: Who sent the child home. ACT.15 element (i) asks for the name of the
+    #: medical staff member who discharged the patient by name, and the id was
+    #: already stamped — this is the relationship that lets a printed summary
+    #: say it without the route looking the user up by hand.
+    discharger = db.relationship("User", foreign_keys=[discharged_by])
     stays = db.relationship("BedStay", back_populates="admission",
                             order_by="BedStay.since, BedStay.id")
 

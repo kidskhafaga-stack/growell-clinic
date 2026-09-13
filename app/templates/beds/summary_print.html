@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t('summary.title') }} — {{ admission.patient.display_name(current_lang) }}</title>
+<style>
+  :root { --ink:#1a2330; --muted:#5b6673; --line:#d9dee5; --brand:#198754; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f4; color:var(--ink);
+         font-family:"Segoe UI", Tahoma, "Noto Sans Arabic", system-ui, sans-serif;
+         line-height:1.55; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:10px; justify-content:center;
+             padding:12px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px;
+         padding:9px 16px; font-size:.92rem; font-weight:600; cursor:pointer; text-decoration:none;
+         display:inline-flex; align-items:center; gap:7px; }
+  .btn-primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .hint-edit { text-align:center; color:var(--muted); font-size:.8rem; padding:6px; }
+  .sheet { background:#fff; max-width:820px; margin:16px auto; padding:34px 40px;
+           box-shadow:0 2px 14px rgba(0,0,0,.08); }
+  .rhead { display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+           border-bottom:2px solid var(--brand); padding-bottom:14px; }
+  .rhead .clinic { font-size:1.35rem; font-weight:800; color:var(--brand); }
+  .rhead .sub { color:var(--muted); font-size:.85rem; margin-top:2px; }
+  .rhead .logo { max-height:64px; max-width:150px; }
+  h1.rtitle { text-align:center; font-size:1.2rem; letter-spacing:.5px; margin:18px 0 6px; }
+  .meta-line { text-align:center; color:var(--muted); font-size:.85rem; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; margin:12px 0; }
+  .grid .k { color:var(--muted); font-size:.8rem; }
+  .grid .v { font-weight:600; }
+  section { margin-top:20px; }
+  h2.sec { font-size:1rem; color:var(--brand); border-bottom:1px solid var(--line);
+           padding-bottom:5px; margin:0 0 8px; }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th, td { text-align:start; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:.78rem; text-transform:uppercase; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:20px; font-size:.75rem; font-weight:600;
+          background:#eef7f1; color:var(--brand); }
+  .pill.warn { background:#fef3e2; color:#b45309; }
+  .pill.danger { background:#fdecec; color:#c0392b; }
+  .editable { border:1px dashed #c7ccd3; border-radius:8px; padding:10px 12px; min-height:60px;
+              background:#fcfdff; outline:none; }
+  .editable:focus { border-color:var(--brand); background:#fff; }
+  .muted { color:var(--muted); }
+  .sign { margin-top:40px; display:flex; justify-content:space-between; gap:20px; }
+  .sign .box { flex:1; }
+  .sign .line { margin-top:38px; border-top:1px solid var(--ink); padding-top:4px; font-size:.82rem; }
+  @media print {
+    body { background:#fff; }
+    .toolbar, .hint-edit { display:none !important; }
+    .sheet { box-shadow:none; margin:0; max-width:none; padding:0; }
+    .editable { border:none; background:none; padding:0; }
+    @page { margin:16mm; }
+  }
+</style>
+</head>
+<body>
+  {# GAHAR ACT.15, evidence 3 — *"A copy of the discharge summary is kept in
+     the patient's medical record"* — and evidence 4 — *"A copy … is given to
+     the patient"*. This is that copy.
+
+     **The derived elements are read at the moment of printing**, not frozen
+     when the summary was written: a summary printed after somebody linked the
+     operation that was missing carries it, and nobody has to rewrite the
+     document to correct the record. What a person wrote stays exactly as they
+     wrote it. #}
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('beds.admission', admission_id=admission.id) }}">← {{ t('common.back') }}</a>
+    <button class="btn btn-primary" onclick="window.print()">🖨 {{ t('report.print') }}</button>
+  </div>
+
+  <div class="sheet">
+    <div class="rhead">
+      <div>
+        <div class="clinic">{{ clinic.name_ar if current_lang == 'ar' and clinic.name_ar else clinic.name }}</div>
+        {% if clinic.tagline %}<div class="sub">{{ clinic.tagline }}</div>{% endif %}
+        <div class="sub">
+          {% if clinic.phone %}<span dir="ltr">{{ clinic.phone }}</span>{% endif %}
+          {% if clinic.address %} · {{ clinic.address }}{% endif %}
+        </div>
+      </div>
+      {% if clinic.show_logo_print and clinic.logo_url %}<img class="logo" src="{{ clinic.logo_url }}" alt="">{% endif %}
+    </div>
+
+    <h1 class="rtitle">{{ t('summary.title') }}</h1>
+    <div class="meta-line">{{ t('report.generated_on') }}: {{ today }}{% if generated_by %} · {{ t('report.by') }} {{ generated_by.display_name(current_lang) }}{% endif %}</div>
+
+    <div class="grid">
+      <div><span class="k">{{ t('patients.full_name') }}:</span> <span class="v">{{ admission.patient.display_name(current_lang) }}</span></div>
+      <div><span class="k">{{ t('patients.file_number') }}:</span> <span class="v" dir="ltr">{{ admission.patient.patient_number }}</span></div>
+      <div><span class="k">{{ t('beds.admitted') }}:</span> <span class="v" dir="ltr">{{ admission.admitted_at|clinic_stamp }}</span></div>
+      <div><span class="k">{{ t('beds.discharge') }}:</span> <span class="v" dir="ltr">
+        {{ admission.discharged_at|clinic_stamp if admission.discharged_at else t('beds.still_in') }}</span></div>
+    </div>
+
+    {# (a) — off the stay itself. #}
+    <section>
+      <h2 class="sec">a) {{ t('summary.el_reason') }}</h2>
+      <div>{{ admission.reason or t('report.none') }}</div>
+    </section>
+
+    {# (b) — written. The final diagnosis, which is the stay's conclusion. #}
+    <section>
+      <h2 class="sec">b) {{ t('summary.el_diagnosis') }}</h2>
+      <div>{{ summary.diagnosis if summary and summary.diagnosis else t('summary.not_recorded') }}</div>
+    </section>
+
+    {# (c) — every investigation over the span of the stay, with its result
+       where one came back. A test listed with no result is a test still
+       outstanding, and that is worth printing rather than hiding. #}
+    <section>
+      <h2 class="sec">c) {{ t('summary.el_investigations') }}</h2>
+      {% if investigations %}
+      <table>
+        <thead><tr><th>{{ t('report.date') }}</th><th>{{ t('visits.investigations') }}</th><th>{{ t('lab.result') }}</th></tr></thead>
+        <tbody>
+          {% for row in investigations %}
+          <tr>
+            <td style="white-space:nowrap;" dir="ltr">{{ row.created_at.date() }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.result_text or row.result_value or t('summary.awaiting') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="muted">{{ t('report.none') }}</div>{% endif %}
+    </section>
+
+    <section>
+      <h2 class="sec">d) {{ t('summary.el_findings') }}</h2>
+      <div>{{ summary.findings if summary and summary.findings else t('summary.not_recorded') }}</div>
+    </section>
+
+    {# (e) — the operations linked to this stay. #}
+    <section>
+      <h2 class="sec">e) {{ t('summary.el_procedures') }}</h2>
+      {% if procedures %}
+      <table>
+        <thead><tr><th>{{ t('report.date') }}</th><th>{{ t('theatre.procedure') }}</th><th>{{ t('theatre.surgeon') }}</th></tr></thead>
+        <tbody>
+          {% for op in procedures %}
+          <tr>
+            <td style="white-space:nowrap;" dir="ltr">{{ op.on_date }}</td>
+            <td>{{ op.procedure }}</td>
+            <td>{{ op.surgeon.display_name(current_lang) if op.surgeon else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="muted">{{ t('report.none') }}</div>{% endif %}
+    </section>
+
+    {# (f) — «medications (before/during)», which the standard writes as two
+       things and so does this: what the child came in already taking, and
+       what was ordered while they were in. One list would have lost the
+       distinction that makes the element useful. #}
+    <section>
+      <h2 class="sec">f) {{ t('summary.el_medications') }}</h2>
+      <div><span class="k muted">{{ t('summary.meds_before') }}:</span>
+        {% if meds_before %}
+        {% for m in meds_before %}{{ m.name }}{% if m.dose %} {{ m.dose }}{% endif %}{% if not loop.last %}، {% endif %}{% endfor %}
+        {% else %}<span class="muted">{{ t('report.none') }}</span>{% endif %}</div>
+      <div style="margin-top:6px;"><span class="k muted">{{ t('summary.meds_during') }}:</span>
+        {% if meds_during %}
+        {% for m in meds_during %}{{ m.drug_name }}{% if m.dose %} {{ m.dose }}{% endif %}{% if not loop.last %}، {% endif %}{% endfor %}
+        {% else %}<span class="muted">{{ t('report.none') }}</span>{% endif %}</div>
+    </section>
+
+    {# (g) — two halves. The condition is written; the disposition is the
+       stay's own `outcome`, and printing only the second would answer half
+       the element and look complete. #}
+    <section>
+      <h2 class="sec">g) {{ t('summary.el_condition') }}</h2>
+      <div>{{ summary.condition if summary and summary.condition else t('summary.not_recorded') }}</div>
+      <div style="margin-top:6px;"><span class="k muted">{{ t('report.outcome') }}:</span>
+        {% if admission.outcome %}{{ t('beds.outcome_' ~ admission.outcome) }}
+        {% else %}<span class="muted">{{ t('summary.not_recorded') }}</span>{% endif %}</div>
+    </section>
+
+    {# (h) — three, because the standard names three. #}
+    <section>
+      <h2 class="sec">h) {{ t('summary.el_instructions') }}</h2>
+      <div><span class="k muted">{{ t('summary.el_diet') }}:</span>
+        {{ summary.diet if summary and summary.diet else t('summary.not_recorded') }}</div>
+      <div style="margin-top:6px;"><span class="k muted">{{ t('summary.el_medicines') }}:</span>
+        {{ summary.medicines if summary and summary.medicines else t('summary.not_recorded') }}</div>
+      <div style="margin-top:6px;"><span class="k muted">{{ t('summary.el_followup') }}:</span>
+        {{ summary.followup if summary and summary.followup else t('summary.not_recorded') }}</div>
+    </section>
+
+    {# (i) — stamped at the discharge, not typed here. #}
+    <section>
+      <h2 class="sec">i) {{ t('summary.el_discharged_by') }}</h2>
+      <div>{% if admission.discharger %}{{ admission.discharger.display_name(current_lang) }}
+        {% else %}<span class="muted">{{ t('summary.not_recorded') }}</span>{% endif %}</div>
+    </section>
+
+    <div class="sign">
+      <div class="box"><div class="line">{{ t('report.doctor_sign') }}</div></div>
+      {# Evidence 4 is a line on the paper as well as a stamp in the program:
+         whoever receives it signs for it. #}
+      <div class="box"><div class="line">{{ t('summary.family_sign') }}</div></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -627,11 +627,15 @@ def _ward_context(patient_id):
     from app.utils.facility import module_enabled
 
     if not module_enabled("beds"):
+        from app.utils import discharge_summary as _summary
+
         return {"open_admission": None, "stays": [], "free_beds": [],
-                "has_beds": False}
+                "has_beds": False, "summary_state": _summary.state,
+                "summary_missing": _summary.missing}
     from app.models import Bed
 
     from app.utils import beds as ward
+    from app.utils import discharge_summary as _summary
 
     admission = ward.open_admission(patient_id)
     return {"open_admission": admission,
@@ -644,6 +648,12 @@ def _ward_context(patient_id):
             # when needed by a healthcare professional*, which a stay nobody
             # can reach is not.
             "stays": ward.stays_for(patient_id),
+            # Whether each finished stay ended with the document ACT.15 asks
+            # for. Passed as the functions rather than a precomputed map: the
+            # card loops the stays and asking per row keeps the template
+            # honest about what it is reading.
+            "summary_state": _summary.state,
+            "summary_missing": _summary.missing,
             "free_beds": [] if admission else ward.free_beds(),
             "has_beds": Bed.query.filter_by(is_active=True).first() is not None}
 
