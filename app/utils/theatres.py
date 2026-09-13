@@ -388,6 +388,64 @@ def identity_matched_keys(operation):
     return [k for k in (p.strip() for p in raw.split(",")) if k]
 
 
+def privilege_state(operation):
+    """Where this booking stands against the surgeon's privileges.
+
+    ``unknown`` · ``ok`` · ``supervised`` · ``outside`` · ``acknowledged``.
+
+    Derived, and **judged against the day of the operation** — a case booked
+    in March under a privilege that stood in March goes on reading as correct
+    after it lapses, and one granted in April does not retroactively make
+    March's booking fine. Same rule as the consent, for the same reason.
+
+    ``unknown`` is the honest answer for a case booked as free text with no
+    service behind it: there is nothing to check it against, and calling that
+    ``ok`` would report a verification the program never did.
+
+    ``acknowledged`` outranks ``outside`` because it *is* the answer once
+    somebody has taken the decision and put their name to it — but it never
+    reads as ``ok``: the gap stays visible, which is the whole point of
+    recording it rather than clearing it.
+    """
+    if operation is None:
+        return "unknown"
+    from app.utils import privileges
+
+    answer = privileges.state(operation.surgeon_id, operation.service,
+                              operation.on_date)
+    if answer == "outside" and operation.privilege_ack_at:
+        return "acknowledged"
+    return answer
+
+
+def privilege_ok(operation):
+    """Is there nothing outstanding here?
+
+    ``acknowledged`` counts: somebody senior looked at the gap and put their
+    name to it, which is what the standard asks for. ``outside`` does not, and
+    neither does ``unknown`` — an unanswerable question is not a passed one.
+    """
+    return privilege_state(operation) in ("ok", "supervised", "acknowledged")
+
+
+def acknowledge_privilege(operation, reason, user=None, at=None):
+    """Record who accepted a booking outside the privileges, and why.
+
+    Refused without a reason. "Somebody clicked accept" is the tick this whole
+    module keeps replacing; the sentence they typed is the only part of this a
+    review afterwards can use.
+    """
+    if operation is None:
+        return None
+    text = (reason or "").strip()[:200]
+    if not text:
+        return None
+    operation.privilege_ack_reason = text
+    operation.privilege_ack_by = getattr(user, "id", None)
+    operation.privilege_ack_at = at or datetime.utcnow()
+    return operation
+
+
 def implants_for(operation):
     """The implants recorded against this case, in list order."""
     if operation is None or getattr(operation, "id", None) is None:

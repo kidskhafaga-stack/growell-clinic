@@ -236,6 +236,24 @@ class Operation(db.Model):
     site_marked_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     site_marked_at = db.Column(db.DateTime)
 
+    # --------------------------------- booking it to somebody allowed to do it --
+    #
+    # SAS.02 (أ): *"Surgeries and invasive procedures are booked according to
+    # granted clinical privileges."* The check itself is derived — read off
+    # :mod:`app.utils.privileges` against **this case's date** — because a
+    # stored answer would go stale the moment a privilege is granted or
+    # withdrawn, and because a case booked in March must go on reading as it
+    # read in March.
+    #
+    # What cannot be derived is the **exception**: somebody booked outside the
+    # privileges anyway, and why. At three in the morning that is a real and
+    # sometimes correct decision, and the standard's "ongoing process to
+    # ensure that booked procedures match" is the check *plus* the recorded
+    # exception — a process, not a wall.
+    privilege_ack_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    privilege_ack_at = db.Column(db.DateTime)
+    privilege_ack_reason = db.Column(db.String(200))
+
     # ------------------------------------------- what is left inside a child --
     #
     # SAS.06 (ز) asks one half: *"Implantable devices and special
@@ -416,6 +434,7 @@ class Operation(db.Model):
                                       foreign_keys=[infection_noted_by])
     equipment_checker = db.relationship("User",
                                         foreign_keys=[equipment_checked_by])
+    privilege_acker = db.relationship("User", foreign_keys=[privilege_ack_by])
     consent = db.relationship("Consent")
 
     @property

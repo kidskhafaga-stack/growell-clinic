@@ -70,6 +70,8 @@ from app.models.parent import (
     Parent,
 )
 from app.models.history_import import ImportBatch, ImportedService
+from app.models.privilege import (MAX_REVIEW_YEARS, PRIVILEGE_KINDS,
+                                  ClinicalPrivilege)
 from app.models.patient import (
     BLOOD_TYPES,
     CONSENT_TYPES,
@@ -264,6 +266,9 @@ __all__ = [
     "ReminderAction",
     "Parent",
     "Patient",
+    "ClinicalPrivilege",
+    "PRIVILEGE_KINDS",
+    "MAX_REVIEW_YEARS",
     "PanelHistory",
     "Observation",
     "Unit",
