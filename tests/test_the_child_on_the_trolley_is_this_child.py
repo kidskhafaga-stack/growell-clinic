@@ -426,6 +426,45 @@ def test_a_case_reviewed_later_reads_as_it_read_on_the_day(theatre_day):
         assert _op(theatre_day).identity_checked_at == long_ago
 
 
+def test_the_derived_items_are_named_in_one_place(theatre_day):
+    """**Written because this has now cost three afternoons.** Each time an
+    item stopped being an ordinary box, tests elsewhere that used it as a
+    *generic tickable item* broke — and the only way to know which items are
+    safe to use that way was to run the suite and read the red.
+
+    So the set is stated here. When a fifth item becomes derived this fails,
+    which is exactly the moment somebody should go and look at every test
+    posting checklist items by hand.
+    """
+    from app.models.theatre import CHECK_ITEMS, SIGN_IN
+    from app.utils import theatres as theatre
+
+    derived = set(theatre.derived_items())
+    assert derived == {"identity", "site_marked", "consent",
+                       "anaesthesia_check"}
+    # And what is left for anybody needing a box that really is a box.
+    assert set(CHECK_ITEMS[SIGN_IN]) - derived == {
+        "allergy", "airway", "pulse_oximeter"}
+
+
+def test_every_derived_item_is_dropped_from_a_form_that_posts_it(theatre_day):
+    """The property the mapping exists to guarantee, asserted over all four
+    rather than one at a time — a loop that answered only the first would pass
+    every single-item test."""
+    from app.utils import theatres as theatre
+
+    with theatre_day["app"].app_context():
+        derived = list(theatre.derived_items())
+        row = theatre.sign(_op(theatre_day), "sign_in",
+                           items=derived + ["allergy"],
+                           user=_user(theatre_day))
+        theatre_day["db"].session.commit()
+        assert row.has("allergy")
+        for item in derived:
+            assert not row.has(item), f"{item} was taken from the form"
+            assert item in row.missed
+
+
 def test_the_column_is_registered_for_a_clinic_already_running(theatre_day):
     """A clinic upgrading into this gets the columns added, and every case
     booked before it reads as "nobody recorded it" — which is true."""

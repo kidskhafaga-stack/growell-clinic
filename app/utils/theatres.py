@@ -569,6 +569,36 @@ def blocking(operation):
     return [r for r in reviews(operation).values() if r.verdict == "unfit"]
 
 
+def derived_items():
+    """The checklist items answered from the record, each with the question it
+    asks. Written as one mapping because it was four near-identical blocks,
+    and because **being derived is a fact other code needs to ask about**.
+
+    It has already cost three separate afternoons: every time one of these
+    stopped being an ordinary box, tests elsewhere that were using it as a
+    *generic tickable item* — to check that signing stores what was ticked, or
+    that re-signing updates one row — failed and had to be moved onto a box
+    that really is ordinary. There is no way to make that not happen; what
+    this does is put the list in one place so the next person can read it
+    instead of discovering it from a red suite.
+
+    The ordinary items on the sign-in, for anybody needing one: ``allergy``,
+    ``airway``, ``pulse_oximeter``.
+    """
+    return {
+        # *«بند الموافقة في الـ checklist بيتعلّم بالإيد حتى لو مفيش إقرار
+        # متسجّل»* — the one this pattern started with.
+        CONSENT_ITEM: consent_ok,
+        # The assessment the standard asks for immediately before induction
+        # (SAS.16 EOC 5). A tick is not an assessment.
+        ANAESTHESIA_ITEM: pre_induction_ok,
+        # Which side (SAS.06 د) — the never-event.
+        SITE_ITEM: site_ok,
+        # Which child, and the procedure (SAS.06 أ) — its other half.
+        IDENTITY_ITEM: identity_ok,
+    }
+
+
 def sign(operation, stop, items=None, user=None, note=None, at=None):
     """Record one stop of the checklist.
 
@@ -585,51 +615,19 @@ def sign(operation, stop, items=None, user=None, note=None, at=None):
     known = set(CHECK_ITEMS.get(stop, ()))
     confirmed = [i for i in (items or []) if i in known]
 
-    # **The consent item is read, never taken.** Reported as the thing that
-    # was wrong: *«بند الموافقة في الـ checklist بيتعلّم بالإيد حتى لو مفيش
-    # إقرار متسجّل»* — a tick that could say a family had consented when no
-    # document said so.
+    # **These four are read, never taken.** Each one replaced a box somebody
+    # could tick on the way past, and the derivation runs in both directions:
+    # ticked when the record says so even if nobody thought to tick it, and
+    # dropped when it does not, however firmly somebody did.
     #
-    # So it is answered from the record in both directions: ticked when a
-    # signed, standing consent is linked to this case even if nobody thought
-    # to tick it, and dropped when none is, however firmly somebody ticked.
-    # The stop can still be signed — a hospital may proceed, and this program
-    # records rather than refuses — but the gap then shows in ``missed``,
-    # where it is a finding instead of a green tick.
-    if CONSENT_ITEM in known:
-        confirmed = [i for i in confirmed if i != CONSENT_ITEM]
-        if consent_ok(operation):
-            confirmed.append(CONSENT_ITEM)
-
-    # **And the anaesthetic check, for the same reason.** The standard asks
-    # for an assessment immediately before induction (SAS.16 EOC 5); the
-    # program had a box somebody ticked on the way past. Read from the
-    # recorded assessment in both directions, exactly as the consent is — and
-    # it refuses nothing either: a stop signed without it is signed, and the
-    # gap shows in ``missed``.
-    if ANAESTHESIA_ITEM in known:
-        confirmed = [i for i in confirmed if i != ANAESTHESIA_ITEM]
-        if pre_induction_ok(operation):
-            confirmed.append(ANAESTHESIA_ITEM)
-
-    # **And the site.** The third box on this stop that a record answers
-    # better than a person ticking on the way past — and the one where being
-    # wrong is a never-event.
-    if SITE_ITEM in known:
-        confirmed = [i for i in confirmed if i != SITE_ITEM]
-        if site_ok(operation):
-            confirmed.append(SITE_ITEM)
-
-    # **And who this child is.** The fourth box on this stop that a record
-    # answers better than a person ticking on the way past, and the other half
-    # of the never-event the site covers: right patient, right procedure. Both
-    # recorded answers count — including the one that says nobody from the
-    # family could be there — because the program records what happened and
-    # refusing would only produce a named guardian who was not in the room.
-    if IDENTITY_ITEM in known:
-        confirmed = [i for i in confirmed if i != IDENTITY_ITEM]
-        if identity_ok(operation):
-            confirmed.append(IDENTITY_ITEM)
+    # It refuses nothing. A hospital may proceed and this program records
+    # rather than blocks — the gap then shows in ``missed``, as a finding
+    # instead of a green tick.
+    for item, answered in derived_items().items():
+        if item in known:
+            confirmed = [i for i in confirmed if i != item]
+            if answered(operation):
+                confirmed.append(item)
 
     row = operation.check_for(stop)
     if row is None:

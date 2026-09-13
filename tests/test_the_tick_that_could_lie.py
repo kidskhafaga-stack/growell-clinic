@@ -180,13 +180,18 @@ def test_the_tick_cannot_say_yes_when_nothing_does(suite):
 
     with suite["app"].app_context():
         row = theatres.sign(_case(suite), SIGN_IN,
-                            items=["identity", "consent", "allergy"],
+                            items=["airway", "consent", "allergy"],
                             user=None)
         suite["db"].session.commit()
         assert "consent" not in row.items
         assert "consent" in row.missed
-        # …and what was genuinely ticked is untouched.
-        assert "identity" in row.items and "allergy" in row.items
+        # …and what was genuinely ticked is untouched. **Both controls here
+        # have to be ordinary boxes**, and ``identity`` stopped being one: it
+        # is now read from the recorded identity check, exactly as ``consent``
+        # is read from the consent, so using it as the "genuinely ticked" item
+        # would assert that dropping one derived box leaves *another* derived
+        # box alone — which proves nothing about the ordinary ones.
+        assert "airway" in row.items and "allergy" in row.items
 
 
 def test_the_tick_says_yes_when_the_record_does_even_unticked(suite):
@@ -197,7 +202,7 @@ def test_the_tick_says_yes_when_the_record_does_even_unticked(suite):
 
     _link(suite, _consent(suite))
     with suite["app"].app_context():
-        row = theatres.sign(_case(suite), SIGN_IN, items=["identity"],
+        row = theatres.sign(_case(suite), SIGN_IN, items=["airway"],
                             user=None)
         suite["db"].session.commit()
         assert "consent" in row.items
@@ -224,7 +229,7 @@ def test_the_stop_is_still_signable_and_the_case_still_starts(suite):
 
     with suite["app"].app_context():
         case = _case(suite)
-        theatres.sign(case, SIGN_IN, items=["identity", "consent"], user=None)
+        theatres.sign(case, SIGN_IN, items=["airway", "consent"], user=None)
         suite["db"].session.commit()
         theatres.start(case, user=None)
         suite["db"].session.commit()
